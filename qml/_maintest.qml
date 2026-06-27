@@ -673,4 +673,8 @@ Window {
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }
+    Timer { interval: 2800; running: true; onTriggered: { boot.visible=false; win.openWorld("Theatre"); win.openSearch() } }
+    Timer { interval: 4300; running: true; onTriggered: { if (worldSearchLayer.item) worldSearchLayer.item.fillAndSearch("dune") } }
+    Timer { interval: 9500; running: true; onTriggered: { win.contentItem.grabToImage(function(r){ r.saveToFile("C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/_mt.png") }) } }
+    Timer { interval: 10400; running: true; onTriggered: Qt.quit() }
 }

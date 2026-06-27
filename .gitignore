@@ -5,6 +5,7 @@ native/build/
 
 # Dev scratch: smoke screenshots, diagnostic logs, click scripts
 tools/
+*-proto.png
 
 # Cover art — fetched from remote URLs (Catalog.js) + cached to disk; not source
 assets/covers/

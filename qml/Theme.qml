@@ -21,7 +21,7 @@ QtObject {
 
     // type
     readonly property string ui: "Segoe UI"
-    readonly property string display: "Georgia"   // editorial serif (Fraunces is the target; bundle later)
+    readonly property string display: "Fraunces"   // editorial serif — bundled at assets/fonts, loaded in Main.qml
 
     // layout
     readonly property int margin: 54

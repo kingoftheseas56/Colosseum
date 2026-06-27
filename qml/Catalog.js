@@ -91,57 +91,94 @@ var genresComics = [
 // Theatre starts from Harbor/TB3's Cinemeta-shaped home: hero backdrops, Continue Watching,
 // a rank row, and genre entry points. Live addon rows come after the surface shape is proven.
 var theatreFeatured = [
-    { title: "Dune: Part Two", art: "https://images.metahub.space/background/large/tt15239678/img", blurb: "Paul Atreides unites with Chani and the Fremen while war spreads across Arrakis.", ghost: "T", c1: "#5d4633", c2: "#18110c" },
-    { title: "Shogun", art: "https://images.metahub.space/background/large/tt2788316/img", blurb: "A shipwrecked pilot, a lord's dangerous gambit, and a country on the edge of war.", ghost: "S", c1: "#4c2f2a", c2: "#160d0b" },
-    { title: "The Bear", art: "https://images.metahub.space/background/large/tt14452776/img", blurb: "A kitchen turns into family, pressure, grief, and service at full speed.", ghost: "S", c1: "#33445d", c2: "#0c1118" },
-    { title: "Fallout", art: "https://images.metahub.space/background/large/tt12637874/img", blurb: "Vaults, wasteland, and old-world power plays collide above ground.", ghost: "S", c1: "#3f5640", c2: "#111b12" }
+    { title: "Dune: Part Two", art: "https://live.metahub.space/background/large/tt15239678/img", blurb: "Paul Atreides unites with Chani and the Fremen while war spreads across Arrakis.", ghost: "T", c1: "#5d4633", c2: "#18110c" },
+    { title: "Shogun", art: "https://live.metahub.space/background/large/tt2788316/img", blurb: "A shipwrecked pilot, a lord's dangerous gambit, and a country on the edge of war.", ghost: "S", c1: "#4c2f2a", c2: "#160d0b" },
+    { title: "The Bear", art: "https://live.metahub.space/background/large/tt14452776/img", blurb: "A kitchen turns into family, pressure, grief, and service at full speed.", ghost: "S", c1: "#33445d", c2: "#0c1118" },
+    { title: "Fallout", art: "https://live.metahub.space/background/large/tt12637874/img", blurb: "Vaults, wasteland, and old-world power plays collide above ground.", ghost: "S", c1: "#3f5640", c2: "#111b12" }
 ];
 
 var theatreContinue = [
-    { caption: "Dune: Part Two", cover: "https://images.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c", progress: 0.62 },
-    { caption: "Shogun - E06", cover: "https://images.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b", progress: 0.48 },
-    { caption: "The Bear - S02E08", cover: "https://images.metahub.space/poster/medium/tt14452776/img", c1: "#33445d", c2: "#0c1118", progress: 0.74 },
-    { caption: "Fallout - E03", cover: "https://images.metahub.space/poster/medium/tt12637874/img", c1: "#3f5640", c2: "#111b12", progress: 0.29 },
-    { caption: "The Last of Us - E04", cover: "https://images.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f", progress: 0.56 }
+    { caption: "Dune: Part Two", cover: "https://live.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c", progress: 0.62 },
+    { caption: "Shogun - E06", cover: "https://live.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b", progress: 0.48 },
+    { caption: "The Bear - S02E08", cover: "https://live.metahub.space/poster/medium/tt14452776/img", c1: "#33445d", c2: "#0c1118", progress: 0.74 },
+    { caption: "Fallout - E03", cover: "https://live.metahub.space/poster/medium/tt12637874/img", c1: "#3f5640", c2: "#111b12", progress: 0.29 },
+    { caption: "The Last of Us - E04", cover: "https://live.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f", progress: 0.56 }
 ];
 
 var theatreTopMovies = [
-    { caption: "Dune: Part Two", cover: "https://images.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c" },
-    { caption: "Oppenheimer", cover: "https://images.metahub.space/poster/medium/tt15398776/img", c1: "#65452f", c2: "#1c120b" },
-    { caption: "The Batman", cover: "https://images.metahub.space/poster/medium/tt1877830/img", c1: "#394454", c2: "#0d1118" },
-    { caption: "Spider-Man: Across the Spider-Verse", cover: "https://images.metahub.space/poster/medium/tt9362722/img", c1: "#6b334f", c2: "#190c14" },
-    { caption: "Godzilla Minus One", cover: "https://images.metahub.space/poster/medium/tt23289160/img", c1: "#465463", c2: "#10151b" },
-    { caption: "Mad Max: Fury Road", cover: "https://images.metahub.space/poster/medium/tt1392190/img", c1: "#764a2c", c2: "#1d1108" },
-    { caption: "Interstellar", cover: "https://images.metahub.space/poster/medium/tt0816692/img", c1: "#33465d", c2: "#0c1118" },
-    { caption: "Everything Everywhere All at Once", cover: "https://images.metahub.space/poster/medium/tt6710474/img", c1: "#5b3a64", c2: "#170d1b" },
-    { caption: "John Wick: Chapter 4", cover: "https://images.metahub.space/poster/medium/tt10366206/img", c1: "#3c4a63", c2: "#0e121b" },
-    { caption: "The Lord of the Rings: The Return of the King", cover: "https://images.metahub.space/poster/medium/tt0167260/img", c1: "#55452d", c2: "#161209" }
+    { caption: "Dune: Part Two", cover: "https://live.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c" },
+    { caption: "Oppenheimer", cover: "https://live.metahub.space/poster/medium/tt15398776/img", c1: "#65452f", c2: "#1c120b" },
+    { caption: "The Batman", cover: "https://live.metahub.space/poster/medium/tt1877830/img", c1: "#394454", c2: "#0d1118" },
+    { caption: "Spider-Man: Across the Spider-Verse", cover: "https://live.metahub.space/poster/medium/tt9362722/img", c1: "#6b334f", c2: "#190c14" },
+    { caption: "Godzilla Minus One", cover: "https://live.metahub.space/poster/medium/tt23289160/img", c1: "#465463", c2: "#10151b" },
+    { caption: "Mad Max: Fury Road", cover: "https://live.metahub.space/poster/medium/tt1392190/img", c1: "#764a2c", c2: "#1d1108" },
+    { caption: "Interstellar", cover: "https://live.metahub.space/poster/medium/tt0816692/img", c1: "#33465d", c2: "#0c1118" },
+    { caption: "Everything Everywhere All at Once", cover: "https://live.metahub.space/poster/medium/tt6710474/img", c1: "#5b3a64", c2: "#170d1b" },
+    { caption: "John Wick: Chapter 4", cover: "https://live.metahub.space/poster/medium/tt10366206/img", c1: "#3c4a63", c2: "#0e121b" },
+    { caption: "The Lord of the Rings: The Return of the King", cover: "https://live.metahub.space/poster/medium/tt0167260/img", c1: "#55452d", c2: "#161209" }
 ];
 
 var theatreTopSeries = [
-    { caption: "Shogun", cover: "https://images.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b" },
-    { caption: "The Bear", cover: "https://images.metahub.space/poster/medium/tt14452776/img", c1: "#33445d", c2: "#0c1118" },
-    { caption: "Fallout", cover: "https://images.metahub.space/poster/medium/tt12637874/img", c1: "#3f5640", c2: "#111b12" },
-    { caption: "The Last of Us", cover: "https://images.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f" },
-    { caption: "Succession", cover: "https://images.metahub.space/poster/medium/tt7660850/img", c1: "#4c4c54", c2: "#141418" },
-    { caption: "Andor", cover: "https://images.metahub.space/poster/medium/tt9253284/img", c1: "#3e4d57", c2: "#0f1519" },
-    { caption: "Severance", cover: "https://images.metahub.space/poster/medium/tt11280740/img", c1: "#315263", c2: "#0c171d" },
-    { caption: "House of the Dragon", cover: "https://images.metahub.space/poster/medium/tt11198330/img", c1: "#60382f", c2: "#180d0b" },
-    { caption: "The Boys", cover: "https://images.metahub.space/poster/medium/tt1190634/img", c1: "#583236", c2: "#160c0d" },
-    { caption: "True Detective", cover: "https://images.metahub.space/poster/medium/tt2356777/img", c1: "#34414c", c2: "#0d1216" }
+    { caption: "Shogun", cover: "https://live.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b" },
+    { caption: "The Bear", cover: "https://live.metahub.space/poster/medium/tt14452776/img", c1: "#33445d", c2: "#0c1118" },
+    { caption: "Fallout", cover: "https://live.metahub.space/poster/medium/tt12637874/img", c1: "#3f5640", c2: "#111b12" },
+    { caption: "The Last of Us", cover: "https://live.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f" },
+    { caption: "Succession", cover: "https://live.metahub.space/poster/medium/tt7660850/img", c1: "#4c4c54", c2: "#141418" },
+    { caption: "Andor", cover: "https://live.metahub.space/poster/medium/tt9253284/img", c1: "#3e4d57", c2: "#0f1519" },
+    { caption: "Severance", cover: "https://live.metahub.space/poster/medium/tt11280740/img", c1: "#315263", c2: "#0c171d" },
+    { caption: "House of the Dragon", cover: "https://live.metahub.space/poster/medium/tt11198330/img", c1: "#60382f", c2: "#180d0b" },
+    { caption: "The Boys", cover: "https://live.metahub.space/poster/medium/tt1190634/img", c1: "#583236", c2: "#160c0d" },
+    { caption: "True Detective", cover: "https://live.metahub.space/poster/medium/tt2356777/img", c1: "#34414c", c2: "#0d1216" }
 ];
 
 var theatreGenres = [
-    { name: "In Theaters", count: 44, cover: "https://images.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c" },
-    { name: "Prestige TV", count: 128, cover: "https://images.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b" },
-    { name: "Sci-Fi", count: 310, cover: "https://images.metahub.space/poster/medium/tt0816692/img", c1: "#33465d", c2: "#0c1118" },
-    { name: "Action", count: 480, cover: "https://images.metahub.space/poster/medium/tt10366206/img", c1: "#3c4a63", c2: "#0e121b" },
-    { name: "Drama", count: 640, cover: "https://images.metahub.space/poster/medium/tt7660850/img", c1: "#4c4c54", c2: "#141418" },
-    { name: "Animation", count: 190, cover: "https://images.metahub.space/poster/medium/tt9362722/img", c1: "#6b334f", c2: "#190c14" },
-    { name: "Fantasy", count: 220, cover: "https://images.metahub.space/poster/medium/tt0167260/img", c1: "#55452d", c2: "#161209" },
-    { name: "Horror", count: 260, cover: "https://images.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f" },
-    { name: "Crime", count: 350, cover: "https://images.metahub.space/poster/medium/tt2356777/img", c1: "#34414c", c2: "#0d1216" },
-    { name: "Anime", count: 210, cover: "https://images.metahub.space/poster/medium/tt4508902/img", c1: "#4d4268", c2: "#151122" }
+    { name: "In Theaters", count: 44, cover: "https://live.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c" },
+    { name: "Prestige TV", count: 128, cover: "https://live.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b" },
+    { name: "Sci-Fi", count: 310, cover: "https://live.metahub.space/poster/medium/tt0816692/img", c1: "#33465d", c2: "#0c1118" },
+    { name: "Action", count: 480, cover: "https://live.metahub.space/poster/medium/tt10366206/img", c1: "#3c4a63", c2: "#0e121b" },
+    { name: "Drama", count: 640, cover: "https://live.metahub.space/poster/medium/tt7660850/img", c1: "#4c4c54", c2: "#141418" },
+    { name: "Animation", count: 190, cover: "https://live.metahub.space/poster/medium/tt9362722/img", c1: "#6b334f", c2: "#190c14" },
+    { name: "Fantasy", count: 220, cover: "https://live.metahub.space/poster/medium/tt0167260/img", c1: "#55452d", c2: "#161209" },
+    { name: "Horror", count: 260, cover: "https://live.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f" },
+    { name: "Crime", count: 350, cover: "https://live.metahub.space/poster/medium/tt2356777/img", c1: "#34414c", c2: "#0d1216" },
+    { name: "Anime", count: 210, cover: "https://live.metahub.space/poster/medium/tt0388629/img", c1: "#4d4268", c2: "#151122" }
+];
+
+// Biblio (books) — discovery = Apple Books charts (live via BiblioApi). These arrays are the
+// STATIC FALLBACK (real data pulled 2026-06-27) so the page paints instantly and never sits empty
+// if the live call is slow; BiblioApi overrides Featured + Top-10 on load. Genres stay static here
+// (mirrors Theatre). Covers = Apple hi-res on the same mzstatic CDN as comics → disk-cached.
+var biblioFeatured = [
+    { title: "Regime Change", art: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/f6/f5/a5/f6f5a534-5079-7881-13fb-6151f78a806b/9781668067260.jpg/400x600bb.jpg", artKind: "poster", blurb: "By Maggie Haberman — topping Apple Books now.", ghost: "B", c1: "#6a4a2c", c2: "#1d1209" },
+    { title: "Aquarius", art: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/71/33/b9/7133b9b6-a782-fd0f-8848-302f2a5cb413/0000715555.jpg/400x600bb.jpg", artKind: "poster", blurb: "By Gemma James — topping Apple Books now.", ghost: "B", c1: "#5a3a3f", c2: "#180d10" },
+    { title: "Whistler", art: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/f4/a5/e1f4a502-9136-f220-0c92-facdfaa78e58/9780063511651.jpg/400x600bb.jpg", artKind: "poster", blurb: "By Ann Patchett — topping Apple Books now.", ghost: "B", c1: "#3f5a4a", c2: "#101a14" },
+    { title: "The Calamity Club", art: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/39/64/45/3964459f-f5f3-d0b9-8623-d792b4ee584d/9781954118829.jpg/400x600bb.jpg", artKind: "poster", blurb: "By Kathryn Stockett — topping Apple Books now.", ghost: "B", c1: "#4a4063", c2: "#13101f" }
+];
+
+var biblioTop = [
+    { caption: "Regime Change", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/f6/f5/a5/f6f5a534-5079-7881-13fb-6151f78a806b/9781668067260.jpg/400x600bb.jpg", c1: "#6a4a2c", c2: "#1d1209" },
+    { caption: "Aquarius", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/71/33/b9/7133b9b6-a782-fd0f-8848-302f2a5cb413/0000715555.jpg/400x600bb.jpg", c1: "#5a3a3f", c2: "#180d10" },
+    { caption: "Whistler", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/f4/a5/e1f4a502-9136-f220-0c92-facdfaa78e58/9780063511651.jpg/400x600bb.jpg", c1: "#3f5a4a", c2: "#101a14" },
+    { caption: "The Calamity Club", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/39/64/45/3964459f-f5f3-d0b9-8623-d792b4ee584d/9781954118829.jpg/400x600bb.jpg", c1: "#4a4063", c2: "#13101f" },
+    { caption: "Choke Point", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/25/2d/e6/252de6b6-a031-1e18-caed-049078aab004/9781668065945.jpg/400x600bb.jpg", c1: "#6a5a2c", c2: "#1d1809" },
+    { caption: "Yesteryear: A GMA Book Club Pick", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/83/35/a9/8335a977-61f3-2f2c-22e2-a0551cf8707f/9780593804223.d.jpg/400x600bb.jpg", c1: "#3f4a63", c2: "#0e121b" },
+    { caption: "Theo of Golden", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/ca/94/ee/ca94ee35-57c1-9f26-2a89-7530f60797ac/9781668236536.jpg/400x600bb.jpg", c1: "#5a4a3a", c2: "#181210" },
+    { caption: "Weddings", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/1f/f9/e2/1ff9e2eb-50a2-aa1c-3816-3c6971f9e712/9780593973127.d.jpg/400x600bb.jpg", c1: "#634050", c2: "#1b0d14" },
+    { caption: "It Could Have Been Her", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/3a/59/9a/3a599a84-72a0-a79c-b31e-ef91507596c6/9781668033920.jpg/400x600bb.jpg", c1: "#3a5a5a", c2: "#0e1a1a" },
+    { caption: "The Score", cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/a5/e3/9d/a5e39da7-be49-daf3-2991-8c89357cf5d3/0000128008.jpg/400x600bb.jpg", c1: "#5a5a3a", c2: "#181810" }
+];
+
+var biblioGenres = [
+    { name: "Fiction", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/f4/a5/e1f4a502-9136-f220-0c92-facdfaa78e58/9780063511651.jpg/400x600bb.jpg", c1: "#6a4a2c", c2: "#1d1209" },
+    { name: "Mystery & Thriller", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/25/2d/e6/252de6b6-a031-1e18-caed-049078aab004/9781668065945.jpg/400x600bb.jpg", c1: "#5a3a3f", c2: "#180d10" },
+    { name: "Romance", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/71/33/b9/7133b9b6-a782-fd0f-8848-302f2a5cb413/0000715555.jpg/400x600bb.jpg", c1: "#3f5a4a", c2: "#101a14" },
+    { name: "Sci-Fi & Fantasy", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/13/fb/63/13fb6355-fce2-0e4b-08b7-48452037759a/9780593135211.d.jpg/400x600bb.jpg", c1: "#4a4063", c2: "#13101f" },
+    { name: "Biography", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/0f/0a/db/0f0adb9f-8dd7-7c5a-0458-79ced91d5e39/9780593733325.d.jpg/400x600bb.jpg", c1: "#6a5a2c", c2: "#1d1809" },
+    { name: "History", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/6f/ae/14/6fae140e-dcf6-4be4-164e-5100459c5fb3/9780593734247.d.jpg/400x600bb.jpg", c1: "#3f4a63", c2: "#0e121b" },
+    { name: "Nonfiction", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/0b/8c/39/0b8c3979-68d2-d86f-5e3f-9b73c33de8fd/9780593230084.d.jpg/400x600bb.jpg", c1: "#5a4a3a", c2: "#181210" },
+    { name: "Young Adult", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/b8/29/9c/b8299cf0-d6ac-5b0f-bbe3-7eddb7eda0c6/9781534467644.jpg/400x600bb.jpg", c1: "#634050", c2: "#1b0d14" },
+    { name: "Humor", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/c2/47/cb/c247cb59-9caf-a2cc-c483-cc787e64afda/9780316265034.jpg/400x600bb.jpg", c1: "#3a5a5a", c2: "#0e1a1a" },
+    { name: "Food & Wine", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/ed/3a/53/ed3a5357-2c9a-ca04-d60c-ca541640b143/1057979625.jpg/400x600bb.jpg", c1: "#5a5a3a", c2: "#181810" }
 ];
 
 // every cover/banner the world shows, de-duped — for the boot prefetch (warms the disk cache).
@@ -156,5 +193,9 @@ function allImageUrls() {
     var theatreRows = [theatreContinue, theatreTopMovies, theatreTopSeries, theatreGenres];
     for (var tr = 0; tr < theatreRows.length; tr++)
         for (var tj = 0; tj < theatreRows[tr].length; tj++) push(theatreRows[tr][tj].cover);
+    for (var bf = 0; bf < biblioFeatured.length; bf++) push(biblioFeatured[bf].art);
+    var biblioRows = [biblioTop, biblioGenres];
+    for (var br = 0; br < biblioRows.length; br++)
+        for (var bj = 0; bj < biblioRows[br].length; bj++) push(biblioRows[br][bj].cover);
     return urls;
 }

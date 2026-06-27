@@ -3,21 +3,64 @@
 // with art already warm. A hard timeout guarantees boot always completes even if a CDN stalls.
 import QtQuick
 import "Catalog.js" as Catalog
+import "TheatreApi.js" as TheatreApi
 
 Rectangle {
     id: splash
     signal finished()
     color: "#08080d"
 
-    readonly property var urls: Catalog.allImageUrls()
+    property var urls: []
     property int done: 0
+    property bool prefetchStarted: false
+    property bool completed: false
     readonly property real progress: urls.length > 0 ? done / urls.length : 1
 
-    function bump() { if (++splash.done >= splash.urls.length) splash.finished() }
+    function complete() {
+        if (splash.completed)
+            return
+        splash.completed = true
+        splash.finished()
+    }
+
+    function pushUnique(target, url) {
+        url = TheatreApi.normalizeArtUrl(url)
+        if (url && target.indexOf(url) === -1)
+            target.push(url)
+    }
+
+    function startPrefetch(extraUrls) {
+        if (splash.prefetchStarted)
+            return
+        var all = []
+        var base = Catalog.allImageUrls()
+        for (var i = 0; i < base.length; i++)
+            pushUnique(all, base[i])
+        for (var j = 0; j < extraUrls.length; j++)
+            pushUnique(all, extraUrls[j])
+        splash.urls = all
+        splash.done = 0
+        splash.prefetchStarted = true
+        if (splash.urls.length === 0)
+            complete()
+        timeout.start()
+    }
+
+    function bump() {
+        if (!splash.prefetchStarted || splash.completed)
+            return
+        if (++splash.done >= splash.urls.length)
+            complete()
+    }
+
+    Component.onCompleted: TheatreApi.loadTheatre(function(rows) {
+        apiTimeout.stop()
+        startPrefetch(TheatreApi.imageUrlsFromRows(rows))
+    })
 
     // hidden prefetchers — same sourceSize the tiles use, so the cached decode is reused 1:1
     Repeater {
-        model: splash.urls
+        model: splash.prefetchStarted ? splash.urls : []
         delegate: Image {
             required property string modelData
             source: modelData
@@ -27,8 +70,11 @@ Rectangle {
         }
     }
 
-    // hard timeout so boot always completes (≤ 6s even if a CDN stalls)
-    Timer { interval: 6000; running: true; repeat: false; onTriggered: splash.finished() }
+    // If the live catalog stalls, still warm the static catalog and reveal the shell.
+    Timer { id: apiTimeout; interval: 4500; running: true; repeat: false; onTriggered: splash.startPrefetch([]) }
+
+    // hard timeout so boot always completes after the API/catalog prefetch starts
+    Timer { id: timeout; interval: 9000; running: false; repeat: false; onTriggered: splash.complete() }
 
     Column {
         anchors.centerIn: parent

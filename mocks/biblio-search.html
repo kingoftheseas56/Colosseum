@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biblio — search (Harbor-adapted · Colosseum mock)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..600;1,9..144,300..600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#f0c44a; --ink:#f7f7f5; --inkDim:#c9c8d0; --inkDimmer:#9a99a5;
+    --edge:rgba(255,255,255,.18); --glass:rgba(255,255,255,.07);
+    --display:"Fraunces", Georgia, serif; --ui:"Segoe UI", system-ui, sans-serif; --margin:54px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0}
+  html,body{height:100%}
+  body{font-family:var(--ui); color:var(--ink); background:#05060a; overflow:hidden; -webkit-font-smoothing:antialiased}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important; transition:none!important}}
+
+  .wall{position:fixed; inset:0; z-index:0;
+    background:
+      radial-gradient(120% 90% at 12% 8%, #1b2a4a 0%, rgba(27,42,74,0) 46%),
+      radial-gradient(90% 80% at 88% 18%, #103038 0%, rgba(16,48,56,0) 50%),
+      radial-gradient(120% 120% at 70% 100%, #241a2e 0%, rgba(36,26,46,0) 55%),
+      linear-gradient(160deg, #070a12 0%, #05060a 60%, #040407 100%);}
+  .vignette{position:fixed; inset:0; z-index:1; pointer-events:none;
+    background:linear-gradient(180deg, rgba(0,0,0,.34), rgba(0,0,0,.10) 45%, rgba(0,0,0,.5))}
+  .app{position:relative; z-index:2; height:100%; display:flex; flex-direction:column}
+
+  /* top bar */
+  .topbar{display:flex; align-items:center; gap:18px; height:64px; margin:22px var(--margin) 0; padding:0 16px;
+    background:var(--glass); border:1px solid var(--edge); border-radius:16px;
+    backdrop-filter:blur(22px) saturate(1.1); -webkit-backdrop-filter:blur(22px) saturate(1.1)}
+  .back{font-size:14px; color:var(--inkDim); cursor:pointer; padding:8px 12px; border-radius:10px; transition:.15s}
+  .back:hover{color:var(--ink); background:rgba(255,255,255,.06)}
+  .wordmark{font-family:var(--display); font-weight:500; font-size:20px}
+  .spacer{flex:1}
+  .sys{display:flex; gap:6px; color:var(--inkDimmer)}
+  .sys span{width:30px; height:30px; display:grid; place-items:center; border-radius:8px; cursor:pointer}
+  .sys span:hover{background:rgba(255,255,255,.07); color:var(--ink)}
+  .ic{color:var(--inkDimmer); flex:none}
+
+  .body{flex:1; overflow:auto; padding:52px var(--margin) 50px}
+  .body::-webkit-scrollbar{width:10px}
+  .body::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12); border-radius:8px}
+  .wrap{max-width:1180px; margin:0 auto}
+
+  /* search field — the hero of this screen */
+  .field{display:flex; align-items:center; gap:14px; height:60px; padding:0 20px; margin-bottom:34px;
+    background:rgba(0,0,0,.30); border:1px solid var(--edge); border-radius:16px;
+    box-shadow:0 24px 70px -34px rgba(0,0,0,.8)}
+  .field input{flex:1; background:none; border:0; outline:none; color:var(--ink); font-family:var(--display); font-size:22px}
+  .field input::placeholder{color:var(--inkDimmer)}
+  .clear{width:26px; height:26px; border-radius:50%; display:grid; place-items:center; cursor:pointer;
+    color:var(--inkDimmer); background:rgba(255,255,255,.06)}
+  .clear:hover{color:var(--ink); background:rgba(255,255,255,.12)}
+  .esc{font-size:11px; color:var(--inkDimmer); border:1px solid var(--edge); border-radius:6px; padding:3px 8px; letter-spacing:.04em}
+
+  .eyebrow{font-family:var(--ui); font-size:12px; font-weight:600; letter-spacing:.18em; text-transform:uppercase;
+    color:var(--inkDimmer); margin:0 0 16px; display:flex; align-items:center; gap:10px}
+  .eyebrow.gold{color:var(--gold)}
+  .eyebrow .ct{color:var(--inkDim); letter-spacing:.1em}
+
+  /* ── TOP MATCH hero — a mini dust-jacket ── */
+  .top{position:relative; overflow:hidden; border-radius:18px; border:1px solid var(--edge);
+    background:var(--glass); padding:26px 30px; margin-bottom:38px; display:flex; gap:30px; align-items:center}
+  .top .glow{position:absolute; inset:0; z-index:0; opacity:.5; pointer-events:none;
+    background:radial-gradient(70% 120% at 12% 50%, rgba(60,90,74,.5), transparent 60%)}
+  .book{position:relative; z-index:1; width:118px; flex:none; perspective:900px}
+  .book .obj{position:relative; transform:rotateY(-6deg)}
+  .book img{display:block; width:100%; border-radius:2px 5px 5px 2px;
+    box-shadow:0 20px 40px -14px rgba(0,0,0,.8)}
+  .book .spine{position:absolute; top:0; left:0; width:7px; height:100%; border-radius:2px 0 0 2px;
+    background:linear-gradient(90deg, rgba(0,0,0,.55), rgba(0,0,0,.05) 60%, rgba(255,255,255,.08))}
+  .top .text{position:relative; z-index:1; flex:1; min-width:0}
+  .top h1{font-family:var(--display); font-weight:480; font-size:34px; line-height:1.04; margin-bottom:10px}
+  .top .tag{font-family:var(--display); font-style:italic; font-size:19px; color:var(--ink); opacity:.9; margin-bottom:12px}
+  .top .meta{font-family:var(--ui); font-size:13px; color:var(--inkDimmer); letter-spacing:.02em}
+  .open{position:relative; z-index:1; flex:none; display:inline-flex; align-items:center; gap:8px;
+    background:var(--gold); color:#241a05; font-weight:600; font-size:14px; padding:13px 22px; border-radius:12px; cursor:pointer}
+  .open:hover{filter:brightness(1.06)}
+
+  /* ── books grid ── */
+  .grid{display:grid; grid-template-columns:repeat(6,1fr); gap:26px 22px; margin-bottom:34px}
+  .card{cursor:pointer}
+  .card .ph{position:relative; aspect-ratio:2/3; border-radius:8px; overflow:hidden; background:#14131a;
+    box-shadow:0 14px 30px -14px rgba(0,0,0,.7); transition:transform .18s, box-shadow .18s}
+  .card .ph img{width:100%; height:100%; object-fit:cover; display:block}
+  .card:hover .ph{transform:translateY(-4px); box-shadow:0 22px 40px -16px rgba(0,0,0,.8)}
+  .card .nm{font-size:13px; color:var(--ink); margin-top:9px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .card .au{font-size:12px; color:var(--inkDimmer); margin-top:2px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .noart{width:100%; height:100%; display:grid; place-items:center; color:var(--inkDimmer);
+    font-family:var(--display); font-size:12px; text-align:center; padding:10px; background:#101820}
+  .reserved{margin:0 0 8px; padding:16px 18px; border:1px dashed var(--edge); border-radius:12px;
+    color:var(--inkDimmer); font-size:13px}
+
+  /* ── empty state ── */
+  .pills{display:flex; flex-wrap:wrap; gap:10px; margin-bottom:34px}
+  .pill{display:inline-flex; align-items:center; gap:9px; padding:9px 16px; border-radius:999px;
+    background:var(--glass); border:1px solid var(--edge); color:var(--ink); font-size:13.5px; cursor:pointer; transition:.15s}
+  .pill:hover{background:rgba(255,255,255,.12)}
+  .pill .x{color:var(--inkDimmer); font-size:12px}
+  .pill.jump{font-family:var(--display); font-size:15px; padding:12px 22px}
+  .pill.genre{color:var(--inkDim)}
+  .pill.genre:hover{color:var(--ink)}
+</style>
+</head>
+<body>
+  <div class="wall"></div>
+  <div class="vignette"></div>
+
+  <div class="app">
+    <div class="body">
+      <div class="wrap">
+
+        <div class="field">
+          <svg class="ic" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>
+          <input id="q" value="the shining" spellcheck="false" autocomplete="off">
+          <div class="clear" id="clear">✕</div>
+          <span class="esc">Esc</span>
+        </div>
+
+        <!-- ───────── RESULTS STATE ───────── -->
+        <div id="results">
+          <div class="eyebrow gold">Top match</div>
+          <div class="top">
+            <div class="glow"></div>
+            <div class="book"><div class="obj">
+              <img src="https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/b8/ca/84/b8ca840e-215a-1654-c694-e9ded4f1ec11/9780316216845.jpg/400x600bb.jpg">
+              <div class="spine"></div>
+            </div></div>
+            <div class="text">
+              <h1>The Shining Girls</h1>
+              <div class="tag">“The girl who wouldn’t die hunts the killer who shouldn’t exist.”</div>
+              <div class="meta">MYSTERIES &amp; THRILLERS · LAUREN BEUKES · 2013</div>
+            </div>
+            <div class="open">Open <span style="font-size:16px">›</span></div>
+          </div>
+
+          <div class="eyebrow">Books <span class="ct">· 23 found</span></div>
+          <div class="grid">
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/5e/c0/ce/5ec0ce00-5768-3c34-d72e-0377681b284f/9780385528863.d.jpg/400x600bb.jpg"></div><div class="nm">The Shining</div><div class="au">Stephen King</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/d5/36/3a/d5363a54-c78d-df14-b95b-ab414d29f109/9781476727660.jpg/400x600bb.jpg"></div><div class="nm">Doctor Sleep</div><div class="au">Stephen King</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/f1/7a/b1/f17ab1be-2985-a62e-74e0-070c413c9734/0003066940.jpg/400x600bb.jpg"></div><div class="nm">The Shining of Being</div><div class="au">Rupert Spira</div></div>
+            <div class="card"><div class="ph"><div class="noart">Cover art not available</div></div><div class="nm">The Shining One</div><div class="au">Malcolm Archibald</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication49/v4/8f/37/22/8f372243-d493-b706-de22-d5d5e1a15780/0000143111.jpg/400x600bb.jpg"></div><div class="nm">The Shining Mountains</div><div class="au">Charles Fisher</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/85/19/17/851917fb-f82a-0b4e-305b-3b9dd2934ea4/1058372135.jpg/400x600bb.jpg"></div><div class="nm">The Shining of Love</div><div class="au">Emma Darcy</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/73/d8/9a/73d89a16-89d2-9da8-c6a7-19172de85575/9781442440494.jpg/400x600bb.jpg"></div><div class="nm">Annie and Snowball</div><div class="au">Cynthia Rylant</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication/v4/98/83/ec/9883ec46-e9b9-c707-3090-1df44abecea6/9781617208713.jpg/400x600bb.jpg"></div><div class="nm">The Shining Gateway</div><div class="au">James Allen</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication3/v4/d4/46/1b/d4461b05-013f-0589-aa2c-1b3d8fd9abe3/coverArt.cf2a1f.jpg/400x600bb.jpg"></div><div class="nm">Cavern of the Shining Ones</div><div class="au">Hal K. Wells</div></div>
+            <div class="card"><div class="ph"><div class="noart">Cover art not available</div></div><div class="nm">The Shining City</div><div class="au">Fiona Patton</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/5e/c0/ce/5ec0ce00-5768-3c34-d72e-0377681b284f/9780385528863.d.jpg/400x600bb.jpg"></div><div class="nm">The Shining (Illustrated)</div><div class="au">Stephen King</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication49/v4/8f/37/22/8f372243-d493-b706-de22-d5d5e1a15780/0000143111.jpg/400x600bb.jpg"></div><div class="nm">Shining Mountains II</div><div class="au">Charles Fisher</div></div>
+            <div class="card"><div class="ph"><img src="https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/f1/7a/b1/f17ab1be-2985-a62e-74e0-070c413c9734/0003066940.jpg/400x600bb.jpg"></div><div class="nm">A Shining Light</div><div class="au">Various</div></div>
+          </div>
+
+          <div class="reserved">◇ &nbsp;Series grouping arrives with the series source — Apple returns single books today.</div>
+        </div>
+
+        <!-- ───────── EMPTY STATE ───────── -->
+        <div id="empty" style="display:none">
+          <div class="eyebrow">Recent</div>
+          <div class="pills">
+            <div class="pill" data-fill="dune">dune <span class="x">✕</span></div>
+            <div class="pill" data-fill="atomic habits">atomic habits <span class="x">✕</span></div>
+            <div class="pill" data-fill="gone girl">gone girl <span class="x">✕</span></div>
+            <div class="pill" data-fill="the silent patient">the silent patient <span class="x">✕</span></div>
+          </div>
+
+          <div class="eyebrow">Jump to</div>
+          <div class="pills">
+            <div class="pill jump">Home</div>
+            <div class="pill jump">Top 10</div>
+            <div class="pill jump">Genres</div>
+          </div>
+
+          <div class="eyebrow">Browse a genre</div>
+          <div class="pills">
+            <div class="pill genre" data-fill="fiction">Fiction</div>
+            <div class="pill genre" data-fill="mystery">Mystery &amp; Thriller</div>
+            <div class="pill genre" data-fill="romance">Romance</div>
+            <div class="pill genre" data-fill="sci-fi">Sci-Fi &amp; Fantasy</div>
+            <div class="pill genre" data-fill="biography">Biography</div>
+            <div class="pill genre" data-fill="history">History</div>
+            <div class="pill genre" data-fill="nonfiction">Nonfiction</div>
+            <div class="pill genre" data-fill="young adult">Young Adult</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+<script>
+  const input = document.getElementById('q');
+  const results = document.getElementById('results');
+  const empty = document.getElementById('empty');
+  function render(){
+    const has = input.value.trim().length > 0;
+    results.style.display = has ? 'block' : 'none';
+    empty.style.display = has ? 'none' : 'block';
+  }
+  input.addEventListener('input', render);
+  document.getElementById('clear').addEventListener('click', () => { input.value=''; input.focus(); render(); });
+  document.querySelectorAll('[data-fill]').forEach(p =>
+    p.addEventListener('click', () => { input.value = p.dataset.fill; render(); }));
+  render();
+</script>
+</body>
+</html>

@@ -1,9 +1,8 @@
 // TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.
-// Mirrors the reference stack: Cinemeta for movies/series, Kitsu for anime art/rows.
+// Cinemeta is the identity source for movies, series, and anime-shaped series rows.
 .pragma library
 
 var CINEMETA = "https://v3-cinemeta.strem.io";
-var KITSU = "https://kitsu.io/api/edge";
 
 var palette = [
     ["#5d4633", "#18110c"],
@@ -33,6 +32,16 @@ function requestJson(url, done) {
     xhr.send();
 }
 
+function normalizeArtUrl(url) {
+    if (!url)
+        return "";
+    var out = String(url)
+        .replace("https://images.metahub.space/", "https://live.metahub.space/")
+        .replace("/poster/small/", "/poster/medium/")
+        .replace("/poster/large/", "/poster/medium/");
+    return out;
+}
+
 function cinemetaCatalog(type, genre, done) {
     var path = CINEMETA + "/catalog/" + type + "/top";
     if (genre)
@@ -42,9 +51,13 @@ function cinemetaCatalog(type, genre, done) {
     });
 }
 
-function kitsuPopular(done) {
-    requestJson(KITSU + "/anime?sort=popularityRank&page[limit]=12", function(json) {
-        done(json && json.data ? json.data : []);
+// Full Cinemeta meta for a detail page (incl. `videos[]` episodes for series).
+// type: "movie" | "series"; id: Cinemeta id e.g. "tt15239678". Calls done(meta) or done(null).
+function loadMeta(type, id, done) {
+    if (!type || !id) { done(null); return; }
+    var sType = (type === "series") ? "series" : "movie";
+    requestJson(CINEMETA + "/meta/" + sType + "/" + id + ".json", function(json) {
+        done(json && json.meta ? json.meta : null);
     });
 }
 
@@ -66,42 +79,17 @@ function metaTitle(meta) {
 function mapCinemeta(meta, index) {
     var t = tone(index);
     return {
+        id: meta.id || "",
+        type: meta.type || "movie",
         caption: metaTitle(meta),
         title: metaTitle(meta),
         blurb: cleanText(meta.description, "Cinemeta catalog entry."),
-        cover: meta.poster || (meta.id ? "https://images.metahub.space/poster/medium/" + meta.id + "/img" : ""),
-        art: meta.background || (meta.id ? "https://images.metahub.space/background/medium/" + meta.id + "/img" : ""),
+        cover: normalizeArtUrl(meta.poster || (meta.id ? "https://live.metahub.space/poster/medium/" + meta.id + "/img" : "")),
+        art: normalizeArtUrl(meta.background || (meta.id ? "https://live.metahub.space/background/medium/" + meta.id + "/img" : "")),
         ghost: meta.type === "series" ? "S" : "T",
         c1: t[0],
         c2: t[1],
         progress: -1
-    };
-}
-
-function kitsuTitle(attrs) {
-    if (!attrs)
-        return "Anime";
-    if (attrs.titles && (attrs.titles.en || attrs.titles.en_us))
-        return attrs.titles.en || attrs.titles.en_us;
-    return attrs.canonicalTitle || (attrs.titles && attrs.titles.en_jp) || "Anime";
-}
-
-function mapKitsu(item, index) {
-    var attrs = item.attributes || {};
-    var t = tone(index + 2);
-    var poster = attrs.posterImage || {};
-    var cover = attrs.coverImage || {};
-    var rating = attrs.averageRating ? Math.round(Number(attrs.averageRating)) + "%" : "";
-    return {
-        caption: kitsuTitle(attrs),
-        title: kitsuTitle(attrs),
-        blurb: cleanText(attrs.synopsis || attrs.description, "Kitsu anime catalog entry."),
-        cover: poster.large || poster.medium || poster.original || "",
-        art: cover.large || cover.original || poster.large || "",
-        ghost: "A",
-        c1: t[0],
-        c2: t[1],
-        count: rating
     };
 }
 
@@ -115,8 +103,12 @@ function loadTheatre(done) {
     var pending = 3;
     function finish() {
         pending -= 1;
-        if (pending === 0)
+        if (pending === 0) {
+            if (out.movies.length > 0) out.featured.push(out.movies[0]);
+            if (out.series.length > 0) out.featured.push(out.series[0]);
+            if (out.anime.length > 0) out.featured.push(out.anime[0]);
             done(out);
+        }
     }
 
     cinemetaCatalog("movie", "", function(items) {
@@ -127,8 +119,8 @@ function loadTheatre(done) {
         out.series = items.slice(0, 12).map(mapCinemeta);
         finish();
     });
-    kitsuPopular(function(items) {
-        out.anime = items.slice(0, 12).map(mapKitsu);
+    cinemetaCatalog("series", "Anime", function(items) {
+        out.anime = items.slice(0, 12).map(mapCinemeta);
         finish();
     });
 }
@@ -144,4 +136,21 @@ function loadHome(done) {
             continueItems: rows.movies.slice(0, 2).concat(rows.series.slice(0, 2), rows.anime.slice(0, 1))
         });
     });
+}
+
+function imageUrlsFromRows(rows) {
+    var urls = [];
+    function push(u) {
+        u = normalizeArtUrl(u);
+        if (u && urls.indexOf(u) === -1)
+            urls.push(u);
+    }
+    var groups = [rows.featured || [], rows.movies || [], rows.series || [], rows.anime || []];
+    for (var g = 0; g < groups.length; g++) {
+        for (var i = 0; i < groups[g].length; i++) {
+            push(groups[g][i].cover);
+            push(groups[g][i].art);
+        }
+    }
+    return urls;
 }

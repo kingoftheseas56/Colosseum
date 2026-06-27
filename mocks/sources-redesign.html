@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Colosseum — Sources (redesign mock v2)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,300;9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --gold:#f0c44a;
+    --ink:#f7f7f5;
+    --ink-dim:#c9c8d0;
+    --ink-dimmer:#9a99a5;
+    --margin:54px;
+    --display:'Fraunces',Georgia,'Times New Roman',serif;
+    --ui:'Segoe UI',system-ui,-apple-system,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{background:#000;color:var(--ink);font-family:var(--ui);overflow:hidden;-webkit-font-smoothing:antialiased}
+
+  /* wallpaper everything floats over (stands in for the live Colosseum backdrop) */
+  .wall{position:fixed;inset:0;
+    background:radial-gradient(130% 100% at 60% 0%, #3a2b34 0%, #1a1620 40%, #0a0a0d 72%, #000 100%)}
+  .wall::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.30), rgba(0,0,0,.08) 45%, rgba(0,0,0,.55))}
+
+  .page{position:fixed;inset:0;display:flex;flex-direction:column}
+
+  /* banner hero */
+  .banner{position:relative;height:300px;flex:0 0 300px;overflow:hidden}
+  .banner .art{position:absolute;inset:0;
+    background:linear-gradient(110deg,#241b22 0%,#5a3f44 38%,#caa07a 60%,#3a2a2c 100%);opacity:.85}
+  .banner .wash{position:absolute;inset:0;background:linear-gradient(180deg,
+      rgba(0,0,0,.25) 0%, rgba(0,0,0,.5) 55%, rgba(0,0,0,.92) 100%)}
+  .back{position:absolute;left:var(--margin);top:30px;display:flex;align-items:center;gap:6px;
+    color:var(--ink);cursor:pointer;z-index:5;font-size:15px}
+  .back .chev{font-family:var(--display);font-size:28px;line-height:1}
+  .back:hover,.back:hover .chev{color:var(--gold)}
+  .titleblock{position:absolute;left:var(--margin);right:var(--margin);bottom:26px}
+  .eyebrow{color:var(--gold);font-size:12px;letter-spacing:4px;text-transform:uppercase}
+  .title{font-family:var(--display);font-weight:600;font-size:56px;line-height:1.02;margin-top:12px;
+    text-shadow:0 2px 12px rgba(0,0,0,.5)}
+
+  .filters{padding:20px var(--margin) 0;display:flex;flex-direction:column;gap:14px}
+
+  /* the TOP BAR that separates the quality — full-width selector, glass */
+  .topbar{display:flex;align-items:center;height:64px;padding:0 22px;border-radius:16px;
+    background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.16);
+    backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);cursor:pointer;gap:18px}
+  .topbar:hover{border-color:rgba(240,196,74,.45)}
+  .topbar .grid{width:44px;height:44px;border-radius:12px;flex:0 0 44px;
+    display:grid;grid-template-columns:1fr 1fr;gap:5px;place-content:center;padding:11px;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14)}
+  .topbar .grid i{width:7px;height:7px;border-radius:2px;background:var(--ink-dim)}
+  .topbar .label{font-size:22px;color:var(--ink)}
+  .topbar .v{margin-left:auto;font-family:var(--display);font-size:20px;color:var(--ink-dim)}
+
+  /* quality quick-filter pills */
+  .qpills{display:flex;gap:12px}
+  .pill{display:flex;align-items:center;gap:8px;height:40px;padding:0 18px;border-radius:20px;
+    cursor:pointer;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.14)}
+  .pill .nm{font-size:15px;line-height:1;color:var(--ink-dim)}
+  .pill .n{font-size:12px;line-height:1;color:var(--ink-dimmer)}
+  .pill:hover{border-color:rgba(255,255,255,.3)}
+  .pill:hover .nm{color:var(--ink)}
+  .pill.on{background:var(--gold);border-color:var(--gold)}
+  .pill.on .nm{color:#1a1306;font-weight:700}
+  .pill.on .n{color:rgba(26,19,6,.7)}
+
+  /* glass source table */
+  .table{flex:1 1 auto;margin:16px var(--margin) 26px;border-radius:18px;overflow:hidden;position:relative;
+    border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.055);
+    backdrop-filter:blur(34px) saturate(1.1);-webkit-backdrop-filter:blur(34px) saturate(1.1)}
+  .table::before{content:"";position:absolute;inset:0;background:rgba(0,0,0,.34)}
+  .thead{position:relative;display:flex;align-items:center;justify-content:space-between;height:52px;
+    padding:0 26px;border-bottom:1px solid rgba(255,255,255,.16)}
+  .thead .count{font-family:var(--display);font-size:16px;font-weight:600}
+  .thead .provider{font-size:12px;color:var(--ink-dimmer);letter-spacing:1px}
+
+  .rows{position:relative;height:calc(100% - 52px);overflow:auto;padding:6px 0}
+  .row{display:flex;align-items:center;gap:24px;padding:20px 26px;cursor:pointer;
+    border-bottom:1px solid rgba(255,255,255,.05)}
+  .row:hover{background:rgba(255,255,255,.05)}
+
+  /* provider logo */
+  .logo{width:54px;height:54px;flex:0 0 54px;border-radius:12px;display:grid;place-content:center;
+    background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);
+    font-family:var(--display);font-weight:600;font-size:24px;color:var(--ink)}
+
+  .copy{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:7px}
+  .pline{display:flex;align-items:baseline;gap:12px}
+  .pline .prov{font-size:15px;font-weight:700;color:var(--ink)}
+  .pline .q{font-size:13px;font-weight:700;color:var(--gold);letter-spacing:.5px}
+  .rel{font-size:14px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .meta{font-size:13px;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .audio{font-size:12.5px;color:var(--ink-dim)}
+  .audio b{color:var(--ink);font-weight:600}
+  .audio .flag{color:var(--ink-dimmer);font-size:11px;letter-spacing:1px;
+    border:1px solid rgba(255,255,255,.18);border-radius:4px;padding:1px 5px;margin-left:4px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:1px}
+  .chip{font-size:10px;font-weight:700;letter-spacing:.6px;color:var(--ink-dim);
+    padding:3px 9px;border-radius:6px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12)}
+  .stype{font-size:12px;color:var(--ink-dimmer);font-weight:600}
+
+  /* always-visible action button — solid gold, real triangle */
+  .play{flex:0 0 auto;width:56px;height:56px;border-radius:28px;background:var(--gold);
+    display:grid;place-content:center;cursor:pointer;transition:transform .12s,filter .12s}
+  .row:hover .play{filter:brightness(1.06);transform:scale(1.04)}
+  .play .tri{width:0;height:0;border-left:16px solid #1a1306;
+    border-top:10px solid transparent;border-bottom:10px solid transparent;margin-left:4px}
+
+  .rows::-webkit-scrollbar{width:10px}
+  .rows::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:6px}
+</style>
+</head>
+<body>
+  <div class="wall"></div>
+  <div class="page">
+
+    <div class="banner">
+      <div class="art"></div>
+      <div class="wash"></div>
+      <div class="back"><span class="chev">‹</span><span>Back</span></div>
+      <div class="titleblock">
+        <div class="eyebrow">2026 · Comedy · Romance</div>
+        <div class="title">Voicemails for Isabelle</div>
+      </div>
+    </div>
+
+    <div class="filters">
+      <!-- the TOP BAR that separates the quality -->
+      <div class="topbar">
+        <div class="grid"><i></i><i></i><i></i><i></i></div>
+        <div class="label">All</div>
+        <div class="v">▾</div>
+      </div>
+      <!-- quality quick-filter pills -->
+      <div class="qpills" id="qpills">
+        <div class="pill on" data-q="all"><span class="nm">All</span><span class="n">48</span></div>
+        <div class="pill" data-q="4K"><span class="nm">4K</span><span class="n">7</span></div>
+        <div class="pill" data-q="1080p"><span class="nm">1080p</span><span class="n">24</span></div>
+        <div class="pill" data-q="720p"><span class="nm">720p</span><span class="n">10</span></div>
+        <div class="pill" data-q="SD"><span class="nm">SD</span><span class="n">7</span></div>
+      </div>
+    </div>
+
+    <div class="table">
+      <div class="thead">
+        <span class="count">48 sources</span>
+        <span class="provider">via Torrentio</span>
+      </div>
+      <div class="rows" id="rows"></div>
+    </div>
+
+  </div>
+
+<script>
+  const DATA = [
+    {q:"4K", qline:"4K HDR", rel:"Voicemails for Isabelle (2026) [MULTi] [2160p] [NF] [WEB-DL] [HDR] [H265] [DDP5.1.Atmos-K83] [Lektor i Napisy PL]",
+     s:48, sz:"16.85 GB", src:"BestTorrents", audio:"Multi Audio", flags:["GB","PL"], chips:["4K","WEB-DL","HEVC","HDR10","ATMOS"]},
+    {q:"4K", qline:"4K DV", rel:"Voicemails.for.Isabelle.2026.2160p.WEB-DL.DDP5.1.DV.HDR.H265-FLUX",
+     s:39, sz:"19.2 GB", src:"TorrentGalaxy", audio:"English", flags:["GB"], chips:["4K","WEB-DL","HEVC","DV","HDR"]},
+    {q:"1080p", qline:"1080p", rel:"Voicemails.for.Isabelle.2026.1080p.WEB-DL.DDP5.1.Atmos.H264-FLUX",
+     s:122, sz:"6.1 GB", src:"ThePirateBay", audio:"Multi Audio", flags:["GB","FR"], chips:["1080p","WEB-DL","H.264","ATMOS"]},
+    {q:"1080p", qline:"1080p", rel:"Voicemails.for.Isabelle.2026.1080p.BluRay.x264-GROUP",
+     s:64, sz:"9.4 GB", src:"RARBG", audio:"English", flags:["GB"], chips:["1080p","BluRay","H.264"]},
+    {q:"720p", qline:"720p", rel:"Voicemails.for.Isabelle.2026.720p.WEB-DL.x264-PSA",
+     s:28, sz:"1.5 GB", src:"1337x", audio:"English", flags:["GB"], chips:["720p","WEB-DL","H.264"]},
+    {q:"SD", qline:"SD", rel:"Voicemails.for.Isabelle.2026.480p.WEBRip.x264-RMTeam",
+     s:11, sz:"640 MB", src:"1337x", audio:"English", flags:["GB"], chips:["480p","WEBRip","H.264"]},
+  ];
+  const rowsEl = document.getElementById('rows');
+  function render(filter){
+    const list = DATA.filter(d => filter==='all' || d.q===filter);
+    rowsEl.innerHTML = list.map(d => `
+      <div class="row">
+        <div class="logo">T</div>
+        <div class="copy">
+          <div class="pline"><span class="prov">Torrentio</span><span class="q">${d.qline}</span></div>
+          <div class="rel">${d.rel}</div>
+          <div class="meta">👤 ${d.s} &nbsp;·&nbsp; 💾 ${d.sz} &nbsp;·&nbsp; ⚙ ${d.src}</div>
+          <div class="audio"><b>${d.audio}</b>${d.flags.map(f=>`<span class="flag">${f}</span>`).join('')}</div>
+          <div class="chips">${d.chips.map(c=>`<span class="chip">${c}</span>`).join('')}</div>
+          <div class="stype">Torrent · P2P stream</div>
+        </div>
+        <div class="play"><div class="tri"></div></div>
+      </div>`).join('');
+    document.querySelector('.thead .count').textContent = list.length + ' sources';
+  }
+  render('all');
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.addEventListener('click',()=>{
+      document.querySelectorAll('.pill').forEach(x=>x.classList.remove('on'));
+      p.classList.add('on'); render(p.dataset.q);
+    });
+  });
+</script>
+</body>
+</html>

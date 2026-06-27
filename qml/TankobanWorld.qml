@@ -30,6 +30,7 @@ WorldPage {
     TrendingTop10 {
         title: "Top in Tankoban — Manga"
         items: Catalog.topManga
+        onItemClicked: (i) => tanko.seriesRequested(Catalog.topManga[i].caption)
     }
 
     TrendingTop10 {

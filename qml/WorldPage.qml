@@ -26,6 +26,8 @@ Item {
 
     signal homeRequested()
     signal mediumSelected(string medium)     // tapped another pill → host switches world
+    signal seriesRequested(string title)     // tapped a title tile → host opens its detail page
+    signal bookRequested(var book)           // Biblio: tapped a book → host opens the BiblioBook detail
     signal searchClicked()
     signal settingsClicked()
     signal minimizeClicked()
