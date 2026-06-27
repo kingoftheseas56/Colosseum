@@ -16,10 +16,12 @@ Item {
     property Item backdrop
     property var editions: []
     property bool edLoading: false
+    property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
 
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
+    signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }                 // swallow clicks to the world beneath
@@ -52,6 +54,7 @@ Item {
         BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {
             detail.editions = eds
             detail.edLoading = false
+            detail.refreshLocal()
         })
     }
     function edMeta(ed) {
@@ -59,6 +62,36 @@ Item {
         if (ed.year) p.push(ed.year)
         if (ed.language) p.push(ed.language)
         return p.length ? "   ·   " + p.join("   ·   ") : ""
+    }
+
+    // ── download-fed reading: a click pulls the file IN-APP (never out to a browser) ──
+    // The native `Books` engine resolves LibGen's fresh key + streams the file to
+    // <appdata>/books, then the reader opens that local file. Mirrors Tankoban 2.
+    function dlName(ed) {
+        var base = (detail.book && detail.book.title) ? detail.book.title : "book"
+        return base + "." + ((ed && ed.format) ? ed.format : "epub")
+    }
+    function bestEdition() {
+        for (var i = 0; i < detail.editions.length; i++) if (detail.editions[i].best) return detail.editions[i]
+        return detail.editions.length ? detail.editions[0] : null
+    }
+    function startDownload(ed) {
+        if (!ed || typeof Books === 'undefined') return
+        Books.downloadBook(ed.md5, detail.dlName(ed),
+                           (detail.book && detail.book.title) ? detail.book.title : "", 0)
+    }
+    function refreshLocal() {
+        if (typeof Books === 'undefined') { detail.localPath = ""; return }
+        var p = ""
+        for (var i = 0; i < detail.editions.length; i++) {
+            var lp = Books.localBook(detail.editions[i].md5)
+            if (lp) { p = lp; break }
+        }
+        detail.localPath = p
+    }
+    Connections {
+        target: (typeof Books !== 'undefined') ? Books : null
+        function onFinished(md5, path) { detail.refreshLocal() }
     }
 
     // ── top bar ────────────────────────────────────────────────────────────
@@ -182,12 +215,23 @@ Item {
                 Column {                              // actions
                     width: 268; spacing: 12
                     Rectangle {
+                        id: primaryCta            // one CTA, TB2-style: Get the book → Read (never a browser)
                         width: parent.width; height: 50; radius: 13; color: theme.gold
+                        property bool ready: detail.localPath !== ""
                         Text {
-                            anchors.centerIn: parent; text: "Read"; color: "#241a05"
+                            anchors.centerIn: parent
+                            text: primaryCta.ready ? "Read"
+                                  : (detail.editions.length ? "Get the book" : "Find the book")
+                            color: "#241a05"
                             font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
                         }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor }
+                        MouseArea {
+                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                if (primaryCta.ready) detail.readRequested(detail.localPath, detail.book)
+                                else detail.startDownload(detail.bestEdition())
+                            }
+                        }
                     }
                     Rectangle {
                         width: parent.width; height: 50; radius: 13
@@ -283,9 +327,20 @@ Item {
                         Repeater {
                             model: detail.editions
                             delegate: Item {
+                                id: edRow
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 52
+                                // download-fed state for THIS edition, reactive via the native Books signals
+                                property string dlState: (typeof Books !== 'undefined' && Books.isDownloaded(modelData.md5)) ? "done" : "idle"
+                                property real dlPct: 0
+                                Connections {
+                                    target: (typeof Books !== 'undefined') ? Books : null
+                                    function onResolving(md5) { if (md5 === edRow.modelData.md5) edRow.dlState = "resolving" }
+                                    function onProgress(md5, rcv, tot) { if (md5 === edRow.modelData.md5) { edRow.dlState = "downloading"; edRow.dlPct = tot > 0 ? rcv / tot : 0 } }
+                                    function onFinished(md5, path) { if (md5 === edRow.modelData.md5) { edRow.dlState = "done"; edRow.dlPct = 1 } }
+                                    function onFailed(md5, why) { if (md5 === edRow.modelData.md5) edRow.dlState = "failed" }
+                                }
                                 Rectangle { anchors.fill: parent; color: edMa.containsMouse ? Qt.rgba(1,1,1,0.06)
                                     : (modelData.best ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent") }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
@@ -312,10 +367,20 @@ Item {
                                 Text {
                                     anchors.right: parent.right; anchors.rightMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: "↓"; color: edMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 16
+                                    text: edRow.dlState === "done" ? "✓"
+                                        : edRow.dlState === "downloading" ? (Math.round(edRow.dlPct * 100) + "%")
+                                        : edRow.dlState === "resolving" ? "…"
+                                        : edRow.dlState === "failed" ? "retry" : "↓"
+                                    color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
+                                    font.family: theme.ui
+                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: Qt.openUrlExternally(modelData.detailUrl) }
+                                    onClicked: {
+                                        if (edRow.dlState === "done") detail.readRequested(Books.localBook(edRow.modelData.md5), detail.book)
+                                        else if (edRow.dlState !== "downloading" && edRow.dlState !== "resolving") detail.startDownload(edRow.modelData)
+                                    }
+                                }
                             }
                         }
                     }

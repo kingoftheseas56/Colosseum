@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui WebEngineQuick WebChannel)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -40,6 +40,10 @@ add_executable(colosseum
     engine/MangaFireCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    engine/BookDownloader.cpp
+    engine/BookDownloader.h
+    reader/BookBridge.cpp
+    reader/BookBridge.h
     player/mpvitem.cpp
     player/mpvitem.h
     player/mpvproperties.h
@@ -47,4 +51,5 @@ add_executable(colosseum
     player/streamserver.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player)
-target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui MpvQt::MpvQt)
+target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui MpvQt::MpvQt
+    Qt6::WebEngineQuick Qt6::WebChannel)

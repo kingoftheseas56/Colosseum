@@ -1,0 +1,447 @@
+<!--
+  Standalone Ebook Reader — Tankoban Groundwork
+
+  Loads foliate-js + reader modules in a dedicated QWebEngineView.
+  No shell chrome, no mode router, no library — just the reader.
+  TTS via Edge TTS is included; audiobook features are excluded.
+
+  The QWebChannel bridge shim is injected by BookReaderWidget at DocumentCreation,
+  providing window.electronAPI. All reader JS modules work unchanged.
+-->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <!-- Colosseum: QWebChannel bridge. Transport is provided by WebEngineView.webChannel;
+       qwebchannel.js defines QWebChannel; the shim builds window.electronAPI + __ebookNav.
+       Must run before the reader modules below. -->
+  <script src="./qwebchannel.js"></script>
+  <script src="./qt_bridge_shim.js"></script>
+  <title>Tankoban Reader</title>
+  <!-- Baseline styles -->
+  <link rel="stylesheet" href="./styles/styles.css"/>
+  <link rel="stylesheet" href="./styles/ui-tokens.css"/>
+  <link rel="stylesheet" href="./styles/ui-bridge.css"/>
+  <link rel="stylesheet" href="./styles/overhaul.css"/>
+  <!-- Book reader styles -->
+  <link rel="stylesheet" href="./styles/books-reader.css"/>
+  <style>
+    /* Standalone overrides — reader fills entire viewport */
+    html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #101216; }
+    #app { display: none; }
+    #booksReaderView { position: fixed !important; inset: 0 !important; z-index: 1; }
+    #booksReaderView.hidden { display: flex !important; }
+  </style>
+</head>
+<body>
+
+  <!-- Book reader — extracted from Butterfly index.html (TTS/audiobook stripped) -->
+  <div id="booksReaderView" class="br-reader">
+
+    <!-- Toolbar (always visible) -->
+    <div class="br-toolbar">
+      <div class="br-toolbar-left">
+        <button id="booksReaderBackBtn" class="br-btn" title="Back to library (Esc)" aria-label="Back"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.1,19.9L10.2,12l7.9-7.9L16,2L6,12l10,10L18.1,19.9z" fill="currentColor"/></svg></button>
+        <button id="booksReaderTocNavBtn" class="br-btn" title="Toggle sidebar (O)" aria-label="Toggle sidebar"><svg viewBox="0 0 12 9" xmlns="http://www.w3.org/2000/svg"><path d="M8.40625 8.10938C8.40625 8.28342 8.33711 8.45034 8.21404 8.57341C8.09097 8.69648 7.92405 8.76562 7.75 8.76562H1.1875C1.01345 8.76562 0.846532 8.69648 0.723462 8.57341C0.600391 8.45034 0.53125 8.28342 0.53125 8.10938C0.53125 7.93533 0.600391 7.76841 0.723462 7.64534C0.846532 7.52227 1.01345 7.45312 1.1875 7.45312L7.75 7.45313C7.92405 7.45313 8.09097 7.52227 8.21404 7.64534C8.33711 7.76841 8.40625 7.93533 8.40625 8.10938ZM1.1875 5.26562L7.75 5.26563C7.92405 5.26563 8.09097 5.19648 8.21404 5.07341C8.33711 4.95034 8.40625 4.78342 8.40625 4.60938C8.40625 4.43533 8.33711 4.26841 8.21404 4.14534C8.09097 4.02227 7.92405 3.95313 7.75 3.95313L1.1875 3.95312C1.01345 3.95312 0.846532 4.02227 0.723462 4.14534C0.600391 4.26841 0.53125 4.43533 0.53125 4.60938C0.53125 4.78342 0.600391 4.95034 0.723462 5.07341C0.846532 5.19648 1.01345 5.26562 1.1875 5.26562Z" fill="currentColor"/></svg></button>
+        <div class="br-book-meta">
+          <div id="booksReaderTitle" class="br-title">&#8212;</div>
+          <div id="booksReaderSubtitle" class="br-subtitle">&#8212;</div>
+        </div>
+      </div>
+      <div class="br-toolbar-right">
+        <button id="booksReaderFlowBtn" class="br-btn" title="Paginated" aria-label="Paginated"><svg viewBox="0 0 22 19" xmlns="http://www.w3.org/2000/svg"><path d="M20 0.5H14C13.4178 0.5 12.8437 0.635544 12.3229 0.895898C11.8022 1.15625 11.3493 1.53426 11 2C10.6507 1.53426 10.1978 1.15625 9.67705 0.895898C9.15634 0.635544 8.58217 0.5 8 0.5H2C1.60218 0.5 1.22064 0.658035 0.93934 0.93934C0.658035 1.22064 0.5 1.60218 0.5 2V14C0.5 14.3978 0.658035 14.7794 0.93934 15.0607C1.22064 15.342 1.60218 15.5 2 15.5H8C8.59674 15.5 9.16903 15.7371 9.59099 16.159C10.0129 16.581 10.25 17.1533 10.25 17.75C10.25 17.9489 10.329 18.1397 10.4697 18.2803C10.6103 18.421 10.8011 18.5 11 18.5C11.1989 18.5 11.3897 18.421 11.5303 18.2803C11.671 18.1397 11.75 17.9489 11.75 17.75C11.75 17.1533 11.9871 16.581 12.409 16.159C12.831 15.7371 13.4033 15.5 14 15.5H20C20.3978 15.5 20.7794 15.342 21.0607 15.0607C21.342 14.7794 21.5 14.3978 21.5 14V2C21.5 1.60218 21.342 1.22064 21.0607 0.93934C20.7794 0.658035 20.3978 0.5 20 0.5ZM8 14H2V2H8C8.59674 2 9.16903 2.23705 9.59099 2.65901C10.0129 3.08097 10.25 3.65326 10.25 4.25V14.75C9.6015 14.262 8.8116 13.9987 8 14ZM20 14H14C13.1884 13.9987 12.3985 14.262 11.75 14.75V4.25C11.75 3.65326 11.9871 3.08097 12.409 2.65901C12.831 2.23705 13.4033 2 14 2H20V14ZM14 4.25H17.75C17.9489 4.25 18.1397 4.32902 18.2803 4.46967C18.421 4.61032 18.5 4.80109 18.5 5C18.5 5.19891 18.421 5.38968 18.2803 5.53033C18.1397 5.67098 17.9489 5.75 17.75 5.75H14C13.8011 5.75 13.6103 5.67098 13.4697 5.53033C13.329 5.38968 13.25 5.19891 13.25 5C13.25 4.80109 13.329 4.61032 13.4697 4.46967C13.6103 4.32902 13.8011 4.25 14 4.25ZM18.5 8C18.5 8.19891 18.421 8.38968 18.2803 8.53033C18.1397 8.67098 17.9489 8.75 17.75 8.75H14C13.8011 8.75 13.6103 8.67098 13.4697 8.53033C13.329 8.38968 13.25 8.19891 13.25 8C13.25 7.80109 13.329 7.61032 13.4697 7.46967C13.6103 7.32902 13.8011 7.25 14 7.25H17.75C17.9489 7.25 18.1397 7.32902 18.2803 7.46967C18.421 7.61032 18.5 7.80109 18.5 8ZM18.5 11C18.5 11.1989 18.421 11.3897 18.2803 11.5303C18.1397 11.671 17.9489 11.75 17.75 11.75H14C13.8011 11.75 13.6103 11.671 13.4697 11.5303C13.329 11.3397 13.25 11.1989 13.25 11C13.25 10.8011 13.329 10.6103 13.4697 10.4697C13.6103 10.329 13.8011 10.25 14 10.25H17.75C17.9489 10.25 18.1397 10.329 18.2803 10.4697C18.421 10.6103 18.5 10.8011 18.5 11Z" fill="currentColor"/></svg></button>
+        <button id="booksReaderSearchBtn" class="br-btn br-toolbar-overlay-btn" data-overlay="search" title="Search (Ctrl+F)" aria-label="Search"><svg viewBox="0 0 20 14" xmlns="http://www.w3.org/2000/svg"><path d="M0 0.75C0 0.551088 0.0790178 0.360322 0.21967 0.21967C0.360322 0.0790178 0.551088 0 0.75 0H17.25C17.4489 0 17.6397 0.0790178 17.7803 0.21967C17.921 0.360322 18 0.551088 18 0.75C18 0.948912 17.921 1.13968 17.7803 1.28033C17.6397 1.42098 17.4489 1.5 17.25 1.5H0.75C0.551088 1.5 0.360322 1.42098 0.21967 1.28033C0.0790178 1.13968 0 0.948912 0 0.75ZM0.75 7.5H7.5C7.69891 7.5 7.88968 7.42098 8.03033 7.28033C8.17098 7.13968 8.25 6.94891 8.25 6.75C8.25 6.55109 8.17098 6.36032 8.03033 6.21967C7.88968 6.07902 7.69891 6 7.5 6H0.75C0.551088 6 0.360322 6.07902 0.21967 6.21967C0.0790178 6.36032 0 6.55109 0 6.75C0 6.94891 0.0790178 7.13968 0.21967 7.28033C0.360322 7.42098 0.551088 7.5 0.75 7.5ZM9 12H0.75C0.551088 12 0.360322 12.079 0.21967 12.2197C0.0790178 12.3603 0 12.5511 0 12.75C0 12.9489 0.0790178 13.1397 0.21967 13.2803C0.360322 13.421 0.551088 13.5 0.75 13.5H9C9.19891 13.5 9.38968 13.421 9.53033 13.2803C9.67098 13.1397 9.75 12.9489 9.75 12.75C9.75 12.5511 9.67098 12.3603 9.53033 12.2197C9.38968 12.079 9.19891 12 9 12ZM19.2806 13.2806C19.211 13.3504 19.1283 13.4057 19.0372 13.4434C18.9462 13.4812 18.8486 13.5006 18.75 13.5006C18.6514 13.5006 18.5538 13.4812 18.4628 13.4434C18.3717 13.4057 18.289 13.3504 18.2194 13.2806L16.3125 11.3775C15.537 11.8891 14.5993 12.0947 13.6809 11.9543C12.7625 11.814 11.9289 11.3377 11.3416 10.6179C10.7544 9.89799 10.4552 8.98574 10.5022 8.05789C10.5491 7.13004 10.9388 6.25265 11.5957 5.59572C12.2526 4.93879 13.13 4.5491 14.0579 4.50216C14.9857 4.45522 15.898 4.75437 16.6179 5.34164C17.3377 5.92891 17.814 6.7625 17.9543 7.68088C18.0947 8.59925 17.8891 9.53703 17.3775 10.3125L19.2806 12.2156C19.3509 12.2853 19.4067 12.3683 19.4448 12.4597C19.4829 12.5511 19.5025 12.6491 19.5025 12.7481C19.5025 12.8471 19.4829 12.9452 19.4448 13.0366C19.4067 13.128 19.3509 13.2109 19.2806 13.2806ZM14.25 10.5C14.695 10.5 15.13 10.368 15.5 10.1208C15.87 9.87357 16.1584 9.52217 16.3287 9.11104C16.499 8.6999 16.5436 8.2475 16.4568 7.81105C16.37 7.37459 16.1557 6.97368 15.841 6.65901C15.5263 6.34434 15.1254 6.13005 14.689 6.04323C14.2525 5.95642 13.8001 6.00097 13.389 6.17127C12.9778 6.34157 12.6264 6.62996 12.3792 6.99997C12.132 7.36998 12 7.80499 12 8.25C12 8.84674 12.2371 9.41903 12.659 9.84099C13.081 10.2629 13.6533 10.5 14.25 10.5Z" fill="currentColor"/></svg></button>
+        <button id="booksReaderFontBtn" class="br-btn br-toolbar-overlay-btn" data-overlay="font" title="Font settings (?)" aria-label="Font settings"><svg viewBox="0 0 20 21" xmlns="http://www.w3.org/2000/svg"><g clip-path="url(#cTF2)"><rect x="0.94" y="1.89605" width="18.12" height="18.1161" rx="1.06" stroke="currentColor" stroke-width="1.88" fill="none"/><path d="M4.60101 17.113C4.71254 17.1658 4.8334 17.1961 4.95666 17.2021C5.07992 17.2081 5.20315 17.1897 5.31928 17.1479C5.43542 17.1062 5.54217 17.042 5.63341 16.9589C5.72466 16.8758 5.7986 16.7755 5.85101 16.6638L7.06585 14.0771H12.9346L14.1518 16.6638C14.2577 16.8888 14.4486 17.0625 14.6826 17.1468C14.9166 17.231 15.1744 17.2189 15.3994 17.113C15.6245 17.0071 15.7982 16.8162 15.8825 16.5822C15.9667 16.3482 15.9545 16.0904 15.8487 15.8653L10.8487 5.24034C10.773 5.07928 10.653 4.94309 10.5027 4.8477C10.3525 4.75232 10.1782 4.70166 10.0002 4.70166C9.82226 4.70166 9.64797 4.75232 9.49773 4.8477C9.34748 4.94309 9.2275 5.07928 9.15179 5.24034L4.15179 15.8653C4.09934 15.9768 4.06935 16.0974 4.06354 16.2204C4.05773 16.3434 4.07622 16.4664 4.11793 16.5822C4.15965 16.6981 4.22378 16.8046 4.30667 16.8957C4.38956 16.9867 4.48957 17.0606 4.60101 17.113ZM10.0002 7.84112L12.0526 12.2021H7.94788L10.0002 7.84112Z" fill="currentColor"/></g><defs><clipPath id="cTF2"><rect width="20" height="20" fill="currentColor" transform="translate(0 0.954102)"/></clipPath></defs></svg></button>
+        <button id="booksReaderThemeBtn" class="br-btn br-toolbar-overlay-btn" data-overlay="theme" title="Theme settings" aria-label="Theme settings"><svg viewBox="0 0 11 10" xmlns="http://www.w3.org/2000/svg"><path d="M10.875 0.5C10.875 0.400544 10.8355 0.305161 10.7652 0.234835C10.6949 0.164509 10.5995 0.125 10.5 0.125C8.43379 0.125 6.31363 2.45516 5.13613 3.99828C4.7156 3.86949 4.27073 3.84112 3.83725 3.91544C3.40376 3.98977 2.99375 4.16472 2.64014 4.42624C2.28654 4.68777 1.99919 5.02857 1.80119 5.42129C1.60318 5.81401 1.50004 6.24769 1.50004 6.6875C1.50004 8.135 0.584103 8.78422 0.540509 8.81422C0.473988 8.85914 0.423635 8.92421 0.396855 8.99988C0.370074 9.07555 0.368278 9.15781 0.391732 9.23458C0.415187 9.31134 0.462652 9.37855 0.52715 9.42633C0.591648 9.47411 0.669774 9.49993 0.750041 9.5H4.31254C4.75235 9.5 5.18603 9.39686 5.57875 9.19885C5.97147 9.00085 6.31227 8.7135 6.5738 8.3599C6.83532 8.00629 7.01027 7.59628 7.0846 7.16279C7.15892 6.72931 7.13055 6.28444 7.00176 5.86391C8.54535 4.68641 10.875 2.56625 10.875 0.5Z" fill="currentColor"/></svg></button>
+        <button id="booksReaderListenToggle" class="br-btn" title="Listen / TTS (T)" aria-label="Listen"><svg viewBox="0 0 24 24" width="14" height="14"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.49 4.49 0 0 0 2.5-3.5zM14 3.23v2.06a7.007 7.007 0 0 1 0 13.42v2.06c4.73-1.01 8-5.31 8-10.77s-3.27-9.76-8-10.77z" fill="currentColor"/></svg></button>
+        <button id="booksReaderFsBtn" class="br-btn" title="Toggle fullscreen (F)" aria-label="Toggle fullscreen"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M21.7092 2.29502C21.8041 2.3904 21.8757 2.50014 21.9241 2.61722C21.9727 2.73425 21.9996 2.8625 22 2.997L22 3V9C22 9.55228 21.5523 10 21 10C20.4477 10 20 9.55228 20 9V5.41421L14.7071 10.7071C14.3166 11.0976 13.6834 11.0976 13.2929 10.7071C12.9024 10.3166 12.9024 9.68342 13.2929 9.29289L18.5858 4H15C14.4477 4 14 3.55228 14 3C14 2.44772 14.4477 2 15 2H20.9998C21.2749 2 21.5242 2.11106 21.705 2.29078L21.7092 2.29502Z" fill="currentColor"/><path d="M10.7071 14.7071L5.41421 20H9C9.55228 20 10 20.4477 10 21C10 21.5523 9.55228 22 9 22H3.00069L2.997 22C2.74301 21.9992 2.48924 21.9023 2.29502 21.7092L2.29078 21.705C2.19595 21.6096 2.12432 21.4999 2.07588 21.3828C2.02699 21.2649 2 21.1356 2 21V15C2 14.4477 2.44772 14 3 14C3.55228 14 4 14.4477 4 15V18.5858L9.29289 13.2929C9.68342 12.9024 10.3166 12.9024 10.7071 13.2929C11.0976 13.6834 11.0976 14.3166 10.7071 14.7071Z" fill="currentColor"/></svg></button>
+        <!-- PER_VIEW_CHROME_FIX 2026-05-02 P5 — chrome cluster at extreme right (Min / Max-Restore / Close). Inherit .br-btn styling so they read as part of the existing nav row per spec §4.2. -->
+        <button id="booksReaderMinBtn" class="br-btn" title="Minimize" aria-label="Minimize"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="14" height="14"><line x1="6" y1="13" x2="18" y2="13" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button>
+        <button id="booksReaderMaxBtn" class="br-btn" title="Maximize" aria-label="Maximize"><svg id="booksReaderMaxIcon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="6" width="12" height="12" rx="1"/></svg></button>
+        <button id="booksReaderCloseBtn" class="br-btn" title="Close Tankoban" aria-label="Close"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="7" y1="7" x2="17" y2="17"/><line x1="17" y1="7" x2="7" y2="17"/></svg></button>
+      </div>
+    </div>
+
+    <!-- Main area: sidebar + reading -->
+    <div class="br-main">
+      <!-- Sidebar (collapsible, tabbed) -->
+      <aside id="booksSidebar" class="br-sidebar collapsed">
+        <div class="br-sidebar-tabs" role="tablist" aria-label="Sidebar navigation">
+          <button class="br-sidebar-tab active" data-sidebar-tab="toc" role="tab" aria-selected="true" title="Table of Contents"><svg viewBox="0 0 12 9" xmlns="http://www.w3.org/2000/svg"><path d="M8.40625 8.10938C8.40625 8.28342 8.33711 8.45034 8.21404 8.57341C8.09097 8.69648 7.92405 8.76562 7.75 8.76562H1.1875C1.01345 8.76562 0.846532 8.69648 0.723462 8.57341C0.600391 8.45034 0.53125 8.28342 0.53125 8.10938C0.53125 7.93533 0.600391 7.76841 0.723462 7.64534C0.846532 7.52227 1.01345 7.45312 1.1875 7.45312L7.75 7.45313C7.92405 7.45313 8.09097 7.52227 8.21404 7.64534C8.33711 7.76841 8.40625 7.93533 8.40625 8.10938ZM1.1875 5.26562L7.75 5.26563C7.92405 5.26563 8.09097 5.19648 8.21404 5.07341C8.33711 4.95034 8.40625 4.78342 8.40625 4.60938C8.40625 4.43533 8.33711 4.26841 8.21404 4.14534C8.09097 4.02227 7.92405 3.95313 7.75 3.95313L1.1875 3.95312C1.01345 3.95312 0.846532 4.02227 0.723462 4.14534C0.600391 4.26841 0.53125 4.43533 0.53125 4.60938C0.53125 4.78342 0.600391 4.95034 0.723462 5.07341C0.846532 5.19648 1.01345 5.26562 1.1875 5.26562Z" fill="currentColor"/></svg><span class="br-sidebar-tab-label">Contents</span></button>
+          <div class="br-sidebar-tab-sep"></div>
+          <button class="br-sidebar-tab" data-sidebar-tab="bookmarks" role="tab" aria-selected="false" title="Bookmarks"><svg viewBox="0 0 12 17" xmlns="http://www.w3.org/2000/svg"><path d="M10.375 0.742188H1.625C1.2106 0.742188 0.813171 0.906808 0.520146 1.19983C0.22712 1.49286 0.0625001 1.89029 0.0625001 2.30469V16.0547C0.0624439 16.2221 0.107198 16.3864 0.192114 16.5306C0.277031 16.6749 0.399013 16.7937 0.545392 16.8749C0.691772 16.9561 0.857211 16.9966 1.02453 16.9922C1.19185 16.9878 1.35494 16.9387 1.49688 16.85L5.99922 14.0375L10.5031 16.85C10.6451 16.9387 10.8082 16.9878 10.9755 16.9922C11.1428 16.9966 11.3082 16.9561 11.4546 16.8749C11.601 16.7937 11.723 16.6749 11.8079 16.5306C11.8928 16.3864 11.9376 16.2221 11.9375 16.0547V2.30469C11.9375 1.89029 11.7729 1.49286 11.4799 1.19983C11.1868 0.906808 10.7894 0.742188 10.375 0.742188ZM10.0625 14.3633L6.49609 12.1344C6.3471 12.0413 6.17492 11.9919 5.99922 11.9919C5.82351 11.9919 5.65134 12.0413 5.50234 12.1344L1.9375 14.3633V2.61719H10.0625V14.3633Z" fill="currentColor"/></svg><span class="br-sidebar-tab-label">Bookmarks</span></button>
+          <button class="br-sidebar-tab" data-sidebar-tab="annotations" role="tab" aria-selected="false" title="Notes"><svg viewBox="0 0 12 13" xmlns="http://www.w3.org/2000/svg"><path d="M8.40625 6.39062C8.40625 6.56467 8.33711 6.73159 8.21404 6.85466C8.09097 6.97773 7.92405 7.04688 7.75 7.04688H4.25C4.07595 7.04688 3.90903 6.97773 3.78596 6.85466C3.66289 6.73159 3.59375 6.56467 3.59375 6.39062C3.59375 6.21658 3.66289 6.04966 3.78596 5.92659C3.90903 5.80352 4.07595 5.73438 4.25 5.73438H7.75C7.92405 5.73438 8.09097 5.80352 8.21404 5.92659C8.33711 6.04966 8.40625 6.21658 8.40625 6.39062ZM7.75 7.92188H4.25C4.07595 7.92188 3.90903 7.99102 3.78596 8.11409C3.66289 8.23716 3.59375 8.40408 3.59375 8.57812C3.59375 8.75217 3.66289 8.91909 3.78596 9.04216C3.90903 9.16523 4.07595 9.23438 4.25 9.23438H7.75C7.92405 9.23438 8.09097 9.16523 8.21404 9.04216C8.33711 8.91909 8.40625 8.75217 8.40625 8.57812C8.40625 8.40408 8.33711 8.23716 8.21404 8.11409C8.09097 7.99102 7.92405 7.92188 7.75 7.92188Z" fill="currentColor"/></svg><span class="br-sidebar-tab-label">Notes</span></button>
+          <div class="br-sidebar-tab-sep br-sidebar-close-sep"></div>
+          <button id="brSidebarCloseBtn" class="br-sidebar-tab br-sidebar-close-btn" title="Close sidebar"><svg viewBox="0 0 12 12" xmlns="http://www.w3.org/2000/svg"><path d="M4.854 2.146a.5.5 0 0 1 0 .708L1.707 6l3.147 3.146a.5.5 0 0 1-.708.708l-3.5-3.5a.5.5 0 0 1 0-.708l3.5-3.5a.5.5 0 0 1 .708 0zM9.354 2.146a.5.5 0 0 1 0 .708L6.207 6l3.147 3.146a.5.5 0 0 1-.708.708l-3.5-3.5a.5.5 0 0 1 0-.708l3.5-3.5a.5.5 0 0 1 .708 0z" fill="currentColor"/></svg><span class="br-sidebar-tab-label">Close</span></button>
+        </div>
+        <div class="br-sidebar-content">
+          <div class="br-sidebar-pane" data-pane="toc">
+            <div style="padding:8px 10px"><input id="booksTocSearch" class="br-search-input" placeholder="Filter chapters..." autocomplete="off" /></div>
+            <div id="booksTocList" class="br-list" role="listbox" aria-label="Table of contents"></div>
+          </div>
+          <div class="br-sidebar-pane hidden" data-pane="bookmarks">
+            <div class="br-bookmark-actions"><button id="booksUtilBookmarkToggle" class="br-bookmark-toggle" title="Toggle bookmark at current page">&#9734; Bookmark this page</button></div>
+            <div id="booksUtilBookmarkList" class="br-list" role="listbox" aria-label="Bookmarks"></div>
+          </div>
+          <div class="br-sidebar-pane hidden" data-pane="annotations">
+            <div id="booksUtilAnnotationList" class="br-list" role="listbox" aria-label="Annotations"></div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Reading area -->
+      <div class="br-reading-area">
+        <button id="booksReaderPrevBtn" class="br-nav-arrow br-nav-left" title="Previous page (&#8592;)" aria-label="Previous page"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18.1,19.9L10.2,12l7.9-7.9L16,2L6,12l10,10L18.1,19.9z" fill="currentColor"/></svg></button>
+        <div id="booksReaderHost" class="br-host"></div>
+        <!-- Dictionary popup -->
+        <div id="booksReaderDictPopup" class="booksReaderDictPopup hidden" role="dialog" aria-label="Dictionary">
+          <div class="booksReaderDictHead"><button id="booksReaderDictBack" class="iconBtn booksReaderDictBackBtn hidden" title="Back">&larr;</button><span id="booksReaderDictWord" class="booksReaderDictWord"></span><button id="booksReaderDictClose" class="iconBtn booksReaderDictCloseBtn" title="Close">&times;</button></div>
+          <div id="booksReaderDictBody" class="booksReaderDictBody"></div>
+        </div>
+        <!-- Annotation popup -->
+        <div id="booksAnnotPopup" class="booksAnnotPopup hidden" role="dialog" aria-label="Annotation">
+          <div class="booksAnnotPopupHead"><span class="booksAnnotPopupTitle">Highlight</span><button id="booksAnnotClose" class="iconBtn" title="Close">&times;</button></div>
+          <div id="booksAnnotColorPicker" class="booksAnnotColors"></div>
+          <div id="booksAnnotStylePicker" class="booksAnnotStyles"></div>
+          <textarea id="booksAnnotNote" class="booksAnnotNote" placeholder="Add a note..." rows="2"></textarea>
+          <div class="booksAnnotActions"><button id="booksAnnotSave" class="btn btn-sm">Save</button><button id="booksAnnotDelete" class="btn btn-sm btn-ghost hidden">Delete</button></div>
+        </div>
+        <button id="booksReaderNextBtn" class="br-nav-arrow br-nav-right" title="Next page (&#8594;)" aria-label="Next page"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M5.9,4.1l7.9,7.9l-7.9,7.9L8,22l10-10L8,2L5.9,4.1z" fill="currentColor"/></svg></button>
+        <!-- Overlay backdrop -->
+        <div id="brOverlayBackdrop" class="br-overlay-backdrop hidden"></div>
+        <!-- Search overlay -->
+        <div id="brOverlaySearch" class="br-overlay hidden" data-overlay="search" role="dialog" aria-label="Search">
+          <div class="br-overlay-panel br-overlay-panel--search">
+            <div class="br-overlay-body">
+              <div class="br-search-row"><input id="booksUtilSearchInput" class="br-search-input" placeholder="Search in book..." autocomplete="off" /></div>
+              <div class="br-search-nav"><span id="booksUtilSearchCount" class="br-page-text" aria-live="polite"></span><button id="booksUtilSearchPrev" class="br-btn br-btn-sm" title="Previous">&uarr;</button><button id="booksUtilSearchNext" class="br-btn br-btn-sm" title="Next">&darr;</button></div>
+            </div>
+          </div>
+        </div>
+        <!-- Font overlay -->
+        <div id="brOverlayFont" class="br-overlay hidden" data-overlay="font" role="dialog" aria-label="Font settings">
+          <div class="br-overlay-panel br-overlay-panel--settings">
+            <div class="br-overlay-header"><span class="br-overlay-title">Font Settings</span><button class="br-overlay-close br-btn br-btn-sm" aria-label="Close">&times;</button></div>
+            <div class="br-overlay-body">
+              <div class="br-settings-section"><div class="br-settings-label">Font</div><select id="booksReaderFontFamily" class="br-settings-select"><option value="publisher">Publisher default</option><option value="oldStyleTf">Serif (Old Style)</option><option value="modernTf">Serif (Modern)</option><option value="sansTf">Sans-serif</option><option value="humanistTf">Sans-serif (Humanist)</option><option value="monospaceTf">Monospace</option><option value="AccessibleDfA">Accessible DfA</option><option value="IAWriterDuospace">iA Writer Duospace</option></select></div>
+              <div class="br-settings-section"><div class="br-settings-label">Font size</div><div class="br-settings-slider-row"><input id="booksReaderFontSizeSlider" class="br-settings-slider" type="range" min="75" max="250" step="12.5" value="100" /><span id="booksReaderFontSizeValue" class="br-settings-value">100%</span></div></div>
+              <div class="br-settings-section"><div class="br-settings-label">Line spacing</div><div class="br-settings-slider-row"><input id="booksReaderLineHeightSlider" class="br-settings-slider" type="range" min="1.0" max="2.0" step="0.1" value="1.5" /><span id="booksReaderLineHeightValue" class="br-settings-value">1.5</span></div></div>
+              <div class="br-settings-section"><div class="br-settings-label">Margin</div><div class="br-settings-slider-row"><input id="booksReaderMarginSlider" class="br-settings-slider" type="range" min="0" max="4.0" step="0.25" value="1" /><span id="booksReaderMarginValue" class="br-settings-value">1.0</span></div></div>
+              <div class="br-settings-section"><div class="br-settings-label">Max Line Width</div><div class="br-settings-slider-row"><input id="booksReaderMaxLineWidthSlider" class="br-settings-slider" type="range" min="400" max="1600" step="50" value="960" /><span id="booksReaderMaxLineWidthValue" class="br-settings-value">960px</span></div></div>
+              <div class="br-settings-section"><label class="br-settings-toggle-row"><span class="br-settings-label">Spread (2-col)</span><input id="booksReaderColumnToggle" type="checkbox" /></label></div>
+              <div class="br-settings-section" id="brSettingsTextAlignSection"><div class="br-settings-label">Text align</div><div class="br-settings-chips"><button class="br-settings-chip br-settings-chip--small" data-align="" title="Publisher default">Auto</button><button class="br-settings-chip br-settings-chip--small" data-align="left" title="Left aligned">Left</button><button class="br-settings-chip br-settings-chip--small" data-align="justify" title="Justified">Justify</button><button class="br-settings-chip br-settings-chip--small" data-align="right" title="Right aligned">Right</button></div></div>
+              <div class="br-settings-section" id="brSettingsLetterSpacingSection"><div class="br-settings-label">Letter spacing</div><div class="br-settings-slider-row"><input id="booksReaderLetterSpacingSlider" class="br-settings-slider" type="range" min="0" max="0.5" step="0.0625" value="0" /><span id="booksReaderLetterSpacingValue" class="br-settings-value">0</span></div></div>
+              <div class="br-settings-section" id="brSettingsWordSpacingSection"><div class="br-settings-label">Word spacing</div><div class="br-settings-slider-row"><input id="booksReaderWordSpacingSlider" class="br-settings-slider" type="range" min="0" max="1.0" step="0.125" value="0" /><span id="booksReaderWordSpacingValue" class="br-settings-value">0</span></div></div>
+              <div class="br-settings-section" id="brSettingsParaSpacingSection"><div class="br-settings-label">Paragraph spacing</div><div class="br-settings-slider-row"><input id="booksReaderParaSpacingSlider" class="br-settings-slider" type="range" min="0" max="2.0" step="0.25" value="0" /><span id="booksReaderParaSpacingValue" class="br-settings-value">0</span></div></div>
+              <div class="br-settings-section" id="brSettingsParaIndentSection"><div class="br-settings-label">Paragraph indent</div><select id="booksReaderParaIndent" class="br-settings-select"><option value="">Publisher default</option><option value="0">None</option><option value="1em">1em</option><option value="1.5em">1.5em</option><option value="2em">2em</option></select></div>
+              <div class="br-settings-section" id="brSettingsHyphensSection"><div class="br-settings-label">Hyphenation</div><select id="booksReaderHyphens" class="br-settings-select"><option value="">Publisher default</option><option value="auto">Auto</option><option value="none">Off</option></select></div>
+              <div class="br-settings-section" id="brSettingsCustomCssSection"><div class="br-settings-label">Custom CSS</div><textarea id="booksReaderCustomCss" class="br-settings-textarea" rows="4" placeholder="/* Custom CSS rules applied to book content */"></textarea></div>
+              <div id="booksMegaPdfGroup" class="br-settings-section hidden"><div class="br-settings-label">PDF</div><div class="br-settings-chips"><button id="booksReaderFitPageBtn" class="br-settings-chip" title="Fit page" disabled>Fit Page</button><button id="booksReaderFitWidthBtn" class="br-settings-chip" title="Fit width" disabled>Fit Width</button><button id="booksReaderZoomDown" class="br-settings-chip" title="Zoom out" disabled>Zoom &minus;</button><button id="booksReaderZoomUp" class="br-settings-chip" title="Zoom in" disabled>Zoom +</button></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- Keyboard shortcuts overlay -->
+        <div id="brOverlayKeys" class="br-overlay hidden" data-overlay="keys" role="dialog"><div class="br-overlay-panel br-overlay-panel--settings"><div class="br-overlay-header"><span class="br-overlay-title">Keyboard Shortcuts</span><button class="br-overlay-close br-btn br-btn-sm" aria-label="Close">&times;</button></div><div class="br-overlay-body"><div id="brSettingsShortcuts" class="br-shortcuts-list"></div></div></div></div>
+        <!-- Theme overlay -->
+        <div id="brOverlayTheme" class="br-overlay hidden" data-overlay="theme" role="dialog" aria-label="Theme settings">
+          <div class="br-overlay-panel br-overlay-panel--settings">
+            <div class="br-overlay-header"><span class="br-overlay-title">Theme Settings</span><button class="br-overlay-close br-btn br-btn-sm" aria-label="Close">&times;</button></div>
+            <div class="br-overlay-body">
+              <div class="br-settings-section"><div class="br-settings-label">Theme</div><div class="br-settings-chips br-settings-chips--themes"><button class="br-settings-chip" data-theme="light"><span class="br-theme-swatch" style="background:#f4f6fa;color:#1b2230;">A</span> Light</button><button class="br-settings-chip" data-theme="sepia"><span class="br-theme-swatch" style="background:#faf4e8;color:#121212;">A</span> Sepia</button><button class="br-settings-chip" data-theme="dark"><span class="br-theme-swatch" style="background:#000;color:#fefefe;">A</span> Dark</button><button class="br-settings-chip" data-theme="paper"><span class="br-theme-swatch" style="background:#f8f4ec;color:#2c2c2c;">A</span> Paper</button><button class="br-settings-chip" data-theme="contrast1"><span class="br-theme-swatch" style="background:#000;color:#ff0;">A</span> HC 1</button><button class="br-settings-chip" data-theme="contrast2"><span class="br-theme-swatch" style="background:#0a0a3e;color:#ffd700;">A</span> HC 2</button><button class="br-settings-chip" data-theme="nord"><span class="br-theme-swatch" style="background:#2e3440;color:#d8dee9;">A</span> Nord</button><button class="br-settings-chip" data-theme="gruvbox"><span class="br-theme-swatch" style="background:#fbf1c7;color:#3c3836;">A</span> Gruvbox</button><button class="br-settings-chip" data-theme="solarized"><span class="br-theme-swatch" style="background:#fdf6e3;color:#657b83;">A</span> Solarized</button></div></div>
+              <div class="br-settings-section"><label class="br-settings-toggle-row"><span class="br-settings-label">Invert images in dark mode</span><input id="brSettingsInvertDarkImagesToggle" type="checkbox" checked /></label></div>
+            </div>
+          </div>
+        </div>
+        <!-- Go-to-page dialog -->
+        <div id="booksGotoOverlay" class="booksGotoOverlay hidden" role="dialog" aria-modal="true" aria-label="Go to page">
+          <div class="booksGotoCard"><div class="booksGotoTitle">Go to page</div><input id="booksGotoInput" class="input input-sm" type="text" placeholder="Page or percentage (e.g. 42 or 50%)" autocomplete="off" /><div class="booksGotoActions"><button id="booksGotoSubmit" class="btn btn-sm">Go</button><button id="booksGotoCancel" class="btn btn-sm btn-ghost">Cancel</button></div><div id="booksGotoHint" class="muted tiny"></div></div>
+        </div>
+        <!-- TTS loading overlay -->
+        <div id="brTtsLoadingOverlay" class="br-tts-loading-overlay hidden">
+          <div class="br-tts-loading-card">
+            <div class="br-tts-loading-title">Loading TTS</div>
+            <div class="br-tts-loading-status">Initializing...</div>
+            <div class="br-tts-loading-bar-track">
+              <div id="brTtsLoadingBarFill" class="br-tts-loading-bar-fill"></div>
+            </div>
+            <div id="brTtsLoadingPct" class="br-tts-loading-pct">0%</div>
+          </div>
+        </div>
+        <!-- TTS bar -->
+        <div id="lpTtsBar" class="booksReaderTtsBar hidden" role="toolbar" aria-label="TTS controls">
+          <button id="lpTtsBack10" class="iconBtn booksReaderTtsBtn" title="Back 10s" aria-label="Back 10 seconds"><svg viewBox="0 0 18 17" xmlns="http://www.w3.org/2000/svg"><path d="M17.8125 8.55482C17.8127 10.6088 17.004 12.5803 15.5614 14.0424C14.1188 15.5046 12.1585 16.3398 10.1047 16.3673H10C8.00552 16.3715 6.08591 15.6081 4.63906 14.2353C4.45828 14.0646 4.35273 13.829 4.34562 13.5804C4.33851 13.3319 4.43044 13.0907 4.60117 12.9099C4.7719 12.7291 5.00746 12.6236 5.25602 12.6165C5.50458 12.6094 5.74578 12.7013 5.92656 12.872C6.77519 13.6732 7.84111 14.2065 8.99112 14.4053C10.1411 14.6041 11.3242 14.4596 12.3926 13.9898C13.4609 13.5201 14.3671 12.7459 14.998 11.764C15.6288 10.7821 15.9563 9.63604 15.9395 8.46909C15.9227 7.30214 15.5623 6.16602 14.9035 5.2027C14.2446 4.23939 13.3165 3.4916 12.2351 3.05279C11.1536 2.61397 9.96684 2.5036 8.82303 2.73545C7.67922 2.9673 6.62911 3.53109 5.80391 4.35638C5.79375 4.36654 5.78438 4.37591 5.77344 4.38529L4.28828 5.74232H5.625C5.87364 5.74232 6.1121 5.84109 6.28791 6.01691C6.46373 6.19272 6.5625 6.43118 6.5625 6.67982C6.5625 6.92846 6.46373 7.16692 6.28791 7.34273C6.1121 7.51855 5.87364 7.61732 5.625 7.61732H1.875C1.62636 7.61732 1.3879 7.51855 1.21209 7.34273C1.03627 7.16692 0.9375 6.92846 0.9375 6.67982V2.92982C0.9375 2.68118 1.03627 2.44272 1.21209 2.26691C1.3879 2.09109 1.62636 1.99232 1.875 1.99232C2.12364 1.99232 2.3621 2.09109 2.53791 2.26691C2.71373 2.44272 2.8125 2.68118 2.8125 2.92982V4.54857L4.49062 3.01263C5.58508 1.92406 6.97748 1.18411 8.49209 0.886166C10.0067 0.588224 11.5756 0.74565 13.0008 1.33857C14.4261 1.93149 15.6437 2.93334 16.5001 4.21765C17.3564 5.50197 17.8131 7.01119 17.8125 8.55482Z" fill="currentColor"/></svg></button>
+          <button id="lpTtsRewind" class="iconBtn booksReaderTtsBtn" title="Previous sentence" aria-label="Previous sentence"><svg viewBox="0 0 14 16" xmlns="http://www.w3.org/2000/svg"><path d="M12.7617 0.439063C12.5177 0.303751 12.242 0.23623 11.9631 0.243511C11.6842 0.250792 11.4124 0.332611 11.1758 0.480469L2.3125 6.02344V1.17969C2.3125 0.931047 2.21373 0.69259 2.03791 0.516775C1.8621 0.34096 1.62364 0.242188 1.375 0.242188C1.12636 0.242188 0.887903 0.34096 0.712087 0.516775C0.536272 0.69259 0.4375 0.931047 0.4375 1.17969V14.9297C0.4375 15.1783 0.536272 15.4168 0.712087 15.5926C0.887903 15.7684 1.12636 15.8672 1.375 15.8672C1.62364 15.8672 1.8621 15.7684 2.03791 15.5926C2.21373 15.4168 2.3125 15.1783 2.3125 14.9297V10.0859L11.1758 15.6328C11.4118 15.7794 11.6826 15.8603 11.9603 15.8674C12.238 15.8745 12.5125 15.8074 12.7557 15.673C12.9988 15.5387 13.2018 15.3419 13.3436 15.1031C13.4854 14.8642 13.561 14.5918 13.5625 14.3141V1.79531C13.5622 1.51835 13.4878 1.24652 13.347 1.00802C13.2062 0.769532 13.0041 0.57308 12.7617 0.439063ZM11.6875 13.7367L2.60156 8.05469L11.6875 2.37266V13.7367Z" fill="currentColor"/></svg></button>
+          <button id="lpTtsPlayPause" class="iconBtn booksReaderTtsBtn" title="Play/Pause" aria-label="Play or pause TTS"><svg viewBox="0 0 16 18" xmlns="http://www.w3.org/2000/svg"><path d="M14.3195 7.73218L3.06328 0.847019C2.82722 0.703112 2.55721 0.624413 2.2808 0.618957C2.00439 0.6135 1.73148 0.681481 1.48992 0.81596C1.24837 0.950439 1.04682 1.1466 0.905848 1.38442C0.764877 1.62225 0.689531 1.89322 0.6875 2.16968V15.94C0.689531 16.2164 0.764877 16.4874 0.905848 16.7252C1.04682 16.9631 1.24837 17.1592 1.48992 17.2937C1.73148 17.4282 2.00439 17.4962 2.2808 17.4907C2.55721 17.4853 2.82722 17.4066 3.06328 17.2626L14.3195 10.3775C14.5465 10.2393 14.7341 10.0451 14.8643 9.81344C14.9945 9.58179 15.0628 9.32055 15.0628 9.05483C15.0628 8.78912 14.9945 8.52787 14.8643 8.29623C14.7341 8.06458 14.5465 7.87034 14.3195 7.73218ZM2.5625 15.3712V2.73843L12.8875 9.05483L2.5625 15.3712Z" fill="currentColor"/></svg></button>
+          <button id="lpTtsForward" class="iconBtn booksReaderTtsBtn" title="Next sentence" aria-label="Next sentence"><svg viewBox="0 0 14 16" xmlns="http://www.w3.org/2000/svg"><path d="M12.625 0.241921C12.3764 0.241921 12.1379 0.340693 11.9621 0.516509C11.7863 0.692324 11.6875 0.930781 11.6875 1.17942V6.02317L2.82422 0.476296C2.58822 0.329757 2.31743 0.248784 2.03973 0.241717C1.76202 0.23465 1.48746 0.301745 1.24432 0.436091C1.00117 0.570437 0.79824 0.767176 0.656425 1.00604C0.51461 1.24491 0.43904 1.51726 0.4375 1.79505V14.3138C0.43904 14.5916 0.51461 14.8639 0.656425 15.1028C0.79824 15.3417 1.00117 15.5384 1.24432 15.6728C1.48746 15.8071 1.76202 15.8742 2.03973 15.8671C2.31743 15.8601 2.58822 15.7791 2.82422 15.6325L11.6875 10.0857V14.9294C11.6875 15.1781 11.7863 15.4165 11.9621 15.5923C12.1379 15.7681 12.3764 15.8669 12.625 15.8669C12.8736 15.8669 13.1121 15.7681 13.2879 15.5923C13.4637 15.4165 13.5625 15.1781 13.5625 14.9294V1.17942C13.5625 0.930781 13.4637 0.692324 13.2879 0.516509C13.1121 0.340693 12.8736 0.241921 12.625 0.241921ZM2.3125 13.7365V2.37239L11.3984 8.05442L2.3125 13.7365Z" fill="currentColor"/></svg></button>
+          <button id="lpTtsFwd10" class="iconBtn booksReaderTtsBtn" title="Forward 10s" aria-label="Forward 10 seconds"><svg viewBox="0 0 18 17" xmlns="http://www.w3.org/2000/svg"><path d="M17.0594 2.92989V6.67989C17.0594 6.92853 16.9607 7.16699 16.7848 7.3428C16.609 7.51862 16.3706 7.61739 16.1219 7.61739H12.3719C12.1233 7.61739 11.8848 7.51862 11.709 7.3428C11.5332 7.16699 11.4344 6.92853 11.4344 6.67989C11.4344 6.43125 11.5332 6.19279 11.709 6.01698C11.8848 5.84116 12.1233 5.74239 12.3719 5.74239H13.7079L12.2235 4.38458C12.2133 4.3752 12.2032 4.36583 12.1938 4.35567C11.5055 3.66782 10.6588 3.15968 9.72799 2.87593C8.79722 2.59219 7.81098 2.54156 6.85604 2.72848C5.90111 2.91541 5.00675 3.33416 4.25166 3.9479C3.49656 4.56164 2.90388 5.35156 2.52576 6.24814C2.14764 7.14473 1.99567 8.12051 2.08322 9.08962C2.17077 10.0587 2.49516 10.9915 3.02784 11.8058C3.56052 12.6201 4.28518 13.291 5.13804 13.7595C5.9909 14.2279 6.94583 14.4796 7.9188 14.4924H7.99693C9.51249 14.496 10.9713 13.9164 12.0711 12.8736C12.2519 12.7028 12.4932 12.6108 12.7418 12.6178C12.9904 12.6248 13.2261 12.7304 13.3969 12.9111C13.5678 13.0919 13.6598 13.3332 13.6528 13.5818C13.6457 13.8304 13.5402 14.0661 13.3594 14.2369C11.9117 15.6091 9.99164 16.3719 7.99693 16.3674H7.88989C6.61102 16.3494 5.35614 16.0176 4.23543 15.4013C3.11471 14.785 2.16245 13.903 1.46225 12.8327C0.762052 11.7624 0.335335 10.5365 0.21957 9.2628C0.103804 7.98905 0.302531 6.70636 0.798299 5.52736C1.29407 4.34836 2.07171 3.30911 3.06296 2.50085C4.0542 1.6926 5.22872 1.14008 6.48338 0.891787C7.73805 0.643499 9.03448 0.707044 10.2589 1.07684C11.4832 1.44664 12.5981 2.11138 13.5055 3.0127L15.1844 4.54864V2.92989C15.1844 2.68125 15.2832 2.44279 15.459 2.26698C15.6348 2.09116 15.8733 1.99239 16.1219 1.99239C16.3706 1.99239 16.609 2.09116 16.7848 2.26698C16.9607 2.44279 17.0594 2.68125 17.0594 2.92989Z" fill="currentColor"/></svg></button>
+          <button id="lpTtsSlower" class="iconBtn booksReaderTtsBtn" title="Slower" aria-label="Slower">&#8722;</button>
+          <span id="lpTtsSpeed" class="booksReaderTtsSpeed">1.0&times;</span>
+          <button id="lpTtsFaster" class="iconBtn booksReaderTtsBtn" title="Faster" aria-label="Faster">+</button>
+          <svg class="lp-vol-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" width="14" height="14" aria-hidden="true"><path d="M8 1.5L4.5 5H1.5v6h3L8 14.5V1.5z" fill="currentColor"/><path d="M11 4.5c1.3 1 2 2.5 2 3.5s-.7 2.5-2 3.5M10 6.5c.7.5 1 1.2 1 1.5s-.3 1-1 1.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+          <input type="range" id="lpVolume" class="lp-volume-slider" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
+          <button id="lpThemeBtn" class="iconBtn booksReaderTtsBtn" title="Cycle theme" aria-label="Cycle theme"><svg viewBox="0 0 11 10" xmlns="http://www.w3.org/2000/svg"><path d="M10.875 0.5C10.875 0.400544 10.8355 0.305161 10.7652 0.234835C10.6949 0.164509 10.5995 0.125 10.5 0.125C8.43379 0.125 6.31363 2.45516 5.13613 3.99828C4.7156 3.86949 4.27073 3.84112 3.83725 3.91544C3.40376 3.98977 2.99375 4.16472 2.64014 4.42624C2.28654 4.68777 1.99919 5.02857 1.80119 5.42129C1.60318 5.81401 1.50004 6.24769 1.50004 6.6875C1.50004 8.135 0.584103 8.78422 0.540509 8.81422C0.473988 8.85914 0.423635 8.92421 0.396855 8.99988C0.370074 9.07555 0.368278 9.15781 0.391732 9.23458C0.415187 9.31134 0.462652 9.37855 0.52715 9.42633C0.591648 9.47411 0.669774 9.49993 0.750041 9.5H4.31254C4.75235 9.5 5.18603 9.39686 5.57875 9.19885C5.97147 9.00085 6.31227 8.7135 6.5738 8.3599C6.83532 8.00629 7.01027 7.59628 7.0846 7.16279C7.15892 6.72931 7.13055 6.28444 7.00176 5.86391C8.54535 4.68641 10.875 2.56625 10.875 0.5Z" fill="currentColor"/></svg></button>
+          <button id="lpTtsSettingsBtn" class="iconBtn booksReaderTtsBtn" title="TTS settings" aria-label="TTS settings"><svg viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="7" cy="5" r="2" fill="var(--br-reader-bar-bg,var(--br-reader-bg,#101216))" stroke="currentColor" stroke-width="1.5"/><circle cx="13" cy="10" r="2" fill="var(--br-reader-bar-bg,var(--br-reader-bg,#101216))" stroke="currentColor" stroke-width="1.5"/><circle cx="9" cy="15" r="2" fill="var(--br-reader-bar-bg,var(--br-reader-bg,#101216))" stroke="currentColor" stroke-width="1.5"/></svg></button>
+          <button id="lpTtsStop" class="iconBtn booksReaderTtsBtn" title="Stop" aria-label="Stop TTS"><svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M13.682 0.867188H2.31797C1.91888 0.867807 1.53632 1.02662 1.25413 1.30881C0.97193 1.59101 0.81312 1.97357 0.8125 2.37266V13.7367C0.81312 14.1358 0.97193 14.5184 1.25413 14.8006C1.53632 15.0828 1.91888 15.2416 2.31797 15.2422H13.682C14.0811 15.2416 14.4637 15.0828 14.7459 14.8006C15.0281 14.5184 15.1869 14.1358 15.1875 13.7367V2.37266C15.1869 1.97357 15.0281 1.59101 14.7459 1.30881C14.4637 1.02662 14.0811 0.867807 13.682 0.867188ZM13.3125 13.3672H2.6875V2.74219H13.3125V13.3672Z" fill="currentColor"/></svg></button>
+        </div>
+        <!-- TTS mega settings overlay -->
+        <div id="lpTtsMega" class="booksReaderTtsMega hidden" role="dialog" aria-label="TTS settings">
+          <div class="booksReaderTtsMegaHead">TTS Settings <button id="lpTtsMegaClose" class="iconBtn" title="Close" aria-label="Close">&times;</button></div>
+          <div class="booksReaderTtsMegaBody">
+            <div class="ttsMegaRow"><span class="ttsMegaLabel">Voice</span><select id="lpTtsVoice" class="booksReaderTtsVoice" title="Voice" aria-label="Select voice"></select><button id="lpTtsPreview" class="iconBtn booksReaderTtsBtn" title="Preview voice" aria-label="Preview voice">&#9835;</button></div>
+            <div class="ttsMegaRow"><span class="ttsMegaLabel">Preset</span><select id="lpTtsPresetSel" class="booksReaderTtsPresetSel" title="Preset" aria-label="TTS preset"><option value="">Custom</option><option value="natural">Natural</option><option value="clear">Clear</option><option value="fast">Fast Study</option><option value="slow">Slow &amp; Steady</option></select><span id="lpTtsEngine" class="booksReaderTtsEngine" title="TTS engine"></span></div>
+            <div class="ttsMegaRow"><span class="ttsMegaLabel">Highlight</span><select id="lpTtsHlStyle" class="booksReaderTtsHlStyle" title="Highlight style" aria-label="Highlight style"></select><div id="lpTtsHlColors" class="booksReaderTtsHlColors" title="Highlight color"></div></div>
+            <div class="ttsMegaRow" id="lpEnlargeRow" style="display:none"><span class="ttsMegaLabel">Enlarge</span><input type="range" id="lpTtsEnlargeScale" min="1.1" max="2.5" step="0.05" value="1.35" title="Enlarge scale" aria-label="Enlarge scale"><span id="lpTtsEnlargeVal" class="ttsMegaVal">1.35x</span></div>
+            <div class="ttsMegaRow"><span class="ttsMegaLabel">Sleep</span><div id="lpTtsSleepChips" class="ttsSleepChips"><button class="ttsSleepChip active" data-sleep="0">Off</button><button class="ttsSleepChip" data-sleep="15">15m</button><button class="ttsSleepChip" data-sleep="30">30m</button><button class="ttsSleepChip" data-sleep="60">1h</button><button class="ttsSleepChip" data-sleep="-1">End ch.</button></div><span id="lpTtsSleepBadge" class="ttsSleepBadge hidden"></span></div>
+            <div class="ttsMegaRow"><button id="lpTtsFromSel" class="iconBtn booksReaderTtsBtn" title="Read from selection" aria-label="Read from selection">&#128196;</button><button id="lpTtsDiagBtn" class="iconBtn booksReaderTtsBtn" title="TTS diagnostics" aria-label="TTS diagnostics">&#9881;</button></div>
+          </div>
+        </div>
+        <!-- TTS diagnostics panel -->
+        <div id="lpTtsDiag" class="booksReaderTtsDiag hidden" role="dialog" aria-label="TTS diagnostics">
+          <div class="booksReaderTtsDiagHead">TTS Diagnostics <button id="lpTtsDiagCopy" class="iconBtn" title="Copy diagnostics">&#128203;</button><button id="lpTtsDiagClose" class="iconBtn" title="Close">&times;</button></div>
+          <div id="lpTtsDiagBody" class="booksReaderTtsDiagBody"></div>
+        </div>
+        <!-- Audiobook transport bar -->
+        <div id="abPlayerBar" class="ab-player-bar hidden" role="toolbar" aria-label="Audiobook controls">
+          <span id="abChapterLabel" class="ab-chapter-label" title="">Ch. 1</span>
+          <button id="abPrevCh" class="iconBtn ab-bar-btn" title="Previous chapter">&#9668;</button>
+          <button id="abRew15" class="iconBtn ab-bar-btn" title="Rewind 15s">-15</button>
+          <button id="abPlayPause" class="iconBtn ab-bar-btn ab-bar-play" title="Play/Pause">&#9654;</button>
+          <button id="abFwd15" class="iconBtn ab-bar-btn" title="Forward 15s">+15</button>
+          <button id="abNextCh" class="iconBtn ab-bar-btn" title="Next chapter">&#9658;</button>
+          <span id="abTime" class="ab-bar-time">0:00 / 0:00</span>
+          <input type="range" id="abSeek" class="ab-bar-seek" min="0" max="100" value="0" disabled title="Seek" aria-label="Seek" />
+          <button id="abSlower" class="iconBtn ab-bar-btn" title="Slower">&#8722;</button>
+          <span id="abSpeed" class="ab-bar-speed">1.0&times;</span>
+          <button id="abFaster" class="iconBtn ab-bar-btn" title="Faster">+</button>
+          <svg class="ab-bar-vol-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 1.5L4.5 5H1.5v6h3L8 14.5V1.5z" fill="currentColor"/><path d="M11 4.5c1.3 1 2 2.5 2 3.5s-.7 2.5-2 3.5M10 6.5c.7.5 1 1.2 1 1.5s-.3 1-1 1.5" stroke="currentColor" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>
+          <input type="range" id="abVolume" class="ab-bar-volume" min="0" max="1" step="0.05" value="1" title="Volume" aria-label="Volume">
+          <button id="abSleepBtn" class="iconBtn ab-bar-btn" title="Sleep timer: Off">&#9790;</button><span id="abSleepBadge" class="ttsSleepBadge hidden"></span>
+          <button id="abClose" class="iconBtn ab-bar-btn" title="Close audiobook">&times;</button>
+        </div>
+        <!-- Error banner -->
+        <div id="booksReaderErrorBanner" class="booksReaderErrorBanner hidden" role="alert">
+          <div class="booksReaderErrorMsg"><strong id="booksReaderErrorTitle" class="booksReaderErrorTitle">Unable to open book</strong><span id="booksReaderErrorDetail" class="booksReaderErrorDetail"></span></div>
+          <div class="booksReaderErrorActions"><button id="booksReaderErrorRetry" class="iconBtn booksReaderErrorBtn" title="Retry">Retry</button><button id="booksReaderErrorClose" class="iconBtn booksReaderErrorBtn" title="Close">Close</button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chapter transition card -->
+    <div id="booksChapterTransition" class="br-chapter-transition hidden"><div class="br-chapter-transition-card"><div class="br-chapter-transition-done">End of chapter</div><div id="booksChapterTransCurrent" class="br-chapter-transition-current">--</div><div class="br-chapter-transition-sep">Next up</div><div id="booksChapterTransNext" class="br-chapter-transition-next">--</div><div class="br-chapter-transition-actions"><button id="booksChapterTransContinue" class="br-btn">Continue</button><span id="booksChapterTransCountdown" class="br-chapter-transition-countdown"></span></div></div></div>
+    <!-- Corner progress overlays -->
+    <div id="booksReaderCornerLeft" class="br-corner br-corner-left"></div>
+    <div id="booksReaderCornerRight" class="br-corner br-corner-right"></div>
+    <!-- Hidden compatibility stubs (expected by some reader modules) -->
+    <select id="booksReaderTheme" class="hidden" aria-hidden="true"><option value="light">Light</option><option value="sepia">Sepia</option><option value="dark">Dark</option></select>
+    <div id="booksReaderAaPanel" class="hidden" aria-hidden="true"></div>
+    <button id="booksReaderAaBtn" class="hidden" aria-hidden="true" aria-pressed="false">Aa</button>
+    <button id="booksReaderPlayBtn" class="hidden" aria-hidden="true"></button>
+    <button id="booksReaderListenBtn" class="hidden" aria-hidden="true" title="Listen (TTS)" aria-label="Listen"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 8.5v7a4.49 4.49 0 0 0 2.5-3.5zM14 3.23v2.06a7.007 7.007 0 0 1 0 13.42v2.06c4.73-1.01 8-5.31 8-10.77s-3.27-9.76-8-10.77z" fill="currentColor"/></svg></button>
+    <div id="booksReaderStatus" class="booksReaderStatus" role="status" aria-live="polite" aria-atomic="true"></div>
+  </div>
+
+  <!--
+    Standalone Ebook Reader Boot Loader
+    TTS and audiobook modules excluded.
+  -->
+  <script>
+  (function() {
+    'use strict';
+
+    // Apply initial theme before any reader modules load to prevent
+    // a theme flash (dark bg → light theme pop).  The theme name is
+    // injected at DocumentCreation by the Python bridge shim.
+    if (window.__tankoInitialTheme) {
+      var el = document.getElementById('booksReaderView');
+      if (el) el.setAttribute('data-reader-theme', window.__tankoInitialTheme);
+    }
+
+    window.__ebookBootFailures = Array.isArray(window.__ebookBootFailures) ? window.__ebookBootFailures : [];
+    window.__ebookBootFailed = !!window.__ebookBootFailed;
+    window.__ebookBootPhase = 'init';
+    var _bootWatchdog = null;
+
+    function setBootPhase(name) {
+      window.__ebookBootPhase = String(name || 'unknown');
+    }
+
+    function addBootFailure(source, detail) {
+      var phase = String(window.__ebookBootPhase || 'unknown');
+      var src = String(source || 'unknown');
+      var det = String(detail || '').trim();
+      var row = det ? (phase + ': ' + src + ' (' + det + ')') : (phase + ': ' + src);
+      try { window.__ebookBootFailures.push(row); } catch (e) {}
+      return row;
+    }
+
+    function showBootFailure(reason) {
+      if (window.__ebookBootFailed) return;
+      window.__ebookBootFailed = true;
+      var msg = String(reason || 'Reader bootstrap failed');
+      addBootFailure(msg, 'fatal');
+      try { console.error('[ebook-boot] Fatal: ' + msg, window.__ebookBootFailures); } catch (e) {}
+
+      var title = document.getElementById('booksReaderErrorTitle');
+      var detail = document.getElementById('booksReaderErrorDetail');
+      var banner = document.getElementById('booksReaderErrorBanner');
+      if (title) title.textContent = 'Unable to initialize reader';
+      if (detail) {
+        var suffix = '';
+        if (window.__ebookBootFailures.length) {
+          suffix = ' [' + window.__ebookBootFailures.slice(0, 3).join('; ') + ']';
+        }
+        detail.textContent = msg + suffix;
+      }
+      if (banner) banner.classList.remove('hidden');
+      try {
+        window.dispatchEvent(new CustomEvent('ebook-boot-failed', {
+          detail: {
+            reason: msg,
+            failures: window.__ebookBootFailures.slice(0, 12),
+          },
+        }));
+      } catch (e2) {}
+    }
+
+    function loadInOrder(scripts, idx, done) {
+      if (idx >= scripts.length) { if (done) done(); return; }
+      var s = document.createElement('script');
+      s.src = scripts[idx];
+      s.onload = function() { loadInOrder(scripts, idx + 1, done); };
+      s.onerror = function() {
+        addBootFailure(scripts[idx], 'load_in_order');
+        console.error('[ebook-boot] Failed: ' + scripts[idx]);
+        loadInOrder(scripts, idx + 1, done);
+      };
+      document.body.appendChild(s);
+    }
+
+    function loadGroup(scripts, done) {
+      var remaining = scripts.length;
+      if (remaining === 0) { if (done) done(); return; }
+      scripts.forEach(function(src) {
+        var s = document.createElement('script');
+        s.src = src;
+        s.onload = function() {
+          remaining--;
+          if (remaining <= 0 && done) done();
+        };
+        s.onerror = function() {
+          addBootFailure(src, 'load_group');
+          remaining--;
+          if (remaining <= 0 && done) done();
+        };
+        document.body.appendChild(s);
+      });
+    }
+
+    function bootReader() {
+      console.log('[ebook-boot] Starting standalone reader boot...');
+      setBootPhase('bootstrap');
+      if (_bootWatchdog) clearTimeout(_bootWatchdog);
+      _bootWatchdog = setTimeout(function() {
+        if (typeof window.__ebookOpenBook !== 'function') {
+          showBootFailure('Reader bootstrap timed out');
+        }
+      }, 20000);
+
+      // Phase 0: Bootstrap + API gateway + custom select (before state grabs element refs)
+      setBootPhase('phase0');
+      loadInOrder([
+        './services/api_gateway.js',
+        './state/bootstrap.js',
+        './domains/books/reader/custom_select.js',
+      ], 0, function() {
+
+        // Phase 1: Engines + bus + TTS engine (parallel)
+        setBootPhase('phase1');
+        loadGroup([
+          './domains/books/reader/engine_epub.js',
+          './domains/books/reader/engine_pdf.js',
+          './domains/books/reader/engine_foliate.js',
+          './domains/books/reader/engine_txt.js',
+          './domains/books/reader/reader_bus.js',
+          './domains/books/reader/tts_engine_edge.js',
+        ], function() {
+
+          // Phase 2: State (needs bus)
+          setBootPhase('phase2');
+          loadGroup([
+            './domains/books/reader/reader_state.js',
+          ], function() {
+
+            // Phase 3: All reader modules (parallel, needs state)
+            setBootPhase('phase3');
+            loadGroup([
+              './domains/books/reader/reader_appearance.js',
+              './domains/books/reader/reader_dict.js',
+              './domains/books/reader/reader_search.js',
+              './domains/books/reader/reader_bookmarks.js',
+              './domains/books/reader/reader_annotations.js',
+              './domains/books/reader/reader_toc.js',
+              './domains/books/reader/reader_nav.js',
+              './domains/books/reader/reader_sidebar.js',
+              './domains/books/reader/reader_ruler.js',
+              './domains/books/reader/reader_overlays.js',
+              './domains/books/reader/reader_keyboard.js',
+              './domains/books/reader/tts_core.js',
+              './domains/books/reader/tts_hud.js',
+            ], function() {
+
+              // Phase 4: Orchestrator + standalone boot
+              setBootPhase('phase4');
+              loadInOrder([
+                './domains/books/reader/reader_core.js',
+                './domains/books/reader/reader_standalone_boot.js',
+              ], 0, function() {
+                if (typeof window.__ebookOpenBook !== 'function') {
+                  showBootFailure('Reader modules loaded but boot hook is unavailable');
+                  return;
+                }
+                if (_bootWatchdog) {
+                  clearTimeout(_bootWatchdog);
+                  _bootWatchdog = null;
+                }
+                console.log('[ebook-boot] All reader modules loaded.');
+              });
+            });
+          });
+        });
+      });
+    }
+
+    // Wait for bridge (Qt mode) or load immediately.
+    // Use both event listener AND polling fallback — the event can be missed
+    // if the QWebChannel callback fires before this script parses.
+    function startBootOnce() {
+      if (startBootOnce._done) return;
+      startBootOnce._done = true;
+      bootReader();
+    }
+    if (window.electronAPI) {
+      startBootOnce();
+    } else if (typeof qt !== 'undefined') {
+      document.addEventListener('electronAPI:ready', function() { startBootOnce(); }, { once: true });
+      // Polling fallback: check every 200ms for up to 15s in case event was missed
+      var _bridgePollCount = 0;
+      var _bridgePoll = setInterval(function() {
+        _bridgePollCount++;
+        if (window.electronAPI) {
+          clearInterval(_bridgePoll);
+          startBootOnce();
+        } else if (_bridgePollCount > 75) {
+          clearInterval(_bridgePoll);
+          if (!startBootOnce._done) {
+            addBootFailure('bridge_poll_exhausted', 'electronAPI never appeared after 15s');
+            showBootFailure('Bridge connection failed — electronAPI not available');
+          }
+        }
+      }, 200);
+    } else {
+      startBootOnce();
+    }
+  })();
+  </script>
+</body>
+</html>

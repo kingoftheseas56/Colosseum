@@ -13,6 +13,7 @@
 #include <QNetworkRequest>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
+#include <QtWebEngineQuick/QtWebEngineQuick>
 #include <QQmlContext>
 #include <QQuickWindow>
 #include <qqml.h>
@@ -29,6 +30,8 @@
 #include "MangaEngine.h"
 #include "ProgressStore.h"
 #include "engine/MangaDownloader.h"
+#include "engine/BookDownloader.h"
+#include "reader/BookBridge.h"
 #include "player/mpvitem.h"
 #include "player/streamserver.h"
 
@@ -161,7 +164,11 @@ int main(int argc, char *argv[]) {
     // mpvqt renders through OpenGL, so the whole Quick scene must use the OpenGL RHI
     // backend (set process-wide, before the QGuiApplication). Proven 2026-06-27 that
     // Colosseum's frosted glass survives this — the player path's one prerequisite.
+    // WebEngine (the foliate EPUB reader) also rides OpenGL: share contexts + init it
+    // before the QGuiApplication, alongside the RHI pick. All three must precede app.
+    QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    QtWebEngineQuick::initialize();
 
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
@@ -197,6 +204,19 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Downloads"), downloads);
     if (qEnvironmentVariableIsSet("COLOSSEUM_DL_SELFTEST"))
         downloads->selfTest(qEnvironmentVariable("COLOSSEUM_DL_SELFTEST"));
+
+    // Book download backbone (LibGen → local .epub) exposed to QML as `Books`.
+    // Same download-fed law as manga: a book is fetched to disk once, then the
+    // reader opens the local file (never a stream). Shares the plain uncached NAM.
+    auto *books = new BookDownloader(dlNam, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Books"), books);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_BOOK_DLTEST"))
+        books->selfTest(qEnvironmentVariable("COLOSSEUM_BOOK_DLTEST"));
+
+    // Foliate EPUB reader bridge exposed to the WebEngine reader's QWebChannel as
+    // `BookBridge` (a JS shim maps it to window.electronAPI). Ported from TB2.
+    auto *bookBridge = new BookBridge(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("BookBridge"), bookBridge);
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.

@@ -12,6 +12,8 @@ import "Catalog.js" as Catalog
 import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
+import "TheatreApi.js" as TheatreApi
+import "ContinueCovers.js" as ContinueCovers
 
 Window {
     id: win
@@ -24,12 +26,15 @@ Window {
     // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.
     Shortcut { sequences: ["Escape"]; onActivated: {
         if (win.playerOpen) win.closePlayer()
+        else if (bookReaderLayer.active) win.closeBookReader()
         else if (bookLayer.active) win.closeBook()
         else if (biblioSeriesLayer.active) win.closeBiblioSeries()
+        else if (biblioGenreLayer.active) win.closeBiblioGenre()
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
+        else if (genreLayer.active) win.closeGenre()
         else if (universeLayer.active) win.closeUniverse()
         else if (worldStack.current !== "") win.closeWorld()
         else Qt.quit()
@@ -90,11 +95,40 @@ Window {
         page.visible = true
     }
 
+    function openGenre(name) {
+        genreLayer.genreName = name
+        if (genreLayer.active && genreLayer.item) genreLayer.item.genreName = name
+        else genreLayer.active = true
+    }
+    function closeGenre() { genreLayer.active = false }
+
+    function openBiblioGenre(name) {
+        biblioGenreLayer.genreName = name
+        if (biblioGenreLayer.active && biblioGenreLayer.item) biblioGenreLayer.item.genreName = name
+        else biblioGenreLayer.active = true
+    }
+    function closeBiblioGenre() { biblioGenreLayer.active = false }
+
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
     function openSeries(title) {
+        seriesLayer.resumeSeriesId = ""
+        seriesLayer.resumeChapterId = ""
         seriesLayer.title = title
-        if (seriesLayer.active && seriesLayer.item) seriesLayer.item.seriesTitle = title
-        else seriesLayer.active = true
+        if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
+            seriesLayer.item.seriesTitle = title
+        } else seriesLayer.active = true
+    }
+    // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
+    function openSeriesAt(title, seriesId, chapterId) {
+        seriesLayer.resumeSeriesId = seriesId || ""
+        seriesLayer.resumeChapterId = chapterId || ""
+        seriesLayer.title = title
+        if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.seriesTitle = title
+            if (seriesId) seriesLayer.item.seriesId = seriesId
+            seriesLayer.item.openChapterId = chapterId || ""
+        } else seriesLayer.active = true
     }
     function closeSeries() { seriesLayer.active = false }
 
@@ -109,12 +143,12 @@ Window {
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
     property bool playerOpen: false
-    function openPlayer(infoHash, fileIdx, title, backdrop) {
+    function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId) {
         if (!playerLayer.active) playerLayer.active = true
         win.playerOpen = true
-        // `backdrop` is the poster url carried up from playRequested — hand it to the player
-        // so the Continue card it records has a real cover.
-        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop)
+        // `backdrop` is the poster url; subType/subId (e.g. "movie"/"tt123" or "series"/"tt123:1:2")
+        // let the player fetch online subtitles for this exact title/episode.
+        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId)
     }
     function closePlayer() {
         if (playerLayer.item) playerLayer.item.stop()
@@ -127,6 +161,16 @@ Window {
         bookLayer.active = true
     }
     function closeBook() { bookLayer.active = false }
+
+    // ---- the reader: foliate EPUB reader over everything (download-fed, never a stream) ----
+    function openBookReader(path, book) {
+        if (!path) return
+        bookReaderLayer.bookPath = path
+        bookReaderLayer.bookMeta = book || ({})
+        if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.open(path, book || ({}))
+        else bookReaderLayer.active = true
+    }
+    function closeBookReader() { bookReaderLayer.active = false }
 
     // ---- series detail: Biblio's FictionDB series page, a layer over the world ----
     function openBiblioSeries(group) {
@@ -158,9 +202,9 @@ Window {
         else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
     }
 
-    // ---- resume a Continue card: route by kind to the reader/player using the resume payload each
-    //      world wrote. video → the player (infoHash/fileIdx); manga → its series page (the reader).
-    //      Exact-offset resume (timestamp / page) is the writers' to honour; this reopens the right place.
+    // ---- Continue card has TWO actions: the center icon RESUMES into the content; clicking
+    //      elsewhere opens the SERIES / DETAIL view. Both use the resume payload each world wrote. ----
+    //  resume (center play/read icon):
     function resumeContinue(entry) {
         if (!entry) return
         var r = entry.resume || ({})
@@ -168,9 +212,29 @@ Window {
         if (entry.kind === "video") {
             if (r.infoHash) win.openPlayer(r.infoHash, r.fileIdx || 0, title, entry.cover || "")
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            win.openSeries(title)
+            win.openSeriesAt(title, entry.id || "", r.chapterId || "")   // jump into the reader at the chapter
         } else if (entry.kind === "book") {
-            win.openBook(r.book ? r.book : entry)
+            if (r.path) win.openBookReader(r.path, r.book ? r.book : entry)   // resume reading
+            else win.openBook(r.book ? r.book : entry)
+        }
+    }
+    //  detail (click anywhere else on the card): the series / movie / book page.
+    function detailContinue(entry) {
+        if (!entry) return
+        var title = entry.title || entry.caption || ""
+        if (entry.kind === "video") {
+            var id = (entry.id || "").split(":")[0]                      // base tt id (strip episode suffix)
+            if (id.indexOf("tt") !== 0) { win.resumeContinue(entry); return }   // raw torrent, no Theatre page
+            // resolve movie vs series live from Cinemeta (probe series first; a hit → series, else movie),
+            // then open the Theatre detail. No stored type needed, so existing entries work too.
+            TheatreApi.loadMeta("series", id, function(meta) {
+                win.openTheatreSeries({ id: id, type: meta ? "series" : "movie",
+                                        title: title, cover: entry.cover || "" })
+            })
+        } else if (entry.kind === "manga" || entry.kind === "comic") {
+            win.openSeries(title)                                        // the series page (chapter list)
+        } else if (entry.kind === "book") {
+            win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
         }
     }
 
@@ -246,7 +310,9 @@ Window {
         id: card
         backdrop: wall
         width: 340; height: 148; radius: 14
-        signal activated()
+        signal resumeActivated()   // center play/read icon → resume INTO the content
+        signal detailActivated()   // anywhere else on the card → the series / detail view
+        property string kind       // "video" → play glyph; "manga"/"comic"/"book" → read glyph
         property string badge
         property string title
         property string sub
@@ -293,12 +359,34 @@ Window {
                 }
             }
         }
-        // resume on click — routes by kind (video → player, manga → reader) via win.resumeContinue
+        // click ANYWHERE on the card → the series / detail view (the center button below sits on
+        // top, so a click on it never falls through to this one)
         MouseArea {
             anchors.fill: parent
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
-            onClicked: card.activated()
+            onClicked: card.detailActivated()
+        }
+        // the center play / read button, over the cover — resumes INTO the content
+        Rectangle {
+            id: resumeBtn
+            width: 48; height: 48; radius: 24
+            x: 56 - width / 2                       // centered on the 112px cover slot
+            anchors.verticalCenter: parent.verticalCenter
+            color: rbHov.hovered ? Qt.rgba(0,0,0,0.80) : Qt.rgba(0,0,0,0.55)
+            border.width: 1.5; border.color: Qt.rgba(1,1,1,0.9)
+            scale: rbHov.hovered ? 1.08 : 1.0
+            Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutBack } }
+            Image {
+                anchors.centerIn: parent
+                width: card.kind === "video" ? 19 : 22; height: width
+                source: card.kind === "video" ? "../assets/icons/play.svg"
+                      : card.kind === "book"  ? "../assets/icons/books.svg"
+                      : "../assets/icons/manga.svg"
+                fillMode: Image.PreserveAspectFit
+            }
+            HoverHandler { id: rbHov }
+            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: card.resumeActivated() }
         }
     }
 
@@ -514,15 +602,23 @@ Window {
                         Repeater {
                             model: contCol.contItems
                             delegate: ContinueCard {
+                                id: contCard
                                 required property var modelData
+                                // saved cover, or — for a manga saved without art — an AniList fallback
+                                property string resolvedCover: (modelData.cover !== undefined && ("" + modelData.cover).length)
+                                                               ? modelData.cover : ""
+                                Component.onCompleted: if (!resolvedCover && (modelData.kind === "manga" || modelData.kind === "comic"))
+                                    ContinueCovers.fetch(modelData.title || modelData.caption || "", function(u) { contCard.resolvedCover = u })
                                 track: page.contentY + contFlick.contentX
+                                kind: modelData.kind !== undefined ? modelData.kind : ""
                                 badge: contCol.badgeFor(modelData.kind)
                                 title: modelData.title !== undefined ? modelData.title : (modelData.caption || "")
                                 sub: modelData.sub !== undefined ? modelData.sub : ""
-                                cover: modelData.cover !== undefined ? modelData.cover : ""
+                                cover: resolvedCover
                                 progress: modelData.progress !== undefined ? modelData.progress : 0
                                 art: modelData.c1 !== undefined ? modelData.c1 : "#333"
-                                onActivated: win.resumeContinue(modelData)
+                                onResumeActivated: win.resumeContinue(modelData)
+                                onDetailActivated: win.detailContinue(modelData)
                             }
                         }
                     }
@@ -569,6 +665,11 @@ Window {
                     item.mediumSelected.connect(win.openWorld)
                     item.seriesRequested.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
+                    item.genreRequested.connect(win.openGenre)
+                    var biblioGenreSignal = item["biblio" + "GenreRequested"]
+                    if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
+                    if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
+                    if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     if (mode === "Theatre") {
                         var theatreSignal = item["theatre" + "ItemRequested"]
                         if (theatreSignal) theatreSignal.connect(win.openTheatreSeries)
@@ -605,6 +706,44 @@ Window {
         }
     }
 
+    Loader {
+        id: genreLayer
+        anchors.fill: parent
+        z: 45
+        active: false
+        visible: active
+        property string genreName: ""
+        source: "GenrePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.genreName = genreLayer.genreName
+            item.backRequested.connect(win.closeGenre)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.seriesRequested.connect(win.openSeries)
+        }
+    }
+
+    Loader {
+        id: biblioGenreLayer
+        anchors.fill: parent
+        z: 46
+        active: false
+        visible: active
+        property string genreName: ""
+        source: "BiblioGenrePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.genreName = biblioGenreLayer.genreName
+            item.backRequested.connect(win.closeBiblioGenre)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.bookRequested.connect(win.openBook)
+        }
+    }
+
     // ---- series detail layer: opened from a Top-10 title tile, sits OVER the world page ----
     Loader {
         id: seriesLayer
@@ -613,10 +752,14 @@ Window {
         active: false
         visible: active
         property string title: ""
+        property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
+        property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
         source: "MangaSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.seriesTitle = seriesLayer.title
+            if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
+            if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
@@ -673,6 +816,24 @@ Window {
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            item.readRequested.connect(win.openBookReader)
+        }
+    }
+
+    // ---- the reader: foliate EPUB reader (WebEngine), over the book detail ----
+    Loader {
+        id: bookReaderLayer
+        anchors.fill: parent
+        z: 58
+        active: false
+        visible: active
+        property string bookPath: ""
+        property var bookMeta: ({})
+        source: "BookReader.qml"
+        onLoaded: {
+            item.open(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
+            item.closed.connect(win.closeBookReader)
+            item.minimizeRequested.connect(win.minimizeShell)
         }
     }
 

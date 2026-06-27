@@ -1,0 +1,19 @@
+:root {
+  --ui-accent: #60a5fa;
+  --ui-surface: #121212;
+  --ui-border: rgba(255, 255, 255, 0.14);
+  --ui-text: #e6e6e6;
+  --ui-muted: #a1a1aa;
+}
+
+body[data-mode="comics"] {
+  --ui-accent: #ff5555;
+}
+
+body[data-mode="books"] {
+  --ui-accent: #4a90d9;
+}
+
+body[data-mode="videos"] {
+  --ui-accent: #67d48b;
+}
