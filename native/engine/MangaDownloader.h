@@ -132,6 +132,7 @@ private:
     void failJob(Job* job, const QString& reason);
     void finishJob(Job* job);
     void cleanupJob(Job* job);
+    void finalizeCancel(Job* job);   // drop a cancelled job's partials + clean up
 
     // disk + index
     QString baseDir() const;                       // <appdata>/manga
@@ -147,7 +148,16 @@ private:
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs
 
+    // chapter thumbnails (first-page resolve; capped concurrency, session cache)
+    struct ThumbReq { QString seriesId; QString chapterId; };
+    QHash<QString, QString> m_thumbCache;           // chapterId -> url ("" = none)
+    QSet<QString>           m_thumbInflight;
+    QQueue<ThumbReq>        m_thumbQueue;
+    int m_thumbActive = 0;
+    void pumpThumbs();
+
     static constexpr int MAX_CONCURRENT_CHAPTERS = 2;
+    static constexpr int THUMB_CONCURRENCY       = 3;
     static constexpr int IMAGE_CONCURRENCY       = 3;
     static constexpr int MAX_IMAGE_RETRIES       = 3;
     static constexpr qint64 MIN_VALID_BYTES      = 1024;   // < 1 KB = truncated/placeholder

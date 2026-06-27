@@ -213,6 +213,99 @@ QVariantMap MangaDownloader::statusOf(const QString& chapterId) const
 }
 
 // ---------------------------------------------------------------------------
+// delete / cancel
+// ---------------------------------------------------------------------------
+void MangaDownloader::deleteChapter(const QString& chapterId)
+{
+    const auto it = m_index.constFind(chapterId);
+    if (it == m_index.constEnd()) return;
+    const QString dir = it.value().dir;
+    if (!dir.isEmpty()) QDir(dir).removeRecursively();
+    m_index.remove(chapterId);
+    m_thumbCache.remove(chapterId);
+    saveIndex();
+    qInfo("[downloads] deleted '%s'", qUtf8Printable(chapterId));
+    emit removed(chapterId);
+}
+
+void MangaDownloader::cancelDownload(const QString& chapterId)
+{
+    // queued (not yet started) -> drop it from the queue
+    for (int i = 0; i < m_queue.size(); ++i) {
+        if (m_queue.at(i)->chapterId == chapterId) {
+            Job* j = m_queue.at(i);
+            m_queue.removeAt(i);
+            delete j;
+            emit removed(chapterId);
+            return;
+        }
+    }
+    // in-flight -> flag + abort replies; finalize once all slots have drained
+    Job* job = m_active.value(chapterId, nullptr);
+    if (!job) return;
+    job->cancelled = true;
+    const QList<QNetworkReply*> replies = job->replies;
+    for (QNetworkReply* r : replies) if (r) r->abort();   // abort -> finished -> cancelled branch
+    if (m_active.value(chapterId, nullptr) == job && job->inFlight == 0) finalizeCancel(job);
+}
+
+void MangaDownloader::finalizeCancel(Job* job)
+{
+    if (!job->dir.isEmpty()) QDir(job->dir).removeRecursively();   // drop partials
+    const QString id = job->chapterId;
+    qInfo("[downloads] cancelled '%s'", qUtf8Printable(id));
+    cleanupJob(job);
+    emit removed(id);
+}
+
+// ---------------------------------------------------------------------------
+// chapter thumbnails — first page; downloaded -> local, else scrape once
+// (capped concurrency, session cache). Always answers via thumbReady().
+// ---------------------------------------------------------------------------
+void MangaDownloader::fetchThumb(const QString& seriesId, const QString& chapterId)
+{
+    if (chapterId.isEmpty()) return;
+    if (m_thumbCache.contains(chapterId)) { emit thumbReady(chapterId, m_thumbCache.value(chapterId)); return; }
+    if (isDownloaded(chapterId)) {
+        const QVariantList lp = localPages(chapterId);
+        const QString url = lp.isEmpty() ? QString()
+                          : lp.first().toMap().value(QStringLiteral("url")).toString();
+        m_thumbCache.insert(chapterId, url);
+        emit thumbReady(chapterId, url);
+        return;
+    }
+    if (m_thumbInflight.contains(chapterId)) return;
+    for (const ThumbReq& q : m_thumbQueue) if (q.chapterId == chapterId) return;
+    m_thumbQueue.enqueue(ThumbReq{seriesId, chapterId});
+    pumpThumbs();
+}
+
+void MangaDownloader::pumpThumbs()
+{
+    while (m_thumbActive < THUMB_CONCURRENCY && !m_thumbQueue.isEmpty()) {
+        const ThumbReq req = m_thumbQueue.dequeue();
+        const QString cid = req.chapterId;
+        m_thumbActive++;
+        m_thumbInflight.insert(cid);
+        auto* sc = new WeebCentralScraper(m_nam, this);
+        auto settle = [this, sc, cid](const QString& url) {
+            if (!m_thumbInflight.contains(cid)) return;   // already settled by the other signal
+            m_thumbCache.insert(cid, url);
+            emit thumbReady(cid, url);
+            m_thumbInflight.remove(cid);
+            m_thumbActive--;
+            sc->deleteLater();
+            pumpThumbs();
+        };
+        connect(sc, &MangaScraper::pagesReady, this, [settle](const QList<PageInfo>& pages) {
+            settle(pages.isEmpty() ? QString() : pages.first().imageUrl);
+        });
+        connect(sc, &MangaScraper::errorOccurred, this, [settle](const QString&) { settle(QString()); });
+        sc->fetchPages(cid);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // dev smoke — headless end-to-end proof of the pipeline
 // ---------------------------------------------------------------------------
 void MangaDownloader::selfTest(const QString& seriesTitle)
@@ -316,6 +409,8 @@ void MangaDownloader::pumpImages(Job* job)
 
 void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
 {
+    if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
+
     const QString url = job->pages[pageIndex].imageUrl;
     QNetworkRequest req{QUrl(url)};
     req.setRawHeader("User-Agent",
@@ -327,8 +422,11 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     req.setTransferTimeout(30000);
 
     QNetworkReply* reply = m_nam->get(req);
+    job->replies.append(reply);
     connect(reply, &QNetworkReply::finished, this, [this, job, pageIndex, attempt, reply]() {
         reply->deleteLater();
+        job->replies.removeOne(reply);
+        if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
         const QByteArray data = reply->readAll();
         const bool ok = reply->error() == QNetworkReply::NoError && data.size() > MIN_VALID_BYTES;
 

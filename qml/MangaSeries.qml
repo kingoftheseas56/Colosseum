@@ -525,9 +525,10 @@ Item {
                                 property int dlDone: 0
                                 property int dlTotal: 0
                                 readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
-                                // chapter thumbnail = its FIRST downloaded page (offline, instant). Undownloaded
-                                // chapters show the numbered placeholder (no per-chapter art exists upstream).
-                                readonly property string thumbUrl: dlState === "done" ? row.firstLocalUrl() : ""
+                                property string liveThumb: ""   // first-page url for an UNdownloaded chapter (scraped)
+                                // chapter thumbnail = its FIRST page: downloaded -> local file (instant),
+                                // else the scraped first-page url resolved via Downloads.fetchThumb.
+                                readonly property string thumbUrl: dlState === "done" ? row.firstLocalUrl() : row.liveThumb
                                 function firstLocalUrl() {
                                     if (typeof Downloads === "undefined") return ""
                                     var lp = Downloads.localPages(row.chId)
@@ -564,7 +565,10 @@ Item {
                                     var st = Downloads.statusOf(row.chId)
                                     row.dlState = st.state; row.dlDone = st.done; row.dlTotal = st.total
                                 }
-                                Component.onCompleted: refreshDl()
+                                function requestThumb() {
+                                    if (typeof Downloads !== "undefined") Downloads.fetchThumb(page.seriesId, row.chId)
+                                }
+                                Component.onCompleted: { refreshDl(); requestThumb() }
                                 Connections {
                                     target: typeof Downloads !== "undefined" ? Downloads : null
                                     function onProgress(cid, done, total) {
@@ -573,6 +577,11 @@ Item {
                                     }
                                     function onFinished(cid) { if (cid === row.chId) row.dlState = "done" }
                                     function onFailed(cid, reason) { if (cid === row.chId) row.dlState = "error" }
+                                    function onThumbReady(cid, url) { if (cid === row.chId && url.length) row.liveThumb = url }
+                                    function onRemoved(cid) {
+                                        if (cid !== row.chId) return
+                                        row.dlState = "none"; row.liveThumb = ""; row.requestThumb()
+                                    }
                                 }
 
                                 Rectangle { anchors.fill: parent; color: rowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
@@ -610,25 +619,34 @@ Item {
                                         font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
                                 }
 
-                                // trailing control: ✓ done · % downloading · ↓/↻ download/retry
+                                // trailing control: ✓→✕ delete (done) · ✕ cancel (in-flight) · ↓/↻ download/retry
                                 Item {
                                     id: trailing
                                     anchors.right: parent.right; anchors.rightMargin: 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 32; height: 32
-                                    Text { visible: row.dlState === "done"; anchors.centerIn: parent
-                                        text: "✓"; color: theme.gold; font.pixelSize: 16; font.weight: Font.Bold }
-                                    Text { visible: row.inFlight; anchors.centerIn: parent
-                                        text: row.dlTotal > 0 ? (Math.round(row.dlDone / row.dlTotal * 100) + "%") : "…"
-                                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11 }
-                                    Rectangle {
-                                        visible: row.dlState === "none" || row.dlState === "error"
-                                        anchors.centerIn: parent; width: 32; height: 32; radius: 16
-                                        color: dnMa.containsMouse ? theme.glassHi : "transparent"
-                                        Text { anchors.centerIn: parent; text: row.dlState === "error" ? "↻" : "↓"
-                                            color: dnMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 16 }
-                                        MouseArea { id: dnMa; anchors.fill: parent; hoverEnabled: true; z: 5
-                                            cursorShape: Qt.PointingHandCursor; onClicked: row.startDownload() }
+                                    width: 36; height: 36
+                                    Rectangle { anchors.fill: parent; radius: 18
+                                        color: trMa.containsMouse ? theme.glassHi : "transparent" }
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: row.dlState === "done" ? (trMa.containsMouse ? "✕" : "✓")
+                                            : row.inFlight ? "✕"
+                                            : row.dlState === "error" ? "↻" : "↓"
+                                        color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
+                                             : row.dlState === "done" ? theme.gold
+                                             : trMa.containsMouse ? theme.gold : theme.inkDim
+                                        font.pixelSize: 16
+                                        font.weight: (row.dlState === "done" && !trMa.containsMouse) ? Font.Bold : Font.Normal
+                                    }
+                                    MouseArea {
+                                        id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (typeof Downloads === "undefined") return
+                                            if (row.dlState === "done") Downloads.deleteChapter(row.chId)
+                                            else if (row.inFlight) Downloads.cancelDownload(row.chId)
+                                            else row.startDownload()
+                                        }
                                     }
                                 }
 
