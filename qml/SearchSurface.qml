@@ -148,6 +148,12 @@ Item {
             width: scroll.width
             spacing: 0
 
+            // Qt render-init workaround: a plain, painted first child forces the Flickable to establish
+            // its content paint pass. Without it, the layered (MultiEffect) Top Match below can fail to
+            // paint when this search layer is toggled active inside the deep main scene — the whole
+            // results area stays black until an unrelated relayout. A 1px hairline is enough.
+            Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.04) }
+
             // empty state — Recent (this session)
             Column {
                 width: parent.width; spacing: 0

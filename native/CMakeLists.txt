@@ -28,6 +28,8 @@ add_executable(colosseum
     engine/MangaSeriesDetail.h
     engine/MangaFireCatalogClient.cpp
     engine/MangaFireCatalogClient.h
+    engine/MangaDownloader.cpp
+    engine/MangaDownloader.h
     player/mpvitem.cpp
     player/mpvitem.h
     player/mpvproperties.h

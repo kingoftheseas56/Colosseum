@@ -21,6 +21,15 @@ public:
     const QString Pause{QStringLiteral("pause")};
     const QString Volume{QStringLiteral("volume")};
     const QString Mute{QStringLiteral("mute")};
+    const QString Speed{QStringLiteral("speed")};
+    const QString TrackList{QStringLiteral("track-list")};
+    const QString AudioId{QStringLiteral("aid")};
+    const QString SubtitleId{QStringLiteral("sid")};
+    const QString AudioDelay{QStringLiteral("audio-delay")};
+    const QString SubDelay{QStringLiteral("sub-delay")};
+    const QString Panscan{QStringLiteral("panscan")};
+    const QString VideoZoom{QStringLiteral("video-zoom")};
+    const QString VideoAspectOverride{QStringLiteral("video-aspect-override")};
 
 private:
     MpvProperties() = default;

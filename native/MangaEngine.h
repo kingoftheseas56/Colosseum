@@ -62,6 +62,12 @@ public:
                                        {"volumeScanned", c.isVolumeScanned}});
             emit chaptersResults(out);
         });
+        connect(m_wc, &MangaScraper::pagesReady, this, [this](const QList<PageInfo> &r) {
+            QVariantList out;
+            for (const auto &p : r)
+                out.append(QVariantMap{{"index", p.index}, {"url", p.imageUrl}, {"group", p.pageGroup}});
+            emit pagesResult(out);
+        });
         connect(m_wc, &MangaScraper::detailReady, this, [this](const MangaSeriesDetail &d) {
             emit detailResult(QVariantMap{{"synopsis", d.synopsis}, {"genres", QVariant(d.genres)},
                                           {"year", d.year}, {"status", d.status},
@@ -74,6 +80,10 @@ public:
     // QML entry points. Results arrive on the matching signal (async).
     Q_INVOKABLE void search(const QString &query) { m_wc->search(query); }
     Q_INVOKABLE void chapters(const QString &seriesId) { m_wc->fetchChapters(seriesId); }
+    // Reader: page images for a chapter. pages() = flat (long-strip/single/double);
+    // pagesPaired() = MangaPlus facing-pairs (pageGroup set). Result → pagesResult.
+    Q_INVOKABLE void pages(const QString &chapterId) { m_wc->fetchPages(chapterId); }
+    Q_INVOKABLE void pagesPaired(const QString &chapterId) { m_wc->fetchPagesPaired(chapterId); }
     Q_INVOKABLE void detail(const QString &id, const QString &url, const QString &title,
                             const QString &cover) {
         MangaResult p;
@@ -141,6 +151,7 @@ public:
 signals:
     void searchResults(const QVariantList &results);
     void chaptersResults(const QVariantList &chapters);
+    void pagesResult(const QVariantList &pages);
     void detailResult(const QVariantMap &detail);
     void artResult(const QVariantMap &art);
     void volumesResult(const QVariantMap &result);

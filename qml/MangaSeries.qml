@@ -489,7 +489,18 @@ Item {
                                             font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     MouseArea { id: dlVolMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor }
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (typeof Downloads === "undefined") return
+                                            var chs = page.visibleChapters
+                                            for (var i = 0; i < chs.length; i++) {
+                                                var id = String(chs[i].id || "")
+                                                if (!id.length) continue
+                                                var lbl = (chs[i].name && String(chs[i].name).length)
+                                                          ? chs[i].name : ("Chapter " + (chs[i].number || ""))
+                                                Downloads.downloadChapter(id, page.seriesId, page.seriesTitle, lbl)
+                                            }
+                                        } }
                                 }
                             }
                             Text {
@@ -506,46 +517,126 @@ Item {
                             delegate: Item {
                                 id: row
                                 required property var modelData
-                                width: tableInner.width; height: 56
+                                width: tableInner.width; height: 92
+
+                                // per-row download state, kept live via the Downloads signals
+                                property string chId: String(row.modelData.id || "")
+                                property string dlState: "none"   // none | queued | downloading | done | error
+                                property int dlDone: 0
+                                property int dlTotal: 0
+                                readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
+                                // chapter thumbnail = its FIRST downloaded page (offline, instant). Undownloaded
+                                // chapters show the numbered placeholder (no per-chapter art exists upstream).
+                                readonly property string thumbUrl: dlState === "done" ? row.firstLocalUrl() : ""
+                                function firstLocalUrl() {
+                                    if (typeof Downloads === "undefined") return ""
+                                    var lp = Downloads.localPages(row.chId)
+                                    return (lp && lp.length) ? lp[0].url : ""
+                                }
+                                function chLabel() {
+                                    return (row.modelData.name && String(row.modelData.name).length)
+                                        ? row.modelData.name : ("Chapter " + (row.modelData.number || ""))
+                                }
+                                function statusLine() {
+                                    if (dlState === "done") return "● Downloaded"
+                                    if (dlState === "queued") return "Queued…"
+                                    if (dlState === "downloading")
+                                        return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
+                                    if (dlState === "error") return "⚠ Failed — tap to retry"
+                                    return ""
+                                }
+                                function openReader() {
+                                    page.openChapterId = row.chId
+                                    page.openChapterLabel = row.chLabel()
+                                }
+                                function startDownload() {
+                                    if (typeof Downloads === "undefined" || !row.chId.length) return
+                                    row.dlState = "queued"
+                                    Downloads.downloadChapter(row.chId, page.seriesId, page.seriesTitle, row.chLabel())
+                                }
+                                // download-fed: tap reads a downloaded chapter, else downloads it (the reader only opens what's on disk)
+                                function primary() {
+                                    if (row.dlState === "done") row.openReader()
+                                    else if (!row.inFlight) row.startDownload()
+                                }
+                                function refreshDl() {
+                                    if (typeof Downloads === "undefined") return
+                                    var st = Downloads.statusOf(row.chId)
+                                    row.dlState = st.state; row.dlDone = st.done; row.dlTotal = st.total
+                                }
+                                Component.onCompleted: refreshDl()
+                                Connections {
+                                    target: typeof Downloads !== "undefined" ? Downloads : null
+                                    function onProgress(cid, done, total) {
+                                        if (cid !== row.chId) return
+                                        row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
+                                    }
+                                    function onFinished(cid) { if (cid === row.chId) row.dlState = "done" }
+                                    function onFailed(cid, reason) { if (cid === row.chId) row.dlState = "error" }
+                                }
+
                                 Rectangle { anchors.fill: parent; color: rowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
-                                Text {
-                                    id: cnum
-                                    anchors.left: parent.left; anchors.leftMargin: 24
+
+                                // thumbnail (portrait) — first page once downloaded, numbered placeholder otherwise
+                                Item {
+                                    id: thumb
+                                    anchors.left: parent.left; anchors.leftMargin: 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 34; horizontalAlignment: Text.AlignRight
-                                    text: row.modelData.number || ""
-                                    color: rowMa.containsMouse ? theme.gold : theme.inkDimmer
-                                    font.family: theme.display; font.pixelSize: 18
+                                    width: 58; height: 80
+                                    Rectangle {
+                                        anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1
+                                        border.color: row.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
+                                        Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
+                                            text: row.modelData.number || "?"; color: theme.inkDimmer
+                                            font.family: theme.display; font.pixelSize: 22 }
+                                    }
+                                    Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
+                                        source: row.thumbUrl; visible: status === Image.Ready
+                                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
+                                        sourceSize.width: 170 }
                                 }
-                                Text {
-                                    anchors.left: cnum.right; anchors.leftMargin: 18
-                                    anchors.right: rowActs.left; anchors.rightMargin: 16
+
+                                // title + status subtitle
+                                Column {
+                                    anchors.left: thumb.right; anchors.leftMargin: 16
+                                    anchors.right: trailing.left; anchors.rightMargin: 14
+                                    anchors.verticalCenter: parent.verticalCenter; spacing: 4
+                                    Text { width: parent.width; text: row.chLabel()
+                                        color: rowMa.containsMouse ? theme.gold : theme.ink
+                                        font.family: theme.ui; font.pixelSize: 17; elide: Text.ElideRight }
+                                    Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
+                                        color: row.dlState === "done" ? theme.gold
+                                             : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
+                                        font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                }
+
+                                // trailing control: ✓ done · % downloading · ↓/↻ download/retry
+                                Item {
+                                    id: trailing
+                                    anchors.right: parent.right; anchors.rightMargin: 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: (row.modelData.name && row.modelData.name.length) ? row.modelData.name
-                                          : ("Chapter " + (row.modelData.number || ""))
-                                    color: theme.ink; font.family: theme.ui; font.pixelSize: 15; elide: Text.ElideRight
+                                    width: 32; height: 32
+                                    Text { visible: row.dlState === "done"; anchors.centerIn: parent
+                                        text: "✓"; color: theme.gold; font.pixelSize: 16; font.weight: Font.Bold }
+                                    Text { visible: row.inFlight; anchors.centerIn: parent
+                                        text: row.dlTotal > 0 ? (Math.round(row.dlDone / row.dlTotal * 100) + "%") : "…"
+                                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11 }
+                                    Rectangle {
+                                        visible: row.dlState === "none" || row.dlState === "error"
+                                        anchors.centerIn: parent; width: 32; height: 32; radius: 16
+                                        color: dnMa.containsMouse ? theme.glassHi : "transparent"
+                                        Text { anchors.centerIn: parent; text: row.dlState === "error" ? "↻" : "↓"
+                                            color: dnMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 16 }
+                                        MouseArea { id: dnMa; anchors.fill: parent; hoverEnabled: true; z: 5
+                                            cursorShape: Qt.PointingHandCursor; onClicked: row.startDownload() }
+                                    }
                                 }
-                                Row {
-                                    id: rowActs
-                                    anchors.right: cdate.left; anchors.rightMargin: 16
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 16
-                                    opacity: rowMa.containsMouse ? 1.0 : 0.0
-                                    Behavior on opacity { NumberAnimation { duration: 120 } }
-                                    Text { text: "▤"; color: theme.inkDim; font.pixelSize: 15 }   // read
-                                    Text { text: "↓"; color: theme.inkDim; font.pixelSize: 15 }   // download
-                                }
-                                Text {
-                                    id: cdate
-                                    anchors.right: parent.right; anchors.rightMargin: 24
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    text: page.fmtDate(row.modelData.date)
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                                }
+
                                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1
                                     color: Qt.rgba(1,1,1,0.05); visible: row.y + row.height < tableInner.height }
                                 MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor /* read/download wired in the reader step */ }
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: row.primary() }
                             }
                         }
                     }
@@ -588,5 +679,28 @@ Item {
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: 14
         }
+    }
+
+    // ---- reader overlay: opened from a chapter row (the recreated Tankoban reader) ----
+    // Direct child (NOT a Loader+inline-Component): inside a nested Component the outer
+    // `page` id does not resolve, so every page.* binding was undefined and onBackRequested
+    // silently threw — the reader could never close. As a direct child, `page` resolves
+    // like everywhere else. Idle cost is nil: with no chapterId it fetches nothing and
+    // visible:false removes it from input.
+    property string openChapterId: ""
+    property string openChapterLabel: ""
+    MangaReader {
+        id: readerLayer
+        anchors.fill: parent; z: 60
+        visible: page.openChapterId.length > 0
+        backdrop: page.backdrop
+        seriesTitle: page.seriesTitle
+        seriesId: page.seriesId
+        chapters: page.chaptersModel
+        chapterId: page.openChapterId
+        chapterLabel: page.openChapterLabel
+        onBackRequested: { page.openChapterId = ""; page.openChapterLabel = "" }
+        onMinimizeRequested: page.minimizeRequested()
+        onCloseRequested: page.closeRequested()
     }
 }

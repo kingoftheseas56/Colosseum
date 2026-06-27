@@ -6,6 +6,7 @@
 #include <QNetworkReply>
 #include <QPointer>
 #include <QRegularExpression>
+#include <QSet>
 #include <QUrl>
 #include <QUrlQuery>
 
@@ -340,23 +341,25 @@ QList<PageInfo> WeebCentralScraper::parsePagesHtml(const QString& html)
 {
     QList<PageInfo> pages;
 
-    // Images endpoint returns only reader pages. Hosts drift over time
-    // (planeptune, lowee, etc.), so accept http(s) image URLs instead of
-    // pinning one CDN hostname.
+    // The images endpoint returns ONLY reader pages (an htmx fragment, no header/footer chrome).
+    // Modern WeebCentral binds each page via Alpine (`:src` / x-data), NOT a plain <img src>, so the
+    // old `<img src="...">` regex matched nothing. Match any http(s) image URL directly instead —
+    // also future-proof against CDN-host drift (planeptune, lowee, …). Dedup, preserve document order.
     static QRegularExpression imgRe(
-        R"RE(<img[^>]+src="(https?://[^"]+\.(?:png|jpe?g|webp)(?:\?[^"]*)?)"[^>]*>)RE",
+        R"RE(https?://[^"'\s<>]+?\.(?:png|jpe?g|webp)(?:\?[^"'\s<>]*)?)RE",
         QRegularExpression::CaseInsensitiveOption);
 
+    QSet<QString> seen;
     auto matches = imgRe.globalMatch(html);
     int idx = 0;
     while (matches.hasNext()) {
-        auto m = matches.next();
+        const QString url = matches.next().captured(0);
+        if (url.contains(QLatin1String("/broken_image."))) continue;
+        if (seen.contains(url)) continue;
+        seen.insert(url);
         PageInfo p;
         p.index    = idx++;
-        p.imageUrl = m.captured(1);
-        if (p.imageUrl.contains(QLatin1String("/broken_image."))) {
-            continue;
-        }
+        p.imageUrl = url;
         pages.append(p);
     }
 

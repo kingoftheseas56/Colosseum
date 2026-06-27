@@ -8,6 +8,7 @@
 #define COLOSSEUM_MPVITEM_H
 
 #include <MpvAbstractItem>
+#include <QVariantList>
 
 class MpvItem : public MpvAbstractItem
 {
@@ -48,10 +49,54 @@ public:
     int volume();
     void setVolume(int value);
 
+    Q_PROPERTY(bool mute READ mute WRITE setMute NOTIFY muteChanged)
+    bool mute();
+    void setMute(bool value);
+
+    Q_PROPERTY(double speed READ speed WRITE setSpeed NOTIFY speedChanged)
+    double speed();
+    void setSpeed(double value);
+
+    Q_PROPERTY(QString audioTrack READ audioTrack WRITE setAudioTrack NOTIFY audioTrackChanged)
+    QString audioTrack();
+    void setAudioTrack(const QString &value);
+
+    Q_PROPERTY(QString subtitleTrack READ subtitleTrack WRITE setSubtitleTrack NOTIFY subtitleTrackChanged)
+    QString subtitleTrack();
+    void setSubtitleTrack(const QString &value);
+
+    Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY trackListChanged)
+    QVariantList audioTracks() const;
+
+    Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY trackListChanged)
+    QVariantList subtitleTracks() const;
+
+    Q_PROPERTY(double audioDelay READ audioDelay WRITE setAudioDelay NOTIFY audioDelayChanged)
+    double audioDelay();
+    void setAudioDelay(double value);
+
+    Q_PROPERTY(double subDelay READ subDelay WRITE setSubDelay NOTIFY subDelayChanged)
+    double subDelay();
+    void setSubDelay(double value);
+
+    Q_PROPERTY(double panscan READ panscan WRITE setPanscan NOTIFY videoFillChanged)
+    double panscan();
+    void setPanscan(double value);
+
+    Q_PROPERTY(double videoZoom READ videoZoom WRITE setVideoZoom NOTIFY videoFillChanged)
+    double videoZoom();
+    void setVideoZoom(double value);
+
+    Q_PROPERTY(QString videoAspect READ videoAspect WRITE setVideoAspect NOTIFY videoFillChanged)
+    QString videoAspect();
+    void setVideoAspect(const QString &value);
+
     Q_PROPERTY(QUrl currentUrl READ currentUrl NOTIFY currentUrlChanged)
     QUrl currentUrl() const;
 
     Q_INVOKABLE void loadFile(const QString &file);
+    Q_INVOKABLE void seekExact(double value);
+    Q_INVOKABLE void seekStep(double delta);
 
 Q_SIGNALS:
     void mediaTitleChanged();
@@ -60,6 +105,14 @@ Q_SIGNALS:
     void durationChanged();
     void pauseChanged();
     void volumeChanged();
+    void muteChanged();
+    void speedChanged();
+    void audioTrackChanged();
+    void subtitleTrackChanged();
+    void trackListChanged();
+    void audioDelayChanged();
+    void subDelayChanged();
+    void videoFillChanged();
 
     void fileStarted();
     void fileLoaded();
@@ -71,12 +124,15 @@ private:
     void onPropertyChanged(const QString &property, const QVariant &value);
     void onAsyncReply(const QVariant &data, mpv_event event);
     QString formatTime(const double time);
+    QVariantList tracksForType(const QString &type) const;
+    QString stringifyId(const QVariant &value) const;
 
     double m_position{0.0};
     QString m_formattedPosition;
     double m_duration{0.0};
     QString m_formattedDuration;
     QUrl m_currentUrl;
+    QVariantList m_trackList;
 };
 
 #endif // COLOSSEUM_MPVITEM_H

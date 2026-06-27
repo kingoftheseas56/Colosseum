@@ -27,6 +27,7 @@
 #include <QTimer>
 
 #include "MangaEngine.h"
+#include "engine/MangaDownloader.h"
 #include "player/mpvitem.h"
 #include "player/streamserver.h"
 
@@ -183,6 +184,15 @@ int main(int argc, char *argv[]) {
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Manga"), manga);
+
+    // Download-fed reading backbone exposed to QML as `Downloads`. Reading is never
+    // a live stream: a chapter is downloaded to loose local files once, then the
+    // reader reads those offline. Own plain NAM (no cache) — it persists to disk itself.
+    auto *dlNam = new QNetworkAccessManager(&app);
+    auto *downloads = new MangaDownloader(dlNam, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Downloads"), downloads);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_DL_SELFTEST"))
+        downloads->selfTest(qEnvironmentVariable("COLOSSEUM_DL_SELFTEST"));
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
