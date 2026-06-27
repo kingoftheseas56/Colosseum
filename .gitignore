@@ -1,0 +1,15 @@
+# Colosseum — source-only backup. Build output, scratch, and downloadable art stay out.
+
+# CMake / compiler output (recompiles from native/main.cpp + CMakeLists.txt)
+native/build/
+
+# Dev scratch: smoke screenshots, diagnostic logs, click scripts
+tools/
+
+# Cover art — fetched from remote URLs (Catalog.js) + cached to disk; not source
+assets/covers/
+
+# OS / editor cruft
+*.log
+Thumbs.db
+.DS_Store
