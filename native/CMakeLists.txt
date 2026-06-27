@@ -21,6 +21,7 @@ find_package(MpvQt REQUIRED)
 add_executable(colosseum
     main.cpp
     MangaEngine.h
+    ProgressStore.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h

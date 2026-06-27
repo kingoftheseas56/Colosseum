@@ -13,6 +13,7 @@ Item {
     property Item backdrop
     property string seriesTitle: ""
     property string seriesId: ""
+    property string seriesCover: ""           // series cover (from the series view) — for the Continue card
     property var    chapters: []              // ALL chapters (newest-first) — for the modal + crossing
     property string chapterId: ""             // incoming open target (from the series view)
     property string chapterLabel: ""          // incoming fallback label
@@ -46,7 +47,7 @@ Item {
     property bool   pendingAtLast: false        // open an older chapter at its last page
     onChapterIdChanged: curChapterId = chapterId
     Component.onCompleted: { curChapterId = chapterId; if (curChapterId.length) load() }
-    onCurChapterIdChanged: load()
+    onCurChapterIdChanged: { load(); recordProgress() }
     // grab keyboard focus whenever the reader is shown, so arrows/Esc work (it's a
     // direct child of the series page and won't get active focus on its own).
     onVisibleChanged: if (visible) reader.forceActiveFocus()
@@ -78,6 +79,24 @@ Item {
     property bool atEnd: false                  // "all caught up" end card
 
     readonly property int  max: pagesModel.length
+
+    // --- continue tracking: note how far into this series we've read, for the Continue row ---
+    function recordProgress() {
+        if (typeof Progress === "undefined" || !reader.seriesId.length || reader.max <= 0)
+            return
+        Progress.record({
+            "id": reader.seriesId,
+            "kind": "manga",
+            "caption": reader.seriesTitle,
+            "title": reader.seriesTitle,
+            "sub": reader.curLabel,
+            "cover": reader.seriesCover,
+            "c1": "#3a2f55", "c2": "#15111f",
+            "progress": Math.min(1, Math.max(0, reader.page / reader.max)),
+            "resume": { "chapterId": reader.curChapterId, "page": reader.page }
+        })
+    }
+    onPageChanged: recordProgress()
 
     // --- modals + HUD popups ---
     property bool showPrefs: false
@@ -195,9 +214,20 @@ Item {
     }
     function smoothScrollTo(y) { smoothScrollBy(y - flick.contentY) }
 
-    // Chrome is always shown while reading. (Idle auto-hide is a verified follow-up
-    // increment — deferred so the HUD can never vanish without a way back.)
-    readonly property bool chromeShown: true
+    // ===================== auto-hide chrome =====================
+    // HUD + side bars recede while reading and return on ANY mouse movement, so they
+    // can never get stuck hidden (move the mouse = they're back; keyboard works either
+    // way). A modal/dropdown open or hovering the HUD freezes them shown; the "Pin
+    // toolbar" pref keeps them on permanently.
+    property bool hudShown: true
+    property bool hudHover: false
+    readonly property bool pinned: prefs.sticky_top_nav
+    readonly property bool frozen: showPrefs || showJump || showChapters || hudMenu !== "" || hudHover
+    readonly property bool chromeShown: hudShown || pinned || frozen
+    Timer { id: idleHide; interval: 2200; running: reader.max > 0
+        onTriggered: if (!reader.frozen && !reader.pinned) reader.hudShown = false }
+    function pokeChrome() { hudShown = true; if (!pinned) idleHide.restart() }
+    onFrozenChanged: { if (frozen) { idleHide.stop(); hudShown = true } else pokeChrome() }
 
     // ===================== visual tree =====================
     focus: true
@@ -324,6 +354,17 @@ Item {
         }
     }
 
+    // reveal-on-move overlay: NoButton so it never eats page-turn clicks; hoverEnabled
+    // so ANY movement pokes the chrome back (guarantees it can't get stuck hidden).
+    MouseArea {
+        anchors.fill: parent; z: 18
+        enabled: reader.max > 0
+        hoverEnabled: true
+        acceptedButtons: Qt.NoButton
+        onPositionChanged: reader.pokeChrome()
+        onEntered: reader.pokeChrome()
+    }
+
     // ── download panel (no local pages; download-fed, never streams) ──
     Column {
         visible: reader.max === 0
@@ -409,6 +450,7 @@ Item {
     component NavBar: Rectangle {
         property bool isLeft: true
         property bool shown: true
+        enabled: shown
         width: 52; height: parent.height
         color: navMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent"
         opacity: shown ? 1 : 0
@@ -425,8 +467,8 @@ Item {
             }
         }
     }
-    NavBar { isLeft: true;  anchors.left: parent.left;   visible: reader.max > 0 && !reader.atEnd; z: 15 }
-    NavBar { isLeft: false; anchors.right: parent.right; visible: reader.max > 0 && !reader.atEnd; z: 15 }
+    NavBar { isLeft: true;  anchors.left: parent.left;   visible: reader.max > 0 && !reader.atEnd; shown: reader.chromeShown; z: 15 }
+    NavBar { isLeft: false; anchors.right: parent.right; visible: reader.max > 0 && !reader.atEnd; shown: reader.chromeShown; z: 15 }
 
     // floating back-to-top (long strip)
     Rectangle {
@@ -449,8 +491,10 @@ Item {
         height: 52; radius: 14
         visible: reader.max > 0 && !reader.atEnd
         opacity: reader.chromeShown ? 1 : 0
+        enabled: reader.chromeShown
         Behavior on opacity { NumberAnimation { duration: 160 } }
         z: 20
+        HoverHandler { onHoveredChanged: reader.hudHover = hovered }
 
         // left cluster: back · series · chapter chip
         Row {

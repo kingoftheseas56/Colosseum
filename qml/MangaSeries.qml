@@ -714,6 +714,7 @@ Item {
         backdrop: page.backdrop
         seriesTitle: page.seriesTitle
         seriesId: page.seriesId
+        seriesCover: page.cover
         chapters: page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel

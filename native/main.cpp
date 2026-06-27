@@ -27,6 +27,7 @@
 #include <QTimer>
 
 #include "MangaEngine.h"
+#include "ProgressStore.h"
 #include "engine/MangaDownloader.h"
 #include "player/mpvitem.h"
 #include "player/streamserver.h"
@@ -64,7 +65,10 @@ protected:
             }
         }
 
-        r.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum/0.1"));
+        // Respect a User-Agent the caller already set (the QML XHR sets a browser UA for sources
+        // like Fandom / MediaWiki that 403 a bot UA); only stamp our own when none was provided.
+        if (r.header(QNetworkRequest::UserAgentHeader).isNull())
+            r.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum/0.1"));
         r.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
         r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
@@ -198,6 +202,12 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
+
+    // Continue / resume backbone exposed to QML as `Progress`. The player and the
+    // manga reader write watch/read progress; every Continue row reads it back.
+    // QSettings-backed, so it survives a restart.
+    auto *progress = new ProgressStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
 
     const QString qmlPath = (argc > 1) ? QString::fromLocal8Bit(argv[1])
                                        : QStringLiteral("qml/Main.qml");
