@@ -13,6 +13,9 @@ Column {
 
     width: parent ? parent.width : 800
     spacing: 14
+    // The resume shelf only exists when there's something on it. Its parent board is a
+    // Column, which skips invisible children — so an empty Continue leaves no gap.
+    visible: cont.items.length > 0
 
     WidgetHeader { width: parent.width; title: cont.title }
 

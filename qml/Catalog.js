@@ -21,14 +21,8 @@ var featured = [
     { title: "Invincible",  art: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg/2000x2000bb.jpg", artKind: "poster", blurb: "Kirkman's superhero saga — Most Popular on the comics shelf.", ghost: "C", c1: "#5a3f2f", c2: "#1a120b" }
 ];
 
-var continueItems = [
-    { caption: "One Piece — Ch. 1090",    cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-BeslEMqiPhlk.jpg", c1: MANGA_C1, c2: MANGA_C2, progress: 0.45 },
-    { caption: "Invincible — #12",        cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg/2000x2000bb.jpg", c1: COMIC_C1, c2: COMIC_C2, progress: 0.70 },
-    { caption: "Berserk — Vol. 38",       cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30002-Cul4OeN7bYtn.jpg", c1: MANGA_C1, c2: MANGA_C2, progress: 0.22 },
-    { caption: "Watchmen — Ch. 7",        cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication113/v4/5e/70/d9/5e70d95a-55be-e162-7149-31305a31ed87/T2013000018301.jpg/2000x2000bb.jpg", c1: COMIC_C1, c2: COMIC_C2, progress: 0.58 },
-    { caption: "Chainsaw Man — Ch. 97",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx105778-euxXZEIfDY2u.png", c1: MANGA_C1, c2: MANGA_C2, progress: 0.33 },
-    { caption: "Saga — #54",              cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication4/v4/23/03/9c/23039c5b-155e-0ae4-36b3-d3407b07420c/AUG120491.jpg/2000x2000bb.jpg", c1: COMIC_C1, c2: COMIC_C2, progress: 0.80 }
-];
+// (Continue is no longer a static list — it comes live from the Progress store, written
+//  by the player and the manga reader. See ProgressStore / the `Progress` context property.)
 
 var topManga = [
     { caption: "One Piece",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-BeslEMqiPhlk.jpg", c1: MANGA_C1, c2: MANGA_C2 },
@@ -97,13 +91,7 @@ var theatreFeatured = [
     { title: "Fallout", art: "https://live.metahub.space/background/large/tt12637874/img", blurb: "Vaults, wasteland, and old-world power plays collide above ground.", ghost: "S", c1: "#3f5640", c2: "#111b12" }
 ];
 
-var theatreContinue = [
-    { caption: "Dune: Part Two", cover: "https://live.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c", progress: 0.62 },
-    { caption: "Shogun - E06", cover: "https://live.metahub.space/poster/medium/tt2788316/img", c1: "#4c2f2a", c2: "#160d0b", progress: 0.48 },
-    { caption: "The Bear - S02E08", cover: "https://live.metahub.space/poster/medium/tt14452776/img", c1: "#33445d", c2: "#0c1118", progress: 0.74 },
-    { caption: "Fallout - E03", cover: "https://live.metahub.space/poster/medium/tt12637874/img", c1: "#3f5640", c2: "#111b12", progress: 0.29 },
-    { caption: "The Last of Us - E04", cover: "https://live.metahub.space/poster/medium/tt3581920/img", c1: "#3d4a39", c2: "#11170f", progress: 0.56 }
-];
+// (Theatre's "Continue Watching" is live from the Progress store now — see TheatreWorld.)
 
 var theatreTopMovies = [
     { caption: "Dune: Part Two", cover: "https://live.metahub.space/poster/medium/tt15239678/img", c1: "#5d4633", c2: "#18110c" },
@@ -186,11 +174,11 @@ function allImageUrls() {
     var urls = [];
     function push(u) { if (u && urls.indexOf(u) === -1) urls.push(u); }
     for (var i = 0; i < featured.length; i++) push(featured[i].art);
-    var rows = [continueItems, topManga, topComics, genresManga, genresComics];
+    var rows = [topManga, topComics, genresManga, genresComics];
     for (var r = 0; r < rows.length; r++)
         for (var j = 0; j < rows[r].length; j++) push(rows[r][j].cover);
     for (var f = 0; f < theatreFeatured.length; f++) push(theatreFeatured[f].art);
-    var theatreRows = [theatreContinue, theatreTopMovies, theatreTopSeries, theatreGenres];
+    var theatreRows = [theatreTopMovies, theatreTopSeries, theatreGenres];
     for (var tr = 0; tr < theatreRows.length; tr++)
         for (var tj = 0; tj < theatreRows[tr].length; tj++) push(theatreRows[tr][tj].cover);
     for (var bf = 0; bf < biblioFeatured.length; bf++) push(biblioFeatured[bf].art);

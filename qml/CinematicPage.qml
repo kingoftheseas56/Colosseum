@@ -18,7 +18,13 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
     signal searchClicked()
-    signal titleRequested(string title)   // a film tile -> Theatre detail (wired later)
+    signal watchRequested(var item)       // a film tile -> A4's TheatreSeries.qml (Cinemeta id)
+
+    // build the Cinemeta item a film tile hands to TheatreSeries (id resolved by McuApi)
+    function watchItem(film) {
+        return { id: film.id || "", type: film.type || "movie", title: film.title || "",
+                 cover: film.poster || "", art: film.poster || "" };
+    }
 
     Theme { id: theme }
     property var mcu: ({ phases: [] })
@@ -134,7 +140,9 @@ Item {
         id: cp
         property var phase
         property var roadFilms: phase && phase.films ? phase.films.slice(0, Math.max(0, phase.films.length - 1)) : []
-        implicitHeight: 270
+        // grow to fit the content (+44 = the RowLayout's 22px margins top+bottom); 270 is the floor so
+        // short phases still look substantial. Fixed height was clipping 2-line film captions out the bottom.
+        implicitHeight: Math.max(270, body.implicitHeight + 44)
         radius: 18
         color: Qt.rgba(0.078, 0.06, 0.086, 0.55)
         border.width: 1; border.color: theme.edge
@@ -142,16 +150,25 @@ Item {
         RowLayout {
             anchors.fill: parent; anchors.margins: 22; spacing: 24
 
-            // --- the capstone (left) ---
+            // --- the capstone (left) — a fixed 2:3 poster so it stays clean as the panel grows ---
             Item {
-                Layout.preferredWidth: 158; Layout.fillHeight: true
+                Layout.preferredWidth: 172; Layout.preferredHeight: 258
+                Layout.alignment: Qt.AlignVCenter
                 Rectangle {
                     anchors.fill: parent; radius: 12; clip: true
                     color: Qt.rgba(1,1,1,0.04); border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.4)
+                    scale: capHov.hovered ? 1.03 : 1.0
+                    Behavior on scale { NumberAnimation { duration: 130 } }
                     Image {
                         anchors.fill: parent
                         source: cp.phase && cp.phase.capstone ? cp.phase.capstone.poster : ""
                         fillMode: Image.PreserveAspectCrop; cache: true; asynchronous: true
+                    }
+                    HoverHandler { id: capHov }
+                    MouseArea {
+                        anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        onClicked: if (cp.phase && cp.phase.capstone && cp.phase.capstone.id)
+                                       root.watchRequested(root.watchItem(cp.phase.capstone))
                     }
                     Rectangle {
                         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 78
@@ -173,6 +190,7 @@ Item {
 
             // --- the body (right) ---
             ColumnLayout {
+                id: body
                 Layout.fillWidth: true; Layout.fillHeight: true; spacing: 4
                 Text { text: cp.phase ? cp.phase.phase.toUpperCase() : ""; color: theme.gold
                        font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 3; font.bold: true }
@@ -184,17 +202,17 @@ Item {
                     Layout.fillWidth: true; Layout.topMargin: 4
                     wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                 }
-                Item { Layout.fillHeight: true }   // push the road row to the bottom
+                Item { Layout.preferredHeight: 12 }   // breathing room before the road row
                 Text { text: "THE ROAD"; color: theme.inkDimmer; font.family: theme.ui
                        font.pixelSize: 10; font.letterSpacing: 2; Layout.bottomMargin: 2 }
                 Row {
-                    spacing: 10
+                    spacing: 14
                     Repeater {
                         model: cp.roadFilms
                         delegate: Column {
-                            width: 72
+                            width: 116
                             Rectangle {
-                                width: 72; height: 106; radius: 7; clip: true
+                                width: 116; height: 172; radius: 8; clip: true
                                 color: Qt.rgba(1,1,1,0.05); border.width: 1; border.color: Qt.rgba(1,1,1,0.08)
                                 scale: rfHov.hovered ? 1.05 : 1.0
                                 Behavior on scale { NumberAnimation { duration: 120 } }
@@ -202,11 +220,11 @@ Item {
                                         fillMode: Image.PreserveAspectCrop; cache: true; asynchronous: true }
                                 HoverHandler { id: rfHov }
                                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.titleRequested(modelData.title) }
+                                            onClicked: if (modelData.id) root.watchRequested(root.watchItem(modelData)) }
                             }
                             Text { text: modelData.title; color: theme.inkDimmer; font.family: theme.ui
-                                   font.pixelSize: 10; width: 72; wrapMode: Text.WordWrap; maximumLineCount: 2
-                                   elide: Text.ElideRight; topPadding: 5 }
+                                   font.pixelSize: 11; width: 116; wrapMode: Text.WordWrap; maximumLineCount: 2
+                                   elide: Text.ElideRight; topPadding: 6 }
                         }
                     }
                 }

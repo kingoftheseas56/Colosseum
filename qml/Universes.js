@@ -13,12 +13,12 @@ var universes = [
       banner: "https://image.tmdb.org/t/p/w1280/jYEW5xZkZk2WTrdbMGAPFuBqbDc.jpg",
       continueLabel: "Continue — Part Two",
       chips: [ { t: "6 Novels", ic: "books" }, { t: "2 Films", ic: "movies" }, { t: "Graphic Novel", ic: "comics" } ] },
-    { name: "Marvel", c1: "#1a2436",
+    { name: "Marvel", c1: "#1a2436", category: "cinematic",
       blurb: "The Marvel Cinematic Universe — decades of films and shows, grown from the comics.",
       banner: "https://image.tmdb.org/t/p/w1280/gHLs7Fy3DzLmLsD4lmfqL55KGcl.jpg",
       continueLabel: "Continue — Loki S2",
       chips: [ { t: "34 Films", ic: "movies" }, { t: "12 Shows", ic: "movies" }, { t: "Comics", ic: "comics" } ] },
-    { name: "One Piece", c1: "#1d121b",
+    { name: "One Piece", c1: "#1d121b", category: "anime",
       blurb: "Luffy's voyage for the Grand Line — the manga, the anime, and the films, in one place.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg",
       continueLabel: "Continue — Ch. 1090",
@@ -39,3 +39,12 @@ var universes = [
       continueLabel: "Continue — Andor",
       chips: [ { t: "12 Films", ic: "movies" }, { t: "10+ Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] }
 ];
+
+// which page TEMPLATE a universe opens into. Only the two built exemplars are tagged
+// ("anime" → UniversePage, "cinematic" → CinematicPage); the rest default to the anime
+// template until their own per-category template is built.
+function categoryFor(name) {
+    for (var i = 0; i < universes.length; i++)
+        if (universes[i].name === name) return universes[i].category || "anime";
+    return "anime";
+}

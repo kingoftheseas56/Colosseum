@@ -25,6 +25,14 @@ Item {
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
 
+    // Biblio's empty search offers a "browse" set so the surface is never a bare void before you type.
+    // These backends search by TITLE, so the chips are marquee titles (one click → a real result set),
+    // not genre words that would weakly title-match.
+    readonly property var popular: searchMode === "Theatre"
+        ? ["Dune", "Oppenheimer", "Interstellar", "The Batman", "Breaking Bad", "Severance", "Game of Thrones", "Arcane"]
+        : ["One Piece", "Berserk", "Chainsaw Man", "Jujutsu Kaisen", "Vinland Saga", "Vagabond", "Monster", "Solo Leveling"]
+    readonly property string popularLabel: searchMode === "Theatre" ? "POPULAR ON THEATRE" : "POPULAR MANGA"
+
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: queryInput.forceActiveFocus()
@@ -73,6 +81,8 @@ Item {
     }
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
+
+    Shortcut { sequences: ["Return", "Enter"]; onActivated: surf.openTop() }
 
     // ── the search field (leads the surface) ──
     Rectangle {
@@ -132,6 +142,12 @@ Item {
     }
 
     // ── content ──
+    // Render structure deliberately mirrors BiblioSearch's Flickable (the surface that provably paints
+    // through this same active-toggled Loader): an UNCLIPPED Top Match card carrying a SINGLE
+    // layer.enabled effect (the cover shadow). The earlier divergence — a clipped card wrapping a
+    // second full-fill MultiEffect blur backdrop — was the black-paint bug (a blurred FBO-backed layer
+    // inside a freshly-activated Loader subtree never painted). No backdrop blur, no card clip, no
+    // hairline workaround: match the proven painter, don't patch a broken one.
     Flickable {
         id: scroll
         anchors.top: field.bottom; anchors.topMargin: 30
@@ -148,16 +164,12 @@ Item {
             width: scroll.width
             spacing: 0
 
-            // Qt render-init workaround: a plain, painted first child forces the Flickable to establish
-            // its content paint pass. Without it, the layered (MultiEffect) Top Match below can fail to
-            // paint when this search layer is toggled active inside the deep main scene — the whole
-            // results area stays black until an unrelated relayout. A 1px hairline is enough.
-            Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.04) }
-
-            // empty state — Recent (this session)
+            // empty state — Recent (this session) + a "Popular" browse set (Biblio-parity)
             Column {
                 width: parent.width; spacing: 0
                 visible: surf.isEmpty
+
+                // RECENT (only if there's history this session)
                 Text {
                     visible: surf.recent.length > 0
                     text: "RECENT"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
@@ -184,10 +196,30 @@ Item {
                         }
                     }
                 }
+                Item { visible: surf.recent.length > 0; width: 1; height: 34 }
+
+                // POPULAR — marquee titles; one click runs a real search (Biblio's "browse a genre" twin)
                 Text {
-                    visible: surf.recent.length === 0
-                    text: surf.placeholder; color: theme.inkDimmer; font.family: theme.display
-                    font.pixelSize: 20; font.italic: true; topPadding: 8
+                    text: surf.popularLabel; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    font.weight: Font.DemiBold; font.letterSpacing: 1.8
+                }
+                Item { width: 1; height: 16 }
+                Flow {
+                    width: parent.width; spacing: 10
+                    Repeater {
+                        model: surf.popular
+                        delegate: Rectangle {
+                            required property var modelData
+                            height: 44; radius: 999; width: pLbl.width + 36
+                            color: pMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
+                            border.width: 1; border.color: theme.edge
+                            Text { id: pLbl; anchors.centerIn: parent; text: modelData
+                                color: pMa.containsMouse ? theme.ink : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 13 }
+                            MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: surf.fillAndSearch(modelData) }
+                        }
+                    }
                 }
             }
 
@@ -206,47 +238,40 @@ Item {
                     id: topCard
                     visible: surf.results.length > 0
                     property var m: surf.results.length > 0 ? surf.results[0] : ({})
-                    width: parent.width; height: 230; radius: 18; clip: true
+                    width: parent.width; height: 210; radius: 18
                     color: theme.glassTint; border.width: 1; border.color: theme.edge
 
-                    // Harbor-style blurred backdrop — shown only when the source provides one (Theatre)
-                    Image {
-                        anchors.fill: parent
-                        source: topCard.m && topCard.m.backdrop ? topCard.m.backdrop : ""
-                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
-                        visible: status === Image.Ready
-                        opacity: 0.30
-                        layer.enabled: true
-                        layer.effect: MultiEffect { blurEnabled: true; blur: 1.0; blurMax: 40; saturation: 0.3 }
-                    }
-                    Rectangle { anchors.fill: parent; color: Qt.rgba(0.04, 0.05, 0.08, 0.5) }   // legibility scrim
-
-                    Item {
+                    Item {                                   // cover-object (Biblio's mini dust-jacket)
                         id: tmCover
-                        anchors.left: parent.left; anchors.leftMargin: 30
+                        anchors.left: parent.left; anchors.leftMargin: 28
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 120; height: 180
+                        width: 110; height: 165
                         Image {
-                            anchors.fill: parent
+                            id: tmImg; anchors.fill: parent
                             source: topCard.m && topCard.m.cover ? topCard.m.cover : ""
                             fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
                             layer.enabled: true
-                            layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.8)
-                                shadowBlur: 1.0; shadowVerticalOffset: 18; autoPaddingEnabled: true }
+                            layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.7)
+                                shadowBlur: 1.0; shadowVerticalOffset: 16; autoPaddingEnabled: true }
                         }
+                        Rectangle { anchors.left: parent.left; width: 8; height: parent.height; radius: 2
+                            gradient: Gradient { orientation: Gradient.Horizontal
+                                GradientStop { position: 0; color: Qt.rgba(0,0,0,0.5) }
+                                GradientStop { position: 0.6; color: Qt.rgba(0,0,0,0.05) }
+                                GradientStop { position: 1; color: Qt.rgba(1,1,1,0.08) } } }
                     }
                     Column {
-                        anchors.left: tmCover.right; anchors.leftMargin: 30
+                        anchors.left: tmCover.right; anchors.leftMargin: 28
                         anchors.right: openBtn.left; anchors.rightMargin: 24
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: 11
+                        spacing: 10
                         Text { width: parent.width; text: topCard.m && topCard.m.title ? topCard.m.title : ""
                             color: theme.ink; font.family: theme.display; font.pixelSize: 32
                             elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { width: parent.width
-                            text: topCard.m ? (topCard.m.meta || topCard.m.subtitle || "") : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                            elide: Text.ElideRight; maximumLineCount: 1 }
+                            text: (topCard.m ? (topCard.m.meta || topCard.m.subtitle || "") : "").toUpperCase()
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                            font.letterSpacing: 1.0; elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { visible: text.length > 0; width: parent.width
                             text: topCard.m && topCard.m.synopsis ? topCard.m.synopsis : ""
                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.32

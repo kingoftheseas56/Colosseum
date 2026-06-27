@@ -24,7 +24,8 @@ WorldPage {
 
     ContinueRow {
         title: "Continue"
-        items: Catalog.continueItems
+        // Real resume data — manga + comics, newest first. (Progress.revision keeps it live.)
+        items: (Progress.revision, Progress.recent("manga").concat(Progress.recent("comic")))
     }
 
     TrendingTop10 {

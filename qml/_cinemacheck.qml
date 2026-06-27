@@ -12,6 +12,6 @@ Window {
     CinematicPage {
         anchors.fill: parent
         onBackRequested: console.log("backRequested")
-        onTitleRequested: (t) => console.log("titleRequested:", t)
+        onWatchRequested: (item) => console.log("WATCH watchRequested:", JSON.stringify(item))
     }
 }

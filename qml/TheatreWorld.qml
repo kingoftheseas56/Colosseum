@@ -14,7 +14,9 @@ WorldPage {
     signal theatreItemRequested(var item)
 
     property var featuredRows: Catalog.theatreFeatured
-    property var continueRows: Catalog.theatreContinue
+    // Real "Continue Watching" from the Progress store (what you actually started).
+    // Naming Progress.revision keeps the binding live as you watch.
+    property var continueRows: (Progress.revision, Progress.recent("video", 12))
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
@@ -41,10 +43,8 @@ WorldPage {
     }
 
     Component.onCompleted: TheatreApi.loadTheatre(function(rows) {
-        if (rows.movies.length > 0) {
+        if (rows.movies.length > 0)
             theatre.movieRows = rows.movies
-            theatre.continueRows = rows.movies.slice(0, 2).concat(rows.series.slice(0, 2), rows.anime.slice(0, 1))
-        }
         if (rows.series.length > 0)
             theatre.seriesRows = rows.series
         if (rows.anime.length > 0)

@@ -76,6 +76,18 @@ function descFromHtml(htmlText) {
     return "";
 }
 
+// every film poster, for boot/idle prefetch (disk-cache warming so the page opens instant)
+function imageUrls(d) {
+    var urls = [];
+    if (!d || !d.phases) return urls;
+    for (var p = 0; p < d.phases.length; p++)
+        for (var f = 0; f < d.phases[p].films.length; f++) {
+            var poster = d.phases[p].films[f].poster;
+            if (poster && urls.indexOf(poster) === -1) urls.push(poster);
+        }
+    return urls;
+}
+
 function loadMcu(done) {
     var results = new Array(PHASES.length);
     var pending = PHASES.length;
@@ -118,8 +130,12 @@ function loadMcu(done) {
         allFilms.forEach(function(f) {
             var url = CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(f.title) + ".json";
             requestJson(url, function(json) {
-                if (json && json.metas && json.metas.length)
-                    f.poster = normArt(json.metas[0].poster || "");
+                if (json && json.metas && json.metas.length) {
+                    var meta = json.metas[0];
+                    f.poster = normArt(meta.poster || "");
+                    f.id = meta.id || "";          // real Cinemeta id (tt…) so the tile routes to Theatre
+                    f.type = meta.type || "movie";
+                }
                 fin();
             });
         });

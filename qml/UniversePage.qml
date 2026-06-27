@@ -19,11 +19,12 @@ Item {
     signal closeRequested()
     signal searchClicked()
     signal seriesRequested(string title)    // manga / READ → A1's MangaSeries.qml
+    signal watchRequested(var item)         // anime / movie / WATCH → A4's TheatreSeries.qml
 
     Theme { id: theme }
     property var uni: ({ name: "", blurb: "", banner: "", metaline: "",
                          read: { sub: "" }, watch: { sub: "" },
-                         manga: [], anime: [], shows: [], specials: [], movies: [] })
+                         manga: [], anime: [], movies: [] })
 
     function reload() { Api.loadUniverse(root.universeName, function(u) { if (u) root.uni = u; }); }
     Component.onCompleted: reload()
@@ -80,17 +81,6 @@ Item {
                     Text { text: root.uni.metaline; color: theme.inkDimmer
                            font.family: theme.ui; font.pixelSize: 14 }
                 }
-                // rotating-spread hint
-                Row {
-                    anchors.right: parent.right; anchors.bottom: parent.bottom
-                    anchors.rightMargin: 54; anchors.bottomMargin: 34; spacing: 7
-                    Text { text: "COLOR SPREADS"; color: theme.inkDimmer; font.pixelSize: 10
-                           font.letterSpacing: 2; anchors.verticalCenter: parent.verticalCenter }
-                    Repeater { model: 5
-                        Rectangle { width: index === 0 ? 20 : 7; height: 7; radius: index === 0 ? 4 : 4
-                                    color: index === 0 ? theme.gold : Qt.rgba(1,1,1,0.35)
-                                    anchors.verticalCenter: parent.verticalCenter } }
-                }
             }
 
             // ===== BODY =====
@@ -118,7 +108,7 @@ Item {
                         align: Qt.AlignLeft
                         label: "Read"; sub: root.uni.read ? root.uni.read.sub : "Start the manga"
                         icon: "../assets/icons/manga.svg"
-                        artImage: root.uni.read ? (root.uni.read.cover || "") : ""
+                        artImage: root.uni.read ? (root.uni.read.art || root.uni.read.cover || "") : ""
                         warm: true
                         onActivated: root.seriesRequested(root.uni.manga.length ? root.uni.manga[0].title : root.universeName)
                     }
@@ -129,8 +119,9 @@ Item {
                         align: Qt.AlignRight
                         label: "Watch"; sub: root.uni.watch ? root.uni.watch.sub : "Start the anime"
                         icon: "../assets/icons/movies.svg"
-                        artImage: root.uni.watch ? (root.uni.watch.cover || "") : ""
+                        artImage: root.uni.watch ? (root.uni.watch.art || root.uni.watch.cover || "") : ""
                         warm: false
+                        onActivated: if (root.uni.watch && root.uni.watch.id) root.watchRequested(root.uni.watch)
                     }
                     // luminous gold seam
                     Rectangle {
@@ -158,12 +149,10 @@ Item {
 
                 Item { width: 1; height: 44 }  // spacer
 
-                // ===== MEDIUM ROWS =====
-                MediumRow { width: parent.width; title: "Manga";    routes: true; items: root.uni.manga }
-                MediumRow { width: parent.width; title: "Anime";    items: root.uni.anime }
-                MediumRow { width: parent.width; title: "Shows";    items: root.uni.shows }
-                MediumRow { width: parent.width; title: "Specials"; items: root.uni.specials }
-                MediumRow { width: parent.width; title: "Movies";   items: root.uni.movies }
+                // ===== MEDIUM ROWS — read routes to the manga page, watch to the Theatre detail =====
+                MediumRow { width: parent.width; title: "Manga";  kind: "read";  items: root.uni.manga }
+                MediumRow { width: parent.width; title: "Anime";  kind: "watch"; items: root.uni.anime }
+                MediumRow { width: parent.width; title: "Movies"; kind: "watch"; items: root.uni.movies }
                 Item { width: 1; height: 50 }
             }
         }
@@ -260,7 +249,7 @@ Item {
     component MediumRow: Column {
         id: mrow
         property string title
-        property bool routes: false
+        property string kind: ""        // "read" → MangaSeries (by title) · "watch" → TheatreSeries (by id)
         property var items: []
         visible: items && items.length > 0
         spacing: 14
@@ -318,7 +307,10 @@ Item {
                             }
                             HoverHandler { id: cvHov }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                        onClicked: if (mrow.routes) root.seriesRequested(modelData.title) }
+                                        onClicked: {
+                                            if (mrow.kind === "read") root.seriesRequested(modelData.title)
+                                            else if (mrow.kind === "watch") root.watchRequested(modelData)
+                                        } }
                         }
                     }
                 }

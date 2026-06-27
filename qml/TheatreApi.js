@@ -131,9 +131,9 @@ function loadHome(done) {
         if (rows.movies.length > 0) featured.push(rows.movies[0]);
         if (rows.series.length > 0) featured.push(rows.series[0]);
         if (rows.anime.length > 0) featured.push(rows.anime[0]);
+        // Continue is no longer faked from top rows — it comes from the Progress store now.
         done({
-            featured: featured,
-            continueItems: rows.movies.slice(0, 2).concat(rows.series.slice(0, 2), rows.anime.slice(0, 1))
+            featured: featured
         });
     });
 }

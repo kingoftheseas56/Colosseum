@@ -12,7 +12,8 @@ Window {
     UniversePage {
         anchors.fill: parent
         universeName: "One Piece"
-        onSeriesRequested: (t) => console.log("seriesRequested:", t)
+        onSeriesRequested: (t) => console.log("READ seriesRequested:", t)
+        onWatchRequested: (item) => console.log("WATCH watchRequested:", JSON.stringify(item))
         onBackRequested: console.log("backRequested")
     }
 }

@@ -11,6 +11,8 @@ import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import "Catalog.js" as Catalog
 import "Universes.js" as Universes
+import "UniverseApi.js" as UniverseApi
+import "McuApi.js" as Mcu
 
 Window {
     id: win
@@ -69,8 +71,15 @@ Window {
     }
 
     // ---- universe page: a cross-medium destination over the wallpaper, from the home hero ----
+    //      The shell picks the right TEMPLATE by the universe's category (anime vs cinematic);
+    //      the Loader reloads onto that source, so Marvel opens the CinematicPage, One Piece the
+    //      anime UniversePage. ----
+    function universeSourceFor(category) {
+        return category === "cinematic" ? "CinematicPage.qml" : "UniversePage.qml"
+    }
     function openUniverse(name) {
         universeLayer.universeName = name
+        universeLayer.universeSource = win.universeSourceFor(Universes.categoryFor(name))
         if (universeLayer.item) universeLayer.item.universeName = name
         universeLayer.active = true
         topbar.visible = false
@@ -104,7 +113,9 @@ Window {
     function openPlayer(infoHash, fileIdx, title, backdrop) {
         if (!playerLayer.active) playerLayer.active = true
         win.playerOpen = true
-        playerLayer.item.playTorrent(infoHash, fileIdx, title)
+        // `backdrop` is the poster url carried up from playRequested — hand it to the player
+        // so the Continue card it records has a real cover.
+        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop)
     }
     function closePlayer() {
         if (playerLayer.item) playerLayer.item.stop()
@@ -224,13 +235,26 @@ Window {
         property string sub
         property real progress: 0
         property color art: "#333"
+        property string cover: ""
         Row {
             anchors.fill: parent
-            Rectangle {   // art slot (solid: banner/cover)
+            Item {   // art slot — real cover over a gradient fallback
                 width: 112; height: parent.height
-                gradient: Gradient {
-                    GradientStop { position: 0; color: Qt.lighter(art, 1.25) }
-                    GradientStop { position: 1; color: Qt.darker(art, 1.4) }
+                clip: true
+                Rectangle {
+                    anchors.fill: parent
+                    gradient: Gradient {
+                        GradientStop { position: 0; color: Qt.lighter(art, 1.25) }
+                        GradientStop { position: 1; color: Qt.darker(art, 1.4) }
+                    }
+                }
+                Image {
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    cache: true
+                    source: cover
+                    visible: cover.length > 0 && status === Image.Ready
                 }
             }
             Item {
@@ -440,9 +464,18 @@ Window {
             }
 
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
+            //      Real resume data from the Progress store; hidden entirely until there's
+            //      something to resume. (Naming Progress.revision keeps the binding live.)
             Column {
+                id: contCol
                 width: parent.width
                 spacing: 14
+                property var contItems: (Progress.revision, Progress.recent("", 12))
+                visible: contItems.length > 0
+                function badgeFor(k) {
+                    return ({ video: "VIDEO", manga: "MANGA", comic: "COMIC", book: "BOOK" })[k]
+                           || (k ? k.toUpperCase() : "")
+                }
                 RowHeader { title: "Continue"; navigable: false }   // unified resume row, not a world
                 Flickable {
                     id: contFlick
@@ -454,10 +487,19 @@ Window {
                     Row {
                         id: contRow
                         spacing: 18
-                        ContinueCard { track: page.contentY + contFlick.contentX; badge: "VIDEO"; title: "Dune: Part Two"; sub: "1h 42m left"; progress: 0.62; art: "#2c4256" }
-                        ContinueCard { track: page.contentY + contFlick.contentX; badge: "MANGA"; title: "One Piece"; sub: "Ch. 1090"; progress: 0.45; art: "#532f49" }
-                        ContinueCard { track: page.contentY + contFlick.contentX; badge: "BOOK";  title: "Dune"; sub: "Frank Herbert · 34%"; progress: 0.34; art: "#5a4a28" }
-                        ContinueCard { track: page.contentY + contFlick.contentX; badge: "COMIC"; title: "Invincible"; sub: "Issue #12"; progress: 0.70; art: "#6a4a32" }
+                        Repeater {
+                            model: contCol.contItems
+                            delegate: ContinueCard {
+                                required property var modelData
+                                track: page.contentY + contFlick.contentX
+                                badge: contCol.badgeFor(modelData.kind)
+                                title: modelData.title !== undefined ? modelData.title : (modelData.caption || "")
+                                sub: modelData.sub !== undefined ? modelData.sub : ""
+                                cover: modelData.cover !== undefined ? modelData.cover : ""
+                                progress: modelData.progress !== undefined ? modelData.progress : 0
+                                art: modelData.c1 !== undefined ? modelData.c1 : "#333"
+                            }
+                        }
                     }
                 }
             }
@@ -514,7 +556,9 @@ Window {
         }
     }
 
-    // ---- universe page layer: opened from the home hero "Explore the universe" ----
+    // ---- universe page layer: opened from the home hero "Explore the universe". Its source is the
+    //      per-category template (anime UniversePage / cinematic CinematicPage), chosen in
+    //      openUniverse(). Signal sets differ per template, so each optional connect is guarded. ----
     Loader {
         id: universeLayer
         anchors.fill: parent
@@ -522,15 +566,17 @@ Window {
         active: false
         visible: active
         property string universeName: ""
-        source: "UniversePage.qml"
+        property string universeSource: "UniversePage.qml"
+        source: universeSource
         onLoaded: {
             item.backdrop = wall
             item.universeName = universeLayer.universeName
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
-            item.searchClicked.connect(win.openSearch)
-            item.seriesRequested.connect(win.openSeries)
+            if (item.searchClicked) item.searchClicked.connect(win.openSearch)
+            if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)   // anime template only
+            if (item.watchRequested) item.watchRequested.connect(win.openTheatreSeries)
         }
     }
 
@@ -664,12 +710,35 @@ Window {
         }
     }
 
+    // ---- universe art warmer: once the shell is up, quietly pull the BUILT universes' art into the
+    //      disk cache so opening "Explore" shows it INSTANTLY (the app's download-once-then-instant
+    //      model). Idle work — runs after boot, off the critical path; hidden Images do the warming.
+    //      Bounded to the two built exemplars (One Piece anime, Marvel cinematic). ----
+    Item {
+        id: universeWarmer
+        property var opUrls: []
+        property var mcuUrls: []
+        property var warmUrls: opUrls.concat(mcuUrls)
+        function warm() {
+            UniverseApi.loadUniverse("One Piece", function(u) { universeWarmer.opUrls = UniverseApi.imageUrls(u) })
+            Mcu.loadMcu(function(d) { universeWarmer.mcuUrls = Mcu.imageUrls(d) })
+        }
+        Repeater {
+            model: universeWarmer.warmUrls
+            delegate: Image {
+                required property string modelData
+                source: modelData
+                asynchronous: true; cache: true; visible: false
+            }
+        }
+    }
+
     // ---- OS-style boot loader: prefetch covers, then fade away to reveal the shell with art warm ----
     BootSplash {
         id: boot
         anchors.fill: parent
         z: 1000
-        onFinished: bootFade.start()
+        onFinished: { bootFade.start(); universeWarmer.warm() }
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }

@@ -28,15 +28,12 @@ WorldPage {
         ]
     }
 
+    // DemoWorld is the fallback for not-yet-built modes, which have no real resume data,
+    // so its Continue stays empty (and the ContinueRow hides itself). Real worlds feed
+    // their Continue from the Progress store.
     ContinueRow {
         title: "Continue"
-        items: [
-            { caption: "Placeholder A", c1: demo.accent1, c2: demo.accent2, progress: 0.80 },
-            { caption: "Placeholder B", c1: demo.accent1, c2: demo.accent2, progress: 0.30 },
-            { caption: "Placeholder C", c1: demo.accent1, c2: demo.accent2, progress: 0.55 },
-            { caption: "Placeholder D", c1: demo.accent1, c2: demo.accent2, progress: 0.12 },
-            { caption: "Placeholder E", c1: demo.accent1, c2: demo.accent2, progress: 0.66 }
-        ]
+        items: []
     }
 
     TrendingTop10 {

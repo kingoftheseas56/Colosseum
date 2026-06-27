@@ -1,30 +1,30 @@
-// UniverseApi.js - live cross-medium data for a Colosseum UNIVERSE page (cat-1 / anime template).
-// Source: MAL via Jikan (api.jikan.moe) - NO key, NO login (the standing sourcing law). Given a
-// universe name it pulls the franchise's anime + manga entries and BUCKETS them into the page rows:
-//   Anime    = TV + ONA      (the series, incl. remakes)
-//   Movies   = Movie
-//   Specials = Special / TV Special / OVA
-//   Manga    = Manga / One-shot / Light Novel / Novel   (Doujinshi dropped)
-//   dropped  = CM / PV / Music  (ads, promos, MVs - pure noise)
-// The Manga row is the LISTING + routing target only; the actual reader is A1's MangaSeries.qml
-// (WeebCentral). Banners aren't in any API (Oda's colour spreads live in the manga) so they are
-// CURATED per marquee universe - BANNERS{} holds the hand-pick; AniList banner is the fallback.
-// Raw MAL data is noisy (arc re-edits show as "TV", recaps as specials); the marquee's hand-craft
-// layer is where that gets cleaned - this module surfaces the honest raw buckets.
+// UniverseApi.js — live cross-medium data for a Colosseum UNIVERSE page (cat-1 / anime template).
 //
-// Mirrors the TheatreApi.js / BiblioApi.js adapter pattern (.pragma library, XMLHttpRequest).
+// Re-sourced so every tile is BORN with a real, routable ID (the old Jikan/MAL version showed dead
+// covers that linked nowhere, and stalled the page until the slowest of three calls returned):
+//   WATCH side  → Cinemeta (v3-cinemeta.strem.io)  — keyless. Series + movie search by franchise
+//                 name; each result carries a real Cinemeta id (tt…) + type, so a tile opens A4's
+//                 TheatreSeries → Torrentio → player. Same source the Theatre world already uses.
+//   READ side   → AniList GraphQL (graphql.anilist.co) — keyless. Manga search by franchise; each
+//                 entry carries its AniList id + title, routing into A1's MangaSeries (WeebCentral).
+// Both are keyless / no-login (the standing sourcing law). Banners aren't in either API (Oda's
+// colour spreads live in the manga) so they stay CURATED per marquee universe; AniList's banner is
+// the fallback.
+//
+// PROGRESSIVE: loadUniverse(name, push) calls `push` once per source as it lands (not once at the
+// end) — the banner/blurb/duality paint the instant the first call returns, rows fill in behind.
+// Each push hands a FRESH top-level object so QML re-binds (mutating one object in place wouldn't).
 .pragma library
 
-var JIKAN = "https://api.jikan.moe/v4";
-var TVMAZE = "https://api.tvmaze.com";   // keyless TV - feeds the live-action "Shows" row
+var CINEMETA = "https://v3-cinemeta.strem.io";
+var ANILIST  = "https://graphql.anilist.co";
 
-// curated banner per marquee universe (keyed lowercase). The colour-spread pool is hand-picked;
-// this is the keyless fallback (AniList's single banner) until the curator wires the rotating set.
+// curated banner per marquee universe (keyed lowercase) — the hand-pick; AniList's banner is fallback.
 var BANNERS = {
     "one piece": "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg"
 };
 
-// warm/cool tints shown while a cover loads (same role as Theatre's palette)
+// warm/cool tints shown while a cover loads
 var palette = [ ["#5d4633","#18110c"], ["#33445d","#0c1118"], ["#5b3a64","#170d1b"],
                 ["#3f5640","#111b12"], ["#5a3a3f","#160d0b"], ["#3c4a63","#0e121b"] ];
 function tone(i) { return palette[i % palette.length]; }
@@ -32,162 +32,153 @@ function tone(i) { return palette[i % palette.length]; }
 function requestJson(url, done) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
-        if (xhr.readyState !== XMLHttpRequest.DONE)
-            return;
-        if (xhr.status < 200 || xhr.status >= 300) {
-            done(null);
-            return;
-        }
-        try {
-            done(JSON.parse(xhr.responseText));
-        } catch (e) {
-            done(null);
-        }
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        if (xhr.status < 200 || xhr.status >= 300) { done(null); return; }
+        try { done(JSON.parse(xhr.responseText)); } catch (e) { done(null); }
     };
     xhr.open("GET", url);
     xhr.send();
 }
 
+function postJson(url, payload, done) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        if (xhr.status < 200 || xhr.status >= 300) { done(null); return; }
+        try { done(JSON.parse(xhr.responseText)); } catch (e) { done(null); }
+    };
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.send(JSON.stringify(payload));
+}
+
+function normArt(url) {
+    if (!url) return "";
+    return String(url)
+        .replace("https://images.metahub.space/", "https://live.metahub.space/")
+        .replace("/poster/small/", "/poster/medium/");   // upgrade tiny posters; never downgrade large
+}
+
 function cleanText(text, fallback) {
-    if (!text)
-        return fallback;
-    var out = String(text).replace(/\s+/g, " ").replace(/\(Source:[^)]+\)/g, "").trim();
+    if (!text) return fallback;
+    var out = String(text)
+        .replace(/<br\s*\/?>/gi, " ").replace(/<[^>]+>/g, " ")   // AniList descriptions are HTML
+        .replace(/\(Source:[^)]+\)/g, "").replace(/\s+/g, " ").trim();
     return out.length > 240 ? out.substring(0, 237) + "..." : out;
 }
 
-function mapEntry(e, i) {
+// a Cinemeta meta → a WATCH tile (carries id + type so it routes to TheatreSeries)
+function mapWatch(meta, i) {
     var t = tone(i);
-    var jpg = (e.images && e.images.jpg) ? e.images.jpg : {};
-    var yr = e.year || (e.aired && e.aired.prop && e.aired.prop.from ? e.aired.prop.from.year : null);
     return {
-        id: e.mal_id,
-        title: e.title,
-        cover: jpg.large_image_url || jpg.image_url || "",
-        type: e.type || "",
-        year: yr,
-        c1: t[0],
-        c2: t[1]
+        id: meta.id || "",
+        type: meta.type || "movie",
+        title: meta.name || meta.title || "Untitled",
+        cover: normArt(meta.poster || (meta.id ? "https://live.metahub.space/poster/medium/" + meta.id + "/img" : "")),
+        art:   normArt(meta.background || (meta.id ? "https://live.metahub.space/background/medium/" + meta.id + "/img" : "")),
+        c1: t[0], c2: t[1]
     };
 }
 
-// Jikan search is fuzzy - keep only entries whose title actually contains the franchise name.
-function relevant(list, query) {
-    var q = query.toLowerCase();
-    return list.filter(function(e) {
-        return e.title && e.title.toLowerCase().indexOf(q) !== -1;
-    });
+// an AniList media → a READ tile (carries AniList id; routes to MangaSeries by title)
+function mapRead(m, i) {
+    var t = tone(i);
+    var title = (m.title && (m.title.english || m.title.romaji)) || "Untitled";
+    return {
+        id: m.id,
+        title: title,
+        // extraLarge is AniList's true full-res cover (its `large` is only the medium file)
+        cover: (m.coverImage && (m.coverImage.extraLarge || m.coverImage.large)) || "",
+        chapters: m.chapters || 0,
+        c1: t[0], c2: t[1]
+    };
 }
 
-// "Manga  ·  2 Anime  ·  10 Films  ·  Specials" for the banner
+// "Manga  ·  12 Anime & Series  ·  15 Films" for the banner
 function metaLine(u) {
     var parts = [];
-    if (u.manga.length)    parts.push("Manga");
-    if (u.anime.length)    parts.push(u.anime.length + " Anime");
-    if (u.movies.length)   parts.push(u.movies.length + " Films");
-    if (u.specials.length) parts.push("Specials");
-    if (u.shows && u.shows.length) parts.push("Live-Action");
+    if (u.manga.length)  parts.push("Manga");
+    if (u.anime.length)  parts.push(u.anime.length + (u.anime.length === 1 ? " Series" : " Anime & Series"));
+    if (u.movies.length) parts.push(u.movies.length + " Films");
     return parts.join("   ·   ");
 }
 
-// loadUniverse("One Piece", fn) -> fn({ name, blurb, banner, metaline, read, watch,
-//                                       manga[], anime[], specials[], movies[] })
-function loadUniverse(name, done) {
-    var out = {
-        name: name,
-        blurb: "",
-        banner: BANNERS[name.toLowerCase()] || "",
-        metaline: "",
-        read: { sub: "Start the manga" },
-        watch: { sub: "Start the anime" },
-        manga: [], anime: [], specials: [], movies: [], shows: []
-    };
-    var pending = 3;
-    function finish() {
-        pending -= 1;
-        if (pending === 0) {
-            out.metaline = metaLine(out);
-            if (!out.banner && out.anime.length)
-                out.banner = out.anime[0].cover;   // last-ditch fallback
-            done(out);
-        }
-    }
-
-    // --- anime side: series / specials / movies ---
-    requestJson(JIKAN + "/anime?q=" + encodeURIComponent(name) + "&limit=25",
-        function(json) {
-            var data = (json && json.data) ? relevant(json.data, name) : [];
-            var ai = 0, si = 0, mi = 0, main = null, mainPop = -1;
-            for (var k = 0; k < data.length; k++) {
-                var e = data[k], type = e.type || "";
-                if (type === "TV" || type === "ONA") {
-                    // canonical series = the TV entry with the most members (not just the first)
-                    if (type === "TV" && (e.members || 0) > mainPop) { main = e; mainPop = e.members || 0; }
-                    out.anime.push(mapEntry(e, ai++));
-                } else if (type === "Movie") {
-                    out.movies.push(mapEntry(e, mi++));
-                } else if (type === "Special" || type === "TV Special" || type === "OVA") {
-                    out.specials.push(mapEntry(e, si++));
-                }
-                // CM / PV / Music dropped as noise
-            }
-            if (!main && out.anime.length && data.length) main = data[0];
-            if (main) {
-                out.blurb = cleanText(main.synopsis, "");
-                var ajpg = (main.images && main.images.jpg) ? main.images.jpg : {};
-                out.watch = { episodes: main.episodes,
-                              sub: main.episodes ? (main.episodes + " episodes") : "Start the anime",
-                              cover: ajpg.large_image_url || ajpg.image_url || "" };
-            }
-            finish();
-        });
-
-    // --- manga side: listing + routing target (reader is A1's WeebCentral / MangaSeries.qml) ---
-    requestJson(JIKAN + "/manga?q=" + encodeURIComponent(name) + "&limit=15",
-        function(json) {
-            var data = (json && json.data) ? relevant(json.data, name) : [];
-            var keep = { "Manga": 1, "One-shot": 1, "Light Novel": 1, "Novel": 1, "Manhwa": 1, "Manhua": 1 };
-            var mi = 0, main = null, mainPop = -1;
-            for (var k = 0; k < data.length; k++) {
-                var e = data[k];
-                if (!keep[e.type]) continue;       // drop Doujinshi etc.
-                if (e.type === "Manga" && (e.members || 0) > mainPop) { main = e; mainPop = e.members || 0; }
-                out.manga.push(mapEntry(e, mi++));
-            }
-            if (main) {
-                var mjpg = (main.images && main.images.jpg) ? main.images.jpg : {};
-                out.read = { chapters: main.chapters,
-                             sub: main.chapters ? (main.chapters + " chapters") : "Start the manga",
-                             cover: mjpg.large_image_url || mjpg.image_url || "" };
-                if (!out.blurb) out.blurb = cleanText(main.synopsis, "");
-            }
-            finish();
-        });
-
-    // --- live-action: TVmaze (keyless TV). Drop the anime (type "Animation"); keep live-action. ---
-    requestJson(TVMAZE + "/search/shows?q=" + encodeURIComponent(name),
-        function(json) {
-            var arr = (json && json.length) ? json : [];
-            var q = name.toLowerCase(), si = 0;
-            for (var k = 0; k < arr.length; k++) {
-                var s = arr[k].show;
-                if (!s || !s.name || s.name.toLowerCase().indexOf(q) === -1) continue;
-                if (s.type === "Animation") continue;
-                var t = tone(si++);
-                out.shows.push({
-                    id: s.id, title: s.name,
-                    cover: s.image ? (s.image.original || s.image.medium) : "",
-                    type: s.type || "",
-                    year: s.premiered ? parseInt(s.premiered.substring(0, 4)) : null,
-                    c1: t[0], c2: t[1]
-                });
-            }
-            finish();
-        });
+// keep only Cinemeta hits whose name actually contains the franchise (search is fuzzy)
+function relevant(metas, query) {
+    var q = query.toLowerCase();
+    return metas.filter(function(m) {
+        var n = (m.name || m.title || "").toLowerCase();
+        return n.indexOf(q) !== -1;
+    });
 }
 
-// every remote cover, for boot prefetch / disk-cache warming (mirrors Theatre's helper)
+// loadUniverse("One Piece", push) — push({ name, blurb, banner, metaline, read, watch,
+//                                          manga[], anime[], movies[] }) once per source as it lands.
+function loadUniverse(name, push) {
+    var out = {
+        name: name, blurb: "", banner: BANNERS[name.toLowerCase()] || "", metaline: "",
+        read:  { sub: "Start the manga" },
+        watch: { sub: "Start watching" },
+        manga: [], anime: [], movies: []
+    };
+    function emit() {
+        out.metaline = metaLine(out);
+        if (!out.banner && out.anime.length) out.banner = out.anime[0].art || out.anime[0].cover;
+        push({                                  // FRESH object each time so QML re-binds
+            name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
+            read: out.read, watch: out.watch,
+            manga: out.manga, anime: out.anime, movies: out.movies
+        });
+    }
+
+    // --- WATCH · series (the anime + any live-action) from Cinemeta ---
+    requestJson(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(name) + ".json",
+        function(json) {
+            var metas = (json && json.metas) ? relevant(json.metas, name) : [];
+            out.anime = metas.slice(0, 18).map(mapWatch);
+            if (out.anime.length) {
+                var top = out.anime[0];
+                out.watch = { id: top.id, type: top.type, title: top.title, cover: top.cover,
+                              art: top.art, sub: "Start watching" };
+            }
+            emit();
+        });
+
+    // --- WATCH · films from Cinemeta ---
+    requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(name) + ".json",
+        function(json) {
+            var metas = (json && json.metas) ? relevant(json.metas, name) : [];
+            out.movies = metas.slice(0, 18).map(mapWatch);
+            if (!out.watch.id && out.movies.length) {           // no series? fall back to a film
+                var f = out.movies[0];
+                out.watch = { id: f.id, type: f.type, title: f.title, cover: f.cover, art: f.art, sub: "Start watching" };
+            }
+            emit();
+        });
+
+    // --- READ · manga from AniList (carries the AniList id) ---
+    var query = "query($q:String){Page(perPage:14){media(search:$q,type:MANGA,sort:SEARCH_MATCH)" +
+                "{id title{romaji english} coverImage{extraLarge large} bannerImage description(asHtml:false) chapters}}}";
+    postJson(ANILIST, { query: query, variables: { q: name } }, function(json) {
+        var media = (json && json.data && json.data.Page && json.data.Page.media) ? json.data.Page.media : [];
+        out.manga = media.slice(0, 14).map(mapRead);
+        if (out.manga.length) {
+            var m0 = media[0];
+            out.read = { id: m0.id, title: out.manga[0].title, cover: out.manga[0].cover,
+                         art: out.manga[0].cover,          // hi-res cover for the big READ panel (cropped)
+                         chapters: m0.chapters || 0,
+                         sub: m0.chapters ? (m0.chapters + " chapters") : "Start the manga" };
+            out.blurb = cleanText(m0.description, out.blurb);
+            if (!BANNERS[name.toLowerCase()] && m0.bannerImage) out.banner = m0.bannerImage;
+        }
+        emit();
+    });
+}
+
+// every remote cover, for boot prefetch / disk-cache warming
 function imageUrls(u) {
-    var urls = [], groups = [u.manga, u.anime, u.specials, u.movies];
+    var urls = [], groups = [u.manga, u.anime, u.movies];
     if (u.banner) urls.push(u.banner);
     for (var g = 0; g < groups.length; g++)
         for (var i = 0; i < groups[g].length; i++)

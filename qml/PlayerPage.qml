@@ -14,6 +14,11 @@ Item {
     property Item backdrop
     property string mediaTitle: ""
     property string mediaSubtitle: ""
+    // --- continue/resume identity (set by openPlayer; fed to the Progress store) ---
+    property string mediaId: ""           // stable id (Cinemeta ttXXXX if known, else infoHash)
+    property string mediaArt: ""          // poster url, for the Continue card cover
+    property string mediaResumeHash: ""   // resume payload: re-open this torrent...
+    property int    mediaResumeFileIdx: 0 //   ...at this file index
     property bool starting: false
     property bool errored: false
     property string statusMsg: ""
@@ -52,9 +57,16 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
 
-    function playTorrent(infoHash, fileIdx, title) {
+    function playTorrent(infoHash, fileIdx, title, posterUrl) {
         root.mediaTitle = title || ""
         root.mediaSubtitle = "Torrent stream"
+        root.mediaArt = posterUrl || ""
+        // Stable id: the Cinemeta ttXXXX baked into the metahub poster url if we have it,
+        // else fall back to the torrent identity so resume still keys uniquely.
+        var m = String(posterUrl || "").match(/\/(tt\d+)\//)
+        root.mediaId = (m && m[1]) ? m[1] : (infoHash + ":" + fileIdx)
+        root.mediaResumeHash = infoHash || ""
+        root.mediaResumeFileIdx = fileIdx || 0
         root.errored = false
         root.starting = true
         root.statusMsg = "Starting stream..."
@@ -62,6 +74,39 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         Stream.play(infoHash, fileIdx)
+    }
+
+    // Write the current watch position to the Continue store. Called on a ticking timer
+    // while playing and once more on stop, so the resume bar reflects where you really are.
+    function recordProgress() {
+        if (root.mediaId === "" || mpv.duration <= 0 || mpv.position <= 0)
+            return
+        // Anti-clutter floor (matches Tankoban 2's MIN_POSITION_SEC = 10): an accidental
+        // few-second open should never leave a Continue card behind.
+        if (mpv.position < 10)
+            return
+        var frac = root.clamp(mpv.position / mpv.duration, 0, 1)
+        var remain = Math.max(0, mpv.duration - mpv.position)
+        Progress.record({
+            "id": root.mediaId,
+            "kind": "video",
+            "caption": root.mediaTitle,
+            "title": root.mediaTitle,
+            "sub": root.fmtTime(remain) + " left",
+            "cover": root.mediaArt,
+            "c1": "#33445d", "c2": "#0c1118",
+            "progress": frac,
+            "resume": { "infoHash": root.mediaResumeHash,
+                        "fileIdx": root.mediaResumeFileIdx,
+                        "position": mpv.position }
+        })
+    }
+
+    // Tick the watch position into the store every few seconds while actually playing.
+    Timer {
+        interval: 5000; repeat: true
+        running: !root.starting && !root.errored && !mpv.pause && mpv.duration > 0
+        onTriggered: root.recordProgress()
     }
 
     function playUrl(url, title) {
@@ -77,6 +122,7 @@ Item {
     }
 
     function stop() {
+        root.recordProgress()   // capture where we left off BEFORE mpv clears position
         root.closeMenus()
         mpv.command(["stop"])
         root.starting = false

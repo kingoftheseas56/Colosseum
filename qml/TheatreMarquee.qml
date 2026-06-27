@@ -9,7 +9,8 @@ Glass {
     id: marquee
 
     property var featured: []
-    property var continueItems: []
+    // Real "Continue Watching" from the Progress store (live via Progress.revision).
+    property var continueItems: (Progress.revision, Progress.recent("video", 5))
     property int posterW: 114
     property int posterH: 168
     readonly property var hero: featured.length > 0 ? featured[0] : ({})
@@ -26,8 +27,6 @@ Glass {
     Component.onCompleted: TheatreApi.loadHome(function(rows) {
         if (rows.featured.length > 0)
             marquee.featured = rows.featured
-        if (rows.continueItems.length > 0)
-            marquee.continueItems = rows.continueItems
     })
 
     Rectangle {
