@@ -17,6 +17,7 @@ WorldPage {
     property var featuredRows: Catalog.biblioFeatured
     property var topRows: Catalog.biblioTop
     property var genreRows: Catalog.biblioGenres
+    signal biblioGenreRequested(string genreName)
 
     // Live override: swap in Apple's fresh chart once it lands; keep the static fallback on failure.
     Component.onCompleted: BiblioApi.loadBiblio(function(rows) {
@@ -50,5 +51,6 @@ WorldPage {
     GenreMosaic {
         title: "Browse Biblio"
         genres: biblio.genreRows
+        onGenreClicked: (i) => biblio.biblioGenreRequested(biblio.genreRows[i].name)
     }
 }

@@ -5,6 +5,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Window
 import Colosseum.Player
+import "Subtitles.js" as Subtitles
 
 Item {
     id: root
@@ -19,6 +20,177 @@ Item {
     property string mediaArt: ""          // poster url, for the Continue card cover
     property string mediaResumeHash: ""   // resume payload: re-open this torrent...
     property int    mediaResumeFileIdx: 0 //   ...at this file index
+
+    // --- online subtitles (Harbor-style: torrent streams have no subs, so fetch them) ---
+    property string subStreamType: ""     // "movie" | "series" (for the OpenSubtitles query)
+    property string subStreamId: ""       // "tt123" or "tt123:1:2"
+    property var    onlineSubs: []        // [{id,url,lang,langName,external,...}] from Subtitles.js
+    property var    addedOnlineUrls: ({}) // url -> true once loaded into mpv (drops it from the online list)
+    property int    subModelRev: 0        // bump to re-evaluate subRows after an add
+    property bool   subsLoading: false
+    property bool   fileReady: false      // mpv has a file open (needed before sub-add)
+    property bool   autoSubDone: false    // auto-load ran for this file
+    property bool   userTouchedSubs: false// user picked Off/a track → stop auto-overriding
+
+    // Combined subtitle list: embedded/loaded mpv tracks + online subs not yet loaded.
+    readonly property var subRows: {
+        var dep = root.subModelRev            // re-eval after an add
+        var rows = mpv.subtitleTracks.slice() // embedded (and any online already sub-added → external)
+        var rawRows = rows
+        rows = []
+        for (var t = 0; t < rawRows.length; t++)
+            rows.push(root.subtitleRow(rawRows[t]))
+        for (var i = 0; i < root.onlineSubs.length; i++) {
+            var s = root.onlineSubs[i]
+            if (!root.addedOnlineUrls[s.url]) rows.push(root.onlineSubtitleRow(s))
+        }
+        return rows
+    }
+
+    readonly property var audioRows: {
+        var rows = []
+        for (var i = 0; i < mpv.audioTracks.length; i++)
+            rows.push(root.audioRow(mpv.audioTracks[i]))
+        return rows
+    }
+    readonly property var subtitleSearchMeta: root.parseSubtitleMeta()
+
+    function fetchSubtitles() {
+        root.onlineSubs = []
+        root.addedOnlineUrls = ({})
+        root.autoSubDone = false
+        root.userTouchedSubs = false
+        root.subsLoading = false
+        if (!root.subStreamType.length || !root.subStreamId.length)
+            return
+        root.subsLoading = true
+        var reqId = root.subStreamId
+        Subtitles.fetch(root.subStreamType, root.subStreamId, function(list) {
+            if (root.subStreamId !== reqId) return    // a newer play superseded this fetch
+            root.subsLoading = false
+            root.onlineSubs = list
+            root.maybeAutoSub()
+        })
+    }
+
+    // Route a subtitle pick: online → download/add into mpv; embedded → just select.
+    function pickSubtitle(id) {
+        if (("" + id).indexOf("ext:") === 0) {
+            for (var i = 0; i < root.onlineSubs.length; i++) {
+                if (root.onlineSubs[i].id === id) {
+                    var s = root.onlineSubs[i]
+                    root.addedOnlineUrls[s.url] = true
+                    root.subModelRev++
+                    mpv.addSubtitle(s.url, s.title || s.langName, s.lang, true)
+                    return
+                }
+            }
+            return
+        }
+        mpv.subtitleTrack = id
+    }
+
+    function addOnlineSubtitle(url, title, lang) {
+        if (!url || !url.length)
+            return
+        root.userTouchedSubs = true
+        root.addedOnlineUrls[url] = true
+        root.subModelRev++
+        mpv.addSubtitle(url, title || "OpenSubtitles", lang || "", true)
+    }
+
+    function loadSubtitleFile(fileUrl) {
+        if (!fileUrl)
+            return
+        root.userTouchedSubs = true
+        var raw = String(fileUrl)
+        root.addedOnlineUrls[raw] = true
+        root.subModelRev++
+        mpv.addSubtitle(raw, root.subtitleBasename(raw), "", true)
+    }
+
+    function subtitleBasename(fileUrl) {
+        var s = decodeURIComponent(String(fileUrl || ""))
+        s = s.replace(/^file:\/+/, "")
+        s = s.replace(/\\/g, "/")
+        var parts = s.split("/")
+        return parts.length ? parts[parts.length - 1] : "Subtitle"
+    }
+
+    function subtitleRow(track) {
+        var title = track.title || track.label || track.lang || "Subtitle"
+        var lang = track.lang || ""
+        var hiProbe = (title + " " + lang).toLowerCase()
+        return {
+            "id": String(track.id || ""),
+            "label": title,
+            "lang": lang,
+            "codec": track.codec || "",
+            "channels": track.channels || "",
+            "external": !!track.external,
+            "forced": !!track.forced,
+            "hearingImpaired": /sdh|hearing|\bhi\b/i.test(hiProbe),
+            "default": !!track.default,
+            "url": track.url || "",
+            "title": title,
+            "selected": !!track.selected
+        }
+    }
+
+    function onlineSubtitleRow(subtitle) {
+        return {
+            "id": String(subtitle.id || ""),
+            "label": subtitle.langName || subtitle.label || subtitle.lang || "OpenSubtitles",
+            "lang": subtitle.lang || "",
+            "codec": subtitle.codec || "srt",
+            "channels": "",
+            "external": true,
+            "forced": !!subtitle.forced,
+            "hearingImpaired": !!subtitle.hearingImpaired,
+            "default": !!subtitle.default,
+            "url": subtitle.url || "",
+            "downloads": subtitle.downloads || 0,
+            "title": subtitle.title || subtitle.langName || "OpenSubtitles"
+        }
+    }
+
+    function audioRow(track) {
+        return {
+            "id": String(track.id || ""),
+            "label": track.label || track.title || track.lang || "Audio track",
+            "lang": track.lang || "",
+            "codec": track.codec || "",
+            "channels": track.channels || "",
+            "default": !!track.default,
+            "selected": !!track.selected
+        }
+    }
+
+    function parseSubtitleMeta() {
+        var id = root.subStreamId || ""
+        var parts = id.split(":")
+        return {
+            "imdbId": parts.length ? parts[0] : "",
+            "season": parts.length > 1 ? Number(parts[1]) : undefined,
+            "episode": parts.length > 2 ? Number(parts[2]) : undefined,
+            "type": root.subStreamType || (parts.length > 2 ? "series" : "movie")
+        }
+    }
+
+    // Harbor default: auto-load the preferred-language (English) sub once the file is open,
+    // unless something is already selected or the user turned subs off/picked one.
+    function maybeAutoSub() {
+        if (root.autoSubDone || root.userTouchedSubs || !root.fileReady)
+            return
+        if (mpv.subtitleTrack !== "") { root.autoSubDone = true; return }
+        var pick = Subtitles.pickDefault(root.onlineSubs)
+        if (!pick)
+            return
+        root.autoSubDone = true
+        root.addedOnlineUrls[pick.url] = true
+        root.subModelRev++
+        mpv.addSubtitle(pick.url, pick.title || pick.langName, pick.lang, true)
+    }
     property bool starting: false
     property bool errored: false
     property string statusMsg: ""
@@ -42,7 +214,7 @@ Item {
     readonly property real chromeVisibleHeight: height
     readonly property bool compact: chromeVisibleWidth < 1000
     readonly property bool tight: chromeVisibleWidth < 680
-    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen
+    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
     readonly property var fillModes: [
         { id: "fit", label: "Fit", panscan: 0, zoom: 0, aspect: "-1" },
@@ -57,7 +229,7 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
 
-    function playTorrent(infoHash, fileIdx, title, posterUrl) {
+    function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId) {
         root.mediaTitle = title || ""
         root.mediaSubtitle = "Torrent stream"
         root.mediaArt = posterUrl || ""
@@ -69,10 +241,15 @@ Item {
         root.mediaResumeFileIdx = fileIdx || 0
         root.errored = false
         root.starting = true
+        root.fileReady = false
         root.statusMsg = "Starting stream..."
         root.closeMenus()
         root.wakeChrome()
         root.forceActiveFocus()
+        // Online subtitles for this exact title/episode (Harbor-style).
+        root.subStreamType = subType || ""
+        root.subStreamId = subId || ""
+        root.fetchSubtitles()
         Stream.play(infoHash, fileIdx)
     }
 
@@ -87,12 +264,17 @@ Item {
             return
         var frac = root.clamp(mpv.position / mpv.duration, 0, 1)
         var remain = Math.max(0, mpv.duration - mpv.position)
+        // for a series, lead the Continue sub-line with the season/episode (from the stream id);
+        // a movie just shows the time left.
+        var m = root.parseSubtitleMeta()
+        var epPrefix = (m.type === "series" && m.season !== undefined && m.episode !== undefined)
+                       ? ("S" + m.season + " · E" + m.episode + " · ") : ""
         Progress.record({
             "id": root.mediaId,
             "kind": "video",
             "caption": root.mediaTitle,
             "title": root.mediaTitle,
-            "sub": root.fmtTime(remain) + " left",
+            "sub": epPrefix + root.fmtTime(remain) + " left",
             "cover": root.mediaArt,
             "c1": "#33445d", "c2": "#0c1118",
             "progress": frac,
@@ -187,6 +369,7 @@ Item {
     function closeMenus() {
         audioMenu.panelOpen = false
         subMenu.panelOpen = false
+        subStyleBar.open = false
         speedMenu.panelOpen = false
         fillMenu.panelOpen = false
     }
@@ -276,6 +459,8 @@ Item {
             root.errored = false
             root.statusMsg = ""
             root.seekPreview = mpv.position
+            root.fileReady = true
+            root.maybeAutoSub()      // file is open → safe to sub-add the auto/online subtitle
             root.wakeChrome()
         }
         onEndFile: function(reason) {
@@ -287,6 +472,14 @@ Item {
             }
         }
         onPauseChanged: if (mpv.pause) root.wakeChrome()
+    }
+
+    SubStyleBar {
+        id: subStyleBar
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        player: mpv
     }
 
     Connections {
@@ -524,7 +717,10 @@ Item {
 
             Rectangle {
                 id: bottomDock
-                layer.enabled: true
+                // NOTE: no layer.enabled here. A layer renders the dock to an offscreen
+                // texture sized to the dock, which CLIPS the audio/subtitle/speed/fill
+                // popovers (they open above the dock at negative y) to nothing — the exact
+                // "menus don't show up" bug. Keep the dock un-layered so popovers escape it.
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -698,15 +894,21 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
 
-                    PlayerMenu {
+                    AudioMenu {
                         id: audioMenu
                         visible: !tight
+                        onToggleRequested: function(wasOpen) {
+                            root.closeMenus()
+                            audioMenu.panelOpen = !wasOpen
+                            root.wakeChrome()
+                        }
                         icon: "audio"
                         title: "Audio"
                         count: mpv.audioTracks.length
                         panelWidth: 360
                         panelHeight: Math.min(310, 86 + Math.max(1, mpv.audioTracks.length) * 48 + 42)
-                        delegateModel: mpv.audioTracks
+                        delegateModel: root.audioRows
+                        selectedId: mpv.audioTrack
                         emptyText: "No alternate audio tracks in this file."
                         syncValue: mpv.audioDelay
                         onTrackPicked: function(trackId) { mpv.audioTrack = trackId }
@@ -714,22 +916,37 @@ Item {
                         onResetDelay: mpv.audioDelay = 0
                     }
 
-                    PlayerMenu {
+                    SubtitleMenu {
                         id: subMenu
+                        onToggleRequested: function(wasOpen) {
+                            root.closeMenus()
+                            subMenu.panelOpen = !wasOpen
+                            root.wakeChrome()
+                        }
                         icon: "subtitle"
                         title: "Subtitles"
-                        count: mpv.subtitleTracks.length
+                        // Combined: embedded/loaded mpv tracks + online subs (OpenSubtitles).
+                        count: root.subRows.length
                         panelWidth: 380
-                        panelHeight: Math.min(336, 124 + Math.max(1, mpv.subtitleTracks.length) * 48 + 42)
-                        delegateModel: mpv.subtitleTracks
-                        emptyText: "No embedded subtitles in this file."
+                        panelHeight: Math.min(360, 124 + Math.max(1, root.subRows.length) * 48 + 42)
+                        delegateModel: root.subRows
+                        selectedId: mpv.subtitleTrack
+                        searchType: root.subtitleSearchMeta.type
+                        searchId: root.subtitleSearchMeta.imdbId.length ? root.subStreamId : ""
+                        emptyText: root.subsLoading ? "Finding subtitles…" : "No subtitles found for this title."
                         offRow: true
                         syncValue: mpv.subDelay
                         active: mpv.subtitleTrack !== ""
-                        onTrackPicked: function(trackId) { mpv.subtitleTrack = trackId }
-                        onOffPicked: mpv.subtitleTrack = ""
+                        onTrackPicked: function(trackId) { root.userTouchedSubs = true; root.pickSubtitle(trackId) }
+                        onOffPicked: { root.userTouchedSubs = true; mpv.subtitleTrack = "" }
                         onDelayStep: function(delta) { mpv.subDelay = root.round2(mpv.subDelay + delta) }
                         onResetDelay: mpv.subDelay = 0
+                        onStyleRequested: {
+                            subStyleBar.open = !subStyleBar.open
+                            root.wakeChrome()
+                        }
+                        onFileLoaded: function(fileUrl) { root.loadSubtitleFile(fileUrl) }
+                        onOnlinePicked: function(fileUrl, title, lang) { root.addOnlineSubtitle(fileUrl, title, lang) }
                     }
 
                     SpeedMenuButton {
@@ -1081,9 +1298,10 @@ Item {
             anchors.fill: parent
             size: 48
             icon: "speed"
-            label: mpv.speed.toFixed(mpv.speed === Math.round(mpv.speed) ? 0 : 2) + "x"
-            active: sm.panelOpen || Math.abs(mpv.speed - 1) > 0.001
-            tooltip: "Speed"
+            // Harbor: badge the rate only when ≠ 1× (no "1×" at normal speed); use the × glyph.
+            label: Math.abs(mpv.speed - 1) < 0.01 ? "" : ((Math.round(mpv.speed * 100) / 100) + "×")
+            active: sm.panelOpen || Math.abs(mpv.speed - 1) > 0.01
+            tooltip: "Playback speed"
             onClicked: {
                 var wasOpen = sm.panelOpen
                 root.closeMenus()
@@ -1094,22 +1312,25 @@ Item {
         Rectangle {
             visible: sm.panelOpen
             z: 20
-            width: 176
-            height: 56 + root.speedChoices.length * 34
+            width: 248
+            height: 54 + root.speedChoices.length * 38
             x: parent.width - width
             y: -height - 12
             radius: 18
             color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
+            // Harbor's exact section title (uppercase eyebrow).
             Text {
                 x: 18
-                y: 15
-                text: "Speed"
-                color: theme.ink
+                y: 16
+                text: "Playback speed"
+                color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: 11
                 font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.6
             }
             Repeater {
                 model: root.speedChoices
@@ -1117,19 +1338,36 @@ Item {
                     required property int index
                     required property real modelData
                     x: 8
-                    y: 48 + index * 34
+                    y: 46 + index * 38
                     width: parent.width - 16
-                    height: 32
-                    radius: 8
-                    property bool selected: Math.abs(mpv.speed - modelData) < 0.001
+                    height: 36
+                    radius: 9
+                    property bool selected: Math.abs(mpv.speed - modelData) < 0.01
                     color: selected ? Qt.rgba(1, 1, 1, 0.10) : (speedMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    border.width: selected ? 1 : 0
+                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    // Harbor: "Normal" for 1×, else "1.25×" — left-aligned.
                     Text {
-                        anchors.centerIn: parent
-                        text: modelData.toFixed(modelData === Math.round(modelData) ? 0 : 2) + "x"
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.abs(modelData - 1) < 0.01 ? "Normal" : ((Math.round(modelData * 100) / 100) + "×")
                         color: parent.selected ? theme.gold : theme.ink
-                        font.family: "Consolas"
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
+                        font.family: theme.ui
+                        font.pixelSize: 14
+                        font.weight: parent.selected ? Font.DemiBold : Font.Medium
+                    }
+                    // Harbor: "default" hint on the Normal row.
+                    Text {
+                        visible: Math.abs(modelData - 1) < 0.01
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "DEFAULT"
+                        color: theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: 10
+                        font.letterSpacing: 1.4
                     }
                     MouseArea {
                         id: speedMouse
@@ -1346,7 +1584,7 @@ Item {
                 ctx.font = "700 " + Math.round(s * 0.17) + "px Consolas"
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
-                ctx.fillText(label || "1x", cx, cy + s * 0.22)
+                if (label && label.length) ctx.fillText(label, cx, cy + s * 0.22)
             } else if (kind === "fit") {
                 ctx.strokeRect(cx - 0.27 * s, cy - 0.18 * s, 0.54 * s, 0.36 * s)
                 line(-0.17, -0.08, -0.27, -0.18)

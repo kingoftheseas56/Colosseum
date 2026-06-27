@@ -157,16 +157,16 @@ var biblioTop = [
 ];
 
 var biblioGenres = [
-    { name: "Fiction", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/f4/a5/e1f4a502-9136-f220-0c92-facdfaa78e58/9780063511651.jpg/400x600bb.jpg", c1: "#6a4a2c", c2: "#1d1209" },
-    { name: "Mystery & Thriller", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/25/2d/e6/252de6b6-a031-1e18-caed-049078aab004/9781668065945.jpg/400x600bb.jpg", c1: "#5a3a3f", c2: "#180d10" },
-    { name: "Romance", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/71/33/b9/7133b9b6-a782-fd0f-8848-302f2a5cb413/0000715555.jpg/400x600bb.jpg", c1: "#3f5a4a", c2: "#101a14" },
-    { name: "Sci-Fi & Fantasy", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/13/fb/63/13fb6355-fce2-0e4b-08b7-48452037759a/9780593135211.d.jpg/400x600bb.jpg", c1: "#4a4063", c2: "#13101f" },
-    { name: "Biography", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/0f/0a/db/0f0adb9f-8dd7-7c5a-0458-79ced91d5e39/9780593733325.d.jpg/400x600bb.jpg", c1: "#6a5a2c", c2: "#1d1809" },
-    { name: "History", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/6f/ae/14/6fae140e-dcf6-4be4-164e-5100459c5fb3/9780593734247.d.jpg/400x600bb.jpg", c1: "#3f4a63", c2: "#0e121b" },
-    { name: "Nonfiction", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/0b/8c/39/0b8c3979-68d2-d86f-5e3f-9b73c33de8fd/9780593230084.d.jpg/400x600bb.jpg", c1: "#5a4a3a", c2: "#181210" },
-    { name: "Young Adult", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/b8/29/9c/b8299cf0-d6ac-5b0f-bbe3-7eddb7eda0c6/9781534467644.jpg/400x600bb.jpg", c1: "#634050", c2: "#1b0d14" },
-    { name: "Humor", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/c2/47/cb/c247cb59-9caf-a2cc-c483-cc787e64afda/9780316265034.jpg/400x600bb.jpg", c1: "#3a5a5a", c2: "#0e1a1a" },
-    { name: "Food & Wine", count: 0, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/ed/3a/53/ed3a5357-2c9a-ca04-d60c-ca541640b143/1057979625.jpg/400x600bb.jpg", c1: "#5a5a3a", c2: "#181810" }
+    { name: "Fiction & Literature", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/e1/f4/a5/e1f4a502-9136-f220-0c92-facdfaa78e58/9780063511651.jpg/400x600bb.jpg", c1: "#6a4a2c", c2: "#1d1209" },
+    { name: "Mysteries & Thrillers", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/25/2d/e6/252de6b6-a031-1e18-caed-049078aab004/9781668065945.jpg/400x600bb.jpg", c1: "#5a3a3f", c2: "#180d10" },
+    { name: "Sci-Fi & Fantasy", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/13/fb/63/13fb6355-fce2-0e4b-08b7-48452037759a/9780593135211.d.jpg/400x600bb.jpg", c1: "#4a4063", c2: "#13101f" },
+    { name: "Romance", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication116/v4/71/33/b9/7133b9b6-a782-fd0f-8848-302f2a5cb413/0000715555.jpg/400x600bb.jpg", c1: "#3f5a4a", c2: "#101a14" },
+    { name: "Biographies & Memoirs", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/0f/0a/db/0f0adb9f-8dd7-7c5a-0458-79ced91d5e39/9780593733325.d.jpg/400x600bb.jpg", c1: "#6a5a2c", c2: "#1d1809" },
+    { name: "History", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication211/v4/6f/ae/14/6fae140e-dcf6-4be4-164e-5100459c5fb3/9780593734247.d.jpg/400x600bb.jpg", c1: "#3f4a63", c2: "#0e121b" },
+    { name: "Young Adult", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/b8/29/9c/b8299cf0-d6ac-5b0f-bbe3-7eddb7eda0c6/9781534467644.jpg/400x600bb.jpg", c1: "#634050", c2: "#1b0d14" },
+    { name: "Comics & Graphic Novels", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg/400x600bb.jpg", c1: "#5a4a3a", c2: "#181210" },
+    { name: "Humor", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/c2/47/cb/c247cb59-9caf-a2cc-c483-cc787e64afda/9780316265034.jpg/400x600bb.jpg", c1: "#3a5a5a", c2: "#0e1a1a" },
+    { name: "Travel & Adventure", count: 24, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication221/v4/ed/3a/53/ed3a5357-2c9a-ca04-d60c-ca541640b143/1057979625.jpg/400x600bb.jpg", c1: "#5a5a3a", c2: "#181810" }
 ];
 
 // every cover/banner the world shows, de-duped — for the boot prefetch (warms the disk cache).

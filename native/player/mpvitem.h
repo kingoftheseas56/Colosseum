@@ -97,6 +97,11 @@ public:
     Q_INVOKABLE void loadFile(const QString &file);
     Q_INVOKABLE void seekExact(double value);
     Q_INVOKABLE void seekStep(double delta);
+    // Add an EXTERNAL subtitle (e.g. an online .srt/.vtt URL) and select it. mpv loads
+    // http(s) URLs directly. `select` true makes it the active sub immediately.
+    Q_INVOKABLE void addSubtitle(const QString &url, const QString &title = QString(),
+                                 const QString &lang = QString(), bool select = true);
+    Q_INVOKABLE void setSubOption(const QString &key, const QVariant &value);
 
 Q_SIGNALS:
     void mediaTitleChanged();

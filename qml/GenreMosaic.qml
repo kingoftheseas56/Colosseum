@@ -10,13 +10,19 @@ Column {
     property var genres: []
     property var covers: []
     property int columns: 5
+    property bool navigable: true            // show the header's "Explore ›" affordance
     signal genreClicked(int index)
+    signal exploreClicked()                  // tapped "Explore ›" → host opens the full genre index
 
     width: parent ? parent.width : 800
     spacing: 14
     Theme { id: theme }
 
-    WidgetHeader { width: parent.width; title: gm.title; moreLabel: gm.moreLabel }
+    WidgetHeader {
+        width: parent.width; title: gm.title; moreLabel: gm.moreLabel
+        navigable: gm.navigable
+        onMoreClicked: gm.exploreClicked()
+    }
 
     Grid {
         id: grid

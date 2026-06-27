@@ -35,6 +35,7 @@ Window {
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (genreLayer.active) win.closeGenre()
+        else if (genreIndexLayer.active) win.closeGenreIndex()
         else if (universeLayer.active) win.closeUniverse()
         else if (worldStack.current !== "") win.closeWorld()
         else Qt.quit()
@@ -101,6 +102,12 @@ Window {
         else genreLayer.active = true
     }
     function closeGenre() { genreLayer.active = false }
+
+    // ---- genre INDEX (the "Explore" directory of all genres) — a layer below the genre page so a
+    //      picked genre opens its GenrePage over the index. Reached from a genre widget's "Explore"
+    //      or the genre page's "Explore" pill. ----
+    function openGenreIndex() { genreIndexLayer.active = true }
+    function closeGenreIndex() { genreIndexLayer.active = false }
 
     function openBiblioGenre(name) {
         biblioGenreLayer.genreName = name
@@ -666,6 +673,7 @@ Window {
                     item.seriesRequested.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
                     item.genreRequested.connect(win.openGenre)
+                    if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
@@ -722,6 +730,26 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.seriesRequested.connect(win.openSeries)
+            item.exploreRequested.connect(function() { win.closeGenre(); win.openGenreIndex() })
+        }
+    }
+
+    // ---- genre INDEX layer (the "Explore" directory). z below genreLayer so picking a genre opens
+    //      its page over the index. ----
+    Loader {
+        id: genreIndexLayer
+        anchors.fill: parent
+        z: 44
+        active: false
+        visible: active
+        source: "GenreIndex.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeGenreIndex)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.genrePicked.connect(win.openGenre)
         }
     }
 

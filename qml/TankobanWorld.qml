@@ -26,6 +26,8 @@ WorldPage {
         title: "Continue"
         // Real resume data — manga + comics, newest first. (Progress.revision keeps it live.)
         items: (Progress.revision, Progress.recent("manga").concat(Progress.recent("comic")))
+        onResumeRequested: (item) => tanko.continueResumeRequested(item)
+        onDetailRequested: (item) => tanko.continueDetailRequested(item)
     }
 
     TrendingTop10 {
@@ -42,6 +44,8 @@ WorldPage {
     GenreMosaic {
         title: "Explore by Genre — Manga"
         genres: Catalog.genresManga
+        onGenreClicked: (i) => tanko.genreRequested(Catalog.genresManga[i].name)
+        onExploreClicked: tanko.genreIndexRequested()
     }
 
     GenreMosaic {

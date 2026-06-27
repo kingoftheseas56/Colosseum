@@ -11,7 +11,7 @@ Item {
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
-    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl)
+    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId)
 
     property string title: ""
     property string mediaType: "movie"
@@ -608,6 +608,6 @@ Item {
         id: sources
         z: 60
         backdrop: page.backdrop
-        onPlayRequested: (infoHash, fileIdx, title, backdropUrl) => page.playRequested(infoHash, fileIdx, title, backdropUrl)
+        onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId)
     }
 }

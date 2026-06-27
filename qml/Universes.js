@@ -7,22 +7,30 @@
 // Home / universe domain (Agent 5) — kept OUT of the shared, contended Catalog.js on purpose.
 .pragma library
 
+// The home carousel shows ONLY universes with a BUILT page template (One Piece = anime,
+// Marvel = cinematic). The rest are kept below in `placeholders` — curated, but not surfaced
+// until their own template exists, so the carousel never advertises a page that isn't real.
 var universes = [
-    { name: "Dune", c1: "#3a2a18",
-      blurb: "Frank Herbert's world, end to end — the novels, the films, the graphic novel.",
-      banner: "https://image.tmdb.org/t/p/w1280/jYEW5xZkZk2WTrdbMGAPFuBqbDc.jpg",
-      continueLabel: "Continue — Part Two",
-      chips: [ { t: "6 Novels", ic: "books" }, { t: "2 Films", ic: "movies" }, { t: "Graphic Novel", ic: "comics" } ] },
-    { name: "Marvel", c1: "#1a2436", category: "cinematic",
-      blurb: "The Marvel Cinematic Universe — decades of films and shows, grown from the comics.",
-      banner: "https://image.tmdb.org/t/p/w1280/gHLs7Fy3DzLmLsD4lmfqL55KGcl.jpg",
-      continueLabel: "Continue — Loki S2",
-      chips: [ { t: "34 Films", ic: "movies" }, { t: "12 Shows", ic: "movies" }, { t: "Comics", ic: "comics" } ] },
     { name: "One Piece", c1: "#1d121b", category: "anime",
       blurb: "Luffy's voyage for the Grand Line — the manga, the anime, and the films, in one place.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg",
       continueLabel: "Continue — Ch. 1090",
       chips: [ { t: "8 Manga", ic: "manga" }, { t: "2 Anime", ic: "movies" }, { t: "15 Films", ic: "movies" } ] },
+    { name: "Marvel", c1: "#1a2436", category: "cinematic",
+      blurb: "The Marvel Cinematic Universe — decades of films and shows, grown from the comics.",
+      banner: "https://image.tmdb.org/t/p/w1280/gHLs7Fy3DzLmLsD4lmfqL55KGcl.jpg",
+      continueLabel: "Continue — Loki S2",
+      chips: [ { t: "34 Films", ic: "movies" }, { t: "12 Shows", ic: "movies" }, { t: "Comics", ic: "comics" } ] }
+];
+
+// Parked — curated, NOT a built template yet. Move an entry up into `universes` (with a `category`)
+// once its page template exists.
+var placeholders = [
+    { name: "Dune", c1: "#3a2a18",
+      blurb: "Frank Herbert's world, end to end — the novels, the films, the graphic novel.",
+      banner: "https://image.tmdb.org/t/p/w1280/jYEW5xZkZk2WTrdbMGAPFuBqbDc.jpg",
+      continueLabel: "Continue — Part Two",
+      chips: [ { t: "6 Novels", ic: "books" }, { t: "2 Films", ic: "movies" }, { t: "Graphic Novel", ic: "comics" } ] },
     { name: "Game of Thrones", c1: "#241a14",
       blurb: "A Song of Ice and Fire — Martin's saga and the shows it became, across Westeros.",
       banner: "https://image.tmdb.org/t/p/w1280/suopoADq0k8YZr4dQXcU6pToj6s.jpg",

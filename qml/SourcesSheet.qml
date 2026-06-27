@@ -16,6 +16,8 @@ Item {
     property string title: ""
     property string metaLine: ""
     property string backdropUrl: ""
+    property string subType: ""   // "movie" | "series" — carried to the player for online subtitle fetch
+    property string subId: ""     // "tt..." (movie) or "tt...:s:e" (episode)
     property bool open: false
     property bool loading: false
     property bool timedOut: false
@@ -25,7 +27,7 @@ Item {
     property var visibleRows: filteredRows()
 
     // a source row was chosen → play it (handled up at Main, which opens the player)
-    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl)
+    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId)
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -34,6 +36,8 @@ Item {
     Theme { id: theme }
 
     function show(type, id, lbl, context) {
+        sheet.subType = type ? type : "";
+        sheet.subId = id ? id : "";
         sheet.label = lbl ? lbl : "";
         sheet.title = (context && context.title) ? context.title : sheet.label;
         sheet.metaLine = (context && context.metaLine) ? context.metaLine : "";
@@ -398,7 +402,7 @@ Item {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: sheet.playRequested(row.modelData.infoHash, row.modelData.fileIdx,
-                                                   sheet.title, sheet.backdropUrl)
+                                                   sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId)
                 }
             }
         }

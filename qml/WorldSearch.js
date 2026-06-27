@@ -131,3 +131,76 @@ function searchFor(mode, query, done) {
     else if (mode === "Tankoban") searchManga(query, done);
     else done([]);
 }
+
+// ── Browse-a-genre (Harbor's empty-state "Try a genre" → inline grid) ──
+// AniList + Cinemeta both filter by genre directly, so a chip opens a real popularity-ranked grid.
+var MANGA_GENRES = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horror", "Mahou Shoujo",
+    "Mecha", "Mystery", "Psychological", "Romance", "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Thriller"];
+var THEATRE_GENRES = ["Action", "Adventure", "Animation", "Comedy", "Crime", "Documentary", "Drama",
+    "Family", "Fantasy", "Horror", "Mystery", "Romance", "Sci-Fi", "Thriller"];
+
+function genresFor(mode) { return mode === "Theatre" ? THEATRE_GENRES : MANGA_GENRES; }
+
+// Cinemeta's genre catalog lives on the catalogs host (v3-cinemeta 307-redirects there).
+var CINEMETA_CAT = "https://cinemeta-catalogs.strem.io/top";
+
+function browseTheatreGenre(genre, done) {
+    var g = encodeURIComponent(genre);
+    var out = { movie: [], series: [] }, pending = 2;
+    function finish() {
+        pending -= 1;
+        if (pending > 0) return;
+        var all = [], mx = Math.max(out.movie.length, out.series.length);
+        for (var i = 0; i < mx; i++) {                     // interleave movies + series
+            if (out.movie[i]) all.push(out.movie[i]);
+            if (out.series[i]) all.push(out.series[i]);
+        }
+        done(all);
+    }
+    reqJson(CINEMETA_CAT + "/catalog/movie/top/genre=" + g + ".json", function(j) {
+        out.movie = (j && j.metas ? j.metas : []).slice(0, 30).map(function(m) { m.type = "movie"; return mapTheatre(m); });
+        finish();
+    });
+    reqJson(CINEMETA_CAT + "/catalog/series/top/genre=" + g + ".json", function(j) {
+        out.series = (j && j.metas ? j.metas : []).slice(0, 30).map(function(m) { m.type = "series"; return mapTheatre(m); });
+        finish();
+    });
+}
+
+function browseMangaGenre(genre, done) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        if (xhr.status < 200 || xhr.status >= 300) { done([]); return; }
+        try {
+            var media = JSON.parse(xhr.responseText).data.Page.media;
+            done(media.map(function(m) {
+                var t = m.title.english || m.title.romaji || "Untitled";
+                var fmt = m.format ? String(m.format).replace(/_/g, " ") : "Manga";
+                return { cover: m.coverImage ? m.coverImage.large : "", title: t, subtitle: fmt,
+                    meta: fmt, synopsis: "", backdrop: "", group: "Manga", data: { title: t } };
+            }));
+        } catch (e) { done([]); }
+    };
+    xhr.open("POST", "https://graphql.anilist.co");
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "application/json");
+    var gql = "query($g:String){Page(perPage:30){media(genre:$g,type:MANGA,sort:POPULARITY_DESC){title{romaji english} coverImage{large} format}}}";
+    xhr.send(JSON.stringify({ query: gql, variables: { g: genre } }));
+}
+
+function browseGenre(mode, genre, done) {
+    if (mode === "Theatre") browseTheatreGenre(genre, done);
+    else if (mode === "Tankoban") browseMangaGenre(genre, done);
+    else done([]);
+}
+
+// Surprise me — a random genre, then a random title from its top results → opens that detail.
+function surprise(mode, done) {
+    var gs = genresFor(mode);
+    var g = gs[Math.floor(Math.random() * gs.length)];
+    browseGenre(mode, g, function(items) {
+        if (!items || items.length === 0) { done(null); return; }
+        done(items[Math.floor(Math.random() * Math.min(items.length, 20))]);
+    });
+}

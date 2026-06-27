@@ -67,8 +67,8 @@ WorldPage {
     ContinueRow {
         title: "Continue Watching"
         items: theatre.continueRows
-        onItemClicked: (index) => theatre.theatreItemRequested(
-            theatre.itemWithIdentity(theatre.continueRows[index], "movie"))
+        onResumeRequested: (item) => theatre.continueResumeRequested(item)
+        onDetailRequested: (item) => theatre.continueDetailRequested(item)
     }
 
     TrendingTop10 {

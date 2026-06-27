@@ -175,6 +175,30 @@ void MpvItem::seekStep(double delta)
     seekExact(position() + delta);
 }
 
+void MpvItem::addSubtitle(const QString &url, const QString &title, const QString &lang, bool select)
+{
+    if (url.isEmpty())
+        return;
+    // mpv: sub-add <url> [<flags> [<title> [<lang>]]]. mpv loads http(s) URLs itself.
+    const QString flag = select ? QStringLiteral("select") : QStringLiteral("auto");
+    const QString t = !title.isEmpty() ? title
+                      : (!lang.isEmpty() ? lang : QStringLiteral("Subtitle"));
+    QStringList cmd;
+    cmd << QStringLiteral("sub-add") << url << flag << t;
+    if (!lang.isEmpty())
+        cmd << lang;
+    command(cmd);
+}
+
+void MpvItem::setSubOption(const QString &key, const QVariant &value)
+{
+    const QString name = key.trimmed();
+    if (name.isEmpty() || !name.startsWith(QStringLiteral("sub-"))) {
+        return;
+    }
+    setProperty(name, value);
+}
+
 QString MpvItem::mediaTitle()
 {
     return getProperty(MpvProperties::self()->MediaTitle).toString();

@@ -28,6 +28,10 @@ Item {
     signal mediumSelected(string medium)     // tapped another pill → host switches world
     signal seriesRequested(string title)     // tapped a title tile → host opens its detail page
     signal bookRequested(var book)           // Biblio: tapped a book → host opens the BiblioBook detail
+    signal genreRequested(string genreName)  // tapped a genre tile opens its GenrePage
+    signal genreIndexRequested()             // tapped a genre widget's "Explore" → host opens the full genre index
+    signal continueResumeRequested(var item) // Continue tile's center icon → host resumes the content
+    signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal searchClicked()
     signal settingsClicked()
     signal minimizeClicked()

@@ -25,13 +25,12 @@ Item {
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
 
-    // Biblio's empty search offers a "browse" set so the surface is never a bare void before you type.
-    // These backends search by TITLE, so the chips are marquee titles (one click → a real result set),
-    // not genre words that would weakly title-match.
-    readonly property var popular: searchMode === "Theatre"
-        ? ["Dune", "Oppenheimer", "Interstellar", "The Batman", "Breaking Bad", "Severance", "Game of Thrones", "Arcane"]
-        : ["One Piece", "Berserk", "Chainsaw Man", "Jujutsu Kaisen", "Vinland Saga", "Vagabond", "Monster", "Solo Leveling"]
-    readonly property string popularLabel: searchMode === "Theatre" ? "POPULAR ON THEATRE" : "POPULAR MANGA"
+    // Harbor's empty-state "Try a genre": chips open an inline, popularity-ranked browse grid in place.
+    readonly property var genres: WorldSearch.genresFor(searchMode)
+    property string browseGenre: ""            // "" = the default empty view; set = inline genre grid
+    property var browseItems: []
+    property bool browseLoading: false
+    property bool surprising: false
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
@@ -66,6 +65,29 @@ Item {
     }
     function fillAndSearch(q) { queryInput.text = q; runSearch() }
     function openTop() { if (surf.results.length > 0) surf.itemRequested(surf.results[0].data) }
+    function removeRecent(q) { surf.recent = surf.recent.filter(function(r) { return r !== q }) }
+
+    // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
+    // you've since left doesn't paint over the new one).
+    function openGenre(g) {
+        surf.browseGenre = g
+        surf.browseItems = []
+        surf.browseLoading = true
+        WorldSearch.browseGenre(surf.searchMode, g, function(items) {
+            if (surf.browseGenre !== g) return
+            surf.browseItems = items
+            surf.browseLoading = false
+        })
+    }
+    function closeGenre() { surf.browseGenre = ""; surf.browseItems = [] }
+    function doSurprise() {
+        if (surf.surprising) return
+        surf.surprising = true
+        WorldSearch.surprise(surf.searchMode, function(item) {
+            surf.surprising = false
+            if (item && item.data) surf.itemRequested(item.data)
+        })
+    }
 
     // results (minus the Top Match) split into ordered sections by their group — Movies / Series for
     // Theatre, a single Manga group for Tankoban (Harbor-style grouped discovery).
@@ -164,61 +186,159 @@ Item {
             width: scroll.width
             spacing: 0
 
-            // empty state — Recent (this session) + a "Popular" browse set (Biblio-parity)
+            // ── empty state = Harbor's extended view. Default: Recent + Try-a-genre + Surprise me.
+            //    Picking a genre swaps THIS view for an inline, popularity-ranked browse grid. ──
             Column {
                 width: parent.width; spacing: 0
                 visible: surf.isEmpty
 
-                // RECENT (only if there's history this session)
-                Text {
-                    visible: surf.recent.length > 0
-                    text: "RECENT"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    font.weight: Font.DemiBold; font.letterSpacing: 1.8
-                }
-                Item { visible: surf.recent.length > 0; width: 1; height: 16 }
-                Flow {
-                    visible: surf.recent.length > 0
-                    width: parent.width; spacing: 10
-                    Repeater {
-                        model: surf.recent
-                        delegate: Rectangle {
-                            required property var modelData
-                            height: 40; radius: 999; width: rcRow.width + 34
-                            color: rcMa.containsMouse ? Qt.rgba(1,1,1,0.12) : theme.glassTint
+                // ===== INLINE GENRE BROWSE (replaces the default view while a genre is open) =====
+                Column {
+                    visible: surf.browseGenre.length > 0
+                    width: parent.width; spacing: 0
+
+                    Row {
+                        spacing: 16
+                        Rectangle {                                      // ‹ Back
+                            height: 36; radius: 999; width: backRow.width + 26
+                            anchors.verticalCenter: parent.verticalCenter
+                            color: backMa.containsMouse ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: 1; border.color: theme.edge
-                            Row { id: rcRow; anchors.centerIn: parent; spacing: 9
-                                Text { text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                            Row { id: backRow; anchors.centerIn: parent; spacing: 6
+                                Text { text: "‹"; color: theme.ink; font.family: theme.ui; font.pixelSize: 18
                                     anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "✕"; color: theme.inkDimmer; font.pixelSize: 11
+                                Text { text: "Back"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
                                     anchors.verticalCenter: parent.verticalCenter } }
-                            MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: surf.fillAndSearch(modelData) }
+                            MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: surf.closeGenre() }
+                        }
+                        Column {
+                            anchors.verticalCenter: parent.verticalCenter; spacing: 2
+                            Text { text: "BROWSING"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                                font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
+                            Text { text: surf.browseGenre; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
                         }
                     }
-                }
-                Item { visible: surf.recent.length > 0; width: 1; height: 34 }
+                    Item { width: 1; height: 24 }
 
-                // POPULAR — marquee titles; one click runs a real search (Biblio's "browse a genre" twin)
-                Text {
-                    text: surf.popularLabel; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    font.weight: Font.DemiBold; font.letterSpacing: 1.8
-                }
-                Item { width: 1; height: 16 }
-                Flow {
-                    width: parent.width; spacing: 10
-                    Repeater {
-                        model: surf.popular
-                        delegate: Rectangle {
-                            required property var modelData
-                            height: 44; radius: 999; width: pLbl.width + 36
-                            color: pMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
-                            border.width: 1; border.color: theme.edge
-                            Text { id: pLbl; anchors.centerIn: parent; text: modelData
-                                color: pMa.containsMouse ? theme.ink : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13 }
-                            MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: surf.fillAndSearch(modelData) }
+                    Text {
+                        visible: surf.browseLoading && surf.browseItems.length === 0
+                        text: "Loading…"; color: theme.inkDimmer; font.family: theme.display
+                        font.pixelSize: 18; topPadding: 16
+                    }
+                    Grid {
+                        id: browseGrid
+                        visible: surf.browseItems.length > 0
+                        width: parent.width; columns: 6; columnSpacing: 22; rowSpacing: 26
+                        property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                        Repeater {
+                            model: surf.browseItems
+                            delegate: Column {
+                                required property var modelData
+                                width: browseGrid.cellW; spacing: 9
+                                Rectangle {
+                                    width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
+                                    Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
+                                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                                    scale: bcMa.containsMouse ? 1.03 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                    MouseArea { id: bcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: surf.itemRequested(modelData.data) }
+                                }
+                                Text { width: parent.width; text: modelData.title ? modelData.title : ""
+                                    color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                    elide: Text.ElideRight; maximumLineCount: 1 }
+                                Text { width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                    elide: Text.ElideRight; maximumLineCount: 1 }
+                            }
                         }
+                    }
+                    Text {
+                        visible: !surf.browseLoading && surf.browseItems.length === 0
+                        text: "Nothing here"; color: theme.inkDimmer; font.family: theme.display
+                        font.pixelSize: 18; topPadding: 16
+                    }
+                }
+
+                // ===== DEFAULT EMPTY VIEW =====
+                Column {
+                    visible: surf.browseGenre.length === 0
+                    width: parent.width; spacing: 0
+
+                    // RECENT SEARCHES — chip searches; ✕ removes (Harbor parity)
+                    Text {
+                        visible: surf.recent.length > 0
+                        text: "RECENT SEARCHES"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold; font.letterSpacing: 1.8
+                    }
+                    Item { visible: surf.recent.length > 0; width: 1; height: 16 }
+                    Flow {
+                        visible: surf.recent.length > 0
+                        width: parent.width; spacing: 10
+                        Repeater {
+                            model: surf.recent
+                            delegate: Rectangle {
+                                required property var modelData
+                                height: 40; radius: 999; width: rcRow.width + 30
+                                color: rcMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
+                                border.width: 1; border.color: theme.edge
+                                MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: surf.fillAndSearch(modelData) }
+                                Row { id: rcRow; anchors.centerIn: parent; spacing: 8
+                                    Text { text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                        anchors.verticalCenter: parent.verticalCenter }
+                                    Rectangle { width: 20; height: 20; radius: 10
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        color: xMa.containsMouse ? Qt.rgba(1,1,1,0.18) : "transparent"
+                                        Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
+                                        MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: surf.removeRecent(modelData) } }
+                                }
+                            }
+                        }
+                    }
+                    Item { visible: surf.recent.length > 0; width: 1; height: 36 }
+
+                    // TRY A GENRE — a chip opens the inline browse grid above
+                    Text {
+                        text: "TRY A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold; font.letterSpacing: 1.8
+                    }
+                    Item { width: 1; height: 16 }
+                    Flow {
+                        width: parent.width; spacing: 10
+                        Repeater {
+                            model: surf.genres
+                            delegate: Rectangle {
+                                required property var modelData
+                                height: 44; radius: 999; width: gLbl.width + 36
+                                color: gMa.containsMouse ? Qt.rgba(1,1,1,0.10) : theme.glassTint
+                                border.width: 1; border.color: theme.edge
+                                Text { id: gLbl; anchors.centerIn: parent; text: modelData
+                                    color: gMa.containsMouse ? theme.ink : theme.inkDim
+                                    font.family: theme.ui; font.pixelSize: 13 }
+                                MouseArea { id: gMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: surf.openGenre(modelData) }
+                            }
+                        }
+                    }
+                    Item { width: 1; height: 42 }
+
+                    // SURPRISE ME — random genre → random top title → opens it
+                    Item {
+                        width: parent.width; height: 24
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
+                            Text { text: "✦"; color: surMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: surf.surprising ? "Picking…" : "Surprise me"
+                                color: surMa.containsMouse ? theme.ink : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        MouseArea { id: surMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: surf.doSurprise() }
                     }
                 }
             }
