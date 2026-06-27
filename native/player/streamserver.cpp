@@ -81,13 +81,17 @@ void StreamServer::ensureStarted()
 
     connect(m_proc, &QProcess::readyReadStandardOutput, this, &StreamServer::onStdout);
     connect(m_proc, &QProcess::errorOccurred, this, [this](QProcess::ProcessError) {
-        if (m_port <= 0)
+        if (m_port <= 0 && m_proc)
             Q_EMIT streamError(QStringLiteral("Stream engine failed to start: %1").arg(m_proc->errorString()));
     });
     connect(m_proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
             [this](int, QProcess::ExitStatus) {
                 m_port = -1;
                 m_starting = false;
+                // Reset the handle so a later play() can relaunch the engine. Without this,
+                // m_proc stays non-null after the runtime exits (e.g. a port-11470 clash) and
+                // ensureStarted()'s `if (m_proc) return` wedges streaming dead until app restart.
+                if (m_proc) { m_proc->deleteLater(); m_proc = nullptr; }
                 Q_EMIT readyChanged();
                 Q_EMIT startingChanged();
             });

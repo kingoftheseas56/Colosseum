@@ -12,19 +12,19 @@ REM ============================================================================
 REM Run from this file's own folder so qml\Main.qml resolves wherever it's launched from.
 cd /d "%~dp0"
 
-REM Put Qt + its mingw runtime on PATH so the launcher finds its DLLs.
-set "PATH=C:\Qt\6.11.1\mingw_64\bin;C:\Qt\Tools\mingw1310_64\bin;%PATH%"
+REM Put Qt's MSVC runtime on PATH so the launcher finds its DLLs (QtWebEngine path).
+set "PATH=C:\Qt\6.11.1\msvc2022_64\bin;%PATH%"
 
-if not exist "native\build\colosseum.exe" (
+if not exist "native\build-msvc\colosseum.exe" (
   echo.
-  echo   Colosseum's native launcher isn't built yet ^(native\build\colosseum.exe is missing^).
-  echo   Ask a brother to compile it once -- after that, this file just works.
+  echo   Colosseum's native launcher isn't built yet ^(native\build-msvc\colosseum.exe is missing^).
+  echo   Ask a brother to run native\build-msvc.bat once -- after that, this file just works.
   echo.
   pause >nul
   exit /b 1
 )
 
-"native\build\colosseum.exe" "qml\Main.qml"
+"native\build-msvc\colosseum.exe" "qml\Main.qml"
 
 REM Only pause if it crashed, so a clean quit closes silently but an error stays readable.
 if errorlevel 1 (

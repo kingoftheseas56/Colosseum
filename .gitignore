@@ -1,7 +1,8 @@
 # Colosseum — source-only backup. Build output, scratch, and downloadable art stay out.
 
 # CMake / compiler output (recompiles from native/main.cpp + CMakeLists.txt)
-native/build/
+# build*/ covers both the MinGW build/ and the MSVC build-msvc/ trees.
+native/build*/
 
 # Dev scratch: smoke screenshots, diagnostic logs, click scripts
 tools/

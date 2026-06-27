@@ -9,13 +9,22 @@ find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
-# Override these on the CMake command line to point at vendored copies later.
-set(MPVQT_PREFIX  "C:/tools/mpvqt-feasibility/mpvqt-install" CACHE PATH "MpvQt install prefix")
+# Toolchain-aware: MSVC (Qt WebEngine path, homeward-foundry) consumes the msvc
+# MpvQt build + mpv.lib; MinGW the original build + libmpv.dll.a. Same source tree
+# builds under either kit. Override MPVQT_PREFIX on the command line to vendor later.
+if(MSVC)
+    set(_MPVQT_DEFAULT "C:/tools/mpvqt-feasibility/mpvqt-msvc-install")
+    set(_LIBMPV_IMPLIB "mpv.lib")
+else()
+    set(_MPVQT_DEFAULT "C:/tools/mpvqt-feasibility/mpvqt-install")
+    set(_LIBMPV_IMPLIB "libmpv.dll.a")
+endif()
+set(MPVQT_PREFIX  "${_MPVQT_DEFAULT}" CACHE PATH "MpvQt install prefix")
 set(LIBMPV_PREFIX "C:/tools/mpvqt-feasibility/libmpv-prefix" CACHE PATH "libmpv dev prefix")
 list(PREPEND CMAKE_PREFIX_PATH "${MPVQT_PREFIX}")
 # Pre-seed libmpv so MpvQt's bundled FindLibmpv (pkg-config based) succeeds on Windows.
 set(Libmpv_INCLUDE_DIRS "${LIBMPV_PREFIX}/include" CACHE PATH "" FORCE)
-set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/libmpv.dll.a" CACHE FILEPATH "" FORCE)
+set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/${_LIBMPV_IMPLIB}" CACHE FILEPATH "" FORCE)
 find_package(MpvQt REQUIRED)
 
 add_executable(colosseum

@@ -8,7 +8,6 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
-import org.kde.kirigami as Kirigami
 import "Catalog.js" as Catalog
 import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
@@ -159,6 +158,22 @@ Window {
         else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
     }
 
+    // ---- resume a Continue card: route by kind to the reader/player using the resume payload each
+    //      world wrote. video → the player (infoHash/fileIdx); manga → its series page (the reader).
+    //      Exact-offset resume (timestamp / page) is the writers' to honour; this reopens the right place.
+    function resumeContinue(entry) {
+        if (!entry) return
+        var r = entry.resume || ({})
+        var title = entry.title || entry.caption || ""
+        if (entry.kind === "video") {
+            if (r.infoHash) win.openPlayer(r.infoHash, r.fileIdx || 0, title, entry.cover || "")
+        } else if (entry.kind === "manga" || entry.kind === "comic") {
+            win.openSeries(title)
+        } else if (entry.kind === "book") {
+            win.openBook(r.book ? r.book : entry)
+        }
+    }
+
     // ---- design tokens (the skin: glass is the constant; gold is sparing) ----
     Theme { id: theme }
 
@@ -228,8 +243,10 @@ Window {
 
     // ---- reusable: a unified Continue card (glass chrome, solid art slot) ----
     component ContinueCard: Glass {
+        id: card
         backdrop: wall
         width: 340; height: 148; radius: 14
+        signal activated()
         property string badge
         property string title
         property string sub
@@ -275,6 +292,13 @@ Window {
                     }
                 }
             }
+        }
+        // resume on click — routes by kind (video → player, manga → reader) via win.resumeContinue
+        MouseArea {
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: card.activated()
         }
     }
 
@@ -498,6 +522,7 @@ Window {
                                 cover: modelData.cover !== undefined ? modelData.cover : ""
                                 progress: modelData.progress !== undefined ? modelData.progress : 0
                                 art: modelData.c1 !== undefined ? modelData.c1 : "#333"
+                                onActivated: win.resumeContinue(modelData)
                             }
                         }
                     }
