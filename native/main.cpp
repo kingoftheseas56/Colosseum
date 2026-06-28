@@ -29,6 +29,7 @@
 
 #include "MangaEngine.h"
 #include "ProgressStore.h"
+#include "SessionStore.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "reader/BookBridge.h"
@@ -228,6 +229,13 @@ int main(int argc, char *argv[]) {
     // QSettings-backed, so it survives a restart.
     auto *progress = new ProgressStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
+
+    // Open-sessions model exposed to QML as `Sessions` - the OS-shell's switcher state
+    // (which surfaces are open, which is active, each one's saved-state blob).
+    auto *sessions = new SessionStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Sessions"), sessions);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_SESSION_SELFTEST"))
+        sessions->selfTest();
 
     const QString qmlPath = (argc > 1) ? QString::fromLocal8Bit(argv[1])
                                        : QStringLiteral("qml/Main.qml");
