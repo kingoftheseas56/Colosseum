@@ -7,6 +7,8 @@ import "WallpaperApi.js" as WallpaperApi
 Item {
     id: root
 
+    Theme { id: theme }
+
     property Item backdrop
     property string targetWorld: "Home"
     property string inheritedImageUrl: ""
@@ -64,7 +66,7 @@ Item {
                 Text {
                     text: "Wallpapers"
                     color: "#f3f0e8"
-                    font.family: "Fraunces"
+                    font.family: theme.display
                     font.pixelSize: 34
                     Layout.fillWidth: true
                 }
@@ -200,7 +202,7 @@ Item {
                 text: root.selectedPick.title || "Selected wallpaper"
                 elide: Text.ElideRight
                 color: "#f6f2ea"
-                font.family: "Fraunces"
+                font.family: theme.display
                 font.pixelSize: 18
             }
 
@@ -215,7 +217,7 @@ Item {
 
                 Repeater {
                     model: [
-                        { label: "For all worlds", scope: "all" },
+                        { label: "For All Worlds", scope: "all" },
                         { label: "For " + root.targetWorld, scope: "world" }
                     ]
 
