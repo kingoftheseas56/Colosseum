@@ -34,6 +34,7 @@ Item {
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
     signal searchClicked()
     signal settingsClicked()
+    signal wallpaperClicked()
     signal minimizeClicked()
     signal powerClicked()
 
@@ -53,6 +54,7 @@ Item {
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
         onSettingsClicked: world.settingsClicked()
+        onWallpaperClicked: world.wallpaperClicked()
         onMinimizeClicked: world.minimizeClicked()
         onPowerClicked: world.powerClicked()
     }

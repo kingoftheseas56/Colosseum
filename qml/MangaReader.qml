@@ -214,31 +214,69 @@ Item {
     }
     function smoothScrollTo(y) { smoothScrollBy(y - flick.contentY) }
 
-    // ===================== auto-hide chrome =====================
-    // HUD + side bars recede while reading and return on ANY mouse movement, so they
-    // can never get stuck hidden (move the mouse = they're back; keyboard works either
-    // way). A modal/dropdown open or hovering the HUD freezes them shown; the "Pin
-    // toolbar" pref keeps them on permanently.
+    // ===================== auto-hide chrome (Tankoban Max behavior) =====================
+    // HUD + side bars recede while reading (after 3s idle) and STAY hidden while you read.
+    // They return when you reach for them — the cursor enters the top/bottom 60px edge — or
+    // on wheel / click / hovering the HUD. Keyboard scrolling does NOT wake them (immersive).
+    // A modal/dropdown open or hovering the HUD freezes them shown; "Pin toolbar" pins them on.
     property bool hudShown: true
     property bool hudHover: false
+    property bool edgeCooldown: false                 // brief lock after an edge-reveal (anti-flicker)
+    readonly property int hudEdgePx: 60               // reveal band at top/bottom
     readonly property bool pinned: prefs.sticky_top_nav
     readonly property bool frozen: showPrefs || showJump || showChapters || hudMenu !== "" || hudHover
     readonly property bool chromeShown: hudShown || pinned || frozen
-    Timer { id: idleHide; interval: 2200; running: reader.max > 0
+    Timer { id: idleHide; interval: 3000; running: reader.max > 0
         onTriggered: if (!reader.frozen && !reader.pinned) reader.hudShown = false }
+    Timer { id: edgeCool; interval: 600; onTriggered: reader.edgeCooldown = false }
     function pokeChrome() { hudShown = true; if (!pinned) idleHide.restart() }
     onFrozenChanged: { if (frozen) { idleHide.stop(); hudShown = true } else pokeChrome() }
 
     // ===================== visual tree =====================
     focus: true
+    // Keyboard scroll/nav — Tankoban Max key map. Scroll/turn keys deliberately do NOT pokeChrome():
+    // keyboard reading keeps the HUD hidden (immersive). Only Esc + modal handling are exempt.
     Keys.onPressed: (e) => {
+        // Esc — close an open modal/menu, else leave the reader
         if (e.key === Qt.Key_Escape) {
             if (showPrefs || showJump || showChapters || hudMenu !== "") {
                 showPrefs = false; showJump = false; showChapters = false; hudMenu = ""
             } else reader.backRequested()
             e.accepted = true
-        } else if (paged && e.key === Qt.Key_Left)  { (rtl ? turnNext : turnPrev)(); e.accepted = true }
-        else if (paged && e.key === Qt.Key_Right) { (rtl ? turnPrev : turnNext)(); e.accepted = true }
+            return
+        }
+        // never scroll / turn pages behind an open modal or dropdown
+        if (showPrefs || showJump || showChapters || hudMenu !== "") return
+        if (reader.max <= 0) return
+
+        if (reader.style === "long_strip") {
+            var shift  = (e.modifiers & Qt.ShiftModifier) !== 0
+            var step   = Math.max(64, flick.height * 0.12)     // arrow
+            var big    = Math.max(64, flick.height * 0.25)     // shift+arrow
+            var screen = flick.height * 0.90                   // space / page
+            var hmax   = Math.max(0, flick.contentHeight - flick.height)
+            switch (e.key) {
+            case Qt.Key_Down:     reader.smoothScrollBy(shift ? big : step);    e.accepted = true; break
+            case Qt.Key_Up:       reader.smoothScrollBy(shift ? -big : -step);   e.accepted = true; break
+            case Qt.Key_Space:    reader.smoothScrollBy(shift ? -screen : screen); e.accepted = true; break
+            case Qt.Key_PageDown: reader.smoothScrollBy(screen);   e.accepted = true; break
+            case Qt.Key_PageUp:   reader.smoothScrollBy(-screen);  e.accepted = true; break
+            case Qt.Key_Home:     reader.smoothScrollTo(0);        e.accepted = true; break
+            case Qt.Key_End:      reader.smoothScrollTo(hmax);     e.accepted = true; break
+            }
+            return
+        }
+
+        // paged (single_page / double_page) — Left/Right RTL-aware
+        switch (e.key) {
+        case Qt.Key_Left:     (rtl ? turnNext : turnPrev)(); e.accepted = true; break
+        case Qt.Key_Right:    (rtl ? turnPrev : turnNext)(); e.accepted = true; break
+        case Qt.Key_Space:    ((e.modifiers & Qt.ShiftModifier) ? turnPrev : turnNext)(); e.accepted = true; break
+        case Qt.Key_PageDown: turnNext(); e.accepted = true; break
+        case Qt.Key_PageUp:   turnPrev(); e.accepted = true; break
+        case Qt.Key_Home:     reader.page = 1; e.accepted = true; break
+        case Qt.Key_End:      reader.page = reader.max; e.accepted = true; break
+        }
     }
 
     Rectangle { anchors.fill: parent; color: prefs.dark_background ? "#000000" : "#0a0b10" }
@@ -260,7 +298,7 @@ Item {
         WheelHandler {
             enabled: reader.style === "long_strip" && reader.max > 0
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: (e) => reader.smoothScrollBy(-e.angleDelta.y * 1.4)
+            onWheel: (e) => { reader.pokeChrome(); reader.smoothScrollBy(-e.angleDelta.y * 1.4) }
         }
 
         // LONG STRIP
@@ -343,6 +381,7 @@ Item {
         enabled: reader.max > 0 && !reader.atEnd
         acceptedButtons: Qt.LeftButton
         onClicked: (m) => {
+            reader.pokeChrome()
             var third = width / 3
             if (reader.style === "long_strip") {
                 if (m.x < third) reader.smoothScrollBy(-flick.height * 0.82)
@@ -354,15 +393,21 @@ Item {
         }
     }
 
-    // reveal-on-move overlay: NoButton so it never eats page-turn clicks; hoverEnabled
-    // so ANY movement pokes the chrome back (guarantees it can't get stuck hidden).
+    // reveal-on-EDGE overlay (Max behavior): NoButton so it never eats page-turn clicks.
+    // Only wakes the HUD when it's currently hidden AND the cursor reaches the top/bottom
+    // 60px band — so mid-screen movement while reading leaves the chrome hidden. A 600ms
+    // cooldown after a reveal prevents flicker when the cursor lingers at the edge.
     MouseArea {
         anchors.fill: parent; z: 18
         enabled: reader.max > 0
         hoverEnabled: true
         acceptedButtons: Qt.NoButton
-        onPositionChanged: reader.pokeChrome()
-        onEntered: reader.pokeChrome()
+        onPositionChanged: (m) => {
+            if (reader.chromeShown || reader.edgeCooldown) return
+            if (m.y <= reader.hudEdgePx || m.y >= height - reader.hudEdgePx) {
+                reader.pokeChrome(); reader.edgeCooldown = true; edgeCool.restart()
+            }
+        }
     }
 
     // ── download panel (no local pages; download-fed, never streams) ──
@@ -492,7 +537,7 @@ Item {
         visible: reader.max > 0 && !reader.atEnd
         opacity: reader.chromeShown ? 1 : 0
         enabled: reader.chromeShown
-        Behavior on opacity { NumberAnimation { duration: 160 } }
+        Behavior on opacity { NumberAnimation { duration: 180 } }
         z: 20
         HoverHandler { onHoveredChanged: reader.hudHover = hovered }
 

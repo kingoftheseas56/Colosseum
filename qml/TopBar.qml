@@ -20,6 +20,7 @@ Item {
     signal homeRequested()
     signal searchClicked()
     signal settingsClicked()
+    signal wallpaperClicked()
     signal minimizeClicked()
     signal powerClicked()
 
@@ -154,7 +155,7 @@ Item {
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
         spacing: 20
         SysIcon { source: "../assets/icons/search.svg";   onClicked: bar.searchClicked() }
-        SysIcon { source: "../assets/icons/settings.svg"; onClicked: bar.settingsClicked() }
+        SysIcon { source: "../assets/icons/star.svg";     onClicked: bar.wallpaperClicked() }
         SysIcon { source: "../assets/icons/minimize.svg"; onClicked: bar.minimizeClicked() }
         SysIcon { source: "../assets/icons/power.svg";    onClicked: bar.powerClicked() }
     }

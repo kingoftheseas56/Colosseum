@@ -278,6 +278,12 @@ Window {
         else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
     }
 
+    function openWallpaperSearch(world) {
+        wallpaperLayer.targetWorld = world || currentSurface || "Home"
+        wallpaperLayer.active = true
+    }
+    function closeWallpaperSearch() { wallpaperLayer.active = false }
+
     // ---- Continue card has TWO actions: the center icon RESUMES into the content; clicking
     //      elsewhere opens the SERIES / DETAIL view. Both use the resume payload each world wrote. ----
     //  resume (center play/read icon):
@@ -562,6 +568,7 @@ Window {
         x: theme.margin; y: 30
         width: win.width - theme.margin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
+        onWallpaperClicked: win.openWallpaperSearch("Home")
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: Qt.quit()
     }
@@ -825,6 +832,7 @@ Window {
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                    if (item.wallpaperClicked) item.wallpaperClicked.connect(function() { win.openWallpaperSearch(mode) })
                     if (mode === "Theatre") {
                         var theatreSignal = item["theatre" + "ItemRequested"]
                         if (theatreSignal) theatreSignal.connect(win.openTheatreSeries)
@@ -1112,6 +1120,43 @@ Window {
                 currentSurface = "Home"
                 refreshWallpaper()
             }
+        }
+    }
+
+    // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
+    Taskbar {
+        id: taskbar
+        z: 900
+        onSwitchRequested: (id) => Sessions.switchTo(id)
+        onCloseRequested: (id) => Sessions.close(id)
+        onStartClicked: { /* Start menu is a later spec - placeholder */ }
+    }
+
+    Loader {
+        id: wallpaperLayer
+        anchors.fill: parent
+        z: 920
+        active: false
+        visible: active
+        property string targetWorld: "Home"
+        source: "WallpaperSearch.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.targetWorld = wallpaperLayer.targetWorld
+            item.inheritedImageUrl = win.wallpaperSource
+            item.closeRequested.connect(win.closeWallpaperSearch)
+            item.applyRequested.connect(function(scope, world, pick) {
+                if (scope === "all") win.setWallpaperEverywhere(pick)
+                else win.setWallpaperPick(world, pick)
+                item.inheritedImageUrl = win.wallpaperSource
+                win.closeWallpaperSearch()
+            })
+            item.forceActiveFocus()
+        }
+        onActiveChanged: if (active && item) {
+            item.targetWorld = wallpaperLayer.targetWorld
+            item.inheritedImageUrl = win.wallpaperSource
+            item.forceActiveFocus()
         }
     }
 
