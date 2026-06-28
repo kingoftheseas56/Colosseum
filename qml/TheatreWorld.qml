@@ -1,6 +1,6 @@
-// TheatreWorld - the real Colosseum world page for movies and series.
-// Owner: A4. Shape is Harbor/TB3's home spine translated into the Colosseum board:
-// Featured carousel, Continue Watching, ranked movies, ranked series, and a genre mosaic.
+// TheatreWorld - Colosseum's Theatre catalog shell.
+// Owner: A4. Persistent top: Featured, Continue Watching, then Harbor-shaped pages
+// under four tabs: Discover, Movies, Shows, Anime.
 
 import QtQuick
 import "Catalog.js" as Catalog
@@ -15,11 +15,14 @@ WorldPage {
 
     property var featuredRows: Catalog.theatreFeatured
     // Real "Continue Watching" from the Progress store (what you actually started).
-    // Naming Progress.revision keeps the binding live as you watch.
-    property var continueRows: (Progress.revision, Progress.recent("video", 12))
+    property int progressRevision: Progress.revision
+    property var continueRows: Progress.recent("video", 12)
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
+    property string activeTab: "discover"
+
+    onProgressRevisionChanged: continueRows = Progress.recent("video", 12)
 
     function idFromArt(item) {
         var fields = [item.cover || "", item.art || ""]
@@ -49,6 +52,8 @@ WorldPage {
             theatre.seriesRows = rows.series
         if (rows.anime.length > 0)
             theatre.animeRows = rows.anime
+        if (rows.featured.length > 0)
+            theatre.featuredRows = rows.featured
     })
 
     FeaturedCarousel {
@@ -71,27 +76,15 @@ WorldPage {
         onDetailRequested: (item) => theatre.continueDetailRequested(item)
     }
 
-    TrendingTop10 {
-        title: "Top Movies"
-        items: theatre.movieRows
-        onItemClicked: (index) => theatre.theatreItemRequested(theatre.itemWithIdentity(theatre.movieRows[index], "movie"))
+    TheatreTabBar {
+        backdrop: theatre.backdrop
+        currentTab: theatre.activeTab
+        onTabRequested: (tab) => theatre.activeTab = tab
     }
 
-    TrendingTop10 {
-        title: "Top Series"
-        items: theatre.seriesRows
-        onItemClicked: (index) => theatre.theatreItemRequested(theatre.itemWithIdentity(theatre.seriesRows[index], "series"))
-    }
-
-    TrendingTop10 {
-        visible: theatre.animeRows.length > 0
-        title: "Top Anime"
-        items: theatre.animeRows
-        onItemClicked: (index) => theatre.theatreItemRequested(theatre.itemWithIdentity(theatre.animeRows[index], "series"))
-    }
-
-    GenreMosaic {
-        title: "Browse Theatre"
-        genres: Catalog.theatreGenres
+    TheatreCatalogPage {
+        pageKey: theatre.activeTab
+        onItemRequested: (item) => theatre.theatreItemRequested(
+            theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
     }
 }

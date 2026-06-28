@@ -14,6 +14,7 @@ Item {
     signal secondaryClicked()
 
     readonly property bool isPoster: slide.artKind !== undefined && slide.artKind === "poster"
+    readonly property bool compactCopy: slideRoot.height < 360
     Theme { id: theme }
 
     Rectangle {
@@ -95,16 +96,22 @@ Item {
         }
         // copy
         Column {
-            anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 42
-            width: Math.min(560, parent.width - 84); spacing: 10
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: 42
+            anchors.bottomMargin: 42
+            width: Math.min(560, parent.width - 84)
+            spacing: slideRoot.compactCopy ? 8 : 10
             Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
             Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
-                color: theme.ink; font.family: theme.display; font.pixelSize: 50
+                color: theme.ink; font.family: theme.display; font.pixelSize: slideRoot.compactCopy ? 42 : 50
+                lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
             Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3 }
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: slideRoot.compactCopy ? 13 : 14
+                maximumLineCount: slideRoot.compactCopy ? 2 : 3; elide: Text.ElideRight
+                width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
                 spacing: 10; topPadding: 6
                 Rectangle {
