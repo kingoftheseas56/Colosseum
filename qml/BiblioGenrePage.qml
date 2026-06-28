@@ -8,6 +8,7 @@
 import QtQuick
 import QtQuick.Layouts
 import "BiblioGenreApi.js" as Api
+import "BiblioSeriesFold.js" as Fold
 
 Item {
     id: root
@@ -23,11 +24,16 @@ Item {
     signal closeRequested()
     signal searchClicked()
     signal bookRequested(var book)                // a card -> BiblioBook.qml
+    signal seriesRequested(string series, string author)   // a series stack -> BiblioSeries.qml
 
     Theme { id: theme }
 
     property var genreData: ({ count: 0, desc: "", cards: [], montage: [] })
     property bool loading: true
+
+    // Books vs Series: fold the flat Apple chart into series-stacks + standalone books.
+    // (SeriesIndex is the native bridge; if it's unavailable everything stays a single book.)
+    readonly property var foldedCards: Fold.foldSeries(root.genreData.cards, SeriesIndex)
 
     function reload() {
         root.loading = true
@@ -269,17 +275,20 @@ Item {
                     readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
 
                     Repeater {
-                        model: root.genreData.cards
+                        model: root.foldedCards
                         delegate: Loader {
                             required property var modelData
                             required property int index
                             width: grid.cellW
-                            sourceComponent: root.compact ? coverTile : detailCard
+                            sourceComponent: (modelData.kind === "series")
+                                ? (root.compact ? seriesCoverTile : seriesDetailCard)
+                                : (root.compact ? coverTile : detailCard)
                             onLoaded: { item.card = modelData; item.rank = index + 1 }
                             Connections {
                                 target: item
                                 ignoreUnknownSignals: true
                                 function onOpen(b) { root.bookRequested(b) }
+                                function onOpenSeries(s, a) { root.seriesRequested(s, a) }
                             }
                         }
                     }
@@ -467,6 +476,115 @@ Item {
             }
             MouseArea { id: ctMa; anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor; onClicked: ct.open(ct.card) }
+        }
+    }
+
+    // ════════════ series-as-stack (covers view) — the Books-vs-Series signature ════════════
+    Component {
+        id: seriesCoverTile
+        Item {
+            id: st
+            property var card: ({})
+            property int rank: 0
+            signal openSeries(string series, string author)
+            height: st.width * 1.46 + 26
+
+            // two offset cards behind = "this is more than one book"
+            Rectangle { width: parent.width; height: parent.width * 1.46; radius: 10
+                x: 7; y: 9; rotation: 1.4; color: "#15131c"
+                border.width: 1; border.color: Qt.rgba(1,1,1,0.05) }
+            Rectangle { width: parent.width; height: parent.width * 1.46; radius: 10
+                x: 4; y: 5; rotation: -1.0; color: "#1b1822"
+                border.width: 1; border.color: Qt.rgba(1,1,1,0.06) }
+
+            Rectangle {
+                id: scv
+                width: parent.width; height: parent.width * 1.46
+                radius: 10; clip: true
+                border.width: 1; border.color: stMa.containsMouse ? theme.gold : Qt.rgba(1,1,1,0.08)
+                scale: stMa.containsMouse ? 1.03 : 1.0
+                Behavior on scale { NumberAnimation { duration: 130 } }
+                gradient: Gradient {
+                    GradientStop { position: 0; color: st.card.c1 || "#33445d" }
+                    GradientStop { position: 1; color: st.card.c2 || "#0c1118" }
+                }
+                Image { anchors.fill: parent; source: st.card.cover || ""
+                        fillMode: Image.PreserveAspectCrop; cache: true; asynchronous: true }
+                // gold "N books" count chip — the tell that this is a series, not a single book
+                Rectangle {
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 9
+                    radius: 7; height: 24; width: cntRow.implicitWidth + 16
+                    color: Qt.rgba(0.04, 0.035, 0.028, 0.80)
+                    border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
+                    Row { id: cntRow; anchors.centerIn: parent; spacing: 5
+                        Text { text: st.card.count > 0 ? st.card.count : "•"
+                               color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.Bold }
+                        Text { text: "books"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 0.4 }
+                    }
+                }
+            }
+            Text {
+                anchors.top: scv.bottom; anchors.topMargin: 7
+                width: parent.width; text: st.card.series || ""
+                color: theme.ink; font.family: theme.display; font.pixelSize: 14
+                wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight
+            }
+            MouseArea { id: stMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: st.openSeries(st.card.series, st.card.author) }
+        }
+    }
+
+    // ════════════ series card (detailed view) ════════════
+    Component {
+        id: seriesDetailCard
+        Rectangle {
+            id: sdc
+            property var card: ({})
+            property int rank: 0
+            signal openSeries(string series, string author)
+            height: 210; radius: 16
+            color: sdcMa.containsMouse ? theme.glassHi : theme.glassTint
+            border.width: 1
+            border.color: sdcMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.4) : theme.edge
+            RowLayout {
+                anchors.fill: parent; anchors.margins: 16; spacing: 18
+                Item {                               // stacked cover
+                    Layout.preferredWidth: 116; Layout.preferredHeight: 152; Layout.alignment: Qt.AlignVCenter
+                    Rectangle { width: 96; height: 140; radius: 8; x: 14; y: 8; rotation: 3
+                        color: "#1b1822"; border.width: 1; border.color: Qt.rgba(1,1,1,0.06) }
+                    Rectangle { width: 96; height: 140; radius: 8; x: 7; y: 4; rotation: -2
+                        color: "#15131c"; border.width: 1; border.color: Qt.rgba(1,1,1,0.05) }
+                    Rectangle {
+                        width: 96; height: 140; radius: 8; clip: true
+                        gradient: Gradient {
+                            GradientStop { position: 0; color: sdc.card.c1 || "#5a3a64" }
+                            GradientStop { position: 1; color: sdc.card.c2 || "#170d1b" }
+                        }
+                        Image { anchors.fill: parent; source: sdc.card.cover || ""
+                                fillMode: Image.PreserveAspectCrop; cache: true; asynchronous: true }
+                    }
+                }
+                ColumnLayout {
+                    Layout.fillWidth: true; Layout.fillHeight: true; spacing: 0
+                    Text { text: "SERIES"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                           font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
+                    Text { Layout.fillWidth: true; topPadding: 10
+                        text: sdc.card.series || ""; color: theme.ink
+                        font.family: theme.display; font.pixelSize: 26; font.weight: Font.Medium; font.letterSpacing: -0.3
+                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                    Text { Layout.fillWidth: true; topPadding: 8
+                        text: sdc.card.author || ""; color: theme.inkDim
+                        font.family: theme.display; font.italic: true; font.pixelSize: 16; elide: Text.ElideRight }
+                    Item { Layout.fillHeight: true }
+                    Text { text: sdc.card.count > 0 ? (sdc.card.count + " books in the series") : "Series"
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                }
+                Text { text: "›"; color: theme.inkDimmer; font.pixelSize: 30; Layout.alignment: Qt.AlignVCenter }
+            }
+            MouseArea { id: sdcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: sdc.openSeries(sdc.card.series, sdc.card.author) }
+            Behavior on color { ColorAnimation { duration: 130 } }
         }
     }
 }

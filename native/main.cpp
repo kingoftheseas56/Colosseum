@@ -30,6 +30,7 @@
 #include "MangaEngine.h"
 #include "ProgressStore.h"
 #include "SessionStore.h"
+#include "series/seriesindex.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "reader/BookBridge.h"
@@ -181,6 +182,8 @@ int main(int argc, char *argv[]) {
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 
     QQmlApplicationEngine engine;
+    const QString qmlPath = (argc > 1) ? QString::fromLocal8Bit(argv[1])
+                                       : QStringLiteral("qml/Main.qml");
     const QStringList pinnedHosts = {
         QStringLiteral("live.metahub.space"),
         QStringLiteral("images.metahub.space")
@@ -214,6 +217,15 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_BOOK_DLTEST"))
         books->selfTest(qEnvironmentVariable("COLOSSEUM_BOOK_DLTEST"));
 
+    // SeriesIndex resolves the offline series DB from the live qml/ tree's sibling tools/ folder.
+    const QString qmlDir = QFileInfo(qmlPath).absolutePath();
+    const QString seriesDbPath = QDir(QDir(qmlDir).absoluteFilePath(QStringLiteral("..")))
+                                     .absoluteFilePath(QStringLiteral("tools/biblio_series.db"));
+    auto *seriesIndex = new SeriesIndex(seriesDbPath, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("SeriesIndex"), seriesIndex);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_SERIES_SELFTEST"))
+        seriesIndex->selfTest();
+
     // Foliate EPUB reader bridge exposed to the WebEngine reader's QWebChannel as
     // `BookBridge` (a JS shim maps it to window.electronAPI). Ported from TB2.
     auto *bookBridge = new BookBridge(&app);
@@ -237,8 +249,6 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_SESSION_SELFTEST"))
         sessions->selfTest();
 
-    const QString qmlPath = (argc > 1) ? QString::fromLocal8Bit(argv[1])
-                                       : QStringLiteral("qml/Main.qml");
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;

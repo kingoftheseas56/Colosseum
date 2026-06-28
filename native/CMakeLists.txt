@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui WebEngineQuick WebChannel)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -32,6 +32,8 @@ add_executable(colosseum
     MangaEngine.h
     ProgressStore.h
     SessionStore.h
+    series/seriesindex.cpp
+    series/seriesindex.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h
@@ -51,6 +53,17 @@ add_executable(colosseum
     player/streamserver.cpp
     player/streamserver.h
 )
-target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player)
-target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui MpvQt::MpvQt
+target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player series)
+target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel)
+
+if(WIN32)
+    get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
+    get_filename_component(_qt_bin_dir "${_qt_qmake}" DIRECTORY)
+    add_custom_command(TARGET colosseum POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:colosseum>/sqldrivers"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${_qt_bin_dir}/../plugins/sqldrivers/qsqlite.dll"
+            "$<TARGET_FILE_DIR:colosseum>/sqldrivers/qsqlite.dll"
+        VERBATIM)
+endif()

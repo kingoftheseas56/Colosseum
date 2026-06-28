@@ -244,10 +244,14 @@ Window {
     }
     function closeBookReader() { bookReaderLayer.active = false }
 
-    // ---- series detail: Biblio's FictionDB series page, a layer over the world ----
-    function openBiblioSeries(group) {
-        biblioSeriesLayer.group = group
-        biblioSeriesLayer.active = true
+    // ---- series detail: Biblio's series page (offline SeriesIndex), a layer over the world ----
+    function openBiblioSeries(series, author) {
+        biblioSeriesLayer.series = series
+        biblioSeriesLayer.author = author || ""
+        if (biblioSeriesLayer.active && biblioSeriesLayer.item) {
+            biblioSeriesLayer.item.author = biblioSeriesLayer.author
+            biblioSeriesLayer.item.series = series
+        } else biblioSeriesLayer.active = true
     }
     function closeBiblioSeries() { biblioSeriesLayer.active = false }
 
@@ -912,6 +916,7 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.bookRequested.connect(win.openBook)
+            item.seriesRequested.connect(win.openBiblioSeries)
         }
     }
 
@@ -1055,11 +1060,13 @@ Window {
         z: 52
         active: false
         visible: active
-        property var group: ({})
+        property string series: ""
+        property string author: ""
         source: "BiblioSeries.qml"
         onLoaded: {
             item.backdrop = wall
-            item.group = biblioSeriesLayer.group
+            item.author = biblioSeriesLayer.author
+            item.series = biblioSeriesLayer.series
             item.backRequested.connect(win.closeBiblioSeries)
             item.bookRequested.connect(win.openBook)
             item.minimizeRequested.connect(win.minimizeShell)

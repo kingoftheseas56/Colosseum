@@ -1,7 +1,8 @@
-// BiblioSeries — the series detail page. Owner: A2. Opens from a SERIES card in search. Shows the
-// series as a hero (cover + name + author + count) and its books as a grid; clicking a book looks it
-// up on Apple and opens its BiblioBook detail. `group` is a FictionDB series group from BiblioApi.
-// v1 lists the books found in the search grouping; fetching the FULL series roster is a follow-up.
+// BiblioSeries - the series page. Owner: A2. Opens from a SERIES stack (genre browse / search).
+// Source = the offline SeriesIndex bridge (biblio_series.db, ~190k series books from the Goodreads
+// graph). seriesEntries(name) returns the roster IN READING ORDER with per-book rating/year/cover.
+// Clicking a book looks it up on Apple and opens its BiblioBook detail (download-fed reading model).
+// Supersedes the old FictionDB series scraping.
 
 import QtQuick
 import QtQuick.Effects
@@ -9,7 +10,8 @@ import "BiblioApi.js" as BiblioApi
 
 Item {
     id: ser
-    property var group: ({})
+    property string series: ""
+    property string author: ""
     property Item backdrop
 
     signal backRequested()
@@ -17,11 +19,40 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
 
-    property var books: []
-    property bool loading: false
-    onGroupChanged: ser.loadRoster()
+    property var entries: []          // deduped, reading-ordered: {position,title,rating,year,cover}
+    readonly property real avgRating: {
+        var s = 0, n = 0
+        for (var i = 0; i < entries.length; i++) { var r = entries[i].rating || 0; if (r > 0) { s += r; n++ } }
+        return n > 0 ? s / n : 0
+    }
+    onSeriesChanged: ser.load()
+    Component.onCompleted: ser.load()
 
-    Theme { id: theme }
+    // Collapse the index's edition-noise: many books survive as multiple same-position rows
+    // (US/UK titles, etc.). Keep one per position (best-rated), then sort by reading position -
+    // turns a messy 30-entry "Harry Potter" into its clean run.
+    function load() {
+        if (!ser.series || typeof SeriesIndex === "undefined") { ser.entries = []; return }
+        var raw = SeriesIndex.seriesEntries(ser.series)
+        var byPos = {}, order = []
+        for (var i = 0; i < raw.length; i++) {
+            var e = raw[i], p = String(e.position)
+            if (!(p in byPos)) { byPos[p] = e; order.push(p) }
+            else if ((e.rating || 0) > (byPos[p].rating || 0)) byPos[p] = e
+        }
+        order.sort(function(a, b) { return parseFloat(a) - parseFloat(b) })
+        ser.entries = order.map(function(p) { return byPos[p] })
+    }
+
+    function openByTitle(title) {
+        if (!title) return
+        BiblioApi.lookupBook(title, function(b) { if (b) ser.bookRequested(b) })
+    }
+    function tint(i) {
+        var pal = ["#5a2f45", "#6b2f45", "#7a3a4f", "#5a3550", "#3f5868", "#7a5a2f", "#2f5a55", "#4a3550"]
+        return pal[i % pal.length]
+    }
+
     MouseArea { anchors.fill: parent }
     Rectangle {
         anchors.fill: parent
@@ -29,23 +60,6 @@ Item {
             GradientStop { position: 0.0; color: "#0c0f18" }
             GradientStop { position: 1.0; color: "#06070b" }
         }
-    }
-
-    function openByTitle(title) {
-        if (!title) return
-        BiblioApi.lookupBook(title, function(b) { if (b) ser.bookRequested(b) })
-    }
-
-    // Show the books we already have instantly, then swap in the FULL series roster (every book,
-    // in order) once FictionDB's series page + the missing covers come back.
-    function loadRoster() {
-        ser.books = (ser.group && ser.group.books) ? ser.group.books : []
-        if (!ser.group || !ser.group.seriesId) return
-        ser.loading = true
-        BiblioApi.loadFullSeries(ser.group.seriesId, ser.group.books, function(res) {
-            if (res.books && res.books.length > 0) ser.books = res.books
-            ser.loading = false
-        })
     }
 
     // ── top bar ──
@@ -84,6 +98,8 @@ Item {
         }
     }
 
+    Theme { id: theme }
+
     // ── content ──
     Flickable {
         id: page
@@ -99,88 +115,152 @@ Item {
             id: content
             x: theme.margin
             width: ser.width - theme.margin * 2
-            topPadding: 16
+            topPadding: 14
             spacing: 0
 
-            // ── hero ──
+            // ── hero: fanned covers + name + author + facts ──
             Item {
-                width: parent.width; height: 220
+                width: parent.width; height: 250
 
-                Item {                                   // series cover as an object
-                    id: hero; width: 130; height: 195
+                Item {                                   // the fan
+                    id: fan
+                    width: 250; height: 230
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    Image {
-                        id: heroImg; anchors.fill: parent
-                        source: (ser.group && ser.group.cover) ? ser.group.cover : ""
-                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
-                        layer.enabled: true
-                        layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.7)
-                            shadowBlur: 1.0; shadowVerticalOffset: 18; autoPaddingEnabled: true }
+                    Repeater {
+                        model: Math.min(4, ser.entries.length)
+                        delegate: Item {
+                            required property int index
+                            width: 150; height: 225
+                            transformOrigin: Item.Bottom
+                            x: index * 44
+                            y: (index === 0 || index === 3) ? 8 : -2
+                            rotation: [-13, -4.5, 4, 13][index]
+                            z: (index === 1 || index === 2) ? 3 : 2
+                            Rectangle {
+                                anchors.fill: parent; radius: 8; clip: true
+                                gradient: Gradient {
+                                    GradientStop { position: 0; color: ser.tint(index) }
+                                    GradientStop { position: 1; color: "#180c14" }
+                                }
+                                layer.enabled: true
+                                layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.75)
+                                    shadowBlur: 1.0; shadowVerticalOffset: 12; autoPaddingEnabled: true }
+                                Image { anchors.fill: parent
+                                    source: ser.entries[index] && ser.entries[index].cover ? ser.entries[index].cover : ""
+                                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                                Text {
+                                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                                    anchors.margins: 12
+                                    text: ser.entries[index] ? ser.entries[index].title : ""
+                                    color: Qt.rgba(1,1,1,0.92); font.family: theme.display; font.pixelSize: 13
+                                    wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
+                                }
+                            }
+                        }
                     }
-                    Rectangle { anchors.left: parent.left; width: 9; height: parent.height; radius: 2
-                        gradient: Gradient { orientation: Gradient.Horizontal
-                            GradientStop { position: 0; color: Qt.rgba(0,0,0,0.5) }
-                            GradientStop { position: 0.6; color: Qt.rgba(0,0,0,0.05) }
-                            GradientStop { position: 1; color: Qt.rgba(1,1,1,0.08) } } }
                 }
                 Column {
-                    anchors.left: hero.right; anchors.leftMargin: 36
+                    anchors.left: fan.right; anchors.leftMargin: 44
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 0
                     Text { text: "SERIES"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
-                        font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
+                        font.weight: Font.DemiBold; font.letterSpacing: 2 }
                     Item { width: 1; height: 12 }
-                    Text { width: parent.width
-                        text: (ser.group && ser.group.seriesName) ? ser.group.seriesName : ""
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 46
+                    Text { width: parent.width; text: ser.series
+                        color: theme.ink; font.family: theme.display; font.pixelSize: 50; font.letterSpacing: -0.6
                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
-                    Item { width: 1; height: 12 }
-                    Text { text: ((ser.group && ser.group.author) ? ser.group.author : "")
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15 }
-                    Item { width: 1; height: 6 }
-                    Text { text: ser.books.length + " books in this series" + (ser.loading ? "   ·   loading…" : "")
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                    Item { width: 1; height: 8 }
+                    Text { text: ser.author; visible: ser.author.length > 0
+                        color: theme.inkDim; font.family: theme.display; font.italic: true; font.pixelSize: 20 }
+                    Item { width: 1; height: 18 }
+                    Row {
+                        spacing: 16
+                        Text { text: ser.entries.length + " books"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
+                        Text { visible: ser.avgRating > 0; text: "·"; color: theme.inkDimmer; font.pixelSize: 14 }
+                        Row { visible: ser.avgRating > 0; spacing: 5
+                            Text { text: "★"; color: theme.gold; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: ser.avgRating.toFixed(2) + " avg"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                                anchors.verticalCenter: parent.verticalCenter }
+                        }
+                    }
                 }
             }
 
-            Item { width: 1; height: 40 }
-            Text { text: "BOOKS IN THIS SERIES"; color: theme.inkDimmer; font.family: theme.ui
-                font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 1.6 }
-            Item { width: 1; height: 18 }
+            Item { width: 1; height: 36 }
+            Text { text: "READING ORDER"; color: theme.inkDimmer; font.family: theme.ui
+                font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
+            Item { width: 1; height: 10 }
 
-            // ── member books grid ──
-            Grid {
-                id: grid
-                width: parent.width; columns: 6
-                columnSpacing: 22; rowSpacing: 26
-                property real cellW: (width - columnSpacing * (columns - 1)) / columns
+            // ── roster: one row per book, in order ──
+            Column {
+                width: parent.width
                 Repeater {
-                    model: ser.books
-                    delegate: Column {
+                    model: ser.entries
+                    delegate: Rectangle {
                         required property var modelData
-                        width: grid.cellW; spacing: 9
-                        Rectangle {
-                            width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
+                        required property int index
+                        width: parent.width; height: 78; radius: 12
+                        color: rowMa.containsMouse ? theme.glassTint : "transparent"
+                        readonly property bool novella: String(modelData.position).indexOf(".") >= 0
+
+                        Text {                            // position
+                            x: 8; width: 54; anchors.verticalCenter: parent.verticalCenter
+                            horizontalAlignment: Text.AlignHCenter
+                            text: "#" + modelData.position
+                            color: novella ? theme.gold : theme.inkDimmer
+                            font.family: theme.display; font.pixelSize: novella ? 16 : 22
+                        }
+                        Rectangle {                       // mini cover
+                            x: 70; width: 44; height: 64; radius: 5; clip: true
+                            anchors.verticalCenter: parent.verticalCenter
+                            gradient: Gradient {
+                                GradientStop { position: 0; color: ser.tint(index) }
+                                GradientStop { position: 1; color: "#160d14" }
+                            }
                             Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
                                 fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
-                            Rectangle {                       // position chip ("Book N")
-                                anchors.left: parent.left; anchors.top: parent.top; anchors.margins: 8
-                                visible: modelData.position > 0
-                                radius: 6; height: 20; width: posTxt.width + 14; color: Qt.rgba(0, 0, 0, 0.66)
-                                Text { id: posTxt; anchors.centerIn: parent; text: "BOOK " + modelData.position
-                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 9; font.weight: Font.Bold; font.letterSpacing: 0.6 }
-                            }
-                            scale: bMa.containsMouse ? 1.03 : 1.0
-                            Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                            MouseArea { id: bMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: ser.openByTitle(modelData.title) }
                         }
-                        Text { width: parent.width; text: modelData.title ? modelData.title : ""
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
-                            elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap }
+                        Column {
+                            x: 132; anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width - 132 - 150; spacing: 3
+                            Text { width: parent.width; text: modelData.title ? modelData.title : ""
+                                color: theme.ink; font.family: theme.display; font.pixelSize: 18
+                                elide: Text.ElideRight; maximumLineCount: 1 }
+                            Text { text: novella ? "Novella" + (modelData.year ? "  ·  " + modelData.year : "")
+                                                 : (modelData.year ? "" + modelData.year : "")
+                                color: novella ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                        }
+                        Row {
+                            anchors.right: parent.right; anchors.rightMargin: 16
+                            anchors.verticalCenter: parent.verticalCenter; spacing: 18
+                            Row { visible: (modelData.rating || 0) > 0; spacing: 5
+                                anchors.verticalCenter: parent.verticalCenter
+                                Text { text: "★"; color: theme.gold; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: (modelData.rating || 0).toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                                    anchors.verticalCenter: parent.verticalCenter }
+                            }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: getTxt.width + 28; height: 32; radius: 8
+                                color: getMa.containsMouse ? theme.glassHi : "transparent"
+                                border.width: 1; border.color: theme.edge
+                                Text { id: getTxt; anchors.centerIn: parent; text: "Download"
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                                MouseArea { id: getMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: ser.openByTitle(modelData.title) }
+                            }
+                        }
+                        MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true; z: -1
+                            cursorShape: Qt.PointingHandCursor; onClicked: ser.openByTitle(modelData.title) }
                     }
                 }
+            }
+
+            Text {
+                visible: ser.entries.length === 0
+                text: "No books found for this series."; color: theme.inkDimmer
+                font.family: theme.display; font.italic: true; font.pixelSize: 16; topPadding: 30
             }
         }
     }
