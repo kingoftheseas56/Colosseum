@@ -57,6 +57,14 @@ Window {
     function pickFor(world) {
         return parsePick(wallpaperSettings[wallpaperKey(world)])
     }
+    function wallpaperWorldForSession(rec) {
+        var appType = rec && rec.appType ? ("" + rec.appType).toLowerCase() : ""
+        var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
+        if (appType === "theatre" || contentKind === "movie") return "Theatre"
+        if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
+        if (appType === "biblio" || contentKind === "book") return "Biblio"
+        return currentSurface || "Home"
+    }
     function refreshWallpaper() {
         var pick = pickFor(currentSurface)
         wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/captured-motion.jpg"
@@ -334,6 +342,8 @@ Window {
         if (!rec || !rec.id) return
         var t = rec.target || ({})
         var st = rec.savedState || ({})
+        currentSurface = wallpaperWorldForSession(rec)
+        refreshWallpaper()
         if (rec.contentKind === "movie") {
             if (!playerLayer.active) playerLayer.active = true
             win.playerOpen = true
