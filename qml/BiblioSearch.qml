@@ -6,21 +6,23 @@
 import QtQuick
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
+import "BiblioSeriesFold.js" as Fold
 
 Item {
     id: search
     property Item backdrop
     property var results: []
-    property var seriesGroups: []
     property bool searching: false
-    property bool seriesLoading: false
     property bool searched: false
     property var recent: []                          // in-session recent queries
+
+    // Fold the results (minus the Top Match) so a searched series shows as ONE stack, not loose books.
+    readonly property var foldedRest: Fold.foldSeries(search.results.length > 1 ? search.results.slice(1) : [], SeriesIndex)
 
     signal backRequested()
     signal homeRequested()
     signal bookRequested(var book)
-    signal seriesRequested(var group)
+    signal seriesRequested(string series, string author)
     signal minimizeRequested()
     signal closeRequested()
 
@@ -53,29 +55,16 @@ Item {
             search.recordRecent(q)
         })
     }
-    // FictionDB is slow + heavy (search + ~8 page fetches), so it gets its own longer debounce.
-    function runSeriesSearch() {
-        var q = queryInput.text.trim()
-        if (q.length < 2) { search.seriesGroups = []; search.seriesLoading = false; return }
-        search.seriesGroups = []
-        search.seriesLoading = true
-        BiblioApi.searchFictionSeries(q, function(groups) {
-            if (q !== queryInput.text.trim()) return        // stale — input moved on
-            search.seriesGroups = groups
-            search.seriesLoading = false
-        })
-    }
     function recordRecent(q) {
         var lower = q.toLowerCase()
         var list = search.recent.filter(function(r) { return r.toLowerCase() !== lower })
         list.unshift(q)
         search.recent = list.slice(0, 6)
     }
-    function fillAndSearch(q) { queryInput.text = q; runAppleSearch(); runSeriesSearch() }
+    function fillAndSearch(q) { queryInput.text = q; runAppleSearch() }
     function openTop() { if (search.results.length > 0) search.bookRequested(search.results[0]) }
 
     Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
-    Timer { id: seriesDebounce; interval: 650; onTriggered: search.runSeriesSearch() }
 
     Shortcut { sequences: ["Return", "Enter"]; onActivated: search.openTop() }
 
@@ -103,7 +92,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             color: theme.ink; font.family: theme.display; font.pixelSize: 22
             clip: true; focus: true; selectByMouse: true
-            onTextChanged: { debounce.restart(); seriesDebounce.restart() }
+            onTextChanged: debounce.restart()
             // the field holds keyboard focus, so close on Esc here rather than relying on the
             // window shortcut reaching past it
             Keys.onEscapePressed: search.backRequested()
@@ -308,55 +297,7 @@ Item {
                 }
                 Item { visible: search.results.length > 0; width: 1; height: 38 }
 
-                // ── SERIES (FictionDB grouping — books that declare a shared series) ──
-                Text {
-                    visible: search.seriesLoading || search.seriesGroups.length > 0
-                    text: "SERIES" + (search.seriesLoading ? "  ·  FINDING…" : "  ·  " + search.seriesGroups.length)
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    font.weight: Font.DemiBold; font.letterSpacing: 1.6
-                }
-                Item { visible: search.seriesLoading || search.seriesGroups.length > 0; width: 1; height: 16 }
-                Grid {
-                    id: seriesGrid
-                    visible: search.seriesGroups.length > 0
-                    width: parent.width; columns: 6
-                    columnSpacing: 22; rowSpacing: 26
-                    property real cellW: (width - columnSpacing * (columns - 1)) / columns
-                    Repeater {
-                        model: search.seriesGroups
-                        delegate: Column {
-                            required property var modelData
-                            width: seriesGrid.cellW; spacing: 9
-                            Rectangle {
-                                width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
-                                Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
-                                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
-                                Rectangle {                       // count badge (gold) — the "this is a series" tell
-                                    anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 8
-                                    radius: 6; height: 22; width: cnt.width + 16; color: Qt.rgba(0.06, 0.07, 0.05, 0.86)
-                                    border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
-                                    Text { id: cnt; anchors.centerIn: parent
-                                        text: modelData.count + (modelData.count === 1 ? " BOOK" : " BOOKS")
-                                        color: theme.gold; font.family: theme.ui; font.pixelSize: 10
-                                        font.weight: Font.Bold; font.letterSpacing: 0.6 }
-                                }
-                                scale: scMa.containsMouse ? 1.03 : 1.0
-                                Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                                MouseArea { id: scMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: search.seriesRequested(modelData) }
-                            }
-                            Text { width: parent.width; text: modelData.seriesName ? modelData.seriesName : ""
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 14
-                                elide: Text.ElideRight; maximumLineCount: 1 }
-                            Text { width: parent.width; text: modelData.author ? modelData.author : ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                                elide: Text.ElideRight; maximumLineCount: 1 }
-                        }
-                    }
-                }
-                Item { visible: search.seriesGroups.length > 0; width: 1; height: 38 }
-
-                // Books grid (the rest)
+                // Results grid (the rest), folded: series collapse into one stack, standalones stay single
                 Text {
                     visible: search.searched
                     text: "BOOKS  ·  " + search.results.length + " FOUND"
@@ -370,27 +311,48 @@ Item {
                     columnSpacing: 22; rowSpacing: 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
                     Repeater {
-                        model: search.results.length > 1 ? search.results.slice(1) : []
+                        model: search.foldedRest
                         delegate: Column {
                             required property var modelData
+                            readonly property bool isSeries: modelData.kind === "series"
                             width: bookGrid.cellW; spacing: 9
-                            Rectangle {
-                                width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
-                                Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
-                                    fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
-                                Text { visible: !modelData.cover; anchors.centerIn: parent; width: parent.width - 18
-                                    text: "Cover art not available"; color: theme.inkDimmer; font.family: theme.display
-                                    font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
-                                scale: cardMa.containsMouse ? 1.03 : 1.0
-                                Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                                MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: search.bookRequested(modelData) }
+                            Item {
+                                width: parent.width; height: width * 1.5
+                                // stacked cards behind = "this is a series, not a single book"
+                                Rectangle { visible: isSeries; width: parent.width; height: parent.height; radius: 8
+                                    x: 6; y: 8; rotation: 1.4; color: "#15131c"; border.width: 1; border.color: Qt.rgba(1,1,1,0.05) }
+                                Rectangle { visible: isSeries; width: parent.width; height: parent.height; radius: 8
+                                    x: 3; y: 4; rotation: -1.0; color: "#1b1822"; border.width: 1; border.color: Qt.rgba(1,1,1,0.06) }
+                                Rectangle {
+                                    width: parent.width; height: parent.height; radius: 8; clip: true; color: "#14131a"
+                                    Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
+                                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                                    Text { visible: !modelData.cover && !isSeries; anchors.centerIn: parent; width: parent.width - 18
+                                        text: "Cover art not available"; color: theme.inkDimmer; font.family: theme.display
+                                        font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                    Rectangle {                       // gold "N books" count chip (series only)
+                                        visible: isSeries
+                                        anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 8
+                                        radius: 7; height: 22; width: scnt.implicitWidth + 14
+                                        color: Qt.rgba(0.04, 0.035, 0.028, 0.80)
+                                        border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
+                                        Row { id: scnt; anchors.centerIn: parent; spacing: 4
+                                            Text { text: modelData.count > 0 ? modelData.count : "•"
+                                                color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold }
+                                            Text { text: "books"; color: theme.gold; font.family: theme.ui; font.pixelSize: 9 } }
+                                    }
+                                    scale: cardMa.containsMouse ? 1.03 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                    MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: isSeries ? search.seriesRequested(modelData.series, modelData.author)
+                                                            : search.bookRequested(modelData) }
+                                }
                             }
-                            Text { width: parent.width; text: modelData.title ? modelData.title : ""
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                            Text { width: parent.width; text: isSeries ? (modelData.series || "") : (modelData.title || "")
+                                color: theme.ink; font.family: isSeries ? theme.display : theme.ui; font.pixelSize: 13
                                 elide: Text.ElideRight; maximumLineCount: 1 }
-                            Text { width: parent.width; text: modelData.author ? modelData.author : ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                            Text { width: parent.width; text: isSeries ? ("Series · " + (modelData.author || "")) : (modelData.author || "")
+                                color: isSeries ? theme.inkDim : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                         }
                     }

@@ -7,7 +7,7 @@
 .import "BiblioApi.js" as BiblioApi
 
 var COUNTRY = "us";
-var FEED = "https://itunes.apple.com/" + COUNTRY + "/rss/topebooks/limit=24/genre=";
+var FEED = "https://itunes.apple.com/" + COUNTRY + "/rss/topebooks/limit=100/genre=";
 
 var GENRE_IDS = {
     "Fiction & Literature": 9031,
