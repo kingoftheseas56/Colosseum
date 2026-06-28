@@ -8,6 +8,7 @@ import QtQuick
 import QtQuick.Window
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtCore
 import "Catalog.js" as Catalog
 import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
@@ -22,6 +23,58 @@ Window {
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "#05060a"
     title: "Colosseum"
+
+    property string currentSurface: "Home"
+    property string wallpaperSource: "../assets/wallpaper/captured-motion.jpg"
+
+    Settings {
+        id: wallpaperSettings
+        location: Qt.resolvedUrl("../wallpapers.ini")
+        category: "wallpapers"
+        property string homePick: ""
+        property string tankobanPick: ""
+        property string biblioPick: ""
+        property string theatrePick: ""
+    }
+
+    function wallpaperKey(world) {
+        if (world === "Tankoban") return "tankobanPick"
+        if (world === "Biblio") return "biblioPick"
+        if (world === "Theatre") return "theatrePick"
+        return "homePick"
+    }
+    function parsePick(raw) {
+        if (!raw) return null
+        if (typeof raw === "object") return raw
+        try {
+            var parsed = JSON.parse(raw)
+            if (typeof parsed === "string") return { image_url: parsed }
+            return parsed
+        } catch (e) {
+            return { image_url: raw }
+        }
+    }
+    function pickFor(world) {
+        return parsePick(wallpaperSettings[wallpaperKey(world)])
+    }
+    function refreshWallpaper() {
+        var pick = pickFor(currentSurface)
+        wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/captured-motion.jpg"
+    }
+    function setWallpaperPick(world, pick) {
+        wallpaperSettings[wallpaperKey(world)] = typeof pick === "string" ? pick : JSON.stringify(pick || {})
+        if (currentSurface === world) refreshWallpaper()
+    }
+    function setWallpaperEverywhere(pick) {
+        var raw = typeof pick === "string" ? pick : JSON.stringify(pick || {})
+        wallpaperSettings.homePick = raw
+        wallpaperSettings.tankobanPick = raw
+        wallpaperSettings.biblioPick = raw
+        wallpaperSettings.theatrePick = raw
+        refreshWallpaper()
+    }
+
+    Component.onCompleted: refreshWallpaper()
 
     // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.
     Shortcut { sequences: ["Escape"]; onActivated: {
@@ -66,11 +119,15 @@ Window {
             if (openModes.get(i).mode === medium) { found = true; break }
         if (!found) openModes.append({ mode: medium })   // first visit → create its keep-alive Loader
         worldStack.current = medium
+        currentSurface = medium
+        refreshWallpaper()
         topbar.visible = false
         page.visible = false
     }
     function closeWorld() {
         worldStack.current = ""                           // hide all worlds; none destroyed
+        currentSurface = "Home"
+        refreshWallpaper()
         topbar.visible = true
         page.visible = true
     }
@@ -340,7 +397,7 @@ Window {
         // `wall`, so the Image "just works" — and it pops against the chrome instead of reading as an app.
         Image {
             anchors.fill: parent
-            source: "../assets/wallpaper/captured-motion.jpg"
+            source: win.wallpaperSource
             fillMode: Image.PreserveAspectCrop
             cache: true
         }
