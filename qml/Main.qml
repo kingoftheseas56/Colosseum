@@ -217,11 +217,11 @@ Window {
         var r = entry.resume || ({})
         var title = entry.title || entry.caption || ""
         if (entry.kind === "video") {
-            if (r.infoHash) win.openPlayer(r.infoHash, r.fileIdx || 0, title, entry.cover || "")
+            if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "")
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            win.openSeriesAt(title, entry.id || "", r.chapterId || "")   // jump into the reader at the chapter
+            win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
-            if (r.path) win.openBookReader(r.path, r.book ? r.book : entry)   // resume reading
+            if (r.path) win.openBookSession(r.path, r.book ? r.book : entry)
             else win.openBook(r.book ? r.book : entry)
         }
     }
@@ -242,6 +242,82 @@ Window {
             win.openSeries(title)                                        // the series page (chapter list)
         } else if (entry.kind === "book") {
             win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
+        }
+    }
+
+    // ===== OS-shell session engine (Approach 2: only the active surface is instantiated) =====
+    // The UI opens content by registering a SESSION; Sessions.activeChanged then drives the
+    // capture -> teardown -> build -> restore switch. contentKind picks the surface.
+
+    // UI entry points (replace direct open* calls from cards / world pages):
+    function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId) {
+        Sessions.openOrSwitch({
+            "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
+            "target": { "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
+                        "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "" }
+        })
+    }
+    function openComicSession(title, seriesId, chapterId) {
+        Sessions.openOrSwitch({
+            "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
+            "target": { "title": title || "", "seriesId": seriesId || "", "chapterId": chapterId || "" }
+        })
+    }
+    function openBookSession(path, book) {
+        if (!path) return
+        var b = book || ({})
+        Sessions.openOrSwitch({
+            "appType": "biblio", "contentKind": "book", "title": b.title || "Book",
+            "target": { "path": path, "book": b, "id": (b.id !== undefined ? ("" + b.id) : path) }
+        })
+    }
+
+    // dispatcher: build the active surface from a record (+ restore its saved state).
+    function activateSession(rec) {
+        if (!rec || !rec.id) return
+        var t = rec.target || ({})
+        var st = rec.savedState || ({})
+        if (rec.contentKind === "movie") {
+            if (!playerLayer.active) playerLayer.active = true
+            win.playerOpen = true
+            playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId)
+            if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
+        } else if (rec.contentKind === "comic") {
+            seriesLayer.resumeSeriesId = t.seriesId || ""
+            seriesLayer.resumeChapterId = (st.chapterId || t.chapterId || "")
+            seriesLayer.title = t.title
+            if (seriesLayer.active && seriesLayer.item) {
+                seriesLayer.item.seriesTitle = t.title
+                if (t.seriesId) seriesLayer.item.seriesId = t.seriesId
+                seriesLayer.item.openChapterId = (st.chapterId || t.chapterId || "")
+            } else seriesLayer.active = true
+            if (seriesLayer.item && seriesLayer.item.restoreState) seriesLayer.item.restoreState(st)  // Task 4
+        } else if (rec.contentKind === "book") {
+            bookReaderLayer.bookPath = t.path
+            bookReaderLayer.bookMeta = t.book || ({})
+            if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.open(t.path, t.book || ({}))
+            else bookReaderLayer.active = true
+            // book precision: foliate auto-restores its own CFI on reopen of the same path (Task 6).
+        }
+    }
+    // capture the live outgoing surface's state (called BEFORE teardown).
+    function captureSession(rec) {
+        if (!rec || !rec.id) return ({})
+        if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
+        if (rec.contentKind === "comic" && seriesLayer.item && seriesLayer.item.captureState) return seriesLayer.item.captureState()
+        if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
+        return ({})
+    }
+    // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
+    function teardownSession(rec) {
+        if (!rec || !rec.id) return
+        if (rec.contentKind === "movie") {
+            if (playerLayer.item) playerLayer.item.stop()
+            win.playerOpen = false
+        } else if (rec.contentKind === "comic") {
+            seriesLayer.active = false
+        } else if (rec.contentKind === "book")  {
+            bookReaderLayer.active = false
         }
     }
 
@@ -809,7 +885,7 @@ Window {
             item.backRequested.connect(win.closeTheatreSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
-            item.playRequested.connect(win.openPlayer)
+            item.playRequested.connect(win.openMovieSession)
         }
     }
 
@@ -944,6 +1020,20 @@ Window {
                 source: modelData
                 asynchronous: true; cache: true; visible: false
             }
+        }
+    }
+
+    // ---- session switch glue: capture the outgoing surface, tear it down, build + restore the next ----
+    Connections {
+        target: Sessions
+        function onActiveChanged(prevId, nextId) {
+            var prev = Sessions.get(prevId)
+            if (prev && prev.id) {
+                Sessions.saveState(prevId, win.captureSession(prev))
+                win.teardownSession(prev)
+            }
+            var next = Sessions.get(nextId)
+            if (next && next.id) win.activateSession(next)
         }
     }
 
