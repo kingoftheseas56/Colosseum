@@ -1101,6 +1101,10 @@ Window {
             }
             var next = Sessions.get(nextId)
             if (next && next.id) win.activateSession(next)
+            else {
+                currentSurface = "Home"
+                refreshWallpaper()
+            }
         }
     }
 
