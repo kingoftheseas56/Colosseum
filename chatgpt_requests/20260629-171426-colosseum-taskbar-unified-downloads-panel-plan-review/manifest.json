@@ -1,0 +1,28 @@
+{
+  "requestId": "20260629-171426-colosseum-taskbar-unified-downloads-panel-plan-review",
+  "title": "Colosseum taskbar unified downloads panel plan review",
+  "mode": "feature-plan-review",
+  "createdAt": "2026-06-29T11:44:26.732Z",
+  "repoRoot": "C:\\Users\\Suprabha\\Desktop\\Brotherhood\\Colosseum",
+  "files": [
+    "qml/Taskbar.qml",
+    "qml/Main.qml",
+    "qml/TopBar.qml",
+    "native/SessionStore.h",
+    "native/main.cpp",
+    "native/engine/MangaDownloader.h",
+    "native/engine/MangaDownloader.cpp",
+    "native/engine/BookDownloader.h",
+    "native/engine/BookDownloader.cpp",
+    "qml/BiblioBook.qml",
+    "qml/BiblioWorld.qml",
+    "qml/MangaSeries.qml",
+    "qml/MangaReader.qml",
+    "qml/BookReader.qml"
+  ],
+  "includeStatus": true,
+  "includeDiff": true,
+  "createZip": false,
+  "zipNote": null,
+  "responsePath": "response.md"
+}
