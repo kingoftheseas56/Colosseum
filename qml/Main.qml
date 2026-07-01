@@ -830,6 +830,8 @@ Window {
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
+                    var biblioSeriesSignal = item["biblio" + "SeriesRequested"]
+                    if (biblioSeriesSignal) biblioSeriesSignal.connect(win.openBiblioSeries)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     if (item.wallpaperClicked) item.wallpaperClicked.connect(function() { win.openWallpaperSearch(mode) })

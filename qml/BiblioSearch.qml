@@ -1,7 +1,8 @@
 // BiblioSearch — Biblio's search overlay. Owner: A2. Harbor-adapted (function/feel, not a clone):
 // the field leads (no chrome bar, Esc closes), the best hit blooms into a Top Match "mini dust-jacket",
 // the rest fall into a cover grid, and an empty state offers Recent · Jump to · Browse-a-genre.
-// Live as you type (180ms). Apple Books is the source; clicking any result opens its BiblioBook detail.
+// Live as you type (180ms). The canonical graph now answers search first; Apple remains the
+// detail-hydration fallback so book results still open into the full dust-jacket page.
 
 import QtQuick
 import QtQuick.Effects
@@ -12,12 +13,14 @@ Item {
     id: search
     property Item backdrop
     property var results: []
+    property bool canonicalMode: false
     property bool searching: false
     property bool searched: false
     property var recent: []                          // in-session recent queries
 
     // Fold the results (minus the Top Match) so a searched series shows as ONE stack, not loose books.
     readonly property var foldedRest: Fold.foldSeries(search.results.length > 1 ? search.results.slice(1) : [], SeriesIndex)
+    readonly property var displayRest: canonicalMode ? (search.results.length > 1 ? search.results.slice(1) : []) : foldedRest
 
     signal backRequested()
     signal homeRequested()
@@ -55,16 +58,60 @@ Item {
             search.recordRecent(q)
         })
     }
+    function runSearch() {
+        var q = queryInput.text.trim()
+        if (q.length < 2) {
+            search.results = []
+            search.canonicalMode = false
+            search.searched = false
+            search.searching = false
+            return
+        }
+        search.searching = true
+        if (typeof SeriesIndex !== "undefined" && SeriesIndex.search) {
+            var canonicalHits = SeriesIndex.search(q, 24)
+            if (canonicalHits && canonicalHits.length > 0) {
+                search.results = canonicalHits
+                search.canonicalMode = true
+                search.searching = false
+                search.searched = true
+                search.recordRecent(q)
+                return
+            }
+        }
+        search.canonicalMode = false
+        BiblioApi.search(q, function(books) {
+            if (q !== queryInput.text.trim()) return
+            search.results = books
+            search.canonicalMode = false
+            search.searching = false
+            search.searched = true
+            search.recordRecent(q)
+        })
+    }
     function recordRecent(q) {
         var lower = q.toLowerCase()
         var list = search.recent.filter(function(r) { return r.toLowerCase() !== lower })
         list.unshift(q)
         search.recent = list.slice(0, 6)
     }
-    function fillAndSearch(q) { queryInput.text = q; runAppleSearch() }
-    function openTop() { if (search.results.length > 0) search.bookRequested(search.results[0]) }
+    function fillAndSearch(q) { queryInput.text = q; runSearch() }
+    function openItem(item) {
+        if (!item) return
+        if (item.kind === "series") search.seriesRequested(item.series || item.title || "", item.author || "")
+        else if (item.kind === "book" && typeof SeriesIndex !== "undefined" && SeriesIndex.bookDetailById && item.workId) {
+            var canonicalBook = SeriesIndex.bookDetailById(item.workId)
+            search.bookRequested(canonicalBook && canonicalBook.title ? canonicalBook : item)
+        }
+        else if (item.kind === "book") {
+            BiblioApi.lookupBook(item.title || "", item.author || "", function(b) {
+                search.bookRequested(b ? b : item)
+            })
+        } else search.bookRequested(item)
+    }
+    function openTop() { if (search.results.length > 0) search.openItem(search.results[0]) }
 
-    Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
+    Timer { id: debounce; interval: 200; onTriggered: search.runSearch() }
 
     Shortcut { sequences: ["Return", "Enter"]; onActivated: search.openTop() }
 
@@ -274,7 +321,9 @@ Item {
                             color: theme.ink; font.family: theme.display; font.pixelSize: 32
                             elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { visible: text.length > 0; width: parent.width
-                            text: topCard.m && topCard.m.tagline ? "“" + topCard.m.tagline + "”" : ""
+                            text: topCard.m && topCard.m.kind === "series"
+                                  ? ("Series" + (topCard.m.count > 0 ? "  ·  " + topCard.m.count + " books" : ""))
+                                  : (topCard.m && topCard.m.tagline ? "“" + topCard.m.tagline + "”" : "")
                             color: theme.ink; opacity: 0.9; font.family: theme.display; font.italic: true
                             font.pixelSize: 18; elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { width: parent.width
@@ -288,12 +337,12 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 116; height: 48; radius: 12; color: theme.gold
                         Row { anchors.centerIn: parent; spacing: 7
-                            Text { text: "Open"; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Text { text: topCard.m && topCard.m.kind === "series" ? "View series" : "Open"; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                             Text { text: "›"; color: "#241a05"; font.pixelSize: 16 } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: if (topCard.m) search.bookRequested(topCard.m) }
+                            onClicked: if (topCard.m) search.openItem(topCard.m) }
                     }
-                    MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) search.bookRequested(topCard.m) }
+                    MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) search.openItem(topCard.m) }
                 }
                 Item { visible: search.results.length > 0; width: 1; height: 38 }
 
@@ -311,7 +360,7 @@ Item {
                     columnSpacing: 22; rowSpacing: 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
                     Repeater {
-                        model: search.foldedRest
+                        model: search.displayRest
                         delegate: Column {
                             required property var modelData
                             readonly property bool isSeries: modelData.kind === "series"
@@ -345,7 +394,7 @@ Item {
                                     Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                     MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                         onClicked: isSeries ? search.seriesRequested(modelData.series, modelData.author)
-                                                            : search.bookRequested(modelData) }
+                                                            : search.openItem(modelData) }
                                 }
                             }
                             Text { width: parent.width; text: isSeries ? (modelData.series || "") : (modelData.title || "")

@@ -1,7 +1,7 @@
 // BiblioBook — the book "dust-jacket" detail page. Owner: A2. OUR OWN design (NOT the manga series
 // view): the cover as a physical object · the tagline as the hero · a drop-capped synopsis · an
-// "Editions" panel. Opens as a layer over the Biblio world (Main.qml bookLayer). `book` is a full
-// Apple object from BiblioApi.fullBook.
+// "Editions" panel. Opens as a layer over the Biblio world (Main.qml bookLayer). `book` can be
+// either a full Apple object from BiblioApi.fullBook or a canonical local-graph detail object.
 //
 // The Editions rows are a STUB until the libgen "delivery" layer is ported (TB2 had it; Colosseum
 // doesn't yet). Metadata + layout are real; the download list is a preview.
@@ -49,6 +49,12 @@ Item {
     onBookChanged: detail.loadEditions()
     function loadEditions() {
         if (!detail.book || !detail.book.title) return
+        if (detail.book.downloadCandidates && detail.book.downloadCandidates.length > 0) {
+            detail.edLoading = false
+            detail.editions = detail.book.downloadCandidates
+            detail.refreshLocal()
+            return
+        }
         detail.edLoading = true
         detail.editions = []
         BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {

@@ -1,5 +1,6 @@
 // BiblioGenrePage — the genre BROWSE page for the Biblio / books lane.
-// Faithful clone of GenrePage.qml's manga layout, wired to Apple Books and BiblioBook.qml.
+// Faithful clone of GenrePage.qml's manga layout, with canonical-first book opens and Apple-backed
+// discovery rows as the fallback feed.
 //
 // PROTOTYPE harness:  qml.exe qml/_genrecheck.qml   (loads this page with a live genre)
 //
@@ -41,6 +42,17 @@ Item {
             if (p) root.genreData = p
             root.loading = false
         })
+    }
+    function openBookCard(book) {
+        if (!book) return
+        if (typeof SeriesIndex !== "undefined" && SeriesIndex.bookDetail) {
+            var canonicalBook = SeriesIndex.bookDetail(book.title || "", (book.author || book.authors || ""))
+            if (canonicalBook && canonicalBook.title) {
+                root.bookRequested(canonicalBook)
+                return
+            }
+        }
+        root.bookRequested(book)
     }
     Component.onCompleted: reload()
     onGenreNameChanged: reload()
@@ -287,7 +299,7 @@ Item {
                             Connections {
                                 target: item
                                 ignoreUnknownSignals: true
-                                function onOpen(b) { root.bookRequested(b) }
+                                function onOpen(b) { root.openBookCard(b) }
                                 function onOpenSeries(s, a) { root.seriesRequested(s, a) }
                             }
                         }

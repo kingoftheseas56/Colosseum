@@ -217,10 +217,16 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_BOOK_DLTEST"))
         books->selfTest(qEnvironmentVariable("COLOSSEUM_BOOK_DLTEST"));
 
-    // SeriesIndex resolves the offline series DB from the live qml/ tree's sibling tools/ folder.
+    // SeriesIndex resolves the offline book graph from the live qml/ tree's sibling tools/ folder.
+    // Prefer the canonical graph when present; the older flat series DB remains the fallback seam.
     const QString qmlDir = QFileInfo(qmlPath).absolutePath();
-    const QString seriesDbPath = QDir(QDir(qmlDir).absoluteFilePath(QStringLiteral("..")))
-                                     .absoluteFilePath(QStringLiteral("tools/biblio_series.db"));
+    const QDir repoDir(QDir(qmlDir).absoluteFilePath(QStringLiteral("..")));
+    const QString canonicalSeriesDbPath =
+        repoDir.absoluteFilePath(QStringLiteral("tools/biblio_canonical_graph_goodreads_2000.sqlite"));
+    const QString legacySeriesDbPath =
+        repoDir.absoluteFilePath(QStringLiteral("tools/biblio_series.db"));
+    const QString seriesDbPath =
+        QFileInfo::exists(canonicalSeriesDbPath) ? canonicalSeriesDbPath : legacySeriesDbPath;
     auto *seriesIndex = new SeriesIndex(seriesDbPath, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("SeriesIndex"), seriesIndex);
     if (qEnvironmentVariableIsSet("COLOSSEUM_SERIES_SELFTEST"))
