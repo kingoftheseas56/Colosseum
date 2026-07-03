@@ -1,6 +1,6 @@
 // TheatreWorld - Colosseum's Theatre catalog shell.
 // Owner: A4. Persistent top: Featured, Continue Watching, then Harbor-shaped pages
-// under four tabs: Discover, Movies, Shows, Anime.
+// under three tabs: Movies, Shows, Anime.
 
 import QtQuick
 import "Catalog.js" as Catalog
@@ -12,6 +12,8 @@ WorldPage {
 
     // Theatre carries the full tile object (Cinemeta id + type) up to Main for detail routing.
     signal theatreItemRequested(var item)
+    signal theatreGenreRequested(string kind, string name)
+    signal theatreGenreIndexRequested(string kind)
 
     property var featuredRows: Catalog.theatreFeatured
     // Real "Continue Watching" from the Progress store (what you actually started).
@@ -20,7 +22,7 @@ WorldPage {
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
-    property string activeTab: "discover"
+    property string activeTab: "movies"
 
     onProgressRevisionChanged: continueRows = Progress.recent("video", 12)
 
@@ -86,5 +88,7 @@ WorldPage {
         pageKey: theatre.activeTab
         onItemRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
+        onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
+        onGenreIndexRequested: (kind) => theatre.theatreGenreIndexRequested(kind)
     }
 }
