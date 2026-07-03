@@ -4,7 +4,7 @@
 //   anime          → Jikan (MAL) — live genre ids + counts from /genres/anime, cards from /anime
 //   movie / series → Cinemeta top catalogs (catalog/<type>/top/genre=<G>) — lean cards
 // loadGenre(kind, name, sort, push) → { count, desc, cards, montage }  (count 0 ⇒ page hides it)
-// loadGroups(kind, includeExplicit, done) → GenreIndex-shaped groups [{ name, sub, genres:[tile] }]
+// loadGroups(kind, includeExplicit, done) → GenreIndex-shaped groups [{ group, genres:[tile] }]
 .pragma library
 
 var JIKAN = "https://api.jikan.moe/v4";
@@ -196,7 +196,7 @@ function groupSub(name) {
     return "";
 }
 
-// loadGroups(kind, includeExplicit, done) → [{ name, sub, genres: [{ name, count, cover, c1, c2 }] }]
+// loadGroups(kind, includeExplicit, done) → [{ group, genres: [{ name, count, cover, c1, c2 }] }]
 function loadGroups(kind, includeExplicit, done) {
     if (kind === "anime") {
         ensureAnimeGenres(function(list) {
@@ -217,7 +217,7 @@ function loadGroups(kind, includeExplicit, done) {
                 var out = [];
                 for (var s = 0; s < order.length; s++)
                     if (sections[order[s]].length)
-                        out.push({ name: order[s], sub: groupSub(order[s]), genres: sections[order[s]] });
+                        out.push({ group: order[s], genres: sections[order[s]] });
                 done(out);
             });
         });
@@ -236,6 +236,6 @@ function loadGroups(kind, includeExplicit, done) {
             return { name: n, count: 0, cover: pool.length ? pool[i % pool.length] : "",
                      c1: sw.c1, c2: sw.c2 };
         });
-        done([{ name: "Genres", sub: "The core shelves", genres: genres }]);
+        done([{ group: "Genres", genres: genres }]);
     });
 }
