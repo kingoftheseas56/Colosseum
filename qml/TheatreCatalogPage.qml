@@ -1,28 +1,44 @@
-// TheatreCatalogPage - one of Harbor's four Theatre catalog pages inside the tab shell.
+// TheatreCatalogPage - one Theatre tab page: a ranked Top 10 row + the genre boxes
+// (Tankoban-manga GenreMosaic treatment). MAL-template genre pages open behind the tiles.
 
 import QtQuick
 import "TheatreApi.js" as TheatreApi
+import "TheatreGenreApi.js" as TheatreGenreApi
 
 pragma ComponentBehavior: Bound
 
 Column {
     id: page
 
-    property string pageKey: "discover"
+    property string pageKey: "movies"
     property var rows: []
-    property var heroItems: []
-    property var topPicks: []
-    property var genreTiles: []
-    property var languageTiles: []
-    property var awardTiles: []
     property bool loading: false
     property string errorText: ""
     signal itemRequested(var item)
+    signal genreRequested(string kind, string name)
+    signal genreIndexRequested(string kind)
 
     width: parent ? parent.width : 900
     spacing: 30
 
     Theme { id: theme }
+
+    // tab key → the API's media kind
+    readonly property string mediaKind: pageKey === "movies" ? "movie"
+                                       : pageKey === "shows" ? "series" : "anime"
+    readonly property string genreBoxTitle: pageKey === "movies" ? "Movie Genres"
+                                           : pageKey === "shows" ? "Show Genres" : "Anime Genres"
+    // mosaic model + cover pool (tiles cycle the Top 10 posters until per-genre bakes land)
+    readonly property var genreTiles: TheatreGenreApi.mosaicGenres(mediaKind)
+    readonly property var coverPool: {
+        var out = []
+        for (var i = 0; i < rows.length; i++) {
+            var items = rows[i].items || []
+            for (var j = 0; j < items.length; j++)
+                if (items[j].cover) out.push(items[j].cover)
+        }
+        return out
+    }
 
     onPageKeyChanged: load()
     Component.onCompleted: load()
@@ -31,121 +47,13 @@ Column {
         loading = true
         errorText = ""
         rows = []
-        heroItems = []
-        topPicks = []
-        genreTiles = []
-        languageTiles = []
-        awardTiles = []
         TheatreApi.loadCatalogPage(pageKey, function(result) {
             if (page.pageKey !== result.pageKey)
                 return
             page.loading = false
             page.rows = result.rows || []
-            page.heroItems = result.hero || []
-            page.topPicks = result.topPicks || []
-            page.genreTiles = result.genreTiles || []
-            page.languageTiles = result.languageTiles || []
-            page.awardTiles = result.awardTiles || []
             page.errorText = result.error || ""
         })
-    }
-
-    TheatreCinemaHero {
-        visible: page.pageKey === "movies" && page.heroItems.length > 0
-        height: visible ? 520 : 0
-        slides: page.heroItems
-        eyebrow: "Featured tonight"
-        onPrimaryClicked: (item) => page.itemRequested(item)
-        onSecondaryClicked: (item) => page.itemRequested(item)
-    }
-
-    TheatrePeekHero {
-        visible: page.pageKey === "shows" && page.heroItems.length > 0
-        height: visible ? 455 : 0
-        slides: page.heroItems
-        onItemRequested: (item) => page.itemRequested(item)
-    }
-
-    Column {
-        visible: page.pageKey === "anime" && page.heroItems.length > 0
-        width: parent.width
-        spacing: 24
-        height: visible ? implicitHeight : 0
-
-        TheatreCinemaHero {
-            width: parent.width
-            height: 520
-            slides: page.heroItems
-            eyebrow: "Anime"
-            primaryLabel: "Start Watching"
-            secondaryLabel: "Details"
-            onPrimaryClicked: (item) => page.itemRequested(item)
-            onSecondaryClicked: (item) => page.itemRequested(item)
-        }
-        PosterRail {
-            width: parent.width
-            title: "Top Picks for You"
-            items: page.topPicks
-            itemLimit: 18
-            onItemRequested: (item) => page.itemRequested(item)
-        }
-    }
-
-    Column {
-        visible: page.pageKey === "discover" && page.heroItems.length > 0
-        width: parent.width
-        spacing: 32
-        height: visible ? implicitHeight : 0
-
-        TheatreCinemaHero {
-            width: parent.width
-            height: 430
-            slides: page.heroItems
-            eyebrow: "Featured & Recommended"
-            primaryLabel: "Explore"
-            secondaryLabel: "Details"
-            onPrimaryClicked: (item) => page.itemRequested(item)
-            onSecondaryClicked: (item) => page.itemRequested(item)
-        }
-
-        TheatreDiscoveryTiles {
-            width: parent.width
-            title: "Browse by mood"
-            tiles: page.genreTiles
-            onTileClicked: (tile) => {
-                if (tile.item !== undefined)
-                    page.itemRequested(tile.item)
-            }
-        }
-
-        PosterRail {
-            visible: page.awardTiles.length > 0
-            width: parent.width
-            title: "Award Season Energy"
-            items: page.awardTiles
-            itemLimit: 8
-            onItemRequested: (item) => page.itemRequested(item)
-        }
-
-        TheatreDiscoveryTiles {
-            width: parent.width
-            title: "World cinema"
-            tiles: page.languageTiles
-            onTileClicked: (tile) => {
-                if (tile.item !== undefined)
-                    page.itemRequested(tile.item)
-            }
-        }
-    }
-
-    Text {
-        visible: !page.loading && page.heroItems.length === 0
-                 && (page.pageKey === "movies" || page.pageKey === "shows" || page.pageKey === "anime")
-        text: TheatreApi.pageTitle(page.pageKey)
-        color: theme.ink
-        font.family: theme.display
-        font.pixelSize: 32
-        font.weight: Font.DemiBold
     }
 
     Item {
@@ -190,5 +98,14 @@ Column {
             items: modelData.items !== undefined ? modelData.items : []
             onItemRequested: (item) => page.itemRequested(item)
         }
+    }
+
+    GenreMosaic {
+        width: parent.width
+        title: page.genreBoxTitle
+        genres: page.genreTiles
+        covers: page.coverPool
+        onGenreClicked: (i) => page.genreRequested(page.mediaKind, page.genreTiles[i].name)
+        onExploreClicked: page.genreIndexRequested(page.mediaKind)
     }
 }
