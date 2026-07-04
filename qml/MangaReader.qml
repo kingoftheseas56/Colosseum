@@ -8,6 +8,10 @@
 // bubble, windowed strip loading (the memory diet) + paged neighbor prefetch, Ctrl+wheel zoom
 // (100–260%, TB2 range) with drag/arrow pan, resume completeness (strip scroll fraction,
 // per-series settings, max-seen/finished), cursor auto-hide + H/center-click chrome toggle.
+// PASS 4 (2026-07-04): pairing memory (persisted spread knowledge + per-page override) so
+// double-page pairs never reshuffle across reopens; session tools (bookmarks B, replay Z,
+// checkpoint S, restart R, thumbnails T, shortcuts K, right-click menu, Ctrl+G); polish tail
+// (split wide pages in strip, side padding, quality toggle, dim overlay, gutter shadow).
 import QtQuick
 import QtCore
 import "ReaderEngine.js" as Engine
@@ -37,7 +41,13 @@ Item {
         property bool   back_to_top: true
         property bool   sticky_top_nav: false
         property int    portrait_width_pct: 100
+        // PASS 4 taste toggles (global — per-series felt like over-machinery for these)
+        property bool   split_wide: false          // strip: wide spreads render as two stacked halves
+        property int    side_padding: 0            // strip: px each side (0/40/80/120/160)
+        property string image_quality: "smooth"    // smooth | fast
+        property int    dim: 0                     // 0 off · 1 soft · 2 strong (night reading)
     }
+    readonly property bool smoothQ: prefs.image_quality !== "fast"
     // --- per-series overrides (TB2 behavior: settings are remembered per series; the globals
     // above stay the defaults for a series you haven't touched). One JSON map keyed by seriesId,
     // in its own Settings category — no C++ needed, survives a Continue forget(). ---
@@ -82,14 +92,14 @@ Item {
     // --- which chapter we're actually reading (the modal / crossing can change it) ---
     property string curChapterId: ""
     property bool   pendingAtLast: false        // open an older chapter at its last page
-    onChapterIdChanged: { _resumeArmed = true; curChapterId = chapterId }
+    onChapterIdChanged: { flushChapterRec(); _resumeArmed = true; curChapterId = chapterId }
     Component.onCompleted: { _resumeArmed = true; curChapterId = chapterId; if (curChapterId.length) load() }
     onCurChapterIdChanged: { load(); recordProgress() }
     // grab keyboard focus whenever the reader is shown, so arrows/Esc work (it's a
     // direct child of the series page and won't get active focus on its own).
     onVisibleChanged: {
         if (visible) reader.forceActiveFocus()
-        else recordProgress()   // leaving the reader — flush the debounced save immediately
+        else { recordProgress(); saveChapterRec() }   // leaving — flush the debounced saves
     }
 
     readonly property int curIndex: {
@@ -170,13 +180,20 @@ Item {
         if (s > maxSeen) maxSeen = s
     }
     onPageChanged: { bumpSeen(); panX = 0; panY = 0; recordProgressSoon() }
-    Component.onDestruction: recordProgress()
+    Component.onDestruction: { recordProgress(); saveChapterRec() }   // flush BOTH debounced stores
 
     // --- modals + HUD popups ---
     property bool showPrefs: false
     property bool showJump: false
     property bool showChapters: false
+    property bool showThumbs: false             // T — page thumbnail grid
+    property bool showKeys: false               // K — shortcuts card
+    property bool showCtx: false                // right-click menu
+    property real ctxX: 0
+    property real ctxY: 0
+    property var  ctxItems: []
     property string hudMenu: ""                 // "mode" | "width" | ""
+    readonly property bool anyModal: showPrefs || showJump || showChapters || showThumbs || showKeys || showCtx || hudMenu !== ""
 
     Theme { id: theme }
 
@@ -187,6 +204,7 @@ Item {
         if (pagesModel.length > 0) {
             downloading = false
             maxSeen = 0; _pendingFrac = 0; zoneY = 0; panX = 0; panY = 0
+            loadChapterRec()   // seed persisted spread knowledge + bookmarks BEFORE any snap
             var start = pendingAtLast ? pagesModel.length : 1
             pendingAtLast = false
             // resume — when this open matches the saved Continue entry, drop back to the spot
@@ -201,9 +219,7 @@ Item {
                     if (style === "long_strip") _pendingFrac = Number(r.scrollFrac) || 0
                 }
             }
-            page = isDouble ? (Engine.snapTwoPageIndex(start - 1,
-                       { n: pagesModel.length, isSpreadAt: function () { return false }, couplingNudge: couplingNudge }) + 1)
-                            : start
+            page = isDouble ? (Engine.snapTwoPageIndex(start - 1, ctx()) + 1) : start
             maxSeen = Math.max(maxSeen, page)
             // strip: settle from a clean top, then restore fraction / jump to the resume page
             // (300ms — TB2's proven layout-settle delay before a fractional restore)
@@ -226,14 +242,81 @@ Item {
         Downloads.downloadChapter(curChapterId, seriesId, seriesTitle, curLabel)
     }
 
+    // ── pairing memory (PASS 4): persisted spread knowledge + per-page override, per chapter.
+    // Spread detection used to be dims-only, so pairs could reshuffle mid-read as images
+    // loaded and re-detect from scratch every open (TB2 persists knownSpreadIndices — this
+    // is our equivalent). Override beats knowledge beats live dims beats "not a spread". ──
+    Settings { id: chapterStore; category: "mangaReaderChapters"; property string all: "{}" }
+    property var spreadKnown: ({})              // idx → true (accumulated from decoded dims)
+    property var forceS: ({})                   // idx → true (user: this IS a spread)
+    property var forceN: ({})                   // idx → true (user: this is NOT a spread)
+    property var marks: []                      // bookmarked pages (1-based), sorted
+    Timer { id: chapterSave; interval: 800; onTriggered: reader.saveChapterRec() }
+    function loadChapterRec() {
+        var m = {}
+        try { m = JSON.parse(chapterStore.all) } catch (e) { m = {} }
+        var r = m[curChapterId] || null
+        var k = ({}), fs = ({}), fn = ({})
+        if (r) {
+            var i
+            for (i = 0; i < (r.k  || []).length; i++) k[r.k[i]]   = true
+            for (i = 0; i < (r.fs || []).length; i++) fs[r.fs[i]] = true
+            for (i = 0; i < (r.fn || []).length; i++) fn[r.fn[i]] = true
+        }
+        spreadKnown = k; forceS = fs; forceN = fn
+        marks = (r && r.m) ? r.m.slice() : []
+    }
+    function saveChapterRec() {
+        if (!curChapterId.length) return
+        var m = {}
+        try { m = JSON.parse(chapterStore.all) } catch (e) { m = {} }
+        function keysOf(o) { var a = []; for (var kk in o) a.push(Number(kk)); return a }
+        var rec = { k: keysOf(spreadKnown), fs: keysOf(forceS), fn: keysOf(forceN), m: marks }
+        if (!rec.k.length && !rec.fs.length && !rec.fn.length && !rec.m.length) delete m[curChapterId]
+        else m[curChapterId] = rec
+        chapterStore.all = JSON.stringify(m)
+    }
+    function isSpreadIdx(i) {
+        if (forceN[i]) return false
+        if (forceS[i]) return true
+        var d = dims[i]
+        if (d) return Engine.isSpread(d.w, d.h)
+        return !!spreadKnown[i]
+    }
+    function spreadStateOf(i) { return forceS[i] ? "spread" : (forceN[i] ? "single" : "auto") }
+    // auto → spread → single → auto, then re-snap the pairing around the change
+    function cycleSpreadOverride(i) {
+        var fs = forceS, fn = forceN
+        if (fs[i]) { delete fs[i]; fn[i] = true }
+        else if (fn[i]) { delete fn[i] }
+        else { fs[i] = true }
+        forceS = fs; forceN = fn
+        saveChapterRec()
+        if (isDouble && max) page = Engine.snapTwoPageIndex(page - 1, ctx()) + 1
+        showToast("Page " + (i + 1) + " pairing: " + spreadStateOf(i))
+    }
+    // ── bookmarks ──
+    function isBookmarked(p) { return marks.indexOf(p) >= 0 }
+    function toggleBookmark() {
+        if (max <= 0) return
+        var m = marks.slice()
+        var i = m.indexOf(page)
+        if (i >= 0) { m.splice(i, 1); showToast("Bookmark removed") }
+        else { m.push(page); m.sort(function (a, b) { return a - b }); showToast("Bookmarked p." + page) }
+        marks = m; saveChapterRec()
+    }
+
     function reportDims(i, w, h) {
         if (!w || !h || dims[i]) return
         var d = dims; d[i] = { w: w, h: h }; dims = d
+        // remember discovered spreads so the pairing is stable on every future open
+        if (Engine.isSpread(w, h) && !spreadKnown[i]) {
+            var k = spreadKnown; k[i] = true; spreadKnown = k
+            chapterSave.restart()
+        }
     }
     function ctx() {
-        return { n: reader.max,
-                 isSpreadAt: function (i) { var d = reader.dims[i]; return d ? Engine.isSpread(d.w, d.h) : false },
-                 couplingNudge: reader.couplingNudge }
+        return { n: reader.max, isSpreadAt: reader.isSpreadIdx, couplingNudge: reader.couplingNudge }
     }
     readonly property int anchor: (isDouble && max) ? Engine.snapTwoPageIndex(page - 1, ctx()) : page - 1
     readonly property var pair: (isDouble && max) ? Engine.getTwoPagePair(anchor, ctx()) : null
@@ -256,8 +339,14 @@ Item {
     }
 
     // --- chapter crossing (newest-first order) ---
+    // flush a pending spread/bookmark save for the OUTGOING chapter before curChapterId moves,
+    // or the debounced timer would write the old data under the new chapter's key
+    function flushChapterRec() {
+        if (chapterSave.running) { chapterSave.stop(); saveChapterRec() }
+    }
     function openChapterById(id, atLast) {
         if (!id || !id.length) return
+        flushChapterRec()
         pendingAtLast = !!atLast
         curChapterId = String(id)
     }
@@ -351,6 +440,7 @@ Item {
         id: pageTrack; interval: 80
         onTriggered: {
             if (reader.style !== "long_strip" || reader.max <= 0) return
+            if (stripRestore.running) return   // a reflow-restore is pending — don't relabel mid-flight
             var p = reader.pageAtY(flick.contentY + flick.height / 2)
             if (p !== reader.page) reader.page = p
             reader.recordProgressSoon()
@@ -421,7 +511,7 @@ Item {
     property bool edgeCooldown: false                 // brief lock after an edge-reveal (anti-flicker)
     readonly property int hudEdgePx: 60               // reveal band at top/bottom
     readonly property bool pinned: prefs.sticky_top_nav
-    readonly property bool frozen: showPrefs || showJump || showChapters || hudMenu !== "" || hudHover
+    readonly property bool frozen: anyModal || hudHover
                                    || (scrub.visible && (scrubMa.containsMouse || scrubMa.pressed))
     // explicit hide beats everything, pin included, until the next poke (TB2's toggleToolbar:
     // pin only prevents IDLE hiding; a deliberate H/center-click always hides, edge-reach revives)
@@ -440,7 +530,7 @@ Item {
     }
     // explicit hide/show (H key or a center click) — TB2's toggleToolbar
     function toggleChrome() {
-        if (showPrefs || showJump || showChapters || hudMenu !== "") return
+        if (anyModal) return
         if (chromeShown) { hudExplicitlyHidden = true; hudShown = false; idleHide.stop() }
         else pokeChrome()
     }
@@ -457,15 +547,38 @@ Item {
     Keys.onPressed: (e) => {
         // Esc — close an open modal/menu, else leave the reader
         if (e.key === Qt.Key_Escape) {
-            if (showPrefs || showJump || showChapters || hudMenu !== "") {
+            if (showCtx) showCtx = false
+            else if (showKeys) showKeys = false
+            else if (showThumbs) showThumbs = false
+            else if (showPrefs || showJump || showChapters || hudMenu !== "") {
                 showPrefs = false; showJump = false; showChapters = false; hudMenu = ""
             } else reader.backRequested()
             e.accepted = true
             return
         }
+        // K toggles the shortcuts card even from inside it
+        if (e.key === Qt.Key_K) { showKeys = !showKeys; e.accepted = true; return }
         // never scroll / turn pages behind an open modal or dropdown
-        if (showPrefs || showJump || showChapters || hudMenu !== "") return
+        if (anyModal) return
         if (reader.max <= 0) return
+
+        // session keys (TB2 Batch-D family)
+        switch (e.key) {
+        case Qt.Key_B: toggleBookmark(); e.accepted = true; return
+        case Qt.Key_T: showThumbs = true; e.accepted = true; return
+        case Qt.Key_Z:   // instant replay — a beat back
+            style === "long_strip" ? smoothScrollBy(-flick.height * 0.3) : turnPrev()
+            e.accepted = true; return
+        case Qt.Key_S:
+            if (!(e.modifiers & Qt.ControlModifier)) { recordProgress(); showToast("Checkpoint saved"); e.accepted = true; return }
+            break
+        // R restarts the chapter but leaves maxSeen alone — it's a high-water mark; re-reading
+        // a finished chapter must not un-finish it in the Continue store
+        case Qt.Key_R: jumpToPage(1, true); recordProgressSoon(); showToast("Back to the start"); e.accepted = true; return
+        case Qt.Key_G:
+            if (e.modifiers & Qt.ControlModifier) { showJump = true; e.accepted = true; return }
+            break
+        }
 
         // H — hide/show the chrome on demand (sticks hidden until you reach for it)
         if (e.key === Qt.Key_H) { toggleChrome(); e.accepted = true; return }
@@ -565,13 +678,15 @@ Item {
         Column {
             id: pageCol
             visible: reader.style === "long_strip"
-            width: Math.min(flick.width, flick.width * reader.portraitWidthPct / 100)
+            width: Math.max(200, Math.min(flick.width - 2 * prefs.side_padding,
+                                          flick.width * reader.portraitWidthPct / 100))
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: prefs.gap ? 8 : 0
             Repeater {
                 id: stripRep
                 model: reader.style === "long_strip" ? reader.pagesModel : []
-                delegate: Image {
+                delegate: Item {
+                    id: cell
                     required property var modelData
                     required property int index
                     // the memory diet (TB2's prefetch zone): only pages within ±1.5 screens of
@@ -580,18 +695,56 @@ Item {
                         var m = flick.height * 1.5
                         return (y + height) >= (reader.zoneY - m) && y <= (reader.zoneY + flick.height + m)
                     }
+                    // split-wide (P3-3): a known spread renders as two stacked portrait halves
+                    readonly property bool split: prefs.split_wide && reader.isSpreadIdx(index)
                     width: pageCol.width
                     // known dims pin the height, so the layout stays stable when a far page unloads
                     height: {
                         var d = reader.dims[index]
+                        if (split) return d ? 2 * (width * 2 * d.h / d.w) + 8
+                                            : width * 2.86 + 8   // ~1.4-aspect spread estimate, no ¼-height pop
                         if (d) return width * d.h / d.w
-                        return (implicitWidth > 0) ? width * (implicitHeight / implicitWidth) : width * 1.45
+                        return width * 1.45
                     }
-                    fillMode: Image.PreserveAspectFit
-                    source: inZone ? modelData.url : ""
-                    asynchronous: true; cache: true; smooth: true; mipmap: true
-                    sourceSize.width: 1100
-                    onStatusChanged: if (status === Image.Ready) reader.reportDims(index, implicitWidth, implicitHeight)
+                    Image {
+                        visible: !cell.split
+                        anchors.fill: parent
+                        fillMode: Image.PreserveAspectFit
+                        source: (cell.inZone && !cell.split) ? cell.modelData.url : ""
+                        asynchronous: true; cache: true
+                        smooth: reader.smoothQ; mipmap: reader.smoothQ
+                        sourceSize.width: 1100
+                        onStatusChanged: if (status === Image.Ready) reader.reportDims(cell.index, implicitWidth, implicitHeight)
+                    }
+                    // the two halves: read-first half on top (RTL manga = right half first)
+                    Column {
+                        visible: cell.split
+                        anchors.fill: parent
+                        spacing: 8
+                        Repeater {
+                            model: cell.split ? 2 : 0
+                            delegate: Item {
+                                required property int index
+                                readonly property bool rightHalf: (index === 0) === reader.rtl
+                                width: cell.width
+                                height: (cell.height - 8) / 2
+                                clip: true
+                                Image {
+                                    width: parent.width * 2
+                                    height: parent.height   // box = 2·cellW × halfH, matches the aspect — halves tile flush
+                                    fillMode: Image.PreserveAspectFit
+                                    x: parent.rightHalf ? -parent.width : 0
+                                    source: cell.inZone ? cell.modelData.url : ""
+                                    asynchronous: true; cache: true
+                                    smooth: reader.smoothQ; mipmap: reader.smoothQ
+                                    sourceSize.width: 2048
+                                    // a persisted-known spread may never load the whole-page
+                                    // Image, so the half reports dims too (guard dedupes)
+                                    onStatusChanged: if (status === Image.Ready) reader.reportDims(cell.index, implicitWidth, implicitHeight)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -610,7 +763,8 @@ Item {
                 height: reader.fit === "height" ? parent.height : ((implicitWidth > 0) ? width * (implicitHeight / implicitWidth) : width * 1.45)
                 fillMode: Image.PreserveAspectFit
                 source: reader.curUrl
-                asynchronous: true; cache: true; smooth: true; mipmap: true
+                asynchronous: true; cache: true
+                smooth: reader.smoothQ; mipmap: reader.smoothQ
                 retainWhileLoading: true   // zoom-tier source swap keeps the old frame up
                 sourceSize.width: reader.pagedSrcW
                 onStatusChanged: if (status === Image.Ready) reader.reportDims(reader.page - 1, implicitWidth, implicitHeight)
@@ -649,20 +803,50 @@ Item {
                 anchors.centerIn: parent
                 spacing: 0
                 Repeater {
-                    model: dbl.layout ? dbl.layout.pages : []
+                    // honor the engine's physical `side`: in RTL the read-first page belongs on
+                    // the RIGHT, but a Row lays the model out left→right — so flip pair order
+                    // when the anchor's side is right. (Pre-PASS-4 bug: side was ignored.)
+                    model: {
+                        if (!dbl.layout) return []
+                        var pg = dbl.layout.pages
+                        if (pg.length === 2 && pg[0].side === "right") return [pg[1], pg[0]]
+                        return pg
+                    }
                     delegate: Image {
                         required property var modelData
                         property int pgIdx: modelData.role === "anchor" ? reader.pair.anchorIndex : reader.pair.partnerIndex
                         width: modelData.w; height: modelData.h
                         fillMode: Image.PreserveAspectFit
                         source: (pgIdx >= 0 && pgIdx < reader.max) ? reader.pagesModel[pgIdx].url : ""
-                        asynchronous: true; cache: true; smooth: true; mipmap: true
+                        asynchronous: true; cache: true
+                        smooth: reader.smoothQ; mipmap: reader.smoothQ
                         retainWhileLoading: true   // zoom-tier source swap keeps the old frame up
                         sourceSize.width: reader.pagedSrcW
                     }
                 }
             }
+            // gutter shadow — a soft spine crease where two pages meet (TB2's H3, fixed-subtle)
+            Rectangle {
+                visible: reader.pair !== null && reader.pair.partnerIndex !== null
+                anchors.horizontalCenter: dblRow.horizontalCenter
+                anchors.verticalCenter: dblRow.verticalCenter
+                width: 22; height: dblRow.height
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0;  color: "transparent" }
+                    GradientStop { position: 0.5;  color: Qt.rgba(0, 0, 0, 0.26) }
+                    GradientStop { position: 1.0;  color: "transparent" }
+                }
+            }
         }
+    }
+
+    // dim overlay — night-reading veil over the page surface (never over the HUD, z20+)
+    Rectangle {
+        anchors.fill: parent; z: 10
+        color: "#000000"
+        visible: prefs.dim > 0 && reader.max > 0
+        opacity: prefs.dim === 2 ? 0.26 : 0.12
     }
 
     // ── click zones: left/right thirds turn (paged) or scroll (strip); the center third
@@ -671,7 +855,7 @@ Item {
     MouseArea {
         anchors.fill: parent
         enabled: reader.max > 0 && !reader.atEnd
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         property real pressX: 0
         property real pressY: 0
         property real panX0: 0
@@ -679,13 +863,14 @@ Item {
         property bool dragged: false
         onPressed: (m) => { pressX = m.x; pressY = m.y; panX0 = reader.panX; panY0 = reader.panY; dragged = false }
         onPositionChanged: (m) => {
-            if (!pressed || !reader.paged || reader.zoomPct <= 100) return
+            if (!(pressedButtons & Qt.LeftButton) || !reader.paged || reader.zoomPct <= 100) return
             var dx = m.x - pressX, dy = m.y - pressY
             if (!dragged && Math.abs(dx) < 4 && Math.abs(dy) < 4) return
             dragged = true
             reader.panX = panX0 + dx; reader.panY = panY0 + dy; reader.clampPan()
         }
         onClicked: (m) => {
+            if (m.button === Qt.RightButton) { reader.openCtxMenu(m.x, m.y); return }
             if (dragged) return
             var third = width / 3
             if (m.x >= third && m.x <= width - third) { reader.toggleChrome(); return }
@@ -697,6 +882,62 @@ Item {
                 if (m.x < third) (reader.rtl ? reader.turnNext : reader.turnPrev)()
                 else (reader.rtl ? reader.turnPrev : reader.turnNext)()
             }
+        }
+    }
+
+    // ── right-click menu: the reader's control surface (TB2's context menu) ──
+    function openCtxMenu(mx, my) {
+        if (anyModal) return   // scrims pass right-clicks through — never open under one
+        var items = []
+        items.push({ t: "Go to page…", a: "jump" })
+        items.push({ t: "Page thumbnails", a: "thumbs" })
+        items.push({ t: "Shortcuts", a: "keys" })
+        items.push({ t: isBookmarked(page) ? ("Remove bookmark (p." + page + ")") : ("Bookmark page " + page), a: "bmark" })
+        for (var i = Math.max(0, marks.length - 5); i < marks.length; i++)
+            items.push({ t: "  ↳ bookmark p." + marks[i], a: "goto", p: marks[i] })
+        if (isDouble)
+            items.push({ t: "Page " + (anchor + 1) + " pairing: " + spreadStateOf(anchor), a: "spread" })
+        if (style === "long_strip") {
+            items.push({ t: (prefs.split_wide ? "✓ " : "") + "Split wide pages", a: "split" })
+            items.push({ t: "Side padding: " + prefs.side_padding + "px", a: "pad" })
+        }
+        items.push({ t: "Quality: " + (reader.smoothQ ? "Smooth" : "Fast"), a: "quality" })
+        items.push({ t: "Dim: " + ["Off", "Soft", "Strong"][prefs.dim], a: "dim" })
+        items.push({ t: "Save checkpoint", a: "save" })
+        ctxItems = items
+        ctxX = Math.max(8, Math.min(mx, width - 258))
+        ctxY = Math.max(8, Math.min(my, height - (items.length * 34 + 20)))
+        showCtx = true
+    }
+    function ctxAction(item) {
+        showCtx = false
+        switch (item.a) {
+        case "jump":    showJump = true; break
+        case "thumbs":  showThumbs = true; break
+        case "keys":    showKeys = true; break
+        case "bmark":   toggleBookmark(); break
+        case "goto":    jumpToPage(item.p); break
+        case "spread":  cycleSpreadOverride(anchor); break
+        case "split":
+            prefs.split_wide = !prefs.split_wide
+            if (style === "long_strip") stripRestore.restart()   // reflow — return to this page
+            break
+        case "pad": {
+            var pads = [0, 40, 80, 120, 160]
+            prefs.side_padding = pads[(pads.indexOf(prefs.side_padding) + 1) % pads.length]
+            showToast("Side padding " + prefs.side_padding + "px")
+            if (style === "long_strip") stripRestore.restart()   // reflow — return to this page
+            break
+        }
+        case "quality":
+            prefs.image_quality = reader.smoothQ ? "fast" : "smooth"
+            showToast("Quality: " + (reader.smoothQ ? "Smooth" : "Fast"))
+            break
+        case "dim":
+            prefs.dim = (prefs.dim + 1) % 3
+            showToast("Dim: " + ["Off", "Soft", "Strong"][prefs.dim])
+            break
+        case "save":    recordProgress(); showToast("Checkpoint saved"); break
         }
     }
 
@@ -1028,9 +1269,8 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 MouseArea { id: swMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { var n = reader.couplingNudge ? 0 : 1; reader.couplingNudge = n
-                        reader.page = Engine.snapTwoPageIndex(reader.page - 1,
-                            { n: reader.max, isSpreadAt: function (i) { var d = reader.dims[i]; return d ? Engine.isSpread(d.w, d.h) : false }, couplingNudge: n }) + 1 } } }
+                    onClicked: { reader.couplingNudge = reader.couplingNudge ? 0 : 1
+                        reader.page = Engine.snapTwoPageIndex(reader.page - 1, reader.ctx()) + 1 } } }
 
             // width dropdown trigger (single/strip)
             Rectangle { visible: reader.style === "single_page" || reader.style === "long_strip"
@@ -1121,6 +1361,33 @@ Item {
     MouseArea { anchors.fill: parent; z: 29; visible: reader.hudMenu !== ""
         onClicked: reader.hudMenu = "" }
 
+    // ── right-click context menu ──
+    MouseArea { anchors.fill: parent; z: 34; visible: reader.showCtx
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onClicked: reader.showCtx = false }
+    Rectangle {
+        visible: reader.showCtx
+        z: 35; x: reader.ctxX; y: reader.ctxY
+        width: 250; height: ctxCol.height + 12; radius: 10
+        color: "#15171f"; border.width: 1; border.color: theme.edge
+        Column {
+            id: ctxCol; width: parent.width; y: 6
+            Repeater {
+                model: reader.ctxItems
+                delegate: Rectangle {
+                    required property var modelData
+                    width: parent.width; height: 34
+                    color: cxMa.containsMouse ? theme.glassHi : "transparent"
+                    Text { anchors.left: parent.left; anchors.leftMargin: 14; anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.t; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                        elide: Text.ElideRight; width: parent.width - 24 }
+                    MouseArea { id: cxMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: reader.ctxAction(parent.modelData) }
+                }
+            }
+        }
+    }
+
     // ===================== MODALS =====================
     component ModalScrim: Rectangle {
         anchors.fill: parent; color: Qt.rgba(0,0,0,0.62); z: 40
@@ -1209,6 +1476,81 @@ Item {
                     MouseArea { id: pgGMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         // jumpToPage lands the strip ON the page (the old code reset to the top)
                         onClicked: { reader.jumpToPage(index + 1); reader.showJump = false } }
+                }
+            }
+        }
+    }
+
+    // ── PAGE THUMBNAILS (T) ──
+    ModalScrim { visible: reader.showThumbs; MouseArea { anchors.fill: parent; onClicked: reader.showThumbs = false } }
+    ModalCard {
+        visible: reader.showThumbs
+        width: 640; height: Math.min(parent.height * 0.78, 620)
+        Text { id: thTitle; text: "Pages"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; x: 24; y: 22 }
+        GridView {
+            anchors.top: thTitle.bottom; anchors.topMargin: 14
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            anchors.leftMargin: 20; anchors.rightMargin: 20; anchors.bottomMargin: 20
+            clip: true; cellWidth: 120; cellHeight: 196
+            model: reader.showThumbs ? reader.max : 0   // built on open, freed on close
+            delegate: Item {
+                required property int index
+                width: 120; height: 196
+                Rectangle {
+                    anchors.fill: parent; anchors.margins: 5; radius: 8
+                    color: theme.glassTint
+                    border.width: index + 1 === reader.page ? 2 : 1
+                    border.color: index + 1 === reader.page ? theme.gold : theme.edge
+                    Image {
+                        anchors.fill: parent; anchors.margins: 4; anchors.bottomMargin: 22
+                        fillMode: Image.PreserveAspectFit
+                        source: (index < reader.max) ? reader.pagesModel[index].url : ""
+                        asynchronous: true; cache: true
+                        sourceSize.width: 110
+                    }
+                    Text { anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        text: (index + 1) + (reader.isBookmarked(index + 1) ? " ◆" : "")
+                        color: index + 1 === reader.page ? theme.gold : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 11 }
+                    MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: { reader.jumpToPage(index + 1); reader.showThumbs = false } }
+                }
+            }
+        }
+    }
+
+    // ── SHORTCUTS (K) ──
+    ModalScrim { visible: reader.showKeys; MouseArea { anchors.fill: parent; onClicked: reader.showKeys = false } }
+    ModalCard {
+        visible: reader.showKeys
+        width: 430; height: keysCol.height + 48
+        Column {
+            id: keysCol; width: parent.width - 48; x: 24; y: 24; spacing: 4
+            Text { text: "Shortcuts"; color: theme.ink; font.family: theme.display; font.pixelSize: 18; bottomPadding: 8 }
+            Repeater {
+                model: [
+                    ["← → · Space · PgUp/PgDn", "turn / scroll (Shift = back)"],
+                    ["Home · End", "first / last page"],
+                    ["H · center-click", "hide or show the bars"],
+                    ["Ctrl+wheel · Ctrl+0", "zoom / reset zoom"],
+                    ["drag · arrows", "pan while zoomed"],
+                    ["B", "bookmark this page"],
+                    ["Z", "instant replay (a beat back)"],
+                    ["S", "save checkpoint"],
+                    ["R", "back to the start"],
+                    ["T", "page thumbnails"],
+                    ["Ctrl+G", "go to page"],
+                    ["right-click", "everything else"],
+                    ["Esc", "close / leave"]
+                ]
+                delegate: Row {
+                    required property var modelData
+                    spacing: 12; height: 26
+                    Text { text: modelData[0]; color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                        width: 190; anchors.verticalCenter: parent.verticalCenter }
+                    Text { text: modelData[1]; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                        anchors.verticalCenter: parent.verticalCenter }
                 }
             }
         }
