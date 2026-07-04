@@ -8,6 +8,7 @@
 import QtQuick
 import QtWebEngine
 import QtWebChannel
+import "BookReaderLaunch.js" as Launch
 
 Item {
     id: reader
@@ -35,8 +36,7 @@ Item {
     }
     function openInPage() {
         if (reader.bookPath === "") return
-        var esc = reader.bookPath.replace(/\\/g, "\\\\").replace(/'/g, "\\'")
-        web.runJavaScript("window.__ebookOpenBook('" + esc + "')")
+        web.runJavaScript(Launch.buildOpenScript(reader.bookPath, reader.bookMeta || ({})))
     }
 
     Rectangle { anchors.fill: parent; color: "#000000" }

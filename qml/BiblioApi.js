@@ -11,6 +11,7 @@
 //   2. The RSS `entry` field is a single OBJECT when the feed has one result, an ARRAY when many.
 //      entriesOf() always normalizes to an array.
 .pragma library
+.import "BiblioLookupSelector.js" as Selector
 
 var COUNTRY = "us";
 var FEED = "https://itunes.apple.com/" + COUNTRY + "/rss/topebooks";
@@ -82,6 +83,7 @@ function mapBook(entry, index) {
     return {
         caption: name,
         title: name,
+        author: author,
         blurb: author ? ("By " + author + ".") : "On the Apple Books chart.",
         cover: cover,
         art: cover,
@@ -229,8 +231,14 @@ function search(query, done) {
 }
 
 // open-by-title: first match's full detail (so a home tile with only a title can open a detail)
-function lookupBook(title, done) {
-    search(title, function(books) { done(books.length ? books[0] : null); });
+function lookupBook(title, author, done) {
+    if (typeof author === "function") {
+        done = author
+        author = ""
+    }
+    search(title, function(books) {
+        done(Selector.pickBookMatch(books, title, author || ""));
+    });
 }
 
 // ───────────────────────────────────────────────────────────────────────────

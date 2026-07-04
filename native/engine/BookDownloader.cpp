@@ -51,7 +51,14 @@ QString sanitizeFilename(const QString& raw)
     s = s.trimmed();
     while (s.endsWith(QChar('.')) || s.endsWith(QChar(' '))) s.chop(1);
     if (s.isEmpty()) s = QStringLiteral("download");
-    if (s.size() > 200) s = s.left(200);
+    if (s.size() > 200) {
+        const QString suffix = QFileInfo(s).suffix();
+        const QString ext = suffix.isEmpty() ? QString() : QStringLiteral(".") + suffix;
+        const int keep = qMax(1, 200 - ext.size());
+        s = s.left(keep).trimmed();
+        while (s.endsWith(QChar('.')) || s.endsWith(QChar(' '))) s.chop(1);
+        s += ext;
+    }
     return s;
 }
 

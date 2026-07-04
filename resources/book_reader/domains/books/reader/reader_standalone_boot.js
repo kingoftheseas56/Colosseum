@@ -38,7 +38,7 @@
     // Determine format from extension
     var ext = (filePath.split('.').pop() || '').toLowerCase();
     var formatMap = { epub: 'epub', pdf: 'pdf', txt: 'txt', mobi: 'mobi', fb2: 'fb2' };
-    var format = formatMap[ext];
+    var format = formatMap[ext] || (/[\\/]/.test(ext) ? 'epub' : null);
     if (!format) {
       console.error('[ebook-standalone] Unknown format: ' + ext);
       return;

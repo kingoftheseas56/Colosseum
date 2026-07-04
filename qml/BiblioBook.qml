@@ -1,7 +1,7 @@
 // BiblioBook — the book "dust-jacket" detail page. Owner: A2. OUR OWN design (NOT the manga series
 // view): the cover as a physical object · the tagline as the hero · a drop-capped synopsis · an
-// "Editions" panel. Opens as a layer over the Biblio world (Main.qml bookLayer). `book` is a full
-// Apple object from BiblioApi.fullBook.
+// "Editions" panel. Opens as a layer over the Biblio world (Main.qml bookLayer). `book` can be
+// either a full Apple object from BiblioApi.fullBook or a canonical local-graph detail object.
 //
 // The Editions rows are a STUB until the libgen "delivery" layer is ported (TB2 had it; Colosseum
 // doesn't yet). Metadata + layout are real; the download list is a preview.
@@ -22,6 +22,7 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
     signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
+    signal seriesRequested(string series, string author)   // "part of …" chip → host opens the series roster
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }                 // swallow clicks to the world beneath
@@ -49,6 +50,12 @@ Item {
     onBookChanged: detail.loadEditions()
     function loadEditions() {
         if (!detail.book || !detail.book.title) return
+        if (detail.book.downloadCandidates && detail.book.downloadCandidates.length > 0) {
+            detail.edLoading = false
+            detail.editions = detail.book.downloadCandidates
+            detail.refreshLocal()
+            return
+        }
         detail.edLoading = true
         detail.editions = []
         BiblioApi.searchLibgen(detail.book.title, detail.book.author, function(eds) {
@@ -59,9 +66,20 @@ Item {
     }
     function edMeta(ed) {
         var p = []
+        if (ed.size) p.push("<b>" + ed.size + "</b>")
+        if (ed.source) p.push(String(ed.source).toUpperCase())   // LIBGEN / OCEANOFPDF / …
         if (ed.year) p.push(ed.year)
         if (ed.language) p.push(ed.language)
-        return p.length ? "   ·   " + p.join("   ·   ") : ""
+        return p.join("   ·   ")
+    }
+    // A clean format badge — graph candidates (esp. ReadAnyBook) can carry messy format strings, so pull
+    // a real extension out if there is one, else "WEB" for page-only sources and "FILE" as a last resort.
+    function fmtLabel(ed) {
+        var f = String((ed && ed.format) || "").toLowerCase()
+        var m = f.match(/\b(epub|pdf|mobi|azw3|azw|cbz|cbr|djvu|fb2|txt)\b/)
+        if (m) return m[1].toUpperCase()
+        if (f.indexOf("/") >= 0 && f.length <= 12) return f.toUpperCase()   // e.g. "pdf/epub"
+        return (ed && ed.md5) ? "FILE" : "WEB"
     }
 
     // ── download-fed reading: a click pulls the file IN-APP (never out to a browser) ──
@@ -76,9 +94,14 @@ Item {
         return detail.editions.length ? detail.editions[0] : null
     }
     function startDownload(ed) {
-        if (!ed || typeof Books === 'undefined') return
-        Books.downloadBook(ed.md5, detail.dlName(ed),
-                           (detail.book && detail.book.title) ? detail.book.title : "", 0)
+        if (!ed) return
+        // LibGen rows carry an md5 the native engine pulls in-app; other sources (OceanofPDF,
+        // ReadAnyBook) are page URLs — open the page to grab the file until native fetch lands.
+        if (ed.md5 && typeof Books !== 'undefined')
+            Books.downloadBook(ed.md5, detail.dlName(ed),
+                               (detail.book && detail.book.title) ? detail.book.title : "", 0)
+        else if (ed.url)
+            Qt.openUrlExternally(ed.url)
     }
     function refreshLocal() {
         if (typeof Books === 'undefined') { detail.localPath = ""; return }
@@ -273,6 +296,32 @@ Item {
                     font.family: theme.display; font.italic: true; font.pixelSize: 28
                     width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3
                 }
+                // ── "Part of <series>" chip → opens the canonical series roster (BiblioSeries) ──
+                Item { width: 1; height: 18; visible: seriesChip.visible }
+                Rectangle {
+                    id: seriesChip
+                    visible: detail.book && detail.book.series && String(detail.book.series).length > 0
+                    width: serRow.implicitWidth + 30; height: 36; radius: 18
+                    color: serMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.14) : Qt.rgba(1,1,1,0.05)
+                    border.width: 1; border.color: serMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
+                    Behavior on color { ColorAnimation { duration: 120 } }
+                    Row {
+                        id: serRow; anchors.centerIn: parent; spacing: 9
+                        Text { text: "SERIES"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10
+                            font.weight: Font.DemiBold; font.letterSpacing: 1.5; anchors.verticalCenter: parent.verticalCenter }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: (detail.book ? detail.book.series : "")
+                                  + (detail.book && detail.book.seriesPosition ? "  ·  Book " + detail.book.seriesPosition : "")
+                            color: theme.ink; font.family: theme.display; font.pixelSize: 15
+                        }
+                        Text { text: "›"; color: serMa.containsMouse ? theme.gold : theme.inkDim
+                            font.pixelSize: 18; anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    MouseArea { id: serMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: if (detail.book && detail.book.series)
+                                       detail.seriesRequested(detail.book.series, detail.book.author || "") }
+                }
                 Item { width: 1; height: 30 }
                 Item {                                // hairline rule with a gold tick
                     width: parent.width; height: 3
@@ -299,7 +348,7 @@ Item {
                 Item { width: 1; height: 40 }
                 // ── Editions — live from LibGen (recreates TB2's scraper); click opens the download ──
                 Text {
-                    text: "EDITIONS  ·  LIBGEN" + (detail.edLoading ? "  ·  SEARCHING…"
+                    text: "EDITIONS" + (detail.edLoading ? "  ·  SEARCHING…"
                           : (detail.editions.length > 0 ? "  ·  " + detail.editions.length : "  ·  NONE"))
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
@@ -319,7 +368,7 @@ Item {
                             Text {
                                 anchors.left: parent.left; anchors.leftMargin: 18
                                 anchors.verticalCenter: parent.verticalCenter
-                                text: detail.edLoading ? "Searching LibGen…" : "No editions found on LibGen"
+                                text: detail.edLoading ? "Searching LibGen…" : "No editions found"
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                             }
                         }
@@ -349,17 +398,17 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 16
                                     Rectangle {
-                                        width: 54; height: 24; radius: 7; color: "transparent"
+                                        width: Math.max(54, fmtT.implicitWidth + 16); height: 24; radius: 7; color: "transparent"
                                         border.width: 1
                                         border.color: modelData.best ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
                                         anchors.verticalCenter: parent.verticalCenter
-                                        Text { anchors.centerIn: parent; text: (modelData.format || "?").toUpperCase()
+                                        Text { id: fmtT; anchors.centerIn: parent; text: detail.fmtLabel(modelData)
                                             color: modelData.best ? theme.gold : theme.inkDim
                                             font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 }
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: "<b>" + (modelData.size || "") + "</b>" + detail.edMeta(modelData)
+                                        text: detail.edMeta(modelData)
                                         textFormat: Text.RichText
                                         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
                                     }
@@ -370,7 +419,8 @@ Item {
                                     text: edRow.dlState === "done" ? "✓"
                                         : edRow.dlState === "downloading" ? (Math.round(edRow.dlPct * 100) + "%")
                                         : edRow.dlState === "resolving" ? "…"
-                                        : edRow.dlState === "failed" ? "retry" : "↓"
+                                        : edRow.dlState === "failed" ? "retry"
+                                        : (edRow.modelData.md5 ? "↓" : "↗")
                                     color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
                                     font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16

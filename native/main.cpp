@@ -34,8 +34,14 @@
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "reader/BookBridge.h"
+#include "player/caststore.h"
+#include "player/downloadstore.h"
+#include "player/livestore.h"
 #include "player/mpvitem.h"
+#include "player/powerstore.h"
+#include "player/roomstore.h"
 #include "player/streamserver.h"
+#include "player/windowmodestore.h"
 
 class CachingNam : public QNetworkAccessManager {
 public:
@@ -217,10 +223,16 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_BOOK_DLTEST"))
         books->selfTest(qEnvironmentVariable("COLOSSEUM_BOOK_DLTEST"));
 
-    // SeriesIndex resolves the offline series DB from the live qml/ tree's sibling tools/ folder.
+    // SeriesIndex resolves the offline book graph from the live qml/ tree's sibling tools/ folder.
+    // Prefer the canonical graph when present; the older flat series DB remains the fallback seam.
     const QString qmlDir = QFileInfo(qmlPath).absolutePath();
-    const QString seriesDbPath = QDir(QDir(qmlDir).absoluteFilePath(QStringLiteral("..")))
-                                     .absoluteFilePath(QStringLiteral("tools/biblio_series.db"));
+    const QDir repoDir(QDir(qmlDir).absoluteFilePath(QStringLiteral("..")));
+    const QString canonicalSeriesDbPath =
+        repoDir.absoluteFilePath(QStringLiteral("tools/biblio_canonical_graph_goodreads_2000.sqlite"));
+    const QString legacySeriesDbPath =
+        repoDir.absoluteFilePath(QStringLiteral("tools/biblio_series.db"));
+    const QString seriesDbPath =
+        QFileInfo::exists(canonicalSeriesDbPath) ? canonicalSeriesDbPath : legacySeriesDbPath;
     auto *seriesIndex = new SeriesIndex(seriesDbPath, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("SeriesIndex"), seriesIndex);
     if (qEnvironmentVariableIsSet("COLOSSEUM_SERIES_SELFTEST"))
@@ -235,6 +247,34 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
+
+    // Cast session state exposed to QML as `Cast`. Network discovery/control is the
+    // later backend; this slice gives the player real device/session state today.
+    auto *cast = new CastStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Cast"), cast);
+
+    // Current-player video download state exposed to QML as `Download`.
+    auto *download = new DownloadStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Download"), download);
+
+    // Live TV / DVR player state exposed to QML as `Live`.
+    auto *live = new LiveStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Live"), live);
+
+    // Watch-room / together backbone exposed to QML as `Room`. This first slice is
+    // local and in-process, but it carries the participant/chat/sync model the
+    // network transport will publish later.
+    auto *room = new RoomStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Room"), room);
+
+    // Native player window modes exposed to QML as `WindowMode` for PiP/fullscreen parity.
+    auto *windowMode = new WindowModeStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("WindowMode"), windowMode);
+
+    // Playback power-inhibit exposed to QML as `Power`, matching Harbor's play-only
+    // OS/display sleep prevention.
+    auto *power = new PowerStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Power"), power);
 
     // Continue / resume backbone exposed to QML as `Progress`. The player and the
     // manga reader write watch/read progress; every Continue row reads it back.

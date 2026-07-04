@@ -44,9 +44,16 @@ Item {
         ser.entries = order.map(function(p) { return byPos[p] })
     }
 
-    function openByTitle(title) {
+    function openByTitle(title, author) {
         if (!title) return
-        BiblioApi.lookupBook(title, function(b) { if (b) ser.bookRequested(b) })
+        if (typeof SeriesIndex !== "undefined" && SeriesIndex.bookDetail) {
+            var canonicalBook = SeriesIndex.bookDetail(title, author || ser.author || "")
+            if (canonicalBook && canonicalBook.title) {
+                ser.bookRequested(canonicalBook)
+                return
+            }
+        }
+        BiblioApi.lookupBook(title, author || ser.author || "", function(b) { if (b) ser.bookRequested(b) })
     }
     function tint(i) {
         var pal = ["#5a2f45", "#6b2f45", "#7a3a4f", "#5a3550", "#3f5868", "#7a5a2f", "#2f5a55", "#4a3550"]
@@ -248,11 +255,11 @@ Item {
                                 Text { id: getTxt; anchors.centerIn: parent; text: "Download"
                                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
                                 MouseArea { id: getMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                    onClicked: ser.openByTitle(modelData.title) }
+                                    onClicked: ser.openByTitle(modelData.title, modelData.author || ser.author) }
                             }
                         }
                         MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true; z: -1
-                            cursorShape: Qt.PointingHandCursor; onClicked: ser.openByTitle(modelData.title) }
+                            cursorShape: Qt.PointingHandCursor; onClicked: ser.openByTitle(modelData.title, modelData.author || ser.author) }
                     }
                 }
             }
