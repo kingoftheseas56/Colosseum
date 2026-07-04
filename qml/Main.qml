@@ -96,6 +96,8 @@ Window {
         else if (downloadsLayer.active) win.closeDownloadsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
+        else if (westernLayer.active) win.closeWestern()
+        else if (comicGenreLayer.active) win.closeComicGenre()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
@@ -245,6 +247,8 @@ Window {
             westernLayer.item.tagId = westernLayer.tagId
             westernLayer.item.tagSlug = westernLayer.tagSlug
         } else westernLayer.active = true
+        // title-only open (Top-10 / genre tile): no tag change fires, ask the page to resolve
+        if (!westernLayer.tagSlug.length && westernLayer.item) westernLayer.item.resolve()
     }
     // open a western series AND jump straight into the reader (Continue / session resume)
     function openWesternAt(title, tagSlug, chapterId) {
@@ -259,6 +263,14 @@ Window {
         } else westernLayer.active = true
     }
     function closeWestern() { westernLayer.active = false }
+
+    // ---- western-comics genre page: curated starter shelf per mosaic tile ----
+    function openComicGenre(name) {
+        comicGenreLayer.genreName = name
+        if (comicGenreLayer.active && comicGenreLayer.item) comicGenreLayer.item.genreName = name
+        else comicGenreLayer.active = true
+    }
+    function closeComicGenre() { comicGenreLayer.active = false }
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) {
@@ -1006,6 +1018,10 @@ Window {
                     item.bookRequested.connect(win.openBook)
                     item.genreRequested.connect(win.openGenre)
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
+                    var westernSignal = item["westernRequested"]
+                    if (westernSignal) westernSignal.connect(function(title) { win.openWestern({ title: title }) })
+                    var comicGenreSignal = item["comicGenreRequested"]
+                    if (comicGenreSignal) comicGenreSignal.connect(win.openComicGenre)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
@@ -1226,6 +1242,25 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
+        }
+    }
+
+    // ---- western-comics genre layer: the curated genre page (below the series detail) ----
+    Loader {
+        id: comicGenreLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        property string genreName: ""
+        source: "ComicGenrePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.genreName = comicGenreLayer.genreName
+            item.backRequested.connect(win.closeComicGenre)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.westernPicked.connect(win.openWestern)
         }
     }
 

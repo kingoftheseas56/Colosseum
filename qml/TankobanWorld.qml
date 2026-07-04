@@ -16,6 +16,12 @@ WorldPage {
     id: tanko
     medium: "Tankoban"
 
+    // western-comics routes (2026-07-04 lane): a comic tile opens the GetComics
+    // shelf (ComicSeries resolves the tag from the title), a genre tile opens the
+    // curated western genre page. Declared here, not on the shared WorldPage.
+    signal westernRequested(string title)
+    signal comicGenreRequested(string genreName)
+
     FeaturedCarousel {
         kicker: "Featured in Tankoban"
         primaryLabel: "Read"; secondaryLabel: "Details"
@@ -39,6 +45,7 @@ WorldPage {
     TrendingTop10 {
         title: "Top in Tankoban — Comics"
         items: Catalog.topComics
+        onItemClicked: (i) => tanko.westernRequested(Catalog.topComics[i].caption)
     }
 
     GenreMosaic {
@@ -51,5 +58,7 @@ WorldPage {
     GenreMosaic {
         title: "Explore by Genre — Comics"
         genres: Catalog.genresComics
+        navigable: false     // no comics genre INDEX yet — tiles are live, "Explore ›" would be a dead door
+        onGenreClicked: (i) => tanko.comicGenreRequested(Catalog.genresComics[i].name)
     }
 }

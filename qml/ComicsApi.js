@@ -13,6 +13,57 @@
 var GC = "https://getcomics.org/wp-json/wp/v2";
 var ITUNES = "https://itunes.apple.com/search";
 
+// A browser UA on every call — the engine NAM stamps "Colosseum/0.1" otherwise,
+// which Cloudflare-fronted hosts throttle much sooner (the Fandom-UA lesson).
+var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
+
+// ── GetComics request queue ──
+// The WP API 429s bursts HARD (harness-proven 2026-07-04: even 2-concurrent trips
+// it, and an immediate retry just re-bounces off the limiter). So: ONE request in
+// flight, and a 429'd job goes to the BACK of the queue — the jobs ahead of it are
+// its cool-down (library JS has no timers). Two requeues, then it fails for real.
+// done(json, totalPages, totalItems).
+var _gcQueue = [], _gcActive = 0, GC_CONCURRENCY = 1;
+
+function gcJson(url, done) {
+    _gcQueue.push({ u: url, d: done, tries: 0 });
+    _gcPump();
+}
+function _gcPump() {
+    while (_gcActive < GC_CONCURRENCY && _gcQueue.length) {
+        _gcActive += 1;
+        _gcFire(_gcQueue.shift());
+    }
+}
+function _gcFire(job) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        var ok = xhr.status >= 200 && xhr.status < 300;
+        if (!ok && job.tries < 2) {
+            job.tries += 1;
+            _gcActive -= 1;
+            _gcQueue.push(job);          // retry LATER, behind whatever is pending
+            _gcPump();
+            return;
+        }
+        if (!ok) console.warn("[ComicsApi] GC request failed status=" + xhr.status
+                              + " url=…" + job.u.slice(-70));
+        _gcActive -= 1;
+        var out = null, tp = 0, tot = 0;
+        if (ok) {
+            tp  = Number(xhr.getResponseHeader("X-WP-TotalPages") || 0);
+            tot = Number(xhr.getResponseHeader("X-WP-Total") || 0);
+            try { out = JSON.parse(xhr.responseText); } catch (e) { out = null; }
+        }
+        try { job.d(out, tp, tot); } finally { _gcPump(); }
+    };
+    xhr.open("GET", job.u);
+    xhr.setRequestHeader("User-Agent", UA);
+    xhr.send();
+}
+
+// plain fetch for non-GetComics hosts (iTunes) — their limits are separate
 function reqJson(url, done) {
     var xhr = new XMLHttpRequest();
     xhr.onreadystatechange = function() {
@@ -21,21 +72,7 @@ function reqJson(url, done) {
         try { done(JSON.parse(xhr.responseText)); } catch (e) { done(null); }
     };
     xhr.open("GET", url);
-    xhr.send();
-}
-
-// like reqJson but hands back WP's pagination headers (exposed via CORS):
-// done(json, totalPages, totalItems)
-function reqJsonPaged(url, done) {
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function() {
-        if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { done(null, 0, 0); return; }
-        var tp  = Number(xhr.getResponseHeader("X-WP-TotalPages") || 0);
-        var tot = Number(xhr.getResponseHeader("X-WP-Total") || 0);
-        try { done(JSON.parse(xhr.responseText), tp, tot); } catch (e) { done(null, 0, 0); }
-    };
-    xhr.open("GET", url);
+    xhr.setRequestHeader("User-Agent", UA);
     xhr.send();
 }
 
@@ -54,12 +91,17 @@ function decodeEntities(s) {
 // WP's tag search is token-OR and alphabetical ("avatar the last airbender" leads
 // with "A Taste for Blood"), so: pull by release count, then rank by how many query
 // tokens the tag name actually contains — the real series floats to the top.
+var seriesCache = {};   // normalized query → ranked tag list (successes only — quota is precious)
+
 function searchSeries(query, done) {
+    var key = query.trim().toLowerCase();
+    if (seriesCache[key]) { done(seriesCache[key]); return; }
     var q = encodeURIComponent(query.trim());
-    reqJson(GC + "/tags?search=" + q + "&per_page=20&orderby=count&order=desc"
+    gcJson(GC + "/tags?search=" + q + "&per_page=20&orderby=count&order=desc"
             + "&_fields=id,name,slug,count", function(j) {
         if (!j || !j.length) { done([]); return; }
-        var toks = query.trim().toLowerCase().split(/\s+/).filter(function(t) { return t.length > 1 });
+        var ql = query.trim().toLowerCase();
+        var toks = ql.split(/\s+/).filter(function(t) { return t.length > 1 });
         var out = [];
         for (var i = 0; i < j.length; i++) {
             if (!j[i].count) continue;                       // empty tag = no releases
@@ -67,16 +109,23 @@ function searchSeries(query, done) {
             var nl = name.toLowerCase(), hits = 0;
             for (var t = 0; t < toks.length; t++)
                 if (nl.indexOf(toks[t]) >= 0) hits += 1;
+            // the exact-named series must beat a bigger fuzzy cousin ("Invincible"
+            // vs "Invincible Iron Man", "Batman" vs "Batman Beyond"): exact name
+            // outranks everything, prefix outranks plain token hits.
+            if (nl === ql) hits += 100;
+            else if (nl.indexOf(ql) === 0) hits += 10;
             out.push({ tagId: j[i].id, tag: j[i].slug, title: name,
                        count: j[i].count, _hits: hits });
         }
         out.sort(function(a, b) { return (b._hits - a._hits) || (b.count - a.count); });
-        done(out.slice(0, 6));
+        var ranked = out.slice(0, 6);
+        seriesCache[key] = ranked;
+        done(ranked);
     });
 }
 
 function tagBySlug(slug, done) {
-    reqJson(GC + "/tags?slug=" + encodeURIComponent(slug) + "&_fields=id,name,slug,count",
+    gcJson(GC + "/tags?slug=" + encodeURIComponent(slug) + "&_fields=id,name,slug,count",
         function(j) {
             if (!j || !j.length) { done(null); return; }
             done({ tagId: j[0].id, tag: j[0].slug,
@@ -126,7 +175,7 @@ var MAX_PAGES = 5;
 function releases(tagId, done) {
     var base = GC + "/posts?tags=" + tagId + "&per_page=100"
              + "&_fields=id,link,title,date,excerpt,yoast_head_json.og_image";
-    reqJsonPaged(base + "&page=1", function(j, totalPages, total) {
+    gcJson(base + "&page=1", function(j, totalPages, total) {
         if (!j || !j.length) { done([], 0); return; }
         var first = mapPosts(j);
         var pages = Math.min(totalPages || 1, MAX_PAGES);
@@ -134,7 +183,7 @@ function releases(tagId, done) {
         done(first, total || 0);                      // paint page 1 now
         var slots = new Array(pages - 1), pending = pages - 1;
         for (var p = 2; p <= pages; p++) (function(pg) {
-            reqJsonPaged(base + "&page=" + pg, function(jp) {
+            gcJson(base + "&page=" + pg, function(jp) {
                 slots[pg - 2] = (jp && jp.length) ? mapPosts(jp) : [];
                 pending -= 1;
                 if (pending > 0) return;

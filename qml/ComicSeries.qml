@@ -87,7 +87,21 @@ Item {
         if (!poster.length && seriesTitle.length)
             Api.posterFor(seriesTitle + " comic", function(art) { if (art) page.poster = art })
         if (tagId > 0) { loadReleases(); return }
-        if (!tagSlug.length) { errorMsg = "No series tag."; loading = false; return }
+        if (!tagSlug.length) {
+            // title-only open (a Top-10 tile, a genre-page tile): resolve the tag
+            // from the title — same ranked search the world search uses.
+            if (!seriesTitle.length) { errorMsg = "No series tag."; loading = false; return }
+            Api.searchSeries(seriesTitle, function(tags) {
+                if (!tags || !tags.length) {
+                    page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on GetComics."
+                    page.loading = false
+                    return
+                }
+                page.tagId = tags[0].tagId
+                page.tagSlug = tags[0].tag      // change signal re-enters resolve() on the tagId path
+            })
+            return
+        }
         Api.tagBySlug(tagSlug, function(t) {
             if (!t) { page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on GetComics."; page.loading = false; return }
             page.tagId = t.tagId

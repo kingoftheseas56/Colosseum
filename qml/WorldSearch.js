@@ -161,8 +161,20 @@ function searchTankoban(query, done) {
     var manga = null, western = null;
     function finish() {
         if (manga === null || western === null) return;
-        // manga leads (the world's native lane), western follows as its own group
-        done(manga.concat(western));
+        // Top Match must be the most title-relevant hit across BOTH lanes (same rule
+        // Theatre uses across movies/series) — before this, results[0] was always
+        // manga[0], so an EXACT comic match sat under a fuzzy manga hit. Groups keep
+        // manga-then-western order below the hero; ties go to manga (the native lane,
+        // earlier in the array).
+        var all = manga.concat(western);
+        var ql = query.trim().toLowerCase(), bestIdx = 0, bestScore = -1;
+        for (var i = 0; i < all.length; i++) {
+            var t = String(all[i].title || "").toLowerCase();
+            var s = (t === ql) ? 3 : (t.indexOf(ql) === 0 ? 2 : (t.indexOf(ql) >= 0 ? 1 : 0));
+            if (s > bestScore) { bestScore = s; bestIdx = i; }
+        }
+        if (bestIdx > 0) all.unshift(all.splice(bestIdx, 1)[0]);
+        done(all);
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });

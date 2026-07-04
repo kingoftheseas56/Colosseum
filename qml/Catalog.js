@@ -82,6 +82,27 @@ var genresComics = [
     { name: "Western",      count: 130,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication/v4/00/f2/c6/00f2c649-6f04-cad8-cee9-14164f0c0761/JAN130468.jpg/2000x2000bb.jpg", c1: "#a06a3f", c2: "#3a2616" }
 ];
 
+// Western comics per-genre starter shelves (CURATED v1 — same editorial status as the mosaic
+// tiles above, whose counts are also curated). Each title is resolved LIVE against GetComics
+// at open (ComicsApi.searchSeries), so entries that don't exist there simply drop out and
+// nothing here can rot into a dead link. Swap for a real genre brain only on evidence.
+var comicGenreSeries = {
+    "Superhero":    ["Batman", "The Amazing Spider-Man", "X-Men", "Superman", "Invincible", "Daredevil", "Wonder Woman", "The Immortal Hulk", "Justice League"],
+    "Sci-Fi":       ["Saga", "East of West", "Descender", "Paper Girls", "Transmetropolitan", "Black Science", "Undiscovered Country", "Radiant Black"],
+    "Action":       ["The Boys", "Kick-Ass", "The Punisher", "Deadpool", "Wolverine", "Old Man Logan", "Teenage Mutant Ninja Turtles", "Spawn"],
+    "Horror":       ["The Walking Dead", "Hellboy", "Something is Killing the Children", "Locke & Key", "30 Days of Night", "Gideon Falls", "Wytches", "Swamp Thing"],
+    "Crime":        ["Sin City", "Criminal", "100 Bullets", "Gotham Central", "The Fade Out", "Batman - The Long Halloween", "Scalped", "Stray Bullets"],
+    "Fantasy":      ["Fables", "The Sandman", "Monstress", "Birthright", "Die", "Once & Future", "Seven to Eternity", "Coda"],
+    "Adventure":    ["Bone", "Usagi Yojimbo", "Hellboy", "Black Hammer", "The Goon", "Atomic Robo", "Avatar - The Last Airbender", "Amulet"],
+    "Mystery":      ["The Sandman", "Blacksad", "The Department of Truth", "Black Monday Murders", "Fatale", "The Nice House on the Lake", "Batman - The Black Mirror"],
+    "Supernatural": ["Hellblazer", "Locke & Key", "The Wicked + The Divine", "American Vampire", "Rachel Rising", "Harrow County", "Infidel"],
+    "Romance":      ["Saga", "Sex Criminals", "Alex + Ada", "Snotgirl", "Fresh Romance", "Heartstopper"],
+    "Thriller":     ["Gideon Falls", "Nailbiter", "Revival", "Lazarus", "Sleeper", "The Black Monday Murders", "Near Death"],
+    "Drama":        ["Y - The Last Man", "Ex Machina", "Daytripper", "Essex County", "Royal City", "Blankets", "Maus"],
+    "War":          ["Punisher MAX", "Fury MAX", "The 'Nam", "War Stories", "Six Days", "Sara", "Peter Panzerfaust"],
+    "Western":      ["Preacher", "Jonah Hex", "The Sixth Gun", "Pretty Deadly", "East of West", "Undertaker", "Blueberry"]
+};
+
 // Theatre starts from Harbor/TB3's Cinemeta-shaped home: hero backdrops, Continue Watching,
 // a rank row, and genre entry points. Live addon rows come after the surface shape is proven.
 var theatreFeatured = [
