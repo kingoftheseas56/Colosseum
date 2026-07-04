@@ -75,6 +75,10 @@ public:
     //  done, total} — done/total are BYTES (doubles), unlike manga's page counts.
     Q_INVOKABLE QVariantMap statusOf(const QString& issueId) const;
 
+    // Bulk views for the Downloads page facade.
+    Q_INVOKABLE QVariantList downloadedIssues() const;
+    Q_INVOKABLE QVariantList activeIssueJobs() const;
+
     Q_INVOKABLE void cancelDownload(const QString& issueId);
     Q_INVOKABLE void deleteIssue(const QString& issueId);
 

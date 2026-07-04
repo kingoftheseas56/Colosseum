@@ -73,6 +73,10 @@ public:
     // { state:"none"|"resolving"|"downloading"|"queued"|"done", received, total }.
     Q_INVOKABLE QVariantMap statusOf(const QString& md5) const;
 
+    // Bulk views for the Downloads page facade.
+    Q_INVOKABLE QVariantList downloadedBooks() const;
+    Q_INVOKABLE QVariantList activeBookJobs() const;
+
     // Cancel a resolving / in-flight / queued download (aborts, drops partials).
     Q_INVOKABLE void cancelDownload(const QString& md5);
 

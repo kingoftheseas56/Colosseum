@@ -212,6 +212,50 @@ QVariantMap MangaDownloader::statusOf(const QString& chapterId) const
             {QStringLiteral("done"), 0}, {QStringLiteral("total"), 0}};
 }
 
+
+QVariantList MangaDownloader::downloadedChapters() const
+{
+    QVariantList out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
+        const bool missing = e.files.isEmpty()
+            || !QFile::exists(e.dir + QStringLiteral("/") + e.files.first());
+        out.append(QVariantMap{
+            {QStringLiteral("id"), it.key()},
+            {QStringLiteral("seriesId"), e.seriesId},
+            {QStringLiteral("seriesTitle"), e.seriesTitle},
+            {QStringLiteral("label"), e.chapterLabel},
+            {QStringLiteral("pages"), e.files.size()},
+            {QStringLiteral("bytes"), e.bytes},
+            {QStringLiteral("addedAt"), e.addedAt},
+            {QStringLiteral("missing"), missing}
+        });
+    }
+    return out;
+}
+
+QVariantList MangaDownloader::activeChapterJobs() const
+{
+    QVariantList out;
+    auto jobRow = [](const Job* j, const QString& state) {
+        return QVariantMap{
+            {QStringLiteral("id"), j->chapterId},
+            {QStringLiteral("seriesId"), j->seriesId},
+            {QStringLiteral("seriesTitle"), j->seriesTitle},
+            {QStringLiteral("label"), j->chapterLabel},
+            {QStringLiteral("state"), state},
+            {QStringLiteral("done"), j->done},
+            {QStringLiteral("total"), j->total}
+        };
+    };
+    for (auto it = m_active.constBegin(); it != m_active.constEnd(); ++it)
+        out.append(jobRow(it.value(), it.value()->total > 0
+                          ? QStringLiteral("downloading") : QStringLiteral("queued")));
+    for (const Job* q : m_queue)
+        out.append(jobRow(q, QStringLiteral("queued")));
+    return out;
+}
+
 // ---------------------------------------------------------------------------
 // delete / cancel
 // ---------------------------------------------------------------------------

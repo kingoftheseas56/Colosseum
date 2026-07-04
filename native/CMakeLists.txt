@@ -45,6 +45,8 @@ add_executable(colosseum
     engine/BookDownloader.h
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/LocalDownloads.cpp
+    engine/LocalDownloads.h
     reader/BookBridge.cpp
     reader/BookBridge.h
     player/caststore.cpp

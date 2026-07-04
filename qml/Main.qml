@@ -93,6 +93,7 @@ Window {
         else if (biblioGenreIndexLayer.active) win.closeBiblioGenreIndex()
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
+        else if (downloadsLayer.active) win.closeDownloadsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
@@ -274,6 +275,33 @@ Window {
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
+
+    // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
+    function openDownloadsPage() {
+        downloadsLayer.active = true
+        taskbar.open = false
+    }
+    function closeDownloadsPage() { downloadsLayer.active = false }
+    function routeDownloadItem(item) {
+        win.closeDownloadsPage()
+        if (item.world === "theatre") {
+            if (!playerLayer.active) playerLayer.active = true
+            win.playerOpen = true
+            playerLayer.item.playUrl(item.path, item.title)
+        } else if (item.world === "biblio") {
+            win.openBookSession(item.path, { "title": item.title || "" })
+        } else if (item.kind === "comic") {
+            win.openWesternAt(item.seriesTitle, String(item.seriesId).replace(/^gc:/, ""), item.id)
+        } else {
+            win.openSeriesAt(item.seriesTitle, item.seriesId, item.id)
+        }
+    }
+    function routeDownloadWorld(worldKey) {
+        win.closeDownloadsPage()
+        var medium = worldKey === "tankoban" ? "Tankoban"
+                   : worldKey === "biblio" ? "Biblio" : "Theatre"
+        win.openWorld(medium)
+    }
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         if (!playerLayer.active) playerLayer.active = true
@@ -1357,6 +1385,25 @@ Window {
         }
     }
 
+    // ---- Downloads page: unified local-media vault, entered from the taskbar ----
+    Loader {
+        id: downloadsLayer
+        anchors.fill: parent
+        z: 52
+        active: false
+        visible: active
+        source: "DownloadsPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeDownloadsPage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.openRequested.connect(win.routeDownloadItem)
+            item.openWorldRequested.connect(win.routeDownloadWorld)
+        }
+    }
+
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     Taskbar {
         id: taskbar
@@ -1367,6 +1414,10 @@ Window {
         onSwitchRequested: (id) => Sessions.switchTo(id)
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
+        downloadsBadge: (typeof LocalDownloads !== "undefined")
+                        ? (LocalDownloads.revision, LocalDownloads.totals.active || 0) : 0
+        downloadsActive: downloadsLayer.active
+        onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
     }
 
     Loader {

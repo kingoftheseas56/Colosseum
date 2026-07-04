@@ -33,6 +33,7 @@
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/ComicDownloader.h"
+#include "engine/LocalDownloads.h"
 #include "reader/BookBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
@@ -249,6 +250,12 @@ int main(int argc, char *argv[]) {
     // Current-player video download state exposed to QML as `Download`.
     auto *download = new DownloadStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Download"), download);
+
+    // Unified downloads read-model exposed to QML as `LocalDownloads` — the
+    // Downloads page renders this; every mutation still routes to the owning
+    // backend (Downloads / Books / Comics / Download).
+    auto *localDownloads = new LocalDownloads(downloads, books, comics, download, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
 
     // Live TV / DVR player state exposed to QML as `Live`.
     auto *live = new LiveStore(&app);

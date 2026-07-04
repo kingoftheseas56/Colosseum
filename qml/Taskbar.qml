@@ -18,6 +18,9 @@ Item {
     signal switchRequested(string id)
     signal closeRequested(string id)
     signal startClicked()
+    signal downloadsClicked()
+    property int downloadsBadge: 0        // live download jobs (gold count chip)
+    property bool downloadsActive: false  // the Downloads page is the front surface
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -118,6 +121,50 @@ Item {
                         bar.open = !bar.open
                         bar.autoRevealed = false   // opened (or closed) by hand → sticky, no pullback
                     }
+                }
+            }
+
+            // ---- Downloads: lives beside the Colosseum icon (ratified 2026-07-04) ----
+            Item {
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: dlMa.containsMouse || bar.downloadsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/download.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.downloadsActive ? 1 : 0.75
+                }
+                Rectangle {   // active-page underline, same gold language as session tiles
+                    visible: bar.downloadsActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                Rectangle {   // live-jobs badge
+                    visible: bar.downloadsBadge > 0
+                    anchors.top: parent.top; anchors.right: parent.right
+                    anchors.topMargin: 2; anchors.rightMargin: 2
+                    width: Math.max(17, badgeT.implicitWidth + 8); height: 17; radius: 9
+                    color: "#f0c44a"
+                    Text { id: badgeT; anchors.centerIn: parent
+                           text: bar.downloadsBadge
+                           color: "#141207"; font.pixelSize: 11; font.weight: Font.Bold }
+                }
+                MouseArea {
+                    id: dlMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.downloadsClicked()
                 }
             }
 

@@ -736,3 +736,48 @@ void ComicDownloader::selfTest(const QString& postUrl)
     downloadIssue(id, postUrl, QStringLiteral("gc:selftest"), QStringLiteral("selftest"),
                   QStringLiteral("selftest"), 0);
 }
+
+QVariantList ComicDownloader::downloadedIssues() const
+{
+    QVariantList out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
+        const bool missing = e.files.isEmpty()
+            || !QFile::exists(e.dir + QStringLiteral("/") + e.files.first());
+        out.append(QVariantMap{
+            {QStringLiteral("id"), it.key()},
+            {QStringLiteral("seriesId"), e.seriesId},
+            {QStringLiteral("seriesTitle"), e.seriesTitle},
+            {QStringLiteral("label"), e.label},
+            {QStringLiteral("pages"), e.files.size()},
+            {QStringLiteral("bytes"), e.bytes},
+            {QStringLiteral("addedAt"), e.addedAt},
+            {QStringLiteral("missing"), missing}
+        });
+    }
+    return out;
+}
+
+QVariantList ComicDownloader::activeIssueJobs() const
+{
+    QVariantList out;
+    auto row = [](const InFlight& f, const QString& state) {
+        return QVariantMap{
+            {QStringLiteral("id"), f.id},
+            {QStringLiteral("seriesId"), f.seriesId},
+            {QStringLiteral("seriesTitle"), f.seriesTitle},
+            {QStringLiteral("label"), f.label},
+            {QStringLiteral("state"), state},
+            {QStringLiteral("done"), double(f.receivedBytes)},
+            {QStringLiteral("total"), double(f.expectedBytes)}
+        };
+    };
+    if (m_active)
+        out.append(row(*m_active, m_active->extracting
+                       ? QStringLiteral("extracting") : QStringLiteral("downloading")));
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        out.append(row(it.value(), QStringLiteral("resolving")));
+    for (const InFlight& q : m_queue)
+        out.append(row(q, QStringLiteral("queued")));
+    return out;
+}

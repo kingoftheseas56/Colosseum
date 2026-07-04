@@ -882,10 +882,17 @@ Item {
         var url = root.currentCastUrl()
         if (!url.length)
             return
+        var meta = parseSubtitleMeta()
+        var fullTitle = root.mediaTitle || mpv.mediaTitle || "Video"
         Download.startDownload({
             "url": url,
-            "title": root.mediaTitle || mpv.mediaTitle || "Video",
-            "subtitle": root.mediaSubtitle || ""
+            "title": fullTitle,
+            "subtitle": root.mediaSubtitle || "",
+            "id": root.subStreamId || "",
+            "season": meta.season !== undefined ? meta.season : 0,
+            "episode": meta.episode !== undefined ? meta.episode : 0,
+            "kind": meta.type === "series" ? "episode" : "movie",
+            "seriesTitle": fullTitle.replace(/\s*[-—]\s*S\d+E\d+.*$/, "")
         })
         root.wakeChrome()
     }

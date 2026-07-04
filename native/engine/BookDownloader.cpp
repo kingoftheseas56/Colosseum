@@ -619,3 +619,48 @@ void BookDownloader::selfTest(const QString& md5)
     });
     downloadBook(md5, QString(), QStringLiteral("selftest"), 0);
 }
+
+QVariantList BookDownloader::downloadedBooks() const
+{
+    QVariantList out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
+        out.append(QVariantMap{
+            {QStringLiteral("id"), it.key()},
+            {QStringLiteral("title"), e.title},
+            {QStringLiteral("path"), e.path},
+            {QStringLiteral("bytes"), e.bytes},
+            {QStringLiteral("addedAt"), e.addedAt},
+            {QStringLiteral("missing"), !QFile::exists(e.path)}
+        });
+    }
+    return out;
+}
+
+QVariantList BookDownloader::activeBookJobs() const
+{
+    QVariantList out;
+    if (m_active)
+        out.append(QVariantMap{
+            {QStringLiteral("id"), m_active->md5},
+            {QStringLiteral("title"), m_active->title},
+            {QStringLiteral("state"), QStringLiteral("downloading")},
+            {QStringLiteral("done"), double(m_active->receivedBytes)},
+            {QStringLiteral("total"), double(m_active->expectedBytes)}
+        });
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        out.append(QVariantMap{
+            {QStringLiteral("id"), it.value().md5},
+            {QStringLiteral("title"), it.value().title},
+            {QStringLiteral("state"), QStringLiteral("resolving")},
+            {QStringLiteral("done"), 0.0}, {QStringLiteral("total"), 0.0}
+        });
+    for (const InFlight& q : m_queue)
+        out.append(QVariantMap{
+            {QStringLiteral("id"), q.md5},
+            {QStringLiteral("title"), q.title},
+            {QStringLiteral("state"), QStringLiteral("queued")},
+            {QStringLiteral("done"), 0.0}, {QStringLiteral("total"), double(q.expectedBytes)}
+        });
+    return out;
+}

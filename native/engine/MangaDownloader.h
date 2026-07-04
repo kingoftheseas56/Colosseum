@@ -75,6 +75,12 @@ public:
     // Cancel a queued or in-flight download (aborts replies, drops partials). Emits failed(reason="cancelled").
     Q_INVOKABLE void cancelDownload(const QString& chapterId);
 
+    // Bulk views for the Downloads page facade. downloadedChapters() dumps the
+    // whole index (missing:true when the first file vanished outside the app);
+    // activeChapterJobs() lists in-flight + queued jobs with live page counts.
+    Q_INVOKABLE QVariantList downloadedChapters() const;
+    Q_INVOKABLE QVariantList activeChapterJobs() const;
+
     // Resolve a chapter's THUMBNAIL = its first page. Downloaded -> local file (instant);
     // otherwise scrape the first page once (capped concurrency, cached). Always answers
     // exactly once via thumbReady(chapterId, url) ("" = no thumb).
