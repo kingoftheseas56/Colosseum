@@ -32,8 +32,6 @@ add_executable(colosseum
     MangaEngine.h
     ProgressStore.h
     SessionStore.h
-    series/seriesindex.cpp
-    series/seriesindex.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h
@@ -53,7 +51,7 @@ add_executable(colosseum
     player/streamserver.cpp
     player/streamserver.h
 )
-target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player series)
+target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel)
 

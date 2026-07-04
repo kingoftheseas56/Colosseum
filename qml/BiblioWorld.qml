@@ -1,6 +1,5 @@
 // BiblioWorld - the Colosseum world page for books. Owner: A2.
-// Same spine as Tankoban/Theatre, trimmed to the agreed BASE: Featured carousel, Top-10, genres.
-// (No Continue row yet - there's no reading-progress to feed it; that comes "on top" later.)
+// Same spine as Tankoban/Theatre: Featured carousel, Continue, Top-10, genres.
 //
 // Discovery = Apple Books charts via BiblioApi (live, daily-fresh). Catalog.biblio* is the static
 // fallback so the page paints instantly and never sits empty if the live call is slow. Delivery
@@ -18,6 +17,7 @@ WorldPage {
     property var topRows: Catalog.biblioTop
     property var genreRows: Catalog.biblioGenres
     signal biblioGenreRequested(string genreName)
+    signal biblioGenreIndexRequested()
 
     // Live override: swap in Apple's fresh chart once it lands; keep the static fallback on failure.
     Component.onCompleted: BiblioApi.loadBiblio(function(rows) {
@@ -42,6 +42,13 @@ WorldPage {
         onSecondaryClicked: (i) => biblio.openByTitle(biblio.featuredRows[i] ? biblio.featuredRows[i].title : "")
     }
 
+    ContinueRow {
+        title: "Continue"
+        items: (Progress.revision, Progress.recent("book", 12))
+        onResumeRequested: (item) => biblio.continueResumeRequested(item)
+        onDetailRequested: (item) => biblio.continueDetailRequested(item)
+    }
+
     TrendingTop10 {
         title: "Top 10 in Biblio"
         items: biblio.topRows
@@ -52,5 +59,6 @@ WorldPage {
         title: "Browse Biblio"
         genres: biblio.genreRows
         onGenreClicked: (i) => biblio.biblioGenreRequested(biblio.genreRows[i].name)
+        onExploreClicked: biblio.biblioGenreIndexRequested()
     }
 }

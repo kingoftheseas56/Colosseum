@@ -89,8 +89,8 @@ Window {
         if (win.playerOpen) win.closePlayer()
         else if (bookReaderLayer.active) win.closeBookReader()
         else if (bookLayer.active) win.closeBook()
-        else if (biblioSeriesLayer.active) win.closeBiblioSeries()
         else if (biblioGenreLayer.active) win.closeBiblioGenre()
+        else if (biblioGenreIndexLayer.active) win.closeBiblioGenreIndex()
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
@@ -181,6 +181,11 @@ Window {
     }
     function closeBiblioGenre() { biblioGenreLayer.active = false }
 
+    // ---- Biblio genre INDEX (the books "Explore" directory) — sits below BiblioGenrePage so a
+    //      picked genre opens its page over the index (same layering law as the manga pair). ----
+    function openBiblioGenreIndex() { biblioGenreIndexLayer.active = true }
+    function closeBiblioGenreIndex() { biblioGenreIndexLayer.active = false }
+
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
     function openSeries(title) {
         seriesLayer.resumeSeriesId = ""
@@ -243,17 +248,6 @@ Window {
         else bookReaderLayer.active = true
     }
     function closeBookReader() { bookReaderLayer.active = false }
-
-    // ---- series detail: Biblio's series page (offline SeriesIndex), a layer over the world ----
-    function openBiblioSeries(series, author) {
-        biblioSeriesLayer.series = series
-        biblioSeriesLayer.author = author || ""
-        if (biblioSeriesLayer.active && biblioSeriesLayer.item) {
-            biblioSeriesLayer.item.author = biblioSeriesLayer.author
-            biblioSeriesLayer.item.series = series
-        } else biblioSeriesLayer.active = true
-    }
-    function closeBiblioSeries() { biblioSeriesLayer.active = false }
 
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
@@ -830,6 +824,8 @@ Window {
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
+                    var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
+                    if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     if (item.wallpaperClicked) item.wallpaperClicked.connect(function() { win.openWallpaperSearch(mode) })
@@ -908,6 +904,25 @@ Window {
         }
     }
 
+    // Biblio genre INDEX layer — same z as the page layer but declared FIRST, so the
+    // later-declared BiblioGenrePage paints over it when both are up.
+    Loader {
+        id: biblioGenreIndexLayer
+        anchors.fill: parent
+        z: 46
+        active: false
+        visible: active
+        source: "BiblioGenreIndex.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeBiblioGenreIndex)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.genrePicked.connect(win.openBiblioGenre)
+        }
+    }
+
     Loader {
         id: biblioGenreLayer
         anchors.fill: parent
@@ -924,7 +939,9 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.bookRequested.connect(win.openBook)
-            item.seriesRequested.connect(win.openBiblioSeries)
+            if (item.exploreRequested) item.exploreRequested.connect(function() {
+                win.closeBiblioGenre(); win.openBiblioGenreIndex()
+            })
         }
     }
 
@@ -1055,33 +1072,12 @@ Window {
             item.backRequested.connect(win.closeSearch)
             item.homeRequested.connect(function() { win.closeSearch(); win.closeWorld() })
             item.bookRequested.connect(win.openBook)
-            item.seriesRequested.connect(win.openBiblioSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
         }
     }
 
     // ---- Biblio series detail layer: opened from a SERIES card (above search, below the book detail) ----
-    Loader {
-        id: biblioSeriesLayer
-        anchors.fill: parent
-        z: 52
-        active: false
-        visible: active
-        property string series: ""
-        property string author: ""
-        source: "BiblioSeries.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.author = biblioSeriesLayer.author
-            item.series = biblioSeriesLayer.series
-            item.backRequested.connect(win.closeBiblioSeries)
-            item.bookRequested.connect(win.openBook)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-        }
-    }
-
     // ---- universe art warmer: once the shell is up, quietly pull the BUILT universes' art into the
     //      disk cache so opening "Explore" shows it INSTANTLY (the app's download-once-then-instant
     //      model). Idle work — runs after boot, off the critical path; hidden Images do the warming.
