@@ -31,6 +31,7 @@ Item {
     property string episodeLayout: "list"
     property bool episodeJumpOpen: false
     property var seasonQueued: ({})   // season -> queued this visit
+    property bool seasonMenuOpen: false
     property string episodeJumpDraft: ""
     property bool loading: true
     property string errorMsg: ""
@@ -615,9 +616,109 @@ Item {
                     width: parent.width
                     spacing: 0
 
-                    Flickable {
+                    Item {
+                        // 11+ seasons: a Netflix-style dropdown — the sideways strip has no
+                        // sideways browsing affordance in this app, so long shows use this.
                         width: parent.width
-                        height: 44
+                        height: 56
+                        z: 40
+                        visible: page.seasons.length > 10
+                        Rectangle {
+                            id: seasonTrigger
+                            x: theme.margin
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: seasonTrigT.implicitWidth + 52
+                            height: 38
+                            radius: 19
+                            color: seasonTrigMa.containsMouse || page.seasonMenuOpen
+                                   ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06)
+                            border.width: 1
+                            border.color: page.seasonMenuOpen ? theme.gold : theme.edge
+                            Text {
+                                id: seasonTrigT
+                                x: 16
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: page.seasonLabel()
+                                color: theme.ink
+                                font.family: theme.ui
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                anchors.right: parent.right
+                                anchors.rightMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: "\u25be"
+                                color: page.seasonMenuOpen ? theme.gold : theme.inkDim
+                                font.pixelSize: 12
+                            }
+                            MouseArea {
+                                id: seasonTrigMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.seasonMenuOpen = !page.seasonMenuOpen
+                            }
+                        }
+                        Item {
+                            // zero-height overlay host: the menu floats, never reflows the page
+                            x: theme.margin
+                            anchors.top: seasonTrigger.bottom
+                            anchors.topMargin: 8
+                            width: 236
+                            height: 0
+                            Rectangle {
+                                width: parent.width
+                                height: Math.min(304, seasonMenuList.contentHeight + 12)
+                                visible: page.seasonMenuOpen
+                                radius: 14
+                                color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
+                                border.width: 1
+                                border.color: theme.edge
+                                ListView {
+                                    id: seasonMenuList
+                                    anchors.fill: parent
+                                    anchors.margins: 6
+                                    clip: true
+                                    model: page.seasons
+                                    boundsBehavior: Flickable.StopAtBounds
+                                    delegate: Rectangle {
+                                        id: smRow
+                                        required property var modelData
+                                        width: seasonMenuList.width
+                                        height: 36
+                                        radius: 9
+                                        color: smMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                                        Text {
+                                            x: 12
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: smRow.modelData === 0 ? "Specials" : "Season " + smRow.modelData
+                                            color: page.activeSeason === smRow.modelData ? theme.gold : theme.inkDim
+                                            font.family: theme.ui
+                                            font.pixelSize: 13
+                                            font.weight: page.activeSeason === smRow.modelData ? Font.DemiBold : Font.Normal
+                                        }
+                                        MouseArea {
+                                            id: smMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                page.activeSeason = smRow.modelData
+                                                page.seasonMenuOpen = false
+                                                episodeList.positionViewAtBeginning()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Flickable {
+                        visible: page.seasons.length <= 10
+                        width: parent.width
+                        height: page.seasons.length <= 10 ? 44 : 0
                         contentWidth: seasonRow.width
                         contentHeight: height
                         clip: true
@@ -689,18 +790,30 @@ Item {
 
                         // Season checkout: queue every not-yet-downloaded episode of the
                         // ACTIVE season. Each job resolves its stream lazily when promoted.
-                        Text {
+                        Rectangle {
+                            // the ACTION wears the glass tablet...
                             visible: typeof Download !== "undefined" && page.episodes.length > 0
                             anchors.verticalCenter: parent.verticalCenter
-                            leftPadding: 10
-                            text: page.seasonQueued[page.activeSeason]
-                                  ? (page.seasonLabel() + " queued")
-                                  : "Download " + page.seasonLabel()
-                            color: page.seasonQueued[page.activeSeason] ? theme.inkDim
-                                 : (dlSeasonMa.containsMouse ? "#ffd968" : theme.gold)
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
+                            width: dlSeasonT.implicitWidth + 32
+                            height: 30
+                            radius: 15
+                            color: dlSeasonMa.containsMouse && !page.seasonQueued[page.activeSeason]
+                                   ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
+                            border.width: 1
+                            border.color: page.seasonQueued[page.activeSeason]
+                                          ? theme.edge : Qt.rgba(0.94, 0.77, 0.29, 0.45)
+                            Text {
+                                id: dlSeasonT
+                                anchors.centerIn: parent
+                                text: page.seasonQueued[page.activeSeason]
+                                      ? (page.seasonLabel() + " queued")
+                                      : "Download " + page.seasonLabel()
+                                color: page.seasonQueued[page.activeSeason] ? theme.inkDim
+                                     : (dlSeasonMa.containsMouse ? "#ffd968" : theme.gold)
+                                font.family: theme.ui
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
                             MouseArea {
                                 id: dlSeasonMa
                                 anchors.fill: parent
@@ -712,11 +825,13 @@ Item {
                         }
 
                         Text {
+                            // ...the STATUS reads as a quiet tag, not a second button
                             visible: page.nextUpEpisodeNumber() > 0
-                            text: "Next E" + page.nextUpEpisodeNumber()
-                            color: theme.gold
+                            text: "NEXT \u00b7 E" + page.nextUpEpisodeNumber()
+                            color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: 11
+                            font.letterSpacing: 1.2
                             font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter
                         }
@@ -799,13 +914,15 @@ Item {
                         }
                     }
 
+                    Item { width: parent.width; height: 0; z: 30   // overlay host: the panel floats
                     Rectangle {
                         x: Math.max(theme.margin, parent.width - theme.margin - 292)
+                        y: 6
                         width: 292
                         height: jumpRanges.height + 58
                         radius: 12
                         visible: page.episodeJumpOpen
-                        color: Qt.rgba(6, 7, 10, 0.96)
+                        color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
                         border.width: 1
                         border.color: theme.edge
                         z: 3
@@ -909,6 +1026,8 @@ Item {
                                 }
                             }
                         }
+                    }
+
                     }
 
                     ListView {
