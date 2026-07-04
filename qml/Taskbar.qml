@@ -21,6 +21,32 @@ Item {
 
     onOpenChanged: if (!open) fan.visible = false
 
+    // ---- auto-reveal (2026-07-04): a minimize extends the bar out of the icon so you SEE the
+    //      session arrive, then it pulls back after 15s without taskbar interaction. A bar the
+    //      user opened by clicking the icon is sticky — only auto-revealed bars pull back. ----
+    property bool autoRevealed: false
+    function reveal() {
+        open = true
+        autoRevealed = true
+        idleTimer.restart()
+    }
+    Timer {
+        id: idleTimer
+        interval: 15000
+        onTriggered: {
+            if (dockHover.hovered || fanHover.hovered) { restart(); return }   // still engaged
+            if (bar.autoRevealed) { bar.open = false; bar.autoRevealed = false }
+        }
+    }
+
+    // while the fan is up, a click anywhere that isn't the fan collapses it (Windows popup rule);
+    // sits UNDER the dock and fan, so their own controls keep first claim on the click.
+    MouseArea {
+        anchors.fill: parent
+        visible: fan.visible
+        onClicked: fan.visible = false
+    }
+
     function groupHasActive(group) {
         var sessions = group.sessions || []
         for (var i = 0; i < sessions.length; i++) {
@@ -47,6 +73,12 @@ Item {
         Behavior on radius { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 140 } }
         Behavior on border.color { ColorAnimation { duration: 140 } }
+
+        // any engagement with the bar holds the auto-pullback clock
+        HoverHandler {
+            id: dockHover
+            onHoveredChanged: if (hovered && bar.autoRevealed) idleTimer.restart()
+        }
 
         RowLayout {
             anchors.fill: parent
@@ -82,7 +114,10 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: bar.open = !bar.open
+                    onClicked: {
+                        bar.open = !bar.open
+                        bar.autoRevealed = false   // opened (or closed) by hand → sticky, no pullback
+                    }
                 }
             }
 
@@ -181,6 +216,11 @@ Item {
         color: Qt.rgba(0.04, 0.04, 0.06, 0.96)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.14)
+
+        HoverHandler {
+            id: fanHover
+            onHoveredChanged: if (hovered && bar.autoRevealed) idleTimer.restart()
+        }
 
         function openFor(tile, nextSessions) {
             fan.sessions = nextSessions

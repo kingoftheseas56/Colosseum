@@ -1185,6 +1185,9 @@ Window {
                 // no next session: land on the world behind (Windows-like), not always home
                 currentSurface = worldStack.current || "Home"
                 refreshWallpaper()
+                // a MINIMIZE (record kept, nothing became active): pop the taskbar out so the
+                // user sees where the session went; it pulls back after 15 idle seconds.
+                if (prevId && Sessions.get(prevId).id) taskbar.reveal()
             }
         }
     }
