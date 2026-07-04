@@ -916,7 +916,7 @@ Item {
                         width: parent.width
                         height: page.episodeLayout === "strip"
                                 ? 210
-                                : Math.min(page.episodes.length * rowHeight,
+                                : Math.min(page.episodes.length * (rowHeight + spacing),
                                            Math.max(360, page.height - 210))
                         clip: true
                         model: page.episodes
@@ -925,8 +925,8 @@ Item {
                         flickableDirection: page.episodeLayout === "strip" ? Flickable.HorizontalFlick : Flickable.VerticalFlick
                         reuseItems: true
                         cacheBuffer: rowHeight * 6
-                        spacing: 0
-                        property int rowHeight: 92
+                        spacing: page.episodeLayout === "strip" ? 0 : 8
+                        property int rowHeight: 121
 
                         onModelChanged: positionViewAtBeginning()
 
@@ -960,19 +960,21 @@ Item {
                             height: strip ? 190 : episodeList.rowHeight
                             Rectangle {
                                 anchors.fill: parent
-                                color: ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.07)
-                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                                anchors.leftMargin: ep.strip ? 0 : theme.margin - 10
+                                anchors.rightMargin: ep.strip ? 0 : theme.margin - 10
+                                color: ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.06)
+                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent")
                                 border.width: ep.strip ? 1 : 0
                                 border.color: ep.nextUp ? theme.gold : theme.edge
-                                radius: ep.strip ? 10 : 0
+                                radius: ep.strip ? 10 : 14
                             }
                             Rectangle {
                                 id: thumb
                                 x: ep.strip ? 10 : theme.margin
                                 y: ep.strip ? 10 : (parent.height - height) / 2
-                                width: ep.strip ? parent.width - 20 : 132
-                                height: ep.strip ? 118 : 74
-                                radius: ep.strip ? 8 : 6
+                                width: ep.strip ? parent.width - 20 : 176
+                                height: ep.strip ? 118 : 99
+                                radius: ep.strip ? 8 : 10
                                 clip: true
                                 color: "#15171f"
                                 Image {
@@ -991,6 +993,24 @@ Item {
                                     font.family: theme.display
                                     font.pixelSize: 22
                                 }
+                                Rectangle {   // episode-number badge (Electron device)
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    anchors.margins: 7
+                                    width: numT.implicitWidth + 10
+                                    height: 22
+                                    radius: 6
+                                    color: Qt.rgba(0, 0, 0, 0.7)
+                                    Text {
+                                        id: numT
+                                        anchors.centerIn: parent
+                                        text: page.episodeNumber(ep.modelData)
+                                        color: theme.ink
+                                        font.family: theme.ui
+                                        font.pixelSize: 12
+                                        font.weight: Font.Bold
+                                    }
+                                }
                                 Rectangle {
                                     anchors.right: parent.right
                                     anchors.top: parent.top
@@ -999,11 +1019,11 @@ Item {
                                     height: 24
                                     radius: 12
                                     visible: ep.watched
-                                    color: Qt.rgba(0.15, 0.65, 0.38, 0.92)
+                                    color: theme.gold
                                     Text {
                                         anchors.centerIn: parent
                                         text: "\u2713"
-                                        color: theme.ink
+                                        color: "#14110a"
                                         font.family: theme.ui
                                         font.pixelSize: 13
                                         font.weight: Font.DemiBold
@@ -1013,7 +1033,7 @@ Item {
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.bottom: parent.bottom
-                                    height: 3
+                                    height: 4
                                     visible: ep.progressRatio > 0.01 && !ep.watched
                                     color: Qt.rgba(0, 0, 0, 0.5)
                                     Rectangle {
@@ -1026,9 +1046,10 @@ Item {
                             Column {
                                 anchors.left: ep.strip ? parent.left : thumb.right
                                 anchors.leftMargin: ep.strip ? 12 : 18
+                                anchors.verticalCenter: ep.strip ? undefined : parent.verticalCenter
                                 anchors.right: parent.right
                                 anchors.rightMargin: ep.strip ? 12 : theme.margin
-                                y: ep.strip ? 134 : (parent.height - height) / 2
+                                y: ep.strip ? 134 : 0
                                 spacing: 5
                                 Text {
                                     width: parent.width
@@ -1043,31 +1064,36 @@ Item {
                                     elide: Text.ElideRight
                                 }
                                 Text {
-                                    visible: ep.nextUp || ep.watched || ep.progressRatio > 0.01
-                                    text: ep.watched ? "Watched"
-                                          : (ep.nextUp ? "Next up"
-                                             : (Math.round(ep.progressRatio * 100) + "% watched"))
-                                    color: ep.watched ? "#76d49a" : theme.gold
+                                    // one dim status line: state + date joined, gold ONLY for Next up
+                                    visible: text.length > 0
+                                    text: {
+                                        var parts = [];
+                                        if (ep.nextUp) parts.push("Next up");
+                                        else if (ep.watched) parts.push("Watched");
+                                        else if (ep.progressRatio > 0.01) parts.push(Math.round(ep.progressRatio * 100) + "% watched");
+                                        if (ep.modelData.released) {
+                                            var d = new Date(ep.modelData.released);
+                                            parts.push(d.toLocaleDateString(Qt.locale(), Locale.ShortFormat));
+                                        }
+                                        return parts.join(" \u00b7 ");
+                                    }
+                                    color: ep.nextUp ? theme.gold : theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: 12
                                     font.weight: Font.DemiBold
                                 }
                                 Text {
-                                    visible: !!ep.modelData.released
-                                    text: {
-                                        var d = ep.modelData.released ? new Date(ep.modelData.released) : null;
-                                        return d ? d.toLocaleDateString(Qt.locale(), Locale.ShortFormat) : "";
-                                    }
+                                    visible: !ep.strip && !!(ep.modelData.overview || ep.modelData.description)
+                                    width: parent.width
+                                    text: ep.modelData.overview || ep.modelData.description || ""
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 12
+                                    font.pixelSize: 13
+                                    lineHeight: 1.35
+                                    wrapMode: Text.WordWrap
+                                    maximumLineCount: 2
+                                    elide: Text.ElideRight
                                 }
-                            }
-                            Rectangle {
-                                anchors.bottom: parent.bottom
-                                width: parent.width
-                                height: 1
-                                color: Qt.rgba(1, 1, 1, 0.05)
                             }
                             MouseArea {
                                 id: epMa
