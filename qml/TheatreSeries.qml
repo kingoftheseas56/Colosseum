@@ -33,8 +33,14 @@ Item {
     property string episodeJumpDraft: ""
     property bool loading: true
     property string errorMsg: ""
+    // When an anime meta pivots to Cinemeta (kitsu -> imdb id), the meta's own id is
+    // the identity everything keys off (episode stream ids, progress, last-season).
+    property string resolvedId: ""
 
-    function currentId() { return (itemData && itemData.id) ? itemData.id : "" }
+    function currentId() {
+        if (resolvedId.length) return resolvedId;
+        return (itemData && itemData.id) ? itemData.id : "";
+    }
     function episodeSeason(v) { return (v.season !== undefined) ? v.season : (v.seasonNumber || 0) }
     function episodeNumber(v) { return (v.episode !== undefined) ? v.episode : (v.number || 0) }
 
@@ -231,6 +237,7 @@ Item {
         videos = [];
         seasons = [];
         activeSeason = 0;
+        resolvedId = "";
         var id = currentId();
         if (!id) { loading = false; errorMsg = "No id for this title."; return; }
         revealGuard.restart();
@@ -241,6 +248,7 @@ Item {
                 revealGuard.stop();
                 return;
             }
+            if (meta.id) resolvedId = String(meta.id);
             if (meta.name) title = meta.name;
             var bg = TheatreApi.normalizeArtUrl(meta.background || "");
             if (bg) banner = bg;
@@ -579,24 +587,32 @@ Item {
                             topPadding: 18
                             Repeater {
                                 model: page.seasons
-                                delegate: Column {
+                                // Delegate root is an Item, NOT the Column itself: a MouseArea
+                                // with anchors.fill inside a positioner is ignored (0x0, dead
+                                // clicks) and breaks the Column's layout entirely.
+                                delegate: Item {
                                     id: seasonBtn
                                     required property var modelData
-                                    spacing: 5
+                                    width: seasonCol.width
+                                    height: seasonCol.height
                                     property bool on: page.activeSeason === seasonBtn.modelData
-                                    Text {
-                                        text: "Season " + seasonBtn.modelData
-                                        color: seasonBtn.on ? theme.gold : (seasonMa.containsMouse ? theme.ink : theme.inkDim)
-                                        font.family: theme.ui
-                                        font.pixelSize: 15
-                                        font.weight: seasonBtn.on ? Font.DemiBold : Font.Normal
-                                    }
-                                    Rectangle {
-                                        visible: seasonBtn.on
-                                        width: 26
-                                        height: 2
-                                        radius: 2
-                                        color: theme.gold
+                                    Column {
+                                        id: seasonCol
+                                        spacing: 5
+                                        Text {
+                                            text: "Season " + seasonBtn.modelData
+                                            color: seasonBtn.on ? theme.gold : (seasonMa.containsMouse ? theme.ink : theme.inkDim)
+                                            font.family: theme.ui
+                                            font.pixelSize: 15
+                                            font.weight: seasonBtn.on ? Font.DemiBold : Font.Normal
+                                        }
+                                        Rectangle {
+                                            visible: seasonBtn.on
+                                            width: 26
+                                            height: 2
+                                            radius: 2
+                                            color: theme.gold
+                                        }
                                     }
                                     MouseArea {
                                         id: seasonMa

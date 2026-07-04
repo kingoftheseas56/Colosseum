@@ -134,7 +134,19 @@ function loadMeta(type, id, done) {
             ANIME_KITSU + "/meta/series/" + enc + ".json",
             ANIME_KITSU + "/meta/movie/" + enc + ".json"
         ], function(json) {
-            done(json && json.meta ? json.meta : null);
+            var meta = json && json.meta ? json.meta : null;
+            // Kitsu addon entries are one-season-per-entry, so an anime series can
+            // never grow a season selector from them. When the anime carries an IMDb
+            // id, pivot to Cinemeta for the full multi-season episode list (Harbor's
+            // path); keep the kitsu meta as the fallback if Cinemeta has nothing.
+            if (meta && meta.imdb_id && (meta.type === "series" || type === "series")) {
+                requestJson(CINEMETA + "/meta/series/" + meta.imdb_id + ".json", function(cj) {
+                    var cm = cj && cj.meta ? cj.meta : null;
+                    done(cm && cm.videos && cm.videos.length ? cm : meta);
+                });
+                return;
+            }
+            done(meta);
         });
         return;
     }
