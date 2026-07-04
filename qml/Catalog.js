@@ -65,22 +65,9 @@ var genresManga = [
     { name: "Magic",     count: 290,  cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx118586-CXKgWikBFQgS.jpg", c1: "#9a5ac9", c2: "#36205a" }
 ];
 
-var genresComics = [
-    { name: "Superhero",    count: 2100, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication/v4/fd/31/c6/fd31c66a-0e3e-537e-a9a8-f6408aed23ae/BMY1_cover.jpg/2000x2000bb.jpg", c1: "#c9533f", c2: "#5a1e16" },
-    { name: "Sci-Fi",       count: 740,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication4/v4/c9/76/af/c976af8e-8774-167a-aa3e-8e2e5f233ecd/JAN120485.jpg/2000x2000bb.jpg", c1: "#3f6fc9", c2: "#16285a" },
-    { name: "Action",       count: 1320, cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication113/v4/61/a6/ff/61a6ff61-873e-40bf-bdc0-260c4072cb9a/BoysOmniVol1-ov-NOTFINAL.jpg/2000x2000bb.jpg", c1: "#c9683f", c2: "#5a2816" },
-    { name: "Horror",       count: 560,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication1/v4/6a/70/4f/6a704f5d-f21f-82a7-277b-42ba120bfcdb/APR110291.jpeg/2000x2000bb.jpg", c1: "#8a4fc9", c2: "#2c1a5a" },
-    { name: "Crime",        count: 320,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication125/v4/f6/d3/9f/f6d39f2f-1ccc-605c-93ea-8a9638cbec05/9781506722894.d.jpg/2000x2000bb.jpg", c1: "#c99e3f", c2: "#5a4316" },
-    { name: "Fantasy",      count: 700,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication/v4/ac/50/e6/ac50e6bd-ae8a-ef77-7a56-dfbde104baab/Fables_v1_cover.jpg/2000x2000bb.jpg", c1: "#4f9cc9", c2: "#16384a" },
-    { name: "Adventure",    count: 880,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication3/v4/be/ff/97/beff979e-c602-a873-01b4-1af1e391ef5b/PaperGirls_01-1.png/2000x2000bb.jpg", c1: "#3fae8e", c2: "#16453a" },
-    { name: "Mystery",      count: 380,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/98/e0/6f/98e06ff4-2cdc-f5f2-4fde-b3a7417c2a49/T2187500018301.jpg/2000x2000bb.jpg", c1: "#5a64b0", c2: "#23284e" },
-    { name: "Supernatural", count: 520,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication118/v4/e2/87/bd/e287bd85-1ddc-1f35-4fb1-0ba4f4634717/9781506706870.jpg/2000x2000bb.jpg", c1: "#7a4fc9", c2: "#281a5a" },
-    { name: "Romance",      count: 240,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication126/v4/ac/e3/dc/ace3dcbe-acfd-c64c-908e-a762a2bf0a6d/9781770467071.jpg/2000x2000bb.jpg", c1: "#c93f8a", c2: "#5a1640" },
-    { name: "Thriller",     count: 470,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication118/v4/f4/6e/f7/f46ef7e6-8ddb-fb8c-788f-b3c38998e977/GideonFalls_01-1.png/2000x2000bb.jpg", c1: "#5a6470", c2: "#23282e" },
-    { name: "Drama",        count: 600,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication122/v4/f4/10/25/f41025d7-b1fc-698a-684f-65611230c871/9782080249906.jpg/2000x2000bb.jpg", c1: "#9a5a4f", c2: "#36201c" },
-    { name: "War",          count: 180,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication125/v4/32/a2/92/32a29229-62dd-905d-d475-0ab30206bd99/cov.jpg/2000x2000bb.jpg", c1: "#8a7a3f", c2: "#3a3216" },
-    { name: "Western",      count: 130,  cover: "https://is1-ssl.mzstatic.com/image/thumb/Publication/v4/00/f2/c6/00f2c649-6f04-cad8-cee9-14164f0c0761/JAN130468.jpg/2000x2000bb.jpg", c1: "#a06a3f", c2: "#3a2616" }
-];
+// (genresComics — the RCO-era genre facade with mock counts (2100 Superhero…) — RETIRED
+//  2026-07-04 on Hemanth's call: GetComics has no genre axis, so the comics explore board
+//  is now LIVE publishers + franchises from its real tag taxonomy — ComicsApi.explore().)
 
 // Western comics per-genre starter shelves (CURATED v1 — same editorial status as the mosaic
 // tiles above, whose counts are also curated). Each title is resolved LIVE against GetComics
@@ -195,7 +182,7 @@ function allImageUrls() {
     var urls = [];
     function push(u) { if (u && urls.indexOf(u) === -1) urls.push(u); }
     for (var i = 0; i < featured.length; i++) push(featured[i].art);
-    var rows = [topManga, topComics, genresManga, genresComics];
+    var rows = [topManga, topComics, genresManga];
     for (var r = 0; r < rows.length; r++)
         for (var j = 0; j < rows[r].length; j++) push(rows[r][j].cover);
     for (var f = 0; f < theatreFeatured.length; f++) push(theatreFeatured[f].art);

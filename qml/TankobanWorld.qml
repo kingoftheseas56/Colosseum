@@ -11,16 +11,24 @@
 
 import QtQuick
 import "Catalog.js" as Catalog
+import "ComicsApi.js" as ComicsApi
 
 WorldPage {
     id: tanko
     medium: "Tankoban"
 
     // western-comics routes (2026-07-04 lane): a comic tile opens the GetComics
-    // shelf (ComicSeries resolves the tag from the title), a genre tile opens the
-    // curated western genre page. Declared here, not on the shared WorldPage.
+    // shelf (ComicSeries resolves the tag from the title); an explore box opens
+    // its tag shelf directly. Declared here, not on the shared WorldPage.
     signal westernRequested(string title)
-    signal comicGenreRequested(string genreName)
+    signal westernExploreRequested(var box)
+
+    // Explore Comics = GetComics' REAL taxonomy (publishers + franchises, live
+    // counts) — the genre facade with mock counts died 2026-07-04 (Hemanth's
+    // call: "A for sure"; GetComics has no genre axis, and neither does any
+    // keyless source — the genre brain is option B, its own spec).
+    property var comicExplore: []
+    Component.onCompleted: ComicsApi.explore(function(boxes) { tanko.comicExplore = boxes })
 
     FeaturedCarousel {
         kicker: "Featured in Tankoban"
@@ -56,9 +64,9 @@ WorldPage {
     }
 
     GenreMosaic {
-        title: "Explore by Genre — Comics"
-        genres: Catalog.genresComics
-        navigable: false     // no comics genre INDEX yet — tiles are live, "Explore ›" would be a dead door
-        onGenreClicked: (i) => tanko.comicGenreRequested(Catalog.genresComics[i].name)
+        title: "Explore Comics — Publishers & Franchises"
+        genres: tanko.comicExplore
+        navigable: false     // no comics index page yet — "Explore ›" would be a dead door
+        onGenreClicked: (i) => tanko.westernExploreRequested(tanko.comicExplore[i])
     }
 }

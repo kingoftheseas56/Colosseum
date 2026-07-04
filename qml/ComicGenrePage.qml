@@ -1,5 +1,12 @@
-// ComicGenrePage — the western-comics genre page (Tankoban mode). A genre tile on the
-// world's comics mosaic opens this: a poster grid of the genre's starter shelf
+// ComicGenrePage — ⚠ PARKED, UNREACHABLE (2026-07-04): the comics genre concept left the
+// board on Hemanth's call ("A for sure") — no keyless source knows western comics by genre
+// (GetComics: no genre axis · Wikidata: 4 superhero/0 horror series tagged · Apple: 2-node
+// tree; ComicVine/GCD/Metron all need signups). The world's comics explore is now LIVE
+// publishers+franchises (ComicsApi.explore). This page is scaffolding for OPTION B — the
+// GCD-dump genre brain (its own spec, browse-only, no download-identity risk). Revive by
+// re-adding a Main.qml layer + a mosaic route; Catalog.comicGenreSeries is its seed data.
+//
+// Original design: a genre tile opens a poster grid of the genre's starter shelf
 // (Catalog.comicGenreSeries — curated v1, same editorial status as the mosaic itself).
 // Every title is resolved LIVE against GetComics at open (ranked tag search), so a
 // title with no releases there simply never appears — nothing curated can rot into a

@@ -97,7 +97,6 @@ Window {
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (westernLayer.active) win.closeWestern()
-        else if (comicGenreLayer.active) win.closeComicGenre()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
@@ -264,13 +263,6 @@ Window {
     }
     function closeWestern() { westernLayer.active = false }
 
-    // ---- western-comics genre page: curated starter shelf per mosaic tile ----
-    function openComicGenre(name) {
-        comicGenreLayer.genreName = name
-        if (comicGenreLayer.active && comicGenreLayer.item) comicGenreLayer.item.genreName = name
-        else comicGenreLayer.active = true
-    }
-    function closeComicGenre() { comicGenreLayer.active = false }
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) {
@@ -1020,8 +1012,10 @@ Window {
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
                     var westernSignal = item["westernRequested"]
                     if (westernSignal) westernSignal.connect(function(title) { win.openWestern({ title: title }) })
-                    var comicGenreSignal = item["comicGenreRequested"]
-                    if (comicGenreSignal) comicGenreSignal.connect(win.openComicGenre)
+                    var westernExploreSignal = item["westernExploreRequested"]
+                    if (westernExploreSignal) westernExploreSignal.connect(function(box) {
+                        win.openWestern({ title: box.name, tag: box.tag, tagId: box.tagId })
+                    })
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
@@ -1242,25 +1236,6 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
-        }
-    }
-
-    // ---- western-comics genre layer: the curated genre page (below the series detail) ----
-    Loader {
-        id: comicGenreLayer
-        anchors.fill: parent
-        z: 49
-        active: false
-        visible: active
-        property string genreName: ""
-        source: "ComicGenrePage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.genreName = comicGenreLayer.genreName
-            item.backRequested.connect(win.closeComicGenre)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            item.westernPicked.connect(win.openWestern)
         }
     }
 

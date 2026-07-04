@@ -521,7 +521,8 @@ Item {
     // ===================== auto-hide chrome (Tankoban Max behavior) =====================
     // HUD + side bars recede while reading (after 3s idle) and STAY hidden while you read.
     // They return when you reach for them — the cursor enters the top/bottom 60px edge — or
-    // on wheel / click / hovering the HUD. Keyboard scrolling does NOT wake them (immersive).
+    // on click / hovering the HUD. SCROLLING never wakes them, wheel OR keyboard: reading is
+    // immersive (TB2's ComicReader::wheelEvent never calls showToolbar — verified 2026-07-04).
     // A modal/dropdown open or hovering the HUD freezes them shown; "Pin toolbar" pins them on.
     property bool hudShown: true
     property bool hudHover: false
@@ -668,7 +669,7 @@ Item {
         WheelHandler {
             enabled: reader.style === "long_strip" && reader.max > 0
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: (e) => { reader.pokeChrome(); reader.smoothScrollBy(-e.angleDelta.y * 1.4) }
+            onWheel: (e) => reader.smoothScrollBy(-e.angleDelta.y * 1.4)   // scrolling = reading — never wakes the HUD
         }
         // paged: Ctrl+wheel zooms (TB2: ±20% per notch, 100–260%)
         WheelHandler {
@@ -687,8 +688,8 @@ Item {
             onWheel: (e) => {
                 if (reader.zoomPct > 100) { reader.panY += e.angleDelta.y * 0.8; reader.clampPan(); return }
                 flick.wheelAcc += e.angleDelta.y
-                if (flick.wheelAcc <= -100)     { flick.wheelAcc = 0; reader.pokeChrome(); reader.turnNext() }
-                else if (flick.wheelAcc >= 100) { flick.wheelAcc = 0; reader.pokeChrome(); reader.turnPrev() }
+                if (flick.wheelAcc <= -100)     { flick.wheelAcc = 0; reader.turnNext() }   // wheel page-turn = reading,
+                else if (flick.wheelAcc >= 100) { flick.wheelAcc = 0; reader.turnPrev() }   // HUD stays away (TB2)
             }
         }
 

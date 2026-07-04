@@ -195,6 +195,43 @@ function releases(tagId, done) {
     });
 }
 
+// ── Explore board: GetComics' REAL taxonomy — publishers + franchises, live counts. ──
+// GetComics has no genre axis (ratified diagnosis 2026-07-04, Hemanth picked this
+// board over a genre facade): its archive is organized by publisher and franchise
+// tags. Top tags by count, noise filtered, classified, iTunes art trailing in.
+// `done` fires with the boxes immediately, then again as covers land.
+var NOISE_TAG = /^(0-day|non 0-day|tpb|request|getcomics|.*\bweek\b.*|marvel now|infinity comic|dc comics collection|the art of|epic collection|zip)$/i;
+var PUBLISHER_TAG = /^(marvel comics|dc comics|image comics|idw|boom studios|dynamite entertainment|archie|vertigo|zenescope|oni press|valiant|mad cave|aftershock comics|rebellion|europe comics|dark horse|titan comics|avatar press|vault comics|black mask|ahoy comics|action lab)$/i;
+
+var exploreCache = null;
+
+function explore(done) {
+    if (exploreCache) { done(exploreCache); return; }
+    gcJson(GC + "/tags?per_page=60&orderby=count&order=desc&_fields=id,name,slug,count",
+        function(j) {
+            if (!j || !j.length) { done([]); return; }
+            var pubs = [], frans = [];
+            for (var i = 0; i < j.length; i++) {
+                var name = decodeEntities(j[i].name);
+                if (NOISE_TAG.test(name)) continue;
+                var box = { name: name, count: j[i].count, tag: j[i].slug, tagId: j[i].id,
+                            cover: "", c1: "#6a4a32", c2: "#241813" };
+                if (PUBLISHER_TAG.test(name)) pubs.push(box);
+                else frans.push(box);
+            }
+            var boxes = pubs.slice(0, 8).concat(frans.slice(0, 12));
+            exploreCache = boxes;
+            done(boxes);
+            boxes.forEach(function(box, idx) {
+                posterFor(box.name + " comic", function(art) {
+                    if (!art.length) return;
+                    var copy = exploreCache.slice()
+                    if (copy[idx]) { copy[idx].cover = art; exploreCache = copy; done(copy); }
+                });
+            });
+        });
+}
+
 // ── iTunes: series-level poster art (600×600 from the 100×100 thumb URL). ──
 // Session-cached per term — search fires per keystroke and iTunes rate-limits.
 var posterCache = {};   // term → url ("" = looked up, none found)
