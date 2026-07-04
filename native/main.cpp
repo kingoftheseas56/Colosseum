@@ -34,6 +34,7 @@
 #include "engine/BookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/LocalDownloads.h"
+#include "engine/ExtensionsStore.h"
 #include "reader/BookBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
@@ -256,6 +257,17 @@ int main(int argc, char *argv[]) {
     // backend (Downloads / Books / Comics / Download).
     auto *localDownloads = new LocalDownloads(downloads, books, comics, download, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
+
+    // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
+    // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
+    // Shares the plain uncached NAM — manifests are small JSON, never cache-served.
+    auto *extensions = new ExtensionsStore(dlNam, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Extensions"), extensions);
+    // dev harness: COLOSSEUM_OPEN_EXTENSIONS=1 boots straight into the store, so
+    // smoke runs exercise the page Loader (QML errors only surface on activation).
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevOpenExtensions"),
+        qEnvironmentVariableIsSet("COLOSSEUM_OPEN_EXTENSIONS"));
 
     // Live TV / DVR player state exposed to QML as `Live`.
     auto *live = new LiveStore(&app);

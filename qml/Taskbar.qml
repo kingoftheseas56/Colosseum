@@ -21,6 +21,8 @@ Item {
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
     property bool downloadsActive: false  // the Downloads page is the front surface
+    signal extensionsClicked()
+    property bool extensionsActive: false // the Extensions page is the front surface
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -165,6 +167,40 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.downloadsClicked()
+                }
+            }
+
+            // ---- Extensions: the store, beside Downloads (ratified 2026-07-05) ----
+            Item {
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: extMa.containsMouse || bar.extensionsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/extensions.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.extensionsActive ? 1 : 0.75
+                }
+                Rectangle {   // active-page underline, same gold language as session tiles
+                    visible: bar.extensionsActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                MouseArea {
+                    id: extMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.extensionsClicked()
                 }
             }
 

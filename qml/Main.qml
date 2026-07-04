@@ -83,7 +83,13 @@ Window {
         refreshWallpaper()
     }
 
-    Component.onCompleted: refreshWallpaper()
+    Component.onCompleted: {
+        refreshWallpaper()
+        // dev harness (COLOSSEUM_OPEN_EXTENSIONS=1): boot straight into the store,
+        // so smoke runs exercise the Loader (QML errors only surface on activation)
+        if (typeof DevOpenExtensions !== "undefined" && DevOpenExtensions)
+            win.openExtensionsPage()
+    }
 
     // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.
     Shortcut { sequences: ["Escape"]; onActivated: {
@@ -95,6 +101,7 @@ Window {
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
         else if (downloadsLayer.active) win.closeDownloadsPage()
+        else if (extensionsLayer.active) win.closeExtensionsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (westernLayer.active) win.closeWestern()
@@ -337,6 +344,13 @@ Window {
         taskbar.open = false
     }
     function closeDownloadsPage() { downloadsLayer.active = false }
+
+    // ---- Extensions page: the store, entered from the taskbar beside Downloads ----
+    function openExtensionsPage() {
+        extensionsLayer.active = true
+        taskbar.open = false
+    }
+    function closeExtensionsPage() { extensionsLayer.active = false }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
@@ -1490,6 +1504,23 @@ Window {
         }
     }
 
+    // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
+    Loader {
+        id: extensionsLayer
+        anchors.fill: parent
+        z: 52
+        active: false
+        visible: active
+        source: "ExtensionsPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeExtensionsPage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+        }
+    }
+
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     Taskbar {
         id: taskbar
@@ -1504,6 +1535,8 @@ Window {
                         ? (LocalDownloads.revision, LocalDownloads.totals.active || 0) : 0
         downloadsActive: downloadsLayer.active
         onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
+        extensionsActive: extensionsLayer.active
+        onExtensionsClicked: extensionsLayer.active ? win.closeExtensionsPage() : win.openExtensionsPage()
     }
 
     Loader {
