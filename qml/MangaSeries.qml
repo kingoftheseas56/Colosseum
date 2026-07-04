@@ -18,6 +18,10 @@ Item {
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
+    // the READER's own chrome, distinct from this page's topbar: minimize = the comic session
+    // drops to the Colosseum taskbar; close = the session is closed (Windows-window vocabulary).
+    signal readerMinimizeRequested()
+    signal readerCloseRequested()
 
     // --- resolved state ---
     property string seriesId: ""
@@ -719,7 +723,7 @@ Item {
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
         onBackRequested: { page.openChapterId = ""; page.openChapterLabel = "" }
-        onMinimizeRequested: page.minimizeRequested()
-        onCloseRequested: page.closeRequested()
+        onMinimizeRequested: page.readerMinimizeRequested()
+        onCloseRequested: page.readerCloseRequested()
     }
 }

@@ -341,6 +341,55 @@ Window {
         })
     }
 
+    // ---- window-verbs for the reader/player chrome (Windows-taskbar vocabulary, 2026-07-04) ----
+    // minimize = capture the exact spot, drop the surface, KEEP the session in the taskbar,
+    // land on the world behind. close = the session is gone. Back keeps its old meaning.
+    function closeSession(id) {
+        if (!id) return
+        // the store removes the record BEFORE the switch glue can look it up, so the live
+        // surface must come down here when closing the active one (else it lingers on screen).
+        if (id === Sessions.activeId) win.teardownSession(Sessions.get(id))
+        Sessions.close(id)
+    }
+    function minimizePlayer() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "movie") Sessions.switchTo("")
+        else win.closePlayer()                       // not session-run (legacy path): just drop it
+    }
+    function closePlayerSession() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "movie") win.closeSession(rec.id)
+        else win.closePlayer()
+    }
+    function minimizeComicReader() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (!(rec && rec.contentKind === "comic")) {
+            // reading began from a browse (no session yet) — register it from the live reader
+            var s = seriesLayer.item
+            if (!s || !s.openChapterId) { win.closeSeries(); return }
+            win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId)
+        }
+        Sessions.switchTo("")
+    }
+    function closeComicReader() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
+        else win.closeSeries()
+    }
+    function minimizeBookReader() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (!(rec && rec.contentKind === "book")) {
+            if (!bookReaderLayer.bookPath) { win.closeBookReader(); return }
+            win.openBookSession(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
+        }
+        Sessions.switchTo("")
+    }
+    function closeBookReaderSession() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "book") win.closeSession(rec.id)
+        else win.closeBookReader()
+    }
+
     // dispatcher: build the active surface from a record (+ restore its saved state).
     function activateSession(rec) {
         if (!rec || !rec.id) return
@@ -981,6 +1030,9 @@ Window {
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            // the READER's own chrome (not the page topbar): session verbs
+            item.readerMinimizeRequested.connect(win.minimizeComicReader)
+            item.readerCloseRequested.connect(win.closeComicReader)
         }
     }
 
@@ -1013,9 +1065,9 @@ Window {
         source: "PlayerPage.qml"
         onLoaded: {
             item.backdrop = wall
-            item.backRequested.connect(win.closePlayer)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
+            item.backRequested.connect(win.minimizePlayer)
+            item.minimizeRequested.connect(win.minimizePlayer)
+            item.closeRequested.connect(win.closePlayerSession)
         }
     }
 
@@ -1050,8 +1102,8 @@ Window {
         source: "BookReader.qml"
         onLoaded: {
             item.open(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
-            item.closed.connect(win.closeBookReader)
-            item.minimizeRequested.connect(win.minimizeShell)
+            item.closed.connect(win.closeBookReaderSession)
+            item.minimizeRequested.connect(win.minimizeBookReader)
         }
     }
 
@@ -1130,7 +1182,8 @@ Window {
             var next = Sessions.get(nextId)
             if (next && next.id) win.activateSession(next)
             else {
-                currentSurface = "Home"
+                // no next session: land on the world behind (Windows-like), not always home
+                currentSurface = worldStack.current || "Home"
                 refreshWallpaper()
             }
         }
@@ -1141,7 +1194,7 @@ Window {
         id: taskbar
         z: 900
         onSwitchRequested: (id) => Sessions.switchTo(id)
-        onCloseRequested: (id) => Sessions.close(id)
+        onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
     }
 
