@@ -26,11 +26,51 @@ Item {
 
     // --- resolved state ---
     property var releases: []              // [{id,url,name,cover,year,sizeMB,synopsis,collection}]
+    property int totalReleases: 0          // GetComics' own count (> releases.length while loading / past cap)
     property bool loading: true
     property string errorMsg: ""
     readonly property string seriesId: "gc:" + tagSlug   // the app-wide western series id
-    readonly property var collections: releases.filter(function(r) { return r.collection })
-    readonly property var issues: releases.filter(function(r) { return !r.collection })
+
+    // --- shelf navigation: filter + sort (big series run to hundreds of releases).
+    // View-only — the reader's chapter list stays date-newest-first so its
+    // next/previous crossing keeps meaning regardless of how the shelf is sorted. ---
+    property string filter: ""
+    property string sortMode: "new"        // new | old | az
+    // natural compare: digit runs compare as numbers, so "#2" sorts before "#10"
+    function natCmp(a, b) {
+        var ax = String(a).toLowerCase().match(/(\d+)|(\D+)/g) || []
+        var bx = String(b).toLowerCase().match(/(\d+)|(\D+)/g) || []
+        for (var i = 0; i < Math.max(ax.length, bx.length); i++) {
+            var av = ax[i], bv = bx[i]
+            if (av === undefined) return -1
+            if (bv === undefined) return 1
+            if (/^\d/.test(av) && /^\d/.test(bv)) {
+                var d = Number(av) - Number(bv)
+                if (d) return d
+            } else if (av !== bv) return av < bv ? -1 : 1
+        }
+        return 0
+    }
+    readonly property var shown: {
+        var list = releases
+        var f = filter.trim().toLowerCase()
+        if (f.length) list = list.filter(function(r) { return r.name.toLowerCase().indexOf(f) >= 0 })
+        if (sortMode === "old") {
+            // publication order, not site-upload order: the parsed Year is the
+            // comic's own year (upload date would put a 2015 re-up before #1).
+            list = list.slice()
+            list.sort(function(a, b) {
+                var ay = a.year || 9999, by = b.year || 9999
+                return (ay - by) || page.natCmp(a.name, b.name)
+            })
+        } else if (sortMode === "az") {
+            list = list.slice()
+            list.sort(function(a, b) { return page.natCmp(a.name, b.name) })
+        }
+        return list
+    }
+    readonly property var collections: shown.filter(function(r) { return r.collection })
+    readonly property var issues: shown.filter(function(r) { return !r.collection })
     // the reader's chapter list: every release, newest-first (crossing = next issue)
     readonly property var chaptersModel: releases.map(function(r) {
         return { id: r.id, name: r.name, url: r.url, cover: r.cover, sizeMB: r.sizeMB }
@@ -56,8 +96,9 @@ Item {
         })
     }
     function loadReleases() {
-        Api.releases(tagId, function(rs) {
+        Api.releases(tagId, function(rs, total) {   // fires twice on multi-page series: page 1, then all
             page.releases = rs || []
+            page.totalReleases = total || page.releases.length
             page.loading = false
             revealGuard.stop()
             if (!page.releases.length) page.errorMsg = "No releases under this series tag."
@@ -207,7 +248,9 @@ Item {
                             Text { text: page.releases.length
                                 color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "releases"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                            Text { text: "releases" + (page.totalReleases > page.releases.length
+                                                       ? " of " + page.totalReleases : "")
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { visible: page.collections.length > 0; text: "·"
                                 color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
@@ -223,11 +266,88 @@ Item {
                 }
             }
 
+            // ── SHELF CONTROLS — filter + sort; view-only, the reader is untouched ──
+            Item {
+                width: parent.width; height: 64
+                visible: page.releases.length > 0
+
+                // search-within-the-shelf (left): underlined inline field, no chrome
+                Item {
+                    id: filterBox
+                    x: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: Math.min(380, parent.width * 0.4); height: 36
+                    TextInput {
+                        id: filterInput
+                        anchors.left: parent.left; anchors.right: clearBtn.visible ? clearBtn.left : parent.right
+                        anchors.top: parent.top; anchors.bottom: parent.bottom
+                        verticalAlignment: TextInput.AlignVCenter
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: 15
+                        clip: true; selectByMouse: true
+                        onTextChanged: page.filter = text
+                    }
+                    Text {
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        visible: filterInput.text.length === 0 && !filterInput.activeFocus
+                        text: "Search releases…"
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 15
+                    }
+                    Item {
+                        id: clearBtn
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        width: 24; height: 24
+                        visible: filterInput.text.length > 0
+                        Text { anchors.centerIn: parent; text: "✕"
+                            color: clearMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 13 }
+                        MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: filterInput.text = "" }
+                    }
+                    Rectangle {
+                        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                        height: 1
+                        color: filterInput.activeFocus ? Qt.rgba(0.94, 0.77, 0.29, 0.7) : theme.edge
+                    }
+                }
+                // live match count while filtering (inline, dim)
+                Text {
+                    anchors.left: filterBox.right; anchors.leftMargin: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: page.filter.trim().length > 0
+                    text: page.shown.length + (page.shown.length === 1 ? " match" : " matches")
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                }
+                // sort (right): Newest · Oldest · A–Z — A–Z is numeric-aware (#2 before #10)
+                Row {
+                    anchors.right: parent.right; anchors.rightMargin: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 22
+                    Repeater {
+                        model: [{ k: "new", l: "Newest" }, { k: "old", l: "Oldest" }, { k: "az", l: "A–Z" }]
+                        delegate: Item {
+                            id: sopt
+                            required property var modelData
+                            width: soptText.implicitWidth; height: 26
+                            readonly property bool on: page.sortMode === sopt.modelData.k
+                            Text { id: soptText; text: sopt.modelData.l
+                                color: sopt.on ? theme.gold : (soptMa.containsMouse ? theme.ink : theme.inkDim)
+                                font.family: theme.ui; font.pixelSize: 13
+                                font.weight: sopt.on ? Font.DemiBold : Font.Normal }
+                            Rectangle { visible: sopt.on; anchors.bottom: parent.bottom
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                width: 18; height: 2; radius: 2; color: theme.gold }
+                            MouseArea { id: soptMa; anchors.fill: parent; anchors.margins: -4
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: page.sortMode = sopt.modelData.k }
+                        }
+                    }
+                }
+            }
+
             // ── RELEASE TABLE — collections lead, issues follow, one glass widget ──
             Item {
                 width: parent.width
                 height: relTable.height + 24
-                visible: page.releases.length > 0
+                visible: page.shown.length > 0
 
                 Glass {
                     id: relTable
@@ -421,6 +541,15 @@ Item {
                 }
             }
 
+            // filter came up empty (the shelf itself isn't)
+            Text {
+                visible: !page.loading && page.releases.length > 0 && page.shown.length === 0
+                x: theme.margin
+                text: "No releases match “" + page.filter.trim() + "”."
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                topPadding: 10
+            }
+
             // post-reveal error (inset)
             Text {
                 visible: !page.loading && page.errorMsg.length > 0
@@ -431,6 +560,54 @@ Item {
             }
 
             Item { width: 1; height: 70 }
+        }
+    }
+
+    // ---- scroll bar: always visible when the page overflows, draggable, click-to-jump ----
+    Item {
+        id: sbar
+        z: 26
+        visible: flick.contentHeight > flick.height + 8 && !page.loading
+        anchors.right: parent.right; anchors.rightMargin: 4
+        y: 76
+        width: 12
+        height: parent.height - 96
+        Rectangle {   // track
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: 3; height: parent.height; radius: 1.5
+            color: Qt.rgba(1, 1, 1, 0.07)
+        }
+        Rectangle {
+            id: sHandle
+            anchors.horizontalCenter: parent.horizontalCenter
+            width: (sMa.containsMouse || sMa.drag.active) ? 7 : 5
+            radius: width / 2
+            height: Math.max(40, sbar.height * flick.height / Math.max(1, flick.contentHeight))
+            color: sMa.drag.active ? theme.gold
+                 : (sMa.containsMouse ? Qt.rgba(1, 1, 1, 0.55) : Qt.rgba(1, 1, 1, 0.28))
+            Behavior on width { NumberAnimation { duration: 100 } }
+        }
+        // content drives the handle EXCEPT while the handle itself is being dragged
+        Binding {
+            target: sHandle; property: "y"
+            value: (sbar.height - sHandle.height)
+                   * (flick.contentY / Math.max(1, flick.contentHeight - flick.height))
+            when: !sMa.drag.active
+        }
+        MouseArea {
+            id: sMa
+            anchors.fill: parent; hoverEnabled: true
+            drag.target: sHandle; drag.axis: Drag.YAxis
+            drag.minimumY: 0; drag.maximumY: Math.max(0, sbar.height - sHandle.height)
+            onPositionChanged: {
+                if (!drag.active) return
+                flick.contentY = sHandle.y / Math.max(1, sbar.height - sHandle.height)
+                                 * (flick.contentHeight - flick.height)
+            }
+            onClicked: function(m) {
+                var frac = (m.y - sHandle.height / 2) / Math.max(1, sbar.height - sHandle.height)
+                flick.contentY = Math.max(0, Math.min(1, frac)) * (flick.contentHeight - flick.height)
+            }
         }
     }
 

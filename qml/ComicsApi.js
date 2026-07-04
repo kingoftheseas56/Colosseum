@@ -24,6 +24,21 @@ function reqJson(url, done) {
     xhr.send();
 }
 
+// like reqJson but hands back WP's pagination headers (exposed via CORS):
+// done(json, totalPages, totalItems)
+function reqJsonPaged(url, done) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        if (xhr.status < 200 || xhr.status >= 300) { done(null, 0, 0); return; }
+        var tp  = Number(xhr.getResponseHeader("X-WP-TotalPages") || 0);
+        var tot = Number(xhr.getResponseHeader("X-WP-Total") || 0);
+        try { done(JSON.parse(xhr.responseText), tp, tot); } catch (e) { done(null, 0, 0); }
+    };
+    xhr.open("GET", url);
+    xhr.send();
+}
+
 // WP titles come HTML-entity-encoded ("Avatar &#8211; The Last Airbender &#8230;")
 function decodeEntities(s) {
     return String(s || "")
@@ -71,38 +86,63 @@ function tagBySlug(slug, done) {
 
 // ── the shelf: every release post under a tag, cover + year + size parsed out. ──
 // Weekly packs ("… Week 27.2026" dumps) are noise in a series view — filtered.
+function mapPosts(j) {
+    var out = [];
+    for (var i = 0; i < j.length; i++) {
+        var p = j[i];
+        var title = decodeEntities(p.title && p.title.rendered);
+        if (/weekly pack|week \d+\.\d{4}|^\d{4}\.\d{2}\.\d{2}/i.test(title)) continue;
+        var ex = String((p.excerpt && p.excerpt.rendered) || "");
+        var ym = ex.match(/Year\s*:\s*<\/strong>\s*(\d{4})/i);
+        var sm = ex.match(/Size\s*:\s*<\/strong>\s*([\d.]+)\s*(GB|MB)/i);
+        var sizeMB = sm ? (parseFloat(sm[1]) * (sm[2].toUpperCase() === "GB" ? 1024 : 1)) : 0;
+        var og = p.yoast_head_json && p.yoast_head_json.og_image
+                 && p.yoast_head_json.og_image[0] ? p.yoast_head_json.og_image[0].url : "";
+        // strip the synopsis: text after the Year|Size line, tags removed
+        var syn = decodeEntities(ex.replace(/<p[^>]*>.*?Size\s*:.*?<\/p>/i, "")
+                                   .replace(/<[^>]+>/g, "")).trim();
+        out.push({
+            id: String(p.id), url: p.link, name: title,
+            cover: og ? og.replace(/^http:/, "https:") : "",
+            year: ym ? Number(ym[1]) : 0,
+            sizeMB: Math.round(sizeMB),
+            synopsis: syn,
+            date: p.date || "",
+            // TPB / omnibus / treasury / hardcover reads as a COLLECTION;
+            // plain "#N" posts are single issues.
+            collection: /\(TPB\)|omnibus|treasury|library edition|hardcover|complete collection/i.test(title)
+        });
+    }
+    return out;
+}
+
+// WP caps a request at 100 posts, so big series (Walking Dead = 223) span pages.
+// Page 1 is handed back immediately (fast first paint); the rest fetch in
+// parallel and `done` fires once more with the FULL list, order preserved.
+// done(list, totalOnSite) — totalOnSite > list.length only while loading or
+// past the 5-page (500-release) sanity cap.
+var MAX_PAGES = 5;
+
 function releases(tagId, done) {
-    var url = GC + "/posts?tags=" + tagId + "&per_page=100"
-            + "&_fields=id,link,title,date,excerpt,yoast_head_json.og_image";
-    reqJson(url, function(j) {
-        if (!j || !j.length) { done([]); return; }
-        var out = [];
-        for (var i = 0; i < j.length; i++) {
-            var p = j[i];
-            var title = decodeEntities(p.title && p.title.rendered);
-            if (/weekly pack|week \d+\.\d{4}|^\d{4}\.\d{2}\.\d{2}/i.test(title)) continue;
-            var ex = String((p.excerpt && p.excerpt.rendered) || "");
-            var ym = ex.match(/Year\s*:\s*<\/strong>\s*(\d{4})/i);
-            var sm = ex.match(/Size\s*:\s*<\/strong>\s*([\d.]+)\s*(GB|MB)/i);
-            var sizeMB = sm ? (parseFloat(sm[1]) * (sm[2].toUpperCase() === "GB" ? 1024 : 1)) : 0;
-            var og = p.yoast_head_json && p.yoast_head_json.og_image
-                     && p.yoast_head_json.og_image[0] ? p.yoast_head_json.og_image[0].url : "";
-            // strip the synopsis: text after the Year|Size line, tags removed
-            var syn = decodeEntities(ex.replace(/<p[^>]*>.*?Size\s*:.*?<\/p>/i, "")
-                                       .replace(/<[^>]+>/g, "")).trim();
-            out.push({
-                id: String(p.id), url: p.link, name: title,
-                cover: og ? og.replace(/^http:/, "https:") : "",
-                year: ym ? Number(ym[1]) : 0,
-                sizeMB: Math.round(sizeMB),
-                synopsis: syn,
-                date: p.date || "",
-                // TPB / omnibus / treasury / hardcover reads as a COLLECTION;
-                // plain "#N" posts are single issues.
-                collection: /\(TPB\)|omnibus|treasury|library edition|hardcover|complete collection/i.test(title)
+    var base = GC + "/posts?tags=" + tagId + "&per_page=100"
+             + "&_fields=id,link,title,date,excerpt,yoast_head_json.og_image";
+    reqJsonPaged(base + "&page=1", function(j, totalPages, total) {
+        if (!j || !j.length) { done([], 0); return; }
+        var first = mapPosts(j);
+        var pages = Math.min(totalPages || 1, MAX_PAGES);
+        if (pages <= 1) { done(first, total || first.length); return; }
+        done(first, total || 0);                      // paint page 1 now
+        var slots = new Array(pages - 1), pending = pages - 1;
+        for (var p = 2; p <= pages; p++) (function(pg) {
+            reqJsonPaged(base + "&page=" + pg, function(jp) {
+                slots[pg - 2] = (jp && jp.length) ? mapPosts(jp) : [];
+                pending -= 1;
+                if (pending > 0) return;
+                var all = first;
+                for (var s = 0; s < slots.length; s++) all = all.concat(slots[s]);
+                done(all, total || all.length);       // the full, honest shelf
             });
-        }
-        done(out);
+        })(p);
     });
 }
 
