@@ -40,7 +40,7 @@ function _gcFire(job) {
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
         var ok = xhr.status >= 200 && xhr.status < 300;
-        if (!ok && job.tries < 2) {
+        if (!ok && xhr.status !== 400 && job.tries < 2) {   // 400 = past the last page, final
             job.tries += 1;
             _gcActive -= 1;
             _gcQueue.push(job);          // retry LATER, behind whatever is pending
@@ -230,6 +230,55 @@ function explore(done) {
                 });
             });
         });
+}
+
+// ── Archive index: the SERIES ARCHIVES under a big box (publisher/franchise). ──
+// A box tag holds raw release posts, but every post carries ALL its tags — so the
+// newest 200 posts under "Marvel Comics" reveal which series archives are alive
+// there (Spider-Man ×9, X-Men ×8 …). Aggregate co-tag frequency, resolve names in
+// ONE include= call, drop noise/publishers, rank by freshness then archive size.
+// `done` fires with the series list, then again as iTunes covers land.
+var archiveCache = {};   // box tagId → [{title, tag, tagId, count, freq, cover}]
+
+function archiveIndex(boxTagId, done) {
+    if (archiveCache[boxTagId]) { done(archiveCache[boxTagId]); return; }
+    var freq = {}, pending = 2;
+    function collect(j) {
+        if (j) for (var i = 0; i < j.length; i++) {
+            var ts = j[i].tags || [];
+            for (var k = 0; k < ts.length; k++) freq[ts[k]] = (freq[ts[k]] || 0) + 1;
+        }
+        pending -= 1;
+        if (pending > 0) return;
+        delete freq[boxTagId];
+        var ids = Object.keys(freq).sort(function(a, b) { return freq[b] - freq[a]; }).slice(0, 80);
+        if (!ids.length) { done([]); return; }
+        gcJson(GC + "/tags?include=" + ids.join(",") + "&per_page=100&_fields=id,name,slug,count",
+            function(tj) {
+                if (!tj || !tj.length) { done([]); return; }
+                var out = [];
+                for (var i = 0; i < tj.length; i++) {
+                    var name = decodeEntities(tj[i].name);
+                    if (NOISE_TAG.test(name) || PUBLISHER_TAG.test(name)) continue;
+                    out.push({ title: name, tag: tj[i].slug, tagId: tj[i].id,
+                               count: tj[i].count, freq: freq[tj[i].id] || 0, cover: "" });
+                }
+                out.sort(function(a, b) { return (b.freq - a.freq) || (b.count - a.count); });
+                out = out.slice(0, 24);
+                archiveCache[boxTagId] = out;
+                done(out);
+                out.forEach(function(s, idx) {
+                    posterFor(s.title + " comic", function(art) {
+                        if (!art.length || !archiveCache[boxTagId]) return;
+                        var copy = archiveCache[boxTagId].slice();
+                        if (copy[idx]) { copy[idx].cover = art; archiveCache[boxTagId] = copy; done(copy); }
+                    });
+                });
+            });
+    }
+    var base = GC + "/posts?tags=" + boxTagId + "&per_page=100&_fields=tags";
+    gcJson(base + "&page=1", collect);
+    gcJson(base + "&page=2", collect);   // small tags 400 on page 2 → collect(null), harmless
 }
 
 // ── iTunes: series-level poster art (600×600 from the 100×100 thumb URL). ──

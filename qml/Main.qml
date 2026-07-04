@@ -98,6 +98,7 @@ Window {
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (westernLayer.active) win.closeWestern()
+        else if (comicIndexLayer.active) win.closeComicArchive()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
@@ -263,6 +264,23 @@ Window {
         } else westernLayer.active = true
     }
     function closeWestern() { westernLayer.active = false }
+
+    // ---- western-comics archive index: the SERIES ARCHIVES under an explore box
+    //      (a publisher/franchise tag holds raw release posts — this is the middle
+    //      layer that shows the /tag/ archives inside it, Hemanth's 2026-07-04 call) ----
+    function openComicArchive(box) {
+        comicIndexLayer.boxTitle = (box && box.name) || (box && box.title) || ""
+        comicIndexLayer.tagSlug = (box && box.tag) || ""
+        comicIndexLayer.boxCount = (box && box.count) || 0
+        comicIndexLayer.tagId = (box && box.tagId) || 0
+        if (comicIndexLayer.active && comicIndexLayer.item) {
+            comicIndexLayer.item.boxTitle = comicIndexLayer.boxTitle
+            comicIndexLayer.item.tagSlug = comicIndexLayer.tagSlug
+            comicIndexLayer.item.boxCount = comicIndexLayer.boxCount
+            comicIndexLayer.item.tagId = comicIndexLayer.tagId   // change fires resolve()
+        } else comicIndexLayer.active = true
+    }
+    function closeComicArchive() { comicIndexLayer.active = false }
 
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
@@ -1046,9 +1064,7 @@ Window {
                     var westernSignal = item["westernRequested"]
                     if (westernSignal) westernSignal.connect(function(title) { win.openWestern({ title: title }) })
                     var westernExploreSignal = item["westernExploreRequested"]
-                    if (westernExploreSignal) westernExploreSignal.connect(function(box) {
-                        win.openWestern({ title: box.name, tag: box.tag, tagId: box.tagId })
-                    })
+                    if (westernExploreSignal) westernExploreSignal.connect(win.openComicArchive)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
@@ -1269,6 +1285,33 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
+        }
+    }
+
+    // ---- western-comics archive index layer: series archives under an explore box
+    //      (below the series detail, so a picked series opens OVER it) ----
+    Loader {
+        id: comicIndexLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        property string boxTitle: ""
+        property string tagSlug: ""
+        property int    tagId: 0
+        property int    boxCount: 0
+        source: "ComicArchiveIndex.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.boxTitle = comicIndexLayer.boxTitle
+            item.tagSlug = comicIndexLayer.tagSlug
+            item.boxCount = comicIndexLayer.boxCount
+            item.tagId = comicIndexLayer.tagId          // set LAST — assigning it triggers resolve()
+            item.backRequested.connect(win.closeComicArchive)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.westernPicked.connect(win.openWestern)
+            item.allReleasesRequested.connect(win.openWestern)
         }
     }
 

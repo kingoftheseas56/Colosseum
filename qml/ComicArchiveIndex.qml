@@ -1,71 +1,49 @@
-// ComicGenrePage — ⚠ PARKED, UNREACHABLE (2026-07-04): the comics genre concept left the
-// board on Hemanth's call ("A for sure") — no keyless source knows western comics by genre
-// (GetComics: no genre axis · Wikidata: 4 superhero/0 horror series tagged · Apple: 2-node
-// tree; ComicVine/GCD/Metron all need signups). The world's comics explore is now LIVE
-// publishers+franchises (ComicsApi.explore). This page is scaffolding for OPTION B — the
-// GCD-dump genre brain (its own spec, browse-only, no download-identity risk). Revive by
-// re-adding a Main.qml layer + a mosaic route; Catalog.comicGenreSeries is its seed data.
-//
-// Original design: a genre tile opens a poster grid of the genre's starter shelf
-// (Catalog.comicGenreSeries — curated v1, same editorial status as the mosaic itself).
-// Every title is resolved LIVE against GetComics at open (ranked tag search), so a
-// title with no releases there simply never appears — nothing curated can rot into a
-// dead link. Posters come from iTunes (session-cached). Clicking a tile opens the
-// ComicSeries shelf. NOT the manga GenrePage (that file is AniList's and contract-locked).
+// ComicArchiveIndex — the SERIES ARCHIVES under an explore box (Tankoban mode).
+// Clicking "Marvel Comics" or "Batman" on the world's explore mosaic used to dump
+// the raw release feed (Hemanth, 2026-07-04: "just individual cbr/cbz uploads, not
+// archive pages"). This page is the missing middle layer: a live poster grid of the
+// series archives ACTIVE under that box — aggregated from the co-tags of its newest
+// 200 posts (ComicsApi.archiveIndex), each card a real /tag/ archive that opens the
+// ComicSeries shelf. "All N releases ›" still reaches the raw feed, one level down.
+// (This file began as the parked ComicGenrePage; repurposed when genre died on the
+// board — the curated-genre concept lives only in git history / option B now.)
 
 import QtQuick
-import "Catalog.js" as Catalog
 import "ComicsApi.js" as Api
 
 Item {
     id: page
     property Item backdrop
-    property string genreName: ""
+    property string boxTitle: ""
+    property string tagSlug: ""
+    property int    tagId: 0
+    property int    boxCount: 0        // the box tag's own release count (for "All N releases")
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
-    signal westernPicked(var data)     // { western: true, tag, tagId, title } → host opens ComicSeries
+    signal westernPicked(var data)         // a series card → host opens its ComicSeries shelf
+    signal allReleasesRequested(var data)  // "All N releases ›" → host opens the box's raw shelf
 
-    // --- resolved tiles: [{title, tag, tagId, count, poster}] ---
-    property var tiles: []
+    // --- resolved series: [{title, tag, tagId, count, freq, cover}] ---
+    property var series: []
     property bool loading: true
-    property int _gen: 0               // stale-reply guard across genre switches
+    property int _gen: 0               // stale-reply guard across box switches
 
     Theme { id: theme }
 
-    onGenreNameChanged: resolve()
-    Component.onCompleted: if (genreName.length) resolve()
+    onTagIdChanged: resolve()
+    Component.onCompleted: if (tagId > 0) resolve()
 
     function resolve() {
         loading = true
-        tiles = []
+        series = []
         _gen += 1
         var gen = _gen
-        var titles = (Catalog.comicGenreSeries[genreName] || [])
-        if (!titles.length) { loading = false; return }
-        var out = [], pending = titles.length
-        titles.forEach(function(t) {
-            Api.searchSeries(t, function(tags) {
-                if (gen !== page._gen) return                    // genre changed mid-flight
-                if (tags && tags.length) {
-                    var best = tags[0]
-                    out.push({ title: best.title, tag: best.tag, tagId: best.tagId,
-                               count: best.count, poster: "" })
-                }
-                pending -= 1
-                if (pending === 0) {
-                    page.tiles = out
-                    page.loading = false
-                    // posters trail in (cached per session; iTunes rate-limits bursts)
-                    out.forEach(function(tile, idx) {
-                        Api.posterFor(tile.title + " comic", function(art) {
-                            if (gen !== page._gen || !art.length) return
-                            var copy = page.tiles.slice()
-                            if (copy[idx]) { copy[idx].poster = art; page.tiles = copy }
-                        })
-                    })
-                }
-            })
+        if (tagId <= 0) { loading = false; return }
+        Api.archiveIndex(tagId, function(list) {
+            if (gen !== page._gen) return
+            page.series = list || []
+            page.loading = false
         })
     }
 
@@ -144,7 +122,7 @@ Item {
 
             Item { width: 1; height: 96 }
 
-            // header — INLINE metadata (bright count, dim medium)
+            // header — INLINE metadata (bright count, dim medium) + the raw-feed door
             Column {
                 x: theme.margin
                 width: parent.width - 2 * theme.margin
@@ -155,26 +133,35 @@ Item {
                     font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                 }
                 Text {
-                    text: page.genreName
+                    text: page.boxTitle
                     color: theme.ink; font.family: theme.display; font.pixelSize: 48
                     font.weight: Font.DemiBold
                 }
                 Row {
                     spacing: 11
-                    Text { text: page.tiles.length
+                    Text { text: page.series.length
                         color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: "series on the shelf"; color: theme.inkDim
+                    Text { text: "series archives in the latest releases"; color: theme.inkDim
                         font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
                     Text { text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                    Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                        anchors.verticalCenter: parent.verticalCenter }
+                    // the raw feed stays reachable — one honest level down
+                    Text {
+                        text: "All " + (page.boxCount > 0 ? page.boxCount + " " : "") + "releases ›"
+                        color: allMa.containsMouse ? theme.gold : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        MouseArea { id: allMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: page.allReleasesRequested({ western: true, tag: page.tagSlug,
+                                                                   tagId: page.tagId, title: page.boxTitle }) }
+                    }
                 }
             }
 
             Item { width: 1; height: 26 }
 
-            // the poster grid
+            // the series-archive grid
             Grid {
                 id: grid
                 x: theme.margin
@@ -184,7 +171,7 @@ Item {
                 readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
 
                 Repeater {
-                    model: page.tiles
+                    model: page.series
                     delegate: Column {
                         id: tile
                         required property var modelData
@@ -210,7 +197,7 @@ Item {
                             Image {
                                 id: art
                                 anchors.fill: parent; anchors.margins: 1
-                                source: tile.modelData.poster || ""
+                                source: tile.modelData.cover || ""
                                 visible: status === Image.Ready
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true; cache: true
@@ -224,22 +211,32 @@ Item {
                                                                 tagId: tile.modelData.tagId, title: tile.modelData.title })
                             }
                         }
-                        Text {
+                        Column {
                             width: parent.width
-                            text: tile.modelData.title
-                            color: tileMa.containsMouse ? theme.gold : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
-                            elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
+                            spacing: 3
+                            Text {
+                                width: parent.width
+                                text: tile.modelData.title
+                                color: tileMa.containsMouse ? theme.gold : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 13
+                                elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
+                            }
+                            Text {
+                                width: parent.width
+                                text: tile.modelData.count + " releases"
+                                color: theme.inkDimmer
+                                font.family: theme.ui; font.pixelSize: 11
+                                horizontalAlignment: Text.AlignHCenter
+                            }
                         }
                     }
                 }
             }
 
-            // curated shelf came up entirely dry on GetComics (unlikely; honest state anyway)
             Text {
-                visible: !page.loading && page.tiles.length === 0
+                visible: !page.loading && page.series.length === 0
                 x: theme.margin
-                text: "Nothing on this shelf reached GetComics — the curated picks found no releases."
+                text: "No series archives surfaced under this box."
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                 topPadding: 12
             }
@@ -255,12 +252,12 @@ Item {
         spacing: 14
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: page.genreName
+            text: page.boxTitle
             color: theme.ink; font.family: theme.display; font.pixelSize: 34
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
-            text: "Checking the shelf against GetComics…"
+            text: "Reading the archives…"
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
         }
     }
