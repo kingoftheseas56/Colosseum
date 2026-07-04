@@ -55,9 +55,14 @@ Item {
         var seen = {}, out = [];
         for (var i = 0; i < vids.length; i++) {
             var s = episodeSeason(vids[i]);
-            if (s > 0 && !seen[s]) { seen[s] = true; out.push(s); }
+            if (s >= 0 && !seen[s]) { seen[s] = true; out.push(s); }
         }
-        out.sort(function(a, b) { return a - b; });
+        // Numbered seasons ascending; Specials (season 0) pinned to the end of the row.
+        out.sort(function(a, b) {
+            if (a === 0) return 1;
+            if (b === 0) return -1;
+            return a - b;
+        });
         return out;
     }
 
@@ -72,6 +77,10 @@ Item {
             if (seasonExists(resumeSeason))
                 return resumeSeason;
         }
+        // Fresh show: land on the latest NUMBERED season, never on Specials.
+        for (var i = seasons.length - 1; i >= 0; i--)
+            if (seasons[i] > 0)
+                return seasons[i];
         return seasons[seasons.length - 1];
     }
 
@@ -217,7 +226,9 @@ Item {
 
     onItemDataChanged: resolve()
     onActiveSeasonChanged: {
-        if (!loading && mediaType === "series" && activeSeason > 0 && typeof Progress !== "undefined")
+        // >= 0 so a Specials (season 0) pick is remembered too; resets during
+        // resolve() are already guarded by `loading`.
+        if (!loading && mediaType === "series" && activeSeason >= 0 && typeof Progress !== "undefined")
             Progress.rememberLastSeason(currentId(), activeSeason)
     }
     Component.onCompleted: if (currentId().length) resolve()
@@ -600,7 +611,7 @@ Item {
                                         id: seasonCol
                                         spacing: 5
                                         Text {
-                                            text: "Season " + seasonBtn.modelData
+                                            text: seasonBtn.modelData === 0 ? "Specials" : ("Season " + seasonBtn.modelData)
                                             color: seasonBtn.on ? theme.gold : (seasonMa.containsMouse ? theme.ink : theme.inkDim)
                                             font.family: theme.ui
                                             font.pixelSize: 15
