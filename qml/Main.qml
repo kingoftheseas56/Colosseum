@@ -793,6 +793,23 @@ Window {
                 onBookClicked: win.openWorld("Tankoban")
             }
 
+            // Theatre = the film-strip, Biblio = the reading desk (mock-reviewed 2026-07-04;
+            // both self-load their data, so the board wiring stays declarative).
+            TheatreStrip {
+                backdrop: wall
+                track: page.contentY
+                width: parent.width
+                onClicked: win.openWorld("Theatre")
+            }
+
+            ReadingDesk {
+                backdrop: wall
+                track: page.contentY
+                width: parent.width
+                onClicked: win.openWorld("Biblio")
+                onGenrePicked: (name) => { win.openWorld("Biblio"); win.openBiblioGenre(name) }
+            }
+
             Item { width: 1; height: 16 }   // bottom breathing room
         }
     }
