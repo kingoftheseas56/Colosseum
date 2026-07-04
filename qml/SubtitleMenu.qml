@@ -360,7 +360,8 @@ Item {
                     id: footer
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.bottom: delayRow.top
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: delayRow.height
                     height: 38
                     FooterButton {
                         width: parent.width - 112
@@ -513,7 +514,8 @@ Item {
                 FooterButton {
                     anchors.left: parent.left
                     anchors.right: parent.right
-                    anchors.bottom: delayRow.top
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: delayRow.height
                     height: 38
                     text: "Back to tracks"
                     icon: "back"

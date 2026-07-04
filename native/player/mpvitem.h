@@ -8,6 +8,7 @@
 #define COLOSSEUM_MPVITEM_H
 
 #include <MpvAbstractItem>
+#include <QTimer>
 #include <QVariantList>
 
 class MpvItem : public MpvAbstractItem
@@ -102,6 +103,12 @@ public:
     Q_INVOKABLE void addSubtitle(const QString &url, const QString &title = QString(),
                                  const QString &lang = QString(), bool select = true);
     Q_INVOKABLE void setSubOption(const QString &key, const QVariant &value);
+    Q_INVOKABLE QVariant mpvProperty(const QString &name);
+    Q_INVOKABLE QString captureFrame(const QString &title = QString(), const QString &subtitle = QString());
+    Q_INVOKABLE void revealCaptureFolder(const QString &path = QString());
+    Q_INVOKABLE bool startGifRecording();
+    Q_INVOKABLE QString stopGifRecording(const QString &title = QString(), const QString &subtitle = QString());
+    Q_INVOKABLE void abortGifRecording();
 
 Q_SIGNALS:
     void mediaTitleChanged();
@@ -128,9 +135,16 @@ private:
     void setupConnections();
     void onPropertyChanged(const QString &property, const QVariant &value);
     void onAsyncReply(const QVariant &data, mpv_event event);
-    QString formatTime(const double time);
+    QString formatTime(const double time) const;
     QVariantList tracksForType(const QString &type) const;
     QString stringifyId(const QVariant &value) const;
+    QString captureBaseName(const QString &title, const QString &subtitle) const;
+    QString captureDirectory() const;
+    QString sanitizeCapturePart(const QString &value) const;
+    void gifCaptureFrame();
+    QString gifOutputDirectory() const;
+    QString findFfmpeg() const;
+    void cleanGifTemp();
 
     double m_position{0.0};
     QString m_formattedPosition;
@@ -138,6 +152,11 @@ private:
     QString m_formattedDuration;
     QUrl m_currentUrl;
     QVariantList m_trackList;
+    QTimer m_gifTimer;
+    QString m_gifTempDir;
+    int m_gifFrame{0};
+    qint64 m_gifStartedAt{0};
+    bool m_gifRecording{false};
 };
 
 #endif // COLOSSEUM_MPVITEM_H

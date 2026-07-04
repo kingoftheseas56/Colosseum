@@ -6,6 +6,9 @@ var CINEMETA = "https://v3-cinemeta.strem.io";
 var CINEMETA_CATALOGS = "https://cinemeta-catalogs.strem.io/top";
 var JIKAN = "https://api.jikan.moe/v4";
 var ANIME_KITSU = "https://anime-kitsu.strem.fun";
+var JIKAN_CACHE_TTL_MS = 30 * 60 * 1000;
+var jikanCache = {};
+var jikanInflight = {};
 
 var palette = [
     ["#5d4633", "#18110c"],
@@ -64,6 +67,28 @@ function requestJsonWithFallback(urls, done) {
     next();
 }
 
+function requestJsonCached(url, ttlMs, done) {
+    var now = Date.now();
+    var hit = jikanCache[url];
+    if (hit && now - hit.t < ttlMs) {
+        done(hit.value);
+        return;
+    }
+    if (jikanInflight[url]) {
+        jikanInflight[url].push(done);
+        return;
+    }
+    jikanInflight[url] = [done];
+    requestJson(url, function(json) {
+        if (json)
+            jikanCache[url] = { t: Date.now(), value: json };
+        var waiters = jikanInflight[url] || [];
+        delete jikanInflight[url];
+        for (var i = 0; i < waiters.length; i++)
+            waiters[i](json);
+    });
+}
+
 function normalizeArtUrl(url) {
     if (!url)
         return "";
@@ -94,7 +119,7 @@ function jikanQuery(path, params, done) {
         params.sfw = "true";
     for (var key in params)
         qs.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
-    requestJson(JIKAN + path + (qs.length ? "?" + qs.join("&") : ""), function(json) {
+    requestJsonCached(JIKAN + path + (qs.length ? "?" + qs.join("&") : ""), JIKAN_CACHE_TTL_MS, function(json) {
         done(json && json.data ? json.data : []);
     });
 }
@@ -164,14 +189,14 @@ function jikanYear(meta) {
 }
 
 function jikanPoster(meta) {
-    if (meta.images && meta.images.webp && meta.images.webp.large_image_url)
-        return meta.images.webp.large_image_url;
     if (meta.images && meta.images.jpg && meta.images.jpg.large_image_url)
         return meta.images.jpg.large_image_url;
-    if (meta.images && meta.images.webp && meta.images.webp.image_url)
-        return meta.images.webp.image_url;
     if (meta.images && meta.images.jpg && meta.images.jpg.image_url)
         return meta.images.jpg.image_url;
+    if (meta.images && meta.images.webp && meta.images.webp.large_image_url)
+        return meta.images.webp.large_image_url;
+    if (meta.images && meta.images.webp && meta.images.webp.image_url)
+        return meta.images.webp.image_url;
     return "";
 }
 
@@ -216,113 +241,6 @@ function row(title, sub, items, ranked) {
         sub: sub || "",
         ranked: ranked === true,
         items: items || []
-    };
-}
-
-function hasBackdrop(item) {
-    return item && item.art && item.art.length > 0;
-}
-
-function dedupeAgainst(rows, seedItems) {
-    var seen = {};
-    for (var i = 0; i < seedItems.length; i++) {
-        if (seedItems[i].id)
-            seen[seedItems[i].id] = true;
-    }
-    var out = [];
-    for (var r = 0; r < rows.length; r++) {
-        var fresh = [];
-        for (var j = 0; j < rows[r].items.length; j++) {
-            var item = rows[r].items[j];
-            var key = item.id || item.caption;
-            if (key && seen[key])
-                continue;
-            if (key)
-                seen[key] = true;
-            fresh.push(item);
-        }
-        if (fresh.length >= 4)
-            out.push(row(rows[r].title, rows[r].sub, fresh, rows[r].ranked));
-    }
-    return out;
-}
-
-function tile(title, ghost, c1, c2, item) {
-    return {
-        title: title,
-        ghost: ghost,
-        c1: c1,
-        c2: c2,
-        item: item || ({})
-    };
-}
-
-function genreTileSet(rows) {
-    var colors = [
-        ["#6b3f2d", "#16100d"],
-        ["#4f6546", "#11180f"],
-        ["#384f78", "#0b101a"],
-        ["#7a394c", "#160b10"]
-    ];
-    var out = [];
-    for (var i = 0; i < rows.length && out.length < 4; i++) {
-        if (!rows[i].items || rows[i].items.length === 0)
-            continue;
-        var label = rows[i].title.replace(/^Top\s+/, "");
-        out.push(tile(label, label.substring(0, 1), colors[out.length][0], colors[out.length][1], rows[i].items[0]));
-    }
-    return out;
-}
-
-function languageTileSet(rows) {
-    var pool = [];
-    for (var r = 0; r < rows.length; r++) {
-        for (var i = 0; i < rows[r].items.length; i++)
-            pool.push(rows[r].items[i]);
-    }
-    return [
-        tile("Japanese Cinema", "JP", "#5d3848", "#130b10", pool[0]),
-        tile("Korean Stories", "KR", "#385066", "#0b1016", pool[1]),
-        tile("French Picks", "FR", "#63533a", "#15110b", pool[2]),
-        tile("Anime", "A", "#4b3a78", "#100c18", pool[3])
-    ];
-}
-
-function pageBundle(pageKey, rows) {
-    var hero = [];
-    var topPicks = [];
-    var awardTiles = [];
-    var dataRows = rows || [];
-
-    if (pageKey === "movies") {
-        hero = dataRows.length ? dataRows[0].items.filter(hasBackdrop).slice(0, 5) : [];
-        dataRows = dedupeAgainst(dataRows, hero);
-    } else if (pageKey === "shows") {
-        hero = dataRows.length ? dataRows[0].items.filter(hasBackdrop).slice(0, 6) : [];
-        dataRows = dedupeAgainst(dataRows, hero);
-    } else if (pageKey === "anime") {
-        hero = dataRows.length ? dataRows[0].items.filter(hasBackdrop).slice(0, 5) : [];
-        topPicks = dataRows.length > 1 ? dataRows[1].items.slice(0, 18) : [];
-        dataRows = dedupeAgainst(dataRows, hero.concat(topPicks));
-    } else {
-        var topMovies = dataRows.length > 0 ? dataRows[0].items.filter(hasBackdrop).slice(0, 4) : [];
-        var topSeries = dataRows.length > 1 ? dataRows[1].items.filter(hasBackdrop).slice(0, 4) : [];
-        for (var i = 0; i < Math.max(topMovies.length, topSeries.length) && hero.length < 6; i++) {
-            if (topMovies[i]) hero.push(topMovies[i]);
-            if (topSeries[i]) hero.push(topSeries[i]);
-        }
-        awardTiles = dataRows.length > 0 ? dataRows[0].items.slice(0, 8) : [];
-        dataRows = dedupeAgainst(dataRows.slice(2), hero.concat(awardTiles));
-    }
-
-    return {
-        pageKey: pageKey,
-        rows: dataRows,
-        hero: hero,
-        topPicks: topPicks,
-        awardTiles: awardTiles,
-        genreTiles: pageKey === "discover" ? genreTileSet(dataRows) : [],
-        languageTiles: pageKey === "discover" ? languageTileSet(dataRows) : []
     };
 }
 
@@ -398,149 +316,37 @@ function runSpecsProgressive(pageKey, specs, done) {
 }
 
 function movieGenreSpecs() {
-    var genres = ["Action", "Drama", "Comedy", "Sci-Fi", "Thriller", "Horror", "Romance", "Animation", "Adventure", "Crime", "Mystery", "Fantasy", "Documentary"];
-    var specs = [{
-        title: "Top Movies",
+    return [{
+        title: "Top 10 on Movies",
         sub: "",
         ranked: true,
-        fetch: function(done) { catalogFetch("movie", "", 20, done); }
+        fetch: function(done) { catalogFetch("movie", "", 10, done); }
     }];
-    for (var i = 0; i < genres.length; i++) {
-        (function(genre) {
-            specs.push({
-                title: "Top " + genre,
-                sub: "",
-                fetch: function(done) { catalogFetch("movie", genre, 20, done); }
-            });
-        })(genres[i]);
-    }
-    return specs;
 }
 
 function showGenreSpecs() {
-    var genres = ["Drama", "Comedy", "Crime", "Sci-Fi", "Thriller", "Mystery", "Action", "Animation", "Adventure", "Fantasy", "Documentary", "Romance", "Horror"];
-    var specs = [{
-        title: "Top Series",
+    return [{
+        title: "Top 10 on Shows",
         sub: "",
         ranked: true,
-        fetch: function(done) { catalogFetch("series", "", 20, done); }
+        fetch: function(done) { catalogFetch("series", "", 10, done); }
     }];
-    for (var i = 0; i < genres.length; i++) {
-        (function(genre) {
-            specs.push({
-                title: "Top " + genre,
-                sub: "",
-                fetch: function(done) { catalogFetch("series", genre, 20, done); }
-            });
-        })(genres[i]);
-    }
-    return specs;
-}
-
-function discoverSpecs() {
-    return [
-        {
-            title: "Top Movies",
-            sub: "",
-            ranked: true,
-            fetch: function(done) { catalogFetch("movie", "", 20, done); }
-        },
-        {
-            title: "Top Series",
-            sub: "",
-            ranked: true,
-            fetch: function(done) { catalogFetch("series", "", 20, done); }
-        },
-        {
-            title: "Top Drama",
-            sub: "",
-            fetch: function(done) { catalogFetch("movie", "Drama", 20, done); }
-        },
-        {
-            title: "Top Comedy",
-            sub: "",
-            fetch: function(done) { catalogFetch("movie", "Comedy", 20, done); }
-        },
-        {
-            title: "Top Action",
-            sub: "",
-            fetch: function(done) { catalogFetch("movie", "Action", 20, done); }
-        },
-        {
-            title: "Top Sci-Fi",
-            sub: "",
-            fetch: function(done) { catalogFetch("movie", "Sci-Fi", 20, done); }
-        },
-        {
-            title: "Top Thriller",
-            sub: "",
-            fetch: function(done) { catalogFetch("movie", "Thriller", 20, done); }
-        }
-    ];
 }
 
 function animeSpecs() {
-    return [
-        {
-            title: "Airing Now",
-            sub: "",
-            fetch: function(done) { jikanFetch("/seasons/now", { page: 1 }, 20, done); }
-        },
-        {
-            title: "Top Airing",
-            sub: "",
-            ranked: true,
-            fetch: function(done) { jikanFetch("/top/anime", { filter: "airing", page: 1 }, 20, done); }
-        },
-        {
-            title: "Upcoming Season",
-            sub: "",
-            fetch: function(done) { jikanFetch("/seasons/upcoming", { page: 1 }, 20, done); }
-        },
-        {
-            title: "Top Anime Series",
-            sub: "",
-            ranked: true,
-            fetch: function(done) { jikanFetch("/top/anime", { type: "tv", page: 1 }, 20, done); }
-        },
-        {
-            title: "Anime Movies",
-            sub: "",
-            fetch: function(done) { jikanFetch("/top/anime", { type: "movie", page: 1 }, 20, done); }
-        },
-        {
-            title: "Popular Anime",
-            sub: "",
-            fetch: function(done) { jikanFetch("/top/anime", { filter: "bypopularity", page: 1 }, 20, done); }
-        },
-        {
-            title: "Highest Rated Anime",
-            sub: "",
-            fetch: function(done) { jikanFetch("/top/anime", { page: 1 }, 20, done); }
-        },
-        {
-            title: "2020s Hits",
-            sub: "",
-            fetch: function(done) { jikanFetch("/anime", { start_date: "2020-01-01", end_date: "2029-12-31", order_by: "score", sort: "desc", min_score: 7.5, page: 1 }, 20, done); }
-        },
-        {
-            title: "Action & Adventure",
-            sub: "",
-            fetch: function(done) { jikanFetch("/anime", { genres: 1, order_by: "score", sort: "desc", min_score: 7, page: 1 }, 20, done); }
-        },
-        {
-            title: "Romance",
-            sub: "",
-            fetch: function(done) { jikanFetch("/anime", { genres: 22, order_by: "score", sort: "desc", min_score: 7, page: 1 }, 20, done); }
-        }
-    ];
+    return [{
+        title: "Top 10 on Anime",
+        sub: "",
+        ranked: true,
+        fetch: function(done) { jikanFetch("/top/anime", { filter: "airing", page: 1 }, 10, done); }
+    }];
 }
 
 function pageTitle(pageKey) {
     if (pageKey === "movies") return "Movies";
     if (pageKey === "shows") return "Shows";
     if (pageKey === "anime") return "Anime";
-    return "Discover";
+    return "Movies";
 }
 
 function pageSubtitle(pageKey) {
@@ -552,26 +358,20 @@ function pageSourceLabel(pageKey) {
 }
 
 function loadCatalogPage(pageKey, done) {
-    if (pageKey === "movies") {
-        runSpecs(pageKey, movieGenreSpecs(), function(result) {
-            done(pageBundle(pageKey, result.rows || []));
-        });
-        return;
-    }
     if (pageKey === "shows") {
         runSpecs(pageKey, showGenreSpecs(), function(result) {
-            done(pageBundle(pageKey, result.rows || []));
+            done({ pageKey: pageKey, rows: result.rows || [] });
         });
         return;
     }
     if (pageKey === "anime") {
         runSpecsProgressive(pageKey, animeSpecs(), function(result) {
-            done(pageBundle(pageKey, result.rows || []));
+            done({ pageKey: pageKey, rows: result.rows || [] });
         });
         return;
     }
-    runSpecs("discover", discoverSpecs(), function(result) {
-        done(pageBundle("discover", result.rows || []));
+    runSpecs("movies", movieGenreSpecs(), function(result) {
+        done({ pageKey: "movies", rows: result.rows || [] });
     });
 }
 

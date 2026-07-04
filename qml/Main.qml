@@ -95,6 +95,8 @@ Window {
         else if (worldSearchLayer.active) win.closeWorldSearch()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
+        else if (theatreGenreLayer.active) win.closeTheatreGenre()
+        else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
         else if (genreIndexLayer.active) win.closeGenreIndex()
         else if (universeLayer.active) win.closeUniverse()
@@ -186,6 +188,25 @@ Window {
     function openBiblioGenreIndex() { biblioGenreIndexLayer.active = true }
     function closeBiblioGenreIndex() { biblioGenreIndexLayer.active = false }
 
+    // ---- Theatre genre page + index: Theatre-owned twins of the manga pair above. The index
+    //      layer sits BELOW the page layer so a picked genre opens its page over the index. ----
+    function openTheatreGenre(kind, name) {
+        theatreGenreLayer.mediaKind = kind
+        theatreGenreLayer.genreName = name
+        if (theatreGenreLayer.active && theatreGenreLayer.item) {
+            theatreGenreLayer.item.mediaKind = kind
+            theatreGenreLayer.item.genreName = name
+        } else theatreGenreLayer.active = true
+    }
+    function closeTheatreGenre() { theatreGenreLayer.active = false }
+    function openTheatreGenreIndex(kind) {
+        theatreGenreIndexLayer.mediaKind = kind
+        if (theatreGenreIndexLayer.active && theatreGenreIndexLayer.item)
+            theatreGenreIndexLayer.item.mediaKind = kind
+        theatreGenreIndexLayer.active = true
+    }
+    function closeTheatreGenreIndex() { theatreGenreIndexLayer.active = false }
+
     // ---- series detail: a layer over the current world page (opened from a Top-10 title tile) ----
     function openSeries(title) {
         seriesLayer.resumeSeriesId = ""
@@ -220,12 +241,16 @@ Window {
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
     property bool playerOpen: false
-    function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId) {
+    readonly property bool immersiveSurfaceOpen: win.playerOpen
+        || bookReaderLayer.active
+        || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
+
+    function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         if (!playerLayer.active) playerLayer.active = true
         win.playerOpen = true
         // `backdrop` is the poster url; subType/subId (e.g. "movie"/"tt123" or "series"/"tt123:1:2")
         // let the player fetch online subtitles for this exact title/episode.
-        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId)
+        playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates || [], playbackContext || ({}))
     }
     function closePlayer() {
         if (playerLayer.item) playerLayer.item.stop()
@@ -286,7 +311,7 @@ Window {
         var r = entry.resume || ({})
         var title = entry.title || entry.caption || ""
         if (entry.kind === "video") {
-            if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "")
+            if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {})
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
@@ -300,7 +325,20 @@ Window {
         var title = entry.title || entry.caption || ""
         if (entry.kind === "video") {
             var id = (entry.id || "").split(":")[0]                      // base tt id (strip episode suffix)
-            if (id.indexOf("tt") !== 0) { win.resumeContinue(entry); return }   // raw torrent, no Theatre page
+            if (id.indexOf("tt") !== 0) {
+                // Non-Cinemeta id: anime comes from Jikan (id "mal:<malId>") and resolves through
+                // the Kitsu addon. Its episode id is PREFIX:NUM(:season:episode); the series id is
+                // PREFIX:NUM. Open the SAME series view shows/movies use (TheatreSeries), not the
+                // universe landing page.
+                var p = String(entry.id || "").split(":")
+                if (p.length >= 2 && /^(mal|kitsu|anilist|anidb)$/.test(p[0])) {
+                    win.openTheatreSeries({ id: p[0] + ":" + p[1],
+                                            type: entry.type === "movie" ? "movie" : "series",
+                                            title: title, cover: entry.cover || "" })
+                    return
+                }
+                win.resumeContinue(entry); return   // raw torrent, no detail page
+            }
             // resolve movie vs series live from Cinemeta (probe series first; a hit → series, else movie),
             // then open the Theatre detail. No stored type needed, so existing entries work too.
             TheatreApi.loadMeta("series", id, function(meta) {
@@ -319,11 +357,12 @@ Window {
     // capture -> teardown -> build -> restore switch. contentKind picks the surface.
 
     // UI entry points (replace direct open* calls from cards / world pages):
-    function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId) {
+    function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
             "target": { "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
-                        "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "" }
+                        "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
+                        "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}) }
         })
     }
     function openComicSession(title, seriesId, chapterId) {
@@ -400,7 +439,8 @@ Window {
         if (rec.contentKind === "movie") {
             if (!playerLayer.active) playerLayer.active = true
             win.playerOpen = true
-            playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId)
+            playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
+                                         t.streamCandidates || [], t.playbackContext || ({}))
             if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
         } else if (rec.contentKind === "comic") {
             seriesLayer.resumeSeriesId = t.seriesId || ""
@@ -898,6 +938,10 @@ Window {
                     if (mode === "Theatre") {
                         var theatreSignal = item["theatre" + "ItemRequested"]
                         if (theatreSignal) theatreSignal.connect(win.openTheatreSeries)
+                        var tgSignal = item["theatre" + "GenreRequested"]
+                        if (tgSignal) tgSignal.connect(win.openTheatreGenre)
+                        var tgiSignal = item["theatre" + "GenreIndexRequested"]
+                        if (tgiSignal) tgiSignal.connect(win.openTheatreGenreIndex)
                     }
                     item.searchClicked.connect(win.openSearch)
                     item.minimizeClicked.connect(win.minimizeShell)
@@ -1011,6 +1055,51 @@ Window {
         }
     }
 
+    Loader {
+        id: theatreGenreLayer
+        anchors.fill: parent
+        z: 48
+        active: false
+        visible: active
+        property string mediaKind: "movie"
+        property string genreName: ""
+        source: "TheatreGenrePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.mediaKind = theatreGenreLayer.mediaKind
+            item.genreName = theatreGenreLayer.genreName
+            item.backRequested.connect(win.closeTheatreGenre)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.itemRequested.connect(win.openTheatreSeries)
+            item.exploreRequested.connect(function() {
+                win.closeTheatreGenre(); win.openTheatreGenreIndex(theatreGenreLayer.mediaKind)
+            })
+        }
+    }
+
+    Loader {
+        id: theatreGenreIndexLayer
+        anchors.fill: parent
+        z: 47
+        active: false
+        visible: active
+        property string mediaKind: "movie"
+        source: "TheatreGenreIndex.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.mediaKind = theatreGenreIndexLayer.mediaKind
+            item.backRequested.connect(win.closeTheatreGenreIndex)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.genrePicked.connect(function(name) {
+                win.openTheatreGenre(theatreGenreIndexLayer.mediaKind, name)
+            })
+        }
+    }
+
     // ---- series detail layer: opened from a Top-10 title tile, sits OVER the world page ----
     Loader {
         id: seriesLayer
@@ -1086,7 +1175,7 @@ Window {
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
-            item.readRequested.connect(win.openBookReader)
+            item.readRequested.connect(win.openBookSession)
         }
     }
 
@@ -1196,6 +1285,9 @@ Window {
     Taskbar {
         id: taskbar
         z: 900
+        visible: !win.immersiveSurfaceOpen
+        enabled: visible
+        onVisibleChanged: if (!visible) open = false
         onSwitchRequested: (id) => Sessions.switchTo(id)
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }

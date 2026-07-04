@@ -69,6 +69,8 @@ void StreamServer::ensureStarted()
     QDir().mkpath(cacheDir);
 
     QProcessEnvironment penv = QProcessEnvironment::systemEnvironment();
+    // Some desktop shells inject Node flags that this bundled runtime rejects at boot.
+    penv.remove(QStringLiteral("NODE_OPTIONS"));
     penv.insert(QStringLiteral("NO_HTTPS_SERVER"), QStringLiteral("1"));
     penv.insert(QStringLiteral("APP_PATH"), QDir::toNativeSeparators(cacheDir));
 

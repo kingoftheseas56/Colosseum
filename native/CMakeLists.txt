@@ -45,11 +45,23 @@ add_executable(colosseum
     engine/BookDownloader.h
     reader/BookBridge.cpp
     reader/BookBridge.h
+    player/caststore.cpp
+    player/caststore.h
+    player/downloadstore.cpp
+    player/downloadstore.h
+    player/livestore.cpp
+    player/livestore.h
     player/mpvitem.cpp
     player/mpvitem.h
     player/mpvproperties.h
+    player/powerstore.cpp
+    player/powerstore.h
+    player/roomstore.cpp
+    player/roomstore.h
     player/streamserver.cpp
     player/streamserver.h
+    player/windowmodestore.cpp
+    player/windowmodestore.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
@@ -60,6 +72,9 @@ if(WIN32)
     get_filename_component(_qt_bin_dir "${_qt_qmake}" DIRECTORY)
     add_custom_command(TARGET colosseum POST_BUILD
         COMMAND "${CMAKE_COMMAND}" -E make_directory "$<TARGET_FILE_DIR:colosseum>/sqldrivers"
+        COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+            "${_qt_bin_dir}/Qt6Sql.dll"
+            "$<TARGET_FILE_DIR:colosseum>/Qt6Sql.dll"
         COMMAND "${CMAKE_COMMAND}" -E copy_if_different
             "${_qt_bin_dir}/../plugins/sqldrivers/qsqlite.dll"
             "$<TARGET_FILE_DIR:colosseum>/sqldrivers/qsqlite.dll"

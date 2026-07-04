@@ -55,14 +55,18 @@ public:
         // a film watched past 90% is "done" and drops off Continue. (TB2 advances series to the
         // next episode instead of dropping — a future enhancement here; for now we drop.)
         const double progress = entry.value(QStringLiteral("progress")).toDouble();
-        if (kind == QStringLiteral("video") && progress >= 0.90) {
-            if (m_map.remove(key) > 0) { save(); bump(); }
+        const bool isSeriesEpisode =
+            kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
+        if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
+            if (m_map.remove(key)) { save(); bump(); }
             return;
         }
 
         QVariantMap rec = entry;
         rec.insert(QStringLiteral("id"), id);
         rec.insert(QStringLiteral("kind"), kind);
+        if (isSeriesEpisode && progress >= 0.90)
+            rec.insert(QStringLiteral("watched"), true);
         rec.insert(QStringLiteral("updatedAt"), QDateTime::currentMSecsSinceEpoch());
         m_map.insert(key, rec);
         save();
@@ -89,7 +93,28 @@ public:
 
     // Explicit removal — e.g. a future "remove from Continue" affordance.
     Q_INVOKABLE void forget(const QString &kind, const QString &id) {
-        if (m_map.remove(mapKey(kind, id)) > 0) { save(); bump(); }
+        if (m_map.remove(mapKey(kind, id))) { save(); bump(); }
+    }
+
+    Q_INVOKABLE QVariantMap get(const QString &kind, const QString &id) const {
+        return m_map.value(mapKey(kind, id)).toMap();
+    }
+
+    Q_INVOKABLE int lastSeason(const QString &seriesId) const {
+        if (seriesId.isEmpty())
+            return -1;
+        return m_settings.value(QStringLiteral("video/lastSeason/") + seriesId, -1).toInt();
+    }
+
+    Q_INVOKABLE void rememberLastSeason(const QString &seriesId, int season) {
+        if (seriesId.isEmpty() || season <= 0)
+            return;
+        const QString key = QStringLiteral("video/lastSeason/") + seriesId;
+        if (m_settings.value(key, -1).toInt() == season)
+            return;
+        m_settings.setValue(key, season);
+        m_settings.sync();
+        bump();
     }
 
 signals:

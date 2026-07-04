@@ -18,6 +18,7 @@ Item {
     property string backdropUrl: ""
     property string subType: ""   // "movie" | "series" — carried to the player for online subtitle fetch
     property string subId: ""     // "tt..." (movie) or "tt...:s:e" (episode)
+    property var playbackContext: ({})
     property bool open: false
     property bool loading: false
     property bool timedOut: false
@@ -27,7 +28,7 @@ Item {
     property var visibleRows: filteredRows()
 
     // a source row was chosen → play it (handled up at Main, which opens the player)
-    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId)
+    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -42,6 +43,7 @@ Item {
         sheet.title = (context && context.title) ? context.title : sheet.label;
         sheet.metaLine = (context && context.metaLine) ? context.metaLine : "";
         sheet.backdropUrl = (context && context.backdrop) ? context.backdrop : "";
+        sheet.playbackContext = context || ({});
         sheet.rows = [];
         sheet.qualityFilter = "all";
         sheet.timedOut = false;
@@ -402,7 +404,8 @@ Item {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: sheet.playRequested(row.modelData.infoHash, row.modelData.fileIdx,
-                                                   sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId)
+                                                   sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId,
+                                                   sheet.rows, sheet.playbackContext)
                 }
             }
         }

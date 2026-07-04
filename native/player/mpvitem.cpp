@@ -2,6 +2,17 @@
 #include "mpvitem.h"
 
 #include <MpvController>
+#include <QCoreApplication>
+#include <QDateTime>
+#include <QDesktopServices>
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
+#include <QRegularExpression>
+#include <QSet>
+#include <QUuid>
+#include <QStandardPaths>
+#include <QUrl>
 #include <QtMath>
 
 #include "mpvproperties.h"
@@ -50,6 +61,8 @@ MpvItem::MpvItem(QQuickItem *parent)
 
     setPropertyAsync(QStringLiteral("volume"), 100, static_cast<int>(MpvItem::AsyncIds::SetVolume));
     getPropertyAsync(MpvProperties::self()->Volume, static_cast<int>(MpvItem::AsyncIds::GetVolume));
+    m_gifTimer.setInterval(200);
+    connect(&m_gifTimer, &QTimer::timeout, this, &MpvItem::gifCaptureFrame);
 }
 
 void MpvItem::setupConnections()
@@ -136,7 +149,7 @@ void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
     }
 }
 
-QString MpvItem::formatTime(const double time)
+QString MpvItem::formatTime(const double time) const
 {
     int totalNumberOfSeconds = static_cast<int>(time);
     int seconds = totalNumberOfSeconds % 60;
@@ -197,6 +210,124 @@ void MpvItem::setSubOption(const QString &key, const QVariant &value)
         return;
     }
     setProperty(name, value);
+}
+
+QVariant MpvItem::mpvProperty(const QString &name)
+{
+    static const QSet<QString> allowedStatsProperties = {
+        QStringLiteral("video-bitrate"),
+        QStringLiteral("audio-bitrate"),
+        QStringLiteral("frame-drop-count"),
+        QStringLiteral("vo-drop-frame-count"),
+        QStringLiteral("estimated-vf-fps"),
+        QStringLiteral("container-fps"),
+        QStringLiteral("video-codec"),
+        QStringLiteral("audio-codec"),
+        QStringLiteral("hwdec-current"),
+        QStringLiteral("cache-buffering-state"),
+        QStringLiteral("width"),
+        QStringLiteral("height"),
+    };
+    const QString key = name.trimmed();
+    if (!allowedStatsProperties.contains(key))
+        return QVariant();
+    return getProperty(key);
+}
+
+QString MpvItem::captureFrame(const QString &title, const QString &subtitle)
+{
+    const QString dir = captureDirectory();
+    QDir().mkpath(dir);
+    const QString fileName = QStringLiteral("%1 - %2.png")
+                                 .arg(captureBaseName(title, subtitle),
+                                      QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_hhmmss")));
+    const QString path = QDir(dir).filePath(fileName);
+    setProperty(QStringLiteral("screenshot-format"), QStringLiteral("png"));
+    setProperty(QStringLiteral("screenshot-png-compression"), 3);
+    setProperty(QStringLiteral("screenshot-sw"), QStringLiteral("yes"));
+    command(QStringList() << QStringLiteral("screenshot-to-file")
+                          << QDir::toNativeSeparators(path)
+                          << QStringLiteral("video"));
+    return QDir::toNativeSeparators(path);
+}
+
+void MpvItem::revealCaptureFolder(const QString &path)
+{
+    QString folder;
+    if (!path.trimmed().isEmpty())
+        folder = QFileInfo(path).absoluteDir().absolutePath();
+    if (folder.isEmpty())
+        folder = captureDirectory();
+    if (!folder.isEmpty())
+        QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+}
+
+bool MpvItem::startGifRecording()
+{
+    if (m_gifRecording)
+        return true;
+    cleanGifTemp();
+    m_gifTempDir = QDir::temp().filePath(QStringLiteral("colosseum-gif-%1")
+                                             .arg(QUuid::createUuid().toString(QUuid::WithoutBraces)));
+    if (!QDir().mkpath(m_gifTempDir))
+        return false;
+    m_gifFrame = 0;
+    m_gifStartedAt = QDateTime::currentMSecsSinceEpoch();
+    m_gifRecording = true;
+    setProperty(QStringLiteral("screenshot-format"), QStringLiteral("png"));
+    setProperty(QStringLiteral("screenshot-png-compression"), 3);
+    setProperty(QStringLiteral("screenshot-sw"), QStringLiteral("yes"));
+    gifCaptureFrame();
+    m_gifTimer.start();
+    return true;
+}
+
+QString MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
+{
+    if (!m_gifRecording)
+        return QString();
+    m_gifTimer.stop();
+    m_gifRecording = false;
+    if (m_gifFrame < 2) {
+        cleanGifTemp();
+        return QString();
+    }
+
+    const QString ffmpeg = findFfmpeg();
+    if (ffmpeg.isEmpty()) {
+        cleanGifTemp();
+        return QString();
+    }
+
+    const QString outDir = gifOutputDirectory();
+    QDir().mkpath(outDir);
+    const QString outPath = QDir(outDir).filePath(QStringLiteral("%1 - %2.gif")
+                                                     .arg(captureBaseName(title, subtitle),
+                                                          QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_hhmmss"))));
+    const QString inputPattern = QDir(m_gifTempDir).filePath(QStringLiteral("frame_%05d.png"));
+
+    QStringList args;
+    args << QStringLiteral("-y")
+         << QStringLiteral("-framerate") << QStringLiteral("5")
+         << QStringLiteral("-i") << QDir::toNativeSeparators(inputPattern)
+         << QStringLiteral("-vf") << QStringLiteral("fps=10,scale=640:-2:flags=lanczos")
+         << QDir::toNativeSeparators(outPath);
+
+    QProcess ff;
+    ff.start(ffmpeg, args);
+    if (!ff.waitForFinished(60000) || ff.exitStatus() != QProcess::NormalExit || ff.exitCode() != 0) {
+        cleanGifTemp();
+        return QString();
+    }
+    cleanGifTemp();
+    return QDir::toNativeSeparators(outPath);
+}
+
+void MpvItem::abortGifRecording()
+{
+    m_gifTimer.stop();
+    m_gifRecording = false;
+    cleanGifTemp();
 }
 
 QString MpvItem::mediaTitle()
@@ -413,6 +544,96 @@ QString MpvItem::stringifyId(const QVariant &value) const
 {
     const QString id = value.toString().trimmed();
     return id == QStringLiteral("no") ? QString() : id;
+}
+
+QString MpvItem::captureBaseName(const QString &title, const QString &subtitle) const
+{
+    QString base = sanitizeCapturePart(title);
+    if (base.isEmpty())
+        base = sanitizeCapturePart(const_cast<MpvItem *>(this)->mediaTitle());
+    if (base.isEmpty())
+        base = QStringLiteral("Frame grab");
+    const QString sub = sanitizeCapturePart(subtitle);
+    if (!sub.isEmpty())
+        base += QStringLiteral(" - ") + sub;
+    const QString pos = formatTime(m_position).replace(QLatin1Char(':'), QLatin1Char('-'));
+    if (!pos.isEmpty())
+        base += QStringLiteral(" - ") + pos;
+    return base;
+}
+
+QString MpvItem::captureDirectory() const
+{
+    QString base = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (base.isEmpty())
+        base = QDir::homePath();
+    return QDir(base).filePath(QStringLiteral("Colosseum"));
+}
+
+void MpvItem::gifCaptureFrame()
+{
+    if (!m_gifRecording || m_gifTempDir.isEmpty())
+        return;
+    ++m_gifFrame;
+    const QString framePath = QDir(m_gifTempDir).filePath(QStringLiteral("frame_%1.png")
+                                                             .arg(m_gifFrame, 5, 10, QLatin1Char('0')));
+    command(QStringList() << QStringLiteral("screenshot-to-file")
+                          << QDir::toNativeSeparators(framePath)
+                          << QStringLiteral("video"));
+}
+
+QString MpvItem::gifOutputDirectory() const
+{
+    QString base = QStandardPaths::writableLocation(QStandardPaths::PicturesLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+    if (base.isEmpty())
+        base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (base.isEmpty())
+        base = QDir::homePath();
+    return QDir(base).filePath(QStringLiteral("Colosseum"));
+}
+
+QString MpvItem::findFfmpeg() const
+{
+    const QString exe = QStringLiteral("ffmpeg.exe");
+    const QString appPath = QCoreApplication::applicationDirPath();
+    const QString local = QDir(appPath).filePath(exe);
+    if (QFileInfo::exists(local))
+        return local;
+    const QString tools = QDir(appPath).filePath(QStringLiteral("tools/ffmpeg.exe"));
+    if (QFileInfo::exists(tools))
+        return tools;
+    const QString pathHit = QStandardPaths::findExecutable(QStringLiteral("ffmpeg"));
+    if (!pathHit.isEmpty())
+        return pathHit;
+    return QString();
+}
+
+void MpvItem::cleanGifTemp()
+{
+    if (m_gifTempDir.isEmpty())
+        return;
+    QDir dir(m_gifTempDir);
+    if (dir.exists())
+        dir.removeRecursively();
+    m_gifTempDir.clear();
+    m_gifFrame = 0;
+    m_gifStartedAt = 0;
+}
+
+QString MpvItem::sanitizeCapturePart(const QString &value) const
+{
+    QString out = value.simplified();
+    out.replace(QRegularExpression(QStringLiteral("[\\\\/:*?\"<>|]+")), QStringLiteral("_"));
+    out = out.trimmed();
+    if (out.size() > 90)
+        out = out.left(90).trimmed();
+    return out;
 }
 
 #include "moc_mpvitem.cpp"

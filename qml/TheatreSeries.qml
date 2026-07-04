@@ -1,7 +1,9 @@
 // TheatreSeries - Theatre detail page for movies and series.
 // Mirrors MangaSeries.qml house style: full-bleed banner, inline metadata, reveal gate,
 // pitch-black base, and a slide-up SourcesSheet for Torrentio rows.
+pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import "TheatreApi.js" as TheatreApi
 
 Item {
@@ -11,7 +13,7 @@ Item {
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
-    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId)
+    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
 
     property string title: ""
     property string mediaType: "movie"
@@ -26,6 +28,9 @@ Item {
     property var seasons: []
     property int activeSeason: 0
     property var episodes: filterEpisodes(videos, activeSeason)
+    property string episodeLayout: "list"
+    property bool episodeJumpOpen: false
+    property string episodeJumpDraft: ""
     property bool loading: true
     property string errorMsg: ""
 
@@ -50,6 +55,27 @@ Item {
         return out;
     }
 
+    function defaultSeason() {
+        if (!seasons.length)
+            return 0;
+        if (typeof Progress !== "undefined") {
+            var saved = Progress.lastSeason(currentId());
+            if (seasonExists(saved))
+                return saved;
+            var resumeSeason = recentProgressSeason();
+            if (seasonExists(resumeSeason))
+                return resumeSeason;
+        }
+        return seasons[seasons.length - 1];
+    }
+
+    function seasonExists(season) {
+        for (var i = 0; i < seasons.length; i++)
+            if (seasons[i] === season)
+                return true;
+        return false;
+    }
+
     function episodeStreamId(v) {
         if (v.id && v.id.length) return v.id;
         return currentId() + ":" + episodeSeason(v) + ":" + episodeNumber(v);
@@ -72,9 +98,122 @@ Item {
         return epTitle.length ? (label + " - " + epTitle) : label;
     }
 
+    function episodePlaybackTarget(v) {
+        if (!v)
+            return null;
+        var target = shallowEpisodeTarget(v);
+        target.context = adjacentEpisodeContext(v);
+        return target;
+    }
+
+    function shallowEpisodeTarget(v) {
+        if (!v)
+            return null;
+        return {
+            "type": "series",
+            "id": episodeStreamId(v),
+            "title": page.title + " - S" + episodeSeason(v) + "E" + episodeNumber(v),
+            "backdrop": sourceBackdrop(),
+            "season": episodeSeason(v),
+            "episode": episodeNumber(v),
+            "metaLine": episodeSourceLine(v)
+        };
+    }
+
+    function adjacentEpisodeContext(v) {
+        var idx = episodeIndex(episodeNumber(v));
+        var queue = [];
+        for (var i = 0; i < episodes.length; i++)
+            queue.push(shallowEpisodeTarget(episodes[i]));
+        return {
+            "episodeQueue": queue,
+            "episodeIndex": idx,
+            "adjacentEpisodes": {
+                "prev": idx > 0 ? Object.assign(shallowEpisodeTarget(episodes[idx - 1]),
+                                                { "context": { "episodeQueue": queue, "episodeIndex": idx - 1 } }) : null,
+                "next": (idx >= 0 && idx + 1 < episodes.length)
+                        ? Object.assign(shallowEpisodeTarget(episodes[idx + 1]),
+                                        { "context": { "episodeQueue": queue, "episodeIndex": idx + 1 } }) : null
+            }
+        };
+    }
+
+    function episodeIndex(number) {
+        for (var i = 0; i < episodes.length; i++)
+            if (episodeNumber(episodes[i]) === number)
+                return i;
+        return -1;
+    }
+
+    function jumpToEpisodeNumber(number) {
+        var index = episodeIndex(number);
+        if (index < 0)
+            return false;
+        episodeList.positionViewAtIndex(index, ListView.Beginning);
+        episodeJumpOpen = false;
+        episodeJumpDraft = "";
+        return true;
+    }
+
+    function submitEpisodeJump() {
+        var n = parseInt(episodeJumpDraft, 10);
+        if (isNaN(n))
+            return;
+        jumpToEpisodeNumber(n);
+    }
+
+    function progressEntry(v) {
+        if (typeof Progress === "undefined")
+            return ({});
+        var rev = Progress.revision;
+        var entry = Progress.get("video", episodeStreamId(v));
+        return entry || ({});
+    }
+
+    function episodeProgressRatio(v) {
+        var entry = progressEntry(v);
+        var p = Number(entry.progress || 0);
+        if (!isFinite(p) || p < 0)
+            return 0;
+        return Math.max(0, Math.min(1, p));
+    }
+
+    function episodeWatched(v) {
+        var entry = progressEntry(v);
+        return entry.watched === true || episodeProgressRatio(v) >= 0.85;
+    }
+
+    function nextUpEpisodeNumber() {
+        for (var i = 0; i < episodes.length; i++)
+            if (!episodeWatched(episodes[i]))
+                return episodeNumber(episodes[i]);
+        return episodes.length ? episodeNumber(episodes[episodes.length - 1]) : 0;
+    }
+
+    function recentProgressSeason() {
+        if (typeof Progress === "undefined")
+            return -1;
+        var rev = Progress.revision;
+        var rows = Progress.recent("video", 80);
+        var prefix = currentId() + ":";
+        for (var i = 0; i < rows.length; i++) {
+            var id = rows[i].id || "";
+            if (id.indexOf(prefix) !== 0)
+                continue;
+            var parts = id.split(":");
+            if (parts.length > 2)
+                return Number(parts[1]);
+        }
+        return -1;
+    }
+
     Theme { id: theme }
 
     onItemDataChanged: resolve()
+    onActiveSeasonChanged: {
+        if (!loading && mediaType === "series" && activeSeason > 0 && typeof Progress !== "undefined")
+            Progress.rememberLastSeason(currentId(), activeSeason)
+    }
     Component.onCompleted: if (currentId().length) resolve()
 
     function resolve() {
@@ -122,7 +261,7 @@ Item {
     function onMetaLoaded() {
         if (mediaType === "series") {
             seasons = computeSeasons(videos);
-            activeSeason = seasons.length ? seasons[0] : 0;
+            activeSeason = defaultSeason();
         } else {
             seasons = [];
             activeSeason = 0;
@@ -464,36 +603,298 @@ Item {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: page.activeSeason = seasonBtn.modelData
+                                        onClicked: {
+                                            page.activeSeason = seasonBtn.modelData
+                                            episodeList.positionViewAtBeginning()
+                                        }
                                     }
                                 }
                             }
                         }
                     }
 
-                    Repeater {
+                    Row {
+                        x: theme.margin
+                        width: parent.width - 2 * theme.margin
+                        height: 54
+                        spacing: 12
+
+                        Text {
+                            text: page.episodes.length + " Episodes"
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            visible: page.nextUpEpisodeNumber() > 0
+                            text: "Next E" + page.nextUpEpisodeNumber()
+                            color: theme.gold
+                            font.family: theme.ui
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Item { width: Math.max(0, parent.width - 408); height: 1 }
+
+                        Rectangle {
+                            width: 74
+                            height: 34
+                            radius: 17
+                            color: Qt.rgba(1, 1, 1, 0.07)
+                            border.width: 1
+                            border.color: theme.edge
+                            anchors.verticalCenter: parent.verticalCenter
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 3
+                                Repeater {
+                                    model: ["list", "strip"]
+                                    delegate: Rectangle {
+                                        id: layoutBtn
+                                        required property string modelData
+                                        width: 31
+                                        height: 28
+                                        radius: 14
+                                        color: page.episodeLayout === modelData ? theme.ink : "transparent"
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: layoutBtn.modelData === "list" ? "\u2630" : "\u25ad"
+                                            color: page.episodeLayout === layoutBtn.modelData ? "#111111" : theme.inkDim
+                                            font.family: theme.ui
+                                            font.pixelSize: layoutBtn.modelData === "list" ? 15 : 17
+                                            font.weight: Font.DemiBold
+                                        }
+                                        MouseArea {
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: {
+                                                page.episodeLayout = layoutBtn.modelData
+                                                episodeList.positionViewAtBeginning()
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Item {
+                            id: jumpHost
+                            width: 102
+                            height: 34
+                            anchors.verticalCenter: parent.verticalCenter
+                            visible: page.episodes.length >= 12
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 8
+                                color: page.episodeJumpOpen ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
+                                border.width: 1
+                                border.color: page.episodeJumpOpen ? theme.gold : theme.edge
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "#  Jump"
+                                    color: page.episodeJumpOpen ? theme.gold : theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        page.episodeJumpOpen = !page.episodeJumpOpen
+                                        if (page.episodeJumpOpen)
+                                            jumpInput.forceActiveFocus()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        x: Math.max(theme.margin, parent.width - theme.margin - 292)
+                        width: 292
+                        height: jumpRanges.height + 58
+                        radius: 12
+                        visible: page.episodeJumpOpen
+                        color: Qt.rgba(6, 7, 10, 0.96)
+                        border.width: 1
+                        border.color: theme.edge
+                        z: 3
+
+                        Row {
+                            id: jumpInputRow
+                            x: 12
+                            y: 12
+                            spacing: 8
+                            Rectangle {
+                                width: 184
+                                height: 34
+                                radius: 8
+                                color: Qt.rgba(1, 1, 1, 0.06)
+                                border.width: 1
+                                border.color: jumpInput.activeFocus ? theme.gold : theme.edge
+                                TextInput {
+                                    id: jumpInput
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    verticalAlignment: TextInput.AlignVCenter
+                                    text: page.episodeJumpDraft
+                                    color: theme.ink
+                                    selectionColor: theme.gold
+                                    selectedTextColor: "#111111"
+                                    font.family: theme.ui
+                                    font.pixelSize: 13
+                                    validator: IntValidator { bottom: 1; top: Math.max(1, page.episodes.length) }
+                                    onTextChanged: page.episodeJumpDraft = text
+                                    Keys.onReturnPressed: page.submitEpisodeJump()
+                                    Keys.onEnterPressed: page.submitEpisodeJump()
+                                    Keys.onEscapePressed: page.episodeJumpOpen = false
+                                }
+                                Text {
+                                    anchors.left: parent.left
+                                    anchors.leftMargin: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: jumpInput.text.length === 0 && !jumpInput.activeFocus
+                                    text: "1 - " + page.episodes.length
+                                    color: theme.inkDimmer
+                                    font.family: theme.ui
+                                    font.pixelSize: 13
+                                }
+                            }
+                            Rectangle {
+                                width: 72
+                                height: 34
+                                radius: 8
+                                color: theme.ink
+                                opacity: page.episodeJumpDraft.length ? 1.0 : 0.45
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Jump"
+                                    color: "#111111"
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: page.submitEpisodeJump()
+                                }
+                            }
+                        }
+
+                        Flow {
+                            id: jumpRanges
+                            x: 12
+                            y: 56
+                            width: parent.width - 24
+                            spacing: 6
+                            Repeater {
+                                model: Math.ceil(page.episodes.length / 50)
+                                delegate: Rectangle {
+                                    id: rangeBtn
+                                    required property int index
+                                    property int start: index * 50 + 1
+                                    property int end: Math.min(start + 49, page.episodes.length)
+                                    width: label.implicitWidth + 18
+                                    height: 25
+                                    radius: 6
+                                    color: Qt.rgba(1, 1, 1, 0.06)
+                                    border.width: 1
+                                    border.color: theme.edge
+                                    Text {
+                                        id: label
+                                        anchors.centerIn: parent
+                                        text: rangeBtn.start + "-" + rangeBtn.end
+                                        color: theme.inkDim
+                                        font.family: theme.ui
+                                        font.pixelSize: 11
+                                        font.weight: Font.DemiBold
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: page.jumpToEpisodeNumber(rangeBtn.start)
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    ListView {
+                        id: episodeList
+                        width: parent.width
+                        height: page.episodeLayout === "strip"
+                                ? 210
+                                : Math.min(page.episodes.length * rowHeight,
+                                           Math.max(360, page.height - 210))
+                        clip: true
                         model: page.episodes
+                        orientation: page.episodeLayout === "strip" ? ListView.Horizontal : ListView.Vertical
+                        boundsBehavior: Flickable.StopAtBounds
+                        flickableDirection: page.episodeLayout === "strip" ? Flickable.HorizontalFlick : Flickable.VerticalFlick
+                        reuseItems: true
+                        cacheBuffer: rowHeight * 6
+                        spacing: 0
+                        property int rowHeight: 92
+
+                        onModelChanged: positionViewAtBeginning()
+
+                        ScrollBar.vertical: ScrollBar {
+                            id: episodeScroll
+                            policy: episodeList.contentHeight > episodeList.height
+                                    ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
+                            width: 8
+                            anchors.right: parent.right
+                            anchors.rightMargin: 18
+                            contentItem: Rectangle {
+                                implicitWidth: 4
+                                radius: 2
+                                color: episodeScroll.active ? theme.gold : Qt.rgba(1, 1, 1, 0.32)
+                            }
+                            background: Rectangle {
+                                implicitWidth: 8
+                                radius: 4
+                                color: Qt.rgba(1, 1, 1, 0.07)
+                            }
+                        }
+
                         delegate: Item {
                             id: ep
                             required property var modelData
-                            width: episodesCol.width
-                            height: 92
+                            property bool strip: page.episodeLayout === "strip"
+                            property real progressRatio: page.episodeProgressRatio(modelData)
+                            property bool watched: page.episodeWatched(modelData)
+                            property bool nextUp: page.nextUpEpisodeNumber() === page.episodeNumber(modelData)
+                            width: strip ? 246 : ListView.view.width
+                            height: strip ? 190 : episodeList.rowHeight
                             Rectangle {
                                 anchors.fill: parent
-                                color: epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+                                color: ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.07)
+                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                                border.width: ep.strip ? 1 : 0
+                                border.color: ep.nextUp ? theme.gold : theme.edge
+                                radius: ep.strip ? 10 : 0
                             }
                             Rectangle {
                                 id: thumb
-                                x: theme.margin
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 132
-                                height: 74
-                                radius: 6
+                                x: ep.strip ? 10 : theme.margin
+                                y: ep.strip ? 10 : (parent.height - height) / 2
+                                width: ep.strip ? parent.width - 20 : 132
+                                height: ep.strip ? 118 : 74
+                                radius: ep.strip ? 8 : 6
                                 clip: true
                                 color: "#15171f"
                                 Image {
                                     anchors.fill: parent
-                                    source: ep.modelData.thumbnail ? ep.modelData.thumbnail : ""
+                                    source: ep.modelData.thumbnail ? ep.modelData.thumbnail : page.sourceBackdrop()
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     cache: true
@@ -507,13 +908,44 @@ Item {
                                     font.family: theme.display
                                     font.pixelSize: 22
                                 }
+                                Rectangle {
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.margins: 7
+                                    width: 24
+                                    height: 24
+                                    radius: 12
+                                    visible: ep.watched
+                                    color: Qt.rgba(0.15, 0.65, 0.38, 0.92)
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "\u2713"
+                                        color: theme.ink
+                                        font.family: theme.ui
+                                        font.pixelSize: 13
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: 3
+                                    visible: ep.progressRatio > 0.01 && !ep.watched
+                                    color: Qt.rgba(0, 0, 0, 0.5)
+                                    Rectangle {
+                                        width: parent.width * ep.progressRatio
+                                        height: parent.height
+                                        color: theme.gold
+                                    }
+                                }
                             }
                             Column {
-                                anchors.left: thumb.right
-                                anchors.leftMargin: 18
+                                anchors.left: ep.strip ? parent.left : thumb.right
+                                anchors.leftMargin: ep.strip ? 12 : 18
                                 anchors.right: parent.right
-                                anchors.rightMargin: theme.margin
-                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.rightMargin: ep.strip ? 12 : theme.margin
+                                y: ep.strip ? 134 : (parent.height - height) / 2
                                 spacing: 5
                                 Text {
                                     width: parent.width
@@ -526,6 +958,16 @@ Item {
                                     font.pixelSize: 15
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
+                                }
+                                Text {
+                                    visible: ep.nextUp || ep.watched || ep.progressRatio > 0.01
+                                    text: ep.watched ? "Watched"
+                                          : (ep.nextUp ? "Next up"
+                                             : (Math.round(ep.progressRatio * 100) + "% watched"))
+                                    color: ep.watched ? "#76d49a" : theme.gold
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
                                 }
                                 Text {
                                     visible: !!ep.modelData.released
@@ -550,11 +992,11 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: sources.show("series", page.episodeStreamId(ep.modelData),
-                                                        page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), {
+                                                        page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), Object.assign({
                                                             "title": page.title,
                                                             "metaLine": page.episodeSourceLine(ep.modelData),
                                                             "backdrop": page.sourceBackdrop()
-                                                        })
+                                                        }, page.adjacentEpisodeContext(ep.modelData)))
                             }
                         }
                     }
@@ -608,6 +1050,6 @@ Item {
         id: sources
         z: 60
         backdrop: page.backdrop
-        onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId)
+        onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
     }
 }
