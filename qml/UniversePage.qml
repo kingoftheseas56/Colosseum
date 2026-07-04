@@ -34,7 +34,17 @@ Item {
     Item {
         id: wall
         anchors.fill: parent
-        Image { anchors.fill: parent; source: "../assets/wallpaper/captured-motion.jpg"
+        // Live shell wallpaper (the user's pick), mirrored from the shell's wall item.
+        // The bundled default only paints when no backdrop was injected (harness runs).
+        ShaderEffectSource {
+            anchors.fill: parent
+            sourceItem: root.backdrop
+            live: true
+            hideSource: false
+            visible: root.backdrop !== null
+        }
+        Image { anchors.fill: parent; visible: root.backdrop === null
+                source: "../assets/wallpaper/captured-motion.jpg"
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Rectangle { anchors.fill: parent; color: Qt.rgba(0.03,0.04,0.07,0.82) }
     }
