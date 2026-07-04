@@ -197,12 +197,4 @@ Glass {
             }
         }
     }
-
-    // ---- the quiet caption ----
-    Text {
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 26
-        anchors.horizontalCenter: parent.horizontalCenter
-        text: "the strip drifts on its own — rest on it to hold a frame"
-        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-    }
 }
