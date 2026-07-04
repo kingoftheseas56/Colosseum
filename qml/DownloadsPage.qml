@@ -205,6 +205,7 @@ Item {
                                         text: jobCard.modelData.state === "queued" ? "queued"
                                             : jobCard.modelData.state === "resolving" ? "resolving"
                                             : jobCard.modelData.state === "extracting" ? "unpacking"
+                                            : jobCard.modelData.state === "failed" ? "failed"
                                             : Math.round((jobCard.modelData.ratio || 0) * 100) + "%"
                                         color: jobCard.modelData.state === "downloading" ? theme.gold : theme.inkDimmer
                                         font.family: theme.ui; font.pixelSize: 13
@@ -214,21 +215,35 @@ Item {
                                     text: {
                                         var world = jobCard.modelData.world || "";
                                         var w = world === "tankoban" ? "Tankoban" : world === "biblio" ? "Biblio" : "Theatre";
+                                        if (jobCard.modelData.state === "failed")
+                                            return w + " · " + (jobCard.modelData.error || "download failed");
                                         var d = jobCard.modelData.detail || "";
                                         return d.length ? (w + " · " + d) : w;
                                     }
                                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                 }
                             }
-                            Text {
+                            Row {
                                 anchors.right: parent.right; anchors.bottom: parent.bottom
                                 anchors.margins: 12
-                                text: "Cancel"
-                                color: cancelMa.containsMouse ? theme.ink : theme.inkDimmer
-                                font.family: theme.ui; font.pixelSize: 12
-                                MouseArea { id: cancelMa; anchors.fill: parent; hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: LocalDownloads.cancel(jobCard.modelData.world, jobCard.modelData.id) }
+                                spacing: 16
+                                Text {
+                                    visible: jobCard.modelData.canRetry === true
+                                    text: "Retry"
+                                    color: retryMa.containsMouse ? "#ffd968" : theme.gold
+                                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                    MouseArea { id: retryMa; anchors.fill: parent; hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: LocalDownloads.retry(jobCard.modelData.world, jobCard.modelData.id) }
+                                }
+                                Text {
+                                    text: jobCard.modelData.state === "failed" ? "Remove" : "Cancel"
+                                    color: cancelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                    font.family: theme.ui; font.pixelSize: 12
+                                    MouseArea { id: cancelMa; anchors.fill: parent; hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: LocalDownloads.cancel(jobCard.modelData.world, jobCard.modelData.id) }
+                                }
                             }
                             // gold lives on the bottom edge: the fill IS the progress
                             Rectangle {
@@ -341,6 +356,13 @@ Item {
                                                 gradient: Gradient {
                                                     GradientStop { position: 0; color: root.coverTone(card.modelData.title || "", false) }
                                                     GradientStop { position: 1; color: root.coverTone(card.modelData.title || "", true) }
+                                                }
+                                                Image {
+                                                    anchors.fill: parent
+                                                    visible: (card.modelData.art || "").length > 0
+                                                    source: card.modelData.art || ""
+                                                    fillMode: Image.PreserveAspectCrop
+                                                    opacity: status === Image.Ready ? 1 : 0
                                                 }
                                                 Rectangle { // readability foot
                                                     anchors.left: parent.left; anchors.right: parent.right

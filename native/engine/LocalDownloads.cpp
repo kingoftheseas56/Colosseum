@@ -104,11 +104,18 @@ QVariantList LocalDownloads::biblioItems() const {
         QVariantMap e = v.toMap();
         e.insert(QStringLiteral("world"), QStringLiteral("biblio"));
         e.insert(QStringLiteral("kind"), QStringLiteral("book"));
-        // Book meta is thin (md5 + title): each book stands as its own series
-        // card until richer author/series meta exists. Honest, not clustered.
-        e.insert(QStringLiteral("seriesKey"),
-                 QStringLiteral("book:") + e.value(QStringLiteral("id")).toString());
-        e.insert(QStringLiteral("seriesTitle"), e.value(QStringLiteral("title")).toString());
+        // Cluster by author when the engine knows one (new entries persist it);
+        // otherwise each book stands as its own card. Honest, never guessed.
+        const QString author = e.value(QStringLiteral("author")).toString();
+        if (!author.isEmpty()) {
+            e.insert(QStringLiteral("seriesKey"),
+                     QStringLiteral("author:") + author.toLower().simplified());
+            e.insert(QStringLiteral("seriesTitle"), author);
+        } else {
+            e.insert(QStringLiteral("seriesKey"),
+                     QStringLiteral("book:") + e.value(QStringLiteral("id")).toString());
+            e.insert(QStringLiteral("seriesTitle"), e.value(QStringLiteral("title")).toString());
+        }
         const QString path = e.value(QStringLiteral("path")).toString();
         const QString ext = path.section(QLatin1Char('.'), -1).toUpper();
         e.insert(QStringLiteral("subtitle"), ext.size() <= 5 ? ext : QString());
@@ -170,10 +177,13 @@ QVariantList LocalDownloads::series(const QString &world) const {
                 {QStringLiteral("kind"), e.value(QStringLiteral("kind"))},
                 {QStringLiteral("itemCount"), 0},
                 {QStringLiteral("bytes"), 0.0},
-                {QStringLiteral("updatedAt"), 0.0}
+                {QStringLiteral("updatedAt"), 0.0},
+                {QStringLiteral("art"), QString()}
             });
         }
         QVariantMap &s = it.value();
+        if (s.value(QStringLiteral("art")).toString().isEmpty())
+            s[QStringLiteral("art")] = e.value(QStringLiteral("art")).toString();
         s[QStringLiteral("itemCount")] = s.value(QStringLiteral("itemCount")).toInt() + 1;
         s[QStringLiteral("bytes")] = s.value(QStringLiteral("bytes")).toDouble()
                                      + e.value(QStringLiteral("bytes")).toDouble();
@@ -265,18 +275,20 @@ QVariantList LocalDownloads::activeJobs() const {
         }
     }
     if (m_videos) {
-        const QVariantMap st = m_videos->status();
-        const QString kind = st.value(QStringLiteral("kind")).toString();
-        if (kind == QStringLiteral("preparing") || kind == QStringLiteral("downloading")) {
-            const double received = st.value(QStringLiteral("receivedBytes")).toDouble();
-            const double total = st.value(QStringLiteral("totalBytes")).toDouble();
+        const QVariantList vjobs = m_videos->jobs();
+        for (const QVariant &v : vjobs) {
+            QVariantMap j = v.toMap();
+            const double received = j.value(QStringLiteral("received")).toDouble();
+            const double total = j.value(QStringLiteral("total")).toDouble();
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("theatre")},
-                {QStringLiteral("id"), st.value(QStringLiteral("id"), QStringLiteral("live")).toString()},
-                {QStringLiteral("title"), st.value(QStringLiteral("title"),
-                                                   QStringLiteral("Video download")).toString()},
-                {QStringLiteral("state"), QStringLiteral("downloading")},
-                {QStringLiteral("ratio"), st.value(QStringLiteral("ratio")).toDouble()},
+                {QStringLiteral("id"), j.value(QStringLiteral("id"))},
+                {QStringLiteral("title"), j.value(QStringLiteral("title"))},
+                {QStringLiteral("state"), j.value(QStringLiteral("state"))},
+                {QStringLiteral("error"), j.value(QStringLiteral("error"))},
+                {QStringLiteral("canRetry"), j.value(QStringLiteral("state")).toString()
+                                                 == QStringLiteral("failed")},
+                {QStringLiteral("ratio"), j.value(QStringLiteral("ratio")).toDouble()},
                 {QStringLiteral("detail"), total > 0
                     ? QStringLiteral("%1 of %2 MB").arg(received / 1048576.0, 0, 'f', 0)
                                                    .arg(total / 1048576.0, 0, 'f', 0)
@@ -285,6 +297,12 @@ QVariantList LocalDownloads::activeJobs() const {
         }
     }
     return out;
+}
+
+void LocalDownloads::retry(const QString &world, const QString &id) {
+    if (world == QStringLiteral("theatre") && m_videos)
+        m_videos->retryJob(id);
+    // Other worlds: their engines discard failure payloads today - no blind retry.
 }
 
 QVariantMap LocalDownloads::totals() const {

@@ -120,6 +120,7 @@ void BookDownloader::loadIndex()
         Entry e;
         e.path    = o.value(QStringLiteral("path")).toString();
         e.title   = o.value(QStringLiteral("title")).toString();
+        e.author  = o.value(QStringLiteral("author")).toString();
         e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
         // Drop stale entries whose file was deleted outside the app.
@@ -136,6 +137,7 @@ void BookDownloader::saveIndex() const
         QJsonObject o;
         o[QStringLiteral("path")]    = it.value().path;
         o[QStringLiteral("title")]   = it.value().title;
+        o[QStringLiteral("author")]  = it.value().author;
         o[QStringLiteral("bytes")]   = static_cast<double>(it.value().bytes);
         o[QStringLiteral("addedAt")] = static_cast<double>(it.value().addedAt);
         root[it.key()] = o;
@@ -150,6 +152,7 @@ void BookDownloader::writeEntry(const InFlight& f)
     Entry e;
     e.path    = f.finalPath;
     e.title   = f.title;
+    e.author  = m_pendingAuthor.take(f.md5);
     e.bytes   = f.receivedBytes;
     e.addedAt = QDateTime::currentMSecsSinceEpoch();
     m_index.insert(f.md5, e);
@@ -211,8 +214,11 @@ QVariantMap BookDownloader::statusOf(const QString& md5) const
 }
 
 void BookDownloader::downloadBook(const QString& md5In, const QString& suggestedName,
-                                  const QString& title, double expectedBytes)
+                                  const QString& title, double expectedBytes,
+                                  const QString& author)
 {
+    if (!author.isEmpty())
+        m_pendingAuthor.insert(md5In.trimmed().toLower(), author);
     const QString md5 = md5In.trimmed().toLower();
     if (md5.isEmpty()) { emit failed(md5, QStringLiteral("empty md5")); return; }
 
@@ -628,6 +634,7 @@ QVariantList BookDownloader::downloadedBooks() const
         out.append(QVariantMap{
             {QStringLiteral("id"), it.key()},
             {QStringLiteral("title"), e.title},
+            {QStringLiteral("author"), e.author},
             {QStringLiteral("path"), e.path},
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},

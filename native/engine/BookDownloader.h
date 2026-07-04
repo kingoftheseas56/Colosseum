@@ -59,7 +59,8 @@ public:
     Q_INVOKABLE void downloadBook(const QString& md5,
                                   const QString& suggestedName,
                                   const QString& title = QString(),
-                                  double expectedBytes = 0);
+                                  double expectedBytes = 0,
+                                  const QString& author = QString());
 
     // The local-read FLIP. Returns the absolute on-disk path of a downloaded
     // book, or "" if it isn't downloaded — the reader shows "go download it" on
@@ -153,9 +154,12 @@ private:
     struct Entry {
         QString path;
         QString title;
+        QString author;    // optional; enables author clustering on the Downloads page
         qint64  bytes = 0;
         qint64  addedAt = 0;
     };
+
+    QHash<QString, QString> m_pendingAuthor;   // md5 -> author, applied at writeEntry
 
     QNetworkAccessManager* m_nam = nullptr;
     QHash<QNetworkReply*, ResolveCtx> m_resolving;   // ads.php fetches in flight

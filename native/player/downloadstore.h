@@ -1,6 +1,16 @@
 #pragma once
 
+// DownloadStore — the Theatre lane's video download engine.
+// v2 (2026-07-04): bounded job QUEUE with lazy per-job stream resolution — TB2's
+// proven gap-episode flow at Harbor's simplicity. A job's durable payload is the
+// episode's stream id (tt…:s:e), which never expires: resolution to a concrete
+// URL happens only when the job is promoted (needResolve → feedUrl handshake with
+// the QML resolver), so retry is always honest. Cap = MAX_ACTIVE_VIDEO.
+// Finished files land in the persisted library index (videos/index.json);
+// the in-flight queue survives restarts via videos/queue.json.
+
 #include <QHash>
+#include <QList>
 #include <QObject>
 #include <QNetworkAccessManager>
 #include <QVariantList>
@@ -11,63 +21,93 @@ class QNetworkReply;
 
 class DownloadStore : public QObject {
     Q_OBJECT
+    // `status` mirrors the ACTIVE job — the player's download panel contract.
     Q_PROPERTY(QVariantMap status READ status NOTIFY changed)
     Q_PROPERTY(QString defaultDownloadDir READ defaultDownloadDir NOTIFY changed)
+    Q_PROPERTY(int queueRevision READ queueRevision NOTIFY changed)
 
 public:
     explicit DownloadStore(QObject *parent = nullptr);
     ~DownloadStore() override;
 
-    QVariantMap status() const { return m_status; }
+    QVariantMap status() const;
     QString defaultDownloadDir() const { return m_defaultDownloadDir; }
+    int queueRevision() const { return m_queueRevision; }
 
+    // Player path (pre-resolved url in the request) — kept name for compat.
     Q_INVOKABLE void startDownload(const QVariantMap &request);
-    Q_INVOKABLE void cancelDownload();
+    Q_INVOKABLE void cancelDownload();               // cancels the ACTIVE job (player panel)
     Q_INVOKABLE void revealDownload();
     Q_INVOKABLE void resetDownload();
 
-    // ── downloaded-videos library (persisted index of every finished download) ──
-    Q_INVOKABLE QVariantList downloadedVideos() const;   // stale-checked: missing files reported, not hidden
-    Q_INVOKABLE void removeVideo(const QString &id);     // deletes the local file AND the entry
+    // ── queue (season checkout et al.) ──
+    Q_INVOKABLE void enqueue(const QVariantMap &request);       // url optional
+    Q_INVOKABLE void enqueueBatch(const QVariantList &requests);
+    Q_INVOKABLE void cancelJob(const QString &id);   // drops the job entirely
+    Q_INVOKABLE void retryJob(const QString &id);    // failed → queued (re-resolve)
+    Q_INVOKABLE QVariantList jobs() const;
+    Q_INVOKABLE bool hasVideo(const QString &id) const;   // already in the library
+    // resolver handshake (Main.qml answers needResolve with one of these)
+    Q_INVOKABLE void feedUrl(const QString &id, const QString &url);
+    Q_INVOKABLE void failJob(const QString &id, const QString &reason);
+
+    // ── downloaded-videos library ──
+    Q_INVOKABLE QVariantList downloadedVideos() const;
+    Q_INVOKABLE void removeVideo(const QString &id);
 
 signals:
-    void changed();          // live-job status (player panel) — unchanged contract
+    void changed();          // active-job status and/or queue shape changed
     void libraryChanged();   // the persisted downloaded-videos set changed
+    void needResolve(const QString &id, const QString &streamId, const QString &mediaType);
 
 private:
+    struct Job {
+        QVariantMap request;   // full identity payload (id/kind/title/…/art)
+        QString id;
+        QString url;           // "" until resolved
+        QString state;         // "queued" | "resolving" | "downloading" | "failed"
+        QString error;
+        double ratio = 0.0;
+        qint64 received = 0;
+        qint64 total = 0;
+        QString outputPath;
+        QString partPath;
+        QNetworkReply *reply = nullptr;
+        QFile *file = nullptr;
+    };
+
     struct Entry {
-        QString id;          // stream id when known, else generated
-        QString kind;        // "movie" | "episode"
-        QString title;
-        QString subtitle;
-        QString seriesTitle;
-        int season = 0;
-        int episode = 0;
-        QString path;
-        qint64 bytes = 0;
-        qint64 addedAt = 0;
+        QString id, kind, title, subtitle, seriesTitle, path, art;
+        int season = 0, episode = 0;
+        qint64 bytes = 0, addedAt = 0;
     };
 
     QString buildDefaultDownloadDir() const;
     QString buildOutputPath(const QVariantMap &request) const;
     QString sanitizeFilePart(const QString &value) const;
     QString extensionFromUrl(const QString &url) const;
-    void setStatus(const QVariantMap &status);
-    void failDownload(const QString &message);
-    void cleanupActiveReply();
 
-    QString indexPath() const;
+    int activeIndex() const;                 // resolving/downloading job, or -1
+    int jobIndex(const QString &id) const;
+    void pump();                             // promote oldest queued while under cap
+    void startHttp(Job &job);
+    void finishHttp(Job &job);
+    void cleanupJob(Job &job);
+    void touch();                            // ++revision + changed()
+
+    QString baseDir() const;
     void loadIndex();
     void saveIndex() const;
-    void recordFinished(const QString &path, qint64 bytes);
+    void loadQueue();
+    void saveQueue() const;
+    void recordFinished(const Job &job, qint64 bytes);
+
+    static constexpr int MAX_ACTIVE_VIDEO = 1;   // videos are GBs; raise deliberately
 
     QNetworkAccessManager m_network;
-    QNetworkReply *m_reply = nullptr;
-    QFile *m_file = nullptr;
     QString m_defaultDownloadDir;
-    QString m_outputPath;
-    QString m_partPath;
-    QVariantMap m_status;
-    QVariantMap m_activeRequest;      // metadata of the in-flight job, kept for recordFinished
-    QHash<QString, Entry> m_index;    // id -> finished video
+    QString m_lastDonePath;
+    QList<Job> m_jobs;
+    QHash<QString, Entry> m_index;
+    int m_queueRevision = 0;
 };

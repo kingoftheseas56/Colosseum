@@ -38,6 +38,7 @@ public:
 
     Q_INVOKABLE void cancel(const QString &world, const QString &id);
     Q_INVOKABLE void remove(const QString &world, const QString &id);
+    Q_INVOKABLE void retry(const QString &world, const QString &id);   // theatre only in v1
 
 signals:
     void changed();

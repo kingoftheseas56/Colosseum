@@ -892,7 +892,8 @@ Item {
             "season": meta.season !== undefined ? meta.season : 0,
             "episode": meta.episode !== undefined ? meta.episode : 0,
             "kind": meta.type === "series" ? "episode" : "movie",
-            "seriesTitle": fullTitle.replace(/\s*[-—]\s*S\d+E\d+.*$/, "")
+            "seriesTitle": fullTitle.replace(/\s*[-—]\s*S\d+E\d+.*$/, ""),
+            "art": root.mediaArt || ""
         })
         root.wakeChrome()
     }

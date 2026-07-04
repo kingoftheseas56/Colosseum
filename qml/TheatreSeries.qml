@@ -30,6 +30,7 @@ Item {
     property var episodes: filterEpisodes(videos, activeSeason)
     property string episodeLayout: "list"
     property bool episodeJumpOpen: false
+    property var seasonQueued: ({})   // season -> queued this visit
     property string episodeJumpDraft: ""
     property bool loading: true
     property string errorMsg: ""
@@ -89,6 +90,37 @@ Item {
             if (seasons[i] === season)
                 return true;
         return false;
+    }
+
+    function seasonLabel() {
+        return activeSeason === 0 ? "Specials" : "Season " + activeSeason;
+    }
+
+    function queueSeasonDownload() {
+        if (typeof Download === "undefined")
+            return;
+        var reqs = [];
+        for (var i = 0; i < episodes.length; i++) {
+            var v = episodes[i];
+            var sid = episodeStreamId(v);
+            if (Download.hasVideo(sid))
+                continue;   // already on disk
+            reqs.push({
+                "id": sid,
+                "kind": "episode",
+                "title": page.title + " - S" + episodeSeason(v) + "E" + episodeNumber(v),
+                "subtitle": v.title || v.name || "",
+                "seriesTitle": page.title,
+                "season": episodeSeason(v),
+                "episode": episodeNumber(v),
+                "art": page.cover
+            });
+        }
+        if (reqs.length)
+            Download.enqueueBatch(reqs);
+        var q = seasonQueued;
+        q[activeSeason] = true;
+        seasonQueued = q;
     }
 
     function episodeStreamId(v) {
@@ -653,6 +685,30 @@ Item {
                             font.pixelSize: 13
                             font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // Season checkout: queue every not-yet-downloaded episode of the
+                        // ACTIVE season. Each job resolves its stream lazily when promoted.
+                        Text {
+                            visible: typeof Download !== "undefined" && page.episodes.length > 0
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftPadding: 10
+                            text: page.seasonQueued[page.activeSeason]
+                                  ? (page.seasonLabel() + " queued")
+                                  : "Download " + page.seasonLabel()
+                            color: page.seasonQueued[page.activeSeason] ? theme.inkDim
+                                 : (dlSeasonMa.containsMouse ? "#ffd968" : theme.gold)
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                            MouseArea {
+                                id: dlSeasonMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                enabled: !page.seasonQueued[page.activeSeason]
+                                onClicked: page.queueSeasonDownload()
+                            }
                         }
 
                         Text {

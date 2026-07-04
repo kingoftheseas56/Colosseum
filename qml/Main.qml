@@ -14,6 +14,7 @@ import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
+import "Torrentio.js" as Torrentio
 import "ContinueCovers.js" as ContinueCovers
 
 Window {
@@ -279,6 +280,38 @@ Window {
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
+
+    // ---- season-download resolver: a promoted queue job carries only the episode's
+    //      stream id; we pick the rank-best Torrentio stream and feed back the local
+    //      engine URL. Deferred while the player streams (one engine, playback wins). ----
+    property var pendingResolves: []
+    function resolveDownloadJob(id, streamId, mediaType) {
+        Torrentio.loadStreams(mediaType, streamId, function(rows) {
+            if (!rows || !rows.length) {
+                Download.failJob(id, "No stream found for this episode.")
+                return
+            }
+            var best = rows[0]
+            Stream.play(best.infoHash, best.fileIdx || 0)
+            Download.feedUrl(id, Stream.streamUrl(best.infoHash, best.fileIdx || 0))
+        })
+    }
+    Connections {
+        target: typeof Download !== "undefined" ? Download : null
+        function onNeedResolve(id, streamId, mediaType) {
+            if (win.playerOpen) { win.pendingResolves.push({ id: id, sid: streamId, mt: mediaType }); return }
+            win.resolveDownloadJob(id, streamId, mediaType)
+        }
+    }
+    Connections {
+        target: win
+        function onPlayerOpenChanged() {
+            if (win.playerOpen || !win.pendingResolves.length)
+                return
+            var p = win.pendingResolves.shift()
+            win.resolveDownloadJob(p.id, p.sid, p.mt)
+        }
+    }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
     function openDownloadsPage() {
