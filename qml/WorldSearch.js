@@ -2,9 +2,10 @@
 // shape the generic SearchSurface renders: { cover, title, subtitle, data }. `data` is what the host
 // routes to the world's detail (manga → a title string for MangaSeries; theatre → the Cinemeta meta).
 //   • Theatre → Cinemeta (the Theatre world's own source)
-//   • Tankoban → AniList GraphQL (manga)
-// Both verified reachable 2026-06-27.
+//   • Tankoban → AniList GraphQL (manga) + GetComics tags (western comics)
+// Both verified reachable 2026-06-27; GetComics WP REST proven 2026-07-04.
 .pragma library
+.import "ComicsApi.js" as ComicsApi
 
 function reqJson(url, done) {
     var xhr = new XMLHttpRequest();
@@ -126,9 +127,50 @@ function searchManga(query, done) {
     xhr.send(JSON.stringify({ query: gql, variables: { s: query.trim() } }));
 }
 
+// ── Tankoban: manga (AniList) + western comics (GetComics tags), one surface.
+// Western cards carry data.western so the host routes them to the GetComics
+// shelf (ComicSeries) instead of the WeebCentral series page. ──
+function searchWestern(query, done) {
+    ComicsApi.searchSeries(query, function(tags) {
+        if (!tags || tags.length === 0) { done([]); return; }
+        var out = tags.map(function(t) {
+            return {
+                cover: "",                       // iTunes poster filled in below
+                title: t.title,
+                subtitle: t.count + (t.count === 1 ? " release" : " releases"),
+                meta: "Western Comics   ·   " + t.count + " releases",
+                synopsis: "",
+                backdrop: "",
+                group: "Western Comics",
+                data: { western: true, tag: t.tag, tagId: t.tagId, title: t.title }
+            };
+        });
+        var pending = out.length;
+        out.forEach(function(item) {
+            ComicsApi.posterFor(item.title + " comic", function(art) {
+                item.cover = art;
+                pending -= 1;
+                if (pending === 0) done(out);
+            });
+        });
+    });
+}
+
+function searchTankoban(query, done) {
+    if (!query || query.trim().length < 2) { done([]); return; }
+    var manga = null, western = null;
+    function finish() {
+        if (manga === null || western === null) return;
+        // manga leads (the world's native lane), western follows as its own group
+        done(manga.concat(western));
+    }
+    searchManga(query, function(items) { manga = items || []; finish(); });
+    searchWestern(query, function(items) { western = items || []; finish(); });
+}
+
 function searchFor(mode, query, done) {
     if (mode === "Theatre") searchTheatre(query, done);
-    else if (mode === "Tankoban") searchManga(query, done);
+    else if (mode === "Tankoban") searchTankoban(query, done);
     else done([]);
 }
 

@@ -32,6 +32,7 @@
 #include "SessionStore.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
+#include "engine/ComicDownloader.h"
 #include "reader/BookBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
@@ -221,6 +222,14 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Books"), books);
     if (qEnvironmentVariableIsSet("COLOSSEUM_BOOK_DLTEST"))
         books->selfTest(qEnvironmentVariable("COLOSSEUM_BOOK_DLTEST"));
+
+    // Western-comics download backbone (GetComics release → archive → local page
+    // dir) exposed to QML as `Comics`. BookDownloader lineage: ONE signed-link
+    // file per release post, extracted so MangaReader reads it like a chapter.
+    auto *comics = new ComicDownloader(dlNam, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Comics"), comics);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_DLTEST"))
+        comics->selfTest(qEnvironmentVariable("COLOSSEUM_COMIC_DLTEST"));
 
     // Foliate EPUB reader bridge exposed to the WebEngine reader's QWebChannel as
     // `BookBridge` (a JS shim maps it to window.electronAPI). Ported from TB2.

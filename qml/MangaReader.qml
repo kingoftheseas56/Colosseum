@@ -29,6 +29,16 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
 
+    // --- western switch: the SAME reader, fed by the Comics store (GetComics
+    // issues, one extracted archive per release) instead of Downloads (manga
+    // chapters). Pages/status/download route through `store`; Continue records
+    // under kind "comic". Everything else — pairing, resume, zoom — is shared. ---
+    property bool western: false
+    readonly property var store: western
+        ? (typeof Comics !== "undefined" ? Comics : null)
+        : (typeof Downloads !== "undefined" ? Downloads : null)
+    readonly property string progressKind: western ? "comic" : "manga"
+
     // --- preferences (app-wide, persisted; mirrors Electron mangaPrefs) ---
     Settings {
         id: prefs
@@ -122,8 +132,8 @@ Item {
     property bool loading: true
     property string errorMsg: ""
     property bool downloading: false
-    property int  dlDone: 0
-    property int  dlTotal: 0
+    property real dlDone: 0       // manga: pages · western: bytes (real — TPBs pass 2^31)
+    property real dlTotal: 0
     property var  dims: ({})                    // { index: {w,h} } natural px
     property int  couplingNudge: 0
     property bool atEnd: false                  // "all caught up" end card
@@ -151,7 +161,7 @@ Item {
             return
         Progress.record({
             "id": reader.seriesId,
-            "kind": "manga",
+            "kind": reader.progressKind,
             "caption": reader.seriesTitle,
             "title": reader.seriesTitle,
             "sub": reader.curLabel,
@@ -199,8 +209,8 @@ Item {
 
     function load() {
         errorMsg = ""; dims = ({}); loading = false; atEnd = false
-        pagesModel = (curChapterId.length && typeof Downloads !== "undefined")
-                     ? Downloads.localPages(curChapterId) : []
+        pagesModel = (curChapterId.length && store)
+                     ? store.localPages(curChapterId) : []
         if (pagesModel.length > 0) {
             downloading = false
             maxSeen = 0; _pendingFrac = 0; zoneY = 0; panX = 0; panY = 0
@@ -211,7 +221,7 @@ Item {
             if (_resumeArmed) {
                 _resumeArmed = false
                 var saved = (typeof Progress !== "undefined" && seriesId.length)
-                            ? Progress.get("manga", seriesId) : null
+                            ? Progress.get(progressKind, seriesId) : null
                 var r = (saved && saved.resume) ? saved.resume : null
                 if (r && String(r.chapterId) === curChapterId) {
                     start = Math.max(1, Math.min(pagesModel.length, Number(r.page) || 1))
@@ -230,16 +240,24 @@ Item {
             return
         }
         page = 1; pendingAtLast = false
-        var st = (curChapterId.length && typeof Downloads !== "undefined")
-                 ? Downloads.statusOf(curChapterId) : { state: "none", done: 0, total: 0 }
-        downloading = (st.state === "downloading" || st.state === "queued")
+        var st = (curChapterId.length && store)
+                 ? store.statusOf(curChapterId) : { state: "none", done: 0, total: 0 }
+        downloading = (st.state === "downloading" || st.state === "queued"
+                       || st.state === "resolving" || st.state === "extracting")
         dlDone = st.done; dlTotal = st.total
     }
 
     function startDownload() {
-        if (!curChapterId.length || typeof Downloads === "undefined") return
+        if (!curChapterId.length || !store) return
         downloading = true; errorMsg = ""
-        Downloads.downloadChapter(curChapterId, seriesId, seriesTitle, curLabel)
+        if (western) {
+            // the release post's permalink rides in the chapters model (ComicSeries)
+            var c = curIndex >= 0 ? chapters[curIndex] : null
+            store.downloadIssue(curChapterId, (c && c.url) ? c.url : "", seriesId, seriesTitle,
+                                curLabel, ((c && c.sizeMB) || 0) * 1024 * 1024)
+        } else {
+            store.downloadChapter(curChapterId, seriesId, seriesTitle, curLabel)
+        }
     }
 
     // ── pairing memory (PASS 4): persisted spread knowledge + per-page override, per chapter.
@@ -323,7 +341,7 @@ Item {
     readonly property string curUrl: (page >= 1 && page <= max) ? pagesModel[page - 1].url : ""
 
     Connections {
-        target: typeof Downloads !== "undefined" ? Downloads : null
+        target: reader.store
         function onProgress(cid, done, total) {
             if (cid !== reader.curChapterId) return
             reader.downloading = true; reader.dlDone = done; reader.dlTotal = total
@@ -988,7 +1006,11 @@ Item {
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }
         Text { width: parent.width; horizontalAlignment: Text.AlignHCenter
             visible: reader.downloading
-            text: reader.dlTotal > 0 ? ("Downloading… " + reader.dlDone + " / " + reader.dlTotal + " pages") : "Starting download…"
+            text: reader.dlTotal > 0
+                  ? (reader.western
+                     ? ("Downloading… " + Math.round(reader.dlDone / 1048576) + " / " + Math.round(reader.dlTotal / 1048576) + " MB")
+                     : ("Downloading… " + reader.dlDone + " / " + reader.dlTotal + " pages"))
+                  : "Starting download…"
             color: theme.gold; font.family: theme.ui; font.pixelSize: 14 }
         Rectangle {
             visible: reader.downloading && reader.dlTotal > 0

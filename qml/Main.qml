@@ -230,6 +230,35 @@ Window {
     }
     function closeSeries() { seriesLayer.active = false }
 
+    // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
+    //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
+    //      every shared kind:"comic" route below tells the two lanes apart. ----
+    function openWestern(d) {
+        westernLayer.resumeChapterId = ""
+        westernLayer.title = (d && d.title) || ""
+        westernLayer.tagId = (d && d.tagId) || 0
+        westernLayer.tagSlug = (d && d.tag) || ""
+        if (westernLayer.active && westernLayer.item) {
+            westernLayer.item.openChapterId = ""       // leave the reader, show the shelf
+            westernLayer.item.seriesTitle = westernLayer.title
+            westernLayer.item.tagId = westernLayer.tagId
+            westernLayer.item.tagSlug = westernLayer.tagSlug
+        } else westernLayer.active = true
+    }
+    // open a western series AND jump straight into the reader (Continue / session resume)
+    function openWesternAt(title, tagSlug, chapterId) {
+        westernLayer.title = title || ""
+        westernLayer.tagId = 0
+        westernLayer.tagSlug = tagSlug || ""
+        westernLayer.resumeChapterId = chapterId || ""
+        if (westernLayer.active && westernLayer.item) {
+            westernLayer.item.seriesTitle = title || ""
+            westernLayer.item.tagSlug = tagSlug || ""
+            westernLayer.item.openChapterId = chapterId || ""
+        } else westernLayer.active = true
+    }
+    function closeWestern() { westernLayer.active = false }
+
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
     function openTheatreSeries(item) {
         theatreSeriesLayer.pendingItem = item
@@ -244,6 +273,7 @@ Window {
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
+        || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
         if (!playerLayer.active) playerLayer.active = true
@@ -293,8 +323,10 @@ Window {
     function closeWorldSearch() { worldSearchLayer.active = false }
     function routeWorldSearchItem(data) {
         win.closeWorldSearch()
-        if (worldSearchLayer.searchMode === "Tankoban") win.openSeries(data.title)
-        else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
+        if (worldSearchLayer.searchMode === "Tankoban") {
+            if (data && data.western) win.openWestern(data)   // GetComics shelf, not WeebCentral
+            else win.openSeries(data.title)
+        } else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
     }
 
     function openWallpaperSearch(world) {
@@ -346,7 +378,9 @@ Window {
                                         title: title, cover: entry.cover || "" })
             })
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            win.openSeries(title)                                        // the series page (chapter list)
+            if (String(entry.id || "").indexOf("gc:") === 0)
+                win.openWestern({ title: title, tag: String(entry.id).slice(3) })
+            else win.openSeries(title)                                   // the series page (chapter list)
         } else if (entry.kind === "book") {
             win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
         }
@@ -404,15 +438,21 @@ Window {
         var rec = Sessions.get(Sessions.activeId)
         if (!(rec && rec.contentKind === "comic")) {
             // reading began from a browse (no session yet) — register it from the live reader
-            var s = seriesLayer.item
-            if (!s || !s.openChapterId) { win.closeSeries(); return }
-            win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId)
+            var w = westernLayer.active ? westernLayer.item : null
+            if (w && w.openChapterId) {
+                win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>"
+            } else {
+                var s = seriesLayer.item
+                if (!s || !s.openChapterId) { win.closeSeries(); return }
+                win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId)
+            }
         }
         Sessions.switchTo("")
     }
     function closeComicReader() {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
+        else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
         else win.closeSeries()
     }
     function minimizeBookReader() {
@@ -443,6 +483,12 @@ Window {
                                          t.streamCandidates || [], t.playbackContext || ({}))
             if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
         } else if (rec.contentKind === "comic") {
+            if (String(t.seriesId || "").indexOf("gc:") === 0) {
+                // western: the GetComics shelf hosts the reader
+                win.openWesternAt(t.title, String(t.seriesId).slice(3), (st.chapterId || t.chapterId || ""))
+                if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
+                return
+            }
             seriesLayer.resumeSeriesId = t.seriesId || ""
             seriesLayer.resumeChapterId = (st.chapterId || t.chapterId || "")
             seriesLayer.title = t.title
@@ -464,7 +510,10 @@ Window {
     function captureSession(rec) {
         if (!rec || !rec.id) return ({})
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
-        if (rec.contentKind === "comic" && seriesLayer.item && seriesLayer.item.captureState) return seriesLayer.item.captureState()
+        if (rec.contentKind === "comic") {
+            var lay = String((rec.target || ({})).seriesId || "").indexOf("gc:") === 0 ? westernLayer : seriesLayer
+            return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
+        }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
         return ({})
     }
@@ -475,7 +524,8 @@ Window {
             if (playerLayer.item) playerLayer.item.stop()
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
-            seriesLayer.active = false
+            if (String((rec.target || ({})).seriesId || "").indexOf("gc:") === 0) westernLayer.active = false
+            else seriesLayer.active = false
         } else if (rec.contentKind === "book")  {
             bookReaderLayer.active = false
         }
@@ -1120,6 +1170,32 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             // the READER's own chrome (not the page topbar): session verbs
+            item.readerMinimizeRequested.connect(win.minimizeComicReader)
+            item.readerCloseRequested.connect(win.closeComicReader)
+        }
+    }
+
+    // ---- western-comics detail layer: the GetComics shelf (ComicSeries), over the world ----
+    Loader {
+        id: westernLayer
+        anchors.fill: parent
+        z: 50
+        active: false
+        visible: active
+        property string title: ""
+        property string tagSlug: ""
+        property int    tagId: 0
+        property string resumeChapterId: ""   // Continue/session resume: straight into the reader
+        source: "ComicSeries.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.seriesTitle = westernLayer.title
+            item.tagId = westernLayer.tagId
+            item.tagSlug = westernLayer.tagSlug        // set LAST — assigning it triggers resolve()
+            if (westernLayer.resumeChapterId) item.openChapterId = westernLayer.resumeChapterId
+            item.backRequested.connect(win.closeWestern)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
         }
