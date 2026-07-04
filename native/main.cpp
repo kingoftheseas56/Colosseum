@@ -268,6 +268,11 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("DevOpenExtensions"),
         qEnvironmentVariableIsSet("COLOSSEUM_OPEN_EXTENSIONS"));
+    // dev harness: COLOSSEUM_STREAMS_SELFTEST="movie|tt0816692" runs the multi-
+    // extension stream ask headlessly at boot and logs row counts per extension.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevStreamsSelfTest"),
+        qEnvironmentVariable("COLOSSEUM_STREAMS_SELFTEST"));
 
     // Live TV / DVR player state exposed to QML as `Live`.
     auto *live = new LiveStore(&app);

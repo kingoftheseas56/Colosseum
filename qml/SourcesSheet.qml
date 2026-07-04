@@ -1,11 +1,16 @@
-// SourcesSheet - Torrentio source picker in the Colosseum house language (approved mock, 2026-06-27).
+// SourcesSheet - source picker in the Colosseum house language (approved mock, 2026-06-27).
 // The full source-picker content is the JOB, not clutter: provider, the quality TOP BAR + quick-filter
 // pills, release, seeders/size/source, audio + language, format chips, stream type, and an always-on
 // action button. House craft on top: a GLASS table floating over the wallpaper, warm Colosseum ink
 // (never cold blue), real glyphs, and gold kept to the active pill / quality line / play button.
 // Public API (show/hide/properties) is unchanged.
+//
+// Un-soldered 2026-07-05 (extensions spec Phase 2): the sheet asks EVERY enabled
+// stream extension in installed order via AddonClient — rows land as each one
+// answers, tagged by extension; dedup keeps the higher-priority answer. With only
+// the seeded four installed this behaves exactly as the old Torrentio-only sheet.
 import QtQuick
-import "Torrentio.js" as Torrentio
+import "AddonClient.js" as AddonClient
 
 Item {
     id: sheet
@@ -23,6 +28,7 @@ Item {
     property bool loading: false
     property bool timedOut: false
     property var rows: []
+    property var askedNames: []     // the extensions this ask went out to, ask-order
     property int gen: 0
     property string qualityFilter: "all"
     property var visibleRows: filteredRows()
@@ -52,12 +58,27 @@ Item {
         sheet.gen += 1;
         var myGen = sheet.gen;
         timeout.restart();
-        Torrentio.loadStreams(type, id, function(list) {
-            if (myGen !== sheet.gen) return;
-            sheet.rows = list;
-            sheet.loading = false;
-            timeout.stop();
+
+        // every enabled stream extension that accepts this title, installed order
+        var installedList = (typeof Extensions !== "undefined")
+                            ? Extensions.installed() : [];
+        var exts = AddonClient.streamExtensions(installedList, type, id);
+        sheet.askedNames = exts.map(function(e) {
+            return (e.manifest && e.manifest.name) || e.id;
         });
+        if (!exts.length) { sheet.loading = false; return; }
+
+        AddonClient.loadStreams(exts, type, id,
+            function(partialRows) {                 // one extension answered, more out
+                if (myGen !== sheet.gen) return;
+                sheet.rows = partialRows;
+            },
+            function(allRows) {                     // every extension answered or timed out
+                if (myGen !== sheet.gen) return;
+                sheet.rows = allRows;
+                sheet.loading = false;
+                timeout.stop();
+            });
     }
 
     function hide() {
@@ -97,7 +118,8 @@ Item {
         id: timeout
         interval: 22000
         repeat: false
-        onTriggered: if (sheet.loading) { sheet.loading = false; sheet.timedOut = true }
+        // partial answers in hand at the bell = a result, not an error
+        onTriggered: if (sheet.loading) { sheet.loading = false; sheet.timedOut = sheet.rows.length === 0 }
     }
 
     // ===================== base: float over the wallpaper, not a flat void =====================
@@ -273,15 +295,18 @@ Item {
             id: tableHead
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
             height: 52
-            visible: !sheet.loading && !sheet.timedOut && sheet.visibleRows.length > 0
+            visible: sheet.visibleRows.length > 0
             Text {
                 anchors.left: parent.left; anchors.leftMargin: 26; anchors.verticalCenter: parent.verticalCenter
                 text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " source" : " sources")
+                      + (sheet.loading ? "  ·  still asking…" : "")
                 color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
             }
             Text {
                 anchors.right: parent.right; anchors.rightMargin: 26; anchors.verticalCenter: parent.verticalCenter
-                text: "via Torrentio"
+                text: sheet.askedNames.length > 2
+                      ? "via " + sheet.askedNames.length + " extensions"
+                      : "via " + sheet.askedNames.join(" · ")
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
             }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
@@ -289,9 +314,12 @@ Item {
 
         Text {
             anchors.centerIn: parent
-            visible: sheet.loading || sheet.timedOut || (!sheet.loading && sheet.rows.length === 0)
+            visible: sheet.rows.length === 0
             text: sheet.loading ? "Finding sources…"
-                  : (sheet.timedOut ? "Sources timed out. Try again." : "No sources found.")
+                  : (sheet.timedOut ? "Sources timed out. Try again."
+                     : (sheet.askedNames.length === 0
+                        ? "No stream extension carries this title — add one on the Extensions page."
+                        : "No sources found."))
             color: sheet.timedOut ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: 16
         }
@@ -302,7 +330,7 @@ Item {
             anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
             anchors.topMargin: 4; anchors.bottomMargin: 8
             clip: true
-            visible: !sheet.loading && !sheet.timedOut && sheet.visibleRows.length > 0
+            visible: sheet.visibleRows.length > 0
             model: sheet.visibleRows
             boundsBehavior: Flickable.StopAtBounds
 
@@ -321,7 +349,9 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     width: 54; height: 54; radius: 12
                     color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
-                    Text { anchors.centerIn: parent; text: "T"; color: theme.ink
+                    Text { anchors.centerIn: parent
+                        text: (row.modelData.addonName || "?").charAt(0)
+                        color: theme.ink
                         font.family: theme.display; font.pixelSize: 24; font.weight: Font.DemiBold }
                 }
 

@@ -14,6 +14,7 @@ import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
+import "AddonClient.js" as AddonClient
 import "Torrentio.js" as Torrentio
 import "ContinueCovers.js" as ContinueCovers
 
@@ -89,6 +90,22 @@ Window {
         // so smoke runs exercise the Loader (QML errors only surface on activation)
         if (typeof DevOpenExtensions !== "undefined" && DevOpenExtensions)
             win.openExtensionsPage()
+        // dev harness (COLOSSEUM_STREAMS_SELFTEST="movie|tt123"): headless proof of
+        // the multi-extension stream pipeline — logs per-extension answers and rows
+        if (typeof DevStreamsSelfTest !== "undefined" && String(DevStreamsSelfTest).length) {
+            var st = String(DevStreamsSelfTest).split("|")
+            var exts = AddonClient.streamExtensions(Extensions.installed(), st[0], st[1])
+            console.log("[streams-selftest] asking", exts.length, "extensions for", st[0], st[1])
+            AddonClient.loadStreams(exts, st[0], st[1],
+                function(rows) { console.log("[streams-selftest] partial:", rows.length, "rows") },
+                function(rows, names) {
+                    console.log("[streams-selftest] DONE:", rows.length, "rows via", names.join(","))
+                    for (var i = 0; i < Math.min(rows.length, 6); i++)
+                        console.log("[streams-selftest] #" + i, rows[i].addonName,
+                                    rows[i].quality, rows[i].streamKind,
+                                    String(rows[i].infoHash).substring(0, 24))
+                })
+        }
     }
 
     // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.

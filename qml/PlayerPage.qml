@@ -341,7 +341,8 @@ Item {
                 "title": c.release || c.title || title || "Stream",
                 "quality": c.qualityLine || c.quality || "",
                 "seeders": c.seeders !== undefined ? c.seeders : -1,
-                "sourceName": c.sourceName || c.addonName || "Torrentio"
+                "sourceName": c.sourceName || c.addonName || "Torrentio",
+                "url": c.url || ""
             })
         }
         if (!out.length && infoHash && String(infoHash).length) {
@@ -492,6 +493,20 @@ Item {
         root.closeMenus()
         root.wakeChrome()
         root.forceActiveFocus()
+        // Direct-url streams (debrid / HTTP hosts / live-tv extensions) skip the
+        // torrent engine — mpv plays the url natively. They arrive either as an
+        // explicit url field or under the "url:" infoHash routing prefix (the
+        // resume path carries only the hash). Extensions spec Phase 2, slice G.
+        var directUrl = (c.url && String(c.url).length) ? String(c.url)
+                      : (String(c.infoHash || "").indexOf("url:") === 0
+                         ? String(c.infoHash).substring(4) : "")
+        if (directUrl.length) {
+            root.mediaSubtitle = "Direct stream"
+            root.currentPlaybackUrl = directUrl
+            mpv.loadFile(directUrl)
+            return
+        }
+        root.mediaSubtitle = "Torrent stream"
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
