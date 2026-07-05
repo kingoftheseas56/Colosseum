@@ -37,4 +37,9 @@ Assert-Contains $storeSource 'pruneGroupIfSettled' `
 Assert-Contains $facade 'toMap().value(QStringLiteral("state")).toString()' `
     "totals.active must count live rows only (done rows never inflate the badge)."
 
+Assert-Contains $facade '"groupKey"), j.value(QStringLiteral("groupKey"))' `
+    "activeJobs must pass groupKey through - the page folds by it."
+Assert-Contains $facade '"etaSec"), j.value(QStringLiteral("etaSec"))' `
+    "activeJobs must pass speed/etaSec through - Tankorent-grade live detail."
+
 Write-Host "downloads manager p0 contract: OK"

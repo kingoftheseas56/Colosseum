@@ -283,12 +283,22 @@ QVariantList LocalDownloads::activeJobs() const {
             out.append(QVariantMap{
                 {QStringLiteral("world"), QStringLiteral("theatre")},
                 {QStringLiteral("id"), j.value(QStringLiteral("id"))},
+                {QStringLiteral("groupKey"), j.value(QStringLiteral("groupKey"))},
+                {QStringLiteral("kind"), j.value(QStringLiteral("kind"))},
                 {QStringLiteral("title"), j.value(QStringLiteral("title"))},
+                {QStringLiteral("subtitle"), j.value(QStringLiteral("subtitle"))},
+                {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
+                {QStringLiteral("season"), j.value(QStringLiteral("season"))},
+                {QStringLiteral("episode"), j.value(QStringLiteral("episode"))},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("error"), j.value(QStringLiteral("error"))},
                 {QStringLiteral("canRetry"), j.value(QStringLiteral("state")).toString()
                                                  == QStringLiteral("failed")},
                 {QStringLiteral("ratio"), j.value(QStringLiteral("ratio")).toDouble()},
+                {QStringLiteral("received"), j.value(QStringLiteral("received"))},
+                {QStringLiteral("total"), j.value(QStringLiteral("total"))},
+                {QStringLiteral("speed"), j.value(QStringLiteral("speed"))},
+                {QStringLiteral("etaSec"), j.value(QStringLiteral("etaSec"))},
                 {QStringLiteral("detail"), total > 0
                     ? QStringLiteral("%1 of %2 MB").arg(received / 1048576.0, 0, 'f', 0)
                                                    .arg(total / 1048576.0, 0, 'f', 0)
