@@ -1854,13 +1854,15 @@ Item {
         }
 
         RoundButton {
+            // audit fix: this control MINIMIZES to the taskbar (session persists) — it is not a
+            // page back, so it no longer wears a back chevron or the word "Back".
             id: backButton
             x: tight ? 16 : 28
             y: tight ? 14 : 20
             size: 48
-            icon: "back"
-            tooltip: "Back"
-            onClicked: root.backRequested()
+            icon: "minimizeToBar"
+            tooltip: "Minimize — keeps playing in the taskbar"
+            onClicked: root.minimizeRequested()
         }
 
         Column {
@@ -4170,6 +4172,12 @@ Item {
             } else if (kind === "back") {
                 line(0.12, -0.22, -0.12, 0)
                 line(-0.12, 0, 0.12, 0.22)
+            } else if (kind === "minimizeToBar") {
+                // down-into-the-bar: session drops to the taskbar and keeps playing
+                line(0, -0.28, 0, 0.06)
+                line(-0.15, -0.09, 0, 0.06)
+                line(0, 0.06, 0.15, -0.09)
+                line(-0.22, 0.24, 0.22, 0.24)
             } else if (kind === "seekBack" || kind === "seekForward") {
                 var fwd = kind === "seekForward"
                 circleArc(0.27, fwd ? 320 : 220, fwd ? 55 : 140, !fwd)

@@ -1034,23 +1034,13 @@ Item {
         }
     }
 
-    // back affordance for the download panel (a real sized button, top-left)
-    Rectangle {
+    // back affordance for the download panel (top-left; the not-fully-immersive state wears the
+    // normal-page treatment so the reader's two backs finally look related)
+    BackAction {
         visible: reader.max === 0
         z: 100
         anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 18
-        width: bkRow.implicitWidth + 28; height: 40; radius: 10
-        color: bkMa.containsMouse ? theme.glassHi : theme.glassTint
-        border.width: 1; border.color: theme.edge
-        Row {
-            id: bkRow; anchors.centerIn: parent; spacing: 7
-            Text { text: "‹"; color: bkMa.containsMouse ? theme.gold : theme.ink
-                font.family: theme.display; font.pixelSize: 22; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: "Back"; color: bkMa.containsMouse ? theme.gold : theme.ink
-                font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-        }
-        MouseArea { id: bkMa; anchors.fill: parent; hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor; onClicked: reader.backRequested() }
+        onTriggered: reader.backRequested()
     }
 
     // ── "all caught up" end card ──
@@ -1219,10 +1209,9 @@ Item {
         Row {
             anchors.left: parent.left; anchors.leftMargin: 14
             anchors.verticalCenter: parent.verticalCenter; spacing: 14
-            Text { text: "‹"; color: backMa.containsMouse ? theme.gold : theme.ink; font.family: theme.display
-                font.pixelSize: 24; anchors.verticalCenter: parent.verticalCenter
-                MouseArea { id: backMa; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor; onClicked: reader.backRequested() } }
+            BackAction { variant: "immersive"; tip: "Back to series"
+                anchors.verticalCenter: parent.verticalCenter
+                onTriggered: reader.backRequested() }
             Text { text: reader.seriesTitle; color: theme.ink; font.family: theme.display; font.weight: Font.DemiBold
                 font.pixelSize: 16; anchors.verticalCenter: parent.verticalCenter }
             // chapter chip → chapter modal

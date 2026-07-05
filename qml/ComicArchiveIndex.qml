@@ -68,18 +68,9 @@ Item {
     ChromeScrim { z: 16 }
 
     // ---- ‹ Back ----
-    Item {
-        x: theme.margin; y: 28; width: backRow.implicitWidth + 16; height: 34; z: 20
-        Row {
-            id: backRow; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-            Text { text: "‹"; color: backMa.containsMouse ? theme.gold : theme.ink
-                font.family: theme.display; font.pixelSize: 26; anchors.verticalCenter: parent.verticalCenter }
-            Text { text: "Back"; color: backMa.containsMouse ? theme.gold : theme.ink
-                font.family: theme.ui; font.pixelSize: 15; anchors.verticalCenter: parent.verticalCenter
-                Behavior on color { ColorAnimation { duration: 120 } } }
-        }
-        MouseArea { id: backMa; anchors.fill: parent; anchors.margins: -8; hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor; onClicked: page.backRequested() }
+    BackAction {
+        x: theme.margin; y: 28; z: 20
+        onTriggered: page.backRequested()
     }
 
     // ---- window controls (minimize / power) ----

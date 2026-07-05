@@ -66,11 +66,18 @@ Item {
 
     Shortcut { sequences: ["Return", "Enter"]; onActivated: search.openTop() }
 
-    // ── the search field (leads the surface) ──
+    // ── visible exit (audit fix: Esc was the only door out) + the search field ──
+    BackAction {
+        id: searchBack
+        x: theme.margin
+        anchors.verticalCenter: field.verticalCenter
+        hoverColor: "#ffffff"   // Biblio world rule: white hover, not gold
+        onTriggered: search.backRequested()
+    }
     Rectangle {
         id: field
-        x: theme.margin; y: 44
-        width: search.width - theme.margin * 2; height: 62; radius: 16
+        x: searchBack.x + searchBack.width + 20; y: 44
+        width: search.width - x - theme.margin; height: 62; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
         Canvas {

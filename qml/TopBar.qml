@@ -101,22 +101,15 @@ Item {
     Row {
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
         spacing: 18
-        Item {
+        BackAction {
+            // world-root variant: destination label, dim→bright hover (never gold up here)
             visible: bar.activeMedium !== ""
-            width: visible ? homeRow.implicitWidth : 0
-            height: 34
+            label: "Home"
+            labelSize: 14
+            idleColor: theme.inkDim
+            hoverColor: theme.ink
             anchors.verticalCenter: parent.verticalCenter
-            Row {
-                id: homeRow; anchors.verticalCenter: parent.verticalCenter; spacing: 5
-                Text { text: "‹"; color: hma.containsMouse ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 22; anchors.verticalCenter: parent.verticalCenter }
-                Text { text: "Home"; color: hma.containsMouse ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-            }
-            MouseArea {
-                id: hma; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: bar.homeRequested()
-            }
+            onTriggered: bar.homeRequested()
         }
         Column {
             spacing: 3

@@ -951,17 +951,13 @@ Item {
                                cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
         }
     }
-    Rectangle {
+    BackAction {
+        variant: "capsule"; tip: "Back"
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.topMargin: 16
+        anchors.topMargin: 21
         anchors.leftMargin: theme.margin - 10
-        width: 44; height: 44; radius: 22
-        color: backMa.containsMouse ? theme.glassHi : theme.glassTint
-        border.width: 1; border.color: theme.edge
-        Text { anchors.centerIn: parent; text: "‹"; color: theme.inkDim; font.pixelSize: 20 }
-        MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
+        onTriggered: root.backRequested()
     }
 
     // ---- one quiet notice line (install results) ----

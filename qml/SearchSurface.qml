@@ -106,11 +106,17 @@ Item {
 
     Shortcut { sequences: ["Return", "Enter"]; onActivated: surf.openTop() }
 
-    // ── the search field (leads the surface) ──
+    // ── visible exit (audit fix: Esc was the only door out) + the search field ──
+    BackAction {
+        id: searchBack
+        x: theme.margin
+        anchors.verticalCenter: field.verticalCenter
+        onTriggered: surf.backRequested()
+    }
     Rectangle {
         id: field
-        x: theme.margin; y: 44
-        width: surf.width - theme.margin * 2; height: 62; radius: 16
+        x: searchBack.x + searchBack.width + 20; y: 44
+        width: surf.width - x - theme.margin; height: 62; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
         Canvas {
@@ -199,18 +205,11 @@ Item {
 
                     Row {
                         spacing: 16
-                        Rectangle {                                      // ‹ Back
-                            height: 36; radius: 999; width: backRow.width + 26
+                        BackAction {                                     // subview exit → back to search
+                            label: "Search"
+                            labelSize: 13
                             anchors.verticalCenter: parent.verticalCenter
-                            color: backMa.containsMouse ? Qt.rgba(1,1,1,0.12) : theme.glassTint
-                            border.width: 1; border.color: theme.edge
-                            Row { id: backRow; anchors.centerIn: parent; spacing: 6
-                                Text { text: "‹"; color: theme.ink; font.family: theme.ui; font.pixelSize: 18
-                                    anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "Back"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                                    anchors.verticalCenter: parent.verticalCenter } }
-                            MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: surf.closeGenre() }
+                            onTriggered: surf.closeGenre()
                         }
                         Column {
                             anchors.verticalCenter: parent.verticalCenter; spacing: 2

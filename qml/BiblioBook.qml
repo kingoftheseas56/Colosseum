@@ -122,15 +122,13 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 18
             anchors.verticalCenter: parent.verticalCenter
             spacing: 22
-            Text {
-                text: "‹ Back"; color: backMa.containsMouse ? theme.ink : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 14
+            BackAction {
+                // Biblio world rule: quieter size, white (ink) hover — never gold
+                labelSize: 14
+                idleColor: theme.inkDim
+                hoverColor: theme.ink
                 anchors.verticalCenter: parent.verticalCenter
-                MouseArea {
-                    id: backMa; anchors.fill: parent; anchors.margins: -10
-                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: detail.backRequested()
-                }
+                onTriggered: detail.backRequested()
             }
             Text {
                 text: "Biblio"; color: theme.ink; font.family: theme.display; font.pixelSize: 20

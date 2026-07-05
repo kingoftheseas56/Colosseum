@@ -172,13 +172,10 @@ Item {
     Item {
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         height: 52; z: 30
-        Rectangle {
+        BackAction {
+            variant: "capsule"; tip: "Back"
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; anchors.leftMargin: 22
-            width: 42; height: 34; radius: 17
-            color: backMa.hovered ? Qt.rgba(1,1,1,0.18) : Qt.rgba(0,0,0,0.40)
-            Text { anchors.centerIn: parent; text: "‹"; color: theme.ink; font.pixelSize: 22 }
-            HoverHandler { id: backMa }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.backRequested() }
+            onTriggered: root.backRequested()
         }
         Row {
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; anchors.rightMargin: 26
