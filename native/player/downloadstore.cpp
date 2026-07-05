@@ -312,7 +312,10 @@ void DownloadStore::startHttp(Job &job) {
             if (code == 200 && j.baseOffset > 0) {
                 j.baseOffset = 0;
                 j.file->close();
-                j.file->open(QIODevice::WriteOnly);   // truncate
+                if (!j.file->open(QIODevice::WriteOnly)) {   // truncate
+                    failJob(id, QStringLiteral("reopen: %1").arg(j.file->errorString()));
+                    return;
+                }
             }
         });
     }
