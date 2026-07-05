@@ -282,6 +282,11 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("DevOpenWorld"),
         qEnvironmentVariable("COLOSSEUM_OPEN_WORLD"));
+    // dev harness: COLOSSEUM_SUBS_SELFTEST="movie|tt0111161" logs subtitle rows
+    // per source (multi-well proof) headlessly at boot.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevSubsSelfTest"),
+        qEnvironmentVariable("COLOSSEUM_SUBS_SELFTEST"));
 
     // Live TV / DVR player state exposed to QML as `Live`.
     auto *live = new LiveStore(&app);

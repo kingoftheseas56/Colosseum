@@ -15,6 +15,7 @@ import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
 import "AddonClient.js" as AddonClient
+import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "ContinueCovers.js" as ContinueCovers
 
@@ -88,8 +89,10 @@ Window {
         refreshWallpaper()
         // Theatre reads the extension registry through a pushed copy — a .pragma
         // library can't reach context properties (extensions spec Phase 3)
-        if (typeof Extensions !== "undefined")
+        if (typeof Extensions !== "undefined") {
             TheatreApi.setExtensions(Extensions.installed())
+            Subtitles.setExtensions(Extensions.installed())
+        }
         // dev harness (COLOSSEUM_OPEN_EXTENSIONS=1): boot straight into the store,
         // so smoke runs exercise the Loader (QML errors only surface on activation)
         if (typeof DevOpenExtensions !== "undefined" && DevOpenExtensions)
@@ -97,6 +100,30 @@ Window {
         // dev harness (COLOSSEUM_OPEN_WORLD="Theatre"): boot straight into a world
         if (typeof DevOpenWorld !== "undefined" && String(DevOpenWorld).length)
             win.openWorld(String(DevOpenWorld))
+        // dev harness (COLOSSEUM_SUBS_SELFTEST="movie|tt0111161"): headless proof
+        // of the multi-well subtitle pipeline — logs subtitle rows per source
+        if (typeof DevSubsSelfTest !== "undefined" && String(DevSubsSelfTest).length) {
+            var sp = String(DevSubsSelfTest).split("|")
+            if (sp[0] === "MERGETEST") {
+                var m = Subtitles.selfTestMerge()
+                var mBySrc = ({})
+                for (var mi = 0; mi < m.length; mi++)
+                    mBySrc[m[mi].source] = (mBySrc[m[mi].source] || 0) + 1
+                console.log("[subs-selftest] MERGE:", m.length, "rows (expect 5: 1 shared url deduped)")
+                for (var ms in mBySrc) console.log("[subs-selftest]   via", ms + ":", mBySrc[ms])
+                for (var mj = 0; mj < m.length; mj++)
+                    console.log("[subs-selftest]   row", m[mj].langName, m[mj].source, m[mj].url)
+                return
+            }
+            Subtitles.fetch(sp[0], sp[1], function(list) {
+                var bySource = ({})
+                for (var i = 0; i < list.length; i++)
+                    bySource[list[i].source] = (bySource[list[i].source] || 0) + 1
+                console.log("[subs-selftest]", list.length, "subtitles for", sp[0], sp[1])
+                for (var src in bySource)
+                    console.log("[subs-selftest]   via", src + ":", bySource[src])
+            })
+        }
         // dev harness (COLOSSEUM_CATALOG_SELFTEST="movies"): headless proof of the
         // extension-shelf pipeline — logs every row the tab would render
         if (typeof DevCatalogSelfTest !== "undefined" && String(DevCatalogSelfTest).length) {
@@ -1541,7 +1568,10 @@ Window {
 
     Connections {
         target: typeof Extensions !== "undefined" ? Extensions : null
-        function onChanged() { TheatreApi.setExtensions(Extensions.installed()) }
+        function onChanged() {
+            TheatreApi.setExtensions(Extensions.installed())
+            Subtitles.setExtensions(Extensions.installed())
+        }
     }
 
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
