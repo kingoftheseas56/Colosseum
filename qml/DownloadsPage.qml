@@ -416,7 +416,7 @@ Item {
                                             if (eta.length) parts.push(eta);
                                             return parts.join(" · ");
                                         }
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12.5
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
                                     }
                                     Row {
                                         id: actsRow
@@ -548,7 +548,7 @@ Item {
                                                     : "landed — on the Theatre shelf"
                                                 color: epRow.modelData.state === "failed"
                                                        ? "#c98b8b" : theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 11.5
+                                                font.family: theme.ui; font.pixelSize: 11
                                                 elide: Text.ElideRight
                                             }
                                         }
