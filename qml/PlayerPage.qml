@@ -21,6 +21,8 @@ Item {
     property string mediaArt: ""          // poster url, for the Continue card cover
     property string mediaResumeHash: ""   // resume payload: re-open this torrent...
     property int    mediaResumeFileIdx: 0 //   ...at this file index
+    property string mediaLocalPath: ""    // downloaded-file playback: resume by path, not torrent
+    property real   pendingSeekSec: -1    // seek here once the file opens (resume / session restore)
 
     // --- online subtitles (Harbor-style: torrent streams have no subs, so fetch them) ---
     property string subStreamType: ""     // "movie" | "series" (for the OpenSubtitles query)
@@ -513,6 +515,8 @@ Item {
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
         root.clearAbLoop()
         root.cancelSleepTimer()
+        root.mediaLocalPath = ""
+        root.pendingSeekSec = -1
         root.mediaTitle = title || ""
         root.mediaSubtitle = "Torrent stream"
         root.mediaArt = posterUrl || ""
@@ -571,6 +575,14 @@ Item {
     function handlePlaybackFailure(reason) {
         streamWatchdog.stop()
         root.recordProgress()
+        if (root.mediaLocalPath.length) {
+            // A local file has no retry ladder or alternate candidates — fail honestly.
+            root.errored = true
+            root.starting = false
+            root.statusMsg = "Couldn't play this file. It may have been moved or deleted."
+            root.wakeChrome()
+            return
+        }
         if (root.streamRetryCount < 1) {
             root.retryCurrentStream()
             return
@@ -1021,6 +1033,7 @@ Item {
             "progress": frac,
             "resume": { "infoHash": root.mediaResumeHash,
                         "fileIdx": root.mediaResumeFileIdx,
+                        "localPath": root.mediaLocalPath,
                         "subType": root.subStreamType,
                         "subId": root.subStreamId,
                         "position": mpv.position }
@@ -1118,6 +1131,8 @@ Item {
     function playUrl(url, title) {
         root.clearAbLoop()
         root.cancelSleepTimer()
+        root.mediaLocalPath = ""
+        root.pendingSeekSec = -1
         root.mediaTitle = title || ""
         root.mediaSubtitle = "Direct file"
         root.currentPlaybackUrl = url || ""
@@ -1128,6 +1143,54 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         mpv.loadFile(url)
+    }
+
+    // Downloaded-file playback with STREAM-GRADE identity (spec 2026-07-06 downloaded-video
+    // parity). Same check-in playTorrent gives a stream: Continue store id + art, online
+    // subtitles for the exact episode, resume seek. target: { localPath, id, title, art,
+    // kind ("episode"|"movie"), position }.
+    function playLocalFile(target) {
+        var t = target || ({})
+        root.clearAbLoop()
+        root.cancelSleepTimer()
+        root.cancelUpNext()
+        root.autoPausedInactive = false
+        root.deadStreamKeys = ({})
+        root.stubCheckedKey = ""
+        root.streamCandidates = []
+        root.currentStreamIndex = -1
+        root.adjacentEpisodes = ({})
+        root.mediaTitle = t.title || ""
+        root.mediaSubtitle = "Downloaded"
+        root.mediaArt = t.art || ""
+        root.mediaLocalPath = String(t.localPath || "")
+        root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
+        root.mediaResumeHash = ""
+        root.mediaResumeFileIdx = 0
+        root.currentPlaybackUrl = root.mediaLocalPath
+        root.subStreamType = t.kind === "episode" ? "series" : "movie"
+        root.subStreamId = (t.id && String(t.id).length) ? String(t.id) : ""
+        root.fetchSubtitles()
+        root.pendingSeekSec = Number(t.position || 0) > 0 ? Number(t.position) : -1
+        root.errored = false
+        root.starting = true
+        root.fileReady = false
+        root.statusMsg = "Opening..."
+        root.closeMenus()
+        root.wakeChrome()
+        root.forceActiveFocus()
+        mpv.loadFile(root.mediaLocalPath)
+    }
+
+    // Session precision (Main.qml's pre-wired "Task 5" hooks): minimize captures the exact
+    // spot, restore seeks back to it once the file re-opens. Works for streams AND local files.
+    function captureState() {
+        return { "position": mpv.position > 0 ? mpv.position : 0 }
+    }
+    function restoreState(st) {
+        var p = Number((st || ({})).position || 0)
+        if (p > 0)
+            root.pendingSeekSec = p
     }
 
     function stop() {
@@ -1550,6 +1613,10 @@ Item {
             streamWatchdog.stop()
             root.seekPreview = mpv.position
             root.fileReady = true
+            if (root.pendingSeekSec > 0) {     // resume / session-restore precision
+                mpv.seekExact(root.pendingSeekSec)
+                root.pendingSeekSec = -1
+            }
             root.maybeAutoSub()      // file is open → safe to sub-add the auto/online subtitle
             root.wakeChrome()
             root.syncPowerInhibit()
@@ -1913,6 +1980,9 @@ Item {
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
+            // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+
             Text {
                 id: roomTitle
                 x: 18
@@ -2132,6 +2202,9 @@ Item {
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+
             Text {
                 id: castTitle
                 x: 18
@@ -2335,6 +2408,9 @@ Item {
             anchors.fill: parent
             color: Qt.rgba(4 / 255, 6 / 255, 10 / 255, 0.96)
 
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+
             Rectangle {
                 anchors.left: parent.left
                 anchors.right: parent.right
@@ -2466,6 +2542,9 @@ Item {
             color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.96)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
+
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
 
             Text {
                 x: 24
@@ -2635,6 +2714,9 @@ Item {
             color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.86)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            // Absorb background clicks so tapping the stats card never toggles pause (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
 
             Column {
                 id: statsColumn
@@ -3542,6 +3624,9 @@ Item {
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+
             Column {
                 id: toolsCol
                 anchors.left: parent.left
@@ -3857,6 +3942,8 @@ Item {
             color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
             // Harbor's exact section title (uppercase eyebrow).
             Text {
                 x: 18
@@ -4054,6 +4141,8 @@ Item {
             color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
             Text {
                 x: 18
                 y: 15

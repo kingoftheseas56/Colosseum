@@ -444,9 +444,15 @@ Window {
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
-            if (!playerLayer.active) playerLayer.active = true
-            win.playerOpen = true
-            playerLayer.item.playUrl(item.path, item.title)
+            // Downloaded videos take the SAME check-in as streams (spec 2026-07-06 parity):
+            // a real session (taskbar tile, honest minimize) with identity (Continue store,
+            // online subtitles). Resume where a previous watch left off, if the store knows one.
+            var prog = Progress.get("video", item.id || "")
+            var pos = (prog && prog.resume && Number(prog.resume.position || 0) > 0)
+                      ? Number(prog.resume.position) : 0
+            win.openLocalVideoSession({ "path": item.path, "id": item.id || "",
+                                        "title": item.title || "", "art": item.art || "",
+                                        "kind": item.kind || "", "position": pos })
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "title": item.title || "" })
         } else if (item.kind === "comic") {
@@ -530,7 +536,13 @@ Window {
         var r = entry.resume || ({})
         var title = entry.title || entry.caption || ""
         if (entry.kind === "video") {
-            if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {})
+            // downloaded file first: resume the LOCAL copy at position, never a stream fetch
+            if (r.localPath && String(r.localPath).length)
+                win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
+                                            "title": title, "art": entry.cover || "",
+                                            "kind": r.subType === "series" ? "episode" : "movie",
+                                            "position": r.position || 0 })
+            else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {})
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
@@ -584,6 +596,16 @@ Window {
             "target": { "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
                         "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
                         "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}) }
+        })
+    }
+    // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
+    // so re-opening the same episode reuses its tile. `position` rides along for first-open
+    // resume; a fresher captured position (minimize) wins via restoreState.
+    function openLocalVideoSession(v) {
+        Sessions.openOrSwitch({
+            "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
+            "target": { "localPath": v.path, "id": v.id || "", "title": v.title || "",
+                        "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
     }
     function openComicSession(title, seriesId, chapterId) {
@@ -666,8 +688,11 @@ Window {
         if (rec.contentKind === "movie") {
             if (!playerLayer.active) playerLayer.active = true
             win.playerOpen = true
-            playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
-                                         t.streamCandidates || [], t.playbackContext || ({}))
+            if (t.localPath && String(t.localPath).length)
+                playerLayer.item.playLocalFile(t)   // downloaded file: stream-grade identity
+            else
+                playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
+                                             t.streamCandidates || [], t.playbackContext || ({}))
             if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
         } else if (rec.contentKind === "comic") {
             if (String(t.seriesId || "").indexOf("gc:") === 0) {

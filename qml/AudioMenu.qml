@@ -84,6 +84,10 @@ Item {
         border.color: Qt.rgba(1, 1, 1, 0.12)
         clip: true
 
+        // Absorb background clicks: the panel body must never fall through to the player's
+        // fullscreen catcher (which would dismiss the menu). Parity spec 2026-07-06 F2.
+        MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: {} }
+
         Row {
             id: head
             anchors.left: parent.left

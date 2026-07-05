@@ -76,6 +76,9 @@ Item {
 
         Theme { id: theme }
 
+        // Absorb background clicks so the bar body never dismisses itself (parity spec F2).
+        MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: {} }
+
         Row {
             anchors.centerIn: parent
             spacing: 8

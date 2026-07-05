@@ -124,6 +124,37 @@ Item {
         seasonQueued = q;
     }
 
+    // Single-episode download (parity spec 2026-07-06 F4): same request shape as the
+    // season checkout, for exactly one episode. The per-row ↓ button calls this.
+    function queueEpisodeDownload(v) {
+        if (typeof Download === "undefined")
+            return;
+        var sid = episodeStreamId(v);
+        if (Download.hasVideo(sid))
+            return;   // already on disk
+        Download.enqueueBatch([{
+            "id": sid,
+            "kind": "episode",
+            "title": page.title + " - S" + episodeSeason(v) + "E" + episodeNumber(v),
+            "subtitle": v.title || v.name || "",
+            "seriesTitle": page.title,
+            "season": episodeSeason(v),
+            "episode": episodeNumber(v),
+            "art": page.cover
+        }]);
+    }
+
+    // ids currently sitting in the download queue (any state) — recomputed on every queue
+    // change so the per-episode button can show "on its way" instead of re-queueing.
+    property var queuedDownloadIds: (typeof Download !== "undefined")
+        ? (Download.queueRevision, (function() {
+              var m = ({});
+              var js = Download.jobs();
+              for (var i = 0; i < js.length; i++) m[js[i].id] = true;
+              return m;
+          })())
+        : ({})
+
     function episodeStreamId(v) {
         if (v.id && v.id.length) return v.id;
         return currentId() + ":" + episodeSeason(v) + ":" + episodeNumber(v);
@@ -1196,6 +1227,43 @@ Item {
                                                             "metaLine": page.episodeSourceLine(ep.modelData),
                                                             "backdrop": page.sourceBackdrop()
                                                         }, page.adjacentEpisodeContext(ep.modelData)))
+                            }
+                            // Per-episode download (parity spec F4). Declared AFTER epMa so it
+                            // stacks above the row's open-sources click. Three states: on disk
+                            // (inert ✓), queued (inert ↓ dim), ready to queue (↓).
+                            Rectangle {
+                                id: epDl
+                                property string sid: page.episodeStreamId(ep.modelData)
+                                property bool onDisk: (typeof Download !== "undefined")
+                                    ? (Download.queueRevision, Download.hasVideo(sid)) : false
+                                property bool inQueue: page.queuedDownloadIds[sid] === true
+                                visible: typeof Download !== "undefined"
+                                x: thumb.x + thumb.width - width - 7
+                                y: thumb.y + thumb.height - height - 7
+                                width: 30
+                                height: 30
+                                radius: 15
+                                color: Qt.rgba(0, 0, 0, 0.7)
+                                border.width: 1
+                                border.color: epDl.onDisk ? theme.gold
+                                             : (epDlMa.containsMouse && !epDl.inQueue) ? theme.gold : theme.edge
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: epDl.onDisk ? "✓" : "↓"
+                                    color: epDl.onDisk ? theme.gold
+                                          : epDl.inQueue ? theme.inkDimmer
+                                          : (epDlMa.containsMouse ? theme.gold : theme.inkDim)
+                                    font.family: theme.ui
+                                    font.pixelSize: 14
+                                    font.weight: Font.DemiBold
+                                }
+                                MouseArea {
+                                    id: epDlMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: (epDl.onDisk || epDl.inQueue) ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                    onClicked: if (!epDl.onDisk && !epDl.inQueue) page.queueEpisodeDownload(ep.modelData)
+                                }
                             }
                         }
                     }
