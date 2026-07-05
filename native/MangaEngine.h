@@ -7,7 +7,7 @@
 
 #include "WeebCentralScraper.h"
 #include "MangaSeriesDetail.h"
-#include "MangaFireCatalogClient.h"
+#include "MangaDexCatalogClient.h"
 
 #include <QObject>
 #include <QNetworkAccessManager>
@@ -30,18 +30,20 @@ public:
     explicit MangaEngine(QObject *parent = nullptr) : QObject(parent) {
         m_nam = new QNetworkAccessManager(this);
         m_wc = new WeebCentralScraper(m_nam, this);
-        m_mf = new tankoban::manga::mangafire::MangaFireCatalogClient(m_nam, this);
+        m_mf = new tankoban::manga::mangadex::MangaDexCatalogClient(m_nam, this);
 
-        // MangaFire is the VOLUME-structure source: clean per-volume covers + chapter
-        // ranges, handed straight to QML (no MangaDex-style reconstruction). Best-effort:
-        // any failure → empty list, and the volume selector hides.
-        connect(m_mf, &tankoban::manga::mangafire::MangaFireCatalogClient::catalogReady,
+        // MangaDex is the VOLUME-structure source: real per-volume tankōbon covers,
+        // plus chapter ranges where MangaDex knows them (partial for big licensed
+        // titles — a rangeless volume ships chapterStart="" and QML shows the flat
+        // list). MangaFire, the old source, killed volumes in its 2026-07 relaunch.
+        // Best-effort: any failure → empty list, and the volume selector hides.
+        connect(m_mf, &tankoban::manga::mangadex::MangaDexCatalogClient::catalogReady,
                 this, [this](const QString &, const QVariantList &volumes) {
                     emit volumesResult(QVariantMap{{"volumes", volumes}});
                 });
-        connect(m_mf, &tankoban::manga::mangafire::MangaFireCatalogClient::catalogFailed,
+        connect(m_mf, &tankoban::manga::mangadex::MangaDexCatalogClient::catalogFailed,
                 this, [this](const QString &title, const QString &reason) {
-                    qInfo("[mangafire] volumes failed for '%s': %s",
+                    qInfo("[mangadex] volumes failed for '%s': %s",
                           qUtf8Printable(title), qUtf8Printable(reason));
                     emit volumesResult(QVariantMap{{"volumes", QVariantList{}}});
                 });
@@ -126,8 +128,9 @@ public:
         });
     }
 
-    // VOLUME structure — delegated to the MangaFire client (sitemap → /ajax volume + chapter).
-    // Result arrives on volumesResult as {volumes: [{number, cover, chapterStart, chapterEnd}]}.
+    // VOLUME structure — delegated to the MangaDex client (search → covers → aggregate).
+    // Result arrives on volumesResult as {volumes: [{number, cover, chapterStart, chapterEnd}]};
+    // empty chapterStart/chapterEnd = range unknown (covers-first).
     Q_INVOKABLE void volumes(const QString &title) { m_mf->fetchByTitle(title); }
 
     // Dev self-test: resolve a title end-to-end and log the chapter count, so we can
@@ -160,5 +163,5 @@ signals:
 private:
     QNetworkAccessManager *m_nam;
     WeebCentralScraper *m_wc;
-    tankoban::manga::mangafire::MangaFireCatalogClient *m_mf;
+    tankoban::manga::mangadex::MangaDexCatalogClient *m_mf;
 };

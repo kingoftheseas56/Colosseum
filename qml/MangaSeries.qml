@@ -39,7 +39,7 @@ Item {
     property string errorMsg: ""
 
     // --- seamless reveal gate ---
-    // The page fires WeebCentral (chapters), AniList (art) and MangaFire (volumes) in parallel,
+    // The page fires WeebCentral (chapters), AniList (art) and MangaDex (volumes) in parallel,
     // each at a different speed. We must NEVER reveal the page until ALL three are in — otherwise
     // the user sees the flat chapter list / low-q art first and watches it reflow. _maybeReveal()
     // drops `loading` only when everything is ready, so the page appears once, already finished.
@@ -50,9 +50,17 @@ Item {
         if (chaptersReady && artReady && volumesReady) { loading = false; revealGuard.stop() }
     }
 
-    // --- volumes (MangaFire via MangaVolumes.js) ---
+    // --- volumes (MangaDex via MangaVolumes.js; ranges partial — covers-first) ---
     property var volumes: []                                  // [{number,cover,startNum,endNum,chapterStart,chapterEnd}]
     property var volGroups: Vol.group(chaptersModel, volumes) // { options:[{key,label}], byKey:{} }
+    // the shelf's model: every volume, plus a "Latest" tile when grouped chapters spill past the
+    // last known volume range (group()'s X bucket) — else those chapters would be unreachable.
+    property var shelfVolumes: {
+        var list = (volumes || []).slice()
+        if (list.length && volGroups.options.length && volGroups.byKey.X && volGroups.byKey.X.length)
+            list.push({ number: "X", cover: "" })
+        return list
+    }
     property string activeVol: ""                             // user's pick (volume number as string)
     property string shownVol: (activeVol.length && volGroups.byKey && volGroups.byKey[activeVol] !== undefined)
                               ? activeVol
@@ -64,7 +72,8 @@ Item {
     function volRange(volNum) {
         for (var i = 0; i < volumes.length; i++)
             if (String(volumes[i].number) === volNum)
-                return volumes[i].chapterStart + "–" + volumes[i].chapterEnd
+                return (volumes[i].chapterStart.length && volumes[i].chapterEnd.length)
+                       ? volumes[i].chapterStart + "–" + volumes[i].chapterEnd : ""
         return ""
     }
 
@@ -83,7 +92,7 @@ Item {
             revealGuard.restart()        // never hang on a dead source — reveal what we have after N s
             Manga.search(seriesTitle)    // → chapters + WeebCentral detail
             Manga.art(seriesTitle)       // → AniList banner / cover / synopsis / genres / year
-            Manga.volumes(seriesTitle)   // → MangaFire volume structure (covers + chapter ranges)
+            Manga.volumes(seriesTitle)   // → MangaDex volume structure (covers + partial ranges)
         }
     }
 
@@ -129,7 +138,7 @@ Item {
             if (a.year) page.year = a.year
             page.artReady = true; page._maybeReveal()
         }
-        function onVolumesResult(d) { page.volumes = Vol.fromMangaFire(d.volumes || []); page.volumesReady = true; page._maybeReveal() }
+        function onVolumesResult(d) { page.volumes = Vol.fromEngine(d.volumes || []); page.volumesReady = true; page._maybeReveal() }
         function onEngineError(msg) { if (page.loading) { page.errorMsg = msg; page.loading = false; revealGuard.stop() } }
     }
 
@@ -345,13 +354,14 @@ Item {
                             spacing: 18
                             clip: true
                             boundsBehavior: Flickable.StopAtBounds
-                            model: page.volumes
+                            model: page.shelfVolumes
 
                             delegate: Item {
                                 id: vtile
                                 required property var modelData
                                 width: 116; height: 206
                                 property bool on: String(modelData.number) === page.shownVol
+                                property bool isLatest: String(modelData.number) === "X"
                                 Column {
                                     width: parent.width; spacing: 9
                                     Item {
@@ -367,7 +377,7 @@ Item {
                                             Text {
                                                 anchors.centerIn: parent
                                                 visible: cover.status !== Image.Ready
-                                                text: vtile.modelData.number
+                                                text: vtile.isLatest ? "»" : vtile.modelData.number
                                                 color: Qt.rgba(1,1,1,0.5); font.family: theme.display
                                                 font.pixelSize: 40; font.weight: Font.Bold
                                             }
@@ -386,7 +396,7 @@ Item {
                                         width: parent.width; spacing: 5
                                         Text {
                                             anchors.horizontalCenter: parent.horizontalCenter
-                                            text: "Vol " + vtile.modelData.number
+                                            text: vtile.isLatest ? "Latest" : "Vol " + vtile.modelData.number
                                             color: vtile.on ? theme.gold : theme.inkDim
                                             font.family: theme.ui; font.pixelSize: 12
                                             font.weight: vtile.on ? Font.DemiBold : Font.Normal
@@ -465,7 +475,12 @@ Item {
                             Row {
                                 anchors.left: parent.left; anchors.leftMargin: 24
                                 anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                                Text { text: "Vol. " + page.shownVol; color: theme.ink
+                                Text {
+                                    // honest header: a real volume, the Latest bucket, or the whole run —
+                                    // never a bare "Vol. " pretending volume data exists when it doesn't
+                                    text: page.shownVol === "X" ? "Latest"
+                                        : page.shownVol.length ? "Vol. " + page.shownVol : "All"
+                                    color: theme.ink
                                     font.family: theme.display; font.pixelSize: 19; font.weight: Font.DemiBold
                                     anchors.verticalCenter: parent.verticalCenter }
                                 Text { text: page.visibleChapters.length + " chapters"; color: theme.inkDim
@@ -480,7 +495,12 @@ Item {
                                     Row {
                                         id: dlVolRow; anchors.centerIn: parent; spacing: 7
                                         Text { text: "↓"; color: theme.ink; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
-                                        Text { text: "Download volume"; color: theme.inkDim; font.family: theme.ui
+                                        Text {
+                                            // says what it downloads: the shown volume, the Latest bucket,
+                                            // or (flat state) the whole run
+                                            text: page.shownVol === "X" ? "Download latest"
+                                                : page.shownVol.length ? "Download volume" : "Download all"
+                                            color: theme.inkDim; font.family: theme.ui
                                             font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     MouseArea { id: dlVolMa; anchors.fill: parent; hoverEnabled: true

@@ -37,8 +37,8 @@ add_executable(colosseum
     engine/MangaScraper.h
     engine/MangaResult.h
     engine/MangaSeriesDetail.h
-    engine/MangaFireCatalogClient.cpp
-    engine/MangaFireCatalogClient.h
+    engine/MangaDexCatalogClient.cpp
+    engine/MangaDexCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
     engine/BookDownloader.cpp
