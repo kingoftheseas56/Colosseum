@@ -37,9 +37,14 @@ WorldPage {
     }
 
     ContinueRow {
-        title: "Continue"
-        // Real resume data — manga + comics, newest first. (Progress.revision keeps it live.)
-        items: (Progress.revision, Progress.recent("manga").concat(Progress.recent("comic")))
+        title: "Continue Reading"
+        // Real resume data — manga + comics BLENDED by true recency and capped like every other
+        // row (audit fix: was all-manga-then-all-comics, unbounded). Progress.revision keeps it live.
+        items: (Progress.revision, (function() {
+            var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
+            a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
+            return a.slice(0, 12)
+        })())
         onResumeRequested: (item) => tanko.continueResumeRequested(item)
         onDetailRequested: (item) => tanko.continueDetailRequested(item)
     }

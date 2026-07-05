@@ -43,7 +43,7 @@ WorldPage {
     }
 
     ContinueRow {
-        title: "Continue"
+        title: "Continue Reading"
         items: (Progress.revision, Progress.recent("book", 12))
         onResumeRequested: (item) => biblio.continueResumeRequested(item)
         onDetailRequested: (item) => biblio.continueDetailRequested(item)

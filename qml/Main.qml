@@ -17,7 +17,6 @@ import "TheatreApi.js" as TheatreApi
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
-import "ContinueCovers.js" as ContinueCovers
 
 Window {
     id: win
@@ -757,90 +756,9 @@ Window {
         }
     }
 
-    // ---- reusable: a unified Continue card (glass chrome, solid art slot) ----
-    component ContinueCard: Glass {
-        id: card
-        backdrop: wall
-        width: 340; height: 148; radius: 14
-        signal resumeActivated()   // center play/read icon → resume INTO the content
-        signal detailActivated()   // anywhere else on the card → the series / detail view
-        property string kind       // "video" → play glyph; "manga"/"comic"/"book" → read glyph
-        property string badge
-        property string title
-        property string sub
-        property real progress: 0
-        property color art: "#333"
-        property string cover: ""
-        Row {
-            anchors.fill: parent
-            Item {   // art slot — real cover over a gradient fallback
-                width: 112; height: parent.height
-                clip: true
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0; color: Qt.lighter(art, 1.25) }
-                        GradientStop { position: 1; color: Qt.darker(art, 1.4) }
-                    }
-                }
-                Image {
-                    anchors.fill: parent
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    cache: true
-                    source: cover
-                    visible: cover.length > 0 && status === Image.Ready
-                }
-            }
-            Item {
-                width: parent.width - 112; height: parent.height
-                ColumnLayout {
-                    anchors.fill: parent; anchors.margins: 15; spacing: 0
-                    Text {
-                        text: badge; color: theme.gold
-                        font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.3
-                        Layout.alignment: Qt.AlignLeft
-                    }
-                    Item { Layout.fillHeight: true }
-                    Text { text: title; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
-                    Text { text: sub; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; topPadding: 4; bottomPadding: 8 }
-                    Rectangle {
-                        Layout.fillWidth: true; height: 4; radius: 2; color: Qt.rgba(1,1,1,0.2)
-                        Rectangle { width: parent.width * progress; height: parent.height; radius: 2; color: theme.gold }
-                    }
-                }
-            }
-        }
-        // click ANYWHERE on the card → the series / detail view (the center button below sits on
-        // top, so a click on it never falls through to this one)
-        MouseArea {
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onClicked: card.detailActivated()
-        }
-        // the center play / read button, over the cover — resumes INTO the content
-        Rectangle {
-            id: resumeBtn
-            width: 48; height: 48; radius: 24
-            x: 56 - width / 2                       // centered on the 112px cover slot
-            anchors.verticalCenter: parent.verticalCenter
-            color: rbHov.hovered ? Qt.rgba(0,0,0,0.80) : Qt.rgba(0,0,0,0.55)
-            border.width: 1.5; border.color: Qt.rgba(1,1,1,0.9)
-            scale: rbHov.hovered ? 1.08 : 1.0
-            Behavior on scale { NumberAnimation { duration: 130; easing.type: Easing.OutBack } }
-            Image {
-                anchors.centerIn: parent
-                width: card.kind === "video" ? 19 : 22; height: width
-                source: card.kind === "video" ? "../assets/icons/play.svg"
-                      : card.kind === "book"  ? "../assets/icons/books.svg"
-                      : "../assets/icons/manga.svg"
-                fillMode: Image.PreserveAspectFit
-            }
-            HoverHandler { id: rbHov }
-            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: card.resumeActivated() }
-        }
-    }
+    // (The unified Continue card now lives in ContinueTile.qml — one component worn two ways,
+    //  shared with the world pages' ContinueRow. Spec: haven docs/superpowers/specs/
+    //  2026-07-05-colosseum-continue-tiles-design.md.)
 
     // (PortraitTile · Pill · SysIcon · the top bar now live in shared sibling files:
     //  PortraitTile.qml and TopBar.qml — reused by the world-page template.)
@@ -1035,12 +953,13 @@ Window {
                 id: contCol
                 width: parent.width
                 spacing: 14
-                property var contItems: (Progress.revision, Progress.recent("", 12))
+                // watched episodes sink below unfinished entries (both halves keep recency order)
+                property var contItems: (Progress.revision, (function() {
+                    var a = Progress.recent("", 12)
+                    return a.filter(function(e) { return e.watched !== true })
+                            .concat(a.filter(function(e) { return e.watched === true }))
+                })())
                 visible: contItems.length > 0
-                function badgeFor(k) {
-                    return ({ video: "VIDEO", manga: "MANGA", comic: "COMIC", book: "BOOK" })[k]
-                           || (k ? k.toUpperCase() : "")
-                }
                 RowHeader { title: "Continue"; navigable: false }   // unified resume row, not a world
                 Flickable {
                     id: contFlick
@@ -1054,24 +973,15 @@ Window {
                         spacing: 18
                         Repeater {
                             model: contCol.contItems
-                            delegate: ContinueCard {
-                                id: contCard
+                            delegate: ContinueTile {
                                 required property var modelData
-                                // saved cover, or — for a manga saved without art — an AniList fallback
-                                property string resolvedCover: (modelData.cover !== undefined && ("" + modelData.cover).length)
-                                                               ? modelData.cover : ""
-                                Component.onCompleted: if (!resolvedCover && (modelData.kind === "manga" || modelData.kind === "comic"))
-                                    ContinueCovers.fetch(modelData.title || modelData.caption || "", function(u) { contCard.resolvedCover = u })
+                                variant: "home"
+                                entry: modelData
+                                backdrop: wall
                                 track: page.contentY + contFlick.contentX
-                                kind: modelData.kind !== undefined ? modelData.kind : ""
-                                badge: contCol.badgeFor(modelData.kind)
-                                title: modelData.title !== undefined ? modelData.title : (modelData.caption || "")
-                                sub: modelData.sub !== undefined ? modelData.sub : ""
-                                cover: resolvedCover
-                                progress: modelData.progress !== undefined ? modelData.progress : 0
-                                art: modelData.c1 !== undefined ? modelData.c1 : "#333"
-                                onResumeActivated: win.resumeContinue(modelData)
-                                onDetailActivated: win.detailContinue(modelData)
+                                onResumeRequested: win.resumeContinue(modelData)
+                                onDetailRequested: win.detailContinue(modelData)
+                                onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
                             }
                         }
                     }
