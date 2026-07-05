@@ -22,6 +22,9 @@ Item {
 
     // ---- read-model bindings (revision-driven refresh) ----
     property var jobs: []
+    property var jobGroups: []
+    property int liveJobCount: 0
+    property var openGroups: ({})
     property var laneSeries: ({})      // world -> series list
     property var totalsMap: ({})
     property string openLedgerWorld: ""
@@ -37,6 +40,11 @@ Item {
     function refresh() {
         if (typeof LocalDownloads === "undefined") return;
         jobs = LocalDownloads.activeJobs();
+        jobGroups = groupJobs(jobs);
+        var live = 0;
+        for (var k = 0; k < jobs.length; k++)
+            if (jobs[k].state !== "done") live++;
+        liveJobCount = live;
         totalsMap = LocalDownloads.totals;
         var lanes = {};
         for (var i = 0; i < worlds.length; i++)
@@ -57,6 +65,13 @@ Item {
                       ? LocalDownloads.items(world, key) : [];
     }
 
+    function toggleGroup(key) {
+        var next = {};
+        for (var k in openGroups) next[k] = openGroups[k];
+        next[key] = !next[key];
+        openGroups = next;   // reassign so bindings wake
+    }
+
     function fmtBytes(b) {
         if (b >= 1073741824) return (b / 1073741824).toFixed(1) + " GB";
         if (b >= 1048576) return Math.round(b / 1048576) + " MB";
@@ -70,6 +85,54 @@ Item {
         if (days <= 0) return "added today";
         if (days === 1) return "added yesterday";
         return "added " + Qt.formatDate(d, "MMMM d");
+    }
+    function fmtSpeed(bps) {
+        if (bps >= 1048576) return (bps / 1048576).toFixed(1) + " MB/s";
+        if (bps >= 1024) return Math.round(bps / 1024) + " KB/s";
+        return "";
+    }
+    function fmtEta(secs) {
+        if (secs === undefined || secs === null || secs < 0) return "";
+        if (secs >= 5400) return "~" + (secs / 3600).toFixed(1) + " h left";
+        if (secs >= 60) return "~" + Math.round(secs / 60) + " min left";
+        return "~" + Math.round(secs) + " s left";
+    }
+    // Fold flat jobs into checkout groups (a season = a view of the queue).
+    function groupJobs(list) {
+        var groups = [], byKey = {};
+        for (var i = 0; i < list.length; i++) {
+            var j = list[i];
+            var key = (j.world || "") + "|" + (j.groupKey || j.id);
+            var g = byKey[key];
+            if (!g) {
+                g = { key: key, world: j.world || "theatre", rows: [],
+                      doneCount: 0, liveCount: 0, received: 0, total: 0,
+                      speed: 0, eta: -1, ratioSum: 0 };
+                byKey[key] = g;
+                groups.push(g);
+            }
+            g.rows.push(j);
+            if (j.state === "done") { g.doneCount++; g.ratioSum += 1; }
+            else { g.liveCount++; g.ratioSum += (j.ratio || 0); }
+            g.received += (j.received || 0);
+            g.total += (j.total || 0);
+            if (j.state === "downloading") g.speed += (j.speed || 0);
+            var eta = (j.etaSec === undefined || j.etaSec === null) ? -1 : j.etaSec;
+            if (eta >= 0) g.eta = Math.max(g.eta, eta);
+        }
+        for (var k = 0; k < groups.length; k++) {
+            var g2 = groups[k];
+            g2.count = g2.rows.length;
+            g2.single = g2.count === 1;
+            g2.ratio = g2.count > 0 ? g2.ratioSum / g2.count : 0;
+            var first = g2.rows[0];
+            g2.season = first.season || 0;
+            g2.seriesTitle = first.seriesTitle || "";
+            g2.title = g2.single ? (first.title || "Download")
+                     : (g2.seriesTitle || first.title || "Download")
+                       + " — Season " + g2.season;
+        }
+        return groups;
     }
     // deterministic quiet cover tones per title (styling, not data)
     function coverTone(title, dark) {
@@ -154,10 +217,14 @@ Item {
                 }
             }
 
-            // ============ NOW ARRIVING — exists only while jobs run ============
+            // ============ NOW ARRIVING — the manager zone ============
+            // Ratified: agents/colosseum-downloads-manager-mock.html (2026-07-05).
+            // A checkout folds to ONE collapsible group; rows carry their own
+            // numbers and exact-row controls. Detail is honest: progress, speed,
+            // ETA, size — our files arrive over plain HTTP from our own engine.
             Column {
                 width: col.width
-                visible: root.jobs.length > 0
+                visible: root.jobGroups.length > 0
                 topPadding: 40
                 spacing: 16
 
@@ -166,92 +233,259 @@ Item {
                     Text { text: "Now arriving"; color: theme.ink
                            font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
                     Text { anchors.baseline: parent.children[0].baseline
-                           text: root.jobs.length + (root.jobs.length === 1 ? " live job" : " live jobs")
-                                 + "  —  this strip leaves when the last one lands"
+                           text: root.liveJobCount + (root.liveJobCount === 1 ? " live job" : " live jobs")
+                                 + " — this zone leaves when the last one lands"
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                 }
 
-                Flow {
+                Rectangle {
                     width: col.width
-                    spacing: 16
-                    Repeater {
-                        model: root.jobs
-                        delegate: Rectangle {
-                            id: jobCard
-                            required property var modelData
-                            width: Math.min(500, (col.width - 32) / Math.min(3, Math.max(1, root.jobs.length)))
-                            height: 92
-                            radius: 14
-                            color: Qt.rgba(0.04, 0.045, 0.065, 0.55)
-                            border.width: 1; border.color: theme.edge
-                            clip: true
+                    implicitHeight: groupsCol.implicitHeight
+                    radius: 18
+                    color: Qt.rgba(0.04, 0.045, 0.065, 0.48)
+                    border.width: 1; border.color: theme.edge
+                    clip: true
 
-                            Column {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.top: parent.top
-                                anchors.margins: 16
-                                spacing: 5
-                                Row {
+                    Column {
+                        id: groupsCol
+                        width: parent.width
+
+                        Repeater {
+                            model: root.jobGroups
+                            delegate: Column {
+                                id: grp
+                                required property var modelData
+                                required property int index
+                                readonly property bool open: root.openGroups[grp.modelData.key] === true
+                                width: groupsCol.width
+
+                                // ---- group header ----
+                                Item {
                                     width: parent.width
-                                    Text {
-                                        width: parent.width - pctT.width - 10
-                                        text: jobCard.modelData.title || "Download"
-                                        color: theme.ink; font.family: theme.ui
-                                        font.pixelSize: 15; font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
+                                    height: 76
+
+                                    Rectangle { // hairline between groups
+                                        visible: grp.index > 0
+                                        anchors.left: parent.left; anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        height: 1; color: Qt.rgba(1, 1, 1, 0.06)
+                                    }
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        enabled: !grp.modelData.single
+                                        cursorShape: grp.modelData.single ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                        onClicked: root.toggleGroup(grp.modelData.key)
+                                    }
+                                    Text { // chevron (fold handle) — multi-row groups only
+                                        visible: !grp.modelData.single
+                                        x: 26; anchors.verticalCenter: parent.verticalCenter
+                                        text: "›"; color: theme.inkDimmer; font.pixelSize: 18
+                                        rotation: grp.open ? 90 : 0
+                                        Behavior on rotation { NumberAnimation { duration: 120 } }
+                                    }
+                                    Column {
+                                        anchors.left: parent.left; anchors.leftMargin: 52
+                                        anchors.right: numsT.left; anchors.rightMargin: 16
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 4
+                                        Text {
+                                            width: parent.width
+                                            text: grp.modelData.title
+                                            color: theme.ink; font.family: theme.ui
+                                            font.pixelSize: 15; font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                        }
+                                        Text {
+                                            width: parent.width
+                                            text: {
+                                                var w = grp.modelData.world;
+                                                var wn = w === "tankoban" ? "Tankoban" : w === "biblio" ? "Biblio" : "Theatre";
+                                                if (grp.modelData.single) {
+                                                    var r0 = grp.modelData.rows[0];
+                                                    if (r0.state === "failed")
+                                                        return wn + " · " + (r0.error || "download failed");
+                                                    var d = r0.detail || "";
+                                                    return d.length ? (wn + " · " + d) : wn;
+                                                }
+                                                return wn + " · season checkout · " + grp.modelData.count + " episodes";
+                                            }
+                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                            elide: Text.ElideRight
+                                        }
                                     }
                                     Text {
-                                        id: pctT
-                                        text: jobCard.modelData.state === "queued" ? "queued"
-                                            : jobCard.modelData.state === "resolving" ? "resolving"
-                                            : jobCard.modelData.state === "extracting" ? "unpacking"
-                                            : jobCard.modelData.state === "failed" ? "failed"
-                                            : Math.round((jobCard.modelData.ratio || 0) * 100) + "%"
-                                        color: jobCard.modelData.state === "downloading" ? theme.gold : theme.inkDimmer
-                                        font.family: theme.ui; font.pixelSize: 13
+                                        id: numsT
+                                        anchors.right: actsRow.left; anchors.rightMargin: 24
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        horizontalAlignment: Text.AlignRight
+                                        textFormat: Text.StyledText
+                                        text: {
+                                            var parts = [];
+                                            if (!grp.modelData.single)
+                                                parts.push("<b><font color='#f7f7f5'>" + grp.modelData.doneCount
+                                                           + " of " + grp.modelData.count + "</font></b> landed");
+                                            if (grp.modelData.total > 0)
+                                                parts.push(root.fmtBytes(grp.modelData.received)
+                                                           + " of " + root.fmtBytes(grp.modelData.total));
+                                            if (grp.modelData.speed > 0)
+                                                parts.push("<font color='#f0c44a'><b>" + root.fmtSpeed(grp.modelData.speed) + "</b></font>");
+                                            var eta = root.fmtEta(grp.modelData.eta);
+                                            if (eta.length) parts.push(eta);
+                                            return parts.join(" · ");
+                                        }
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12.5
+                                    }
+                                    Row {
+                                        id: actsRow
+                                        anchors.right: parent.right; anchors.rightMargin: 26
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        spacing: 20
+                                        Text {
+                                            visible: grp.modelData.single
+                                                     && grp.modelData.rows[0].state === "failed"
+                                            text: "Retry"
+                                            color: hRetryMa.containsMouse ? "#ffd968" : theme.gold
+                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            MouseArea { id: hRetryMa; anchors.fill: parent; hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: LocalDownloads.retry(grp.modelData.world, grp.modelData.rows[0].id) }
+                                        }
+                                        Text {
+                                            visible: grp.modelData.liveCount > 0
+                                            text: grp.modelData.single
+                                                  ? (grp.modelData.rows[0].state === "failed" ? "Remove" : "Cancel")
+                                                  : "Cancel season"
+                                            color: hCancelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                            font.family: theme.ui; font.pixelSize: 12
+                                            MouseArea { id: hCancelMa; anchors.fill: parent; hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            var rows = grp.modelData.rows;
+                                                            for (var i = 0; i < rows.length; i++)
+                                                                if (rows[i].state !== "done")
+                                                                    LocalDownloads.cancel(grp.modelData.world, rows[i].id);
+                                                        } }
+                                        }
+                                    }
+                                    Rectangle { // aggregate: gold lives on the bottom edge
+                                        anchors.left: parent.left; anchors.bottom: parent.bottom
+                                        width: parent.width * grp.modelData.ratio
+                                        height: 3; color: theme.gold
+                                        visible: grp.modelData.liveCount > 0
                                     }
                                 }
-                                Text {
-                                    text: {
-                                        var world = jobCard.modelData.world || "";
-                                        var w = world === "tankoban" ? "Tankoban" : world === "biblio" ? "Biblio" : "Theatre";
-                                        if (jobCard.modelData.state === "failed")
-                                            return w + " · " + (jobCard.modelData.error || "download failed");
-                                        var d = jobCard.modelData.detail || "";
-                                        return d.length ? (w + " · " + d) : w;
+
+                                // ---- episode rows (fold) ----
+                                Repeater {
+                                    model: (grp.open && !grp.modelData.single) ? grp.modelData.rows : []
+                                    delegate: Item {
+                                        id: epRow
+                                        required property var modelData
+                                        width: grp.width
+                                        height: 54
+
+                                        Rectangle {
+                                            anchors.left: parent.left; anchors.right: parent.right
+                                            anchors.top: parent.top
+                                            height: 1; color: Qt.rgba(1, 1, 1, 0.06)
+                                        }
+                                        Text {
+                                            id: epNoT
+                                            x: 52; anchors.verticalCenter: parent.verticalCenter
+                                            width: 40
+                                            text: epRow.modelData.episode > 0
+                                                  ? "E" + (epRow.modelData.episode < 10 ? "0" : "") + epRow.modelData.episode
+                                                  : ""
+                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                        }
+                                        Column {
+                                            anchors.left: epNoT.right; anchors.leftMargin: 8
+                                            anchors.right: epNums.left; anchors.rightMargin: 16
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 3
+                                            Text {
+                                                width: parent.width
+                                                text: epRow.modelData.title || "Episode"
+                                                color: epRow.modelData.state === "done" || epRow.modelData.state === "queued"
+                                                       ? theme.inkDim : theme.ink
+                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                width: parent.width
+                                                text: epRow.modelData.state === "downloading" ? "downloading"
+                                                    : epRow.modelData.state === "resolving" ? "resolving — finding the best stream"
+                                                    : epRow.modelData.state === "queued" ? "queued — waits its turn"
+                                                    : epRow.modelData.state === "failed"
+                                                          ? "failed — " + (epRow.modelData.error || "download failed")
+                                                    : "landed — on the Theatre shelf"
+                                                color: epRow.modelData.state === "failed"
+                                                       ? "#c98b8b" : theme.inkDimmer
+                                                font.family: theme.ui; font.pixelSize: 11.5
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+                                        Text {
+                                            id: epNums
+                                            anchors.right: epActs.left; anchors.rightMargin: 20
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            textFormat: Text.StyledText
+                                            text: {
+                                                var m = epRow.modelData;
+                                                if (m.state === "downloading") {
+                                                    var parts = [];
+                                                    var sp = root.fmtSpeed(m.speed || 0);
+                                                    if (sp.length) parts.push("<font color='#f0c44a'><b>" + sp + "</b></font>");
+                                                    parts.push(Math.round((m.ratio || 0) * 100) + "%");
+                                                    if (m.total > 0)
+                                                        parts.push(root.fmtBytes(m.received || 0) + " of " + root.fmtBytes(m.total));
+                                                    return parts.join(" · ");
+                                                }
+                                                if (m.state === "done" && m.total > 0) return root.fmtBytes(m.total);
+                                                return "—";
+                                            }
+                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                        }
+                                        Row {
+                                            id: epActs
+                                            anchors.right: parent.right; anchors.rightMargin: 26
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            spacing: 16
+                                            Text {
+                                                visible: epRow.modelData.state === "done"
+                                                text: "✓"; color: theme.inkDim
+                                                font.family: theme.ui; font.pixelSize: 13
+                                            }
+                                            Text {
+                                                visible: epRow.modelData.state === "failed"
+                                                text: "Retry"
+                                                color: rRetryMa.containsMouse ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                MouseArea { id: rRetryMa; anchors.fill: parent; hoverEnabled: true
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: LocalDownloads.retry(epRow.modelData.world, epRow.modelData.id) }
+                                            }
+                                            Text {
+                                                visible: epRow.modelData.state !== "done"
+                                                text: epRow.modelData.state === "failed" ? "Remove"
+                                                    : epRow.modelData.state === "downloading"
+                                                      || epRow.modelData.state === "resolving" ? "Cancel" : "Remove"
+                                                color: rCancelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                font.family: theme.ui; font.pixelSize: 12
+                                                MouseArea { id: rCancelMa; anchors.fill: parent; hoverEnabled: true
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: LocalDownloads.cancel(epRow.modelData.world, epRow.modelData.id) }
+                                            }
+                                        }
+                                        Rectangle { // per-row progress on the bottom edge
+                                            anchors.left: parent.left; anchors.bottom: parent.bottom
+                                            anchors.leftMargin: 52
+                                            width: (parent.width - 78) * (epRow.modelData.ratio || 0)
+                                            height: 2; color: theme.gold
+                                            visible: epRow.modelData.state === "downloading"
+                                        }
                                     }
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                 }
-                            }
-                            Row {
-                                anchors.right: parent.right; anchors.bottom: parent.bottom
-                                anchors.margins: 12
-                                spacing: 16
-                                Text {
-                                    visible: jobCard.modelData.canRetry === true
-                                    text: "Retry"
-                                    color: retryMa.containsMouse ? "#ffd968" : theme.gold
-                                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                                    MouseArea { id: retryMa; anchors.fill: parent; hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: LocalDownloads.retry(jobCard.modelData.world, jobCard.modelData.id) }
-                                }
-                                Text {
-                                    text: jobCard.modelData.state === "failed" ? "Remove" : "Cancel"
-                                    color: cancelMa.containsMouse ? theme.ink : theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
-                                    MouseArea { id: cancelMa; anchors.fill: parent; hoverEnabled: true
-                                                cursorShape: Qt.PointingHandCursor
-                                                onClicked: LocalDownloads.cancel(jobCard.modelData.world, jobCard.modelData.id) }
-                                }
-                            }
-                            // gold lives on the bottom edge: the fill IS the progress
-                            Rectangle {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom
-                                width: parent.width * (jobCard.modelData.ratio || 0)
-                                height: 3
-                                color: theme.gold
-                                visible: jobCard.modelData.state === "downloading"
                             }
                         }
                     }

@@ -42,4 +42,12 @@ Assert-Contains $facade '"groupKey"), j.value(QStringLiteral("groupKey"))' `
 Assert-Contains $facade '"etaSec"), j.value(QStringLiteral("etaSec"))' `
     "activeJobs must pass speed/etaSec through - Tankorent-grade live detail."
 
+$page = Get-Content (Join-Path $root "qml/DownloadsPage.qml") -Raw
+Assert-Contains $page 'function groupJobs' `
+    "DownloadsPage must fold jobs into checkout groups (season = one collapsible row)."
+Assert-Contains $page 'Cancel season' `
+    "Group header must offer season-wide cancel."
+Assert-NotMatches $page 'LocalDownloads\.cancel\(jobCard' `
+    "The old flat job-card strip must be gone."
+
 Write-Host "downloads manager p0 contract: OK"
