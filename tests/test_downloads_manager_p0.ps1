@@ -50,4 +50,9 @@ Assert-Contains $page 'Cancel season' `
 Assert-NotMatches $page 'LocalDownloads\.cancel\(jobCard' `
     "The old flat job-card strip must be gone."
 
+Assert-Contains $page 'SEASON " + sgrp.modelData.season' `
+    "Theatre ledger must fold episodes under collapsible season headers."
+Assert-Contains $page 'still arriving above' `
+    "Ledger season headers must cross-reference live checkouts."
+
 Write-Host "downloads manager p0 contract: OK"

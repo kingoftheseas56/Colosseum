@@ -50,19 +50,24 @@ Item {
         for (var i = 0; i < worlds.length; i++)
             lanes[worlds[i].key] = LocalDownloads.series(worlds[i].key);
         laneSeries = lanes;
-        if (openLedgerKey.length)
+        if (openLedgerKey.length) {
             ledgerItems = LocalDownloads.items(openLedgerWorld, openLedgerKey);
+            computeLedgerSeasons();
+        }
     }
 
     function toggleLedger(world, key) {
         if (openLedgerWorld === world && openLedgerKey === key) {
             openLedgerWorld = ""; openLedgerKey = ""; ledgerItems = [];
+            ledgerSeasonList = []; openSeasons = ({});
             return;
         }
         openLedgerWorld = world;
         openLedgerKey = key;
         ledgerItems = (typeof LocalDownloads !== "undefined")
                       ? LocalDownloads.items(world, key) : [];
+        openSeasons = ({});
+        computeLedgerSeasons();
     }
 
     function toggleGroup(key) {
@@ -70,6 +75,57 @@ Item {
         for (var k in openGroups) next[k] = openGroups[k];
         next[key] = !next[key];
         openGroups = next;   // reassign so bindings wake
+    }
+
+    property var ledgerSeasonList: []   // [{season, items, bytes, newest, arriving}] or [] = flat
+    property var openSeasons: ({})
+
+    function toggleSeason(s) {
+        var next = {};
+        for (var k in openSeasons) next[k] = openSeasons[k];
+        next[s] = !next[s];
+        openSeasons = next;
+    }
+    function computeLedgerSeasons() {
+        var out = [], byS = {}, any = false;
+        if (openLedgerWorld === "theatre") {
+            for (var i = 0; i < ledgerItems.length; i++) {
+                var e = ledgerItems[i];
+                if (e.kind === "episode" && (e.season || 0) > 0) any = true;
+            }
+        }
+        if (!any) { ledgerSeasonList = []; return; }
+        for (var j = 0; j < ledgerItems.length; j++) {
+            var it = ledgerItems[j];
+            var s = it.season || 0;
+            if (!byS[s]) { byS[s] = { season: s, items: [], bytes: 0, newest: 0, arriving: 0 }; out.push(byS[s]); }
+            byS[s].items.push(it);
+            byS[s].bytes += (it.bytes || 0);
+            byS[s].newest = Math.max(byS[s].newest, it.addedAt || 0);
+        }
+        // live cross-reference: same series title + season, still live above
+        for (var k = 0; k < jobs.length; k++) {
+            var jb = jobs[k];
+            if (jb.world !== "theatre" || jb.state === "done") continue;
+            var st = (jb.seriesTitle || "").toLowerCase();
+            for (var g = 0; g < out.length; g++) {
+                var first = out[g].items[0];
+                if ((first.seriesTitle || "").toLowerCase() === st && (jb.season || 0) === out[g].season)
+                    out[g].arriving++;
+            }
+        }
+        out.sort(function(a, b) { return a.season - b.season; });
+        // Default fold (newest season open) ONLY when the ledger was just opened —
+        // refresh() re-runs every progress tick and must never stomp the user's folds.
+        if (Object.keys(openSeasons).length === 0) {
+            var open = {};
+            var newestSeason = out[0] ? out[0].season : 0, newestAt = -1;
+            for (var m = 0; m < out.length; m++)
+                if (out[m].newest > newestAt) { newestAt = out[m].newest; newestSeason = out[m].season; }
+            open[newestSeason] = true;
+            openSeasons = open;
+        }
+        ledgerSeasonList = out;
     }
 
     function fmtBytes(b) {
@@ -665,81 +721,70 @@ Item {
 
                                 Rectangle { width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.10) }
 
+                                // season folds (theatre episode ledgers only)
                                 Repeater {
-                                    model: lane.ledgerHere ? root.ledgerItems : []
-                                    delegate: Item {
-                                        id: row
+                                    model: lane.ledgerHere ? root.ledgerSeasonList : []
+                                    delegate: Column {
+                                        id: sgrp
                                         required property var modelData
+                                        readonly property bool sOpen: root.openSeasons[sgrp.modelData.season] === true
                                         width: shelfCol.width
-                                        height: 58
 
-                                        Rectangle {
-                                            anchors.left: parent.left; anchors.right: parent.right
-                                            anchors.bottom: parent.bottom
-                                            height: 1; color: Qt.rgba(1, 1, 1, 0.06)
-                                        }
-                                        Text {
-                                            id: markT
-                                            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                                            width: 22
-                                            text: row.modelData.missing ? "✕" : "✓"
-                                            color: row.modelData.missing ? theme.inkDimmer : theme.inkDim
-                                            font.family: theme.ui; font.pixelSize: 13
-                                        }
-                                        Column {
-                                            anchors.left: markT.right; anchors.leftMargin: 14
-                                            anchors.right: actRow.left; anchors.rightMargin: 16
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 3
+                                        Item {
+                                            width: parent.width; height: 46
+                                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                                        onClicked: root.toggleSeason(sgrp.modelData.season) }
                                             Text {
-                                                width: parent.width
-                                                text: row.modelData.title || "Untitled"
-                                                color: row.modelData.missing ? theme.inkDim : theme.ink
-                                                font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
-                                                elide: Text.ElideRight
+                                                id: sChev
+                                                x: 4; anchors.verticalCenter: parent.verticalCenter
+                                                text: "›"; color: theme.inkDimmer; font.pixelSize: 15
+                                                rotation: sgrp.sOpen ? 90 : 0
+                                                Behavior on rotation { NumberAnimation { duration: 120 } }
                                             }
                                             Text {
-                                                width: parent.width
+                                                anchors.left: sChev.right; anchors.leftMargin: 12
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: "SEASON " + sgrp.modelData.season
+                                                color: theme.ink; font.family: theme.ui
+                                                font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.6
+                                            }
+                                            Text {
+                                                anchors.right: parent.right; anchors.rightMargin: 4
+                                                anchors.verticalCenter: parent.verticalCenter
                                                 text: {
-                                                    if (row.modelData.missing)
-                                                        return "the file left the disk outside the app — remove the entry or fetch it again";
-                                                    var parts = [];
-                                                    if (row.modelData.subtitle) parts.push(row.modelData.subtitle);
-                                                    var b = root.fmtBytes(row.modelData.bytes || 0);
-                                                    if (b) parts.push(b);
-                                                    var w = root.fmtWhen(row.modelData.addedAt || 0);
-                                                    if (w) parts.push(w);
-                                                    return parts.join(" · ");
+                                                    var s = sgrp.modelData.items.length + " episode"
+                                                            + (sgrp.modelData.items.length === 1 ? "" : "s");
+                                                    var b = root.fmtBytes(sgrp.modelData.bytes);
+                                                    if (b.length) s += " · " + b;
+                                                    if (sgrp.modelData.arriving > 0)
+                                                        s += " · " + sgrp.modelData.arriving + " still arriving above";
+                                                    return s;
                                                 }
                                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                                                elide: Text.ElideRight
+                                            }
+                                            Rectangle {
+                                                anchors.left: parent.left; anchors.right: parent.right
+                                                anchors.bottom: parent.bottom
+                                                height: 1; color: Qt.rgba(1, 1, 1, 0.06)
                                             }
                                         }
-                                        Row {
-                                            id: actRow
-                                            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 22
-                                            Text {
-                                                visible: !row.modelData.missing
-                                                text: row.modelData.world === "theatre" ? "Play" : "Read"
-                                                color: openMa.containsMouse ? "#ffd968" : theme.gold
-                                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                                                MouseArea { id: openMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: root.openRequested(row.modelData) }
-                                            }
-                                            Text {
-                                                text: "Remove"
-                                                color: rmMa.containsMouse ? theme.ink : theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 13
-                                                MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
-                                                            cursorShape: Qt.PointingHandCursor
-                                                            onClicked: {
-                                                                LocalDownloads.remove(row.modelData.world, row.modelData.id)
-                                                                root.refresh()
-                                                            } }
+
+                                        Repeater {
+                                            model: sgrp.sOpen ? sgrp.modelData.items : []
+                                            delegate: LedgerRow {
+                                                required property var modelData
+                                                rowData: modelData; indent: 26
                                             }
                                         }
+                                    }
+                                }
+
+                                Repeater {
+                                    model: (lane.ledgerHere && root.ledgerSeasonList.length === 0)
+                                           ? root.ledgerItems : []
+                                    delegate: LedgerRow {
+                                        required property var modelData
+                                        rowData: modelData
                                     }
                                 }
                             }
@@ -772,6 +817,82 @@ Item {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
             Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
+        }
+    }
+
+    component LedgerRow: Item {
+        id: row
+        property var rowData: null
+        property int indent: 0
+        width: parent ? parent.width : 0
+        height: 58
+
+        Rectangle {
+            anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+            height: 1; color: Qt.rgba(1, 1, 1, 0.06)
+        }
+        Text {
+            id: markT
+            x: row.indent
+            anchors.verticalCenter: parent.verticalCenter
+            width: 22
+            text: row.rowData.missing ? "✕" : "✓"
+            color: row.rowData.missing ? theme.inkDimmer : theme.inkDim
+            font.family: theme.ui; font.pixelSize: 13
+        }
+        Column {
+            anchors.left: markT.right; anchors.leftMargin: 14
+            anchors.right: actRow.left; anchors.rightMargin: 16
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 3
+            Text {
+                width: parent.width
+                text: row.rowData.title || "Untitled"
+                color: row.rowData.missing ? theme.inkDim : theme.ink
+                font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
+                elide: Text.ElideRight
+            }
+            Text {
+                width: parent.width
+                text: {
+                    if (row.rowData.missing)
+                        return "the file left the disk outside the app — remove the entry or fetch it again";
+                    var parts = [];
+                    if (row.rowData.subtitle) parts.push(row.rowData.subtitle);
+                    var b = root.fmtBytes(row.rowData.bytes || 0);
+                    if (b) parts.push(b);
+                    var w = root.fmtWhen(row.rowData.addedAt || 0);
+                    if (w) parts.push(w);
+                    return parts.join(" · ");
+                }
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                elide: Text.ElideRight
+            }
+        }
+        Row {
+            id: actRow
+            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            spacing: 22
+            Text {
+                visible: !row.rowData.missing
+                text: row.rowData.world === "theatre" ? "Play" : "Read"
+                color: openMa.containsMouse ? "#ffd968" : theme.gold
+                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                MouseArea { id: openMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.openRequested(row.rowData) }
+            }
+            Text {
+                text: "Remove"
+                color: rmMa.containsMouse ? theme.ink : theme.inkDimmer
+                font.family: theme.ui; font.pixelSize: 13
+                MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                LocalDownloads.remove(row.rowData.world, row.rowData.id)
+                                root.refresh()
+                            } }
+            }
         }
     }
 }
