@@ -12,7 +12,11 @@ if (!(Test-Path $qmlExe)) {
 }
 
 $harness = Join-Path $PSScriptRoot "downloads_page_load_harness.qml"
-$out = & $qmlExe $harness 2>&1 | Out-String
+# cmd /c flattens the streams: native stderr under EAP=Stop would otherwise
+# abort the capture before the LOADER READY line arrives. QT_FORCE_STDERR_LOGGING
+# is mandatory — without it Qt on Windows swallows console.log entirely.
+$env:QT_FORCE_STDERR_LOGGING = "1"
+$out = cmd /c "`"$qmlExe`" `"$harness`" 2>&1" | Out-String
 
 if ($out -notlike "*LOADER READY*") {
     throw "DownloadsPage failed to instantiate. Loader output:`n$out"
