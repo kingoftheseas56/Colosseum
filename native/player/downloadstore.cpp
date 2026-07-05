@@ -186,6 +186,10 @@ void DownloadStore::failJob(const QString &id, const QString &reason) {
     QFile::remove(j.partPath);
     j.state = QStringLiteral("failed");
     j.error = reason.isEmpty() ? QStringLiteral("Download failed") : reason;
+    j.speed = 0.0;
+    j.etaSec = -1;
+    j.lastSampleMs = 0;
+    j.lastSampleBytes = 0;
     saveQueue();
     touch();
     pump();
@@ -580,6 +584,8 @@ void DownloadStore::selfTest(const QString &mode) {
         const int f = jobIndex(QStringLiteral("selftest:1:2"));
         check(f >= 0 && m_jobs.at(f).state == QStringLiteral("failed"),
               "job B failed and stays listed");
+        check(f >= 0 && m_jobs.at(f).speed == 0.0 && m_jobs.at(f).etaSec == -1,
+              "failed row reports no stale speed/ETA");
         cancelJob(QStringLiteral("selftest:1:2"));   // the bug's exact click
         check(jobIndex(QStringLiteral("selftest:1:2")) < 0, "failed row removed");
         const int a = jobIndex(QStringLiteral("selftest:1:1"));
