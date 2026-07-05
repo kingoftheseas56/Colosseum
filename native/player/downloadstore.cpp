@@ -99,7 +99,10 @@ QString DownloadStore::groupKeyFor(const QVariantMap &request) {
     const int season = request.value(QStringLiteral("season")).toInt();
     if (request.value(QStringLiteral("kind")).toString() == QStringLiteral("episode")
         && season > 0) {
-        const QString base = id.section(QLatin1Char(':'), 0, 0);   // tt… of tt…:s:e
+        // Series base = id minus the trailing ":season:episode" pair — handles both
+        // Cinemeta (tt123:2:5 -> tt123) and anime (mal:12345:3:4 -> mal:12345) ids.
+        // Fewer than 3 segments -> empty -> falls through to the per-id key.
+        const QString base = id.section(QLatin1Char(':'), 0, -3);
         if (!base.isEmpty())
             return base + QStringLiteral(":s") + QString::number(season);
     }
@@ -579,6 +582,32 @@ void DownloadStore::selfTest(const QString &mode) {
                                 .request.value(QStringLiteral("groupKey")).toString();
         check(gk1 == QStringLiteral("selftest:s2") && gk1 == gk2,
               "batch shares one derived groupKey");
+        enqueue({{QStringLiteral("id"), QStringLiteral("mal:111:2:1")},
+                 {QStringLiteral("kind"), QStringLiteral("episode")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest Anime A")},
+                 {QStringLiteral("seriesTitle"), QStringLiteral("Anime A")},
+                 {QStringLiteral("season"), 2}, {QStringLiteral("episode"), 1}});
+        enqueue({{QStringLiteral("id"), QStringLiteral("mal:222:2:1")},
+                 {QStringLiteral("kind"), QStringLiteral("episode")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest Anime B")},
+                 {QStringLiteral("seriesTitle"), QStringLiteral("Anime B")},
+                 {QStringLiteral("season"), 2}, {QStringLiteral("episode"), 1}});
+        const QString ga = m_jobs.at(jobIndex(QStringLiteral("mal:111:2:1")))
+                               .request.value(QStringLiteral("groupKey")).toString();
+        const QString gb = m_jobs.at(jobIndex(QStringLiteral("mal:222:2:1")))
+                               .request.value(QStringLiteral("groupKey")).toString();
+        check(ga == QStringLiteral("mal:111:s2") && gb == QStringLiteral("mal:222:s2"),
+              "different anime series never share a groupKey");
+        enqueue({{QStringLiteral("id"), QStringLiteral("selftest-movie")},
+                 {QStringLiteral("kind"), QStringLiteral("movie")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest Movie")}});
+        check(m_jobs.at(jobIndex(QStringLiteral("selftest-movie")))
+                  .request.value(QStringLiteral("groupKey")).toString()
+                  == QStringLiteral("selftest-movie"),
+              "a movie keys by its own id");
+        cancelJob(QStringLiteral("mal:111:2:1"));
+        cancelJob(QStringLiteral("mal:222:2:1"));
+        cancelJob(QStringLiteral("selftest-movie"));
         cancelJob(QStringLiteral("selftest:2:1"));
         cancelJob(QStringLiteral("selftest:2:2"));
     }
