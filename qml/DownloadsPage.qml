@@ -86,6 +86,14 @@ Item {
         next[s] = !next[s];
         openSeasons = next;
     }
+    // Season groupKey for a ledger item — same derivation as the engine's
+    // groupKeyFor: series base = stream id minus its trailing :season:episode.
+    function seasonKeyFor(item, season) {
+        var parts = (item.id || "").split(":");
+        if (parts.length >= 3)
+            return parts.slice(0, parts.length - 2).join(":") + ":s" + season;
+        return "";
+    }
     function computeLedgerSeasons() {
         var out = [], byS = {}, any = false;
         if (openLedgerWorld === "theatre") {
@@ -103,14 +111,19 @@ Item {
             byS[s].bytes += (it.bytes || 0);
             byS[s].newest = Math.max(byS[s].newest, it.addedAt || 0);
         }
-        // live cross-reference: same series title + season, still live above
+        // live cross-reference: prefer the groupKey join (same derivation as the
+        // engine: series base = stream id minus trailing :season:episode); title
+        // match is only the fallback for rows whose id carries no series identity.
         for (var k = 0; k < jobs.length; k++) {
             var jb = jobs[k];
             if (jb.world !== "theatre" || jb.state === "done") continue;
-            var st = (jb.seriesTitle || "").toLowerCase();
             for (var g = 0; g < out.length; g++) {
                 var first = out[g].items[0];
-                if ((first.seriesTitle || "").toLowerCase() === st && (jb.season || 0) === out[g].season)
+                var wantKey = seasonKeyFor(first, out[g].season);
+                if (wantKey.length > 0
+                        ? (jb.groupKey === wantKey)
+                        : ((first.seriesTitle || "").toLowerCase() === (jb.seriesTitle || "").toLowerCase()
+                           && (jb.season || 0) === out[g].season))
                     out[g].arriving++;
             }
         }
