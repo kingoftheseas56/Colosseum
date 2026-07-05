@@ -459,7 +459,12 @@ Item {
                                                         onClicked: {
                                                             var rows = grp.modelData.rows;
                                                             var pausing = hPauseT.anyRunning;
-                                                            for (var i = rows.length - 1; i >= 0; i--) {
+                                                            // pause walks BACKWARD (pump can't promote a row the
+                                                            // loop is about to pause); resume walks FORWARD (the
+                                                            // earliest episode — holding the half-downloaded .part
+                                                            // and the live session url — takes the slot first).
+                                                            for (var k = 0; k < rows.length; k++) {
+                                                                var i = pausing ? rows.length - 1 - k : k;
                                                                 if (pausing && (rows[i].state === "downloading"
                                                                         || rows[i].state === "resolving" || rows[i].state === "queued"))
                                                                     LocalDownloads.pause(grp.modelData.world, rows[i].id);
