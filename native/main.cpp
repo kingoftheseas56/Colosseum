@@ -199,7 +199,15 @@ int main(int argc, char *argv[]) {
         // first — on this ISP's dead IPv6 route that's a ~21s stall per connection (the TB3
         // scar). Pin them to IPv4 like the poster hosts. (2026-07-05, Theatre search triage)
         QStringLiteral("v3-cinemeta.strem.io"),
-        QStringLiteral("cinemeta-catalogs.strem.io")
+        QStringLiteral("cinemeta-catalogs.strem.io"),
+        // Manga art lane: AniList (API + banner CDN) and Kitsu (fallback API + media CDN)
+        // all publish AAAA records — same dead-IPv6 stall. The API hosts are called from
+        // MangaEngine's own NAM (pins passed via setIpv4Pins below); the CDNs are loaded
+        // by QML Image through this factory. (2026-07-06, manga art ladder)
+        QStringLiteral("graphql.anilist.co"),
+        QStringLiteral("s4.anilist.co"),
+        QStringLiteral("kitsu.io"),
+        QStringLiteral("media.kitsu.app")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
@@ -211,6 +219,7 @@ int main(int argc, char *argv[]) {
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
+    manga->setIpv4Pins(ipv4ByHost);   // art-lane hosts ride the same IPv4 pins
     engine.rootContext()->setContextProperty(QStringLiteral("Manga"), manga);
 
     // Download-fed reading backbone exposed to QML as `Downloads`. Reading is never

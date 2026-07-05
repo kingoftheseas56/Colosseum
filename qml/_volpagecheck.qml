@@ -34,7 +34,12 @@ Window {
                             "visibleChapters:", page.visibleChapters.length)
                 var withCovers = page.volumes.filter(function(v) { return v.cover && v.cover.length }).length
                 console.log("[volpagecheck] covers on", withCovers, "of", page.volumes.length, "volumes")
-                console.log((page.volumes.length > 0 && withCovers > 0 && page.visibleChapters.length > 0)
+                console.log("[volpagecheck] art — banner:", page.banner.length > 0,
+                            "synopsis:", page.synopsis.length > 0,
+                            "genres:", page.genres.length, "score:", page.score, "year:", page.year)
+                var artOk = page.banner.length > 0 && page.synopsis.length > 0 && page.genres.length > 0
+                console.log((page.volumes.length > 0 && withCovers > 0
+                             && page.visibleChapters.length > 0 && artOk)
                             ? "[volpagecheck] PAGE GREEN" : "[volpagecheck] PAGE RED")
                 running = false
             }

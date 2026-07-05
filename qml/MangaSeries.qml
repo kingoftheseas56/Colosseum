@@ -532,7 +532,7 @@ Item {
                             delegate: Item {
                                 id: row
                                 required property var modelData
-                                width: tableInner.width; height: 92
+                                width: tableInner.width; height: 156
 
                                 // per-row download state, kept live via the Downloads signals
                                 property string chId: String(row.modelData.id || "")
@@ -606,18 +606,18 @@ Item {
                                     id: thumb
                                     anchors.left: parent.left; anchors.leftMargin: 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: 58; height: 80
+                                    width: 100; height: 140
                                     Rectangle {
                                         anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1
                                         border.color: row.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
                                         Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
                                             text: row.modelData.number || "?"; color: theme.inkDimmer
-                                            font.family: theme.display; font.pixelSize: 22 }
+                                            font.family: theme.display; font.pixelSize: 30 }
                                     }
                                     Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
                                         source: row.thumbUrl; visible: status === Image.Ready
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
-                                        sourceSize.width: 170 }
+                                        sourceSize.width: 280 }
                                 }
 
                                 // title + status subtitle

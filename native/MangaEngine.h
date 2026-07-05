@@ -10,6 +10,7 @@
 #include "MangaDexCatalogClient.h"
 
 #include <QObject>
+#include <QHash>
 #include <QNetworkAccessManager>
 #include <QVariant>
 #include <QVariantList>
@@ -94,11 +95,19 @@ public:
         m_wc->fetchDetail(p);
     }
 
-    // AniList GraphQL — the rich metadata layer: banner, hi-res cover, synopsis, genres, score.
-    // ALWAYS emits artResult exactly once (empty map on miss/error) so QML can gate the page
-    // reveal on art being resolved — the page must never reveal half-loaded and then reflow.
+    // Art-lane hosts (AniList/Kitsu) publish AAAA records; on this machine's dead IPv6
+    // route Qt stalls ~21s per connection (the TB3 scar). main() passes the startup-resolved
+    // IPv4 map so requests here ride the same pins as the QML image factory.
+    void setIpv4Pins(const QHash<QString, QString> &pins) { m_pins = pins; }
+
+    // Rich metadata layer: banner, hi-res cover, synopsis, genres, score, year — a LADDER.
+    // AniList GraphQL first (best data; fail-fast 8s — the API went 403-disabled site-wide
+    // 2026-07, "severe stability issues"); Kitsu as the keyless fallback (one call carries
+    // banner + poster + synopsis + rating + year + categories). ALWAYS emits artResult
+    // exactly once (empty map only when BOTH rungs miss) so QML can gate the page reveal
+    // on art being resolved — the page must never reveal half-loaded and then reflow.
     Q_INVOKABLE void art(const QString &title) {
-        QNetworkRequest req{QUrl(QStringLiteral("https://graphql.anilist.co"))};
+        QNetworkRequest req = pinnedRequest(QUrl(QStringLiteral("https://graphql.anilist.co")));
         req.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
         req.setRawHeader("Accept", "application/json");
         const QString query =
@@ -107,12 +116,12 @@ public:
                            "averageScore status startDate{year}}}");
         const QJsonObject body{{"query", query}, {"variables", QJsonObject{{"s", title}}}};
         auto *reply = m_nam->post(req, QJsonDocument(body).toJson(QJsonDocument::Compact));
-        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        connect(reply, &QNetworkReply::finished, this, [this, reply, title]() {
             reply->deleteLater();
-            if (reply->error() != QNetworkReply::NoError) { emit artResult(QVariantMap{}); return; }
+            if (reply->error() != QNetworkReply::NoError) { kitsuArt(title); return; }
             const QJsonObject m = QJsonDocument::fromJson(reply->readAll())
                                       .object().value("data").toObject().value("Media").toObject();
-            if (m.isEmpty()) { emit artResult(QVariantMap{}); return; }
+            if (m.isEmpty()) { kitsuArt(title); return; }
             QVariantList genres;
             const QJsonArray ga = m.value("genres").toArray();
             for (const auto &g : ga) genres.append(g.toString());
@@ -151,6 +160,67 @@ public:
         probe->search(title);
     }
 
+private:
+    // Pin a request to the resolved IPv4 when the host is in the map: URL host → IP,
+    // real hostname kept for TLS (peerVerifyName) and the Host header. HTTP/2 off —
+    // same recipe as CachingNam in main.cpp. All art-lane requests also fail fast.
+    QNetworkRequest pinnedRequest(QUrl url) const {
+        QNetworkRequest req(url);
+        const QString host = url.host();
+        const QString ipv4 = m_pins.value(host);
+        if (!ipv4.isEmpty()) {
+            req.setRawHeader("Host", host.toUtf8());
+            req.setPeerVerifyName(host);
+            req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+            url.setHost(ipv4);
+            req.setUrl(url);
+        }
+        req.setTransferTimeout(8000);
+        return req;
+    }
+
+    // Kitsu fallback rung: one keyless JSON:API call covers the whole hero — synopsis,
+    // wide banner (coverImage), poster, averageRating (already 0–100 like AniList),
+    // start year, and genre categories. Emits artResult exactly once, empty on miss.
+    void kitsuArt(const QString &title) {
+        QUrl url(QStringLiteral("https://kitsu.io/api/edge/manga"));
+        QUrlQuery q;
+        q.addQueryItem(QStringLiteral("filter[text]"), title);
+        q.addQueryItem(QStringLiteral("page[limit]"), QStringLiteral("1"));
+        q.addQueryItem(QStringLiteral("include"), QStringLiteral("categories"));
+        url.setQuery(q);
+        QNetworkRequest req = pinnedRequest(url);
+        req.setRawHeader("Accept", "application/vnd.api+json");
+        auto *reply = m_nam->get(req);
+        connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+            reply->deleteLater();
+            if (reply->error() != QNetworkReply::NoError) {
+                qInfo("[kitsu] art fallback failed: %s", qUtf8Printable(reply->errorString()));
+                emit artResult(QVariantMap{});
+                return;
+            }
+            const QJsonObject root = QJsonDocument::fromJson(reply->readAll()).object();
+            const QJsonArray data = root.value("data").toArray();
+            if (data.isEmpty()) { emit artResult(QVariantMap{}); return; }
+            const QJsonObject attrs = data.first().toObject().value("attributes").toObject();
+            QVariantList genres;
+            const QJsonArray included = root.value("included").toArray();
+            for (const auto &iv : included) {
+                const QJsonObject inc = iv.toObject();
+                if (inc.value("type").toString() != QLatin1String("categories")) continue;
+                const QString g = inc.value("attributes").toObject().value("title").toString();
+                if (!g.isEmpty() && genres.size() < 8) genres.append(g);
+            }
+            emit artResult(QVariantMap{
+                {"banner", attrs.value("coverImage").toObject().value("original").toString()},
+                {"cover", attrs.value("posterImage").toObject().value("original").toString()},
+                {"description", attrs.value("synopsis").toString().trimmed()},
+                {"genres", genres},
+                {"score", qRound(attrs.value("averageRating").toString().toDouble())},
+                {"year", attrs.value("startDate").toString().left(4).toInt()}});
+        });
+    }
+
 signals:
     void searchResults(const QVariantList &results);
     void chaptersResults(const QVariantList &chapters);
@@ -164,4 +234,5 @@ private:
     QNetworkAccessManager *m_nam;
     WeebCentralScraper *m_wc;
     tankoban::manga::mangadex::MangaDexCatalogClient *m_mf;
+    QHash<QString, QString> m_pins;   // host → IPv4 (dead-IPv6 machine; see setIpv4Pins)
 };
