@@ -194,7 +194,12 @@ int main(int argc, char *argv[]) {
                                        : QStringLiteral("qml/Main.qml");
     const QStringList pinnedHosts = {
         QStringLiteral("live.metahub.space"),
-        QStringLiteral("images.metahub.space")
+        QStringLiteral("images.metahub.space"),
+        // Theatre search + genre browse hosts: both publish AAAA records and Qt tries IPv6
+        // first — on this ISP's dead IPv6 route that's a ~21s stall per connection (the TB3
+        // scar). Pin them to IPv4 like the poster hosts. (2026-07-05, Theatre search triage)
+        QStringLiteral("v3-cinemeta.strem.io"),
+        QStringLiteral("cinemeta-catalogs.strem.io")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {

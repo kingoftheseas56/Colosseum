@@ -50,6 +50,41 @@ function mapTheatre(meta) {
     };
 }
 
+// ── Top-match scoring, shared by every lane (Theatre AND Tankoban) ──
+// Normalizes case / punctuation / leading articles, then tiers: exact > starts-with >
+// whole-word inside > substring. Ties break on the source's OWN relevance rank (each lane's
+// index), so a series Cinemeta ranked #1 no longer loses to movie #9 just because the movie
+// lane was concatenated first. All-zero scores keep the original order (no fake hero shuffle).
+function normTitle(s) {
+    s = String(s || "").toLowerCase();
+    s = s.replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    return s.replace(/^(the|a|an) /, "");
+}
+function scoreTitle(query, title) {
+    var q = normTitle(query), t = normTitle(title);
+    if (!q.length || !t.length) return 0;
+    if (t === q) return 400;
+    if (t.indexOf(q) === 0) return 300;
+    if ((" " + t + " ").indexOf(" " + q + " ") >= 0) return 200;
+    if (t.indexOf(q) >= 0) return 100;
+    return 0;
+}
+function pickTopMatch(query, all) {
+    var bestIdx = -1, best = 0;
+    for (var i = 0; i < all.length; i++) {
+        var sc = scoreTitle(query, all[i].title);
+        if (sc <= 0) continue;
+        // same-tier ties (e.g. "dune" = the 2021 film AND the 2000 miniseries, both exact)
+        // break on IMDb rating first — the popular one is what the user meant — then on the
+        // source's own lane rank.
+        var rating = parseFloat(all[i].data && all[i].data.imdbRating) || 0;
+        var s = sc * 1000 + rating * 10 - (all[i].rank !== undefined ? all[i].rank : i);
+        if (s > best) { best = s; bestIdx = i; }
+    }
+    if (bestIdx > 0) all.unshift(all.splice(bestIdx, 1)[0]);
+    return all;
+}
+
 function searchTheatre(query, done) {
     if (!query || query.trim().length < 2) { done([]); return; }
     var q = encodeURIComponent(query.trim());
@@ -57,31 +92,30 @@ function searchTheatre(query, done) {
     function finish() {
         pending -= 1;
         if (pending > 0) return;
-        var all = out.movie.concat(out.series).map(mapTheatre);
-        // Top match = the most title-relevant hit across movies AND series (so "game of thrones"
-        // leads with the series, "dune" with the film), moved to the front.
-        var ql = query.trim().toLowerCase(), bestIdx = 0, bestScore = -1;
-        for (var i = 0; i < all.length; i++) {
-            var t = all[i].title.toLowerCase();
-            var s = (t === ql) ? 3 : (t.indexOf(ql) === 0 ? 2 : (t.indexOf(ql) >= 0 ? 1 : 0));
-            if (s > bestScore) { bestScore = s; bestIdx = i; }
-        }
-        if (bestIdx > 0) all.unshift(all.splice(bestIdx, 1)[0]);
-        if (all.length === 0) { done(all); return; }
-        // Harbor's hero carries a synopsis + rating; the search catalog doesn't, so pull the Top
-        // Match's full meta (one extra call) and fold in description + ★rating + a backdrop.
+        var mapLane = function(lane) {
+            return lane.map(function(m, i) { var r = mapTheatre(m); r.rank = i; return r; });
+        };
+        var all = pickTopMatch(query, mapLane(out.movie).concat(mapLane(out.series)));
+        // Show the list IMMEDIATELY — the old code held every result hostage behind a third,
+        // serial /meta/ call for the hero's synopsis. Now the grid paints as soon as both
+        // catalogs answer, and the hero enriches in a second done() pass when it lands.
+        done(all);
+        if (all.length === 0) return;
         var top = all[0], m = top.data;
         reqJson(CINEMETA + "/meta/" + (m.type || "movie") + "/" + m.id + ".json", function(mj) {
-            if (mj && mj.meta) {
-                var f = mj.meta, kind = (m.type === "series" ? "Series" : "Movie");
-                if (f.description) top.synopsis = f.description;
-                var bits = [kind];
-                if (f.releaseInfo || m.releaseInfo) bits.push(String(f.releaseInfo || m.releaseInfo));
-                if (f.imdbRating) bits.push("★ " + f.imdbRating);
-                top.meta = bits.join("   ·   ");
-                if (f.background && !top.backdrop) top.backdrop = f.background;
-            }
-            done(all);
+            if (!mj || !mj.meta) return;
+            var f = mj.meta, kind = (m.type === "series" ? "Series" : "Movie");
+            var enriched = {};
+            for (var k in top) enriched[k] = top[k];
+            if (f.description) enriched.synopsis = f.description;
+            var bits = [kind];
+            if (f.releaseInfo || m.releaseInfo) bits.push(String(f.releaseInfo || m.releaseInfo));
+            if (f.imdbRating) bits.push("★ " + f.imdbRating);
+            enriched.meta = bits.join("   ·   ");
+            if (f.background && !enriched.backdrop) enriched.backdrop = f.background;
+            var all2 = all.slice();
+            all2[0] = enriched;
+            done(all2);
         });
     }
     reqJson(CINEMETA + "/catalog/movie/top/search=" + q + ".json", function(j) {
@@ -161,20 +195,10 @@ function searchTankoban(query, done) {
     var manga = null, western = null;
     function finish() {
         if (manga === null || western === null) return;
-        // Top Match must be the most title-relevant hit across BOTH lanes (same rule
-        // Theatre uses across movies/series) — before this, results[0] was always
-        // manga[0], so an EXACT comic match sat under a fuzzy manga hit. Groups keep
-        // manga-then-western order below the hero; ties go to manga (the native lane,
-        // earlier in the array).
-        var all = manga.concat(western);
-        var ql = query.trim().toLowerCase(), bestIdx = 0, bestScore = -1;
-        for (var i = 0; i < all.length; i++) {
-            var t = String(all[i].title || "").toLowerCase();
-            var s = (t === ql) ? 3 : (t.indexOf(ql) === 0 ? 2 : (t.indexOf(ql) >= 0 ? 1 : 0));
-            if (s > bestScore) { bestScore = s; bestIdx = i; }
-        }
-        if (bestIdx > 0) all.unshift(all.splice(bestIdx, 1)[0]);
-        done(all);
+        // Top Match = most title-relevant hit across BOTH lanes, via the shared scorer
+        // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
+        var rank = function(lane) { lane.forEach(function(r, i) { r.rank = i; }); return lane; };
+        done(pickTopMatch(query, rank(manga).concat(rank(western))));
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });

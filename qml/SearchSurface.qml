@@ -16,6 +16,7 @@ Item {
     property var results: []
     property bool searching: false
     property bool searched: false
+    property var expandedGroups: []   // group names the user opened via "See more" (per query)
     property var recent: []
 
     signal backRequested()
@@ -48,6 +49,7 @@ Item {
     function runSearch() {
         var q = queryInput.text.trim()
         if (q.length < 2) { surf.results = []; surf.searched = false; return }
+        surf.expandedGroups = []   // a NEW query starts collapsed again (See-more state is per-query)
         surf.searching = true
         WorldSearch.searchFor(surf.searchMode, q, function(items) {
             if (q !== queryInput.text.trim()) return
@@ -411,11 +413,13 @@ Item {
                 }
                 Item { visible: surf.results.length > 0; width: 1; height: 38 }
 
-                // grouped sections (Movies / Series / Manga)
+                // grouped sections (Movies / Series / Manga) — capped at one row until "See more"
                 Repeater {
                     model: surf.groupedResults()
                     delegate: Column {
+                        id: section
                         required property var modelData          // { group, items }
+                        readonly property bool expanded: surf.expandedGroups.indexOf(modelData.group) >= 0
                         width: parent.width; spacing: 0
                         Text {
                             text: modelData.group.toUpperCase() + "  ·  " + modelData.items.length
@@ -428,7 +432,8 @@ Item {
                             width: parent.width; columns: 6; columnSpacing: 22; rowSpacing: 26
                             property real cellW: (width - columnSpacing * (columns - 1)) / columns
                             Repeater {
-                                model: modelData.items
+                                model: section.expanded ? modelData.items
+                                                        : modelData.items.slice(0, secGrid.columns)
                                 delegate: Column {
                                     required property var modelData
                                     width: secGrid.cellW; spacing: 9
@@ -447,6 +452,42 @@ Item {
                                     Text { width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                         elide: Text.ElideRight; maximumLineCount: 1 }
+                                }
+                            }
+                        }
+                        // See more / Show less — only when the group actually overflows one row
+                        Item { visible: seeMorePill.visible; width: 1; height: 18 }
+                        Rectangle {
+                            id: seeMorePill
+                            visible: modelData.items.length > secGrid.columns
+                            height: 34; radius: 17
+                            width: seeMoreRow.implicitWidth + 30
+                            color: seeMoreMa.containsMouse ? theme.glassHi : theme.glassTint
+                            border.width: 1; border.color: seeMoreMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
+                            Row {
+                                id: seeMoreRow; anchors.centerIn: parent; spacing: 7
+                                Text {
+                                    text: section.expanded ? "Show less"
+                                        : "See more · " + (section.modelData.items.length - secGrid.columns)
+                                    color: seeMoreMa.containsMouse ? theme.gold : theme.inkDim
+                                    font.family: theme.ui; font.pixelSize: 13
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    text: section.expanded ? "▴" : "▾"
+                                    color: seeMoreMa.containsMouse ? theme.gold : theme.inkDimmer
+                                    font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+                            MouseArea {
+                                id: seeMoreMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var g = section.modelData.group
+                                    var open = surf.expandedGroups.slice()
+                                    var at = open.indexOf(g)
+                                    if (at >= 0) open.splice(at, 1); else open.push(g)
+                                    surf.expandedGroups = open
                                 }
                             }
                         }
