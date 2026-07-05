@@ -1,6 +1,11 @@
 // TheatreApi.js - tiny live catalog adapter for the Colosseum QML prototype.
 // Cinemeta is the identity source for movies, series, and anime-shaped series rows.
+// Extensions (spec Phase 3): installed catalog extensions add THEIR shelves to the
+// tab pages after the house rows, and answer meta asks the house sources can't.
+// A .pragma library can't see context properties, so Main.qml pushes the installed
+// list in via setExtensions() at boot and on every registry change.
 .pragma library
+.import "AddonClient.js" as AddonClient
 
 var CINEMETA = "https://v3-cinemeta.strem.io";
 var CINEMETA_CATALOGS = "https://cinemeta-catalogs.strem.io/top";
@@ -9,6 +14,15 @@ var ANIME_KITSU = "https://anime-kitsu.strem.fun";
 var JIKAN_CACHE_TTL_MS = 30 * 60 * 1000;
 var jikanCache = {};
 var jikanInflight = {};
+
+// installed extensions, pushed in from QML (Main.qml owns the wiring)
+var extensionsList = [];
+var MAX_EXTENSION_ROWS_PER_TAB = 6;
+var EXTENSION_ROW_ITEM_CAP = 24;
+
+function setExtensions(list) {
+    extensionsList = list || [];
+}
 
 var palette = [
     ["#5d4633", "#18110c"],
@@ -151,8 +165,16 @@ function loadMeta(type, id, done) {
         return;
     }
     var sType = (type === "series") ? "series" : "movie";
+    if (String(id).indexOf("tt") !== 0) {
+        // an id the house sources don't speak (tmdb:…, an addon's own scheme) —
+        // ask the installed extensions that claim it (spec Phase 3)
+        AddonClient.loadMetaFromExtensions(extensionsList, type, id, done);
+        return;
+    }
     requestJson(CINEMETA + "/meta/" + sType + "/" + id + ".json", function(json) {
-        done(json && json.meta ? json.meta : null);
+        if (json && json.meta) { done(json.meta); return; }
+        // Cinemeta miss on a tt id — an extension may still know it
+        AddonClient.loadMetaFromExtensions(extensionsList, type, id, done);
     });
 }
 
@@ -354,6 +376,44 @@ function animeSpecs() {
     }];
 }
 
+// New shelves from installed catalog extensions (spec Phase 3): one row per
+// browsable catalog matching this tab's content type, in installed order —
+// capped, and deduped against row titles already on the page.
+function extensionSpecs(pageKey, existingTitles) {
+    var contentType = pageKey === "shows" ? "series"
+                    : pageKey === "anime" ? "anime" : "movie";
+    var specs = AddonClient.catalogSpecs(extensionsList, contentType);
+    var out = [];
+    var seen = {};
+    for (var i = 0; i < existingTitles.length; i++)
+        seen[String(existingTitles[i]).toLowerCase()] = true;
+    for (var j = 0; j < specs.length && out.length < MAX_EXTENSION_ROWS_PER_TAB; j++) {
+        (function(spec) {
+            var key = (spec.extName + " " + spec.title).toLowerCase();
+            if (seen[key]) return;
+            seen[key] = true;
+            out.push({
+                title: spec.title,
+                sub: "via " + spec.extName,
+                ranked: false,
+                fetch: function(done) {
+                    AddonClient.fetchCatalog(spec, function(metas) {
+                        done(metas.slice(0, EXTENSION_ROW_ITEM_CAP).map(mapCinemeta));
+                    });
+                }
+            });
+        })(specs[j]);
+    }
+    return out;
+}
+
+function withExtensionSpecs(pageKey, baseSpecs) {
+    var titles = [];
+    for (var i = 0; i < baseSpecs.length; i++)
+        titles.push(baseSpecs[i].title);
+    return baseSpecs.concat(extensionSpecs(pageKey, titles));
+}
+
 function pageTitle(pageKey) {
     if (pageKey === "movies") return "Movies";
     if (pageKey === "shows") return "Shows";
@@ -371,18 +431,18 @@ function pageSourceLabel(pageKey) {
 
 function loadCatalogPage(pageKey, done) {
     if (pageKey === "shows") {
-        runSpecs(pageKey, showGenreSpecs(), function(result) {
+        runSpecs(pageKey, withExtensionSpecs(pageKey, showGenreSpecs()), function(result) {
             done({ pageKey: pageKey, rows: result.rows || [] });
         });
         return;
     }
     if (pageKey === "anime") {
-        runSpecsProgressive(pageKey, animeSpecs(), function(result) {
+        runSpecsProgressive(pageKey, withExtensionSpecs(pageKey, animeSpecs()), function(result) {
             done({ pageKey: pageKey, rows: result.rows || [] });
         });
         return;
     }
-    runSpecs("movies", movieGenreSpecs(), function(result) {
+    runSpecs("movies", withExtensionSpecs("movies", movieGenreSpecs()), function(result) {
         done({ pageKey: "movies", rows: result.rows || [] });
     });
 }

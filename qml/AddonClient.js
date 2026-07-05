@@ -220,6 +220,75 @@ function _sortRows(rows) {
     return rows;
 }
 
+// ------------------------------------------------------------ catalogs (spec Phase 3)
+
+function _baseUrl(ext) {
+    return String(ext.transportUrl).replace(/\/manifest\.json$/i, "");
+}
+
+// True when a catalog can be browsed without extra input (Harbor's rule:
+// catalogs whose extra carries isRequired are search/config-only — skip them).
+function _browsable(catalog) {
+    var extras = (catalog && catalog.extra) || [];
+    for (var i = 0; i < extras.length; i++)
+        if (extras[i] && extras[i].isRequired) return false;
+    return true;
+}
+
+// The shelf list a content type gets from the installed extensions, in installed
+// order: [{extName, title, url}]. Core rows are skipped — the house's own
+// catalogs (Cinemeta) already feed the built-in rows; this is for NEW shelves.
+// contentType: "movie" | "series" | "anime".
+function catalogSpecs(installedList, contentType) {
+    var out = [];
+    for (var i = 0; i < (installedList || []).length; i++) {
+        var e = installedList[i];
+        if (!e || e.enabled !== true || e.core === true) continue;
+        var m = e.manifest || ({});
+        var cats = m.catalogs || [];
+        for (var j = 0; j < cats.length; j++) {
+            var c = cats[j];
+            if (!c || !c.id || !c.type) continue;
+            if (c.type !== contentType) continue;
+            if (!_browsable(c)) continue;
+            out.push({
+                extName: m.name || e.id,
+                title: c.name || m.name || "Catalog",
+                url: _baseUrl(e) + "/catalog/" + c.type + "/" + encodeURIComponent(c.id) + ".json"
+            });
+        }
+    }
+    return out;
+}
+
+// One catalog fetch → its meta previews (the standard {metas:[…]} shape).
+function fetchCatalog(spec, done) {
+    _get(spec.url, FAST_TIMEOUT_MS, function(json) {
+        done(json && json.metas ? json.metas : []);
+    });
+}
+
+// Meta fallback for ids the house sources don't know (spec Phase 3): ask the
+// installed extensions that claim this id's meta, first answer wins.
+function loadMetaFromExtensions(installedList, type, id, done) {
+    var exts = [];
+    for (var i = 0; i < (installedList || []).length; i++) {
+        var e = installedList[i];
+        if (!e || e.enabled !== true || e.core === true) continue;
+        if (accepts(e.manifest, "meta", type, id)) exts.push(e);
+    }
+    var sType = (type === "series") ? "series" : "movie";
+    function tryNext(index) {
+        if (index >= exts.length) { done(null); return; }
+        _get(_baseUrl(exts[index]) + "/meta/" + sType + "/" + id + ".json",
+             FAST_TIMEOUT_MS, function(json) {
+            if (json && json.meta) done(json.meta);
+            else tryNext(index + 1);
+        });
+    }
+    tryNext(0);
+}
+
 // The extensions that would answer a stream ask, in installed (ask) order.
 // installedList = Extensions.installed(); type "movie"|"series"; id "tt…"/"tt…:s:e"/"kitsu:…".
 function streamExtensions(installedList, type, id) {

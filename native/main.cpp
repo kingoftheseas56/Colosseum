@@ -273,6 +273,15 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("DevStreamsSelfTest"),
         qEnvironmentVariable("COLOSSEUM_STREAMS_SELFTEST"));
+    // dev harness: COLOSSEUM_CATALOG_SELFTEST="movies" logs a tab's rows (house +
+    // extension shelves) headlessly at boot.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevCatalogSelfTest"),
+        qEnvironmentVariable("COLOSSEUM_CATALOG_SELFTEST"));
+    // dev harness: COLOSSEUM_OPEN_WORLD="Theatre" boots straight into a world.
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("DevOpenWorld"),
+        qEnvironmentVariable("COLOSSEUM_OPEN_WORLD"));
 
     // Live TV / DVR player state exposed to QML as `Live`.
     auto *live = new LiveStore(&app);

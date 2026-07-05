@@ -86,10 +86,28 @@ Window {
 
     Component.onCompleted: {
         refreshWallpaper()
+        // Theatre reads the extension registry through a pushed copy — a .pragma
+        // library can't reach context properties (extensions spec Phase 3)
+        if (typeof Extensions !== "undefined")
+            TheatreApi.setExtensions(Extensions.installed())
         // dev harness (COLOSSEUM_OPEN_EXTENSIONS=1): boot straight into the store,
         // so smoke runs exercise the Loader (QML errors only surface on activation)
         if (typeof DevOpenExtensions !== "undefined" && DevOpenExtensions)
             win.openExtensionsPage()
+        // dev harness (COLOSSEUM_OPEN_WORLD="Theatre"): boot straight into a world
+        if (typeof DevOpenWorld !== "undefined" && String(DevOpenWorld).length)
+            win.openWorld(String(DevOpenWorld))
+        // dev harness (COLOSSEUM_CATALOG_SELFTEST="movies"): headless proof of the
+        // extension-shelf pipeline — logs every row the tab would render
+        if (typeof DevCatalogSelfTest !== "undefined" && String(DevCatalogSelfTest).length) {
+            TheatreApi.loadCatalogPage(String(DevCatalogSelfTest), function(result) {
+                console.log("[catalog-selftest] tab", result.pageKey, "->", result.rows.length, "rows")
+                for (var i = 0; i < result.rows.length; i++)
+                    console.log("[catalog-selftest] row", i, JSON.stringify(result.rows[i].title),
+                                result.rows[i].sub || "(house)", result.rows[i].items.length, "items,",
+                                "first:", result.rows[i].items.length ? result.rows[i].items[0].id : "-")
+            })
+        }
         // dev harness (COLOSSEUM_STREAMS_SELFTEST="movie|tt123"): headless proof of
         // the multi-extension stream pipeline — logs per-extension answers and rows
         if (typeof DevStreamsSelfTest !== "undefined" && String(DevStreamsSelfTest).length) {
@@ -1519,6 +1537,11 @@ Window {
             item.openRequested.connect(win.routeDownloadItem)
             item.openWorldRequested.connect(win.routeDownloadWorld)
         }
+    }
+
+    Connections {
+        target: typeof Extensions !== "undefined" ? Extensions : null
+        function onChanged() { TheatreApi.setExtensions(Extensions.installed()) }
     }
 
     // ---- Extensions page: the store (Stremio-protocol addons), from the taskbar ----
