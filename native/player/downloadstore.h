@@ -90,6 +90,7 @@ private:
     QString buildOutputPath(const QVariantMap &request) const;
     QString sanitizeFilePart(const QString &value) const;
     QString extensionFromUrl(const QString &url) const;
+    static QString groupKeyFor(const QVariantMap &request);
 
     int activeIndex() const;                 // resolving/downloading job, or -1
     int jobIndex(const QString &id) const;

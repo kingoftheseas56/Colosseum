@@ -79,6 +79,7 @@ void DownloadStore::enqueue(const QVariantMap &request) {
     Job j;
     j.request = request;
     j.request.insert(QStringLiteral("id"), id);
+    j.request.insert(QStringLiteral("groupKey"), groupKeyFor(j.request));
     j.id = id;
     j.url = request.value(QStringLiteral("url")).toString();
     j.state = QStringLiteral("queued");
@@ -91,6 +92,18 @@ void DownloadStore::enqueue(const QVariantMap &request) {
 void DownloadStore::enqueueBatch(const QVariantList &requests) {
     for (const QVariant &r : requests)
         enqueue(r.toMap());
+}
+
+QString DownloadStore::groupKeyFor(const QVariantMap &request) {
+    const QString id = request.value(QStringLiteral("id")).toString();
+    const int season = request.value(QStringLiteral("season")).toInt();
+    if (request.value(QStringLiteral("kind")).toString() == QStringLiteral("episode")
+        && season > 0) {
+        const QString base = id.section(QLatin1Char(':'), 0, 0);   // tt… of tt…:s:e
+        if (!base.isEmpty())
+            return base + QStringLiteral(":s") + QString::number(season);
+    }
+    return id;
 }
 
 void DownloadStore::startDownload(const QVariantMap &request) {
@@ -296,6 +309,8 @@ QVariantList DownloadStore::jobs() const {
             {QStringLiteral("season"), j.request.value(QStringLiteral("season"))},
             {QStringLiteral("episode"), j.request.value(QStringLiteral("episode"))},
             {QStringLiteral("art"), j.request.value(QStringLiteral("art"))},
+            {QStringLiteral("groupKey"), j.request.value(QStringLiteral("groupKey"), j.id)},
+            {QStringLiteral("subtitle"), j.request.value(QStringLiteral("subtitle"))},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
             {QStringLiteral("ratio"), j.ratio},
@@ -427,6 +442,8 @@ void DownloadStore::loadQueue() {
         j.id = j.request.value(QStringLiteral("id")).toString();
         if (j.id.isEmpty())
             continue;
+        if (j.request.value(QStringLiteral("groupKey")).toString().isEmpty())
+            j.request.insert(QStringLiteral("groupKey"), groupKeyFor(j.request));
         const QString state = o.value(QStringLiteral("state")).toString();
         // in-flight states rehydrate as queued: the URL was ephemeral anyway
         j.state = state == QStringLiteral("failed") ? state : QStringLiteral("queued");
@@ -543,5 +560,26 @@ void DownloadStore::selfTest(const QString &mode) {
         check(a >= 0 && m_jobs.at(a).state == QStringLiteral("resolving"),
               "active job untouched by exact-row cancel");
         cancelJob(QStringLiteral("selftest:1:1"));   // clean up
+    }
+    else if (mode == QStringLiteral("group")) {
+        enqueueBatch({
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("selftest:2:1")},
+                        {QStringLiteral("kind"), QStringLiteral("episode")},
+                        {QStringLiteral("title"), QStringLiteral("Selftest S2E1")},
+                        {QStringLiteral("seriesTitle"), QStringLiteral("Selftest")},
+                        {QStringLiteral("season"), 2}, {QStringLiteral("episode"), 1}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("selftest:2:2")},
+                        {QStringLiteral("kind"), QStringLiteral("episode")},
+                        {QStringLiteral("title"), QStringLiteral("Selftest S2E2")},
+                        {QStringLiteral("seriesTitle"), QStringLiteral("Selftest")},
+                        {QStringLiteral("season"), 2}, {QStringLiteral("episode"), 2}}});
+        const QString gk1 = m_jobs.at(jobIndex(QStringLiteral("selftest:2:1")))
+                                .request.value(QStringLiteral("groupKey")).toString();
+        const QString gk2 = m_jobs.at(jobIndex(QStringLiteral("selftest:2:2")))
+                                .request.value(QStringLiteral("groupKey")).toString();
+        check(gk1 == QStringLiteral("selftest:s2") && gk1 == gk2,
+              "batch shares one derived groupKey");
+        cancelJob(QStringLiteral("selftest:2:1"));
+        cancelJob(QStringLiteral("selftest:2:2"));
     }
 }

@@ -26,4 +26,7 @@ Assert-Contains $storeHeader 'void selfTest(const QString &mode)' `
 Assert-Contains $mainCpp 'COLOSSEUM_VIDEOQ_SELFTEST' `
     "main.cpp must wire the videoq selftest env var."
 
+Assert-Contains $storeSource 'groupKeyFor' `
+    "DownloadStore must stamp a shared groupKey per checkout (season = a view of the queue)."
+
 Write-Host "downloads manager p0 contract: OK"
