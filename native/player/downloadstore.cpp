@@ -506,3 +506,35 @@ void DownloadStore::removeVideo(const QString &id) {
     saveIndex();
     emit libraryChanged();
 }
+
+// ── dev selftest harness (headless proof, house pattern) ──
+
+void DownloadStore::selfTest(const QString &mode) {
+    auto check = [](bool ok, const char *what) {
+        qInfo("[videoq-selftest] %s: %s", ok ? "PASS" : "FAIL", what);
+    };
+    if (mode == QStringLiteral("exactrow")) {
+        // Job A promotes to resolving (the "active" job; no resolver answers in
+        // the harness, so it just holds the slot). Job B stays queued.
+        enqueue({{QStringLiteral("id"), QStringLiteral("selftest:1:1")},
+                 {QStringLiteral("kind"), QStringLiteral("episode")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest A")},
+                 {QStringLiteral("seriesTitle"), QStringLiteral("Selftest")},
+                 {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 1}});
+        enqueue({{QStringLiteral("id"), QStringLiteral("selftest:1:2")},
+                 {QStringLiteral("kind"), QStringLiteral("episode")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest B")},
+                 {QStringLiteral("seriesTitle"), QStringLiteral("Selftest")},
+                 {QStringLiteral("season"), 1}, {QStringLiteral("episode"), 2}});
+        failJob(QStringLiteral("selftest:1:2"), QStringLiteral("selftest failure"));
+        const int f = jobIndex(QStringLiteral("selftest:1:2"));
+        check(f >= 0 && m_jobs.at(f).state == QStringLiteral("failed"),
+              "job B failed and stays listed");
+        cancelJob(QStringLiteral("selftest:1:2"));   // the bug's exact click
+        check(jobIndex(QStringLiteral("selftest:1:2")) < 0, "failed row removed");
+        const int a = jobIndex(QStringLiteral("selftest:1:1"));
+        check(a >= 0 && m_jobs.at(a).state == QStringLiteral("resolving"),
+              "active job untouched by exact-row cancel");
+        cancelJob(QStringLiteral("selftest:1:1"));   // clean up
+    }
+}

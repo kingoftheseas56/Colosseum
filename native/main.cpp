@@ -251,6 +251,8 @@ int main(int argc, char *argv[]) {
     // Current-player video download state exposed to QML as `Download`.
     auto *download = new DownloadStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Download"), download);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_VIDEOQ_SELFTEST"))
+        download->selfTest(qEnvironmentVariable("COLOSSEUM_VIDEOQ_SELFTEST"));
 
     // Unified downloads read-model exposed to QML as `LocalDownloads` — the
     // Downloads page renders this; every mutation still routes to the owning
