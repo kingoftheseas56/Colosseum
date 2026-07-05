@@ -309,6 +309,8 @@ void DownloadStore::finishHttp(Job &job) {
     job.ratio = 1.0;
     job.speed = 0.0;
     job.etaSec = -1;
+    // May removeAt() the very row `job` refers to — the reference is dead below
+    // this line; nothing after it may read `job`.
     pruneGroupIfSettled(job.request.value(QStringLiteral("groupKey"), job.id).toString());
     saveQueue();
     touch();
