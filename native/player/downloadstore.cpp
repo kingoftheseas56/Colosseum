@@ -513,6 +513,13 @@ void DownloadStore::selfTest(const QString &mode) {
     auto check = [](bool ok, const char *what) {
         qInfo("[videoq-selftest] %s: %s", ok ? "PASS" : "FAIL", what);
     };
+    if (!m_jobs.isEmpty()) {
+        qWarning("[videoq-selftest] SKIPPED: %d real jobs in the queue - the harness "
+                 "needs an empty queue (its pump would promote a real job before QML "
+                 "can answer needResolve). Finish or cancel them first.",
+                 int(m_jobs.size()));
+        return;
+    }
     if (mode == QStringLiteral("exactrow")) {
         // Job A promotes to resolving (the "active" job; no resolver answers in
         // the harness, so it just holds the slot). Job B stays queued.
