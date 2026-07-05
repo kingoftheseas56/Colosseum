@@ -30,7 +30,10 @@ var topManga = [
     { caption: "Vinland Saga",      cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30642-0mjRDkf4THpo.jpg", c1: MANGA_C1, c2: MANGA_C2 },
     { caption: "Vagabond",          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30656-9mW113O7rDnA.png", c1: MANGA_C1, c2: MANGA_C2 },
     { caption: "Chainsaw Man",      cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx105778-euxXZEIfDY2u.png", c1: MANGA_C1, c2: MANGA_C2 },
-    { caption: "Monster",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/93285-mnjMdil9LnNT.jpg", c1: MANGA_C1, c2: MANGA_C2 },
+    // Monster — Naoki Urasawa (MangaDex id d9e30523, 1994), vol.1 tankōbon cover. The old
+    // AniList URL pointed at entry 93285 (a different "Monster"-titled work, NSFW art), not
+    // Urasawa's bx30021 — a hand-picked wrong ID. MangaDex is verified-correct + no-login.
+    { caption: "Monster",           cover: "https://uploads.mangadex.org/covers/d9e30523-9d65-469e-92a2-302995770950/a397b3d3-d7b3-413f-8d6a-f2b136a4b4e2.jpg.512.jpg", c1: MANGA_C1, c2: MANGA_C2 },
     { caption: "Slam Dunk",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30051-5KJyPlO7z5F4.png", c1: MANGA_C1, c2: MANGA_C2 },
     { caption: "Solo Leveling",     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx105398-b673Vt5ZSuz3.jpg", c1: MANGA_C1, c2: MANGA_C2 },
     { caption: "20th Century Boys",  cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30003-E84fwIh22LAQ.jpg", c1: MANGA_C1, c2: MANGA_C2 },
