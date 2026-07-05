@@ -29,4 +29,7 @@ Assert-Contains $mainCpp 'COLOSSEUM_VIDEOQ_SELFTEST' `
 Assert-Contains $storeSource 'groupKeyFor' `
     "DownloadStore must stamp a shared groupKey per checkout (season = a view of the queue)."
 
+Assert-Contains $storeSource 'void DownloadStore::sampleProgress' `
+    "DownloadStore must sample per-job speed/ETA (Tankorent-grade live detail)."
+
 Write-Host "downloads manager p0 contract: OK"

@@ -140,6 +140,7 @@ void DownloadStore::retryJob(const QString &id) {
     j.url.clear();            // identity payload survives; the URL never does
     j.error.clear();
     j.ratio = 0; j.received = 0; j.total = 0;
+    j.speed = 0.0; j.etaSec = -1; j.lastSampleMs = 0; j.lastSampleBytes = 0; j.baseOffset = 0;
     saveQueue();
     touch();
     pump();
@@ -192,6 +193,29 @@ void DownloadStore::failJob(const QString &id, const QString &reason) {
 
 // ── HTTP transfer (unchanged mechanics, per-job state) ──
 
+// Progress bookkeeping + EMA speed. `received`/`total` are reply-relative;
+// baseOffset folds in bytes already on disk when a resume appended (slice 4).
+void DownloadStore::sampleProgress(Job &job, qint64 received, qint64 total, qint64 nowMs) {
+    job.received = job.baseOffset + received;
+    job.total = total > 0 ? job.baseOffset + total : 0;
+    job.ratio = job.total > 0
+        ? qBound(0.0, double(job.received) / double(job.total), 1.0) : 0.0;
+    if (job.lastSampleMs == 0) {
+        job.lastSampleMs = nowMs;
+        job.lastSampleBytes = job.received;
+        return;
+    }
+    if (nowMs - job.lastSampleMs < 500)
+        return;   // downloadProgress is chatty; sample at 2 Hz
+    const double inst = double(job.received - job.lastSampleBytes) * 1000.0
+                        / double(nowMs - job.lastSampleMs);
+    job.speed = job.speed > 0.0 ? job.speed * 0.7 + inst * 0.3 : inst;
+    job.etaSec = (job.speed > 1.0 && job.total > job.received)
+                     ? int(double(job.total - job.received) / job.speed) : -1;
+    job.lastSampleMs = nowMs;
+    job.lastSampleBytes = job.received;
+}
+
 void DownloadStore::startHttp(Job &job) {
     job.state = QStringLiteral("downloading");
     job.outputPath = buildOutputPath(job.request);
@@ -219,10 +243,7 @@ void DownloadStore::startHttp(Job &job) {
         const int i = jobIndex(id);
         if (i < 0)
             return;
-        Job &j = m_jobs[i];
-        j.received = received;
-        j.total = total;
-        j.ratio = total > 0 ? qBound(0.0, double(received) / double(total), 1.0) : 0.0;
+        sampleProgress(m_jobs[i], received, total, QDateTime::currentMSecsSinceEpoch());
         emit changed();
     });
     connect(job.reply, &QNetworkReply::finished, this, [this, id]() {
@@ -318,7 +339,9 @@ QVariantList DownloadStore::jobs() const {
             {QStringLiteral("error"), j.error},
             {QStringLiteral("ratio"), j.ratio},
             {QStringLiteral("received"), j.received},
-            {QStringLiteral("total"), j.total}
+            {QStringLiteral("total"), j.total},
+            {QStringLiteral("speed"), j.speed},
+            {QStringLiteral("etaSec"), j.etaSec}
         });
     }
     return out;
@@ -610,5 +633,14 @@ void DownloadStore::selfTest(const QString &mode) {
         cancelJob(QStringLiteral("selftest-movie"));
         cancelJob(QStringLiteral("selftest:2:1"));
         cancelJob(QStringLiteral("selftest:2:2"));
+    }
+    else if (mode == QStringLiteral("speed")) {
+        Job j;
+        sampleProgress(j, 0, 10000000, 1000);          // first tick only records baseline
+        sampleProgress(j, 1000000, 10000000, 2000);    // 1 MB in 1 s
+        check(j.speed > 900000.0 && j.speed < 1100000.0, "EMA speed near 1 MB/s");
+        check(j.etaSec == 9, "eta = remaining bytes / speed");
+        sampleProgress(j, 1100000, 10000000, 2100);    // 100 ms later: throttled
+        check(j.lastSampleMs == 2000, "sampling throttled to 2 Hz");
     }
 }

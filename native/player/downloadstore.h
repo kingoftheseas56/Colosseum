@@ -74,6 +74,11 @@ private:
         double ratio = 0.0;
         qint64 received = 0;
         qint64 total = 0;
+        double speed = 0.0;          // bytes/sec, EMA-smoothed
+        int etaSec = -1;             // -1 = unknown
+        qint64 lastSampleMs = 0;
+        qint64 lastSampleBytes = 0;
+        qint64 baseOffset = 0;       // resume: bytes already in .part before this reply
         QString outputPath;
         QString partPath;
         QNetworkReply *reply = nullptr;
@@ -97,6 +102,7 @@ private:
     void pump();                             // promote oldest queued while under cap
     void startHttp(Job &job);
     void finishHttp(Job &job);
+    void sampleProgress(Job &job, qint64 received, qint64 total, qint64 nowMs);
     void cleanupJob(Job &job);
     void touch();                            // ++revision + changed()
 
