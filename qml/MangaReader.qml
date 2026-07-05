@@ -159,13 +159,20 @@ Item {
     function recordProgress() {
         if (typeof Progress === "undefined" || !reader.seriesId.length || reader.max <= 0)
             return
+        // never clobber a saved cover with an empty one — the series page resolves art
+        // async (and its source can be down), so a resume-save can fire cover-less
+        var cov = reader.seriesCover
+        if (!cov.length) {
+            var prev = Progress.get(reader.progressKind, reader.seriesId)
+            if (prev && prev.cover) cov = String(prev.cover)
+        }
         Progress.record({
             "id": reader.seriesId,
             "kind": reader.progressKind,
             "caption": reader.seriesTitle,
             "title": reader.seriesTitle,
             "sub": reader.curLabel,
-            "cover": reader.seriesCover,
+            "cover": cov,
             "c1": "#3a2f55", "c2": "#15111f",
             "progress": Math.min(1, Math.max(0, reader.page / reader.max)),
             "resume": { "chapterId": reader.curChapterId, "page": reader.page,

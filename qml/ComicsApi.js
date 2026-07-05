@@ -283,17 +283,42 @@ function archiveIndex(boxTagId, done) {
 
 // ── iTunes: series-level poster art (600×600 from the 100×100 thumb URL). ──
 // Session-cached per term — search fires per keystroke and iTunes rate-limits.
+// VERIFIED match only: blind first-result trust once hung an Immortal Hulk cover
+// on Avatar's Continue tile (and the reader persisted it). A wrong poster is
+// worse than none — no match → "" and the tile keeps its honest gradient.
 var posterCache = {};   // term → url ("" = looked up, none found)
+
+function _tokens(s) {
+    return String(s || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ")
+        .split(/\s+/).filter(function(w) { return w.length > 2 });
+}
+// true when most of the query's real words appear in the candidate name
+function _nameMatches(query, name) {
+    var q = _tokens(query), n = _tokens(name);
+    if (!q.length || !n.length) return false;
+    var hit = 0;
+    for (var i = 0; i < q.length; i++)
+        if (n.indexOf(q[i]) !== -1) hit++;
+    return hit >= Math.max(1, Math.ceil(q.length * 0.6));
+}
 
 function posterFor(term, done) {
     var key = String(term || "").toLowerCase();
     if (!key) { done(""); return; }
     if (posterCache[key] !== undefined) { done(posterCache[key]); return; }
-    var url = ITUNES + "?term=" + encodeURIComponent(term) + "&media=ebook&limit=1";
+    var url = ITUNES + "?term=" + encodeURIComponent(term) + "&media=ebook&limit=5";
+    var want = String(term || "").replace(/\s+comic$/i, "");   // callers append " comic"
     reqJson(url, function(j) {
         var art = "";
-        if (j && j.results && j.results.length && j.results[0].artworkUrl100)
-            art = String(j.results[0].artworkUrl100).replace("100x100", "600x600");
+        var results = (j && j.results) || [];
+        for (var i = 0; i < results.length; i++) {
+            var r = results[i];
+            if (!r.artworkUrl100) continue;
+            if (_nameMatches(want, r.trackName) || _nameMatches(want, r.collectionName)) {
+                art = String(r.artworkUrl100).replace("100x100", "600x600");
+                break;
+            }
+        }
         posterCache[key] = art;
         done(art);
     });
