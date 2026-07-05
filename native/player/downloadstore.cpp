@@ -123,9 +123,12 @@ void DownloadStore::cancelJob(const QString &id) {
     const int i = jobIndex(id);
     if (i < 0)
         return;
+    const QString gk = m_jobs.at(i).request
+                           .value(QStringLiteral("groupKey"), m_jobs.at(i).id).toString();
     cleanupJob(m_jobs[i]);
     QFile::remove(m_jobs.at(i).partPath);
     m_jobs.removeAt(i);
+    pruneGroupIfSettled(gk);
     saveQueue();
     touch();
     pump();
@@ -220,6 +223,23 @@ void DownloadStore::sampleProgress(Job &job, qint64 received, qint64 total, qint
     job.lastSampleBytes = job.received;
 }
 
+// A finished row lingers (state "done") so an arriving season keeps its full
+// picture; once NO row of the group is live, the group's done rows leave
+// together ("the zone leaves when the last one lands").
+void DownloadStore::pruneGroupIfSettled(const QString &groupKey) {
+    for (const Job &j : m_jobs) {
+        const QString gk = j.request.value(QStringLiteral("groupKey"), j.id).toString();
+        if (gk == groupKey && j.state != QStringLiteral("done"))
+            return;
+    }
+    for (int i = m_jobs.size() - 1; i >= 0; --i) {
+        const QString gk = m_jobs.at(i).request
+                               .value(QStringLiteral("groupKey"), m_jobs.at(i).id).toString();
+        if (gk == groupKey)
+            m_jobs.removeAt(i);
+    }
+}
+
 void DownloadStore::startHttp(Job &job) {
     job.state = QStringLiteral("downloading");
     job.outputPath = buildOutputPath(job.request);
@@ -285,9 +305,11 @@ void DownloadStore::finishHttp(Job &job) {
     const qint64 bytes = QFileInfo(job.outputPath).size();
     m_lastDonePath = job.outputPath;
     recordFinished(job, bytes);
-    const int i = jobIndex(job.id);
-    if (i >= 0)
-        m_jobs.removeAt(i);
+    job.state = QStringLiteral("done");
+    job.ratio = 1.0;
+    job.speed = 0.0;
+    job.etaSec = -1;
+    pruneGroupIfSettled(job.request.value(QStringLiteral("groupKey"), job.id).toString());
     saveQueue();
     touch();
     pump();
@@ -487,6 +509,8 @@ void DownloadStore::loadQueue() {
 void DownloadStore::saveQueue() const {
     QJsonArray arr;
     for (const Job &j : m_jobs) {
+        if (j.state == QStringLiteral("done"))
+            continue;   // display-only lingering; a restart starts the zone fresh
         arr.append(QJsonObject{
             {QStringLiteral("request"), QJsonObject::fromVariantMap(j.request)},
             {QStringLiteral("state"), j.state},
@@ -634,11 +658,19 @@ void DownloadStore::selfTest(const QString &mode) {
                   .request.value(QStringLiteral("groupKey")).toString()
                   == QStringLiteral("selftest-movie"),
               "a movie keys by its own id");
+        // done-linger: E1 lands while E2 is still live -> E1 lingers as "done"
+        m_jobs[jobIndex(QStringLiteral("selftest:2:1"))].state = QStringLiteral("done");
+        pruneGroupIfSettled(QStringLiteral("selftest:s2"));
+        check(jobIndex(QStringLiteral("selftest:2:1")) >= 0,
+              "done row lingers while a sibling is live");
+        m_jobs[jobIndex(QStringLiteral("selftest:2:2"))].state = QStringLiteral("done");
+        pruneGroupIfSettled(QStringLiteral("selftest:s2"));
+        check(jobIndex(QStringLiteral("selftest:2:1")) < 0
+                  && jobIndex(QStringLiteral("selftest:2:2")) < 0,
+              "group prunes when its last row lands");
         cancelJob(QStringLiteral("mal:111:2:1"));
         cancelJob(QStringLiteral("mal:222:2:1"));
         cancelJob(QStringLiteral("selftest-movie"));
-        cancelJob(QStringLiteral("selftest:2:1"));
-        cancelJob(QStringLiteral("selftest:2:2"));
     }
     else if (mode == QStringLiteral("speed")) {
         Job j;

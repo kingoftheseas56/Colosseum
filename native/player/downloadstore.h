@@ -103,6 +103,7 @@ private:
     void startHttp(Job &job);
     void finishHttp(Job &job);
     void sampleProgress(Job &job, qint64 received, qint64 total, qint64 nowMs);
+    void pruneGroupIfSettled(const QString &groupKey);
     void cleanupJob(Job &job);
     void touch();                            // ++revision + changed()
 

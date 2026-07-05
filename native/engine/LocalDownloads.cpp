@@ -319,7 +319,15 @@ QVariantMap LocalDownloads::totals() const {
         {QStringLiteral("biblio"), b.size()},
         {QStringLiteral("theatre"), th.size()},
         {QStringLiteral("bytes"), bytes},
-        {QStringLiteral("active"), activeJobs().size()}
+        {QStringLiteral("active"), [this]() {
+            int live = 0;
+            const QVariantList aj = activeJobs();
+            for (const QVariant &v : aj)
+                if (v.toMap().value(QStringLiteral("state")).toString()
+                        != QStringLiteral("done"))
+                    ++live;
+            return live;
+        }()}
     };
 }
 

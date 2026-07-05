@@ -32,4 +32,9 @@ Assert-Contains $storeSource 'groupKeyFor' `
 Assert-Contains $storeSource 'void DownloadStore::sampleProgress' `
     "DownloadStore must sample per-job speed/ETA (Tankorent-grade live detail)."
 
+Assert-Contains $storeSource 'pruneGroupIfSettled' `
+    "Done rows must linger with their group, then prune together."
+Assert-Contains $facade 'toMap().value(QStringLiteral("state")).toString()' `
+    "totals.active must count live rows only (done rows never inflate the badge)."
+
 Write-Host "downloads manager p0 contract: OK"
