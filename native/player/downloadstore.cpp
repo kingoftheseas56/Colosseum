@@ -149,6 +149,37 @@ void DownloadStore::retryJob(const QString &id) {
     pump();
 }
 
+void DownloadStore::pauseJob(const QString &id) {
+    const int i = jobIndex(id);
+    if (i < 0)
+        return;
+    Job &j = m_jobs[i];
+    if (j.state != QStringLiteral("queued") && j.state != QStringLiteral("resolving")
+        && j.state != QStringLiteral("downloading"))
+        return;
+    cleanupJob(j);   // aborts the reply, closes the file; the .part STAYS on disk
+    j.state = QStringLiteral("paused");
+    j.speed = 0.0; j.etaSec = -1; j.lastSampleMs = 0; j.lastSampleBytes = 0;
+    saveQueue();
+    touch();
+    pump();          // paused rows don't hold the cap slot
+}
+
+void DownloadStore::resumeJob(const QString &id) {
+    const int i = jobIndex(id);
+    if (i < 0 || m_jobs.at(i).state != QStringLiteral("paused"))
+        return;
+    Job &j = m_jobs[i];
+    // Same-session url still in hand → append from the .part via Range.
+    // Post-restart (url gone) → re-resolve; the source may differ, so the
+    // .part is truncated at startHttp — never append a different file.
+    j.resumeFromPart = !j.url.isEmpty();
+    j.state = QStringLiteral("queued");
+    saveQueue();
+    touch();
+    pump();
+}
+
 void DownloadStore::pump() {
     if (activeIndex() >= 0)
         return;   // MAX_ACTIVE_VIDEO = 1: one live job at a time
@@ -242,12 +273,20 @@ void DownloadStore::pruneGroupIfSettled(const QString &groupKey) {
 
 void DownloadStore::startHttp(Job &job) {
     job.state = QStringLiteral("downloading");
-    job.outputPath = buildOutputPath(job.request);
-    job.partPath = job.outputPath + QStringLiteral(".part");
+    if (job.outputPath.isEmpty()) {
+        job.outputPath = buildOutputPath(job.request);
+        job.partPath = job.outputPath + QStringLiteral(".part");
+    }
     QDir().mkpath(QFileInfo(job.outputPath).absolutePath());
 
+    job.baseOffset = 0;
+    const qint64 partSize = QFile::exists(job.partPath) ? QFileInfo(job.partPath).size() : 0;
+    const bool tryResume = job.resumeFromPart && partSize > 0;
+    job.resumeFromPart = false;
+
     job.file = new QFile(job.partPath, this);
-    if (!job.file->open(QIODevice::WriteOnly)) {
+    if (!job.file->open(tryResume ? (QIODevice::WriteOnly | QIODevice::Append)
+                                  : QIODevice::WriteOnly)) {
         const QString message = QStringLiteral("open: %1").arg(job.file->errorString());
         failJob(job.id, message);
         return;
@@ -255,8 +294,28 @@ void DownloadStore::startHttp(Job &job) {
 
     QNetworkRequest req{QUrl(job.url)};
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum"));
+    if (tryResume) {
+        job.baseOffset = partSize;
+        req.setRawHeader(QByteArrayLiteral("Range"),
+                         QByteArrayLiteral("bytes=") + QByteArray::number(partSize) + "-");
+    }
     job.reply = m_network.get(req);
     const QString id = job.id;
+    if (tryResume) {
+        // Server ignored the Range (200, not 206) → restart the file honestly.
+        connect(job.reply, &QNetworkReply::metaDataChanged, this, [this, id]() {
+            const int i = jobIndex(id);
+            if (i < 0 || !m_jobs.at(i).reply || !m_jobs.at(i).file)
+                return;
+            Job &j = m_jobs[i];
+            const int code = j.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            if (code == 200 && j.baseOffset > 0) {
+                j.baseOffset = 0;
+                j.file->close();
+                j.file->open(QIODevice::WriteOnly);   // truncate
+            }
+        });
+    }
     connect(job.reply, &QNetworkReply::readyRead, this, [this, id]() {
         const int i = jobIndex(id);
         if (i >= 0 && m_jobs.at(i).file && m_jobs.at(i).reply)
@@ -499,8 +558,13 @@ void DownloadStore::loadQueue() {
         if (j.request.value(QStringLiteral("groupKey")).toString().isEmpty())
             j.request.insert(QStringLiteral("groupKey"), groupKeyFor(j.request));
         const QString state = o.value(QStringLiteral("state")).toString();
-        // in-flight states rehydrate as queued: the URL was ephemeral anyway
-        j.state = state == QStringLiteral("failed") ? state : QStringLiteral("queued");
+        // failed and paused survive restarts as themselves; in-flight states
+        // rehydrate as queued (their URL was session-ephemeral anyway).
+        j.state = (state == QStringLiteral("failed") || state == QStringLiteral("paused"))
+                      ? state : QStringLiteral("queued");
+        j.outputPath = o.value(QStringLiteral("outputPath")).toString();
+        if (!j.outputPath.isEmpty())
+            j.partPath = j.outputPath + QStringLiteral(".part");
         j.error = o.value(QStringLiteral("error")).toString();
         m_jobs.append(j);
     }
@@ -516,7 +580,8 @@ void DownloadStore::saveQueue() const {
         arr.append(QJsonObject{
             {QStringLiteral("request"), QJsonObject::fromVariantMap(j.request)},
             {QStringLiteral("state"), j.state},
-            {QStringLiteral("error"), j.error}
+            {QStringLiteral("error"), j.error},
+            {QStringLiteral("outputPath"), j.outputPath}
         });
     }
     QSaveFile f(baseDir() + QStringLiteral("/queue.json"));
@@ -682,5 +747,35 @@ void DownloadStore::selfTest(const QString &mode) {
         check(j.etaSec == 9, "eta = remaining bytes / speed");
         sampleProgress(j, 1100000, 10000000, 2100);    // 100 ms later: throttled
         check(j.lastSampleMs == 2000, "sampling throttled to 2 Hz");
+    }
+    else if (mode == QStringLiteral("pause")) {
+        enqueue({{QStringLiteral("id"), QStringLiteral("selftest:3:1")},
+                 {QStringLiteral("kind"), QStringLiteral("episode")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest P1")},
+                 {QStringLiteral("seriesTitle"), QStringLiteral("Selftest")},
+                 {QStringLiteral("season"), 3}, {QStringLiteral("episode"), 1}});
+        enqueue({{QStringLiteral("id"), QStringLiteral("selftest:3:2")},
+                 {QStringLiteral("kind"), QStringLiteral("episode")},
+                 {QStringLiteral("title"), QStringLiteral("Selftest P2")},
+                 {QStringLiteral("seriesTitle"), QStringLiteral("Selftest")},
+                 {QStringLiteral("season"), 3}, {QStringLiteral("episode"), 2}});
+        pauseJob(QStringLiteral("selftest:3:2"));
+        int p = jobIndex(QStringLiteral("selftest:3:2"));
+        check(p >= 0 && m_jobs.at(p).state == QStringLiteral("paused"),
+              "queued row pauses");
+        pauseJob(QStringLiteral("selftest:3:1"));   // the resolving/active row
+        const int a = jobIndex(QStringLiteral("selftest:3:1"));
+        check(a >= 0 && m_jobs.at(a).state == QStringLiteral("paused"),
+              "active row pauses and frees the slot");
+        pump();
+        p = jobIndex(QStringLiteral("selftest:3:2"));
+        check(m_jobs.at(p).state == QStringLiteral("paused"), "pump skips paused rows");
+        resumeJob(QStringLiteral("selftest:3:2"));
+        p = jobIndex(QStringLiteral("selftest:3:2"));
+        check(m_jobs.at(p).state == QStringLiteral("resolving")
+                  || m_jobs.at(p).state == QStringLiteral("queued"),
+              "resume re-queues (and may promote)");
+        cancelJob(QStringLiteral("selftest:3:1"));
+        cancelJob(QStringLiteral("selftest:3:2"));
     }
 }

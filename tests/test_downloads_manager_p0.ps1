@@ -34,6 +34,12 @@ Assert-Contains $storeSource 'void DownloadStore::sampleProgress' `
 
 Assert-Contains $storeSource 'pruneGroupIfSettled' `
     "Done rows must linger with their group, then prune together."
+
+Assert-Contains $storeHeader 'void pauseJob(const QString &id)' `
+    "Engine must support pause (keeps .part, frees the cap slot)."
+Assert-Contains $storeSource 'QByteArrayLiteral("Range")' `
+    "Resume must append mid-file via HTTP Range when the session url survives."
+
 Assert-Contains $facade 'toMap().value(QStringLiteral("state")).toString()' `
     "totals.active must count live rows only (done rows never inflate the badge)."
 

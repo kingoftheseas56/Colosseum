@@ -45,6 +45,8 @@ public:
     Q_INVOKABLE void enqueueBatch(const QVariantList &requests);
     Q_INVOKABLE void cancelJob(const QString &id);   // drops the job entirely
     Q_INVOKABLE void retryJob(const QString &id);    // failed → queued (re-resolve)
+    Q_INVOKABLE void pauseJob(const QString &id);    // keeps the .part; frees the cap slot
+    Q_INVOKABLE void resumeJob(const QString &id);   // paused → queued (Range-append if same-session url)
     Q_INVOKABLE QVariantList jobs() const;
     Q_INVOKABLE bool hasVideo(const QString &id) const;   // already in the library
     // resolver handshake (Main.qml answers needResolve with one of these)
@@ -79,6 +81,7 @@ private:
         qint64 lastSampleMs = 0;
         qint64 lastSampleBytes = 0;
         qint64 baseOffset = 0;       // resume: bytes already in .part before this reply
+        bool resumeFromPart = false;   // set by resumeJob when the paused url is still valid
         QString outputPath;
         QString partPath;
         QNetworkReply *reply = nullptr;
