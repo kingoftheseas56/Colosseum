@@ -61,4 +61,10 @@ Assert-Contains $page 'SEASON " + sgrp.modelData.season' `
 Assert-Contains $page 'still arriving above' `
     "Ledger season headers must cross-reference live checkouts."
 
+$facade2 = Get-Content (Join-Path $root "native/engine/LocalDownloads.h") -Raw
+Assert-Contains $facade2 'void pause(const QString &world' `
+    "Facade must route pause/resume (theatre only in v1)."
+Assert-Contains $page '"Pause season"' `
+    "Group header must offer season-wide pause."
+
 Write-Host "downloads manager p0 contract: OK"

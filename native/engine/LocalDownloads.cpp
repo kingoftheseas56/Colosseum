@@ -315,6 +315,17 @@ void LocalDownloads::retry(const QString &world, const QString &id) {
     // Other worlds: their engines discard failure payloads today - no blind retry.
 }
 
+void LocalDownloads::pause(const QString &world, const QString &id) {
+    if (world == QStringLiteral("theatre") && m_videos)
+        m_videos->pauseJob(id);
+    // Other worlds' engines have no pause yet - honest no-op, no dead buttons drawn.
+}
+
+void LocalDownloads::resume(const QString &world, const QString &id) {
+    if (world == QStringLiteral("theatre") && m_videos)
+        m_videos->resumeJob(id);
+}
+
 QVariantMap LocalDownloads::totals() const {
     const QVariantList t = tankobanItems();
     const QVariantList b = biblioItems();

@@ -377,6 +377,8 @@ Item {
                                                         return wn + " · " + (r0.error || "download failed");
                                                     if (r0.state === "queued")
                                                         return wn + " · queued — waits its turn";
+                                                    if (r0.state === "paused")
+                                                        return wn + " · paused — holds its place";
                                                     if (r0.state === "resolving")
                                                         return wn + " · resolving — finding the best stream";
                                                     if (r0.state === "extracting")
@@ -430,6 +432,41 @@ Item {
                                             MouseArea { id: hRetryMa; anchors.fill: parent; hoverEnabled: true
                                                         cursorShape: Qt.PointingHandCursor
                                                         onClicked: LocalDownloads.retry(grp.modelData.world, grp.modelData.rows[0].id) }
+                                        }
+                                        Text {
+                                            id: hPauseT
+                                            readonly property bool anyRunning: {
+                                                var rows = grp.modelData.rows;
+                                                for (var i = 0; i < rows.length; i++)
+                                                    if (rows[i].state === "downloading" || rows[i].state === "resolving"
+                                                        || rows[i].state === "queued") return true;
+                                                return false;
+                                            }
+                                            readonly property bool anyPaused: {
+                                                var rows = grp.modelData.rows;
+                                                for (var i = 0; i < rows.length; i++)
+                                                    if (rows[i].state === "paused") return true;
+                                                return false;
+                                            }
+                                            visible: grp.modelData.world === "theatre" && (anyRunning || anyPaused)
+                                            text: anyRunning
+                                                  ? (grp.modelData.single ? "Pause" : "Pause season")
+                                                  : (grp.modelData.single ? "Resume" : "Resume season")
+                                            color: hPauseMa.containsMouse ? "#ffd968" : theme.gold
+                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            MouseArea { id: hPauseMa; anchors.fill: parent; hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: {
+                                                            var rows = grp.modelData.rows;
+                                                            var pausing = hPauseT.anyRunning;
+                                                            for (var i = rows.length - 1; i >= 0; i--) {
+                                                                if (pausing && (rows[i].state === "downloading"
+                                                                        || rows[i].state === "resolving" || rows[i].state === "queued"))
+                                                                    LocalDownloads.pause(grp.modelData.world, rows[i].id);
+                                                                else if (!pausing && rows[i].state === "paused")
+                                                                    LocalDownloads.resume(grp.modelData.world, rows[i].id);
+                                                            }
+                                                        } }
                                         }
                                         Text {
                                             visible: grp.modelData.liveCount > 0
@@ -489,6 +526,7 @@ Item {
                                                 textFormat: Text.PlainText
                                                 text: epRow.modelData.title || "Episode"
                                                 color: epRow.modelData.state === "done" || epRow.modelData.state === "queued"
+                                                       || epRow.modelData.state === "paused"
                                                        ? theme.inkDim : theme.ink
                                                 font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
                                                 elide: Text.ElideRight
@@ -499,6 +537,7 @@ Item {
                                                 text: epRow.modelData.state === "downloading" ? "downloading"
                                                     : epRow.modelData.state === "resolving" ? "resolving — finding the best stream"
                                                     : epRow.modelData.state === "queued" ? "queued — waits its turn"
+                                                    : epRow.modelData.state === "paused" ? "paused — holds its place"
                                                     : epRow.modelData.state === "failed"
                                                           ? "failed — " + (epRow.modelData.error || "download failed")
                                                     : "landed — on the Theatre shelf"
@@ -525,6 +564,8 @@ Item {
                                                     return parts.join(" · ");
                                                 }
                                                 if (m.state === "done" && m.total > 0) return root.fmtBytes(m.total);
+                                                if (m.state === "paused" && m.total > 0)
+                                                    return root.fmtBytes(m.received || 0) + " of " + root.fmtBytes(m.total);
                                                 return "—";
                                             }
                                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
@@ -538,6 +579,21 @@ Item {
                                                 visible: epRow.modelData.state === "done"
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
+                                            }
+                                            Text {
+                                                visible: epRow.modelData.world === "theatre"
+                                                         && (epRow.modelData.state === "downloading"
+                                                             || epRow.modelData.state === "resolving"
+                                                             || epRow.modelData.state === "queued"
+                                                             || epRow.modelData.state === "paused")
+                                                text: epRow.modelData.state === "paused" ? "Resume" : "Pause"
+                                                color: rPauseMa.containsMouse ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                MouseArea { id: rPauseMa; anchors.fill: parent; hoverEnabled: true
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: epRow.modelData.state === "paused"
+                                                                       ? LocalDownloads.resume(epRow.modelData.world, epRow.modelData.id)
+                                                                       : LocalDownloads.pause(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
                                                 visible: epRow.modelData.state === "failed"
