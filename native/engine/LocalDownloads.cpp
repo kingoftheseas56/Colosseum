@@ -336,8 +336,11 @@ void LocalDownloads::cancel(const QString &world, const QString &id) {
         if (m_books)
             m_books->cancelDownload(id);
     } else if (world == QStringLiteral("theatre")) {
+        // Exact-row discipline: drop the job the user clicked (active, queued,
+        // or failed) - NEVER the no-arg active-job cancel (that call is the
+        // player panel's own button and killed live downloads from here).
         if (m_videos)
-            m_videos->cancelDownload();
+            m_videos->cancelJob(id);
     }
 }
 
