@@ -290,6 +290,7 @@ Item {
                                         spacing: 4
                                         Text {
                                             width: parent.width
+                                            textFormat: Text.PlainText
                                             text: grp.modelData.title
                                             color: theme.ink; font.family: theme.ui
                                             font.pixelSize: 15; font.weight: Font.DemiBold
@@ -297,6 +298,7 @@ Item {
                                         }
                                         Text {
                                             width: parent.width
+                                            textFormat: Text.PlainText
                                             text: {
                                                 var w = grp.modelData.world;
                                                 var wn = w === "tankoban" ? "Tankoban" : w === "biblio" ? "Biblio" : "Theatre";
@@ -304,6 +306,14 @@ Item {
                                                     var r0 = grp.modelData.rows[0];
                                                     if (r0.state === "failed")
                                                         return wn + " · " + (r0.error || "download failed");
+                                                    if (r0.state === "queued")
+                                                        return wn + " · queued — waits its turn";
+                                                    if (r0.state === "resolving")
+                                                        return wn + " · resolving — finding the best stream";
+                                                    if (r0.state === "extracting")
+                                                        return wn + " · unpacking";
+                                                    if (r0.state === "done")
+                                                        return wn + " · landed";
                                                     var d = r0.detail || "";
                                                     return d.length ? (wn + " · " + d) : wn;
                                                 }
@@ -327,8 +337,10 @@ Item {
                                             if (grp.modelData.total > 0)
                                                 parts.push(root.fmtBytes(grp.modelData.received)
                                                            + " of " + root.fmtBytes(grp.modelData.total));
-                                            if (grp.modelData.speed > 0)
-                                                parts.push("<font color='#f0c44a'><b>" + root.fmtSpeed(grp.modelData.speed) + "</b></font>");
+                                            if (grp.modelData.speed > 0) {
+                                                var hsp = root.fmtSpeed(grp.modelData.speed);
+                                                if (hsp.length) parts.push("<font color='#f0c44a'><b>" + hsp + "</b></font>");
+                                            }
                                             var eta = root.fmtEta(grp.modelData.eta);
                                             if (eta.length) parts.push(eta);
                                             return parts.join(" · ");
@@ -361,7 +373,7 @@ Item {
                                                         cursorShape: Qt.PointingHandCursor
                                                         onClicked: {
                                                             var rows = grp.modelData.rows;
-                                                            for (var i = 0; i < rows.length; i++)
+                                                            for (var i = rows.length - 1; i >= 0; i--)
                                                                 if (rows[i].state !== "done")
                                                                     LocalDownloads.cancel(grp.modelData.world, rows[i].id);
                                                         } }
@@ -405,6 +417,7 @@ Item {
                                             spacing: 3
                                             Text {
                                                 width: parent.width
+                                                textFormat: Text.PlainText
                                                 text: epRow.modelData.title || "Episode"
                                                 color: epRow.modelData.state === "done" || epRow.modelData.state === "queued"
                                                        ? theme.inkDim : theme.ink
@@ -413,6 +426,7 @@ Item {
                                             }
                                             Text {
                                                 width: parent.width
+                                                textFormat: Text.PlainText
                                                 text: epRow.modelData.state === "downloading" ? "downloading"
                                                     : epRow.modelData.state === "resolving" ? "resolving — finding the best stream"
                                                     : epRow.modelData.state === "queued" ? "queued — waits its turn"
