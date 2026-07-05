@@ -40,7 +40,10 @@ QString StreamServer::findRuntimeDir() const
     // 2) shipped next to the Colosseum exe (self-contained copy, gitignored)
     candidates << appDir + QStringLiteral("/stream_server");
     candidates << appDir + QStringLiteral("/../stream_server");
-    // 3) fall back to Tankoban 2's vendored runtime (always present on this machine)
+    // 3) the OFFICIAL Stremio Service install — the canonical server on this machine
+    //    (Hemanth's call 2026-07-05: the vendored copy fell behind; official wins)
+    candidates << QStringLiteral("C:/Users/Suprabha/AppData/Local/Programs/StremioService");
+    // 4) fall back to Tankoban 2's vendored runtime
     candidates << QStringLiteral("C:/Users/Suprabha/Desktop/Tankoban 2/resources/stream_server");
 
     for (const QString &dir : candidates) {
@@ -52,17 +55,43 @@ QString StreamServer::findRuntimeDir() const
 
 void StreamServer::ensureStarted()
 {
-    if (m_proc || m_starting)
+    if (m_proc || m_starting || m_port > 0)
         return;
-
-    const QString dir = findRuntimeDir();
-    if (dir.isEmpty()) {
-        Q_EMIT streamError(QStringLiteral("Stream engine not found (stremio-runtime.exe missing)."));
-        return;
-    }
 
     m_starting = true;
     Q_EMIT startingChanged();
+
+    // Adopt-first: when the OFFICIAL Stremio Service is running it already owns
+    // :11470 — a child launch just dies on the port clash (the exact silent
+    // failure that stalled season downloads, diagnosed 2026-07-05). Probe, and
+    // only spawn our own runtime when nobody answers.
+    QNetworkRequest probe(QUrl(QStringLiteral("http://127.0.0.1:11470/settings")));
+    probe.setTransferTimeout(1500);
+    QNetworkReply *r = m_nam->get(probe);
+    connect(r, &QNetworkReply::finished, this, [this, r]() {
+        r->deleteLater();
+        if (r->error() == QNetworkReply::NoError) {
+            m_port = 11470;
+            m_starting = false;
+            qInfo("[stream] adopted the running Stremio server on port %d", m_port);
+            Q_EMIT readyChanged();
+            Q_EMIT startingChanged();
+            flushPending();
+            return;
+        }
+        launchChild();
+    });
+}
+
+void StreamServer::launchChild()
+{
+    const QString dir = findRuntimeDir();
+    if (dir.isEmpty()) {
+        m_starting = false;
+        Q_EMIT startingChanged();
+        Q_EMIT streamError(QStringLiteral("Stream engine not found (stremio-runtime.exe missing)."));
+        return;
+    }
 
     const QString cacheDir =
         QStandardPaths::writableLocation(QStandardPaths::CacheLocation) + QStringLiteral("/colosseum-stream");
@@ -142,10 +171,24 @@ void StreamServer::play(const QString &infoHash, int fileIdx)
         return;
     }
     if (m_port > 0) {
-        registerThenReady(infoHash, fileIdx);
+        registerThenReady(infoHash, fileIdx, false);
         return;
     }
-    m_pending.append({infoHash, fileIdx});
+    m_pending.append({infoHash, fileIdx, false});
+    ensureStarted();
+}
+
+void StreamServer::prefetch(const QString &infoHash, int fileIdx)
+{
+    if (infoHash.isEmpty()) {
+        Q_EMIT streamError(QStringLiteral("This source has no torrent hash to fetch."));
+        return;
+    }
+    if (m_port > 0) {
+        registerThenReady(infoHash, fileIdx, true);
+        return;
+    }
+    m_pending.append({infoHash, fileIdx, true});
     ensureStarted();
 }
 
@@ -154,10 +197,10 @@ void StreamServer::flushPending()
     const auto pend = m_pending;
     m_pending.clear();
     for (const Pending &p : pend)
-        registerThenReady(p.infoHash, p.fileIdx);
+        registerThenReady(p.infoHash, p.fileIdx, p.fetch);
 }
 
-void StreamServer::registerThenReady(const QString &infoHash, int fileIdx)
+void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch)
 {
     const QString hash = infoHash.toLower();
     // Register the torrent with the runtime (it constructs the magnet from the hash).
@@ -168,13 +211,15 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx)
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
 
     QNetworkReply *reply = m_nam->post(req, QByteArray("{}"));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, hash, fileIdx]() {
+    connect(reply, &QNetworkReply::finished, this, [this, reply, hash, fileIdx, fetch]() {
         if (reply->error() != QNetworkReply::NoError)
             qWarning("[stream] create warning: %s", qUtf8Printable(reply->errorString()));
         reply->deleteLater();
         const QString url = streamUrl(hash, fileIdx);
         if (url.isEmpty())
             Q_EMIT streamError(QStringLiteral("Stream engine not ready."));
+        else if (fetch)
+            Q_EMIT fetchReady(url, hash, fileIdx);
         else
             Q_EMIT streamReady(url, hash, fileIdx);
     });

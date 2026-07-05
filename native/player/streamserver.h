@@ -39,6 +39,11 @@ public:
     // torrent is registered and a playable URL exists.
     Q_INVOKABLE void play(const QString &infoHash, int fileIdx);
 
+    // Same warm-up, but for background DOWNLOADS: emits fetchReady instead of
+    // streamReady, so the kept-alive player page never hijacks a download's url
+    // into mpv. (PlayerPage.qml loads EVERY streamReady it hears.)
+    Q_INVOKABLE void prefetch(const QString &infoHash, int fileIdx);
+
     // The URL for an already-registered stream, or "" if the runtime isn't up yet.
     Q_INVOKABLE QString streamUrl(const QString &infoHash, int fileIdx) const;
 
@@ -46,19 +51,22 @@ Q_SIGNALS:
     void readyChanged();
     void startingChanged();
     void streamReady(const QString &url, const QString &infoHash, int fileIdx);
+    void fetchReady(const QString &url, const QString &infoHash, int fileIdx);
     void streamError(const QString &message);
 
 private:
     struct Pending {
         QString infoHash;
         int fileIdx;
+        bool fetch = false;   // true -> answer with fetchReady (download), not streamReady
     };
 
-    void ensureStarted();
+    void ensureStarted();                 // adopt a running official server, else launch our own
+    void launchChild();                   // spawn stremio-runtime.exe server.js ourselves
     QString findRuntimeDir() const;       // first dir that contains stremio-runtime.exe
     void onStdout();                      // scrape the "EngineFS server started at …:<port>" line
     void flushPending();
-    void registerThenReady(const QString &infoHash, int fileIdx);  // POST /create, then emit URL
+    void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL
 
     QProcess *m_proc = nullptr;
     QNetworkAccessManager *m_nam = nullptr;

@@ -371,6 +371,7 @@ Window {
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
     //      engine URL. Deferred while the player streams (one engine, playback wins). ----
     property var pendingResolves: []
+    property var pendingFeeds: ({})   // "hash:idx" -> job id, answered by onFetchReady
     function resolveDownloadJob(id, streamId, mediaType) {
         Torrentio.loadStreams(mediaType, streamId, function(rows) {
             if (!rows || !rows.length) {
@@ -378,9 +379,37 @@ Window {
                 return
             }
             var best = rows[0]
-            Stream.play(best.infoHash, best.fileIdx || 0)
-            Download.feedUrl(id, Stream.streamUrl(best.infoHash, best.fileIdx || 0))
+            // prefetch (NOT play): the url arrives via onFetchReady once the engine
+            // is genuinely up. The old synchronous streamUrl() read raced a cold
+            // engine and fed "" — the job then sat "resolving" forever (the
+            // nothing-downloads wedge, diagnosed 2026-07-05). play() is also the
+            // player's signal — prefetch keeps downloads out of mpv's ears.
+            var key = (best.infoHash || "").toLowerCase() + ":" + (best.fileIdx || 0)
+            win.pendingFeeds[key] = id
+            Stream.prefetch(best.infoHash, best.fileIdx || 0)
         })
+    }
+    Connections {
+        target: typeof Stream !== "undefined" ? Stream : null
+        function onFetchReady(url, infoHash, fileIdx) {
+            var key = infoHash.toLowerCase() + ":" + fileIdx
+            var id = win.pendingFeeds[key]
+            if (id === undefined)
+                return
+            delete win.pendingFeeds[key]
+            Download.feedUrl(id, url)
+        }
+        function onStreamError(message) {
+            // Engine went away mid-warmup: fail the waiting jobs honestly (Retry
+            // re-resolves) instead of leaving them wedged in "resolving".
+            var any = false
+            for (var key in win.pendingFeeds) {
+                Download.failJob(win.pendingFeeds[key], message)
+                any = true
+            }
+            if (any)
+                win.pendingFeeds = ({})
+        }
     }
     Connections {
         target: typeof Download !== "undefined" ? Download : null
