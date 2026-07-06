@@ -8,6 +8,7 @@ import QtCore
 import Colosseum.Player
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
+import "AddonClient.js" as AddonClient
 
 Item {
     id: root
@@ -649,7 +650,7 @@ Item {
         root.statusMsg = which === "next" ? "Next episode..." : "Previous episode..."
         streamWatchdog.restart()
         root.wakeChrome()
-        Torrentio.loadStreams(ep.type || "series", ep.id, function(list) {
+        var startWith = function(list) {
             if (myGen !== root.adjacentResolveGen)
                 return
             if (!list || !list.length) {
@@ -664,7 +665,22 @@ Item {
             root.playTorrent(first.infoHash, first.fileIdx || 0,
                              ep.title || root.mediaTitle, ep.backdrop || root.mediaArt,
                              ep.type || "series", ep.id, list, ep.context || ({}))
-        })
+        }
+        // Same pipeline as the main picker: every installed extension, ranked the same
+        // way. Torrentio stays as the fallback — never worse than before.
+        var exts = (typeof Extensions !== "undefined")
+                 ? AddonClient.streamExtensions(Extensions.installed(), ep.type || "series", ep.id)
+                 : []
+        if (exts.length) {
+            AddonClient.loadStreams(exts, ep.type || "series", ep.id, function() {}, function(rows) {
+                if (myGen !== root.adjacentResolveGen)
+                    return
+                if (rows && rows.length) startWith(rows)
+                else Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
+            })
+        } else {
+            Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
+        }
     }
 
     // Harbor's "Up Next": when an episode ends and a next one exists, show a visible
