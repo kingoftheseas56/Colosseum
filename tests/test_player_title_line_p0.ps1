@@ -21,6 +21,10 @@ Assert-Contains $player 'root.mediaTransport = "Torrent stream"' `
     "Torrent transport must still be recorded (as the fallback tail)."
 Assert-Contains $series '"year": page.year' `
     "TheatreSeries must hand the year to the player's playback context."
+# Year rides EVERY playback context: episode-queue return, movie play, and both
+# inline adjacent contexts. Pinned at the real count (4) so a dropped site fails.
+$yearHands = [regex]::Matches($series, '"year": page\.year').Count
+if ($yearHands -lt 4) { throw "TheatreSeries must hand year on every playback context (episode queue, movie play, both inline adjacents); found $yearHands." }
 
 # General sweep: NO direct string writes to mediaSubtitle anywhere - every transport
 # label must route through mediaTransport + updateMediaSubtitle(). (The legitimate

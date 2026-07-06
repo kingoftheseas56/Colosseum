@@ -1155,8 +1155,13 @@ Item {
         // sources before rebuilding the line. recordProgress() bails on an empty
         // mediaId, so this also stops the previous media's Continue card from being
         // overwritten by identity-less playback (it was — stale id + stale resume).
+        // The candidate list goes too (mirrors playLocalFile) — otherwise
+        // updateMediaSubtitle prefers the previous stream's quality/sourceName
+        // over this playback's transport.
         root.mediaId = ""
         root.mediaYear = ""
+        root.streamCandidates = []
+        root.currentStreamIndex = -1
         root.updateMediaSubtitle()
         root.currentPlaybackUrl = url || ""
         root.errored = false

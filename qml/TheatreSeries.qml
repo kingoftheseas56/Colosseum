@@ -210,10 +210,10 @@ Item {
             "episodeIndex": idx,
             "adjacentEpisodes": {
                 "prev": idx > 0 ? Object.assign(shallowEpisodeTarget(episodes[idx - 1]),
-                                                { "context": { "episodeQueue": queue, "episodeIndex": idx - 1 } }) : null,
+                                                { "context": { "year": page.year, "episodeQueue": queue, "episodeIndex": idx - 1 } }) : null,
                 "next": (idx >= 0 && idx + 1 < episodes.length)
                         ? Object.assign(shallowEpisodeTarget(episodes[idx + 1]),
-                                        { "context": { "episodeQueue": queue, "episodeIndex": idx + 1 } }) : null
+                                        { "context": { "year": page.year, "episodeQueue": queue, "episodeIndex": idx + 1 } }) : null
             }
         };
     }
@@ -585,6 +585,7 @@ Item {
                                 onExited: parent.opacity = 1.0
                                 onClicked: sources.show("movie", page.currentId(), page.title, {
                                                             "title": page.title,
+                                                            "year": page.year,
                                                             "metaLine": page.sourceMetaLine(),
                                                             "backdrop": page.sourceBackdrop()
                                                         })
