@@ -95,6 +95,12 @@ public:
     Q_PROPERTY(QUrl currentUrl READ currentUrl NOTIFY currentUrlChanged)
     QUrl currentUrl() const;
 
+    Q_PROPERTY(double cacheTime READ cacheTime NOTIFY cacheTimeChanged)
+    double cacheTime() const;
+
+    Q_PROPERTY(bool coreSeeking READ coreSeeking NOTIFY coreSeekingChanged)
+    bool coreSeeking() const;
+
     Q_INVOKABLE void loadFile(const QString &file);
     Q_INVOKABLE void seekExact(double value);
     Q_INVOKABLE void seekStep(double delta);
@@ -125,6 +131,8 @@ Q_SIGNALS:
     void audioDelayChanged();
     void subDelayChanged();
     void videoFillChanged();
+    void cacheTimeChanged();
+    void coreSeekingChanged();
 
     void fileStarted();
     void fileLoaded();
@@ -152,6 +160,8 @@ private:
     QString m_formattedDuration;
     QUrl m_currentUrl;
     QVariantList m_trackList;
+    double m_cacheTime = 0.0;
+    bool m_coreSeeking = false;
     QTimer m_gifTimer;
     QString m_gifTempDir;
     int m_gifFrame{0};

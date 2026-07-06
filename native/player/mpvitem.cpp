@@ -35,6 +35,8 @@ MpvItem::MpvItem(QQuickItem *parent)
     observeProperty(MpvProperties::self()->Panscan, MPV_FORMAT_DOUBLE);
     observeProperty(MpvProperties::self()->VideoZoom, MPV_FORMAT_DOUBLE);
     observeProperty(MpvProperties::self()->VideoAspectOverride, MPV_FORMAT_STRING);
+    observeProperty(QStringLiteral("demuxer-cache-time"), MPV_FORMAT_DOUBLE);
+    observeProperty(QStringLiteral("seeking"), MPV_FORMAT_FLAG);
 
     setupConnections();
 
@@ -133,6 +135,14 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
                || property == MpvProperties::self()->VideoZoom
                || property == MpvProperties::self()->VideoAspectOverride) {
         Q_EMIT videoFillChanged();
+
+    } else if (property == QLatin1String("demuxer-cache-time")) {
+        m_cacheTime = value.toDouble();
+        Q_EMIT cacheTimeChanged();
+
+    } else if (property == QLatin1String("seeking")) {
+        m_coreSeeking = value.toBool();
+        Q_EMIT coreSeekingChanged();
     }
 }
 
@@ -351,6 +361,16 @@ void MpvItem::setPosition(double value)
 double MpvItem::duration()
 {
     return getProperty(MpvProperties::self()->Duration).toDouble();
+}
+
+double MpvItem::cacheTime() const
+{
+    return m_cacheTime;
+}
+
+bool MpvItem::coreSeeking() const
+{
+    return m_coreSeeking;
 }
 
 bool MpvItem::pause()
