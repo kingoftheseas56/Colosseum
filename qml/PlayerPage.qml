@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 // Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI.
 import QtQuick
 import QtQuick.Window
+import QtCore
 import Colosseum.Player
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
@@ -12,6 +13,13 @@ Item {
     id: root
     anchors.fill: parent
     focus: true
+
+    Settings {
+        id: playerSettings
+        location: Qt.resolvedUrl("../player.ini")
+        category: "transport"
+        property int seekStepSeconds: 10
+    }
 
     property Item backdrop
     property string mediaTitle: ""
@@ -294,8 +302,8 @@ Item {
         if (root.seekSettling) return root.seekTargetSec
         return mpv.position
     }
-    property real seekBackSeconds: 10
-    property real seekForwardSeconds: 10
+    property real seekBackSeconds: playerSettings.seekStepSeconds
+    property real seekForwardSeconds: playerSettings.seekStepSeconds
     property real spaceBaseSpeed: 1
     property bool spaceHoldFired: false
     property int fillModeIndex: 0
@@ -4008,7 +4016,10 @@ Item {
             visible: sm.panelOpen
             z: 40
             width: 420
-            height: 54 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
+            // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
+            readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
+            readonly property int skipStepTop: columnsHeight + 8
+            height: skipStepTop + 66
             onVisibleChanged: if (visible) {
                 var p = sm.mapToItem(chrome, 0, 0)
                 x = p.x + sm.width - width
@@ -4047,7 +4058,7 @@ Item {
                 x: parent.width / 2
                 y: 8
                 width: 1
-                height: parent.height - 16
+                height: parent.columnsHeight - 16
                 color: Qt.rgba(1, 1, 1, 0.10)
             }
             Repeater {
@@ -4175,6 +4186,50 @@ Item {
                     onClicked: {
                         root.cancelSleepTimer()
                         sm.panelOpen = false
+                    }
+                }
+            }
+            Rectangle {
+                x: 18
+                y: parent.columnsHeight
+                width: parent.width - 36
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.10)
+            }
+            Text {
+                x: 18
+                y: parent.skipStepTop
+                text: "Skip step"
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 12
+            }
+            Row {
+                x: 18
+                y: parent.skipStepTop + 22
+                spacing: 6
+                Repeater {
+                    model: [5, 10, 30, 60]
+                    delegate: Rectangle {
+                        required property int modelData
+                        width: 46
+                        height: 28
+                        radius: 7
+                        color: playerSettings.seekStepSeconds === modelData ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.05)
+                        border.width: 1
+                        border.color: playerSettings.seekStepSeconds === modelData ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
+                        Text {
+                            anchors.centerIn: parent
+                            text: modelData + "s"
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 12
+                        }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: playerSettings.seekStepSeconds = modelData
+                        }
                     }
                 }
             }

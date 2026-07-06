@@ -13,6 +13,11 @@ mocks/*-shot.png
 # Cover art — fetched from remote URLs (Catalog.js) + cached to disk; not source
 assets/covers/
 
+# Per-machine settings (QtCore Settings ini) — Hemanth's local picks, not source.
+# wallpapers.ini stays untracked-but-unignored (pre-existing convention); player.ini
+# is new in this task so it goes in .gitignore straight away — never tempt a commit.
+player.ini
+
 # OS / editor cruft
 *.log
 Thumbs.db
