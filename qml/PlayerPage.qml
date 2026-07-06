@@ -69,6 +69,9 @@ Item {
     property int roomDriftToleranceSeconds: 3
     property bool castPanelOpen: false
     property bool overflowOpen: false
+    // Destructive-path guard: closing while media is actively playing asks once
+    // (spec 2026-07-06 slice 5 — minimize stays instant, paused/idle close is instant too).
+    property bool closeConfirmOpen: false
     property string currentPlaybackUrl: ""
     property bool liveGuideOpen: false
     property bool dvrPanelOpen: false
@@ -320,7 +323,7 @@ Item {
     readonly property real chromeVisibleHeight: height
     readonly property bool compact: chromeVisibleWidth < 1000
     readonly property bool tight: chromeVisibleWidth < 680
-    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen
+    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen || root.closeConfirmOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -1578,6 +1581,7 @@ Item {
         root.liveGuideOpen = false
         root.dvrPanelOpen = false
         root.overflowOpen = false
+        root.closeConfirmOpen = false
     }
     function wakeChrome() {
         root.controlsShown = true
@@ -2268,6 +2272,97 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.sendRoomChat()
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            id: closeConfirmPanel
+            visible: root.closeConfirmOpen
+            z: 10
+            anchors.centerIn: parent
+            width: 380
+            height: 150
+            radius: 18
+            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.95)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.12)
+
+            // Absorb background clicks (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+
+            Text {
+                x: 18
+                y: 16
+                text: "End this session?"
+                color: theme.ink
+                font.family: theme.ui
+                font.pixelSize: 16
+                font.weight: Font.DemiBold
+            }
+            Text {
+                x: 18
+                y: 46
+                width: parent.width - 36
+                text: "Your spot stays in Continue Watching."
+                color: theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+            }
+            Row {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: 16
+                anchors.bottomMargin: 14
+                spacing: 8
+                Rectangle {
+                    width: 130
+                    height: 34
+                    radius: 9
+                    color: keepArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06)
+                    border.width: 1
+                    border.color: Qt.rgba(1, 1, 1, 0.14)
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Keep watching"
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: 13
+                    }
+                    MouseArea {
+                        id: keepArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.closeConfirmOpen = false
+                    }
+                }
+                Rectangle {
+                    width: 110
+                    height: 34
+                    radius: 9
+                    color: endArea.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.12)
+                    border.width: 1
+                    border.color: theme.gold
+                    Text {
+                        anchors.centerIn: parent
+                        text: "End session"
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: 13
+                        font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        id: endArea
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            root.closeConfirmOpen = false
+                            root.closeRequested()
+                        }
                     }
                 }
             }
@@ -3600,13 +3695,17 @@ Item {
 
                     // close = end this watching session (Windows-window vocabulary; wired to
                     // closePlayerSession in the shell). [A5 addition riding A4's in-flight chrome]
+                    // Destructive-path guard (spec 2026-07-06 slice 5): ending a session while
+                    // media is actively playing asks once; paused/idle close is instant.
                     RoundButton {
                         size: 48
                         icon: "cancel"
                         tooltip: "Close"
                         onClicked: {
+                            var playing = root.fileReady && !mpv.pause
                             root.closeMenus()
-                            root.closeRequested()
+                            if (playing) { root.closeConfirmOpen = true; root.wakeChrome() }
+                            else root.closeRequested()
                         }
                     }
                 }
