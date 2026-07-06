@@ -286,6 +286,14 @@ Item {
     property bool controlsShown: true
     property bool seeking: false
     property real seekPreview: mpv.position
+    property real seekTargetSec: -1
+    readonly property bool seekSettling: seekTargetSec >= 0 && mpv.coreSeeking
+    // What the bar/dot/time should show right now: drag preview beats in-flight target beats truth.
+    function displayPosition() {
+        if (root.seeking) return root.seekPreview
+        if (root.seekSettling) return root.seekTargetSec
+        return mpv.position
+    }
     property real seekBackSeconds: 10
     property real seekForwardSeconds: 10
     property real spaceBaseSpeed: 1
@@ -1267,17 +1275,24 @@ Item {
     function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)) }
     function round2(v) { return Math.round(v * 100) / 100 }
     function seekFraction() {
-        var pos = root.seeking ? root.seekPreview : mpv.position
+        var pos = root.displayPosition()
         return mpv.duration > 0 ? root.clamp(pos / mpv.duration, 0, 1) : 0
     }
     function previewAt(mouseX, width) {
         return mpv.duration * root.clamp(mouseX / Math.max(1, width), 0, 1)
     }
     function seekTo(sec) {
-        mpv.seekExact(root.clamp(sec, 0, Math.max(0, mpv.duration)))
+        var target = root.clamp(sec, 0, Math.max(0, mpv.duration))
+        root.seekTargetSec = target
+        seekSettleGuard.restart()
+        mpv.seekExact(target)
         root.wakeChrome()
     }
     function seekStep(delta) {
+        if (mpv.duration > 0) {
+            root.seekTargetSec = root.clamp(mpv.position + delta, 0, mpv.duration)
+            seekSettleGuard.restart()
+        }
         mpv.seekStep(delta)
         root.wakeChrome()
     }
@@ -1689,6 +1704,7 @@ Item {
             root.detectStubStream()
         }
         onDurationChanged: root.detectStubStream()
+        onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }
     }
 
     SubStyleBar {
@@ -1749,6 +1765,13 @@ Item {
         interval: root.streamWatchdogSeconds * 1000
         repeat: false
         onTriggered: root.handleStreamWatchdog()
+    }
+
+    Timer {
+        id: seekSettleGuard
+        interval: 2000
+        repeat: false
+        onTriggered: root.seekTargetSec = -1
     }
 
     Timer {
@@ -3156,7 +3179,7 @@ Item {
                     width: tight ? 0 : 58
                     visible: !tight
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.fmtTime(root.seeking ? root.seekPreview : mpv.position)
+                    text: root.fmtTime(root.displayPosition())
                     color: theme.ink
                     font.family: "Consolas"
                     font.pixelSize: 13
@@ -3177,6 +3200,17 @@ Item {
                         color: Qt.rgba(1, 1, 1, 0.16)
                     }
                     Rectangle {
+                        // cacheTime is an ABSOLUTE cache-end timestamp (not a fraction);
+                        // 0.0 when the stream doesn't report it -> width 0 -> no fill, by design.
+                        anchors.left: parent.left
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: mpv.duration > 0 && isFinite(mpv.cacheTime) ? parent.width * root.clamp(mpv.cacheTime / mpv.duration, 0, 1) : 0
+                        height: seekBar.hovered || root.seeking ? 8 : 6
+                        radius: height / 2
+                        color: Qt.rgba(1, 1, 1, 0.30)
+                        visible: width > 2
+                    }
+                    Rectangle {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width * root.seekFraction()
@@ -3187,7 +3221,7 @@ Item {
                     Rectangle {
                         x: parent.width * root.seekFraction() - width / 2
                         anchors.verticalCenter: parent.verticalCenter
-                        width: root.seeking ? 20 : 16
+                        width: root.seeking || root.seekSettling ? 20 : 16
                         height: width
                         radius: width / 2
                         color: theme.gold
