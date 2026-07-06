@@ -11,8 +11,8 @@ function Assert-NotContains($text, $needle, $message) {
 }
 
 # Fullscreen-only shell: a fullscreen toggle and a floating PiP window both fight
-# the always-fullscreen model. Replace the fullscreen button with a Minimize
-# button (pauses + minimizes the app); remove the PiP button entirely.
+# the always-fullscreen model. The ONE minimize control is the top-left session
+# button (pauses, captures state, drops to the taskbar); remove the PiP button entirely.
 
 # --- ONE honest minimize: the top-left session control, nothing else ---
 Assert-Contains $player 'icon: "minimizeToBar"' `
@@ -27,6 +27,8 @@ Assert-NotContains $player 'kind === "minimize") {' `
     "The dock 'minimize' glyph branch must be gone (dock minimize removed)."
 Assert-NotContains $player 'keeps playing in the taskbar' `
     "The old overpromising tooltip must be gone."
+Assert-Contains $player 'if (!mpv.pause) { root.autoPausedInactive = true; mpv.pause = true }' `
+    "Minimize must pause before capturing session state."
 
 # --- Fullscreen button gone ---
 Assert-NotContains $player 'icon: "fullscreen"' `
