@@ -4200,9 +4200,12 @@ Item {
                 x: 18
                 y: parent.skipStepTop
                 text: "Skip step"
-                color: theme.inkDim
+                color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.6
             }
             Row {
                 x: 18
@@ -4215,7 +4218,7 @@ Item {
                         width: 46
                         height: 28
                         radius: 7
-                        color: playerSettings.seekStepSeconds === modelData ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.05)
+                        color: playerSettings.seekStepSeconds === modelData ? Qt.rgba(1, 1, 1, 0.16) : (pillArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05))
                         border.width: 1
                         border.color: playerSettings.seekStepSeconds === modelData ? theme.gold : Qt.rgba(1, 1, 1, 0.10)
                         Text {
@@ -4226,7 +4229,9 @@ Item {
                             font.pixelSize: 12
                         }
                         MouseArea {
+                            id: pillArea
                             anchors.fill: parent
+                            hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: playerSettings.seekStepSeconds = modelData
                         }
