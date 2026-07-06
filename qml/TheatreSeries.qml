@@ -205,6 +205,7 @@ Item {
         for (var i = 0; i < episodes.length; i++)
             queue.push(shallowEpisodeTarget(episodes[i]));
         return {
+            "year": page.year,
             "episodeQueue": queue,
             "episodeIndex": idx,
             "adjacentEpisodes": {

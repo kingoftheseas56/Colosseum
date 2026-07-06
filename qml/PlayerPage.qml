@@ -16,6 +16,8 @@ Item {
     property Item backdrop
     property string mediaTitle: ""
     property string mediaSubtitle: ""
+    property string mediaTransport: ""   // "Torrent stream" | "Direct stream" | "Downloaded" — the tail fallback
+    property string mediaYear: ""
     // --- continue/resume identity (set by openPlayer; fed to the Progress store) ---
     property string mediaId: ""           // stable id (Cinemeta ttXXXX if known, else infoHash)
     property string mediaArt: ""          // poster url, for the Continue card cover
@@ -449,7 +451,7 @@ Item {
                 if (!target)
                     return null
                 var out = Object.assign({}, target)
-                out.context = { "episodeQueue": queue, "episodeIndex": index }
+                out.context = { "year": ctx.year || "", "episodeQueue": queue, "episodeIndex": index }
                 return out
             }
             return {
@@ -503,12 +505,14 @@ Item {
                       : (String(c.infoHash || "").indexOf("url:") === 0
                          ? String(c.infoHash).substring(4) : "")
         if (directUrl.length) {
-            root.mediaSubtitle = "Direct stream"
+            root.mediaTransport = "Direct stream"
             root.currentPlaybackUrl = directUrl
+            root.updateMediaSubtitle()
             mpv.loadFile(directUrl)
             return
         }
-        root.mediaSubtitle = "Torrent stream"
+        root.mediaTransport = "Torrent stream"
+        root.updateMediaSubtitle()
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
@@ -518,7 +522,8 @@ Item {
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
         root.mediaTitle = title || ""
-        root.mediaSubtitle = "Torrent stream"
+        root.mediaTransport = "Torrent stream"
+        root.mediaYear = String((playbackContext || ({})).year || "")
         root.mediaArt = posterUrl || ""
         // Stable id: series episodes use the exact stream id (tt:season:episode) so the
         // detail page can paint per-episode progress; movies keep the base Cinemeta id.
@@ -532,6 +537,7 @@ Item {
         root.streamCandidates = root.normalizeStreamCandidates(infoHash, fileIdx, title, streamCandidates)
         root.currentStreamIndex = root.findStreamIndex(infoHash, fileIdx)
         root.adjacentEpisodes = root.resolveAdjacentContext(playbackContext)
+        root.updateMediaSubtitle()
         // Online subtitles for this exact title/episode (Harbor-style).
         root.subStreamType = subType || ""
         root.subStreamId = subId || ""
@@ -1143,7 +1149,8 @@ Item {
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
         root.mediaTitle = title || ""
-        root.mediaSubtitle = "Direct file"
+        root.mediaTransport = "Direct file"
+        root.updateMediaSubtitle()
         root.currentPlaybackUrl = url || ""
         root.errored = false
         root.starting = true
@@ -1170,10 +1177,12 @@ Item {
         root.currentStreamIndex = -1
         root.adjacentEpisodes = ({})
         root.mediaTitle = t.title || ""
-        root.mediaSubtitle = "Downloaded"
+        root.mediaTransport = "Downloaded"
+        root.mediaYear = String(t.year || "")
         root.mediaArt = t.art || ""
         root.mediaLocalPath = String(t.localPath || "")
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
+        root.updateMediaSubtitle()
         root.mediaResumeHash = ""
         root.mediaResumeFileIdx = 0
         root.currentPlaybackUrl = root.mediaLocalPath
@@ -1189,6 +1198,23 @@ Item {
         root.wakeChrome()
         root.forceActiveFocus()
         mpv.loadFile(root.mediaLocalPath)
+    }
+
+    // Title's second line: WHAT you're watching, not just how it arrived.
+    // "S2 E5 · 2019 · 1080p · Torrentio" — parts drop out silently when unknown;
+    // worst case this reads exactly like the old transport-only line. Never blank
+    // while a transport is known.
+    function updateMediaSubtitle() {
+        var parts = []
+        var m = String(root.mediaId || "").match(/^tt\d+:(\d+):(\d+)$/)
+        if (m) parts.push("S" + m[1] + " E" + m[2])
+        if (root.mediaYear.length) parts.push(root.mediaYear)
+        var c = (root.currentStreamIndex >= 0 && root.currentStreamIndex < root.streamCandidates.length)
+                ? root.streamCandidates[root.currentStreamIndex] : null
+        if (c && c.quality && String(c.quality).length) parts.push(String(c.quality))
+        var tail = (c && c.sourceName && String(c.sourceName).length) ? String(c.sourceName) : root.mediaTransport
+        if (tail && tail.length && parts.indexOf(tail) < 0) parts.push(tail)
+        root.mediaSubtitle = parts.join(" · ")
     }
 
     // Session precision (Main.qml's pre-wired "Task 5" hooks): minimize captures the exact
