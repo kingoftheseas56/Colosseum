@@ -68,6 +68,7 @@ Item {
     property string roomChatDraft: ""
     property int roomDriftToleranceSeconds: 3
     property bool castPanelOpen: false
+    property bool overflowOpen: false
     property string currentPlaybackUrl: ""
     property bool liveGuideOpen: false
     property bool dvrPanelOpen: false
@@ -319,7 +320,7 @@ Item {
     readonly property real chromeVisibleHeight: height
     readonly property bool compact: chromeVisibleWidth < 1000
     readonly property bool tight: chromeVisibleWidth < 680
-    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen
+    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -1576,6 +1577,7 @@ Item {
         root.castPanelOpen = false
         root.liveGuideOpen = false
         root.dvrPanelOpen = false
+        root.overflowOpen = false
     }
     function wakeChrome() {
         root.controlsShown = true
@@ -2266,6 +2268,81 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.sendRoomChat()
+                    }
+                }
+            }
+        }
+
+        Rectangle {
+            id: overflowPanel
+            visible: root.overflowOpen
+            z: 9
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: tight ? 14 : 22
+            anchors.bottomMargin: 96
+            width: 300
+            height: overflowColumn.childrenRect.height + 30
+            radius: 18
+            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.95)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.12)
+
+            // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+
+            Column {
+                id: overflowColumn
+                x: 16
+                y: 15
+                width: parent.width - 32
+                spacing: 10
+
+                Text {
+                    text: "More controls"
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.pixelSize: 15
+                    font.weight: Font.DemiBold
+                }
+
+                VolumeControl { visible: root.tight }
+
+                Repeater {
+                    model: [
+                        { "label": "Audio tracks", "kind": "audio", "when": root.tight },
+                        { "label": "Speed", "kind": "speed", "when": root.compact },
+                        { "label": "Picture", "kind": "fill", "when": root.compact }
+                    ]
+                    delegate: Rectangle {
+                        required property var modelData
+                        visible: modelData.when
+                        width: overflowColumn.width
+                        height: 40
+                        radius: 9
+                        color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.04)
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: 12
+                            text: modelData.label
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                        }
+                        MouseArea {
+                            id: rowArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                var kind = modelData.kind
+                                root.closeMenus()
+                                if (kind === "audio") audioMenu.panelOpen = true
+                                else if (kind === "speed") speedMenu.panelOpen = true
+                                else if (kind === "fill") fillMenu.panelOpen = true
+                                root.wakeChrome()
+                            }
+                        }
                     }
                 }
             }
@@ -3389,7 +3466,7 @@ Item {
 
                     AudioMenu {
                         id: audioMenu
-                        visible: !tight
+                        visible: !tight || audioMenu.panelOpen
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
                             audioMenu.panelOpen = !wasOpen
@@ -3444,12 +3521,12 @@ Item {
 
                     SpeedMenuButton {
                         id: speedMenu
-                        visible: !compact
+                        visible: !compact || speedMenu.panelOpen
                     }
 
                     FillMenuButton {
                         id: fillMenu
-                        visible: !compact
+                        visible: !compact || fillMenu.panelOpen
                     }
 
                     ToolsMenu {
@@ -3503,6 +3580,22 @@ Item {
                               "enabled": (typeof Live !== "undefined" && Live.isLive),
                               "trigger": function() { root.goLiveEdge() } }
                         ]
+                    }
+
+                    // Narrow player folds hidden controls (audio/speed/picture/volume) here
+                    // instead of deleting them (parity spec slice 3, 2026-07-06).
+                    RoundButton {
+                        visible: compact
+                        size: 48
+                        icon: "more"
+                        tooltip: "More controls"
+                        active: root.overflowOpen
+                        onClicked: {
+                            var wasOpen = root.overflowOpen
+                            root.closeMenus()
+                            root.overflowOpen = !wasOpen
+                            root.wakeChrome()
+                        }
                     }
 
                     // close = end this watching session (Windows-window vocabulary; wired to
