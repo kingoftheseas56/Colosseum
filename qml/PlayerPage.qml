@@ -1865,8 +1865,8 @@ Item {
         }
         if (event.key === Qt.Key_Left) { event.accepted = true; root.seekStep(-root.seekBackSeconds); return }
         if (event.key === Qt.Key_Right) { event.accepted = true; root.seekStep(root.seekForwardSeconds); return }
-        if (event.key === Qt.Key_Comma) { event.accepted = true; root.seekStep(-30); return }
-        if (event.key === Qt.Key_Period) { event.accepted = true; root.seekStep(30); return }
+        if (event.key === Qt.Key_Comma) { event.accepted = true; if (mpv.pause) mpv.frameBackStep(); else root.seekStep(-30); return }
+        if (event.key === Qt.Key_Period) { event.accepted = true; if (mpv.pause) mpv.frameStep(); else root.seekStep(30); return }
         if (event.key === Qt.Key_Home) { event.accepted = true; root.seekTo(0); return }
         if (event.key === Qt.Key_End && mpv.duration > 0) { event.accepted = true; root.seekTo(mpv.duration - 0.5); return }
         if (event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {

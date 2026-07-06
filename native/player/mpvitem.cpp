@@ -198,6 +198,16 @@ void MpvItem::seekStep(double delta)
     seekExact(position() + delta);
 }
 
+void MpvItem::frameStep()
+{
+    command(QStringList() << QStringLiteral("frame-step"));
+}
+
+void MpvItem::frameBackStep()
+{
+    command(QStringList() << QStringLiteral("frame-back-step"));
+}
+
 void MpvItem::addSubtitle(const QString &url, const QString &title, const QString &lang, bool select)
 {
     if (url.isEmpty())
