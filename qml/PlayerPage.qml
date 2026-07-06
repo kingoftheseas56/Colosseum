@@ -2284,7 +2284,7 @@ Item {
                         x: 54
                         y: 10
                         width: parent.width - 70
-                        text: modelData.name || "Cast device"
+                        text: modelData.name || "Share target"
                         color: theme.ink
                         font.family: theme.ui
                         font.pixelSize: 13
@@ -2360,7 +2360,7 @@ Item {
                 spacing: 1
                 Text {
                     width: parent.width
-                    text: "Casting to"
+                    text: "Sharing to"
                     color: theme.inkDimmer
                     font.family: theme.ui
                     font.pixelSize: 10
@@ -2399,7 +2399,7 @@ Item {
                     onClicked: root.seekCast(15)
                 }
                 RoomActionButton {
-                    label: "Stop casting"
+                    label: "Stop sharing"
                     onClicked: root.stopCast()
                 }
             }
