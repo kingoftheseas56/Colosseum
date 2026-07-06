@@ -1038,17 +1038,16 @@ Item {
         gifElapsedTimer.restart()
         root.wakeChrome()
     }
+    // Encode runs off the UI thread now: this only kicks it off. The "encoding" pill
+    // stays up until mpv's gifSaved/gifFailed signal lands (handlers on the MpvItem).
     function stopGifRecording() {
         if (root.gifState !== "recording")
             return
         gifElapsedTimer.stop()
         root.gifState = "encoding"
         root.wakeChrome()
-        var path = mpv.stopGifRecording(root.mediaTitle || mpv.mediaTitle || "Video",
-                                        root.mediaSubtitle || root.fmtTime(mpv.position))
-        root.gifState = "idle"
-        root.gifElapsedSec = 0
-        root.showGifToast(!!path && String(path).length > 0, path || "")
+        mpv.stopGifRecording(root.mediaTitle || mpv.mediaTitle || "Video",
+                             root.mediaSubtitle || root.fmtTime(mpv.position))
     }
     function abortGifRecording() {
         if (root.gifState === "idle")
@@ -1735,6 +1734,16 @@ Item {
                 root.wakeChrome()
             root.syncPowerInhibit()
             root.detectStubStream()
+        }
+        onGifSaved: function(path) {
+            root.gifState = "idle"
+            root.gifElapsedSec = 0
+            root.showGifToast(true, path)
+        }
+        onGifFailed: {
+            root.gifState = "idle"
+            root.gifElapsedSec = 0
+            root.showGifToast(false, "")
         }
         onDurationChanged: root.detectStubStream()
         onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }

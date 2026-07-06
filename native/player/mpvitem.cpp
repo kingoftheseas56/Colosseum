@@ -284,6 +284,8 @@ void MpvItem::revealCaptureFolder(const QString &path)
 
 bool MpvItem::startGifRecording()
 {
+    if (m_gifEncoding)      // one encode at a time; the temp dir is FFmpeg's until it finishes
+        return false;
     if (m_gifRecording)
         return true;
     cleanGifTemp();
@@ -302,21 +304,23 @@ bool MpvItem::startGifRecording()
     return true;
 }
 
-QString MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
+void MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
 {
-    if (!m_gifRecording)
-        return QString();
+    if (!m_gifRecording)    // not-recording is a no-op, not a failure — no toast on stray calls
+        return;
     m_gifTimer.stop();
     m_gifRecording = false;
     if (m_gifFrame < 2) {
         cleanGifTemp();
-        return QString();
+        Q_EMIT gifFailed();
+        return;
     }
 
     const QString ffmpeg = findFfmpeg();
     if (ffmpeg.isEmpty()) {
         cleanGifTemp();
-        return QString();
+        Q_EMIT gifFailed();
+        return;
     }
 
     const QString outDir = gifOutputDirectory();
@@ -333,18 +337,47 @@ QString MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
          << QStringLiteral("-vf") << QStringLiteral("fps=10,scale=640:-2:flags=lanczos")
          << QDir::toNativeSeparators(outPath);
 
-    QProcess ff;
-    ff.start(ffmpeg, args);
-    if (!ff.waitForFinished(60000) || ff.exitStatus() != QProcess::NormalExit || ff.exitCode() != 0) {
+    if (m_gifEncoding) {          // one encode at a time; no queue in v1
         cleanGifTemp();
-        return QString();
+        Q_EMIT gifFailed();
+        return;
     }
-    cleanGifTemp();
-    return QDir::toNativeSeparators(outPath);
+
+    m_gifEncoding = true;
+    Q_EMIT gifEncodingChanged();
+
+    // Async encode: the app stays responsive; QML holds its "encoding" state until
+    // gifSaved/gifFailed lands. FailedToStart never reaches finished(), so exactly one
+    // of the two handlers below cleans up and emits.
+    auto *ff = new QProcess(this);
+    connect(ff, &QProcess::finished, this,
+            [this, ff, outPath](int code, QProcess::ExitStatus st) {
+        ff->deleteLater();
+        cleanGifTemp();
+        m_gifEncoding = false;
+        Q_EMIT gifEncodingChanged();
+        if (st == QProcess::NormalExit && code == 0)
+            Q_EMIT gifSaved(QDir::toNativeSeparators(outPath));
+        else
+            Q_EMIT gifFailed();
+    });
+    connect(ff, &QProcess::errorOccurred, this,
+            [this, ff](QProcess::ProcessError err) {
+        if (err != QProcess::FailedToStart)   // finished() covers the rest
+            return;
+        ff->deleteLater();
+        cleanGifTemp();
+        m_gifEncoding = false;
+        Q_EMIT gifEncodingChanged();
+        Q_EMIT gifFailed();
+    });
+    ff->start(ffmpeg, args);
 }
 
 void MpvItem::abortGifRecording()
 {
+    if (m_gifEncoding)      // encode owns the temp frames; nothing left to abort anyway
+        return;
     m_gifTimer.stop();
     m_gifRecording = false;
     cleanGifTemp();
@@ -381,6 +414,11 @@ double MpvItem::cacheTime() const
 bool MpvItem::coreSeeking() const
 {
     return m_coreSeeking;
+}
+
+bool MpvItem::gifEncoding() const
+{
+    return m_gifEncoding;
 }
 
 bool MpvItem::pause()

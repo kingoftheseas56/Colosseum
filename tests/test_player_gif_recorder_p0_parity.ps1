@@ -14,8 +14,8 @@ function Assert-Contains($text, $needle, $message) {
 # Harbor parity P0: player quick tools need GIF clip recording with start/stop/abort and toast feedback.
 Assert-Contains $mpvHeader "Q_INVOKABLE bool startGifRecording" `
     "MpvItem must expose GIF recording start."
-Assert-Contains $mpvHeader "Q_INVOKABLE QString stopGifRecording" `
-    "MpvItem must expose GIF recording stop/export."
+Assert-Contains $mpvHeader "Q_INVOKABLE void stopGifRecording" `
+    "MpvItem must expose GIF recording stop/export (async; result via gifSaved/gifFailed)."
 Assert-Contains $mpvHeader "Q_INVOKABLE void abortGifRecording" `
     "MpvItem must expose GIF recording abort."
 Assert-Contains $mpvSource "gifCaptureFrame" `
@@ -49,9 +49,9 @@ Assert-Contains $player "GIF export failed" `
     "PlayerPage must show failed GIF feedback."
 Assert-Contains $player "Recording GIF" `
     "PlayerPage must show an active recording pill."
-Assert-Contains $player "tooltip: `"Record GIF`"" `
-    "Transport controls must expose a GIF recording action."
-Assert-Contains $player "icon: `"gif`"" `
-    "Transport controls must render a GIF icon."
+Assert-Contains $player "Record GIF" `
+    "Player quick tools must expose a GIF recording action."
+Assert-Contains $player "`"icon`": `"gif`"" `
+    "Player quick tools must render a GIF icon."
 
 Write-Host "Player GIF recorder P0 parity contract checks passed."

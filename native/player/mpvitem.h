@@ -101,6 +101,10 @@ public:
     Q_PROPERTY(bool coreSeeking READ coreSeeking NOTIFY coreSeekingChanged)
     bool coreSeeking() const;
 
+    // True while FFmpeg is turning captured frames into a GIF in the background.
+    Q_PROPERTY(bool gifEncoding READ gifEncoding NOTIFY gifEncodingChanged)
+    bool gifEncoding() const;
+
     Q_INVOKABLE void loadFile(const QString &file);
     Q_INVOKABLE void seekExact(double value);
     Q_INVOKABLE void seekStep(double delta);
@@ -115,7 +119,9 @@ public:
     Q_INVOKABLE QString captureFrame(const QString &title = QString(), const QString &subtitle = QString());
     Q_INVOKABLE void revealCaptureFolder(const QString &path = QString());
     Q_INVOKABLE bool startGifRecording();
-    Q_INVOKABLE QString stopGifRecording(const QString &title = QString(), const QString &subtitle = QString());
+    // Kicks off the FFmpeg encode asynchronously; the result arrives via
+    // gifSaved(path) / gifFailed() — never blocks the UI thread.
+    Q_INVOKABLE void stopGifRecording(const QString &title = QString(), const QString &subtitle = QString());
     Q_INVOKABLE void abortGifRecording();
 
 Q_SIGNALS:
@@ -135,6 +141,9 @@ Q_SIGNALS:
     void videoFillChanged();
     void cacheTimeChanged();
     void coreSeekingChanged();
+    void gifEncodingChanged();
+    void gifSaved(QString path);
+    void gifFailed();
 
     void fileStarted();
     void fileLoaded();
@@ -169,6 +178,7 @@ private:
     int m_gifFrame{0};
     qint64 m_gifStartedAt{0};
     bool m_gifRecording{false};
+    bool m_gifEncoding{false};
 };
 
 #endif // COLOSSEUM_MPVITEM_H
