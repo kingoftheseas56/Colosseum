@@ -2275,14 +2275,14 @@ Item {
 
         Rectangle {
             id: overflowPanel
-            visible: root.overflowOpen
+            visible: root.overflowOpen && root.compact
             z: 9
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             anchors.rightMargin: tight ? 14 : 22
-            anchors.bottomMargin: 96
+            anchors.bottomMargin: 102
             width: 300
-            height: overflowColumn.childrenRect.height + 30
+            height: overflowColumn.implicitHeight + 30
             radius: 18
             color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.95)
             border.width: 1
