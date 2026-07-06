@@ -2001,7 +2001,7 @@ Item {
                 anchors.left: roomTitle.right
                 anchors.leftMargin: 10
                 anchors.verticalCenter: roomTitle.verticalCenter
-                text: (typeof Room !== "undefined" && Room.active) ? Room.roomId : "Local"
+                text: (typeof Room !== "undefined" && Room.active) ? Room.roomId : "Local preview"
                 color: theme.inkDimmer
                 font.family: theme.ui
                 font.pixelSize: 12
@@ -2040,7 +2040,7 @@ Item {
                 width: parent.width - 36
                 text: (typeof Room !== "undefined" && Room.active)
                       ? (Room.isHost ? "Host controls this synced session." : "Following host playback.")
-                      : "Create a local room to sync playback state."
+                      : "Local preview — watching together across devices comes later. Create a local room to try the controls."
                 color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 13
@@ -2213,7 +2213,7 @@ Item {
                 id: castTitle
                 x: 18
                 y: 15
-                text: "Cast to TV or speaker"
+                text: "Share this stream"
                 color: theme.ink
                 font.family: theme.ui
                 font.pixelSize: 15
@@ -2225,7 +2225,7 @@ Item {
                 width: parent.width - 36
                 text: (typeof Cast !== "undefined" && Cast.localServerUrl.length)
                       ? ("Local server: " + Cast.localServerUrl)
-                      : "Scanning your network..."
+                      : "Preparing share link..."
                 color: theme.inkDimmer
                 font.family: theme.ui
                 font.pixelSize: 11
@@ -2238,7 +2238,7 @@ Item {
                 visible: typeof Cast !== "undefined" && Cast.scanning
                 x: 18
                 y: 94
-                text: "Scanning your network..."
+                text: "Preparing share link..."
                 color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 13
@@ -2249,7 +2249,7 @@ Item {
                 x: 18
                 y: 94
                 width: parent.width - 36
-                text: "No Chromecast, DLNA, or Roku devices found. Make sure your TV is on, woken up, and on the same Wi-Fi."
+                text: "Shares a link that other apps and devices on your network can open. Real casting (Chromecast, DLNA, Roku) comes later."
                 color: theme.inkDim
                 font.family: theme.ui
                 font.pixelSize: 13
@@ -3379,7 +3379,7 @@ Item {
                               } },
                             { "icon": "draw", "label": "Draw", "active": root.drawMode, "enabled": true,
                               "trigger": function() { root.toggleDrawMode() } },
-                            { "icon": "cast", "label": "Cast to device",
+                            { "icon": "cast", "label": "Share stream",
                               "active": root.castPanelOpen || (typeof Cast !== "undefined" && Cast.active), "enabled": true,
                               "trigger": function() {
                                   var wasOpen = root.castPanelOpen
