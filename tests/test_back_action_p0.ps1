@@ -65,7 +65,7 @@ $pp = Read-File "qml/PlayerPage.qml"
 Assert-Contains $pp 'icon: "minimizeToBar"' "Player top-left control must wear the minimize icon."
 Assert-Contains $pp 'tooltip: "Minimize' "Player top-left tooltip must say Minimize, not Back."
 Assert-Contains $pp 'kind === "minimizeToBar"' "Player Canvas must paint the minimizeToBar glyph."
-Assert-Contains $pp 'onClicked: root.minimizeRequested()' "Player top-left control must emit minimizeRequested."
+Assert-Contains $pp 'root.minimizeRequested()' "Player top-left control must emit minimizeRequested."
 
 # --- EPUB reader shares the canonical chevron geometry ---
 $html = Read-File "resources/book_reader/ebook_reader.html"

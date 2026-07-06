@@ -103,14 +103,14 @@ Assert-Contains $player "Cast.pause" `
     "PlayerPage must call Cast.pause."
 Assert-Contains $player "Cast.seek" `
     "PlayerPage must call Cast.seek."
-Assert-Contains $player "Cast to TV or speaker" `
-    "PlayerPage must expose Harbor's cast menu language."
-Assert-Contains $player "No Chromecast, DLNA, or Roku devices found" `
-    "PlayerPage must explain the empty cast-device state."
-Assert-Contains $player "Casting to" `
-    "PlayerPage must expose a cast session bar."
-Assert-Contains $player "Stop casting" `
-    "PlayerPage must expose stop casting."
+Assert-Contains $player "Share this stream" `
+    "Cast panel must carry the honest share title."
+Assert-Contains $player "Shares a link that other apps and devices on your network can open" `
+    "PlayerPage must explain the empty state honestly (link sharing, not device scan)."
+Assert-Contains $player "Sharing to" `
+    "PlayerPage must expose the share session bar with honest copy."
+Assert-Contains $player "Stop sharing" `
+    "PlayerPage must expose stop sharing."
 Assert-Contains $player "icon: `"cast`"" `
     "PlayerPage chrome must expose a cast action."
 
