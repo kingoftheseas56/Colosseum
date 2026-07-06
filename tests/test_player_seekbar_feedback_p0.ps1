@@ -15,5 +15,7 @@ Assert-Contains $player 'seekSettling' `
     "A settling state must drive the dot/time while a seek is in flight."
 Assert-Contains $player 'seekSettleGuard' `
     "A guard timer must clear a target mpv never acknowledges."
+Assert-Contains $player 'root.fmtTime(root.displayPosition())' `
+    "The elapsed-time readout must consume displayPosition (wiring, not just machinery)."
 
 Write-Host "Player seek bar feedback contract checks passed."

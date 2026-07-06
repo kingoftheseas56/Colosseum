@@ -871,7 +871,7 @@ Item {
 
     function goLiveEdge() {
         if (mpv.duration > 0)
-            mpv.seekExact(Math.max(0, mpv.duration - 1))
+            root.seekTo(Math.max(0, mpv.duration - 1))
         root.wakeChrome()
     }
 
@@ -1767,6 +1767,7 @@ Item {
         onTriggered: root.handleStreamWatchdog()
     }
 
+    // 2s = longest a never-acknowledged seek may pin the display before falling back to truth
     Timer {
         id: seekSettleGuard
         interval: 2000
