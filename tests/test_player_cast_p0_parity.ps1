@@ -111,7 +111,7 @@ Assert-Contains $player "Sharing to" `
     "PlayerPage must expose the share session bar with honest copy."
 Assert-Contains $player "Stop sharing" `
     "PlayerPage must expose stop sharing."
-Assert-Contains $player "icon: `"cast`"" `
+Assert-Contains $player "`"icon`": `"cast`"" `
     "PlayerPage chrome must expose a cast action."
 
 Write-Host "Player cast P0 parity contract checks passed."
