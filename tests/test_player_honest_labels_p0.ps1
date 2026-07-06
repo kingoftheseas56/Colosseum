@@ -19,17 +19,21 @@ Assert-Contains $player 'Share this stream' `
     "Cast panel must carry the honest 'Share this stream' title."
 Assert-NotContains $player 'No Chromecast, DLNA, or Roku devices found' `
     "Empty-state must not name receiver tech the backend cannot drive."
-Assert-NotContains $player 'Stop casting' `
+Assert-NotContains $player '"Stop casting"' `
     "Active-session copy must say sharing, not casting."
 Assert-Contains $player '"Stop sharing"' `
     "The active share session must offer 'Stop sharing'."
 Assert-NotContains $player '"Casting to"' `
     "Session bar header must say 'Sharing to'."
+Assert-Contains $player 'function shareTargetName' `
+    "The synthetic Manual receiver name must be mapped to honest share copy."
+Assert-Contains $player 'Share link (this network)' `
+    "The share target must present as this network's share link."
 
 # Watch room backend is local-only — the panel must say so.
 Assert-Contains $player 'Local preview' `
     "Room panel must badge itself 'Local preview'."
-Assert-Contains $player 'comes later' `
+Assert-Contains $player 'watching together across devices comes later' `
     "Room panel must state multi-device rooms come later."
 
 Write-Host "Player honest-labels contract checks passed."

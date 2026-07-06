@@ -752,6 +752,15 @@ Item {
         root.wakeChrome()
     }
 
+    // The backend's synthetic "Manual receiver" is an implementation detail —
+    // on screen the share target is this device's network link.
+    function shareTargetName(name) {
+        var n = String(name || "")
+        if (!n.length || n === "Manual receiver")
+            return "Share link (this network)"
+        return n
+    }
+
     function currentCastUrl() {
         if (root.currentPlaybackUrl.length)
             return root.currentPlaybackUrl
@@ -2224,7 +2233,7 @@ Item {
                 y: 43
                 width: parent.width - 36
                 text: (typeof Cast !== "undefined" && Cast.localServerUrl.length)
-                      ? ("Local server: " + Cast.localServerUrl)
+                      ? ("Share link: " + Cast.localServerUrl)
                       : "Preparing share link..."
                 color: theme.inkDimmer
                 font.family: theme.ui
@@ -2284,7 +2293,7 @@ Item {
                         x: 54
                         y: 10
                         width: parent.width - 70
-                        text: modelData.name || "Share target"
+                        text: root.shareTargetName(modelData.name)
                         color: theme.ink
                         font.family: theme.ui
                         font.pixelSize: 13
@@ -2318,7 +2327,7 @@ Item {
                 anchors.bottomMargin: 14
                 spacing: 8
                 RoomActionButton {
-                    label: "Rescan"
+                    label: "Refresh"
                     onClicked: root.openCastPanel()
                 }
                 RoomActionButton {
@@ -2370,7 +2379,7 @@ Item {
                 }
                 Text {
                     width: parent.width
-                    text: (typeof Cast !== "undefined" && Cast.device.name) ? Cast.device.name : "Connecting..."
+                    text: (typeof Cast !== "undefined" && Cast.device.name) ? root.shareTargetName(Cast.device.name) : "Preparing share link..."
                     color: theme.ink
                     font.family: theme.ui
                     font.pixelSize: 13
