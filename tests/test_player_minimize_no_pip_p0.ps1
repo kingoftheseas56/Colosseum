@@ -14,13 +14,19 @@ function Assert-NotContains($text, $needle, $message) {
 # the always-fullscreen model. Replace the fullscreen button with a Minimize
 # button (pauses + minimizes the app); remove the PiP button entirely.
 
-# --- Minimize button + glyph present ---
-Assert-Contains $player 'icon: "minimize"' `
-    "The control bar must have a Minimize button in place of Fullscreen."
-Assert-Contains $player 'kind === "minimize"' `
-    "IconGlyph must draw a 'minimize' glyph."
-Assert-Contains $player "root.minimizeRequested()" `
-    "The Minimize button must minimize the whole app."
+# --- ONE honest minimize: the top-left session control, nothing else ---
+Assert-Contains $player 'icon: "minimizeToBar"' `
+    "The top-left session minimize (minimizeToBar) must exist."
+Assert-Contains $player 'kind === "minimizeToBar"' `
+    "IconGlyph must draw the 'minimizeToBar' glyph."
+Assert-Contains $player 'your spot is saved in the taskbar' `
+    "Minimize tooltip must be honest: state is captured, not kept playing."
+$minCalls = [regex]::Matches($player, 'root\.minimizeRequested\(\)').Count
+if ($minCalls -ne 1) { throw "Exactly ONE control must call minimizeRequested() (found $minCalls)." }
+Assert-NotContains $player 'kind === "minimize") {' `
+    "The dock 'minimize' glyph branch must be gone (dock minimize removed)."
+Assert-NotContains $player 'keeps playing in the taskbar' `
+    "The old overpromising tooltip must be gone."
 
 # --- Fullscreen button gone ---
 Assert-NotContains $player 'icon: "fullscreen"' `

@@ -1928,8 +1928,12 @@ Item {
             y: tight ? 14 : 20
             size: 48
             icon: "minimizeToBar"
-            tooltip: "Minimize — keeps playing in the taskbar"
-            onClicked: root.minimizeRequested()
+            tooltip: "Minimize — your spot is saved in the taskbar"
+            onClicked: {
+                root.closeMenus()
+                if (!mpv.pause) { root.autoPausedInactive = true; mpv.pause = true }
+                root.minimizeRequested()
+            }
         }
 
         Column {
@@ -3410,17 +3414,6 @@ Item {
                         ]
                     }
 
-                    RoundButton {
-                        size: 48
-                        icon: "minimize"
-                        tooltip: "Minimize"
-                        onClicked: {
-                            root.closeMenus()
-                            if (!mpv.pause) { root.autoPausedInactive = true; mpv.pause = true }
-                            root.minimizeRequested()
-                        }
-                    }
-
                     // close = end this watching session (Windows-window vocabulary; wired to
                     // closePlayerSession in the shell). [A5 addition riding A4's in-flight chrome]
                     RoundButton {
@@ -4449,8 +4442,6 @@ Item {
                     ctx.arc(cx + di * 0.22 * s, cy, 0.055 * s, 0, 2 * Math.PI)
                     ctx.fill()
                 }
-            } else if (kind === "minimize") {
-                line(-0.22, 0.18, 0.22, 0.18)
             }
         }
     }
