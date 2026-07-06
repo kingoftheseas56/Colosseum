@@ -676,7 +676,10 @@ Item {
                 if (myGen !== root.adjacentResolveGen)
                     return
                 if (rows && rows.length) startWith(rows)
-                else Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
+                else {
+                    streamWatchdog.restart()   // fallback gets the same full budget the old direct path had
+                    Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
+                }
             })
         } else {
             Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
