@@ -22,4 +22,16 @@ Assert-Contains $player 'root.mediaTransport = "Torrent stream"' `
 Assert-Contains $series '"year": page.year' `
     "TheatreSeries must hand the year to the player's playback context."
 
+# General sweep: NO direct string writes to mediaSubtitle anywhere - every transport
+# label must route through mediaTransport + updateMediaSubtitle(). (The legitimate
+# assignment inside updateMediaSubtitle assigns from parts.join, not a string literal.)
+$directWrites = [regex]::Matches($player, 'root\.mediaSubtitle\s*=\s*"').Count
+if ($directWrites -ne 0) { throw "mediaSubtitle must only be written by updateMediaSubtitle() (found $directWrites direct string writes)." }
+
+# Stronger sweep: mediaSubtitle is assigned EXACTLY once in the whole file - the
+# parts.join line inside updateMediaSubtitle. Catches strays whose RHS is an
+# expression rather than a string literal (the Live channel.group leak was one).
+$allWrites = [regex]::Matches($player, 'root\.mediaSubtitle\s*=').Count
+if ($allWrites -ne 1) { throw "mediaSubtitle must have exactly one assignment (updateMediaSubtitle's parts.join); found $allWrites." }
+
 Write-Host "Player title-line contract checks passed."

@@ -1150,6 +1150,13 @@ Item {
         root.pendingSeekSec = -1
         root.mediaTitle = title || ""
         root.mediaTransport = "Direct file"
+        // No stale chips from the previous media: playUrl playbacks carry no identity
+        // of their own (no caller establishes a mediaId), so clear the S/E + year
+        // sources before rebuilding the line. recordProgress() bails on an empty
+        // mediaId, so this also stops the previous media's Continue card from being
+        // overwritten by identity-less playback (it was — stale id + stale resume).
+        root.mediaId = ""
+        root.mediaYear = ""
         root.updateMediaSubtitle()
         root.currentPlaybackUrl = url || ""
         root.errored = false
@@ -1714,7 +1721,8 @@ Item {
             root.liveGuideOpen = false
             root.configureLiveChannel(channel)
             root.playUrl(channel.url || "", channel.name || "Live channel")
-            root.mediaSubtitle = channel.group || "Live channel"
+            root.mediaTransport = channel.group || "Live channel"
+            root.updateMediaSubtitle()
         }
     }
 
