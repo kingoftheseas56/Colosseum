@@ -9,6 +9,7 @@ import Colosseum.Player
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "AddonClient.js" as AddonClient
+import "SkipSegments.js" as SkipSegments
 
 Item {
     id: root
@@ -20,7 +21,23 @@ Item {
         location: Qt.resolvedUrl("../player.ini")
         category: "transport"
         property int seekStepSeconds: 10
+        property bool showSkipButton: true
+        property bool autoSkipIntro: false
+        property bool autoSkipRecap: false
+        property bool autoSkipCredits: false
     }
+
+    // --- skip segments (Feature 4): chapter- and AniSkip-derived intro/recap/credits ranges ---
+    property var skipSegments: []
+    property string skipDiagnostics: ""
+    property real skipSafetyOffsetSec: 0.75
+    property bool showSkipButton: playerSettings.showSkipButton
+    property bool autoSkipIntro: playerSettings.autoSkipIntro
+    property bool autoSkipRecap: playerSettings.autoSkipRecap
+    property bool autoSkipCredits: playerSettings.autoSkipCredits
+    property string dismissedSkipKey: ""
+    property string autoSkippedKey: ""
+    property int skipLoadGeneration: 0
 
     property Item backdrop
     property string mediaTitle: ""
@@ -566,6 +583,7 @@ Item {
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
         root.clearAbLoop()
         root.cancelSleepTimer()
+        root.resetSkipSegments()
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
         root.resumeChoiceOpen = false
@@ -1317,6 +1335,7 @@ Item {
     function playUrl(url, title) {
         root.clearAbLoop()
         root.cancelSleepTimer()
+        root.resetSkipSegments()
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
         root.mediaTitle = title || ""
@@ -1353,6 +1372,7 @@ Item {
         var t = target || ({})
         root.clearAbLoop()
         root.cancelSleepTimer()
+        root.resetSkipSegments()
         root.cancelUpNext()
         root.autoPausedInactive = false
         root.deadStreamKeys = ({})
@@ -1533,6 +1553,114 @@ Item {
         }
         mpv.seekStep(delta)
         root.wakeChrome()
+    }
+
+    // --- skip segments (Feature 4) ---
+    function skipSegmentsExcluded() {
+        if (root.subStreamId.indexOf("iptv:") === 0 || root.mediaId.indexOf("iptv:") === 0)
+            return true
+        return false
+    }
+
+    function resetSkipSegments() {
+        root.skipSegments = []
+        root.skipDiagnostics = ""
+        root.dismissedSkipKey = ""
+        root.autoSkippedKey = ""
+        root.skipLoadGeneration += 1
+    }
+
+    function currentSkipSegment() {
+        if (root.upNextVisible)
+            return null
+        if (!root.showSkipButton)
+            return null
+        var seg = SkipSegments.activeSegment(root.skipSegments, mpv.position)
+        if (!seg || seg.key === root.dismissedSkipKey)
+            return null
+        return seg
+    }
+
+    function skipLabel(seg) {
+        if (!seg) return ""
+        if (seg.kind === "intro") return "Skip Intro"
+        if (seg.kind === "recap") return "Skip Recap"
+        return "Skip Credits"
+    }
+
+    function performSegmentSkip(seg) {
+        var skip = seg || root.currentSkipSegment()
+        if (!skip || mpv.duration <= 0)
+            return
+        root.seekTo(Math.min(mpv.duration - 0.25, skip.endSec + root.skipSafetyOffsetSec))
+        root.dismissedSkipKey = skip.key
+    }
+
+    function maybeAutoSkipSegment() {
+        var seg = SkipSegments.activeSegment(root.skipSegments, mpv.position)
+        if (!seg || seg.key === root.autoSkippedKey)
+            return
+        var shouldSkip = (seg.kind === "intro" && root.autoSkipIntro)
+                      || (seg.kind === "recap" && root.autoSkipRecap)
+                      || (seg.kind === "outro" && root.autoSkipCredits)
+        if (!shouldSkip)
+            return
+        root.autoSkippedKey = seg.key
+        root.performSegmentSkip(seg)
+    }
+
+    function malEpisodeIdentity() {
+        var id = String(root.subStreamId || root.mediaId || "")
+        var parts = id.split(":")
+        if (parts.length < 3 || parts[0] !== "mal")
+            return null
+        return { "malId": Number(parts[1]), "episode": Number(parts[2]) }
+    }
+
+    function fetchAniSkipSegments(done) {
+        var ident = root.malEpisodeIdentity()
+        if (!ident || !(ident.malId > 0) || !(ident.episode > 0) || !(mpv.duration > 0)) {
+            done([])
+            return
+        }
+        var xhr = new XMLHttpRequest()
+        var params = "types=op&types=ed&types=mixed-op&types=mixed-ed&types=recap&episodeLength=" + Math.round(mpv.duration)
+        xhr.open("GET", "https://api.aniskip.com/v2/skip-times/" + ident.malId + "/" + ident.episode + "?" + params)
+        xhr.onreadystatechange = function() {
+            if (xhr.readyState !== XMLHttpRequest.DONE)
+                return
+            if (xhr.status < 200 || xhr.status >= 300) {
+                root.skipDiagnostics = "AniSkip unavailable"
+                done([])
+                return
+            }
+            try {
+                done(SkipSegments.parseAniSkipResults(JSON.parse(xhr.responseText)))
+            } catch (e) {
+                root.skipDiagnostics = "AniSkip parse failed"
+                done([])
+            }
+        }
+        root.skipDiagnostics = "Loading skip data"
+        xhr.send()
+    }
+
+    // Loads chapter- and AniSkip-derived segments and merges them. Safe to call repeatedly:
+    // mpv's chapter-list arrives asynchronously and stream duration is often still 0 at
+    // onFileLoaded, so this is re-run on mpv.onChaptersChanged and mpv.onDurationChanged too.
+    // The skipLoadGeneration counter (bumped by resetSkipSegments) drops any stale AniSkip
+    // fetch that returns after a newer load began. [Feature 4 review adaptation]
+    function loadSkipSegments() {
+        if (root.skipSegmentsExcluded() || !(mpv.duration > 0))
+            return
+        var gen = root.skipLoadGeneration
+        var chapterSegments = SkipSegments.chaptersToSegments(mpv.chapters, mpv.duration)
+        root.fetchAniSkipSegments(function(aniSegments) {
+            if (gen !== root.skipLoadGeneration)
+                return
+            root.skipSegments = SkipSegments.mergeSegments([aniSegments, chapterSegments], mpv.duration)
+            root.skipDiagnostics = root.skipSegments.length ? "Skip data ready" : ""
+        })
     }
     function setAbLoopA() {
         root.abLoopA = Math.max(0, mpv.position)
@@ -1933,6 +2061,7 @@ Item {
             root.wakeChrome()
             root.syncPowerInhibit()
             root.detectStubStream()
+            root.loadSkipSegments()  // first attempt; re-runs on chapters/duration settle
         }
         onPlaybackError: function(code, message) {
             root.handlePlaybackIssue(code, message)
@@ -1967,7 +2096,8 @@ Item {
             root.gifElapsedSec = 0
             root.showGifToast(false, "")
         }
-        onDurationChanged: root.detectStubStream()
+        onDurationChanged: { root.detectStubStream(); root.loadSkipSegments() }
+        onChaptersChanged: root.loadSkipSegments()
         onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }
     }
 
@@ -2085,6 +2215,14 @@ Item {
             if (root.upNextRemainingSec <= 0)
                 root.confirmUpNext()
         }
+    }
+
+    Timer {
+        id: skipSegmentTimer
+        interval: 500
+        repeat: true
+        running: root.skipSegments.length > 0 && !root.starting && !root.errored && !mpv.pause
+        onTriggered: root.maybeAutoSkipSegment()
     }
 
     MouseArea {
@@ -3493,6 +3631,50 @@ Item {
             }
         }
 
+        // Feature 4 skip pill: appears while playback sits inside an intro/recap/credits
+        // segment. Monochrome, dismissible, and yields to the Up Next card.
+        Rectangle {
+            id: skipPill
+            property var activeSkip: root.currentSkipSegment()
+            visible: !!activeSkip && root.controlsShown && !root.upNextVisible
+            z: 31
+            anchors.right: parent.right
+            anchors.rightMargin: 28
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 176
+            width: skipPillRow.implicitWidth + 28
+            height: 42
+            radius: 8
+            color: Qt.rgba(0, 0, 0, 0.82)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.18)
+
+            Row {
+                id: skipPillRow
+                anchors.centerIn: parent
+                spacing: 10
+                Text {
+                    text: root.skipLabel(skipPill.activeSkip)
+                    color: theme.ink
+                    font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    text: "Skip"
+                    color: theme.inkDim
+                    font.pixelSize: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+            }
+
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.performSegmentSkip(skipPill.activeSkip)
+            }
+        }
+
         // Harbor-style "Up Next" card: visible, cancelable countdown to the next
         // episode instead of a silent jump.
         Rectangle {
@@ -3700,6 +3882,18 @@ Item {
                         height: seekBar.hovered || root.seeking ? 8 : 6
                         radius: height / 2
                         color: theme.gold
+                    }
+                    Repeater {
+                        model: root.skipSegments
+                        Rectangle {
+                            visible: mpv.duration > 0
+                            x: seekBar.width * root.clamp(modelData.startSec / mpv.duration, 0, 1)
+                            width: Math.max(2, seekBar.width * root.clamp((modelData.endSec - modelData.startSec) / mpv.duration, 0, 1))
+                            anchors.verticalCenter: parent.verticalCenter
+                            height: seekBar.hovered || root.seeking ? 8 : 6
+                            radius: 2
+                            color: Qt.rgba(1, 1, 1, 0.34)
+                        }
                     }
                     Rectangle {
                         x: parent.width * root.seekFraction() - width / 2
