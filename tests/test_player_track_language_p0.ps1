@@ -6,7 +6,9 @@ if (!(Test-Path $path)) { throw "TrackLanguage.js must exist." }
 $text = Get-Content $path -Raw
 
 function Assert-Contains($text, $needle, $message) {
-    if ($text -notlike "*$needle*") { throw $message }
+    # Literal substring match: -like would treat needle brackets (e.g. parts[0]) as
+    # wildcard character-classes and never match the literal code.
+    if (-not $text.Contains($needle)) { throw $message }
 }
 
 Assert-Contains $text "function normalizeLang" "TrackLanguage must normalize language codes."
