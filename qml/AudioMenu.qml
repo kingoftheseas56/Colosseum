@@ -102,7 +102,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Audio"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -110,7 +110,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: (menu.tracks || []).length
                 color: theme.inkDimmer
-                font.family: "Consolas"
+                font.family: theme.hud; font.features: ({ "tnum": 1 })
                 font.pixelSize: 12
             }
             Item { width: 1; height: 1; LayoutMirroring.enabled: false }
@@ -167,7 +167,7 @@ Item {
                         anchors.centerIn: parent
                         text: row.selected ? "✓" : ""
                         color: "#111111"
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 10
                         font.weight: Font.Bold
                     }
@@ -189,7 +189,7 @@ Item {
                     width: parent.width - 82
                     text: menu.rowLabel(row.modelData)
                     color: theme.ink
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 14
                     font.weight: row.selected ? Font.DemiBold : Font.Medium
                     elide: Text.ElideRight
@@ -200,7 +200,7 @@ Item {
                     width: parent.width - 82
                     text: menu.rowMeta(row.modelData)
                     color: theme.inkDimmer
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 10
                     elide: Text.ElideRight
                 }
@@ -224,7 +224,7 @@ Item {
             width: parent.width - 48
             text: "This file has one audio track."
             color: theme.inkDimmer
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 13
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
@@ -261,7 +261,7 @@ Item {
             anchors.centerIn: parent
             text: "x"
             color: closeMouse.containsMouse ? theme.ink : theme.inkDim
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 16
             font.weight: Font.DemiBold
         }
@@ -298,7 +298,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: delayRow.label
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
                 font.letterSpacing: 1.4
@@ -309,7 +309,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: menu.fmtSigned(delayRow.value)
                 color: theme.ink
-                font.family: "Consolas"
+                font.family: theme.hud; font.features: ({ "tnum": 1 })
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -340,7 +340,7 @@ Item {
             anchors.centerIn: parent
             text: stepButton.text
             color: theme.inkDim
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 11
             font.weight: Font.DemiBold
         }

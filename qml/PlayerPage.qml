@@ -2009,7 +2009,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.statusMsg
             color: root.errored ? "#e6a3a3" : theme.ink
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 16
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
@@ -2076,7 +2076,7 @@ Item {
                 text: root.mediaSubtitle
                 visible: text.length > 0
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 horizontalAlignment: Text.AlignRight
                 elide: Text.ElideRight
@@ -2109,7 +2109,7 @@ Item {
                 y: 15
                 text: "Watch room"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 16
                 font.weight: Font.DemiBold
             }
@@ -2119,7 +2119,7 @@ Item {
                 anchors.verticalCenter: roomTitle.verticalCenter
                 text: (typeof Room !== "undefined" && Room.active) ? Room.roomId : "Local preview"
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 12
                 elide: Text.ElideRight
             }
@@ -2142,7 +2142,7 @@ Item {
                             anchors.centerIn: parent
                             text: String(modelData.name || "?").charAt(0).toUpperCase()
                             color: theme.ink
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
                         }
@@ -2158,7 +2158,7 @@ Item {
                       ? (Room.isHost ? "Host controls this synced session." : "Following host playback.")
                       : "Local preview — watching together across devices comes later. Create a local room to try the controls."
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
             }
@@ -2201,7 +2201,7 @@ Item {
                 y: 214
                 text: "Room chat"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -2227,7 +2227,7 @@ Item {
                         y: 7
                         text: modelData.name || "Guest"
                         color: theme.gold
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 11
                         font.weight: Font.DemiBold
                     }
@@ -2238,7 +2238,7 @@ Item {
                         width: parent.width - 24
                         text: modelData.message || ""
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                         wrapMode: Text.WordWrap
                     }
@@ -2265,7 +2265,7 @@ Item {
                     color: theme.ink
                     selectedTextColor: "#0b0d10"
                     selectionColor: theme.gold
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 13
                     clip: true
                     onTextChanged: root.roomChatDraft = text
@@ -2275,7 +2275,7 @@ Item {
                         text: "Message"
                         visible: roomChatInput.text.length === 0
                         color: theme.inkDimmer
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                     }
                 }
@@ -2292,7 +2292,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Send"
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 12
                         font.weight: Font.DemiBold
                     }
@@ -2327,7 +2327,7 @@ Item {
                 y: 16
                 text: "End this session?"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 16
                 font.weight: Font.DemiBold
             }
@@ -2337,7 +2337,7 @@ Item {
                 width: parent.width - 36
                 text: "Your spot stays in Continue Watching."
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
             }
@@ -2358,7 +2358,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Keep watching"
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                     }
                     MouseArea {
@@ -2380,7 +2380,7 @@ Item {
                         anchors.centerIn: parent
                         text: "End session"
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                     }
@@ -2426,7 +2426,7 @@ Item {
                 Text {
                     text: "More controls"
                     color: theme.ink
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 15
                     font.weight: Font.DemiBold
                 }
@@ -2451,7 +2451,7 @@ Item {
                             x: 12
                             text: modelData.label
                             color: theme.ink
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 13
                         }
                         MouseArea {
@@ -2497,7 +2497,7 @@ Item {
                 y: 15
                 text: "Share this stream"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 15
                 font.weight: Font.DemiBold
             }
@@ -2509,7 +2509,7 @@ Item {
                       ? ("Share link: " + Cast.localServerUrl)
                       : "Preparing share link..."
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 11
                 elide: Text.ElideRight
             }
@@ -2522,7 +2522,7 @@ Item {
                 y: 94
                 text: "Preparing share link..."
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
             }
 
@@ -2533,7 +2533,7 @@ Item {
                 width: parent.width - 36
                 text: "Shares a link that other apps and devices on your network can open. Real casting (Chromecast, DLNA, Roku) comes later."
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
             }
@@ -2568,7 +2568,7 @@ Item {
                         width: parent.width - 70
                         text: root.shareTargetName(modelData.name)
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
@@ -2579,7 +2579,7 @@ Item {
                         width: parent.width - 70
                         text: modelData.model || modelData.kind || ""
                         color: theme.inkDimmer
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }
@@ -2644,7 +2644,7 @@ Item {
                     width: parent.width
                     text: "Sharing to"
                     color: theme.inkDimmer
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 10
                     font.weight: Font.Bold
                     font.capitalization: Font.AllUppercase
@@ -2654,7 +2654,7 @@ Item {
                     width: parent.width
                     text: (typeof Cast !== "undefined" && Cast.device.name) ? root.shareTargetName(Cast.device.name) : "Preparing share link..."
                     color: theme.ink
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
@@ -2722,14 +2722,14 @@ Item {
                     Text {
                         text: "Live guide"
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 18
                         font.weight: Font.DemiBold
                     }
                     Text {
                         text: (typeof Live !== "undefined" && Live.activeChannel.name) ? Live.activeChannel.name : "Live channel"
                         color: theme.inkDim
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 12
                     }
                 }
@@ -2749,7 +2749,7 @@ Item {
                         verticalAlignment: TextInput.AlignVCenter
                         text: (typeof Live !== "undefined") ? Live.query : ""
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 14
                         clip: true
                         onTextChanged: if (typeof Live !== "undefined") Live.setQuery(text)
@@ -2758,7 +2758,7 @@ Item {
                             text: "Search channels"
                             visible: liveSearch.text.length === 0
                             color: theme.inkDimmer
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 14
                         }
                     }
@@ -2791,7 +2791,7 @@ Item {
                         width: parent.width - 36
                         text: modelData.name || "Live channel"
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 15
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
@@ -2802,7 +2802,7 @@ Item {
                         width: parent.width - 36
                         text: modelData.group || modelData.program || "Live"
                         color: theme.inkDim
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 12
                         elide: Text.ElideRight
                     }
@@ -2837,7 +2837,7 @@ Item {
                 y: 22
                 text: "DVR record"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 18
                 font.weight: Font.DemiBold
             }
@@ -2847,7 +2847,7 @@ Item {
                 width: parent.width - 48
                 text: (typeof Live !== "undefined" && Live.activeChannel.name) ? Live.activeChannel.name : "Live channel"
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 elide: Text.ElideRight
             }
@@ -2857,7 +2857,7 @@ Item {
                 width: parent.width - 48
                 text: (typeof Live !== "undefined" && Live.defaultRecordingDir) ? Live.defaultRecordingDir : ""
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 11
                 elide: Text.ElideMiddle
             }
@@ -2903,7 +2903,7 @@ Item {
                         width: parent.width - 28
                         text: modelData.channelName || "Live channel"
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
@@ -2914,7 +2914,7 @@ Item {
                         width: parent.width - 118
                         text: (modelData.state || "recording") + " / " + (modelData.elapsedSec || 0) + "s / " + Math.round((modelData.bytesWritten || 0) / 1024) + " KB"
                         color: modelData.state === "recording" ? theme.gold : theme.inkDim
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 12
                     }
                     Text {
@@ -2923,7 +2923,7 @@ Item {
                         width: parent.width - 28
                         text: modelData.error || modelData.outputPath || ""
                         color: modelData.error ? theme.danger : theme.inkDim
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 11
                         elide: Text.ElideMiddle
                     }
@@ -2964,7 +2964,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "A-B loop"
                     color: root.abLoopActive ? theme.gold : theme.ink
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                 }
@@ -2974,7 +2974,7 @@ Item {
                           + " -> "
                           + (root.abLoopB >= 0 ? root.fmtTime(root.abLoopB) : "--:--")
                     color: theme.inkDim
-                    font.family: "Consolas"
+                    font.family: theme.hud; font.features: ({ "tnum": 1 })
                     font.pixelSize: 12
                 }
                 RoundButton {
@@ -3014,7 +3014,7 @@ Item {
                     width: parent.width
                     text: "Playback stats"
                     color: theme.gold
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 11
                     font.weight: Font.DemiBold
                     font.capitalization: Font.AllUppercase
@@ -3035,7 +3035,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: modelData
                             color: theme.inkDimmer
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 11
                             elide: Text.ElideRight
                         }
@@ -3044,7 +3044,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: root.statsValue(modelData)
                             color: theme.ink
-                            font.family: "Consolas"
+                            font.family: theme.hud; font.features: ({ "tnum": 1 })
                             font.pixelSize: 11
                             horizontalAlignment: Text.AlignRight
                             elide: Text.ElideRight
@@ -3118,7 +3118,7 @@ Item {
                 Text {
                     text: root.frameGrabToastText
                     color: theme.ink
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                 }
@@ -3126,7 +3126,7 @@ Item {
                     visible: !root.frameGrabFailed && root.frameGrabPath.length > 0
                     text: "Open folder"
                     color: theme.gold
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                     MouseArea {
@@ -3157,7 +3157,7 @@ Item {
                 anchors.centerIn: parent
                 text: root.subtitleDropToastText
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
@@ -3186,7 +3186,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.gifState === "encoding" ? "Encoding GIF..." : "Recording GIF " + root.gifElapsedSec + "s"
                     color: root.gifState === "encoding" ? theme.gold : theme.ink
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                 }
@@ -3195,7 +3195,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Stop"
                     color: theme.gold
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                     MouseArea {
@@ -3209,7 +3209,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Discard"
                     color: theme.inkDim
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 12
                     font.weight: Font.DemiBold
                     MouseArea {
@@ -3274,14 +3274,14 @@ Item {
                         Text {
                             text: "Up next  •  Playing in " + root.upNextRemainingSec + "s"
                             color: theme.gold
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 11
                             font.weight: Font.DemiBold
                         }
                         Text {
                             text: root.upNextTitle()
                             color: theme.ink
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 14
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
@@ -3308,7 +3308,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Cancel"
                             color: theme.ink
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -3331,7 +3331,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Play now"
                             color: "#12100a"
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 12
                             font.weight: Font.Bold
                         }
@@ -3392,7 +3392,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.fmtTime(root.displayPosition())
                     color: theme.ink
-                    font.family: "Consolas"
+                    font.family: theme.hud; font.features: ({ "tnum": 1 })
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignLeft
                 }
@@ -3455,7 +3455,7 @@ Item {
                             anchors.centerIn: parent
                             text: root.fmtTime(root.seekPreview)
                             color: theme.ink
-                            font.family: "Consolas"
+                            font.family: theme.hud; font.features: ({ "tnum": 1 })
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -3494,7 +3494,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: root.fmtTime(mpv.duration)
                     color: theme.inkDim
-                    font.family: "Consolas"
+                    font.family: theme.hud; font.features: ({ "tnum": 1 })
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignRight
                 }
@@ -3779,7 +3779,7 @@ Item {
             anchors.centerIn: parent
             text: rab.label
             color: rab.active ? theme.gold : theme.ink
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
@@ -3883,7 +3883,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: Math.round(mpv.volume) + "%"
                 color: "#f26f25"
-                font.family: "Consolas"
+                font.family: theme.hud; font.features: ({ "tnum": 1 })
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
             }
@@ -3981,7 +3981,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: toolRow.modelData.label
                                 color: toolRow.modelData.active ? theme.gold : theme.ink
-                                font.family: theme.ui
+                                font.family: theme.hud
                                 font.pixelSize: 13
                                 font.weight: Font.DemiBold
                             }
@@ -4054,7 +4054,7 @@ Item {
                 y: 15
                 text: menu.title
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -4064,7 +4064,7 @@ Item {
                 anchors.verticalCenter: menuTitle.verticalCenter
                 text: menu.count
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 12
             }
             Rectangle { x: 0; y: 48; width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
@@ -4085,7 +4085,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Off"
                     color: !menu.active ? theme.ink : theme.inkDim
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 13
                     font.weight: Font.DemiBold
                 }
@@ -4135,7 +4135,7 @@ Item {
                         width: parent.width - 48
                         text: root.trackTitle(modelData, menu.title === "Audio" ? "Audio track" : "Subtitle")
                         color: theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                         font.weight: Font.Medium
                         elide: Text.ElideRight
@@ -4146,7 +4146,7 @@ Item {
                         width: parent.width - 48
                         text: root.trackMeta(modelData)
                         color: theme.inkDimmer
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 11
                         elide: Text.ElideRight
                     }
@@ -4170,7 +4170,7 @@ Item {
                 width: parent.width - 36
                 text: menu.emptyText
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 wrapMode: Text.WordWrap
             }
@@ -4187,7 +4187,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "SYNC"
                     color: theme.inkDimmer
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 11
                     font.weight: Font.Bold
                 }
@@ -4197,7 +4197,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: (menu.syncValue >= 0 ? "+" : "") + menu.syncValue.toFixed(2) + "s"
                     color: theme.ink
-                    font.family: "Consolas"
+                    font.family: theme.hud; font.features: ({ "tnum": 1 })
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignHCenter
                 }
@@ -4239,7 +4239,7 @@ Item {
             anchors.bottomMargin: 1
             text: root.sleepTimerLabel()
             color: theme.gold
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 10
             font.weight: Font.DemiBold
             style: Text.Outline
@@ -4272,7 +4272,7 @@ Item {
                 y: 16
                 text: "Playback speed"
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
@@ -4283,7 +4283,7 @@ Item {
                 y: 16
                 text: "Sleep timer"
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
@@ -4317,7 +4317,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: Math.abs(modelData - 1) < 0.01 ? "Normal" : ((Math.round(modelData * 100) / 100) + "×")
                         color: parent.selected ? theme.gold : theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 14
                         font.weight: parent.selected ? Font.DemiBold : Font.Medium
                     }
@@ -4329,7 +4329,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "DEFAULT"
                         color: theme.inkDimmer
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 10
                         font.letterSpacing: 1.4
                     }
@@ -4367,7 +4367,7 @@ Item {
                         width: parent.width - 76
                         text: modelData.label
                         color: parent.selected ? theme.gold : theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 14
                         font.weight: parent.selected ? Font.DemiBold : Font.Medium
                         elide: Text.ElideRight
@@ -4379,7 +4379,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: root.sleepTimerLabel()
                         color: theme.inkDimmer
-                        font.family: "Consolas"
+                        font.family: theme.hud; font.features: ({ "tnum": 1 })
                         font.pixelSize: 11
                     }
                     MouseArea {
@@ -4409,7 +4409,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Cancel timer"
                     color: "#ff8a8a"
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 14
                     font.weight: Font.DemiBold
                 }
@@ -4436,7 +4436,7 @@ Item {
                 y: parent.skipStepTop
                 text: "Skip step"
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 11
                 font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase
@@ -4460,7 +4460,7 @@ Item {
                             anchors.centerIn: parent
                             text: modelData + "s"
                             color: theme.ink
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 12
                         }
                         MouseArea {
@@ -4519,7 +4519,7 @@ Item {
                 y: 15
                 text: "Video"
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 14
                 font.weight: Font.DemiBold
             }
@@ -4539,7 +4539,7 @@ Item {
                         anchors.centerIn: parent
                         text: modelData.label
                         color: parent.selected ? theme.gold : theme.ink
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 13
                         font.weight: Font.DemiBold
                     }
@@ -4570,7 +4570,7 @@ Item {
             anchors.centerIn: parent
             text: db.text
             color: theme.inkDim
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 12
             font.weight: Font.DemiBold
         }
@@ -4638,19 +4638,23 @@ Item {
                 // sitting next to Close (Hemanth 2026-07-07: "where is the minimize button even").
                 line(-0.24, 0.16, 0.24, 0.16)
             } else if (kind === "seekBack" || kind === "seekForward") {
+                // Harbor-style circular arrow: a near-full loop (gap at top) with a clear
+                // arrowhead, so it reads unmistakably as rewind/skip — not the old partial squiggle.
                 var fwd = kind === "seekForward"
-                circleArc(0.27, fwd ? 320 : 220, fwd ? 55 : 140, !fwd)
+                circleArc(0.30, -65, 245, false)
                 if (fwd) {
-                    line(0.22, -0.23, 0.35, -0.20)
-                    line(0.35, -0.20, 0.27, -0.08)
+                    // arrowhead at the top-left end, pointing clockwise (into the gap)
+                    line(-0.126, -0.273, -0.25, -0.30)
+                    line(-0.126, -0.273, -0.20, -0.15)
                 } else {
-                    line(-0.22, -0.23, -0.35, -0.20)
-                    line(-0.35, -0.20, -0.27, -0.08)
+                    // arrowhead at the top-right end, pointing counterclockwise (into the gap)
+                    line(0.126, -0.273, 0.25, -0.30)
+                    line(0.126, -0.273, 0.20, -0.15)
                 }
-                ctx.font = "700 " + Math.round(s * 0.18) + "px Consolas"
+                ctx.font = "700 " + Math.round(s * 0.16) + "px " + theme.hud
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
-                ctx.fillText(label, cx, cy + s * 0.02)
+                ctx.fillText(label, cx, cy + s * 0.03)
             } else if (kind === "nextEpisode") {
                 ctx.beginPath()
                 ctx.moveTo(cx - 0.24 * s, cy - 0.20 * s)
@@ -4699,7 +4703,7 @@ Item {
                 ctx.stroke()
             } else if (kind === "gif") {
                 ctx.strokeRect(cx - 0.30 * s, cy - 0.20 * s, 0.60 * s, 0.40 * s)
-                ctx.font = "800 " + Math.round(s * 0.17) + "px " + theme.ui
+                ctx.font = "800 " + Math.round(s * 0.17) + "px " + theme.hud
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
                 ctx.fillText("GIF", cx, cy + 0.01 * s)
@@ -4796,7 +4800,7 @@ Item {
             } else if (kind === "speed") {
                 circleArc(0.30, 205, 335, false)
                 line(0, 0, 0.18, -0.13)
-                ctx.font = "700 " + Math.round(s * 0.17) + "px Consolas"
+                ctx.font = "700 " + Math.round(s * 0.17) + "px " + theme.hud
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
                 if (label && label.length) ctx.fillText(label, cx, cy + s * 0.22)

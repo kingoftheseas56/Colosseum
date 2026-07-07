@@ -175,7 +175,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: cluster.label
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
             }
@@ -185,7 +185,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: cluster.valueText
                 color: theme.ink
-                font.family: "Consolas"
+                font.family: theme.hud; font.features: ({ "tnum": 1 })
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -209,7 +209,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: cluster.label
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
             }
@@ -217,7 +217,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: cluster.valueText
                 color: theme.ink
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 12
                 font.weight: Font.DemiBold
             }
@@ -247,7 +247,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: swatches.label
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
             }
@@ -285,7 +285,7 @@ Item {
             anchors.centerIn: parent
             text: button.text
             color: theme.ink
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 13
             font.weight: Font.Bold
         }

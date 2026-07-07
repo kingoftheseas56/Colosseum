@@ -161,7 +161,7 @@ Item {
             y: 15
             text: "Subtitles"
             color: theme.ink
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 14
             font.weight: Font.DemiBold
         }
@@ -171,7 +171,7 @@ Item {
             anchors.verticalCenter: title.verticalCenter
             text: menu.allCount
             color: theme.inkDimmer
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 12
         }
         HeaderButton {
@@ -241,7 +241,7 @@ Item {
                         leftPadding: 4
                         text: "LANGUAGES"
                         color: theme.inkDimmer
-                        font.family: theme.ui
+                        font.family: theme.hud
                         font.pixelSize: 10
                         font.weight: Font.Bold
                         font.letterSpacing: 1.6
@@ -354,7 +354,7 @@ Item {
                     width: parent.width - 40
                     text: menu.loading ? "Finding subtitles..." : "No tracks match these filters. Try toggling HI/SDH or Forced."
                     color: theme.inkDimmer
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -410,7 +410,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             text: menu.searchId.length ? ("IMDb " + menu.searchId) : "Search OpenSubtitles..."
                             color: menu.searchId.length ? theme.ink : theme.inkDimmer
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 13
                             elide: Text.ElideRight
                         }
@@ -425,7 +425,7 @@ Item {
                             anchors.centerIn: parent
                             text: menu.searchLoading ? "..." : "Go"
                             color: menu.searchId.length ? "#111111" : theme.inkDimmer
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 12
                             font.weight: Font.DemiBold
                         }
@@ -463,7 +463,7 @@ Item {
                             y: 2
                             text: resultRow.modelData.label + " · " + menu.groupCount(resultRow.modelData.lang)
                             color: theme.inkDimmer
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 10
                             font.weight: Font.Bold
                             font.letterSpacing: 1.6
@@ -474,7 +474,7 @@ Item {
                             width: parent.width - 20
                             text: resultRow.modelData.title || resultRow.modelData.label || "OpenSubtitles"
                             color: theme.ink
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 12
                             font.weight: Font.Medium
                             elide: Text.ElideRight
@@ -485,7 +485,7 @@ Item {
                             width: parent.width - 20
                             text: String(resultRow.modelData.lang || "UNKNOWN").toUpperCase() + " · " + (resultRow.modelData.downloads || 0) + " dl"
                             color: theme.inkDimmer
-                            font.family: theme.ui
+                            font.family: theme.hud
                             font.pixelSize: 10
                             font.letterSpacing: 0.6
                         }
@@ -510,7 +510,7 @@ Item {
                          : menu.searchResults === null ? "Press search to find subtitles online."
                          : "No subtitles found."
                     color: theme.inkDimmer
-                    font.family: theme.ui
+                    font.family: theme.hud
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignHCenter
                     wrapMode: Text.WordWrap
@@ -577,7 +577,7 @@ Item {
             text: button.icon === "x" ? "x" : "≡"
             color: mouse.containsMouse ? theme.ink : theme.inkDim
             rotation: button.icon === "sliders" ? 90 : 0
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: button.icon === "x" ? 16 : 18
             font.weight: Font.DemiBold
         }
@@ -615,7 +615,7 @@ Item {
                 anchors.centerIn: parent
                 text: item.radio && item.selected ? "✓" : ""
                 color: "#111111"
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
             }
@@ -627,7 +627,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: item.iconText
             color: theme.inkDim
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 11
             font.weight: Font.DemiBold
         }
@@ -637,7 +637,7 @@ Item {
             width: parent.width - 52
             text: item.text
             color: item.selected ? theme.ink : theme.inkDim
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 12
             font.weight: item.selected ? Font.DemiBold : Font.Medium
             elide: Text.ElideRight
@@ -649,7 +649,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: item.countText
             color: theme.inkDimmer
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 10
         }
         MouseArea {
@@ -677,7 +677,7 @@ Item {
             anchors.centerIn: parent
             text: pill.text
             color: pill.selected ? "#111111" : theme.inkDim
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 11
             font.weight: pill.selected ? Font.DemiBold : Font.Medium
         }
@@ -711,7 +711,7 @@ Item {
                 anchors.centerIn: parent
                 text: row.selected ? "✓" : ""
                 color: "#111111"
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
             }
@@ -722,7 +722,7 @@ Item {
             width: parent.width - 48
             text: menu.rowLabel(row.track)
             color: theme.ink
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 12
             font.weight: Font.DemiBold
             elide: Text.ElideRight
@@ -733,7 +733,7 @@ Item {
             width: parent.width - 48
             text: menu.rowMeta(row.track)
             color: theme.inkDimmer
-            font.family: theme.ui
+            font.family: theme.hud
             font.pixelSize: 10
             font.letterSpacing: 0.6
             elide: Text.ElideRight
@@ -761,7 +761,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: button.icon === "search" ? "⌕" : button.icon === "folder" ? "□" : "<"
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 13
                 font.weight: Font.DemiBold
             }
@@ -769,7 +769,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: button.text
                 color: theme.inkDim
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 12
                 font.weight: Font.Medium
             }
@@ -806,7 +806,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "SYNC"
                 color: theme.inkDimmer
-                font.family: theme.ui
+                font.family: theme.hud
                 font.pixelSize: 10
                 font.weight: Font.Bold
                 font.letterSpacing: 1.4
@@ -817,7 +817,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: menu.fmtSigned(delayControl.value)
                 color: theme.ink
-                font.family: "Consolas"
+                font.family: theme.hud; font.features: ({ "tnum": 1 })
                 font.pixelSize: 12
                 horizontalAlignment: Text.AlignHCenter
             }
@@ -845,7 +845,7 @@ Item {
             anchors.centerIn: parent
             text: button.text
             color: theme.inkDim
-            font.family: "Consolas"
+            font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 11
             font.weight: Font.DemiBold
         }

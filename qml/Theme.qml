@@ -22,6 +22,10 @@ QtObject {
     // type
     readonly property string ui: "Segoe UI"
     readonly property string display: "Fraunces"   // editorial serif — bundled at assets/fonts, loaded in Main.qml
+    // player HUD face: Switzer (Harbor-parity), a crafted sans that replaces the generic system
+    // font inside the video player. Bundled at assets/fonts, loaded in Main.qml. If Switzer ever
+    // renders poorly in QML, flip this to "Inter" (also bundled) — the whole HUD follows.
+    readonly property string hud: "Switzer"
 
     // layout
     readonly property int margin: 54

@@ -769,6 +769,12 @@ Window {
     FontLoader { source: "../assets/fonts/Fraunces-Regular.ttf" }
     FontLoader { source: "../assets/fonts/Fraunces-Italic.ttf" }
 
+    // ---- player HUD face: Switzer (Harbor-parity), bundled weights (theme.hud) ----
+    FontLoader { source: "../assets/fonts/Switzer-Regular.otf" }
+    FontLoader { source: "../assets/fonts/Switzer-Medium.otf" }
+    FontLoader { source: "../assets/fonts/Switzer-Semibold.otf" }
+    FontLoader { source: "../assets/fonts/Switzer-Bold.otf" }
+
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
     // =====================================================================
