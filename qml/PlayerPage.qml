@@ -4633,11 +4633,10 @@ Item {
                 line(0.12, -0.22, -0.12, 0)
                 line(-0.12, 0, 0.12, 0.22)
             } else if (kind === "minimizeToBar") {
-                // down-into-the-bar: session drops to the taskbar and keeps playing
-                line(0, -0.28, 0, 0.06)
-                line(-0.15, -0.09, 0, 0.06)
-                line(0, 0.06, 0.15, -0.09)
-                line(-0.22, 0.24, 0.22, 0.24)
+                // the standard minimize: a single flat bar (the Windows taskbar-minimize glyph).
+                // Deliberately NOT an arrow-into-a-line — that read as a second download button
+                // sitting next to Close (Hemanth 2026-07-07: "where is the minimize button even").
+                line(-0.24, 0.16, 0.24, 0.16)
             } else if (kind === "seekBack" || kind === "seekForward") {
                 var fwd = kind === "seekForward"
                 circleArc(0.27, fwd ? 320 : 220, fwd ? 55 : 140, !fwd)
