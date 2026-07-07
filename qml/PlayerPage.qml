@@ -60,6 +60,24 @@ Item {
     property int currentStreamIndex: -1
     property int streamRetryCount: 0
     property int streamWatchdogSeconds: 75
+
+    // --- recovery watch + wake reconnect (Feature 3) ---
+    property real positionFrozenSeconds: 18       // early-freeze window before recovering
+    property real noVideoGraceSeconds: 20         // let mpv report video dimensions before "no video"
+    property real wakeReconnectGapSeconds: 30     // tick gap that means the machine slept/stalled
+    property int wakeReconnectTickMs: 2000        // light poll while a stream is open
+    property real positionStartedFloorSec: 5      // only auto-recover freezes near startup
+    property real positionAdvanceEpsilonSec: 0.3  // ignore tiny position jitter
+    property string lastPlaybackErrorCode: ""
+    property string lastPlaybackErrorMessage: ""
+    property real recoveryLastPosition: 0
+    property double recoveryLastMovedAt: 0
+    property double recoveryUrlStartedAt: 0
+    property bool recoverySawVideo: false
+    property double recoveryNoVideoSince: 0
+    property double wakeReconnectLastTickAt: 0
+    property real wakeReconnectPendingSeek: -1
+
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
     property int stubDurationThresholdSec: 60
@@ -521,6 +539,7 @@ Item {
         root.statusMsg = reason === "switch" ? "Switching stream..."
                        : reason === "retry" ? "Retrying stream..."
                        : "Starting stream..."
+        root.resetRecoveryWatch()
         streamWatchdog.restart()
         root.closeMenus()
         root.wakeChrome()
@@ -607,6 +626,100 @@ Item {
             return
         }
         root.playStreamAt(next, "switch")
+    }
+
+    // --- recovery watch + wake reconnect (Feature 3) ---
+    // Local downloaded files and live streams are excluded from automatic source switching
+    // and reconnection: locals fail honestly, live has no seekable resume point.
+    function recoveryExcluded() {
+        if (root.mediaLocalPath.length)
+            return true
+        if (root.subStreamId.indexOf("iptv:") === 0 || root.mediaId.indexOf("iptv:") === 0)
+            return true
+        return false
+    }
+
+    function resetRecoveryWatch() {
+        var now = Date.now()
+        root.recoveryLastPosition = 0
+        root.recoveryLastMovedAt = now
+        root.recoveryUrlStartedAt = now
+        root.recoverySawVideo = false
+        root.recoveryNoVideoSince = 0
+        root.wakeReconnectLastTickAt = now
+        root.wakeReconnectPendingSeek = -1
+    }
+
+    function handlePlaybackIssue(code, message) {
+        root.lastPlaybackErrorCode = code || "unknown"
+        root.lastPlaybackErrorMessage = message || ""
+        if (root.lastPlaybackErrorCode === "network")
+            root.handlePlaybackFailure("network")
+        else if (root.lastPlaybackErrorCode === "decode" || root.lastPlaybackErrorCode === "codec")
+            root.handlePlaybackFailure(root.lastPlaybackErrorCode)
+        else
+            root.handlePlaybackFailure(root.lastPlaybackErrorMessage || root.lastPlaybackErrorCode)
+    }
+
+    function tickRecoveryWatch() {
+        if (root.recoveryExcluded())
+            return
+        if (root.starting || root.errored || mpv.pause || !root.fileReady)
+            return
+
+        var now = Date.now()
+        var pos = Number(mpv.position || 0)
+        if (pos > root.recoveryLastPosition + root.positionAdvanceEpsilonSec) {
+            root.recoveryLastPosition = pos
+            root.recoveryLastMovedAt = now
+        }
+
+        var width = Number(mpv.mpvProperty("width") || 0)
+        var height = Number(mpv.mpvProperty("height") || 0)
+        if (width > 0 && height > 0) {
+            root.recoverySawVideo = true
+            root.recoveryNoVideoSince = 0
+        } else if (!root.recoverySawVideo) {
+            if (root.recoveryNoVideoSince <= 0)
+                root.recoveryNoVideoSince = now
+            if (now - root.recoveryNoVideoSince > root.noVideoGraceSeconds * 1000) {
+                root.handlePlaybackFailure("no video")
+                return
+            }
+        }
+
+        if (pos < 0.5 && now - root.recoveryUrlStartedAt > root.streamWatchdogSeconds * 1000) {
+            root.handlePlaybackFailure("source did not start")
+            return
+        }
+
+        if (pos < root.positionStartedFloorSec &&
+                now - root.recoveryLastMovedAt > root.positionFrozenSeconds * 1000) {
+            root.handlePlaybackFailure("position frozen")
+        }
+    }
+
+    function tickWakeReconnect() {
+        if (root.recoveryExcluded())
+            return
+        if (!root.currentPlaybackUrl.length || root.errored)
+            return
+        var now = Date.now()
+        if (root.wakeReconnectLastTickAt <= 0) {
+            root.wakeReconnectLastTickAt = now
+            return
+        }
+        var gap = now - root.wakeReconnectLastTickAt
+        root.wakeReconnectLastTickAt = now
+        if (gap < root.wakeReconnectGapSeconds * 1000)
+            return
+        if (mpv.duration <= 0 && mpv.position <= 0)
+            return
+        var pos = mpv.position > 1 ? mpv.position : -1
+        root.wakeReconnectPendingSeek = pos
+        root.statusMsg = "Reconnecting stream..."
+        streamWatchdog.restart()
+        mpv.loadFile(root.currentPlaybackUrl)
     }
 
     function handlePlaybackFailure(reason) {
@@ -1218,6 +1331,7 @@ Item {
         root.closeMenus()
         root.wakeChrome()
         root.forceActiveFocus()
+        root.resetRecoveryWatch()
         mpv.loadFile(url)
     }
 
@@ -1260,6 +1374,7 @@ Item {
         root.closeMenus()
         root.wakeChrome()
         root.forceActiveFocus()
+        root.resetRecoveryWatch()
         mpv.loadFile(root.mediaLocalPath)
     }
 
@@ -1787,7 +1902,12 @@ Item {
             streamWatchdog.stop()
             root.seekPreview = mpv.position
             root.fileReady = true
-            if (root.pendingSeekSec > 0 && root.prepareResumeChoice()) {
+            if (root.wakeReconnectPendingSeek > 1) {
+                // Reconnected after a system-wake gap — restore the pre-sleep position.
+                var pos = root.wakeReconnectPendingSeek
+                root.wakeReconnectPendingSeek = -1
+                mpv.seekExact(pos)
+            } else if (root.pendingSeekSec > 0 && root.prepareResumeChoice()) {
                 // The overlay decides whether to seek or start over.
             } else if (root.pendingSeekSec > 0) {     // resume / session-restore precision
                 mpv.seekExact(root.pendingSeekSec)
@@ -1801,13 +1921,17 @@ Item {
             root.syncPowerInhibit()
             root.detectStubStream()
         }
+        onPlaybackError: function(code, message) {
+            root.handlePlaybackIssue(code, message)
+        }
         onEndFile: function(reason) {
             root.starting = false
             root.fileReady = false
             root.syncPowerInhibit()
-            if (reason === "error" || reason === "other") {
-                root.handlePlaybackFailure(reason)
-            } else if (reason === "eof") {
+            // error/other now route through onPlaybackError → handlePlaybackIssue (typed code),
+            // which owns the recovery ladder. Calling handlePlaybackFailure here too would
+            // double-fire the retry (both signals emit on the same error). [Feature 3]
+            if (reason === "eof") {
                 root.recordProgress()
                 if (root.handleSleepEpisodeEnd())
                     return
@@ -1892,6 +2016,26 @@ Item {
         interval: root.streamWatchdogSeconds * 1000
         repeat: false
         onTriggered: root.handleStreamWatchdog()
+    }
+
+    // Recovery watch (Feature 3): while a non-local, non-live stream is actually playing,
+    // sample position + video dimensions to catch frozen/black streams the start watchdog misses.
+    Timer {
+        id: recoveryWatchTimer
+        interval: 1000
+        repeat: true
+        running: !root.recoveryExcluded() && !root.starting && !root.errored && !mpv.pause && root.fileReady
+        onTriggered: root.tickRecoveryWatch()
+    }
+
+    // Wake reconnect (Feature 3): a light tick whose skipped gap reveals a system sleep/stall,
+    // after which the current stream URL is reloaded at the last known position.
+    Timer {
+        id: wakeReconnectTimer
+        interval: root.wakeReconnectTickMs
+        repeat: true
+        running: !root.recoveryExcluded() && root.fileReady
+        onTriggered: root.tickWakeReconnect()
     }
 
     // 2s = longest a never-acknowledged seek may pin the display before falling back to truth
