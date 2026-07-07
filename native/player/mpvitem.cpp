@@ -194,9 +194,16 @@ QString MpvItem::formatTime(const double time) const
     return timeString;
 }
 
-// Conservative mapping of mpv end-file reasons into stable, small error codes the QML
-// recovery layer can route on. mpv's end-file "reason" is coarse ("error"/"other"), so
-// this is best-effort text matching; unknown is a safe default. [Feature 3]
+// Maps mpv end-file reasons into stable, small error codes for the QML recovery layer.
+//
+// HONEST LIMITATION (2026-07-07): the vendored mpvqt MpvController::endFile forwards only the
+// COARSE reason enum ("eof"/"stop"/"error"/...), never mpv_event_end_file.error's descriptive
+// text. So the substring branches below can never match on today's inputs and this always
+// returns "unknown". That is INTENTIONALLY harmless: PlayerPage.handlePlaybackFailure ignores
+// the code, so stream recovery works identically. What is NOT yet delivered is the spec's
+// "better error messages" — that stays generic until mpvqt is patched to forward prop->error
+// (via mpv_error_string), at which point this mapper starts producing real codes with no other
+// change. Left in place as that plug-point; not expanded, since it is inert until then. [Feature 3]
 QString MpvItem::mapEndFileErrorCode(const QString &reason) const
 {
     const QString r = reason.toLower();

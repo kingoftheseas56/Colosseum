@@ -31,8 +31,8 @@ Assert-Contains $player "function startOverFromResumeChoice" `
     "PlayerPage must expose the Start over action."
 Assert-Contains $player "function shouldSkipResumePrompt" `
     "PlayerPage must centralize resume exclusions."
-Assert-Contains $player "root.pendingSeekSec = root.resumeChoiceSec" `
-    "Accepting resume must apply the saved seek separately from load."
+Assert-Matches $player "function acceptResumeChoice[\s\S]*mpv\.seekExact\(root\.resumeChoiceSec\)" `
+    "Accepting resume must SEEK to the saved position (onFileLoaded already fired; setting pendingSeekSec would be a dead write)."
 Assert-Contains $player "root.pendingSeekSec = 0" `
     "Starting over must explicitly clear the saved seek."
 Assert-Matches $player "mpv\.duration\s*>\s*0[\s\S]*root\.resumeChoiceSec\s*/\s*mpv\.duration\s*>=\s*root\.resumeRestartThreshold" `

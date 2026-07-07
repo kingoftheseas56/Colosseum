@@ -604,6 +604,9 @@ Item {
         root.starting = true
         root.fileReady = false
         root.statusMsg = "Retrying stream..."
+        // Reset recovery clocks: without this the retry inherits the previous stream's stale
+        // frozen/no-start timers and gets killed within ~1 tick. [review fix 2026-07-07]
+        root.resetRecoveryWatch()
         streamWatchdog.restart()
         root.wakeChrome()
         Stream.play(c.infoHash, c.fileIdx || 0)
@@ -711,11 +714,18 @@ Item {
         }
         var gap = now - root.wakeReconnectLastTickAt
         root.wakeReconnectLastTickAt = now
+        // Don't auto-reconnect (and auto-play) a stream the user parked/minimized. A paused
+        // player still ticks, so pause alone can't fake a gap; this only guards the
+        // paused-through-real-sleep case. [review fix 2026-07-07]
+        if (mpv.pause)
+            return
         if (gap < root.wakeReconnectGapSeconds * 1000)
             return
         if (mpv.duration <= 0 && mpv.position <= 0)
             return
         var pos = mpv.position > 1 ? mpv.position : -1
+        // Fresh recovery clocks for the reconnected load (this path bypasses playStreamAt).
+        root.resetRecoveryWatch()
         root.wakeReconnectPendingSeek = pos
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
@@ -1438,8 +1448,11 @@ Item {
     }
 
     function acceptResumeChoice() {
+        // The file is already loaded and paused — onFileLoaded has fired and will NOT fire
+        // again on unpause, so we must seek here directly (setting pendingSeekSec would be a
+        // dead write with no consumer). [review fix 2026-07-07]
         if (root.resumeChoiceSec > 0)
-            root.pendingSeekSec = root.resumeChoiceSec
+            mpv.seekExact(root.resumeChoiceSec)
         root.resumeChoiceOpen = false
         root.resumeChoiceSec = -1
         if (mpv.pause)
