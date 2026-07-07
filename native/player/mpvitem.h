@@ -11,12 +11,14 @@
 #include <QTimer>
 #include <QVariantList>
 
+class QProcess;
+
 class MpvItem : public MpvAbstractItem
 {
     Q_OBJECT
 public:
     explicit MpvItem(QQuickItem *parent = nullptr);
-    ~MpvItem() = default;
+    ~MpvItem() override;
 
     enum class AsyncIds {
         None,
@@ -179,6 +181,8 @@ private:
     qint64 m_gifStartedAt{0};
     bool m_gifRecording{false};
     bool m_gifEncoding{false};
+    QProcess *m_gifEncodeProc = nullptr;
+    QString m_gifEncodeOutPath;
 };
 
 #endif // COLOSSEUM_MPVITEM_H

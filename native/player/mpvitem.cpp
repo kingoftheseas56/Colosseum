@@ -6,6 +6,7 @@
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QDir>
+#include <QFile>
 #include <QFileInfo>
 #include <QProcess>
 #include <QRegularExpression>
@@ -65,6 +66,21 @@ MpvItem::MpvItem(QQuickItem *parent)
     getPropertyAsync(MpvProperties::self()->Volume, static_cast<int>(MpvItem::AsyncIds::GetVolume));
     m_gifTimer.setInterval(200);
     connect(&m_gifTimer, &QTimer::timeout, this, &MpvItem::gifCaptureFrame);
+}
+
+MpvItem::~MpvItem()
+{
+    // App quitting mid-encode: our parented QProcess would otherwise be killed mid-write,
+    // leaving a truncated .gif posing as a saved clip and an orphaned %TEMP% frames dir.
+    if (m_gifEncoding && m_gifEncodeProc) {
+        m_gifEncodeProc->disconnect(this);           // our lambdas must not fire during teardown
+        m_gifEncodeProc->kill();
+        m_gifEncodeProc->waitForFinished(2000);      // teardown-only wait; Windows: cleanGifTemp fails while
+                                                     // ffmpeg holds frames open, so kill-and-wait MUST precede cleanup
+        if (!m_gifEncodeOutPath.isEmpty())
+            QFile::remove(m_gifEncodeOutPath);        // never leave a truncated gif posing as a saved clip
+        cleanGifTemp();
+    }
 }
 
 void MpvItem::setupConnections()
@@ -338,7 +354,7 @@ void MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
          << QDir::toNativeSeparators(outPath);
 
     if (m_gifEncoding) {          // one encode at a time; no queue in v1
-        cleanGifTemp();
+        // do NOT clean temp here — a live encode owns the frame dir
         Q_EMIT gifFailed();
         return;
     }
@@ -348,10 +364,15 @@ void MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
 
     // Async encode: the app stays responsive; QML holds its "encoding" state until
     // gifSaved/gifFailed lands. FailedToStart never reaches finished(), so exactly one
-    // of the two handlers below cleans up and emits.
+    // of the two handlers below cleans up and emits. The dtor also watches this handle
+    // so a quit mid-encode leaves no truncated gif and no orphaned temp frames.
     auto *ff = new QProcess(this);
+    m_gifEncodeProc = ff;
+    m_gifEncodeOutPath = outPath;
     connect(ff, &QProcess::finished, this,
             [this, ff, outPath](int code, QProcess::ExitStatus st) {
+        m_gifEncodeProc = nullptr;
+        m_gifEncodeOutPath.clear();
         ff->deleteLater();
         cleanGifTemp();
         m_gifEncoding = false;
@@ -365,6 +386,8 @@ void MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
             [this, ff](QProcess::ProcessError err) {
         if (err != QProcess::FailedToStart)   // finished() covers the rest
             return;
+        m_gifEncodeProc = nullptr;
+        m_gifEncodeOutPath.clear();
         ff->deleteLater();
         cleanGifTemp();
         m_gifEncoding = false;
