@@ -95,7 +95,13 @@ void MpvItem::setupConnections()
             this, &MpvItem::fileLoaded, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::endFile,
-            this, &MpvItem::endFile, Qt::QueuedConnection);
+            this, [this](const QString &reason) {
+        Q_EMIT endFile(reason);
+        if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
+            const QString code = mapEndFileErrorCode(reason);
+            Q_EMIT playbackError(code, reason);
+        }
+    }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::videoReconfig,
             this, &MpvItem::videoReconfig, Qt::QueuedConnection);
@@ -186,6 +192,35 @@ QString MpvItem::formatTime(const double time) const
         QStringLiteral("%1:%2:%3").arg(hours, 2, 10, QLatin1Char('0')).arg(minutes, 2, 10, QLatin1Char('0')).arg(seconds, 2, 10, QLatin1Char('0'));
 
     return timeString;
+}
+
+// Conservative mapping of mpv end-file reasons into stable, small error codes the QML
+// recovery layer can route on. mpv's end-file "reason" is coarse ("error"/"other"), so
+// this is best-effort text matching; unknown is a safe default. [Feature 3]
+QString MpvItem::mapEndFileErrorCode(const QString &reason) const
+{
+    const QString r = reason.toLower();
+    if (r.contains(QStringLiteral("network")) ||
+        r.contains(QStringLiteral("http")) ||
+        r.contains(QStringLiteral("timeout")) ||
+        r.contains(QStringLiteral("connection"))) {
+        return QStringLiteral("network");
+    }
+    if (r.contains(QStringLiteral("codec")) ||
+        r.contains(QStringLiteral("unsupported"))) {
+        return QStringLiteral("codec");
+    }
+    if (r.contains(QStringLiteral("decode")) ||
+        r.contains(QStringLiteral("demux")) ||
+        r.contains(QStringLiteral("no streams"))) {
+        return QStringLiteral("decode");
+    }
+    if (r.contains(QStringLiteral("file")) ||
+        r.contains(QStringLiteral("open")) ||
+        r.contains(QStringLiteral("source"))) {
+        return QStringLiteral("source");
+    }
+    return QStringLiteral("unknown");
 }
 
 void MpvItem::loadFile(const QString &file)

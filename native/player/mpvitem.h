@@ -150,10 +150,12 @@ Q_SIGNALS:
     void fileStarted();
     void fileLoaded();
     void endFile(QString reason);
+    void playbackError(QString code, QString message);
     void videoReconfig();
 
 private:
     void setupConnections();
+    QString mapEndFileErrorCode(const QString &reason) const;
     void onPropertyChanged(const QString &property, const QVariant &value);
     void onAsyncReply(const QVariant &data, mpv_event event);
     QString formatTime(const double time) const;
