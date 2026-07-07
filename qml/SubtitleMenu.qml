@@ -27,6 +27,9 @@ Item {
     property bool active: selectedId !== ""
     property string searchType: ""
     property string searchId: ""
+    // Feature 6: one-line neutral automation status, hidden when empty.
+    property string autoStatusText: ""
+    property bool showAutoStatus: autoStatusText.length > 0
 
     property string lang: "__all__"
     property string source: "all"
@@ -174,7 +177,23 @@ Item {
             font.family: theme.hud; font.features: ({ "tnum": 1 })
             font.pixelSize: 12
         }
+        Text {
+            id: autoStatus
+            visible: menu.showAutoStatus
+            anchors.left: title.right
+            anchors.leftMargin: 48
+            anchors.right: styleButton.left
+            anchors.rightMargin: 8
+            anchors.verticalCenter: title.verticalCenter
+            text: menu.autoStatusText
+            color: theme.inkDimmer
+            font.family: theme.hud
+            font.pixelSize: 11
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignRight
+        }
         HeaderButton {
+            id: styleButton
             anchors.right: closeButton.left
             anchors.rightMargin: 2
             anchors.top: parent.top

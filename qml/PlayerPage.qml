@@ -10,6 +10,8 @@ import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "AddonClient.js" as AddonClient
 import "SkipSegments.js" as SkipSegments
+import "TrackLanguage.js" as TrackLanguage
+import "PlayerTrackPrefs.js" as PlayerTrackPrefs
 
 Item {
     id: root
@@ -25,6 +27,15 @@ Item {
         property bool autoSkipIntro: false
         property bool autoSkipRecap: false
         property bool autoSkipCredits: false
+        // Feature 6: subtitle/audio automation policy (conservative defaults).
+        property string preferredAudioLanguages: "eng,jpn"
+        property string preferredSubtitleLanguages: "eng"
+        property string blockedTrackWords: "commentary"
+        property bool preferEmbeddedSubtitles: false
+        property bool subtitleAutoUpgrade: false
+        property bool forcedSubsWhenNativeAudio: false
+        property bool subtitlesOffByDefault: false
+        property string trackPrefsJson: "{}"
     }
 
     // --- skip segments (Feature 4): chapter- and AniSkip-derived intro/recap/credits ranges ---
@@ -72,6 +83,14 @@ Item {
     property bool   subtitleDropToastOpen: false
     property string subtitleDropToastText: ""
     property bool   subtitleDropToastFailed: false
+
+    // --- track automation (Feature 6): language-ranked audio/subtitle auto-select + per-show memory ---
+    property bool   userTouchedAudio: false    // manual audio pick locks automation for this source
+    property string trackAutoDoneKey: ""       // show key whose subtitle auto-select already ran
+    property string autoAudioTrackId: ""       // last id automation chose (diagnostics)
+    property string autoSubtitleTrackId: ""    // last id automation chose (diagnostics)
+    property string autoTrackSignature: ""     // track-set+policy fingerprint; skip re-run when unchanged
+    property int    trackAutomationRev: 0       // bumps each automation pass (debug/trace)
 
     property var streamCandidates: []
     property int currentStreamIndex: -1
@@ -184,6 +203,7 @@ Item {
             if (root.subStreamId !== reqId) return    // a newer play superseded this fetch
             root.subsLoading = false
             root.onlineSubs = list
+            root.maybeAutoSelectTracks("online-subs")  // Feature 6: automation before pickDefault fallback
             root.maybeAutoSub()
         })
     }
@@ -326,6 +346,13 @@ Item {
     function maybeAutoSub() {
         if (root.autoSubDone || root.userTouchedSubs || !root.fileReady)
             return
+        // Feature 6: the language-ranked automation (maybeAutoSelectTracks) owns subtitle
+        // auto-selection for this show. It stamps trackAutoDoneKey when it picks a sub OR turns
+        // subs off; when it finds no language match it leaves the key unset, and maybeAutoSub
+        // runs here as the pickDefault fallback. This prevents a double-add (two English subs),
+        // since addSubtitle is async and mpv.subtitleTrack is still "" when both would run.
+        if (root.trackAutoDoneKey.length && root.trackAutoDoneKey === root.currentShowKey())
+            return
         if (mpv.subtitleTrack !== "") { root.autoSubDone = true; return }
         var pick = Subtitles.pickDefault(root.onlineSubs)
         if (!pick)
@@ -334,6 +361,203 @@ Item {
         root.addedOnlineUrls[pick.url] = true
         root.subModelRev++
         mpv.addSubtitle(pick.url, pick.title || pick.langName, pick.lang, true)
+    }
+
+    // --- track automation (Feature 6) ---
+    function currentShowKey() {
+        return TrackLanguage.showKey("video", root.subStreamId || root.mediaId || root.currentPlaybackUrl || "")
+    }
+
+    function currentTrackPreference() {
+        return PlayerTrackPrefs.getPref(playerSettings.trackPrefsJson, root.currentShowKey())
+    }
+
+    function saveTrackPreference(patch) {
+        playerSettings.trackPrefsJson = PlayerTrackPrefs.upsertPref(
+                    playerSettings.trackPrefsJson, root.currentShowKey(), patch, Date.now())
+    }
+
+    function trackAutomationExcluded() {
+        return root.subStreamId.indexOf("iptv:") === 0
+            || root.mediaId.indexOf("iptv:") === 0
+            || root.currentPlaybackUrl.indexOf("iptv:") === 0
+    }
+
+    function trackPolicyKey() {
+        return [
+            root.currentShowKey(),
+            playerSettings.preferredAudioLanguages,
+            playerSettings.preferredSubtitleLanguages,
+            playerSettings.blockedTrackWords,
+            playerSettings.preferEmbeddedSubtitles,
+            playerSettings.subtitleAutoUpgrade,
+            playerSettings.forcedSubsWhenNativeAudio,
+            playerSettings.subtitlesOffByDefault
+        ].join("|")
+    }
+
+    function effectiveAudioLanguages(pref) {
+        var base = TrackLanguage.parseLanguageList(playerSettings.preferredAudioLanguages, ["eng", "jpn"])
+        if (pref && pref.audioLang)
+            return [pref.audioLang].concat(base.filter(function(x) { return x !== pref.audioLang }))
+        return base
+    }
+
+    function effectiveSubtitleLanguages(pref) {
+        var base = TrackLanguage.parseLanguageList(playerSettings.preferredSubtitleLanguages, ["eng"])
+        if (pref && pref.subtitleLang)
+            return [pref.subtitleLang].concat(base.filter(function(x) { return x !== pref.subtitleLang }))
+        return base
+    }
+
+    function selectedAudioRow() {
+        for (var i = 0; i < root.audioRows.length; i++)
+            if (String(root.audioRows[i].id) === String(mpv.audioTrack)) return root.audioRows[i]
+        return null
+    }
+
+    function selectedSubtitleRow() {
+        for (var i = 0; i < root.subRows.length; i++)
+            if (String(root.subRows[i].id) === String(mpv.subtitleTrack)) return root.subRows[i]
+        return null
+    }
+
+    function applySavedTrackDelays(pref) {
+        if (pref && typeof pref.audioDelay === "number")
+            mpv.audioDelay = root.round2(pref.audioDelay)
+        if (pref && typeof pref.subDelay === "number")
+            mpv.subDelay = root.round2(pref.subDelay)
+    }
+
+    function resetTrackAutomation() {
+        root.userTouchedAudio = false
+        root.trackAutoDoneKey = ""
+        root.autoAudioTrackId = ""
+        root.autoSubtitleTrackId = ""
+        root.autoTrackSignature = ""
+    }
+
+    // Conservative auto-selection: never override a manual pick, run once per show unless
+    // upgrades are on, and re-run cheaply on async track-list/online-sub arrival (signature-gated).
+    function maybeAutoSelectTracks(reason) {
+        root.trackAutomationRev += 1
+        if (!root.fileReady || root.trackAutomationExcluded())
+            return
+
+        var pref = root.currentTrackPreference()
+        root.applySavedTrackDelays(pref)
+        var signature = TrackLanguage.trackSignature(
+                    root.audioRows, root.subRows, root.onlineSubs, root.trackPolicyKey())
+        if (signature === root.autoTrackSignature && reason !== "manual-policy")
+            return
+        root.autoTrackSignature = signature
+
+        if (!root.userTouchedAudio) {
+            var audioPick = TrackLanguage.pickBestAudioTrack(
+                        root.audioRows, root.effectiveAudioLanguages(pref), playerSettings.blockedTrackWords)
+            if (audioPick && String(audioPick.id) !== String(mpv.audioTrack)) {
+                root.autoAudioTrackId = String(audioPick.id)
+                mpv.audioTrack = root.autoAudioTrackId
+            }
+        }
+
+        var subtitlesOff = pref.subtitlesOff === true || (!pref.hasOwnProperty("subtitlesOff") && playerSettings.subtitlesOffByDefault)
+        if (subtitlesOff && !root.userTouchedSubs) {
+            root.autoSubtitleTrackId = ""
+            root.trackAutoDoneKey = root.currentShowKey()
+            mpv.subtitleTrack = ""
+            return
+        }
+
+        if (root.userTouchedSubs)
+            return
+        if (!playerSettings.subtitleAutoUpgrade && root.trackAutoDoneKey === root.currentShowKey())
+            return
+
+        var subOptions = {
+            "preferEmbeddedSubtitles": playerSettings.preferEmbeddedSubtitles,
+            "blockedTrackWords": playerSettings.blockedTrackWords,
+            "forcedOnly": false,
+            "subtitleAutoUpgrade": playerSettings.subtitleAutoUpgrade
+        }
+        var subPick = TrackLanguage.pickBestSubtitleTrack(root.subRows, root.effectiveSubtitleLanguages(pref), subOptions)
+
+        if (!subPick && playerSettings.forcedSubsWhenNativeAudio) {
+            var audio = root.selectedAudioRow()
+            var audioLang = TrackLanguage.normalizeLang(audio ? audio.lang : "")
+            if (root.effectiveSubtitleLanguages(pref).indexOf(audioLang) >= 0) {
+                subOptions.forcedOnly = true
+                subPick = TrackLanguage.pickBestSubtitleTrack(root.subRows, root.effectiveSubtitleLanguages(pref), subOptions)
+            }
+        }
+
+        if (!subPick)
+            return
+        root.autoSubtitleTrackId = String(subPick.id)
+        root.trackAutoDoneKey = root.currentShowKey()
+        root.pickSubtitle(root.autoSubtitleTrackId)
+    }
+
+    function pickAudioTrack(trackId) {
+        root.userTouchedAudio = true
+        mpv.audioTrack = trackId
+        var row = root.selectedAudioRow()
+        if (!row || String(row.id) !== String(trackId)) {
+            for (var i = 0; i < root.audioRows.length; i++)
+                if (String(root.audioRows[i].id) === String(trackId)) row = root.audioRows[i]
+        }
+        root.saveTrackPreference({
+            "audioLang": TrackLanguage.normalizeLang(row ? row.lang : ""),
+            "audioTrackTitle": row ? (row.title || row.label || "") : "",
+            "audioDelay": mpv.audioDelay
+        })
+    }
+
+    function pickSubtitleTrack(trackId) {
+        root.userTouchedSubs = true
+        var row = null
+        for (var i = 0; i < root.subRows.length; i++)
+            if (String(root.subRows[i].id) === String(trackId)) row = root.subRows[i]
+        root.pickSubtitle(trackId)
+        root.saveTrackPreference({
+            "subtitleLang": TrackLanguage.normalizeLang(row ? row.lang : ""),
+            "subtitleTrackTitle": row ? (row.title || row.label || "") : "",
+            "subtitlesOff": false,
+            "subDelay": mpv.subDelay
+        })
+    }
+
+    function turnSubtitlesOff() {
+        root.userTouchedSubs = true
+        mpv.subtitleTrack = ""
+        root.saveTrackPreference({ "subtitlesOff": true, "subDelay": mpv.subDelay })
+    }
+
+    function adjustAudioDelay(delta) {
+        mpv.audioDelay = root.round2(mpv.audioDelay + delta)
+        root.saveTrackPreference({ "audioDelay": mpv.audioDelay })
+    }
+
+    function adjustSubtitleDelay(delta) {
+        mpv.subDelay = root.round2(mpv.subDelay + delta)
+        root.saveTrackPreference({ "subDelay": mpv.subDelay })
+    }
+
+    function resetSubtitleDelay() {
+        mpv.subDelay = 0
+        root.saveTrackPreference({ "subDelay": 0 })
+    }
+
+    function subtitleAutoStatusText() {
+        if (root.trackAutomationExcluded())
+            return "Auto off for live playback"
+        var pref = root.currentTrackPreference()
+        if (pref.subtitlesOff === true)
+            return "Auto: subtitles off for this show"
+        if (root.userTouchedSubs)
+            return "Auto paused after manual subtitle choice"
+        var langs = root.effectiveSubtitleLanguages(pref)
+        return "Auto: " + (langs.length ? langs[0].toUpperCase() : "ENG") + " subtitles"
     }
     property bool starting: false
     property bool errored: false
@@ -584,6 +808,7 @@ Item {
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
+        root.resetTrackAutomation()
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
         root.resumeChoiceOpen = false
@@ -1336,6 +1561,7 @@ Item {
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
+        root.resetTrackAutomation()
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
         root.mediaTitle = title || ""
@@ -1373,6 +1599,7 @@ Item {
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
+        root.resetTrackAutomation()
         root.cancelUpNext()
         root.autoPausedInactive = false
         root.deadStreamKeys = ({})
@@ -2057,6 +2284,9 @@ Item {
                 mpv.seekExact(0)
                 root.pendingSeekSec = -1
             }
+            // Feature 6: language-ranked automation runs first; maybeAutoSub is the pickDefault
+            // fallback that only acts when automation found no language match (guarded by trackAutoDoneKey).
+            root.maybeAutoSelectTracks("file-loaded")
             root.maybeAutoSub()      // file is open → safe to sub-add the auto/online subtitle
             root.wakeChrome()
             root.syncPowerInhibit()
@@ -2098,6 +2328,7 @@ Item {
         }
         onDurationChanged: { root.detectStubStream(); root.loadSkipSegments() }
         onChaptersChanged: root.loadSkipSegments()
+        onTrackListChanged: root.maybeAutoSelectTracks("track-list")
         onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }
     }
 
@@ -4072,9 +4303,9 @@ Item {
                         selectedId: mpv.audioTrack
                         emptyText: "No alternate audio tracks in this file."
                         syncValue: mpv.audioDelay
-                        onTrackPicked: function(trackId) { mpv.audioTrack = trackId }
-                        onDelayStep: function(delta) { mpv.audioDelay = root.round2(mpv.audioDelay + delta) }
-                        onResetDelay: mpv.audioDelay = 0
+                        onTrackPicked: function(trackId) { root.pickAudioTrack(trackId) }
+                        onDelayStep: function(delta) { root.adjustAudioDelay(delta) }
+                        onResetDelay: { mpv.audioDelay = 0; root.saveTrackPreference({ "audioDelay": 0 }) }
                     }
 
                     SubtitleMenu {
@@ -4094,14 +4325,15 @@ Item {
                         selectedId: mpv.subtitleTrack
                         searchType: root.subtitleSearchMeta.type
                         searchId: root.subtitleSearchMeta.imdbId.length ? root.subStreamId : ""
+                        autoStatusText: root.subtitleAutoStatusText()
                         emptyText: root.subsLoading ? "Finding subtitles…" : "No subtitles found for this title."
                         offRow: true
                         syncValue: mpv.subDelay
                         active: mpv.subtitleTrack !== ""
-                        onTrackPicked: function(trackId) { root.userTouchedSubs = true; root.pickSubtitle(trackId) }
-                        onOffPicked: { root.userTouchedSubs = true; mpv.subtitleTrack = "" }
-                        onDelayStep: function(delta) { mpv.subDelay = root.round2(mpv.subDelay + delta) }
-                        onResetDelay: mpv.subDelay = 0
+                        onTrackPicked: function(trackId) { root.pickSubtitleTrack(trackId) }
+                        onOffPicked: root.turnSubtitlesOff()
+                        onDelayStep: function(delta) { root.adjustSubtitleDelay(delta) }
+                        onResetDelay: root.resetSubtitleDelay()
                         onStyleRequested: {
                             subStyleBar.open = !subStyleBar.open
                             root.wakeChrome()
