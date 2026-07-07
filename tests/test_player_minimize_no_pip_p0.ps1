@@ -11,24 +11,35 @@ function Assert-NotContains($text, $needle, $message) {
 }
 
 # Fullscreen-only shell: a fullscreen toggle and a floating PiP window both fight
-# the always-fullscreen model. The ONE minimize control is the top-left session
-# button (pauses, captures state, drops to the taskbar); remove the PiP button entirely.
+# the always-fullscreen model. The ONE minimize control sits beside Close in the control
+# bar (pauses but keeps the stream warm, drops to the taskbar); remove the PiP button entirely.
 
-# --- ONE honest minimize: the top-left session control, nothing else ---
+# --- ONE honest minimize: beside Close, nothing else ---
 Assert-Contains $player 'icon: "minimizeToBar"' `
-    "The top-left session minimize (minimizeToBar) must exist."
+    "The session minimize (minimizeToBar) must exist."
 Assert-Contains $player 'kind === "minimizeToBar"' `
     "IconGlyph must draw the 'minimizeToBar' glyph."
-Assert-Contains $player 'your spot is saved in the taskbar' `
-    "Minimize tooltip must be honest: state is captured, not kept playing."
+Assert-Contains $player 'Minimize — paused in the taskbar, resumes with no reload' `
+    "Minimize tooltip must be honest: paused but kept warm, no reload on return."
 $minCalls = [regex]::Matches($player, 'root\.minimizeRequested\(\)').Count
 if ($minCalls -ne 1) { throw "Exactly ONE control must call minimizeRequested() (found $minCalls)." }
 Assert-NotContains $player 'kind === "minimize") {' `
     "The dock 'minimize' glyph branch must be gone (dock minimize removed)."
 Assert-NotContains $player 'keeps playing in the taskbar' `
     "The old overpromising tooltip must be gone."
-Assert-Contains $player 'if (!mpv.pause) { root.autoPausedInactive = true; mpv.pause = true }' `
-    "Minimize must pause before capturing session state."
+Assert-NotContains $player 'your spot is saved in the taskbar' `
+    "The old 'spot is saved' tooltip must be gone (minimize now keeps the stream warm)."
+Assert-Contains $player 'function suspendForMinimize' `
+    "Minimize must pause via suspendForMinimize (keeps the stream warm, no reload)."
+
+# --- minimize sits immediately before Close in the control bar (Hemanth 2026-07-07) ---
+$minIdx   = $player.IndexOf('icon: "minimizeToBar"')
+$closeIdx = $player.IndexOf('tooltip: "Close"')
+if ($minIdx -lt 0 -or $closeIdx -lt 0) { throw "Both minimize and Close buttons must exist." }
+if ($minIdx -ge $closeIdx) { throw "Minimize must come before Close." }
+if (($closeIdx - $minIdx) -gt 900) { throw "Minimize must sit adjacent to Close in the control bar." }
+Assert-NotContains $player 'id: backButton' `
+    "The old top-left corner minimize (backButton) must be gone; minimize now lives beside Close."
 
 # --- Fullscreen button gone ---
 Assert-NotContains $player 'icon: "fullscreen"' `

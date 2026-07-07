@@ -362,6 +362,9 @@ Window {
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
     property bool playerOpen: false
+    // The movie session the player minimized while still loaded. Reopening it from the
+    // taskbar finds the stream warm — we resume in place instead of re-streaming.
+    property string warmPlayerSessionId: ""
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
@@ -628,9 +631,15 @@ Window {
     // land on the world behind. close = the session is gone. Back keeps its old meaning.
     function closeSession(id) {
         if (!id) return
+        var rec = Sessions.get(id)
         // the store removes the record BEFORE the switch glue can look it up, so the live
         // surface must come down here when closing the active one (else it lingers on screen).
-        if (id === Sessions.activeId) win.teardownSession(Sessions.get(id))
+        if (id === Sessions.activeId) win.teardownSession(rec)
+        // a real close ends the stream for good — minimize keeps the movie warm, close does not.
+        if (rec && rec.contentKind === "movie") {
+            if (playerLayer.item) playerLayer.item.stop()
+            if (win.warmPlayerSessionId === id) win.warmPlayerSessionId = ""
+        }
         Sessions.close(id)
     }
     function minimizePlayer() {
@@ -688,12 +697,18 @@ Window {
         if (rec.contentKind === "movie") {
             if (!playerLayer.active) playerLayer.active = true
             win.playerOpen = true
-            if (t.localPath && String(t.localPath).length)
-                playerLayer.item.playLocalFile(t)   // downloaded file: stream-grade identity
-            else
-                playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
-                                             t.streamCandidates || [], t.playbackContext || ({}))
-            if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
+            if (win.warmPlayerSessionId === rec.id && playerLayer.item) {
+                // warm: the stream was kept alive on minimize — resume in place, no re-stream.
+                playerLayer.item.resumeFromMinimize()
+            } else {
+                if (t.localPath && String(t.localPath).length)
+                    playerLayer.item.playLocalFile(t)   // downloaded file: stream-grade identity
+                else
+                    playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
+                                                 t.streamCandidates || [], t.playbackContext || ({}))
+                if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
+            }
+            win.warmPlayerSessionId = rec.id
         } else if (rec.contentKind === "comic") {
             if (String(t.seriesId || "").indexOf("gc:") === 0) {
                 // western: the GetComics shelf hosts the reader
@@ -733,7 +748,11 @@ Window {
     function teardownSession(rec) {
         if (!rec || !rec.id) return
         if (rec.contentKind === "movie") {
-            if (playerLayer.item) playerLayer.item.stop()
+            // minimize keeps the stream WARM: pause + hide, never stop(), so reopening from
+            // the taskbar resumes instantly with no re-stream (Hemanth 2026-07-07, option a).
+            // The hard stop lives in closeSession — only a real close ends the stream.
+            if (playerLayer.item) playerLayer.item.suspendForMinimize()
+            win.warmPlayerSessionId = rec.id
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
             if (String((rec.target || ({})).seriesId || "").indexOf("gc:") === 0) westernLayer.active = false

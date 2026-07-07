@@ -1287,6 +1287,24 @@ Item {
         root.statusMsg = ""
     }
 
+    // In-app minimize keeps the stream ALIVE (never stop()): pause so we stop consuming,
+    // but the mpv host + torrent stay warm for an instant, reload-free resume.
+    function suspendForMinimize() {
+        root.closeMenus()
+        if (root.fileReady && !mpv.pause) {
+            root.autoPausedInactive = true
+            mpv.pause = true
+        }
+    }
+    function resumeFromMinimize() {
+        root.wakeChrome()
+        if (root.autoPausedInactive) {
+            root.autoPausedInactive = false
+            if (mpv.pause)
+                mpv.pause = false
+        }
+    }
+
     function fmtTime(sec) {
         if (!isFinite(sec) || sec < 0)
             return "0:00"
@@ -2031,22 +2049,6 @@ Item {
                 GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.0) }
                 GradientStop { position: 0.38; color: Qt.rgba(0, 0, 0, 0.28) }
                 GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.78) }
-            }
-        }
-
-        RoundButton {
-            // audit fix: this control MINIMIZES to the taskbar (session persists) — it is not a
-            // page back, so it no longer wears a back chevron or the word "Back".
-            id: backButton
-            x: tight ? 16 : 28
-            y: tight ? 14 : 20
-            size: 48
-            icon: "minimizeToBar"
-            tooltip: "Minimize — your spot is saved in the taskbar"
-            onClicked: {
-                root.closeMenus()
-                if (!mpv.pause) { root.autoPausedInactive = true; mpv.pause = true }
-                root.minimizeRequested()
             }
         }
 
@@ -3718,6 +3720,19 @@ Item {
                             root.closeMenus()
                             root.overflowOpen = !wasOpen
                             root.wakeChrome()
+                        }
+                    }
+
+                    // Minimize — pauses but keeps the stream ALIVE in the taskbar, so returning
+                    // is instant with no reload. Lives beside Close, the pairing you reach for
+                    // (Hemanth 2026-07-07). The shell keeps it warm; see Main.teardownSession.
+                    RoundButton {
+                        size: 48
+                        icon: "minimizeToBar"
+                        tooltip: "Minimize — paused in the taskbar, resumes with no reload"
+                        onClicked: {
+                            root.closeMenus()
+                            root.minimizeRequested()
                         }
                     }
 
