@@ -545,7 +545,7 @@ Window {
                                             "title": title, "art": entry.cover || "",
                                             "kind": r.subType === "series" ? "episode" : "movie",
                                             "position": r.position || 0 })
-            else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {})
+            else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {}, r.position || 0)
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
@@ -593,12 +593,13 @@ Window {
     // capture -> teardown -> build -> restore switch. contentKind picks the surface.
 
     // UI entry points (replace direct open* calls from cards / world pages):
-    function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
+    function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
             "target": { "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
                         "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
-                        "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}) }
+                        "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}),
+                        "position": position || 0 }
         })
     }
     // A downloaded video's session: dedup key = target.id (the stream id, e.g. "tt123:1:2"),
@@ -706,7 +707,12 @@ Window {
                 else
                     playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
                                                  t.streamCandidates || [], t.playbackContext || ({}))
-                if (playerLayer.item.restoreState) playerLayer.item.restoreState(st)   // precision: Task 5
+                // Continue-Watching first-open resume: a fresh open has NO savedState, so the saved
+                // position rides in target.position (the tile's ProgressStore value). A fresher
+                // in-session captured position (minimize) still wins. [fix 2026-07-07: streamed CW
+                // resumed at 0 because playTorrent takes no position and savedState was empty.]
+                var resumeSt = (st && Number(st.position) > 0) ? st : { "position": Number(t.position) || 0 }
+                if (playerLayer.item.restoreState) playerLayer.item.restoreState(resumeSt)   // precision: Task 5
             }
             win.warmPlayerSessionId = rec.id
         } else if (rec.contentKind === "comic") {
