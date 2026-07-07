@@ -74,6 +74,9 @@ public:
     Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY trackListChanged)
     QVariantList subtitleTracks() const;
 
+    Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
+    QVariantList chapters() const;
+
     Q_PROPERTY(double audioDelay READ audioDelay WRITE setAudioDelay NOTIFY audioDelayChanged)
     double audioDelay();
     void setAudioDelay(double value);
@@ -138,6 +141,7 @@ Q_SIGNALS:
     void audioTrackChanged();
     void subtitleTrackChanged();
     void trackListChanged();
+    void chaptersChanged();
     void audioDelayChanged();
     void subDelayChanged();
     void videoFillChanged();
@@ -175,6 +179,7 @@ private:
     QString m_formattedDuration;
     QUrl m_currentUrl;
     QVariantList m_trackList;
+    QVariantList m_chapters;
     double m_cacheTime = 0.0;
     bool m_coreSeeking = false;
     QTimer m_gifTimer;

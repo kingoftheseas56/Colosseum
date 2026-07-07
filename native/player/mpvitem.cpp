@@ -38,6 +38,7 @@ MpvItem::MpvItem(QQuickItem *parent)
     observeProperty(MpvProperties::self()->VideoAspectOverride, MPV_FORMAT_STRING);
     observeProperty(QStringLiteral("demuxer-cache-time"), MPV_FORMAT_DOUBLE);
     observeProperty(QStringLiteral("seeking"), MPV_FORMAT_FLAG);
+    observeProperty(QStringLiteral("chapter-list"), MPV_FORMAT_NODE);
 
     setupConnections();
 
@@ -165,6 +166,23 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
     } else if (property == QLatin1String("seeking")) {
         m_coreSeeking = value.toBool();
         Q_EMIT coreSeekingChanged();
+
+    } else if (property == QLatin1String("chapter-list")) {
+        QVariantList out;
+        const QVariantList raw = value.toList();
+        for (const QVariant &entry : raw) {
+            const QVariantMap m = entry.toMap();
+            const double start = m.value(QStringLiteral("time")).toDouble();
+            QString title = m.value(QStringLiteral("title")).toString().trimmed();
+            if (title.isEmpty())
+                title = QStringLiteral("Chapter");
+            QVariantMap normalized;
+            normalized.insert(QStringLiteral("title"), title);
+            normalized.insert(QStringLiteral("startSec"), start);
+            out.append(normalized);
+        }
+        m_chapters = out;
+        Q_EMIT chaptersChanged();
     }
 }
 
@@ -571,6 +589,11 @@ QVariantList MpvItem::audioTracks() const
 QVariantList MpvItem::subtitleTracks() const
 {
     return tracksForType(QStringLiteral("sub"));
+}
+
+QVariantList MpvItem::chapters() const
+{
+    return m_chapters;
 }
 
 double MpvItem::audioDelay()
