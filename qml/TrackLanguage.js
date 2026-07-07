@@ -48,11 +48,13 @@ function trackLang(track) {
     return ""
 }
 
+// A matched language always scores strictly positive (min 1), so callers can treat a
+// zero score as "not in the preferred list" even for long preference lists.
 function languageScore(track, preferredLangs) {
     var lang = trackLang(track)
     if (!lang.length) return 0
     var idx = (preferredLangs || []).indexOf(lang)
-    return idx < 0 ? 0 : (100 - idx * 10)
+    return idx < 0 ? 0 : Math.max(1, 100 - idx * 10)
 }
 
 function blockedWords(value) {
@@ -100,10 +102,16 @@ function stableSortCopy(tracks, scoreFn) {
     return rows.length && rows[0].score > 0 ? rows[0].row : null
 }
 
+// Language match GATES selection: a track with no preferred-language match scores 0 and is
+// never auto-picked (source/default are only tie-breakers among language-matched tracks).
+// Without this gate, sourceScore (always >= 1) would make any subtitle pickable regardless of
+// language, forcing a wrong-language track and pre-empting the pickDefault fallback.
 function pickBestAudioTrack(tracks, preferredLangs, blocked) {
     var candidates = filterBlockedTracks(tracks || [], blocked)
     return stableSortCopy(candidates, function(t) {
-        return languageScore(t, preferredLangs) + (t.default ? 3 : 0)
+        var ls = languageScore(t, preferredLangs)
+        if (ls <= 0) return 0
+        return ls + (t.default ? 3 : 0)
     })
 }
 
@@ -113,7 +121,9 @@ function pickBestSubtitleTrack(tracks, preferredLangs, options) {
     return stableSortCopy(candidates, function(t) {
         if (options.forcedOnly && !t.forced) return 0
         if (!options.forcedOnly && t.forced) return 0
-        return languageScore(t, preferredLangs)
+        var ls = languageScore(t, preferredLangs)
+        if (ls <= 0) return 0
+        return ls
              + sourceScore(t, !!options.preferEmbeddedSubtitles)
              + (t.default ? 2 : 0)
     })
