@@ -35,6 +35,13 @@ Item {
     property string mediaLocalPath: ""    // downloaded-file playback: resume by path, not torrent
     property real   pendingSeekSec: -1    // seek here once the file opens (resume / session restore)
 
+    // --- resume choice (Feature 3): first-load-only Resume / Start over overlay ---
+    property real resumePromptMinSec: 30       // only prompt after meaningful progress
+    property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
+    property bool resumeChoiceOpen: false      // is the overlay visible
+    property real resumeChoiceSec: -1          // the saved position the overlay offers
+    property bool resumePromptConsumed: false  // prompt only once per source load
+
     // --- online subtitles (Harbor-style: torrent streams have no subs, so fetch them) ---
     property string subStreamType: ""     // "movie" | "series" (for the OpenSubtitles query)
     property string subStreamId: ""       // "tt123" or "tt123:1:2"
@@ -542,6 +549,9 @@ Item {
         root.cancelSleepTimer()
         root.mediaLocalPath = ""
         root.pendingSeekSec = -1
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.resumePromptConsumed = false
         root.mediaTitle = title || ""
         root.mediaTransport = "Torrent stream"
         root.mediaYear = String((playbackContext || ({})).year || "")
@@ -1240,6 +1250,9 @@ Item {
         root.subStreamId = (t.id && String(t.id).length) ? String(t.id) : ""
         root.fetchSubtitles()
         root.pendingSeekSec = Number(t.position || 0) > 0 ? Number(t.position) : -1
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.resumePromptConsumed = false
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1276,6 +1289,55 @@ Item {
         var p = Number((st || ({})).position || 0)
         if (p > 0)
             root.pendingSeekSec = p
+    }
+
+    // --- resume choice (Feature 3) ---
+    // On first load only, if there is a meaningful saved position, offer Resume / Start over
+    // instead of silently seeking. Near-finished content restarts from zero without prompting.
+    function shouldSkipResumePrompt() {
+        if (root.resumePromptConsumed)
+            return true
+        if (root.subStreamId.indexOf("iptv:") === 0 || root.mediaId.indexOf("iptv:") === 0)
+            return true
+        if (root.pendingSeekSec <= root.resumePromptMinSec)
+            return true
+        return false
+    }
+
+    function prepareResumeChoice() {
+        if (root.shouldSkipResumePrompt())
+            return false
+        root.resumePromptConsumed = true
+        root.resumeChoiceSec = root.pendingSeekSec
+        if (mpv.duration > 0 && root.resumeChoiceSec / mpv.duration >= root.resumeRestartThreshold) {
+            root.pendingSeekSec = 0
+            root.resumeChoiceSec = -1
+            root.resumeChoiceOpen = false
+            return false
+        }
+        root.pendingSeekSec = -1
+        root.resumeChoiceOpen = true
+        mpv.pause = true
+        root.wakeChrome()
+        return true
+    }
+
+    function acceptResumeChoice() {
+        if (root.resumeChoiceSec > 0)
+            root.pendingSeekSec = root.resumeChoiceSec
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        if (mpv.pause)
+            mpv.pause = false
+    }
+
+    function startOverFromResumeChoice() {
+        root.pendingSeekSec = 0
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        mpv.seekExact(0)
+        if (mpv.pause)
+            mpv.pause = false
     }
 
     function stop() {
@@ -1725,8 +1787,13 @@ Item {
             streamWatchdog.stop()
             root.seekPreview = mpv.position
             root.fileReady = true
-            if (root.pendingSeekSec > 0) {     // resume / session-restore precision
+            if (root.pendingSeekSec > 0 && root.prepareResumeChoice()) {
+                // The overlay decides whether to seek or start over.
+            } else if (root.pendingSeekSec > 0) {     // resume / session-restore precision
                 mpv.seekExact(root.pendingSeekSec)
+                root.pendingSeekSec = -1
+            } else if (root.pendingSeekSec === 0) {
+                mpv.seekExact(0)
                 root.pendingSeekSec = -1
             }
             root.maybeAutoSub()      // file is open → safe to sub-add the auto/online subtitle
@@ -2303,6 +2370,54 @@ Item {
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.sendRoomChat()
                     }
+                }
+            }
+        }
+
+        // Resume choice overlay — first-load only. Real labeled buttons (no PlayerActionButton
+        // component exists; RoundButton is icon-only). [Feature 3 / review adaptation 2026-07-07]
+        Rectangle {
+            id: resumeChoicePanel
+            visible: root.resumeChoiceOpen
+            z: 30
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 48, 380)
+            height: resumeChoiceColumn.implicitHeight + 36
+            radius: 10
+            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            // swallow body clicks so the fullscreen tap-catcher can't dismiss it
+            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: {} }
+
+            Column {
+                id: resumeChoiceColumn
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 14
+
+                Text {
+                    width: parent.width
+                    text: "Resume from " + root.fmtTime(root.resumeChoiceSec)
+                    color: theme.ink
+                    font.family: theme.hud
+                    font.pixelSize: 18
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    width: parent.width
+                    text: "Pick up where you left off, or start this video from the beginning."
+                    color: theme.inkDim
+                    font.family: theme.hud
+                    font.pixelSize: 13
+                    wrapMode: Text.WordWrap
+                }
+                Row {
+                    spacing: 10
+                    ResumeChoiceButton { label: "Resume";    primary: true;  onClicked: root.acceptResumeChoice() }
+                    ResumeChoiceButton { label: "Start over"; primary: false; onClicked: root.startOverFromResumeChoice() }
                 }
             }
         }
@@ -3756,6 +3871,35 @@ Item {
         }
         }
 
+    }
+
+    // Resume choice overlay button — plain labeled button (RoundButton is icon-only). [Feature 3]
+    component ResumeChoiceButton: Rectangle {
+        id: rcb
+        property string label: ""
+        property bool primary: false
+        signal clicked()
+        width: Math.max(96, rcbText.implicitWidth + 28)
+        height: 38
+        radius: 8
+        color: rcb.primary ? theme.gold
+                           : (rcbMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.08))
+        Text {
+            id: rcbText
+            anchors.centerIn: parent
+            text: rcb.label
+            color: rcb.primary ? "#111111" : theme.ink
+            font.family: theme.hud
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+        }
+        MouseArea {
+            id: rcbMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: rcb.clicked()
+        }
     }
 
     component RoomActionButton: Item {
