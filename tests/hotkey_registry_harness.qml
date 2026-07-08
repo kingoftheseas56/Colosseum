@@ -20,6 +20,19 @@ QtObject {
     readonly property int kF: 0x46
 
     Component.onCompleted: {
+        // Wrap everything: an uncaught throw in onCompleted would HANG qml.exe (no Qt.quit),
+        // not exit non-zero — so the exit CODE, set explicitly here, is the reliable verdict
+        // (console output is not guaranteed to flush before exit).
+        try {
+            runChecks()
+            Qt.exit(0)
+        } catch (e) {
+            console.log("HARNESS FAIL: " + e.message)
+            Qt.exit(2)
+        }
+    }
+
+    function runChecks() {
         // --- no duplicate active bindings across different actions ---
         var conflicts = PlayerHotkeys.detectConflicts(PlayerHotkeys.actions())
         if (conflicts.length !== 0)
@@ -70,6 +83,5 @@ QtObject {
                 throw new Error("group " + JSON.stringify(groups[g].group) + " has no items.")
 
         console.log("Player hotkey registry logic checks passed.")
-        Qt.quit()
     }
 }
