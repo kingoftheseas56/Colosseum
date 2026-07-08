@@ -778,6 +778,12 @@ Item {
         root.streamRetryCount = 0
         root.mediaResumeHash = c.infoHash || ""
         root.mediaResumeFileIdx = c.fileIdx || 0
+        // Mid-play stream switch: carry the live position into the replacement stream.
+        // No overlay mid-watch — you were just watching, so the seek is silent.
+        if (reason === "switch" && mpv.position > 0) {
+            root.pendingSeekSec = mpv.position
+            root.resumePromptConsumed = true   // silent carry — skip the resume overlay
+        }
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -827,6 +833,16 @@ Item {
         var m = String(posterUrl || "").match(/\/(tt\d+)\//)
         root.mediaId = (subType === "series" && subId) ? subId
                      : ((m && m[1]) ? m[1] : (infoHash + ":" + fileIdx))
+        // Cross-stream resume (spec 2026-07-08): the store keys progress by IDENTITY
+        // (tt / tt:season:episode), so a position saved while watching one torrent is
+        // valid for every other torrent of the same episode. Seed it here; onFileLoaded's
+        // resume-choice overlay (Feature 3) decides ask / seek / start-over. The
+        // Continue-tile path still calls restoreState() after open — it just overwrites
+        // this seed with the same-or-fresher value, so the two doors never fight.
+        var prog = (typeof Progress !== "undefined") ? Progress.get("video", root.mediaId) : ({})
+        var savedPos = Number(((prog || ({})).resume || ({})).position || 0)
+        if (savedPos > 0)
+            root.pendingSeekSec = savedPos
         root.deadStreamKeys = ({})
         root.stubCheckedKey = ""
         root.autoPausedInactive = false
