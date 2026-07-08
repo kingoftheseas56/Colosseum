@@ -20,4 +20,18 @@ Assert-NotContains $player "GradientStop { position: 0.38; color: Qt.rgba(0, 0, 
 Assert-Contains $player "id: panelBreath" `
     "The panel must breathe (slide) with chrome visibility."
 
+# --- Task 2: the glass titlebar ---
+Assert-Contains $player "id: titleBar" `
+    "A fused glass titlebar must exist."
+Assert-NotContains $player "GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.68) }" `
+    "The Harbor top gradient scrim must be gone."
+Assert-Contains $player 'id: titleBarVerbs' `
+    "Window verbs (minimize/close) must live in the titlebar."
+
+# The panel row must NOT carry window verbs anymore (they moved to the titlebar).
+$controlsBlock = $player.Substring($player.IndexOf("id: transportRow"))
+$controlsBlock = $controlsBlock.Substring(0, [Math]::Min(9000, $controlsBlock.Length))
+Assert-NotContains $controlsBlock 'icon: "minimizeToBar"' `
+    "The panel must not carry the minimize verb (titlebar owns it)."
+
 Write-Host "Native chrome contract checks passed."

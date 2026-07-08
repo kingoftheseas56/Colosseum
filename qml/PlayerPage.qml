@@ -2570,49 +2570,81 @@ Item {
         visible: opacity > 0.01
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
+        // Native chrome (spec 2026-07-08): a real titlebar — the player is a window in
+        // Colosseum's OS. Title + episode/source meta on the left (Fraunces, house ink),
+        // window verbs on the right where every OS keeps them. Mirrors the bottom panel.
         Rectangle {
+            id: titleBar
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 142
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.68) }
-                GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.24) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
+            height: 44
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.78)
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.14)
             }
-        }
-
-
-        Column {
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.topMargin: tight ? 18 : 24
-            anchors.rightMargin: tight ? 18 : 34
-            spacing: 3
-            width: Math.min(560, parent.width - (tight ? 92 : 140))
-            Text {
-                width: parent.width
-                text: root.mediaTitle || mpv.mediaTitle
-                color: theme.ink
-                font.family: theme.display
-                font.pixelSize: tight ? 18 : 22
-                font.weight: Font.DemiBold
-                horizontalAlignment: Text.AlignRight
-                elide: Text.ElideRight
-                style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.55)
+            transform: Translate {
+                y: root.controlsShown && !root.starting ? 0 : -8
+                Behavior on y { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             }
-            Text {
-                width: parent.width
-                text: root.mediaSubtitle
-                visible: text.length > 0
-                color: theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 13
-                horizontalAlignment: Text.AlignRight
-                elide: Text.ElideRight
-                style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.55)
+
+            Row {
+                anchors.left: parent.left
+                anchors.leftMargin: tight ? 14 : 20
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 10
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.mediaTitle || mpv.mediaTitle
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: tight ? 15 : 17
+                    font.weight: Font.DemiBold
+                    elide: Text.ElideRight
+                    width: Math.min(implicitWidth, chrome.width * 0.5)
+                }
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.mediaSubtitle
+                    visible: text.length > 0 && !tight
+                    color: theme.inkDim
+                    font.family: theme.hud
+                    font.pixelSize: 12
+                    elide: Text.ElideRight
+                    width: Math.min(implicitWidth, chrome.width * 0.3)
+                }
+            }
+
+            Row {
+                id: titleBarVerbs
+                anchors.right: parent.right
+                anchors.rightMargin: tight ? 10 : 14
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                RoundButton {
+                    size: 34
+                    icon: "minimizeToBar"
+                    tooltip: "Minimize — paused in the taskbar, resumes with no reload"
+                    onClicked: {
+                        root.closeMenus()
+                        root.minimizeRequested()
+                    }
+                }
+                RoundButton {
+                    size: 34
+                    icon: "cancel"
+                    tooltip: "Close"
+                    onClicked: {
+                        var playing = root.fileReady && !mpv.pause
+                        root.closeMenus()
+                        if (playing) { root.closeConfirmOpen = true; root.wakeChrome() }
+                        else root.closeRequested()
+                    }
+                }
             }
         }
 
@@ -3969,34 +4001,8 @@ Item {
                         }
                     }
 
-                    // Minimize — pauses but keeps the stream ALIVE in the taskbar, so returning
-                    // is instant with no reload. Lives beside Close, the pairing you reach for
-                    // (Hemanth 2026-07-07). The shell keeps it warm; see Main.teardownSession.
-                    RoundButton {
-                        size: 48
-                        icon: "minimizeToBar"
-                        tooltip: "Minimize — paused in the taskbar, resumes with no reload"
-                        onClicked: {
-                            root.closeMenus()
-                            root.minimizeRequested()
-                        }
-                    }
-
-                    // close = end this watching session (Windows-window vocabulary; wired to
-                    // closePlayerSession in the shell). [A5 addition riding A4's in-flight chrome]
-                    // Destructive-path guard (spec 2026-07-06 slice 5): ending a session while
-                    // media is actively playing asks once; paused/idle close is instant.
-                    RoundButton {
-                        size: 48
-                        icon: "cancel"
-                        tooltip: "Close"
-                        onClicked: {
-                            var playing = root.fileReady && !mpv.pause
-                            root.closeMenus()
-                            if (playing) { root.closeConfirmOpen = true; root.wakeChrome() }
-                            else root.closeRequested()
-                        }
-                    }
+                    // Window verbs (minimize · close) moved to the titlebar (native chrome
+                    // spec 2026-07-08) — one home for them, like every OS. See id: titleBarVerbs.
                 }
             }
         }
