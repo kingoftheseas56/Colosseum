@@ -37,4 +37,30 @@ Assert-Contains $player "root.browserOpen = false" `
 Assert-Contains $player "|| root.browserOpen" `
     "anyMenuOpen must include the drawer (chrome stays awake)."
 
+# --- Task 4: the drawer ---
+$drawerPath = Join-Path $root "qml/BrowserDrawer.qml"
+if (!(Test-Path $drawerPath)) { throw "qml/BrowserDrawer.qml must exist." }
+$drawer = Get-Content $drawerPath -Raw
+
+Assert-Contains $drawer 'import "EpisodeBrowser.js" as EpisodeBrowser' `
+    "Drawer must derive everything through the harness-tested store."
+Assert-Contains $drawer 'import "TheatreApi.js" as TheatreApi' `
+    "Drawer must fetch seasons through the same meta call the series page uses."
+Assert-Contains $drawer "Magnet.linkFor" `
+    "Source rows must keep the copy affordance."
+Assert-Contains $drawer "swallow" `
+    "Drawer body must swallow clicks (panel doctrine)."
+Assert-Contains $drawer "Couldn't load other seasons" `
+    "Season fetch failure must be honest, with a retry."
+Assert-Contains $player 'icon: "browser"' `
+    "Control bar must carry the drawer button."
+Assert-Contains $player 'kind === "browser"' `
+    "IconGlyph must draw the browser glyph."
+Assert-Contains $player "BrowserDrawer {" `
+    "PlayerPage must instantiate the drawer."
+Assert-Contains $player 'root.playStreamAt(index, "switch")' `
+    "A source tap must switch in place (position carries via 41f5635)."
+Assert-Contains $player "root.jumpToEpisode(target" `
+    "An episode tap must ride the generalized jump pipeline."
+
 Write-Host "Player browser contract checks passed."

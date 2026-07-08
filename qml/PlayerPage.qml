@@ -3915,6 +3915,32 @@ Item {
             }
         }
 
+        // Feature 8: in-player episode & source browser, opened with 'E' or the control-bar
+        // button. Declared before the ? sheet so the shortcuts overlay stays on top.
+        BrowserDrawer {
+            id: browserDrawer
+            open: root.browserOpen
+            queue: root.playbackQueue
+            queueIndex: root.playbackQueueIndex
+            nowId: root.mediaId
+            mediaTitle: root.mediaTitle
+            mediaYear: root.mediaYear
+            backdropUrl: root.mediaArt
+            subType: root.subStreamType.length ? root.subStreamType : "series"
+            candidates: root.streamCandidates
+            currentStreamIndex: root.currentStreamIndex
+            isDead: function(i) { return root.isStreamDead(i) }
+            onDismissed: root.browserOpen = false
+            onSourcePicked: function(index) {
+                root.browserOpen = false
+                root.playStreamAt(index, "switch")
+            }
+            onEpisodePicked: function(target) {
+                root.browserOpen = false
+                root.jumpToEpisode(target, "Loading episode...", "this episode.")
+            }
+        }
+
         // Feature 7: keyboard shortcuts reference, opened with '?'.
         ShortcutsSheet {
             id: shortcutsSheet
@@ -4345,6 +4371,20 @@ Item {
                                : ""
                         tooltip: root.downloadTooltip()
                         onClicked: root.handleDownloadAction()
+                    }
+
+                    RoundButton {
+                        visible: root.mediaId.indexOf("iptv:") !== 0
+                        size: 48
+                        icon: "browser"
+                        active: root.browserOpen
+                        tooltip: "Episodes & sources (E)"
+                        onClicked: {
+                            var wasOpen = root.browserOpen
+                            root.closeMenus()
+                            root.browserOpen = !wasOpen
+                            root.wakeChrome()
+                        }
                     }
 
                     AudioMenu {
@@ -5501,6 +5541,14 @@ Item {
                 line(0, 0.12, 0, -0.16)
                 line(0.18, 0.12, 0.18, -0.08)
                 line(-0.25, 0.18, 0.25, 0.18)
+            } else if (kind === "browser") {
+                // episode/source browser: a three-row list
+                line(-0.16, -0.18, 0.24, -0.18)
+                line(-0.16, 0.0, 0.24, 0.0)
+                line(-0.16, 0.18, 0.24, 0.18)
+                ctx.beginPath(); ctx.arc(cx - 0.24 * s, cy - 0.18 * s, Math.max(1.2, s / 30), 0, 2 * Math.PI); ctx.fill()
+                ctx.beginPath(); ctx.arc(cx - 0.24 * s, cy, Math.max(1.2, s / 30), 0, 2 * Math.PI); ctx.fill()
+                ctx.beginPath(); ctx.arc(cx - 0.24 * s, cy + 0.18 * s, Math.max(1.2, s / 30), 0, 2 * Math.PI); ctx.fill()
             } else if (kind === "draw") {
                 ctx.save()
                 ctx.translate(cx, cy)
