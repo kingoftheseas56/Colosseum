@@ -609,14 +609,17 @@ Item {
     readonly property bool tight: chromeVisibleWidth < 680
 
     // Width-honest control bar (2026-07-08, "icon vomit"): the centered transport row and
-    // the right-anchored utility row share one strip, and nothing used to check whether
-    // they FIT — every utility added since the magic 1000/680 thresholds were tuned
-    // (stream, download, episodes browser) slid the cluster further under the transport.
-    // utilitySpace = the real room between the transport's right edge and the bar's right
-    // margin, from LIVE transport width (prev/next buttons change it). Fold tiers:
-    //   barSnug — the full roster (~534px + gap) doesn't fit: fold speed/fill (as before)
-    //             AND stream/download/browser into the overflow panel.
-    //   barTiny — even the snug roster (~318px) doesn't fit: fold audio/tools too.
+    // the side clusters share one strip, and nothing used to check whether they FIT —
+    // every utility added since the magic 1000/680 thresholds were tuned (stream,
+    // download, episodes browser) slid the cluster further under the transport.
+    // utilitySpace = the real room between the transport's edge and the bar's margin,
+    // from LIVE transport width (prev/next buttons change it). The panel is symmetric,
+    // so ONE number governs BOTH sides: left = volume + retry/stream/download (~330px
+    // max), right = the chip cluster + overflow. Fold tiers:
+    //   barSnug — the chip roster doesn't fit: fold speed/fill (as before) AND
+    //             stream/download/browser into the overflow panel (left side shrinks
+    //             to volume alone, ~170px — always under the snug threshold).
+    //   barTiny — even the snug roster doesn't fit: fold audio/tools too.
     // Reads transportRow.width only (independent of any folding) — no binding loop.
     readonly property real utilitySpace: chromeVisibleWidth / 2 - transportRow.width / 2 - 34
     // Retuned for the chip cluster (native chrome): stream/download round buttons fold
@@ -3856,11 +3859,53 @@ Item {
                 anchors.bottomMargin: 8
                 height: tight ? 56 : 64
 
-                VolumeControl {
-                    id: volumeControl
-                    visible: !tight
+                // Utility icons live LEFT of the playback arrows, chips live right — the
+                // two sides stay apart and nothing may crowd the transport (Hemanth
+                // 2026-07-08: "they should stay apart, on either side of the playback
+                // arrows"). Fold rules unchanged: stream/download still duck into the
+                // overflow panel at barSnug.
+                Row {
+                    id: leftUtilityRow
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
+                    spacing: 6
+
+                    VolumeControl {
+                        id: volumeControl
+                        visible: !tight
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    RoundButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.errored || root.starting
+                        size: 48
+                        icon: "retry"
+                        tooltip: "Retry stream"
+                        onClicked: root.retryCurrentStream()
+                    }
+
+                    RoundButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.streamCandidates.length > 1 && !root.barSnug
+                        size: 48
+                        icon: "stream"
+                        tooltip: "Pick another stream"
+                        onClicked: root.pickAnotherStream()
+                    }
+
+                    RoundButton {
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: root.currentCastUrl().length > 0 && !root.barSnug
+                        size: 48
+                        icon: root.downloadIcon()
+                        active: typeof Download !== "undefined" && Download.status.kind !== "idle"
+                        label: (typeof Download !== "undefined" && Download.status.kind === "downloading")
+                               ? Math.round((Download.status.ratio || 0) * 100)
+                               : ""
+                        tooltip: root.downloadTooltip()
+                        onClicked: root.handleDownloadAction()
+                    }
                 }
 
                 Row {
@@ -3870,7 +3915,7 @@ Item {
                     RoundButton {
                         visible: root.hasAdjacentEpisode("prev")
                         size: tight ? 44 : 50
-                        icon: "back"
+                        icon: "prevEpisode"
                         tooltip: "Previous episode"
                         onClicked: root.goToAdjacentEpisode("prev")
                     }
@@ -3909,33 +3954,8 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 6
 
-                    RoundButton {
-                        visible: root.errored || root.starting
-                        size: 48
-                        icon: "retry"
-                        tooltip: "Retry stream"
-                        onClicked: root.retryCurrentStream()
-                    }
-
-                    RoundButton {
-                        visible: root.streamCandidates.length > 1 && !root.barSnug
-                        size: 48
-                        icon: "stream"
-                        tooltip: "Pick another stream"
-                        onClicked: root.pickAnotherStream()
-                    }
-
-                    RoundButton {
-                        visible: root.currentCastUrl().length > 0 && !root.barSnug
-                        size: 48
-                        icon: root.downloadIcon()
-                        active: typeof Download !== "undefined" && Download.status.kind !== "idle"
-                        label: (typeof Download !== "undefined" && Download.status.kind === "downloading")
-                               ? Math.round((Download.status.ratio || 0) * 100)
-                               : ""
-                        tooltip: root.downloadTooltip()
-                        onClicked: root.handleDownloadAction()
-                    }
+                    // retry/stream/download moved to leftUtilityRow (2026-07-08) — the
+                    // right side is the chip cluster's alone.
 
                     PanelChip {
                         visible: root.mediaId.indexOf("iptv:") !== 0 && !root.barTiny
@@ -4896,7 +4916,10 @@ Item {
             ctx.clearRect(0, 0, w, h)
             ctx.strokeStyle = ink
             ctx.fillStyle = ink
-            ctx.lineWidth = Math.max(1.5, s / 24)
+            // Forged-line family (Direction A, mock-ratified 2026-07-08): one consistent
+            // heavy stroke across every glyph — the old s/24 hairline read as a previous
+            // era next to the chip cluster.
+            ctx.lineWidth = Math.max(2.4, s / 13)
             ctx.lineCap = "round"
             ctx.lineJoin = "round"
 
@@ -4913,15 +4936,18 @@ Item {
             }
 
             if (kind === "play") {
+                // forged-line: outlined triangle, rounded joins
                 ctx.beginPath()
-                ctx.moveTo(cx - 0.08 * s, cy - 0.18 * s)
-                ctx.lineTo(cx - 0.08 * s, cy + 0.18 * s)
-                ctx.lineTo(cx + 0.21 * s, cy)
+                ctx.moveTo(cx - 0.11 * s, cy - 0.21 * s)
+                ctx.lineTo(cx - 0.11 * s, cy + 0.21 * s)
+                ctx.lineTo(cx + 0.23 * s, cy)
                 ctx.closePath()
-                ctx.fill()
+                ctx.stroke()
             } else if (kind === "pause") {
-                ctx.fillRect(cx - 0.16 * s, cy - 0.19 * s, 0.09 * s, 0.38 * s)
-                ctx.fillRect(cx + 0.07 * s, cy - 0.19 * s, 0.09 * s, 0.38 * s)
+                // forged-line: two thick round-cap strokes
+                ctx.lineWidth = Math.max(3, s / 10)
+                line(-0.11, -0.19, -0.11, 0.19)
+                line(0.11, -0.19, 0.11, 0.19)
             } else if (kind === "back") {
                 line(0.12, -0.22, -0.12, 0)
                 line(-0.12, 0, 0.12, 0.22)
@@ -4931,46 +4957,45 @@ Item {
                 // sitting next to Close (Hemanth 2026-07-07: "where is the minimize button even").
                 line(-0.24, 0.16, 0.24, 0.16)
             } else if (kind === "seekBack" || kind === "seekForward") {
-                // Harbor-style circular arrow: a near-full loop (gap at top) with a clear
-                // arrowhead, so it reads unmistakably as rewind/skip — not the old partial squiggle.
+                // Forged-line loop: near-full arc with a clear arrowhead into the gap.
+                // Forward is drawn; back is the same drawing mirrored (matched pair).
                 var fwd = kind === "seekForward"
-                circleArc(0.30, -65, 245, false)
-                if (fwd) {
-                    // arrowhead at the top-left end, pointing clockwise (into the gap)
-                    line(-0.126, -0.273, -0.25, -0.30)
-                    line(-0.126, -0.273, -0.20, -0.15)
-                } else {
-                    // arrowhead at the top-right end, pointing counterclockwise (into the gap)
-                    line(0.126, -0.273, 0.25, -0.30)
-                    line(0.126, -0.273, 0.20, -0.15)
-                }
-                ctx.font = "700 " + Math.round(s * 0.16) + "px " + theme.hud
+                ctx.save()
+                if (!fwd) { ctx.translate(w, 0); ctx.scale(-1, 1) }
+                circleArc(0.31, -60, 235, false)
+                line(-0.135, -0.28, -0.29, -0.315)
+                line(-0.135, -0.28, -0.215, -0.135)
+                ctx.restore()
+                ctx.font = "600 " + Math.round(s * 0.21) + "px " + theme.hud
                 ctx.textAlign = "center"
                 ctx.textBaseline = "middle"
                 ctx.fillText(label, cx, cy + s * 0.03)
-            } else if (kind === "nextEpisode") {
+            } else if (kind === "nextEpisode" || kind === "prevEpisode") {
+                // matched mirrored pair: outlined triangle + bar (the shipped set paired a
+                // bare chevron with a filled double-triangle — the odd couple, retired)
+                var m = kind === "prevEpisode" ? -1 : 1
                 ctx.beginPath()
-                ctx.moveTo(cx - 0.24 * s, cy - 0.20 * s)
-                ctx.lineTo(cx - 0.24 * s, cy + 0.20 * s)
-                ctx.lineTo(cx + 0.04 * s, cy)
+                ctx.moveTo(cx - 0.20 * m * s, cy - 0.19 * s)
+                ctx.lineTo(cx - 0.20 * m * s, cy + 0.19 * s)
+                ctx.lineTo(cx + 0.14 * m * s, cy)
                 ctx.closePath()
-                ctx.fill()
-                ctx.beginPath()
-                ctx.moveTo(cx + 0.02 * s, cy - 0.20 * s)
-                ctx.lineTo(cx + 0.02 * s, cy + 0.20 * s)
-                ctx.lineTo(cx + 0.30 * s, cy)
-                ctx.closePath()
-                ctx.fill()
-                ctx.fillRect(cx + 0.34 * s, cy - 0.20 * s, 0.05 * s, 0.40 * s)
+                ctx.stroke()
+                line(0.24 * m, -0.19, 0.24 * m, 0.19)
             } else if (kind === "retry") {
-                circleArc(0.28, 35, 330, false)
-                line(0.24, -0.24, 0.38, -0.24)
-                line(0.38, -0.24, 0.34, -0.09)
+                circleArc(0.29, 25, 320, false)
+                line(0.185, -0.225, 0.35, -0.26)
+                line(0.185, -0.225, 0.25, -0.07)
             } else if (kind === "download") {
-                line(0, -0.30, 0, 0.12)
-                line(-0.16, -0.04, 0, 0.12)
-                line(0.16, -0.04, 0, 0.12)
-                line(-0.28, 0.26, 0.28, 0.26)
+                line(0, -0.28, 0, 0.10)
+                line(-0.15, -0.05, 0, 0.10)
+                line(0.15, -0.05, 0, 0.10)
+                // tray with side walls
+                ctx.beginPath()
+                ctx.moveTo(cx - 0.26 * s, cy + 0.10 * s)
+                ctx.lineTo(cx - 0.26 * s, cy + 0.26 * s)
+                ctx.lineTo(cx + 0.26 * s, cy + 0.26 * s)
+                ctx.lineTo(cx + 0.26 * s, cy + 0.10 * s)
+                ctx.stroke()
             } else if (kind === "cancel") {
                 line(-0.22, -0.22, 0.22, 0.22)
                 line(0.22, -0.22, -0.22, 0.22)
@@ -5026,12 +5051,17 @@ Item {
                 ctx.stroke()
                 ctx.restore()
             } else if (kind === "stream") {
-                circleArc(0.26, 210, 330, false)
-                circleArc(0.17, 210, 330, false)
-                circleArc(0.08, 210, 330, false)
+                // origin dot + two clean waves — three thin arcs smudged into a blob at
+                // 48px (the "vomit" glyph Hemanth photographed, 2026-07-08)
                 ctx.beginPath()
-                ctx.arc(cx - 0.28 * s, cy + 0.20 * s, 0.035 * s, 0, 2 * Math.PI)
+                ctx.arc(cx - 0.20 * s, cy + 0.18 * s, 0.055 * s, 0, 2 * Math.PI)
                 ctx.fill()
+                ctx.beginPath()
+                ctx.arc(cx - 0.20 * s, cy + 0.18 * s, 0.20 * s, -80 * Math.PI / 180, -8 * Math.PI / 180)
+                ctx.stroke()
+                ctx.beginPath()
+                ctx.arc(cx - 0.20 * s, cy + 0.18 * s, 0.36 * s, -80 * Math.PI / 180, -8 * Math.PI / 180)
+                ctx.stroke()
             } else if (kind === "cast") {
                 ctx.strokeRect(cx - 0.28 * s, cy - 0.24 * s, 0.56 * s, 0.36 * s)
                 circleArc(0.30, 215, 315, false)
@@ -5068,12 +5098,12 @@ Item {
                 circleArc(0.18, 205, 335, false)
             } else if (kind === "volume" || kind === "mute") {
                 ctx.beginPath()
-                ctx.moveTo(cx - 0.34 * s, cy - 0.10 * s)
-                ctx.lineTo(cx - 0.20 * s, cy - 0.10 * s)
-                ctx.lineTo(cx - 0.03 * s, cy - 0.25 * s)
-                ctx.lineTo(cx - 0.03 * s, cy + 0.25 * s)
-                ctx.lineTo(cx - 0.20 * s, cy + 0.10 * s)
-                ctx.lineTo(cx - 0.34 * s, cy + 0.10 * s)
+                ctx.moveTo(cx - 0.32 * s, cy - 0.09 * s)
+                ctx.lineTo(cx - 0.19 * s, cy - 0.09 * s)
+                ctx.lineTo(cx - 0.04 * s, cy - 0.23 * s)
+                ctx.lineTo(cx - 0.04 * s, cy + 0.23 * s)
+                ctx.lineTo(cx - 0.19 * s, cy + 0.09 * s)
+                ctx.lineTo(cx - 0.32 * s, cy + 0.09 * s)
                 ctx.closePath()
                 ctx.stroke()
                 if (kind === "mute") {
@@ -5081,10 +5111,10 @@ Item {
                     line(0.36, -0.14, 0.15, 0.14)
                 } else {
                     ctx.beginPath()
-                    ctx.arc(cx + 0.04 * s, cy, 0.22 * s, -0.7, 0.7)
+                    ctx.arc(cx + 0.06 * s, cy, 0.20 * s, -0.65, 0.65)
                     ctx.stroke()
                     ctx.beginPath()
-                    ctx.arc(cx + 0.04 * s, cy, 0.34 * s, -0.62, 0.62)
+                    ctx.arc(cx + 0.06 * s, cy, 0.33 * s, -0.60, 0.60)
                     ctx.stroke()
                 }
             } else if (kind === "audio") {
@@ -5121,7 +5151,7 @@ Item {
             } else if (kind === "more") {
                 for (var di = -1; di <= 1; di++) {
                     ctx.beginPath()
-                    ctx.arc(cx + di * 0.22 * s, cy, 0.055 * s, 0, 2 * Math.PI)
+                    ctx.arc(cx + di * 0.22 * s, cy, 0.06 * s, 0, 2 * Math.PI)
                     ctx.fill()
                 }
             }
