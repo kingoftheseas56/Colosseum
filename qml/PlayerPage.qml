@@ -426,6 +426,19 @@ Item {
         return null
     }
 
+    // Chip value derivations (native chrome spec 2026-07-08): a 2–3 letter language read
+    // of the ACTIVE track, shown in gold on the panel chip so the current audio/subs are
+    // legible without opening the menu. Built on the existing selected-row helpers.
+    function langChip(row, offText) {
+        if (!row)
+            return offText
+        var lang = String(row.lang || "").toUpperCase()
+        return lang.length ? lang.substring(0, 3) : "ON"
+    }
+    readonly property string audioChipValue: langChip(root.selectedAudioRow(), "—")
+    readonly property string subsChipValue: (String(mpv.subtitleTrack) === "")
+                                            ? "OFF" : langChip(root.selectedSubtitleRow(), "ON")
+
     function applySavedTrackDelays(pref) {
         if (pref && typeof pref.audioDelay === "number")
             mpv.audioDelay = root.round2(pref.audioDelay)
@@ -606,8 +619,10 @@ Item {
     //   barTiny — even the snug roster (~318px) doesn't fit: fold audio/tools too.
     // Reads transportRow.width only (independent of any folding) — no binding loop.
     readonly property real utilitySpace: chromeVisibleWidth / 2 - transportRow.width / 2 - 34
-    readonly property bool barSnug: utilitySpace < 560
-    readonly property bool barTiny: utilitySpace < 330
+    // Retuned for the chip cluster (native chrome): stream/download round buttons fold
+    // first (snug); the four chips hold out until the window is genuinely tiny.
+    readonly property bool barSnug: utilitySpace < 470
+    readonly property bool barTiny: utilitySpace < 260
     readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
@@ -2832,12 +2847,12 @@ Item {
                         { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "Episodes & sources", "kind": "browser", "when": root.barSnug && root.mediaId.indexOf("iptv:") !== 0 },
+                        { "label": "Episodes & sources", "kind": "browser", "when": root.barTiny && root.mediaId.indexOf("iptv:") !== 0 },
                         { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
                         { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
-                        { "label": "Speed", "kind": "speed", "when": root.barSnug },
-                        { "label": "Picture", "kind": "fill", "when": root.barSnug }
+                        { "label": "Speed", "kind": "speed", "when": root.barTiny },
+                        { "label": "Picture", "kind": "fill", "when": true }
                     ]
                     delegate: Rectangle {
                         required property var modelData
@@ -3904,11 +3919,11 @@ Item {
                         onClicked: root.handleDownloadAction()
                     }
 
-                    RoundButton {
-                        visible: root.mediaId.indexOf("iptv:") !== 0 && !root.barSnug
-                        size: 48
-                        icon: "browser"
-                        active: root.browserOpen
+                    PanelChip {
+                        visible: root.mediaId.indexOf("iptv:") !== 0 && !root.barTiny
+                        anchors.verticalCenter: parent.verticalCenter
+                        label: "EPISODES"
+                        open: root.browserOpen
                         tooltip: "Episodes & sources (E)"
                         onClicked: {
                             var wasOpen = root.browserOpen
@@ -3920,6 +3935,7 @@ Item {
 
                     AudioMenu {
                         id: audioMenu
+                        anchors.verticalCenter: parent.verticalCenter
                         visible: !root.barTiny || audioMenu.panelOpen
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
@@ -3928,6 +3944,7 @@ Item {
                         }
                         icon: "audio"
                         title: "Audio"
+                        chipValue: root.audioChipValue
                         count: mpv.audioTracks.length
                         panelWidth: 360
                         panelHeight: Math.min(310, 86 + Math.max(1, mpv.audioTracks.length) * 48 + 42)
@@ -3942,6 +3959,7 @@ Item {
 
                     SubtitleMenu {
                         id: subMenu
+                        anchors.verticalCenter: parent.verticalCenter
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
                             subMenu.panelOpen = !wasOpen
@@ -3949,6 +3967,7 @@ Item {
                         }
                         icon: "subtitle"
                         title: "Subtitles"
+                        chipValue: root.subsChipValue
                         // Combined: embedded/loaded mpv tracks + online subs (OpenSubtitles).
                         count: root.subRows.length
                         panelWidth: 380
@@ -3976,12 +3995,13 @@ Item {
 
                     SpeedMenuButton {
                         id: speedMenu
-                        visible: !root.barSnug || speedMenu.panelOpen
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !root.barTiny || speedMenu.panelOpen
                     }
 
                     FillMenuButton {
                         id: fillMenu
-                        visible: !root.barSnug || fillMenu.panelOpen
+                        visible: fillMenu.panelOpen
                     }
 
 
@@ -4070,6 +4090,62 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: rab.clicked()
+        }
+    }
+
+    // PanelChip — the panel's labeled control pill (native chrome spec 2026-07-08).
+    // label reads what it is, value reads its LIVE state in gold. Replaces anonymous
+    // 48px icons for the controls Hemanth named must-visible: speed, audio, subs, episodes.
+    component PanelChip: Item {
+        id: pc
+        property string label: ""
+        property string value: ""
+        property bool open: false
+        property string tooltip: ""
+        signal clicked()
+        width: chipRowContent.implicitWidth + 20
+        height: 30
+
+        Rectangle {
+            anchors.fill: parent
+            radius: height / 2
+            color: pc.open ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
+                 : chipMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.07)
+            border.width: 1
+            border.color: pc.open ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
+                                  : Qt.rgba(1, 1, 1, 0.13)
+        }
+        Row {
+            id: chipRowContent
+            anchors.centerIn: parent
+            spacing: 5
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: pc.label
+                visible: pc.label.length > 0
+                color: pc.open ? theme.gold : theme.inkDim
+                font.family: theme.hud
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.5
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: pc.value
+                visible: pc.value.length > 0
+                color: theme.gold
+                font.family: theme.hud; font.features: ({ "tnum": 1 })
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
+        }
+        MouseArea {
+            id: chipMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onEntered: root.wakeChrome()
+            onClicked: pc.clicked()
         }
     }
 
@@ -4394,15 +4470,13 @@ Item {
     component SpeedMenuButton: Item {
         id: sm
         property bool panelOpen: false
-        width: 48
-        height: 48
-        RoundButton {
+        width: 118
+        height: 30
+        PanelChip {
             anchors.fill: parent
-            size: 48
-            icon: "speed"
-            // Harbor: badge the rate only when ≠ 1× (no "1×" at normal speed); use the × glyph.
-            label: Math.abs(mpv.speed - 1) < 0.01 ? "" : ((Math.round(mpv.speed * 100) / 100) + "×")
-            active: sm.panelOpen || Math.abs(mpv.speed - 1) > 0.01 || root.sleepTimerActive
+            label: "SPEED"
+            value: (Math.round(mpv.speed * 100) / 100) + "×"
+            open: sm.panelOpen
             tooltip: "Speed & sleep"
             onClicked: {
                 var wasOpen = sm.panelOpen

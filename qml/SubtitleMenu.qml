@@ -7,8 +7,8 @@ import "SubtitleGroups.js" as SubtitleGroups
 
 Item {
     id: menu
-    width: 48
-    height: 48
+    width: faceChip.width
+    height: 30
 
     property bool panelOpen: false
     property var tracks: []
@@ -16,6 +16,7 @@ Item {
     property string selectedId: ""
     property real delay: 0
     property alias syncValue: menu.delay
+    property string chipValue: ""      // native chrome: live value shown on the chip face
     property bool loading: false
     property int count: (tracks || []).length
     property int panelWidth: 500
@@ -109,36 +110,51 @@ Item {
 
     Theme { id: theme }
 
-    Rectangle {
-        anchors.fill: parent
-        radius: width / 2
-        color: menu.panelOpen ? Qt.rgba(1, 1, 1, 0.22)
-                              : launchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
-    }
-    IconGlyph {
-        anchors.centerIn: parent
-        width: 24
-        height: 24
-        kind: "subtitle"
-        ink: menu.panelOpen || menu.active ? theme.gold : theme.ink
-    }
-    Rectangle {
-        visible: menu.active
-        width: 6
-        height: 6
-        radius: 3
-        anchors.top: parent.top
-        anchors.topMargin: 9
-        anchors.right: parent.right
-        anchors.rightMargin: 9
-        color: "#4ad07a"
-    }
-    MouseArea {
-        id: launchMouse
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: menu.toggleRequested(menu.panelOpen)
+    // Chip face (native chrome spec 2026-07-08) — mirrors PlayerPage.PanelChip, duplicated
+    // because inline components don't cross files. Label + live value (lang / OFF) in gold.
+    Item {
+        id: faceChip
+        width: faceRow.implicitWidth + 20
+        height: 30
+        Rectangle {
+            anchors.fill: parent
+            radius: height / 2
+            color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
+                 : launchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.07)
+            border.width: 1
+            border.color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
+                                         : Qt.rgba(1, 1, 1, 0.13)
+        }
+        Row {
+            id: faceRow
+            anchors.centerIn: parent
+            spacing: 5
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: menu.title.toUpperCase()
+                color: menu.panelOpen || menu.active ? theme.gold : theme.inkDim
+                font.family: theme.ui
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+                font.letterSpacing: 0.5
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: menu.chipValue
+                visible: menu.chipValue.length > 0
+                color: theme.gold
+                font.family: theme.ui
+                font.pixelSize: 11
+                font.weight: Font.DemiBold
+            }
+        }
+        MouseArea {
+            id: launchMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: menu.toggleRequested(menu.panelOpen)
+        }
     }
 
     Rectangle {

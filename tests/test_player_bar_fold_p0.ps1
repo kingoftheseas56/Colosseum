@@ -26,7 +26,7 @@ Assert-Contains $player '"kind": "stream", "when": root.barSnug' `
     "Pick-another-stream must fold into the overflow panel when snug."
 Assert-Contains $player '"kind": "download", "when": root.barSnug' `
     "Download must fold into the overflow panel when snug."
-Assert-Contains $player '"kind": "browser", "when": root.barSnug' `
+Assert-Contains $player '"kind": "browser", "when": root.barTiny' `
     "Episodes & sources must fold into the overflow panel when snug."
 Assert-Contains $player 'else if (kind === "browser")' `
     "The overflow row must actually open the drawer."

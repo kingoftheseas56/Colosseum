@@ -34,4 +34,18 @@ $controlsBlock = $controlsBlock.Substring(0, [Math]::Min(9000, $controlsBlock.Le
 Assert-NotContains $controlsBlock 'icon: "minimizeToBar"' `
     "The panel must not carry the minimize verb (titlebar owns it)."
 
+# --- Task 3: live-value chips ---
+Assert-Contains $player "component PanelChip" `
+    "The chip component must exist."
+Assert-Contains $player 'audioChipValue' `
+    "Menus must surface their live value into the chip face."
+Assert-Contains $player 'label: "EPISODES"' `
+    "Episodes must be a labeled chip, not an anonymous icon."
+$audio = Get-Content (Join-Path $root "qml/AudioMenu.qml") -Raw
+Assert-Contains $audio "property string chipValue" `
+    "AudioMenu's face must be a value chip."
+$subs = Get-Content (Join-Path $root "qml/SubtitleMenu.qml") -Raw
+Assert-Contains $subs "property string chipValue" `
+    "SubtitleMenu's face must be a value chip."
+
 Write-Host "Native chrome contract checks passed."
