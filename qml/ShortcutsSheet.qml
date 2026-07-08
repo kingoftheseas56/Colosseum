@@ -34,7 +34,7 @@ Item {
         width: Math.min(560, parent.width - 80)
         height: Math.min(header.height + 24 + flick.contentHeight + 24, parent.height - 120)
         radius: 14
-        color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.96)
+        color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
         border.width: 1
         border.color: theme.edge
 

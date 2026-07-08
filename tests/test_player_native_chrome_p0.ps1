@@ -54,4 +54,9 @@ Assert-Contains $player "appletTail" `
 Assert-Contains $player "color: Qt.rgba(0.04, 0.05, 0.07, 0.94)" `
     "Popovers must wear the house popover surface."
 
+# --- Task 5: the keepers wear the same cloth ---
+$drawer = Get-Content (Join-Path $root "qml/BrowserDrawer.qml") -Raw
+Assert-Contains $drawer "Qt.rgba(0.04, 0.05, 0.07, 0.94)" `
+    "The episodes drawer must wear the house popover surface."
+
 Write-Host "Native chrome contract checks passed."

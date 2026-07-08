@@ -121,7 +121,7 @@ Item {
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: Math.max(380, Math.round(parent.width * 0.32))
-        color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+        color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.10)
 

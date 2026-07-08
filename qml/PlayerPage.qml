@@ -2674,7 +2674,7 @@ Item {
             width: Math.min(parent.width - 48, 380)
             height: resumeChoiceColumn.implicitHeight + 36
             radius: 10
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
 
@@ -2720,7 +2720,7 @@ Item {
             width: 380
             height: 150
             radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.95)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.95)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
@@ -2941,7 +2941,7 @@ Item {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 height: 92
-                color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.96)
+                color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
                 border.width: 0
                 RoundButton {
                     x: 22
@@ -3064,7 +3064,7 @@ Item {
             width: Math.min(520, parent.width - 36)
             height: Math.min(420, parent.height - 72)
             radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.96)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
@@ -3191,7 +3191,7 @@ Item {
             width: abLoopChipRow.implicitWidth + 22
             height: 38
             radius: 19
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, root.controlsShown ? 0.82 : 0.46)
+            color: Qt.rgba(0.04, 0.05, 0.07, root.controlsShown ? 0.82 : 0.46)
             border.width: 1
             border.color: root.abLoopActive ? theme.gold : Qt.rgba(1, 1, 1, 0.16)
 
@@ -3236,7 +3236,7 @@ Item {
             width: 330
             height: statsColumn.implicitHeight + 28
             radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.86)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.86)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
 
@@ -3346,7 +3346,7 @@ Item {
             height: 42
             radius: 21
             color: root.frameGrabFailed ? Qt.rgba(0.48, 0.10, 0.12, 0.88)
-                                        : Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.88)
+                                        : Qt.rgba(0.04, 0.05, 0.07, 0.88)
             border.width: 1
             border.color: root.frameGrabFailed ? Qt.rgba(1, 0.35, 0.35, 0.40)
                                                : Qt.rgba(1, 1, 1, 0.18)
@@ -3387,7 +3387,7 @@ Item {
             height: 42
             radius: 21
             color: root.subtitleDropToastFailed ? Qt.rgba(0.48, 0.10, 0.12, 0.88)
-                                                : Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.88)
+                                                : Qt.rgba(0.04, 0.05, 0.07, 0.88)
             border.width: 1
             border.color: root.subtitleDropToastFailed ? Qt.rgba(1, 0.35, 0.35, 0.40)
                                                        : Qt.rgba(1, 1, 1, 0.18)
@@ -3414,7 +3414,7 @@ Item {
             width: Math.min(parent.width - 40, gifChipRow.implicitWidth + 30)
             height: 42
             radius: 21
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.88)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.88)
             border.width: 1
             border.color: root.gifState === "encoding" ? theme.gold : Qt.rgba(1, 1, 1, 0.18)
             Row {
@@ -3551,7 +3551,7 @@ Item {
             width: 344
             height: upNextCol.implicitHeight + 28
             radius: 14
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.16)
 
@@ -4319,7 +4319,7 @@ Item {
             x: parent.width - width
             y: -height - 12
             radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
