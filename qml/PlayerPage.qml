@@ -12,6 +12,7 @@ import "AddonClient.js" as AddonClient
 import "SkipSegments.js" as SkipSegments
 import "TrackLanguage.js" as TrackLanguage
 import "PlayerTrackPrefs.js" as PlayerTrackPrefs
+import "PlayerHotkeys.js" as PlayerHotkeys
 
 Item {
     id: root
@@ -91,6 +92,9 @@ Item {
     property string autoSubtitleTrackId: ""    // last id automation chose (diagnostics)
     property string autoTrackSignature: ""     // track-set+policy fingerprint; skip re-run when unchanged
     property int    trackAutomationRev: 0       // bumps each automation pass (debug/trace)
+
+    // --- hotkeys (Feature 7): keyboard shortcuts sheet visibility ---
+    property bool shortcutsOpen: false
 
     property var streamCandidates: []
     property int currentStreamIndex: -1
@@ -2163,6 +2167,7 @@ Item {
         root.dvrPanelOpen = false
         root.overflowOpen = false
         root.closeConfirmOpen = false
+        root.shortcutsOpen = false
     }
     function wakeChrome() {
         root.controlsShown = true
@@ -2197,12 +2202,63 @@ Item {
         else
             mpv.subtitleTrack = tracks[idx + 1].id
     }
-    function toggleWindowFullscreen() {
-        var w = root.Window.window
-        if (!w)
-            return
-        w.visibility = (w.visibility === Window.FullScreen) ? Window.Windowed : Window.FullScreen
+    // Feature 7: key presses resolve to a registry action id, then dispatch through ONE switch
+    // that preserves each shortcut's exact prior behavior. (Fullscreen toggle retired — the app
+    // is always fullscreen.)
+    function handlePlayerHotkey(event) {
         root.wakeChrome()
+        var action = PlayerHotkeys.actionForEvent(event)
+        if (!action)
+            return false
+        event.accepted = true
+        root.runHotkeyAction(action.id, event)
+        return true
+    }
+
+    function runHotkeyAction(actionId, event) {
+        switch (actionId) {
+        case "space":
+            if (event.isAutoRepeat)
+                return
+            root.spaceBaseSpeed = mpv.speed
+            root.spaceHoldFired = false
+            spaceHoldTimer.restart()
+            return
+        case "escape":
+            if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
+            if (root.anyMenuOpen)
+                root.closeMenus()
+            else
+                root.backRequested()
+            return
+        case "seekBack": root.seekStep(-root.seekBackSeconds); return
+        case "seekForward": root.seekStep(root.seekForwardSeconds); return
+        case "frameBack": if (mpv.pause) mpv.frameBackStep(); else root.seekStep(-30); return
+        case "frameForward": if (mpv.pause) mpv.frameStep(); else root.seekStep(30); return
+        case "seekStart": root.seekTo(0); return
+        case "seekEnd": if (mpv.duration > 0) root.seekTo(mpv.duration - 0.5); return
+        case "seekPercent":
+            var digit = event.key - Qt.Key_0
+            root.seekTo(digit === 0 ? 0 : mpv.duration * digit / 10)
+            return
+        case "mute": mpv.mute = !mpv.mute; return
+        case "volumeUp": mpv.volume = mpv.volume + (event.modifiers & Qt.ShiftModifier ? 50 : 5); return
+        case "volumeDown": mpv.volume = mpv.volume - (event.modifiers & Qt.ShiftModifier ? 50 : 5); return
+        case "speedDown": mpv.speed = root.clamp(root.round2(mpv.speed - 0.25), 0.25, 3); return
+        case "speedUp": mpv.speed = root.clamp(root.round2(mpv.speed + 0.25), 0.25, 3); return
+        case "subtitleDelayDown": mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
+        case "subtitleDelayUp": mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
+        case "cycleSubtitle": root.cycleSubtitle(); return
+        case "abLoopA": root.setAbLoopA(); return
+        case "abLoopB": root.setAbLoopB(); return
+        case "abLoopClear": root.clearAbLoop(); return
+        case "stats":
+            root.statsOverlayOpen = !root.statsOverlayOpen
+            if (root.statsOverlayOpen)
+                root.refreshPlaybackStats()
+            return
+        case "shortcuts": root.shortcutsOpen = true; return
+        }
     }
     function trackTitle(track, fallback) {
         if (track.title && ("" + track.title).trim() !== "")
@@ -2469,7 +2525,6 @@ Item {
             }
             root.togglePlayPause()
         }
-        onDoubleClicked: if (!root.anyMenuOpen) root.toggleWindowFullscreen()
     }
 
     DropArea {
@@ -2498,55 +2553,7 @@ Item {
     }
 
     Keys.onPressed: function(event) {
-        root.wakeChrome()
-        if (event.key === Qt.Key_Space) {
-            event.accepted = true
-            if (event.isAutoRepeat)
-                return
-            root.spaceBaseSpeed = mpv.speed
-            root.spaceHoldFired = false
-            spaceHoldTimer.restart()
-            return
-        }
-        if (event.key === Qt.Key_Escape) {
-            event.accepted = true
-            if (root.anyMenuOpen)
-                root.closeMenus()
-            else
-                root.backRequested()
-            return
-        }
-        if (event.key === Qt.Key_Left) { event.accepted = true; root.seekStep(-root.seekBackSeconds); return }
-        if (event.key === Qt.Key_Right) { event.accepted = true; root.seekStep(root.seekForwardSeconds); return }
-        if (event.key === Qt.Key_Comma) { event.accepted = true; if (mpv.pause) mpv.frameBackStep(); else root.seekStep(-30); return }
-        if (event.key === Qt.Key_Period) { event.accepted = true; if (mpv.pause) mpv.frameStep(); else root.seekStep(30); return }
-        if (event.key === Qt.Key_Home) { event.accepted = true; root.seekTo(0); return }
-        if (event.key === Qt.Key_End && mpv.duration > 0) { event.accepted = true; root.seekTo(mpv.duration - 0.5); return }
-        if (event.key >= Qt.Key_0 && event.key <= Qt.Key_9) {
-            event.accepted = true
-            var digit = event.key - Qt.Key_0
-            root.seekTo(digit === 0 ? 0 : mpv.duration * digit / 10)
-            return
-        }
-        if (event.key === Qt.Key_F) { event.accepted = true; root.toggleWindowFullscreen(); return }
-        if (event.key === Qt.Key_M) { event.accepted = true; mpv.mute = !mpv.mute; return }
-        if (event.key === Qt.Key_Up) { event.accepted = true; mpv.volume = mpv.volume + (event.modifiers & Qt.ShiftModifier ? 50 : 5); return }
-        if (event.key === Qt.Key_Down) { event.accepted = true; mpv.volume = mpv.volume - (event.modifiers & Qt.ShiftModifier ? 50 : 5); return }
-        if (event.key === Qt.Key_BracketLeft) { event.accepted = true; mpv.speed = root.clamp(root.round2(mpv.speed - 0.25), 0.25, 3); return }
-        if (event.key === Qt.Key_BracketRight) { event.accepted = true; mpv.speed = root.clamp(root.round2(mpv.speed + 0.25), 0.25, 3); return }
-        if (event.key === Qt.Key_Z) { event.accepted = true; mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return }
-        if (event.key === Qt.Key_X) { event.accepted = true; mpv.subDelay = root.round2(mpv.subDelay + (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return }
-        if (event.key === Qt.Key_S || event.key === Qt.Key_C) { event.accepted = true; root.cycleSubtitle(); return }
-        if (event.key === Qt.Key_I) { event.accepted = true; root.setAbLoopA(); return }
-        if (event.key === Qt.Key_O) { event.accepted = true; root.setAbLoopB(); return }
-        if (event.key === Qt.Key_L) { event.accepted = true; root.clearAbLoop(); return }
-        if (event.key === Qt.Key_D) {
-            event.accepted = true
-            root.statsOverlayOpen = !root.statsOverlayOpen
-            if (root.statsOverlayOpen)
-                root.refreshPlaybackStats()
-            return
-        }
+        root.handlePlayerHotkey(event)
     }
 
     Keys.onReleased: function(event) {
@@ -3860,6 +3867,14 @@ Item {
                     }
                 }
             }
+        }
+
+        // Feature 7: keyboard shortcuts reference, opened with '?'.
+        ShortcutsSheet {
+            id: shortcutsSheet
+            open: root.shortcutsOpen
+            groups: PlayerHotkeys.groups()
+            onDismissed: root.shortcutsOpen = false
         }
 
         // Feature 4 skip pill: appears while playback sits inside an intro/recap/credits

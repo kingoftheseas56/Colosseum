@@ -2,9 +2,11 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $player = Get-Content (Join-Path $root "qml/PlayerPage.qml") -Raw
+$hotkeys = Get-Content (Join-Path $root "qml/PlayerHotkeys.js") -Raw
 
 function Assert-Contains($text, $needle, $message) {
-    if ($text -notlike "*$needle*") {
+    # Literal substring match: -like would treat bracket needles (e.g. ["I"]) as wildcard classes.
+    if (-not $text.Contains($needle)) {
         throw $message
     }
 }
@@ -22,12 +24,26 @@ Assert-Contains $player "function setAbLoopB" `
     "PlayerPage must expose an action to set the B point."
 Assert-Contains $player "function clearAbLoop" `
     "PlayerPage must expose an action to clear the loop."
-Assert-Contains $player "Qt.Key_I" `
-    "PlayerPage must match Harbor's I hotkey for setting loop A."
-Assert-Contains $player "Qt.Key_O" `
-    "PlayerPage must match Harbor's O hotkey for setting loop B."
-Assert-Contains $player "Qt.Key_L" `
-    "PlayerPage must match Harbor's L hotkey for clearing A-B repeat."
+# A-B loop hotkeys are registry-backed now (Feature 7): the I/O/L bindings live in
+# PlayerHotkeys.js and dispatch through runHotkeyAction, not a raw Keys.onPressed cascade.
+Assert-Contains $hotkeys 'id: "abLoopA"' `
+    "PlayerHotkeys must define the loop-A action."
+Assert-Contains $hotkeys 'id: "abLoopB"' `
+    "PlayerHotkeys must define the loop-B action."
+Assert-Contains $hotkeys 'id: "abLoopClear"' `
+    "PlayerHotkeys must define the clear-loop action."
+Assert-Contains $hotkeys 'bindings: ["I"]' `
+    "Loop A must keep Harbor's I hotkey."
+Assert-Contains $hotkeys 'bindings: ["O"]' `
+    "Loop B must keep Harbor's O hotkey."
+Assert-Contains $hotkeys 'bindings: ["L"]' `
+    "Clear loop must keep Harbor's L hotkey."
+Assert-Contains $player 'case "abLoopA": root.setAbLoopA()' `
+    "PlayerPage must dispatch loop A through runHotkeyAction."
+Assert-Contains $player 'case "abLoopB": root.setAbLoopB()' `
+    "PlayerPage must dispatch loop B through runHotkeyAction."
+Assert-Contains $player 'case "abLoopClear": root.clearAbLoop()' `
+    "PlayerPage must dispatch clear loop through runHotkeyAction."
 Assert-Contains $player "mpv.position >= root.abLoopB" `
     "PlayerPage must seek back to A when playback crosses B."
 Assert-Contains $player "root.seekTo(root.abLoopA)" `

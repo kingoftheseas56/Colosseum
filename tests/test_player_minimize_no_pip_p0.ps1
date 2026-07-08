@@ -53,4 +53,10 @@ Assert-NotContains $player "function togglePipMode" `
 Assert-NotContains $player "Qt.Key_P)" `
     "The PiP keyboard shortcut must be removed."
 
+# --- Fullscreen toggle removed (Feature 7): the app is always fullscreen ---
+Assert-NotContains $player "Qt.Key_F" `
+    "The fullscreen-only player must not keep an F fullscreen/window shortcut."
+Assert-NotContains $player "toggleWindowFullscreen" `
+    "The fullscreen-only player must not keep a window fullscreen toggle."
+
 Write-Host "Player minimize / no-PiP contract checks passed."
