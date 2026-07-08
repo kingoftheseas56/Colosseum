@@ -11,6 +11,7 @@
 // the seeded four installed this behaves exactly as the old Torrentio-only sheet.
 import QtQuick
 import "AddonClient.js" as AddonClient
+import "Magnet.js" as Magnet
 
 Item {
     id: sheet
@@ -328,6 +329,7 @@ Item {
             delegate: Item {
                 id: row
                 required property var modelData
+                property bool copiedTick: false
                 width: ListView.view.width
                 height: 150
 
@@ -349,7 +351,7 @@ Item {
                 // copy column — every element, clean hierarchy
                 Column {
                     anchors.left: logo.right; anchors.leftMargin: 24
-                    anchors.right: play.left; anchors.rightMargin: 24
+                    anchors.right: copyBtn.left; anchors.rightMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 7
 
@@ -428,6 +430,38 @@ Item {
                                                    sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId,
                                                    sheet.rows, sheet.playbackContext)
                 }
+
+                // copy link — the row's second verb (spec 2026-07-08). Torrents copy a
+                // magnet, direct-HTTP rows copy their url; a brief tick confirms, playback
+                // stays on the row click / gold button, untouched. Declared AFTER rowMa so
+                // it stacks ABOVE it — copy clicks never fall through into playback.
+                Rectangle {
+                    id: copyBtn
+                    anchors.right: play.left; anchors.rightMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 40; height: 40; radius: 20
+                    color: copyMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent
+                        text: row.copiedTick ? "✓" : "⧉"   // ✓ tick / ⧉ two-squares copy glyph
+                        color: row.copiedTick ? theme.gold : (copyMa.containsMouse ? theme.ink : theme.inkDim)
+                        font.family: theme.ui; font.pixelSize: 15
+                    }
+                    MouseArea {
+                        id: copyMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            var link = Magnet.linkFor(row.modelData)
+                            if (!link.length)
+                                return
+                            Clipboard.copy(link)
+                            row.copiedTick = true
+                            copyTickTimer.restart()
+                        }
+                    }
+                }
+                Timer { id: copyTickTimer; interval: 1200; onTriggered: row.copiedTick = false }
             }
         }
     }

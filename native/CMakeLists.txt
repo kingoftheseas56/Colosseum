@@ -29,6 +29,7 @@ find_package(MpvQt REQUIRED)
 
 add_executable(colosseum
     main.cpp
+    ClipboardHelper.h
     MangaEngine.h
     ProgressStore.h
     SessionStore.h

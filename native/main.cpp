@@ -27,6 +27,7 @@
 #include <QFileSystemWatcher>
 #include <QTimer>
 
+#include "ClipboardHelper.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
 #include "SessionStore.h"
@@ -328,6 +329,10 @@ int main(int argc, char *argv[]) {
     // QSettings-backed, so it survives a restart.
     auto *progress = new ProgressStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
+
+    // System clipboard for QML — the sources sheet's copy-magnet button (spec 2026-07-08).
+    auto *clipboard = new ClipboardHelper(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Clipboard"), clipboard);
 
     // Open-sessions model exposed to QML as `Sessions` - the OS-shell's switcher state
     // (which surfaces are open, which is active, each one's saved-state blob).
