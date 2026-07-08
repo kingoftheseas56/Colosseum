@@ -42,6 +42,7 @@ function actions() {
         { id: "abLoopB", group: "Loop", label: "Set B point", bindings: ["O"], scope: PLAYER_SCOPE },
         { id: "abLoopClear", group: "Loop", label: "Clear A-B loop", bindings: ["L"], scope: PLAYER_SCOPE },
         { id: "stats", group: "Tools", label: "Playback stats", bindings: ["D"], scope: PLAYER_SCOPE },
+        { id: "browser", group: "Tools", label: "Episodes & sources", bindings: ["E"], scope: PLAYER_SCOPE },
         { id: "shortcuts", group: "Help", label: "Show shortcuts", bindings: ["?"], scope: PLAYER_SCOPE }
     ]
 }
