@@ -48,4 +48,10 @@ $subs = Get-Content (Join-Path $root "qml/SubtitleMenu.qml") -Raw
 Assert-Contains $subs "property string chipValue" `
     "SubtitleMenu's face must be a value chip."
 
+# --- Task 4: anchored applets ---
+Assert-Contains $player "appletTail" `
+    "Applet popovers must carry the pointer tail."
+Assert-Contains $player "color: Qt.rgba(0.04, 0.05, 0.07, 0.94)" `
+    "Popovers must wear the house popover surface."
+
 Write-Host "Native chrome contract checks passed."

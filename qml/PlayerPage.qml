@@ -2807,19 +2807,37 @@ Item {
             id: overflowPanel
             visible: root.overflowOpen
             z: 9
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.rightMargin: tight ? 14 : 22
-            anchors.bottomMargin: 102
             width: 300
             height: overflowColumn.implicitHeight + 30
-            radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.95)
+            radius: 14
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            // Native chrome: rise above the ⋯ button (right-aligned Plasma-tray style),
+            // clamped to the window; the tail points down at the button wherever it sits.
+            property real tailX: width - 30
+            onVisibleChanged: if (visible) {
+                var p = overflowButton.mapToItem(chrome, 0, 0)
+                var desiredX = p.x + overflowButton.width - width
+                var clampedX = root.clamp(desiredX, 10, chrome.width - width - 10)
+                x = clampedX
+                y = p.y - height - 12
+                tailX = root.clamp(p.x + overflowButton.width / 2 - clampedX, 14, width - 14)
+            }
 
             // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+            Rectangle {
+                // appletTail — pointer at the ⋯ button.
+                width: 8; height: 8
+                rotation: 45
+                x: overflowPanel.tailX - width / 2
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
 
             Column {
                 id: overflowColumn
@@ -4008,6 +4026,7 @@ Item {
                     // Narrow player folds hidden controls (audio/speed/picture/volume) here
                     // instead of deleting them (parity spec slice 3, 2026-07-06).
                     RoundButton {
+                        id: overflowButton
                         visible: true   // the four real tools always live here
                         size: 48
                         icon: "more"
@@ -4510,16 +4529,27 @@ Item {
             readonly property int skipStepTop: columnsHeight + 8
             height: skipStepTop + 66
             onVisibleChanged: if (visible) {
+                // Native chrome: rise centered on the chip, clamped to the window.
                 var p = sm.mapToItem(chrome, 0, 0)
-                x = p.x + sm.width - width
+                x = root.clamp(p.x + sm.width / 2 - width / 2, 10, chrome.width - width - 10)
                 y = p.y - height - 12
             }
-            radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+            radius: 14
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
+            border.color: Qt.rgba(1, 1, 1, 0.14)
             // Absorb background clicks (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+            Rectangle {
+                // appletTail — the Plasma pointer: this popover belongs to that chip.
+                width: 8; height: 8
+                rotation: 45
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
             // Harbor's exact section title (uppercase eyebrow).
             Text {
                 x: 18
@@ -4759,15 +4789,24 @@ Item {
             height: 56 + root.fillModes.length * 34
             onVisibleChanged: if (visible) {
                 var p = fm.mapToItem(chrome, 0, 0)
-                x = p.x + fm.width - width
+                x = root.clamp(p.x + fm.width / 2 - width / 2, 10, chrome.width - width - 10)
                 y = p.y - height - 12
             }
-            radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+            radius: 14
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
+            border.color: Qt.rgba(1, 1, 1, 0.14)
             // Absorb background clicks (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
+            Rectangle {
+                width: 8; height: 8
+                rotation: 45
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1
+                border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
             Text {
                 x: 18
                 y: 15
