@@ -2582,17 +2582,6 @@ Item {
             }
         }
 
-        Rectangle {
-            x: 0
-            y: root.chromeVisibleHeight - height
-            width: root.chromeVisibleWidth
-            height: 236
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.0) }
-                GradientStop { position: 0.38; color: Qt.rgba(0, 0, 0, 0.28) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.78) }
-            }
-        }
 
         Column {
             anchors.top: parent.top
@@ -3626,26 +3615,44 @@ Item {
                 // texture sized to the dock, which CLIPS the audio/subtitle/speed/fill
                 // popovers (they open above the dock at negative y) to nothing — the exact
                 // "menus don't show up" bug. Keep the dock un-layered so popovers escape it.
+                //
+                // Native chrome (spec 2026-07-08): the dock is FUSED to the bottom edge —
+                // a KDE-Plasma panel in the house glass, not floating Harbor furniture.
+                // Top hairline only; the panel "breathes" (slides down 8px) as chrome hides.
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.leftMargin: tight ? 14 : 28
-            anchors.rightMargin: tight ? 14 : 28
-            anchors.bottomMargin: tight ? 12 : 22
-            height: tight ? 130 : 156
-            radius: 22
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.50)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.14)
+            anchors.leftMargin: 0
+            anchors.rightMargin: 0
+            anchors.bottomMargin: 0
+            height: tight ? 116 : 126
+            radius: 0
+            color: Qt.rgba(0.04, 0.05, 0.07, 0.78)
+            border.width: 0
+
+            Rectangle {
+                id: panelHairline
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: 1
+                color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            transform: Translate {
+                id: panelBreath
+                y: root.controlsShown && !root.starting ? 0 : 8
+                Behavior on y { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+            }
 
             Row {
                 id: seekRow
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.leftMargin: tight ? 16 : 22
-                anchors.rightMargin: tight ? 16 : 22
-                anchors.topMargin: 16
+                anchors.leftMargin: tight ? 14 : 18
+                anchors.rightMargin: tight ? 14 : 18
+                anchors.topMargin: 10
                 height: 42
                 spacing: 12
 
@@ -3779,10 +3786,10 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.leftMargin: tight ? 16 : 22
-                anchors.rightMargin: tight ? 16 : 22
-                anchors.bottomMargin: 16
-                height: 64
+                anchors.leftMargin: tight ? 14 : 18
+                anchors.rightMargin: tight ? 14 : 18
+                anchors.bottomMargin: 8
+                height: tight ? 56 : 64
 
                 VolumeControl {
                     id: volumeControl
