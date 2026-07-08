@@ -28,7 +28,7 @@ QtObject {
     // whole HUD follows. Bundle STATICS only: a variable TTF registers as "<Name> Variable", so
     // the plain family name silently falls back to Tahoma (probe-proven; QML never errors on an
     // unknown family — the gate is tests/test_hud_font_registration_p0.ps1).
-    readonly property string hud: "Switzer"
+    readonly property string hud: "Inter"
 
     // layout
     readonly property int margin: 54
