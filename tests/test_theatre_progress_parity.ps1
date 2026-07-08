@@ -22,6 +22,16 @@ Assert-Contains $progress 'id\.count\(QLatin1Char\('':''\)\)\s*>=\s*2' `
     "Series episode progress must be detected from tt:season:episode ids."
 Assert-Contains $progress 'rec\.insert\(QStringLiteral\("watched"\), true\)' `
     "Finished series episodes should remain as watched markers instead of being dropped."
+Assert-Contains $progress 'continueGroupKey' `
+    "ProgressStore.recent must collapse episode entries to one Continue card per show."
+Assert-Contains $progress 'seriesRootId' `
+    "ProgressStore must derive a parent-show key from episode ids like tt123:1:2."
+Assert-Contains $progress 'shouldPreferContinueCandidate' `
+    "ProgressStore must prefer unfinished episodes over watched markers when deduping Continue."
+Assert-Contains $progress 'return parts\.value\(0\)' `
+    "Cinemeta series episodes must group by the base tt id."
+Assert-Contains $progress "return parts\.value\(0\) \+ QLatin1Char\(':'\) \+ parts\.value\(1\)" `
+    "Anime episode ids must group by provider plus series id."
 
 Assert-Contains $player 'root\.mediaId\s*=\s*\(subType === "series" && subId\)\s*\?\s*subId' `
     "PlayerPage must record series progress under the exact episode id."

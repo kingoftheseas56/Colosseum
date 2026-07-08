@@ -36,9 +36,9 @@ Assert-Contains $player "onPositionChanged: root.addDrawPoint" `
     "Draw input must add points while dragging."
 Assert-Contains $player "onReleased: root.endDrawStroke" `
     "Draw input must end strokes on release."
-Assert-Contains $player "tooltip: `"Draw`"" `
-    "Transport controls must expose a Draw action."
-Assert-Contains $player "icon: `"draw`"" `
-    "Transport controls must render a draw icon."
+Assert-Contains $player '"label": "Draw", "kind": "draw"' `
+    "Draw must live as an overflow-menu row (ToolsMenu retired 2026-07-08)."
+Assert-Contains $player 'else if (kind === "draw") root.toggleDrawMode()' `
+    "The Draw row must actually toggle draw mode."
 
 Write-Host "Player draw mode P0 parity contract checks passed."

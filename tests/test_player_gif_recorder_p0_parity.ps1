@@ -51,7 +51,7 @@ Assert-Contains $player "Recording GIF" `
     "PlayerPage must show an active recording pill."
 Assert-Contains $player "Record GIF" `
     "Player quick tools must expose a GIF recording action."
-Assert-Contains $player "`"icon`": `"gif`"" `
-    "Player quick tools must render a GIF icon."
+Assert-Contains $player '"kind": "gif", "when": true' `
+    "GIF recording must live as an overflow-menu row (ToolsMenu retired 2026-07-08)."
 
 Write-Host "Player GIF recorder P0 parity contract checks passed."

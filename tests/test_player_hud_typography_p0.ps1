@@ -20,7 +20,7 @@ function Assert-NotContains($text, $needle, $message) {
 
 # --- the HUD font token exists and is Switzer ---
 Assert-Contains $theme 'property string hud' "Theme must expose a 'hud' font token for the player."
-Assert-Contains $theme '"Switzer"' "The player HUD token must be Switzer (Harbor-parity)."
+Assert-Contains $theme '"Inter"' "The player HUD token must be Inter (Hemanth''s flip, 2026-07-08)."
 
 # --- Switzer is bundled + loaded like Fraunces ---
 Assert-Contains $main 'Switzer-Regular.otf' "Main must FontLoader the bundled Switzer weights."

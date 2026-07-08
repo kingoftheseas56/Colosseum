@@ -4,40 +4,43 @@ $root = Split-Path -Parent $PSScriptRoot
 $player = Get-Content (Join-Path $root "qml/PlayerPage.qml") -Raw
 
 function Assert-Contains($text, $needle, $message) {
-    if ($text -notlike "*$needle*") {
-        throw $message
-    }
+    if ($text -notlike "*$needle*") { throw $message }
+}
+function Assert-NotContains($text, $needle, $message) {
+    if ($text -like "*$needle*") { throw $message }
 }
 
-# Harbor-style declutter: occasional tools live behind ONE tools (...) menu button
-# instead of a flat wall of ~15 icons that overflow and overlap the transport.
+# Toolbar declutter v2 (Hemanth 2026-07-08): ONE overflow (...) menu on the bar, ever.
+# The old ToolsMenu popover doubled the "..." next to the width-fold overflow, and it
+# carried the cast/room parity stubs that are never shipping. The four REAL tools
+# (screenshot / GIF / stats / draw) now live as rows in the single overflow panel.
 
-# --- The tools menu component + its glyph ---
-Assert-Contains $player "component ToolsMenu" `
-    "PlayerPage must define a ToolsMenu popover for occasional tools."
+# --- the old popover and the retired stubs are GONE ---
+Assert-NotContains $player "component ToolsMenu" `
+    "The old ToolsMenu popover must be gone (it doubled the ... button)."
+Assert-NotContains $player "roomPanelOpen" `
+    "Watch-room is retired - no panel, no state."
+Assert-NotContains $player "castPanelOpen" `
+    "Cast/share-stream is retired - no panel, no state."
+
+# --- exactly one 'more' button remains, always reachable ---
 Assert-Contains $player 'kind === "more"' `
-    "IconGlyph must draw a 'more' (...) glyph for the tools button."
-Assert-Contains $player 'icon: "more"' `
-    "The tools menu button must use the 'more' glyph."
-Assert-Contains $player "property var actions" `
-    "ToolsMenu must take a list of tool actions."
+    "IconGlyph must still draw the 'more' (...) glyph for the overflow button."
 
-# --- The menu instance wired into the control bar ---
-Assert-Contains $player "id: toolsMenu" `
-    "The control bar must host a tools menu instance."
-
-# --- Participates in menu bookkeeping (close others / chrome-stays-open) ---
-Assert-Contains $player "toolsMenu.panelOpen = false" `
-    "closeMenus must also close the tools menu."
-Assert-Contains $player "|| toolsMenu.panelOpen" `
-    "anyMenuOpen must count the tools menu so chrome stays up while it's open."
-
-# --- Occasional tools relocated into the menu (labels only the menu has) ---
-Assert-Contains $player '"Record GIF"' `
-    "Record GIF must move into the tools menu."
+# --- the four real tools survive as overflow rows and actually fire ---
+Assert-Contains $player '"kind": "screenshot"' `
+    "Screenshot must live in the overflow panel."
+Assert-Contains $player '"kind": "gif"' `
+    "GIF recorder must live in the overflow panel."
+Assert-Contains $player '"kind": "stats"' `
+    "Playback stats must live in the overflow panel."
+Assert-Contains $player '"kind": "draw"' `
+    "Draw mode must live in the overflow panel."
+Assert-Contains $player 'else if (kind === "screenshot") root.captureFrameGrab()' `
+    "The screenshot row must actually fire the frame grab."
 Assert-Contains $player '"Playback stats"' `
-    "Playback stats must move into the tools menu."
+    "Playback stats row keeps its label."
 Assert-Contains $player '"Screenshot"' `
-    "Frame grab (Screenshot) must move into the tools menu."
+    "Screenshot row keeps its label."
 
-Write-Host "Player toolbar declutter P0 parity contract checks passed."
+Write-Host "Player toolbar declutter (v2) checks passed."

@@ -11,14 +11,14 @@ Assert-Contains $player 'property bool overflowOpen' `
     "Overflow panel state must exist."
 Assert-Contains $player 'icon: "more"' `
     "The dock must show a 'more' (overflow) button."
-Assert-Contains $player 'visible: compact' `
+Assert-Contains $player 'visible: true   // the four real tools always live here' `
     "Overflow button appears exactly when controls start hiding (compact)."
 # Hidden menu buttons must reappear while their panel is open (the fold-back path).
-Assert-Contains $player 'visible: !tight || audioMenu.panelOpen' `
+Assert-Contains $player 'visible: !root.barTiny || audioMenu.panelOpen' `
     "AudioMenu must be reachable from overflow in tight mode."
-Assert-Contains $player 'visible: !compact || speedMenu.panelOpen' `
+Assert-Contains $player 'visible: !root.barSnug || speedMenu.panelOpen' `
     "Speed must be reachable from overflow in compact mode."
-Assert-Contains $player 'visible: !compact || fillMenu.panelOpen' `
+Assert-Contains $player 'visible: !root.barSnug || fillMenu.panelOpen' `
     "Picture must be reachable from overflow in compact mode."
 Assert-Contains $player 'root.overflowOpen = false' `
     "closeMenus must dismiss the overflow panel."

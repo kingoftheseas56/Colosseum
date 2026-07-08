@@ -134,12 +134,6 @@ Item {
     property bool upNextVisible: false
     property int upNextCountdownSec: 10
     property int upNextRemainingSec: 0
-    property bool roomPanelOpen: false
-    property bool applyingRoomSync: false
-    property bool roomReady: false
-    property string roomChatDraft: ""
-    property int roomDriftToleranceSeconds: 3
-    property bool castPanelOpen: false
     property bool overflowOpen: false
     // Destructive-path guard: closing while media is actively playing asks once
     // (spec 2026-07-06 slice 5 — minimize stays instant, paused/idle close is instant too).
@@ -614,7 +608,7 @@ Item {
     readonly property real utilitySpace: chromeVisibleWidth / 2 - transportRow.width / 2 - 34
     readonly property bool barSnug: utilitySpace < 560
     readonly property bool barTiny: utilitySpace < 330
-    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
+    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -1151,88 +1145,13 @@ Item {
         return e ? (e.backdrop || root.mediaArt || "") : ""
     }
 
-    function createRoom() {
-        if (typeof Room === "undefined")
-            return
-        Room.createLocalRoom("Me")
-        root.roomReady = false
-        root.roomPanelOpen = true
-        root.publishRoomState()
-        root.wakeChrome()
-    }
 
-    function leaveRoom() {
-        if (typeof Room !== "undefined")
-            Room.leaveRoom()
-        root.roomReady = false
-        root.roomPanelOpen = false
-        root.wakeChrome()
-    }
 
-    function publishRoomState() {
-        if (typeof Room === "undefined" || !Room.active || !Room.isHost || root.applyingRoomSync)
-            return
-        Room.publishState({
-            "mediaId": root.mediaId,
-            "title": root.mediaTitle || mpv.mediaTitle,
-            "subtitle": root.mediaSubtitle,
-            "position": mpv.position,
-            "duration": mpv.duration,
-            "playing": !mpv.pause && !root.starting && !root.errored,
-            "speed": mpv.speed,
-            "streamHash": root.mediaResumeHash,
-            "fileIdx": root.mediaResumeFileIdx,
-            "subType": root.subStreamType,
-            "subId": root.subStreamId
-        })
-    }
 
-    function applyRoomSyncState(state) {
-        if (typeof Room === "undefined" || !Room.active || Room.isHost || !state)
-            return
-        root.applyingRoomSync = true
-        var targetPosition = Number(state.position || 0)
-        if (mpv.duration > 0 && isFinite(targetPosition)
-                && Math.abs(mpv.position - targetPosition) > root.roomDriftToleranceSeconds) {
-            mpv.seekExact(root.clamp(targetPosition, 0, Math.max(0, mpv.duration)))
-        }
-        if (state.speed !== undefined)
-            mpv.speed = Number(state.speed) || 1
-        mpv.pause = !(state.playing === true)
-        root.applyingRoomSync = false
-        root.wakeChrome()
-    }
 
-    function sendRoomChat() {
-        if (typeof Room === "undefined")
-            return
-        Room.sendChat(root.roomChatDraft)
-        root.roomChatDraft = ""
-        root.wakeChrome()
-    }
 
-    function markRoomReady(ready) {
-        root.roomReady = ready
-        if (typeof Room !== "undefined")
-            Room.markReady(ready)
-        root.wakeChrome()
-    }
 
-    function openCastPanel() {
-        if (typeof Cast !== "undefined")
-            Cast.discoverDevices()
-        root.castPanelOpen = true
-        root.wakeChrome()
-    }
 
-    // The backend's synthetic "Manual receiver" is an implementation detail —
-    // on screen the share target is this device's network link.
-    function shareTargetName(name) {
-        var n = String(name || "")
-        if (!n.length || n === "Manual receiver")
-            return "Share link (this network)"
-        return n
-    }
 
     function currentCastUrl() {
         if (root.currentPlaybackUrl.length)
@@ -1242,29 +1161,7 @@ Item {
         return ""
     }
 
-    function startCast(device) {
-        if (typeof Cast === "undefined")
-            return
-        var url = root.currentCastUrl()
-        Cast.startCasting(device || ({}), {
-            "url": url,
-            "title": root.mediaTitle || mpv.mediaTitle,
-            "poster": root.mediaArt,
-            "position": mpv.position,
-            "duration": mpv.duration,
-            "playing": !mpv.pause && !root.starting && !root.errored
-        })
-        if (Cast.active || Cast.pending)
-            mpv.pause = true
-        root.castPanelOpen = false
-        root.wakeChrome()
-    }
 
-    function stopCast() {
-        if (typeof Cast !== "undefined")
-            Cast.stopCasting()
-        root.wakeChrome()
-    }
 
     function toggleCastPlay() {
         if (typeof Cast === "undefined" || !Cast.active)
@@ -1338,10 +1235,6 @@ Item {
         // Don't fight PiP / casting / room-sync — those are meant to keep playing
         // in the background even when the main window is minimized.
         if (root.pipMode)
-            return
-        if (typeof Cast !== "undefined" && Cast.active)
-            return
-        if (typeof Room !== "undefined" && Room.active)
             return
         if (root.windowMinimized) {
             if (!mpv.pause && root.fileReady && !root.starting && !root.errored) {
@@ -1601,13 +1494,6 @@ Item {
         onTriggered: root.pruneDrawStrokes()
     }
 
-    Timer {
-        id: roomPublishTimer
-        interval: 2000
-        repeat: true
-        running: typeof Room !== "undefined" && Room.active && Room.isHost
-        onTriggered: root.publishRoomState()
-    }
 
     function playUrl(url, title) {
         root.clearAbLoop()
@@ -2212,9 +2098,6 @@ Item {
         subStyleBar.open = false
         speedMenu.panelOpen = false
         fillMenu.panelOpen = false
-        toolsMenu.panelOpen = false
-        root.roomPanelOpen = false
-        root.castPanelOpen = false
         root.liveGuideOpen = false
         root.dvrPanelOpen = false
         root.overflowOpen = false
@@ -2470,12 +2353,6 @@ Item {
         }
     }
 
-    Connections {
-        target: Room
-        function onSyncCommand(state) {
-            root.applyRoomSyncState(state)
-        }
-    }
 
     Connections {
         target: Live
@@ -2750,227 +2627,6 @@ Item {
             }
         }
 
-        Rectangle {
-            id: roomPanel
-            visible: root.roomPanelOpen
-            z: 8
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.rightMargin: tight ? 14 : 34
-            anchors.topMargin: tight ? 78 : 92
-            width: Math.min(430, parent.width - 28)
-            height: Math.min(520, parent.height - 230)
-            radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
-
-            // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
-            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
-
-            Text {
-                id: roomTitle
-                x: 18
-                y: 15
-                text: "Watch room"
-                color: theme.ink
-                font.family: theme.hud
-                font.pixelSize: 16
-                font.weight: Font.DemiBold
-            }
-            Text {
-                anchors.left: roomTitle.right
-                anchors.leftMargin: 10
-                anchors.verticalCenter: roomTitle.verticalCenter
-                text: (typeof Room !== "undefined" && Room.active) ? Room.roomId : "Local preview"
-                color: theme.inkDimmer
-                font.family: theme.hud
-                font.pixelSize: 12
-                elide: Text.ElideRight
-            }
-
-            Row {
-                x: 16
-                y: 52
-                spacing: 8
-                Repeater {
-                    model: (typeof Room !== "undefined" && Room.active) ? Room.participants : []
-                    delegate: Rectangle {
-                        required property var modelData
-                        width: 38
-                        height: 38
-                        radius: 19
-                        color: modelData.ready ? Qt.rgba(0.95, 0.68, 0.18, 0.22) : Qt.rgba(1, 1, 1, 0.10)
-                        border.width: modelData.host ? 1 : 0
-                        border.color: theme.gold
-                        Text {
-                            anchors.centerIn: parent
-                            text: String(modelData.name || "?").charAt(0).toUpperCase()
-                            color: theme.ink
-                            font.family: theme.hud
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
-                    }
-                }
-            }
-
-            Text {
-                x: 18
-                y: 102
-                width: parent.width - 36
-                text: (typeof Room !== "undefined" && Room.active)
-                      ? (Room.isHost ? "Host controls this synced session." : "Following host playback.")
-                      : "Local preview — watching together across devices comes later. Create a local room to try the controls."
-                color: theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-
-            Row {
-                x: 16
-                y: 144
-                spacing: 8
-                RoomActionButton {
-                    label: (typeof Room !== "undefined" && Room.active) ? "Start synced playback" : "Create room"
-                    onClicked: {
-                        if (typeof Room !== "undefined" && Room.active)
-                            root.publishRoomState()
-                        else
-                            root.createRoom()
-                    }
-                }
-                RoomActionButton {
-                    label: root.roomReady ? "Ready" : "Ready"
-                    active: root.roomReady
-                    onClicked: root.markRoomReady(!root.roomReady)
-                }
-                RoomActionButton {
-                    visible: typeof Room !== "undefined" && Room.active
-                    label: "Leave room"
-                    onClicked: root.leaveRoom()
-                }
-            }
-
-            Rectangle {
-                x: 16
-                y: 196
-                width: parent.width - 32
-                height: 1
-                color: Qt.rgba(1, 1, 1, 0.08)
-            }
-
-            Text {
-                x: 18
-                y: 214
-                text: "Room chat"
-                color: theme.ink
-                font.family: theme.hud
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-            }
-
-            ListView {
-                id: roomChatList
-                x: 14
-                y: 242
-                width: parent.width - 28
-                height: parent.height - 314
-                clip: true
-                spacing: 6
-                model: (typeof Room !== "undefined" && Room.active) ? Room.chat : []
-                delegate: Rectangle {
-                    required property var modelData
-                    width: ListView.view.width
-                    height: chatMessage.implicitHeight + 18
-                    radius: 9
-                    color: Qt.rgba(1, 1, 1, 0.06)
-                    Text {
-                        id: chatName
-                        x: 12
-                        y: 7
-                        text: modelData.name || "Guest"
-                        color: theme.gold
-                        font.family: theme.hud
-                        font.pixelSize: 11
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        id: chatMessage
-                        x: 12
-                        y: 23
-                        width: parent.width - 24
-                        text: modelData.message || ""
-                        color: theme.ink
-                        font.family: theme.hud
-                        font.pixelSize: 13
-                        wrapMode: Text.WordWrap
-                    }
-                }
-            }
-
-            Rectangle {
-                x: 14
-                y: parent.height - 58
-                width: parent.width - 28
-                height: 42
-                radius: 10
-                color: Qt.rgba(1, 1, 1, 0.07)
-                border.width: 1
-                border.color: Qt.rgba(1, 1, 1, 0.10)
-                TextInput {
-                    id: roomChatInput
-                    anchors.left: parent.left
-                    anchors.right: sendRoomButton.left
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.leftMargin: 12
-                    anchors.rightMargin: 8
-                    text: root.roomChatDraft
-                    color: theme.ink
-                    selectedTextColor: "#0b0d10"
-                    selectionColor: theme.gold
-                    font.family: theme.hud
-                    font.pixelSize: 13
-                    clip: true
-                    onTextChanged: root.roomChatDraft = text
-                    Keys.onReturnPressed: root.sendRoomChat()
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: "Message"
-                        visible: roomChatInput.text.length === 0
-                        color: theme.inkDimmer
-                        font.family: theme.hud
-                        font.pixelSize: 13
-                    }
-                }
-                Rectangle {
-                    id: sendRoomButton
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    anchors.rightMargin: 6
-                    width: 58
-                    height: 30
-                    radius: 8
-                    color: roomSendMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.16) : Qt.rgba(1, 1, 1, 0.10)
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Send"
-                        color: theme.ink
-                        font.family: theme.hud
-                        font.pixelSize: 12
-                        font.weight: Font.DemiBold
-                    }
-                    MouseArea {
-                        id: roomSendMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.sendRoomChat()
-                    }
-                }
-            }
-        }
 
         // Resume choice overlay — first-load only. Real labeled buttons (no PlayerActionButton
         // component exists; RoundButton is icon-only). [Feature 3 / review adaptation 2026-07-07]
@@ -3113,7 +2769,7 @@ Item {
 
         Rectangle {
             id: overflowPanel
-            visible: root.overflowOpen && root.barSnug
+            visible: root.overflowOpen
             z: 9
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -3148,6 +2804,13 @@ Item {
 
                 Repeater {
                     model: [
+                        { "label": "Screenshot", "kind": "screenshot", "when": true },
+                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": true },
+                        { "label": "Playback stats", "kind": "stats", "when": true },
+                        { "label": "Draw", "kind": "draw", "when": true },
+                        { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
+                        { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
+                        { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "Episodes & sources", "kind": "browser", "when": root.barSnug && root.mediaId.indexOf("iptv:") !== 0 },
                         { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
@@ -3184,6 +2847,21 @@ Item {
                                 else if (kind === "browser") root.browserOpen = true
                                 else if (kind === "stream") root.pickAnotherStream()
                                 else if (kind === "download") root.handleDownloadAction()
+                                else if (kind === "screenshot") root.captureFrameGrab()
+                                else if (kind === "gif") {
+                                    if (root.gifState === "recording") root.stopGifRecording()
+                                    else if (root.gifState === "idle") root.startGifRecording()
+                                }
+                                else if (kind === "stats") {
+                                    root.statsOverlayOpen = !root.statsOverlayOpen
+                                    if (root.statsOverlayOpen) root.refreshPlaybackStats()
+                                }
+                                else if (kind === "draw") root.toggleDrawMode()
+                                else if (kind === "liveGuide") {
+                                    if (!root.liveGuideOpen) root.openLiveGuide(); else root.liveGuideOpen = false
+                                }
+                                else if (kind === "dvr") root.dvrPanelOpen = !root.dvrPanelOpen
+                                else if (kind === "liveEdge") root.goLiveEdge()
                                 root.wakeChrome()
                             }
                         }
@@ -3192,219 +2870,7 @@ Item {
             }
         }
 
-        Rectangle {
-            id: castPanel
-            visible: root.castPanelOpen
-            z: 9
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.rightMargin: tight ? 14 : 34
-            anchors.topMargin: tight ? 78 : 92
-            width: Math.min(360, parent.width - 28)
-            height: Math.min(420, parent.height - 230)
-            radius: 18
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.95)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
 
-            // Absorb background clicks (parity spec F2).
-            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
-
-            Text {
-                id: castTitle
-                x: 18
-                y: 15
-                text: "Share this stream"
-                color: theme.ink
-                font.family: theme.hud
-                font.pixelSize: 15
-                font.weight: Font.DemiBold
-            }
-            Text {
-                x: 18
-                y: 43
-                width: parent.width - 36
-                text: (typeof Cast !== "undefined" && Cast.localServerUrl.length)
-                      ? ("Share link: " + Cast.localServerUrl)
-                      : "Preparing share link..."
-                color: theme.inkDimmer
-                font.family: theme.hud
-                font.pixelSize: 11
-                elide: Text.ElideRight
-            }
-
-            Rectangle { x: 0; y: 72; width: parent.width; height: 1; color: Qt.rgba(1, 1, 1, 0.08) }
-
-            Text {
-                visible: typeof Cast !== "undefined" && Cast.scanning
-                x: 18
-                y: 94
-                text: "Preparing share link..."
-                color: theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 13
-            }
-
-            Text {
-                visible: typeof Cast === "undefined" || (!Cast.scanning && Cast.devices.length === 0)
-                x: 18
-                y: 94
-                width: parent.width - 36
-                text: "Shares a link that other apps and devices on your network can open. Real casting (Chromecast, DLNA, Roku) comes later."
-                color: theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-
-            ListView {
-                x: 10
-                y: 86
-                width: parent.width - 20
-                height: parent.height - 142
-                clip: true
-                spacing: 4
-                model: (typeof Cast !== "undefined" && !Cast.scanning) ? Cast.devices : []
-                delegate: Rectangle {
-                    required property var modelData
-                    width: ListView.view.width
-                    height: 58
-                    radius: 11
-                    color: castDeviceMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-                    border.width: modelData.manual ? 1 : 0
-                    border.color: Qt.rgba(1, 1, 1, 0.10)
-                    IconGlyph {
-                        x: 12
-                        y: 13
-                        width: 32
-                        height: 32
-                        kind: "cast"
-                        ink: theme.gold
-                    }
-                    Text {
-                        x: 54
-                        y: 10
-                        width: parent.width - 70
-                        text: root.shareTargetName(modelData.name)
-                        color: theme.ink
-                        font.family: theme.hud
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        x: 54
-                        y: 31
-                        width: parent.width - 70
-                        text: modelData.model || modelData.kind || ""
-                        color: theme.inkDimmer
-                        font.family: theme.hud
-                        font.pixelSize: 11
-                        elide: Text.ElideRight
-                    }
-                    MouseArea {
-                        id: castDeviceMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.startCast(modelData)
-                    }
-                }
-            }
-
-            Row {
-                anchors.left: parent.left
-                anchors.bottom: parent.bottom
-                anchors.leftMargin: 16
-                anchors.bottomMargin: 14
-                spacing: 8
-                RoomActionButton {
-                    label: "Refresh"
-                    onClicked: root.openCastPanel()
-                }
-                RoomActionButton {
-                    label: "Close"
-                    onClicked: {
-                        root.castPanelOpen = false
-                        root.wakeChrome()
-                    }
-                }
-            }
-        }
-
-        Rectangle {
-            id: castSessionBar
-            visible: typeof Cast !== "undefined" && (Cast.active || Cast.pending)
-            z: 10
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: tight ? 18 : 24
-            width: Math.min(parent.width - 32, 560)
-            height: 54
-            radius: 27
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.92)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
-
-            IconGlyph {
-                x: 16
-                anchors.verticalCenter: parent.verticalCenter
-                width: 30
-                height: 30
-                kind: "cast"
-                ink: theme.gold
-            }
-            Column {
-                x: 56
-                anchors.verticalCenter: parent.verticalCenter
-                width: parent.width - 258
-                spacing: 1
-                Text {
-                    width: parent.width
-                    text: "Sharing to"
-                    color: theme.inkDimmer
-                    font.family: theme.hud
-                    font.pixelSize: 10
-                    font.weight: Font.Bold
-                    font.capitalization: Font.AllUppercase
-                    elide: Text.ElideRight
-                }
-                Text {
-                    width: parent.width
-                    text: (typeof Cast !== "undefined" && Cast.device.name) ? root.shareTargetName(Cast.device.name) : "Preparing share link..."
-                    color: theme.ink
-                    font.family: theme.hud
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
-            }
-            Row {
-                anchors.right: parent.right
-                anchors.rightMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 6
-                RoomActionButton {
-                    width: 42
-                    label: (typeof Cast !== "undefined" && Cast.playing) ? "II" : "Play"
-                    onClicked: root.toggleCastPlay()
-                }
-                RoomActionButton {
-                    width: 52
-                    label: "-15s"
-                    onClicked: root.seekCast(-15)
-                }
-                RoomActionButton {
-                    width: 52
-                    label: "+15s"
-                    onClicked: root.seekCast(15)
-                }
-                RoomActionButton {
-                    label: "Stop sharing"
-                    onClicked: root.stopCast()
-                }
-            }
-        }
 
         Rectangle {
             id: liveGuide
@@ -4479,63 +3945,11 @@ Item {
                         visible: !root.barSnug || fillMenu.panelOpen
                     }
 
-                    ToolsMenu {
-                        id: toolsMenu
-                        actions: [
-                            { "icon": "camera", "label": "Screenshot", "active": false, "enabled": true,
-                              "trigger": function() { root.captureFrameGrab() } },
-                            { "icon": "gif", "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF",
-                              "active": root.gifState !== "idle", "enabled": true,
-                              "trigger": function() {
-                                  if (root.gifState === "recording") root.stopGifRecording()
-                                  else if (root.gifState === "idle") root.startGifRecording()
-                              } },
-                            { "icon": "stats", "label": "Playback stats", "active": root.statsOverlayOpen, "enabled": true,
-                              "trigger": function() {
-                                  root.statsOverlayOpen = !root.statsOverlayOpen
-                                  if (root.statsOverlayOpen) root.refreshPlaybackStats()
-                              } },
-                            { "icon": "draw", "label": "Draw", "active": root.drawMode, "enabled": true,
-                              "trigger": function() { root.toggleDrawMode() } },
-                            { "icon": "cast", "label": "Share stream",
-                              "active": root.castPanelOpen || (typeof Cast !== "undefined" && Cast.active), "enabled": true,
-                              "trigger": function() {
-                                  var wasOpen = root.castPanelOpen
-                                  root.closeMenus()
-                                  if (!wasOpen) root.openCastPanel(); else root.castPanelOpen = false
-                              } },
-                            { "icon": "room", "label": "Watch room",
-                              "active": root.roomPanelOpen || (typeof Room !== "undefined" && Room.active), "enabled": true,
-                              "trigger": function() {
-                                  var wasOpen = root.roomPanelOpen
-                                  root.closeMenus()
-                                  root.roomPanelOpen = !wasOpen
-                              } },
-                            { "icon": "live", "label": "Live guide", "active": root.liveGuideOpen,
-                              "enabled": (typeof Live !== "undefined" && Live.isLive),
-                              "trigger": function() {
-                                  var wasOpen = root.liveGuideOpen
-                                  root.closeMenus()
-                                  if (!wasOpen) root.openLiveGuide(); else root.liveGuideOpen = false
-                              } },
-                            { "icon": "record", "label": "DVR record",
-                              "active": root.dvrPanelOpen || root.currentDvrId.length > 0,
-                              "enabled": (typeof Live !== "undefined" && Live.isLive),
-                              "trigger": function() {
-                                  var wasOpen = root.dvrPanelOpen
-                                  root.closeMenus()
-                                  root.dvrPanelOpen = !wasOpen
-                              } },
-                            { "icon": "live", "label": "Go to live edge", "active": false,
-                              "enabled": (typeof Live !== "undefined" && Live.isLive),
-                              "trigger": function() { root.goLiveEdge() } }
-                        ]
-                    }
 
                     // Narrow player folds hidden controls (audio/speed/picture/volume) here
                     // instead of deleting them (parity spec slice 3, 2026-07-06).
                     RoundButton {
-                        visible: root.barSnug
+                        visible: true   // the four real tools always live here
                         size: 48
                         icon: "more"
                         tooltip: "More controls"
@@ -4755,107 +4169,6 @@ Item {
         }
     }
 
-    // Harbor-style tools overflow: one "..." button opens a small menu of the
-    // occasional player tools (screenshot, GIF, stats, draw, cast, room, live).
-    // Keeps the bar from becoming a wall of icons that overflow the transport.
-    component ToolsMenu: Item {
-        id: tm
-        property bool panelOpen: false
-        // Each action: { icon, label, active(bool), enabled(bool), trigger(function) }
-        property var actions: []
-        width: 48
-        height: 48
-
-        RoundButton {
-            anchors.fill: parent
-            size: 48
-            icon: "more"
-            active: tm.panelOpen
-            tooltip: "Tools"
-            onClicked: {
-                var wasOpen = tm.panelOpen
-                root.closeMenus()
-                tm.panelOpen = !wasOpen
-                root.wakeChrome()
-            }
-        }
-
-        Rectangle {
-            // Reparented to full-screen chrome so rows above the dock stay clickable.
-            parent: chrome
-            visible: tm.panelOpen
-            z: 40
-            width: 232
-            height: toolsCol.implicitHeight + 20
-            onVisibleChanged: if (visible) {
-                var p = tm.mapToItem(chrome, 0, 0)
-                x = p.x + tm.width - width
-                y = p.y - height - 12
-            }
-            radius: 16
-            color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
-            border.width: 1
-            border.color: Qt.rgba(1, 1, 1, 0.12)
-
-            // Absorb background clicks (parity spec F2).
-            MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
-
-            Column {
-                id: toolsCol
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                anchors.margins: 10
-                spacing: 2
-
-                Repeater {
-                    model: tm.actions
-                    delegate: Rectangle {
-                        id: toolRow
-                        required property var modelData
-                        width: toolsCol.width
-                        height: (modelData.enabled === false) ? 0 : 40
-                        visible: modelData.enabled !== false
-                        radius: 9
-                        color: modelData.active ? Qt.rgba(0.95, 0.68, 0.18, 0.16)
-                              : toolMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-                        Row {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 12
-                            IconGlyph {
-                                width: 22
-                                height: 22
-                                anchors.verticalCenter: parent.verticalCenter
-                                kind: toolRow.modelData.icon
-                                ink: toolRow.modelData.active ? theme.gold : theme.ink
-                            }
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: toolRow.modelData.label
-                                color: toolRow.modelData.active ? theme.gold : theme.ink
-                                font.family: theme.hud
-                                font.pixelSize: 13
-                                font.weight: Font.DemiBold
-                            }
-                        }
-                        MouseArea {
-                            id: toolMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                tm.panelOpen = false
-                                toolRow.modelData.trigger()
-                                root.wakeChrome()
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
 
     component PlayerMenu: Item {
         id: menu

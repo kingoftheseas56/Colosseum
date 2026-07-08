@@ -119,9 +119,9 @@ Assert-Contains $player "Stop recording" `
     "PlayerPage DVR panel must stop recording."
 Assert-Contains $player "Jump to live edge" `
     "PlayerPage must expose live-edge control."
-Assert-Contains $player "icon: `"live`"" `
+Assert-Contains $player '"label": "Live guide", "kind": "liveGuide"' `
     "PlayerPage chrome must expose live guide action."
-Assert-Contains $player "icon: `"record`"" `
+Assert-Contains $player '"label": "DVR record", "kind": "dvr"' `
     "PlayerPage chrome must expose DVR action."
 
 Write-Host "Player live P0 parity contract checks passed."

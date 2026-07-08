@@ -51,7 +51,7 @@ Assert-Contains $player "Audio track" `
     "Stats overlay must display active audio track."
 Assert-Contains $player "Subtitle track" `
     "Stats overlay must display active subtitle track."
-Assert-Contains $player "tooltip: `"Playback stats`"" `
-    "Transport controls must expose a playback stats action."
+Assert-Contains $player '"label": "Playback stats", "kind": "stats"' `
+    "Playback stats must live as an overflow-menu row (ToolsMenu retired 2026-07-08)."
 
 Write-Host "Player stats P0 parity contract checks passed."

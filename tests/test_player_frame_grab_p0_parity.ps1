@@ -47,9 +47,9 @@ Assert-Contains $player "Frame grab failed" `
     "PlayerPage must show failed frame grab feedback."
 Assert-Contains $player "Open folder" `
     "PlayerPage frame grab toast must support opening the folder."
-Assert-Contains $player "icon: `"camera`"" `
-    "PlayerPage transport controls must expose a frame grab action."
-Assert-Contains $player "tooltip: `"Frame grab`"" `
-    "PlayerPage frame grab button must be discoverable."
+Assert-Contains $player '"label": "Screenshot", "kind": "screenshot"' `
+    "Screenshot must live as an overflow-menu row (ToolsMenu retired 2026-07-08)."
+Assert-Contains $player 'else if (kind === "screenshot") root.captureFrameGrab()' `
+    "The Screenshot row must actually fire the frame grab."
 
 Write-Host "Player frame grab P0 parity contract checks passed."
