@@ -781,6 +781,15 @@ Window {
     FontLoader { source: "../assets/fonts/Switzer-Semibold.otf" }
     FontLoader { source: "../assets/fonts/Switzer-Bold.otf" }
 
+    // ---- HUD fallback face: Inter statics (theme.hud flip target). STATICS ON PURPOSE:
+    // a variable TTF registers under its typographic name ("Inter Variable"), so asking
+    // for "Inter" silently falls back to Tahoma on Windows (probe-proven 2026-07-08).
+    // The statics register as plain "Inter" and weight-match across files. ----
+    FontLoader { source: "../assets/fonts/Inter-Regular.otf" }
+    FontLoader { source: "../assets/fonts/Inter-Medium.otf" }
+    FontLoader { source: "../assets/fonts/Inter-SemiBold.otf" }
+    FontLoader { source: "../assets/fonts/Inter-Bold.otf" }
+
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
     // =====================================================================
