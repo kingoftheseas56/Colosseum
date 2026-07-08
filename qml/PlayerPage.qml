@@ -600,6 +600,20 @@ Item {
     readonly property real chromeVisibleHeight: height
     readonly property bool compact: chromeVisibleWidth < 1000
     readonly property bool tight: chromeVisibleWidth < 680
+
+    // Width-honest control bar (2026-07-08, "icon vomit"): the centered transport row and
+    // the right-anchored utility row share one strip, and nothing used to check whether
+    // they FIT — every utility added since the magic 1000/680 thresholds were tuned
+    // (stream, download, episodes browser) slid the cluster further under the transport.
+    // utilitySpace = the real room between the transport's right edge and the bar's right
+    // margin, from LIVE transport width (prev/next buttons change it). Fold tiers:
+    //   barSnug — the full roster (~534px + gap) doesn't fit: fold speed/fill (as before)
+    //             AND stream/download/browser into the overflow panel.
+    //   barTiny — even the snug roster (~318px) doesn't fit: fold audio/tools too.
+    // Reads transportRow.width only (independent of any folding) — no binding loop.
+    readonly property real utilitySpace: chromeVisibleWidth / 2 - transportRow.width / 2 - 34
+    readonly property bool barSnug: utilitySpace < 560
+    readonly property bool barTiny: utilitySpace < 330
     readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
@@ -3099,7 +3113,7 @@ Item {
 
         Rectangle {
             id: overflowPanel
-            visible: root.overflowOpen && root.compact
+            visible: root.overflowOpen && root.barSnug
             z: 9
             anchors.right: parent.right
             anchors.bottom: parent.bottom
@@ -3134,9 +3148,12 @@ Item {
 
                 Repeater {
                     model: [
-                        { "label": "Audio tracks", "kind": "audio", "when": root.tight },
-                        { "label": "Speed", "kind": "speed", "when": root.compact },
-                        { "label": "Picture", "kind": "fill", "when": root.compact }
+                        { "label": "Episodes & sources", "kind": "browser", "when": root.barSnug && root.mediaId.indexOf("iptv:") !== 0 },
+                        { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
+                        { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
+                        { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
+                        { "label": "Speed", "kind": "speed", "when": root.barSnug },
+                        { "label": "Picture", "kind": "fill", "when": root.barSnug }
                     ]
                     delegate: Rectangle {
                         required property var modelData
@@ -3164,6 +3181,9 @@ Item {
                                 if (kind === "audio") audioMenu.panelOpen = true
                                 else if (kind === "speed") speedMenu.panelOpen = true
                                 else if (kind === "fill") fillMenu.panelOpen = true
+                                else if (kind === "browser") root.browserOpen = true
+                                else if (kind === "stream") root.pickAnotherStream()
+                                else if (kind === "download") root.handleDownloadAction()
                                 root.wakeChrome()
                             }
                         }
@@ -4306,6 +4326,7 @@ Item {
                 }
 
                 Row {
+                    id: transportRow
                     anchors.centerIn: parent
                     spacing: compact ? 6 : 8
                     RoundButton {
@@ -4359,7 +4380,7 @@ Item {
                     }
 
                     RoundButton {
-                        visible: root.streamCandidates.length > 1
+                        visible: root.streamCandidates.length > 1 && !root.barSnug
                         size: 48
                         icon: "stream"
                         tooltip: "Pick another stream"
@@ -4367,7 +4388,7 @@ Item {
                     }
 
                     RoundButton {
-                        visible: root.currentCastUrl().length > 0
+                        visible: root.currentCastUrl().length > 0 && !root.barSnug
                         size: 48
                         icon: root.downloadIcon()
                         active: typeof Download !== "undefined" && Download.status.kind !== "idle"
@@ -4379,7 +4400,7 @@ Item {
                     }
 
                     RoundButton {
-                        visible: root.mediaId.indexOf("iptv:") !== 0
+                        visible: root.mediaId.indexOf("iptv:") !== 0 && !root.barSnug
                         size: 48
                         icon: "browser"
                         active: root.browserOpen
@@ -4394,7 +4415,7 @@ Item {
 
                     AudioMenu {
                         id: audioMenu
-                        visible: !tight || audioMenu.panelOpen
+                        visible: !root.barTiny || audioMenu.panelOpen
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
                             audioMenu.panelOpen = !wasOpen
@@ -4450,12 +4471,12 @@ Item {
 
                     SpeedMenuButton {
                         id: speedMenu
-                        visible: !compact || speedMenu.panelOpen
+                        visible: !root.barSnug || speedMenu.panelOpen
                     }
 
                     FillMenuButton {
                         id: fillMenu
-                        visible: !compact || fillMenu.panelOpen
+                        visible: !root.barSnug || fillMenu.panelOpen
                     }
 
                     ToolsMenu {
@@ -4514,7 +4535,7 @@ Item {
                     // Narrow player folds hidden controls (audio/speed/picture/volume) here
                     // instead of deleting them (parity spec slice 3, 2026-07-06).
                     RoundButton {
-                        visible: compact
+                        visible: root.barSnug
                         size: 48
                         icon: "more"
                         tooltip: "More controls"
