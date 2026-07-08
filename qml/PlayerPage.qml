@@ -2670,7 +2670,12 @@ Item {
         height: root.chromeVisibleHeight
         z: 99999
         color: Qt.rgba(0, 0, 0, 0.001)
-        opacity: root.controlsShown ? 1 : 0
+        // Clean loading screen (Hemanth 2026-07-08): while a stream is LOADING, step the
+        // whole chrome aside so the centered spinner+status overlay (visible: starting)
+        // owns the screen instead of stacking on top of the centered transport buttons.
+        // Gate on `starting` only — the error state keeps the chrome up because retry
+        // lives in the control bar. Chrome fades back in the instant playback begins.
+        opacity: (root.controlsShown && !root.starting) ? 1 : 0
         visible: opacity > 0.01
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
