@@ -96,6 +96,12 @@ Item {
     // --- hotkeys (Feature 7): keyboard shortcuts sheet visibility ---
     property bool shortcutsOpen: false
 
+    property bool browserOpen: false      // Feature 8: the episode/source drawer
+    // Feature 8: the traveling episode queue (playbackContext.episodeQueue) retained so
+    // the drawer's Episodes tab has an instant, fetch-free floor.
+    property var playbackQueue: []
+    property int playbackQueueIndex: -1
+
     property var streamCandidates: []
     property int currentStreamIndex: -1
     property int streamRetryCount: 0
@@ -594,7 +600,7 @@ Item {
     readonly property real chromeVisibleHeight: height
     readonly property bool compact: chromeVisibleWidth < 1000
     readonly property bool tight: chromeVisibleWidth < 680
-    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen || root.closeConfirmOpen
+    readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.roomPanelOpen || root.castPanelOpen || root.liveGuideOpen || root.dvrPanelOpen || toolsMenu.panelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -843,6 +849,9 @@ Item {
         var savedPos = Number(((prog || ({})).resume || ({})).position || 0)
         if (savedPos > 0)
             root.pendingSeekSec = savedPos
+        root.playbackQueue = (playbackContext || ({})).episodeQueue || []
+        root.playbackQueueIndex = (playbackContext || ({})).episodeIndex !== undefined
+                                  ? Number((playbackContext || ({})).episodeIndex) : -1
         root.deadStreamKeys = ({})
         root.stubCheckedKey = ""
         root.autoPausedInactive = false
@@ -1036,6 +1045,15 @@ Item {
         var ep = root.adjacentEpisodes ? root.adjacentEpisodes[which] : null
         if (!ep || !ep.id)
             return
+        root.jumpToEpisode(ep, which === "next" ? "Next episode..." : "Previous episode...",
+                           which === "next" ? "next episode." : "previous episode.")
+    }
+
+    // Feature 8: the Next-Episode pipeline, generalized to ANY episode target
+    // ({id, title, type, backdrop, context}) — the drawer's episode taps land here.
+    function jumpToEpisode(ep, startLabel, failLabel) {
+        if (!ep || !ep.id)
+            return
         root.cancelUpNext()
         root.adjacentResolveGen += 1
         var myGen = root.adjacentResolveGen
@@ -1043,7 +1061,7 @@ Item {
         root.errored = false
         root.starting = true
         root.fileReady = false
-        root.statusMsg = which === "next" ? "Next episode..." : "Previous episode..."
+        root.statusMsg = startLabel || "Loading episode..."
         streamWatchdog.restart()
         root.wakeChrome()
         var startWith = function(list) {
@@ -1053,7 +1071,7 @@ Item {
                 streamWatchdog.stop()
                 root.errored = true
                 root.starting = false
-                root.statusMsg = "No stream found for " + (which === "next" ? "next episode." : "previous episode.")
+                root.statusMsg = "No stream found for " + (failLabel || "this episode.")
                 root.wakeChrome()
                 return
             }
@@ -1595,6 +1613,8 @@ Item {
         // updateMediaSubtitle prefers the previous stream's quality/sourceName
         // over this playback's transport.
         root.mediaId = ""
+        root.playbackQueue = []
+        root.playbackQueueIndex = -1
         root.mediaYear = ""
         root.streamCandidates = []
         root.currentStreamIndex = -1
@@ -1633,6 +1653,8 @@ Item {
         root.mediaArt = t.art || ""
         root.mediaLocalPath = String(t.localPath || "")
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
+        root.playbackQueue = []
+        root.playbackQueueIndex = -1
         root.updateMediaSubtitle()
         root.mediaResumeHash = ""
         root.mediaResumeFileIdx = 0
@@ -2184,6 +2206,7 @@ Item {
         root.overflowOpen = false
         root.closeConfirmOpen = false
         root.shortcutsOpen = false
+        root.browserOpen = false
     }
     function wakeChrome() {
         root.controlsShown = true
@@ -2273,6 +2296,13 @@ Item {
             if (root.statsOverlayOpen)
                 root.refreshPlaybackStats()
             return
+        case "browser": {
+            var wasOpen = root.browserOpen
+            root.closeMenus()
+            root.browserOpen = !wasOpen
+            root.wakeChrome()
+            return
+        }
         case "shortcuts": root.shortcutsOpen = true; return
         }
     }

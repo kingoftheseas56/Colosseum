@@ -19,4 +19,22 @@ Assert-Contains $hotkeys 'id: "browser"' `
 Assert-Matches $hotkeys 'id: "browser".*bindings: \["E"\]' `
     "The browser action must bind E."
 
+$player = Get-Content (Join-Path $root "qml/PlayerPage.qml") -Raw
+
+# --- Task 3: plumbing ---
+Assert-Contains $player "property bool browserOpen: false" `
+    "PlayerPage must hold the drawer open flag."
+Assert-Matches $player "property var playbackQueue: \[\]" `
+    "PlayerPage must retain the traveling episode queue."
+Assert-Contains $player "function jumpToEpisode(ep, startLabel, failLabel)" `
+    "The Next-Episode pipeline must be generalized to any episode target."
+Assert-Contains $player 'root.jumpToEpisode(ep, which === "next"' `
+    "goToAdjacentEpisode must delegate to jumpToEpisode (one pipeline, not two)."
+Assert-Contains $player 'case "browser":' `
+    "runHotkeyAction must route the E key."
+Assert-Contains $player "root.browserOpen = false" `
+    "closeMenus must close the drawer."
+Assert-Contains $player "|| root.browserOpen" `
+    "anyMenuOpen must include the drawer (chrome stays awake)."
+
 Write-Host "Player browser contract checks passed."
