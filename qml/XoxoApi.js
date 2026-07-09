@@ -259,19 +259,26 @@ function exploreItems(boxId, page, done) {
 // A COMPLETE walk (ended on rel=next exhaustion, not a block) is cached and never
 // re-walked in-session. A block mid-walk returns what's gathered WITH meta.blocked —
 // never a partial masquerading as complete. Safety cap 40 pages.
+// done(list, meta, seriesMeta) — seriesMeta ({status,author,genres,released,views}) is
+// parsed from the FIRST walk page, which carries the series-detail block.
 function issues(seriesId, done) {
     var slug = slugOf(seriesId);
-    if (_issueCache[seriesId]) { done(_issueCache[seriesId], _meta(false)); return; }
+    if (_issueCache[seriesId]) {
+        var c = _issueCache[seriesId];
+        done(c.list, _meta(false), c.meta); return;
+    }
     var all = [];
+    var seriesMeta = {};
     var hops = 0;
     function walk(url) {
         guardedFetch(url, "issues", slug, function(html, meta) {
-            if (!html) { done(all, meta); return; }   // blocked or empty — partial + honest meta
+            if (!html) { done(all, meta, seriesMeta); return; }   // blocked/empty — partial + honest
+            if (hops === 0) seriesMeta = parseSeriesMeta(html);   // detail block rides page 1
             var r = parseIssueList(html, slug);
             all = all.concat(r.issues);
             hops += 1;
             if (r.nextUrl && hops < 40) walk(r.nextUrl);
-            else { _issueCache[seriesId] = all; done(all, _meta(false)); }   // complete → cache
+            else { _issueCache[seriesId] = { list: all, meta: seriesMeta }; done(all, _meta(false), seriesMeta); }
         });
     }
     walk(BASE + "/comic/" + slug);

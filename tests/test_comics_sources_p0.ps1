@@ -48,6 +48,9 @@ Assert-Contains $dlcpp 'looksLikeImage' "downloader must validate a page is a re
 if (!(Test-Path (Join-Path $root "qml/SourceCooldownBanner.qml"))) { throw "MISSING: SourceCooldownBanner.qml" }
 $xs3 = Get-Content (Join-Path $root "qml/XoxoSeries.qml") -Raw
 Assert-Contains $xs3 'SourceCooldownBanner' "series page must show the cooldown banner"
+# Plan B: series page shows parsed metadata + reads issues ascending (#1 first)
+Assert-Contains $xs3 'page.seriesMeta' "series hero must show parsed metadata"
+Assert-Contains $xs3 'issuesRaw.slice().reverse()' "display issues must be ascending (#1 first); reader stays newest-first"
 $xg2 = Get-Content (Join-Path $root "qml/XoxoGenrePage.qml") -Raw
 Assert-Contains $xg2 'SourceCooldownBanner' "genre page must show the cooldown banner"
 $ws3 = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
