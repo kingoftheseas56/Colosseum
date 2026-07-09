@@ -43,6 +43,18 @@ QtObject {
             var g = Xoxo.parseSeriesList(fixture("genre.html"))
             t.ok(g.length >= 20, "genre: expected >=20 series, got " + g.length)
 
+            // --- soft-block detection: the homepage the throttle serves must read as blocked
+            //     for every verb; real pages must NOT (positive per-verb validation) ---
+            var hp = fixture("homepage.html")
+            t.ok(Xoxo.isSoftBlock(hp, "search", ""), "homepage must read as soft-block for search")
+            t.ok(Xoxo.isSoftBlock(hp, "explore", "superhero-comic"), "homepage must read as soft-block for explore")
+            t.ok(Xoxo.isSoftBlock(hp, "issues", "batman-1940"), "homepage must read as soft-block for issues")
+            t.ok(Xoxo.isSoftBlock(hp, "pages", "batman-1940/issue-1"), "homepage must read as soft-block for pages")
+            t.ok(!Xoxo.isSoftBlock(fixture("search.html"), "search", ""), "a real search page is NOT a soft-block")
+            t.ok(!Xoxo.isSoftBlock(fixture("genre.html"), "explore", "superhero-comic"), "a real genre page is NOT a soft-block")
+            t.ok(!Xoxo.isSoftBlock(fixture("series_p1.html"), "issues", "batman-1940"), "a real series page is NOT a soft-block")
+            t.ok(!Xoxo.isSoftBlock(fixture("issue_all.html"), "pages", "batman-1940/issue-1"), "a real reading page is NOT a soft-block")
+
             console.log("XOXO API HARNESS PASS")
             Qt.exit(0)
         } catch (e) { console.log("THROW: " + e); Qt.exit(1) }

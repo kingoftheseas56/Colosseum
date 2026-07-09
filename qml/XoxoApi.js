@@ -123,6 +123,31 @@ function decodeEntities(s) {
                     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&#8211;/g, "–");
 }
 
+// ── soft-block detection (spec A) ─────────────────────────────────────────────────
+// A rate-limited xoxo answers ANY url with HTTP 200 + a homepage-shaped page (the throttle
+// interstitial OR the real homepage) instead of the asked-for content. Detect the lie
+// POSITIVELY — the response must contain what THIS request asked for; a homepage lacks it.
+// Markers verified against captured fixtures (2026-07-09):
+//   • listing pages (search/genre/explore) carry the `comic-filter` / `pagination-outter`
+//     chrome; the homepage has NEITHER (this holds even for a zero-result search — the
+//     filter bar is page chrome, not results).
+//   • a series page carries `/comic/<slug>/issue-` links for the REQUESTED slug.
+//   • a reading page carries `data-original` images under the REQUESTED `<slug>/issue-N`.
+// No title fingerprint — the throttle interstitial and the real homepage use DIFFERENT
+// titles, so positive content markers are the only robust signal.
+function isSoftBlock(html, verb, slug) {
+    if (!html || html.length < 500) return true;
+    if (verb === "search" || verb === "explore")
+        return html.indexOf("comic-filter") < 0 && html.indexOf("pagination-outter") < 0;
+    if (verb === "issues")
+        return html.indexOf("/comic/" + slug + "/issue-") < 0;
+    if (verb === "pages") {
+        var re = new RegExp("data-original='[^']*" + String(slug).replace(/\//g, "\\/") + "\\/[0-9]+\\.");
+        return !re.test(html);
+    }
+    return false;
+}
+
 // ── the 5-verb source contract (spec: xoxo-getcomics-design.md) ──
 
 function searchSeries(query, done) {

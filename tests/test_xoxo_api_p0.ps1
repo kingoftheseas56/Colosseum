@@ -10,7 +10,7 @@ if (!(Test-Path $qmlExe)) { throw "qml.exe not found at $qmlExe - update the Qt 
 # regenerated from the committed .html fixtures each run, deleted after.
 $fixDir = Join-Path $PSScriptRoot "fixtures/xoxo"
 $genPath = Join-Path $PSScriptRoot "xoxo_fixtures.gen.js"
-$names = @("search.html", "series_p1.html", "series_p2.html", "issue_all.html", "genre.html")
+$names = @("search.html", "series_p1.html", "series_p2.html", "issue_all.html", "genre.html", "homepage.html")
 $sb = New-Object System.Text.StringBuilder
 [void]$sb.AppendLine(".pragma library")
 [void]$sb.AppendLine("var _d = {};")
