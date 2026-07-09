@@ -2373,6 +2373,14 @@ Item {
         onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }
     }
 
+    Rectangle {
+        id: loadingFrameBlanker
+        anchors.fill: parent
+        z: 3
+        color: "#000000"
+        visible: root.starting || root.errored
+    }
+
     SubStyleBar {
         id: subStyleBar
         anchors.left: parent.left
