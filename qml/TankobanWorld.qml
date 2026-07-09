@@ -4,14 +4,15 @@
 // · comics = RCO "rcostation"); live sources come LATER (Hemanth: "apis can come later").
 //
 // The board (Hemanth-locked 2026-06-25) — personal surfaces BLENDED, discovery surfaces SPLIT:
-//   1. Featured (blended) · 2. Continue (blended) · 3. Top Manga · 4. Top Comics
-//   5. Explore Genre — Manga · 6. Explore Genre — Comics
+//   1. Featured (blended) · 2. Continue (blended) · 3. Top Manga
+//   4. Top 10 This Week (comics) · 5. Most Popular (comics)
+//   6. Explore Genre — Manga · 7. Explore Comics — Publishers
 // The catalogue's needs override the doctrine's ~2-row cap: comics and manga are two real
 // sub-catalogues, so the split IS the need (not a lazy row-wall).
 
 import QtQuick
 import "Catalog.js" as Catalog
-import "XoxoApi.js" as Xoxo
+import "LocgApi.js" as Locg
 
 WorldPage {
     id: tanko
@@ -28,14 +29,15 @@ WorldPage {
     // the Archives box opens the GetComics taxonomy (GetComics loses nothing).
     signal xoxoSeriesRequested(var data)        // {id, title, cover}
     signal xoxoGenreRequested(var box)          // {id, label}
+    signal locgPublisherRequested(var box)      // {id, label} — opens LocgPublisherPage
     signal comicArchiveBoardRequested()
 
-    // Live comics feed from xoxo: Top Comics ← hot-comic; genre boxes ← xoxo's REAL
-    // genre axis (superhero/horror/DC/Marvel...) + one "GetComics Archives" door.
-    // topComicsXoxo falls back to Catalog.topComics (curated) when xoxo is offline.
-    property var topComicsXoxo: []
-    property var comicGenresXoxo: []
-    property var comicCovers: []            // real xoxo covers → the genre mosaic's art pool
+    // Live comics CATALOGUE from LOCG (AniList model): Top 10 This Week (pull-ranked),
+    // Most Popular, publisher boxes. Falls back to curated Catalog.topComics when LOCG offline.
+    property var topComicsWeek: []
+    property var popularComics: []
+    property var comicPublishers: []
+    property var comicCovers: []            // real covers → the mosaic's art pool
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
         ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
@@ -43,25 +45,30 @@ WorldPage {
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
     Component.onCompleted: {
-        Xoxo.exploreItems("hot-comic", 1, function(r) {
-            if (r && r.items.length > 0) {
-                tanko.topComicsXoxo = r.items.slice(0, 10).map(function(s) {
+        Locg.top10ThisWeek(function(list, meta) {
+            if (meta && meta.ok && list.length > 0) {
+                tanko.topComicsWeek = list.map(function(s) {
                     return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
-                             xoxo: true, id: s.id };
+                             locg: true, id: s.id, locgMeta: { publisher: s.publisher, rating: s.rating } };
                 });
-                // feed the genre mosaic real comic art (darkened behind each tile's gradient)
-                tanko.comicCovers = r.items.map(function(s) { return s.cover; })
-                    .filter(function(c) { return c && c.length > 0; });
             }
         });
-        Xoxo.explore(function(boxes) {
-            var genres = boxes.filter(function(b) { return b.kind === "genre"; })
-                .map(function(b, i) {
-                    var pal = tanko._genrePalette[i % tanko._genrePalette.length];
-                    return { name: b.label, boxId: b.id, c1: pal[0], c2: pal[1] };
-                });
-            genres.push({ name: "GetComics Archives", archives: true, c1: "#4a4a4a", c2: "#151515" });
-            tanko.comicGenresXoxo = genres;
+        Locg.popular(function(list, meta) {
+            if (!meta || !meta.ok || list.length === 0) return;
+            tanko.popularComics = list.slice(0, 20).map(function(s) {
+                return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
+                         locg: true, id: s.id, locgMeta: { publisher: s.publisher, startYear: s.startYear } };
+            });
+            tanko.comicCovers = list.map(function(s) { return s.cover; })
+                .filter(function(c) { return c && c.length > 0; });
+        });
+        Locg.publisherBoxes(function(boxes) {
+            var pubs = boxes.map(function(b, i) {
+                var pal = tanko._genrePalette[i % tanko._genrePalette.length];
+                return { name: b.label, boxId: b.id, c1: pal[0], c2: pal[1] };
+            });
+            pubs.push({ name: "GetComics Archives", archives: true, c1: "#4a4a4a", c2: "#151515" });
+            tanko.comicPublishers = pubs;
         });
     }
 
@@ -99,14 +106,24 @@ WorldPage {
     }
 
     TrendingTop10 {
-        title: "Top in Tankoban — Comics"
-        // Live from xoxo (its Popular shelf); the curated Catalog list is the offline fallback.
-        items: tanko.topComicsXoxo.length > 0 ? tanko.topComicsXoxo : Catalog.topComics
+        title: "Top 10 This Week"
+        // Live from LOCG (releases ranked by real pull-counts); curated Catalog list is the offline fallback.
+        items: tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
         onItemClicked: (i) => {
-            var list = tanko.topComicsXoxo.length > 0 ? tanko.topComicsXoxo : Catalog.topComics
+            var list = tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
             var it = list[i]
-            if (it.xoxo) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover })
+            if (it.locg) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
             else tanko.westernRequested(it.caption)
+        }
+    }
+
+    TrendingTop10 {
+        title: "Most Popular"
+        // Live from LOCG (most-popular series). Empty when LOCG offline → row shows nothing.
+        items: tanko.popularComics
+        onItemClicked: (i) => {
+            var it = tanko.popularComics[i]
+            if (it.locg) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
         }
     }
 
@@ -118,17 +135,17 @@ WorldPage {
     }
 
     GenreMosaic {
-        title: "Explore Comics — Genres"
-        // xoxo's REAL genre axis (superhero/horror/DC/Marvel...) + a GetComics Archives
-        // door. Replaces the old GetComics publisher/franchise boxes (those live on the
-        // Archives board now). GetComics loses nothing (peer-sources spec 2026-07-09).
-        genres: tanko.comicGenresXoxo
-        covers: tanko.comicCovers          // real comic art behind the genre gradients
+        title: "Explore Comics — Publishers"
+        // LOCG's publisher axis (Marvel/DC/Image/Dark Horse...) + a GetComics Archives
+        // door. Publisher is the comics-native axis (genre dropped — LOCG carries no
+        // keyless genre, ratified 2026-07-09). GetComics loses nothing.
+        genres: tanko.comicPublishers
+        covers: tanko.comicCovers          // real comic art behind the publisher gradients
         navigable: false
         onGenreClicked: (i) => {
-            var g = tanko.comicGenresXoxo[i]
+            var g = tanko.comicPublishers[i]
             if (g.archives) tanko.comicArchiveBoardRequested()
-            else tanko.xoxoGenreRequested({ id: g.boxId, label: g.name })
+            else tanko.locgPublisherRequested({ id: g.boxId, label: g.name })
         }
     }
 }

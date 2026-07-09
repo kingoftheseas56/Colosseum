@@ -192,6 +192,7 @@ Window {
         else if (xoxoSeriesLayer.active) win.closeXoxoSeries()
         else if (westernLayer.active) win.closeWestern()
         else if (xoxoGenreLayer.active) win.closeXoxoGenre()
+        else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
         else if (comicIndexLayer.active) win.closeComicArchive()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
@@ -404,6 +405,15 @@ Window {
         else xoxoGenreLayer.active = true
     }
     function closeXoxoGenre() { xoxoGenreLayer.active = false }
+
+    // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
+    //      series grid. Peer of xoxoGenreLayer — comics axis is publisher, not genre. ----
+    function openLocgPublisher(box) {
+        locgPublisherLayer.box = box || ({})
+        if (locgPublisherLayer.active && locgPublisherLayer.item) locgPublisherLayer.item.box = locgPublisherLayer.box
+        else locgPublisherLayer.active = true
+    }
+    function closeLocgPublisher() { locgPublisherLayer.active = false }
 
     // ---- GetComics Archives board: the publisher/franchise taxonomy, full page ----
     function openComicArchiveBoard() { comicBoardLayer.active = true }
@@ -1248,6 +1258,8 @@ Window {
                     if (xoxoSeriesSignal) xoxoSeriesSignal.connect(win.openXoxoSeries)
                     var xoxoGenreSignal = item["xoxoGenreRequested"]
                     if (xoxoGenreSignal) xoxoGenreSignal.connect(win.openXoxoGenre)
+                    var locgPubSignal = item["locgPublisherRequested"]
+                    if (locgPubSignal) locgPubSignal.connect(win.openLocgPublisher)
                     var comicBoardSignal = item["comicArchiveBoardRequested"]
                     if (comicBoardSignal) comicBoardSignal.connect(win.openComicArchiveBoard)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
@@ -1522,6 +1534,26 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.seriesRequested.connect(win.openXoxoSeries)   // tile → issue list (over this grid)
+        }
+    }
+
+    // ---- LOCG publisher grid layer: one publisher shelf's paginated series grid
+    //      (peer of xoxoGenreLayer; tile → LOCG series list via openXoxoSeries) ----
+    Loader {
+        id: locgPublisherLayer
+        anchors.fill: parent
+        z: 50
+        active: false
+        visible: active
+        property var box: ({})
+        source: "LocgPublisherPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.box = locgPublisherLayer.box
+            item.backRequested.connect(win.closeLocgPublisher)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.seriesRequested.connect(win.openXoxoSeries)   // tile → LOCG series list (over this grid)
         }
     }
 
