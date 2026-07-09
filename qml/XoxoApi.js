@@ -148,11 +148,50 @@ function isSoftBlock(html, verb, slug) {
     return false;
 }
 
+// ── cooldown state machine (spec A) ───────────────────────────────────────────────
+// One module-level state: a detected soft-block stops the queue and sets retryAt with a
+// doubling backoff (90s → 3m → 6m …, capped 10min). Any SUCCESSFUL validated fetch clears
+// it. Clock is INJECTED via nowFn (qml.exe forbids Date.now in scripts; the QML layer sets
+// nowFn = function(){ return Date.now() } once at import) so the machine stays pure/testable.
+var _cd = { blocked: false, retryAtMs: 0, strikes: 0 };
+var nowFn = function() { return 0; };
+function _now() { return nowFn(); }
+function _resetCooldown() { _cd = { blocked: false, retryAtMs: 0, strikes: 0 }; }
+function _cool() { return _cd; }
+function backoffMs(strikes) { return Math.min(600000, 90000 * Math.pow(2, Math.max(0, strikes - 1))); }
+function _noteBlock(nowMs) { _cd.strikes += 1; _cd.blocked = true; _cd.retryAtMs = nowMs + backoffMs(_cd.strikes); }
+function _noteSuccess() { _cd = { blocked: false, retryAtMs: 0, strikes: 0 }; }
+function _shouldFire(nowMs) { return !_cd.blocked || nowMs >= _cd.retryAtMs; }
+function _meta(blocked) {
+    return { ok: !blocked, blocked: blocked, retryInMs: blocked ? Math.max(0, _cd.retryAtMs - _now()) : 0 };
+}
+
+// A blocked source never fires; every response is validated. done(html|null, meta).
+function guardedFetch(url, verb, slug, done) {
+    if (!_shouldFire(_now())) { done(null, _meta(true)); return; }
+    fetchText(url, function(html) {
+        if (html === null || isSoftBlock(html, verb, slug)) {
+            _noteBlock(_now());
+            done(null, _meta(true));
+            return;
+        }
+        _noteSuccess();
+        done(html, _meta(false));
+    });
+}
+
+// ── session caches (no persistence — YAGNI). A throttle never blanks what you saw. ──
+var _catCache = {};      // url → validated html (catalog/search/genre pages)
+var _issueCache = {};    // seriesId → complete issue list (a full walk is never re-walked)
+
 // ── the 5-verb source contract (spec: xoxo-getcomics-design.md) ──
 
 function searchSeries(query, done) {
-    fetchText(BASE + "/search-comic?keyword=" + encodeURIComponent(query), function(html) {
-        done(html ? parseSeriesList(html) : []);
+    var url = BASE + "/search-comic?keyword=" + encodeURIComponent(query);
+    if (_catCache[url]) { done(parseSeriesList(_catCache[url]), _meta(false)); return; }
+    guardedFetch(url, "search", "", function(html, meta) {
+        if (html) _catCache[url] = html;
+        done(html ? parseSeriesList(html) : [], meta);
     });
 }
 
@@ -173,28 +212,37 @@ function explore(done) {
 // previous page's first id (see XoxoGenrePage). hasMore here = a next link exists.
 function exploreItems(boxId, page, done) {
     var url = BASE + "/" + boxId + (page > 1 ? "?page=" + page : "");
-    fetchText(url, function(html) {
-        if (!html) { done({ items: [], hasMore: false }); return; }
+    if (_catCache[url]) {
+        var ch = _catCache[url];
+        done({ items: parseSeriesList(ch), hasMore: /rel="next"/.test(ch) }, _meta(false));
+        return;
+    }
+    guardedFetch(url, "explore", boxId, function(html, meta) {
+        if (!html) { done({ items: [], hasMore: false }, meta); return; }
+        _catCache[url] = html;
         var items = parseSeriesList(html);
         var hasNext = /rel="next"/.test(html);
-        done({ items: items, hasMore: hasNext && items.length > 0 });
+        done({ items: items, hasMore: hasNext && items.length > 0 }, meta);
     });
 }
 
 // FULL issue list — walks rel=next recursively (Batman 1940 spans 7+ pages of 50).
-// Safety cap 40 pages (2,000 issues) so a parser regression can't loop forever.
+// A COMPLETE walk (ended on rel=next exhaustion, not a block) is cached and never
+// re-walked in-session. A block mid-walk returns what's gathered WITH meta.blocked —
+// never a partial masquerading as complete. Safety cap 40 pages.
 function issues(seriesId, done) {
     var slug = slugOf(seriesId);
+    if (_issueCache[seriesId]) { done(_issueCache[seriesId], _meta(false)); return; }
     var all = [];
     var hops = 0;
     function walk(url) {
-        fetchText(url, function(html) {
-            if (!html) { done(all); return; }
+        guardedFetch(url, "issues", slug, function(html, meta) {
+            if (!html) { done(all, meta); return; }   // blocked or empty — partial + honest meta
             var r = parseIssueList(html, slug);
             all = all.concat(r.issues);
             hops += 1;
             if (r.nextUrl && hops < 40) walk(r.nextUrl);
-            else done(all);
+            else { _issueCache[seriesId] = all; done(all, _meta(false)); }   // complete → cache
         });
     }
     walk(BASE + "/comic/" + slug);
@@ -203,7 +251,7 @@ function issues(seriesId, done) {
 // Full-resolution ordered page URLs for one issue — feeds Downloads.downloadPages.
 function pages(issueId, done) {
     var path = slugOf(issueId);   // "batman-1940/issue-1"
-    fetchText(BASE + "/comic/" + path + "/all", function(html) {
-        done(html ? parsePages(html) : []);
+    guardedFetch(BASE + "/comic/" + path + "/all", "pages", path, function(html, meta) {
+        done(html ? parsePages(html) : [], meta);
     });
 }
