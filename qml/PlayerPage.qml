@@ -576,6 +576,27 @@ Item {
         var langs = root.effectiveSubtitleLanguages(pref)
         return "Auto: " + (langs.length ? langs[0].toUpperCase() : "ENG") + " subtitles"
     }
+    function loadingStatusText() {
+        if (root.errored)
+            return root.statusMsg
+        if (!root.starting)
+            return ""
+        if (root.statusMsg.length > 0 && root.statusMsg !== "Buffering...")
+            return root.statusMsg
+        return root.mediaLocalPath.length > 0 ? "Opening..." : "Starting stream..."
+    }
+    function finishStartingIfPlaybackAdvanced() {
+        if (!root.starting || root.errored || mpv.pause)
+            return
+        if (Number(mpv.position || 0) <= 0.25)
+            return
+        root.starting = false
+        root.statusMsg = ""
+        root.fileReady = true
+        streamWatchdog.stop()
+        root.wakeChrome()
+        root.syncPowerInhibit()
+    }
     property bool starting: false
     property bool errored: false
     property string statusMsg: ""
@@ -2335,6 +2356,7 @@ Item {
             root.syncPowerInhibit()
             root.detectStubStream()
         }
+        onPositionChanged: root.finishStartingIfPlaybackAdvanced()
         onGifSaved: function(path) {
             root.gifState = "idle"
             root.gifElapsedSec = 0
@@ -2586,10 +2608,9 @@ Item {
         Text {
             id: statusLine
             width: Math.min(root.width - 120, 520)
-            // Plain "Buffering..." is suppressed — the title card is the indicator now.
-            // Errors and special transitions still need their words.
-            visible: text.length > 0 && (root.errored || root.statusMsg !== "Buffering...")
-            text: root.statusMsg
+            // Keep a stable loading line under the title until playback actually advances.
+            visible: text.length > 0
+            text: root.loadingStatusText()
             color: root.errored ? "#e6a3a3" : theme.inkDim
             font.family: theme.hud
             font.pixelSize: 14
