@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
+import "SearchHistory.js" as SearchHistory
 
 Item {
     id: search
@@ -29,7 +30,10 @@ Item {
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
-    Component.onCompleted: queryInput.forceActiveFocus()
+    Component.onCompleted: {
+        search.loadRecent()
+        queryInput.forceActiveFocus()
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -54,12 +58,8 @@ Item {
             search.recordRecent(q)
         })
     }
-    function recordRecent(q) {
-        var lower = q.toLowerCase()
-        var list = search.recent.filter(function(r) { return r.toLowerCase() !== lower })
-        list.unshift(q)
-        search.recent = list.slice(0, 6)
-    }
+    function loadRecent() { search.recent = SearchHistory.list("Biblio") }
+    function recordRecent(q) { search.recent = SearchHistory.record("Biblio", q) }
     function fillAndSearch(q) { queryInput.text = q; runAppleSearch() }
     function openTop() { if (search.results.length > 0) search.bookRequested(search.results[0]) }
 

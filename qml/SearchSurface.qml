@@ -6,6 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import "SearchHistory.js" as SearchHistory
 import "WorldSearch.js" as WorldSearch
 
 Item {
@@ -36,7 +37,11 @@ Item {
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
-    Component.onCompleted: queryInput.forceActiveFocus()
+    Component.onCompleted: {
+        surf.loadRecent()
+        queryInput.forceActiveFocus()
+    }
+    onSearchModeChanged: surf.loadRecent()
 
     Rectangle {
         anchors.fill: parent
@@ -60,15 +65,12 @@ Item {
             surf.recordRecent(q)
         })
     }
-    function recordRecent(q) {
-        var lower = q.toLowerCase()
-        var list = surf.recent.filter(function(r) { return r.toLowerCase() !== lower })
-        list.unshift(q)
-        surf.recent = list.slice(0, 6)
-    }
+    function historyScope() { return "World:" + surf.searchMode }
+    function loadRecent() { surf.recent = SearchHistory.list(surf.historyScope()) }
+    function recordRecent(q) { surf.recent = SearchHistory.record(surf.historyScope(), q) }
     function fillAndSearch(q) { queryInput.text = q; runSearch() }
     function openTop() { if (surf.results.length > 0) surf.itemRequested(surf.results[0].data) }
-    function removeRecent(q) { surf.recent = surf.recent.filter(function(r) { return r !== q }) }
+    function removeRecent(q) { surf.recent = SearchHistory.remove(surf.historyScope(), q) }
 
     // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
     // you've since left doesn't paint over the new one).
