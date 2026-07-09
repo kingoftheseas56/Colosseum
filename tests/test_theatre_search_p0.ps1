@@ -28,7 +28,11 @@ foreach ($n in @('function normTitle', 'function scoreTitle', 'function pickTopM
                  'rating * 10', 'replace(/^(the|a|an) /')) {
     Assert-Contains $ws $n "WorldSearch scoring must carry: $n"
 }
-Assert-Contains $ws 'done(pickTopMatch(query, rank(manga).concat(rank(western))))' "Tankoban must use the shared scorer too."
+# Tankoban blends ranked lanes into the shared scorer. The lane count grew to THREE
+# when xoxo joined as a peer comic source (2026-07-09); assert the scorer wraps the
+# ranked manga lane rather than the exact lane list, so a future 4th source can't
+# falsely fail this.
+Assert-Contains $ws 'pickTopMatch(query, rank(manga).concat(rank(xoxo)).concat(rank(western)))' "Tankoban must use the shared scorer too."
 
 # --- See more caps the group grids ---
 $ss = Read-File "qml/SearchSurface.qml"

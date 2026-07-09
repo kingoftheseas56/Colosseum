@@ -27,4 +27,5 @@ Assert-Contains $world 'XoxoApi' "world page must feed comics rows from xoxo"
 Assert-Contains $world 'GetComics Archives' "GetComics keeps its explore door"
 if (!(Test-Path (Join-Path $root "qml/XoxoGenrePage.qml"))) { throw "MISSING: XoxoGenrePage.qml" }
 if (!(Test-Path (Join-Path $root "qml/ComicArchiveBoard.qml"))) { throw "MISSING: ComicArchiveBoard.qml" }
+Assert-Contains $world 'e.source = src' "continue tiles must tag the comic source (xoxo vs getcomics)"
 Write-Host "test_comics_sources_p0 PASS"

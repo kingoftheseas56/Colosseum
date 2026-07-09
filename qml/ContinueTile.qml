@@ -38,6 +38,8 @@ Item {
     readonly property string label: (entry.title !== undefined && ("" + entry.title).length)
                                     ? entry.title : (entry.caption !== undefined ? entry.caption : "")
     readonly property string sub: entry.sub !== undefined ? entry.sub : ""
+    // optional source tag (comics: XOXO vs GetComics) — shown in the badge when set
+    readonly property string source: entry.source !== undefined ? ("" + entry.source) : ""
     readonly property real prog: Math.max(0, Math.min(1, entry.progress !== undefined ? Number(entry.progress) : 0))
     readonly property bool watched: entry.watched === true
     readonly property color c1: entry.c1 !== undefined ? entry.c1 : "#444"
@@ -120,7 +122,8 @@ Item {
             anchors.bottom: parent.bottom; anchors.bottomMargin: 12
             Text {
                 anchors.top: parent.top
-                text: tile.badgeFor(tile.kind); color: theme.gold
+                text: tile.badgeFor(tile.kind) + (tile.source.length ? " · " + tile.source : "")
+                color: theme.gold
                 font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.3
             }
             Column {

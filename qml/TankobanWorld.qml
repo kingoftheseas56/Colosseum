@@ -73,7 +73,15 @@ WorldPage {
         items: (Progress.revision, (function() {
             var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
             a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
-            return a.slice(0, 12)
+            // Tag the comic source so blended tiles read XOXO vs GetComics (peer-sources
+            // spec 2026-07-09): xoxo ids are "xoxo:…", GetComics are "gc:…". Manga untagged.
+            return a.slice(0, 12).map(function(e) {
+                var id = String(e.id || e.seriesId || "")
+                var src = id.indexOf("xoxo:") === 0 ? "XOXO"
+                        : (e.kind === "comic" ? "GetComics" : "")
+                if (src.length) e.source = src
+                return e
+            })
         })())
         onResumeRequested: (item) => tanko.continueResumeRequested(item)
         onDetailRequested: (item) => tanko.continueDetailRequested(item)
