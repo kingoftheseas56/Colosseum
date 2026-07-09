@@ -18,7 +18,7 @@ function Assert-NotContains($Text, $Pattern, $Message) {
 
 Assert-Contains $qml 'ListView\s*\{\s*[\s\S]*id:\s*episodeList[\s\S]*model:\s*page\.episodes' `
     'TheatreSeries episodes must be rendered by a virtualized episodeList ListView.'
-Assert-Contains $qml 'ScrollBar\.vertical:\s*ScrollBar\s*\{' `
+Assert-Contains $qml 'ScrollBar\.vertical:\s*HouseScrollBar\s*\{' `
     'TheatreSeries episode list must expose a vertical scrollbar.'
 Assert-NotContains $qml '(?m)^\s*Repeater\s*\{\s*\r?\n\s*model:\s*page\.episodes\b' `
     'TheatreSeries must not render all episodes through a Repeater.'
