@@ -6,6 +6,7 @@
 // Both verified reachable 2026-06-27; GetComics WP REST proven 2026-07-04.
 .pragma library
 .import "ComicsApi.js" as ComicsApi
+.import "XoxoApi.js" as Xoxo
 
 function reqJson(url, done) {
     var xhr = new XMLHttpRequest();
@@ -172,10 +173,10 @@ function searchWestern(query, done) {
                 cover: "",                       // iTunes poster filled in below
                 title: t.title,
                 subtitle: t.count + (t.count === 1 ? " release" : " releases"),
-                meta: "Western Comics   ·   " + t.count + " releases",
+                meta: "GetComics   ·   " + t.count + " releases",
                 synopsis: "",
                 backdrop: "",
-                group: "Western Comics",
+                group: "Comics · GetComics",
                 data: { western: true, tag: t.tag, tagId: t.tagId, title: t.title }
             };
         });
@@ -190,18 +191,38 @@ function searchWestern(query, done) {
     });
 }
 
+// ── xoxo: per-issue comics (peer source — its own group, its own failures) ──
+function searchXoxo(query, done) {
+    Xoxo.searchSeries(query, function(items) {
+        done((items || []).map(function(s) {
+            return {
+                cover: s.cover,
+                title: s.title,
+                subtitle: "Comic series",
+                meta: "XOXO   ·   Comic series",
+                synopsis: "",
+                backdrop: "",
+                group: "Comics · XOXO",
+                data: { xoxo: true, id: s.id, title: s.title, cover: s.cover }
+            };
+        }));
+    });
+}
+
 function searchTankoban(query, done) {
     if (!query || query.trim().length < 2) { done([]); return; }
-    var manga = null, western = null;
+    var manga = null, western = null, xoxo = null;
     function finish() {
-        if (manga === null || western === null) return;
-        // Top Match = most title-relevant hit across BOTH lanes, via the shared scorer
+        if (manga === null || western === null || xoxo === null) return;
+        // Top Match = most title-relevant hit across ALL lanes, via the shared scorer
         // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
+        // Each lane degrades to [] on its own failure — peer independence is free.
         var rank = function(lane) { lane.forEach(function(r, i) { r.rank = i; }); return lane; };
-        done(pickTopMatch(query, rank(manga).concat(rank(western))));
+        done(pickTopMatch(query, rank(manga).concat(rank(xoxo)).concat(rank(western))));
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });
+    searchXoxo(query, function(items) { xoxo = items || []; finish(); });
 }
 
 function searchFor(mode, query, done) {
