@@ -22,3 +22,4 @@ player.ini
 *.log
 Thumbs.db
 .DS_Store
+tests/xoxo_fixtures.gen.js
