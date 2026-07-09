@@ -4,9 +4,9 @@
 // · comics = RCO "rcostation"); live sources come LATER (Hemanth: "apis can come later").
 //
 // The board (Hemanth-locked 2026-06-25) — personal surfaces BLENDED, discovery surfaces SPLIT:
-//   1. Featured (blended) · 2. Continue (blended) · 3. Top Manga
-//   4. Top 10 This Week (comics) · 5. Most Popular (comics)
-//   6. Explore Genre — Manga · 7. Explore Comics — Publishers
+//   1. Featured (blended) · 2. Continue (blended) · 3. Top in Tankoban — Manga
+//   4. Top in Tankoban — Comics (LOCG real pull-counts)
+//   5. Explore Genre — Manga · 6. Explore Comics — Publishers
 // The catalogue's needs override the doctrine's ~2-row cap: comics and manga are two real
 // sub-catalogues, so the split IS the need (not a lazy row-wall).
 
@@ -32,10 +32,10 @@ WorldPage {
     signal locgPublisherRequested(var box)      // {id, label} — opens LocgPublisherPage
     signal comicArchiveBoardRequested()
 
-    // Live comics CATALOGUE from LOCG (AniList model): Top 10 This Week (pull-ranked),
-    // Most Popular, publisher boxes. Falls back to curated Catalog.topComics when LOCG offline.
+    // Live comics CATALOGUE from LOCG (AniList model): Top in Comics (real pull-counts —
+    // LOCG's ONLY honest popularity signal) + publisher boxes. Falls back to curated
+    // Catalog.topComics when LOCG offline.
     property var topComicsWeek: []
-    property var popularComics: []
     property var comicPublishers: []
     property var comicCovers: []            // real covers → the mosaic's art pool
     // small palette so coverless genre tiles aren't all one flat color
@@ -45,22 +45,15 @@ WorldPage {
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
     Component.onCompleted: {
-        Locg.top10ThisWeek(function(list, meta) {
+        Locg.topInComics(function(list, meta) {
             if (meta && meta.ok && list.length > 0) {
                 tanko.topComicsWeek = list.map(function(s) {
                     return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
                              locg: true, id: s.id, locgMeta: { publisher: s.publisher, rating: s.rating } };
                 });
+                tanko.comicCovers = list.map(function(s) { return s.cover; })
+                    .filter(function(c) { return c && c.length > 0; });
             }
-        });
-        Locg.popular(function(list, meta) {
-            if (!meta || !meta.ok || list.length === 0) return;
-            tanko.popularComics = list.slice(0, 20).map(function(s) {
-                return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
-                         locg: true, id: s.id, locgMeta: { publisher: s.publisher, startYear: s.startYear } };
-            });
-            tanko.comicCovers = list.map(function(s) { return s.cover; })
-                .filter(function(c) { return c && c.length > 0; });
         });
         Locg.publisherBoxes(function(boxes) {
             var pubs = boxes.map(function(b, i) {
@@ -106,24 +99,15 @@ WorldPage {
     }
 
     TrendingTop10 {
-        title: "Top 10 This Week"
-        // Live from LOCG (releases ranked by real pull-counts); curated Catalog list is the offline fallback.
+        title: "Top in Tankoban — Comics"
+        // Live from LOCG — series rolled up from the week's releases, ranked by REAL pull-counts
+        // (LOCG's only honest popularity signal); curated Catalog list is the offline fallback.
         items: tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
         onItemClicked: (i) => {
             var list = tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
             var it = list[i]
             if (it.locg) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
             else tanko.westernRequested(it.caption)
-        }
-    }
-
-    TrendingTop10 {
-        title: "Most Popular"
-        // Live from LOCG (most-popular series). Empty when LOCG offline → row shows nothing.
-        items: tanko.popularComics
-        onItemClicked: (i) => {
-            var it = tanko.popularComics[i]
-            if (it.locg) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
         }
     }
 

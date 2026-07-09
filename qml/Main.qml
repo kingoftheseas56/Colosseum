@@ -167,7 +167,8 @@ Window {
     }
 
     // locg:<id> → xoxo slug, persisted forever (survives restarts)
-    Settings { id: comicMapStore; category: "comicResolve" }
+    // V2: v1 persisted false no-matches (year-gate bug) — version bump orphans the poison
+    Settings { id: comicMapStore; category: "comicResolveV2" }
     // polite spacer for LOCG's request queue (Locg.delayFn)
     Timer {
         id: locgSpacer

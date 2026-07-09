@@ -235,9 +235,6 @@ function releasesUrl() {
     return BASE_URL + "?list=releases&view=thumbs&format%5B%5D=1%2C6&date_type=week&date=" +
            (d.getMonth() + 1) + "/" + d.getDate() + "/" + d.getFullYear() + "&order=pulls";
 }
-function popularUrl() {
-    return BASE_URL + "?list=search&list_option=series&view=thumbs&title=&order=pulls&format%5B%5D=1&format%5B%5D=6";
-}
 function seriesUrl(locgId) {
     return BASE_URL + "?list=search&view=thumbs&format%5B%5D=1&series_id=" +
            String(locgId).replace(/^locg:/, "") + "&character=0&order=date-desc";
@@ -258,11 +255,30 @@ function _cachedVerb(url, parse, done) {
 
 // ── the catalogue verbs. done(result, meta) — meta = {ok, blocked}. ──
 function searchSeries(query, done) { _cachedVerb(searchUrl(query), parseSeriesList, done); }
-function popular(done)            { _cachedVerb(popularUrl(), parseSeriesList, done); }
 function releases(done)           { _cachedVerb(releasesUrl(), parseReleases, done); }
-function top10ThisWeek(done) {
+
+// ── Top in Comics: LOCG's ONLY real popularity signal is weekly-release pull-counts
+//    (every series-list order= falls back to alphabetical — proven 2026-07-10). Roll the
+//    week's releases up to their series (strip the "#N" issue suffix), rank by pulls. ──
+function topInComics(done) {
     releases(function(list, meta) {
-        done(list.slice().sort(function(a, b) { return b.pulls - a.pulls; }).slice(0, 10), meta);
+        var bySeries = {}, order = [];
+        (list || []).forEach(function(it) {
+            var st = String(it.title).replace(/\s*#\d+.*$/, "").trim();
+            if (!st.length) return;
+            var k = st.toLowerCase();
+            if (!bySeries[k]) {
+                bySeries[k] = { id: "locg:t/" + encodeURIComponent(k), title: st, cover: it.cover,
+                                publisher: it.publisher, pulls: it.pulls, rating: it.rating };
+                order.push(k);
+            } else if (it.pulls > bySeries[k].pulls) {
+                bySeries[k].pulls = it.pulls;   // rank by the series' strongest issue; keep first cover
+            }
+        });
+        var out = order.map(function(k) { return bySeries[k]; })
+                       .sort(function(a, b) { return b.pulls - a.pulls; })
+                       .slice(0, 10);
+        done(out, meta);
     });
 }
 function series(locgId, done) {

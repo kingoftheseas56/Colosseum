@@ -85,9 +85,16 @@ QtObject {
             t.ok(bMeta && bMeta.ok === false && bMeta.blocked === true, "verb: garbage blocked meta", fails);
             served[Locg.releasesUrl()] = Fx.get("releases.json");
             var top = null;
-            Locg.top10ThisWeek(function(list, meta) { top = list; });
-            t.ok(top && top.length > 0 && top.length <= 10, "verb: top10 max 10", fails);
-            t.ok(top.length < 2 || top[0].pulls >= top[1].pulls, "verb: top10 pulls-desc", fails);
+            Locg.topInComics(function(list, meta) { top = list; });
+            t.ok(top && top.length > 0 && top.length <= 10, "verb: topInComics max 10", fails);
+            t.ok(top.length < 2 || top[0].pulls >= top[1].pulls, "verb: topInComics pulls-desc", fails);
+            var stripOk = true, idOk = true;
+            for (var ti = 0; ti < top.length; ti++) {
+                if (/#\d/.test(top[ti].title)) stripOk = false;     // issue "#N" suffix must be stripped to series
+                if (String(top[ti].id).indexOf("locg:t/") !== 0) idOk = false;
+            }
+            t.ok(stripOk, "verb: topInComics strips issue #N suffix", fails);
+            t.ok(idOk, "verb: topInComics ids are locg:t/ aggregate keys", fails);
 
             // ── publisher axis ──
             var boxes = null;
