@@ -473,12 +473,37 @@ void MangaDownloader::pumpImages(Job* job)
         if (job->inFlight == 0) failJob(job, QStringLiteral("image download failed"));
         return;
     }
-    while (job->inFlight < IMAGE_CONCURRENCY && job->nextDispatch < job->total) {
+    // xoxo (preset-pages) jobs fetch ONE image at a time — the site rate-limits a bursty
+    // client by serving its homepage HTML instead of the image (2026-07-09). Sequential
+    // pacing at ~0.5s/round-trip keeps a 68-page issue under the throttle. Manga (scraped)
+    // keeps the full concurrency it's always used.
+    const int cc = job->presetPages.isEmpty() ? IMAGE_CONCURRENCY : 1;
+    while (job->inFlight < cc && job->nextDispatch < job->total) {
         const int i = job->nextDispatch++;
         if (!job->files[i].isEmpty()) continue;   // resumed page — already on disk
         job->inFlight++;
         fetchImage(job, i, 0);
     }
+}
+
+// A downloaded page must be a REAL image. Aggregator sites soft-block a bursty client by
+// answering an image URL with HTTP 200 + their homepage HTML (the "blank pages" bug,
+// 2026-07-09) — magic-byte + content-type validation rejects that so it's never saved as
+// a .jpg. Accepts JPEG/PNG/GIF/WebP (everything xoxo + WeebCentral serve).
+static bool looksLikeImage(const QByteArray& d, const QString& ct)
+{
+    const QString c = ct.toLower();
+    if (c.contains(QLatin1String("html")) || c.startsWith(QLatin1String("text/"))) return false;
+    if (d.size() >= 12) {
+        const unsigned char* b = reinterpret_cast<const unsigned char*>(d.constData());
+        if (b[0] == 0xFF && b[1] == 0xD8 && b[2] == 0xFF) return true;                 // JPEG
+        if (b[0] == 0x89 && b[1] == 0x50 && b[2] == 0x4E && b[3] == 0x47) return true; // PNG
+        if (b[0] == 0x47 && b[1] == 0x49 && b[2] == 0x46) return true;                 // GIF
+        if (qstrncmp(d.constData(), "RIFF", 4) == 0
+            && qstrncmp(d.constData() + 8, "WEBP", 4) == 0) return true;               // WebP
+    }
+    if (d.startsWith("<!DOCTYPE") || d.startsWith("<!doctype") || d.startsWith("<html")) return false;
+    return c.startsWith(QLatin1String("image/"));   // declared image, unknown magic — allow (rare CDN)
 }
 
 void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
@@ -518,11 +543,14 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         job->replies.removeOne(reply);
         if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
         const QByteArray data = reply->readAll();
-        const bool ok = reply->error() == QNetworkReply::NoError && data.size() > MIN_VALID_BYTES;
+        const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+        // Validate it's a real image — a soft-block that returns HTML with HTTP 200 must
+        // NOT be written to disk as a page (else the reader shows blank/undecodable pages).
+        const bool ok = reply->error() == QNetworkReply::NoError
+                        && data.size() > MIN_VALID_BYTES
+                        && looksLikeImage(data, ct);
 
         if (ok) {
-            const QString ct =
-                reply->header(QNetworkRequest::ContentTypeHeader).toString();
             const QString ext = extForContentType(ct, job->pages[pageIndex].imageUrl);
             const QString name = QStringLiteral("page_%1.%2")
                                      .arg(pageIndex, 3, 10, QChar('0')).arg(ext);

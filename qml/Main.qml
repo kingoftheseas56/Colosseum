@@ -165,7 +165,10 @@ Window {
         else if (extensionsLayer.active) win.closeExtensionsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
+        else if (xoxoSeriesLayer.active) win.closeXoxoSeries()
         else if (westernLayer.active) win.closeWestern()
+        else if (xoxoGenreLayer.active) win.closeXoxoGenre()
+        else if (comicBoardLayer.active) win.closeComicArchiveBoard()
         else if (comicIndexLayer.active) win.closeComicArchive()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
@@ -704,9 +707,13 @@ Window {
     function minimizeComicReader() {
         var rec = Sessions.get(Sessions.activeId)
         if (!(rec && rec.contentKind === "comic")) {
-            // reading began from a browse (no session yet) — register it from the live reader
+            // reading began from a browse (no session yet) — register it from the live reader.
+            // Check every comic lane (xoxo / western / manga) — the reader chrome is shared.
+            var x = xoxoSeriesLayer.active ? xoxoSeriesLayer.item : null
             var w = westernLayer.active ? westernLayer.item : null
-            if (w && w.openChapterId) {
+            if (x && x.openChapterId) {
+                win.openComicSession(x.seriesTitle, x.seriesId, x.openChapterId)   // seriesId = "xoxo:<slug>"
+            } else if (w && w.openChapterId) {
                 win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>"
             } else {
                 var s = seriesLayer.item
@@ -719,6 +726,7 @@ Window {
     function closeComicReader() {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "comic") win.closeSession(rec.id)
+        else if (xoxoSeriesLayer.active && xoxoSeriesLayer.item && xoxoSeriesLayer.item.openChapterId.length) win.closeXoxoSeries()
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
         else win.closeSeries()
     }

@@ -35,6 +35,7 @@ WorldPage {
     // topComicsXoxo falls back to Catalog.topComics (curated) when xoxo is offline.
     property var topComicsXoxo: []
     property var comicGenresXoxo: []
+    property var comicCovers: []            // real xoxo covers → the genre mosaic's art pool
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
         ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
@@ -43,11 +44,15 @@ WorldPage {
     ]
     Component.onCompleted: {
         Xoxo.exploreItems("hot-comic", 1, function(r) {
-            if (r && r.items.length > 0)
+            if (r && r.items.length > 0) {
                 tanko.topComicsXoxo = r.items.slice(0, 10).map(function(s) {
                     return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
                              xoxo: true, id: s.id };
                 });
+                // feed the genre mosaic real comic art (darkened behind each tile's gradient)
+                tanko.comicCovers = r.items.map(function(s) { return s.cover; })
+                    .filter(function(c) { return c && c.length > 0; });
+            }
         });
         Xoxo.explore(function(boxes) {
             var genres = boxes.filter(function(b) { return b.kind === "genre"; })
@@ -118,6 +123,7 @@ WorldPage {
         // door. Replaces the old GetComics publisher/franchise boxes (those live on the
         // Archives board now). GetComics loses nothing (peer-sources spec 2026-07-09).
         genres: tanko.comicGenresXoxo
+        covers: tanko.comicCovers          // real comic art behind the genre gradients
         navigable: false
         onGenreClicked: (i) => {
             var g = tanko.comicGenresXoxo[i]

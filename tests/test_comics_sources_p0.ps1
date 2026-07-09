@@ -35,4 +35,12 @@ $mainQml = Get-Content (Join-Path $root "qml/Main.qml") -Raw
 Assert-Contains $mainQml 'function openXoxoSeriesAt' "resume-into-reader route must exist for xoxo"
 Assert-Contains $mainQml 'tsid.indexOf("xoxo:") === 0) xoxoSeriesLayer.active = false' "session teardown must know the xoxo lane"
 Assert-Contains $mainQml 'csid.indexOf("xoxo:") === 0 ? xoxoSeriesLayer' "session capture must know the xoxo lane"
+# reader chrome (minimize/close) + global back must ALL know the xoxo lane — eyes-on
+# 2026-07-09 found minimize/close dead on the xoxo reader (review under-scoped these).
+Assert-Contains $mainQml 'x && x.openChapterId' "minimizeComicReader must register the xoxo reader"
+Assert-Contains $mainQml 'xoxoSeriesLayer.item.openChapterId.length) win.closeXoxoSeries' "closeComicReader must tear down the xoxo reader"
+Assert-Contains $mainQml 'xoxoSeriesLayer.active) win.closeXoxoSeries' "global back must close the xoxo series page"
+# downloaded pages must be validated as real images (soft-block HTML served as .jpg)
+$dlcpp = Get-Content (Join-Path $root "native/engine/MangaDownloader.cpp") -Raw
+Assert-Contains $dlcpp 'looksLikeImage' "downloader must validate a page is a real image, never save HTML"
 Write-Host "test_comics_sources_p0 PASS"
