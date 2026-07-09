@@ -180,3 +180,99 @@ function parseSeriesDetail(json_or_fragment) {
         return empty;
     }
 }
+
+// ── polite spaced queue. fetchFn/delayFn INJECTED (Main.qml sets real XHR + a Timer spacer;
+//    tests set fakes) so the module stays pure/testable — the XoxoApi nowFn lesson. ──
+var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+var SPACING_MS = 500;
+var fetchFn = null;                          // function(url, cb(bodyOrNull))
+var delayFn = function(ms, cb) { cb(); };    // Main.qml overrides with a Timer-backed spacer
+var nowFn = function() { return 0; };        // Main.qml injects Date.now
+var _q = [];
+var _busy = false;
+var _testLog = [];   // test-only fetch-url log (tests push via fetchFn injection; harmless in prod)
+function _defaultFetch(url, cb) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        cb((xhr.status >= 200 && xhr.status < 300) ? xhr.responseText : null);
+    };
+    xhr.open("GET", url);
+    xhr.setRequestHeader("User-Agent", UA);
+    xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+    xhr.send();
+}
+function _pump() {
+    if (_busy || _q.length === 0) return;
+    _busy = true;
+    var job = _q.shift();
+    (fetchFn || _defaultFetch)(job.url, function(body) {
+        delayFn(SPACING_MS, function() { _busy = false; _pump(); });
+        job.done(body);
+    });
+}
+function _enqueue(url, done) { _q.push({ url: url, done: done }); _pump(); }
+
+// ── validation: usable = JSON with a numeric count and a string list. Else blocked meta,
+//    never parsed (a CF challenge page or outage HTML can never masquerade as data). ──
+function _meta(ok) { return { ok: ok, blocked: !ok }; }
+function _validated(body) {
+    if (!body) return null;
+    var r; try { r = JSON.parse(body); } catch (e) { return null; }
+    var count = (typeof r.series_count === "number") ? r.series_count : r.count;
+    if (typeof count !== "number" || typeof r.list !== "string") return null;
+    return r;
+}
+
+// ── URL builders (exposed so tests pin the exact contract) ──
+var BASE_URL = "https://leagueofcomicgeeks.com/comic/get_comics";
+function searchUrl(q) {
+    return BASE_URL + "?list=search&list_option=series&view=thumbs&title=" +
+           encodeURIComponent(String(q).trim()) + "&order=alpha-asc&format%5B%5D=1&format%5B%5D=6";
+}
+function releasesUrl() {
+    var d = new Date(nowFn());
+    return BASE_URL + "?list=releases&view=thumbs&format%5B%5D=1%2C6&date_type=week&date=" +
+           (d.getMonth() + 1) + "/" + d.getDate() + "/" + d.getFullYear() + "&order=pulls";
+}
+function popularUrl() {
+    return BASE_URL + "?list=search&list_option=series&view=thumbs&title=&order=pulls&format%5B%5D=1&format%5B%5D=6";
+}
+function seriesUrl(locgId) {
+    return BASE_URL + "?list=search&view=thumbs&format%5B%5D=1&series_id=" +
+           String(locgId).replace(/^locg:/, "") + "&character=0&order=date-desc";
+}
+
+// ── session cache: parsed results by URL. A catalogue page is fetched ONCE per session. ──
+var _cache = {};
+function _cachedVerb(url, parse, done) {
+    if (_cache[url]) { done(_cache[url], _meta(true)); return; }
+    _enqueue(url, function(body) {
+        var r = _validated(body);
+        if (!r) { done([], _meta(false)); return; }
+        var parsed = parse(r.list);
+        _cache[url] = parsed;
+        done(parsed, _meta(true));
+    });
+}
+
+// ── the catalogue verbs. done(result, meta) — meta = {ok, blocked}. ──
+function searchSeries(query, done) { _cachedVerb(searchUrl(query), parseSeriesList, done); }
+function popular(done)            { _cachedVerb(popularUrl(), parseSeriesList, done); }
+function releases(done)           { _cachedVerb(releasesUrl(), parseReleases, done); }
+function top10ThisWeek(done) {
+    releases(function(list, meta) {
+        done(list.slice().sort(function(a, b) { return b.pulls - a.pulls; }).slice(0, 10), meta);
+    });
+}
+function series(locgId, done) {
+    var url = seriesUrl(locgId);
+    if (_cache[url]) { done(_cache[url], _meta(true)); return; }
+    _enqueue(url, function(body) {
+        var r = _validated(body);
+        if (!r) { done(null, _meta(false)); return; }
+        var det = parseSeriesDetail(body);   // parseSeriesDetail takes the whole JSON (structured series obj)
+        _cache[url] = det;
+        done(det, _meta(true));
+    });
+}

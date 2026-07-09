@@ -62,6 +62,33 @@ QtObject {
             var gd = Locg.parseSeriesDetail("<html>nope</html>")
             t.ok(gd && gd.issues.length === 0, "garbage: parseSeriesDetail should return empty-shaped object", fails)
 
+            // ── verbs against injected fake network (NO live calls in the suite, ever) ──
+            Locg._testLog = [];
+            var served = {};
+            Locg.fetchFn = function(url, cb) { Locg._testLog.push(url); cb(served[url] !== undefined ? served[url] : null); };
+            Locg.delayFn = function(ms, cb) { cb(); };
+            var searchU = Locg.searchUrl("daredevil");
+            served[searchU] = Fx.get("search.json");
+            var got = null, gotMeta = null;
+            Locg.searchSeries("daredevil", function(list, meta) { got = list; gotMeta = meta; });
+            t.ok(got && got.length > 0, "verb: search parses", fails);
+            t.ok(gotMeta && gotMeta.ok === true, "verb: meta ok", fails);
+            var callsBefore = Locg._testLog.length;
+            Locg.searchSeries("daredevil", function(list) { got = list; });
+            t.ok(Locg._testLog.length === callsBefore && got.length > 0, "verb: cached (no refetch)", fails);
+            served[Locg.searchUrl("broken")] = "<!DOCTYPE html>Just a moment...";
+            var bMeta = null;
+            Locg.searchSeries("broken", function(list, meta) {
+                bMeta = meta;
+                t.ok(list.length === 0, "verb: garbage empty", fails);
+            });
+            t.ok(bMeta && bMeta.ok === false && bMeta.blocked === true, "verb: garbage blocked meta", fails);
+            served[Locg.releasesUrl()] = Fx.get("releases.json");
+            var top = null;
+            Locg.top10ThisWeek(function(list, meta) { top = list; });
+            t.ok(top && top.length > 0 && top.length <= 10, "verb: top10 max 10", fails);
+            t.ok(top.length < 2 || top[0].pulls >= top[1].pulls, "verb: top10 pulls-desc", fails);
+
             if (fails.length > 0) {
                 console.error("FAILS: " + fails.join(" | "))
                 Qt.exit(1)
