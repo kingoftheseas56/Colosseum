@@ -28,4 +28,11 @@ Assert-Contains $world 'GetComics Archives' "GetComics keeps its explore door"
 if (!(Test-Path (Join-Path $root "qml/XoxoGenrePage.qml"))) { throw "MISSING: XoxoGenrePage.qml" }
 if (!(Test-Path (Join-Path $root "qml/ComicArchiveBoard.qml"))) { throw "MISSING: ComicArchiveBoard.qml" }
 Assert-Contains $world 'e.source = src' "continue tiles must tag the comic source (xoxo vs getcomics)"
+# The comic session/continue/downloads routes split THREE lanes by id prefix
+# (xoxo: / gc: / manga fallback) — review fix 2026-07-09: xoxo ids must never
+# fall through to the manga layer (wrong page on resume, stranded surface on minimize).
+$mainQml = Get-Content (Join-Path $root "qml/Main.qml") -Raw
+Assert-Contains $mainQml 'function openXoxoSeriesAt' "resume-into-reader route must exist for xoxo"
+Assert-Contains $mainQml 'tsid.indexOf("xoxo:") === 0) xoxoSeriesLayer.active = false' "session teardown must know the xoxo lane"
+Assert-Contains $mainQml 'csid.indexOf("xoxo:") === 0 ? xoxoSeriesLayer' "session capture must know the xoxo lane"
 Write-Host "test_comics_sources_p0 PASS"

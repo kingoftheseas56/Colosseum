@@ -336,6 +336,7 @@ Window {
     // ---- xoxo comics: an xoxo series' issue list (peer of ComicSeries). Opened from
     //      search (data.xoxo), the world Top-Comics row, or a genre grid. ----
     function openXoxoSeries(d) {
+        xoxoSeriesLayer.resumeChapterId = ""
         xoxoSeriesLayer.sid = (d && d.id) || ""
         xoxoSeriesLayer.title = (d && d.title) || ""
         xoxoSeriesLayer.cover = (d && d.cover) || ""
@@ -347,6 +348,19 @@ Window {
         } else xoxoSeriesLayer.active = true
     }
     function closeXoxoSeries() { xoxoSeriesLayer.active = false }
+    // open an xoxo series AND jump straight into the reader (Continue / session resume) —
+    // mirrors openWesternAt. The reader opens on the downloaded issue immediately; the
+    // issue list walks in behind it (crossing enables once it lands).
+    function openXoxoSeriesAt(seriesId, title, chapterId) {
+        xoxoSeriesLayer.sid = seriesId || ""
+        xoxoSeriesLayer.title = title || ""
+        xoxoSeriesLayer.resumeChapterId = chapterId || ""
+        if (xoxoSeriesLayer.active && xoxoSeriesLayer.item) {
+            xoxoSeriesLayer.item.seriesTitle = title || ""
+            xoxoSeriesLayer.item.seriesId = seriesId || ""
+            xoxoSeriesLayer.item.openChapterId = chapterId || ""
+        } else xoxoSeriesLayer.active = true
+    }
 
     // ---- xoxo genre grid: one genre/shelf box as a paginated series grid ----
     function openXoxoGenre(box) {
@@ -485,6 +499,10 @@ Window {
                                         "kind": item.kind || "", "position": pos })
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "title": item.title || "" })
+        } else if (String(item.seriesId || "").indexOf("xoxo:") === 0) {
+            // xoxo issues ride the manga pipeline so LocalDownloads tags them kind:"manga" —
+            // the id prefix, not the kind, is what tells the lane (peer-sources 2026-07-09)
+            win.openXoxoSeriesAt(item.seriesId, item.seriesTitle, item.id)
         } else if (item.kind === "comic") {
             win.openWesternAt(item.seriesTitle, String(item.seriesId).replace(/^gc:/, ""), item.id)
         } else {
@@ -608,7 +626,9 @@ Window {
                                         title: title, cover: entry.cover || "" })
             })
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            if (String(entry.id || "").indexOf("gc:") === 0)
+            if (String(entry.id || "").indexOf("xoxo:") === 0)
+                win.openXoxoSeries({ id: entry.id, title: title, cover: entry.cover || "" })
+            else if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
             else win.openSeries(title)                                   // the series page (chapter list)
         } else if (entry.kind === "book") {
@@ -744,6 +764,12 @@ Window {
             }
             win.warmPlayerSessionId = rec.id
         } else if (rec.contentKind === "comic") {
+            if (String(t.seriesId || "").indexOf("xoxo:") === 0) {
+                // xoxo: the issue-list page hosts the reader (peer lane, 2026-07-09)
+                win.openXoxoSeriesAt(t.seriesId, t.title, (st.chapterId || t.chapterId || ""))
+                if (xoxoSeriesLayer.item && xoxoSeriesLayer.item.restoreState) xoxoSeriesLayer.item.restoreState(st)
+                return
+            }
             if (String(t.seriesId || "").indexOf("gc:") === 0) {
                 // western: the GetComics shelf hosts the reader
                 win.openWesternAt(t.title, String(t.seriesId).slice(3), (st.chapterId || t.chapterId || ""))
@@ -772,7 +798,9 @@ Window {
         if (!rec || !rec.id) return ({})
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
         if (rec.contentKind === "comic") {
-            var lay = String((rec.target || ({})).seriesId || "").indexOf("gc:") === 0 ? westernLayer : seriesLayer
+            var csid = String((rec.target || ({})).seriesId || "")
+            var lay = csid.indexOf("xoxo:") === 0 ? xoxoSeriesLayer
+                    : (csid.indexOf("gc:") === 0 ? westernLayer : seriesLayer)
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
@@ -789,7 +817,9 @@ Window {
             win.warmPlayerSessionId = rec.id
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
-            if (String((rec.target || ({})).seriesId || "").indexOf("gc:") === 0) westernLayer.active = false
+            var tsid = String((rec.target || ({})).seriesId || "")
+            if (tsid.indexOf("xoxo:") === 0) xoxoSeriesLayer.active = false
+            else if (tsid.indexOf("gc:") === 0) westernLayer.active = false
             else seriesLayer.active = false
         } else if (rec.contentKind === "book")  {
             bookReaderLayer.active = false
@@ -1412,12 +1442,14 @@ Window {
         property string sid: ""
         property string title: ""
         property string cover: ""
+        property string resumeChapterId: ""   // Continue/session resume: straight into the reader
         source: "XoxoSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.seriesTitle = xoxoSeriesLayer.title
             item.cover = xoxoSeriesLayer.cover
             item.seriesId = xoxoSeriesLayer.sid        // set LAST — assigning it triggers reload()
+            if (xoxoSeriesLayer.resumeChapterId) item.openChapterId = xoxoSeriesLayer.resumeChapterId
             item.backRequested.connect(win.closeXoxoSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
