@@ -579,7 +579,6 @@ Item {
     property bool starting: false
     property bool errored: false
     property string statusMsg: ""
-    property real bufferPct: -1   // live mpv cache-buffering-state (0..100); -1 = unknown → indeterminate ring
     property bool controlsShown: true
     property bool seeking: false
     property real seekPreview: mpv.position
@@ -2262,10 +2261,8 @@ Item {
         root.syncPowerInhibit()
     }
     onStartingChanged: {
-        if (starting) {
-            root.bufferPct = -1
+        if (starting)
             root.wakeChrome()
-        }
         root.syncPowerInhibit()
     }
 
@@ -2528,13 +2525,13 @@ Item {
             root.togglePlayPause()
     }
 
-    // Branded buffering face (Hemanth 2026-07-09, mock-ratified Variant 1 — "title card,
-    // pure type"): while a stream loads the show introduces itself — title big in the
-    // house serif, the titlebar's meta line, and a slim gold ring carrying mpv's LIVE
-    // buffer percentage. Left-anchored like a film title card. Every loading status the
-    // player emits (Starting/Switching/Reconnecting...) rides the same line; errors reuse
-    // the card with the red status text (retry stays in the control bar, chrome stays up).
-    // Local files with no title degrade to the bare status line — same as the old face.
+    // Branded buffering face (Hemanth 2026-07-09, Variant 1 "title card, pure type";
+    // ring + percentage removed 2026-07-09 — "just let the title indicate buffering").
+    // While a stream loads the show introduces itself: title big in the house serif +
+    // the titlebar's meta line. The card's mere presence (video not yet playing) IS the
+    // buffering indicator — no spinner, no readout. A status line appears ONLY for states
+    // the title can't convey: errors (red) and special transitions (Switching/
+    // Reconnecting...). Plain buffering shows the title alone.
     Column {
         anchors.left: parent.left
         anchors.leftMargin: Math.max(48, root.width * 0.06)
@@ -2568,89 +2565,19 @@ Item {
             font.letterSpacing: 0.6
             elide: Text.ElideRight
         }
-        Item { width: 1; height: 30; visible: (root.mediaTitle || mpv.mediaTitle).length > 0 }
-        Row {
-            spacing: 14
-
-            Item {
-                width: 44
-                height: 44
-                anchors.verticalCenter: parent.verticalCenter
-                visible: root.starting && !root.errored
-
-                Canvas {
-                    id: bufferRing
-                    anchors.fill: parent
-                    antialiasing: true
-                    property real spin: 0
-                    property real pct: root.bufferPct
-                    onSpinChanged: requestPaint()
-                    onPctChanged: requestPaint()
-                    NumberAnimation on spin {
-                        from: 0; to: 360
-                        duration: 1400
-                        loops: Animation.Infinite
-                        running: bufferRing.visible && root.bufferPct < 0
-                    }
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        var c = width / 2
-                        var r = c - 3
-                        ctx.clearRect(0, 0, width, height)
-                        ctx.lineWidth = 3
-                        ctx.lineCap = "round"
-                        ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.18)
-                        ctx.beginPath()
-                        ctx.arc(c, c, r, 0, 2 * Math.PI)
-                        ctx.stroke()
-                        ctx.strokeStyle = theme.gold
-                        ctx.beginPath()
-                        if (pct >= 0)
-                            ctx.arc(c, c, r, -Math.PI / 2, -Math.PI / 2 + 2 * Math.PI * Math.min(1, pct / 100))
-                        else {
-                            var a = spin * Math.PI / 180
-                            ctx.arc(c, c, r, a, a + Math.PI * 0.55)
-                        }
-                        ctx.stroke()
-                    }
-                }
-                Text {
-                    anchors.centerIn: parent
-                    visible: root.bufferPct >= 0
-                    text: Math.round(root.bufferPct)
-                    color: theme.ink
-                    font.family: theme.hud
-                    font.pixelSize: 12
-                    font.weight: Font.Bold
-                }
-            }
-
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                width: Math.min(root.width - 120, 520)
-                textFormat: Text.StyledText
-                text: root.errored ? root.statusMsg
-                    : (root.bufferPct >= 0 ? 'Buffering <font color="#f0c44a">' + Math.round(root.bufferPct) + '%</font>'
-                                           : root.statusMsg)
-                color: root.errored ? "#e6a3a3" : theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                wrapMode: Text.WordWrap
-            }
-        }
-    }
-
-    // Feeds the ring: mpv's cache-buffering-state is 0..100 while it prebuffers/rebuffers,
-    // undefined otherwise → -1 keeps the ring indeterminate. Poll only while loading.
-    Timer {
-        interval: 300
-        repeat: true
-        running: root.starting && !root.errored
-        onTriggered: {
-            var v = mpv.mpvProperty("cache-buffering-state")
-            var n = Number(v)
-            root.bufferPct = (v === undefined || v === null || v === "" || isNaN(n)) ? -1 : n
+        Item { width: 1; height: 26; visible: statusLine.visible }
+        Text {
+            id: statusLine
+            width: Math.min(root.width - 120, 520)
+            // Plain "Buffering..." is suppressed — the title card is the indicator now.
+            // Errors and special transitions still need their words.
+            visible: text.length > 0 && (root.errored || root.statusMsg !== "Buffering...")
+            text: root.statusMsg
+            color: root.errored ? "#e6a3a3" : theme.inkDim
+            font.family: theme.hud
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+            wrapMode: Text.WordWrap
         }
     }
 
