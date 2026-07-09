@@ -192,8 +192,19 @@ function searchWestern(query, done) {
 }
 
 // ── xoxo: per-issue comics (peer source — its own group, its own failures) ──
+// A blocked (rate-limited) source contributes ONE non-clickable notice row to its group
+// instead of a silent empty section — the user always knows WHY xoxo is quiet (Spec A).
 function searchXoxo(query, done) {
-    Xoxo.searchSeries(query, function(items) {
+    Xoxo.searchSeries(query, function(items, meta) {
+        if (meta && meta.blocked) {
+            var mins = Math.max(1, Math.round((meta.retryInMs || 0) / 60000));
+            done([{
+                cover: "", title: "XOXO is cooling down — retry in ~" + mins + "m",
+                subtitle: "", meta: "XOXO   ·   rate-limited", synopsis: "", backdrop: "",
+                group: "Comics · XOXO", data: { notice: true }
+            }]);
+            return;
+        }
         done((items || []).map(function(s) {
             return {
                 cover: s.cover,

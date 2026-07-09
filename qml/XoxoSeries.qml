@@ -27,6 +27,7 @@ Item {
     property var issueRows: []              // [{issueId, label, date}]
     property bool loading: true
     property string errorMsg: ""
+    property int cooldownMs: 0              // >0 → source rate-limited, banner shows countdown
 
     // the reader's chapter model needs .id (crossing) + .name + .number (placeholder)
     readonly property var chaptersModel: issueRows.map(function(iss, idx) {
@@ -41,10 +42,12 @@ Item {
         if (!seriesId.length) return
         page.loading = true
         page.errorMsg = ""
-        Xoxo.issues(seriesId, function(list) {
+        Xoxo.issues(seriesId, function(list, meta) {
             page.loading = false
-            if (!list || list.length === 0) { page.errorMsg = "No issues found — the source may be down."; return }
-            page.issueRows = list
+            page.cooldownMs = (meta && meta.blocked) ? meta.retryInMs : 0
+            if (list && list.length > 0) { page.issueRows = list; return }   // cached/partial keeps rendering
+            if (meta && meta.blocked) return                                  // banner explains the quiet
+            page.errorMsg = "No issues found for this series."
         })
     }
 
@@ -86,6 +89,16 @@ Item {
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.closeRequested() }
         }
+    }
+
+    // ---- source cooldown banner (rate-limited): honest state, auto-retries ----
+    SourceCooldownBanner {
+        z: 40
+        anchors.top: parent.top; anchors.topMargin: 84
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - theme.margin * 2, 460)
+        retryInMs: page.cooldownMs
+        onRetry: page.reload()
     }
 
     // ---- the page: hero header → flat issue list ----

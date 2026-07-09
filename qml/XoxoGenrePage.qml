@@ -21,18 +21,21 @@ Item {
     property bool fetching: false
     property string lastFirstId: ""      // overflow guard: repeated first id = true end
     property bool loading: true
+    property int cooldownMs: 0           // >0 → source rate-limited, banner shows countdown
 
     Theme { id: theme }
 
     Component.onCompleted: fetchMore()
-    onBoxChanged: { items = []; nextPage = 1; hasMore = true; lastFirstId = ""; loading = true; fetchMore() }
+    onBoxChanged: { items = []; nextPage = 1; hasMore = true; lastFirstId = ""; loading = true; cooldownMs = 0; fetchMore() }
 
     function fetchMore() {
         if (fetching || !hasMore || !box.id) return
         fetching = true
-        Xoxo.exploreItems(box.id, nextPage, function(r) {
+        Xoxo.exploreItems(box.id, nextPage, function(r, meta) {
             fetching = false
             page.loading = false
+            page.cooldownMs = (meta && meta.blocked) ? meta.retryInMs : 0
+            if (meta && meta.blocked) return   // banner explains the quiet; don't burn hasMore
             if (!r || r.items.length === 0) { page.hasMore = false; return }
             if (r.items[0].id === page.lastFirstId) { page.hasMore = false; return }  // overflow repeat
             page.lastFirstId = r.items[0].id
@@ -44,6 +47,16 @@ Item {
 
     // ===================== visual tree =====================
     MouseArea { anchors.fill: parent }                      // absorb clicks from the world below
+
+    // source cooldown banner (rate-limited): honest state, auto-retries the next page
+    SourceCooldownBanner {
+        z: 40
+        anchors.top: parent.top; anchors.topMargin: 84
+        anchors.horizontalCenter: parent.horizontalCenter
+        width: Math.min(parent.width - theme.margin * 2, 460)
+        retryInMs: page.cooldownMs
+        onRetry: page.fetchMore()
+    }
 
     Rectangle { anchors.fill: parent; color: "#07080c" }
     ShaderEffectSource {

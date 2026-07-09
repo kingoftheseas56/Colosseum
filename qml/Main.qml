@@ -14,6 +14,7 @@ import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
+import "XoxoApi.js" as Xoxo
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
@@ -86,6 +87,9 @@ Window {
 
     Component.onCompleted: {
         refreshWallpaper()
+        // Give the xoxo cooldown machine a real clock (its module is pure/testable and
+        // defaults to a 0-clock; set once — .pragma library state is app-wide). (Spec A)
+        Xoxo.nowFn = function() { return Date.now() }
         // Theatre reads the extension registry through a pushed copy — a .pragma
         // library can't reach context properties (extensions spec Phase 3)
         if (typeof Extensions !== "undefined") {
@@ -566,6 +570,7 @@ Window {
     function closeSearch() { searchLayer.active = false }
     function closeWorldSearch() { worldSearchLayer.active = false }
     function routeWorldSearchItem(data) {
+        if (data && data.notice) return   // a cooldown/status notice row isn't clickable content
         win.closeWorldSearch()
         if (worldSearchLayer.searchMode === "Tankoban") {
             if (data && data.xoxo) win.openXoxoSeries(data)   // xoxo issue list (peer source)

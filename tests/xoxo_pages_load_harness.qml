@@ -9,6 +9,7 @@ Item {
     Loader { id: l1; source: "../qml/XoxoSeries.qml"; asynchronous: false }
     Loader { id: l2; source: "../qml/XoxoGenrePage.qml"; asynchronous: false }
     Loader { id: l3; source: "../qml/ComicArchiveBoard.qml"; asynchronous: false }
+    Loader { id: l4; source: "../qml/SourceCooldownBanner.qml"; asynchronous: false }
 
     Timer {
         interval: 2000; running: true; repeat: false
@@ -18,6 +19,7 @@ Item {
             if (l1.status !== Loader.Ready) { console.log("XOXO LOAD FAIL: XoxoSeries status " + l1.status); Qt.exit(1); return }
             if (l2.status !== Loader.Ready) { console.log("XOXO LOAD FAIL: XoxoGenrePage status " + l2.status); Qt.exit(1); return }
             if (l3.status !== Loader.Ready) { console.log("XOXO LOAD FAIL: ComicArchiveBoard status " + l3.status); Qt.exit(1); return }
+            if (l4.status !== Loader.Ready) { console.log("XOXO LOAD FAIL: SourceCooldownBanner status " + l4.status); Qt.exit(1); return }
             console.log("XOXO LOAD PASS"); Qt.exit(0)
         }
     }

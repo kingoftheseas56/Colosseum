@@ -43,4 +43,15 @@ Assert-Contains $mainQml 'xoxoSeriesLayer.active) win.closeXoxoSeries' "global b
 # downloaded pages must be validated as real images (soft-block HTML served as .jpg)
 $dlcpp = Get-Content (Join-Path $root "native/engine/MangaDownloader.cpp") -Raw
 Assert-Contains $dlcpp 'looksLikeImage' "downloader must validate a page is a real image, never save HTML"
+# Spec A cooldown: honest blocked states everywhere (eyes-on 2026-07-09 — no more
+# homepage garbage parsed as real content).
+if (!(Test-Path (Join-Path $root "qml/SourceCooldownBanner.qml"))) { throw "MISSING: SourceCooldownBanner.qml" }
+$xs3 = Get-Content (Join-Path $root "qml/XoxoSeries.qml") -Raw
+Assert-Contains $xs3 'SourceCooldownBanner' "series page must show the cooldown banner"
+$xg2 = Get-Content (Join-Path $root "qml/XoxoGenrePage.qml") -Raw
+Assert-Contains $xg2 'SourceCooldownBanner' "genre page must show the cooldown banner"
+$ws3 = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
+Assert-Contains $ws3 'notice: true' "a blocked xoxo lane must emit a notice row, never a silent empty group"
+Assert-Contains $mainQml 'data.notice' "search-open must ignore notice rows"
+Assert-Contains $mainQml 'Xoxo.nowFn' "the live clock must be set for the cooldown machine"
 Write-Host "test_comics_sources_p0 PASS"
