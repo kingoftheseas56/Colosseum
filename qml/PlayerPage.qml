@@ -2471,6 +2471,11 @@ Item {
         anchors.fill: parent
         hoverEnabled: true
         acceptedButtons: Qt.LeftButton
+        // Cursor vanishes WITH the HUD (Hemanth 2026-07-09: no sore-thumb arrow floating
+        // mid-screen after the bar fades). Mirrors the chrome's own visibility expression
+        // (controlsShown && !starting) so they hide/show as one. Any pointer motion fires
+        // wakeChrome → controlsShown true → the arrow is back instantly.
+        cursorShape: (root.controlsShown && !root.starting) ? Qt.ArrowCursor : Qt.BlankCursor
         onPositionChanged: root.wakeChrome()
         onClicked: {
             // A click that only dismisses an open menu must NOT also toggle play/pause.
