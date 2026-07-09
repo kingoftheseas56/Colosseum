@@ -15,6 +15,8 @@ import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
 import "XoxoApi.js" as Xoxo
+import "LocgApi.js" as Locg
+import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
@@ -90,6 +92,14 @@ Window {
         // Give the xoxo cooldown machine a real clock (its module is pure/testable and
         // defaults to a 0-clock; set once — .pragma library state is app-wide). (Spec A)
         Xoxo.nowFn = function() { return Date.now() }
+        // LOCG catalogue: real clock + polite request spacer + the resolve machine's deps
+        Locg.nowFn = function() { return Date.now() }
+        Locg.delayFn = function(ms, cb) { locgSpacer.fire(ms, cb) }
+        Resolve.store = {
+            get: function(k) { return comicMapStore.value(k, "") },
+            set: function(k, v) { comicMapStore.setValue(k, v) }
+        }
+        Resolve.xoxoSearchFn = function(q, cb) { Xoxo.searchSeries(q, cb) }
         // Theatre reads the extension registry through a pushed copy — a .pragma
         // library can't reach context properties (extensions spec Phase 3)
         if (typeof Extensions !== "undefined") {
@@ -154,6 +164,16 @@ Window {
                                     String(rows[i].infoHash).substring(0, 24))
                 })
         }
+    }
+
+    // locg:<id> → xoxo slug, persisted forever (survives restarts)
+    Settings { id: comicMapStore; category: "comicResolve" }
+    // polite spacer for LOCG's request queue (Locg.delayFn)
+    Timer {
+        id: locgSpacer
+        property var _cb: null
+        function fire(ms, cb) { _cb = cb; interval = Math.max(1, ms); restart() }
+        onTriggered: { var c = _cb; _cb = null; if (c) c() }
     }
 
     // Esc: close the series page if open, else leave a world page, else quit. Ctrl+Q always quits.
@@ -343,15 +363,23 @@ Window {
     // ---- xoxo comics: an xoxo series' issue list (peer of ComicSeries). Opened from
     //      search (data.xoxo), the world Top-Comics row, or a genre grid. ----
     function openXoxoSeries(d) {
+        var isLocg = !!(d && d.id && String(d.id).indexOf("locg:") === 0)
         xoxoSeriesLayer.resumeChapterId = ""
-        xoxoSeriesLayer.sid = (d && d.id) || ""
+        xoxoSeriesLayer.locgSid = isLocg ? d.id : ""
+        xoxoSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
+        xoxoSeriesLayer.sid = isLocg ? "" : ((d && d.id) || "")
         xoxoSeriesLayer.title = (d && d.title) || ""
         xoxoSeriesLayer.cover = (d && d.cover) || ""
         if (xoxoSeriesLayer.active && xoxoSeriesLayer.item) {
             xoxoSeriesLayer.item.openChapterId = ""       // leave the reader, show the list
             xoxoSeriesLayer.item.seriesTitle = xoxoSeriesLayer.title
             xoxoSeriesLayer.item.cover = xoxoSeriesLayer.cover
-            xoxoSeriesLayer.item.seriesId = xoxoSeriesLayer.sid   // set LAST — triggers reload()
+            if (isLocg) {
+                xoxoSeriesLayer.item.locgMeta = xoxoSeriesLayer.locgMeta
+                xoxoSeriesLayer.item.locgId = d.id                 // set LAST — triggers attach()
+            } else {
+                xoxoSeriesLayer.item.seriesId = xoxoSeriesLayer.sid  // set LAST — triggers reload()
+            }
         } else xoxoSeriesLayer.active = true
     }
     function closeXoxoSeries() { xoxoSeriesLayer.active = false }
@@ -1456,18 +1484,25 @@ Window {
         property string title: ""
         property string cover: ""
         property string resumeChapterId: ""   // Continue/session resume: straight into the reader
+        property string locgSid: ""          // "locg:<id>" — set INSTEAD of sid for catalogue opens
+        property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
         source: "XoxoSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.seriesTitle = xoxoSeriesLayer.title
             item.cover = xoxoSeriesLayer.cover
-            item.seriesId = xoxoSeriesLayer.sid        // set LAST — assigning it triggers reload()
-            if (xoxoSeriesLayer.resumeChapterId) item.openChapterId = xoxoSeriesLayer.resumeChapterId
             item.backRequested.connect(win.closeXoxoSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
+            if (xoxoSeriesLayer.locgSid) {
+                item.locgMeta = xoxoSeriesLayer.locgMeta
+                item.locgId = xoxoSeriesLayer.locgSid       // set LAST — triggers attach()
+            } else {
+                item.seriesId = xoxoSeriesLayer.sid          // set LAST — triggers reload()
+                if (xoxoSeriesLayer.resumeChapterId) item.openChapterId = xoxoSeriesLayer.resumeChapterId
+            }
         }
     }
 

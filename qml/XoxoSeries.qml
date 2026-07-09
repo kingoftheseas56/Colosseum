@@ -12,6 +12,7 @@
 
 import QtQuick
 import "XoxoApi.js" as Xoxo
+import "ComicResolve.js" as Resolve
 
 Item {
     id: page
@@ -62,9 +63,27 @@ Item {
         })
     }
 
+    // --- LOCG catalogue entry: resolve the locg:<id> to an xoxo slug, then fall through
+    //     to the existing xoxo reading flow. If nothing carries it, show honest empty state. ---
+    property string locgId: ""              // "locg:<id>" — set INSTEAD of seriesId by catalogue opens
+    property var locgMeta: ({})             // {publisher, rating, startYear…} from LOCG
+    property bool notAvailable: false       // catalogued, but no reading source carries it yet
+
+    onLocgIdChanged: attach()
+    function attach() {
+        if (!locgId.length) return
+        notAvailable = false
+        loading = true
+        Resolve.resolve({ id: locgId, title: seriesTitle, startYear: (locgMeta.startYear || 0) },
+            function(res) {
+                if (res.attached) page.seriesId = res.xoxoId      // triggers the existing reload()
+                else { page.loading = false; page.notAvailable = true }
+            })
+    }
+
     // metadata line: status · released · N issues · views (empties omitted)
     function metaLine() {
-        var m = page.seriesMeta || ({})
+        var m = (page.locgMeta && page.locgMeta.publisher) ? page.locgMeta : (page.seriesMeta || ({}))
         var bits = []
         if (m.status && m.status.length) bits.push(m.status)
         if (m.released && m.released.length) bits.push(m.released)
@@ -421,6 +440,15 @@ Item {
         visible: page.loading
         text: "Loading…"
         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+    }
+
+    // honest empty state: catalogued, but no reading source carries it yet
+    Column {
+        visible: page.notAvailable
+        anchors.centerIn: parent
+        spacing: 8
+        Text { text: "Not available from sources yet"; color: "#e8e8e8"; font.pixelSize: 18; anchors.horizontalCenter: parent.horizontalCenter }
+        Text { text: "This series is catalogued, but no reading source carries it."; color: "#9a9a9a"; font.pixelSize: 13; anchors.horizontalCenter: parent.horizontalCenter }
     }
 
     // ---- reader overlay: Downloads store + comic progress; chapters = newest-first ----
