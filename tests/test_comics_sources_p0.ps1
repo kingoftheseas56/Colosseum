@@ -54,4 +54,10 @@ $ws3 = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
 Assert-Contains $ws3 'notice: true' "a blocked xoxo lane must emit a notice row, never a silent empty group"
 Assert-Contains $mainQml 'data.notice' "search-open must ignore notice rows"
 Assert-Contains $mainQml 'Xoxo.nowFn' "the live clock must be set for the cooldown machine"
+# Spec A A3/QSettings: downloads pause-and-resume on soft-block (not 3 fast retries into
+# the wall); org name set so every QML Settings block actually persists.
+$main3 = Get-Content (Join-Path $root "native/main.cpp") -Raw
+Assert-Contains $main3 'setOrganizationName' "org name must be set so QML Settings persist"
+$dl3 = Get-Content (Join-Path $root "native/engine/MangaDownloader.cpp") -Raw
+Assert-Contains $dl3 'coolWaves' "an HTML-blocked xoxo page must pause the job, not burn fast retries"
 Write-Host "test_comics_sources_p0 PASS"

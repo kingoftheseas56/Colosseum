@@ -112,6 +112,8 @@ signals:
     void failed(const QString& chapterId, const QString& reason);
     void removed(const QString& chapterId);
     void thumbReady(const QString& chapterId, const QString& url);
+    // a rate-limited (xoxo) job is waiting out a soft-block; the reader shows "cooling down".
+    void paused(const QString& chapterId, int resumeInMs);
 
 private:
     struct Job {
@@ -131,6 +133,7 @@ private:
         qint64 bytes = 0;
         bool failedFlag = false;
         bool cancelled = false;
+        int coolWaves = 0;           // xoxo soft-block pauses taken (cap 3, then honest fail)
         QList<QNetworkReply*> replies;   // in-flight image GETs, for cancel/abort
     };
 

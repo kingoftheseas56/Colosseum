@@ -482,7 +482,13 @@ void MangaDownloader::pumpImages(Job* job)
         const int i = job->nextDispatch++;
         if (!job->files[i].isEmpty()) continue;   // resumed page — already on disk
         job->inFlight++;
-        fetchImage(job, i, 0);
+        if (job->presetPages.isEmpty()) {
+            fetchImage(job, i, 0);
+        } else {
+            // xoxo: a ~250ms breather before each page (on top of 1-at-a-time) keeps a
+            // 68-page issue under the rate-limiter.
+            QTimer::singleShot(250, this, [this, job, i]() { fetchImage(job, i, 0); });
+        }
     }
 }
 
@@ -559,6 +565,22 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
                 onImageSaved(job, pageIndex, name, data.size());
                 return;
             }
+        }
+
+        // xoxo soft-block: the site answered 200 + non-image HTML (the throttle). Do NOT
+        // burn 3 fast retries into the wall — pause this page 120s and resume, up to 3
+        // waves, then fail honestly. Distinguished from a real error: arrived cleanly,
+        // sizeable, but not an image (2026-07-09).
+        const bool wasSoftBlock = reply->error() == QNetworkReply::NoError
+                                  && data.size() > MIN_VALID_BYTES && !looksLikeImage(data, ct);
+        if (wasSoftBlock && !job->presetPages.isEmpty() && job->coolWaves < 3) {
+            job->coolWaves++;
+            emit paused(job->chapterId, 120000);
+            qInfo("[downloads] '%s' cooling down (wave %d) — resuming page %d in 120s",
+                  qUtf8Printable(job->chapterId), job->coolWaves, pageIndex);
+            QTimer::singleShot(120000, this,
+                               [this, job, pageIndex]() { fetchImage(job, pageIndex, 0); });
+            return;   // slot held across the cooldown
         }
 
         // failure path: retry with 2/4/8s backoff, then mark the job failed

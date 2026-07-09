@@ -183,6 +183,26 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
+    // QSettings (every QML `Settings` block — reader prefs, player settings) keys on the
+    // organization; without it QSettings::init fails (status 1) and NOTHING persists. This
+    // was silently broken forever (Hemanth's log, 2026-07-09).
+    // CAVEAT: on Windows, AppDataLocation *includes* the org — so setting it moves the data
+    // dir (Roaming/Colosseum -> Roaming/Brotherhood/Colosseum), which would orphan the
+    // existing downloads/books/videos/extensions. Capture the old path, set the org, then
+    // MOVE the old tree to the new location ONCE (guarded), so nothing is lost.
+    const QString oldAppData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    app.setOrganizationName(QStringLiteral("Brotherhood"));
+    app.setOrganizationDomain(QStringLiteral("colosseum.brotherhood"));
+    const QString newAppData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    if (oldAppData != newAppData && QDir(oldAppData).exists() && !QDir(newAppData).exists()) {
+        QDir().mkpath(QFileInfo(newAppData).absolutePath());
+        if (QDir().rename(oldAppData, newAppData))
+            qInfo("[migrate] app data %s -> %s (org-name change)",
+                  qUtf8Printable(oldAppData), qUtf8Printable(newAppData));
+        else
+            qWarning("[migrate] FAILED to move app data %s -> %s; downloads may appear missing",
+                     qUtf8Printable(oldAppData), qUtf8Printable(newAppData));
+    }
 
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
