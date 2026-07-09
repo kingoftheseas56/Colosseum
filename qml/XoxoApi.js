@@ -111,6 +111,35 @@ function parsePages(html) {
     return urls;
 }
 
+// Parse the series-detail block on a series page (the FIRST issue-walk page carries it).
+// Fields ride <li class="<field> row"> ... <p class="col-xs-8">VALUE</p>; genres are the
+// anchors in the "kind row" (the source mixes the publisher tag in with the genres — there
+// is no separate publisher field, so the publisher shows as the first genre chip). Released
+// and Views ride a plain <li> keyed by <strong>. Best-effort — any missing field is "".
+function parseSeriesMeta(html) {
+    function rowVal(field) {
+        var m = html.match(new RegExp('<li class="' + field + ' row">[\\s\\S]*?<p class="col-xs-8">([\\s\\S]*?)<\\/p>'));
+        return m ? decodeEntities(m[1].replace(/<[^>]+>/g, "").trim()) : "";
+    }
+    function strongVal(label) {
+        var m = html.match(new RegExp('<strong>' + label + '<\\/strong>[\\s\\S]*?<p class="col-xs-8">([^<]*)<\\/p>'));
+        return m ? decodeEntities(m[1].trim()) : "";
+    }
+    var genres = [];
+    var gblock = html.match(/<li class="kind row">([\s\S]*?)<\/li>/);
+    if (gblock) {
+        var g, re = /<a[^>]*>([^<]+)<\/a>/g;
+        while ((g = re.exec(gblock[1])) !== null) genres.push(decodeEntities(g[1].trim()));
+    }
+    return {
+        status: rowVal("status"),
+        author: rowVal("author"),
+        genres: genres,
+        released: strongVal("Released"),
+        views: strongVal("Views")
+    };
+}
+
 // rel=next hrefs come relative ("batman-1940?page=2") — make them absolute.
 function _abs(href) {
     if (/^https?:\/\//.test(href)) return href;

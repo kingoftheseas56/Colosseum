@@ -43,6 +43,14 @@ QtObject {
             var g = Xoxo.parseSeriesList(fixture("genre.html"))
             t.ok(g.length >= 20, "genre: expected >=20 series, got " + g.length)
 
+            // --- series metadata (Plan B): status/released/genres/author/views ---
+            var sm = Xoxo.parseSeriesMeta(fixture("series_p1.html"))
+            t.ok(sm.status === "Completed", "series meta status, got " + sm.status)
+            t.ok(sm.released === "1940", "series meta released year, got " + sm.released)
+            t.ok(sm.genres.length >= 2, "series meta genres, got " + sm.genres.length + " (" + sm.genres.join(",") + ")")
+            t.ok(sm.author.length > 0, "series meta author, got " + sm.author)
+            t.ok(sm.views && sm.views.length > 0, "series meta views, got " + sm.views)
+
             // --- soft-block detection: the homepage the throttle serves must read as blocked
             //     for every verb; real pages must NOT (positive per-verb validation) ---
             var hp = fixture("homepage.html")
