@@ -2093,22 +2093,24 @@ Item {
             mpv.pause = !mpv.pause
         root.wakeChrome()
     }
+    // Volume is a plain linear 0..100 (Hemanth 2026-07-09: "make the volume make sense...
+    // no proper progression"). The old scale ran to 600% with a piecewise slider (0..62%
+    // of travel = 0..100, the rest blasting to 600 and flipping red) — that was the
+    // "loud as hell / yellow then red" mess. 100 = source loudness (mpv 0dB); no boost.
     function setVolumeFromFraction(f) {
-        var normalFraction = 0.62
-        var next = f <= normalFraction
-            ? (f / normalFraction) * 100
-            : 100 + ((f - normalFraction) / (1 - normalFraction)) * 500
-        mpv.volume = Math.round(root.clamp(next, 0, 600))
+        root.adjustVolumeTo(f * 100)
+    }
+    function adjustVolume(delta) {
+        root.adjustVolumeTo(mpv.volume + delta)
+    }
+    function adjustVolumeTo(v) {
+        mpv.volume = Math.round(root.clamp(v, 0, 100))
         if (mpv.volume > 0)
             mpv.mute = false
         root.wakeChrome()
     }
     function volumeFraction() {
-        var v = root.clamp(mpv.volume, 0, 600)
-        var normalFraction = 0.62
-        if (v <= 100)
-            return (v / 100) * normalFraction
-        return normalFraction + ((v - 100) / 500) * (1 - normalFraction)
+        return root.clamp(mpv.volume, 0, 100) / 100
     }
     function closeMenus() {
         audioMenu.panelOpen = false
@@ -2196,8 +2198,8 @@ Item {
             root.seekTo(digit === 0 ? 0 : mpv.duration * digit / 10)
             return
         case "mute": mpv.mute = !mpv.mute; return
-        case "volumeUp": mpv.volume = mpv.volume + (event.modifiers & Qt.ShiftModifier ? 50 : 5); return
-        case "volumeDown": mpv.volume = mpv.volume - (event.modifiers & Qt.ShiftModifier ? 50 : 5); return
+        case "volumeUp": root.adjustVolume(event.modifiers & Qt.ShiftModifier ? 1 : 5); return
+        case "volumeDown": root.adjustVolume(event.modifiers & Qt.ShiftModifier ? -1 : -5); return
         case "speedDown": mpv.speed = root.clamp(root.round2(mpv.speed - 0.25), 0.25, 3); return
         case "speedUp": mpv.speed = root.clamp(root.round2(mpv.speed + 0.25), 0.25, 3); return
         case "subtitleDelayDown": mpv.subDelay = root.round2(mpv.subDelay - (event.modifiers & Qt.ShiftModifier ? 0.05 : 0.1)); return
@@ -2484,6 +2486,16 @@ Item {
                 return
             }
             root.togglePlayPause()
+        }
+    }
+
+    // Scroll anywhere over the video to change volume (Hemanth 2026-07-09), 5% per notch.
+    // Disabled while a menu/list is open so the wheel scrolls that panel, not the volume.
+    WheelHandler {
+        enabled: !root.anyMenuOpen
+        acceptedModifiers: Qt.NoModifier
+        onWheel: function(event) {
+            root.adjustVolume(event.angleDelta.y > 0 ? 5 : -5)
         }
     }
 
@@ -4244,7 +4256,7 @@ Item {
 
     component VolumeControl: Item {
         id: vc
-        width: mpv.volume > 101 ? 230 : 190
+        width: 190
         height: 48
         RoundButton {
             id: muteButton
@@ -4277,7 +4289,7 @@ Item {
                 width: parent.width * root.volumeFraction()
                 height: volMouse.containsMouse ? 8 : 6
                 radius: height / 2
-                color: mpv.volume > 100 ? "#f26f25" : theme.gold
+                color: theme.gold
             }
             Rectangle {
                 x: parent.width * root.volumeFraction() - width / 2
@@ -4285,18 +4297,7 @@ Item {
                 width: 14
                 height: 14
                 radius: 7
-                color: mpv.volume > 100 ? "#f26f25" : theme.gold
-            }
-            Text {
-                visible: mpv.volume > 100
-                anchors.left: parent.right
-                anchors.leftMargin: 8
-                anchors.verticalCenter: parent.verticalCenter
-                text: Math.round(mpv.volume) + "%"
-                color: "#f26f25"
-                font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: 12
-                font.weight: Font.DemiBold
+                color: theme.gold
             }
             MouseArea {
                 id: volMouse
