@@ -333,6 +333,21 @@ Window {
     }
     function closeWestern() { westernLayer.active = false }
 
+    // ---- xoxo comics: an xoxo series' issue list (peer of ComicSeries). Opened from
+    //      search (data.xoxo), the world Top-Comics row, or a genre grid. ----
+    function openXoxoSeries(d) {
+        xoxoSeriesLayer.sid = (d && d.id) || ""
+        xoxoSeriesLayer.title = (d && d.title) || ""
+        xoxoSeriesLayer.cover = (d && d.cover) || ""
+        if (xoxoSeriesLayer.active && xoxoSeriesLayer.item) {
+            xoxoSeriesLayer.item.openChapterId = ""       // leave the reader, show the list
+            xoxoSeriesLayer.item.seriesTitle = xoxoSeriesLayer.title
+            xoxoSeriesLayer.item.cover = xoxoSeriesLayer.cover
+            xoxoSeriesLayer.item.seriesId = xoxoSeriesLayer.sid   // set LAST — triggers reload()
+        } else xoxoSeriesLayer.active = true
+    }
+    function closeXoxoSeries() { xoxoSeriesLayer.active = false }
+
     // ---- western-comics archive index: the SERIES ARCHIVES under an explore box
     //      (a publisher/franchise tag holds raw release posts — this is the middle
     //      layer that shows the /tag/ archives inside it, Hemanth's 2026-07-04 call) ----
@@ -520,7 +535,8 @@ Window {
     function routeWorldSearchItem(data) {
         win.closeWorldSearch()
         if (worldSearchLayer.searchMode === "Tankoban") {
-            if (data && data.western) win.openWestern(data)   // GetComics shelf, not WeebCentral
+            if (data && data.xoxo) win.openXoxoSeries(data)   // xoxo issue list (peer source)
+            else if (data && data.western) win.openWestern(data)   // GetComics shelf, not WeebCentral
             else win.openSeries(data.title)
         } else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
     }
@@ -1145,6 +1161,8 @@ Window {
                     if (westernSignal) westernSignal.connect(function(title) { win.openWestern({ title: title }) })
                     var westernExploreSignal = item["westernExploreRequested"]
                     if (westernExploreSignal) westernExploreSignal.connect(win.openComicArchive)
+                    var xoxoSeriesSignal = item["xoxoSeriesRequested"]
+                    if (xoxoSeriesSignal) xoxoSeriesSignal.connect(win.openXoxoSeries)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
@@ -1361,6 +1379,30 @@ Window {
             item.tagSlug = westernLayer.tagSlug        // set LAST — assigning it triggers resolve()
             if (westernLayer.resumeChapterId) item.openChapterId = westernLayer.resumeChapterId
             item.backRequested.connect(win.closeWestern)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.readerMinimizeRequested.connect(win.minimizeComicReader)
+            item.readerCloseRequested.connect(win.closeComicReader)
+        }
+    }
+
+    // ---- xoxo series layer: an xoxo comic's issue list (peer of westernLayer) ----
+    Loader {
+        id: xoxoSeriesLayer
+        anchors.fill: parent
+        z: 50
+        active: false
+        visible: active
+        property string sid: ""
+        property string title: ""
+        property string cover: ""
+        source: "XoxoSeries.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.seriesTitle = xoxoSeriesLayer.title
+            item.cover = xoxoSeriesLayer.cover
+            item.seriesId = xoxoSeriesLayer.sid        // set LAST — assigning it triggers reload()
+            item.backRequested.connect(win.closeXoxoSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)

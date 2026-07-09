@@ -34,10 +34,14 @@ Item {
     // chapters). Pages/status/download route through `store`; Continue records
     // under kind "comic". Everything else — pairing, resume, zoom — is shared. ---
     property bool western: false
+    // xoxo issues: the Downloads store (manga pipeline via downloadPages) BUT progress
+    // filed as "comic" so Continue Reading treats them as comics, not manga (peer-sources
+    // spec 2026-07-09). comicKind keeps western=false → store stays Downloads.
+    property bool comicKind: false
     readonly property var store: western
         ? (typeof Comics !== "undefined" ? Comics : null)
         : (typeof Downloads !== "undefined" ? Downloads : null)
-    readonly property string progressKind: western ? "comic" : "manga"
+    readonly property string progressKind: (western || comicKind) ? "comic" : "manga"
 
     // --- preferences (app-wide, persisted; mirrors Electron mangaPrefs) ---
     Settings {
