@@ -53,6 +53,7 @@ Assert-Contains $xs3 'page.seriesMeta' "series hero must show parsed metadata"
 Assert-Contains $xs3 'issuesRaw.slice().reverse()' "display issues must be ascending (#1 first); reader stays newest-first"
 $xg2 = Get-Content (Join-Path $root "qml/XoxoGenrePage.qml") -Raw
 Assert-Contains $xg2 'SourceCooldownBanner' "genre page must show the cooldown banner"
+Assert-Contains $xg2 'sortMode' "genre page must have a Newest/A-Z sort control"
 $ws3 = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
 Assert-Contains $ws3 'notice: true' "a blocked xoxo lane must emit a notice row, never a silent empty group"
 Assert-Contains $mainQml 'data.notice' "search-open must ignore notice rows"

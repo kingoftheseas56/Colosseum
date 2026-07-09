@@ -22,6 +22,26 @@ Item {
     property string lastFirstId: ""      // overflow guard: repeated first id = true end
     property bool loading: true
     property int cooldownMs: 0           // >0 → source rate-limited, banner shows countdown
+    property string sortMode: "new"      // "new" (as fetched) | "az" (title A–Z)
+
+    // view-only reorder — the fetch/overflow order is untouched. A–Z uses a natural
+    // compare so "Batman 2" sorts before "Batman 10".
+    readonly property var shownItems: {
+        if (sortMode !== "az") return items
+        return items.slice().sort(function(a, b) { return natCmp(a.title, b.title) })
+    }
+    function natCmp(a, b) {
+        var ax = String(a).toLowerCase().match(/(\d+)|(\D+)/g) || []
+        var bx = String(b).toLowerCase().match(/(\d+)|(\D+)/g) || []
+        for (var i = 0; i < Math.max(ax.length, bx.length); i++) {
+            var av = ax[i], bv = bx[i]
+            if (av === undefined) return -1
+            if (bv === undefined) return 1
+            if (/^\d/.test(av) && /^\d/.test(bv)) { var d = Number(av) - Number(bv); if (d) return d }
+            else if (av !== bv) return av < bv ? -1 : 1
+        }
+        return 0
+    }
 
     Theme { id: theme }
 
@@ -138,6 +158,28 @@ Item {
                     text: page.items.length + " series" + (page.hasMore ? " so far" : "")
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                 }
+                // sort control (Newest / A–Z) — view-only reorder
+                Row {
+                    spacing: 8
+                    topPadding: 6
+                    Repeater {
+                        model: [{ k: "new", l: "Newest" }, { k: "az", l: "A–Z" }]
+                        delegate: Rectangle {
+                            required property var modelData
+                            height: 28; radius: 14
+                            width: pillT.implicitWidth + 30
+                            property bool on: page.sortMode === modelData.k
+                            color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.14) : theme.glassTint
+                            border.width: 1
+                            border.color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
+                            Text { id: pillT; anchors.centerIn: parent; text: modelData.l
+                                color: parent.on ? theme.gold : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 13 }
+                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: page.sortMode = modelData.k }
+                        }
+                    }
+                }
             }
 
             Item { width: 1; height: 26 }
@@ -151,7 +193,7 @@ Item {
                 readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
 
                 Repeater {
-                    model: page.items
+                    model: page.shownItems
                     delegate: Column {
                         id: tile
                         required property var modelData
