@@ -2,6 +2,7 @@
 // Fed by PlayerHotkeys.groups(). No color accents beyond the existing theme, no emoji. This is a
 // read-only cheat-sheet, NOT a layout/profile editor.
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: sheet
@@ -89,6 +90,7 @@ Item {
             clip: true
             contentHeight: groupsCol.height
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: HouseScrollBar { flick: flick }
 
             Column {
                 id: groupsCol
@@ -163,5 +165,7 @@ Item {
                 }
             }
         }
+
+        ScrollGlide { flick: flick }
     }
 }

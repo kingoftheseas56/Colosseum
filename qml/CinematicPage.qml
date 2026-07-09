@@ -4,6 +4,7 @@
 // phase builds to + the road-to films + the phase's own description). ALL copy from the Fandom MCU
 // Wiki (McuApi.js) - never written here. Embeddable in the shell like UniversePage.
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "McuApi.js" as Mcu
 
@@ -56,6 +57,7 @@ Item {
         contentHeight: col.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -228,4 +230,6 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: page }
 }

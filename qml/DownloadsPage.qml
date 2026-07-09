@@ -7,6 +7,7 @@
 // say so honestly and route to their world.
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: root
@@ -244,6 +245,7 @@ Item {
         contentHeight: col.implicitHeight + 140
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -869,6 +871,8 @@ Item {
             Item { width: 1; height: 40 }
         }
     }
+
+    ScrollGlide { flick: page }
 
     // ---- fixed back / system controls (mirrors GenrePage) ----
     Item {

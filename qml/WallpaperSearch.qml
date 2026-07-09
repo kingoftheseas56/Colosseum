@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "WallpaperApi.js" as WallpaperApi
 
@@ -151,6 +152,8 @@ Item {
                 cellWidth: 154
                 cellHeight: 104
                 model: root.results
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: HouseScrollBar { flick: grid }
 
                 delegate: Rectangle {
                     id: resultTile
@@ -179,6 +182,8 @@ Item {
                 }
             }
         }
+
+        ScrollGlide { flick: grid }
     }
 
     Rectangle {

@@ -7,6 +7,7 @@
 // + ExtensionsCatalog.js (curated rails, community registry, adult wall).
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Controls
 import "ExtensionsCatalog.js" as Catalog
 
 Item {
@@ -124,6 +125,7 @@ Item {
         contentHeight: col.implicitHeight + 150
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -775,10 +777,12 @@ Item {
                                                 MouseArea { id: downMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
                                                             onClicked: Extensions.move(irow.modelData.id, 1) }
-                                            }
-                                        }
+        }
+    }
 
-                                        Rectangle {
+    ScrollGlide { flick: page }
+
+    Rectangle {
                                             width: 44; height: 44; radius: 11
                                             anchors.verticalCenter: parent.verticalCenter
                                             opacity: irow.isOn ? 1 : 0.45

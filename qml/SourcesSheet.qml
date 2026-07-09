@@ -10,6 +10,7 @@
 // answers, tagged by extension; dedup keeps the higher-priority answer. With only
 // the seeded four installed this behaves exactly as the old Torrentio-only sheet.
 import QtQuick
+import QtQuick.Controls
 import "AddonClient.js" as AddonClient
 import "Magnet.js" as Magnet
 
@@ -325,6 +326,7 @@ Item {
             visible: sheet.visibleRows.length > 0
             model: sheet.visibleRows
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: HouseScrollBar { flick: list }
 
             delegate: Item {
                 id: row
@@ -464,5 +466,7 @@ Item {
                 Timer { id: copyTickTimer; interval: 1200; onTriggered: row.copiedTick = false }
             }
         }
+
+        ScrollGlide { flick: list }
     }
 }

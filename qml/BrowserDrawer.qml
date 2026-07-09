@@ -4,6 +4,7 @@
 // keeps playing beside it. All derivations live in EpisodeBrowser.js (harness-tested);
 // this file only renders and forwards taps.
 import QtQuick
+import QtQuick.Controls
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "TheatreApi.js" as TheatreApi
 import "Magnet.js" as Magnet
@@ -223,6 +224,7 @@ Item {
 
         // ---- EPISODES list ----
         ListView {
+            id: episodeList
             visible: drawer.tab === "episodes"
             anchors.top: header.bottom
             anchors.topMargin: 10
@@ -232,6 +234,7 @@ Item {
             anchors.margins: 10
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: HouseScrollBar { flick: episodeList }
             model: drawer.episodeRows
             delegate: Item {
                 id: epRow
@@ -299,6 +302,7 @@ Item {
 
         // ---- SOURCES list ----
         ListView {
+            id: sourceList
             visible: drawer.tab === "sources"
             anchors.top: header.bottom
             anchors.topMargin: 10
@@ -308,6 +312,7 @@ Item {
             anchors.margins: 10
             clip: true
             boundsBehavior: Flickable.StopAtBounds
+            ScrollBar.vertical: HouseScrollBar { flick: sourceList }
             model: drawer.candidates
             delegate: Item {
                 id: srcRow
@@ -416,5 +421,8 @@ Item {
                 font.family: theme.ui; font.pixelSize: 12
             }
         }
+
+        ScrollGlide { flick: episodeList }
+        ScrollGlide { flick: sourceList }
     }
 }

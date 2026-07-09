@@ -5,6 +5,7 @@
 // one click off the world page's "GetComics Archives" tile. GetComics loses nothing.
 
 import QtQuick
+import QtQuick.Controls
 import "ComicsApi.js" as ComicsApi
 
 Item {
@@ -72,11 +73,13 @@ Item {
     }
 
     Flickable {
+        id: flick
         anchors.fill: parent
         contentWidth: width
         contentHeight: col.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: flick }
 
         Column {
             id: col
@@ -119,6 +122,8 @@ Item {
             Item { width: 1; height: 48 }
         }
     }
+
+    ScrollGlide { flick: flick }
 
     Text {
         anchors.centerIn: parent

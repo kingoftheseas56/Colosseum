@@ -6,3 +6,11 @@ $harness = Join-Path $PSScriptRoot "scroll_glide_harness.qml"
 $out = cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-String
 if ($LASTEXITCODE -ne 0) { throw "scroll glide load-gate failed (exit $LASTEXITCODE):`n$out" }
 Write-Host "test_scroll_glide_p0 PASS"
+
+$root = Split-Path -Parent $PSScriptRoot
+foreach ($f in @("WorldPage","DownloadsPage","ComicSeries","SearchSurface")) {
+    $c = Get-Content (Join-Path $root "qml/$f.qml") -Raw
+    if ($c -notlike "*ScrollGlide*") { throw "$f missing ScrollGlide" }
+    if ($c -notlike "*HouseScrollBar*") { throw "$f missing HouseScrollBar" }
+}
+Write-Host "scroll sweep contract PASS"

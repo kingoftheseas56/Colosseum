@@ -6,6 +6,7 @@
 // Hover a tile -> its identity updates live on the right (the seed of PS4 "try it on live").
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 import QtQuick.Layouts
 
@@ -227,6 +228,7 @@ Window {
                 cellHeight: cellWidth * 0.70
                 model: root.tiles
                 boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: HouseScrollBar { flick: grid }
 
                 delegate: Item {
                     required property int index
@@ -290,5 +292,7 @@ Window {
                 }
             }
         }
+
+        ScrollGlide { flick: grid }
     }
 }

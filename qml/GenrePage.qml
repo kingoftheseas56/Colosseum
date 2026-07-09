@@ -7,6 +7,7 @@
 // Signature: the genre is its OWN art — its top covers wash behind the title (GenreMosaic doctrine),
 // and the rank ordinal encodes the by-readers popularity sort (real info, not decoration).
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "GenreApi.js" as Api
 
@@ -68,6 +69,7 @@ Item {
         contentHeight: col.implicitHeight + 44
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -312,6 +314,8 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: page }
 
     // ---- fixed back / system controls over the page (mirrors UniversePage) ----
     Item {

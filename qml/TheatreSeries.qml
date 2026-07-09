@@ -436,6 +436,7 @@ Item {
         contentHeight: pageCol.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: flick }
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
 
@@ -1053,24 +1054,7 @@ Item {
 
                         onModelChanged: positionViewAtBeginning()
 
-                        ScrollBar.vertical: ScrollBar {
-                            id: episodeScroll
-                            policy: episodeList.contentHeight > episodeList.height
-                                    ? ScrollBar.AlwaysOn : ScrollBar.AsNeeded
-                            width: 8
-                            anchors.right: parent.right
-                            anchors.rightMargin: 18
-                            contentItem: Rectangle {
-                                implicitWidth: 4
-                                radius: 2
-                                color: episodeScroll.active ? theme.gold : Qt.rgba(1, 1, 1, 0.32)
-                            }
-                            background: Rectangle {
-                                implicitWidth: 8
-                                radius: 4
-                                color: Qt.rgba(1, 1, 1, 0.07)
-                            }
-                        }
+                        ScrollBar.vertical: HouseScrollBar { flick: episodeList }
 
                         delegate: Item {
                             id: ep
@@ -1265,11 +1249,13 @@ Item {
                                     hoverEnabled: true
                                     cursorShape: (epDl.onDisk || epDl.inQueue) ? Qt.ArrowCursor : Qt.PointingHandCursor
                                     onClicked: if (!epDl.onDisk && !epDl.inQueue) page.queueEpisodeDownload(ep.modelData)
-                                }
-                            }
                         }
                     }
+
+                    ScrollGlide { flick: episodeList }
                 }
+            }
+        }
             }
 
             Text {
@@ -1314,6 +1300,8 @@ Item {
             font.pixelSize: 14
         }
     }
+
+    ScrollGlide { flick: flick }
 
     SourcesSheet {
         id: sources

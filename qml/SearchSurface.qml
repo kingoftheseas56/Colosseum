@@ -4,6 +4,7 @@
 // host to route to that world's detail. (Biblio keeps its own richer BiblioSearch with series + libgen.)
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import "WorldSearch.js" as WorldSearch
 
@@ -188,6 +189,7 @@ Item {
         contentWidth: width
         contentHeight: content.implicitHeight + 30
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: scroll }
 
         Column {
             id: content
@@ -503,4 +505,6 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: scroll }
 }

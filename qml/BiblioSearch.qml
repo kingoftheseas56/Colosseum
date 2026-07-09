@@ -4,6 +4,7 @@
 // Live as you type (180ms). Apple Books is the source; clicking any result opens its BiblioBook detail.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
 
@@ -144,6 +145,7 @@ Item {
         contentWidth: width
         contentHeight: content.implicitHeight + 30
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: scroll }
 
         Column {
             id: content
@@ -353,4 +355,6 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: scroll }
 }

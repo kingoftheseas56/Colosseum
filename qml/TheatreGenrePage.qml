@@ -5,6 +5,7 @@
 // cards: poster · title · rank · rating; fields the source doesn't have simply don't render).
 // Cards route into the Theatre detail via itemRequested({ id, type, title, cover }).
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "TheatreGenreApi.js" as Api
 
@@ -68,6 +69,7 @@ Item {
         contentHeight: col.implicitHeight + 44
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -317,6 +319,8 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: page }
 
     // ---- fixed back / system controls over the page (mirrors UniversePage) ----
     Item {

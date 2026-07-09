@@ -16,6 +16,7 @@
 // vary widget TYPES instead of stacking rows.
 
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: world
@@ -70,6 +71,7 @@ Item {
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: board
@@ -79,4 +81,6 @@ Item {
             spacing: 36
         }
     }
+
+    ScrollGlide { flick: page }
 }

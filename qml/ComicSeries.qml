@@ -8,6 +8,7 @@
 // series-level hero only. Same glass-over-wallpaper language as MangaSeries.
 
 import QtQuick
+import QtQuick.Controls
 import "ComicsApi.js" as Api
 
 Item {
@@ -185,6 +186,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         opacity: page.loading ? 0.0 : 1.0
+        ScrollBar.vertical: HouseScrollBar { flick: flick }
         Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
 
         Column {
@@ -567,6 +569,8 @@ Item {
             Item { width: 1; height: 70 }
         }
     }
+
+    ScrollGlide { flick: flick }
 
     // ---- scroll bar: always visible when the page overflows, draggable, click-to-jump ----
     Item {

@@ -4,6 +4,7 @@
 // network. One flat section: Apple Books' genre space has no MAL-style groupings.
 // A tile emits genrePicked(name); the host opens BiblioGenrePage over this index.
 import QtQuick
+import QtQuick.Controls
 import "Catalog.js" as Catalog
 
 Item {
@@ -67,6 +68,7 @@ Item {
         contentHeight: col.implicitHeight + 50
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -188,6 +190,8 @@ Item {
             Item { width: 1; height: 40 }
         }
     }
+
+    ScrollGlide { flick: page }
 
     // ---- fixed back / system controls (mirrors GenrePage) ----
     Item {

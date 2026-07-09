@@ -4,6 +4,7 @@
 // duality (gold seam + treasure node) -> a row per medium (Manga/Anime/Specials/Movies).
 // Data: UniverseApi.js (MAL via Jikan, no login). Manga row routes into A1's MangaSeries.qml.
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Layouts
 import "UniverseApi.js" as Api
 
@@ -56,6 +57,7 @@ Item {
         contentHeight: col.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Column {
             id: col
@@ -324,4 +326,6 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: page }
 }

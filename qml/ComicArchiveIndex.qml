@@ -9,6 +9,7 @@
 // board — the curated-genre concept lives only in git history / option B now.)
 
 import QtQuick
+import QtQuick.Controls
 import "ComicsApi.js" as Api
 
 Item {
@@ -104,6 +105,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         opacity: page.loading ? 0.0 : 1.0
+        ScrollBar.vertical: HouseScrollBar { flick: flick }
         Behavior on opacity { NumberAnimation { duration: 240; easing.type: Easing.OutCubic } }
 
         Column {
@@ -235,6 +237,8 @@ Item {
             Item { width: 1; height: 70 }
         }
     }
+
+    ScrollGlide { flick: flick }
 
     // ---- loading state ----
     Column {

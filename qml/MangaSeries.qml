@@ -9,6 +9,7 @@
 // Opened from a Top-10 manga tile.
 
 import QtQuick
+import QtQuick.Controls
 import "MangaVolumes.js" as Vol
 
 Item {
@@ -205,6 +206,7 @@ Item {
         contentHeight: pageCol.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: flick }
 
         // The whole page stays invisible until fully assembled, then fades in as one finished piece.
         opacity: page.loading ? 0.0 : 1.0
@@ -688,6 +690,8 @@ Item {
             Item { width: 1; height: 70 }   // bottom breathing room
         }
     }
+
+    ScrollGlide { flick: flick }
 
     // ---- clean loading state ----
     // Shown while the page assembles; it fades out as the finished page fades in (see Flickable opacity),

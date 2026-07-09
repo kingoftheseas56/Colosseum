@@ -7,6 +7,7 @@
 // doesn't yet). Metadata + layout are real; the download list is a preview.
 
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
 
@@ -168,6 +169,7 @@ Item {
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }
 
         Item {
             id: body
@@ -403,4 +405,6 @@ Item {
             }
         }
     }
+
+    ScrollGlide { flick: page }
 }
