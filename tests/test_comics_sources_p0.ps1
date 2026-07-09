@@ -22,4 +22,9 @@ Assert-Contains $dl 'downloadPages' "explicit-URL entry point must exist for xox
 Assert-Contains $dl 'presetPages' "Job must carry preset pages (skips the WeebCentral resolver)"
 $main = Get-Content (Join-Path $root "native/main.cpp") -Raw
 Assert-Contains $main 'xoxocomic.com' "xoxo host must be IPv4-pinned (Qt-on-Windows dead-IPv6 stall)"
+$world = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
+Assert-Contains $world 'XoxoApi' "world page must feed comics rows from xoxo"
+Assert-Contains $world 'GetComics Archives' "GetComics keeps its explore door"
+if (!(Test-Path (Join-Path $root "qml/XoxoGenrePage.qml"))) { throw "MISSING: XoxoGenrePage.qml" }
+if (!(Test-Path (Join-Path $root "qml/ComicArchiveBoard.qml"))) { throw "MISSING: ComicArchiveBoard.qml" }
 Write-Host "test_comics_sources_p0 PASS"

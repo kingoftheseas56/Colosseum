@@ -11,7 +11,7 @@
 
 import QtQuick
 import "Catalog.js" as Catalog
-import "ComicsApi.js" as ComicsApi
+import "XoxoApi.js" as Xoxo
 
 WorldPage {
     id: tanko
@@ -23,12 +23,42 @@ WorldPage {
     signal westernRequested(string title)
     signal westernExploreRequested(var box)
 
-    // Explore Comics = GetComics' REAL taxonomy (publishers + franchises, live
-    // counts) — the genre facade with mock counts died 2026-07-04 (Hemanth's
-    // call: "A for sure"; GetComics has no genre axis, and neither does any
-    // keyless source — the genre brain is option B, its own spec).
-    property var comicExplore: []
-    Component.onCompleted: ComicsApi.explore(function(boxes) { tanko.comicExplore = boxes })
+    // xoxo comics routes (2026-07-09 peer-sources lane): xoxo is now the primary
+    // comics feed. A Top-Comics tile / genre-grid tile opens the xoxo issue list;
+    // the Archives box opens the GetComics taxonomy (GetComics loses nothing).
+    signal xoxoSeriesRequested(var data)        // {id, title, cover}
+    signal xoxoGenreRequested(var box)          // {id, label}
+    signal comicArchiveBoardRequested()
+
+    // Live comics feed from xoxo: Top Comics ← hot-comic; genre boxes ← xoxo's REAL
+    // genre axis (superhero/horror/DC/Marvel...) + one "GetComics Archives" door.
+    // topComicsXoxo falls back to Catalog.topComics (curated) when xoxo is offline.
+    property var topComicsXoxo: []
+    property var comicGenresXoxo: []
+    // small palette so coverless genre tiles aren't all one flat color
+    readonly property var _genrePalette: [
+        ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
+        ["#3f785a","#16281e"], ["#78703f","#2e2a16"], ["#783f5a","#301624"],
+        ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
+    ]
+    Component.onCompleted: {
+        Xoxo.exploreItems("hot-comic", 1, function(r) {
+            if (r && r.items.length > 0)
+                tanko.topComicsXoxo = r.items.slice(0, 10).map(function(s) {
+                    return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
+                             xoxo: true, id: s.id };
+                });
+        });
+        Xoxo.explore(function(boxes) {
+            var genres = boxes.filter(function(b) { return b.kind === "genre"; })
+                .map(function(b, i) {
+                    var pal = tanko._genrePalette[i % tanko._genrePalette.length];
+                    return { name: b.label, boxId: b.id, c1: pal[0], c2: pal[1] };
+                });
+            genres.push({ name: "GetComics Archives", archives: true, c1: "#4a4a4a", c2: "#151515" });
+            tanko.comicGenresXoxo = genres;
+        });
+    }
 
     FeaturedCarousel {
         kicker: "Featured in Tankoban"
@@ -57,8 +87,14 @@ WorldPage {
 
     TrendingTop10 {
         title: "Top in Tankoban — Comics"
-        items: Catalog.topComics
-        onItemClicked: (i) => tanko.westernRequested(Catalog.topComics[i].caption)
+        // Live from xoxo (its Popular shelf); the curated Catalog list is the offline fallback.
+        items: tanko.topComicsXoxo.length > 0 ? tanko.topComicsXoxo : Catalog.topComics
+        onItemClicked: (i) => {
+            var list = tanko.topComicsXoxo.length > 0 ? tanko.topComicsXoxo : Catalog.topComics
+            var it = list[i]
+            if (it.xoxo) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover })
+            else tanko.westernRequested(it.caption)
+        }
     }
 
     GenreMosaic {
@@ -69,9 +105,16 @@ WorldPage {
     }
 
     GenreMosaic {
-        title: "Explore Comics — Publishers & Franchises"
-        genres: tanko.comicExplore
-        navigable: false     // no comics index page yet — "Explore ›" would be a dead door
-        onGenreClicked: (i) => tanko.westernExploreRequested(tanko.comicExplore[i])
+        title: "Explore Comics — Genres"
+        // xoxo's REAL genre axis (superhero/horror/DC/Marvel...) + a GetComics Archives
+        // door. Replaces the old GetComics publisher/franchise boxes (those live on the
+        // Archives board now). GetComics loses nothing (peer-sources spec 2026-07-09).
+        genres: tanko.comicGenresXoxo
+        navigable: false
+        onGenreClicked: (i) => {
+            var g = tanko.comicGenresXoxo[i]
+            if (g.archives) tanko.comicArchiveBoardRequested()
+            else tanko.xoxoGenreRequested({ id: g.boxId, label: g.name })
+        }
     }
 }

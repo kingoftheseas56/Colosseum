@@ -348,6 +348,18 @@ Window {
     }
     function closeXoxoSeries() { xoxoSeriesLayer.active = false }
 
+    // ---- xoxo genre grid: one genre/shelf box as a paginated series grid ----
+    function openXoxoGenre(box) {
+        xoxoGenreLayer.box = box || ({})
+        if (xoxoGenreLayer.active && xoxoGenreLayer.item) xoxoGenreLayer.item.box = xoxoGenreLayer.box
+        else xoxoGenreLayer.active = true
+    }
+    function closeXoxoGenre() { xoxoGenreLayer.active = false }
+
+    // ---- GetComics Archives board: the publisher/franchise taxonomy, full page ----
+    function openComicArchiveBoard() { comicBoardLayer.active = true }
+    function closeComicArchiveBoard() { comicBoardLayer.active = false }
+
     // ---- western-comics archive index: the SERIES ARCHIVES under an explore box
     //      (a publisher/franchise tag holds raw release posts — this is the middle
     //      layer that shows the /tag/ archives inside it, Hemanth's 2026-07-04 call) ----
@@ -1163,6 +1175,10 @@ Window {
                     if (westernExploreSignal) westernExploreSignal.connect(win.openComicArchive)
                     var xoxoSeriesSignal = item["xoxoSeriesRequested"]
                     if (xoxoSeriesSignal) xoxoSeriesSignal.connect(win.openXoxoSeries)
+                    var xoxoGenreSignal = item["xoxoGenreRequested"]
+                    if (xoxoGenreSignal) xoxoGenreSignal.connect(win.openXoxoGenre)
+                    var comicBoardSignal = item["comicArchiveBoardRequested"]
+                    if (comicBoardSignal) comicBoardSignal.connect(win.openComicArchiveBoard)
                     var biblioGenreSignal = item["biblio" + "GenreRequested"]
                     if (biblioGenreSignal) biblioGenreSignal.connect(win.openBiblioGenre)
                     var biblioGenreIndexSignal = item["biblio" + "GenreIndexRequested"]
@@ -1407,6 +1423,42 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
+        }
+    }
+
+    // ---- xoxo genre grid layer: a genre/shelf box's paginated series grid ----
+    Loader {
+        id: xoxoGenreLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        property var box: ({})
+        source: "XoxoGenrePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.box = xoxoGenreLayer.box
+            item.backRequested.connect(win.closeXoxoGenre)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.seriesRequested.connect(win.openXoxoSeries)   // tile → issue list (over this grid)
+        }
+    }
+
+    // ---- GetComics Archives board layer: the publisher/franchise taxonomy ----
+    Loader {
+        id: comicBoardLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        source: "ComicArchiveBoard.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeComicArchiveBoard)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.boxRequested.connect(win.openComicArchive)    // box → existing archive index
         }
     }
 
