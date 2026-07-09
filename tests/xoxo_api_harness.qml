@@ -12,12 +12,16 @@ import "xoxo_fixtures.gen.js" as Fx
 QtObject {
     id: t
 
+    // ok()/fixture() THROW on failure (caught below → Qt.exit(1)). Never rely on Qt.exit
+    // alone: Qt.exit does NOT halt synchronous JS, so execution falls through to the final
+    // Qt.exit(0) and the failure is MASKED (false-green — this exact flaw hid the pages
+    // soft-block regression until a live download failed, 2026-07-10).
     function fixture(name) {
         var text = Fx.get(name)
-        if (!text || text.length < 1000) { console.log("FIXTURE EMPTY: " + name); Qt.exit(2) }
+        if (!text || text.length < 1000) throw new Error("FIXTURE EMPTY: " + name)
         return text
     }
-    function ok(cond, msg) { if (!cond) { console.log("FAIL: " + msg); Qt.exit(1) } }
+    function ok(cond, msg) { if (!cond) throw new Error("FAIL: " + msg) }
 
     Component.onCompleted: {
         try {

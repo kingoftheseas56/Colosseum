@@ -6,7 +6,9 @@ import QtQuick
 import "../qml/XoxoApi.js" as Xoxo
 
 QtObject {
-    function ok(c, m) { if (!c) { console.log("FAIL: " + m); Qt.exit(1) } }
+    // THROW on failure (caught → Qt.exit(1)); Qt.exit alone doesn't halt sync JS and the
+    // final Qt.exit(0) would mask the failure (false-green flaw found 2026-07-10).
+    function ok(c, m) { if (!c) throw new Error("FAIL: " + m) }
     Component.onCompleted: {
         try {
             Xoxo._resetCooldown()

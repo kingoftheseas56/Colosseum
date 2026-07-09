@@ -171,7 +171,11 @@ function isSoftBlock(html, verb, slug) {
     if (verb === "issues")
         return html.indexOf("/comic/" + slug + "/issue-") < 0;
     if (verb === "pages") {
-        var re = new RegExp("data-original='[^']*" + String(slug).replace(/\//g, "\\/") + "\\/[0-9]+\\.");
+        // Real page images ride data-original='…/<slug>/<uploadId>/<page>.jpg' — an EXTRA
+        // numeric segment sits between slug and page number (proven by fixture AND live
+        // 2026-07-10; the old `slug/<digits>.` form matched nothing and false-blocked every
+        // download). Positive signal = a per-slug data-original with an image extension.
+        var re = new RegExp("data-original='[^']*" + String(slug).replace(/\//g, "\\/") + "\\/[^']*\\.(jpe?g|png|webp)", "i");
         return !re.test(html);
     }
     return false;
