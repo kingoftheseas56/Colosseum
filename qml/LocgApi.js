@@ -276,3 +276,24 @@ function series(locgId, done) {
         done(det, _meta(true));
     });
 }
+
+// ── publisher browse axis (genre dropped — LOCG has no keyless genre; publisher is the
+//    comics-native axis, ratified 2026-07-09). Server-side filter proven: publisher[]=<id>. ──
+var PUBLISHERS = [
+    { id: "2",  label: "Marvel" },      { id: "1",  label: "DC" },
+    { id: "7",  label: "Image" },       { id: "5",  label: "Dark Horse" },
+    { id: "6",  label: "IDW" },         { id: "13", label: "BOOM! Studios" },
+    { id: "12", label: "Dynamite" },    { id: "21", label: "Archie" }
+];
+function publisherBoxes(done) {
+    done(PUBLISHERS.map(function(p) { return { id: p.id, label: p.label, kind: "publisher" }; }));
+}
+function publisherUrl(pubId, page) {
+    return BASE_URL + "?list=search&list_option=series&view=thumbs&title=&order=alpha-asc&publisher%5B%5D=" +
+           encodeURIComponent(pubId) + (page > 1 ? "&page=" + page : "");
+}
+function publisherItems(pubId, page, done) {
+    _cachedVerb(publisherUrl(pubId, page), parseSeriesList, function(items, meta) {
+        done({ items: items, hasMore: items.length >= 100 }, meta);
+    });
+}

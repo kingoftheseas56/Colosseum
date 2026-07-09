@@ -89,6 +89,17 @@ QtObject {
             t.ok(top && top.length > 0 && top.length <= 10, "verb: top10 max 10", fails);
             t.ok(top.length < 2 || top[0].pulls >= top[1].pulls, "verb: top10 pulls-desc", fails);
 
+            // ── publisher axis ──
+            var boxes = null;
+            Locg.publisherBoxes(function(b) { boxes = b; });
+            t.ok(boxes && boxes.length >= 5, "pub: boxes exist", fails);
+            t.ok(boxes[0].id.length > 0 && boxes[0].label.length > 0 && boxes[0].kind === "publisher", "pub: box shape", fails);
+            served[Locg.publisherUrl("2", 1)] = Fx.get("popular.json");   // same series/search shape
+            var pi = null;
+            Locg.publisherItems("2", 1, function(r, meta) { pi = r; });
+            t.ok(pi && pi.items.length > 0, "pub: items parse", fails);
+            t.ok(typeof pi.hasMore === "boolean", "pub: hasMore flag", fails);
+
             if (fails.length > 0) {
                 console.error("FAILS: " + fails.join(" | "))
                 Qt.exit(1)
