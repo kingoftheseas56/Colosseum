@@ -8,6 +8,12 @@ if ($LASTEXITCODE -ne 0) { throw "scroll glide load-gate failed (exit $LASTEXITC
 Write-Host "test_scroll_glide_p0 PASS"
 
 $root = Split-Path -Parent $PSScriptRoot
+$bar = Get-Content (Join-Path $root "qml/HouseScrollBar.qml") -Raw
+if ($bar -notlike "*HoverHandler*") { throw "HouseScrollBar must reveal from edge hover, not from normal scroll." }
+if ($bar -like "*bar.active*") { throw "HouseScrollBar must not reveal from ScrollBar.active during normal wheel scroll." }
+if ($bar -notlike "*anchors.rightMargin: 0*") { throw "HouseScrollBar must attach flush to the right edge." }
+if ($bar -notlike "*background: Item*") { throw "HouseScrollBar must not paint a track or black rail." }
+
 foreach ($f in @("WorldPage","DownloadsPage","ComicSeries","SearchSurface")) {
     $c = Get-Content (Join-Path $root "qml/$f.qml") -Raw
     if ($c -notlike "*ScrollGlide*") { throw "$f missing ScrollGlide" }

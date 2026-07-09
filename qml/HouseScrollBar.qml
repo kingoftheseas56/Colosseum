@@ -1,6 +1,6 @@
 // HouseScrollBar - the one scrollbar for the whole app. Attach:
 // `ScrollBar.vertical: HouseScrollBar { flick: parent }`.
-// Overlay (no layout width), gold while active, hidden/faint idle, hidden when content fits.
+// Overlay (no layout width), flush to the edge, revealed only when the mouse enters the edge zone.
 import QtQuick
 import QtQuick.Controls
 
@@ -8,33 +8,51 @@ ScrollBar {
     id: bar
 
     property Flickable flick: null
+    property bool revealed: edgeHover.hovered || bar.pressed
 
     orientation: Qt.Vertical
     policy: (flick && flick.contentHeight > flick.height) ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
     anchors.right: flick ? flick.right : undefined
     anchors.top: flick ? flick.top : undefined
     anchors.bottom: flick ? flick.bottom : undefined
-    anchors.rightMargin: 4
-    width: 10
+    anchors.rightMargin: 0
+    width: 18
+    leftPadding: 0
+    rightPadding: 0
+    topPadding: 0
+    bottomPadding: 0
+
+    HoverHandler {
+        id: edgeHover
+        acceptedDevices: PointerDevice.Mouse
+    }
 
     Theme {
         id: theme
     }
 
-    contentItem: Rectangle {
-        implicitWidth: 3
-        radius: 2
-        color: bar.active ? theme.gold : Qt.rgba(1, 1, 1, 0.22)
-        opacity: bar.active ? 1.0 : 0.0
+    contentItem: Item {
+        implicitWidth: 18
 
-        Behavior on opacity {
-            NumberAnimation {
-                duration: 400
+        Rectangle {
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            width: 3
+            radius: 2
+            color: bar.pressed ? theme.gold : Qt.rgba(1, 1, 1, 0.34)
+            opacity: bar.revealed ? 1.0 : 0.0
+
+            Behavior on opacity {
+                NumberAnimation {
+                    duration: 180
+                }
             }
         }
     }
 
-    background: Rectangle {
-        color: "transparent"
+    background: Item {
+        implicitWidth: 0
+        implicitHeight: 0
     }
 }
