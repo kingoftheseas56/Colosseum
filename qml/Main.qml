@@ -611,7 +611,8 @@ Window {
         if (data && data.notice) return   // a cooldown/status notice row isn't clickable content
         win.closeWorldSearch()
         if (worldSearchLayer.searchMode === "Tankoban") {
-            if (data && data.xoxo) win.openXoxoSeries(data)   // xoxo issue list (peer source)
+            if (data && data.locg) win.openXoxoSeries(data)        // LOCG catalogue series → resolve+attach
+            else if (data && data.xoxo) win.openXoxoSeries(data)   // xoxo issue list (Continue/session)
             else if (data && data.western) win.openWestern(data)   // GetComics shelf, not WeebCentral
             else win.openSeries(data.title)
         } else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)

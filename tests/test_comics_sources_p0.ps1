@@ -13,17 +13,16 @@ Assert-Contains $sources 'kind: "issues"' "xoxo kind routes the issue-based flow
 Assert-Contains $sources 'key: "getcomics"' "getcomics registered"
 Assert-Contains $sources 'kind: "archives"' "getcomics kind routes the archive flow"
 $search = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
-Assert-Contains $search 'function searchXoxo' "xoxo search fan-out must exist"
-Assert-Contains $search 'XOXO"' "xoxo results carry their own group label ending in XOXO"
+Assert-Contains $search 'function searchLocg' "comics search fan-out must ride the LOCG catalogue lane"
 Assert-Contains $search 'GetComics"' "getcomics results carry their own group label"
-Assert-Contains $search 'data: { xoxo: true' "xoxo results must carry routing data"
+Assert-Contains $search 'data: { locg: true' "locg results must carry routing data"
 $dl = Get-Content (Join-Path $root "native/engine/MangaDownloader.h") -Raw
 Assert-Contains $dl 'downloadPages' "explicit-URL entry point must exist for xoxo issues"
 Assert-Contains $dl 'presetPages' "Job must carry preset pages (skips the WeebCentral resolver)"
 $main = Get-Content (Join-Path $root "native/main.cpp") -Raw
 Assert-Contains $main 'xoxocomic.com' "xoxo host must be IPv4-pinned (Qt-on-Windows dead-IPv6 stall)"
 $world = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
-Assert-Contains $world 'XoxoApi' "world page must feed comics rows from xoxo"
+Assert-Contains $world 'LocgApi' "world page must feed comics rows from the LOCG catalogue (Task 7 re-drive)"
 Assert-Contains $world 'GetComics Archives' "GetComics keeps its explore door"
 if (!(Test-Path (Join-Path $root "qml/XoxoGenrePage.qml"))) { throw "MISSING: XoxoGenrePage.qml" }
 if (!(Test-Path (Join-Path $root "qml/ComicArchiveBoard.qml"))) { throw "MISSING: ComicArchiveBoard.qml" }

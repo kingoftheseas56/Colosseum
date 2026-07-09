@@ -6,7 +6,7 @@
 // Both verified reachable 2026-06-27; GetComics WP REST proven 2026-07-04.
 .pragma library
 .import "ComicsApi.js" as ComicsApi
-.import "XoxoApi.js" as Xoxo
+.import "LocgApi.js" as Locg
 
 function reqJson(url, done) {
     var xhr = new XMLHttpRequest();
@@ -191,17 +191,16 @@ function searchWestern(query, done) {
     });
 }
 
-// ── xoxo: per-issue comics (peer source — its own group, its own failures) ──
-// A blocked (rate-limited) source contributes ONE non-clickable notice row to its group
-// instead of a silent empty section — the user always knows WHY xoxo is quiet (Spec A).
-function searchXoxo(query, done) {
-    Xoxo.searchSeries(query, function(items, meta) {
+// ── LOCG: the comics CATALOGUE search lane (500k+ comics, keyless database). Replaces
+//    the xoxo browse lane — xoxo is the content layer now, not a search surface. A blocked/
+//    offline LOCG contributes ONE honest notice row instead of a silent empty section. ──
+function searchLocg(query, done) {
+    Locg.searchSeries(query, function(items, meta) {
         if (meta && meta.blocked) {
-            var mins = Math.max(1, Math.round((meta.retryInMs || 0) / 60000));
             done([{
-                cover: "", title: "XOXO is cooling down — retry in ~" + mins + "m",
-                subtitle: "", meta: "XOXO   ·   rate-limited", synopsis: "", backdrop: "",
-                group: "Comics · XOXO", data: { notice: true }
+                cover: "", title: "Comics catalogue unreachable — showing nothing rather than garbage",
+                subtitle: "", meta: "LOCG   ·   offline", synopsis: "", backdrop: "",
+                group: "Comics", data: { notice: true }
             }]);
             return;
         }
@@ -209,12 +208,12 @@ function searchXoxo(query, done) {
             return {
                 cover: s.cover,
                 title: s.title,
-                subtitle: "Comic series",
-                meta: "XOXO   ·   Comic series",
-                synopsis: "",
-                backdrop: "",
-                group: "Comics · XOXO",
-                data: { xoxo: true, id: s.id, title: s.title, cover: s.cover }
+                subtitle: s.publisher || "Comic series",
+                meta: "Comics   ·   " + (s.publisher || "Series"),
+                synopsis: "", backdrop: "",
+                group: "Comics",
+                data: { locg: true, id: s.id, title: s.title, cover: s.cover,
+                        locgMeta: { publisher: s.publisher, startYear: s.startYear } }
             };
         }));
     });
@@ -222,18 +221,18 @@ function searchXoxo(query, done) {
 
 function searchTankoban(query, done) {
     if (!query || query.trim().length < 2) { done([]); return; }
-    var manga = null, western = null, xoxo = null;
+    var manga = null, western = null, locg = null;
     function finish() {
-        if (manga === null || western === null || xoxo === null) return;
+        if (manga === null || western === null || locg === null) return;
         // Top Match = most title-relevant hit across ALL lanes, via the shared scorer
         // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
         // Each lane degrades to [] on its own failure — peer independence is free.
         var rank = function(lane) { lane.forEach(function(r, i) { r.rank = i; }); return lane; };
-        done(pickTopMatch(query, rank(manga).concat(rank(xoxo)).concat(rank(western))));
+        done(pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(western))));
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });
-    searchXoxo(query, function(items) { xoxo = items || []; finish(); });
+    searchLocg(query, function(items) { locg = items || []; finish(); });
 }
 
 function searchFor(mode, query, done) {
