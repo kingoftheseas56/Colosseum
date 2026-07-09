@@ -32,27 +32,33 @@ ScrollBar {
     }
 
     contentItem: Item {
-        implicitWidth: 18
-
-        Rectangle {
-            anchors.top: parent.top
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            width: 3
-            radius: 2
-            color: bar.pressed ? theme.gold : Qt.rgba(1, 1, 1, 0.34)
-            opacity: bar.revealed ? 1.0 : 0.0
-
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: 180
-                }
-            }
-        }
-    }
-
-    background: Item {
         implicitWidth: 0
         implicitHeight: 0
+        visible: false
+    }
+
+    background: Rectangle {
+        implicitWidth: 0
+        implicitHeight: 0
+        color: "transparent"
+        visible: false
+    }
+
+    Rectangle {
+        id: thumb
+        anchors.right: parent.right
+        width: 3
+        height: Math.max(34, bar.visualSize * bar.height)
+        y: Math.max(0, Math.min(bar.height - height, bar.visualPosition * bar.height))
+        radius: 2
+        color: bar.pressed ? theme.gold : Qt.rgba(1, 1, 1, 0.46)
+        opacity: bar.revealed ? 1.0 : 0.0
+        visible: bar.policy !== ScrollBar.AlwaysOff
+
+        Behavior on opacity {
+            NumberAnimation {
+                duration: 180
+            }
+        }
     }
 }
