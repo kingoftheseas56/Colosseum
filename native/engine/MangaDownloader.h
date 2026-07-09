@@ -49,6 +49,11 @@ public:
     explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr);
     ~MangaDownloader() override;
 
+    // Host → IPv4 pins (dead-IPv6 machine). xoxo image hosts publish AAAA records, so
+    // on this ISP's dead IPv6 route Qt would stall ~21s/connection — same scar the
+    // CachingNam / MangaEngine pins fix. Applied per image request in fetchImage.
+    void setIpv4Pins(const QHash<QString, QString>& pins) { m_pins = pins; }
+
     // ---- QML entry points ----
 
     // Queue a single chapter for download. Idempotent: an already-downloaded or
@@ -57,6 +62,16 @@ public:
                                      const QString& seriesId,
                                      const QString& seriesTitle,
                                      const QString& chapterLabel);
+
+    // Queue a chapter whose page URLs are ALREADY resolved (xoxo issues: QML's
+    // XoxoApi.pages() parsed them from the /all reading page). Skips the
+    // WeebCentral resolver; everything downstream (queue, retries, loose page
+    // files, index, localPages/statusOf/delete/cancel) is the same machinery.
+    Q_INVOKABLE void downloadPages(const QString& chapterId,
+                                   const QString& seriesId,
+                                   const QString& seriesTitle,
+                                   const QString& chapterLabel,
+                                   const QVariantList& pageUrls);
 
     // The local-read FLIP. Returns [{index:int, url:"file:///.../page_NNN.ext"}]
     // for a downloaded chapter, or an empty list if it isn't downloaded — the
@@ -107,6 +122,7 @@ private:
         QString dir;                 // resolved chapter directory
         WeebCentralScraper* scraper = nullptr;
         QList<PageInfo> pages;
+        QList<PageInfo> presetPages;   // non-empty = skip the scraper (downloadPages path)
         QStringList files;           // index-aligned saved filenames ("" until saved)
         int total = 0;
         int done = 0;
@@ -150,6 +166,7 @@ private:
     void writeEntry(const Job* job);
 
     QNetworkAccessManager* m_nam = nullptr;
+    QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)
     QHash<QString, Entry> m_index;                 // chapterId -> entry
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs

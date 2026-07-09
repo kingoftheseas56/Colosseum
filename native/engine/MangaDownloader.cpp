@@ -168,6 +168,32 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     pumpQueue();
 }
 
+void MangaDownloader::downloadPages(const QString& chapterId, const QString& seriesId,
+                                    const QString& seriesTitle, const QString& chapterLabel,
+                                    const QVariantList& pageUrls)
+{
+    if (chapterId.isEmpty() || pageUrls.isEmpty()) return;
+    if (isDownloaded(chapterId)) { emit finished(chapterId); return; }
+    if (m_active.contains(chapterId)) return;
+    for (const Job* q : m_queue) if (q->chapterId == chapterId) return;   // already queued
+
+    Job* job = new Job;
+    job->chapterId    = chapterId;
+    job->seriesId     = seriesId;
+    job->seriesTitle  = seriesTitle;
+    job->chapterLabel = chapterLabel;
+    job->dir          = chapterDir(seriesId, chapterId);
+    for (int i = 0; i < pageUrls.size(); ++i) {
+        PageInfo p;
+        p.index = i;
+        p.imageUrl = pageUrls[i].toString();
+        job->presetPages.append(p);
+    }
+    m_queue.enqueue(job);
+    emit progress(chapterId, 0, 0);
+    pumpQueue();
+}
+
 QVariantList MangaDownloader::localPages(const QString& chapterId) const
 {
     QVariantList out;
@@ -400,6 +426,10 @@ void MangaDownloader::pumpQueue()
 void MangaDownloader::beginJob(Job* job)
 {
     QDir().mkpath(job->dir);
+    if (!job->presetPages.isEmpty()) {          // downloadPages path: URLs already resolved
+        onPagesReady(job, job->presetPages);    // scraper stays nullptr (cleanup is guarded)
+        return;
+    }
     job->scraper = new WeebCentralScraper(m_nam, this);
     connect(job->scraper, &MangaScraper::pagesReady, this,
             [this, job](const QList<PageInfo>& pages) { onPagesReady(job, pages); });
@@ -456,14 +486,30 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
 
     const QString url = job->pages[pageIndex].imageUrl;
-    QNetworkRequest req{QUrl(url)};
+    QUrl u(url);
+    const QString host = u.host();
+    QNetworkRequest req{u};
     req.setRawHeader("User-Agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0 Safari/537.36");
-    req.setRawHeader("Referer", "https://weebcentral.com/");
+    // Same-origin Referer per source: xoxo images want no cross-origin referer (proved
+    // header-free in feasibility), so give them their own origin; manga keeps WeebCentral.
+    req.setRawHeader("Referer", host.contains("xoxocomic")
+        ? "https://xoxocomic.com/" : "https://weebcentral.com/");
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     req.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);   // we persist to disk ourselves
     req.setTransferTimeout(30000);
+
+    // IPv4 pin (dead-IPv6 machine): rewrite host → IP, keep the real hostname for TLS
+    // (peerVerifyName) and the Host header, HTTP/2 off — same recipe as CachingNam.
+    const QString ipv4 = m_pins.value(host);
+    if (!ipv4.isEmpty()) {
+        req.setRawHeader("Host", host.toUtf8());
+        req.setPeerVerifyName(host);
+        req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+        u.setHost(ipv4);
+        req.setUrl(u);
+    }
 
     QNetworkReply* reply = m_nam->get(req);
     job->replies.append(reply);

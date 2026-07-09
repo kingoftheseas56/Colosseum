@@ -17,4 +17,9 @@ Assert-Contains $search 'function searchXoxo' "xoxo search fan-out must exist"
 Assert-Contains $search 'XOXO"' "xoxo results carry their own group label ending in XOXO"
 Assert-Contains $search 'GetComics"' "getcomics results carry their own group label"
 Assert-Contains $search 'data: { xoxo: true' "xoxo results must carry routing data"
+$dl = Get-Content (Join-Path $root "native/engine/MangaDownloader.h") -Raw
+Assert-Contains $dl 'downloadPages' "explicit-URL entry point must exist for xoxo issues"
+Assert-Contains $dl 'presetPages' "Job must carry preset pages (skips the WeebCentral resolver)"
+$main = Get-Content (Join-Path $root "native/main.cpp") -Raw
+Assert-Contains $main 'xoxocomic.com' "xoxo host must be IPv4-pinned (Qt-on-Windows dead-IPv6 stall)"
 Write-Host "test_comics_sources_p0 PASS"
