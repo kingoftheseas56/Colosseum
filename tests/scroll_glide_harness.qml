@@ -1,5 +1,7 @@
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
+import "../qml"
 
 Window {
     visible: true
@@ -17,6 +19,20 @@ Window {
         id: ld
         source: "../qml/ScrollGlide.qml"
         onLoaded: item.flick = f
+    }
+
+    Flickable {
+        id: barFlick
+        width: 120
+        height: 220
+        contentWidth: width
+        contentHeight: 900
+        anchors.right: parent.right
+        anchors.top: parent.top
+
+        ScrollBar.vertical: HouseScrollBar {
+            flick: parent
+        }
     }
 
     Timer {
