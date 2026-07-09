@@ -512,6 +512,24 @@ static bool looksLikeImage(const QByteArray& d, const QString& ct)
     return c.startsWith(QLatin1String("image/"));   // declared image, unknown magic — allow (rare CDN)
 }
 
+// Decide what a finished page-image reply IS, purely from the transport error + body.
+// xoxo quirk: images arrive as HTTP 404 with real bytes (keiyoushi xoxocomics interceptor
+// documents this) — trust magic bytes, not status. So the image check comes FIRST and wins
+// regardless of err (a 404 sets QNetworkReply::ContentNotFoundError yet readAll() still
+// carries the real image). Only if the body is NOT an image do we split by transport state:
+// a clean HTTP 200 that returned sizeable HTML is the soft-block (throttle) → pause+resume;
+// anything else (connection error, empty, non-image on a real error status) → retry ladder.
+MangaDownloader::PageVerdict MangaDownloader::classifyPageReply(QNetworkReply::NetworkError err,
+                                                               const QByteArray& body,
+                                                               const QString& contentType)
+{
+    if (body.size() > MIN_VALID_BYTES && looksLikeImage(body, contentType))
+        return PageVerdict::Accept;
+    if (err == QNetworkReply::NoError && body.size() > MIN_VALID_BYTES)
+        return PageVerdict::SoftBlock;   // clean 200 + sizeable non-image HTML = throttle
+    return PageVerdict::Error;
+}
+
 void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
 {
     if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
@@ -548,15 +566,17 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         reply->deleteLater();
         job->replies.removeOne(reply);
         if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
+        // readAll() carries the body even on an error status (e.g. xoxo's HTTP 404), so we
+        // read it BEFORE branching on error() — the magic bytes, not the status, decide.
         const QByteArray data = reply->readAll();
         const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
-        // Validate it's a real image — a soft-block that returns HTML with HTTP 200 must
-        // NOT be written to disk as a page (else the reader shows blank/undecodable pages).
-        const bool ok = reply->error() == QNetworkReply::NoError
-                        && data.size() > MIN_VALID_BYTES
-                        && looksLikeImage(data, ct);
+        // xoxo quirk: images arrive as HTTP 404 with real bytes (keiyoushi xoxocomics
+        // interceptor documents this) — trust magic bytes, not status. classifyPageReply()
+        // accepts ANY reply whose body IS an image; only a clean-200 sizeable non-image is
+        // the soft-block; everything else is a real error.
+        const PageVerdict verdict = classifyPageReply(reply->error(), data, ct);
 
-        if (ok) {
+        if (verdict == PageVerdict::Accept) {
             const QString ext = extForContentType(ct, job->pages[pageIndex].imageUrl);
             const QString name = QStringLiteral("page_%1.%2")
                                      .arg(pageIndex, 3, 10, QChar('0')).arg(ext);
@@ -571,8 +591,7 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         // burn 3 fast retries into the wall — pause this page 120s and resume, up to 3
         // waves, then fail honestly. Distinguished from a real error: arrived cleanly,
         // sizeable, but not an image (2026-07-09).
-        const bool wasSoftBlock = reply->error() == QNetworkReply::NoError
-                                  && data.size() > MIN_VALID_BYTES && !looksLikeImage(data, ct);
+        const bool wasSoftBlock = verdict == PageVerdict::SoftBlock;
         if (wasSoftBlock && !job->presetPages.isEmpty() && job->coolWaves < 3) {
             job->coolWaves++;
             emit paused(job->chapterId, 120000);

@@ -27,6 +27,7 @@
 #include "MangaResult.h"
 
 #include <QObject>
+#include <QNetworkReply>
 #include <QHash>
 #include <QList>
 #include <QQueue>
@@ -187,4 +188,17 @@ private:
     static constexpr int IMAGE_CONCURRENCY       = 3;
     static constexpr int MAX_IMAGE_RETRIES       = 3;
     static constexpr qint64 MIN_VALID_BYTES      = 1024;   // < 1 KB = truncated/placeholder
+
+public:
+    // Pure classification of a finished page-image reply — extracted so the accept/
+    // soft-block/error decision is testable in isolation (no live network). The reply
+    // handler in fetchImage() dispatches on this verdict.
+    enum class PageVerdict {
+        Accept,     // body IS an image — save it, whatever the HTTP status says
+        SoftBlock,  // arrived clean at HTTP 200 but is sizeable non-image HTML — pause+resume
+        Error       // connection error / empty / non-image on a real error status — retry ladder
+    };
+    static PageVerdict classifyPageReply(QNetworkReply::NetworkError err,
+                                         const QByteArray& body,
+                                         const QString& contentType);
 };
