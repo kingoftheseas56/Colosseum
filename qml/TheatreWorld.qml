@@ -76,6 +76,7 @@ WorldPage {
         items: theatre.continueRows
         onResumeRequested: (item) => theatre.continueResumeRequested(item)
         onDetailRequested: (item) => theatre.continueDetailRequested(item)
+        onSeeAllRequested: theatre.continueSeeAllRequested()
     }
 
     TheatreTabBar {

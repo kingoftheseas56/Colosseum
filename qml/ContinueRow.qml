@@ -12,6 +12,7 @@ Column {
     property var items: []              // Progress entries: { id, kind, title|caption, sub, cover, c1, c2, progress, watched, resume }
     signal resumeRequested(var item)    // center icon → resume INTO the content
     signal detailRequested(var item)    // anywhere else → the series / detail view
+    signal seeAllRequested()            // header "See all ›" → the scoped see-all page
 
     // unfinished first (both halves keep their recency order), watched sink to the back
     readonly property var ordered: items.filter(function(e) { return e.watched !== true })
@@ -23,8 +24,12 @@ Column {
     // skips invisible children — so an empty Continue leaves no gap.
     visible: cont.items.length > 0
 
-    // navigable off: the '›' affordance led nowhere (audit) — it returns when a see-all page exists
-    WidgetHeader { width: parent.width; title: cont.title; navigable: false }
+    // the '›' is honest now — it opens the scoped see-all page (audit debt paid 2026-07-11)
+    WidgetHeader {
+        width: parent.width; title: cont.title
+        moreLabel: "See all"
+        onMoreClicked: cont.seeAllRequested()
+    }
 
     Flickable {
         width: parent.width; height: 196

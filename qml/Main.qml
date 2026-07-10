@@ -210,6 +210,7 @@ Window {
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
         else if (comicIndexLayer.active) win.closeComicArchive()
+        else if (continueSeeAllLayer.active) win.closeContinueSeeAll()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
@@ -290,6 +291,15 @@ Window {
     //      or the genre page's "Explore" pill. ----
     function openGenreIndex() { genreIndexLayer.active = true }
     function closeGenreIndex() { genreIndexLayer.active = false }
+
+    // ---- Continue see-all: the whole resume backlog, scoped per door (spec: haven
+    //      docs/superpowers/specs/2026-07-11-colosseum-continue-see-all-design.md) ----
+    function openContinueSeeAll(scope) {
+        continueSeeAllLayer.scope = scope
+        if (continueSeeAllLayer.active && continueSeeAllLayer.item) continueSeeAllLayer.item.scope = scope
+        else continueSeeAllLayer.active = true
+    }
+    function closeContinueSeeAll() { continueSeeAllLayer.active = false }
 
     function openBiblioGenre(name) {
         biblioGenreLayer.genreName = name
@@ -1179,7 +1189,7 @@ Window {
                             .concat(a.filter(function(e) { return e.watched === true }))
                 })())
                 visible: contItems.length > 0
-                RowHeader { title: "Continue"; navigable: false }   // unified resume row, not a world
+                RowHeader { title: "Continue"; onClicked: win.openContinueSeeAll("home") }   // ‹›  the whole backlog
                 Flickable {
                     id: contFlick
                     width: parent.width; height: 148
@@ -1284,6 +1294,10 @@ Window {
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                    if (item.continueSeeAllRequested) item.continueSeeAllRequested.connect(function() {
+                        win.openContinueSeeAll(mode === "Theatre" ? "video"
+                                             : mode === "Biblio"  ? "book" : "tankoban")
+                    })
                     if (item.wallpaperClicked) item.wallpaperClicked.connect(function() { win.openWallpaperSearch(mode) })
                     if (mode === "Theatre") {
                         var theatreSignal = item["theatre" + "ItemRequested"]
@@ -1550,6 +1564,29 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.seriesRequested.connect(win.openXoxoSeries)   // tile → issue list (over this grid)
+        }
+    }
+
+    // ---- Continue see-all layer: the whole resume backlog, scoped per door (home/world).
+    //      z 49: above world pages, below the detail/series layers (z 50+) so a tapped tile
+    //      opens its detail OVER the backlog and back returns here. ----
+    Loader {
+        id: continueSeeAllLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        property string scope: "home"
+        source: "ContinueSeeAllPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.scope = continueSeeAllLayer.scope
+            item.backRequested.connect(win.closeContinueSeeAll)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.resumeRequested.connect(win.resumeContinue)     // same sinks the rows use
+            item.detailRequested.connect(win.detailContinue)
         }
     }
 

@@ -33,6 +33,7 @@ Item {
     signal genreIndexRequested()             // tapped a genre widget's "Explore" → host opens the full genre index
     signal continueResumeRequested(var item) // Continue tile's center icon → host resumes the content
     signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
+    signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
     signal searchClicked()
     signal settingsClicked()
     signal wallpaperClicked()

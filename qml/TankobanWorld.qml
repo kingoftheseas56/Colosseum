@@ -90,6 +90,7 @@ WorldPage {
         })())
         onResumeRequested: (item) => tanko.continueResumeRequested(item)
         onDetailRequested: (item) => tanko.continueDetailRequested(item)
+        onSeeAllRequested: tanko.continueSeeAllRequested()
     }
 
     TrendingTop10 {

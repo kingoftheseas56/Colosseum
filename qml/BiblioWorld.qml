@@ -47,6 +47,7 @@ WorldPage {
         items: (Progress.revision, Progress.recent("book", 12))
         onResumeRequested: (item) => biblio.continueResumeRequested(item)
         onDetailRequested: (item) => biblio.continueDetailRequested(item)
+        onSeeAllRequested: biblio.continueSeeAllRequested()
     }
 
     TrendingTop10 {
