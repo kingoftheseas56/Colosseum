@@ -58,3 +58,34 @@ function resolve(locgSeries, done) {
 // A blocked source (cooldown) is neither persisted NOR marked in _miss — the blocked early-return
 // happens BEFORE any store.set / _miss write, so a cooldown never poisons the mapping and a
 // later un-blocked resolve of the same id re-searches. Retry is free.
+
+// ── issue-level attach: LOCG issue rows ↔ GetComics release posts ──
+// Key = normalized-base + "#" + normalized-number ("Saga #43 (2017)" → "saga#43").
+// Base equality keeps annuals/spin-offs apart (different base = different comic —
+// never cross-match). Duplicate GC posts for the SAME key are the same comic
+// re-posted (better mirrors) — prefer the newest. Collections (TPB/Omnibus…) are
+// split into their own list, never matched onto issue rows (spec: containment
+// mapping explicitly rejected as fragile).
+function _issueKey(name) {
+    var m = String(name || "").match(/^(.*?)#\s*(\d+(?:\.\d+)?)/);
+    if (!m) return null;
+    var base = _norm(m[1]);
+    if (!base.length) return null;
+    return base + "#" + String(parseFloat(m[2]));   // "#01"→"1", "#43.1"→"43.1"
+}
+function matchIssues(locgIssues, gcPosts) {
+    var byKey = {};
+    (gcPosts || []).forEach(function(p) {
+        if (p.collection) return;
+        var k = _issueKey(p.name);
+        if (!k) return;
+        if (!byKey[k] || String(p.date) > String(byKey[k].date)) byKey[k] = p;
+    });
+    var byIssue = {};
+    (locgIssues || []).forEach(function(iss) {
+        var k = _issueKey(iss.title);
+        if (k && byKey[k]) byIssue[iss.id] = byKey[k];
+    });
+    var collections = (gcPosts || []).filter(function(p) { return !!p.collection; });
+    return { byIssue: byIssue, collections: collections };
+}

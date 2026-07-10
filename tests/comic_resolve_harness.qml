@@ -79,6 +79,39 @@ Item {
         Resolve.resolve({ id: "locg:12", title: "New Thing", startYear: 2025 }, function(res) { r6b = res; });
         check("blocked: un-block re-searches + attaches", r6b && r6b.attached === true && xoxoCalls === callsBeforeUnblock + 1 && r6b.sourceId === "xoxo:new-thing");
 
+        // ===== matchIssues: LOCG issue rows ↔ GC posts =====
+        function gcPost(id, name, coll, date) { return { id: id, name: name, url: "u", sizeMB: 10, date: date || "2024-01-01", collection: !!coll }; }
+        function locgIss(id, title) { return { id: id, title: title }; }
+
+        // 7a) basic: numbered post matches numbered row; collection splits out
+        var m1 = Resolve.matchIssues(
+            [locgIss("locg:1", "Saga #43"), locgIss("locg:2", "Saga #44")],
+            [gcPost("p1", "Saga #43 (2017)"), gcPost("p2", "Saga Vol. 1 (TPB)", true)]);
+        check("mi: #43 matched", m1.byIssue["locg:1"] && m1.byIssue["locg:1"].id === "p1");
+        check("mi: #44 unmatched", !m1.byIssue["locg:2"]);
+        check("mi: collection split", m1.collections.length === 1 && m1.collections[0].id === "p2");
+
+        // 7b) zero-padding: "#01" ≡ "#1"
+        var m2 = Resolve.matchIssues([locgIss("locg:3", "Daredevil #1")], [gcPost("p3", "Daredevil #01 (2019)")]);
+        check("mi: #01 == #1", m2.byIssue["locg:3"] && m2.byIssue["locg:3"].id === "p3");
+
+        // 7c) decimals exact: "#43.1" never matches "#43"
+        var m3 = Resolve.matchIssues([locgIss("locg:4", "Batman #43")], [gcPost("p4", "Batman #43.1")]);
+        check("mi: decimal refused", !m3.byIssue["locg:4"]);
+
+        // 7d) base mismatch: an Annual never matches a plain numbered row
+        var m4 = Resolve.matchIssues([locgIss("locg:5", "Saga #1")], [gcPost("p5", "Saga Annual #1")]);
+        check("mi: annual excluded", !m4.byIssue["locg:5"]);
+
+        // 7e) duplicate posts for the SAME issue → newest wins (same comic, not a wrong-attach risk)
+        var m5 = Resolve.matchIssues([locgIss("locg:6", "Saga #43")],
+            [gcPost("p6", "Saga #43", false, "2022-05-01"), gcPost("p7", "Saga #43", false, "2024-06-01")]);
+        check("mi: newest duplicate wins", m5.byIssue["locg:6"] && m5.byIssue["locg:6"].id === "p7");
+
+        // 7f) no #N in the post name → never matched into byIssue
+        var m6 = Resolve.matchIssues([locgIss("locg:7", "Saga #43")], [gcPost("p8", "Saga Complete Run")]);
+        check("mi: unnumbered post skipped", !m6.byIssue["locg:7"]);
+
         if (fails.length) { console.error("FAILS: " + fails.join(" | ")); Qt.exit(1); return; }
         Qt.exit(0);
     }
