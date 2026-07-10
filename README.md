@@ -32,7 +32,7 @@ The interface is written in Qt Quick/QML. Native C++ objects provide the player,
 | Area | Current state |
 |---|---|
 | Home shell | Implemented: wallpaper, universe carousel, mixed Continue row, world entry boards, taskbar |
-| Tankoban | Implemented: manga, XOXO comics, GetComics archives, downloads, shared reader |
+| Tankoban | Implemented: manga; LOCG comics catalogue; XOXO issue delivery; GetComics archives; downloads; shared reader |
 | Biblio | Implemented: Apple Books discovery/search, LibGen editions/downloads, local EPUB reader |
 | Theatre | Implemented: Movies, Shows, Anime, detail pages, stream selection, mpv playback, video downloads |
 | Extensions | Implemented for Theatre: install, preview, enable, order, remove, browse community catalog |
@@ -62,12 +62,20 @@ A manga detail page is built around its volume shelf. Chapters are grouped under
 
 #### Western comics
 
-Tankoban currently has two complementary western-comics lanes:
+Western comics deliberately separate the **catalogue brain** from the **reading sources**.
 
-- **XOXO** is the primary issue-oriented catalog. Series open into ascending issue tables, then download their page images into the local manga-reading pipeline.
-- **GetComics** remains the archive and collected-edition lane. A tag acts as the series shelf, with collections, trades, omnibuses, and individual releases downloaded as archives and extracted into local pages.
+- **League of Comic Geeks (LOCG)** is the catalogue and identity layer. It powers comics search, publisher shelves, covers, publisher/year metadata, and the Home world's Top in Comics row. The ranking is built from real weekly issue pull counts, rolled up to series, because LOCG's ordinary series orders do not provide an honest popularity ranking.
+- **ComicResolve** is the attachment layer between catalogue and content. It conservatively maps a LOCG series identity to the XOXO series that actually carries readable issues. A normalized title match is required, with year used only as a disambiguator. Successful attachments are persisted; misses are remembered only for the current session so a growing source can be retried on a later launch. Ambiguous matches are refused rather than opening the wrong comic.
+- **XOXO** is the issue-delivery layer. After a LOCG series attaches, XOXO supplies the issue list and page URLs. Pages are downloaded through the local page pipeline and opened in the shared manga/comics reader.
+- **GetComics** remains a separate archive and collected-edition lane. A tag acts as the series shelf, with trades, collections, omnibuses, and individual releases downloaded as archives and extracted into local pages.
 
-The two lanes share the same Continue system and the same native reader, but retain distinct identities so XOXO issues and GetComics archives route back to the correct source.
+The comics discovery axis is **publisher**, not genre. LOCG exposes keyless publisher filtering but no reliable keyless genre filter or per-series genre tags, so Tankoban presents Marvel, DC, Image, Dark Horse, IDW, BOOM!, Dynamite, Archie, and a separate GetComics Archives door.
+
+If a LOCG series cannot be attached safely to XOXO, Colosseum shows an honest “not available from sources yet” state. Catalogue presence is never treated as proof that readable pages exist.
+
+Tankoban search runs three independent lanes in parallel: AniList manga, LOCG comic series, and GetComics archive tags. One source failing does not erase the others, and the shared title scorer selects the top match across the combined result set.
+
+LOCG/XOXO issue runs and GetComics archives share the same Continue system and native reader, but retain distinct source identities so every item resumes, downloads, and routes through the correct backend.
 
 ### Biblio
 
@@ -166,7 +174,7 @@ The player also contains state models for casting, live channels/DVR, and local 
 
 ### Manga and comics reader
 
-Manga, XOXO issues, and GetComics releases all use the same download-fed reader. It never reads directly from a remote page source: pages are saved locally first, then opened from disk.
+Manga chapters, XOXO-delivered comic issues, and GetComics releases all use the same download-fed reader. LOCG identifies and organizes comics but never supplies reader pages. The reader never opens a remote page source directly: pages are saved locally first, then opened from disk.
 
 Reading modes include:
 
@@ -207,6 +215,8 @@ It is divided into two concepts:
 
 A native `LocalDownloads` read model normalizes the separate manga, book, comic, and video backends into one shape for QML. It does not own files or network work; actions are routed back to the backend responsible for each item.
 
+For XOXO-delivered comics, issue pages flow through the same page downloader used by manga, while their progress is stored under the comic identity. GetComics releases use the archive downloader and extraction path. Source cooldowns and paused states are surfaced rather than disguised as failed downloads.
+
 The Theatre download engine provides a persistent bounded queue with lazy source resolution, pause/resume, retry, cancellation, partial-file continuation, speed/ETA reporting, season grouping, and a durable downloaded-video index. Queue state survives application restarts.
 
 ## Extensions
@@ -243,7 +253,9 @@ The store currently affects Theatre. Tankoban and Biblio have designed extension
 | Manga search, chapters, pages | WeebCentral |
 | Manga art and metadata | AniList, with Kitsu fallback |
 | Manga volumes and covers | MangaDex |
-| Issue-oriented western comics | XOXO |
+| Western comics catalogue, identity, weekly ranking, publisher shelves | League of Comic Geeks (LOCG) |
+| LOCG catalogue-to-reading attachment | `ComicResolve` maps LOCG series to XOXO identities |
+| Issue lists and page delivery for readable western comics | XOXO |
 | Western comic archives and collected editions | GetComics |
 | Book discovery and metadata | Apple Books |
 | Book editions and delivery | LibGen |
@@ -278,10 +290,17 @@ flowchart TB
     Native --> Player[MpvQt / libmpv]
     Native --> StreamServer[Local Stremio stream-server]
 
-    Providers --> Manga[Manga and comics sources]
+    Providers --> Manga[Manga sources]
+    Providers --> ComicsCatalog[LOCG catalogue and identity]
+    Providers --> Xoxo[XOXO issue delivery]
+    Providers --> GetComics[GetComics archive delivery]
     Providers --> Books[Apple Books + LibGen]
     Providers --> Theatre[Cinemeta + Jikan + addons]
 
+    ComicsCatalog --> Attach[ComicResolve attachment]
+    Attach --> Xoxo
+    Xoxo --> Downloads
+    GetComics --> Downloads
     StreamServer --> Player
     Downloads --> Readers[MangaReader / BookReader]
 ```
@@ -320,7 +339,7 @@ Colosseum/
 │   └── reader/             Foliate QWebChannel bridge
 ├── resources/book_reader/  Embedded Foliate-derived EPUB reader
 ├── assets/                 Icons, fonts and wallpaper assets
-├── tests/                  Contract tests and smoke/self-test harnesses
+├── tests/                  Contract tests, live-source fixtures and smoke/self-test harnesses
 └── dev.bat                 Current Windows QML live-reload loop
 ```
 
@@ -388,7 +407,7 @@ Several subsystems can be exercised at startup through environment variables:
 | `COLOSSEUM_BOOK_DLTEST=...` | Exercise book downloads |
 | `COLOSSEUM_COMIC_DLTEST=...` | Exercise comic archive downloads |
 
-The repository also contains focused PowerShell contract checks for important QML and persistence behavior.
+The repository also contains focused PowerShell contract checks and captured LOCG fixtures for important QML, source-parser, routing, and persistence behavior.
 
 ## Known boundaries
 
@@ -396,6 +415,9 @@ The repository also contains focused PowerShell contract checks for important QM
 - Vinyl is a non-interactive coming-soon entry.
 - Only One Piece and Marvel have live universe-page templates.
 - Theatre extensions are live; Tankoban and Biblio extension consumption is future work.
+- LOCG has no reliable keyless genre axis, so western-comics browsing is publisher-based.
+- A comic being catalogued by LOCG does not guarantee that XOXO carries readable pages. Unattached or ambiguous series remain unavailable rather than being guessed.
+- LOCG and XOXO can rate-limit or soft-block requests. The app spaces calls, caches session results, validates response shapes, surfaces cooldowns, and avoids persisting temporary failures.
 - Book read-aloud/Edge TTS is stubbed in the Colosseum `BookBridge`.
 - Casting, live TV/DVR, and networked watch rooms are less mature than core playback.
 - The build still assumes developer-supplied Qt, MpvQt, libmpv, and stream-server runtime dependencies.
@@ -407,6 +429,7 @@ The repository also contains focused PowerShell contract checks for important QM
 Colosseum is being built around a few recurring rules:
 
 - **Each medium gets the surface it needs.** A book detail page should not be a recolored movie page.
+- **Separate catalogue from delivery.** A strong identity source can organize a medium without pretending to provide the files. LOCG catalogues comics; XOXO and GetComics supply different reading paths.
 - **Download-fed reading.** Manga, comics, and books are persisted locally before their readers open them.
 - **One identity, many surfaces.** Continue, Downloads, and Sessions connect the worlds without erasing their differences.
 - **Native engines behind declarative UI.** QML owns presentation; C++ owns the parts that need durable state, files, processes, or native integration.
