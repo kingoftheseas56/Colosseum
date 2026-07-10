@@ -13,6 +13,8 @@
 import QtQuick
 import "XoxoApi.js" as Xoxo
 import "ComicResolve.js" as Resolve
+import "LocgApi.js" as Locg
+import "ComicsApi.js" as GcApi
 
 Item {
     id: page
@@ -36,14 +38,33 @@ Item {
 
     // display list = ascending (#1 first); reader model = newest-first (crossing order)
     readonly property var issueRows: issuesRaw.slice().reverse()
-    readonly property var chaptersModel: issuesRaw.map(function(iss) {
-        return { id: iss.issueId, name: iss.label,
-                 number: parseInt(String(iss.label || "").replace(/[^0-9]/g, ""), 10) || 0 }
+
+    // GC mode rows: LOCG issues ascending (#1 first, house rule), each carrying its
+    // matched GC post (or matched:false → honest dim, no verb). Same field names as
+    // xoxo rows so the ONE delegate serves both modes.
+    readonly property var gcIssueRows: locgIssuesRaw.slice().reverse().map(function(iss) {
+        var post = (gcMatch && gcMatch.byIssue) ? gcMatch.byIssue[iss.id] : null
+        return { issueId: post ? post.id : "", label: iss.title, date: iss.date || "",
+                 postUrl: post ? post.url : "", sizeMB: post ? (post.sizeMB || 0) : 0,
+                 matched: !!post }
     })
 
+    readonly property var chaptersModel: gcMode
+        ? gcIssueRows.filter(function(r) { return r.matched })
+              .map(function(r) { return { id: r.issueId, name: r.label,
+                       number: parseInt(String(r.label || "").replace(/[^0-9]/g, ""), 10) || 0 } })
+              .concat(((gcMatch && gcMatch.collections) || []).map(function(p) {
+                  return { id: p.id, name: p.name, number: 0 } }))
+        : issuesRaw.map(function(iss) {
+              return { id: iss.issueId, name: iss.label,
+                       number: parseInt(String(iss.label || "").replace(/[^0-9]/g, ""), 10) || 0 }
+          })
+
     // resume affordance (Progress records xoxo issues under kind "comic")
-    readonly property var resumeRec: (typeof Progress !== "undefined" && seriesId.length)
-                                     ? Progress.get("comic", seriesId) : null
+    readonly property var resumeRec: (typeof Progress !== "undefined")
+        ? (gcMode ? (gcTag.length ? Progress.get("comic", "gc:" + gcTag) : null)
+                  : (seriesId.length ? Progress.get("comic", seriesId) : null))
+        : null
 
     Theme { id: theme }
 
@@ -63,11 +84,18 @@ Item {
         })
     }
 
-    // --- LOCG catalogue entry: resolve the locg:<id> to an xoxo slug, then fall through
-    //     to the existing xoxo reading flow. If nothing carries it, show honest empty state. ---
+    // --- LOCG catalogue entry: the catalogue is the brain. Rows are LOCG's own issue
+    //     list (never dark); GetComics attaches ONTO them via Resolve.matchIssues. ---
     property string locgId: ""              // "locg:<id>" — set INSTEAD of seriesId by catalogue opens
     property var locgMeta: ({})             // {publisher, rating, startYear…} from LOCG
-    property bool notAvailable: false       // catalogued, but no reading source carries it yet
+    property bool notAvailable: false       // catalogued, but GetComics carries nothing for it
+
+    // GC mode (catalogue opens): LOCG issue rows + GetComics content verbs.
+    readonly property bool gcMode: gcTag.length > 0
+    property string gcTag: ""               // GC tag slug — "gc:"+gcTag is the reader/progress seriesId
+    property string gcTagId: ""             // numeric tag id — feeds GcApi.releases()
+    property var locgIssuesRaw: []          // LOCG issue list, date-desc as served
+    property var gcMatch: ({ byIssue: {}, collections: [] })
 
     onLocgIdChanged: attach()
     function attach() {
@@ -76,9 +104,29 @@ Item {
         loading = true
         Resolve.resolve({ id: locgId, title: seriesTitle, startYear: (locgMeta.startYear || 0) },
             function(res) {
-                if (res.attached) page.seriesId = res.sourceId      // triggers the existing reload()
-                else { page.loading = false; page.notAvailable = true }
+                if (!res.attached) { page.loading = false; page.notAvailable = true; return }
+                var parts = String(res.sourceId).split("|")
+                page.gcTag = parts[0]
+                page.gcTagId = parts.length > 1 ? parts[1] : ""
+                page.loadGc()
             })
+    }
+    function loadGc() {
+        // rows are LOCG's issue list (catalogue-first); GC attaches onto them
+        Locg.series(locgId, function(det, meta) {
+            page.locgIssuesRaw = (det && det.issues) ? det.issues : []
+            if (!page.locgIssuesRaw.length) {
+                page.loading = false
+                page.errorMsg = (meta && meta.ok) ? "No issues catalogued for this series."
+                                                  : "Catalogue unavailable right now."
+                return
+            }
+            GcApi.releases(Number(page.gcTagId), function(posts) {
+                // fires twice on big archives (page 1, then full) — reassignment is the refresh
+                page.gcMatch = Resolve.matchIssues(page.locgIssuesRaw, posts || [])
+                page.loading = false
+            })
+        })
     }
 
     // metadata line: status · released · N issues · views (empties omitted)
@@ -290,7 +338,7 @@ Item {
                             anchors.left: parent.left; anchors.leftMargin: 24
                             anchors.verticalCenter: parent.verticalCenter; spacing: 14
                             Text { text: "Issues"; color: theme.ink; font.family: theme.display; font.pixelSize: 20; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: page.issueRows.length + " issues · #1 first"
+                            Text { text: (page.gcMode ? page.gcIssueRows.length : page.issueRows.length) + " issues · #1 first"
                                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
@@ -298,7 +346,7 @@ Item {
 
                     // rows
                     Repeater {
-                        model: page.issueRows
+                        model: page.gcMode ? page.gcIssueRows : page.issueRows
                         delegate: Item {
                             id: row
                             required property var modelData
