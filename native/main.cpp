@@ -12,6 +12,7 @@
 #include <QNetworkProxy>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QProcess>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
 #include <QtWebEngineQuick/QtWebEngineQuick>
@@ -216,6 +217,44 @@ int main(int argc, char *argv[]) {
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 
     QQmlApplicationEngine engine;
+    // ---- the user lane (argless launch: double-click / shortcut / Colosseum.bat) ----
+    // With a QML-path argument (dev.bat, test harnesses) NONE of this runs — that lane
+    // is byte-for-byte the old behavior: relative path, no network, no CWD change.
+    if (argc <= 1) {
+        // 1) self-locate: exe lives at <repo>/native/build-msvc/colosseum.exe. Anchor the
+        //    working directory on the repo root so every relative path (live qml/ tree,
+        //    disk cache, assets) behaves exactly as under Colosseum.bat's `cd /d %~dp0`.
+        QDir root(QCoreApplication::applicationDirPath());
+        if (root.cdUp() && root.cdUp() && root.exists(QStringLiteral("qml/Main.qml"))) {
+            QDir::setCurrent(root.absolutePath());
+            // 2) self-update: pull the latest before the engine reads the QML tree — the
+            //    tree is loaded live from disk, so whatever lands here IS this boot.
+            //    --ff-only + hard timeout: offline / dirty / diverged → one honest line,
+            //    boot as-is. Never stash, never force — a brother's uncommitted work is
+            //    sacred. Core (native/) changes need a rebuild — log-only (ratified).
+            QProcess pull;
+            pull.start(QStringLiteral("git"),
+                       { QStringLiteral("-C"), root.absolutePath(),
+                         QStringLiteral("pull"), QStringLiteral("--ff-only") });
+            if (!pull.waitForFinished(8000)) {
+                pull.kill();
+                qInfo("[self-update] skipped (git timed out — offline or slow remote)");
+            } else if (pull.exitCode() != 0) {
+                qInfo("[self-update] skipped (%s)",
+                      pull.readAllStandardError().simplified().constData());
+            } else {
+                const QByteArray out = pull.readAllStandardOutput();
+                if (out.contains("Already up to date"))
+                    qInfo("[self-update] already current");
+                else {
+                    qInfo("[self-update] pulled:\n%s", out.trimmed().constData());
+                    if (out.contains(" native/"))
+                        qInfo("[self-update] core update pulled — rebuild pending "
+                              "(engine changes are not live until a brother rebuilds)");
+                }
+            }
+        }
+    }
     const QString qmlPath = (argc > 1) ? QString::fromLocal8Bit(argv[1])
                                        : QStringLiteral("qml/Main.qml");
     const QStringList pinnedHosts = {
