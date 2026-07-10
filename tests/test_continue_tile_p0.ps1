@@ -38,7 +38,9 @@ Assert-Contains $main 'e.watched !== true' "Home row must sink watched entries b
 # --- world row migrated, metadata in-tile, honest header ---
 $cr = Read-File "qml/ContinueRow.qml"
 Assert-Contains $cr 'ContinueTile {' "ContinueRow must delegate to ContinueTile."
-Assert-Contains $cr 'navigable: false' "ContinueRow header must not show the unwired chevron."
+# (2026-07-11: the chevron is WIRED now — see-all page shipped; the old 'navigable: false'
+#  needle asserted the unwired era and went stale the day the page landed.)
+Assert-Contains $cr 'onMoreClicked: cont.seeAllRequested()' "ContinueRow chevron must be wired to the see-all page."
 Assert-Contains $cr 'Progress.forget' "ContinueRow must wire remove to Progress.forget."
 Assert-Lacks $cr 'PortraitTile' "ContinueRow must not hand-build tiles from PortraitTile anymore."
 Assert-Lacks $cr 'ContinueCovers' "Cover fallback lives inside ContinueTile now."
