@@ -1,9 +1,11 @@
 cmake_minimum_required(VERSION 3.16)
-project(colosseum LANGUAGES CXX)
+# RC = compile the Windows .rc that carries the app/exe icon (Windows-only, harmless elsewhere)
+project(colosseum LANGUAGES CXX RC)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
+set(CMAKE_AUTORCC ON)   # compile app_resources.qrc (embeds the .ico for setWindowIcon)
 
 find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel)
 
@@ -29,6 +31,8 @@ find_package(MpvQt REQUIRED)
 
 add_executable(colosseum
     main.cpp
+    app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
+    app_resources.qrc        # embeds colosseum.ico for QGuiApplication::setWindowIcon
     ClipboardHelper.h
     MangaEngine.h
     ProgressStore.h

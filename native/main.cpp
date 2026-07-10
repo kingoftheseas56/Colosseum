@@ -5,6 +5,7 @@
 #include <QGuiApplication>
 #include <QHash>
 #include <QHostAddress>
+#include <QIcon>
 #include <QHostInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkDiskCache>
@@ -184,6 +185,9 @@ int main(int argc, char *argv[]) {
 
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
+    // App identity on the Windows taskbar / alt-tab / title: the amphitheatre glyph on a
+    // dark tile (embedded via app_resources.qrc). The .exe file icon comes from app_icon.rc.
+    app.setWindowIcon(QIcon(QStringLiteral(":/colosseum.ico")));
     // QSettings (every QML `Settings` block — reader prefs, player settings) keys on the
     // organization; without it QSettings::init fails (status 1) and NOTHING persists. This
     // was silently broken forever (Hemanth's log, 2026-07-09).

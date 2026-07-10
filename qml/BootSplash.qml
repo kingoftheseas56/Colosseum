@@ -79,6 +79,14 @@ Rectangle {
     Column {
         anchors.centerIn: parent
         spacing: 22
+        // app mark — the amphitheatre glyph, same identity as the taskbar/exe icon
+        Image {
+            source: "../assets/icons/colosseum.svg"
+            sourceSize.width: 88; sourceSize.height: 88
+            width: 88; height: 88
+            fillMode: Image.PreserveAspectFit
+            anchors.horizontalCenter: parent.horizontalCenter
+        }
         Text {
             text: "COLOSSEUM"; color: "#f0c44a"
             font.family: "Georgia"; font.pixelSize: 40; font.letterSpacing: 8
