@@ -49,12 +49,21 @@ Item {
                  matched: !!post }
     })
 
+    // reader order = NEWEST-first (MangaReader contract: index-1 = newer, next-issue
+    // walks toward 0). The DISPLAY table uses gcIssueRows (ascending, #1-first) — the
+    // reader must NOT: it reads locgIssuesRaw in LOCG's native date-desc order. Chapter
+    // objects carry url + sizeMB + cover so the in-reader "Download chapter" button works
+    // (the western reader contract — ComicSeries.qml feeds the same {id,name,url,cover,sizeMB}).
     readonly property var chaptersModel: gcMode
-        ? gcIssueRows.filter(function(r) { return r.matched })
-              .map(function(r) { return { id: r.issueId, name: r.label,
-                       number: parseInt(String(r.label || "").replace(/[^0-9]/g, ""), 10) || 0 } })
+        ? locgIssuesRaw.map(function(iss) {
+                  var post = (gcMatch && gcMatch.byIssue) ? gcMatch.byIssue[iss.id] : null
+                  return post ? { id: post.id, name: iss.title, url: post.url, cover: post.cover || "",
+                                  sizeMB: post.sizeMB || 0,
+                                  number: parseInt(String(iss.title || "").replace(/[^0-9]/g, ""), 10) || 0 } : null
+              }).filter(function(c) { return c !== null })
               .concat(((gcMatch && gcMatch.collections) || []).map(function(p) {
-                  return { id: p.id, name: p.name, number: 0 } }))
+                  return { id: p.id, name: p.name, url: p.url, cover: p.cover || "",
+                           sizeMB: p.sizeMB || 0, number: 0 } }))
         : issuesRaw.map(function(iss) {
               return { id: iss.issueId, name: iss.label,
                        number: parseInt(String(iss.label || "").replace(/[^0-9]/g, ""), 10) || 0 }
@@ -102,6 +111,11 @@ Item {
         if (!locgId.length) return
         notAvailable = false
         loading = true
+        // clear any prior series' attach so a no-match (or a reused layer) can't leave
+        // stale gcMode rows behind the "not available" overlay
+        page.gcTag = ""; page.gcTagId = ""
+        page.locgIssuesRaw = []
+        page.gcMatch = ({ byIssue: {}, collections: [] })
         Resolve.resolve({ id: locgId, title: seriesTitle, startYear: (locgMeta.startYear || 0) },
             function(res) {
                 if (!res.attached) { page.loading = false; page.notAvailable = true; return }
