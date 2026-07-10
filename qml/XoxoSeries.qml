@@ -135,7 +135,8 @@ Item {
         var bits = []
         if (m.status && m.status.length) bits.push(m.status)
         if (m.released && m.released.length) bits.push(m.released)
-        bits.push(page.issueRows.length + (page.issueRows.length === 1 ? " issue" : " issues"))
+        var nRows = page.gcMode ? page.gcIssueRows.length : page.issueRows.length
+        bits.push(nRows + (nRows === 1 ? " issue" : " issues"))
         if (m.views && m.views.length) bits.push(fmtViews(m.views) + " views")
         return bits.join("   ·   ")
     }
@@ -354,20 +355,30 @@ Item {
                             width: tableCol.width; height: 90
 
                             property string chId: String(row.modelData.issueId || "")
-                            property string dlState: "none"   // none | queued | downloading | done | error
-                            property int dlDone: 0
-                            property int dlTotal: 0
+                            property string dlState: "none"   // none|resolving|queued|downloading|extracting|done|error
+                            // real, not int: gc-mode progress is BYTES (TPBs run to 1GB;
+                            // int caps at 2.1GB — ComicSeries.qml is the precedent)
+                            property real dlDone: 0
+                            property real dlTotal: 0
                             readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
+                                                          || dlState === "resolving"   || dlState === "extracting"
+                            readonly property bool gcUnmatched: page.gcMode && !row.modelData.matched
                             readonly property string thumbUrl: dlState === "done" ? row.firstLocalUrl() : ""
+                            readonly property var dlStore: page.gcMode
+                                ? (typeof Comics !== "undefined" ? Comics : null)
+                                : (typeof Downloads !== "undefined" ? Downloads : null)
 
                             function firstLocalUrl() {
-                                if (typeof Downloads === "undefined") return ""
-                                var lp = Downloads.localPages(row.chId)
+                                if (!row.dlStore || !row.chId.length) return ""
+                                var lp = row.dlStore.localPages(row.chId)
                                 return (lp && lp.length) ? lp[0].url : ""
                             }
                             function statusLine() {
+                                if (row.gcUnmatched) return "Not on GetComics yet"
                                 if (dlState === "done") return "● Downloaded"
+                                if (dlState === "resolving") return "Resolving…"
                                 if (dlState === "queued") return "Queued…"
+                                if (dlState === "extracting") return "Extracting…"
                                 if (dlState === "downloading")
                                     return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
                                 if (dlState === "error") return "⚠ Failed — tap to retry"
@@ -378,26 +389,34 @@ Item {
                                 page.openChapterLabel = String(row.modelData.label || "")
                             }
                             function startDownload() {
-                                if (typeof Downloads === "undefined" || !row.chId.length) return
+                                if (!row.dlStore || !row.chId.length) return
                                 row.dlState = "queued"
-                                Xoxo.pages(row.chId, function(urls) {
-                                    if (!urls || urls.length === 0) { row.dlState = "error"; return }
-                                    Downloads.downloadPages(row.chId, page.seriesId, page.seriesTitle,
-                                                            String(row.modelData.label || ""), urls)
-                                })
+                                if (page.gcMode) {
+                                    // one archive post = the volume unit; C++ does resolve→stream→extract
+                                    Comics.downloadIssue(row.chId, row.modelData.postUrl, "gc:" + page.gcTag,
+                                                         page.seriesTitle, String(row.modelData.label || ""),
+                                                         (row.modelData.sizeMB || 0) * 1024 * 1024)
+                                } else {
+                                    Xoxo.pages(row.chId, function(urls) {
+                                        if (!urls || urls.length === 0) { row.dlState = "error"; return }
+                                        Downloads.downloadPages(row.chId, page.seriesId, page.seriesTitle,
+                                                                String(row.modelData.label || ""), urls)
+                                    })
+                                }
                             }
                             function primary() {
+                                if (row.gcUnmatched) return           // honest dim — no fake verb
                                 if (row.dlState === "done") row.openReader()
                                 else if (!row.inFlight) row.startDownload()
                             }
                             function refreshDl() {
-                                if (typeof Downloads === "undefined") return
-                                var st = Downloads.statusOf(row.chId)
+                                if (!row.dlStore || !row.chId.length) return
+                                var st = row.dlStore.statusOf(row.chId)
                                 row.dlState = st.state; row.dlDone = st.done; row.dlTotal = st.total
                             }
                             Component.onCompleted: refreshDl()
                             Connections {
-                                target: typeof Downloads !== "undefined" ? Downloads : null
+                                target: row.dlStore
                                 function onProgress(cid, done, total) {
                                     if (cid !== row.chId) return
                                     row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
@@ -434,7 +453,8 @@ Item {
                                 anchors.right: rdate.left; anchors.rightMargin: 14
                                 anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                 Text { width: parent.width; text: row.modelData.label || ""
-                                    color: rowMa.containsMouse ? theme.gold : theme.ink
+                                    color: rowMa.containsMouse && !row.gcUnmatched ? theme.gold : theme.ink
+                                    opacity: row.gcUnmatched ? 0.45 : 1.0
                                     font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
                                 Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                     color: row.dlState === "done" ? theme.gold
@@ -458,7 +478,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 34; height: 34
                                 Text { anchors.centerIn: parent
-                                    text: row.dlState === "done" ? "▸" : (row.inFlight ? "…" : "↓")
+                                    text: row.gcUnmatched ? "" : (row.dlState === "done" ? "▸" : (row.inFlight ? "…" : "↓"))
                                     color: theme.inkDim; font.pixelSize: 18 }
                             }
 
@@ -472,7 +492,7 @@ Item {
 
                             MouseArea {
                                 id: rowMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
+                                cursorShape: row.gcUnmatched ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onClicked: row.primary()
                             }
                         }
@@ -506,10 +526,11 @@ Item {
         id: readerLayer
         anchors.fill: parent; z: 60
         visible: page.openChapterId.length > 0
-        comicKind: true
+        western: page.gcMode                    // flips its page/download store to Comics
+        comicKind: !page.gcMode                 // keeps store=Downloads for legacy xoxo issues
         backdrop: page.backdrop
         seriesTitle: page.seriesTitle
-        seriesId: page.seriesId
+        seriesId: page.gcMode ? ("gc:" + page.gcTag) : page.seriesId
         seriesCover: page.cover
         chapters: page.chaptersModel
         chapterId: page.openChapterId
