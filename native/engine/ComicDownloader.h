@@ -118,6 +118,7 @@ private:
         QString partPath;
         qint64 receivedBytes = 0;
         bool sanityChecked = false;
+        bool redirectBlocked = false;   // redirect target was a known-blocked host → skip URL, not retry
         qint64 lastProgressEmit = 0;
         qint64 lastProgressBytes = 0;
         bool extracting = false;

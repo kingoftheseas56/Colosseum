@@ -405,6 +405,18 @@ void ComicDownloader::startAttempt(InFlight& f)
         connect(reply, &QNetworkReply::readyRead,        this, &ComicDownloader::onReadyRead);
         connect(reply, &QNetworkReply::finished,         this, &ComicDownloader::onFinished);
         connect(reply, &QNetworkReply::downloadProgress, this, &ComicDownloader::onProgressFromReply);
+        // Mirror rotation discipline: if the signed link redirects to a host we
+        // KNOW is blocked from this ISP (pixeldrain, probed dead 2026-07-10),
+        // abort and advance to the next candidate immediately — never sit out
+        // the socket timeout on a dead host.
+        connect(reply, &QNetworkReply::redirected, this, [this, reply](const QUrl& to) {
+            if (!m_active || m_active->reply.data() != reply) return;
+            if (to.host().contains(QStringLiteral("pixeldrain"), Qt::CaseInsensitive)) {
+                qInfo() << "[ComicDownloader] redirect to blocked host" << to.host() << "— skipping mirror";
+                m_active->redirectBlocked = true;
+                reply->abort();
+            }
+        });
     } else {
         const QString id = f.id;
         QTimer::singleShot(delay, this, [this, id]() {
@@ -484,6 +496,12 @@ void ComicDownloader::onFinished()
 
     if (err != QNetworkReply::NoError) {
         qWarning() << "[ComicDownloader] reply error" << err << "http=" << httpStatus << errString;
+        if (f.redirectBlocked) {                       // deliberate abort — skip this URL, don't retry it
+            f.redirectBlocked = false;
+            closeAndDeletePart(f);
+            startNextUrlOrFail(f);
+            return;
+        }
         retryOrFailover(f, QStringLiteral("HTTP error: %1 (status %2)").arg(errString).arg(httpStatus));
         return;
     }
