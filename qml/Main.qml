@@ -16,6 +16,7 @@ import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
 import "XoxoApi.js" as Xoxo
 import "LocgApi.js" as Locg
+import "ComicsApi.js" as GcApi
 import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
@@ -99,7 +100,18 @@ Window {
             get: function(k) { return comicMapStore.value(k, "") },
             set: function(k, v) { comicMapStore.setValue(k, v) }
         }
-        Resolve.searchFn = function(q, cb) { Xoxo.searchSeries(q, cb) }
+        // GetComics is the content lane (xoxo dead, replaced clean — spec 2026-07-10).
+        // Adapter shape: GC tag hits → {id: "<slug>|<tagId>", title}; the composite id
+        // is what persists — the series page splits it (slug feeds gc: routing, tagId
+        // feeds releases()). GC has no blocked signal: empty = plain no-match,
+        // session-only, retry free next launch.
+        Resolve.searchFn = function(q, cb) {
+            GcApi.searchSeries(q, function(hits) {
+                cb((hits || []).map(function(h) {
+                    return { id: h.tag + "|" + h.tagId, title: h.title };
+                }), { ok: true, blocked: false });
+            });
+        }
         // Theatre reads the extension registry through a pushed copy — a .pragma
         // library can't reach context properties (extensions spec Phase 3)
         if (typeof Extensions !== "undefined") {
@@ -166,9 +178,11 @@ Window {
         }
     }
 
-    // locg:<id> → xoxo slug, persisted forever (survives restarts)
-    // V2: v1 persisted false no-matches (year-gate bug) — version bump orphans the poison
-    Settings { id: comicMapStore; category: "comicResolveV2" }
+    // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)
+    // V3: content lane moved xoxo→GetComics (2026-07-10) — the bump orphans stale
+    // xoxo mappings so they can never poison a GC attach (V2's own bump orphaned
+    // the year-gate poison the same way)
+    Settings { id: comicMapStore; category: "comicResolveV3" }
     // polite spacer for LOCG's request queue (Locg.delayFn)
     Timer {
         id: locgSpacer
