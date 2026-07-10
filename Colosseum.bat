@@ -24,7 +24,9 @@ if not exist "native\build-msvc\colosseum.exe" (
   exit /b 1
 )
 
-"native\build-msvc\colosseum.exe" "qml\Main.qml"
+REM Argless = the user lane: the exe self-locates the repo and self-updates (git pull
+REM --ff-only, 8s cap) before it boots. Passing a QML path (dev.bat) skips all of that.
+"native\build-msvc\colosseum.exe"
 
 REM Only pause if it crashed, so a clean quit closes silently but an error stays readable.
 if errorlevel 1 (
