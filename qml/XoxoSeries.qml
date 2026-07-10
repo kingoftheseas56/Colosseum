@@ -499,6 +499,123 @@ Item {
                     }
                 }
             }
+
+            // ===== Collected editions (GC mode): TPB/Omnibus/Epic posts — the way in
+            //       for old series with no per-issue posts. Same verbs, own rows. =====
+            Rectangle {
+                visible: page.gcMode && ((page.gcMatch && page.gcMatch.collections) || []).length > 0
+                width: parent.width
+                height: collCol.height
+                radius: 14
+                color: theme.glassTint
+                border.width: 1; border.color: theme.edge
+                clip: true
+                Column {
+                    id: collCol
+                    width: parent.width
+                    Item {
+                        width: parent.width; height: 56
+                        Row {
+                            anchors.left: parent.left; anchors.leftMargin: 24
+                            anchors.verticalCenter: parent.verticalCenter; spacing: 14
+                            Text { text: "Collected editions"; color: theme.ink; font.family: theme.display; font.pixelSize: 20; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: ((page.gcMatch && page.gcMatch.collections) || []).length + " on GetComics"
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                        }
+                        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
+                    }
+                    Repeater {
+                        model: (page.gcMatch && page.gcMatch.collections) || []
+                        delegate: Item {
+                            id: crow
+                            required property var modelData
+                            width: collCol.width; height: 74
+                            property string chId: String(crow.modelData.id || "")
+                            property string dlState: "none"
+                            property real dlDone: 0     // bytes — real, not int (the ComicSeries precedent)
+                            property real dlTotal: 0
+                            readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
+                                                          || dlState === "resolving"   || dlState === "extracting"
+                            function statusLine() {
+                                if (dlState === "done") return "● Downloaded"
+                                if (dlState === "resolving") return "Resolving…"
+                                if (dlState === "queued") return "Queued…"
+                                if (dlState === "extracting") return "Extracting…"
+                                if (dlState === "downloading")
+                                    return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
+                                if (dlState === "error") return "⚠ Failed — tap to retry"
+                                var bits = []
+                                if (crow.modelData.year) bits.push(String(crow.modelData.year))
+                                if (crow.modelData.sizeMB) bits.push(crow.modelData.sizeMB >= 1024
+                                    ? (crow.modelData.sizeMB / 1024).toFixed(1) + " GB" : crow.modelData.sizeMB + " MB")
+                                return bits.join("   ·   ")
+                            }
+                            function primary() {
+                                if (typeof Comics === "undefined" || !crow.chId.length) return
+                                if (dlState === "done") {
+                                    page.openChapterId = crow.chId
+                                    page.openChapterLabel = String(crow.modelData.name || "")
+                                } else if (!crow.inFlight) {
+                                    crow.dlState = "queued"
+                                    Comics.downloadIssue(crow.chId, crow.modelData.url, "gc:" + page.gcTag,
+                                                         page.seriesTitle, String(crow.modelData.name || ""),
+                                                         (crow.modelData.sizeMB || 0) * 1024 * 1024)
+                                }
+                            }
+                            function refreshDl() {
+                                if (typeof Comics === "undefined" || !crow.chId.length) return
+                                var st = Comics.statusOf(crow.chId)
+                                crow.dlState = st.state; crow.dlDone = st.done; crow.dlTotal = st.total
+                            }
+                            Component.onCompleted: refreshDl()
+                            Connections {
+                                target: typeof Comics !== "undefined" ? Comics : null
+                                function onProgress(cid, done, total) {
+                                    if (cid !== crow.chId) return
+                                    crow.dlState = "downloading"; crow.dlDone = done; crow.dlTotal = total
+                                }
+                                function onFinished(cid) { if (cid === crow.chId) crow.dlState = "done" }
+                                function onFailed(cid, reason) { if (cid === crow.chId) crow.dlState = "error" }
+                                function onRemoved(cid) { if (cid === crow.chId) crow.dlState = "none" }
+                            }
+                            Rectangle { anchors.fill: parent; color: crowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
+                            Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.05) }
+                            Column {
+                                anchors.left: parent.left; anchors.leftMargin: 24
+                                anchors.right: ctrail.left; anchors.rightMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter; spacing: 4
+                                Text { width: parent.width; text: crow.modelData.name || ""
+                                    color: crowMa.containsMouse ? theme.gold : theme.ink
+                                    font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
+                                Text { width: parent.width; text: crow.statusLine(); visible: text.length > 0
+                                    color: crow.dlState === "done" ? theme.gold
+                                         : (crow.dlState === "error" ? "#e6a3a3" : theme.inkDim)
+                                    font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                            }
+                            Item {
+                                id: ctrail
+                                anchors.right: parent.right; anchors.rightMargin: 14
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 34; height: 34
+                                Text { anchors.centerIn: parent
+                                    text: crow.dlState === "done" ? "▸" : (crow.inFlight ? "…" : "↓")
+                                    color: theme.inkDim; font.pixelSize: 18 }
+                            }
+                            Rectangle {
+                                anchors.bottom: parent.bottom; anchors.left: parent.left
+                                height: 2; color: theme.gold
+                                visible: crow.dlState === "downloading" && crow.dlTotal > 0
+                                width: parent.width * (crow.dlTotal > 0 ? crow.dlDone / crow.dlTotal : 0)
+                            }
+                            MouseArea {
+                                id: crowMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: crow.primary()
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
