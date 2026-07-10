@@ -1,16 +1,17 @@
-// ComicResolve.js — the attach machine: pairs a LOCG catalogue series with the xoxo slug
+// ComicResolve.js — the attach machine: pairs a LOCG catalogue series with the source slug
 // that actually serves its pages. A SUCCESSFUL attach is persisted forever; a no-match is
-// remembered ONLY for the session (never persisted — xoxo's catalog grows weekly, so a miss
-// today may attach next launch). Year is a DISAMBIGUATOR, not a hard gate: xoxo titles usually
+// remembered ONLY for the session (never persisted — the source's catalog grows weekly, so a miss
+// today may attach next launch). Year is a DISAMBIGUATOR, not a hard gate: source titles usually
 // carry no year, so a clean title match must attach. Conservative on the wrong end — an ambiguous
 // (2+ surviving) candidate is still a NO-match, a wrong comic must never open silently.
-// store + xoxoSearchFn are INJECTED (Main.qml wires QSettings + Xoxo.searchSeries; tests inject
-// fakes) — pure/testable, the XoxoApi nowFn lesson.
+// store + searchFn are INJECTED per-source (Main.qml wires QSettings + a source's search fn — was
+// xoxo, now GetComics; tests inject fakes) — the machine itself doesn't know which source it's
+// pairing — pure/testable, the XoxoApi nowFn lesson.
 .pragma library
 
 var store = null;          // injected: { get(key)->string, set(key, value) } — successful attaches ONLY
-var xoxoSearchFn = null;   // injected: Xoxo.searchSeries(query, cb(hits, meta))
-var _miss = {};            // session-only no-match memory — NEVER persisted (xoxo's catalog grows weekly)
+var searchFn = null;       // injected: source.searchSeries(query, cb(hits, meta)) — source-agnostic
+var _miss = {};            // session-only no-match memory — NEVER persisted (the source's catalog grows weekly)
 
 function _norm(t) {
     return String(t).toLowerCase()
@@ -21,16 +22,16 @@ function _norm(t) {
 }
 function _year(s) { var m = String(s.title || "").match(/\((\d{4})\)/); return m ? parseInt(m[1], 10) : 0; }
 
-// done({ attached, xoxoId, blocked? }). Year is a DISAMBIGUATOR, not a hard gate:
+// done({ attached, sourceId, blocked? }). Year is a DISAMBIGUATOR, not a hard gate:
 // it only vetoes a candidate when BOTH sides carry a year and they clash (>±1).
-// xoxo titles usually carry NO year — a clean title match must attach.
+// source titles usually carry NO year — a clean title match must attach.
 function resolve(locgSeries, done) {
     var key = "map/" + locgSeries.id;
     var saved = store.get(key);
-    if (saved) { done({ attached: true, xoxoId: saved }); return; }
-    if (_miss[key]) { done({ attached: false, xoxoId: "" }); return; }
-    xoxoSearchFn(locgSeries.title, function(hits, meta) {
-        if (meta && meta.blocked) { done({ attached: false, xoxoId: "", blocked: true }); return; }
+    if (saved) { done({ attached: true, sourceId: saved }); return; }
+    if (_miss[key]) { done({ attached: false, sourceId: "" }); return; }
+    searchFn(locgSeries.title, function(hits, meta) {
+        if (meta && meta.blocked) { done({ attached: false, sourceId: "", blocked: true }); return; }
         var want = _norm(locgSeries.title);
         var wantYear = locgSeries.startYear || 0;
         var matches = (hits || []).filter(function(h) { return _norm(h.title) === want; });
@@ -47,13 +48,13 @@ function resolve(locgSeries, done) {
         }
         if (matches.length === 1) {
             store.set(key, matches[0].id);
-            done({ attached: true, xoxoId: matches[0].id });
+            done({ attached: true, sourceId: matches[0].id });
         } else {
             _miss[key] = true;          // session memory only — retry is free next launch
-            done({ attached: false, xoxoId: "" });
+            done({ attached: false, sourceId: "" });
         }
     });
 }
-// A blocked xoxo (cooldown) is neither persisted NOR marked in _miss — the blocked early-return
+// A blocked source (cooldown) is neither persisted NOR marked in _miss — the blocked early-return
 // happens BEFORE any store.set / _miss write, so a cooldown never poisons the mapping and a
 // later un-blocked resolve of the same id re-searches. Retry is free.

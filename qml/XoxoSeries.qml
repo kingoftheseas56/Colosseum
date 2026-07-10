@@ -76,7 +76,7 @@ Item {
         loading = true
         Resolve.resolve({ id: locgId, title: seriesTitle, startYear: (locgMeta.startYear || 0) },
             function(res) {
-                if (res.attached) page.seriesId = res.xoxoId      // triggers the existing reload()
+                if (res.attached) page.seriesId = res.sourceId      // triggers the existing reload()
                 else { page.loading = false; page.notAvailable = true }
             })
     }

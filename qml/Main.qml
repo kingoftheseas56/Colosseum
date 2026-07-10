@@ -99,7 +99,7 @@ Window {
             get: function(k) { return comicMapStore.value(k, "") },
             set: function(k, v) { comicMapStore.setValue(k, v) }
         }
-        Resolve.xoxoSearchFn = function(q, cb) { Xoxo.searchSeries(q, cb) }
+        Resolve.searchFn = function(q, cb) { Xoxo.searchSeries(q, cb) }
         // Theatre reads the extension registry through a pushed copy — a .pragma
         // library can't reach context properties (extensions spec Phase 3)
         if (typeof Extensions !== "undefined") {
