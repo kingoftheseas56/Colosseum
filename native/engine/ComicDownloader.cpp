@@ -1,5 +1,7 @@
 #include "ComicDownloader.h"
 
+#include "ComicDlsParse.h"
+
 #include <QCollator>
 #include <QCryptographicHash>
 #include <QDateTime>
@@ -296,35 +298,8 @@ void ComicDownloader::onResolveFinished(QNetworkReply* reply)
 
 QStringList ComicDownloader::parsePostHtml(const QByteArray& html) const
 {
-    const QString text = QString::fromUtf8(html);
-    // Every /dls/ anchor, scored: the signed DOWNLOAD NOW (aio-red) button leads,
-    // named mirrors follow. The bare /dls/<token>/ ad-gate has no :sig== suffix —
-    // requiring ":" in the payload keeps it out (the TB2 scar).
-    static const QRegularExpression kAnchorRe(
-        QStringLiteral(R"RX(<a\b([^>]*)href="(https://getcomics\.org/dls/[^"]*:[^"]+)"([^>]*)>)RX"),
-        QRegularExpression::CaseInsensitiveOption);
-
-    QList<QPair<int, QString>> scored;
-    QSet<QString> seen;
-    auto it = kAnchorRe.globalMatch(text);
-    while (it.hasNext()) {
-        const auto m = it.next();
-        QString url = m.captured(2);
-        url.replace(QStringLiteral("&amp;"), QStringLiteral("&"));
-        if (seen.contains(url)) continue;
-        seen.insert(url);
-        const QString attrs = m.captured(1) + m.captured(3);
-        int score = 0;
-        if (attrs.contains(QStringLiteral("DOWNLOAD NOW"), Qt::CaseInsensitive)) score += 4;
-        if (attrs.contains(QStringLiteral("MAIN SERVER"), Qt::CaseInsensitive))  score += 3;
-        if (attrs.contains(QStringLiteral("aio-red"), Qt::CaseInsensitive))      score += 2;
-        scored.append({ score, url });
-    }
-    std::stable_sort(scored.begin(), scored.end(),
-                     [](const auto& a, const auto& b) { return a.first > b.first; });
-    QStringList urls;
-    for (const auto& p : scored) urls.append(p.second);
-    return urls;
+    // extracted to a free function (ComicDlsParse) so the contract is testable
+    return parseDlsLinks(html);
 }
 
 void ComicDownloader::cancelDownload(const QString& issueIdIn)

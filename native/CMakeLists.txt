@@ -47,6 +47,8 @@ add_executable(colosseum
     engine/BookDownloader.h
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
+    engine/ComicDlsParse.cpp
+    engine/ComicDlsParse.h
     engine/LocalDownloads.cpp
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp
@@ -81,6 +83,13 @@ add_executable(search_history_store_harness
 )
 target_include_directories(search_history_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(search_history_store_harness PRIVATE Qt6::Core)
+
+add_executable(comic_dls_parse_harness
+    ../tests/comic_dls_parse_harness.cpp
+    engine/ComicDlsParse.cpp
+)
+target_include_directories(comic_dls_parse_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_dls_parse_harness PRIVATE Qt6::Core)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
