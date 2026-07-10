@@ -30,6 +30,7 @@
 #include "ClipboardHelper.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
+#include "SearchHistoryStore.h"
 #include "SessionStore.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
@@ -372,6 +373,11 @@ int main(int argc, char *argv[]) {
     // QSettings-backed, so it survives a restart.
     auto *progress = new ProgressStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
+
+    // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
+    // is recreated, so remote provider success is irrelevant to whether intent is remembered.
+    auto *history = new SearchHistoryStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("SearchHistory"), history);
 
     // System clipboard for QML — the sources sheet's copy-magnet button (spec 2026-07-08).
     auto *clipboard = new ClipboardHelper(&app);

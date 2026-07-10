@@ -7,7 +7,6 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
-import "SearchHistory.js" as SearchHistory
 
 Item {
     id: search
@@ -16,6 +15,9 @@ Item {
     property bool searching: false
     property bool searched: false
     property var recent: []                          // in-session recent queries
+    property string lastDispatchedQuery: ""
+    property var historyStore: null
+    property var searchDispatcher: BiblioApi.search
 
     // Everything after the Top Match falls into the cover grid.
     readonly property var restResults: search.results.length > 1 ? search.results.slice(1) : []
@@ -31,8 +33,18 @@ Item {
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
+        if (!search.historyStore)
+            search.historyStore = SearchHistory
         search.loadRecent()
         queryInput.forceActiveFocus()
+    }
+    Component.onDestruction: search.commitCurrentQuery()
+    Connections {
+        target: search.historyStore
+        function onChanged(scope) {
+            if (scope === "biblio")
+                search.loadRecent()
+        }
     }
 
     Rectangle {
@@ -48,24 +60,33 @@ Item {
     // replies for half-typed queries can land last and would otherwise clobber the answer.
     function runAppleSearch() {
         var q = queryInput.text.trim()
-        if (q.length < 2) { search.results = []; search.searched = false; return }
+        if (q.length < 2) {
+            search.lastDispatchedQuery = ""
+            search.results = []; search.searched = false; return
+        }
+        search.lastDispatchedQuery = q
         search.searching = true
-        BiblioApi.search(q, function(books) {
+        search.searchDispatcher(q, function(books) {
             if (q !== queryInput.text.trim()) return        // stale — input moved on
             search.results = books
             search.searching = false
             search.searched = true
-            search.recordRecent(q)
         })
     }
-    function loadRecent() { search.recent = SearchHistory.list("Biblio") }
-    function recordRecent(q) { search.recent = SearchHistory.record("Biblio", q) }
-    function fillAndSearch(q) { queryInput.text = q; runAppleSearch() }
-    function openTop() { if (search.results.length > 0) search.bookRequested(search.results[0]) }
+    function loadRecent() { search.recent = search.historyStore.list("biblio") }
+    function commitCurrentQuery() {
+        var q = queryInput.text.trim()
+        if (q.length >= 2 && q === search.lastDispatchedQuery)
+            search.recent = search.historyStore.record("biblio", q)
+    }
+    function fillAndSearch(q) { queryInput.text = q; runAppleSearch(); commitCurrentQuery() }
+    function openBook(book) { search.commitCurrentQuery(); search.bookRequested(book) }
+    function openTop() { if (search.results.length > 0) search.openBook(search.results[0]) }
+    function removeRecent(q) { search.recent = search.historyStore.remove("biblio", q) }
 
     Timer { id: debounce; interval: 200; onTriggered: search.runAppleSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: search.openTop() }
+    Shortcut { sequences: ["Return", "Enter"]; onActivated: { search.runAppleSearch(); search.commitCurrentQuery(); search.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
@@ -73,7 +94,7 @@ Item {
         x: theme.margin
         anchors.verticalCenter: field.verticalCenter
         hoverColor: "#ffffff"   // Biblio world rule: white hover, not gold
-        onTriggered: search.backRequested()
+        onTriggered: { search.commitCurrentQuery(); search.backRequested() }
     }
     Rectangle {
         id: field
@@ -101,7 +122,7 @@ Item {
             onTextChanged: debounce.restart()
             // the field holds keyboard focus, so close on Esc here rather than relying on the
             // window shortcut reaching past it
-            Keys.onEscapePressed: search.backRequested()
+            Keys.onEscapePressed: { search.commitCurrentQuery(); search.backRequested() }
         }
         Text {
             visible: queryInput.text.length === 0
@@ -171,16 +192,24 @@ Item {
                         model: search.recent
                         delegate: Rectangle {
                             required property var modelData
-                            height: 40; radius: 999; width: rcRow.width + 34
+                            height: 40; radius: 999; width: rcLabel.implicitWidth + 57
                             color: rcMa.containsMouse ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: 1; border.color: theme.edge
-                            Row { id: rcRow; anchors.centerIn: parent; spacing: 9
-                                Text { text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
-                                    anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "✕"; color: theme.inkDimmer; font.pixelSize: 11
-                                    anchors.verticalCenter: parent.verticalCenter } }
-                            MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            Text { id: rcLabel; anchors.left: parent.left; anchors.leftMargin: 17
+                                anchors.right: removeRecentButton.left; anchors.rightMargin: 5
+                                anchors.verticalCenter: parent.verticalCenter; text: modelData; color: theme.ink
+                                font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                            MouseArea { id: rcMa; anchors.left: parent.left; anchors.right: removeRecentButton.left
+                                anchors.top: parent.top; anchors.bottom: parent.bottom; hoverEnabled: true
+                                objectName: "biblioRecentBody"; cursorShape: Qt.PointingHandCursor
                                 onClicked: search.fillAndSearch(modelData) }
+                            Rectangle { id: removeRecentButton; width: 28; height: parent.height; radius: height / 2
+                                anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
+                                color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
+                                Text { anchors.centerIn: parent; text: "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
+                                MouseArea { id: removeRecentMa; anchors.fill: parent; hoverEnabled: true
+                                    objectName: "biblioRecentRemove"; cursorShape: Qt.PointingHandCursor
+                                    onClicked: search.removeRecent(modelData) } }
                         }
                     }
                 }
@@ -298,9 +327,9 @@ Item {
                             Text { text: "Open"; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                             Text { text: "›"; color: "#241a05"; font.pixelSize: 16 } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: if (topCard.m) search.bookRequested(topCard.m) }
+                            onClicked: if (topCard.m) search.openBook(topCard.m) }
                     }
-                    MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) search.bookRequested(topCard.m) }
+                    MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) search.openBook(topCard.m) }
                 }
                 Item { visible: search.results.length > 0; width: 1; height: 38 }
 
@@ -334,7 +363,7 @@ Item {
                                     scale: cardMa.containsMouse ? 1.03 : 1.0
                                     Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                     MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: search.bookRequested(modelData) }
+                                    onClicked: search.openBook(modelData) }
                                 }
                             }
                             Text { width: parent.width; text: modelData.title || ""

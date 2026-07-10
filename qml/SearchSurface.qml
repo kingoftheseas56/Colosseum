@@ -6,7 +6,6 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
-import "SearchHistory.js" as SearchHistory
 import "WorldSearch.js" as WorldSearch
 
 Item {
@@ -20,6 +19,9 @@ Item {
     property bool searched: false
     property var expandedGroups: []   // group names the user opened via "See more" (per query)
     property var recent: []
+    property string lastDispatchedQuery: ""
+    property var historyStore: null
+    property var searchDispatcher: WorldSearch.searchFor
 
     signal backRequested()
     signal itemRequested(var data)
@@ -38,10 +40,20 @@ Item {
     Theme { id: theme }
     MouseArea { anchors.fill: parent }
     Component.onCompleted: {
+        if (!surf.historyStore)
+            surf.historyStore = SearchHistory
         surf.loadRecent()
         queryInput.forceActiveFocus()
     }
+    Component.onDestruction: surf.commitCurrentQuery()
     onSearchModeChanged: surf.loadRecent()
+    Connections {
+        target: surf.historyStore
+        function onChanged(scope) {
+            if (scope === surf.historyScope())
+                surf.loadRecent()
+        }
+    }
 
     Rectangle {
         anchors.fill: parent
@@ -54,23 +66,31 @@ Item {
     // race guard: apply a result only if its query still matches the field
     function runSearch() {
         var q = queryInput.text.trim()
-        if (q.length < 2) { surf.results = []; surf.searched = false; return }
+        if (q.length < 2) {
+            surf.lastDispatchedQuery = ""
+            surf.results = []; surf.searched = false; return
+        }
+        surf.lastDispatchedQuery = q
         surf.expandedGroups = []   // a NEW query starts collapsed again (See-more state is per-query)
         surf.searching = true
-        WorldSearch.searchFor(surf.searchMode, q, function(items) {
+        surf.searchDispatcher(surf.searchMode, q, function(items) {
             if (q !== queryInput.text.trim()) return
             surf.results = items
             surf.searching = false
             surf.searched = true
-            surf.recordRecent(q)
         })
     }
-    function historyScope() { return "World:" + surf.searchMode }
-    function loadRecent() { surf.recent = SearchHistory.list(surf.historyScope()) }
-    function recordRecent(q) { surf.recent = SearchHistory.record(surf.historyScope(), q) }
-    function fillAndSearch(q) { queryInput.text = q; runSearch() }
-    function openTop() { if (surf.results.length > 0) surf.itemRequested(surf.results[0].data) }
-    function removeRecent(q) { surf.recent = SearchHistory.remove(surf.historyScope(), q) }
+    function historyScope() { return surf.searchMode.toLowerCase() }
+    function loadRecent() { surf.recent = surf.historyStore.list(surf.historyScope()) }
+    function commitCurrentQuery() {
+        var q = queryInput.text.trim()
+        if (q.length >= 2 && q === surf.lastDispatchedQuery)
+            surf.recent = surf.historyStore.record(surf.historyScope(), q)
+    }
+    function fillAndSearch(q) { queryInput.text = q; runSearch(); commitCurrentQuery() }
+    function openItem(data) { surf.commitCurrentQuery(); surf.itemRequested(data) }
+    function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
+    function removeRecent(q) { surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
 
     // Harbor's genre-browse: open a genre into an inline grid (guarded so a slow reply for a genre
     // you've since left doesn't paint over the new one).
@@ -109,14 +129,14 @@ Item {
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: surf.openTop() }
+    Shortcut { sequences: ["Return", "Enter"]; onActivated: { surf.runSearch(); surf.commitCurrentQuery(); surf.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
         x: theme.margin
         anchors.verticalCenter: field.verticalCenter
-        onTriggered: surf.backRequested()
+        onTriggered: { surf.commitCurrentQuery(); surf.backRequested() }
     }
     Rectangle {
         id: field
@@ -142,7 +162,7 @@ Item {
             color: theme.ink; font.family: theme.display; font.pixelSize: 22
             clip: true; focus: true; selectByMouse: true
             onTextChanged: debounce.restart()
-            Keys.onEscapePressed: surf.backRequested()
+            Keys.onEscapePressed: { surf.commitCurrentQuery(); surf.backRequested() }
         }
         Text {
             visible: queryInput.text.length === 0
@@ -248,7 +268,7 @@ Item {
                                     scale: bcMa.containsMouse ? 1.03 : 1.0
                                     Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                     MouseArea { id: bcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: surf.itemRequested(modelData.data) }
+                                        onClicked: surf.openItem(modelData.data) }
                                 }
                                 Text { width: parent.width; text: modelData.title ? modelData.title : ""
                                     color: theme.ink; font.family: theme.ui; font.pixelSize: 13
@@ -411,9 +431,9 @@ Item {
                             Text { text: surf.primaryLabel; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
                             Text { text: "›"; color: "#241a05"; font.pixelSize: 16 } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: if (topCard.m) surf.itemRequested(topCard.m.data) }
+                            onClicked: if (topCard.m) surf.openItem(topCard.m.data) }
                     }
-                    MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) surf.itemRequested(topCard.m.data) }
+                    MouseArea { anchors.fill: parent; z: -1; onClicked: if (topCard.m) surf.openItem(topCard.m.data) }
                 }
                 Item { visible: surf.results.length > 0; width: 1; height: 38 }
 
@@ -448,7 +468,7 @@ Item {
                                         scale: cardMa.containsMouse ? 1.03 : 1.0
                                         Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                         MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: surf.itemRequested(modelData.data) }
+                                            onClicked: surf.openItem(modelData.data) }
                                     }
                                     Text { width: parent.width; text: modelData.title ? modelData.title : ""
                                         color: theme.ink; font.family: theme.ui; font.pixelSize: 13

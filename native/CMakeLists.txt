@@ -32,6 +32,7 @@ add_executable(colosseum
     ClipboardHelper.h
     MangaEngine.h
     ProgressStore.h
+    SearchHistoryStore.h
     SessionStore.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
@@ -73,6 +74,13 @@ add_executable(colosseum
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel)
+
+add_executable(search_history_store_harness
+    ../tests/search_history_store_harness.cpp
+    SearchHistoryStore.h
+)
+target_include_directories(search_history_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(search_history_store_harness PRIVATE Qt6::Core)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
