@@ -63,4 +63,20 @@ $main3 = Get-Content (Join-Path $root "native/main.cpp") -Raw
 Assert-Contains $main3 'setOrganizationName' "org name must be set so QML Settings persist"
 $dl3 = Get-Content (Join-Path $root "native/engine/MangaDownloader.cpp") -Raw
 Assert-Contains $dl3 'coolWaves' "an HTML-blocked xoxo page must pause the job, not burn fast retries"
+# --- GetComics->LOCG content lane (spec 2026-07-10): xoxo dead, GetComics is the
+#     content source behind the LOCG catalogue. matchIssues attaches GC posts onto
+#     LOCG rows; unmatched rows stay honest; collections get their own shelf. ---
+$resolveJs = Get-Content (Join-Path $root "qml/ComicResolve.js") -Raw
+Assert-Contains $resolveJs 'function matchIssues' "issue-level attach (LOCG rows <-> GC posts) must exist"
+Assert-Contains $mainQml 'comicResolveV3' "resolve store must be the V3 namespace (stale xoxo mappings orphaned)"
+Assert-Contains $mainQml 'GcApi.searchSeries' "resolve injection must search GetComics, not dead xoxo"
+Assert-Contains $xs3 'Comics.downloadIssue' "gcMode verbs must ride the ComicDownloader"
+Assert-Contains $xs3 'Collected editions' "TPB/Omnibus collections shelf must exist"
+Assert-Contains $xs3 'Not on GetComics yet' "unmatched issue rows must be honest, not a fake verb"
+Assert-Contains $xs3 'western: page.gcMode' "reader must flip to the Comics store in gcMode"
+# three-lane routes (twinned-loom): locg: catalogue, gc: content, xoxo: legacy downloads
+# (xoxo: routes are already asserted above; here we lock the other two lanes)
+Assert-Contains $mainQml 'locg:' "Main.qml must route locg: catalogue ids"
+Assert-Contains $mainQml 'gc:' "Main.qml must route gc: content ids"
+# the blocked-mirror drop is a real behavioral test (comic_dls_parse_harness), not a grep needle
 Write-Host "test_comics_sources_p0 PASS"
