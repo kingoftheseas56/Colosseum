@@ -1,51 +1,59 @@
 #!/usr/bin/env python
 # Generate the Colosseum Windows app icon (assets/icons/colosseum.ico) from the
-# amphitheatre glyph, on the app's dark rounded tile.
+# amphitheatre glyph — full-bleed, no tile, like every other taskbar icon
+# (Hemanth's call, 2026-07-10: "look like how all the other icons there look").
 #
 # Regenerate:  python assets/icons/make_app_icon.py   (run from the repo root)
 #
-# The glyph geometry is the exact path data from colosseum.svg, reconstructed as
-# lines + elliptical arches so no SVG rasterizer is needed (we only have Pillow).
-# Rendered 4x-supersampled, then downscaled with LANCZOS; Pillow packs the .ico.
+# Geometry is the exact path data from colosseum.svg. Strokes are rendered by
+# STAMPING round brushes densely along the parametric path — perfectly centered
+# strokes with round caps, unlike ImageDraw.arc whose width grows inward and
+# kinked the arch shoulders (the "crooked" v1). 4x supersampled, LANCZOS down.
+import math
 from PIL import Image, ImageDraw
 
-GOLD = (239, 193, 90, 255)     # #efc15a
-TILE = (11, 13, 19, 255)       # #0b0d13
-EDGE = (42, 45, 56, 255)       # #2a2d38
+GOLD = (239, 193, 90, 255)     # #efc15a — same gold as the in-app glyph
+
+# glyph coordinate space: the 48x48 viewBox of colosseum.svg, centered on (24,24)
+# bbox incl. stroke: x 7.5..40.5 (33 wide) — width-limited when filling the canvas
+FILL = 0.92                    # glyph bbox fills 92% of the canvas, like neighbors
 
 def build(px):
     ss = 4
     RS = px * ss
-    s = RS / 256.0                      # scale vs the 256 design canvas
+    S = (px * FILL / 33.0) * ss          # glyph-unit -> supersampled-px scale
     img = Image.new("RGBA", (RS, RS), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    # dark rounded tile (10px margin, rx52, 2px edge — all on the 256 canvas)
-    d.rounded_rectangle([10*s, 10*s, 246*s, 246*s], radius=52*s,
-                        fill=TILE, outline=EDGE, width=max(1, round(2*s)))
-    # glyph transform: translate(58,58) scale(2.92) on the 256 canvas
-    def X(x): return s * (58 + x * 2.92)
-    def Y(y): return s * (58 + y * 2.92)
-    def W(w): return max(1, round(w * 2.92 * s))
-    def cap(x, y, w):                   # round line cap
-        r = w / 2.0
-        d.ellipse([x-r, y-r, x+r, y+r], fill=GOLD)
-    def hline(x0, x1, y, w):
-        pw = W(w); d.line([X(x0), Y(y), X(x1), Y(y)], fill=GOLD, width=pw)
-        cap(X(x0), Y(y), pw); cap(X(x1), Y(y), pw)
-    def arch(cx, rx, ry, cy, base, w):
-        pw = W(w)
-        # top half-ellipse (shoulders at y=cy, peak at y=cy-ry)
-        d.arc([X(cx-rx), Y(cy-ry), X(cx+rx), Y(cy+ry)], 180, 360, fill=GOLD, width=pw)
-        # the two vertical legs down to the stage
-        d.line([X(cx-rx), Y(cy), X(cx-rx), Y(base)], fill=GOLD, width=pw)
-        d.line([X(cx+rx), Y(cy), X(cx+rx), Y(base)], fill=GOLD, width=pw)
-        cap(X(cx-rx), Y(base), pw); cap(X(cx+rx), Y(base), pw)
-    # nested arches (outer -> inner), then the two rails
-    arch(24, 10.0, 9.8, 20.8, 32.5, 2.2)
-    arch(24,  6.0, 5.7, 20.9, 32.5, 1.8)
-    arch(24,  1.8, 2.0, 22.6, 32.5, 1.6)
-    hline(10.0, 38.0, 32.5, 2.2)        # stage
-    hline(8.5, 39.5, 37.0, 2.2)         # ground
+
+    def T(x, y):                          # glyph coords -> canvas px, centered
+        return ((x - 24.0) * S + RS / 2.0, (y - 24.0) * S + RS / 2.0)
+
+    def stamp(points, w):                 # centered stroke: dense round brushes
+        r = (w * S) / 2.0
+        for (x, y) in points:
+            cx, cy = T(x, y)
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=GOLD)
+
+    def line_pts(x0, y0, x1, y1):
+        n = max(2, int(math.hypot((x1 - x0) * S, (y1 - y0) * S)))   # ~1px steps
+        return [(x0 + (x1 - x0) * i / n, y0 + (y1 - y0) * i / n) for i in range(n + 1)]
+
+    def arch_pts(cx, rx, ry, cy, base):
+        # leg up, top half-ellipse (180..360 deg), leg down — one continuous path
+        pts = line_pts(cx - rx, base, cx - rx, cy)
+        n = max(24, int(math.pi * max(rx, ry) * S))
+        for i in range(n + 1):
+            th = math.radians(180 + 180.0 * i / n)
+            pts.append((cx + rx * math.cos(th), cy + ry * math.sin(th)))
+        pts += line_pts(cx + rx, cy, cx + rx, base)
+        return pts
+
+    # the five strokes of colosseum.svg (outer arch -> inner arch, stage, ground)
+    stamp(arch_pts(24, 10.0, 9.8, 20.8, 32.5), 2.0)
+    stamp(arch_pts(24,  6.0, 5.7, 20.9, 32.5), 1.6)
+    stamp(arch_pts(24,  1.8, 2.0, 22.6, 32.5), 1.4)
+    stamp(line_pts(10.0, 32.5, 38.0, 32.5), 2.0)
+    stamp(line_pts(8.5, 37.0, 39.5, 37.0), 2.0)
     return img.resize((px, px), Image.LANCZOS)
 
 master = build(256)
