@@ -32,6 +32,20 @@ Item {
     property string openLedgerKey: ""
     property var ledgerItems: []
 
+    // ---- source-cooldown visibility (Task 11) ----
+    // MangaDownloader (exposed to QML as `Downloads`) emits paused(chapterId,
+    // resumeInMs) each time an xoxo soft-block parks a page-image download for
+    // 120s. Nothing consumed it, so a cooling job read as stuck ("0 of 58 pages").
+    // We hold resume-at wall-clock per chapterId and surface an honest live
+    // countdown on its "Now arriving" row, cleared on the next progress/finish/fail.
+    property var coolMap: ({})              // chapterId -> resume-at epoch ms (absent = not cooling)
+    property double nowTick: Date.now()     // bumped 1/s while anything cools, drives the countdown
+    readonly property bool anyCooling: {
+        var m = root.coolMap;
+        for (var k in m) if (m[k] - root.nowTick > 0) return true;
+        return false;
+    }
+
     readonly property var worlds: [
         { key: "tankoban", title: "Tankoban", unit: "chapters & issues" },
         { key: "biblio",   title: "Biblio",   unit: "books" },
@@ -46,6 +60,13 @@ Item {
         for (var k = 0; k < jobs.length; k++)
             if (jobs[k].state !== "done") live++;
         liveJobCount = live;
+        // drop cooldowns whose job left the queue without a terminal signal
+        // (e.g. cancelled) so a stale countdown never lingers.
+        var present = {};
+        for (var c = 0; c < jobs.length; c++) present[jobs[c].id] = true;
+        var pruned = {}, dropped = false;
+        for (var ck in coolMap) { if (present[ck]) pruned[ck] = coolMap[ck]; else dropped = true; }
+        if (dropped) coolMap = pruned;
         totalsMap = LocalDownloads.totals;
         var lanes = {};
         for (var i = 0; i < worlds.length; i++)
@@ -167,6 +188,25 @@ Item {
         if (secs >= 60) return "~" + Math.round(secs / 60) + " min left";
         return "~" + Math.round(secs) + " s left";
     }
+    // ms until a cooling job resumes (0 = not cooling). Reads nowTick + coolMap so
+    // any binding calling it re-evaluates on every countdown tick.
+    function coolMsFor(id) {
+        var u = root.coolMap[id];
+        if (!u) return 0;
+        var rem = u - root.nowTick;
+        return rem > 0 ? rem : 0;
+    }
+    function fmtCooldown(ms) {
+        var s = Math.ceil(ms / 1000);
+        var mm = Math.floor(s / 60), ss = s % 60;
+        return mm + ":" + (ss < 10 ? "0" : "") + ss;
+    }
+    function clearCool(id) {
+        if (root.coolMap[id] === undefined) return;
+        var next = {};
+        for (var k in root.coolMap) if (k !== id) next[k] = root.coolMap[k];
+        root.coolMap = next;   // reassign so bindings wake
+    }
     // Fold flat jobs into checkout groups (a season = a view of the queue).
     function groupJobs(list) {
         var groups = [], byKey = {};
@@ -217,6 +257,27 @@ Item {
     Connections {
         target: typeof LocalDownloads !== "undefined" ? LocalDownloads : null
         function onChanged() { root.refresh() }
+    }
+    // Cooldown feed — `Downloads` (MangaDownloader) is the only backbone that
+    // rate-limits with a pause+resume, so its paused() is where the truth lives.
+    // Any progress/finish/fail for that chapter means the wall lifted → clear.
+    Connections {
+        target: typeof Downloads !== "undefined" ? Downloads : null
+        function onPaused(chapterId, resumeInMs) {
+            var next = {};
+            for (var k in root.coolMap) next[k] = root.coolMap[k];
+            next[chapterId] = Date.now() + resumeInMs;
+            root.coolMap = next;
+            root.nowTick = Date.now();
+        }
+        function onProgress(chapterId, done, total) { root.clearCool(chapterId) }
+        function onFinished(chapterId) { root.clearCool(chapterId) }
+        function onFailed(chapterId, reason) { root.clearCool(chapterId) }
+        function onRemoved(chapterId) { root.clearCool(chapterId) }
+    }
+    Timer {   // live countdown — only ticks while something is actually cooling
+        interval: 1000; repeat: true; running: root.anyCooling
+        onTriggered: root.nowTick = Date.now()
     }
 
     MouseArea { anchors.fill: parent }
@@ -388,7 +449,15 @@ Item {
                                                     if (r0.state === "done")
                                                         return wn + " · landed";
                                                     var d = r0.detail || "";
-                                                    return d.length ? (wn + " · " + d) : wn;
+                                                    var base = d.length ? (wn + " · " + d) : wn;
+                                                    // honest cooldown: xoxo parked this job's page
+                                                    // download; show the live resume countdown so it
+                                                    // never reads as stuck at "0 of 58 pages".
+                                                    var cd = root.coolMsFor(r0.id);
+                                                    if (cd > 0)
+                                                        base += " · source cooling down — resumes in "
+                                                                + root.fmtCooldown(cd);
+                                                    return base;
                                                 }
                                                 return wn + " · season checkout · " + grp.modelData.count + " episodes";
                                             }
