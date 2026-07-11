@@ -34,9 +34,14 @@ Item {
     property int gen: 0
     property string qualityFilter: "all"
     property var visibleRows: filteredRows()
+    // "play" (default — every pre-existing caller) or "download": in download mode
+    // choosing a row queues that exact torrent instead of playing (spec 2026-07-11).
+    property string mode: "play"
 
     // a source row was chosen → play it (handled up at Main, which opens the player)
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
+    // download mode's row action: the full chosen row (infoHash/fileIdx/url/…)
+    signal downloadRequested(var row)
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -44,7 +49,8 @@ Item {
 
     Theme { id: theme }
 
-    function show(type, id, lbl, context) {
+    function show(type, id, lbl, context, pickMode) {
+        sheet.mode = (pickMode === "download") ? "download" : "play";
         sheet.subType = type ? type : "";
         sheet.subId = id ? id : "";
         sheet.label = lbl ? lbl : "";
@@ -177,9 +183,11 @@ Item {
         anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
         spacing: 12
         Text {
-            visible: sheet.metaLine.length > 0
+            visible: sheet.mode === "download" || sheet.metaLine.length > 0
             width: parent.width
-            text: sheet.metaLine.toUpperCase()
+            text: (sheet.mode === "download" ? "DOWNLOAD — PICK A SOURCE" +
+                       (sheet.metaLine.length ? "  ·  " + sheet.metaLine : "")
+                     : sheet.metaLine).toUpperCase()
             color: theme.gold; font.family: theme.ui; font.pixelSize: 12
             font.letterSpacing: 4; elide: Text.ElideRight
         }
@@ -421,16 +429,26 @@ Item {
                     width: 56; height: 56; radius: 28; color: theme.gold
                     scale: rowMa.containsMouse ? 1.05 : 1.0
                     Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
-                    Text { anchors.centerIn: parent; anchors.horizontalCenterOffset: 2
-                        text: "▶"; color: "#1a1306"; font.pixelSize: 18 }
+                    Text { anchors.centerIn: parent
+                        anchors.horizontalCenterOffset: sheet.mode === "download" ? 0 : 2
+                        text: sheet.mode === "download" ? "↓" : "▶"
+                        color: "#1a1306"; font.pixelSize: 18
+                        font.weight: sheet.mode === "download" ? Font.DemiBold : Font.Normal }
                 }
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: sheet.playRequested(row.modelData.infoHash, row.modelData.fileIdx,
-                                                   sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId,
-                                                   sheet.rows, sheet.playbackContext)
+                    onClicked: {
+                        if (sheet.mode === "download") {
+                            sheet.downloadRequested(row.modelData)
+                            sheet.hide()
+                        } else {
+                            sheet.playRequested(row.modelData.infoHash, row.modelData.fileIdx,
+                                                sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId,
+                                                sheet.rows, sheet.playbackContext)
+                        }
+                    }
                 }
 
                 // copy link — the row's second verb (spec 2026-07-08). Torrents copy a
