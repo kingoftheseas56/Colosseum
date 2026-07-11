@@ -952,38 +952,9 @@ Window {
         }
     }
 
-    // ---- reusable: a clickable row header (the nav-in to a world). Continue isn't a world,
-    //      so it opts out with navigable:false (no chevron, no click). ----
-    component RowHeader: Item {
-        id: rh
-        property string title
-        property bool navigable: true
-        signal clicked()
-        implicitWidth: rhRow.implicitWidth
-        implicitHeight: rhRow.implicitHeight
-        Row {
-            id: rhRow
-            spacing: 8
-            Text {
-                text: rh.title
-                color: (rh.navigable && rhMa.containsMouse) ? theme.ink : theme.inkDim
-                font.family: theme.display; font.pixelSize: 23
-            }
-            Text {
-                text: "›"
-                visible: rh.navigable
-                color: theme.gold; font.pixelSize: 22
-                opacity: rhMa.containsMouse ? 1 : 0
-                Behavior on opacity { NumberAnimation { duration: 120 } }
-            }
-        }
-        MouseArea {
-            id: rhMa; anchors.fill: parent
-            hoverEnabled: rh.navigable
-            cursorShape: rh.navigable ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: if (rh.navigable) rh.clicked()
-        }
-    }
+    // (RowHeader — the old hover-reveal row header — is gone: its one user was the home
+    //  Continue row, which now wears the SAME WidgetHeader as the world rows, so the
+    //  "See all ›" affordance reads identically on every Continue surface.)
 
     // (The unified Continue card now lives in ContinueTile.qml — one component worn two ways,
     //  shared with the world pages' ContinueRow. Spec: haven docs/superpowers/specs/
@@ -1189,7 +1160,12 @@ Window {
                             .concat(a.filter(function(e) { return e.watched === true }))
                 })())
                 visible: contItems.length > 0
-                RowHeader { title: "Continue"; onClicked: win.openContinueSeeAll("home") }   // ‹›  the whole backlog
+                // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
+                WidgetHeader {
+                    width: parent.width; title: "Continue"
+                    moreLabel: "See all"
+                    onMoreClicked: win.openContinueSeeAll("home")
+                }
                 Flickable {
                     id: contFlick
                     width: parent.width; height: 148
