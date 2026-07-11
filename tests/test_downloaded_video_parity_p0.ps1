@@ -67,8 +67,9 @@ Assert-Contains $style 'onClicked: {} }' `
 Assert-Contains $main 'if (r.localPath && String(r.localPath).length)' `
     "resumeContinue must branch to the local file BEFORE the infoHash stream path."
 
-# --- F4: per-episode download is back ---
-Assert-Contains $series 'function queueEpisodeDownload(v)' `
+# --- F4: per-episode download is back (signature gained the torrent-choice pick,
+#         spec 2026-07-11 — the ↓ routes through the source picker now) ---
+Assert-Contains $series 'function queueEpisodeDownload(v, pick)' `
     "TheatreSeries must queue a single episode again."
 Assert-Contains $series 'id: epDl' `
     "Episode rows must carry the per-episode download button."
