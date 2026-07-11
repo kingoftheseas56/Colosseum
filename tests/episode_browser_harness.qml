@@ -110,5 +110,40 @@ QtObject {
             throw new Error("dead check -> dead")
         if (EB.sourceRowState(0, 2, false) !== "playable")
             throw new Error("otherwise -> playable")
+
+        // --- pickContinuityRow: same-torrent rows win episode jumps (season packs) ---
+        var packRows = [
+            { infoHash: "AAA111", fileIdx: 0, quality: "2160p" },
+            { infoHash: "bbb222", fileIdx: 4, quality: "1080p" },   // the pack we're playing
+            { infoHash: "ccc333", fileIdx: 0, quality: "1080p" }
+        ]
+        // same hash (case-insensitive), different file -> pack row wins over rank
+        var pick = EB.pickContinuityRow(packRows, "BBB222", 3)
+        if (!pick || pick.infoHash !== "bbb222" || pick.fileIdx !== 4)
+            throw new Error("pack row (same hash, different file) must win over rank")
+        // no same-hash row -> rank-best fallback (today's behavior)
+        pick = EB.pickContinuityRow(packRows, "zzz999", 0)
+        if (!pick || pick.infoHash !== "AAA111")
+            throw new Error("no pack match must fall back to rows[0]")
+        // same hash AND same fileIdx = the same file = wrong episode -> excluded
+        pick = EB.pickContinuityRow(packRows, "bbb222", 4)
+        if (!pick || pick.infoHash !== "AAA111")
+            throw new Error("same-file row must be excluded from continuity")
+        // url: streams never match — same url for a different episode is the same video
+        var urlRows = [
+            { infoHash: "ddd444", fileIdx: 0 },
+            { infoHash: "url:http://x/ep.mp4", fileIdx: 0 }
+        ]
+        pick = EB.pickContinuityRow(urlRows, "url:http://x/ep.mp4", 0)
+        if (!pick || pick.infoHash !== "ddd444")
+            throw new Error("url: hashes must never continuity-match")
+        // empty / missing inputs stay safe
+        if (EB.pickContinuityRow([], "aaa", 0) !== null)
+            throw new Error("empty rows -> null")
+        if (EB.pickContinuityRow(null, "aaa", 0) !== null)
+            throw new Error("null rows -> null")
+        pick = EB.pickContinuityRow(packRows, "", 0)
+        if (!pick || pick.infoHash !== "AAA111")
+            throw new Error("no current hash -> rank-best")
     }
 }

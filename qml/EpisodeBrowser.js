@@ -134,3 +134,25 @@ function sourceRowState(index, currentIndex, isDead) {
         return "dead";
     return "playable";
 }
+
+// Torrent continuity (spec 2026-07-11): an episode jump should stay on the torrent
+// already playing when it also carries the target episode (season packs). Given the
+// freshly resolved rows and the currently playing hash/file, return the row to play:
+// a row with the SAME infoHash but a DIFFERENT fileIdx wins regardless of rank.
+// "url:"-prefixed hashes never match (same url = same video, wrong for another
+// episode); same hash + same fileIdx is the same file, also wrong. No match (or no
+// current hash) -> rows[0], exactly the pre-feature behavior. null on empty input.
+function pickContinuityRow(rows, currentInfoHash, currentFileIdx) {
+    if (!rows || !rows.length)
+        return null;
+    var cur = String(currentInfoHash || "").toLowerCase();
+    if (cur.length && cur.indexOf("url:") !== 0) {
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i] || {};
+            var h = String(r.infoHash || "").toLowerCase();
+            if (h === cur && Number(r.fileIdx || 0) !== Number(currentFileIdx || 0))
+                return r;
+        }
+    }
+    return rows[0];
+}
