@@ -425,6 +425,10 @@ QVariantList DownloadStore::jobs() const {
             {QStringLiteral("art"), j.request.value(QStringLiteral("art"))},
             {QStringLiteral("groupKey"), j.request.value(QStringLiteral("groupKey"), j.id)},
             {QStringLiteral("subtitle"), j.request.value(QStringLiteral("subtitle"))},
+            // torrent-choice pin (spec 2026-07-11): Main.qml's resolver reads these
+            // to skip the source search; empty when the job wasn't hand-picked.
+            {QStringLiteral("infoHash"), j.request.value(QStringLiteral("infoHash"))},
+            {QStringLiteral("fileIdx"), j.request.value(QStringLiteral("fileIdx"))},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
             {QStringLiteral("ratio"), j.ratio},
