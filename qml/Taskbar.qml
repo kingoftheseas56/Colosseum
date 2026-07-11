@@ -221,10 +221,10 @@ Item {
                         property bool isActive: bar.groupHasActive(modelData)
                         property bool multi: (modelData.sessions || []).length > 1
 
-                        width: tileRow.implicitWidth + 26
+                        width: tileRow.implicitWidth + 26 + (tile.multi ? 0 : 22)
                         height: 46
                         radius: 13
-                        color: tileMa.containsMouse || tile.isActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                        color: tileHover.hovered || tile.isActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
                         border.width: tile.isActive ? 1 : 0
                         border.color: Qt.rgba(0.94, 0.77, 0.29, 0.85)
 
@@ -261,6 +261,43 @@ Item {
                                 } else {
                                     fan.openFor(tile, sessions)
                                 }
+                            }
+                        }
+
+                        HoverHandler { id: tileHover }
+
+                        // Chrome-style close — single-session tiles only (multi tiles
+                        // fan out; the fan rows carry their own close). Reserved
+                        // right-edge box, glyph painted on hover, click closes (not
+                        // switches) because this sits above tileMa in its corner.
+                        Item {
+                            id: tileClose
+                            visible: !tile.multi
+                            anchors.right: parent.right
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 18; height: 18
+                            opacity: tileHover.hovered ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 120 } }
+
+                            Rectangle {
+                                width: 11; height: 1.4; radius: 1; anchors.centerIn: parent
+                                rotation: 45
+                                color: tileCloseMa.containsMouse ? "#efc15a" : "#9a9aa4"
+                            }
+                            Rectangle {
+                                width: 11; height: 1.4; radius: 1; anchors.centerIn: parent
+                                rotation: -45
+                                color: tileCloseMa.containsMouse ? "#efc15a" : "#9a9aa4"
+                            }
+
+                            MouseArea {
+                                id: tileCloseMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                enabled: tileClose.visible && tileHover.hovered
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: bar.closeRequested(tile.modelData.sessions[0].id)
                             }
                         }
                     }
@@ -343,6 +380,7 @@ Item {
                         anchors.right: parent.right
                         anchors.rightMargin: 10
                         anchors.verticalCenter: parent.verticalCenter
+                        z: 1   // close outranks rowMa (declared later, fills the whole row)
                         width: 24
                         height: 24
 
