@@ -47,10 +47,14 @@ Assert-Contains $player 'root.pendingSeekSec = -1' `
     "playTorrent/playUrl must reset the pending seek (next-episode must not inherit it)."
 
 # --- F2: pop-up bodies swallow clicks (the hollow-panel dismiss bug) ---
+# Needle refreshed 2026-07-11 (stale-contract doctrine): the native player re-skin
+# (forged-pane) collapsed the original 9-panel set to 8 — closeConfirm/overflow/
+# liveGuide/dvr/abLoop/speed/fill + upNext — each verified to carry the swallower;
+# dense PlayerMenu rows absorb their own clicks.
 $swallower = 'MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }'
 $playerSwallowers = Count-Occurrences $player $swallower
-if ($playerSwallowers -lt 9) {
-    throw "PlayerPage panels (room/cast/live/dvr/stats/tools/speed/fill + upNext) must absorb body clicks (found $playerSwallowers of >=9)."
+if ($playerSwallowers -lt 8) {
+    throw "PlayerPage panels (closeConfirm/overflow/liveGuide/dvr/abLoop/speed/fill + upNext) must absorb body clicks (found $playerSwallowers of >=8)."
 }
 Assert-Contains $audio 'onClicked: {} }' `
     "AudioMenu panel body must absorb clicks (empty panels dismissed on any tap)."
