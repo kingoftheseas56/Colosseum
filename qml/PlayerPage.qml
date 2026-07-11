@@ -13,6 +13,7 @@ import "SkipSegments.js" as SkipSegments
 import "TrackLanguage.js" as TrackLanguage
 import "PlayerTrackPrefs.js" as PlayerTrackPrefs
 import "PlayerHotkeys.js" as PlayerHotkeys
+import "EpisodeBrowser.js" as EpisodeBrowser
 
 Item {
     id: root
@@ -1122,7 +1123,11 @@ Item {
                 root.wakeChrome()
                 return
             }
-            var first = list[0]
+            // Torrent continuity (spec 2026-07-11): if the torrent we're already
+            // playing also carries the target episode (season pack), stay on it —
+            // near-instant start, same quality. Otherwise rank-best, as ever.
+            var cur = root.currentStreamCandidate()
+            var first = EpisodeBrowser.pickContinuityRow(list, cur.infoHash || "", cur.fileIdx || 0)
             root.playTorrent(first.infoHash, first.fileIdx || 0,
                              ep.title || root.mediaTitle, ep.backdrop || root.mediaArt,
                              ep.type || "series", ep.id, list, ep.context || ({}))
