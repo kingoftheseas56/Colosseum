@@ -42,19 +42,32 @@ public:
     // contentKind drives which surface the dispatcher loads, target is the reopen payload.
     Q_INVOKABLE QString openOrSwitch(const QVariantMap &desc) {
         const QString key = targetKey(desc);
-        for (const QVariant &v : m_sessions) {
-            const QVariantMap rec = v.toMap();
-            if (rec.value(QStringLiteral("key")).toString() == key) {
-                const QString id = rec.value(QStringLiteral("id")).toString();
-                setActive(id);
-                return id;
+        const QString ck = contentKeyFor(desc);
+        for (int i = 0; i < m_sessions.size(); ++i) {
+            QVariantMap rec = m_sessions.at(i).toMap();
+            if (rec.value(QStringLiteral("key")).toString() != key)
+                continue;
+            const QString id = rec.value(QStringLiteral("id")).toString();
+            if (rec.value(QStringLiteral("contentKey")).toString() != ck) {
+                // one-tab-per-show replace: same show, new content — same tile, new
+                // target; the saved position described the OLD content, so it goes.
+                rec.insert(QStringLiteral("contentKey"), ck);
+                rec.insert(QStringLiteral("title"), desc.value(QStringLiteral("title")));
+                rec.insert(QStringLiteral("target"), desc.value(QStringLiteral("target")));
+                rec.insert(QStringLiteral("savedState"), QVariantMap());
+                m_sessions[i] = rec;
+                bump();
+                emit targetReplaced(id);
             }
+            setActive(id);
+            return id;
         }
 
         QVariantMap rec;
         const QString id = QStringLiteral("s%1").arg(++m_idSeq);
         rec.insert(QStringLiteral("id"), id);
         rec.insert(QStringLiteral("key"), key);
+        rec.insert(QStringLiteral("contentKey"), ck);
         rec.insert(QStringLiteral("appType"), desc.value(QStringLiteral("appType")));
         rec.insert(QStringLiteral("contentKind"), desc.value(QStringLiteral("contentKind")));
         rec.insert(QStringLiteral("title"), desc.value(QStringLiteral("title")));
@@ -201,6 +214,8 @@ signals:
     void changed();
     void activeChangedProp();
     void activeChanged(const QString &prevId, const QString &nextId);
+    // one-tab-per-show: an existing session's target was swapped in place (same id).
+    void targetReplaced(const QString &id);
 
 private:
     static QString appTitle(const QString &app) {
@@ -226,6 +241,20 @@ private:
     // Stable identity for dedup: appType + contentKind + the target's own id/path/key.
     static QString targetKey(const QVariantMap &desc) {
         const QVariantMap target = desc.value(QStringLiteral("target")).toMap();
+        // one-tab-per-show (spec 2026-07-11): a caller-computed show identity wins —
+        // every content of one show shares one session/tile. No showKey (raw
+        // torrents, comics, books) -> the original per-content chain, unchanged.
+        QString tk = target.value(QStringLiteral("showKey")).toString();
+        if (tk.isEmpty())
+            tk = contentKeyFor(desc);
+        return desc.value(QStringLiteral("appType")).toString() + QStringLiteral("\x1f")
+             + desc.value(QStringLiteral("contentKind")).toString() + QStringLiteral("\x1f") + tk;
+    }
+
+    // The pre-2026-07-11 per-content chain — on a key match this tells "same show,
+    // different content" (replace) apart from "the exact same thing" (reuse).
+    static QString contentKeyFor(const QVariantMap &desc) {
+        const QVariantMap target = desc.value(QStringLiteral("target")).toMap();
         QString tk = target.value(QStringLiteral("id")).toString();
         if (tk.isEmpty())
             tk = target.value(QStringLiteral("path")).toString();
@@ -233,8 +262,7 @@ private:
             tk = target.value(QStringLiteral("infoHash")).toString();
         if (tk.isEmpty())
             tk = desc.value(QStringLiteral("title")).toString();
-        return desc.value(QStringLiteral("appType")).toString() + QStringLiteral("\x1f")
-             + desc.value(QStringLiteral("contentKind")).toString() + QStringLiteral("\x1f") + tk;
+        return tk;
     }
 
     int indexOf(const QString &id) const {
