@@ -21,6 +21,7 @@ import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
+import "EpisodeBrowser.js" as EpisodeBrowser
 
 Window {
     id: win
@@ -554,6 +555,18 @@ Window {
         }
     }
     Connections {
+        target: typeof Sessions !== "undefined" ? Sessions : null
+        function onTargetReplaced(id) {
+            // one-tab-per-show: the tile now points at NEW content — a warm-kept old
+            // stream must not resume as if it were the new pick, and if the record is
+            // somehow active (taskbar path) the live surface follows the new target.
+            if (win.warmPlayerSessionId === id)
+                win.warmPlayerSessionId = ""
+            if (Sessions.activeId === id)
+                win.activateSession(Sessions.get(id))
+        }
+    }
+    Connections {
         target: win
         function onPlayerOpenChanged() {
             if (win.playerOpen || !win.pendingResolves.length)
@@ -737,7 +750,8 @@ Window {
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
-            "target": { "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
+            "target": { "showKey": EpisodeBrowser.seriesRootId(subId || ""),
+                        "infoHash": infoHash, "fileIdx": fileIdx || 0, "title": title || "",
                         "backdrop": backdrop || "", "subType": subType || "", "subId": subId || "",
                         "streamCandidates": streamCandidates || [], "playbackContext": playbackContext || ({}),
                         "position": position || 0 }
@@ -749,7 +763,8 @@ Window {
     function openLocalVideoSession(v) {
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
-            "target": { "localPath": v.path, "id": v.id || "", "title": v.title || "",
+            "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
+                        "localPath": v.path, "id": v.id || "", "title": v.title || "",
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
     }
