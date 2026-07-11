@@ -486,7 +486,28 @@ Window {
     //      engine URL. Deferred while the player streams (one engine, playback wins). ----
     property var pendingResolves: []
     property var pendingFeeds: ({})   // "hash:idx" -> job id, answered by onFetchReady
+    // torrent-choice pin (spec 2026-07-11): a hand-picked job carries infoHash/fileIdx
+    // in its request; jobs() exposes them. Pinned -> prefetch exactly that torrent, no
+    // source search, and Retry retries the SAME pick (the choice is durable — never
+    // silently swapped). Unpinned (season checkout, old queued jobs) -> rank-best below.
+    function pinnedPickFor(id) {
+        var js = Download.jobs()
+        for (var i = 0; i < js.length; i++) {
+            if (js[i].id !== id) continue
+            var h = String(js[i].infoHash || "")
+            if (h.length) return { "infoHash": h, "fileIdx": Number(js[i].fileIdx || 0) }
+            return null
+        }
+        return null
+    }
     function resolveDownloadJob(id, streamId, mediaType) {
+        var pin = pinnedPickFor(id)
+        if (pin) {
+            var pkey = pin.infoHash.toLowerCase() + ":" + pin.fileIdx
+            win.pendingFeeds[pkey] = id
+            Stream.prefetch(pin.infoHash, pin.fileIdx)
+            return
+        }
         Torrentio.loadStreams(mediaType, streamId, function(rows) {
             if (!rows || !rows.length) {
                 Download.failJob(id, "No stream found for this episode.")
