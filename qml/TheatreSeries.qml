@@ -31,6 +31,7 @@ Item {
     property string episodeLayout: "list"
     property bool episodeJumpOpen: false
     property var seasonQueued: ({})   // season -> queued this visit
+    property var pendingDownloadEpisode: null   // episode awaiting a source pick in the sheet
     property bool seasonMenuOpen: false
     property string episodeJumpDraft: ""
     property bool loading: true
@@ -124,15 +125,19 @@ Item {
         seasonQueued = q;
     }
 
-    // Single-episode download (parity spec 2026-07-06 F4): same request shape as the
-    // season checkout, for exactly one episode. The per-row ↓ button calls this.
-    function queueEpisodeDownload(v) {
+    // Single-episode download (parity spec 2026-07-06 F4; torrent-choice spec
+    // 2026-07-11): same request shape as the season checkout, for exactly one
+    // episode. `pick` (optional) is the SourcesSheet row Hemanth chose — a torrent
+    // row pins infoHash/fileIdx (resolver skips the search), a direct/url row
+    // carries its url (DownloadStore downloads it with no resolve at all). The
+    // season checkout passes no pick and keeps the rank-best auto path.
+    function queueEpisodeDownload(v, pick) {
         if (typeof Download === "undefined")
             return;
         var sid = episodeStreamId(v);
         if (Download.hasVideo(sid))
             return;   // already on disk
-        Download.enqueueBatch([{
+        var req = {
             "id": sid,
             "kind": "episode",
             "title": page.title + " - S" + episodeSeason(v) + "E" + episodeNumber(v),
@@ -141,7 +146,19 @@ Item {
             "season": episodeSeason(v),
             "episode": episodeNumber(v),
             "art": page.cover
-        }]);
+        };
+        if (pick) {
+            var h = String(pick.infoHash || "");
+            var direct = pick.url ? String(pick.url)
+                       : (h.indexOf("url:") === 0 ? h.substring(4) : "");
+            if (direct.length)
+                req["url"] = direct;            // straight to startHttp, no resolve
+            else if (h.length) {
+                req["infoHash"] = h;            // pinned: resolver prefetches exactly this
+                req["fileIdx"] = Number(pick.fileIdx || 0);
+            }
+        }
+        Download.enqueueBatch([req]);
     }
 
     // ids currently sitting in the download queue (any state) — recomputed on every queue
@@ -1248,7 +1265,22 @@ Item {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: (epDl.onDisk || epDl.inQueue) ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                    onClicked: if (!epDl.onDisk && !epDl.inQueue) page.queueEpisodeDownload(ep.modelData)
+                                    // torrent-choice spec 2026-07-11: the ↓ opens the source
+                                    // picker in download mode; the chosen row lands back in
+                                    // onDownloadRequested below and pins the request.
+                                    onClicked: {
+                                        if (epDl.onDisk || epDl.inQueue)
+                                            return
+                                        page.pendingDownloadEpisode = ep.modelData
+                                        sources.show("series", page.episodeStreamId(ep.modelData),
+                                                     page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData),
+                                                     Object.assign({
+                                                         "title": page.title,
+                                                         "metaLine": page.episodeSourceLine(ep.modelData),
+                                                         "backdrop": page.sourceBackdrop()
+                                                     }, page.adjacentEpisodeContext(ep.modelData)),
+                                                     "download")
+                                    }
                         }
                     }
 
@@ -1308,5 +1340,10 @@ Item {
         z: 60
         backdrop: page.backdrop
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
+        onDownloadRequested: (row) => {
+            if (page.pendingDownloadEpisode)
+                page.queueEpisodeDownload(page.pendingDownloadEpisode, row)
+            page.pendingDownloadEpisode = null
+        }
     }
 }
