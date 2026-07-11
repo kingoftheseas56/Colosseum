@@ -167,6 +167,33 @@ public:
         close(b);
         ok &= (m_activeId == c || m_activeId == a);
         ok &= (m_sessions.size() == 2);
+        // one-tab-per-show (spec 2026-07-11): same show replaces in place, identical
+        // content reuses, different show gets its own session.
+        auto mkShow = [](const QString &show, const QString &hash, const QString &title) {
+            QVariantMap desc;
+            desc.insert(QStringLiteral("appType"), QStringLiteral("theatre"));
+            desc.insert(QStringLiteral("contentKind"), QStringLiteral("movie"));
+            desc.insert(QStringLiteral("title"), title);
+            QVariantMap target;
+            target.insert(QStringLiteral("showKey"), show);
+            target.insert(QStringLiteral("infoHash"), hash);
+            desc.insert(QStringLiteral("target"), target);
+            return desc;
+        };
+        const int base = m_sessions.size();
+        const QString s1 = openOrSwitch(mkShow(QStringLiteral("tt1"), QStringLiteral("hashA"), QStringLiteral("Show E1")));
+        saveState(s1, QVariantMap{{QStringLiteral("pos"), 42}});
+        const QString s2 = openOrSwitch(mkShow(QStringLiteral("tt1"), QStringLiteral("hashB"), QStringLiteral("Show E2")));
+        ok &= (s2 == s1) && (m_sessions.size() == base + 1);                  // replaced, not piled
+        ok &= (get(s1).value(QStringLiteral("target")).toMap()
+                  .value(QStringLiteral("infoHash")).toString() == QStringLiteral("hashB"));
+        ok &= get(s1).value(QStringLiteral("savedState")).toMap().isEmpty();  // stale state cleared
+        saveState(s1, QVariantMap{{QStringLiteral("pos"), 7}});
+        const QString s3 = openOrSwitch(mkShow(QStringLiteral("tt1"), QStringLiteral("hashB"), QStringLiteral("Show E2")));
+        ok &= (s3 == s1);                                                     // identical content reuses
+        ok &= !get(s1).value(QStringLiteral("savedState")).toMap().isEmpty(); // minimize position kept
+        const QString s4 = openOrSwitch(mkShow(QStringLiteral("tt2"), QStringLiteral("hashC"), QStringLiteral("Other Show")));
+        ok &= (s4 != s1) && (m_sessions.size() == base + 2);                  // different show = own tile
         qInfo("[session-selftest] %s", ok ? "PASS" : "FAIL");
     }
 
