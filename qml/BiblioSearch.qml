@@ -16,6 +16,8 @@ Item {
     property bool searched: false
     property var audioResults: []                     // audiobooks column (Apple media=audiobook)
     property bool audioSearching: false
+    property bool booksExpanded: false                // one row until "See more" (like Tankoban/Theatre)
+    property bool audioExpanded: false
     property var recent: []                          // in-session recent queries
     property string lastDispatchedQuery: ""
     property var historyStore: null
@@ -68,6 +70,7 @@ Item {
             search.searching = false; search.audioSearching = false; return
         }
         search.lastDispatchedQuery = q
+        search.booksExpanded = false; search.audioExpanded = false   // fresh query → collapse both to one row
         search.searching = true
         search.searchDispatcher(q, function(books) {
             if (q !== queryInput.text.trim()) return        // stale — input moved on
@@ -357,7 +360,7 @@ Item {
                     columnSpacing: 22; rowSpacing: 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
                     Repeater {
-                        model: search.restResults
+                        model: search.booksExpanded ? search.restResults : search.restResults.slice(0, bookGrid.columns)
                         delegate: Column {
                             required property var modelData
                             width: bookGrid.cellW; spacing: 9
@@ -385,6 +388,14 @@ Item {
                         }
                     }
                 }
+                // Books cap: one row until "See more" — so audiobooks aren't buried under 20 books
+                Item { visible: !search.booksExpanded && search.restResults.length > bookGrid.columns; width: 1; height: 18 }
+                SeeMorePill {
+                    extra: search.restResults.length - bookGrid.columns
+                    expanded: search.booksExpanded
+                    onToggled: search.booksExpanded = !search.booksExpanded
+                }
+
                 // ───────── AUDIOBOOKS column (paired to their book on click) ─────────
                 Item { visible: search.audioResults.length > 0; width: 1; height: 44 }
                 Row {
@@ -406,7 +417,7 @@ Item {
                     columnSpacing: 22; rowSpacing: 26
                     property real cellW: (width - columnSpacing * (columns - 1)) / columns
                     Repeater {
-                        model: search.audioResults
+                        model: search.audioExpanded ? search.audioResults : search.audioResults.slice(0, audioGrid.columns)
                         delegate: Column {
                             required property var modelData
                             width: audioGrid.cellW; spacing: 9
@@ -440,6 +451,12 @@ Item {
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                         }
                     }
+                }
+                Item { visible: !search.audioExpanded && search.audioResults.length > audioGrid.columns; width: 1; height: 18 }
+                SeeMorePill {
+                    extra: search.audioResults.length - audioGrid.columns
+                    expanded: search.audioExpanded
+                    onToggled: search.audioExpanded = !search.audioExpanded
                 }
 
                 // no-results — only once BOTH lanes have returned empty (else it flashes
