@@ -64,7 +64,8 @@ Item {
         var q = queryInput.text.trim()
         if (q.length < 2) {
             search.lastDispatchedQuery = ""
-            search.results = []; search.audioResults = []; search.searched = false; return
+            search.results = []; search.audioResults = []; search.searched = false
+            search.searching = false; search.audioSearching = false; return
         }
         search.lastDispatchedQuery = q
         search.searching = true
@@ -441,9 +442,11 @@ Item {
                     }
                 }
 
-                // no-results — only when BOTH columns came back empty
+                // no-results — only once BOTH lanes have returned empty (else it flashes
+                // "No books found" while the slower audiobook lane is still loading)
                 Text {
-                    visible: search.searched && search.results.length === 0 && search.audioResults.length === 0 && !search.searching
+                    visible: search.searched && search.results.length === 0 && search.audioResults.length === 0
+                             && !search.searching && !search.audioSearching
                     text: "No books found"; color: theme.inkDimmer; font.family: theme.display
                     font.pixelSize: 20; topPadding: 30
                 }

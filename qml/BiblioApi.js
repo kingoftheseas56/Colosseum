@@ -241,10 +241,16 @@ function lookupBook(title, done) {
 // ───────────────────────────────────────────────────────────────────────────
 
 // the pairing identity — stable across a title's ebook and audiobook entities.
-// lowercase, '&'→' and ', strip punctuation, collapse whitespace.
+// CRITICAL: Apple's audiobook entity carries "(Unabridged)"/"(Abridged)" and edition
+// parentheticals ("Dune (Unabridged)") while the ebook is bare ("Dune"), so those must
+// be stripped or the two entities produce different keys and pairing silently breaks.
+// Also drops ": A Novel"-style marketing tails. lowercase, '&'→' and ', collapse.
 function pairKey(title, author) {
     function norm(s) {
         return String(s || "").toLowerCase()
+            .replace(/\([^)]*\)/g, " ")                              // "(unabridged)" / "(abridged)" / edition tags
+            .replace(/:\s*(a|an|the)\s+(novel|memoir|story|thriller|mystery|romance|tale)\b[^:]*$/, " ")  // ": A Novel" tails
+            .replace(/\bunabridged\b|\babridged\b/g, " ")           // bare (non-parenthetical) forms
             .replace(/&/g, " and ")
             .replace(/[^a-z0-9]+/g, " ")
             .replace(/\s+/g, " ").trim();

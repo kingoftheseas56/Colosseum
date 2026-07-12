@@ -35,7 +35,7 @@ Item {
     property string pairKey: (detail.book && detail.book.pairKey) ? detail.book.pairKey
                              : BiblioApi.pairKey(detail.book ? detail.book.title : "",
                                                  detail.book ? detail.book.author : "")
-    property bool audioLocal: false                     // recomputed in loadEditions + on Audio.finished
+    property bool audioLocal: false                     // recomputed in loadEditions + on Audiobooks.finished
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }                 // swallow clicks to the world beneath
@@ -71,7 +71,7 @@ Item {
             detail.refreshLocal()
         })
         // audiobook lane: is one already downloaded? then find one to download.
-        detail.audioLocal = (typeof Audio !== 'undefined') && Audio.isDownloaded(detail.pairKey)
+        detail.audioLocal = (typeof Audiobooks !== 'undefined') && Audiobooks.isDownloaded(detail.pairKey)
         detail.abLoading = true; detail.abRows = []
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
             detail.abRows = (res && res.rows) ? res.rows : []
@@ -452,7 +452,7 @@ Item {
                         property string abState: detail.audioLocal ? "done" : "idle"
                         property real abPct: 0
                         Connections {
-                            target: (typeof Audio !== 'undefined') ? Audio : null
+                            target: (typeof Audiobooks !== 'undefined') ? Audiobooks : null
                             function onResolving(key) { if (key === detail.pairKey) abCol.abState = "resolving" }
                             function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
                             function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
@@ -500,12 +500,12 @@ Item {
                                     onClicked: {
                                         if (abCol.abState === "done") { detail.listenRequested(detail.pairKey, detail.book); return }
                                         if (abCol.abState === "downloading" || abCol.abState === "resolving") return
-                                        if (typeof Audio === 'undefined') return
+                                        if (typeof Audiobooks === 'undefined') return
                                         abCol.abState = "resolving"
                                         Abb.fetchInfoHash(abRow.modelData.slug, function(d) {
                                             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
                                             detail.abInfoHash = d.infoHash
-                                            Audio.downloadAudiobook(detail.pairKey, d.infoHash,
+                                            Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash,
                                                 detail.book.title || "", detail.book.author || "")
                                         })
                                     }
