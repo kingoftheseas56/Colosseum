@@ -259,7 +259,9 @@ Window {
     //      the Loader reloads onto that source, so Marvel opens the CinematicPage, One Piece the
     //      anime UniversePage. ----
     function universeSourceFor(category) {
-        return category === "cinematic" ? "CinematicPage.qml" : "UniversePage.qml"
+        return category === "cinematic" ? "CinematicPage.qml"
+             : category === "saga"      ? "SagaUniversePage.qml"   // book-first IPs (HP/LOTR/ASOIAF/Dune)
+             : "UniversePage.qml"
     }
     function openUniverse(name) {
         universeLayer.universeName = name
@@ -1302,6 +1304,7 @@ Window {
             if (item.searchClicked) item.searchClicked.connect(win.openSearch)
             if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)   // anime template only
             if (item.watchRequested) item.watchRequested.connect(win.openTheatreSeries)
+            if (item.bookRequested) item.bookRequested.connect(win.openBook)          // saga template: novels → Biblio
         }
     }
 

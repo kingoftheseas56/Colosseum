@@ -7,6 +7,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "UniverseApi.js" as Api
+import "Universes.js" as Universes
 
 Item {
     id: root
@@ -14,7 +15,16 @@ Item {
 
     // shell contract (mirrors the world pages / MangaSeries layer)
     property Item backdrop: null
-    property string universeName: "One Piece"
+    // NO default universe: a "One Piece" default made every fresh open construct AS One
+    // Piece, fetch One Piece, and only then rename — the stale-flash Hemanth caught
+    // (2026-07-12). Empty means "wait for the host to say who I am".
+    property string universeName: ""
+    // per-universe presentation from the curation point: western IPs on this template say
+    // "TV Shows", and readMode "none" suppresses the manga machinery entirely (the LOTR
+    // yaoi-anthology lesson: fuzzy manga search is HARM on a non-manga IP).
+    readonly property var cfg: Universes.configFor(universeName)
+    readonly property string seriesLabel: (cfg && cfg.seriesLabel) ? cfg.seriesLabel : "Anime"
+    readonly property bool hasRead: !cfg || cfg.readMode !== "none"
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
@@ -27,7 +37,10 @@ Item {
                          read: { sub: "" }, watch: { sub: "" },
                          manga: [], anime: [], movies: [] })
 
-    function reload() { Api.loadUniverse(root.universeName, function(u) { if (u) root.uni = u; }); }
+    function reload() {
+        if (!root.universeName.length) return   // no name yet — never load a default universe
+        Api.loadUniverse(root.universeName, function(u) { if (u) root.uni = u; });
+    }
     Component.onCompleted: reload()
     onUniverseNameChanged: reload()
 
@@ -113,9 +126,11 @@ Item {
                 Rectangle {
                     width: parent.width; height: 330; radius: 22; clip: true
                     color: "transparent"; border.width: 1; border.color: theme.edge
-                    // READ half (warm)
+                    // READ half (warm) — hidden entirely on readMode "none" IPs (never route a
+                    // western universe into a fuzzy manga search — the LOTR anthology lesson)
                     DualityHalf {
                         id: readHalf
+                        visible: root.hasRead
                         anchors.left: parent.left; width: parent.width/2; height: parent.height
                         align: Qt.AlignLeft
                         label: "Read"; sub: root.uni.read ? root.uni.read.sub : "Start the manga"
@@ -124,12 +139,14 @@ Item {
                         warm: true
                         onActivated: root.seriesRequested(root.uni.manga.length ? root.uni.manga[0].title : root.universeName)
                     }
-                    // WATCH half (cool)
+                    // WATCH half (cool) — takes the whole panel when there's no read side
                     DualityHalf {
                         id: watchHalf
-                        anchors.right: parent.right; width: parent.width/2; height: parent.height
+                        anchors.right: parent.right
+                        width: root.hasRead ? parent.width/2 : parent.width
+                        height: parent.height
                         align: Qt.AlignRight
-                        label: "Watch"; sub: root.uni.watch ? root.uni.watch.sub : "Start the anime"
+                        label: "Watch"; sub: root.uni.watch ? root.uni.watch.sub : "Start watching"
                         icon: "../assets/icons/movies.svg"
                         artImage: root.uni.watch ? (root.uni.watch.art || root.uni.watch.cover || "") : ""
                         warm: false
@@ -137,6 +154,7 @@ Item {
                     }
                     // luminous gold seam
                     Rectangle {
+                        visible: root.hasRead
                         anchors.horizontalCenter: parent.horizontalCenter
                         anchors.top: parent.top; anchors.bottom: parent.bottom
                         width: 2; z: 3
@@ -149,6 +167,7 @@ Item {
                         }
                     }
                     Rectangle {  // treasure-diamond node
+                        visible: root.hasRead
                         anchors.centerIn: parent; width: 30; height: 30; radius: 6; z: 4
                         rotation: 45
                         gradient: Gradient {
@@ -162,8 +181,8 @@ Item {
                 Item { width: 1; height: 44 }  // spacer
 
                 // ===== MEDIUM ROWS — read routes to the manga page, watch to the Theatre detail =====
-                MediumRow { width: parent.width; title: "Manga";  kind: "read";  items: root.uni.manga }
-                MediumRow { width: parent.width; title: "Anime";  kind: "watch"; items: root.uni.anime }
+                MediumRow { width: parent.width; title: "Manga";  kind: "read";  items: root.hasRead ? root.uni.manga : [] }
+                MediumRow { width: parent.width; title: root.seriesLabel; kind: "watch"; items: root.uni.anime }
                 MediumRow { width: parent.width; title: "Movies"; kind: "watch"; items: root.uni.movies }
                 Item { width: 1; height: 50 }
             }
