@@ -304,13 +304,28 @@ function searchAudiobooks(query, done) {
 var LIBGEN = "https://libgen.li";
 var LIBGEN_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
-function requestText(url, done) {
+// libgen.li is flaky — a slow reply used to hang forever or land a partial page (few/no
+// editions for a book that actually has dozens). So: a 25s timeout + ONE retry, and a settled
+// guard so timeout + late-DONE can't both fire. The caller adds a cache-buster (below) so the
+// image disk-cache never serves a stale/partial scrape.
+function requestText(url, done, attempt) {
+    attempt = attempt || 0;
     var xhr = new XMLHttpRequest();
+    var settled = false;
+    function retryOrFail(v) {
+        if (settled) return; settled = true;
+        if (attempt < 1) { requestText(url, done, attempt + 1); return; }   // one fresh retry
+        done(v);
+    }
+    function ok(v) { if (settled) return; settled = true; done(v); }
+    xhr.timeout = 25000;
     xhr.onreadystatechange = function() {
         if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        if (xhr.status < 200 || xhr.status >= 300) { done(null); return; }
-        done(xhr.responseText);
+        if (xhr.status < 200 || xhr.status >= 300) { retryOrFail(null); return; }
+        ok(xhr.responseText);
     };
+    xhr.ontimeout = function() { retryOrFail(null); };
+    xhr.onerror = function() { retryOrFail(null); };
     xhr.open("GET", url);
     try { xhr.setRequestHeader("User-Agent", LIBGEN_UA); } catch (e) {}
     xhr.send();
@@ -327,7 +342,10 @@ function cellsOf(rowHtml) {
 function searchLibgen(title, author, done) {
     var term = (title || "") + (author ? " " + author : "");
     if (!term.trim()) { done([]); return; }
-    var url = LIBGEN + "/index.php?req=" + encodeURIComponent(term) + "&topics%5B%5D=l&topics%5B%5D=f";
+    // &nc= cache-buster: the app's shared NAM prefers-cache (built for images) — without a unique
+    // param a slow/partial first scrape gets cached and every later view shows the stunted list.
+    var url = LIBGEN + "/index.php?req=" + encodeURIComponent(term)
+            + "&topics%5B%5D=l&topics%5B%5D=f&nc=" + Date.now();
     requestText(url, function(html) {
         if (!html) { done([]); return; }
         var tm = html.match(/<table[^>]*id="tablelibgen"[^>]*>([\s\S]*?)<\/table>/i);
