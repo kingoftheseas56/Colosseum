@@ -3,8 +3,9 @@
 // 2026-07-12). Editorial folio + full-bleed banner per slide (SwipeView keeps drag), and a
 // SPINE RAIL of universe thumbs below that replaces the dots: the active spine carries a gold
 // progress line driven by the SAME timer as the auto-advance, so the page-turn is visible.
-// NO poster card (banner IS the art statement — ratified). Ledger counts: bright count + dim
-// medium; manga counts are DIFFERENT MANGA, never "volumes".
+// NO standalone cover card in front of the seam (banner IS the art statement — ratified).
+// Ledger counts: bright count + dim medium; a manga count means that many DIFFERENT manga,
+// not that many books of one title (Hemanth 2026-07-12).
 import QtQuick
 import QtQuick.Controls
 import "Universes.js" as Universes
