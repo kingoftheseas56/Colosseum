@@ -230,7 +230,14 @@ Item {
 
                         Row {
                             id: tileRow
-                            anchors.centerIn: parent
+                            // left-anchored, NOT centerIn: single tiles widen +22 to reserve the
+                            // close-X band, and centering split that reserve across both sides —
+                            // content drifted right and the label overlapped the X (Hemanth:
+                            // "very unsymmetric", 2026-07-12). Left margin 13 = half the base
+                            // padding, so multi tiles (no X) render exactly as before.
+                            anchors.left: parent.left
+                            anchors.leftMargin: 13
+                            anchors.verticalCenter: parent.verticalCenter
                             spacing: 9
 
                             Image {
