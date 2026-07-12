@@ -38,10 +38,12 @@ Assert-Lacks $hp 'HorizontalFlick' "The sideways walk is dead - the pile scrolls
 Assert-Contains $hp 'property bool walking' "The hall must hold the breathe still while scrolling."
 Assert-Contains $hp 'if (!root.walking) root.hovered' "Hover must be gated on the walk settling."
 
-# the sliver must reveal on contentY motion — glide animations never set moving/flicking,
-# so wheel scrolls showed NO scrollbar (the exact 2026-07-13 report)
+# the PROPER THUMB law (Hemanth 2026-07-13, reversing the sliver): the house scrollbar is
+# always present when the page overflows, and grabbable — never a motion-revealed phantom
 $sb = Read-File "qml/HouseScrollBar.qml"
-Assert-Contains $sb 'onContentYChanged' "HouseScrollBar must reveal on contentY motion (wheel glides)."
+Assert-Contains $sb 'interactive: true' "HouseScrollBar must be grabbable (the proper thumb, ratified)."
+Assert-Contains $sb 'ScrollBar.AlwaysOn' "HouseScrollBar must stand always-on when content overflows."
+Assert-Lacks $sb 'flick.moving || flick.flicking' "The motion-revealed sliver machinery must not return."
 
 # --- wiring: layer under the universe pages, door on the hero, Esc chain ---
 $main = Read-File "qml/Main.qml"
