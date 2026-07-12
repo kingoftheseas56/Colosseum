@@ -1,12 +1,19 @@
 // MagazineUniversePage — the MAGAZINE universe template (Weekly Shonen Jump). The magazine
 // publishes MANGA — nothing else exists on this page (Hemanth 2026-07-12: no anime, no
-// films). Its soul is the weekly TABLE OF CONTENTS ranked by the reader's vote, so the page
-// IS the contents spread: a red masthead wearing the iconic cover, then the flagships as a
-// ranked roster — giant gold numerals, cover, title, chapter count, Read →. Every entry
-// routes into A1's MangaSeries by title (the manga lane's own door).
+// films). Second form (Hemanth, same day: "more custom and unique than a top-10"): the page
+// is now a real ISSUE fed by MAL's serialization REGISTRY (Jikan, keyless — the registry is
+// MAL's own list for the magazine, exact by id, so live data IS the canon):
+//   masthead      — Jump red + the iconic cover (ratified), now carrying the registry total
+//   In This Issue — the manga running in Jump RIGHT NOW, a cover rail
+//   The All-Time Vote — the gold-numeral roster ranked by REAL circulation (MAL members);
+//                   falls back to the curated ten whenever the registry is unreachable
+//   Back Issues   — the registry shelved by serialization decade (start-year buckets, no taste)
+// Every entry routes into A1's MangaSeries by title (the manga lane's own door).
 import QtQuick
 import QtQuick.Controls
 import "UniverseApi.js" as Api
+import "MagazineApi.js" as Mag
+import "Universes.js" as UDB
 
 Item {
     id: root
@@ -24,9 +31,18 @@ Item {
     Theme { id: theme }
     property var uni: ({ name: "", blurb: "", banner: "", manga: [] })
 
+    // the live registry (null until Jikan answers; the page stands on curation meanwhile)
+    property var registry: null
+    readonly property var allTime: registry ? registry.all.slice(0, 10) : []
+    readonly property var inThisIssue: registry ? registry.publishing : []
+    readonly property var backIssues: registry ? Mag.bucketByEra(registry.all) : []
+    readonly property int registryTotal: registry ? registry.total : 0
+
     function reload() {
         if (!root.universeName.length) return      // never load a default universe
         Api.loadMangaOnly(root.universeName, function(u) { if (u) root.uni = u; })
+        var magId = UDB.configFor(root.universeName).malMagazineId || 0
+        if (magId > 0) Mag.loadRegistry(magId, function(r) { if (r) root.registry = r })
     }
     Component.onCompleted: reload()
     onUniverseNameChanged: reload()
@@ -45,6 +61,55 @@ Item {
                 source: "../assets/wallpaper/captured-motion.jpg"
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Rectangle { anchors.fill: parent; color: Qt.rgba(0.03, 0.02, 0.025, 0.88) }
+    }
+
+    // one cover tile, shared by In This Issue and the Back Issues shelves
+    component IssueTile: Item {
+        id: tile
+        property var entry: null
+        property string plate: ""          // the little gold year plate ("since 1997" / "1984–1995")
+        width: 150; height: 268
+        Rectangle {
+            width: parent.width; height: 212
+            radius: 8; clip: true
+            color: "#2a1a14"
+            border.width: 1
+            border.color: tileMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.7)
+                                               : Qt.rgba(0.97, 0.97, 0.96, 0.12)
+            Image {
+                anchors.fill: parent
+                source: (tile.entry && tile.entry.cover) || ""
+                asynchronous: true; cache: true
+                fillMode: Image.PreserveAspectCrop
+                opacity: status === Image.Ready ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 220 } }
+            }
+            Rectangle {   // the year plate, riding the cover's foot like a price sticker
+                anchors.left: parent.left; anchors.bottom: parent.bottom
+                anchors.margins: 8
+                visible: tile.plate.length > 0
+                radius: 4
+                color: Qt.rgba(0, 0, 0, 0.72)
+                border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.35)
+                width: plateText.implicitWidth + 14; height: plateText.implicitHeight + 8
+                Text { id: plateText; anchors.centerIn: parent
+                       text: tile.plate; color: theme.gold
+                       font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1 }
+            }
+        }
+        Text {
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            text: (tile.entry && tile.entry.title) || ""
+            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+        }
+        MouseArea {
+            id: tileMa
+            anchors.fill: parent
+            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: if (tile.entry) root.seriesRequested(tile.entry.title)
+        }
     }
 
     Flickable {
@@ -110,10 +175,52 @@ Item {
                         lineHeight: 1.4; wrapMode: Text.WordWrap
                         maximumLineCount: 2; elide: Text.ElideRight
                     }
+                    Text {   // the registry line — live only, never invented
+                        visible: root.registryTotal > 0
+                        text: root.registryTotal + " titles serialized — the complete registry"
+                        color: Qt.rgba(0.94, 0.77, 0.29, 0.85)
+                        font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                    }
                 }
             }
 
-            // ===== THE TABLE OF CONTENTS — the lineup, ranked =====
+            // ===== IN THIS ISSUE — the manga running in Jump right now =====
+            Column {
+                x: 54; width: parent.width - 108
+                topPadding: 34
+                spacing: 16
+                visible: root.inThisIssue.length > 0
+                Row {
+                    spacing: 12
+                    Text { text: "In This Issue"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 25 }
+                    Text { text: root.inThisIssue.length + " currently serializing"
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                           anchors.baseline: parent.children[0].baseline }
+                }
+                Flickable {
+                    width: parent.width; height: 274
+                    contentWidth: issueRow.width; contentHeight: height
+                    clip: true
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    Row {
+                        id: issueRow
+                        spacing: 18
+                        Repeater {
+                            model: root.inThisIssue
+                            delegate: IssueTile {
+                                required property var modelData
+                                entry: modelData
+                                plate: modelData.fromYear > 0 ? "since " + modelData.fromYear : ""
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ===== THE ALL-TIME VOTE — the roster, ranked by real circulation =====
+            // (fallback: the curated ten, so the room never stands empty when Jikan is down)
             Column {
                 x: 54; width: parent.width - 108
                 topPadding: 34
@@ -121,9 +228,12 @@ Item {
 
                 Row {
                     spacing: 12
-                    Text { text: "This Week's Lineup"; color: theme.ink
+                    Text { text: root.allTime.length > 0 ? "The All-Time Vote" : "This Week's Lineup"
+                           color: theme.ink
                            font.family: theme.display; font.pixelSize: 25 }
-                    Text { text: root.uni.manga.length + " flagships  ·  the reader's vote"
+                    Text { text: root.allTime.length > 0
+                                 ? "ranked by circulation — MAL members"
+                                 : root.uni.manga.length + " flagships  ·  the reader's vote"
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                            anchors.baseline: parent.children[0].baseline }
                 }
@@ -132,11 +242,12 @@ Item {
                     width: parent.width
                     spacing: 10
                     Repeater {
-                        model: root.uni.manga
+                        model: root.allTime.length > 0 ? root.allTime : root.uni.manga
                         delegate: Rectangle {
                             id: entry
                             required property var modelData
                             required property int index
+                            readonly property bool live: root.allTime.length > 0
                             width: parent.width; height: 96
                             radius: 12
                             color: entryMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.045)
@@ -175,21 +286,38 @@ Item {
                                     spacing: 5
                                     Text { text: entry.modelData.title
                                            color: theme.ink; font.family: theme.display; font.pixelSize: 21 }
-                                    Text { text: entry.modelData.chapters
-                                                 ? entry.modelData.chapters + " chapters"
-                                                 : "Serialized in Jump"
+                                    Text { text: entry.live
+                                                 ? ((entry.modelData.fromYear > 0
+                                                        ? (entry.modelData.publishing
+                                                            ? "since " + entry.modelData.fromYear
+                                                            : entry.modelData.fromYear + "–" + (entry.modelData.toYear || ""))
+                                                        : "serialized in Jump")
+                                                    + (entry.modelData.chapters ? "  ·  " + entry.modelData.chapters + " chapters" : ""))
+                                                 : (entry.modelData.chapters
+                                                        ? entry.modelData.chapters + " chapters"
+                                                        : "Serialized in Jump")
                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                                 }
                             }
                             Row {
                                 anchors.right: parent.right; anchors.rightMargin: 26
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 8
-                                opacity: entryMa.containsMouse ? 1 : 0.55
-                                Behavior on opacity { NumberAnimation { duration: 140 } }
-                                Text { text: "Read"; color: theme.ink
-                                       font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
-                                Text { text: "→"; color: theme.gold; font.pixelSize: 15 }
+                                spacing: 18
+                                Text {   // the circulation — live registry numbers only
+                                    visible: entry.live && entry.modelData.members > 0
+                                    text: Mag.fmtMembers(entry.modelData.members) + " readers"
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Row {
+                                    spacing: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    opacity: entryMa.containsMouse ? 1 : 0.55
+                                    Behavior on opacity { NumberAnimation { duration: 140 } }
+                                    Text { text: "Read"; color: theme.ink
+                                           font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                                    Text { text: "→"; color: theme.gold; font.pixelSize: 15 }
+                                }
                             }
                             MouseArea {
                                 id: entryMa
@@ -200,9 +328,65 @@ Item {
                         }
                     }
                 }
-
-                Item { width: 1; height: 60 }
             }
+
+            // ===== BACK ISSUES — the registry shelved by serialization decade =====
+            Column {
+                x: 54; width: parent.width - 108
+                topPadding: 44
+                spacing: 0
+                visible: root.backIssues.length > 0
+                Text { text: "Back Issues"; color: theme.ink
+                       font.family: theme.display; font.pixelSize: 25
+                       bottomPadding: 6 }
+                Text { text: "every shelf ordered by the readers — era set by each run's real start year"
+                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                       bottomPadding: 22 }
+                Repeater {
+                    model: root.backIssues
+                    delegate: Column {
+                        id: shelf
+                        required property var modelData
+                        width: parent.width
+                        spacing: 14
+                        bottomPadding: 30
+                        Row {
+                            spacing: 12
+                            Text { text: shelf.modelData.era; color: theme.gold
+                                   font.family: theme.display; font.italic: true; font.pixelSize: 19 }
+                            Text { text: shelf.modelData.span + "  ·  " + shelf.modelData.items.length
+                                         + (shelf.modelData.items.length === 1 ? " title" : " titles")
+                                   color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                   anchors.baseline: parent.children[0].baseline }
+                        }
+                        Flickable {
+                            width: parent.width; height: 274
+                            contentWidth: shelfRow.width; contentHeight: height
+                            clip: true
+                            flickableDirection: Flickable.HorizontalFlick
+                            boundsBehavior: Flickable.StopAtBounds
+                            Row {
+                                id: shelfRow
+                                spacing: 18
+                                Repeater {
+                                    model: shelf.modelData.items
+                                    delegate: IssueTile {
+                                        required property var modelData
+                                        entry: modelData
+                                        plate: modelData.fromYear > 0
+                                               ? (modelData.publishing
+                                                    ? "since " + modelData.fromYear
+                                                    : modelData.fromYear + "–" + (modelData.toYear || ""))
+                                               : ""
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Item { width: 1; height: 60 }
         }
     }
 

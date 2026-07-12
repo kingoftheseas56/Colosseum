@@ -120,6 +120,9 @@ var universes = [
     { name: "Weekly Shonen Jump", c1: "#3a1414", category: "magazine",
       blurb: "Shueisha's arena since 1968 — the magazine where One Piece, Naruto, Bleach and Dragon Ball fought for the reader's vote.",
       banner: "https://upload.wikimedia.org/wikipedia/en/0/02/Jump-Cover-1.jpg",
+      // MAL's serialization registry pin (myanimelist.net/manga/magazine/83) — Jikan rides it;
+      // the registry drives In This Issue / the all-time vote / the Back Issues era shelves
+      malMagazineId: 83,
       readQueries: [ "One Piece", "Naruto", "Bleach", "Dragon Ball", "Hunter x Hunter",
                      "My Hero Academia", "Jujutsu Kaisen", "Demon Slayer: Kimetsu no Yaiba",
                      "Chainsaw Man", "Death Note" ],
