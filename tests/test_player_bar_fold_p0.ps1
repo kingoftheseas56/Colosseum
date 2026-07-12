@@ -18,6 +18,14 @@ Assert-Contains $player "transportRow.width" `
     "utilitySpace must be derived from the LIVE transport width (prev/next change it)."
 Assert-Contains $player "readonly property bool barSnug" `
     "Tier A/B fold signal (speed/fill/stream/download/browser) must exist."
+# barSnug's only live consumers are the LEFT utility buttons (stream/download); the chip
+# roster holds out until barTiny. The old 470 threshold was sized for that chip roster,
+# so it folded the left row ~120px too early — context hydration lit prev/next up on the
+# Continue-Watching door (2026-07-12) and the wider transport pushed a fullscreen 150%-DPI
+# window under 470, hiding change-stream + download for no layout reason. The left row's
+# true need is 298px steady / 352 with the transient retry button -> 360.
+Assert-Contains $player "readonly property bool barSnug: utilitySpace < 360" `
+    "barSnug must be sized to the LEFT utility row's real need (360), not the chip roster's."
 Assert-Contains $player "readonly property bool barTiny" `
     "Tier C fold signal (audio/tools) must exist."
 

@@ -647,7 +647,13 @@ Item {
     readonly property real utilitySpace: chromeVisibleWidth / 2 - transportRow.width / 2 - 34
     // Retuned for the chip cluster (native chrome): stream/download round buttons fold
     // first (snug); the four chips hold out until the window is genuinely tiny.
-    readonly property bool barSnug: utilitySpace < 470
+    // Retuned AGAIN 2026-07-12: barSnug's only live consumers ARE those left round
+    // buttons, and the old 470 was sized for the chip roster — ~120px oversized for a
+    // left row that needs 298px steady (volume 190 + stream 48 + download 48 + spacing),
+    // 352 with the transient retry button. Context hydration lighting up prev/next on
+    // the Continue-Watching door widened the transport enough to cross 470 on a
+    // fullscreen 150%-DPI window and hid change-stream + download for no layout reason.
+    readonly property bool barSnug: utilitySpace < 360
     readonly property bool barTiny: utilitySpace < 260
     readonly property bool anyMenuOpen: audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
