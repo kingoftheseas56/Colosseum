@@ -14,6 +14,7 @@ import "TrackLanguage.js" as TrackLanguage
 import "PlayerTrackPrefs.js" as PlayerTrackPrefs
 import "PlayerHotkeys.js" as PlayerHotkeys
 import "EpisodeBrowser.js" as EpisodeBrowser
+import "TheatreApi.js" as TheatreApi
 
 Item {
     id: root
@@ -807,6 +808,72 @@ Item {
         return ctx.adjacentEpisodes || ({})
     }
 
+    // Bare-door context hydration (2026-07-12): Continue-Watching resume and downloaded
+    // files open the player knowing only "this file, this position" — no season queue,
+    // no source list — so prev/next-episode and change-stream buttons vanished on those
+    // doors while the series-page door showed them. Refetch both in the background from
+    // the identity the player always has and light the buttons as data lands. Silent on
+    // failure: buttons simply stay hidden, never a guessed queue.
+    property int hydrateGen: 0
+
+    function maybeHydrateContext() {
+        root.hydrateGen += 1
+        var myGen = root.hydrateGen
+        // Episode neighbors — only when the door passed none.
+        if (EpisodeBrowser.isEpisodeId(root.mediaId)
+                && !root.hasAdjacentEpisode("prev") && !root.hasAdjacentEpisode("next")) {
+            TheatreApi.loadMeta("series", EpisodeBrowser.seriesRootId(root.mediaId), function(meta) {
+                if (myGen !== root.hydrateGen)
+                    return
+                var vids = (meta && meta.videos) ? meta.videos : []
+                var ctx = EpisodeBrowser.queueContextFromMeta(
+                            vids, root.mediaId,
+                            EpisodeBrowser.showTitleFrom(root.mediaTitle),
+                            root.mediaArt, root.mediaYear)
+                if (!ctx)
+                    return
+                root.playbackQueue = ctx.episodeQueue
+                root.playbackQueueIndex = ctx.episodeIndex
+                root.adjacentEpisodes = root.resolveAdjacentContext(ctx)
+            })
+        }
+        // Source list — streamed sessions that arrived with just the one saved torrent.
+        // Downloaded files keep their empty list: change-stream isn't a local-file verb.
+        if (root.mediaLocalPath.length || root.streamCandidates.length > 1)
+            return
+        var subType = root.subStreamType.length ? root.subStreamType : "movie"
+        var subId = root.subStreamId
+        if (!subId.length || subId.indexOf("iptv:") === 0)
+            return
+        var applyRows = function(rows) {
+            if (myGen !== root.hydrateGen)
+                return
+            var merged = EpisodeBrowser.mergeHydratedCandidates(
+                        root.currentStreamCandidate(),
+                        root.normalizeStreamCandidates("", 0, root.mediaTitle, rows))
+            if (!merged)
+                return
+            root.streamCandidates = merged.list
+            root.currentStreamIndex = merged.index
+            root.updateMediaSubtitle()
+        }
+        // Same source ladder as the picker and the episode jump: every installed
+        // extension, ranked the same way, Torrentio as the fallback.
+        var exts = (typeof Extensions !== "undefined")
+                 ? AddonClient.streamExtensions(Extensions.installed(), subType, subId)
+                 : []
+        if (exts.length) {
+            AddonClient.loadStreams(exts, subType, subId, function() {}, function(rows) {
+                if (myGen !== root.hydrateGen)
+                    return
+                if (rows && rows.length) applyRows(rows)
+                else Torrentio.loadStreams(subType, subId, applyRows)
+            })
+        } else {
+            Torrentio.loadStreams(subType, subId, applyRows)
+        }
+    }
+
     function playStreamAt(index, reason) {
         if (index < 0 || index >= root.streamCandidates.length) {
             root.errored = true
@@ -913,6 +980,7 @@ Item {
         root.subStreamId = subId || ""
         root.fetchSubtitles()
         root.playStreamAt(root.currentStreamIndex, "start")
+        root.maybeHydrateContext()
     }
 
     function retryCurrentStream() {
@@ -1540,6 +1608,7 @@ Item {
 
 
     function playUrl(url, title) {
+        root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -1619,6 +1688,7 @@ Item {
         root.forceActiveFocus()
         root.resetRecoveryWatch()
         mpv.loadFile(root.mediaLocalPath)
+        root.maybeHydrateContext()
     }
 
     // Title's second line: WHAT you're watching, not just how it arrived.
@@ -1702,6 +1772,7 @@ Item {
     }
 
     function stop() {
+        root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
         root.closeMenus()
         mpv.command(["stop"])
