@@ -24,7 +24,7 @@
 namespace {
 
 constexpr int    kProgressThrottleMs = 500;
-constexpr int    kMaxManifestPolls   = 12;      // metadata may load slowly (~24s @ 2s)
+constexpr int    kMaxManifestPolls   = 4;       // ~4× (30s /create timeout) → honest fail, not a 6-min hang
 constexpr int    kManifestPollMs     = 2000;
 constexpr int    kFileTransferTimeoutMs = 120000;
 
@@ -255,18 +255,25 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
 
     if (m_active) { m_queue.append(job); return; }
     m_active = job;
-    // prefetch starts/adopts the engine + registers the torrent, then emits
-    // fetchReady(url, infoHash, 0) — that url tells us the engine base.
+    // prefetch starts/adopts the engine + registers the torrent. We then race two paths
+    // to learn the engine base: its fetchReady signal (fast when warm) and pollEngine
+    // (robust when cold — fetchReady can be lost if the engine's /create POST hangs).
     m_stream->prefetch(infoHash, 0);
+    pollEngine(job);
 }
 
 void AudiobookDownloader::onFetchReady(const QString& url, const QString& infoHash, int /*fileIdx*/)
 {
     Job* job = jobForHash(infoHash);
     if (!job || job != m_active) return;         // not ours, or queued (handled when promoted)
-    if (!job->baseUrl.isEmpty()) return;         // already handshaked
+    beginManifest(job, url);
+}
 
-    // url = http://127.0.0.1:<port>/<infoHash>/0  → base = http://127.0.0.1:<port>/<infoHash>
+// Derive the engine base from a stream URL (http://127.0.0.1:<port>/<hash>/0 → …/<hash>)
+// and kick off the manifest fetch. Idempotent — first caller (fetchReady OR the watchdog) wins.
+void AudiobookDownloader::beginManifest(Job* job, const QString& url)
+{
+    if (!job || job != m_active || !job->baseUrl.isEmpty() || url.isEmpty()) return;
     QString base = url;
     const int slash = base.lastIndexOf(QChar('/'));
     if (slash > 0) base = base.left(slash);
@@ -274,11 +281,28 @@ void AudiobookDownloader::onFetchReady(const QString& url, const QString& infoHa
     requestManifest(job);
 }
 
+// Watchdog: fetchReady from StreamServer can be LOST on a cold engine start (its /create
+// POST hangs before the signal fires — proven 2026-07-12). So we ALSO poll streamUrl,
+// which returns a URL the moment the engine port is known, independent of that POST.
+// Whichever path resolves the base first wins (beginManifest is idempotent).
+void AudiobookDownloader::pollEngine(Job* job)
+{
+    if (!job || job != m_active || !job->baseUrl.isEmpty()) return;   // done / superseded
+    const QString url = m_stream ? m_stream->streamUrl(job->infoHash, 0) : QString();
+    if (!url.isEmpty()) { beginManifest(job, url); return; }
+    if (++job->enginePolls > 40) {                                    // ~40s → engine never came up
+        failJob(job, QStringLiteral("stream engine did not start"));
+        return;
+    }
+    QTimer::singleShot(1000, this, [this, job]() { if (m_active == job) pollEngine(job); });
+}
+
 void AudiobookDownloader::requestManifest(Job* job)
 {
     job->createAttempts += 1;
     QNetworkRequest req(QUrl(job->baseUrl + QStringLiteral("/create")));
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setTransferTimeout(30000);   // a cold engine can hang /create — time out → retry (poll loop)
     QNetworkReply* reply = m_nam->post(req, QByteArray("{}"));
     connect(reply, &QNetworkReply::finished, this, [this, reply, job]() {
         if (m_active != job) { reply->deleteLater(); return; }   // cancelled/replaced
@@ -494,6 +518,7 @@ void AudiobookDownloader::promoteQueue()
     if (m_active || m_queue.isEmpty()) return;
     m_active = m_queue.takeFirst();
     m_stream->prefetch(m_active->infoHash, 0);
+    pollEngine(m_active);
 }
 
 void AudiobookDownloader::cleanupInFlight(Job* job)

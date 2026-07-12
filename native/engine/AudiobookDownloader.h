@@ -89,6 +89,7 @@ private:
         QString baseUrl;                       // http://127.0.0.1:<port>/<infoHash>
         QList<FileJob> files;                  // resolved audio files, natural-sorted
         int     current = 0;                   // index into files being downloaded
+        int     enginePolls = 0;               // watchdog ticks waiting for the engine port
         int     createAttempts = 0;            // manifest poll count (metadata may still be loading)
         qint64  doneBytes = 0;                 // bytes of fully-completed files
         qint64  totalBytes = 0;                // sum of all audio file lengths
@@ -102,6 +103,8 @@ private:
 
     // ── engine handshake ──
     void onFetchReady(const QString& url, const QString& infoHash, int fileIdx);
+    void beginManifest(Job* job, const QString& url);   // derive base from a stream URL, start manifest
+    void pollEngine(Job* job);                          // watchdog: poll streamUrl (fetchReady can be lost)
     void requestManifest(Job* job);
     void onManifestReply(QNetworkReply* reply, Job* job);
     QList<FileJob> parseManifest(const QByteArray& json) const;

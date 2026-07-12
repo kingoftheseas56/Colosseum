@@ -76,6 +76,15 @@ Item {
         Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
             detail.abRows = (res && res.rows) ? res.rows : []
             detail.abLoading = false
+            // Pre-warm the stream engine on the top match while the user reads: a COLD engine
+            // can't fetch a torrent's peers fast (empty DHT), but by the time they click Download
+            // it's warm. Best-effort — never blocks the UI. (root-caused 2026-07-12: cold /create
+            // hangs 60s+; a warm engine resolves in seconds.)
+            if (!detail.audioLocal && detail.abRows.length > 0 && typeof Stream !== 'undefined') {
+                Abb.fetchInfoHash(detail.abRows[0].slug, function(d) {
+                    if (d && d.infoHash) { detail.abInfoHash = d.infoHash; Stream.prefetch(d.infoHash, 0) }
+                })
+            }
         })
     }
     function edMeta(ed) {
