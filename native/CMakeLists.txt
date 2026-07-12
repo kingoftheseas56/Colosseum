@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)   # compile app_resources.qrc (embeds the .ico for setWindowIcon)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -61,6 +61,10 @@ add_executable(colosseum
     engine/ExtensionsStore.h
     reader/BookBridge.cpp
     reader/BookBridge.h
+    tts/EdgeTtsClient.cpp
+    tts/EdgeTtsClient.h
+    tts/EdgeTtsWorker.cpp
+    tts/EdgeTtsWorker.h
     player/caststore.cpp
     player/caststore.h
     player/downloadstore.cpp
@@ -81,7 +85,7 @@ add_executable(colosseum
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
-    Qt6::WebEngineQuick Qt6::WebChannel)
+    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets)
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp
