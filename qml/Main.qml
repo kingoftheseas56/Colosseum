@@ -212,6 +212,7 @@ Window {
         else if (genreLayer.active) win.closeGenre()
         else if (genreIndexLayer.active) win.closeGenreIndex()
         else if (universeLayer.active) win.closeUniverse()
+        else if (universeHallLayer.active) win.closeUniverseHall()
         else if (worldStack.current !== "") win.closeWorld()
         else Qt.quit()
     } }
@@ -271,10 +272,22 @@ Window {
         topbar.visible = false
         page.visible = false
     }
+    // the Hall of Worlds — the universe collection's see-all (z below universeLayer, so
+    // entering a world paints OVER the hall and back returns to it)
+    function openUniverseHall() {
+        universeHallLayer.active = true
+        topbar.visible = false
+        page.visible = false
+    }
+    function closeUniverseHall() {
+        universeHallLayer.active = false
+        // only restore the home chrome if no world took over above us
+        if (!universeLayer.active) { topbar.visible = true; page.visible = true }
+    }
     function closeUniverse() {
         universeLayer.active = false
-        topbar.visible = true
-        page.visible = true
+        // if the Hall of Worlds sits beneath, back lands there — not on home
+        if (!universeHallLayer.active) { topbar.visible = true; page.visible = true }
     }
 
     function openGenre(name) {
@@ -1138,6 +1151,31 @@ Window {
                     interval: 6500; running: true; repeat: true
                     onTriggered: heroView.currentIndex = (heroView.currentIndex + 1) % Universes.universes.length
                 }
+
+                // the door to the Hall of Worlds — quiet, top-right, gold on hover
+                Item {
+                    z: 5
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
+                    width: hallRow.implicitWidth + 8; height: 28
+                    Row {
+                        id: hallRow
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        spacing: 7
+                        Text { text: Universes.universes.length + " worlds"
+                               color: hallMa.containsMouse ? theme.gold : theme.inkDim
+                               font.family: theme.display; font.pixelSize: 16
+                               Behavior on color { ColorAnimation { duration: 120 } } }
+                        Text { text: "›"
+                               color: hallMa.containsMouse ? theme.gold : theme.inkDimmer
+                               font.family: theme.display; font.pixelSize: 19
+                               anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    MouseArea {
+                        id: hallMa; anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: win.openUniverseHall()
+                    }
+                }
             }
 
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
@@ -1286,6 +1324,24 @@ Window {
     // ---- universe page layer: opened from the home hero "Explore the universe". Its source is the
     //      per-category template (anime UniversePage / cinematic CinematicPage), chosen in
     //      openUniverse(). Signal sets differ per template, so each optional connect is guarded. ----
+    // ---- the Hall of Worlds: the universe collection's see-all. z BELOW universeLayer so
+    //      a spine's world opens over the hall; closing it falls back here. ----
+    Loader {
+        id: universeHallLayer
+        anchors.fill: parent
+        z: 38
+        active: false
+        visible: active
+        source: "UniverseHallPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeUniverseHall)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.exploreRequested.connect(win.openUniverse)
+        }
+    }
+
     Loader {
         id: universeLayer
         anchors.fill: parent
