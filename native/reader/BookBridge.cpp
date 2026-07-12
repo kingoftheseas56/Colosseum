@@ -1,14 +1,40 @@
 #include "BookBridge.h"
+#include "../tts/EdgeTtsWorker.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QJsonArray>
 #include <QJsonDocument>
 #include <QStandardPaths>
+#include <QThread>
 #include <QUuid>
 
-BookBridge::BookBridge(QObject* parent) : QObject(parent) {}
+BookBridge::BookBridge(QObject* parent) : QObject(parent)
+{
+    // Edge-TTS worker on its own thread (QWebSocket must live off the GUI thread).
+    // Lifetime = the reader bridge; torn down in the dtor. Ported from Tankoban 2.
+    m_ttsThread = new QThread(this);
+    m_ttsWorker = new EdgeTtsWorker;
+    m_ttsWorker->moveToThread(m_ttsThread);
+    connect(m_ttsWorker, &EdgeTtsWorker::probeFinished,  this, &BookBridge::onWorkerProbeFinished);
+    connect(m_ttsWorker, &EdgeTtsWorker::voicesReady,    this, &BookBridge::onWorkerVoicesReady);
+    connect(m_ttsWorker, &EdgeTtsWorker::synthFinished,  this, &BookBridge::onWorkerSynthFinished);
+    connect(m_ttsWorker, &EdgeTtsWorker::streamError,    this, &BookBridge::onWorkerStreamError);
+    connect(m_ttsWorker, &EdgeTtsWorker::streamEnded,    this, &BookBridge::onWorkerStreamEnded);
+    connect(m_ttsWorker, &EdgeTtsWorker::warmupFinished, this, &BookBridge::onWorkerWarmupFinished);
+    connect(m_ttsWorker, &EdgeTtsWorker::resetFinished,  this, &BookBridge::onWorkerResetFinished);
+    m_ttsThread->setObjectName(QStringLiteral("EdgeTtsThread"));
+    m_ttsThread->start();
+}
+
+BookBridge::~BookBridge()
+{
+    if (m_ttsThread) { m_ttsThread->quit(); m_ttsThread->wait(5000); }
+    delete m_ttsWorker;
+    m_ttsWorker = nullptr;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // files
@@ -201,37 +227,97 @@ void BookBridge::requestClose()    { emit closeRequested(); }
 void BookBridge::markReaderReady() { emit readerReady(); }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Edge TTS — stubbed (answer each *Start with {ok:false} so JS Promises resolve)
+// Edge TTS — LIVE (ported from Tankoban 2). *Start dispatches to the worker thread
+// via QueuedConnection; the worker's *Finished signals land in onWorker* below,
+// which build the {ok, audioBase64, boundaries} JSON the reader's TTS JS consumes.
+// Single-pending discipline for probe/voices/warmup/reset (issued one-at-a-time by
+// tts_core.js init()); synth/synthStream carry their reqId/streamId through the worker.
 // ─────────────────────────────────────────────────────────────────────────────
 
-void BookBridge::booksTtsEdgeProbeStart(quint64 reqId, const QString&)
+void BookBridge::booksTtsEdgeProbeStart(quint64 reqId, const QString& voice)
 {
-    emit booksTtsEdgeProbeFinished(reqId, QJsonObject{{QStringLiteral("ok"), false},
-        {QStringLiteral("reason"), QStringLiteral("tts_unavailable")}});
+    m_pendingProbeReqId = reqId;
+    QMetaObject::invokeMethod(m_ttsWorker, "probe", Qt::QueuedConnection, Q_ARG(QString, voice));
 }
 void BookBridge::booksTtsEdgeGetVoicesStart(quint64 reqId)
 {
-    emit booksTtsEdgeVoicesReady(reqId, QJsonObject{{QStringLiteral("ok"), false},
-        {QStringLiteral("voices"), QJsonArray{}}});
+    m_pendingVoicesReqId = reqId;
+    QMetaObject::invokeMethod(m_ttsWorker, "getVoices", Qt::QueuedConnection);
 }
-void BookBridge::booksTtsEdgeSynthStart(quint64 reqId, const QString&, const QString&, double, double)
+void BookBridge::booksTtsEdgeSynthStart(quint64 reqId, const QString& text,
+                                        const QString& voice, double rate, double pitch)
 {
-    emit booksTtsEdgeSynthFinished(reqId, QJsonObject{{QStringLiteral("ok"), false},
-        {QStringLiteral("reason"), QStringLiteral("tts_unavailable")}});
+    QMetaObject::invokeMethod(m_ttsWorker, "synth", Qt::QueuedConnection,
+                              Q_ARG(quint64, reqId), Q_ARG(QString, text),
+                              Q_ARG(QString, voice), Q_ARG(double, rate), Q_ARG(double, pitch));
 }
-void BookBridge::booksTtsEdgeSynthStreamStart(quint64 reqId, const QString&, const QString&, double, double)
+void BookBridge::booksTtsEdgeSynthStreamStart(quint64 reqId, const QString& text,
+                                              const QString& voice, double rate, double pitch)
 {
-    emit booksTtsEdgeSynthStreamFinished(reqId, QJsonObject{{QStringLiteral("ok"), false}});
+    QMetaObject::invokeMethod(m_ttsWorker, "synthStream", Qt::QueuedConnection,
+                              Q_ARG(quint64, reqId), Q_ARG(QString, text),
+                              Q_ARG(QString, voice), Q_ARG(double, rate), Q_ARG(double, pitch));
 }
 void BookBridge::booksTtsEdgeCancelStream(quint64 streamId)
 {
-    emit booksTtsEdgeSynthStreamFinished(streamId, QJsonObject{{QStringLiteral("ok"), false}});
+    QMetaObject::invokeMethod(m_ttsWorker, "cancelStream", Qt::QueuedConnection, Q_ARG(quint64, streamId));
 }
 void BookBridge::booksTtsEdgeWarmupStart(quint64 reqId)
 {
-    emit booksTtsEdgeWarmupFinished(reqId, QJsonObject{{QStringLiteral("ok"), false}});
+    m_pendingWarmupReqId = reqId;
+    QMetaObject::invokeMethod(m_ttsWorker, "warmup", Qt::QueuedConnection);
 }
 void BookBridge::booksTtsEdgeResetStart(quint64 reqId)
 {
+    m_pendingResetReqId = reqId;
+    QMetaObject::invokeMethod(m_ttsWorker, "resetInstance", Qt::QueuedConnection);
+}
+
+// ── worker → bridge → JS dispatch ─────────────────────────────────────────────
+
+void BookBridge::onWorkerProbeFinished(bool ok, const QString& reason)
+{
+    QJsonObject result{{QStringLiteral("ok"), ok}};
+    if (ok) result.insert(QStringLiteral("available"), true);   // JS checks res.ok && res.available
+    if (!reason.isEmpty()) result.insert(QStringLiteral("reason"), reason);
+    const quint64 reqId = m_pendingProbeReqId; m_pendingProbeReqId = 0;
+    emit booksTtsEdgeProbeFinished(reqId, result);
+}
+void BookBridge::onWorkerVoicesReady(const QJsonArray& voices)
+{
+    QJsonObject result{{QStringLiteral("ok"), true}, {QStringLiteral("voices"), voices}};
+    const quint64 reqId = m_pendingVoicesReqId; m_pendingVoicesReqId = 0;
+    emit booksTtsEdgeVoicesReady(reqId, result);
+}
+void BookBridge::onWorkerSynthFinished(quint64 requestId, bool ok, const QByteArray& mp3,
+                                       const QJsonArray& boundaries, const QString& reason)
+{
+    QJsonObject result{{QStringLiteral("ok"), ok}};
+    if (ok) {
+        result.insert(QStringLiteral("audioBase64"), QString::fromLatin1(mp3.toBase64()));
+        result.insert(QStringLiteral("boundaries"), boundaries);
+    }
+    if (!reason.isEmpty()) result.insert(QStringLiteral("reason"), reason);
+    emit booksTtsEdgeSynthFinished(requestId, result);
+}
+void BookBridge::onWorkerStreamError(quint64 streamId, const QString& reason)
+{
+    emit booksTtsEdgeSynthStreamFinished(streamId,
+        QJsonObject{{QStringLiteral("ok"), false}, {QStringLiteral("reason"), reason}});
+}
+void BookBridge::onWorkerStreamEnded(quint64 streamId)
+{
+    Q_UNUSED(streamId);
+}
+void BookBridge::onWorkerWarmupFinished(bool ok, const QString& reason)
+{
+    QJsonObject result{{QStringLiteral("ok"), ok}};
+    if (!reason.isEmpty()) result.insert(QStringLiteral("reason"), reason);
+    const quint64 reqId = m_pendingWarmupReqId; m_pendingWarmupReqId = 0;
+    emit booksTtsEdgeWarmupFinished(reqId, result);
+}
+void BookBridge::onWorkerResetFinished()
+{
+    const quint64 reqId = m_pendingResetReqId; m_pendingResetReqId = 0;
     emit booksTtsEdgeResetFinished(reqId, QJsonObject{{QStringLiteral("ok"), true}});
 }

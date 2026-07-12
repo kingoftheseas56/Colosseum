@@ -21,10 +21,14 @@
 #include <QJsonArray>
 #include <QByteArray>
 
+class EdgeTtsWorker;
+class QThread;
+
 class BookBridge : public QObject {
     Q_OBJECT
 public:
     explicit BookBridge(QObject* parent = nullptr);
+    ~BookBridge() override;
 
     // ── files ──
     Q_INVOKABLE QByteArray filesRead(const QString& filePath);
@@ -99,6 +103,18 @@ signals:
     void booksTtsEdgeWarmupFinished(quint64 reqId, const QJsonObject& result);
     void booksTtsEdgeResetFinished(quint64 reqId, const QJsonObject& result);
 
+private slots:
+    // Edge-TTS worker → bridge → JS: translate worker signals into the {ok,...} JSON
+    // the reader's tts_engine_edge.js expects (audioBase64 + boundaries on synth).
+    void onWorkerProbeFinished(bool ok, const QString& reason);
+    void onWorkerVoicesReady(const QJsonArray& voices);
+    void onWorkerSynthFinished(quint64 requestId, bool ok, const QByteArray& mp3,
+                               const QJsonArray& boundaries, const QString& reason);
+    void onWorkerStreamError(quint64 streamId, const QString& reason);
+    void onWorkerStreamEnded(quint64 streamId);
+    void onWorkerWarmupFinished(bool ok, const QString& reason);
+    void onWorkerResetFinished();
+
 private:
     // ── self-contained JSON store under <appdata>/book_reader/ ──
     QString stateDir() const;
@@ -112,4 +128,12 @@ private:
 
     bool m_fullscreen = true;     // Colosseum is a fullscreen surface by default
     bool m_isMaximized = true;
+
+    // ── Edge TTS worker (own thread; QWebSocket must live off the GUI thread) ──
+    QThread* m_ttsThread = nullptr;
+    EdgeTtsWorker* m_ttsWorker = nullptr;
+    quint64 m_pendingProbeReqId = 0;
+    quint64 m_pendingVoicesReqId = 0;
+    quint64 m_pendingWarmupReqId = 0;
+    quint64 m_pendingResetReqId = 0;
 };
