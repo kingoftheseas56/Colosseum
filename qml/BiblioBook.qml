@@ -444,9 +444,12 @@ Item {
                                 }
                                 MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        if (torRow.dlState === "done")
-                                            detail.readRequested(BookTorrents.localFile(torRow.modelData.infoHash), detail.book)
-                                        else if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving")
+                                        if (torRow.dlState === "done") {
+                                            var lf = BookTorrents.localFile(torRow.modelData.infoHash)
+                                            if (lf) { detail.readRequested(lf, detail.book); return }
+                                            torRow.dlState = "idle"   // file vanished from disk since page opened — re-derive, fall through to re-download
+                                        }
+                                        if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving")
                                             BookTorrents.download(torRow.modelData.infoHash, detail.book.title, detail.book.author || "")
                                     }
                                 }
@@ -537,8 +540,12 @@ Item {
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        if (edRow.dlState === "done") detail.readRequested(Books.localBook(edRow.modelData.md5), detail.book)
-                                        else if (edRow.dlState !== "downloading" && edRow.dlState !== "resolving") detail.startDownload(edRow.modelData)
+                                        if (edRow.dlState === "done") {
+                                            var lf = Books.localBook(edRow.modelData.md5)
+                                            if (lf) { detail.readRequested(lf, detail.book); return }
+                                            edRow.dlState = "idle"   // file vanished since page opened — re-derive, fall through to re-download
+                                        }
+                                        if (edRow.dlState !== "downloading" && edRow.dlState !== "resolving") detail.startDownload(edRow.modelData)
                                     }
                                 }
                             }

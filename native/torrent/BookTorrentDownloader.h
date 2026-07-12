@@ -48,7 +48,8 @@ private:
         qint64  totalBytes = 0, received = 0;
         int     enginePolls = 0, createAttempts = 0;
         qint64  lastProgressEmit = 0;
-        QPointer<QNetworkReply> reply;
+        QPointer<QNetworkReply> reply;         // the file-transfer reply
+        QPointer<QNetworkReply> createReply;   // the in-flight POST /create reply (tracked so cancel aborts it)
         QFile*  file = nullptr;
         QString finalPath, partPath;
     };

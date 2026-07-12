@@ -110,7 +110,10 @@ void BookTorrentDownloader::pollEngine(Job* job)
     const QString url = m_stream ? m_stream->streamUrl(job->infoHash, 0) : QString();
     if (!url.isEmpty()) { beginManifest(job, url); return; }
     if (++job->enginePolls > kMaxEnginePolls) { failJob(job, QStringLiteral("stream engine did not start")); return; }
-    QTimer::singleShot(1000, this, [this, job]() { if (alive(job)) pollEngine(job); });
+    // Capture the hash by VALUE and re-validate with a pointer-only compare (no deref of a
+    // possibly-freed Job — cancelDownload may have deleted it while this timer was pending).
+    const QString h = job->infoHash;
+    QTimer::singleShot(1000, this, [this, h, job]() { if (m_active.value(h, nullptr) == job) pollEngine(job); });
 }
 
 void BookTorrentDownloader::requestManifest(Job* job)
@@ -120,8 +123,10 @@ void BookTorrentDownloader::requestManifest(Job* job)
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     req.setTransferTimeout(kCreateTimeoutMs);   // a cold engine can hang /create → time out, retry
     QNetworkReply* reply = m_nam->post(req, QByteArray("{}"));
-    connect(reply, &QNetworkReply::finished, this, [this, reply, job]() {
-        if (!alive(job)) { reply->deleteLater(); return; }
+    job->createReply = reply;                   // tracked so cancelDownload/cleanupInFlight aborts it
+    const QString h = job->infoHash;
+    connect(reply, &QNetworkReply::finished, this, [this, reply, h, job]() {
+        if (m_active.value(h, nullptr) != job) { reply->deleteLater(); return; }  // pointer compare, no deref
         onManifestReply(reply, job);
     });
 }
@@ -130,6 +135,7 @@ void BookTorrentDownloader::onManifestReply(QNetworkReply* reply, Job* job)
 {
     const QByteArray body = reply->readAll();
     const bool netOk = reply->error() == QNetworkReply::NoError;
+    job->createReply.clear();
     reply->deleteLater();
 
     const QJsonArray arr = netOk
@@ -139,7 +145,8 @@ void BookTorrentDownloader::onManifestReply(QNetworkReply* reply, Job* job)
     if (arr.isEmpty()) {
         // metadata still loading (no peers/pieces yet) → poll again, bounded
         if (job->createAttempts < kMaxManifestPolls) {
-            QTimer::singleShot(kManifestPollMs, this, [this, job]() { if (alive(job)) requestManifest(job); });
+            const QString h = job->infoHash;
+            QTimer::singleShot(kManifestPollMs, this, [this, h, job]() { if (m_active.value(h, nullptr) == job) requestManifest(job); });
             return;
         }
         failJob(job, QStringLiteral("torrent metadata unavailable (no peers?) after %1 tries").arg(job->createAttempts));
@@ -268,6 +275,11 @@ void BookTorrentDownloader::failJob(Job* job, const QString& reason)
 
 void BookTorrentDownloader::cleanupInFlight(Job* job)
 {
+    if (job->createReply) {
+        QNetworkReply* r = job->createReply.data();
+        if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
+        job->createReply.clear();
+    }
     if (job->reply) {
         QNetworkReply* r = job->reply.data();
         if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
