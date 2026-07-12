@@ -21,6 +21,8 @@ Item {
     property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
     property var torrents: []            // ranked rows from BookTorrents (native order — no re-sort)
     property bool torLoading: false
+    property bool torExpanded: false     // "See more" toggle — collapsed to torCap by default
+    property int torCap: 5               // rows shown before "See more"
 
     signal backRequested()
     signal minimizeRequested()
@@ -95,6 +97,7 @@ Item {
     function loadTorrents() {
         if (typeof BookTorrents === 'undefined' || !detail.book || !detail.book.title) return
         detail.torrents = []
+        detail.torExpanded = false       // a new book collapses the shelf back to the top matches
         detail.torLoading = true
         BookTorrents.search(detail.book.title, detail.book.author || "")
     }
@@ -395,12 +398,13 @@ Item {
                             }
                         }
                         Repeater {
-                            model: detail.torrents
+                            // collapsed to the top torCap matches; "See more" reveals the rest
+                            model: detail.torExpanded ? detail.torrents : detail.torrents.slice(0, detail.torCap)
                             delegate: Item {
                                 id: torRow
                                 required property var modelData
                                 required property int index
-                                width: parent.width; height: 52
+                                width: parent.width; height: 64
                                 property string dlState:
                                     (typeof BookTorrents !== 'undefined' && BookTorrents.isDownloaded(modelData.infoHash)) ? "done" : "idle"
                                 property real dlPct: 0
@@ -413,25 +417,35 @@ Item {
                                 }
                                 Rectangle { anchors.fill: parent; color: torMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
-                                Row {
+                                Rectangle {                      // format pill
+                                    id: torPill
                                     anchors.left: parent.left; anchors.leftMargin: 18
-                                    anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                                    Rectangle {                  // format pill
-                                        width: Math.max(54, fmtTt.implicitWidth + 16); height: 24; radius: 7
-                                        color: "transparent"; border.width: 1; border.color: theme.edge
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        Text { id: fmtTt; anchors.centerIn: parent; text: torRow.modelData.format
-                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
-                                            font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: Math.max(54, fmtTt.implicitWidth + 16); height: 24; radius: 7
+                                    color: "transparent"; border.width: 1; border.color: theme.edge
+                                    Text { id: fmtTt; anchors.centerIn: parent; text: torRow.modelData.format
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                        font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                                }
+                                Column {                         // title + metadata
+                                    anchors.left: torPill.right; anchors.leftMargin: 14
+                                    anchors.right: torInd.left; anchors.rightMargin: 12
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 3
+                                    Text {                       // the torrent title (elided to one line)
+                                        width: parent.width
+                                        text: torRow.modelData.title
+                                        elide: Text.ElideRight; maximumLineCount: 1
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                                     }
                                     Text {                       // seeders · size · pack
-                                        anchors.verticalCenter: parent.verticalCenter
                                         text: "▲ " + torRow.modelData.seeders + "   " + torRow.modelData.size
                                               + (torRow.modelData.pack ? "   ·  PACK" : "")
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
                                     }
                                 }
                                 Text {                           // download-state indicator
+                                    id: torInd
                                     anchors.right: parent.right; anchors.rightMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: torRow.dlState === "done" ? "✓"
@@ -454,6 +468,20 @@ Item {
                                     }
                                 }
                             }
+                        }
+                        Item {                                   // See more / See less — only when capped
+                            visible: detail.torrents.length > detail.torCap
+                            width: parent.width; height: 46
+                            Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
+                            Text {
+                                anchors.centerIn: parent
+                                text: detail.torExpanded ? "See less"
+                                      : ("See " + (detail.torrents.length - detail.torCap) + " more")
+                                color: seeMoreMa.containsMouse ? theme.gold : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 0.6
+                            }
+                            MouseArea { id: seeMoreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: detail.torExpanded = !detail.torExpanded }
                         }
                     }
                 }
