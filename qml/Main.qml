@@ -571,7 +571,12 @@ Window {
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "title": item.title || "" })
         } else if (item.kind === "comic") {
-            win.openWesternAt(item.seriesTitle, String(item.seriesId).replace(/^gc:/, ""), item.id)
+            // comics open only via the gc: lane; a stale foreign-prefixed id (retired source,
+            // cut 2026-07-12) is an honest no-op, not an empty western shelf (mirrors the browse guard)
+            if (String(item.seriesId || "").indexOf("gc:") === 0)
+                win.openWesternAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
+            else
+                console.log("[route] ignoring unknown comic id:", item.seriesId)
         } else {
             win.openSeriesAt(item.seriesTitle, item.seriesId, item.id)
         }

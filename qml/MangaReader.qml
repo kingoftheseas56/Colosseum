@@ -34,14 +34,10 @@ Item {
     // chapters). Pages/status/download route through `store`; Continue records
     // under kind "comic". Everything else — pairing, resume, zoom — is shared. ---
     property bool western: false
-    // comicKind: progress filed as "comic" while the page/download store stays Downloads
-    // (the manga pipeline). Kept for manga-pipeline comic reads that aren't the GetComics
-    // (western) lane; the LOCG catalogue page reads GetComics content via western=true.
-    property bool comicKind: false
     readonly property var store: western
         ? (typeof Comics !== "undefined" ? Comics : null)
         : (typeof Downloads !== "undefined" ? Downloads : null)
-    readonly property string progressKind: (western || comicKind) ? "comic" : "manga"
+    readonly property string progressKind: western ? "comic" : "manga"
 
     // --- preferences (app-wide, persisted; mirrors Electron mangaPrefs) ---
     Settings {

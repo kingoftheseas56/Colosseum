@@ -88,6 +88,7 @@ Item {
         page.gcTag = ""; page.gcTagId = ""
         page.locgIssuesRaw = []
         page.gcMatch = ({ byIssue: {}, collections: [] })
+        page.errorMsg = ""
         Resolve.resolve({ id: locgId, title: seriesTitle, startYear: (locgMeta.startYear || 0) },
             function(res) {
                 if (!res.attached) { page.loading = false; page.notAvailable = true; return }
@@ -314,7 +315,7 @@ Item {
                             property real dlTotal: 0
                             readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
                                                           || dlState === "resolving"   || dlState === "extracting"
-                            readonly property bool gcUnmatched: page.gcMode && !row.modelData.matched
+                            readonly property bool gcUnmatched: !row.modelData.matched
                             readonly property string thumbUrl: dlState === "done" ? row.firstLocalUrl() : ""
                             readonly property var dlStore: (typeof Comics !== "undefined" ? Comics : null)
 

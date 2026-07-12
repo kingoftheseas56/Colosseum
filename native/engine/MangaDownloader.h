@@ -109,7 +109,8 @@ signals:
     void removed(const QString& chapterId);
     void thumbReady(const QString& chapterId, const QString& url);
     // a rate-limited job is waiting out a soft-block; the reader shows "cooling down".
-    // NOTE (2026-07-12): the xoxo cut removed this signal's only emitter. Kept declared
+    // NOTE (2026-07-12): cutting the retired preset-pages source removed this signal's only
+    // emitter. Kept declared
     // because DownloadsPage.qml (A0's lane) still listens; A0 follow-up to prune the
     // listener + signal together, or re-wire it if a future source needs cool-down pacing.
     void paused(const QString& chapterId, int resumeInMs);
@@ -193,7 +194,8 @@ public:
         Accept,     // body IS an image — save it, whatever the HTTP status says
         SoftBlock,  // arrived clean at HTTP 200 but is sizeable non-image HTML (throttle)
         Error       // connection error / empty / non-image on a real error status
-        // SoftBlock + Error both feed the retry ladder (cool-wave pacing retired with xoxo)
+        // SoftBlock + Error both feed the retry ladder (cool-wave pacing retired with the
+        // preset-pages source, cut 2026-07-12)
     };
     static PageVerdict classifyPageReply(QNetworkReply::NetworkError err,
                                          const QByteArray& body,

@@ -559,7 +559,8 @@ static bool looksLikeImage(const QByteArray& d, const QString& ct)
 // if the body is NOT an image do we split by transport state: a clean HTTP 200 that returned
 // sizeable HTML is the soft-block (throttle); anything else (connection error, empty,
 // non-image on a real error status) is a plain error. Both non-image verdicts feed the
-// same retry ladder now that the cool-wave pacing (xoxo) is gone.
+// same retry ladder now that the cool-wave pacing (the retired preset-pages source,
+// cut 2026-07-12) is gone.
 MangaDownloader::PageVerdict MangaDownloader::classifyPageReply(QNetworkReply::NetworkError err,
                                                                const QByteArray& body,
                                                                const QString& contentType)

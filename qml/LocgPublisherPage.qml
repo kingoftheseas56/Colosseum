@@ -77,6 +77,7 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         width: Math.min(parent.width - theme.margin * 2, 460)
         retryInMs: page.cooldownMs
+        sourceName: "Catalogue"
         onRetry: page.fetchMore()
     }
 

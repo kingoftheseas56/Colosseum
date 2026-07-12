@@ -2,7 +2,7 @@
 // A throttled source answers with homepage HTML; the app detects it and, instead of parsing
 // garbage or blanking silently, shows this slim glass banner with a live countdown and
 // auto-fires retry() when the clock lapses. Set retryInMs from a verb's meta.retryInMs
-// (0 = hidden). Cached data keeps rendering behind it. Used by world/series/genre surfaces.
+// (0 = hidden). Cached data keeps rendering behind it. Sole consumer: LocgPublisherPage.
 import QtQuick
 
 Item {
