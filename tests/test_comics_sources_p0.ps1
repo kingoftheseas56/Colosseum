@@ -21,6 +21,8 @@ Assert-Absent $dl 'downloadPages' "preset-pages seam retired with xoxo (sole con
 Assert-Absent $dl 'presetPages' "preset-pages seam retired with xoxo (sole consumer)"
 $main = Get-Content (Join-Path $root "native/main.cpp") -Raw
 Assert-Absent $main 'xoxocomic.com' "dead source must not be IPv4-pinned"
+Assert-Contains $main 'getcomics.org' "GC API host publishes AAAA records - unpinned = dead-IPv6 stall killed every attach (2026-07-12)"
+Assert-Contains $main 'leagueofcomicgeeks.com' "LOCG catalogue host publishes AAAA records - same stall, same pin"
 Assert-Absent $main 'PAGES_SELFTEST' "preset-pages selftest lane retired with the seam"
 $world = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
 Assert-Contains $world 'LocgApi' "world page must feed comics rows from the LOCG catalogue"

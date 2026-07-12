@@ -285,7 +285,14 @@ int main(int argc, char *argv[]) {
         QStringLiteral("media.kitsu.app"),
         // Universe banners (2026-07-12 expansion): the Weekly Shonen Jump cover rides
         // Wikimedia, which publishes AAAA records — same dead-IPv6 stall as the rest.
-        QStringLiteral("upload.wikimedia.org")
+        QStringLiteral("upload.wikimedia.org"),
+        // Comics lane (2026-07-12, "no top-10 series has any issues"): BOTH comics API
+        // hosts publish AAAA records (getcomics is Cloudflare-fronted) and were never
+        // pinned — every attach/search/releases XHR ate the dead-IPv6 stall, so series
+        // pages sat empty while curl (happy-eyeballs) worked and hid the root cause.
+        // Probe: tests pattern _gc_net_probe — Qt-stack reachability, exit-code verdict.
+        QStringLiteral("getcomics.org"),
+        QStringLiteral("leagueofcomicgeeks.com")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
