@@ -1,4 +1,4 @@
-// XoxoSeries — the comic series detail page (Tankoban mode): LOCG catalogue issue rows
+// ComicSeriesPage — the comic series detail page (Tankoban mode): LOCG catalogue issue rows
 // with GetComics content attached. The LOCG catalogue is the brain (issue list, never
 // dark); GetComics attaches downloadable archives onto those rows via ComicResolve.
 // Download-fed, manga-style: one GetComics archive per issue/collection downloads through

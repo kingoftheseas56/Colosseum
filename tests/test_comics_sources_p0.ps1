@@ -33,4 +33,18 @@ Assert-Contains $mainQml 'indexOf("gc:") === 0' "gc: lane routing must survive t
 $dlcpp = Get-Content (Join-Path $root "native/engine/MangaDownloader.cpp") -Raw
 Assert-Contains $dlcpp 'looksLikeImage' "magic-bytes-first image acceptance is generic honesty and must survive the xoxo cut"
 Assert-Contains $main 'setOrganizationName' "QSettings org identity (Brotherhood) must survive - progress/resolve stores key off it"
+# live-lane needles: the comic series page and its resolve wiring (renamed off the retired
+# source name to ComicSeriesPage 2026-07-12) must keep their load-bearing verbs and strings.
+$series = Get-Content (Join-Path $root "qml/ComicSeriesPage.qml") -Raw
+Assert-Contains $series 'Comics.downloadIssue' "the series page's one download verb (GetComics archives)"
+Assert-Contains $series 'Collected editions' "collections shelf must survive"
+Assert-Contains $series 'Not on GetComics yet' "honest-dim rule: unmatched rows get no fake verb"
+Assert-Contains $mainQml 'comicResolveV3' "attach store version pin"
+Assert-Contains $mainQml 'GcApi.searchSeries' "resolve searchFn wiring (GetComics)"
+# scorched earth: zero xoxo references anywhere in the source tree (this test excepted).
+$hits = Get-ChildItem -Recurse (Join-Path $root "qml"), (Join-Path $root "native"), (Join-Path $root "tests") -Include *.qml,*.js,*.cpp,*.h,*.ps1 |
+    Where-Object { $_.FullName -notmatch 'build-msvc|build-smoke' } |
+    Select-String -Pattern "xoxo" -SimpleMatch -CaseSensitive:$false |
+    Where-Object { $_.Filename -ne "test_comics_sources_p0.ps1" }
+if ($hits) { $hits | ForEach-Object { Write-Host $_.Path $_.LineNumber }; throw "STALE: xoxo references remain" }
 Write-Host "comics-sources P0 contract OK"

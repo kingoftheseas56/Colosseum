@@ -27,7 +27,7 @@ WorldPage {
     // comics routes: the LOCG catalogue is the brain, GetComics is the content. A Top-Comics
     // tile opens the LOCG series page (issues + attached GetComics downloads); a publisher box
     // opens its LOCG shelf; the Archives box opens the GetComics taxonomy.
-    signal xoxoSeriesRequested(var data)        // {id, title, cover} — LOCG catalogue series
+    signal comicSeriesRequested(var data)        // {id, title, cover} — LOCG catalogue series
     signal locgPublisherRequested(var box)      // {id, label} — opens LocgPublisherPage
     signal comicArchiveBoardRequested()
 
@@ -103,7 +103,7 @@ WorldPage {
         onItemClicked: (i) => {
             var list = tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
             var it = list[i]
-            if (it.locg) tanko.xoxoSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
+            if (it.locg) tanko.comicSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
             else tanko.westernRequested(it.caption)
         }
     }
