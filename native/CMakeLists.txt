@@ -93,6 +93,8 @@ add_executable(colosseum
     torrent/TorrentsCsvIndexer.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/BookTorrentRanker.cpp
+    torrent/BookTorrentRanker.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
@@ -111,6 +113,14 @@ add_executable(comic_dls_parse_harness
 )
 target_include_directories(comic_dls_parse_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_dls_parse_harness PRIVATE Qt6::Core)
+
+add_executable(book_torrent_ranker_harness
+    ../tests/book_torrent_ranker_harness.cpp
+    torrent/BookTorrentRanker.cpp
+    torrent/BookTorrentRanker.h
+)
+target_include_directories(book_torrent_ranker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(book_torrent_ranker_harness PRIVATE Qt6::Core)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
