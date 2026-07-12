@@ -576,11 +576,9 @@
     var overlay = qs('brTtsLoadingOverlay');
     if (!overlay) return;
     overlay.classList.remove('hidden');
-    var fill = qs('brTtsLoadingBarFill');
-    var pctEl = qs('brTtsLoadingPct');
+    // The bar is indeterminate (CSS sweep) — no real init-progress is reported, so we
+    // don't fake a percentage. Only the status message carries information.
     var statusEl = overlay.querySelector('.br-tts-loading-status');
-    if (fill) fill.style.width = (pct || 0) + '%';
-    if (pctEl) pctEl.textContent = Math.round(pct || 0) + '%';
     if (statusEl && msg) statusEl.textContent = msg;
   }
   function _hideTtsLoading() {
@@ -651,7 +649,7 @@
       onInitProgress: function (pct, msg) { _showTtsLoading(pct, msg); },
     };
 
-    _showTtsLoading(0, 'Initializing...');
+    _showTtsLoading(0, 'Warming up the voice…');
     Promise.all([tts.init(opts), progressPromise]).then(function (res) {
       if (!_ttsActive) { _hideTtsLoading(); return; }
       var saved = res && res.length > 1 ? res[1] : null;

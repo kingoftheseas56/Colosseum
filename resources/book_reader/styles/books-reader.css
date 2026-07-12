@@ -2407,24 +2407,39 @@ select.booksReaderTtsHlStyle {
   margin-bottom: 16px;
 }
 .br-tts-loading-bar-track {
+  position: relative;
   width: 100%;
-  height: 6px;
-  background: rgba(255,255,255,0.1);
+  height: 5px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
   border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 10px;
+  margin-bottom: 4px;
 }
+/* Indeterminate sweep: the engine emits no real init-progress signal, so an honest
+   moving bar beats a determinate value that sat stuck at 0% the whole load. */
 .br-tts-loading-bar-fill {
+  position: absolute;
+  top: 0;
+  left: -35%;
   height: 100%;
-  width: 0%;
-  background: var(--br-reader-accent, #c8a050);
+  width: 35%;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, var(--br-reader-accent, #c8a050) 30%, transparent),
+    var(--br-reader-accent, #c8a050),
+    color-mix(in srgb, var(--br-reader-accent, #c8a050) 30%, transparent));
   border-radius: 3px;
-  transition: width 0.4s ease;
+  animation: brTtsIndeterminate 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
 }
-.br-tts-loading-pct {
-  font-size: 12px;
-  font-weight: 600;
-  opacity: 0.6;
+@keyframes brTtsIndeterminate {
+  0%   { left: -35%; width: 35%; }
+  55%  { width: 48%; }
+  100% { left: 100%; width: 35%; }
+}
+/* The fake "0%" is gone — an indeterminate load has no honest number to show. */
+.br-tts-loading-pct { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .br-tts-loading-bar-fill { animation: brTtsPulse 1.6s ease-in-out infinite; left: 0; width: 100%; }
+  @keyframes brTtsPulse { 0%,100% { opacity: 0.35; } 50% { opacity: 0.85; } }
 }
 
 /* BUILD_OVERHAUL: annotation popup + list */
@@ -2895,55 +2910,120 @@ select.booksReaderTtsHlStyle {
 /* scroll mode chapter transition variant removed â€” always paginated */
 
 /* â”€â”€ Enhanced TOC items (chapter playlist) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
-.volNavItem { flex-wrap: wrap; }
+/* ── Table of Contents — the "reading spine" ───────────────────────────────
+   Chapters are nodes threaded on one continuous rail. The rail reads gilt where
+   you've already been and quiet where you haven't, so the whole book's journey is
+   legible at a glance. Theme-adaptive (currentColor + the reader accent), so it
+   holds in every reader theme, light or dark. */
+.volNavItem {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 10px;
+  padding: 8px 12px 8px 32px;      /* left gutter for the rail + node */
+  border-radius: 8px;
+  position: relative;
+}
+.volNavItem:hover:not(.active) { background: color-mix(in srgb, currentColor 6%, transparent); box-shadow: none; }
+
+/* the rail: a hairline threaded through every node; segments join row-to-row */
+.volNavItem::before {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, currentColor 13%, transparent);
+  transition: background 0.25s ease;
+}
+.volNavItem:first-child::before { top: 50%; }
+.volNavItem:last-child::before  { bottom: 50%; }
+.volNavItem:has(.br-toc-status.br-toc-read)::before    { background: color-mix(in srgb, var(--br-reader-accent, #c8a050) 58%, transparent); }
+.volNavItem:has(.br-toc-status.br-toc-partial)::before { background: color-mix(in srgb, var(--br-reader-accent, #c8a050) 32%, transparent); }
+
+/* the node on the rail: hollow = unread, filled = read, half = partway */
 .br-toc-status {
-  width: 7px;
-  height: 7px;
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  box-sizing: border-box;
   border-radius: 50%;
-  flex-shrink: 0;
-  margin-top: 5px;
-  background: rgba(255,255,255,0.1);
-  transition: background 0.25s, box-shadow 0.25s;
+  background: transparent;
+  border: 2px solid color-mix(in srgb, currentColor 32%, transparent);
+  box-shadow: none;
+  transition: border-color 0.25s, background 0.25s, box-shadow 0.25s, width 0.2s, height 0.2s;
 }
 .br-toc-status.br-toc-partial {
-  background: var(--br-reader-accent, #4a90d9);
-  opacity: 0.6;
-  box-shadow: 0 0 4px rgba(var(--br-reader-accent-rgb, 74,144,217), 0.35);
+  border-color: var(--br-reader-accent, #c8a050);
+  background: radial-gradient(circle, var(--br-reader-accent, #c8a050) 0 45%, transparent 47%);
+  opacity: 1;
+  box-shadow: none;
 }
 .br-toc-status.br-toc-read {
-  background: #4caf50;
-  box-shadow: 0 0 4px rgba(76,175,80,0.3);
+  border-color: var(--br-reader-accent, #c8a050);
+  background: var(--br-reader-accent, #c8a050);
+  box-shadow: none;
 }
+
+/* chapter title */
 .br-toc-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-weight: 400;
-  letter-spacing: 0.01em;
+  font-weight: 450;
+  font-size: 13px;
+  letter-spacing: 0.005em;
+  line-height: 1.45;
+  transition: color 0.18s ease, opacity 0.18s ease;
+}
+/* already-read chapters step quietly back — consumed, not clamoring */
+.volNavItem:has(.br-toc-status.br-toc-read) .br-toc-label { opacity: 0.6; }
+
+/* current chapter — the one lit station on the spine */
+.volNavItem.active {
+  background: color-mix(in srgb, var(--br-reader-accent, #c8a050) 12%, transparent);
+  border-left: none;
+  border-radius: 8px;
+  padding-left: 32px;
+}
+.volNavItem.active::before { background: color-mix(in srgb, var(--br-reader-accent, #c8a050) 55%, transparent); }
+.volNavItem.active .br-toc-status {
+  width: 14px;
+  height: 14px;
+  border-color: var(--br-reader-accent, #c8a050);
+  background: var(--br-reader-accent, #c8a050);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--br-reader-accent, #c8a050) 22%, transparent);
 }
 .volNavItem.active .br-toc-label {
-  font-weight: 600;
-  color: var(--br-reader-accent, #4a90d9);
+  color: var(--br-reader-accent, #c8a050);
+  font-weight: 650;
+  opacity: 1;
 }
+
+/* per-chapter progress — shown only for the chapter you're in, a fine gilt underline */
 .br-toc-progress {
+  display: none;
   width: 100%;
   height: 2px;
-  background: rgba(255,255,255,0.05);
-  border-radius: 2px;
-  margin-top: 2px;
+  margin: 5px 0 1px;
   flex-basis: 100%;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  border-radius: 2px;
 }
+.volNavItem.active .br-toc-progress { display: block; }
 .br-toc-progress-fill {
   height: 100%;
   border-radius: 2px;
-  background: linear-gradient(90deg, var(--br-reader-accent, #4a90d9), rgba(var(--br-reader-accent-rgb, 74,144,217), 0.6));
-  opacity: 0.35;
+  background: var(--br-reader-accent, #c8a050);
+  opacity: 0.9;
   transition: width 0.35s ease;
 }
-.volNavItem:hover .br-toc-progress-fill { opacity: 0.55; }
-.volNavItem.active .br-toc-progress-fill { opacity: 1; }
 
 /* â”€â”€ Theme variants for chapter features â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 [data-reader-theme="light"] .br-chapter-transition { background: rgba(255,255,255,0.6); }
