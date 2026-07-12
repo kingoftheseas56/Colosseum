@@ -234,6 +234,60 @@ function lookupBook(title, done) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
+// AUDIOBOOKS — same Apple brain, media=audiobook. A book and its audiobook are
+// DIFFERENT iTunes entities (different trackId/collectionId), so pairing is by
+// pairKey: normalized title+author, identical for both. Discovery only; the
+// delivery layer is AudioBookBay (AbbApi.js), exactly like ebook = Apple + LibGen.
+// ───────────────────────────────────────────────────────────────────────────
+
+// the pairing identity — stable across a title's ebook and audiobook entities.
+// lowercase, '&'→' and ', strip punctuation, collapse whitespace.
+function pairKey(title, author) {
+    function norm(s) {
+        return String(s || "").toLowerCase()
+            .replace(/&/g, " and ")
+            .replace(/[^a-z0-9]+/g, " ")
+            .replace(/\s+/g, " ").trim();
+    }
+    return norm(title) + "|" + norm(author);
+}
+
+// one iTunes Search audiobook result → the shape BiblioBook.qml renders.
+// Audiobook entities carry collectionName/artistName (not trackName/artist of an ebook).
+function fullAudiobook(r) {
+    var name = r.collectionName || r.trackName || "Untitled";
+    var author = r.artistName || "";
+    var split = splitTagline(r.description);
+    var year = String(r.releaseDate || "").substring(0, 4);
+    var genres = r.primaryGenreName ? [r.primaryGenreName] : [];
+    return {
+        id: r.collectionId || r.trackId,
+        title: name,
+        author: author,
+        year: year,
+        genres: genres,
+        genreLine: genreLine(genres, author, year),
+        tagline: split.tagline,
+        synopsis: clampSynopsis(split.body || stripHtml(r.description), 400),
+        cover: bigCover(r.artworkUrl100 || r.artworkUrl60 || ""),
+        rating: r.averageUserRating || 0,
+        ratingCount: r.userRatingCount || 0,
+        isAudiobook: true,
+        pairKey: pairKey(name, author)
+    };
+}
+
+// live search → array of full audiobook objects (powers the audiobook search column)
+function searchAudiobooks(query, done) {
+    if (!query) { done([]); return; }
+    var url = "https://itunes.apple.com/search?media=audiobook&limit=24&term=" + encodeURIComponent(query);
+    requestJson(url, function(json) {
+        var results = (json && json.results) ? json.results : [];
+        done(results.map(fullAudiobook));
+    });
+}
+
+// ───────────────────────────────────────────────────────────────────────────
 // LIBGEN — the delivery layer. Recreates TB2's LibGenScraper (C++) in QML JS:
 // search libgen.li by title+author, scrape the result table, list the available
 // editions (format · size · year · language + md5). Opening an edition links to its
