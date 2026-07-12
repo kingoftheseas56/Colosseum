@@ -73,6 +73,18 @@ function _issueKey(name) {
     if (!base.length) return null;
     return base + "#" + String(parseFloat(m[2]));   // "#01"→"1", "#43.1"→"43.1"
 }
+// ── download-failure triage ──
+// A TERMINAL failure means "no usable source": the post carried no direct link, or every
+// resolved mirror was CF-blocked / HTML-gated / offline (JLU #1 2024: its only comicfiles
+// mirror sits behind a CF managed challenge, MEGA is mega.nz, pixeldrain is dropped). The
+// C++ ComicDownloader stamps those reasons with a stable leading "no-source" token; every
+// other reason (network blip, disk, extraction) is transient and stays retryable. The UI
+// must NOT offer "tap to retry" on a terminal reason — that retry can never win.
+// (Co-located with the attach machine only because it shares the ComicResolve harness.)
+function failureIsTerminal(reason) {
+    return String(reason || "").indexOf("no-source") === 0;
+}
+
 function matchIssues(locgIssues, gcPosts) {
     var byKey = {};
     (gcPosts || []).forEach(function(p) {

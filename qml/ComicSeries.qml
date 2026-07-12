@@ -10,6 +10,7 @@
 import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as Api
+import "ComicResolve.js" as Resolve
 
 Item {
     id: page
@@ -417,6 +418,7 @@ Item {
                                             if (dlState === "downloading")
                                                 return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%")
                                                                    : "Downloading…"
+                                            if (dlState === "dead") return "Not available from this source"
                                             if (dlState === "error") return "⚠ Failed — tap to retry"
                                             var bits = []
                                             if (row.modelData.year) bits.push(row.modelData.year)
@@ -436,6 +438,7 @@ Item {
                                         }
                                         // download-fed: tap reads what's on disk, else downloads it
                                         function primary() {
+                                            if (row.dlState === "dead") return   // no usable source — retry can't win
                                             if (row.dlState === "done") row.openReader()
                                             else if (!row.inFlight) row.startDownload()
                                         }
@@ -452,7 +455,10 @@ Item {
                                                 row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
                                             }
                                             function onFinished(cid) { if (cid === row.relId) row.dlState = "done" }
-                                            function onFailed(cid, reason) { if (cid === row.relId) row.dlState = "error" }
+                                            // terminal "no-source" (all mirrors CF-blocked/offline) → dead, not retryable
+                                            function onFailed(cid, reason) {
+                                                if (cid === row.relId) row.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                                            }
                                             function onRemoved(cid) { if (cid === row.relId) row.dlState = "none" }
                                         }
                                         // extraction has no byte progress — poll state while in flight
@@ -514,7 +520,8 @@ Item {
                                                 color: trMa.containsMouse ? theme.glassHi : "transparent" }
                                             Text {
                                                 anchors.centerIn: parent
-                                                text: row.dlState === "done" ? (trMa.containsMouse ? "✕" : "✓")
+                                                text: row.dlState === "dead" ? ""
+                                                    : row.dlState === "done" ? (trMa.containsMouse ? "✕" : "✓")
                                                     : row.inFlight ? "✕"
                                                     : row.dlState === "error" ? "↻" : "↓"
                                                 color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
@@ -525,6 +532,7 @@ Item {
                                             }
                                             MouseArea {
                                                 id: trMa; anchors.fill: parent; hoverEnabled: true; z: 5
+                                                enabled: row.dlState !== "dead"   // no usable source — no verb
                                                 cursorShape: Qt.PointingHandCursor
                                                 onClicked: {
                                                     if (typeof Comics === "undefined") return
@@ -538,7 +546,7 @@ Item {
                                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1
                                             color: Qt.rgba(1,1,1,0.05) }
                                         MouseArea { id: rowMa; anchors.fill: parent; hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
+                                            cursorShape: row.dlState === "dead" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                             onClicked: row.primary() }
                                     }
                                 }

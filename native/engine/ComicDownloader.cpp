@@ -288,8 +288,9 @@ void ComicDownloader::onResolveFinished(QNetworkReply* reply)
     }
     f.urls = parsePostHtml(body);
     if (f.urls.isEmpty()) {
-        // mirror-only post (rare) — v1 shows the reason and skips (spec's accepted fallback)
-        emit failed(f.id, QStringLiteral("no direct download link on this release"));
+        // mirror-only post (only pixeldrain, which is dropped ISP-side): no usable source.
+        // "no-source" prefix = TERMINAL — the UI must not offer an unwinnable retry.
+        emit failed(f.id, QStringLiteral("no-source | no direct download link on this release"));
         return;
     }
     qInfo() << "[ComicDownloader] resolved" << f.urls.size() << "link(s) for" << f.id << f.label;
@@ -362,7 +363,7 @@ void ComicDownloader::startDownload(InFlight&& f)
 void ComicDownloader::startAttempt(InFlight& f)
 {
     if (f.urlIdx >= f.urls.size()) {
-        failAndCleanup(f, QStringLiteral("all download links exhausted"));
+        failAndCleanup(f, QStringLiteral("no-source | all download links exhausted"));
         return;
     }
     const QString url = f.urls.value(f.urlIdx);
@@ -536,7 +537,13 @@ void ComicDownloader::startNextUrlOrFail(InFlight& f)
 {
     f.urlIdx += 1;
     f.attempt = 0;
-    if (f.urlIdx >= f.urls.size()) { failAndCleanup(f, QStringLiteral("all download links failed")); return; }
+    // Every resolved mirror failed (CF-blocked / HTML-gated / offline) — no usable source.
+    // "no-source" prefix = TERMINAL: JLU #1 (2024) lands here because its only comicfiles
+    // mirror sits behind a CF managed challenge and its MEGA mirror isn't a direct-HTTP host.
+    if (f.urlIdx >= f.urls.size()) {
+        failAndCleanup(f, QStringLiteral("no-source | all mirrors unavailable (blocked or offline)"));
+        return;
+    }
     startAttempt(f);
 }
 

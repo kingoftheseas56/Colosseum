@@ -112,6 +112,26 @@ Item {
         var m6 = Resolve.matchIssues([locgIss("locg:7", "Saga #43")], [gcPost("p8", "Saga Complete Run")]);
         check("mi: unnumbered post skipped", !m6.byIssue["locg:7"]);
 
+        // ===== 8) download-failure triage (JLU #1 2024 chase) =====
+        // JLU #1's only comicfiles mirror (fs2) sits behind a CF managed challenge, its MEGA
+        // mirror is mega.nz (no direct-HTTP), pixeldrain is dropped → NO usable source. The
+        // downloader emits a stable "no-source" reason for that terminal case; every other
+        // reason (network blip, disk, extraction) stays retryable. A terminal reason must NOT
+        // surface as "tap to retry" — that retry can never win.
+        try {
+            check("triage: no-source w/ detail is terminal",
+                  Resolve.failureIsTerminal("no-source | all mirrors unavailable (blocked or offline)") === true);
+            check("triage: bare no-source is terminal", Resolve.failureIsTerminal("no-source") === true);
+            check("triage: no-link post is terminal",
+                  Resolve.failureIsTerminal("no-source | no direct download link on this release") === true);
+            check("triage: transient HTTP/CF error stays retryable",
+                  Resolve.failureIsTerminal("HTTP error: Forbidden (status 403)") === false);
+            check("triage: disk space stays retryable",
+                  Resolve.failureIsTerminal("insufficient disk space for download + extract") === false);
+            check("triage: empty reason not terminal", Resolve.failureIsTerminal("") === false);
+            check("triage: cancelled not terminal", Resolve.failureIsTerminal("cancelled by user") === false);
+        } catch (e) { fails.push("triage: threw " + e); }
+
         if (fails.length) { console.error("FAILS: " + fails.join(" | ")); Qt.exit(1); return; }
         Qt.exit(0);
     }

@@ -332,6 +332,7 @@ Item {
                                 if (dlState === "extracting") return "Extracting…"
                                 if (dlState === "downloading")
                                     return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
+                                if (dlState === "dead") return "Not available from this source"
                                 if (dlState === "error") return "⚠ Failed — tap to retry"
                                 return ""
                             }
@@ -349,6 +350,7 @@ Item {
                             }
                             function primary() {
                                 if (row.gcUnmatched) return           // honest dim — no fake verb
+                                if (row.dlState === "dead") return    // no usable source — retry can't win
                                 if (row.dlState === "done") row.openReader()
                                 else if (!row.inFlight) row.startDownload()
                             }
@@ -365,7 +367,11 @@ Item {
                                     row.dlState = "downloading"; row.dlDone = done; row.dlTotal = total
                                 }
                                 function onFinished(cid) { if (cid === row.chId) row.dlState = "done" }
-                                function onFailed(cid, reason) { if (cid === row.chId) row.dlState = "error" }
+                                // terminal "no-source" (all mirrors CF-blocked/offline) → dead, not a
+                                // retryable error; everything else stays "error — tap to retry"
+                                function onFailed(cid, reason) {
+                                    if (cid === row.chId) row.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                                }
                                 function onRemoved(cid) { if (cid === row.chId) row.dlState = "none" }
                             }
 
@@ -401,7 +407,7 @@ Item {
                                     font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
                                 Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                     color: row.dlState === "done" ? theme.gold
-                                         : (row.dlState === "error" ? "#e6a3a3" : theme.inkDim)
+                                         : (row.dlState === "error" ? "#e6a3a3" : theme.inkDim)   // dead → dim, informational
                                     font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
                             }
 
@@ -421,7 +427,8 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 34; height: 34
                                 Text { anchors.centerIn: parent
-                                    text: row.gcUnmatched ? "" : (row.dlState === "done" ? "▸" : (row.inFlight ? "…" : "↓"))
+                                    text: (row.gcUnmatched || row.dlState === "dead") ? ""
+                                        : (row.dlState === "done" ? "▸" : (row.inFlight ? "…" : "↓"))
                                     color: theme.inkDim; font.pixelSize: 18 }
                             }
 
@@ -435,7 +442,7 @@ Item {
 
                             MouseArea {
                                 id: rowMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: row.gcUnmatched ? Qt.ArrowCursor : Qt.PointingHandCursor
+                                cursorShape: (row.gcUnmatched || row.dlState === "dead") ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onClicked: row.primary()
                             }
                         }
@@ -486,6 +493,7 @@ Item {
                                 if (dlState === "extracting") return "Extracting…"
                                 if (dlState === "downloading")
                                     return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
+                                if (dlState === "dead") return "Not available from this source"
                                 if (dlState === "error") return "⚠ Failed — tap to retry"
                                 var bits = []
                                 if (crow.modelData.year) bits.push(String(crow.modelData.year))
@@ -495,6 +503,7 @@ Item {
                             }
                             function primary() {
                                 if (typeof Comics === "undefined" || !crow.chId.length) return
+                                if (dlState === "dead") return        // no usable source — retry can't win
                                 if (dlState === "done") {
                                     page.openChapterId = crow.chId
                                     page.openChapterLabel = String(crow.modelData.name || "")
@@ -518,7 +527,9 @@ Item {
                                     crow.dlState = "downloading"; crow.dlDone = done; crow.dlTotal = total
                                 }
                                 function onFinished(cid) { if (cid === crow.chId) crow.dlState = "done" }
-                                function onFailed(cid, reason) { if (cid === crow.chId) crow.dlState = "error" }
+                                function onFailed(cid, reason) {
+                                    if (cid === crow.chId) crow.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                                }
                                 function onRemoved(cid) { if (cid === crow.chId) crow.dlState = "none" }
                             }
                             Rectangle { anchors.fill: parent; color: crowMa.containsMouse ? Qt.rgba(1,1,1,0.05) : "transparent" }
@@ -541,7 +552,8 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 34; height: 34
                                 Text { anchors.centerIn: parent
-                                    text: crow.dlState === "done" ? "▸" : (crow.inFlight ? "…" : "↓")
+                                    text: crow.dlState === "dead" ? ""
+                                        : (crow.dlState === "done" ? "▸" : (crow.inFlight ? "…" : "↓"))
                                     color: theme.inkDim; font.pixelSize: 18 }
                             }
                             Rectangle {
@@ -552,7 +564,7 @@ Item {
                             }
                             MouseArea {
                                 id: crowMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
+                                cursorShape: crow.dlState === "dead" ? Qt.ArrowCursor : Qt.PointingHandCursor
                                 onClicked: crow.primary()
                             }
                         }
