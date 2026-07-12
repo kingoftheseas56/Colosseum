@@ -36,6 +36,7 @@
 #include "SessionStore.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
+#include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
@@ -281,12 +282,7 @@ int main(int argc, char *argv[]) {
         QStringLiteral("graphql.anilist.co"),
         QStringLiteral("s4.anilist.co"),
         QStringLiteral("kitsu.io"),
-        QStringLiteral("media.kitsu.app"),
-        // xoxo comics source: catalog pages + page images live on the site domain,
-        // which publishes AAAA records — curl reaching it ≠ Qt reaching it on the
-        // dead-IPv6 route. Pins both the QML Image covers (CachingNam) and, via
-        // setIpv4Pins below, the page-image downloads (dlNam). (2026-07-09)
-        QStringLiteral("xoxocomic.com")
+        QStringLiteral("media.kitsu.app")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
@@ -306,27 +302,12 @@ int main(int argc, char *argv[]) {
     // reader reads those offline. Own plain NAM (no cache) — it persists to disk itself.
     auto *dlNam = new QNetworkAccessManager(&app);
     auto *downloads = new MangaDownloader(dlNam, &app);
-    downloads->setIpv4Pins(ipv4ByHost);   // xoxo page-image downloads ride the same pins
+    downloads->setIpv4Pins(ipv4ByHost);   // WeebCentral page-image downloads ride the same pins
     engine.rootContext()->setContextProperty(QStringLiteral("Downloads"), downloads);
     if (qEnvironmentVariableIsSet("COLOSSEUM_DL_SELFTEST"))
         downloads->selfTest(qEnvironmentVariable("COLOSSEUM_DL_SELFTEST"));
-
-    // Drive-harness food for downloadPages: COLOSSEUM_PAGES_SELFTEST="<chapterId>|<url1>,<url2>,..."
-    // Logs PAGES-SELFTEST OK/FAILED — run headless with real xoxo image URLs from the probe log.
-    if (!qEnvironmentVariable("COLOSSEUM_PAGES_SELFTEST").isEmpty()) {
-        const QStringList parts = qEnvironmentVariable("COLOSSEUM_PAGES_SELFTEST").split(QLatin1Char('|'));
-        if (parts.size() == 2) {
-            QVariantList urls;
-            const QStringList list = parts[1].split(QLatin1Char(','));
-            for (const QString& u : list) urls << u;
-            QObject::connect(downloads, &MangaDownloader::finished, [](const QString& id) {
-                qInfo() << "PAGES-SELFTEST OK" << id; });
-            QObject::connect(downloads, &MangaDownloader::failed, [](const QString& id, const QString& why) {
-                qInfo() << "PAGES-SELFTEST FAILED" << id << why; });
-            downloads->downloadPages(parts[0], QStringLiteral("xoxo:selftest"),
-                                     QStringLiteral("SelfTest"), QStringLiteral("st"), urls);
-        }
-    }
+    if (qEnvironmentVariableIsSet("COLOSSEUM_INDEX_SELFTEST"))
+        downloads->indexSelfTest();
 
     // Book download backbone (LibGen → local .epub) exposed to QML as `Books`.
     // Same download-fed law as manga: a book is fetched to disk once, then the
@@ -353,6 +334,18 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
+
+    // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
+    // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
+    // (from AudioBookBay) downloads its audio files to <appdata>/audiobooks, keyed
+    // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
+    auto *audiobooks = new AudiobookDownloader(dlNam, stream, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_ABB_DLTEST")) {
+        const QString spec = qEnvironmentVariable("COLOSSEUM_ABB_DLTEST");   // "<pairKey>|<infoHash>"
+        const int bar = spec.lastIndexOf(QChar('|'));
+        if (bar > 0) audiobooks->selfTest(spec.left(bar), spec.mid(bar + 1));
+    }
 
     // Cast session state exposed to QML as `Cast`. Network discovery/control is the
     // later backend; this slice gives the player real device/session state today.

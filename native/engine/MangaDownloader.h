@@ -50,7 +50,7 @@ public:
     explicit MangaDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr);
     ~MangaDownloader() override;
 
-    // Host → IPv4 pins (dead-IPv6 machine). xoxo image hosts publish AAAA records, so
+    // Host → IPv4 pins (dead-IPv6 machine). Manga art hosts publish AAAA records, so
     // on this ISP's dead IPv6 route Qt would stall ~21s/connection — same scar the
     // CachingNam / MangaEngine pins fix. Applied per image request in fetchImage.
     void setIpv4Pins(const QHash<QString, QString>& pins) { m_pins = pins; }
@@ -63,16 +63,6 @@ public:
                                      const QString& seriesId,
                                      const QString& seriesTitle,
                                      const QString& chapterLabel);
-
-    // Queue a chapter whose page URLs are ALREADY resolved (xoxo issues: QML's
-    // XoxoApi.pages() parsed them from the /all reading page). Skips the
-    // WeebCentral resolver; everything downstream (queue, retries, loose page
-    // files, index, localPages/statusOf/delete/cancel) is the same machinery.
-    Q_INVOKABLE void downloadPages(const QString& chapterId,
-                                   const QString& seriesId,
-                                   const QString& seriesTitle,
-                                   const QString& chapterLabel,
-                                   const QVariantList& pageUrls);
 
     // The local-read FLIP. Returns [{index:int, url:"file:///.../page_NNN.ext"}]
     // for a downloaded chapter, or an empty list if it isn't downloaded — the
@@ -107,13 +97,21 @@ public:
     // pipeline headlessly, without driving the GUI. Mirrors MangaEngine::selfTest.
     void selfTest(const QString& seriesTitle);
 
+    // Dev smoke (env COLOSSEUM_INDEX_SELFTEST=1): plant a ghost index entry pointing at a
+    // non-existent dir, save+reload, and assert the load-time self-heal pruned it. Logs
+    // INDEX-SELFTEST OK/FAILED. Proves the ledger self-heal (2026-07-12) headlessly.
+    Q_INVOKABLE void indexSelfTest();
+
 signals:
     void progress(const QString& chapterId, int done, int total);
     void finished(const QString& chapterId);
     void failed(const QString& chapterId, const QString& reason);
     void removed(const QString& chapterId);
     void thumbReady(const QString& chapterId, const QString& url);
-    // a rate-limited (xoxo) job is waiting out a soft-block; the reader shows "cooling down".
+    // a rate-limited job is waiting out a soft-block; the reader shows "cooling down".
+    // NOTE (2026-07-12): the xoxo cut removed this signal's only emitter. Kept declared
+    // because DownloadsPage.qml (A0's lane) still listens; A0 follow-up to prune the
+    // listener + signal together, or re-wire it if a future source needs cool-down pacing.
     void paused(const QString& chapterId, int resumeInMs);
 
 private:
@@ -125,7 +123,6 @@ private:
         QString dir;                 // resolved chapter directory
         WeebCentralScraper* scraper = nullptr;
         QList<PageInfo> pages;
-        QList<PageInfo> presetPages;   // non-empty = skip the scraper (downloadPages path)
         QStringList files;           // index-aligned saved filenames ("" until saved)
         int total = 0;
         int done = 0;
@@ -134,7 +131,6 @@ private:
         qint64 bytes = 0;
         bool failedFlag = false;
         bool cancelled = false;
-        int coolWaves = 0;           // xoxo soft-block pauses taken (cap 3, then honest fail)
         QList<QNetworkReply*> replies;   // in-flight image GETs, for cancel/abort
     };
 
@@ -195,8 +191,9 @@ public:
     // handler in fetchImage() dispatches on this verdict.
     enum class PageVerdict {
         Accept,     // body IS an image — save it, whatever the HTTP status says
-        SoftBlock,  // arrived clean at HTTP 200 but is sizeable non-image HTML — pause+resume
-        Error       // connection error / empty / non-image on a real error status — retry ladder
+        SoftBlock,  // arrived clean at HTTP 200 but is sizeable non-image HTML (throttle)
+        Error       // connection error / empty / non-image on a real error status
+        // SoftBlock + Error both feed the retry ladder (cool-wave pacing retired with xoxo)
     };
     static PageVerdict classifyPageReply(QNetworkReply::NetworkError err,
                                          const QByteArray& body,

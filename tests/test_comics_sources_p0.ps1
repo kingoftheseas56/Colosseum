@@ -30,4 +30,7 @@ Assert-Contains $world 'e.source = src' "continue tiles must tag the comic sourc
 $mainQml = Get-Content (Join-Path $root "qml/Main.qml") -Raw
 Assert-Absent $mainQml 'xoxo:' "no xoxo id-prefix routing may remain"
 Assert-Contains $mainQml 'indexOf("gc:") === 0' "gc: lane routing must survive the cut"
+$dlcpp = Get-Content (Join-Path $root "native/engine/MangaDownloader.cpp") -Raw
+Assert-Contains $dlcpp 'looksLikeImage' "magic-bytes-first image acceptance is generic honesty and must survive the xoxo cut"
+Assert-Contains $main 'setOrganizationName' "QSettings org identity (Brotherhood) must survive - progress/resolve stores key off it"
 Write-Host "comics-sources P0 contract OK"

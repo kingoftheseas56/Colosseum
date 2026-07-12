@@ -89,6 +89,7 @@ void MangaDownloader::loadIndex()
     if (!f.open(QIODevice::ReadOnly)) return;
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
     const QJsonObject entries = root.value(QStringLiteral("entries")).toObject();
+    bool healed = false;   // any repair or prune this load -> persist the healed index
     for (auto it = entries.constBegin(); it != entries.constEnd(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
@@ -100,10 +101,40 @@ void MangaDownloader::loadIndex()
         e.addedAt      = qint64(o.value(QStringLiteral("addedAt")).toDouble());
         for (const QJsonValue v : o.value(QStringLiteral("files")).toArray())
             e.files.append(v.toString());
+        // self-heal, REPAIR-then-prune (2026-07-12): a dir that no longer exists is
+        // first assumed MOVED, not gone — the org-rename relocated the whole manga
+        // tree while the ledger kept old absolute paths (prune-only destroyed live
+        // Bleach / One Piece entries; caught pre-commit). Re-root the path tail
+        // (everything after the last "/manga/") onto the current base; only an entry
+        // whose files are missing THERE TOO is a true ghost, and only then dropped.
+        if (!e.dir.isEmpty() && !QDir(e.dir).exists()) {
+            const QString marker = QStringLiteral("/manga/");
+            const int at = e.dir.lastIndexOf(marker);
+            QString repairedDir;
+            if (at >= 0) {
+                const QString tail = e.dir.mid(at + marker.size());
+                const QString candidate = baseDir() + QStringLiteral("/") + tail;
+                if (!tail.isEmpty() && QDir(candidate).exists())
+                    repairedDir = candidate;
+            }
+            if (!repairedDir.isEmpty()) {
+                qInfo("[downloads] repaired ledger path '%s' (%s -> %s)",
+                      qUtf8Printable(it.key()), qUtf8Printable(e.dir),
+                      qUtf8Printable(repairedDir));
+                e.dir = repairedDir;
+                healed = true;
+            } else {
+                qInfo("[downloads] pruning ghost entry '%s' (dir missing)",
+                      qUtf8Printable(it.key()));
+                healed = true;
+                continue;
+            }
+        }
         if (!e.files.isEmpty())
             m_index.insert(it.key(), e);
     }
     qInfo("[downloads] loaded index: %d chapters", int(m_index.size()));
+    if (healed) saveIndex();   // durable heal: repaired paths stick, ghosts stay gone
 }
 
 void MangaDownloader::saveIndex() const
@@ -165,32 +196,6 @@ void MangaDownloader::downloadChapter(const QString& chapterId, const QString& s
     job->dir          = chapterDir(seriesId, chapterId);
     m_queue.enqueue(job);
     emit progress(chapterId, 0, 0);    // surfaces "queued" immediately
-    pumpQueue();
-}
-
-void MangaDownloader::downloadPages(const QString& chapterId, const QString& seriesId,
-                                    const QString& seriesTitle, const QString& chapterLabel,
-                                    const QVariantList& pageUrls)
-{
-    if (chapterId.isEmpty() || pageUrls.isEmpty()) return;
-    if (isDownloaded(chapterId)) { emit finished(chapterId); return; }
-    if (m_active.contains(chapterId)) return;
-    for (const Job* q : m_queue) if (q->chapterId == chapterId) return;   // already queued
-
-    Job* job = new Job;
-    job->chapterId    = chapterId;
-    job->seriesId     = seriesId;
-    job->seriesTitle  = seriesTitle;
-    job->chapterLabel = chapterLabel;
-    job->dir          = chapterDir(seriesId, chapterId);
-    for (int i = 0; i < pageUrls.size(); ++i) {
-        PageInfo p;
-        p.index = i;
-        p.imageUrl = pageUrls[i].toString();
-        job->presetPages.append(p);
-    }
-    m_queue.enqueue(job);
-    emit progress(chapterId, 0, 0);
     pumpQueue();
 }
 
@@ -412,6 +417,56 @@ void MangaDownloader::selfTest(const QString& seriesTitle)
 }
 
 // ---------------------------------------------------------------------------
+// ledger self-heal proof (env COLOSSEUM_INDEX_SELFTEST=1)
+// ---------------------------------------------------------------------------
+void MangaDownloader::indexSelfTest()
+{
+    const QString base = baseDir();
+
+    // lane (a): true ghost — dir missing under the current base, no repair possible.
+    Entry ghost;
+    ghost.seriesId = QStringLiteral("selfheal:ghost");
+    ghost.seriesTitle = QStringLiteral("SelfHeal Ghost");
+    ghost.dir = base + QStringLiteral("/__selfheal_ghost_missing__");
+    ghost.files.append(QStringLiteral("page_000.jpg"));
+    m_index.insert(QStringLiteral("selfheal:ghost/issue-1"), ghost);
+
+    // lane (b): repairable — the files REALLY exist under the current base, but the
+    // ledger's dir points at a fake old root (the org-rename shape that destroyed the
+    // Bleach / One Piece entries, caught pre-commit 2026-07-12). Must SURVIVE the
+    // reload with dir re-rooted onto the current base — never be pruned.
+    const QString realDir = base + QStringLiteral("/__selfheal_repair_target__");
+    QDir().mkpath(realDir);
+    QFile pageMarker(realDir + QStringLiteral("/page_000.jpg"));
+    if (pageMarker.open(QIODevice::WriteOnly)) { pageMarker.write("x"); pageMarker.close(); }
+    Entry stale;
+    stale.seriesId = QStringLiteral("selfheal:repair");
+    stale.seriesTitle = QStringLiteral("SelfHeal Repair");
+    stale.dir = QStringLiteral("C:/__selfheal_fake_old_root__/manga/__selfheal_repair_target__");
+    stale.files.append(QStringLiteral("page_000.jpg"));
+    m_index.insert(QStringLiteral("selfheal:repair/issue-1"), stale);
+
+    saveIndex();
+    m_index.clear();
+    loadIndex();
+
+    const bool ghostPruned = !m_index.contains(QStringLiteral("selfheal:ghost/issue-1"));
+    const bool staleRepaired = m_index.contains(QStringLiteral("selfheal:repair/issue-1"))
+        && m_index.value(QStringLiteral("selfheal:repair/issue-1")).dir == realDir;
+    if (ghostPruned && staleRepaired)
+        qInfo("INDEX-SELFTEST OK");
+    else
+        qInfo("INDEX-SELFTEST FAILED (ghost pruned=%d, stale repaired=%d)",
+              int(ghostPruned), int(staleRepaired));
+
+    // clean up both fixtures (ledger + disk)
+    m_index.remove(QStringLiteral("selfheal:ghost/issue-1"));
+    m_index.remove(QStringLiteral("selfheal:repair/issue-1"));
+    saveIndex();
+    QDir(realDir).removeRecursively();
+}
+
+// ---------------------------------------------------------------------------
 // queue pump + per-job lifecycle
 // ---------------------------------------------------------------------------
 void MangaDownloader::pumpQueue()
@@ -426,10 +481,6 @@ void MangaDownloader::pumpQueue()
 void MangaDownloader::beginJob(Job* job)
 {
     QDir().mkpath(job->dir);
-    if (!job->presetPages.isEmpty()) {          // downloadPages path: URLs already resolved
-        onPagesReady(job, job->presetPages);    // scraper stays nullptr (cleanup is guarded)
-        return;
-    }
     job->scraper = new WeebCentralScraper(m_nam, this);
     connect(job->scraper, &MangaScraper::pagesReady, this,
             [this, job](const QList<PageInfo>& pages) { onPagesReady(job, pages); });
@@ -473,29 +524,18 @@ void MangaDownloader::pumpImages(Job* job)
         if (job->inFlight == 0) failJob(job, QStringLiteral("image download failed"));
         return;
     }
-    // xoxo (preset-pages) jobs fetch ONE image at a time — the site rate-limits a bursty
-    // client by serving its homepage HTML instead of the image (2026-07-09). Sequential
-    // pacing at ~0.5s/round-trip keeps a 68-page issue under the throttle. Manga (scraped)
-    // keeps the full concurrency it's always used.
-    const int cc = job->presetPages.isEmpty() ? IMAGE_CONCURRENCY : 1;
-    while (job->inFlight < cc && job->nextDispatch < job->total) {
+    while (job->inFlight < IMAGE_CONCURRENCY && job->nextDispatch < job->total) {
         const int i = job->nextDispatch++;
         if (!job->files[i].isEmpty()) continue;   // resumed page — already on disk
         job->inFlight++;
-        if (job->presetPages.isEmpty()) {
-            fetchImage(job, i, 0);
-        } else {
-            // xoxo: a ~250ms breather before each page (on top of 1-at-a-time) keeps a
-            // 68-page issue under the rate-limiter.
-            QTimer::singleShot(250, this, [this, job, i]() { fetchImage(job, i, 0); });
-        }
+        fetchImage(job, i, 0);
     }
 }
 
-// A downloaded page must be a REAL image. Aggregator sites soft-block a bursty client by
-// answering an image URL with HTTP 200 + their homepage HTML (the "blank pages" bug,
-// 2026-07-09) — magic-byte + content-type validation rejects that so it's never saved as
-// a .jpg. Accepts JPEG/PNG/GIF/WebP (everything xoxo + WeebCentral serve).
+// A downloaded page must be a REAL image. Some sources soft-block a bursty client by
+// answering an image URL with HTTP 200 + their homepage HTML (the "blank pages" bug) —
+// magic-byte + content-type validation rejects that so it's never saved as a .jpg.
+// Accepts JPEG/PNG/GIF/WebP (everything WeebCentral serves).
 static bool looksLikeImage(const QByteArray& d, const QString& ct)
 {
     const QString c = ct.toLower();
@@ -513,12 +553,13 @@ static bool looksLikeImage(const QByteArray& d, const QString& ct)
 }
 
 // Decide what a finished page-image reply IS, purely from the transport error + body.
-// xoxo quirk: images arrive as HTTP 404 with real bytes (keiyoushi xoxocomics interceptor
-// documents this) — trust magic bytes, not status. So the image check comes FIRST and wins
-// regardless of err (a 404 sets QNetworkReply::ContentNotFoundError yet readAll() still
-// carries the real image). Only if the body is NOT an image do we split by transport state:
-// a clean HTTP 200 that returned sizeable HTML is the soft-block (throttle) → pause+resume;
-// anything else (connection error, empty, non-image on a real error status) → retry ladder.
+// Some sources serve real image bytes on an HTTP error status (e.g. a 404 sets
+// QNetworkReply::ContentNotFoundError yet readAll() still carries the real image) — trust
+// magic bytes, not status. So the image check comes FIRST and wins regardless of err. Only
+// if the body is NOT an image do we split by transport state: a clean HTTP 200 that returned
+// sizeable HTML is the soft-block (throttle); anything else (connection error, empty,
+// non-image on a real error status) is a plain error. Both non-image verdicts feed the
+// same retry ladder now that the cool-wave pacing (xoxo) is gone.
 MangaDownloader::PageVerdict MangaDownloader::classifyPageReply(QNetworkReply::NetworkError err,
                                                                const QByteArray& body,
                                                                const QString& contentType)
@@ -541,10 +582,7 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
     req.setRawHeader("User-Agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
         "(KHTML, like Gecko) Chrome/124.0 Safari/537.36");
-    // Same-origin Referer per source: xoxo images want no cross-origin referer (proved
-    // header-free in feasibility), so give them their own origin; manga keeps WeebCentral.
-    req.setRawHeader("Referer", host.contains("xoxocomic")
-        ? "https://xoxocomic.com/" : "https://weebcentral.com/");
+    req.setRawHeader("Referer", "https://weebcentral.com/");
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
     req.setAttribute(QNetworkRequest::CacheSaveControlAttribute, false);   // we persist to disk ourselves
     req.setTransferTimeout(30000);
@@ -566,14 +604,14 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
         reply->deleteLater();
         job->replies.removeOne(reply);
         if (job->cancelled) { job->inFlight--; if (job->inFlight == 0) finalizeCancel(job); return; }
-        // readAll() carries the body even on an error status (e.g. xoxo's HTTP 404), so we
-        // read it BEFORE branching on error() — the magic bytes, not the status, decide.
+        // readAll() carries the body even on an error status (some sources serve real image
+        // bytes on an HTTP 404), so we read it BEFORE branching on error() — the magic bytes,
+        // not the status, decide.
         const QByteArray data = reply->readAll();
         const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
-        // xoxo quirk: images arrive as HTTP 404 with real bytes (keiyoushi xoxocomics
-        // interceptor documents this) — trust magic bytes, not status. classifyPageReply()
-        // accepts ANY reply whose body IS an image; only a clean-200 sizeable non-image is
-        // the soft-block; everything else is a real error.
+        // classifyPageReply() accepts ANY reply whose body IS an image (trust magic bytes,
+        // not status); a clean-200 sizeable non-image is a soft-block, everything else a real
+        // error — both non-image verdicts feed the same retry ladder below.
         const PageVerdict verdict = classifyPageReply(reply->error(), data, ct);
 
         if (verdict == PageVerdict::Accept) {
@@ -587,22 +625,7 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
             }
         }
 
-        // xoxo soft-block: the site answered 200 + non-image HTML (the throttle). Do NOT
-        // burn 3 fast retries into the wall — pause this page 120s and resume, up to 3
-        // waves, then fail honestly. Distinguished from a real error: arrived cleanly,
-        // sizeable, but not an image (2026-07-09).
-        const bool wasSoftBlock = verdict == PageVerdict::SoftBlock;
-        if (wasSoftBlock && !job->presetPages.isEmpty() && job->coolWaves < 3) {
-            job->coolWaves++;
-            emit paused(job->chapterId, 120000);
-            qInfo("[downloads] '%s' cooling down (wave %d) — resuming page %d in 120s",
-                  qUtf8Printable(job->chapterId), job->coolWaves, pageIndex);
-            QTimer::singleShot(120000, this,
-                               [this, job, pageIndex]() { fetchImage(job, pageIndex, 0); });
-            return;   // slot held across the cooldown
-        }
-
-        // failure path: retry with 2/4/8s backoff, then mark the job failed
+        // failure path (SoftBlock + Error alike): retry with 2/4/8s backoff, then mark failed
         if (attempt + 1 < MAX_IMAGE_RETRIES) {
             const int backoffMs = 2000 << attempt;
             QTimer::singleShot(backoffMs, this,
