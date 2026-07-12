@@ -115,6 +115,7 @@ void BookDownloader::loadIndex()
     QFile f(baseDir() + QStringLiteral("/index.json"));
     if (!f.open(QIODevice::ReadOnly)) return;
     const QJsonObject root = QJsonDocument::fromJson(f.readAll()).object();
+    bool repaired = false;
     for (auto it = root.begin(); it != root.end(); ++it) {
         const QJsonObject o = it.value().toObject();
         Entry e;
@@ -123,10 +124,21 @@ void BookDownloader::loadIndex()
         e.author  = o.value(QStringLiteral("author")).toString();
         e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
-        // Drop stale entries whose file was deleted outside the app.
-        if (!e.path.isEmpty() && QFileInfo::exists(e.path))
-            m_index.insert(it.key(), e);
+        if (e.path.isEmpty()) continue;
+        // Self-heal (repair-then-prune): the stored path is ABSOLUTE and breaks when the
+        // app-data dir moves — e.g. the org-name migration Roaming/Colosseum ->
+        // Roaming/Brotherhood/Colosseum left every recorded path pointing at the vanished
+        // old tree, so the whole library read as "not downloaded" and the reader hit
+        // "can't find". If the recorded file is gone but a same-named file lives under the
+        // CURRENT books dir, re-root onto it before pruning; only drop a truly-missing file.
+        if (!QFileInfo::exists(e.path)) {
+            const QString rerooted = baseDir() + QStringLiteral("/") + QFileInfo(e.path).fileName();
+            if (rerooted != e.path && QFileInfo::exists(rerooted)) { e.path = rerooted; repaired = true; }
+            else continue;
+        }
+        m_index.insert(it.key(), e);
     }
+    if (repaired) saveIndex();   // persist the re-rooted paths so the heal happens once
 }
 
 void BookDownloader::saveIndex() const

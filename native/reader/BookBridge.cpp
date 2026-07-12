@@ -45,8 +45,23 @@ QByteArray BookBridge::filesRead(const QString& filePath)
     QString p = filePath;
     if (p.startsWith(QStringLiteral("file:///"))) p = QUrl(p).toLocalFile();
     QFile f(p);
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    return f.readAll();
+    if (f.open(QIODevice::ReadOnly)) return f.readAll();
+
+    // Self-heal a stale app-data path (the org-name migration Roaming/Colosseum ->
+    // Roaming/Brotherhood/Colosseum moved the tree but left absolute paths — in the
+    // library index AND in resume/Continue cards — pointing at the vanished old dir).
+    // Re-root the segment after the last ".../Colosseum/" onto the CURRENT app-data dir.
+    static const QString kAnchor = QStringLiteral("/Colosseum/");
+    const int idx = p.lastIndexOf(kAnchor);
+    if (idx >= 0) {
+        const QString appData = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+        const QString rerooted = appData + QStringLiteral("/") + p.mid(idx + kAnchor.size());
+        if (rerooted != p) {
+            QFile g(rerooted);
+            if (g.open(QIODevice::ReadOnly)) return g.readAll();
+        }
+    }
+    return {};
 }
 
 QString BookBridge::progressKey(const QString& absPath) const
