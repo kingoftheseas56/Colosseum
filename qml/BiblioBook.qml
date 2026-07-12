@@ -19,6 +19,8 @@ Item {
     property var editions: []
     property bool edLoading: false
     property string localPath: ""        // a downloaded edition of this book on disk ("" = none yet)
+    property var torrents: []            // ranked rows from BookTorrents (native order — no re-sort)
+    property bool torLoading: false
 
     signal backRequested()
     signal minimizeRequested()
@@ -86,6 +88,20 @@ Item {
                 })
             }
         })
+        detail.loadTorrents()
+    }
+
+    // ── torrents: live federated indexer search for this book (BookTorrents facade) ──
+    function loadTorrents() {
+        if (typeof BookTorrents === 'undefined' || !detail.book || !detail.book.title) return
+        detail.torrents = []
+        detail.torLoading = true
+        BookTorrents.search(detail.book.title, detail.book.author || "")
+    }
+    Connections {
+        target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
+        function onResultsReady(rows) { detail.torrents = rows; detail.torLoading = false }
+        function onSearchFinished()   { detail.torLoading = false }
     }
     function edMeta(ed) {
         var p = []
@@ -348,6 +364,95 @@ Item {
                     text: detail.dropCapHtml(detail.book ? detail.book.synopsis : "")
                     color: theme.inkDim; font.family: theme.display; font.pixelSize: 17
                     wrapMode: Text.WordWrap; lineHeight: 1.7
+                }
+
+                // ── Torrents — live federated indexer search; ranked best-match × seeders ──
+                Item { width: 1; height: 40; visible: typeof BookTorrents !== 'undefined' }
+                Text {
+                    visible: typeof BookTorrents !== 'undefined'
+                    text: "TORRENTS" + (detail.torLoading ? "  ·  SEARCHING…"
+                          : (detail.torrents.length > 0 ? "  ·  " + detail.torrents.length : "  ·  NONE"))
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    font.weight: Font.DemiBold; font.letterSpacing: 1.6
+                }
+                Item { width: 1; height: 12; visible: typeof BookTorrents !== 'undefined' }
+                Glass {
+                    visible: typeof BookTorrents !== 'undefined'
+                    backdrop: detail.backdrop
+                    width: Math.min(parent.width, 640); radius: 14
+                    height: torCol.implicitHeight
+                    Column {
+                        id: torCol
+                        width: parent.width
+                        Item {                                   // loading / empty state
+                            visible: detail.torLoading || detail.torrents.length === 0
+                            width: parent.width; height: 52
+                            Text {
+                                anchors.left: parent.left; anchors.leftMargin: 18
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: detail.torLoading ? "Searching torrents…" : "No torrents found"
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                            }
+                        }
+                        Repeater {
+                            model: detail.torrents
+                            delegate: Item {
+                                id: torRow
+                                required property var modelData
+                                required property int index
+                                width: parent.width; height: 52
+                                property string dlState:
+                                    (typeof BookTorrents !== 'undefined' && BookTorrents.isDownloaded(modelData.infoHash)) ? "done" : "idle"
+                                property real dlPct: 0
+                                Connections {
+                                    target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
+                                    function onResolving(h) { if (h === torRow.modelData.infoHash) torRow.dlState = "resolving" }
+                                    function onProgress(h, rcv, tot) { if (h === torRow.modelData.infoHash) { torRow.dlState = "downloading"; torRow.dlPct = tot > 0 ? rcv / tot : 0 } }
+                                    function onFinished(h, path) { if (h === torRow.modelData.infoHash) { torRow.dlState = "done"; torRow.dlPct = 1 } }
+                                    function onFailed(h, why) { if (h === torRow.modelData.infoHash) torRow.dlState = "failed" }
+                                }
+                                Rectangle { anchors.fill: parent; color: torMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
+                                Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
+                                Row {
+                                    anchors.left: parent.left; anchors.leftMargin: 18
+                                    anchors.verticalCenter: parent.verticalCenter; spacing: 14
+                                    Rectangle {                  // format pill
+                                        width: Math.max(54, fmtTt.implicitWidth + 16); height: 24; radius: 7
+                                        color: "transparent"; border.width: 1; border.color: theme.edge
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        Text { id: fmtTt; anchors.centerIn: parent; text: torRow.modelData.format
+                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                            font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                                    }
+                                    Text {                       // seeders · size · pack
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "▲ " + torRow.modelData.seeders + "   " + torRow.modelData.size
+                                              + (torRow.modelData.pack ? "   ·  PACK" : "")
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                                    }
+                                }
+                                Text {                           // download-state indicator
+                                    anchors.right: parent.right; anchors.rightMargin: 18
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: torRow.dlState === "done" ? "✓"
+                                        : torRow.dlState === "downloading" ? (Math.round(torRow.dlPct * 100) + "%")
+                                        : torRow.dlState === "resolving" ? "…"
+                                        : torRow.dlState === "failed" ? "retry" : "↓"
+                                    color: torRow.dlState === "done" ? theme.gold : (torMa.containsMouse ? theme.gold : theme.inkDimmer)
+                                    font.family: theme.ui
+                                    font.pixelSize: (torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16
+                                }
+                                MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (torRow.dlState === "done")
+                                            detail.readRequested(BookTorrents.localFile(torRow.modelData.infoHash), detail.book)
+                                        else if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving")
+                                            BookTorrents.download(torRow.modelData.infoHash, detail.book.title, detail.book.author || "")
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
 
                 Item { width: 1; height: 40 }
