@@ -103,14 +103,73 @@ function toCard(m, i) {
     };
 }
 
+// ── THE KITSU RUNG (2026-07-13): Jikan went half-dark — MAL refuses Jikan's own servers
+// (their 504: "Jikan failed to connect to MyAnimeList") while MAL itself answers fine from
+// here — and every manga genre page went BLANK. Ladder law (the 39cc361 art-ladder
+// precedent): Jikan first, Kitsu on failure. Same page, same card shape, different well.
+// kitsu.io is already IPv4-pinned; category slugs verified live during the real outage.
+var KITSU = "https://kitsu.io/api/edge";
+var KITSU_SLUGS = {
+    "Action": "action", "Adventure": "adventure", "Comedy": "comedy", "Drama": "drama",
+    "Fantasy": "fantasy", "Horror": "horror", "Mystery": "mystery", "Romance": "romance",
+    "Sci-Fi": "science-fiction", "Slice of Life": "slice-of-life", "Sports": "sports",
+    "Supernatural": "supernatural", "Shounen": "shounen", "Seinen": "seinen",
+    "Shoujo": "shoujo", "Josei": "josei", "Isekai": "isekai", "School": "school",
+    "Magic": "fantasy"
+};
+
+// one Kitsu manga entry → the SAME card model toCard produces (authors/genres empty — the
+// base Kitsu resource carries no staff; the card renders fine without them)
+function kitsuCard(m, i) {
+    var a = m.attributes || {};
+    var t = tone(i);
+    var syn = (a.synopsis || a.description || "").replace(/\s+/g, " ").trim();
+    if (syn.length > 240) syn = syn.slice(0, 240) + "…";
+    var bits = [];
+    if (a.volumeCount)  bits.push(a.volumeCount + " vol");
+    if (a.chapterCount) bits.push(a.chapterCount + " ch");
+    var rating = parseFloat(a.averageRating);        // "84.64" (0–100) → 8.46 (Jikan scale)
+    return {
+        malId: 0,
+        title: ((a.titles && a.titles.en) || a.canonicalTitle || ""),
+        cover: (a.posterImage && (a.posterImage.large || a.posterImage.medium)) || "",
+        c1: t[0], c2: t[1],
+        type: a.subtype || "",
+        year: a.startDate ? parseInt(String(a.startDate).slice(0, 4), 10) : null,
+        status: a.status === "current" ? "Publishing" : (a.status || ""),
+        metaCounts: bits.length ? bits.join(" · ") : (a.status === "current" ? "ongoing" : "—"),
+        score: isNaN(rating) ? null : Math.round(rating * 10) / 100,
+        members: members(a.userCount || 0),
+        authors: "",
+        genres: [],
+        synopsis: syn
+    };
+}
+
+function kitsuGenre(name, sort, push) {
+    var slug = KITSU_SLUGS[name];
+    if (!slug) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
+    var order = (sort === "score") ? "-averageRating" : "-userCount";
+    var url = KITSU + "/manga?filter[categories]=" + slug + "&sort=" + order + "&page[limit]=20";
+    requestJson(url, function(j) {
+        if (!j || !j.data || !j.data.length) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
+        var cards = j.data.map(kitsuCard);
+        var total = (j.meta && j.meta.count) || cards.length;
+        var montage = cards.slice(0, 7).map(function(c) { return c.cover; }).filter(function(u) { return u; });
+        push({ count: total, desc: descFor(name), cards: cards, montage: montage });
+    });
+}
+
 // load a genre page. sort: "readers" (default) | "score". push gets one payload object.
+// Jikan first; ANY failure or empty answer drops to the Kitsu rung — the page never blanks
+// unless both wells are dry.
 function loadGenre(name, sort, push) {
     var id = idFor(name);
     if (!id) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
     var order = (sort === "score") ? "score&sort=desc" : "popularity&sort=asc";   // popularity asc = MAL "by members"
     var url = JIKAN + "/manga?genres=" + id + "&order_by=" + order + "&limit=24&sfw=true";
     requestJson(url, function(j) {
-        if (!j || !j.data) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
+        if (!j || !j.data || !j.data.length) { kitsuGenre(name, sort, push); return; }
         var cards = j.data.map(toCard);
         var total = (j.pagination && j.pagination.items && j.pagination.items.total) || cards.length;
         var montage = cards.slice(0, 7).map(function(c) { return c.cover; }).filter(function(u) { return u; });

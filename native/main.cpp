@@ -314,7 +314,11 @@ int main(int argc, char *argv[]) {
         // records → dead-IPv6 ~21s stall unless pinned to IPv4 (same scar as the comics lane).
         QStringLiteral("apibay.org"),
         QStringLiteral("extto.org"),
-        QStringLiteral("torrents-csv.com")
+        QStringLiteral("torrents-csv.com"),
+        // Jikan (2026-07-13, genre-pages triage): api.jikan.moe publishes AAAA and was
+        // NEVER pinned — every manga genre / Jump registry / Theatre anime call rode the
+        // dead-IPv6 stall on top of whatever Jikan itself was doing. Same scar, same fix.
+        QStringLiteral("api.jikan.moe")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
