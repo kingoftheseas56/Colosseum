@@ -40,12 +40,18 @@ BookBridge::~BookBridge()
 // files
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Returns the file BASE64-encoded. QWebChannel marshals a QByteArray return value by
+// UTF-8-decoding it into a JS string, which CORRUPTS binary (a raw .epub's bytes are not
+// valid UTF-8) — so the reader's byte-converters saw a lossy string and silently fell back
+// to fetch(file://). Base64 is pure ASCII, survives the string transfer intact, and the JS
+// side (toArrayBuffer / txt decoder) atob-decodes it. This makes the native bridge — which
+// also self-heals stale paths below — the reliable read path instead of fragile file:// fetch.
 QByteArray BookBridge::filesRead(const QString& filePath)
 {
     QString p = filePath;
     if (p.startsWith(QStringLiteral("file:///"))) p = QUrl(p).toLocalFile();
     QFile f(p);
-    if (f.open(QIODevice::ReadOnly)) return f.readAll();
+    if (f.open(QIODevice::ReadOnly)) return f.readAll().toBase64();
 
     // Self-heal a stale app-data path (the org-name migration Roaming/Colosseum ->
     // Roaming/Brotherhood/Colosseum moved the tree but left absolute paths — in the
@@ -58,7 +64,7 @@ QByteArray BookBridge::filesRead(const QString& filePath)
         const QString rerooted = appData + QStringLiteral("/") + p.mid(idx + kAnchor.size());
         if (rerooted != p) {
             QFile g(rerooted);
-            if (g.open(QIODevice::ReadOnly)) return g.readAll();
+            if (g.open(QIODevice::ReadOnly)) return g.readAll().toBase64();
         }
     }
     return {};

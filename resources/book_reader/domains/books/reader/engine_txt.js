@@ -18,6 +18,15 @@
     if (!data) return new Uint8Array(0);
     if (data instanceof ArrayBuffer) return new Uint8Array(data);
     if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+    // The native bridge (BookBridge.filesRead) returns base64 — decode to bytes.
+    if (typeof data === 'string') {
+      try {
+        const bin = atob(data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes;
+      } catch (e) { return new Uint8Array(0); }
+    }
     return new Uint8Array(0);
   }
 

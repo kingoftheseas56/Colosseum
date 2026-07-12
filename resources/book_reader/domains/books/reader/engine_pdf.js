@@ -50,6 +50,15 @@
     if (ArrayBuffer.isView(data)) {
       return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
     }
+    // The native bridge (BookBridge.filesRead) returns base64 — decode to bytes.
+    if (typeof data === 'string') {
+      try {
+        const bin = atob(data);
+        const bytes = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+        return bytes.buffer;
+      } catch (e) { return null; }
+    }
     return null;
   }
 
