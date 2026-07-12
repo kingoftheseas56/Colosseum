@@ -1,10 +1,14 @@
-// UniverseHallPage — the universe collection's "see all": THE HALL OF WORLDS. Not a grid,
-// not tiles (Hemanth's one constraint, 2026-07-12): the viewport is a great shelf and every
-// universe is a SPINE — banner art washed dark, name in tall rotated Fraunces, an index
-// numeral at the crown. Hover breathes a spine open (it widens, neighbors lean away) to
-// reveal the kicker, blurb, media ledger and "Enter →"; click enters the world (hover is an
-// enhancement — a straight click works untouched). Data: Universes.universes, verbatim.
+// UniverseHallPage — the universe collection's "see all": THE HALL OF WORLDS, second form.
+// Born a horizontal spine shelf (0662ffe); at 21 worlds the sideways walk failed Hemanth's
+// hand ("it's just one long row") and on 2026-07-12 he ratified the LEDGER STACK from the
+// mock: the books lie flat. Every universe is a slim full-width bar — gold index numeral,
+// name set LEVEL in Fraunces (no rotated type), banner art washed dark behind. Hover
+// breathes a bar taller to reveal the kicker, blurb, media ledger and "Enter →"; a straight
+// click enters the world untouched (hover stays an enhancement). The pile scrolls DOWN like
+// every other page — HouseScrollBar gold sliver + ScrollGlide — and scales forever.
+// Not a tile grid (standing constraint). Data: Universes.universes, verbatim.
 import QtQuick
+import QtQuick.Controls
 import "Universes.js" as Universes
 
 Item {
@@ -16,11 +20,11 @@ Item {
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
-    signal exploreRequested(string name)   // a spine → win.openUniverse
+    signal exploreRequested(string name)   // a bar → win.openUniverse
 
     Theme { id: theme }
 
-    property int hovered: -1              // which spine breathes (-1 = the shelf at rest)
+    property int hovered: -1              // which bar breathes (-1 = the pile at rest)
 
     // ---- the wall the hall stands in ----
     Item {
@@ -82,146 +86,136 @@ Item {
         }
     }
 
-    // ---- THE SHELF — spines shoulder to shoulder, one per world ----
-    // the shelf walks horizontally once the collection outgrows the viewport (a spine
-    // never squeezes below minW — the rotated title needs its shoulder room)
+    // ---- THE STACK — the books lie flat, one world under another ----
     Flickable {
-        id: shelfWalk
+        id: stackWalk
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: parent.top; anchors.topMargin: 140
         anchors.bottom: parent.bottom; anchors.bottomMargin: 34
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        contentWidth: Math.max(width, shelf.implicitWidth)
-        contentHeight: height
+        contentWidth: width
+        contentHeight: pile.implicitHeight + 12
         clip: true
-        flickableDirection: Flickable.HorizontalFlick
+        flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: stackWalk }
+        ScrollGlide { flick: stackWalk }
 
-    Row {
-        id: shelf
-        height: shelfWalk.height
-        spacing: 10
+    Column {
+        id: pile
+        width: stackWalk.width
+        spacing: 8
 
-        // geometry: the breathing spine takes `open` width, the rest share what remains —
-        // but never less than minW each (overflow walks instead of crushing)
-        readonly property int count: Universes.universes.length
-        readonly property real availW: shelfWalk.width
-        readonly property real minW: 96
-        readonly property real openW: Math.min(500, availW * 0.34)
-        readonly property real fitW: root.hovered < 0
-            ? (availW - spacing * (count - 1)) / count
-            : (availW - spacing * (count - 1) - openW) / (count - 1)
-        readonly property real restW: Math.max(minW, fitW)
+        // geometry: a bar rests slim; the hovered one breathes open (heights, not widths —
+        // the whole collection stays one flick away, nothing ever walks sideways)
+        readonly property int restH: 64
+        readonly property int openH: 176
 
         Repeater {
             model: Universes.universes
             delegate: Item {
-                id: spine
+                id: bar
                 required property var modelData
                 required property int index
-                readonly property bool open: root.hovered === spine.index
-                width: open ? shelf.openW : shelf.restW
-                height: shelf.height
-                Behavior on width { NumberAnimation { duration: 340; easing.type: Easing.OutCubic } }
+                readonly property bool open: root.hovered === bar.index
+                width: pile.width
+                height: open ? pile.openH : pile.restH
+                Behavior on height { NumberAnimation { duration: 340; easing.type: Easing.OutCubic } }
 
                 Rectangle {
                     anchors.fill: parent
                     radius: 14; clip: true
-                    color: spine.modelData.c1 || "#14161d"
+                    color: bar.modelData.c1 || "#14161d"
                     border.width: 1
-                    border.color: spine.open ? Qt.rgba(0.94, 0.77, 0.29, 0.65)
-                                             : Qt.rgba(0.97, 0.97, 0.96, 0.10)
+                    border.color: bar.open ? Qt.rgba(0.94, 0.77, 0.29, 0.65)
+                                           : Qt.rgba(0.97, 0.97, 0.96, 0.10)
                     Behavior on border.color { ColorAnimation { duration: 240 } }
 
-                    // the world's art, washed dark so the type carries the spine
+                    // the world's art, washed dark so the type carries the bar
                     Image {
                         anchors.fill: parent
-                        source: spine.modelData.banner
+                        source: bar.modelData.banner
                         asynchronous: true; cache: true
                         fillMode: Image.PreserveAspectCrop
-                        opacity: status === Image.Ready ? (spine.open ? 0.6 : 0.34) : 0
+                        opacity: status === Image.Ready ? (bar.open ? 0.55 : 0.30) : 0
                         Behavior on opacity { NumberAnimation { duration: 300 } }
                     }
                     Rectangle {
                         anchors.fill: parent
                         gradient: Gradient {
-                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.30) }
-                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, spine.open ? 0.78 : 0.55) }
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.74) }
+                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, bar.open ? 0.45 : 0.28) }
                         }
                     }
 
-                    // ---- CLOSED face: index numeral at the crown, name running up the spine ----
+                    // ---- title row (always level, always present) ----
                     Item {
-                        anchors.fill: parent
-                        opacity: spine.open ? 0 : 1
-                        visible: opacity > 0.01
-                        Behavior on opacity { NumberAnimation { duration: 200 } }
-                        Text {   // the crown numeral — library plate
-                            anchors.top: parent.top; anchors.topMargin: 18
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: (spine.index + 1 < 10 ? "0" : "") + (spine.index + 1)
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top
+                        height: pile.restH
+                        Text {   // the index numeral — library plate
+                            id: plate
+                            anchors.left: parent.left; anchors.leftMargin: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: (bar.index + 1 < 10 ? "0" : "") + (bar.index + 1)
                             color: Qt.rgba(0.94, 0.77, 0.29, 0.8)
-                            font.family: theme.display; font.pixelSize: 15; font.italic: true
+                            font.family: theme.display; font.pixelSize: 14; font.italic: true
                         }
-                        Text {   // the title climbs the spine, bottom to top
-                            anchors.centerIn: parent
-                            rotation: -90
-                            width: spine.height - 130
-                            text: spine.modelData.name
+                        Text {   // the name reads level — no tilted head
+                            anchors.left: plate.right; anchors.leftMargin: 18
+                            anchors.right: enterRow.left; anchors.rightMargin: 18
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: bar.modelData.name
                             color: theme.ink
-                            font.family: theme.display; font.pixelSize: 26
+                            font.family: theme.display; font.pixelSize: 21
                             elide: Text.ElideRight
-                            horizontalAlignment: Text.AlignHCenter
+                        }
+                        Row {
+                            id: enterRow
+                            anchors.right: parent.right; anchors.rightMargin: 22
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 8
+                            opacity: bar.open ? 1 : 0
+                            Behavior on opacity { NumberAnimation { duration: 250 } }
+                            Text { text: "Enter the universe"; color: theme.ink
+                                   font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
                         }
                     }
 
-                    // ---- OPEN face: the world introduces itself ----
-                    Item {
-                        anchors.fill: parent
-                        anchors.margins: 28
-                        opacity: spine.open ? 1 : 0
+                    // ---- the breathe: the world introduces itself under its own title ----
+                    Column {
+                        anchors.left: parent.left; anchors.leftMargin: 68
+                        anchors.right: parent.right; anchors.rightMargin: 24
+                        anchors.top: parent.top; anchors.topMargin: pile.restH
+                        spacing: 8
+                        opacity: bar.open ? 1 : 0
                         visible: opacity > 0.01
                         Behavior on opacity { NumberAnimation { duration: 260 } }
-                        Column {
-                            anchors.left: parent.left; anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            spacing: 10
-                            Text { text: "UNIVERSE  ·  " + ((spine.index + 1 < 10 ? "0" : "") + (spine.index + 1))
-                                   color: theme.gold; font.family: theme.ui
-                                   font.pixelSize: 11; font.letterSpacing: 3 }
-                            Text {
-                                width: parent.width
-                                text: spine.modelData.name
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 38
-                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                            }
-                            Text {
-                                width: parent.width
-                                text: spine.modelData.blurb
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                                lineHeight: 1.4
-                                wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
-                            }
-                            // the ledger line: bright count · dim medium (the house rule)
-                            Text {
-                                width: parent.width
-                                textFormat: Text.StyledText
-                                font.family: theme.ui; font.pixelSize: 13
-                                text: (spine.modelData.chips || []).map(function(c) {
-                                    var s = String(c.t), i = s.indexOf(" ")
-                                    var first = i < 0 ? s : s.substring(0, i)
-                                    if (!/^\d/.test(first)) return "<font color='#c9c8d0'>" + s + "</font>"
-                                    return "<b><font color='#f7f7f5'>" + first + "</font></b> <font color='#c9c8d0'>"
-                                           + s.substring(i + 1) + "</font>"
-                                }).join("<font color='#8b8a94'>   ·   </font>")
-                            }
-                            Item { width: 1; height: 4 }
-                            Row {
-                                spacing: 8
-                                Text { text: "Enter the universe"; color: theme.ink
-                                       font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
-                                Text { text: "→"; color: theme.gold; font.pixelSize: 15 }
-                            }
+                        Text { text: "UNIVERSE  ·  " + ((bar.index + 1 < 10 ? "0" : "") + (bar.index + 1))
+                               color: theme.gold; font.family: theme.ui
+                               font.pixelSize: 10; font.letterSpacing: 3 }
+                        Text {
+                            width: parent.width
+                            text: bar.modelData.blurb
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                            lineHeight: 1.4
+                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                        }
+                        // the ledger line: bright count · dim medium (the house rule)
+                        Text {
+                            width: parent.width
+                            textFormat: Text.StyledText
+                            font.family: theme.ui; font.pixelSize: 13
+                            elide: Text.ElideRight
+                            text: (bar.modelData.chips || []).map(function(c) {
+                                var s = String(c.t), i = s.indexOf(" ")
+                                var first = i < 0 ? s : s.substring(0, i)
+                                if (!/^\d/.test(first)) return "<font color='#c9c8d0'>" + s + "</font>"
+                                return "<b><font color='#f7f7f5'>" + first + "</font></b> <font color='#c9c8d0'>"
+                                       + s.substring(i + 1) + "</font>"
+                            }).join("<font color='#8b8a94'>   ·   </font>")
                         }
                     }
                 }
@@ -230,12 +224,12 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.hovered = spine.index
-                    onExited: if (root.hovered === spine.index) root.hovered = -1
-                    onClicked: root.exploreRequested(spine.modelData.name)
+                    onEntered: root.hovered = bar.index
+                    onExited: if (root.hovered === bar.index) root.hovered = -1
+                    onClicked: root.exploreRequested(bar.modelData.name)
                 }
             }
         }
     }
-    }   // shelfWalk (the horizontal walk once the collection outgrows the viewport)
+    }   // stackWalk (the pile scrolls down — never sideways)
 }

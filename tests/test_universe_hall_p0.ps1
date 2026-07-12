@@ -1,8 +1,10 @@
 $ErrorActionPreference = "Stop"
 
-# Hall of Worlds contract (Hemanth commission 2026-07-12, free-reign design): the universe
-# see-all is a SPINE SHELF, not a tile grid. Hover breathes a spine open; click enters the
-# world; the hall sits UNDER the universe layer so entering paints over it and back returns.
+# Hall of Worlds contract, second form (Hemanth ratification 2026-07-12 evening): the universe
+# see-all is a LEDGER STACK — the books lie flat. Full-width bars, one under another; names
+# read LEVEL (no rotated type); the pile scrolls DOWN with the house gold sliver + ScrollGlide;
+# hover breathes a bar taller; click enters the world; still never a tile grid. The hall sits
+# UNDER the universe layer so entering paints over it and back returns.
 
 $root = Split-Path -Parent $PSScriptRoot
 function Read-File($rel) {
@@ -17,15 +19,20 @@ function Assert-Lacks($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
 
-# --- the hall: spines, not tiles ---
+# --- the hall: flat bars in a vertical pile, breathing on hover ---
 $hp = Read-File "qml/UniverseHallPage.qml"
-foreach ($n in @('signal exploreRequested(string name)', 'rotation: -90', 'property int hovered',
-                 'Universes.universes', 'Behavior on width', 'Hall of Worlds')) {
+foreach ($n in @('signal exploreRequested(string name)', 'property int hovered',
+                 'Universes.universes', 'Hall of Worlds',
+                 'flickableDirection: Flickable.VerticalFlick',
+                 'ScrollBar.vertical: HouseScrollBar', 'ScrollGlide',
+                 'Behavior on height', 'Gradient.Horizontal')) {
     Assert-Contains $hp $n "UniverseHallPage must carry: $n"
 }
 Assert-Lacks $hp 'PortraitTile' "The hall must NOT be generic tiles (ratified constraint)."
 Assert-Lacks $hp 'ContinueTile' "The hall must NOT reuse the continue tiles."
-Assert-Lacks $hp 'GridView' "The hall is a shelf, not a grid."
+Assert-Lacks $hp 'GridView' "The hall is a pile of bars, not a grid."
+Assert-Lacks $hp 'rotation: -90' "Names read LEVEL in the ledger stack - no rotated spine type."
+Assert-Lacks $hp 'HorizontalFlick' "The sideways walk is dead - the pile scrolls down only."
 
 # --- wiring: layer under the universe pages, door on the hero, Esc chain ---
 $main = Read-File "qml/Main.qml"
