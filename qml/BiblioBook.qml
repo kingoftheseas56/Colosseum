@@ -457,8 +457,11 @@ Item {
                     Column {
                         id: abCol
                         width: parent.width
-                        // download/progress state for THIS title's audiobook, keyed on pairKey
-                        property string abState: detail.audioLocal ? "done" : "idle"
+                        // The download is per-TITLE (one paired audiobook / pairKey), but the panel
+                        // lists several release candidates. Track WHICH row the user picked so only
+                        // that row shows progress/✓ — the others stay "↓" (they're alternatives).
+                        property string abState: "idle"
+                        property string abActiveSlug: ""     // the row being downloaded
                         property real abPct: 0
                         Connections {
                             target: (typeof Audiobooks !== 'undefined') ? Audiobooks : null
@@ -481,6 +484,8 @@ Item {
                                 required property var modelData
                                 required property int index
                                 width: parent.width; height: 52
+                                // this row reflects the download state ONLY if it's the active pick
+                                readonly property string rowState: (modelData.slug === abCol.abActiveSlug) ? abCol.abState : "idle"
                                 Rectangle { anchors.fill: parent; color: abRowMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
@@ -498,18 +503,20 @@ Item {
                                 }
                                 Text {
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
-                                    text: abCol.abState === "done" ? "✓"
-                                        : abCol.abState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
-                                        : abCol.abState === "resolving" ? "…"
-                                        : abCol.abState === "failed" ? "retry" : "↓"
-                                    color: abCol.abState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
-                                    font.family: theme.ui; font.pixelSize: (abCol.abState === "downloading" || abCol.abState === "failed") ? 12 : 16
+                                    text: abRow.rowState === "done" ? "✓"
+                                        : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
+                                        : abRow.rowState === "resolving" ? "…"
+                                        : abRow.rowState === "failed" ? "retry" : "↓"
+                                    color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
+                                    font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        if (abCol.abState === "done") { detail.listenRequested(detail.pairKey, detail.book); return }
+                                        if (abRow.rowState === "done") { detail.listenRequested(detail.pairKey, detail.book); return }
+                                        // one download at a time: ignore clicks while another row is resolving/downloading
                                         if (abCol.abState === "downloading" || abCol.abState === "resolving") return
                                         if (typeof Audiobooks === 'undefined') return
+                                        abCol.abActiveSlug = abRow.modelData.slug   // THIS row is the pick
                                         abCol.abState = "resolving"
                                         Abb.fetchInfoHash(abRow.modelData.slug, function(d) {
                                             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
