@@ -26,9 +26,14 @@ Assert-Contains $main 'leagueofcomicgeeks.com' "LOCG catalogue host publishes AA
 Assert-Contains $main 'AppleWebKit' "NAM must stamp a browser UA - QML XHR silently drops User-Agent (restricted header), and LOCG 403s bot UAs (2026-07-12)"
 Assert-Absent $main 'PAGES_SELFTEST' "preset-pages selftest lane retired with the seam"
 $world = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
-Assert-Contains $world 'LocgApi' "world page must feed comics rows from the LOCG catalogue"
-Assert-Contains $world 'GetComics Archives' "GetComics keeps its explore door"
+Assert-Absent $world 'LocgApi' "world page is GC-driven; LOCG parked 2026-07-12 (GetComics = brain AND content)"
+Assert-Contains $world 'GcApi.explore' "explore mosaic rides GetComics' own tag taxonomy inline"
+Assert-Contains $world 'westernExploreRequested' "an explore box opens the archive index (middle layer, never raw feeds)"
 Assert-Contains $world 'e.source = src' "continue tiles must tag the comic source (GetComics)"
+$shelf = Get-Content (Join-Path $root "qml/ComicSeries.qml") -Raw
+Assert-Contains $shelf 'tagBySlug' "the GC shelf resolves its tag SLUG-FIRST (flooded search buried popular titles, 2026-07-12)"
+$locgparked = Get-Content (Join-Path $root "qml/LocgApi.js") -Raw
+Assert-Contains $locgparked 'PARKED 2026-07-12' "LOCG kept in-tree dormant, never deleted (Hemanth call)"
 # comic session/continue routes are TWO lanes now: gc: and manga fallback.
 $mainQml = Get-Content (Join-Path $root "qml/Main.qml") -Raw
 Assert-Absent $mainQml 'xoxo:' "no xoxo id-prefix routing may remain"

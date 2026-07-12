@@ -90,17 +90,37 @@ Item {
             Api.posterFor(seriesTitle + " comic", function(art) { if (art) page.poster = art })
         if (tagId > 0) { loadReleases(); return }
         if (!tagSlug.length) {
-            // title-only open (a Top-10 tile, a genre-page tile): resolve the tag
-            // from the title — same ranked search the world search uses.
+            // title-only open (a Top-10 tile, a genre-page tile): SLUG-FIRST (2026-07-12).
+            // WP's tag search is token-OR + count-ordered — popular titles get flooded out
+            // of their own results ("Absolute Batman" ranks under "Batman", 1417 releases),
+            // so blind tags[0] opened the WRONG franchise shelf or nothing. The exact slug
+            // derived from the title has no ambiguity; the ranked search stays as fallback,
+            // preferring an exact normalized-title hit over tags[0] when it must guess.
             if (!seriesTitle.length) { errorMsg = "No series tag."; loading = false; return }
-            Api.searchSeries(seriesTitle, function(tags) {
-                if (!tags || !tags.length) {
-                    page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on GetComics."
-                    page.loading = false
+            var wantNorm = String(seriesTitle).toLowerCase()
+                .replace(/\(\d{4}\)/g, "").replace(/\[[^\]]*\]/g, "")
+                .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
+            Api.tagBySlug(wantNorm.replace(/\s+/g, "-"), function(exact) {
+                if (exact) {
+                    page.tagId = exact.tagId
+                    page.tagSlug = exact.tag    // change signal re-enters resolve() on the tagId path
                     return
                 }
-                page.tagId = tags[0].tagId
-                page.tagSlug = tags[0].tag      // change signal re-enters resolve() on the tagId path
+                Api.searchSeries(page.seriesTitle, function(tags) {
+                    if (!tags || !tags.length) {
+                        page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on GetComics."
+                        page.loading = false
+                        return
+                    }
+                    var pick = tags[0]
+                    for (var i = 0; i < tags.length; i++) {
+                        var tn = String(tags[i].title).toLowerCase()
+                            .replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
+                        if (tn === wantNorm) { pick = tags[i]; break }
+                    }
+                    page.tagId = pick.tagId
+                    page.tagSlug = pick.tag
+                })
             })
             return
         }

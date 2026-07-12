@@ -1,3 +1,6 @@
+// >>> ATTACH MACHINE PARKED 2026-07-12 (GetComics = brain AND content; no catalogue to
+// >>> attach onto). failureIsTerminal() stays LIVE — both shelf delegates consume it.
+// >>> Revive resolve()/matchIssues() with LOCG. Do not delete.
 // ComicResolve.js — the attach machine: pairs a LOCG catalogue series with the source slug
 // that actually serves its pages. A SUCCESSFUL attach is persisted forever; a no-match is
 // remembered ONLY for the session (never persisted — the source's catalog grows weekly, so a miss

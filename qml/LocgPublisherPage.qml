@@ -1,3 +1,5 @@
+// >>> PARKED 2026-07-12 (Hemanth: GetComics = brain AND content). No door routes here.
+// >>> Revive with LOCG when an RCO/Batcave-class source lands. Do not delete.
 // LocgPublisherPage — the comics explore page (publisher axis): one LOCG publisher shelf
 // (Marvel, DC, Image...) as a paginated series grid. Comics axis is publisher, not genre —
 // genre was dropped, LOCG carries no keyless genre; ratified 2026-07-09. A tile opens the LOCG

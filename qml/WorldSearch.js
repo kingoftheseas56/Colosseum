@@ -191,9 +191,9 @@ function searchWestern(query, done) {
     });
 }
 
-// ── LOCG: the comics CATALOGUE search lane (500k+ comics, keyless database) — the brain;
-//    GetComics is the content layer, not a search surface. A blocked/offline LOCG
-//    contributes ONE honest notice row instead of a silent empty section. ──
+// ── LOCG catalogue search lane — PARKED 2026-07-12 (Hemanth: GetComics = brain AND
+//    content; the archive tags drive the pages). Kept in-tree, no caller in the
+//    fan-out below — revive when an RCO/Batcave-class source restores the split. ──
 function searchLocg(query, done) {
     Locg.searchSeries(query, function(items, meta) {
         if (meta && meta.blocked) {
@@ -221,18 +221,17 @@ function searchLocg(query, done) {
 
 function searchTankoban(query, done) {
     if (!query || query.trim().length < 2) { done([]); return; }
-    var manga = null, western = null, locg = null;
+    var manga = null, western = null;
     function finish() {
-        if (manga === null || western === null || locg === null) return;
+        if (manga === null || western === null) return;
         // Top Match = most title-relevant hit across ALL lanes, via the shared scorer
         // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
         // Each lane degrades to [] on its own failure — peer independence is free.
         var rank = function(lane) { lane.forEach(function(r, i) { r.rank = i; }); return lane; };
-        done(pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(western))));
+        done(pickTopMatch(query, rank(manga).concat(rank(western))));
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });
-    searchLocg(query, function(items) { locg = items || []; finish(); });
 }
 
 function searchFor(mode, query, done) {

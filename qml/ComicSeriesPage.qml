@@ -1,3 +1,6 @@
+// >>> PARKED 2026-07-12 (Hemanth: GetComics = brain AND content). No door routes here —
+// >>> the live comic page is ComicSeries.qml (the GetComics shelf). Revive with LOCG
+// >>> when an RCO/Batcave-class source restores the catalogue split. Do not delete.
 // ComicSeriesPage — the comic series detail page (Tankoban mode): LOCG catalogue issue rows
 // with GetComics content attached. The LOCG catalogue is the brain (issue list, never
 // dark); GetComics attaches downloadable archives onto those rows via ComicResolve.

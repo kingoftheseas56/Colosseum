@@ -5,37 +5,30 @@
 //
 // The board (Hemanth-locked 2026-06-25) — personal surfaces BLENDED, discovery surfaces SPLIT:
 //   1. Featured (blended) · 2. Continue (blended) · 3. Top in Tankoban — Manga
-//   4. Top in Tankoban — Comics (LOCG real pull-counts)
-//   5. Explore Genre — Manga · 6. Explore Comics — Publishers
+//   4. Top in Tankoban — Comics (curated) · 5. Explore Genre — Manga
+//   6. Explore Comics (GetComics' own tag taxonomy, inline)
 // The catalogue's needs override the doctrine's ~2-row cap: comics and manga are two real
 // sub-catalogues, so the split IS the need (not a lazy row-wall).
 
 import QtQuick
 import "Catalog.js" as Catalog
-import "LocgApi.js" as Locg
+import "ComicsApi.js" as GcApi
 
 WorldPage {
     id: tanko
     medium: "Tankoban"
 
-    // western-comics routes (2026-07-04 lane): a comic tile opens the GetComics
-    // shelf (ComicSeries resolves the tag from the title); an explore box opens
-    // its tag shelf directly. Declared here, not on the shared WorldPage.
+    // Comics = GetComics for BOTH metadata and content (Hemanth 2026-07-12; the LOCG
+    // catalogue-brain is PARKED in-tree). A comic tile opens the GetComics shelf
+    // (ComicSeries resolves the tag from the title, slug-first); an explore box opens
+    // the archive index (the middle layer, ratified 2026-07-04 — never raw feeds).
     signal westernRequested(string title)
     signal westernExploreRequested(var box)
 
-    // comics routes: the LOCG catalogue is the brain, GetComics is the content. A Top-Comics
-    // tile opens the LOCG series page (issues + attached GetComics downloads); a publisher box
-    // opens its LOCG shelf; the Archives box opens the GetComics taxonomy.
-    signal comicSeriesRequested(var data)        // {id, title, cover} — LOCG catalogue series
-    signal locgPublisherRequested(var box)      // {id, label} — opens LocgPublisherPage
-    signal comicArchiveBoardRequested()
-
-    // Live comics CATALOGUE from LOCG (AniList model): Top in Comics (real pull-counts —
-    // LOCG's ONLY honest popularity signal) + publisher boxes. Falls back to curated
-    // Catalog.topComics when LOCG offline.
-    property var topComicsWeek: []
-    property var comicPublishers: []
+    // GetComics' own taxonomy (top tags by release count, publishers + franchises,
+    // noise-filtered) drives the explore mosaic inline — the old Archives-door page
+    // one click earlier. Covers land in a second callback (iTunes art trailing in).
+    property var comicBoxes: []
     property var comicCovers: []            // real covers → the mosaic's art pool
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
@@ -44,23 +37,14 @@ WorldPage {
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
     Component.onCompleted: {
-        Locg.topInComics(function(list, meta) {
-            if (meta && meta.ok && list.length > 0) {
-                tanko.topComicsWeek = list.map(function(s) {
-                    return { caption: s.title, cover: s.cover, c1: "#3f5a78", c2: "#16222e",
-                             locg: true, id: s.id, locgMeta: { publisher: s.publisher, rating: s.rating } };
-                });
-                tanko.comicCovers = list.map(function(s) { return s.cover; })
-                    .filter(function(c) { return c && c.length > 0; });
-            }
-        });
-        Locg.publisherBoxes(function(boxes) {
-            var pubs = boxes.map(function(b, i) {
+        GcApi.explore(function(boxes) {
+            tanko.comicBoxes = (boxes || []).map(function(b, i) {
                 var pal = tanko._genrePalette[i % tanko._genrePalette.length];
-                return { name: b.label, boxId: b.id, c1: pal[0], c2: pal[1] };
+                return { name: b.name, tag: b.tag, tagId: b.tagId, count: b.count,
+                         c1: pal[0], c2: pal[1] };
             });
-            pubs.push({ name: "GetComics Archives", archives: true, c1: "#4a4a4a", c2: "#151515" });
-            tanko.comicPublishers = pubs;
+            tanko.comicCovers = (boxes || []).map(function(b) { return b.cover; })
+                .filter(function(c) { return c && c.length > 0; });
         });
     }
 
@@ -97,15 +81,10 @@ WorldPage {
 
     TrendingTop10 {
         title: "Top in Tankoban — Comics"
-        // Live from LOCG — series rolled up from the week's releases, ranked by REAL pull-counts
-        // (LOCG's only honest popularity signal); curated Catalog list is the offline fallback.
-        items: tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
-        onItemClicked: (i) => {
-            var list = tanko.topComicsWeek.length > 0 ? tanko.topComicsWeek : Catalog.topComics
-            var it = list[i]
-            if (it.locg) tanko.comicSeriesRequested({ id: it.id, title: it.caption, cover: it.cover, locgMeta: it.locgMeta })
-            else tanko.westernRequested(it.caption)
-        }
+        // Curated list (pre-LOCG behavior, Hemanth 2026-07-12) — every tile opens the
+        // GetComics shelf; ComicSeries resolves the tag from the title, slug-first.
+        items: Catalog.topComics
+        onItemClicked: (i) => tanko.westernRequested(Catalog.topComics[i].caption)
     }
 
     GenreMosaic {
@@ -116,17 +95,13 @@ WorldPage {
     }
 
     GenreMosaic {
-        title: "Explore Comics — Publishers"
-        // LOCG's publisher axis (Marvel/DC/Image/Dark Horse...) + a GetComics Archives
-        // door. Publisher is the comics-native axis (genre dropped — LOCG carries no
-        // keyless genre, ratified 2026-07-09). GetComics loses nothing.
-        genres: tanko.comicPublishers
-        covers: tanko.comicCovers          // real comic art behind the publisher gradients
+        title: "Explore Comics"
+        // GetComics' OWN taxonomy inline (publishers + franchises, top tags by release
+        // count) — the archive-tag axis IS the driving force (Hemanth 2026-07-12).
+        // A box opens the archive index: the series archives alive under that tag.
+        genres: tanko.comicBoxes
+        covers: tanko.comicCovers          // real comic art behind the box gradients
         navigable: false
-        onGenreClicked: (i) => {
-            var g = tanko.comicPublishers[i]
-            if (g.archives) tanko.comicArchiveBoardRequested()
-            else tanko.locgPublisherRequested({ id: g.boxId, label: g.name })
-        }
+        onGenreClicked: (i) => tanko.westernExploreRequested(tanko.comicBoxes[i])
     }
 }

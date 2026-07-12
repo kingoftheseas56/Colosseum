@@ -1,3 +1,6 @@
+// >>> PARKED 2026-07-12 (Hemanth: GetComics = brain AND content; archive tags drive the
+// >>> pages). No live caller — revive when an RCO/Batcave-class source restores the
+// >>> catalogue split. Do not delete.
 // LocgApi.js — League of Comic Geeks (leagueofcomicgeeks.com/comic/get_comics): the
 // AniList-model metadata catalogue brain for the comics lane. This file is PARSERS ONLY
 // (Task 2) — fetch verbs (spaced queue, caches, validation) land in Task 3.
