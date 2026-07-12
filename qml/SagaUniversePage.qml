@@ -11,6 +11,7 @@
 import QtQuick
 import QtQuick.Controls
 import "SagaApi.js" as Saga
+import "ComicsApi.js" as ComicsApi
 
 Item {
     id: root
@@ -25,12 +26,26 @@ Item {
     signal searchClicked()
     signal watchRequested(var item)     // film/show tile → A4's TheatreSeries
     signal bookRequested(var book)      // novel tile / Read → the Biblio book detail
+    signal comicsArchiveRequested(var box)   // the comics door → the GC archive index
 
     Theme { id: theme }
-    property var uni: ({ name: "", blurb: "", banner: "", metaline: "", books: [], films: [], shows: [] })
+    property var uni: ({ name: "", blurb: "", banner: "", metaline: "", books: [], films: [], shows: [],
+                         comics: null })
+
+    // the pinned archive resolved live (real GC name + release count); curated pin = fallback
+    property var comicsBox: null
+    onUniChanged: {
+        if (root.uni.comics && root.uni.comics.tagId && !root.comicsBox)
+            ComicsApi.tagBox(root.uni.comics.tagId, function(b) { if (b) root.comicsBox = b })
+    }
+    function comicsDoor() {
+        return root.comicsBox || { name: root.uni.name, tag: root.uni.comics.tag,
+                                   tagId: root.uni.comics.tagId, count: 0 }
+    }
 
     function reload() {
         if (!root.universeName.length) return         // never load a default universe (the OP-flash lesson)
+        root.comicsBox = null
         Saga.loadSaga(root.universeName, function(u) { if (u) root.uni = u; })
     }
     Component.onCompleted: reload()
@@ -267,6 +282,63 @@ Item {
                 AdaptationRow { width: parent.width; title: "The Films";  items: root.uni.films;  numbered: true }
                 AdaptationRow { width: parent.width; title: "TV Shows";   items: root.uni.shows;  numbered: false }
 
+                Item { width: 1; height: 34; visible: !!root.uni.comics }
+
+                // ===== THE COMICS DOOR — the canon in print (curated GC pin, 2026-07-13) =====
+                Rectangle {
+                    width: parent.width; height: 108
+                    radius: 12; clip: true
+                    visible: !!root.uni.comics
+                    color: "#241813"
+                    border.width: 1
+                    border.color: sagaComicsMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                                             : Qt.rgba(0.97,0.97,0.96,0.10)
+                    Image {
+                        anchors.fill: parent
+                        source: root.uni.banner
+                        asynchronous: true; cache: true
+                        fillMode: Image.PreserveAspectCrop
+                        opacity: status === Image.Ready ? (sagaComicsMa.containsMouse ? 0.5 : 0.28) : 0
+                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.76) }
+                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.30) }
+                        }
+                    }
+                    Column {
+                        anchors.left: parent.left; anchors.leftMargin: 26
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 7
+                        Text { text: "GETCOMICS ARCHIVE"; color: theme.gold
+                               font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                        Text {
+                            text: (root.uni.comics && root.uni.comics.line) || "The canon continues in print."
+                            color: theme.ink; font.family: theme.display; font.pixelSize: 19
+                        }
+                    }
+                    Row {
+                        anchors.right: parent.right; anchors.rightMargin: 26
+                        anchors.verticalCenter: parent.verticalCenter
+                        spacing: 8
+                        Text { text: root.comicsBox && root.comicsBox.count
+                                     ? "Browse " + root.comicsBox.count + " releases"
+                                     : "Browse the archive"
+                               color: theme.ink; font.family: theme.ui
+                               font.pixelSize: 13; font.weight: Font.DemiBold }
+                        Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
+                    }
+                    MouseArea {
+                        id: sagaComicsMa
+                        anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: root.comicsArchiveRequested(root.comicsDoor())
+                    }
+                }
+
                 Item { width: 1; height: 60 }
             }
         }
@@ -424,6 +496,18 @@ Item {
                                     color: theme.gold; font.family: theme.ui
                                     font.pixelSize: 13; font.weight: Font.Bold
                                 }
+                            }
+                            Rectangle {   // UPCOMING plate — future work stays, marked (ratified 2026-07-13)
+                                anchors.top: parent.top; anchors.right: parent.right
+                                anchors.margins: 8
+                                visible: wTile.modelData.upcoming === true
+                                radius: 4
+                                color: Qt.rgba(0, 0, 0, 0.72)
+                                border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
+                                width: sagaUpTag.implicitWidth + 12; height: sagaUpTag.implicitHeight + 6
+                                Text { id: sagaUpTag; anchors.centerIn: parent
+                                       text: "UPCOMING"; color: theme.gold
+                                       font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
                             }
                             Rectangle {
                                 anchors.left: parent.left; anchors.right: parent.right

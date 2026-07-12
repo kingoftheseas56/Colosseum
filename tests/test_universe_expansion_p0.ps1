@@ -59,7 +59,33 @@ Assert-Contains $main 'item.comicsArchiveRequested.connect(win.openComicArchive)
 # 6) UPCOMING law (Hemanth 2026-07-13): metadata id = the gate, never release dates —
 #    future work stays in its room wearing the small tag
 Assert-Contains $saga 'upcoming:' "mapWatch must carry the upcoming flag."
-Assert-Contains $saga '_upcomingById' "loadEras must run the cached same-year boundary probe."
+Assert-Contains $saga '_upcomingById' "the cached same-year boundary probe must exist."
+Assert-Contains $saga 'function probeUpcoming(' "the boundary probe must be the shared helper."
 Assert-Contains $era 'UPCOMING' "EraUniversePage must render the UPCOMING tag."
+$sagaPage = Read-File "qml/SagaUniversePage.qml"
+Assert-Contains $sagaPage 'UPCOMING' "SagaUniversePage must render the UPCOMING tag (HP show case)."
+
+# 7) the 2026-07-13 expansion sweep (report-driven, every pin agent-verified live):
+#    id-pins for same-name traps, comics doors on saga/galaxy, books on eras
+foreach ($n in @('tt27497448',          # A Knight of the Seven Kingdoms
+                 'tt13918446',          # the HBO Harry Potter show (UPCOMING)
+                 'tt9603060',           # Star Trek: Section 31
+                 'tt8622160',           # Starfleet Academy
+                 'tt0361243',           # Clone Wars 2003 (2008 namesake outranks it)
+                 'tt0087182',           # Dune 1984
+                 'tt28283547',          # The Rats: A Witcher Tale
+                 'comics: { tag: "james-bond", tagId: 2111',
+                 'comics: { tag: "star-trek", tagId: 691',
+                 'comics: { tag: "star-wars", tagId: 203',
+                 'novelsTitle: "The Fleming Shelf"',
+                 'novelsTitle: "Chronicles of the Avatar"',
+                 'Crossroads of Ravens',
+                 'Boruto: Two Blue Vortex')) {
+    Assert-Contains $udb $n "Universes.js must carry the expansion pin: $n"
+}
+$galaxyPage = Read-File "qml/GalaxyUniversePage.qml"
+Assert-Contains $galaxyPage 'comicsArchiveRequested' "GalaxyUniversePage must carry the comics door."
+Assert-Contains $sagaPage 'comicsArchiveRequested' "SagaUniversePage must carry the comics door."
+Assert-Contains $era 'signal bookRequested(var book)' "EraUniversePage must carry the books shelf verb."
 
 Write-Host "universe expansion p0: OK"

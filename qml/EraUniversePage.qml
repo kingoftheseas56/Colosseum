@@ -27,10 +27,12 @@ Item {
     signal searchClicked()
     signal watchRequested(var item)
     signal comicsArchiveRequested(var box)   // the COMICS column door → the GC archive index
+    signal bookRequested(var book)           // the books shelf → the Biblio book detail
 
     Theme { id: theme }
     property var uni: ({ name: "", blurb: "", banner: "", kicker: "THE ERAS", metaline: "",
-                         eras: [], rails: [], comics: null, firstWatch: null, firstWatchLabel: "" })
+                         eras: [], rails: [], books: [], novelsTitle: "The Novels",
+                         comics: null, firstWatch: null, firstWatchLabel: "" })
 
     // the pinned archive resolved live (real GC name + release count); the curated pin is
     // the fallback so the door works even when the tags call fails
@@ -338,6 +340,95 @@ Item {
                 }
 
                 Item { width: 1; height: 40 }
+
+                // ===== the BOOKS shelf — the canon's prose, when the curation names it =====
+                // (Bond's Fleming shelf, Avatar's Chronicles — Hemanth expansion 2026-07-13)
+                Column {
+                    width: parent.width
+                    spacing: 16
+                    visible: root.uni.books.length > 0
+                    bottomPadding: 34
+                    Row {
+                        spacing: 12
+                        Text { text: root.uni.novelsTitle; color: theme.ink
+                               font.family: theme.display; font.pixelSize: 25 }
+                        Text { text: root.uni.books.length + " books  ·  reading order"
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                               anchors.baseline: parent.children[0].baseline }
+                    }
+                    Flickable {
+                        width: parent.width; height: 238
+                        contentWidth: bookRow.width; contentHeight: height
+                        clip: true
+                        flickableDirection: Flickable.HorizontalFlick
+                        boundsBehavior: Flickable.StopAtBounds
+                        Row {
+                            id: bookRow
+                            spacing: 18
+                            Repeater {
+                                model: root.uni.books
+                                delegate: Item {
+                                    id: bTile
+                                    required property var modelData
+                                    required property int index
+                                    width: 150; height: 232
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        radius: 8; clip: true
+                                        color: "#20180f"
+                                        border.width: 1
+                                        border.color: bMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                                                        : Qt.rgba(0.97,0.97,0.96,0.12)
+                                        Image {
+                                            anchors.fill: parent
+                                            source: bTile.modelData.cover || ""
+                                            asynchronous: true; cache: true
+                                            fillMode: Image.PreserveAspectCrop
+                                            opacity: status === Image.Ready ? 1 : 0
+                                            Behavior on opacity { NumberAnimation { duration: 220 } }
+                                        }
+                                        Rectangle {   // reading-order plate
+                                            anchors.top: parent.top; anchors.left: parent.left
+                                            anchors.margins: 8
+                                            width: 26; height: 26; radius: 6
+                                            color: Qt.rgba(0, 0, 0, 0.62)
+                                            border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.55)
+                                            Text { anchors.centerIn: parent
+                                                   text: bTile.index + 1
+                                                   color: theme.gold; font.family: theme.display
+                                                   font.italic: true; font.pixelSize: 13 }
+                                        }
+                                        Rectangle {
+                                            anchors.left: parent.left; anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            height: 56
+                                            gradient: Gradient {
+                                                GradientStop { position: 0; color: "transparent" }
+                                                GradientStop { position: 1; color: Qt.rgba(0,0,0,0.88) }
+                                            }
+                                        }
+                                        Text {
+                                            anchors.left: parent.left; anchors.right: parent.right
+                                            anchors.bottom: parent.bottom
+                                            anchors.margins: 9
+                                            text: bTile.modelData.title || ""
+                                            color: theme.ink; font.family: theme.ui
+                                            font.pixelSize: 12; font.weight: Font.DemiBold
+                                            wrapMode: Text.WordWrap; maximumLineCount: 2
+                                            elide: Text.ElideRight
+                                        }
+                                        MouseArea {
+                                            id: bMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.bookRequested(bTile.modelData)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
 
                 // ===== flat rails (the canon's extras) =====
                 Repeater {

@@ -69,6 +69,23 @@ function slotByCanon(canon, metas) {
 // full-meta check per such id (cached below) and re-slots when a future date confirms.
 var _upcomingById = {};   // id → true (confirmed future) | false (probed: out or unknown)
 
+// probe same-year items' full meta ONCE each (cached above); onConfirm fires only when a
+// future released-date lands, so callers re-slot and the tag appears
+function probeUpcoming(items, onConfirm) {
+    var nowYr = new Date().getFullYear();
+    (items || []).forEach(function(m) {
+        if (!m || !m.id || m.year !== nowYr || (m.id in _upcomingById)) return;
+        _upcomingById[m.id] = false;
+        requestJson(CINEMETA + "/meta/" + m.type + "/" + m.id + ".json", function(j) {
+            var rel = j && j.meta && j.meta.released;
+            if (rel && new Date(rel).getTime() > Date.now()) {
+                _upcomingById[m.id] = true;
+                onConfirm();
+            }
+        });
+    });
+}
+
 function metaYear(meta) {
     var m = /(\d{4})/.exec(String((meta && meta.releaseInfo) || ""));
     return m ? parseInt(m[1], 10) : 0;
@@ -102,13 +119,15 @@ function loadSaga(name, push) {
         banner: cfg.banner || "",
         metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
         books: new Array(novels.length),    // reading-order slots (null until its lookup lands)
-        films: [], shows: []
+        films: [], shows: [],
+        comics: cfg.comics || null          // curated GC archive pin → the comics door
     };
     function emit() {
         push({
             name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
             books: out.books.filter(function(b) { return !!b; }),
-            films: out.films, shows: out.shows
+            films: out.films, shows: out.shows,
+            comics: out.comics
         });
     }
 
@@ -127,9 +146,13 @@ function loadSaga(name, push) {
             requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json",
                 function(json) {
                     filmPool = filmPool.concat((json && json.metas) ? json.metas : []);
-                    out.films = slotByCanon(filmCanon, filmPool)
-                        .filter(function(m) { return !!m; }).map(mapWatch);
-                    emit();
+                    function refilm() {
+                        out.films = slotByCanon(filmCanon, filmPool)
+                            .filter(function(m) { return !!m; }).map(mapWatch);
+                        emit();
+                    }
+                    refilm();
+                    probeUpcoming(out.films, refilm);   // same-year boundary (Part Three case)
                 });
         });
     }
@@ -142,9 +165,13 @@ function loadSaga(name, push) {
             requestJson(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(q) + ".json",
                 function(json) {
                     showPool = showPool.concat((json && json.metas) ? json.metas : []);
-                    out.shows = slotByCanon(showCanon, showPool)
-                        .filter(function(m) { return !!m; }).map(mapWatch);
-                    emit();
+                    function reshow() {
+                        out.shows = slotByCanon(showCanon, showPool)
+                            .filter(function(m) { return !!m; }).map(mapWatch);
+                        emit();
+                    }
+                    reshow();
+                    probeUpcoming(out.shows, reshow);   // same-year boundary (the HBO HP show)
                 });
         });
     }
@@ -170,13 +197,14 @@ function loadGalaxy(name, push) {
         metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
         trilogies: trilogies.map(function(t) { return { era: t.era, films: [] }; }),
         standalones: [], liveShows: [], animatedShows: [],
+        comics: cfg.comics || null,          // curated GC archive pin → the comics door
         firstWatch: null
     };
     function emit() {
         push({ name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
                trilogies: out.trilogies.map(function(t) { return { era: t.era, films: t.films }; }),
                standalones: out.standalones, liveShows: out.liveShows,
-               animatedShows: out.animatedShows, firstWatch: out.firstWatch });
+               animatedShows: out.animatedShows, comics: out.comics, firstWatch: out.firstWatch });
     }
 
     // --- FILMS: one pooled movie search set → every trilogy + the standalones slot from it ---
@@ -229,6 +257,8 @@ function loadEras(name, push) {
     var cfg = UDB.configFor(name);
     var eras = cfg.eras || [];
     var rails = cfg.rails || [];
+    var novels = cfg.novels || [];       // optional BOOKS shelf (Bond's Fleming shelf,
+                                         // Avatar's Chronicles) — same lane as loadSaga
 
     var out = {
         name: name,
@@ -238,6 +268,8 @@ function loadEras(name, push) {
         metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
         eras: eras.map(function(e) { return { era: e.era, items: [] }; }),
         rails: rails.map(function(r) { return { title: r.title, items: [] }; }),
+        books: new Array(novels.length),   // reading-order slots (null until lookup lands)
+        novelsTitle: cfg.novelsTitle || "The Novels",
         comics: cfg.comics || null,      // curated GC archive pin → the COMICS column
         firstWatch: null,
         firstWatchLabel: cfg.firstWatchLabel || ""
@@ -247,9 +279,18 @@ function loadEras(name, push) {
                metaline: out.metaline,
                eras: out.eras.map(function(e) { return { era: e.era, items: e.items }; }),
                rails: out.rails.map(function(r) { return { title: r.title, items: r.items }; }),
+               books: out.books.filter(function(b) { return !!b; }),
+               novelsTitle: out.novelsTitle,
                comics: out.comics,
                firstWatch: out.firstWatch, firstWatchLabel: out.firstWatchLabel });
     }
+
+    // --- BOOKS: one Apple lookup per curated novel, slotted in reading order ---
+    novels.forEach(function(title, i) {
+        Biblio.lookupBook(title, function(book) {
+            if (book) { out.books[i] = book; emit(); }
+        });
+    });
 
     var moviePool = [], seriesPool = [];
     function reslot() {
@@ -269,21 +310,9 @@ function loadEras(name, push) {
             if (fw[0]) out.firstWatch = mapWatch(fw[0]);
         }
         emit();
-        // UPCOMING boundary: a same-year entry can't be judged from releaseInfo alone —
-        // probe its full meta ONCE; a confirmed future date re-slots with the tag on
-        var nowYr = new Date().getFullYear();
+        // UPCOMING boundary: a same-year entry can't be judged from releaseInfo alone
         out.eras.concat(out.rails).forEach(function(group) {
-            group.items.forEach(function(m) {
-                if (!m.id || m.year !== nowYr || (m.id in _upcomingById)) return;
-                _upcomingById[m.id] = false;
-                requestJson(CINEMETA + "/meta/" + m.type + "/" + m.id + ".json", function(j) {
-                    var rel = j && j.meta && j.meta.released;
-                    if (rel && new Date(rel).getTime() > Date.now()) {
-                        _upcomingById[m.id] = true;
-                        reslot();
-                    }
-                });
-            });
+            probeUpcoming(group.items, reslot);
         });
     }
 
