@@ -7,6 +7,8 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import "McuApi.js" as Mcu
+import "SagaApi.js" as Saga
+import "Universes.js" as UDB
 
 Item {
     id: root
@@ -31,10 +33,20 @@ Item {
     property var mcu: ({ phases: [] })
     property bool loading: true
 
-    Component.onCompleted: Mcu.loadMcu(function(d) {
-        if (d) { root.mcu = d; }
-        root.loading = false;
-    })
+    // THE TELEVISION ACT (Hemanth 2026-07-13): the Marvel Studios series + the two Special
+    // Presentations, curated id-pinned in Universes.js and slot-resolved by the saga lane.
+    // Each tile wears its PHASE PLATE — phase identity survives without congesting the
+    // film chapter panels (his concern; layout = the surprise he commissioned).
+    property var tv: ({ shows: [], films: [] })
+    readonly property var showPhases: (UDB.configFor(root.universeName) || {}).mcuShowPhases || ({})
+
+    Component.onCompleted: {
+        Mcu.loadMcu(function(d) {
+            if (d) { root.mcu = d; }
+            root.loading = false;
+        })
+        Saga.loadSaga(root.universeName, function(u) { if (u) root.tv = u })
+    }
 
     function totalFilms() {
         var n = 0; for (var i = 0; i < mcu.phases.length; i++) n += mcu.phases[i].films.length; return n;
@@ -58,6 +70,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
+        ScrollGlide { flick: page }
 
         Column {
             id: col
@@ -94,7 +107,9 @@ Item {
                            font.family: theme.display; font.pixelSize: 52 }
                     Text {
                         text: root.mcu.phases.length
-                              ? (root.mcu.phases.length + " Phases   ·   " + root.totalFilms() + " Films   ·   2 Sagas")
+                              ? (root.mcu.phases.length + " Phases   ·   " + root.totalFilms() + " Films"
+                                 + (root.tv.shows.length ? "   ·   " + root.tv.shows.length + " Series" : "")
+                                 + "   ·   2 Sagas")
                               : "Loading the saga…"
                         color: Qt.rgba(1,1,1,0.72); font.family: theme.ui; font.pixelSize: 14
                     }
@@ -109,6 +124,127 @@ Item {
                 Repeater {
                     model: root.mcu.phases
                     delegate: ChapterPanel { width: parent.width; phase: modelData }
+                }
+            }
+
+            // ===== THE SERIES — the streaming age (phase plates ride the tiles) =====
+            TvShelf {
+                x: 54; width: parent.width - 108
+                title: "The Series"
+                sub: "the streaming age — every tile wears its phase"
+                items: root.tv.shows
+            }
+
+            // ===== SPECIAL PRESENTATIONS — the one-night events =====
+            TvShelf {
+                x: 54; width: parent.width - 108
+                title: "Special Presentations"
+                sub: "one-night events"
+                items: root.tv.films
+                bottomPadding: 54
+            }
+        }
+    }
+
+    // one shelf = header + a horizontal walk of tiles; each tile carries its gold PHASE
+    // plate (top-left, from the curated map) and the UPCOMING plate when the date is ahead
+    component TvShelf: Column {
+        id: shelf
+        property string title
+        property string sub
+        property var items: []
+        spacing: 16
+        visible: items && items.length > 0
+        Row {
+            spacing: 12
+            Text { text: shelf.title; color: theme.ink
+                   font.family: theme.display; font.pixelSize: 25 }
+            Text { text: (shelf.items ? shelf.items.length : 0) + " titles  ·  " + shelf.sub
+                   color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                   anchors.baseline: parent.children[0].baseline }
+        }
+        Flickable {
+            width: parent.width; height: 244
+            contentWidth: shelfRow.width; contentHeight: height
+            clip: true
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            Row {
+                id: shelfRow
+                spacing: 18
+                Repeater {
+                    model: shelf.items
+                    delegate: Item {
+                        id: tvTile
+                        required property var modelData
+                        width: 150; height: 232
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 8; clip: true
+                            color: "#1c0e10"
+                            border.width: 1
+                            border.color: tvMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                                             : Qt.rgba(0.97,0.97,0.96,0.12)
+                            Image {
+                                anchors.fill: parent
+                                source: tvTile.modelData.cover || ""
+                                asynchronous: true; cache: true
+                                fillMode: Image.PreserveAspectCrop
+                                opacity: status === Image.Ready ? 1 : 0
+                                Behavior on opacity { NumberAnimation { duration: 220 } }
+                            }
+                            Rectangle {   // the PHASE plate — the room's soul, one numeral per tile
+                                visible: !!root.showPhases[tvTile.modelData.id]
+                                anchors.top: parent.top; anchors.left: parent.left
+                                anchors.margins: 8
+                                radius: 6
+                                color: Qt.rgba(0, 0, 0, 0.66)
+                                border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.55)
+                                width: phaseTxt.implicitWidth + 12; height: 22
+                                Text { id: phaseTxt; anchors.centerIn: parent
+                                       text: root.showPhases[tvTile.modelData.id] || ""
+                                       color: theme.gold; font.family: theme.display
+                                       font.italic: true; font.pixelSize: 12 }
+                            }
+                            Rectangle {   // UPCOMING plate — future work stays, marked
+                                anchors.top: parent.top; anchors.right: parent.right
+                                anchors.margins: 8
+                                visible: tvTile.modelData.upcoming === true
+                                radius: 4
+                                color: Qt.rgba(0, 0, 0, 0.72)
+                                border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
+                                width: tvUpTag.implicitWidth + 12; height: tvUpTag.implicitHeight + 6
+                                Text { id: tvUpTag; anchors.centerIn: parent
+                                       text: "UPCOMING"; color: theme.gold
+                                       font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
+                            }
+                            Rectangle {
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                height: 52
+                                gradient: Gradient {
+                                    GradientStop { position: 0; color: "transparent" }
+                                    GradientStop { position: 1; color: Qt.rgba(0,0,0,0.86) }
+                                }
+                            }
+                            Text {
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.margins: 9
+                                text: tvTile.modelData.title
+                                color: theme.ink; font.family: theme.ui
+                                font.pixelSize: 12; font.weight: Font.DemiBold
+                                wrapMode: Text.WordWrap; maximumLineCount: 2
+                                elide: Text.ElideRight
+                            }
+                            MouseArea {
+                                id: tvMa
+                                anchors.fill: parent
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.watchRequested(tvTile.modelData)
+                            }
+                        }
+                    }
                 }
             }
         }

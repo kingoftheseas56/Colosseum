@@ -69,16 +69,19 @@ function slotByCanon(canon, metas) {
 // full-meta check per such id (cached below) and re-slots when a future date confirms.
 var _upcomingById = {};   // id → true (confirmed future) | false (probed: out or unknown)
 
-// probe same-year items' full meta ONCE each (cached above); onConfirm fires only when a
-// future released-date lands, so callers re-slot and the tag appears
+// probe same-year items' full meta ONCE each (cached above); onConfirm fires only when the
+// meta confirms the future — a released-date ahead of today, OR Cinemeta's own verdict
+// (status "Upcoming": unaired shows often carry NO released field at all — VisionQuest).
 function probeUpcoming(items, onConfirm) {
     var nowYr = new Date().getFullYear();
     (items || []).forEach(function(m) {
         if (!m || !m.id || m.year !== nowYr || (m.id in _upcomingById)) return;
         _upcomingById[m.id] = false;
         requestJson(CINEMETA + "/meta/" + m.type + "/" + m.id + ".json", function(j) {
-            var rel = j && j.meta && j.meta.released;
-            if (rel && new Date(rel).getTime() > Date.now()) {
+            var meta = j && j.meta;
+            if (!meta) return;
+            var rel = meta.released;
+            if ((rel && new Date(rel).getTime() > Date.now()) || meta.status === "Upcoming") {
                 _upcomingById[m.id] = true;
                 onConfirm();
             }

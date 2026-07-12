@@ -22,6 +22,9 @@ function Read-File($rel) {
 function Assert-Contains($text, $needle, $message) {
     if ($text -notlike "*$needle*") { throw $message }
 }
+function Assert-Lacks($text, $needle, $message) {
+    if ($text -like "*$needle*") { throw $message }
+}
 
 # 2) shape: the API rides the ONE curation point
 $api = Read-File "qml/UniverseApi.js"
@@ -87,5 +90,21 @@ $galaxyPage = Read-File "qml/GalaxyUniversePage.qml"
 Assert-Contains $galaxyPage 'comicsArchiveRequested' "GalaxyUniversePage must carry the comics door."
 Assert-Contains $sagaPage 'comicsArchiveRequested' "SagaUniversePage must carry the comics door."
 Assert-Contains $era 'signal bookRequested(var book)' "EraUniversePage must carry the books shelf verb."
+
+# 8) the MCU television act (Hemanth 2026-07-13): full name + phase-plated series shelf
+Assert-Contains $udb 'name: "Marvel Cinematic Universe"' "The MCU must carry its full name (renamed from Marvel)."
+Assert-Lacks $udb 'name: "Marvel",' "The bare Marvel entry name must not survive the rename."
+foreach ($n in @('tt9140560',           # WandaVision anchors the series canon
+                 'tt10857164',          # Ms. Marvel (adjacent-id swap trap vs She-Hulk)
+                 'tt23112594',          # VisionQuest (UPCOMING boundary case)
+                 'tt36042156',          # The Punisher: One Last Kill (third Special)
+                 'mcuShowPhases')) {
+    Assert-Contains $udb $n "Universes.js must carry the MCU television pin: $n"
+}
+$cine = Read-File "qml/CinematicPage.qml"
+foreach ($n in @('Saga.loadSaga', 'component TvShelf', 'showPhases', 'UPCOMING',
+                 'Special Presentations', 'ScrollGlide')) {
+    Assert-Contains $cine $n "CinematicPage must carry the television act: $n"
+}
 
 Write-Host "universe expansion p0: OK"

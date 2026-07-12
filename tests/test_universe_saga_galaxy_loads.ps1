@@ -1,6 +1,7 @@
-# SagaUniversePage + GalaxyUniversePage ride the universe layer's lazy Loader — this test
-# instantiates BOTH headless and requires LOADER READY (the lazy-page load gate). Added
-# 2026-07-13 when both templates grew the comics door.
+# SagaUniversePage + GalaxyUniversePage + CinematicPage ride the universe layer's lazy
+# Loader — this test instantiates ALL headless and requires LOADER READY (the lazy-page
+# load gate). Added 2026-07-13: saga/galaxy grew the comics door, cinematic grew the
+# television act.
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
@@ -11,7 +12,8 @@ if (!(Test-Path $qmlExe)) {
 
 $env:QT_FORCE_STDERR_LOGGING = "1"
 
-foreach ($h in @("universe_saga_load_harness.qml", "universe_galaxy_load_harness.qml")) {
+foreach ($h in @("universe_saga_load_harness.qml", "universe_galaxy_load_harness.qml",
+                 "universe_cinematic_load_harness.qml")) {
     $harness = Join-Path $PSScriptRoot $h
     $out = cmd /c "`"$qmlExe`" `"$harness`" 2>&1" | Out-String
     if ($out -notlike "*LOADER READY*") {
@@ -19,4 +21,4 @@ foreach ($h in @("universe_saga_load_harness.qml", "universe_galaxy_load_harness
     }
 }
 
-Write-Host "universe saga + galaxy page loads: OK"
+Write-Host "universe saga + galaxy + cinematic page loads: OK"
