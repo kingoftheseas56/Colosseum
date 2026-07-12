@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
+import "AbbApi.js" as Abb
 
 Item {
     id: detail
@@ -23,6 +24,18 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
     signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
+    signal listenRequested(string bookKey, var book)   // a downloaded audiobook is ready for the player
+
+    // ── audiobook pairing lane: the same title's audiobook, from AudioBookBay ──
+    property var abRows: []                             // ABB search rows for this title
+    property bool abLoading: false
+    property string abInfoHash: ""                      // resolved infoHash of the picked row
+    // the pairing identity — same for this title's ebook and audiobook entities.
+    // audiobook-opened pages carry book.pairKey; ebook-opened pages compute it from title/author.
+    property string pairKey: (detail.book && detail.book.pairKey) ? detail.book.pairKey
+                             : BiblioApi.pairKey(detail.book ? detail.book.title : "",
+                                                 detail.book ? detail.book.author : "")
+    property bool audioLocal: false                     // recomputed in loadEditions + on Audio.finished
 
     Theme { id: theme }
     MouseArea { anchors.fill: parent }                 // swallow clicks to the world beneath
@@ -56,6 +69,13 @@ Item {
             detail.editions = eds
             detail.edLoading = false
             detail.refreshLocal()
+        })
+        // audiobook lane: is one already downloaded? then find one to download.
+        detail.audioLocal = (typeof Audio !== 'undefined') && Audio.isDownloaded(detail.pairKey)
+        detail.abLoading = true; detail.abRows = []
+        Abb.resolveAudiobook(detail.book.title, detail.book.author, function(res) {
+            detail.abRows = (res && res.rows) ? res.rows : []
+            detail.abLoading = false
         })
     }
     function edMeta(ed) {
@@ -259,6 +279,15 @@ Item {
                         }
                         MouseArea { id: libMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor }
                     }
+                    Rectangle {                       // Listen — appears once the paired audiobook is on disk (Option A: Read + Listen side by side)
+                        visible: detail.audioLocal
+                        width: parent.width; height: 50; radius: 13; color: theme.gold
+                        Row { anchors.centerIn: parent; spacing: 8
+                            Image { source: "../assets/icons/music.svg"; width: 15; height: 15; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "Listen"; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold } }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: detail.listenRequested(detail.pairKey, detail.book) }
+                    }
                 }
             }
 
@@ -396,6 +425,89 @@ Item {
                                     onClicked: {
                                         if (edRow.dlState === "done") detail.readRequested(Books.localBook(edRow.modelData.md5), detail.book)
                                         else if (edRow.dlState !== "downloading" && edRow.dlState !== "resolving") detail.startDownload(edRow.modelData)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── Audiobook — paired from AudioBookBay; download → Listen (Option A) ──
+                Item { width: 1; height: 30 }
+                Text {
+                    text: "AUDIOBOOK" + (detail.abLoading ? "  ·  SEARCHING…"
+                          : (detail.abRows.length > 0 ? "  ·  " + detail.abRows.length : "  ·  NONE"))
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    font.weight: Font.DemiBold; font.letterSpacing: 1.6
+                }
+                Item { width: 1; height: 12 }
+                Glass {
+                    backdrop: detail.backdrop
+                    width: Math.min(parent.width, 640); radius: 14
+                    height: abCol.implicitHeight
+                    Column {
+                        id: abCol
+                        width: parent.width
+                        // download/progress state for THIS title's audiobook, keyed on pairKey
+                        property string abState: detail.audioLocal ? "done" : "idle"
+                        property real abPct: 0
+                        Connections {
+                            target: (typeof Audio !== 'undefined') ? Audio : null
+                            function onResolving(key) { if (key === detail.pairKey) abCol.abState = "resolving" }
+                            function onProgress(key, rcv, tot) { if (key === detail.pairKey) { abCol.abState = "downloading"; abCol.abPct = tot > 0 ? rcv / tot : 0 } }
+                            function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
+                            function onFailed(key, why) { if (key === detail.pairKey) abCol.abState = "failed" }
+                        }
+                        Item {                              // loading / empty
+                            visible: detail.abLoading || detail.abRows.length === 0
+                            width: parent.width; height: 52
+                            Text { anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
+                                text: detail.abLoading ? "Searching AudioBookBay…" : "No audiobook found"
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                        }
+                        Repeater {
+                            model: detail.abRows
+                            delegate: Item {
+                                id: abRow
+                                required property var modelData
+                                required property int index
+                                width: parent.width; height: 52
+                                Rectangle { anchors.fill: parent; color: abRowMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
+                                Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
+                                Row {
+                                    anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter; spacing: 16
+                                    Rectangle {
+                                        width: 58; height: 24; radius: 7; color: "transparent"; border.width: 1; border.color: theme.edge
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        Text { anchors.centerIn: parent
+                                            text: (abRow.modelData.format || "AUDIO").toUpperCase().substring(0,6)
+                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.6 }
+                                    }
+                                    Text { anchors.verticalCenter: parent.verticalCenter
+                                        text: [abRow.modelData.size, abRow.modelData.language, abRow.modelData.posted].filter(function(s){return s}).join("   ·   ")
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                                }
+                                Text {
+                                    anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
+                                    text: abCol.abState === "done" ? "✓"
+                                        : abCol.abState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
+                                        : abCol.abState === "resolving" ? "…"
+                                        : abCol.abState === "failed" ? "retry" : "↓"
+                                    color: abCol.abState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
+                                    font.family: theme.ui; font.pixelSize: (abCol.abState === "downloading" || abCol.abState === "failed") ? 12 : 16
+                                }
+                                MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (abCol.abState === "done") { detail.listenRequested(detail.pairKey, detail.book); return }
+                                        if (abCol.abState === "downloading" || abCol.abState === "resolving") return
+                                        if (typeof Audio === 'undefined') return
+                                        abCol.abState = "resolving"
+                                        Abb.fetchInfoHash(abRow.modelData.slug, function(d) {
+                                            if (!d || !d.infoHash) { abCol.abState = "failed"; return }
+                                            detail.abInfoHash = d.infoHash
+                                            Audio.downloadAudiobook(detail.pairKey, d.infoHash,
+                                                detail.book.title || "", detail.book.author || "")
+                                        })
                                     }
                                 }
                             }
