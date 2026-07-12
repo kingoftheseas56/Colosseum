@@ -41,4 +41,19 @@ foreach ($n in @('Harry Potter', 'Lord of the Rings', 'A Song of Ice and Fire', 
 $cpp = Read-File "native/main.cpp"
 Assert-Contains $cpp 'upload.wikimedia.org' "main.cpp must pin upload.wikimedia.org (WSJ banner host)."
 
+# 5) the COMICS column (Hemanth 2026-07-12: Avatar gets the GC archive in the era gallery):
+#    curated pin → loadEras pass-through → era template door → Main routes to the archive index
+Assert-Contains $udb 'comics: { tag: "avatar-the-last-airbender", tagId: 448' "Avatar must pin its GC archive (slug + tagId)."
+$saga = Read-File "qml/SagaApi.js"
+Assert-Contains $saga 'comics: cfg.comics || null' "loadEras must pass the curated comics pin through."
+$era = Read-File "qml/EraUniversePage.qml"
+foreach ($n in @('signal comicsArchiveRequested(var box)', 'function comicsDoor()',
+                 'ComicsApi.tagBox', 'GETCOMICS ARCHIVE')) {
+    Assert-Contains $era $n "EraUniversePage must carry the comics column: $n"
+}
+$capi = Read-File "qml/ComicsApi.js"
+Assert-Contains $capi 'function tagBox(' "ComicsApi must resolve a pinned tag into an explore-box shape."
+$main = Read-File "qml/Main.qml"
+Assert-Contains $main 'item.comicsArchiveRequested.connect(win.openComicArchive)' "Main must route the comics column to the archive index."
+
 Write-Host "universe expansion p0: OK"

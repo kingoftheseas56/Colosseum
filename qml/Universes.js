@@ -317,6 +317,10 @@ var universes = [
           titles: [ { t: "The Last Airbender", id: "tt0938283" },
                     { t: "The Legend of Aang: The Last Airbender", id: "tt18259538" } ] }
       ],
+      // the canon continues on the page: the GetComics archive (Dark Horse library) as its
+      // own COMICS column in the era gallery (Hemanth 2026-07-12). tagId pinned like an id-pin.
+      comics: { tag: "avatar-the-last-airbender", tagId: 448,
+                line: "The story continues past the finale — the Dark Horse library." },
       firstWatch: "Avatar: The Last Airbender", firstWatchKind: "series",
       firstWatchLabel: "Begin Book One — Water",
       seriesQueries: [ "avatar the last airbender", "the legend of korra" ],

@@ -224,6 +224,7 @@ function loadEras(name, push) {
         metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
         eras: eras.map(function(e) { return { era: e.era, items: [] }; }),
         rails: rails.map(function(r) { return { title: r.title, items: [] }; }),
+        comics: cfg.comics || null,      // curated GC archive pin → the COMICS column
         firstWatch: null,
         firstWatchLabel: cfg.firstWatchLabel || ""
     };
@@ -232,6 +233,7 @@ function loadEras(name, push) {
                metaline: out.metaline,
                eras: out.eras.map(function(e) { return { era: e.era, items: e.items }; }),
                rails: out.rails.map(function(r) { return { title: r.title, items: r.items }; }),
+               comics: out.comics,
                firstWatch: out.firstWatch, firstWatchLabel: out.firstWatchLabel });
     }
 

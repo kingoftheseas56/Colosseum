@@ -1372,6 +1372,7 @@ Window {
             if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)   // anime template only
             if (item.watchRequested) item.watchRequested.connect(win.openTheatreSeries)
             if (item.bookRequested) item.bookRequested.connect(win.openBook)          // saga template: novels → Biblio
+            if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openComicArchive)  // eras: COMICS column → GC archive index
         }
     }
 

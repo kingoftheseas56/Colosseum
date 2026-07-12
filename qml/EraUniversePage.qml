@@ -7,9 +7,12 @@
 // Era COLUMNS stand in a horizontal gallery (each a column of numbered plates); flat rails
 // below when the canon carries extras. Canon-slotted via SagaApi.loadEras — an era can never
 // grow a title its curation doesn't name. Everything routes to A4's TheatreSeries.
+// When the curation pins a GC archive (cfg.comics — Avatar first, Hemanth 2026-07-12), the
+// gallery grows a COMICS column: one deep door plate into the existing archive index page.
 import QtQuick
 import QtQuick.Controls
 import "SagaApi.js" as Saga
+import "ComicsApi.js" as ComicsApi
 
 Item {
     id: root
@@ -23,13 +26,27 @@ Item {
     signal closeRequested()
     signal searchClicked()
     signal watchRequested(var item)
+    signal comicsArchiveRequested(var box)   // the COMICS column door → the GC archive index
 
     Theme { id: theme }
     property var uni: ({ name: "", blurb: "", banner: "", kicker: "THE ERAS", metaline: "",
-                         eras: [], rails: [], firstWatch: null, firstWatchLabel: "" })
+                         eras: [], rails: [], comics: null, firstWatch: null, firstWatchLabel: "" })
+
+    // the pinned archive resolved live (real GC name + release count); the curated pin is
+    // the fallback so the door works even when the tags call fails
+    property var comicsBox: null
+    onUniChanged: {
+        if (root.uni.comics && root.uni.comics.tagId && !root.comicsBox)
+            ComicsApi.tagBox(root.uni.comics.tagId, function(b) { if (b) root.comicsBox = b })
+    }
+    function comicsDoor() {
+        return root.comicsBox || { name: root.uni.name, tag: root.uni.comics.tag,
+                                   tagId: root.uni.comics.tagId, count: 0 }
+    }
 
     function reload() {
         if (!root.universeName.length) return      // never load a default universe
+        root.comicsBox = null
         Saga.loadEras(root.universeName, function(u) { if (u) root.uni = u; })
     }
     Component.onCompleted: reload()
@@ -228,6 +245,81 @@ Item {
                                                 onClicked: root.watchRequested(plate.modelData)
                                             }
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ===== the COMICS column — the canon continues in print =====
+                        // stands at the gallery's end when the curation pins a GC archive;
+                        // one deep door plate → the existing archive index (A1's middle layer)
+                        Rectangle {
+                            width: 330
+                            height: comicsCol.implicitHeight + 36
+                            radius: 16
+                            color: Qt.rgba(1, 1, 1, 0.045)
+                            border.width: 1; border.color: Qt.rgba(0.97, 0.97, 0.96, 0.09)
+                            visible: !!root.uni.comics
+                            Column {
+                                id: comicsCol
+                                anchors.left: parent.left; anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 18
+                                spacing: 12
+                                Text { text: "Comics"; color: theme.gold
+                                       font.family: theme.display; font.italic: true; font.pixelSize: 19 }
+                                Rectangle {
+                                    id: comicsDoorPlate
+                                    width: parent.width; height: 204
+                                    radius: 10; clip: true
+                                    color: "#241813"
+                                    border.width: 1
+                                    border.color: comicsMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.7)
+                                                                         : Qt.rgba(0.97,0.97,0.96,0.10)
+                                    Image {
+                                        anchors.fill: parent
+                                        source: root.uni.banner
+                                        asynchronous: true; cache: true
+                                        fillMode: Image.PreserveAspectCrop
+                                        opacity: status === Image.Ready ? (comicsMa.containsMouse ? 0.55 : 0.32) : 0
+                                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                                    }
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.20) }
+                                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.80) }
+                                        }
+                                    }
+                                    Column {
+                                        anchors.left: parent.left; anchors.right: parent.right
+                                        anchors.bottom: parent.bottom
+                                        anchors.margins: 16
+                                        spacing: 8
+                                        Text { text: "GETCOMICS ARCHIVE"; color: theme.gold
+                                               font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                                        Text {
+                                            width: parent.width
+                                            text: (root.uni.comics && root.uni.comics.line) || "The canon continues in print."
+                                            color: theme.ink; font.family: theme.display; font.pixelSize: 17
+                                            lineHeight: 1.25
+                                            wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
+                                        }
+                                        Row {
+                                            spacing: 8
+                                            Text { text: root.comicsBox && root.comicsBox.count
+                                                         ? "Browse " + root.comicsBox.count + " releases"
+                                                         : "Browse the archive"
+                                                   color: theme.ink; font.family: theme.ui
+                                                   font.pixelSize: 13; font.weight: Font.DemiBold }
+                                            Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
+                                        }
+                                    }
+                                    MouseArea {
+                                        id: comicsMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: root.comicsArchiveRequested(root.comicsDoor())
                                     }
                                 }
                             }

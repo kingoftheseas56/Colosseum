@@ -231,6 +231,17 @@ function explore(done) {
         });
 }
 
+// ── tagBox(tagId, done): ONE pinned tag resolved into the explore-box shape, so curated
+// surfaces (a universe page's COMICS column — A5, 2026-07-12) can open the SAME archive
+// door as the explore mosaic. done(null) on any failure — callers keep their curated pin.
+function tagBox(tagId, done) {
+    gcJson(GC + "/tags/" + tagId + "?_fields=id,name,slug,count", function(j) {
+        if (!j || !j.id) { done(null); return; }
+        done({ name: decodeEntities(j.name), count: j.count || 0, tag: j.slug || "",
+               tagId: j.id, cover: "", c1: "#6a4a32", c2: "#241813" });
+    });
+}
+
 // ── Archive index: the SERIES ARCHIVES under a big box (publisher/franchise). ──
 // A box tag holds raw release posts, but every post carries ALL its tags — so the
 // newest 200 posts under "Marvel Comics" reveal which series archives are alive
