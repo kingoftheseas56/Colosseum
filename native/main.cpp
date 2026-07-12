@@ -51,6 +51,7 @@
 #include "player/windowmodestore.h"
 #include "torrent/TankorentSearchService.h"
 #include "torrent/BookTorrentDownloader.h"
+#include "torrent/BookTorrents.h"
 
 class CachingNam : public QNetworkAccessManager {
 public:
@@ -372,6 +373,13 @@ int main(int argc, char *argv[]) {
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+
+    // Book torrents shelf (Biblio): federated indexer search + Stremio-fed single-file pull.
+    // searchNam = pinned + UA-stamped + UNCACHED CachingNam (live seeder counts, no stale
+    // cache); dlNam carries the torrent bytes. pinnedHosts/ipv4ByHost include the 3 indexers.
+    auto *searchNam = new CachingNam(pinnedHosts, ipv4ByHost, &app, /*useCache=*/false);
+    auto *bookTorrents = new BookTorrents(searchNam, dlNam, stream, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
     if (qEnvironmentVariableIsSet("COLOSSEUM_ABB_DLTEST")) {
         const QString spec = qEnvironmentVariable("COLOSSEUM_ABB_DLTEST");   // "<pairKey>|<infoHash>"
         const int bar = spec.lastIndexOf(QChar('|'));

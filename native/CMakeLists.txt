@@ -99,6 +99,8 @@ add_executable(colosseum
     torrent/BookTorrentFilePicker.h
     torrent/BookTorrentDownloader.cpp
     torrent/BookTorrentDownloader.h
+    torrent/BookTorrents.cpp
+    torrent/BookTorrents.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
