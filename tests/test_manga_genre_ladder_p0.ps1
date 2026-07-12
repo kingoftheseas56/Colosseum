@@ -24,4 +24,13 @@ foreach ($n in @('function kitsuGenre(', 'function kitsuCard(', 'KITSU_SLUGS',
 $cpp = Read-File "native/main.cpp"
 Assert-Contains $cpp 'api.jikan.moe' "main.cpp must IPv4-pin api.jikan.moe (AAAA publisher, dead-IPv6 machine)."
 
+# Theatre's anime lane rides the same ladder (A5 cross-lane touch, Hemanth-authorized
+# 2026-07-13 while A4 slept — announced in the haven's agents/chat.md). LAW: Jikan first,
+# Kitsu ONLY on failure/empty.
+$ta = Read-File "qml/TheatreApi.js"
+foreach ($n in @('function kitsuAiring(', 'function mapKitsuAnime(',
+                 'kitsuAiring(limit, done); return;', '"kitsu:" + m.id')) {
+    Assert-Contains $ta $n "TheatreApi must carry the Kitsu rung: $n"
+}
+
 Write-Host "manga genre ladder p0: OK"

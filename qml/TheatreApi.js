@@ -284,8 +284,51 @@ function catalogFetch(type, genre, limit, done) {
     });
 }
 
+// ── THE KITSU RUNG (A5 cross-lane touch, Hemanth-authorized 2026-07-13 while A4 sleeps —
+// announced in the haven's agents/chat.md). LAW: Jikan stays the FIRST well; Kitsu answers
+// ONLY when Jikan fails or returns empty (MAL refuses Jikan's own servers for hours at a
+// time — today's outage blanked the anime rows). Kitsu entries carry "kitsu:<id>" ids, which
+// loadMeta already routes through the anime-kitsu addon — the detail door works unchanged.
+var KITSU_API = "https://kitsu.io/api/edge";
+
+function mapKitsuAnime(m, index) {
+    var a = m.attributes || {};
+    var t = tone(index + 2);
+    var title = (a.titles && a.titles.en) || a.canonicalTitle || "Unknown";
+    return {
+        id: m.id ? "kitsu:" + m.id : "",
+        type: a.subtype === "movie" ? "movie" : "series",
+        caption: title,
+        title: title,
+        blurb: cleanText(a.synopsis || a.description, "A featured anime title."),
+        cover: (a.posterImage && (a.posterImage.large || a.posterImage.medium)) || "",
+        art: (a.coverImage && a.coverImage.large)
+             || (a.posterImage && (a.posterImage.large || a.posterImage.medium)) || "",
+        ghost: "A",
+        c1: t[0],
+        c2: t[1],
+        progress: -1,
+        releaseInfo: a.startDate ? String(a.startDate).substring(0, 4) : "",
+        source: "Kitsu",
+        animeKitsuBase: ANIME_KITSU
+    };
+}
+
+// the rung answers what both jikanFetch call sites actually ask for — the top currently-
+// airing anime by readership; if a future spec asks Jikan something else, this still
+// answers airing-top rather than a blank row (never blank > exactly-right-but-dead)
+function kitsuAiring(limit, done) {
+    var url = KITSU_API + "/anime?filter[status]=current&sort=-userCount&page[limit]="
+              + Math.min(20, limit || 10);
+    requestJsonCached(url, JIKAN_CACHE_TTL_MS, function(json) {
+        var items = (json && json.data) ? json.data : [];
+        done(uniqueById(items.map(mapKitsuAnime)).slice(0, limit || 30));
+    });
+}
+
 function jikanFetch(path, params, limit, done) {
     jikanQuery(path, params || {}, function(items) {
+        if (!items || !items.length) { kitsuAiring(limit, done); return; }
         done(uniqueById(items.map(mapJikan)).slice(0, limit || 30));
     });
 }
