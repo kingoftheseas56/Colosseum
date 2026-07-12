@@ -173,8 +173,10 @@ void TankorentSearchService::selfTest(const QString& query)
     }
     connect(this, &TankorentSearchService::resultsReady, this,
             [](const QString&, const QList<TorrentResult>& r) {
-                qInfo() << "[torrent-smoke] indexer returned" << r.size() << "rows"
-                        << (r.isEmpty() ? QString() : ("e.g. " + r.first().title));
+                qInfo() << "[torrent-smoke] indexer returned" << r.size() << "rows";
+                for (const auto& t : r)
+                    if (t.infoHash.size() == 40 && t.seeders > 0)
+                        qInfo().noquote() << "  [hit]" << t.seeders << "seeders" << t.infoHash << t.title;
             });
     connect(this, &TankorentSearchService::indexerError, this,
             [](const QString&, const QString& id, const QString& e) {

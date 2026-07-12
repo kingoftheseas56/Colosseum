@@ -50,6 +50,7 @@
 #include "player/streamserver.h"
 #include "player/windowmodestore.h"
 #include "torrent/TankorentSearchService.h"
+#include "torrent/BookTorrentDownloader.h"
 
 class CachingNam : public QNetworkAccessManager {
 public:
@@ -385,6 +386,12 @@ int main(int argc, char *argv[]) {
         auto *svc = new TankorentSearchService(smokeNam, &app);
         svc->selfTest(qEnvironmentVariable("COLOSSEUM_TORRENT_SEARCHTEST"));
         QTimer::singleShot(45000, &app, &QCoreApplication::quit);   // hard backstop only
+    }
+    if (qEnvironmentVariableIsSet("COLOSSEUM_TORRENT_DLTEST")) {     // "<infoHash>|<title>"
+        const QStringList a = qEnvironmentVariable("COLOSSEUM_TORRENT_DLTEST").split(QChar('|'));
+        auto* dl = new BookTorrentDownloader(dlNam, stream, &app);
+        if (a.size() == 2) dl->selfTest(a[0], a[1]);
+        QTimer::singleShot(120000, &app, &QCoreApplication::quit);
     }
 
     // Cast session state exposed to QML as `Cast`. Network discovery/control is the
