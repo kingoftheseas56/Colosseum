@@ -131,6 +131,74 @@ function loadSaga(name, push) {
     emit();   // paint banner/blurb/metaline instantly from curation, before any network lands
 }
 
+// loadGalaxy(name, push) — the GALAXY template's loader (Star Wars): the Skywalker Saga as
+// three curated trilogies, the standalone stories, and the series in live-action + animated
+// rails. Same law as the saga: canon lists from Universes.js, Cinemeta only DRESSES the
+// slots — an era panel can never grow a film the canon doesn't name.
+function loadGalaxy(name, push) {
+    var cfg = UDB.configFor(name);
+    var trilogies   = cfg.trilogies || [];
+    var standalones = cfg.standalones || [];
+    var liveShows   = cfg.liveShows || [];
+    var animShows   = cfg.animatedShows || [];
+
+    var out = {
+        name: name,
+        blurb: cfg.blurb || "",
+        banner: cfg.banner || "",
+        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
+        trilogies: trilogies.map(function(t) { return { era: t.era, films: [] }; }),
+        standalones: [], liveShows: [], animatedShows: [],
+        firstWatch: null
+    };
+    function emit() {
+        push({ name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
+               trilogies: out.trilogies.map(function(t) { return { era: t.era, films: t.films }; }),
+               standalones: out.standalones, liveShows: out.liveShows,
+               animatedShows: out.animatedShows, firstWatch: out.firstWatch });
+    }
+
+    // --- FILMS: one pooled movie search set → every trilogy + the standalones slot from it ---
+    var moviePool = [];
+    var mQueries = (cfg.movieQueries && cfg.movieQueries.length) ? cfg.movieQueries : [name];
+    mQueries.forEach(function(q) {
+        requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json",
+            function(json) {
+                moviePool = moviePool.concat((json && json.metas) ? json.metas : []);
+                out.trilogies = trilogies.map(function(t) {
+                    return { era: t.era,
+                             films: slotByCanon(t.films, moviePool)
+                                    .filter(function(m) { return !!m; }).map(mapWatch) };
+                });
+                out.standalones = slotByCanon(standalones, moviePool)
+                                  .filter(function(m) { return !!m; }).map(mapWatch);
+                // the golden path: the saga's declared beginning (cfg.firstWatch, a canon title)
+                if (cfg.firstWatch) {
+                    var fw = slotByCanon([cfg.firstWatch], moviePool);
+                    if (fw[0]) out.firstWatch = mapWatch(fw[0]);
+                }
+                emit();
+            });
+    });
+
+    // --- SERIES: one pooled series search set → live + animated rails slot from it ---
+    var seriesPool = [];
+    var sQueries = (cfg.seriesQueries && cfg.seriesQueries.length) ? cfg.seriesQueries : [name];
+    sQueries.forEach(function(q) {
+        requestJson(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(q) + ".json",
+            function(json) {
+                seriesPool = seriesPool.concat((json && json.metas) ? json.metas : []);
+                out.liveShows = slotByCanon(liveShows, seriesPool)
+                                .filter(function(m) { return !!m; }).map(mapWatch);
+                out.animatedShows = slotByCanon(animShows, seriesPool)
+                                    .filter(function(m) { return !!m; }).map(mapWatch);
+                emit();
+            });
+    });
+
+    emit();   // banner/blurb/metaline paint instantly from curation
+}
+
 // every remote cover, for prefetch / disk-cache warming
 function imageUrls(u) {
     var urls = [];

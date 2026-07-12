@@ -104,11 +104,34 @@ var universes = [
       blurb: "Roddenberry's final frontier — six decades of starships, from The Original Series to Strange New Worlds.",
       banner: "https://live.metahub.space/background/medium/tt0796366/img",
       chips: [ { t: "13 Films", ic: "movies" }, { t: "12 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
-    { name: "Star Wars", c1: "#14181c", category: "anime",
-      seriesLabel: "TV Shows", readMode: "none",
-      blurb: "A galaxy far, far away — the saga films, the live-action and animated shows, the novels.",
+    // the GALAXY template: the Skywalker Saga as three curated trilogies + the standalone
+    // stories + the series in live/animated rails. Canon names verified against Cinemeta's
+    // own catalog 2026-07-12 (modern shows don't CONTAIN "Star Wars" — Andor, The
+    // Mandalorian — which is exactly why the name-relevance generic page starved empty).
+    { name: "Star Wars", c1: "#14181c", category: "galaxy",
+      blurb: "A galaxy far, far away — the nine-episode Skywalker Saga, the standalone stories, and the age of The Mandalorian.",
       banner: "https://live.metahub.space/background/medium/tt0080684/img",
-      chips: [ { t: "12 Films", ic: "movies" }, { t: "10+ Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
+      trilogies: [
+        { era: "The Prequels",  films: [ "Star Wars: Episode I - The Phantom Menace",
+                                         "Star Wars: Episode II - Attack of the Clones",
+                                         "Star Wars: Episode III - Revenge of the Sith" ] },
+        { era: "The Originals", films: [ "Star Wars: Episode IV - A New Hope",
+                                         "Star Wars: Episode V - The Empire Strikes Back",
+                                         "Star Wars: Episode VI - Return of the Jedi" ] },
+        { era: "The Sequels",   films: [ "Star Wars: Episode VII - The Force Awakens",
+                                         "Star Wars: Episode VIII - The Last Jedi",
+                                         "Star Wars: Episode IX - The Rise of Skywalker" ] }
+      ],
+      standalones: [ "Rogue One: A Star Wars Story", "Solo: A Star Wars Story" ],
+      liveShows: [ "The Mandalorian", "Andor", "Obi-Wan Kenobi", "The Book of Boba Fett",
+                   "Ahsoka", "The Acolyte", "Skeleton Crew" ],
+      animatedShows: [ "Star Wars: The Clone Wars", "Star Wars: Rebels",
+                       "Star Wars: The Bad Batch", "Star Wars: Resistance", "Star Wars: Visions" ],
+      firstWatch: "Star Wars: Episode IV - A New Hope",
+      movieQueries: [ "Star Wars", "Rogue One: A Star Wars Story", "Solo: A Star Wars Story" ],
+      seriesQueries: [ "Star Wars", "The Mandalorian", "Andor", "Obi-Wan Kenobi",
+                       "The Book of Boba Fett", "Ahsoka", "The Acolyte", "Skeleton Crew" ],
+      chips: [ { t: "11 Films", ic: "movies" }, { t: "12 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
     { name: "Dune", c1: "#3a2a18", category: "saga",
       blurb: "Frank Herbert's world, end to end — the novels, the films, the graphic novel.",
       banner: "https://live.metahub.space/background/medium/tt15239678/img",
