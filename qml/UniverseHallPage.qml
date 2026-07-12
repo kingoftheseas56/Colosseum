@@ -83,20 +83,35 @@ Item {
     }
 
     // ---- THE SHELF — spines shoulder to shoulder, one per world ----
-    Row {
-        id: shelf
+    // the shelf walks horizontally once the collection outgrows the viewport (a spine
+    // never squeezes below minW — the rotated title needs its shoulder room)
+    Flickable {
+        id: shelfWalk
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: parent.top; anchors.topMargin: 140
         anchors.bottom: parent.bottom; anchors.bottomMargin: 34
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+        contentWidth: Math.max(width, shelf.implicitWidth)
+        contentHeight: height
+        clip: true
+        flickableDirection: Flickable.HorizontalFlick
+        boundsBehavior: Flickable.StopAtBounds
+
+    Row {
+        id: shelf
+        height: shelfWalk.height
         spacing: 10
 
-        // geometry: the breathing spine takes `open` width, the rest share what remains
+        // geometry: the breathing spine takes `open` width, the rest share what remains —
+        // but never less than minW each (overflow walks instead of crushing)
         readonly property int count: Universes.universes.length
-        readonly property real openW: Math.min(500, width * 0.34)
-        readonly property real restW: root.hovered < 0
-            ? (width - spacing * (count - 1)) / count
-            : (width - spacing * (count - 1) - openW) / (count - 1)
+        readonly property real availW: shelfWalk.width
+        readonly property real minW: 96
+        readonly property real openW: Math.min(500, availW * 0.34)
+        readonly property real fitW: root.hovered < 0
+            ? (availW - spacing * (count - 1)) / count
+            : (availW - spacing * (count - 1) - openW) / (count - 1)
+        readonly property real restW: Math.max(minW, fitW)
 
         Repeater {
             model: Universes.universes
@@ -222,4 +237,5 @@ Item {
             }
         }
     }
+    }   // shelfWalk (the horizontal walk once the collection outgrows the viewport)
 }

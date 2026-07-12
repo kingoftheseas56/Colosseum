@@ -199,6 +199,99 @@ function loadGalaxy(name, push) {
     emit();   // banner/blurb/metaline paint instantly from curation
 }
 
+// loadEras(name, push) — the ERAS template's loader (James Bond, Star Trek, DCAU, Avatar):
+// the universe as ordered ERA GROUPS, each group a curated list of films OR shows (its
+// `kind` picks the Cinemeta catalog). Same law as saga/galaxy: canon slots, search dresses.
+//   cfg.eras  = [ { era, kind: "movie"|"series", titles: [canon names] }, ... ]
+//   cfg.rails = [ { title, kind, titles } ]  (optional flat rails below the era columns)
+function loadEras(name, push) {
+    var cfg = UDB.configFor(name);
+    var eras = cfg.eras || [];
+    var rails = cfg.rails || [];
+
+    var out = {
+        name: name,
+        blurb: cfg.blurb || "",
+        banner: cfg.banner || "",
+        kicker: cfg.eraKicker || "THE ERAS",
+        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
+        eras: eras.map(function(e) { return { era: e.era, items: [] }; }),
+        rails: rails.map(function(r) { return { title: r.title, items: [] }; }),
+        firstWatch: null,
+        firstWatchLabel: cfg.firstWatchLabel || ""
+    };
+    function emit() {
+        push({ name: out.name, blurb: out.blurb, banner: out.banner, kicker: out.kicker,
+               metaline: out.metaline,
+               eras: out.eras.map(function(e) { return { era: e.era, items: e.items }; }),
+               rails: out.rails.map(function(r) { return { title: r.title, items: r.items }; }),
+               firstWatch: out.firstWatch, firstWatchLabel: out.firstWatchLabel });
+    }
+
+    var moviePool = [], seriesPool = [];
+    function reslot() {
+        out.eras = eras.map(function(e) {
+            return { era: e.era,
+                     items: slotByCanon(e.titles, e.kind === "series" ? seriesPool : moviePool)
+                            .filter(function(m) { return !!m; }).map(mapWatch) };
+        });
+        out.rails = rails.map(function(r) {
+            return { title: r.title,
+                     items: slotByCanon(r.titles, r.kind === "series" ? seriesPool : moviePool)
+                            .filter(function(m) { return !!m; }).map(mapWatch) };
+        });
+        if (cfg.firstWatch) {
+            var kind = cfg.firstWatchKind || "movie";
+            var fw = slotByCanon([cfg.firstWatch], kind === "series" ? seriesPool : moviePool);
+            if (fw[0]) out.firstWatch = mapWatch(fw[0]);
+        }
+        emit();
+    }
+
+    (cfg.movieQueries || []).forEach(function(q) {
+        requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json",
+            function(json) { moviePool = moviePool.concat((json && json.metas) ? json.metas : []); reslot(); });
+    });
+    (cfg.seriesQueries || []).forEach(function(q) {
+        requestJson(CINEMETA + "/catalog/series/top/search=" + encodeURIComponent(q) + ".json",
+            function(json) { seriesPool = seriesPool.concat((json && json.metas) ? json.metas : []); reslot(); });
+    });
+
+    emit();   // curation paints instantly
+}
+
+// loadStudio(name, push) — the STUDIO template's loader (Studio Ghibli): one chronological
+// FILMOGRAPHY (the studio's whole body of work as a wall), canon-slotted like everything else.
+//   cfg.filmography = [ canon film names, chronological ]
+function loadStudio(name, push) {
+    var cfg = UDB.configFor(name);
+    var filmography = cfg.filmography || [];
+    var out = {
+        name: name, blurb: cfg.blurb || "", banner: cfg.banner || "",
+        metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
+        films: [], firstWatch: null, firstWatchLabel: cfg.firstWatchLabel || ""
+    };
+    function emit() {
+        push({ name: out.name, blurb: out.blurb, banner: out.banner, metaline: out.metaline,
+               films: out.films, firstWatch: out.firstWatch, firstWatchLabel: out.firstWatchLabel });
+    }
+    var pool = [];
+    (cfg.movieQueries || []).forEach(function(q) {
+        requestJson(CINEMETA + "/catalog/movie/top/search=" + encodeURIComponent(q) + ".json",
+            function(json) {
+                pool = pool.concat((json && json.metas) ? json.metas : []);
+                out.films = slotByCanon(filmography, pool)
+                            .filter(function(m) { return !!m; }).map(mapWatch);
+                if (cfg.firstWatch) {
+                    var fw = slotByCanon([cfg.firstWatch], pool);
+                    if (fw[0]) out.firstWatch = mapWatch(fw[0]);
+                }
+                emit();
+            });
+    });
+    emit();
+}
+
 // every remote cover, for prefetch / disk-cache warming
 function imageUrls(u) {
     var urls = [];
