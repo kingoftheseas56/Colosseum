@@ -182,7 +182,7 @@ function parseSeriesDetail(json_or_fragment) {
 }
 
 // ── polite spaced queue. fetchFn/delayFn INJECTED (Main.qml sets real XHR + a Timer spacer;
-//    tests set fakes) so the module stays pure/testable — the XoxoApi nowFn lesson. ──
+//    tests set fakes) so the module stays pure/testable — the injected-clock lesson. ──
 var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 var SPACING_MS = 500;
 var fetchFn = null;                          // function(url, cb(bodyOrNull))

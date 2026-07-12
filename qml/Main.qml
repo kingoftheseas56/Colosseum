@@ -14,7 +14,6 @@ import "Universes.js" as Universes
 import "UniverseApi.js" as UniverseApi
 import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
-import "XoxoApi.js" as Xoxo
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicResolve.js" as Resolve
@@ -91,9 +90,6 @@ Window {
 
     Component.onCompleted: {
         refreshWallpaper()
-        // Give the xoxo cooldown machine a real clock (its module is pure/testable and
-        // defaults to a 0-clock; set once — .pragma library state is app-wide). (Spec A)
-        Xoxo.nowFn = function() { return Date.now() }
         // LOCG catalogue: real clock + polite request spacer + the resolve machine's deps
         Locg.nowFn = function() { return Date.now() }
         Locg.delayFn = function(ms, cb) { locgSpacer.fire(ms, cb) }
@@ -101,7 +97,7 @@ Window {
             get: function(k) { return comicMapStore.value(k, "") },
             set: function(k, v) { comicMapStore.setValue(k, v) }
         }
-        // GetComics is the content lane (xoxo dead, replaced clean — spec 2026-07-10).
+        // GetComics is the content lane (spec 2026-07-10).
         // Adapter shape: GC tag hits → {id: "<slug>|<tagId>", title}; the composite id
         // is what persists — the series page splits it (slug feeds gc: routing, tagId
         // feeds releases()). GC has no blocked signal: empty = plain no-match,
@@ -180,8 +176,8 @@ Window {
     }
 
     // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)
-    // V3: content lane moved xoxo→GetComics (2026-07-10) — the bump orphans stale
-    // xoxo mappings so they can never poison a GC attach (V2's own bump orphaned
+    // V3: content lane settled on GetComics (2026-07-10) — the category bump orphans stale
+    // prior-source mappings so they can never poison a GC attach (V2's own bump orphaned
     // the year-gate poison the same way)
     Settings { id: comicMapStore; category: "comicResolveV3" }
     // polite spacer for LOCG's request queue (Locg.delayFn)
@@ -207,7 +203,6 @@ Window {
         else if (seriesLayer.active) win.closeSeries()
         else if (xoxoSeriesLayer.active) win.closeXoxoSeries()
         else if (westernLayer.active) win.closeWestern()
-        else if (xoxoGenreLayer.active) win.closeXoxoGenre()
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
         else if (comicIndexLayer.active) win.closeComicArchive()
@@ -387,53 +382,25 @@ Window {
     }
     function closeWestern() { westernLayer.active = false }
 
-    // ---- xoxo comics: an xoxo series' issue list (peer of ComicSeries). Opened from
-    //      search (data.xoxo), the world Top-Comics row, or a genre grid. ----
+    // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
+    //      Opened from search (data.locg), the world Top-Comics row, or a publisher grid. ----
     function openXoxoSeries(d) {
-        var isLocg = !!(d && d.id && String(d.id).indexOf("locg:") === 0)
-        xoxoSeriesLayer.resumeChapterId = ""
-        xoxoSeriesLayer.locgSid = isLocg ? d.id : ""
+        xoxoSeriesLayer.locgSid = (d && d.id) || ""
         xoxoSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
-        xoxoSeriesLayer.sid = isLocg ? "" : ((d && d.id) || "")
         xoxoSeriesLayer.title = (d && d.title) || ""
         xoxoSeriesLayer.cover = (d && d.cover) || ""
         if (xoxoSeriesLayer.active && xoxoSeriesLayer.item) {
             xoxoSeriesLayer.item.openChapterId = ""       // leave the reader, show the list
             xoxoSeriesLayer.item.seriesTitle = xoxoSeriesLayer.title
             xoxoSeriesLayer.item.cover = xoxoSeriesLayer.cover
-            if (isLocg) {
-                xoxoSeriesLayer.item.locgMeta = xoxoSeriesLayer.locgMeta
-                xoxoSeriesLayer.item.locgId = d.id                 // set LAST — triggers attach()
-            } else {
-                xoxoSeriesLayer.item.seriesId = xoxoSeriesLayer.sid  // set LAST — triggers reload()
-            }
+            xoxoSeriesLayer.item.locgMeta = xoxoSeriesLayer.locgMeta
+            xoxoSeriesLayer.item.locgId = xoxoSeriesLayer.locgSid   // set LAST — triggers attach()
         } else xoxoSeriesLayer.active = true
     }
     function closeXoxoSeries() { xoxoSeriesLayer.active = false }
-    // open an xoxo series AND jump straight into the reader (Continue / session resume) —
-    // mirrors openWesternAt. The reader opens on the downloaded issue immediately; the
-    // issue list walks in behind it (crossing enables once it lands).
-    function openXoxoSeriesAt(seriesId, title, chapterId) {
-        xoxoSeriesLayer.sid = seriesId || ""
-        xoxoSeriesLayer.title = title || ""
-        xoxoSeriesLayer.resumeChapterId = chapterId || ""
-        if (xoxoSeriesLayer.active && xoxoSeriesLayer.item) {
-            xoxoSeriesLayer.item.seriesTitle = title || ""
-            xoxoSeriesLayer.item.seriesId = seriesId || ""
-            xoxoSeriesLayer.item.openChapterId = chapterId || ""
-        } else xoxoSeriesLayer.active = true
-    }
-
-    // ---- xoxo genre grid: one genre/shelf box as a paginated series grid ----
-    function openXoxoGenre(box) {
-        xoxoGenreLayer.box = box || ({})
-        if (xoxoGenreLayer.active && xoxoGenreLayer.item) xoxoGenreLayer.item.box = xoxoGenreLayer.box
-        else xoxoGenreLayer.active = true
-    }
-    function closeXoxoGenre() { xoxoGenreLayer.active = false }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
-    //      series grid. Peer of xoxoGenreLayer — comics axis is publisher, not genre. ----
+    //      series grid; tile → LOCG series list via openXoxoSeries. ----
     function openLocgPublisher(box) {
         locgPublisherLayer.box = box || ({})
         if (locgPublisherLayer.active && locgPublisherLayer.item) locgPublisherLayer.item.box = locgPublisherLayer.box
@@ -603,10 +570,6 @@ Window {
                                         "kind": item.kind || "", "position": pos })
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "title": item.title || "" })
-        } else if (String(item.seriesId || "").indexOf("xoxo:") === 0) {
-            // xoxo issues ride the manga pipeline so LocalDownloads tags them kind:"manga" —
-            // the id prefix, not the kind, is what tells the lane (peer-sources 2026-07-09)
-            win.openXoxoSeriesAt(item.seriesId, item.seriesTitle, item.id)
         } else if (item.kind === "comic") {
             win.openWesternAt(item.seriesTitle, String(item.seriesId).replace(/^gc:/, ""), item.id)
         } else {
@@ -671,7 +634,6 @@ Window {
         win.closeWorldSearch()
         if (worldSearchLayer.searchMode === "Tankoban") {
             if (data && data.locg) win.openXoxoSeries(data)        // LOCG catalogue series → resolve+attach
-            else if (data && data.xoxo) win.openXoxoSeries(data)   // xoxo issue list (Continue/session)
             else if (data && data.western) win.openWestern(data)   // GetComics shelf, not WeebCentral
             else win.openSeries(data.title)
         } else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
@@ -732,11 +694,13 @@ Window {
                                         title: title, cover: entry.cover || "" })
             })
         } else if (entry.kind === "manga" || entry.kind === "comic") {
-            if (String(entry.id || "").indexOf("xoxo:") === 0)
-                win.openXoxoSeries({ id: entry.id, title: title, cover: entry.cover || "" })
-            else if (String(entry.id || "").indexOf("gc:") === 0)
+            if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
-            else win.openSeries(title)                                   // the series page (chapter list)
+            else if (entry.kind === "comic")
+                // retired-source or unknown comic id — honest no-op (xoxo retired 2026-07-12);
+                // comics open only via the gc: lane, so a stale id never opens the manga page
+                console.log("[route] ignoring unknown comic id:", entry.id)
+            else win.openSeries(title)                                   // manga → the chapter-list series page
         } else if (entry.kind === "book") {
             win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
         }
@@ -813,11 +777,11 @@ Window {
         var rec = Sessions.get(Sessions.activeId)
         if (!(rec && rec.contentKind === "comic")) {
             // reading began from a browse (no session yet) — register it from the live reader.
-            // Check every comic lane (xoxo / western / manga) — the reader chrome is shared.
+            // Check every comic lane (LOCG-catalogue / western / manga) — the reader chrome is shared.
             var x = xoxoSeriesLayer.active ? xoxoSeriesLayer.item : null
             var w = westernLayer.active ? westernLayer.item : null
             if (x && x.openChapterId) {
-                win.openComicSession(x.seriesTitle, x.seriesId, x.openChapterId)   // seriesId = "xoxo:<slug>"
+                win.openComicSession(x.seriesTitle, "gc:" + x.gcTag, x.openChapterId)   // LOCG page reads GetComics content
             } else if (w && w.openChapterId) {
                 win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>"
             } else {
@@ -877,14 +841,9 @@ Window {
             }
             win.warmPlayerSessionId = rec.id
         } else if (rec.contentKind === "comic") {
-            if (String(t.seriesId || "").indexOf("xoxo:") === 0) {
-                // xoxo: the issue-list page hosts the reader (peer lane, 2026-07-09)
-                win.openXoxoSeriesAt(t.seriesId, t.title, (st.chapterId || t.chapterId || ""))
-                if (xoxoSeriesLayer.item && xoxoSeriesLayer.item.restoreState) xoxoSeriesLayer.item.restoreState(st)
-                return
-            }
             if (String(t.seriesId || "").indexOf("gc:") === 0) {
-                // western: the GetComics shelf hosts the reader
+                // GetComics content (western shelf OR LOCG-catalogue page) restores via the
+                // GetComics shelf — same tag, same reader, resumed at the chapter.
                 win.openWesternAt(t.title, String(t.seriesId).slice(3), (st.chapterId || t.chapterId || ""))
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
@@ -911,9 +870,9 @@ Window {
         if (!rec || !rec.id) return ({})
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
         if (rec.contentKind === "comic") {
-            var csid = String((rec.target || ({})).seriesId || "")
-            var lay = csid.indexOf("xoxo:") === 0 ? xoxoSeriesLayer
-                    : (csid.indexOf("gc:") === 0 ? westernLayer : seriesLayer)
+            // one comic surface hosts the reader at a time — capture from whichever is live
+            var lay = xoxoSeriesLayer.active ? xoxoSeriesLayer
+                    : (westernLayer.active ? westernLayer : seriesLayer)
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
@@ -930,9 +889,9 @@ Window {
             win.warmPlayerSessionId = rec.id
             win.playerOpen = false
         } else if (rec.contentKind === "comic") {
-            var tsid = String((rec.target || ({})).seriesId || "")
-            if (tsid.indexOf("xoxo:") === 0) xoxoSeriesLayer.active = false
-            else if (tsid.indexOf("gc:") === 0) westernLayer.active = false
+            // one comic surface hosts the reader at a time — drop whichever is live
+            if (xoxoSeriesLayer.active) xoxoSeriesLayer.active = false
+            else if (westernLayer.active) westernLayer.active = false
             else seriesLayer.active = false
         } else if (rec.contentKind === "book")  {
             bookReaderLayer.active = false
@@ -1295,8 +1254,6 @@ Window {
                     if (westernExploreSignal) westernExploreSignal.connect(win.openComicArchive)
                     var xoxoSeriesSignal = item["xoxoSeriesRequested"]
                     if (xoxoSeriesSignal) xoxoSeriesSignal.connect(win.openXoxoSeries)
-                    var xoxoGenreSignal = item["xoxoGenreRequested"]
-                    if (xoxoGenreSignal) xoxoGenreSignal.connect(win.openXoxoGenre)
                     var locgPubSignal = item["locgPublisherRequested"]
                     if (locgPubSignal) locgPubSignal.connect(win.openLocgPublisher)
                     var comicBoardSignal = item["comicArchiveBoardRequested"]
@@ -1528,18 +1485,17 @@ Window {
         }
     }
 
-    // ---- xoxo series layer: an xoxo comic's issue list (peer of westernLayer) ----
+    // ---- comic series layer: a LOCG-catalogue comic's issue list with GetComics content
+    //      attached (peer of westernLayer) ----
     Loader {
         id: xoxoSeriesLayer
         anchors.fill: parent
         z: 50
         active: false
         visible: active
-        property string sid: ""
         property string title: ""
         property string cover: ""
-        property string resumeChapterId: ""   // Continue/session resume: straight into the reader
-        property string locgSid: ""          // "locg:<id>" — set INSTEAD of sid for catalogue opens
+        property string locgSid: ""          // "locg:<id>" — the catalogue entry
         property var locgMeta: ({})          // {publisher, rating, startYear…} enriches the hero
         source: "XoxoSeries.qml"
         onLoaded: {
@@ -1551,32 +1507,8 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
-            if (xoxoSeriesLayer.locgSid) {
-                item.locgMeta = xoxoSeriesLayer.locgMeta
-                item.locgId = xoxoSeriesLayer.locgSid       // set LAST — triggers attach()
-            } else {
-                item.seriesId = xoxoSeriesLayer.sid          // set LAST — triggers reload()
-                if (xoxoSeriesLayer.resumeChapterId) item.openChapterId = xoxoSeriesLayer.resumeChapterId
-            }
-        }
-    }
-
-    // ---- xoxo genre grid layer: a genre/shelf box's paginated series grid ----
-    Loader {
-        id: xoxoGenreLayer
-        anchors.fill: parent
-        z: 49
-        active: false
-        visible: active
-        property var box: ({})
-        source: "XoxoGenrePage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.box = xoxoGenreLayer.box
-            item.backRequested.connect(win.closeXoxoGenre)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            item.seriesRequested.connect(win.openXoxoSeries)   // tile → issue list (over this grid)
+            item.locgMeta = xoxoSeriesLayer.locgMeta
+            item.locgId = xoxoSeriesLayer.locgSid       // set LAST — triggers attach()
         }
     }
 
@@ -1604,7 +1536,7 @@ Window {
     }
 
     // ---- LOCG publisher grid layer: one publisher shelf's paginated series grid
-    //      (peer of xoxoGenreLayer; tile → LOCG series list via openXoxoSeries) ----
+    //      (tile → LOCG series list via openXoxoSeries) ----
     Loader {
         id: locgPublisherLayer
         anchors.fill: parent

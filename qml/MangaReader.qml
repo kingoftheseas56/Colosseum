@@ -34,9 +34,9 @@ Item {
     // chapters). Pages/status/download route through `store`; Continue records
     // under kind "comic". Everything else — pairing, resume, zoom — is shared. ---
     property bool western: false
-    // xoxo issues: the Downloads store (manga pipeline via downloadPages) BUT progress
-    // filed as "comic" so Continue Reading treats them as comics, not manga (peer-sources
-    // spec 2026-07-09). comicKind keeps western=false → store stays Downloads.
+    // comicKind: progress filed as "comic" while the page/download store stays Downloads
+    // (the manga pipeline). Kept for manga-pipeline comic reads that aren't the GetComics
+    // (western) lane; the LOCG catalogue page reads GetComics content via western=true.
     property bool comicKind: false
     readonly property var store: western
         ? (typeof Comics !== "undefined" ? Comics : null)

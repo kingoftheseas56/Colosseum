@@ -191,9 +191,9 @@ function searchWestern(query, done) {
     });
 }
 
-// ── LOCG: the comics CATALOGUE search lane (500k+ comics, keyless database). Replaces
-//    the xoxo browse lane — xoxo is the content layer now, not a search surface. A blocked/
-//    offline LOCG contributes ONE honest notice row instead of a silent empty section. ──
+// ── LOCG: the comics CATALOGUE search lane (500k+ comics, keyless database) — the brain;
+//    GetComics is the content layer, not a search surface. A blocked/offline LOCG
+//    contributes ONE honest notice row instead of a silent empty section. ──
 function searchLocg(query, done) {
     Locg.searchSeries(query, function(items, meta) {
         if (meta && meta.blocked) {

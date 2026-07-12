@@ -4,9 +4,9 @@
 // today may attach next launch). Year is a DISAMBIGUATOR, not a hard gate: source titles usually
 // carry no year, so a clean title match must attach. Conservative on the wrong end — an ambiguous
 // (2+ surviving) candidate is still a NO-match, a wrong comic must never open silently.
-// store + searchFn are INJECTED per-source (Main.qml wires QSettings + a source's search fn — was
-// xoxo, now GetComics; tests inject fakes) — the machine itself doesn't know which source it's
-// pairing — pure/testable, the XoxoApi nowFn lesson.
+// store + searchFn are INJECTED per-source (Main.qml wires QSettings + GetComics' search fn;
+// tests inject fakes) — the machine itself doesn't know which source it's pairing —
+// pure/testable, the injected-clock lesson.
 .pragma library
 
 var store = null;          // injected: { get(key)->string, set(key, value) } — successful attaches ONLY

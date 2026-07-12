@@ -1,5 +1,5 @@
 // SourceCooldownBanner — the honest face of a rate-limited source (Spec A, 2026-07-09).
-// A throttled xoxo answers with homepage HTML; the app detects it and, instead of parsing
+// A throttled source answers with homepage HTML; the app detects it and, instead of parsing
 // garbage or blanking silently, shows this slim glass banner with a live countdown and
 // auto-fires retry() when the clock lapses. Set retryInMs from a verb's meta.retryInMs
 // (0 = hidden). Cached data keeps rendering behind it. Used by world/series/genre surfaces.
@@ -8,7 +8,7 @@ import QtQuick
 Item {
     id: banner
     property int retryInMs: 0
-    property string sourceName: "XOXO"
+    property string sourceName: "Source"
     signal retry()
 
     visible: retryInMs > 0

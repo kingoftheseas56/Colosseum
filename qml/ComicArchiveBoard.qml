@@ -1,8 +1,8 @@
 // ComicArchiveBoard — the GetComics Archives door: the live publisher/franchise
 // taxonomy (ComicsApi.explore) as a full page. Each box opens ComicArchiveIndex,
-// exactly as the old inline world-page mosaic did. When xoxo became the primary
-// comics feed (peer-sources spec 2026-07-09), the GetComics taxonomy moved here —
-// one click off the world page's "GetComics Archives" tile. GetComics loses nothing.
+// exactly as the old inline world-page mosaic did. The GetComics taxonomy lives here —
+// one click off the world page's "GetComics Archives" tile — while the LOCG catalogue
+// (the brain) carries the per-series browse; GetComics is the content layer.
 
 import QtQuick
 import QtQuick.Controls

@@ -1,6 +1,6 @@
-// LocgPublisherPage — one LOCG publisher shelf (Marvel, DC, Image...) as a paginated
-// series grid. Peer of XoxoGenrePage (comics axis is publisher, not genre — genre was
-// dropped, LOCG carries no keyless genre; ratified 2026-07-09). A tile opens the LOCG
+// LocgPublisherPage — the comics explore page (publisher axis): one LOCG publisher shelf
+// (Marvel, DC, Image...) as a paginated series grid. Comics axis is publisher, not genre —
+// genre was dropped, LOCG carries no keyless genre; ratified 2026-07-09. A tile opens the LOCG
 // series detail (routing wired in a later task). Load-more walks pages until the
 // server stops returning a full page (hasMore = items.length >= 100).
 

@@ -24,11 +24,10 @@ WorldPage {
     signal westernRequested(string title)
     signal westernExploreRequested(var box)
 
-    // xoxo comics routes (2026-07-09 peer-sources lane): xoxo is now the primary
-    // comics feed. A Top-Comics tile / genre-grid tile opens the xoxo issue list;
-    // the Archives box opens the GetComics taxonomy (GetComics loses nothing).
-    signal xoxoSeriesRequested(var data)        // {id, title, cover}
-    signal xoxoGenreRequested(var box)          // {id, label}
+    // comics routes: the LOCG catalogue is the brain, GetComics is the content. A Top-Comics
+    // tile opens the LOCG series page (issues + attached GetComics downloads); a publisher box
+    // opens its LOCG shelf; the Archives box opens the GetComics taxonomy.
+    signal xoxoSeriesRequested(var data)        // {id, title, cover} — LOCG catalogue series
     signal locgPublisherRequested(var box)      // {id, label} — opens LocgPublisherPage
     signal comicArchiveBoardRequested()
 
@@ -78,12 +77,9 @@ WorldPage {
         items: (Progress.revision, (function() {
             var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
             a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
-            // Tag the comic source so blended tiles read XOXO vs GetComics (peer-sources
-            // spec 2026-07-09): xoxo ids are "xoxo:…", GetComics are "gc:…". Manga untagged.
+            // Tag the comic source so blended tiles read GetComics on the badge; manga untagged.
             return a.slice(0, 12).map(function(e) {
-                var id = String(e.id || e.seriesId || "")
-                var src = id.indexOf("xoxo:") === 0 ? "XOXO"
-                        : (e.kind === "comic" ? "GetComics" : "")
+                var src = (e.kind === "comic") ? "GetComics" : ""
                 if (src.length) e.source = src
                 return e
             })

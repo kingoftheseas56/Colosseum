@@ -34,7 +34,7 @@ Item {
 
     // ---- source-cooldown visibility (Task 11) ----
     // MangaDownloader (exposed to QML as `Downloads`) emits paused(chapterId,
-    // resumeInMs) each time an xoxo soft-block parks a page-image download for
+    // resumeInMs) each time a soft-blocked source parks a page-image download for
     // 120s. Nothing consumed it, so a cooling job read as stuck ("0 of 58 pages").
     // We hold resume-at wall-clock per chapterId and surface an honest live
     // countdown on its "Now arriving" row, cleared on the next progress/finish/fail.
@@ -450,9 +450,9 @@ Item {
                                                         return wn + " · landed";
                                                     var d = r0.detail || "";
                                                     var base = d.length ? (wn + " · " + d) : wn;
-                                                    // honest cooldown: xoxo parked this job's page
-                                                    // download; show the live resume countdown so it
-                                                    // never reads as stuck at "0 of 58 pages".
+                                                    // honest cooldown: a soft-blocked source parked
+                                                    // this job's page download; show the live resume
+                                                    // countdown so it never reads as stuck at "0 of 58 pages".
                                                     var cd = root.coolMsFor(r0.id);
                                                     if (cd > 0)
                                                         base += " · source cooling down — resumes in "

@@ -38,7 +38,7 @@ Item {
     readonly property string label: (entry.title !== undefined && ("" + entry.title).length)
                                     ? entry.title : (entry.caption !== undefined ? entry.caption : "")
     readonly property string sub: entry.sub !== undefined ? entry.sub : ""
-    // optional source tag (comics: XOXO vs GetComics) — shown in the badge when set
+    // optional source tag (comics: GetComics) — shown in the badge when set
     readonly property string source: entry.source !== undefined ? ("" + entry.source) : ""
     readonly property real prog: Math.max(0, Math.min(1, entry.progress !== undefined ? Number(entry.progress) : 0))
     readonly property bool watched: entry.watched === true
