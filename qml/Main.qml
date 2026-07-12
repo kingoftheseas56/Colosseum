@@ -999,15 +999,147 @@ Window {
             topPadding: 10
             spacing: 30
 
-            // ---- 2. UNIVERSE HERO — the Atlas folio (spec: haven docs/superpowers/specs/
-            //      2026-07-12-colosseum-universe-atlas-hero-design.md): editorial column +
-            //      media ledger over the banner; the spine rail below IS the pagination
-            //      (gold line = the auto-advance made visible). Swipe preserved; dots retired.
-            UniverseAtlas {
+            // ---- 2. UNIVERSE HERO — a real cycling carousel of the universe collection ----
+            //      Swipe/drag between universes · dots track + jump · auto-advances. Real banner
+            //      key-art (TMDB / AniList, disk-cached). Data: Universes.universes.
+            Glass {
+                id: hero
                 backdrop: wall
                 track: page.contentY
-                width: parent.width
-                onExploreRequested: (name) => win.openUniverse(name)
+                width: parent.width; height: 340; radius: 20
+                tint: 0.06
+
+                SwipeView {
+                    id: heroView
+                    anchors.fill: parent
+                    clip: true
+                    Repeater {
+                        model: Universes.universes
+                        delegate: Item {
+                            required property var modelData
+
+                            // banner key-art (solid content), rounded to the panel; the IP color
+                            // stands in while it loads, then a left-weighted scrim keeps text legible.
+                            Rectangle {
+                                anchors.fill: parent; radius: hero.radius; clip: true
+                                color: modelData.c1 ? modelData.c1 : "#1a1410"
+                                Image {
+                                    anchors.fill: parent
+                                    source: modelData.banner
+                                    asynchronous: true; cache: true
+                                    fillMode: Image.PreserveAspectCrop
+                                    opacity: status === Image.Ready ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: 300 } }
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.86) }
+                                        GradientStop { position: 0.52; color: Qt.rgba(0,0,0,0.42) }
+                                        GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.06) }
+                                    }
+                                }
+                            }
+
+                            // content (chrome over the art)
+                            Column {
+                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
+                                spacing: 12
+                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                Text { text: modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                Text {
+                                    text: modelData.blurb
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; width: 500; wrapMode: Text.WordWrap
+                                }
+                                // medium counts as an inline editorial metadata line (bright count · dim
+                                // medium) — NOT glass pills, NO gold separators. Transparent "tablet" chips
+                                // read cheap over busy banner art (Hemanth, 2026-06-27).
+                                Row {
+                                    spacing: 22
+                                    Repeater {
+                                        model: modelData.chips
+                                        delegate: Text {
+                                            required property var modelData
+                                            textFormat: Text.StyledText
+                                            font.family: theme.ui; font.pixelSize: 15
+                                            text: {
+                                                var s = modelData.t
+                                                var i = s.indexOf(" ")
+                                                var first = i < 0 ? s : s.substring(0, i)
+                                                // bold the leading COUNT only; a medium name with no
+                                                // number (incl. multi-word like "Graphic Novel") stays
+                                                // one uniform weight — never half-bold.
+                                                if (!/^\d/.test(first))
+                                                    return "<font color='#c9c8d0'>" + s + "</font>"
+                                                return "<b><font color='#f7f7f5'>" + first +
+                                                       "</font></b> <font color='#c9c8d0'>" + s.substring(i + 1) + "</font>"
+                                            }
+                                        }
+                                    }
+                                }
+                                Row {
+                                    spacing: 12; topPadding: 6
+                                    Rectangle {
+                                        id: exploreBtn
+                                        radius: 12; height: 46; width: exploreRow.implicitWidth + 44
+                                        gradient: Gradient {
+                                            GradientStop { position: 0; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                                            GradientStop { position: 1; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                                        }
+                                        border.width: 1
+                                        border.color: exMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                                        Behavior on border.color { ColorAnimation { duration: 160 } }
+                                        Row {
+                                            id: exploreRow; anchors.centerIn: parent; spacing: 10
+                                            Text { text: "Explore the universe"; color: theme.ink
+                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                anchors.verticalCenter: parent.verticalCenter }
+                                            Text { text: "→"; color: theme.gold; font.pixelSize: 16
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                transform: Translate {
+                                                    x: exMa.containsMouse ? 3 : 0
+                                                    Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+                                                }
+                                            }
+                                        }
+                                        MouseArea {
+                                            id: exMa; anchors.fill: parent
+                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: win.openUniverse(Universes.universes[heroView.currentIndex].name)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // dots — track the current universe, click to jump (overlay above the SwipeView)
+                Row {
+                    anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 30
+                    spacing: 8; z: 5
+                    Repeater {
+                        model: Universes.universes.length
+                        delegate: Rectangle {
+                            required property int index
+                            width: index === heroView.currentIndex ? 22 : 8; height: 8; radius: 4
+                            color: index === heroView.currentIndex ? theme.gold : Qt.rgba(1,1,1,0.35)
+                            Behavior on width { NumberAnimation { duration: 150 } }
+                            MouseArea {
+                                anchors.fill: parent; anchors.margins: -4
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: heroView.currentIndex = index
+                            }
+                        }
+                    }
+                }
+
+                // gentle auto-advance through the collection
+                Timer {
+                    interval: 6500; running: true; repeat: true
+                    onTriggered: heroView.currentIndex = (heroView.currentIndex + 1) % Universes.universes.length
+                }
             }
 
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----

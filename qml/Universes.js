@@ -56,19 +56,3 @@ function categoryFor(name) {
         if (universes[i].name === name) return universes[i].category || "anime";
     return "anime";
 }
-
-// ledger(chips) — the Atlas hero's media ledger rows from the existing chip strings.
-// "8 Manga" → {count:"8", medium:"Manga"} (8 DIFFERENT manga — never "volumes", Hemanth
-// 2026-07-12); "10+ Shows" keeps its "10+"; a countless medium ("Comics", "Graphic Novel")
-// gets an em-dash count and the string verbatim. Pure — headless-tested
-// (tests/universe_ledger_harness.qml).
-function ledger(chips) {
-    return (chips || []).map(function(c) {
-        var s = String(c.t || "");
-        var i = s.indexOf(" ");
-        var first = i < 0 ? s : s.substring(0, i);
-        if (/^\d/.test(first))
-            return { count: first, medium: s.substring(i + 1) };
-        return { count: "—", medium: s };
-    });
-}
