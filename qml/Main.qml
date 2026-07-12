@@ -268,7 +268,8 @@ Window {
     //      anime UniversePage. ----
     function universeSourceFor(category) {
         return category === "cinematic" ? "CinematicPage.qml"
-             : category === "saga"      ? "SagaUniversePage.qml"   // book-first IPs (HP/LOTR/ASOIAF/Dune)
+             : category === "saga"      ? "SagaUniversePage.qml"      // book-first IPs (HP/LOTR/ASOIAF/Dune)
+             : category === "magazine"  ? "MagazineUniversePage.qml"  // Weekly Shonen Jump — manga only
              : "UniversePage.qml"
     }
     function openUniverse(name) {

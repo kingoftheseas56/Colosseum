@@ -212,6 +212,32 @@ function loadUniverse(name, push) {
     });
 }
 
+// loadMangaOnly(name, push) — the MAGAZINE template's loader: ONLY the READ side (Weekly
+// Shonen Jump publishes manga — no anime/film queries fired at all, Hemanth 2026-07-12).
+// Same progressive multi-query AniList assembly as loadUniverse's read block.
+function loadMangaOnly(name, push) {
+    var cfg = UDB.configFor(name);
+    var out = { name: name, blurb: cfg.blurb || "", banner: cfg.banner || "", manga: [] };
+    function emit() {
+        push({ name: out.name, blurb: out.blurb, banner: out.banner, manga: out.manga });
+    }
+    var readQueries = (cfg.readQueries && cfg.readQueries.length) ? cfg.readQueries : [name];
+    var gql = "query($q:String){Page(perPage:14){media(search:$q,type:MANGA,sort:SEARCH_MATCH)" +
+              "{id title{romaji english} coverImage{extraLarge large} bannerImage description(asHtml:false) chapters}}}";
+    // the lineup's RANK is the curated query order, not network arrival order — each
+    // query's flagship lands in ITS slot, however late its response comes home
+    var slots = new Array(readQueries.length);
+    readQueries.forEach(function(q, qi) {
+        postJson(ANILIST, { query: gql, variables: { q: q } }, function(json) {
+            var media = (json && json.data && json.data.Page && json.data.Page.media) ? json.data.Page.media : [];
+            if (media.length) slots[qi] = mapRead(media[0], qi);
+            out.manga = slots.filter(function(m) { return !!m; });
+            emit();
+        });
+    });
+    emit();   // masthead paints instantly from curation
+}
+
 // every remote cover, for boot prefetch / disk-cache warming
 function imageUrls(u) {
     var urls = [], groups = [u.manga, u.anime, u.movies];
