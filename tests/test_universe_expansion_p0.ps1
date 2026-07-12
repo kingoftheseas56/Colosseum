@@ -56,4 +56,10 @@ Assert-Contains $capi 'function tagBox(' "ComicsApi must resolve a pinned tag in
 $main = Read-File "qml/Main.qml"
 Assert-Contains $main 'item.comicsArchiveRequested.connect(win.openComicArchive)' "Main must route the comics column to the archive index."
 
+# 6) UPCOMING law (Hemanth 2026-07-13): metadata id = the gate, never release dates —
+#    future work stays in its room wearing the small tag
+Assert-Contains $saga 'upcoming:' "mapWatch must carry the upcoming flag."
+Assert-Contains $saga '_upcomingById' "loadEras must run the cached same-year boundary probe."
+Assert-Contains $era 'UPCOMING' "EraUniversePage must render the UPCOMING tag."
+
 Write-Host "universe expansion p0: OK"

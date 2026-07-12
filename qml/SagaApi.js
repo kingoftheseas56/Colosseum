@@ -63,13 +63,27 @@ function slotByCanon(canon, metas) {
     return slots;
 }
 
+// UPCOMING law (Hemanth 2026-07-13): the metadata id is the gate, never the release date —
+// future work STAYS in its room wearing a small tag. Year > now ⇒ upcoming outright; a
+// same-year entry is ambiguous from catalog releaseInfo alone, so loadEras fires ONE
+// full-meta check per such id (cached below) and re-slots when a future date confirms.
+var _upcomingById = {};   // id → true (confirmed future) | false (probed: out or unknown)
+
+function metaYear(meta) {
+    var m = /(\d{4})/.exec(String((meta && meta.releaseInfo) || ""));
+    return m ? parseInt(m[1], 10) : 0;
+}
+
 function mapWatch(meta) {
+    var yr = metaYear(meta);
     return {
         id: meta.id || "",
         type: meta.type || "movie",
         title: meta.name || meta.title || "Untitled",
         cover: normArt(meta.poster || (meta.id ? "https://live.metahub.space/poster/medium/" + meta.id + "/img" : "")),
-        art:   normArt(meta.background || (meta.id ? "https://live.metahub.space/background/medium/" + meta.id + "/img" : ""))
+        art:   normArt(meta.background || (meta.id ? "https://live.metahub.space/background/medium/" + meta.id + "/img" : "")),
+        year: yr,
+        upcoming: yr > new Date().getFullYear() || _upcomingById[meta.id] === true
     };
 }
 
@@ -255,6 +269,22 @@ function loadEras(name, push) {
             if (fw[0]) out.firstWatch = mapWatch(fw[0]);
         }
         emit();
+        // UPCOMING boundary: a same-year entry can't be judged from releaseInfo alone —
+        // probe its full meta ONCE; a confirmed future date re-slots with the tag on
+        var nowYr = new Date().getFullYear();
+        out.eras.concat(out.rails).forEach(function(group) {
+            group.items.forEach(function(m) {
+                if (!m.id || m.year !== nowYr || (m.id in _upcomingById)) return;
+                _upcomingById[m.id] = false;
+                requestJson(CINEMETA + "/meta/" + m.type + "/" + m.id + ".json", function(j) {
+                    var rel = j && j.meta && j.meta.released;
+                    if (rel && new Date(rel).getTime() > Date.now()) {
+                        _upcomingById[m.id] = true;
+                        reslot();
+                    }
+                });
+            });
+        });
     }
 
     (cfg.movieQueries || []).forEach(function(q) {

@@ -230,12 +230,22 @@ Item {
                                                     font.family: theme.display; font.italic: true; font.pixelSize: 24
                                                     anchors.verticalCenter: parent.verticalCenter
                                                 }
-                                                Text {
+                                                Column {
                                                     width: plate.width - 78
-                                                    text: plate.modelData.title
-                                                    color: theme.ink; font.family: theme.display; font.pixelSize: 16
-                                                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                                    spacing: 3
                                                     anchors.verticalCenter: parent.verticalCenter
+                                                    Text {
+                                                        width: parent.width
+                                                        text: plate.modelData.title
+                                                        color: theme.ink; font.family: theme.display; font.pixelSize: 16
+                                                        wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                                                    }
+                                                    Text {   // the small tag — future work stays, marked (ratified 2026-07-13)
+                                                        visible: plate.modelData.upcoming === true
+                                                        text: "UPCOMING"
+                                                        color: theme.gold; font.family: theme.ui
+                                                        font.pixelSize: 9; font.letterSpacing: 2
+                                                    }
                                                 }
                                             }
                                             MouseArea {
@@ -386,6 +396,18 @@ Item {
                                                     GradientStop { position: 0; color: "transparent" }
                                                     GradientStop { position: 1; color: Qt.rgba(0,0,0,0.86) }
                                                 }
+                                            }
+                                            Rectangle {   // UPCOMING plate — future work stays, marked
+                                                anchors.left: parent.left; anchors.top: parent.top
+                                                anchors.margins: 8
+                                                visible: rTile.modelData.upcoming === true
+                                                radius: 4
+                                                color: Qt.rgba(0, 0, 0, 0.72)
+                                                border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
+                                                width: upTag.implicitWidth + 12; height: upTag.implicitHeight + 6
+                                                Text { id: upTag; anchors.centerIn: parent
+                                                       text: "UPCOMING"; color: theme.gold
+                                                       font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
                                             }
                                             Text {
                                                 anchors.left: parent.left; anchors.right: parent.right
