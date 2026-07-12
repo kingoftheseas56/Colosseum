@@ -49,6 +49,8 @@ add_executable(colosseum
     engine/MangaDownloader.h
     engine/BookDownloader.cpp
     engine/BookDownloader.h
+    engine/AudiobookDownloader.cpp
+    engine/AudiobookDownloader.h
     engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicDlsParse.cpp
