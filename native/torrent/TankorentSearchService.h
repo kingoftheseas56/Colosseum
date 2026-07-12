@@ -57,6 +57,10 @@ public:
     // handle was never started / already cancelled.
     bool isActive(const QString& handle) const;
 
+    // Dev smoke (env COLOSSEUM_TORRENT_SEARCHTEST="<query>"): run a "books" search
+    // headless, log per-indexer row counts, then quit. Reveals rotted indexers.
+    void selfTest(const QString& query);
+
 signals:
     // Emitted once per indexer when that indexer's search completes
     // successfully. `results` is that indexer's partial slice; callers

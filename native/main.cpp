@@ -49,20 +49,27 @@
 #include "player/roomstore.h"
 #include "player/streamserver.h"
 #include "player/windowmodestore.h"
+#include "torrent/TankorentSearchService.h"
 
 class CachingNam : public QNetworkAccessManager {
 public:
-    CachingNam(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost, QObject *parent = nullptr)
+    // useCache=false gives a pin+UA NAM with NO disk cache / no PreferCache — for live
+    // lanes (torrent search) where a stale cached response would freeze seeder counts.
+    CachingNam(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
+               QObject *parent = nullptr, bool useCache = true)
         : QNetworkAccessManager(parent),
           m_pinnedHosts(std::move(pinnedHosts)),
-          m_ipv4ByHost(std::move(ipv4ByHost)) {
-        auto *cache = new QNetworkDiskCache(this);
-        const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-                            + QStringLiteral("/colosseum-images");
-        QDir().mkpath(dir);
-        cache->setCacheDirectory(dir);
-        cache->setMaximumCacheSize(qint64(1024) * 1024 * 1024);
-        setCache(cache);
+          m_ipv4ByHost(std::move(ipv4ByHost)),
+          m_useCache(useCache) {
+        if (m_useCache) {
+            auto *cache = new QNetworkDiskCache(this);
+            const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+                                + QStringLiteral("/colosseum-images");
+            QDir().mkpath(dir);
+            cache->setCacheDirectory(dir);
+            cache->setMaximumCacheSize(qint64(1024) * 1024 * 1024);
+            setCache(cache);
+        }
     }
 
 protected:
@@ -95,13 +102,15 @@ protected:
                 "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
         r.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
-        r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
+        if (m_useCache)
+            r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
         return QNetworkAccessManager::createRequest(op, r, outgoing);
     }
 
 private:
     QStringList m_pinnedHosts;
     QHash<QString, QString> m_ipv4ByHost;
+    bool m_useCache = true;
 };
 
 class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
@@ -298,7 +307,12 @@ int main(int argc, char *argv[]) {
         // pages sat empty while curl (happy-eyeballs) worked and hid the root cause.
         // Probe: tests pattern _gc_net_probe — Qt-stack reachability, exit-code verdict.
         QStringLiteral("getcomics.org"),
-        QStringLiteral("leagueofcomicgeeks.com")
+        QStringLiteral("leagueofcomicgeeks.com"),
+        // Book-torrent indexer hosts (2026-07-13): apibay/extto/torrents-csv publish AAAA
+        // records → dead-IPv6 ~21s stall unless pinned to IPv4 (same scar as the comics lane).
+        QStringLiteral("apibay.org"),
+        QStringLiteral("extto.org"),
+        QStringLiteral("torrents-csv.com")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
@@ -361,6 +375,16 @@ int main(int argc, char *argv[]) {
         const QString spec = qEnvironmentVariable("COLOSSEUM_ABB_DLTEST");   // "<pairKey>|<infoHash>"
         const int bar = spec.lastIndexOf(QChar('|'));
         if (bar > 0) audiobooks->selfTest(spec.left(bar), spec.mid(bar + 1));
+    }
+
+    // Dev smoke: which book-torrent indexers still work? Runs on the SAME pinned +
+    // UA-stamped + UNCACHED NAM production uses, so a slow-but-alive indexer isn't
+    // falsely declared dead by an unpinned IPv6 stall. Ends on searchFinished.
+    if (qEnvironmentVariableIsSet("COLOSSEUM_TORRENT_SEARCHTEST")) {
+        auto *smokeNam = new CachingNam(pinnedHosts, ipv4ByHost, &app, /*useCache=*/false);
+        auto *svc = new TankorentSearchService(smokeNam, &app);
+        svc->selfTest(qEnvironmentVariable("COLOSSEUM_TORRENT_SEARCHTEST"));
+        QTimer::singleShot(45000, &app, &QCoreApplication::quit);   // hard backstop only
     }
 
     // Cast session state exposed to QML as `Cast`. Network discovery/control is the

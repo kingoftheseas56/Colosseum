@@ -5,6 +5,7 @@
 #include "ExtTorrentsIndexer.h"
 #include "TorrentsCsvIndexer.h"
 
+#include <QCoreApplication>
 #include <QSettings>
 
 namespace {
@@ -160,4 +161,28 @@ void TankorentSearchService::cleanupContext(SearchContext& ctx)
     }
     ctx.activeIndexers.clear();
     ctx.pendingCount = 0;
+}
+
+void TankorentSearchService::selfTest(const QString& query)
+{
+    const QString handle = startSearch("books", "all", query, 30);
+    if (handle.isEmpty()) {
+        qInfo() << "[torrent-smoke] NO indexers matched";
+        QCoreApplication::quit();
+        return;
+    }
+    connect(this, &TankorentSearchService::resultsReady, this,
+            [](const QString&, const QList<TorrentResult>& r) {
+                qInfo() << "[torrent-smoke] indexer returned" << r.size() << "rows"
+                        << (r.isEmpty() ? QString() : ("e.g. " + r.first().title));
+            });
+    connect(this, &TankorentSearchService::indexerError, this,
+            [](const QString&, const QString& id, const QString& e) {
+                qInfo() << "[torrent-smoke] ERROR" << id << e;
+            });
+    connect(this, &TankorentSearchService::searchFinished, this,
+            [](const QString&) {
+                qInfo() << "[torrent-smoke] finished";
+                QCoreApplication::quit();
+            });
 }
