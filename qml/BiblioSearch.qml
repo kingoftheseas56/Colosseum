@@ -14,6 +14,8 @@ Item {
     property var results: []
     property bool searching: false
     property bool searched: false
+    property var audioResults: []                     // audiobooks column (Apple media=audiobook)
+    property bool audioSearching: false
     property var recent: []                          // in-session recent queries
     property string lastDispatchedQuery: ""
     property var historyStore: null
@@ -62,7 +64,7 @@ Item {
         var q = queryInput.text.trim()
         if (q.length < 2) {
             search.lastDispatchedQuery = ""
-            search.results = []; search.searched = false; return
+            search.results = []; search.audioResults = []; search.searched = false; return
         }
         search.lastDispatchedQuery = q
         search.searching = true
@@ -71,6 +73,13 @@ Item {
             search.results = books
             search.searching = false
             search.searched = true
+        })
+        // audiobooks column — same query, same stale-guard, own lane
+        search.audioSearching = true
+        BiblioApi.searchAudiobooks(q, function(abs) {
+            if (q !== queryInput.text.trim()) return        // stale — input moved on
+            search.audioResults = abs
+            search.audioSearching = false
         })
     }
     function loadRecent() { search.recent = search.historyStore.list("biblio") }
@@ -375,9 +384,66 @@ Item {
                         }
                     }
                 }
-                // no-results
+                // ───────── AUDIOBOOKS column (paired to their book on click) ─────────
+                Item { visible: search.audioResults.length > 0; width: 1; height: 44 }
+                Row {
+                    visible: search.audioResults.length > 0
+                    spacing: 9
+                    Image { source: "../assets/icons/music.svg"; width: 14; height: 14
+                        anchors.verticalCenter: parent.verticalCenter; opacity: 0.7 }
+                    Text {
+                        text: "AUDIOBOOKS  ·  " + search.audioResults.length + " FOUND"
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold; font.letterSpacing: 1.6
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                Item { visible: search.audioResults.length > 0; width: 1; height: 16 }
+                Grid {
+                    id: audioGrid
+                    width: parent.width; columns: 6
+                    columnSpacing: 22; rowSpacing: 26
+                    property real cellW: (width - columnSpacing * (columns - 1)) / columns
+                    Repeater {
+                        model: search.audioResults
+                        delegate: Column {
+                            required property var modelData
+                            width: audioGrid.cellW; spacing: 9
+                            Item {
+                                width: parent.width; height: width * 1.5
+                                Rectangle {
+                                    width: parent.width; height: parent.height; radius: 8; clip: true; color: "#14131a"
+                                    Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
+                                        fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                                    Text { visible: !modelData.cover; anchors.centerIn: parent; width: parent.width - 18
+                                        text: "Cover art not available"; color: theme.inkDimmer; font.family: theme.display
+                                        font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                    // medium badge — headphones/music glyph marks the audiobook lane
+                                    Rectangle {
+                                        anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 6
+                                        width: 26; height: 26; radius: 13; color: Qt.rgba(0,0,0,0.55)
+                                        Image { anchors.centerIn: parent; width: 13; height: 13
+                                            source: "../assets/icons/music.svg"; opacity: 0.95 }
+                                    }
+                                    scale: abMa.containsMouse ? 1.03 : 1.0
+                                    Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                                    MouseArea { id: abMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                        onClicked: search.openBook(modelData) }
+                                }
+                            }
+                            Text { width: parent.width; text: modelData.title || ""
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                elide: Text.ElideRight; maximumLineCount: 1 }
+                            Text { width: parent.width; text: modelData.author || ""
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                elide: Text.ElideRight; maximumLineCount: 1 }
+                        }
+                    }
+                }
+
+                // no-results — only when BOTH columns came back empty
                 Text {
-                    visible: search.searched && search.results.length === 0 && !search.searching
+                    visible: search.searched && search.results.length === 0 && search.audioResults.length === 0 && !search.searching
                     text: "No books found"; color: theme.inkDimmer; font.family: theme.display
                     font.pixelSize: 20; topPadding: 30
                 }
