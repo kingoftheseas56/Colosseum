@@ -282,7 +282,10 @@ int main(int argc, char *argv[]) {
         QStringLiteral("graphql.anilist.co"),
         QStringLiteral("s4.anilist.co"),
         QStringLiteral("kitsu.io"),
-        QStringLiteral("media.kitsu.app")
+        QStringLiteral("media.kitsu.app"),
+        // Universe banners (2026-07-12 expansion): the Weekly Shonen Jump cover rides
+        // Wikimedia, which publishes AAAA records — same dead-IPv6 stall as the rest.
+        QStringLiteral("upload.wikimedia.org")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
