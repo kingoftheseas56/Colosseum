@@ -24,8 +24,17 @@ ScrollBar {
 
     Theme { id: theme }
 
-    // "actively scrolling" = the flickable is moving under a flick, drag, or wheel tick
-    readonly property bool scrolling: !!flick && (flick.moving || flick.flicking)
+    // "actively scrolling" = the flickable is moving under a flick, drag, or wheel tick.
+    // 2026-07-13 (Hemanth, Hall of Worlds: "still does not have a scroll bar"): ScrollGlide
+    // animates contentY PROGRAMMATICALLY — that never sets moving/flicking, so wheel scrolls
+    // showed NO sliver anywhere. The reveal now also rides contentY motion itself.
+    property bool _contentMoving: false
+    Timer { id: settleTimer; interval: 500; onTriggered: bar._contentMoving = false }
+    Connections {
+        target: bar.flick
+        function onContentYChanged() { bar._contentMoving = true; settleTimer.restart() }
+    }
+    readonly property bool scrolling: !!flick && (flick.moving || flick.flicking || _contentMoving)
 
     // kill the styled defaults so ONLY our sliver draws
     contentItem: Item { implicitWidth: 0; implicitHeight: 0 }

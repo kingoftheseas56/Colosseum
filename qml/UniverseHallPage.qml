@@ -26,6 +26,21 @@ Item {
 
     property int hovered: -1              // which bar breathes (-1 = the pile at rest)
 
+    // the breathe goes STILL while the pile moves (Hemanth 2026-07-13: "scrolling is a
+    // nightmare" — bars ballooning under a stationary cursor shoved the content around
+    // mid-scroll). Any contentY motion closes the open bar and holds the pile flat until
+    // the walk settles.
+    property bool walking: false
+    Timer { id: walkSettle; interval: 260; onTriggered: root.walking = false }
+    Connections {
+        target: stackWalk
+        function onContentYChanged() {
+            root.walking = true
+            root.hovered = -1
+            walkSettle.restart()
+        }
+    }
+
     // ---- the wall the hall stands in ----
     Item {
         anchors.fill: parent
@@ -224,7 +239,7 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onEntered: root.hovered = bar.index
+                    onEntered: if (!root.walking) root.hovered = bar.index
                     onExited: if (root.hovered === bar.index) root.hovered = -1
                     onClicked: root.exploreRequested(bar.modelData.name)
                 }

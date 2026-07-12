@@ -33,6 +33,15 @@ Assert-Lacks $hp 'ContinueTile' "The hall must NOT reuse the continue tiles."
 Assert-Lacks $hp 'GridView' "The hall is a pile of bars, not a grid."
 Assert-Lacks $hp 'rotation: -90' "Names read LEVEL in the ledger stack - no rotated spine type."
 Assert-Lacks $hp 'HorizontalFlick' "The sideways walk is dead - the pile scrolls down only."
+# the breathe must go still while the pile moves (2026-07-13: bars ballooning under the
+# cursor mid-scroll made scrolling a nightmare)
+Assert-Contains $hp 'property bool walking' "The hall must hold the breathe still while scrolling."
+Assert-Contains $hp 'if (!root.walking) root.hovered' "Hover must be gated on the walk settling."
+
+# the sliver must reveal on contentY motion — glide animations never set moving/flicking,
+# so wheel scrolls showed NO scrollbar (the exact 2026-07-13 report)
+$sb = Read-File "qml/HouseScrollBar.qml"
+Assert-Contains $sb 'onContentYChanged' "HouseScrollBar must reveal on contentY motion (wheel glides)."
 
 # --- wiring: layer under the universe pages, door on the hero, Esc chain ---
 $main = Read-File "qml/Main.qml"
