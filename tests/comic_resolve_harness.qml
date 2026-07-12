@@ -132,6 +132,54 @@ Item {
             check("triage: cancelled not terminal", Resolve.failureIsTerminal("cancelled by user") === false);
         } catch (e) { fails.push("triage: threw " + e); }
 
+        // ===== 9) slug-first resolve (top-10 empty-series bug, 2026-07-12) =====
+        // WP's tags?search is token-OR + count-ordered: for popular titles the exact tag
+        // (Absolute Batman, count 27) is flooded out of the returned 20 by giants (Batman,
+        // 1417) -> exact-title filter finds nothing -> NO series attached -> zero downloads
+        // on every issue. Fix: try the EXACT slug (derived from the LOCG title) first via an
+        // injected slugFn; the search lane stays as fallback. Live-proven 7/7 top titles.
+        var slugHit = null;
+        var slugCalls = 0;
+        Resolve.slugFn = function(slug, cb) { slugCalls += 1; cb(slugHit ? (slugHit.forSlug === slug ? slugHit : null) : null); };
+
+        // 9a) THE BUG: search floods (no exact title in hits), slug lane finds the tag -> attaches
+        searchHits = [{ id: "batman|24", title: "Batman", cover: "" },
+                      { id: "batman-beyond|30", title: "Batman Beyond", cover: "" }];
+        slugHit = { forSlug: "absolute-batman", id: "absolute-batman|14355", title: "Absolute Batman" };
+        var callsBeforeSlug = searchCalls;
+        var r9a = null;
+        Resolve.resolve({ id: "locg:ab", title: "Absolute Batman", startYear: 2024 }, function(res) { r9a = res; });
+        check("slug: flooded search bypassed, exact slug attaches",
+              r9a && r9a.attached === true && r9a.sourceId === "absolute-batman|14355");
+        check("slug: search lane not consulted on slug hit", searchCalls === callsBeforeSlug);
+
+        // 9b) slug attach persists like any attach — second resolve is cached, no calls
+        var slugCallsAfter = slugCalls;
+        var r9b = null;
+        Resolve.resolve({ id: "locg:ab", title: "Absolute Batman", startYear: 2024 }, function(res) { r9b = res; });
+        check("slug: attach persisted", r9b && r9b.attached === true && slugCalls === slugCallsAfter && searchCalls === callsBeforeSlug);
+
+        // 9c) slug MISS falls back to the search lane (existing exact-match behavior intact)
+        slugHit = null;
+        searchHits = [{ id: "new-thing-2|1800", title: "New Thing 2", cover: "" }];
+        var r9c = null;
+        Resolve.resolve({ id: "locg:nt2", title: "New Thing 2", startYear: 2025 }, function(res) { r9c = res; });
+        check("slug: miss falls back to search attach", r9c && r9c.attached === true && r9c.sourceId === "new-thing-2|1800");
+
+        // 9d) slug hit with a CLASHING year is rejected (wrong volume) -> falls to search -> honest miss
+        slugHit = { forSlug: "daredevil", id: "daredevil|55", title: "Daredevil (1964)" };
+        searchHits = [];
+        var r9d = null;
+        Resolve.resolve({ id: "locg:dd9", title: "Daredevil", startYear: 2019 }, function(res) { r9d = res; });
+        check("slug: clashing-year hit refused", r9d && r9d.attached === false);
+        check("slug: refused hit never persisted", typeof saved["map/locg:dd9"] === "undefined");
+
+        // 9e) slug derivation: punctuation/apostrophes/year suffixes -> GetComics slug shape
+        slugHit = { forSlug: "ms-marvel", id: "ms-marvel|1300", title: "Ms. Marvel" };
+        var r9e = null;
+        Resolve.resolve({ id: "locg:mm9", title: "Ms. Marvel (2014)", startYear: 2014 }, function(res) { r9e = res; });
+        check("slug: derived from normalized title", r9e && r9e.attached === true && r9e.sourceId === "ms-marvel|1300");
+
         if (fails.length) { console.error("FAILS: " + fails.join(" | ")); Qt.exit(1); return; }
         Qt.exit(0);
     }

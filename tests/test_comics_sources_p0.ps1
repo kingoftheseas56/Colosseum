@@ -41,6 +41,10 @@ Assert-Contains $series 'Collected editions' "collections shelf must survive"
 Assert-Contains $series 'Not on GetComics yet' "honest-dim rule: unmatched rows get no fake verb"
 Assert-Contains $mainQml 'comicResolveV3' "attach store version pin"
 Assert-Contains $mainQml 'GcApi.searchSeries' "resolve searchFn wiring (GetComics)"
+Assert-Contains $mainQml 'Resolve.slugFn' "slug-first resolve wiring (top-10 empty-series fix 2026-07-12)"
+Assert-Contains $mainQml 'GcApi.tagBySlug' "exact-slug tag lookup feeds the slug lane"
+$resolve = Get-Content (Join-Path $root "qml/ComicResolve.js") -Raw
+Assert-Contains $resolve 'slugFn' "resolve machine must try the exact slug before the flooded search"
 # scorched earth: zero xoxo references anywhere in the source tree (this test excepted).
 $hits = Get-ChildItem -Recurse (Join-Path $root "qml"), (Join-Path $root "native"), (Join-Path $root "tests") -Include *.qml,*.js,*.cpp,*.h,*.ps1 |
     Where-Object { $_.FullName -notmatch 'build-msvc|build-smoke' } |

@@ -109,6 +109,13 @@ Window {
                 }), { ok: true, blocked: false });
             });
         }
+        // Slug-first lane (2026-07-12): WP's tag search floods popular titles out of its
+        // own results (Batman 1417 buries Absolute Batman 27) — the exact slug never does.
+        Resolve.slugFn = function(slug, cb) {
+            GcApi.tagBySlug(slug, function(h) {
+                cb(h ? { id: h.tag + "|" + h.tagId, title: h.title } : null);
+            });
+        }
         // Theatre reads the extension registry through a pushed copy — a .pragma
         // library can't reach context properties (extensions spec Phase 3)
         if (typeof Extensions !== "undefined") {
