@@ -68,7 +68,7 @@ Window {
         var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
         if (appType === "theatre" || contentKind === "movie") return "Theatre"
         if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
-        if (appType === "biblio" || contentKind === "book") return "Biblio"
+        if (appType === "biblio" || contentKind === "book" || contentKind === "audiobook") return "Biblio"
         return currentSurface || "Home"
     }
     function refreshWallpaper() {
@@ -751,6 +751,16 @@ Window {
             "target": { "path": path, "book": b, "id": (b.id !== undefined ? ("" + b.id) : path) }
         })
     }
+    // A2 audiobook session: the paired audiobook rides the biblio appType like the reader,
+    // so it gets a taskbar tile + Continue presence. id = pairKey (its pairing identity).
+    function openAudiobookSession(pairKey, book) {
+        if (!pairKey) return
+        var b = book || ({})
+        Sessions.openOrSwitch({
+            "appType": "biblio", "contentKind": "audiobook", "title": b.title || "Audiobook",
+            "target": { "pairKey": pairKey, "book": b, "id": pairKey }
+        })
+    }
 
     // ---- window-verbs for the reader/player chrome (Windows-taskbar vocabulary, 2026-07-04) ----
     // minimize = capture the exact spot, drop the surface, KEEP the session in the taskbar,
@@ -817,6 +827,14 @@ Window {
         if (rec && rec.contentKind === "book") win.closeSession(rec.id)
         else win.closeBookReader()
     }
+    // audiobook always registers a session before its player shows, so minimize = switch away
+    // (teardown hides the layer, tile stays), close = end the session.
+    function minimizeAudiobook() { Sessions.switchTo("") }
+    function closeAudiobookSession() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "audiobook") win.closeSession(rec.id)
+        else if (audiobookPlayerLayer.active) audiobookPlayerLayer.active = false
+    }
 
     // dispatcher: build the active surface from a record (+ restore its saved state).
     function activateSession(rec) {
@@ -868,6 +886,20 @@ Window {
             if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.open(t.path, t.book || ({}))
             else bookReaderLayer.active = true
             // book precision: foliate auto-restores its own CFI on reopen of the same path (Task 6).
+        } else if (rec.contentKind === "audiobook") {
+            if (!audiobookPlayerLayer.active) audiobookPlayerLayer.active = true
+            var abp = audiobookPlayerLayer.item
+            if (abp) {
+                abp.start(t.pairKey, t.book || ({}))
+                // resume: in-session capture (minimize) wins; else the ProgressStore position.
+                var abSt = (st && st.position !== undefined) ? st : null
+                if (!abSt && typeof Progress !== 'undefined') {
+                    var pg = Progress.get("audiobook", t.pairKey || "")
+                    if (pg && pg.resume) abSt = { "fileIndex": Number(pg.resume.fileIndex) || 0,
+                                                  "position": Number(pg.resume.position) || 0 }
+                }
+                if (abSt && abp.restoreState) abp.restoreState(abSt)
+            }
         }
     }
     // capture the live outgoing surface's state (called BEFORE teardown).
@@ -881,6 +913,7 @@ Window {
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
+        if (rec.contentKind === "audiobook" && audiobookPlayerLayer.item && audiobookPlayerLayer.item.captureState) return audiobookPlayerLayer.item.captureState()
         return ({})
     }
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
@@ -900,6 +933,8 @@ Window {
             else seriesLayer.active = false
         } else if (rec.contentKind === "book")  {
             bookReaderLayer.active = false
+        } else if (rec.contentKind === "audiobook") {
+            audiobookPlayerLayer.active = false
         }
     }
 
@@ -1608,6 +1643,7 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readRequested.connect(win.openBookSession)
+            item.listenRequested.connect(win.openAudiobookSession)
         }
     }
 
@@ -1625,6 +1661,22 @@ Window {
             item.open(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
             item.closed.connect(win.closeBookReaderSession)
             item.minimizeRequested.connect(win.minimizeBookReader)
+        }
+    }
+
+    // ---- audiobook player layer: A2's audio-session surface (over the world, below the reader) ----
+    Loader {
+        id: audiobookPlayerLayer
+        anchors.fill: parent
+        z: 57
+        active: false
+        visible: active
+        source: "AudiobookPlayer.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.minimizeAudiobook)
+            item.minimizeRequested.connect(win.minimizeAudiobook)
+            item.closeRequested.connect(win.closeAudiobookSession)
         }
     }
 
