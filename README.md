@@ -5,7 +5,7 @@
 <h1 align="center">Colosseum</h1>
 
 <p align="center">
-  <strong>A native media shell for manga and comics, books, movies, shows, and anime.</strong>
+  <strong>A native media shell for manga and comics, books and audiobooks, movies, shows, and anime.</strong>
 </p>
 
 <p align="center">
@@ -20,26 +20,26 @@
 Colosseum is a fullscreen desktop media environment built around three connected worlds:
 
 - **Tankoban** for manga and western comics
-- **Biblio** for ebooks
+- **Biblio** for ebooks and audiobooks
 - **Theatre** for movies, shows, and anime
 
-It is not three unrelated applications behind a launcher. The worlds share one home, one visual language, one Continue system, one local-download vault, and an OS-like session taskbar. A manga chapter, an EPUB, and a film can remain open as separate sessions and be switched, minimized, resumed, or closed from the same shell.
+It is not three unrelated applications behind a launcher. The worlds share one home, one visual language, one Continue system, persistent search history, one local-download surface, and an OS-like session taskbar. A manga chapter, an EPUB, an audiobook, and a film can remain open as separate sessions and be switched, minimized, resumed, or closed from the same shell.
 
-The interface is written in Qt Quick/QML. Native C++ objects provide the player, readers, download engines, persistent stores, extension registry, local-library model, and system-facing services.
+The interface is written in Qt Quick/QML. Native C++ objects provide the player, readers, download engines, TTS bridge, persistent stores, extension registry, local-library model, and system-facing services.
 
 ## Current state at a glance
 
 | Area | Current state |
 |---|---|
-| Home shell | Implemented: wallpaper, universe carousel, mixed Continue row, world entry boards, taskbar |
-| Tankoban | Implemented: manga; LOCG comics catalogue; GetComics issue, collection, and archive delivery; downloads; shared reader |
-| Biblio | Implemented: Apple Books discovery/search, LibGen editions/downloads, local EPUB reader |
-| Theatre | Implemented: Movies, Shows, Anime, detail pages, stream selection, mpv playback, video downloads |
-| Extensions | Implemented for Theatre: install, preview, enable, order, remove, browse community catalog |
-| Downloads | Implemented across all three worlds with one unified local vault |
-| Sessions | Implemented for books, comics/manga, and video |
-| Universe pages | One Piece and Marvel templates are live; additional universes are parked until their templates exist |
-| Home-wide search | Planned; world-scoped search works, but the Home search button is not yet wired to a global surface |
+| Home shell | Implemented: per-world wallpaper, 21-universe carousel, Hall of Worlds, mixed Continue row with See All, world-entry boards, top bar, and taskbar |
+| Tankoban | Implemented: manga discovery/volumes/downloads; GetComics-driven western-comics discovery, release shelves, archive delivery, and shared reader |
+| Biblio | Implemented: Apple Books book/audiobook discovery, LibGen editions, AudioBookBay-backed audiobook matching, ebook and audiobook downloads, EPUB reader, audiobook player, and live Edge TTS |
+| Theatre | Implemented: Movies, Shows, Anime, detail pages, stream selection, mpv playback, subtitles, sessions, and video downloads |
+| Search | Implemented per world with durable native search history; Home-wide cross-world search is not yet built |
+| Extensions | Implemented for Theatre: install, preview, enable, order, remove, and browse the community catalog |
+| Downloads | Implemented for manga, comics, ebooks, and video through one cross-world vault; audiobook files currently remain in their own Biblio store |
+| Sessions | Implemented for books, audiobooks, comics/manga, and video |
+| Universe pages | 21 live entries across generic anime, cinematic, saga, magazine, galaxy, eras, and studio templates; no parked placeholders |
 | Vinyl | Visible as a coming-soon world, not implemented |
 | Platforms | Windows-first development build; other platforms are not currently packaged or verified |
 
@@ -62,34 +62,35 @@ A manga detail page is built around its volume shelf. Chapters are grouped under
 
 #### Western comics
 
-Western comics deliberately separate the **catalogue brain** from the **download source**.
+The active western-comics path now uses **GetComics for both catalogue structure and delivery**.
 
-- **League of Comic Geeks (LOCG)** remains the catalogue and identity layer. It powers comics search, publisher shelves, covers, publisher/year metadata, full issue runs, and the Home world's Top in Comics row. The ranking is built from real weekly issue pull counts rolled up to series, because LOCG's ordinary series orders do not provide an honest popularity ranking.
-- **ComicResolve** is now source-agnostic and attaches a LOCG series to a matching **GetComics tag**, not to XOXO. It uses normalized title matching with year only as a disambiguator, persists successful mappings under the current V3 namespace, keeps misses session-only, and rejects ambiguous matches instead of silently opening the wrong run.
-- The series page remains **LOCG-first**. LOCG supplies the complete issue table in reading order. GetComics release posts are matched onto those catalogue rows by normalized series base and exact issue number. A matched row gains download/read actions; an unmatched LOCG row remains visible but dimmed as **Not on GetComics yet**.
-- Trades, TPBs, omnibuses, Epic collections, and other collected-edition posts are deliberately kept out of issue matching. They appear in their own **Collected editions** shelf with the same download and read flow.
-- **GetComics Archives** remains a parallel direct-browse route for publisher, franchise, collection, and release shelves. Both the LOCG-integrated path and the archive path ultimately use the same native `ComicDownloader` and MangaReader.
+- A GetComics tag is the current series identity.
+- Tankoban's curated Top in Comics row resolves titles to GetComics tags, preferring an exact slug before ranked search.
+- Search combines AniList manga with GetComics comic tags on one surface.
+- Explore Comics is driven by GetComics' own publisher and franchise taxonomy.
+- A series page renders the tag's release posts, separates collected editions from individual issues, and supports filtering and natural sorting.
+- Each release post is one downloadable unit. `ComicDownloader` resolves a signed mirror, downloads the archive, extracts its pages, and hands the local result to MangaReader.
+- iTunes art is used as series-level presentation art where available; each release keeps its own GetComics cover.
 
-The comics discovery axis is **publisher**, not genre. LOCG exposes keyless publisher filtering but no reliable keyless genre filter or per-series genre tags, so Tankoban presents Marvel, DC, Image, Dark Horse, IDW, BOOM!, Dynamite, Archie, and a separate GetComics Archives door.
-
-Tankoban search runs three independent lanes in parallel: AniList manga, LOCG comic series, and GetComics archive tags. One source failing does not erase the others, and the shared title scorer selects the top match across the combined result set.
-
-The GetComics download pipeline opens the selected release post, extracts signed `/dls/` candidates, ranks preferred mirrors, skips known-blocked Pixeldrain choices, rotates to another mirror on a blocked redirect or failure, downloads the archive, extracts its pages, and only then hands the local item to MangaReader.
-
-**XOXO is no longer an active acquisition source.** Its old route remains only for compatibility with existing `xoxo:` downloads and saved progress. New LOCG catalogue opens attach to GetComics through `comicResolveV3`.
+The older LOCG catalogue adapter and its fixtures remain in-tree for research and compatibility work, but LOCG is parked and does not currently drive Tankoban's live comics experience. XOXO has been removed from the active QML and provider path.
 
 ### Biblio
 
-Biblio separates discovery and delivery:
+Biblio separates discovery, editions, listening, and reading:
 
-- **Apple Books RSS and Search APIs** provide current charts, search, covers, authors, genres, ratings, descriptions, and detail-page metadata.
-- **LibGen** supplies available downloadable editions.
-- The native **BookDownloader** saves a selected file into Colosseum's local book store.
+- **Apple Books RSS and Search APIs** provide charts, search, covers, authors, genres, ratings, descriptions, and book/audiobook identity.
+- **LibGen** supplies downloadable ebook editions.
+- **AudioBookBay** supplies audiobook release candidates paired to the book identity.
+- The native **BookDownloader** saves a selected ebook into Colosseum's local book store.
+- The native **AudiobookDownloader** asks the bundled Stremio stream engine for the selected torrent's file manifest, keeps audio files, downloads them completely, and stores them under a durable book/audiobook pairing key.
 - A downloaded EPUB opens in the embedded **Foliate-based reader** through Qt WebEngine and QWebChannel.
+- A downloaded audiobook opens in a dedicated **AudiobookPlayer** over the shared mpv backend.
 
-The book detail surface is intentionally different from the manga and film pages. It presents the cover as a physical object, a cleaned synopsis, metadata, and an editions list rather than forcing every medium into one generic template.
+Biblio search presents Books and Audiobooks as separate result lanes and persists recent searches across restarts. The detail page keeps the cover-as-object design, cleaned synopsis, metadata, LibGen editions, and the paired audiobook shelf without forcing the medium into a movie-style template.
 
-The reader persists progress, settings, bookmarks, annotations, and display names. Edge TTS entry points exist in the bridge but are currently stubbed, so read-aloud is not yet available in Colosseum.
+The EPUB reader persists position, settings, bookmarks, annotations, and display names. Its native Edge TTS bridge is live, with voice discovery, synthesis, streaming controls, warmup, cancellation, and word-boundary data handled off the GUI thread.
+
+The audiobook player supports multi-file chapter sets and embedded M4B chapters, playback speed, sleep timer, independent listening progress, Continue integration, and taskbar session restoration.
 
 ### Theatre
 
@@ -110,30 +111,56 @@ Each tab renders its own catalog rows and genre directory. Installed catalog ext
 
 A title opens a Theatre detail page, where movies expose sources and shows expose seasons and episodes. Playback can come from a torrent-backed stream, a direct stream supplied by an extension, or a completed local download.
 
+## Search
+
+Search remains scoped to the active world rather than pretending three very different catalogues are one flat index.
+
+- **Tankoban** searches AniList manga and GetComics tags together.
+- **Biblio** searches Apple Books books and audiobooks in separate lanes.
+- **Theatre** searches Cinemeta movies and series together.
+- Recent queries are stored by a native, world-scoped `SearchHistoryStore`, so they persist when a QML Loader is recreated and across application restarts.
+- Search surfaces include a top match, grouped results, recent-query removal, and genre/surprise discovery where the world supports it.
+
+The Home search button does not yet open a true cross-world search surface.
+
 ## Home and universe navigation
 
-The Home surface is the meeting point for all three worlds.
-
-It currently includes:
+The Home surface is the meeting point for all three worlds. It currently includes:
 
 - A persistent, user-selectable wallpaper system with separate picks for Home, Tankoban, Biblio, and Theatre
-- A curated universe carousel
-- A single Continue row mixing books, manga, comics, movies, and episodes by recency
+- A 21-entry curated universe carousel
+- A **Hall of Worlds** see-all surface using the vertical Ledger Stack layout
+- A single Continue row mixing books, audiobooks, manga, comics, movies, and episodes by recency
+- A full Continue See All surface
 - A Tankoban bookshelf, Theatre film strip, and Biblio reading desk as world-entry surfaces
 - A shared top bar for world switching and system actions
 
-Colosseum also experiments with **cross-medium universe pages**. The current live examples are:
+Every universe in `Universes.js` is live in both the carousel and Hall of Worlds. The shell chooses a page template from the universe category:
 
-- **One Piece**, with a read/watch split and separate manga, anime, and movie rows
-- **Marvel**, using the cinematic universe template
+| Template | Live universes |
+|---|---|
+| Generic anime/read-watch | One Piece, Dragon Ball, Naruto, Pokémon, Attack on Titan |
+| Cinematic | Marvel |
+| Saga | Harry Potter, Lord of the Rings, A Song of Ice and Fire, Dune, The Witcher, Sherlock Holmes, Jurassic Park, Percy Jackson |
+| Eras/timeline | DC Animated Universe, Star Trek, James Bond, Avatar: The Last Airbender |
+| Magazine | Weekly Shonen Jump |
+| Galaxy | Star Wars |
+| Studio | Studio Ghibli |
 
-Dune, A Song of Ice and Fire, Middle-earth, and Star Wars are curated placeholders but remain hidden from the carousel until their own page templates are built.
+The templates are not just recolored grids:
+
+- **Marvel** uses a cinematic phase-oriented surface.
+- **Saga** pages curate novels, films, and shows around a book-first identity.
+- **Weekly Shonen Jump** is a manga-only ranked magazine spread.
+- **Star Wars** uses a trilogy triptych plus standalone and television rails.
+- **Eras** pages organize a franchise into curated chronological or continuity groups.
+- **Studio Ghibli** uses a numbered chronological filmography wall.
 
 ## The session shell
 
 Colosseum behaves more like a small media OS than a conventional stack of pages.
 
-The native `SessionStore` tracks every open media session, its world, its content kind, its reopen target, and a saved-state blob. Only the active immersive surface needs to be instantiated. When the user switches away, Colosseum captures the state, tears down or suspends the surface as appropriate, and reconstructs it at the same position when reopened.
+The native `SessionStore` tracks every open media session, its world, content kind, reopen target, and saved-state blob. Only the active immersive surface needs to be instantiated. When the user switches away, Colosseum captures the state, tears down or suspends the surface as appropriate, and reconstructs it at the same position when reopened.
 
 The auto-hiding taskbar groups sessions by world and provides:
 
@@ -144,11 +171,13 @@ The auto-hiding taskbar groups sessions by world and provides:
 - Direct entry to Extensions
 - A live badge for active downloads
 
-Video sessions can remain warm while minimized, allowing playback to resume without unnecessarily rebuilding the stream.
+Video sessions can remain warm while minimized. Audiobooks preserve their selected file/chapter and position. Reader sessions restore their own reading state.
 
-## Player
+## Players
 
-The Theatre player is a fullscreen QML surface over **MpvQt/libmpv**. The torrent transport is kept behind a separate local stream-server boundary, so the player consumes a normal playable URL rather than owning torrent logic.
+### Theatre player
+
+The Theatre player is a fullscreen QML surface over **MpvQt/libmpv**. Torrent transport stays behind a separate local stream-server boundary, so the player consumes a normal playable URL rather than owning torrent logic.
 
 The current player includes code paths for:
 
@@ -169,13 +198,17 @@ The current player includes code paths for:
 - Keyboard shortcut help
 - A-B loop, sleep timer, playback statistics, frame capture/GIF tooling, and a drawing overlay
 
-The player also contains state models for casting, live channels/DVR, and local watch rooms. Those areas are experimental compared with the core local and on-demand playback path.
+The player also contains state models for casting, live channels/DVR, and local watch rooms. Those areas remain experimental compared with core local and on-demand playback.
+
+### Audiobook player
+
+The Biblio audiobook player uses the same mpv foundation without rendering a video surface. It provides cover-led audio chrome, file or embedded-chapter navigation, transport controls, speed, sleep timer, automatic multi-file advance, Continue progress, and session capture/restore.
 
 ## Readers
 
 ### Manga and comics reader
 
-Manga chapters and GetComics-backed issues, collected editions, and archive releases all use the same download-fed reader. LOCG identifies and organizes the comic run but never supplies reader pages. GetComics archives are downloaded and extracted first, then MangaReader opens the resulting local pages. Legacy XOXO downloads can still reopen through their retained route, but XOXO is not used for new acquisition.
+Manga chapters and GetComics releases use the same download-fed reader. Archives are downloaded and extracted first, then MangaReader opens local pages.
 
 Reading modes include:
 
@@ -193,7 +226,7 @@ The reader also supports chapter and page grids, thumbnails, page jumping, chapt
 
 ### EPUB reader
 
-The book reader embeds the existing Foliate-derived web reader in `QWebEngineView`. A native `BookBridge` exposes local file access and persistent state through QWebChannel.
+The book reader embeds the Foliate-derived web reader in `QWebEngineView`. A native `BookBridge` exposes local file access, persistent state, and Edge TTS through QWebChannel.
 
 The bridge persists:
 
@@ -203,7 +236,7 @@ The bridge persists:
 - Annotations
 - Display names
 
-Progress is also mirrored into the shared Colosseum Continue store.
+Progress is mirrored into the shared Colosseum Continue store. Edge TTS is no longer a stub: the native worker handles voices, synthesis, streaming lifecycle, cancellation, warmup, and boundary metadata through Qt WebSockets.
 
 ## Downloads
 
@@ -211,16 +244,16 @@ The Downloads page is a cross-world local vault rather than a list attached to o
 
 It is divided into two concepts:
 
-1. **Now arriving** for active and queued jobs across all worlds
+1. **Now arriving** for active and queued manga, comic, ebook, and video jobs
 2. **Settled local media** organized by world, series, season where applicable, and item
 
-A native `LocalDownloads` read model normalizes the separate manga, book, comic, and video backends into one shape for QML. It does not own files or network work; actions are routed back to the backend responsible for each item.
+A native `LocalDownloads` read model normalizes the manga, ebook, comic, and video backends into one shape for QML. It does not own files or network work; actions route back to the responsible backend.
 
-For western comics, both LOCG-attached issues and the separate GetComics archive shelves use the native `ComicDownloader`. One GetComics post is the download unit: the engine resolves signed mirror links, downloads the selected archive, reports byte progress through resolving/downloading/extracting states, extracts local pages, and indexes the completed item under its `gc:` series identity. Known-blocked Pixeldrain mirrors are discarded or skipped immediately rather than consuming a full network timeout.
-
-Legacy XOXO items retain their old local-page route for compatibility, but the source is no longer used to acquire new issues.
+For western comics, one GetComics post is the download unit. The engine resolves signed mirror links, downloads the archive, reports progress through resolving/downloading/extracting states, extracts local pages, and indexes the completed item under its `gc:` series identity. Known-blocked Pixeldrain mirrors are discarded or skipped rather than consuming a full network timeout.
 
 The Theatre download engine provides a persistent bounded queue with lazy source resolution, pause/resume, retry, cancellation, partial-file continuation, speed/ETA reporting, season grouping, and a durable downloaded-video index. Queue state survives application restarts.
+
+Audiobook downloads are implemented through `AudiobookDownloader`, but their completed files and active jobs are not yet normalized into `LocalDownloads`; they are currently managed from Biblio and opened through the audiobook session path.
 
 ## Extensions
 
@@ -256,21 +289,24 @@ The store currently affects Theatre. Tankoban and Biblio have designed extension
 | Manga search, chapters, pages | WeebCentral |
 | Manga art and metadata | AniList, with Kitsu fallback |
 | Manga volumes and covers | MangaDex |
-| Western comics catalogue, identity, issue runs, weekly ranking, publisher shelves | League of Comic Geeks (LOCG) |
-| LOCG series-to-content attachment | `ComicResolve` maps LOCG series to GetComics tags and matches numbered release posts onto LOCG issue rows |
-| Western comic issues and collected editions | GetComics through `ComicDownloader` |
-| Western comic archive browsing | GetComics archive and tag shelves |
-| Legacy western-comic compatibility | Existing `xoxo:` downloads and progress remain routable; XOXO is not an active source |
-| Book discovery and metadata | Apple Books |
-| Book editions and delivery | LibGen |
+| Western comics catalogue, taxonomy, series identity, release shelves | GetComics tags and release posts |
+| Western comic series presentation art | iTunes search where available; GetComics release art per item |
+| Western comic delivery | GetComics through `ComicDownloader` |
+| Parked western-comics research adapter | League of Comic Geeks remains in-tree but is not the active catalogue |
+| Book and audiobook discovery/metadata | Apple Books |
+| Ebook editions and delivery | LibGen through `BookDownloader` |
+| Audiobook release discovery | AudioBookBay |
+| Audiobook delivery | Bundled Stremio stream-server plus `AudiobookDownloader` |
+| EPUB rendering | Foliate-derived reader in Qt WebEngine |
+| EPUB read-aloud | Native Edge TTS bridge over Qt WebSockets |
 | Movie and show identity/catalogs | Cinemeta |
 | Anime discovery | Jikan |
 | Anime metadata/ID bridge | Anime Kitsu |
 | Stream discovery | Torrentio and installed Stremio extensions |
 | Subtitles | OpenSubtitles v3 and installed subtitle extensions |
 | Torrent transport | Bundled Stremio `stream-server` runtime |
-| Video rendering | MpvQt/libmpv |
-| EPUB rendering | Foliate-derived reader in Qt WebEngine |
+| Video and audiobook rendering | MpvQt/libmpv |
+| Universe assembly | Curated configs backed by Cinemeta, AniList, Apple Books, and pinned IDs/queries |
 
 > [!NOTE]
 > Colosseum is a client and does not host media. External APIs, websites, addons, and scrapers are independent services and can change or disappear. Use sources and content only where you have the right to access them.
@@ -287,27 +323,31 @@ flowchart TB
     Shell --> Providers[QML/JavaScript provider adapters]
 
     Native --> Progress[ProgressStore]
+    Native --> SearchHistory[SearchHistoryStore]
     Native --> Sessions[SessionStore]
     Native --> Downloads[Download engines + LocalDownloads]
     Native --> Extensions[ExtensionsStore]
-    Native --> BookBridge[BookBridge]
+    Native --> BookBridge[BookBridge + Edge TTS]
     Native --> Player[MpvQt / libmpv]
     Native --> StreamServer[Local Stremio stream-server]
 
     Providers --> Manga[Manga sources]
-    Providers --> ComicsCatalog[LOCG catalogue and issue identity]
     Providers --> GetComics[GetComics tags and release posts]
-    Providers --> LegacyXoxo[XOXO legacy route]
     Providers --> Books[Apple Books + LibGen]
+    Providers --> Audiobooks[Apple Books + AudioBookBay]
     Providers --> Theatre[Cinemeta + Jikan + addons]
+    Providers --> Universes[Curated universe configs]
 
-    ComicsCatalog --> Attach[ComicResolve series + issue matching]
-    GetComics --> Attach
-    Attach --> ComicDownloader[ComicDownloader mirror resolution + archive extraction]
-    ComicDownloader --> Downloads
-    LegacyXoxo --> Downloads
+    GetComics --> ComicDownloader[ComicDownloader mirror resolution + archive extraction]
+    Books --> BookDownloader[BookDownloader]
+    Audiobooks --> AudiobookDownloader[AudiobookDownloader]
     StreamServer --> Player
+    StreamServer --> AudiobookDownloader
+    ComicDownloader --> Downloads
+    BookDownloader --> Downloads
     Downloads --> Readers[MangaReader / BookReader]
+    AudiobookDownloader --> AudioPlayer[AudiobookPlayer]
+    BookBridge --> Readers
 ```
 
 ### Native services exposed to QML
@@ -317,6 +357,7 @@ The launcher currently exposes focused objects such as:
 - `Manga`
 - `Downloads`
 - `Books`
+- `Audiobooks`
 - `Comics`
 - `Stream`
 - `Download`
@@ -331,18 +372,20 @@ The launcher currently exposes focused objects such as:
 - `Room`
 - `WindowMode`
 - `Power`
+- `Clipboard`
 
-The launcher also installs a shared disk-backed network cache and IPv4 pinning for hosts that otherwise stall on the current development network's broken IPv6 route.
+The launcher installs a shared disk-backed network cache, browser-style user-agent fallback for QML requests, and IPv4 pinning for hosts that otherwise stall on the current development network's broken IPv6 route.
 
 ## Repository layout
 
 ```text
 Colosseum/
 ├── qml/                    QML surfaces, components, provider adapters and shell logic
-├── native/                 C++ launcher, engines, stores, player and reader bridges
-│   ├── engine/             Manga/book/comic downloads, local vault, extensions
+├── native/                 C++ launcher, engines, stores, player, reader and TTS bridges
+│   ├── engine/             Manga/book/audiobook/comic downloads, local vault, extensions
 │   ├── player/             mpv integration, stream server, video queue and player services
-│   └── reader/             Foliate QWebChannel bridge
+│   ├── reader/             Foliate QWebChannel bridge
+│   └── tts/                Native Edge TTS client and worker
 ├── resources/book_reader/  Embedded Foliate-derived EPUB reader
 ├── assets/                 Icons, fonts and wallpaper assets
 ├── tests/                  Contract tests, live-source fixtures and smoke/self-test harnesses
@@ -367,8 +410,10 @@ The current tested setup is:
   - SQL
   - WebEngineQuick
   - WebChannel
+  - WebSockets
 - A Windows build of MpvQt
 - libmpv headers, import library, and runtime DLL
+- The bundled Stremio stream-server runtime expected by the player/download engines
 
 The checked-in CMake file currently defaults to the original development paths under `C:/tools/mpvqt-feasibility`. Override `MPVQT_PREFIX` and `LIBMPV_PREFIX` when your dependencies live elsewhere.
 
@@ -391,7 +436,9 @@ Run the live QML development loop:
 dev.bat
 ```
 
-`dev.bat` launches `native/build-msvc/colosseum.exe qml/Main.qml`, enables QML live reload, and disables the QML disk cache so saved edits are not masked by stale compiled components. Update the Qt path in the script when your installation differs.
+`dev.bat` launches `native/build-msvc/colosseum.exe qml/Main.qml`, enables QML live reload, and disables the QML disk cache so saved edits are not masked by stale compiled components.
+
+An argument-free development launch self-locates the repository and attempts a safe `git pull --ff-only` before loading the live QML tree. Offline, dirty, timed-out, or diverged repositories boot as-is. QML changes can land immediately; native changes still require a rebuild.
 
 This is a development recipe, not yet a clean-machine installer workflow.
 
@@ -405,42 +452,42 @@ Several subsystems can be exercised at startup through environment variables:
 | `COLOSSEUM_OPEN_WORLD=Theatre` | Boot directly into a world |
 | `COLOSSEUM_OPEN_EXTENSIONS=1` | Boot directly into the extension store |
 | `COLOSSEUM_CATALOG_SELFTEST=movies` | Log the catalog rows built for a Theatre tab |
-| `COLOSSEUM_STREAMS_SELFTEST=movie|tt0816692` | Ask installed stream extensions and log their results |
-| `COLOSSEUM_SUBS_SELFTEST=movie|tt0111161` | Exercise the subtitle aggregation path |
+| `COLOSSEUM_STREAMS_SELFTEST=movie\|tt0816692` | Ask installed stream extensions and log their results |
+| `COLOSSEUM_SUBS_SELFTEST=movie\|tt0111161` | Exercise subtitle aggregation |
 | `COLOSSEUM_SESSION_SELFTEST=1` | Run the session-store contract test |
 | `COLOSSEUM_VIDEOQ_SELFTEST=exactrow` | Exercise the persistent video queue |
 | `COLOSSEUM_DL_SELFTEST=...` | Exercise manga/page downloads |
-| `COLOSSEUM_BOOK_DLTEST=...` | Exercise book downloads |
+| `COLOSSEUM_INDEX_SELFTEST=1` | Exercise manga-download index self-healing |
+| `COLOSSEUM_BOOK_DLTEST=...` | Exercise ebook downloads |
 | `COLOSSEUM_COMIC_DLTEST=...` | Exercise comic archive downloads |
+| `COLOSSEUM_ABB_DLTEST=<pairKey>\|<infoHash>` | Exercise audiobook manifest and download handling |
 
-The repository also contains focused PowerShell contract checks, captured LOCG fixtures, a `ComicResolve` harness for catalogue-to-GetComics matching, and a native GetComics `/dls/` parser harness that verifies mirror ordering and blocked-host rejection.
+The repository also contains focused PowerShell/QML/Node/C++ contract checks for search history, Continue See All, session hydration, universe templates and Hall of Worlds, GetComics parsing, audiobook pairing, player behavior, and source-specific failure handling.
 
 ## Known boundaries
 
 - Home-wide search has not yet been built. Search is currently scoped to the active world.
 - Vinyl is a non-interactive coming-soon entry.
-- Only One Piece and Marvel have live universe-page templates.
+- All 21 registered universes are live, but their rails still depend on external source search, pinned IDs, and curated query quality.
 - Theatre extensions are live; Tankoban and Biblio extension consumption is future work.
-- LOCG has no reliable keyless genre axis, so western-comics browsing is publisher-based.
-- A comic being catalogued by LOCG does not guarantee a matching GetComics tag or release post. Unattached series remain unavailable, and unmatched issue rows remain visible without a fake download action.
-- Collected editions are listed separately rather than guessed onto individual LOCG issues.
-- GetComics HTML and mirror availability can change. The downloader currently rejects bare ad-gate links, ranks signed mirrors, and skips known-blocked Pixeldrain routes, but another host or markup change can still break acquisition.
-- XOXO is not an active source. Its code path remains only so existing `xoxo:` downloads and progress do not become orphaned.
-- Book read-aloud/Edge TTS is stubbed in the Colosseum `BookBridge`.
+- GetComics tags are pragmatic series identities, not a canonical comic bibliography. A tag can mix reprints, collections, and issues, and site markup or mirror availability can change.
+- The LOCG catalogue path is parked rather than deleted; it is not the active Tankoban comics brain.
+- Audiobook discovery and downloading are live, but audiobooks are not yet represented in the unified `LocalDownloads` vault.
+- The proposed Biblio book-torrents shelf currently exists only as a design document; LibGen remains the implemented ebook-delivery lane.
 - Casting, live TV/DVR, and networked watch rooms are less mature than core playback.
 - The build still assumes developer-supplied Qt, MpvQt, libmpv, and stream-server runtime dependencies.
 - Scraper-backed sources are inherently more fragile than stable public APIs.
-- `Main.qml` currently carries a large amount of shell coordination and is an obvious future service-boundary refactor target.
+- `Main.qml` still carries a large amount of shell coordination and is an obvious future service-boundary refactor target.
 
 ## Design principles
 
 Colosseum is being built around a few recurring rules:
 
 - **Each medium gets the surface it needs.** A book detail page should not be a recolored movie page.
-- **Separate catalogue from delivery.** LOCG owns comic identity and issue structure; GetComics supplies downloadable issue and collected-edition archives.
-- **Match conservatively.** A missing or ambiguous GetComics attachment stays unavailable instead of quietly opening the wrong comic.
-- **Download-fed reading.** Manga, comics, and books are persisted locally before their readers open them.
-- **One identity, many surfaces.** Continue, Downloads, and Sessions connect the worlds without erasing their differences.
-- **Native engines behind declarative UI.** QML owns presentation; C++ owns the parts that need durable state, files, processes, or native integration.
+- **Separate discovery from local ownership.** Remote sources identify or deliver media; Colosseum's readers and players resume durable local/session state.
+- **Match conservatively.** A missing or ambiguous source match stays unavailable instead of quietly opening the wrong title.
+- **Download-fed reading.** Manga, comics, ebooks, and audiobooks are persisted locally before their dedicated reader/player opens them.
+- **One identity, many surfaces.** Continue, Downloads, Search History, Universes, and Sessions connect the worlds without erasing their differences.
+- **Native engines behind declarative UI.** QML owns presentation; C++ owns durable state, files, processes, TTS, transport, and native integration.
 - **Progressive honesty.** A slow or blocked source should show partial data, a cooldown, or a real empty state rather than fabricated content.
 - **The shell is part of the product.** Wallpapers, sessions, taskbar behavior, and cross-medium universes are not ornamental wrappers around three catalogs.
