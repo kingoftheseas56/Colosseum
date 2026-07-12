@@ -9,16 +9,13 @@ Write-Host "test_scroll_glide_p0 PASS"
 
 $root = Split-Path -Parent $PSScriptRoot
 $bar = Get-Content (Join-Path $root "qml/HouseScrollBar.qml") -Raw
-if ($bar -notlike "*HoverHandler*") { throw "HouseScrollBar must reveal from edge hover, not from normal scroll." }
-if ($bar -like "*bar.active*") { throw "HouseScrollBar must not reveal from ScrollBar.active during normal wheel scroll." }
-if ($bar -notlike "*anchors.rightMargin: 0*") { throw "HouseScrollBar must attach flush to the right edge." }
-if ($bar -notlike "*id: thumb*") { throw "HouseScrollBar must draw only its own hover-revealed thumb." }
-if ($bar -notlike "*bar.visualPosition*") { throw "HouseScrollBar thumb must follow ScrollBar visualPosition." }
-if ($bar -notlike "*bar.visualSize*") { throw "HouseScrollBar thumb must size from ScrollBar visualSize." }
-if ($bar -notlike "*background: Rectangle*") { throw "HouseScrollBar must explicitly override the styled background." }
-if ($bar -notlike '*color: "transparent"*') { throw "HouseScrollBar background must be transparent." }
-if ($bar -notlike "*visible: false*") { throw "HouseScrollBar styled background/content must stay invisible." }
-if ($bar -like "*Qt.rgba(1, 1, 1, 0.34)*") { throw "HouseScrollBar must not leave a white always-visible rail/holding bar." }
+# Hemanth 2026-07-12: the hover-revealed thumb read as an ugly white bar on every page — REMOVED
+# app-wide. HouseScrollBar is now an inert, no-draw ScrollBar (pages scroll by wheel/drag). This
+# contract flipped from "only a subtle hover thumb" to "no visible bar at all" by his direct call.
+if ($bar -notlike "*ScrollBar.AlwaysOff*") { throw "HouseScrollBar must be AlwaysOff - no visible bar (removed 2026-07-12)." }
+if ($bar -like "*id: thumb*") { throw "HouseScrollBar must not draw a thumb anymore (removed 2026-07-12)." }
+if ($bar -like "*Qt.rgba(1, 1, 1, 0.46)*") { throw "HouseScrollBar must not paint the old white hover thumb." }
+if ($bar -like "*Qt.rgba(1, 1, 1, 0.34)*") { throw "HouseScrollBar must not paint the old white always-visible rail." }
 
 foreach ($f in @("WorldPage","DownloadsPage","ComicSeries","SearchSurface")) {
     $c = Get-Content (Join-Path $root "qml/$f.qml") -Raw
