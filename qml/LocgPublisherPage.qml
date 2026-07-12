@@ -5,6 +5,7 @@
 // server stops returning a full page (hasMore = items.length >= 100).
 
 import QtQuick
+import QtQuick.Controls
 import "LocgApi.js" as Locg
 
 Item {
@@ -130,6 +131,7 @@ Item {
         contentHeight: col.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: flick }   // gold sliver, same as every page
         onContentYChanged: {
             if (contentY + height > contentHeight - 400) page.fetchMore()   // near the end → load more
         }

@@ -4,6 +4,7 @@
 // up: xoxo repeats content past the real end, so a repeated first id = true end.
 
 import QtQuick
+import QtQuick.Controls
 import "XoxoApi.js" as Xoxo
 
 Item {
@@ -129,6 +130,7 @@ Item {
         contentHeight: col.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: flick }   // gold sliver, same as every page
         onContentYChanged: {
             if (contentY + height > contentHeight - 400) page.fetchMore()   // near the end → load more
         }

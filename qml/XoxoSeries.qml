@@ -11,6 +11,7 @@
 // newest-first, because its crossing advances toward index 0 (so finishing #1 goes to #2).
 
 import QtQuick
+import QtQuick.Controls
 import "XoxoApi.js" as Xoxo
 import "ComicResolve.js" as Resolve
 import "LocgApi.js" as Locg
@@ -236,6 +237,7 @@ Item {
         contentHeight: pageCol.height + 96
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: flick }   // gold sliver, same as every page
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 200 } }
 

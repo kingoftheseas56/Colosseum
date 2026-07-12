@@ -1031,6 +1031,7 @@ Window {
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: page }   // gold sliver, same as every page
 
         Column {
             id: contentCol

@@ -184,6 +184,15 @@ int main(int argc, char *argv[]) {
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QtWebEngineQuick::initialize();
 
+    // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
+    // customize a control's contentItem/background — so HouseScrollBar's overrides were IGNORED
+    // and a native white scrollbar rendered anyway (Hemanth's "ugly white bar", 2026-07-12).
+    // ScrollBar is the ONLY Controls type this app instantiates (RoundButton is a local Item
+    // component, not the Controls one), so forcing the fully-customizable Basic style has zero
+    // blast radius beyond finally letting HouseScrollBar's gold sliver take. Set via env (pure
+    // QtCore) so no QuickControls2 C++ module needs linking; must precede the QML engine.
+    qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
+
     QGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
     // App identity on the Windows taskbar / alt-tab / title: the amphitheatre glyph on a
