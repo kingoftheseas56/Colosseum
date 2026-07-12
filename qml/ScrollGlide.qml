@@ -1,7 +1,11 @@
 // ScrollGlide - the manga reader's eased wheel-scroll, extracted as a drop-in. Attach with
 // one line inside a page: `ScrollGlide { flick: theFlickable }`. Wheel notches feed an
-// accumulating target; a 240ms OutCubic animation glides contentY toward it. Touch/drag
+// accumulating target; an eased animation glides contentY toward it. Touch/drag
 // flicks pass straight through; a user drag re-bases the target.
+//
+// 2026-07-12 "extra smooth" retune (Hemanth: wheel felt rough on the hand): 240ms OutCubic
+// → 420ms OutQuint. Each notch still re-anchors FROM the live position (no input lag);
+// the longer, softer tail is what melts the notchy steps together.
 import QtQuick
 
 Item {
@@ -15,8 +19,8 @@ Item {
         id: anim
         target: glide.flick
         property: "contentY"
-        duration: 240
-        easing.type: Easing.OutCubic
+        duration: 420
+        easing.type: Easing.OutQuint
     }
 
     Connections {

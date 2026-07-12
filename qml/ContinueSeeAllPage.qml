@@ -108,6 +108,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
+        ScrollGlide { flick: page }
 
         Column {
             id: col

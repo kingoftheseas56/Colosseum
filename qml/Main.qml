@@ -1031,6 +1031,9 @@ Window {
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }   // gold sliver, same as every page
+        // the HOME page never had the eased wheel — the one surface scrolled most was the
+        // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
+        ScrollGlide { flick: page }
 
         Column {
             id: contentCol

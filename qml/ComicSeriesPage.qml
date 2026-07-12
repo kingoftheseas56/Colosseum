@@ -191,6 +191,7 @@ Item {
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: flick }   // gold sliver, same as every page
+        ScrollGlide { flick: flick }
         opacity: page.loading ? 0.0 : 1.0
         Behavior on opacity { NumberAnimation { duration: 200 } }
 

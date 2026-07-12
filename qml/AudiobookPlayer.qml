@@ -213,6 +213,7 @@ Item {
                 contentWidth: width; contentHeight: chapCol.implicitHeight
                 clip: true; boundsBehavior: Flickable.StopAtBounds
                 ScrollBar.vertical: HouseScrollBar { flick: chapScroll }
+                ScrollGlide { flick: chapScroll }
                 Column {
                     id: chapCol
                     width: chapScroll.width
