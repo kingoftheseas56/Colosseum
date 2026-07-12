@@ -28,8 +28,8 @@ QtObject {
 
         // --- configFor: the curation lookup behind every universe page ---
         var c = UDB.configFor("DC Animated Universe")
-        if (!c.seriesQueries || c.seriesQueries.indexOf("Batman: The Animated Series") === -1)
-            throw new Error("DCAU must carry curated series queries")
+        if (!c.eras || c.eras.length !== 3 || c.eras[0].era !== "Gotham")
+            throw new Error("DCAU must carry its Timmverse timeline eras")
         c = UDB.configFor("Weekly Shonen Jump")
         if (!c.readQueries || c.readQueries.length < 8)
             throw new Error("The magazine must carry its flagship read queries")
@@ -44,7 +44,7 @@ QtObject {
             throw new Error("unknown universe must yield an empty config")
 
         // --- the collection: 12 live universes, every banner on a pinned host ---
-        if (UDB.universes.length !== 12) throw new Error("expected 12 universes, got " + UDB.universes.length)
+        if (UDB.universes.length !== 21) throw new Error("expected 21 universes, got " + UDB.universes.length)
         var pinned = ["live.metahub.space", "s4.anilist.co", "upload.wikimedia.org", "image.tmdb.org"]
         for (var i = 0; i < UDB.universes.length; i++) {
             var u = UDB.universes[i]

@@ -42,8 +42,8 @@ QtObject {
             throw new Error("HP reading order must start at book one")
         if (UDB.configFor("Harry Potter").films.length !== 11)
             throw new Error("HP film canon must be exactly 11 (Wikipedia-checked: 8 HP + 3 FB)")
-        // western IPs left on the generic template must never wear the manga machinery
-        if (UDB.configFor("Star Trek").readMode !== "none") throw new Error("Star Trek must suppress the manga side")
-        if (UDB.configFor("DC Animated Universe").seriesLabel !== "Shows") throw new Error("DCAU row label must be Shows")
+        // the one-time generic holdouts now carry their own rooms
+        if (UDB.configFor("Star Trek").category !== "eras") throw new Error("Star Trek must ride the eras template (THE FLEET)")
+        if (UDB.configFor("DC Animated Universe").category !== "eras") throw new Error("DCAU must ride the eras template (THE TIMELINE)")
     }
 }

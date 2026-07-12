@@ -43,14 +43,21 @@ function normTitle(s) {
 
 // place search hits into canon-ordered slots: result[i] corresponds to canon[i], null when
 // nothing matched that canon entry (slot stays empty — honest, never a fuzzy stand-in).
+// A canon entry is a string (matched by normalized name) OR { t, id } — the id form pins
+// an exact imdb id for titles whose name-search ranks a remake first (Ghibli's Grave of
+// the Fireflies sits BEHIND its 2024 remake; the canon must not grab the remake).
 // PURE — headless-tested.
 function slotByCanon(canon, metas) {
     var slots = new Array(canon.length);
     for (var i = 0; i < canon.length; i++) {
-        var want = normTitle(canon[i]);
+        var entry = canon[i];
+        var wantId = (entry && entry.id) ? entry.id : "";
+        var want = normTitle(entry && entry.t !== undefined ? entry.t : entry);
         for (var j = 0; j < metas.length; j++) {
             var m = metas[j];
-            if (normTitle(m.name || m.title) === want) { slots[i] = m; break; }
+            if (wantId ? (m.id === wantId) : (normTitle(m.name || m.title) === want)) {
+                slots[i] = m; break;
+            }
         }
     }
     return slots;
