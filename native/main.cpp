@@ -83,10 +83,16 @@ protected:
             }
         }
 
-        // Respect a User-Agent the caller already set (the QML XHR sets a browser UA for sources
-        // like Fandom / MediaWiki that 403 a bot UA); only stamp our own when none was provided.
+        // Stamp a browser UA on every request that doesn't carry one. The old comment here
+        // claimed QML XHRs set their own browser UA — they never could: User-Agent is a
+        // restricted XHR header Qt silently DROPS, so every QML request actually went out as
+        // "Colosseum/0.1". That identity started 403-ing at LOCG (2026-07-12, "LOCG OFFLINE")
+        // and is the long-suspected Fandom-images failure. The browser UA is the fix at the
+        // one layer that CAN set it. (C++ engines run their own NAMs and set their own UA.)
         if (r.header(QNetworkRequest::UserAgentHeader).isNull())
-            r.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum/0.1"));
+            r.setRawHeader("User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
         r.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                        QNetworkRequest::NoLessSafeRedirectPolicy);
         r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);

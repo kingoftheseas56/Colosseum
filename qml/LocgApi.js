@@ -183,7 +183,6 @@ function parseSeriesDetail(json_or_fragment) {
 
 // ── polite spaced queue. fetchFn/delayFn INJECTED (Main.qml sets real XHR + a Timer spacer;
 //    tests set fakes) so the module stays pure/testable — the injected-clock lesson. ──
-var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
 var SPACING_MS = 500;
 var fetchFn = null;                          // function(url, cb(bodyOrNull))
 var delayFn = function(ms, cb) { cb(); };    // Main.qml overrides with a Timer-backed spacer
@@ -198,7 +197,7 @@ function _defaultFetch(url, cb) {
         cb((xhr.status >= 200 && xhr.status < 300) ? xhr.responseText : null);
     };
     xhr.open("GET", url);
-    xhr.setRequestHeader("User-Agent", UA);
+    // (no User-Agent here: QML XHR silently drops it - the NAM stamps the browser UA, main.cpp)
     xhr.setRequestHeader("X-Requested-With", "XMLHttpRequest");
     xhr.send();
 }

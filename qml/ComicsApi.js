@@ -15,7 +15,6 @@ var ITUNES = "https://itunes.apple.com/search";
 
 // A browser UA on every call — the engine NAM stamps "Colosseum/0.1" otherwise,
 // which Cloudflare-fronted hosts throttle much sooner (the Fandom-UA lesson).
-var UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36";
 
 // ── GetComics request queue ──
 // The WP API 429s bursts HARD (harness-proven 2026-07-04: even 2-concurrent trips
@@ -59,7 +58,7 @@ function _gcFire(job) {
         try { job.d(out, tp, tot); } finally { _gcPump(); }
     };
     xhr.open("GET", job.u);
-    xhr.setRequestHeader("User-Agent", UA);
+    // (no User-Agent here: QML XHR silently drops it - the NAM stamps the browser UA, main.cpp)
     xhr.send();
 }
 
@@ -72,7 +71,7 @@ function reqJson(url, done) {
         try { done(JSON.parse(xhr.responseText)); } catch (e) { done(null); }
     };
     xhr.open("GET", url);
-    xhr.setRequestHeader("User-Agent", UA);
+    // (no User-Agent here: QML XHR silently drops it - the NAM stamps the browser UA, main.cpp)
     xhr.send();
 }
 
