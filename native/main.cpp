@@ -36,7 +36,6 @@
 #include "SessionStore.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
-#include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
@@ -334,18 +333,6 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
-
-    // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
-    // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
-    // (from AudioBookBay) downloads its audio files to <appdata>/audiobooks, keyed
-    // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
-    auto *audiobooks = new AudiobookDownloader(dlNam, stream, &app);
-    engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
-    if (qEnvironmentVariableIsSet("COLOSSEUM_ABB_DLTEST")) {
-        const QString spec = qEnvironmentVariable("COLOSSEUM_ABB_DLTEST");   // "<pairKey>|<infoHash>"
-        const int bar = spec.lastIndexOf(QChar('|'));
-        if (bar > 0) audiobooks->selfTest(spec.left(bar), spec.mid(bar + 1));
-    }
 
     // Cast session state exposed to QML as `Cast`. Network discovery/control is the
     // later backend; this slice gives the player real device/session state today.
