@@ -1,0 +1,20 @@
+import fs from 'fs';
+let src = fs.readFileSync('qml/AbbApi.js','utf8').replace(/^\.pragma library\s*$/m,'');
+const mod = {};
+const fn = new Function('module', src + '\nmodule.parseSearch=parseSearch;module.parseDetail=parseDetail;module.constructMagnet=constructMagnet;');
+fn(mod);
+const searchHtml = fs.readFileSync('tests/fixtures/abb/search.html','utf8');
+const detailHtml = fs.readFileSync('tests/fixtures/abb/detail.html','utf8');
+let rows = mod.parseSearch(searchHtml);
+function fail(m){ console.log("FAIL "+m); process.exit(1); }
+if (rows.length !== 7) fail("expected 7 rows, got "+rows.length+" (honeypot leak?)");
+rows.forEach((r,i)=>{ if(!r.slug) fail("row "+i+" no slug"); if(!r.title) fail("row "+i+" no title"); });
+if (!rows.some(r=>r.author.indexOf("Sanderson")>=0)) fail("author split");
+let d = mod.parseDetail(detailHtml);
+if (d.infoHash !== "1d32f8b449ebe0d63b9d08ba6e86525ff17baa3d") fail("infoHash: "+d.infoHash);
+let mag = mod.constructMagnet(d.infoHash, "Rhythm of War");
+if (mag.indexOf("magnet:?xt=urn:btih:"+d.infoHash)!==0) fail("magnet prefix");
+if ((mag.match(/&tr=/g)||[]).length !== 7) fail("tracker count");
+console.log("PASS rows="+rows.length+" hash="+d.infoHash+" contents='"+d.contents+"'");
+console.log("  sample: '"+rows[0].title+"' by '"+rows[0].author+"' ["+rows[0].size+", "+rows[0].format+"]");
+process.exit(0);
