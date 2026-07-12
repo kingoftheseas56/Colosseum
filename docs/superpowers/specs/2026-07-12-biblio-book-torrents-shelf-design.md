@@ -39,22 +39,32 @@ Port from `~/Desktop/Tankoban 2/src/core/`:
 
 - `TankorentSearchService.{h,cpp}` — the headless fan-out. `startSearch(mediaType,
   sourceFilter, query, limit)` → per-indexer `resultsReady` / `indexerError` /
-  `searchFinished(handle)`. Media-type router already knows **books**:
-  its allowlist (`kMediaTypeIndexers`) is `{ piratebay, exttorrents, torrentscsv, 1337x }`.
-- The four book indexers from `src/core/indexers/`: `PirateBayIndexer`,
-  `ExtTorrentsIndexer`, `TorrentsCsvIndexer`, `X1337xIndexer` (+ the `TorrentIndexer`
-  base). PirateBay uses apibay.org JSON; the others parse HTML.
+  `searchFinished(handle)`. Media-type router already knows **books**; we trim its
+  allowlist (`kMediaTypeIndexers`) to the three keyless, CF-free indexers `{ piratebay,
+  exttorrents, torrentscsv }`.
+- **Three** book indexers from `src/core/indexers/`: `PirateBayIndexer`,
+  `ExtTorrentsIndexer`, `TorrentsCsvIndexer` (+ the `TorrentIndexer` base). PirateBay
+  uses apibay.org JSON; the others parse HTML.
+- **`X1337xIndexer` is deliberately NOT ported.** It `#include`s
+  `CloudflareCookieHarvester.h`, which is `QWebEngineView`-backed — hidden-browser CF
+  harvesting, banned by house doctrine and not linked by the colosseum target. It cannot
+  be ported without importing a banned WebEngine path. Park it. (Pre-flight review, 2026-07-13.)
 - `TorrentResult` (`src/core/TorrentResult.h`) — carries `title`, `seeders`,
   `leechers`, `sizeBytes`, `infoHash`, `magnetUri`, `sourceName`, `detailsUrl`,
   `category`, plus `humanSize()` and `buildMagnet()` helpers. Ports verbatim.
 
-**Doctrine the ported HTTP must inherit** (C++ side, so mostly automatic — but
-verified):
-- **IPv4-pinned NAM** (the 21-second IPv6 black-hole stall fix) — indexer requests use
-  the app's IPv4-pinning NAM factory, not a bare `QNetworkAccessManager`.
-- **Real User-Agent** stamped on every request. (A1's 2026-07-12 finding was that QML
-  *XHR* silently drops `setRequestHeader` — this is exactly why search stays **native
-  C++**, not QML XHR: the C++ `QNetworkRequest` UA is honored.)
+**Doctrine the ported HTTP must inherit.** Search rides a **dedicated `CachingNam`
+built with `useCache = false`** (a new backward-compatible flag) — reusing the app's
+proven pinning NAM but without its image cache:
+- **IPv4-pinned** (the 21-second IPv6 black-hole stall fix) — the 3 indexer hosts
+  (apibay.org, extto.org, torrents-csv.com) are added to `pinnedHosts` so `CachingNam`
+  rewrites them to IPv4 (Host header + `peerVerifyName`, TLS intact).
+- **Real User-Agent** — `CachingNam` already stamps a browser UA when a request carries
+  none (search stays **native C++**, not QML XHR, so the UA is honored — A1's 2026-07-12
+  finding that QML XHR silently drops `setRequestHeader` is exactly why).
+- **Uncached / live** — `useCache = false` skips the disk cache and the `PreferCache`
+  attribute, so seeder counts are never served stale (the image NAM's `PreferCache` would
+  freeze them). Torrent bytes use the separate uncached `dlNam`. (Pre-flight review, 2026-07-13.)
 
 ### Part 2 — Rank (new, pure, testable)
 
@@ -76,8 +86,9 @@ QList<TorrentResult> rank(query{title,author}, QList<TorrentResult> raw)
    matches the title may legitimately top the shelf; it just gets a badge and a
    single-file pull.
 5. **Format guess** per row (for the pill): inferred from the torrent title's suffix
-   when present (`epub`/`pdf`/`mobi`/`azw3`/`djvu`/`fb2`); `EBOOK` when unknown. The
-   *authoritative* format is only known at download time from the manifest.
+   when present (`epub`/`pdf`/`mobi`/`azw3`/`fb2`); `EBOOK` when unknown. The
+   *authoritative* format is only known at download time from the manifest. (`djvu` is
+   excluded from the downloadable ebook set — the foliate reader has no DJVU backend.)
 
 ### Part 3 — Download (new sibling, Stremio-fed)
 
@@ -100,9 +111,12 @@ Flow (mirrors `AudiobookDownloader` Transport steps 1–3):
    timeout + bounded retry — the exact hardening from the audiobook fixes.
 2. `POST <base>/<infoHash>/create` → `{ files:[{path,name,length,offset}] }`.
 3. **Best-file selection** (pure, testable — the "pull one file" logic):
-   - Filter `files[]` to ebook extensions (`epub, pdf, mobi, azw3, azw, djvu, fb2`).
-   - Score each filename against `{title, author}` (token overlap), tie-break by format
-     preference (`epub` > `mobi`/`azw3`/`azw` > `pdf` > `djvu`/`fb2`).
+   - Filter `files[]` to renderable ebook extensions (`epub, pdf, mobi, azw3, fb2` —
+     **no `djvu`**, the reader can't open it).
+   - Score each filename with **title tokens separated from author tokens** (a whole-title
+     stem exact-match wins; author is only a final tie-break — so a same-author sequel
+     doesn't outscore the exact title), tie-break by format (`epub` > `mobi`/`azw3` >
+     `pdf` > `fb2`).
    - Pick the **single** highest-scoring file. Zero ebook files → **honest fail**
      (`failed(infoHash, "no ebook file in torrent")`), never a silent hang.
 4. Stream **only that one** `fileIdx` complete (plain GET, no Range) to
@@ -113,7 +127,7 @@ QML-facing surface on `BookTorrents` (one facade over the three parts):
 
 ```
 Q_INVOKABLE void search(title, author)          // → resultsReady / searchFinished
-Q_INVOKABLE void download(infoHash, title, author, magnet)
+Q_INVOKABLE void download(infoHash, title, author)
 Q_INVOKABLE bool   isDownloaded(infoHash)
 Q_INVOKABLE QString localFile(infoHash)          // path, or "" — reader opens this
 Q_INVOKABLE QVariantMap statusOf(infoHash)
@@ -122,8 +136,11 @@ signals: resultsReady(QVariantList rankedRows); searchFinished()
          finished(infoHash, path); failed(infoHash, why)
 ```
 
-Registered in `native/main.cpp` right after `Audiobooks` (uses the same `dlNam`
-uncached NAM + the `stream` engine; search half uses the IPv4-pinned NAM).
+The facade connects the search service's signals **once** (member slots, not per-search
+lambdas) and guards results by the active handle — one shared `BookTorrents` instance
+serves every book page, so opening book B supersedes book A's in-flight search cleanly.
+Registered in `native/main.cpp` right after `Audiobooks` (the `stream` engine + the
+uncached `dlNam` for bytes; the search half gets its own pinned **uncached** `CachingNam`).
 
 ## The shelf (QML — `BiblioBook.qml`)
 
@@ -175,9 +192,10 @@ complement above it for what LibGen misses.
 
 ## Honest risks (verify, don't hand-wave)
 
-- **Indexer rot** — the four indexers were last touched in TB2 months ago; domains and
-  markup drift. Each gets a live on-port smoke during the build. Expected outcome: some
-  subset alive, ship those, disable the dead ones with a note.
+- **Indexer rot** — the three indexers were last touched in TB2 months ago; domains and
+  markup drift. Each gets a live on-port smoke (on the production pinned NAM, so a slow
+  host isn't falsely called dead) during the build. Expected outcome: some subset alive,
+  ship those, disable the dead ones with a note.
 - **Book swarms die** more than video/audiobook swarms — expect a higher "matched in the
   index but 0 seeders / dead" rate. Fast-fail machinery handles it; the user feels it as
   an honest "not available" on some rows, and LibGen below still delivers.
@@ -195,10 +213,10 @@ complement above it for what LibGen misses.
 
 ## Ported-file manifest (for the plan)
 
-From `~/Desktop/Tankoban 2/src/core/` → Colosseum `native/`:
-`TorrentResult.h`, `TankorentSearchService.{h,cpp}`, `indexers/TorrentIndexer.*`,
+From `~/Desktop/Tankoban 2/src/core/` → Colosseum `native/torrent/`:
+`TorrentResult.h`, `TankorentSearchService.{h,cpp}`, `TorrentIndexer.*`,
 `indexers/PirateBayIndexer.*`, `indexers/ExtTorrentsIndexer.*`,
-`indexers/TorrentsCsvIndexer.*`, `indexers/X1337xIndexer.*`.
+`indexers/TorrentsCsvIndexer.*`. (**No `X1337xIndexer`** — CF-harvester/WebEngine, banned.)
 New: `BookTorrentRanker.{h,cpp}` (pure), `BookTorrentDownloader.{h,cpp}`,
 `BookTorrents` facade, QML shelf in `BiblioBook.qml`, `main.cpp` registration,
 CMakeLists entries (grep-verify around brothers' hunks — shared-file collision rule).
