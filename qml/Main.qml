@@ -999,12 +999,12 @@ Window {
             topPadding: 10
             spacing: 30
 
-            // ---- 2. UNIVERSE HERO — "the Exhibit" (spec: haven docs/superpowers/specs/
-            //      2026-07-12-colosseum-universe-exhibit-hero-design.md, mock rev 3 ratified).
-            //      Words on a SOLID matte column (bright photo banners defeated text-over-art —
-            //      Atlas lesson); the banner is a FRAMED CANVAS, never a text backdrop. A pure
-            //      carousel: auto-turns (6.5s) + native swipe. NO dots, NO tabs, NO timer bar,
-            //      NO media counts (all ratified out, 2026-07-12).
+            // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
+            //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
+            //      how it was initially"). What STAYS ratified-out from the redesign round:
+            //      NO dots, NO tabs, NO timer bar, NO media-count chips. A pure carousel —
+            //      auto-turns (6.5s) + native swipe. Spec trail: haven docs/superpowers/specs/
+            //      2026-07-12-colosseum-universe-exhibit-hero-design.md (+ this final rev).
             Glass {
                 id: hero
                 backdrop: wall
@@ -1018,91 +1018,15 @@ Window {
                     clip: true
                     Repeater {
                         model: Universes.universes
-                        delegate: Rectangle {
+                        delegate: Item {
                             id: slide
                             required property var modelData
-                            radius: hero.radius; clip: true
-                            color: "transparent"
 
-                            // ---- the matte: opaque column — words live here, never on art ----
+                            // banner key-art full-bleed; the IP color stands in while it loads,
+                            // then the left-weighted scrim keeps the words legible (proven look)
                             Rectangle {
-                                id: matte
-                                anchors.left: parent.left; anchors.top: parent.top; anchors.bottom: parent.bottom
-                                width: parent.width * 0.40
-                                gradient: Gradient {
-                                    GradientStop { position: 0; color: "#171922" }
-                                    GradientStop { position: 1; color: "#12141b" }
-                                }
-                                Rectangle {   // hairline seam against the frame
-                                    anchors.right: parent.right
-                                    width: 1; height: parent.height
-                                    color: Qt.rgba(0.97, 0.97, 0.96, 0.07)
-                                }
-
-                                Text {
-                                    id: kicker
-                                    anchors.left: parent.left; anchors.leftMargin: 38
-                                    anchors.top: parent.top; anchors.topMargin: 34
-                                    text: "UNIVERSE"; color: theme.gold
-                                    font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3
-                                }
-                                Text {
-                                    id: heroTitle
-                                    anchors.left: parent.left; anchors.leftMargin: 38
-                                    anchors.right: parent.right; anchors.rightMargin: 30
-                                    anchors.top: kicker.bottom; anchors.topMargin: 14
-                                    text: slide.modelData.name
-                                    color: theme.ink; font.family: theme.display; font.pixelSize: 54
-                                    elide: Text.ElideRight
-                                }
-                                Text {
-                                    anchors.left: parent.left; anchors.leftMargin: 38
-                                    anchors.top: heroTitle.bottom; anchors.topMargin: 12
-                                    width: Math.min(matte.width - 68, 380)
-                                    text: slide.modelData.blurb
-                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                                    lineHeight: 1.25; wrapMode: Text.WordWrap
-                                }
-
-                                // Explore — pinned to the matte floor (interaction unchanged)
-                                Rectangle {
-                                    anchors.left: parent.left; anchors.leftMargin: 38
-                                    anchors.bottom: parent.bottom; anchors.bottomMargin: 28
-                                    radius: 12; height: 46; width: exploreRow.implicitWidth + 44
-                                    gradient: Gradient {
-                                        GradientStop { position: 0; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                                        GradientStop { position: 1; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
-                                    }
-                                    border.width: 1
-                                    border.color: exMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
-                                    Behavior on border.color { ColorAnimation { duration: 160 } }
-                                    Row {
-                                        id: exploreRow; anchors.centerIn: parent; spacing: 10
-                                        Text { text: "Explore the universe"; color: theme.ink
-                                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                            anchors.verticalCenter: parent.verticalCenter }
-                                        Text { text: "→"; color: theme.gold; font.pixelSize: 16
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            transform: Translate { x: exMa.containsMouse ? 3 : 0 } }
-                                    }
-                                    MouseArea {
-                                        id: exMa; anchors.fill: parent
-                                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                        onClicked: win.openUniverse(Universes.universes[heroView.currentIndex].name)
-                                    }
-                                }
-                            }
-
-                            // ---- the framed canvas: art as an exhibit — no text on it, ever ----
-                            Rectangle {
-                                id: canvas
-                                anchors.left: matte.right; anchors.right: parent.right
-                                anchors.top: parent.top; anchors.bottom: parent.bottom
-                                anchors.margins: 14
-                                radius: 14; clip: true
+                                anchors.fill: parent; radius: hero.radius; clip: true
                                 color: slide.modelData.c1 ? slide.modelData.c1 : "#1a1410"
-                                border.width: 1
-                                border.color: Qt.rgba(0.97, 0.97, 0.96, 0.14)
                                 Image {
                                     anchors.fill: parent
                                     source: slide.modelData.banner
@@ -1110,6 +1034,54 @@ Window {
                                     fillMode: Image.PreserveAspectCrop
                                     opacity: status === Image.Ready ? 1 : 0
                                     Behavior on opacity { NumberAnimation { duration: 300 } }
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.86) }
+                                        GradientStop { position: 0.52; color: Qt.rgba(0,0,0,0.42) }
+                                        GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.06) }
+                                    }
+                                }
+                            }
+
+                            // content over the scrim (chips row retired — ratified 2026-07-12)
+                            Column {
+                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
+                                spacing: 12
+                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                Text {
+                                    text: slide.modelData.blurb
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; width: 500; wrapMode: Text.WordWrap
+                                }
+                                Row {
+                                    spacing: 12; topPadding: 6
+                                    Rectangle {
+                                        radius: 12; height: 46; width: exploreRow.implicitWidth + 44
+                                        gradient: Gradient {
+                                            GradientStop { position: 0; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                                            GradientStop { position: 1; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                                        }
+                                        border.width: 1
+                                        border.color: exMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                                        Behavior on border.color { ColorAnimation { duration: 160 } }
+                                        Row {
+                                            id: exploreRow; anchors.centerIn: parent; spacing: 10
+                                            Text { text: "Explore the universe"; color: theme.ink
+                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                anchors.verticalCenter: parent.verticalCenter }
+                                            Text { text: "→"; color: theme.gold; font.pixelSize: 16
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                transform: Translate { x: exMa.containsMouse ? 3 : 0 } }
+                                        }
+                                        MouseArea {
+                                            id: exMa; anchors.fill: parent
+                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: win.openUniverse(Universes.universes[heroView.currentIndex].name)
+                                        }
+                                    }
                                 }
                             }
                         }

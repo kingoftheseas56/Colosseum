@@ -15,9 +15,10 @@ function Assert-Lacks($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
 
-# the Exhibit is in
-Assert-Contains $main 'id: matte' "Hero must carry the opaque matte column (words never sit on art)."
-Assert-Contains $main 'id: canvas' "Hero must frame the banner as a canvas."
+# final ratified shape (2026-07-12): FULL-BLEED banner + left scrim ("full banner, just like
+# how it was initially") — the framed-canvas/matte round is superseded; the chrome cuts stay.
+Assert-Contains $main 'orientation: Gradient.Horizontal' "Hero must keep the left-weighted scrim over the full-bleed banner."
+Assert-Lacks $main 'id: matte' "The opaque matte column is superseded (full-bleed restored)."
 Assert-Contains $main 'id: heroView' "Hero must keep the SwipeView (native swipe = the only manual nav)."
 # NOTE: -like treats [] as a wildcard char class, so the needle avoids the index brackets
 Assert-Contains $main 'onClicked: win.openUniverse(Universes.universes' "Explore must still route to openUniverse."
