@@ -9,11 +9,13 @@ Write-Host "test_scroll_glide_p0 PASS"
 
 $root = Split-Path -Parent $PSScriptRoot
 $bar = Get-Content (Join-Path $root "qml/HouseScrollBar.qml") -Raw
-# Hemanth 2026-07-12: the hover-revealed thumb read as an ugly white bar on every page — REMOVED
-# app-wide. HouseScrollBar is now an inert, no-draw ScrollBar (pages scroll by wheel/drag). This
-# contract flipped from "only a subtle hover thumb" to "no visible bar at all" by his direct call.
-if ($bar -notlike "*ScrollBar.AlwaysOff*") { throw "HouseScrollBar must be AlwaysOff - no visible bar (removed 2026-07-12)." }
-if ($bar -like "*id: thumb*") { throw "HouseScrollBar must not draw a thumb anymore (removed 2026-07-12)." }
+# Hemanth 2026-07-12: white slab REMOVED, then he asked for a subtle GOLD sliver that shows only
+# while actively scrolling. Contract now: a thin gold thumb, motion-revealed (flick.moving), no white.
+if ($bar -notlike "*id: thumb*") { throw "HouseScrollBar must draw its gold sliver thumb." }
+if ($bar -notlike "*color: theme.gold*") { throw "HouseScrollBar thumb must be gold, not white." }
+if ($bar -notlike "*flick.moving*") { throw "HouseScrollBar must reveal from scroll motion (flick.moving/flicking), not always-on." }
+if ($bar -notlike "*bar.visualPosition*") { throw "HouseScrollBar thumb must follow ScrollBar visualPosition." }
+if ($bar -notlike "*bar.visualSize*") { throw "HouseScrollBar thumb must size from ScrollBar visualSize." }
 if ($bar -like "*Qt.rgba(1, 1, 1, 0.46)*") { throw "HouseScrollBar must not paint the old white hover thumb." }
 if ($bar -like "*Qt.rgba(1, 1, 1, 0.34)*") { throw "HouseScrollBar must not paint the old white always-visible rail." }
 
