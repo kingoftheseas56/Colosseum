@@ -20,6 +20,9 @@ Item {
     property var files: []                 // ordered local audio file paths
     property int currentIndex: 0
     property bool ready: false
+    // A resume position parked until the file finishes loading. A seekExact issued
+    // before mpv has the file open is a no-op, so cold-resume must wait for onFileLoaded.
+    property real pendingResumeSec: -1
 
     signal backRequested()
     signal minimizeRequested()
@@ -71,6 +74,7 @@ Item {
         player.currentIndex = 0
         player.ready = player.files.length > 0
         player.rebuildChapters()
+        player.pendingResumeSec = -1   // fresh start; restoreState parks a resume point if the session had one
         if (player.ready) {
             mpv.loadFile(player.files[0])
             // resume position rides in via restoreState after load if the session had one
@@ -78,6 +82,7 @@ Item {
     }
     function playIndex(i) {
         if (i < 0 || i >= player.files.length) return
+        player.pendingResumeSec = -1   // a deliberate jump cancels any parked resume seek
         player.currentIndex = i
         mpv.loadFile(player.files[i])
         mpv.pause = false
@@ -89,7 +94,17 @@ Item {
             if (reason === "eof" && player.multiFile && player.currentIndex + 1 < player.files.length)
                 player.playIndex(player.currentIndex + 1)
         }
-        function onFileLoaded() { player.recordProgress() }
+        function onFileLoaded() {
+            // A resume seek parked before the file was open lands here (a pre-load seekExact
+            // no-ops). Apply it, then skip this record — the seek resolves async, so recording
+            // now would still stamp ~0 over the saved spot; the 10s timer records the true one.
+            if (player.pendingResumeSec > 0) {
+                mpv.seekExact(player.pendingResumeSec)
+                player.pendingResumeSec = -1
+                return
+            }
+            player.recordProgress()
+        }
     }
 
     // ── session state (minimize + Continue resume) ──
@@ -101,7 +116,10 @@ Item {
         var idx = Number(st.fileIndex) || 0
         if (idx !== player.currentIndex && idx < player.files.length) player.playIndex(idx)
         var pos = Number(st.position) || 0
-        if (pos > 0) mpv.seekExact(pos)
+        // If the file is already open (minimize/restore of the same file), seek live;
+        // otherwise park it for onFileLoaded (a pre-load seek would silently no-op).
+        if (pos > 0 && mpv.duration > 0) { mpv.seekExact(pos); player.pendingResumeSec = -1 }
+        else { player.pendingResumeSec = (pos > 0) ? pos : -1 }
     }
 
     // ── Continue/resume: record listening position (never a movie-style 90% auto-drop) ──
@@ -112,6 +130,7 @@ Item {
         return (player.currentIndex + frac) / player.files.length
     }
     function recordProgress() {
+        if (player.pendingResumeSec > 0) return   // resume not applied yet — the store's saved spot is still the truth
         if (!player.ready || typeof Progress === 'undefined' || !player.pairKey) return
         Progress.record({
             "kind": "audiobook", "id": player.pairKey,
