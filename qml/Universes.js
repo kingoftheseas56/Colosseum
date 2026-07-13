@@ -100,6 +100,56 @@ var universes = [
       movieQueries: [ "werewolf by night", "guardians of the galaxy holiday special",
                       "the punisher one last kill" ],
       chips: [ { t: "34 Films", ic: "movies" }, { t: "20 Series", ic: "movies" }, { t: "3 Specials", ic: "movies" } ] },
+    // THE COGNITIVE ATLAS — a newcomer-first map of Sanderson's connected book universe.
+    // Every query below was live-verified against Apple Books US on 2026-07-13. The author
+    // is carried in the query because Biblio.lookupBook returns the first provider hit; this
+    // makes each portal an exact Brandon Sanderson object, never a title-shaped stand-in.
+    { name: "Cosmere", c1: "#101927", category: "cosmere",
+      blurb: "Independent worlds, one hidden cosmology — choose a first doorway, then follow the light between them.",
+      banner: "https://uploads.coppermind.net/Cosmere_constellation_map.jpg",
+      chips: [ { t: "6 Systems", ic: "books" }, { t: "14 Book Portals", ic: "books" },
+               { t: "One Connected Epic", ic: "books" } ],
+      cosmereStarters: [
+        { label: "The balanced beginning", short: "MISTBORN",
+          note: "A complete fantasy heist with the clearest doorway into Sanderson's magic.",
+          query: "Mistborn The Final Empire Brandon Sanderson" },
+        { label: "The deep end", short: "STORMLIGHT",
+          note: "A vast epic for readers ready to begin with the Cosmere at full scale.",
+          query: "The Way of Kings Brandon Sanderson" },
+        { label: "The standalone voyage", short: "TRESS",
+          note: "A warm, self-contained adventure with the wider universe glinting beneath it.",
+          query: "Tress of the Emerald Sea Brandon Sanderson" }
+      ],
+      cosmereWorlds: [
+        { name: "Scadrial", epithet: "METAL · ASH · REBELLION", accent: "#b8734a",
+          books: [
+            { label: "Mistborn — Era One", query: "Mistborn The Final Empire Brandon Sanderson" },
+            { label: "Mistborn — Era Two", query: "The Alloy of Law Brandon Sanderson" }
+          ] },
+        { name: "Roshar", epithet: "STORMS · OATHS · RADIANCE", accent: "#78cfe3",
+          books: [
+            { label: "The Stormlight Archive", query: "The Way of Kings Brandon Sanderson" },
+            { label: "Edgedancer", query: "Edgedancer Brandon Sanderson" },
+            { label: "Dawnshard", query: "Dawnshard Brandon Sanderson" }
+          ] },
+        { name: "Sel", epithet: "GLYPHS · SOULS · DEVOTION", accent: "#d9e8ff",
+          books: [
+            { label: "Elantris", query: "Elantris Brandon Sanderson" },
+            { label: "The Emperor's Soul", query: "The Emperor's Soul Brandon Sanderson" }
+          ] },
+        { name: "Nalthis", epithet: "BREATH · COLOR · AWAKENING", accent: "#d688b4",
+          books: [ { label: "Warbreaker", query: "Warbreaker Brandon Sanderson" } ] },
+        { name: "Taldain", epithet: "SAND · SUN · MASTERY", accent: "#e5c77c",
+          books: [ { label: "White Sand", query: "White Sand Brandon Sanderson" } ] },
+        { name: "Farther Worlds", epithet: "OCEANS · DREAMS · STARLIGHT", accent: "#8ec7b5",
+          books: [
+            { label: "Tress of the Emerald Sea", query: "Tress of the Emerald Sea Brandon Sanderson" },
+            { label: "Yumi and the Nightmare Painter", query: "Yumi and the Nightmare Painter Brandon Sanderson" },
+            { label: "The Sunlit Man", query: "The Sunlit Man Brandon Sanderson" },
+            { label: "Isles of the Emberdark", query: "Isles of the Emberdark Brandon Sanderson" },
+            { label: "Arcanum Unbounded", query: "Arcanum Unbounded Brandon Sanderson" }
+          ] }
+      ] },
     { name: "Harry Potter", c1: "#221c30", category: "saga",
       blurb: "The Wizarding World — Rowling's seven novels, the eight films, and the Fantastic Beasts era beyond.",
       banner: "https://live.metahub.space/background/medium/tt1201607/img",
