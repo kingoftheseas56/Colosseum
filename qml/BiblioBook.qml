@@ -417,18 +417,13 @@ Item {
                                 }
                                 Rectangle { anchors.fill: parent; color: torMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
-                                Rectangle {                      // format pill
-                                    id: torPill
-                                    anchors.left: parent.left; anchors.leftMargin: 18
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    width: Math.max(54, fmtTt.implicitWidth + 16); height: 24; radius: 7
-                                    color: "transparent"; border.width: 1; border.color: theme.edge
-                                    Text { id: fmtTt; anchors.centerIn: parent; text: torRow.modelData.format
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
-                                        font.weight: Font.Bold; font.letterSpacing: 0.8 }
-                                }
+                                // No format pill on torrents: a torrent is an opaque bundle,
+                                // so any format tag is a title-guess (often wrong) — and after
+                                // the readable-book filter every row here is an ebook anyway.
+                                // (Hemanth 2026-07-13.) The EDITIONS shelf keeps its tag — that
+                                // one comes from LibGen's real per-file metadata.
                                 Column {                         // title + metadata
-                                    anchors.left: torPill.right; anchors.leftMargin: 14
+                                    anchors.left: parent.left; anchors.leftMargin: 18
                                     anchors.right: torInd.left; anchors.rightMargin: 12
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 3

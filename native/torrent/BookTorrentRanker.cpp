@@ -50,6 +50,63 @@ bool BookTorrentRanker::looksLikePack(const QString& title, qint64 sizeBytes){
     return oversize;
 }
 
+namespace {
+enum class MediaKind { Book, Audio, Video, NonBook, Unknown };
+
+// Tankorent's indexers already stamp each hit with the source site's own
+// category. Trust it: PirateBay uses numeric buckets (1xx audio incl. 102
+// audiobooks, 2xx video, 3/4/5xx apps/games/porn, 6xx e-books/comics/other);
+// ExtTorrents uses word labels. Torrents-CSV returns none → Unknown, gated by
+// the title below.
+MediaKind kindFromCategory(const TorrentResult& r){
+    const QString sk = r.sourceKey.toLower();
+    if (sk == "piratebay" && !r.categoryId.isEmpty()){
+        switch (r.categoryId.at(0).toLatin1()){
+            case '1': return MediaKind::Audio;
+            case '2': return MediaKind::Video;
+            case '3': case '4': case '5': return MediaKind::NonBook;
+            case '6': return MediaKind::Book;
+            default:  return MediaKind::Unknown;
+        }
+    }
+    if (sk == "exttorrents" && !r.category.isEmpty()){
+        const QString c = r.category.toLower();
+        if (c == "books")   return MediaKind::Book;
+        if (c == "music")   return MediaKind::Audio;
+        if (c == "movies" || c == "tv" || c == "documentaries") return MediaKind::Video;
+        if (c == "xxx")     return MediaKind::NonBook;
+        return MediaKind::Unknown;   // "Other"/"Games"/"Apps"/"Anime" → title-gated
+    }
+    return MediaKind::Unknown;
+}
+
+// High-precision title signals — only tokens that are near-exclusive to audio
+// or video releases, so a genuine e-book is never dropped by a stray word.
+MediaKind kindFromTitle(const QString& title){
+    const QString t = title.toLower();
+    static const QRegularExpression audioRe(
+        "\\b(audiobooks?|audio book|unabridged|abridged|mp3|m4b|m4a|aax|\\d{2,3}\\s?kbps)\\b");
+    if (audioRe.match(t).hasMatch()) return MediaKind::Audio;
+    static const QRegularExpression videoRe(
+        "\\b(1080p|720p|2160p|480p|blu-?ray|bd-?rip|br-?rip|web-?rip|web-?dl|hd-?tv|"
+        "hd-?rip|dvd-?rip|x264|x265|h ?264|h ?265|hevc|xvid|s\\d{1,2}e\\d{1,2})\\b");
+    if (videoRe.match(t).hasMatch()) return MediaKind::Video;
+    return MediaKind::Unknown;
+}
+} // namespace
+
+bool BookTorrentRanker::isReadableBook(const TorrentResult& r){
+    // A title that says "Audiobook"/"S01E01" beats a coarse or missing category —
+    // check it first so an audiobook filed under a generic bucket still drops.
+    const MediaKind tk = kindFromTitle(r.title);
+    if (tk == MediaKind::Audio || tk == MediaKind::Video) return false;
+    const MediaKind ck = kindFromCategory(r);
+    if (ck == MediaKind::Audio || ck == MediaKind::Video || ck == MediaKind::NonBook)
+        return false;
+    // Book, or Unknown with no disqualifying signal → keep on the reading shelf.
+    return true;
+}
+
 QString BookTorrentRanker::guessFormat(const QString& title){
     const QString t = title.toLower();
     struct { const char* ext; const char* label; } m[] = {
@@ -76,9 +133,18 @@ QList<RankedTorrent> BookTorrentRanker::rank(const QString& title, const QString
         rt.formatGuess = guessFormat(r.title);
         out.push_back(rt);
     }
-    std::sort(out.begin(), out.end(), [](const RankedTorrent& a, const RankedTorrent& b){
-        if (a.matchTier != b.matchTier) return a.matchTier > b.matchTier;   // best match first
-        return a.src.seeders > b.src.seeders;                               // then most seeders
+    // Merge "title-leading" (tier 3) and "all-title-tokens" (tier 2) into ONE bucket:
+    // for the SAME book, "A Game of Thrones - GRRM" and "GRRM - A Game of Thrones" are
+    // equally the book — only word order differs — so seeders (the load-bearing
+    // availability signal for a torrent) must decide between them, not that spurious
+    // gap. Exact (4) stays on top so a high-seed prefix superset (e.g. a "Dune Messiah"
+    // sequel) can't leapfrog the exact "Dune"; partial (1) and none (0) stay below.
+    // (Hemanth 2026-07-13: high-seeded torrents were sinking beneath 1-seed matches.)
+    auto matchBucket = [](int tier){ return tier == 3 ? 2 : tier; };
+    std::sort(out.begin(), out.end(), [&](const RankedTorrent& a, const RankedTorrent& b){
+        const int ba = matchBucket(a.matchTier), bb = matchBucket(b.matchTier);
+        if (ba != bb) return ba > bb;              // stronger match first
+        return a.src.seeders > b.src.seeders;      // within a bucket, most seeders first
     });
     return out;
 }

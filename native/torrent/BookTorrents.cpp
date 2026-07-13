@@ -45,6 +45,8 @@ void BookTorrents::onSearchDone(const QString& handle)
     QVariantList rows;
     for (const auto& rt : ranked) {
         if (rt.src.infoHash.isEmpty()) continue;    // undownloadable without a hash
+        if (!BookTorrentRanker::isReadableBook(rt.src)) continue;   // reading shelf = readable books only;
+                                                                    // audiobooks/video have no reader here
         QVariantMap m;
         m[QStringLiteral("title")]     = rt.src.title;
         m[QStringLiteral("infoHash")]  = rt.src.infoHash;

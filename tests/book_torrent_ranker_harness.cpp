@@ -58,5 +58,71 @@ int main(){
     auto r9 = BookTorrentRanker::rank("Dune","",h);
     require(r9.first().formatGuess=="EPUB", "format guessed from .epub in title");
 
+    // ── isReadableBook: the reading shelf keeps ebooks, drops audiobooks/video ──
+    // Tankorent already classifies by category; a clean helper so an audiobook
+    // never masquerades as an epub on the download-to-read shelf.
+    auto mkc = [](const QString& title, const QString& sourceKey,
+                  const QString& catId, const QString& cat){
+        TorrentResult r; r.title=title; r.seeders=10; r.infoHash="h";
+        r.sourceKey=sourceKey; r.categoryId=catId; r.category=cat; return r;
+    };
+
+    // 10) Audiobook betrayed by its title (no category) -> NOT readable
+    require(!BookTorrentRanker::isReadableBook(
+                mk("A Game of Thrones George R R Martin 2003 Audiobook Fantasy",5,"ab")),
+            "audiobook title dropped from reading shelf");
+
+    // 11) PirateBay Audio category (102) -> NOT readable even with a clean title
+    require(!BookTorrentRanker::isReadableBook(
+                mkc("A Song of Ice and Fire","piratebay","102","Audio")),
+            "piratebay audio category (102) dropped");
+
+    // 12) PirateBay E-books category (601) -> readable
+    require(BookTorrentRanker::isReadableBook(
+                mkc("A Game of Thrones","piratebay","601","Other")),
+            "piratebay e-books category (601) kept");
+
+    // 13) Video release betrayed by its title -> NOT readable
+    require(!BookTorrentRanker::isReadableBook(
+                mk("Game of Thrones S01E01 1080p BluRay x264",900,"tv")),
+            "video title (S01E01/1080p) dropped");
+
+    // 14) PirateBay Video category (207) -> NOT readable
+    require(!BookTorrentRanker::isReadableBook(
+                mkc("Game of Thrones","piratebay","207","Video")),
+            "piratebay video category (2xx) dropped");
+
+    // 15) ExtTorrents Music (where audiobooks often land there) -> NOT readable
+    require(!BookTorrentRanker::isReadableBook(
+                mkc("A Game of Thrones","exttorrents","music","Music")),
+            "exttorrents music category dropped");
+
+    // 16) ExtTorrents Books -> readable
+    require(BookTorrentRanker::isReadableBook(
+                mkc("Dune","exttorrents","books","Books")),
+            "exttorrents books category kept");
+
+    // 17) Plain book title, no category (torrents-csv) -> readable (unknown kept)
+    require(BookTorrentRanker::isReadableBook(mk("A Game of Thrones",8,"csv")),
+            "uncategorized clean book title kept");
+
+    // ── ranking: among genuine matches, seeders decide (title-first vs author-first
+    //    is the SAME book — it must not gate above the seeder count) ──
+
+    // 18) A 14-seed all-tokens match ("GRRM ... A Game of Thrones") must outrank a
+    //     1-seed title-leading match. Before the fix the title-leading string won on
+    //     match tier alone — the exact weirdness Hemanth saw (high seeders sunk low).
+    QList<TorrentResult> sr{ mk("A Game of Thrones - GRRM",1,"low"),
+                             mk("GRRM A Game of Thrones Epub",14,"high") };
+    auto r18 = BookTorrentRanker::rank("A Game of Thrones","GRRM",sr);
+    require(r18.first().src.infoHash=="high", "among matches, higher seeders ranks first");
+
+    // 19) GUARD: an exact title still beats a higher-seed prefix superset (a sequel /
+    //     boxset sharing the leading words) — collapsing prefix↔all-tokens must not
+    //     let "Dune Messiah" (500 seed) leapfrog the exact "Dune".
+    QList<TorrentResult> ex{ mk("Dune",3,"exact"), mk("Dune Messiah",500,"seq") };
+    auto r19 = BookTorrentRanker::rank("Dune","",ex);
+    require(r19.first().src.infoHash=="exact", "exact title beats higher-seed prefix superset");
+
     std::cout<<"book_torrent_ranker_harness PASS\n"; return 0;
 }

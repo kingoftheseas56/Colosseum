@@ -16,6 +16,12 @@ public:
     // matchTier desc, then seeders desc. Rows with no infoHash dedup by normalized title.
     static QList<RankedTorrent> rank(const QString& title, const QString& author,
                                      const QList<TorrentResult>& raw);
+    // The download-to-read shelf shows readable books only. Tankorent's indexers
+    // already classify each hit by category (PirateBay 1xx=audio/2xx=video/6xx=books;
+    // ExtTorrents Music/Movies/Books); we trust that first and fall back to strong
+    // title signals for the one source that returns no category. Audiobooks and
+    // video releases are dropped so an audiobook never masquerades as an epub.
+    static bool    isReadableBook(const TorrentResult& r);
     // exposed for tests
     static QString stripArticles(QString s);
     static int     matchTier(const QString& title, const QString& author, const QString& candidate);
