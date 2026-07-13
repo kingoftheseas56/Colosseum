@@ -128,7 +128,11 @@
       if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleDropdown(); }
       if (e.key === 'Escape') closeDropdown();
     });
-    document.addEventListener('click', function (e) {
+    // ROOM Phase 5 leak fix: this per-select document listener used to live
+    // forever — the room's Aa panel creates 3 selects per open, so listeners
+    // accumulated without bound. Self-remove once the wrap leaves the DOM.
+    document.addEventListener('click', function onDocClick(e) {
+      if (!wrap.isConnected) { document.removeEventListener('click', onDocClick); return; }
       if (!wrap.contains(e.target)) closeDropdown();
     });
 
