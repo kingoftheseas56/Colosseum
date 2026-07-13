@@ -106,7 +106,9 @@ var universes = [
     // makes each portal an exact Brandon Sanderson object, never a title-shaped stand-in.
     { name: "Cosmere", c1: "#101927", category: "cosmere",
       blurb: "Independent worlds, one hidden cosmology — choose a first doorway, then follow the light between them.",
-      banner: "https://uploads.coppermind.net/Cosmere_constellation_map.jpg",
+      // CC BY 4.0 star field by Sahisnusaha, Wikimedia Commons; the page draws its own
+      // Cognitive Atlas over it. upload.wikimedia.org is already IPv4-pinned by Colosseum.
+      banner: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Window_to_the_Cosmos.jpg/1920px-Window_to_the_Cosmos.jpg",
       chips: [ { t: "6 Systems", ic: "books" }, { t: "14 Book Portals", ic: "books" },
                { t: "One Connected Epic", ic: "books" } ],
       cosmereStarters: [

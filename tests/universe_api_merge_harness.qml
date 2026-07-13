@@ -44,7 +44,7 @@ QtObject {
             throw new Error("unknown universe must yield an empty config")
 
         // --- the collection: 12 live universes, every banner on a pinned host ---
-        if (UDB.universes.length !== 21) throw new Error("expected 21 universes, got " + UDB.universes.length)
+        if (UDB.universes.length !== 22) throw new Error("expected 22 universes, got " + UDB.universes.length)
         var pinned = ["live.metahub.space", "s4.anilist.co", "upload.wikimedia.org", "image.tmdb.org"]
         for (var i = 0; i < UDB.universes.length; i++) {
             var u = UDB.universes[i]
@@ -57,5 +57,6 @@ QtObject {
         }
         if (UDB.categoryFor("Marvel Cinematic Universe") !== "cinematic") throw new Error("the MCU must stay cinematic (renamed from Marvel, Hemanth 2026-07-13)")
         if (UDB.categoryFor("Dragon Ball") !== "anime") throw new Error("Dragon Ball must ride the generic template")
+        if (UDB.categoryFor("Cosmere") !== "cosmere") throw new Error("Cosmere must ride the Cognitive Atlas template")
     }
 }
