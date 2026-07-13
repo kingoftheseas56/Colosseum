@@ -610,6 +610,21 @@
   --br-reader-accent-rgb: 74,144,217;
 }
 
+/* Custom-colour row in the Theme overlay (page + ink pickers). */
+.br-custom-colors { display: flex; gap: 14px; margin-top: 8px; }
+.br-custom-color { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; opacity: 0.85; }
+.br-custom-color input[type="color"] { width: 26px; height: 20px; padding: 0; border: 1px solid rgba(128,128,128,0.35); border-radius: 4px; background: none; cursor: pointer; }
+
+/* User 'custom' theme: page/ink come from the reader-custom-* vars (set in JS). */
+.br-reader[data-reader-theme="custom"] {
+  --br-reader-bg: var(--reader-custom-page, #111214);
+  --br-reader-text: var(--reader-custom-ink, #c9c5bc);
+  --br-reader-muted: var(--reader-custom-ink, #c9c5bc);
+  --br-reader-border: rgba(128,128,128,0.18);
+  --br-reader-surface-rgb: 128,128,128;
+  --br-reader-accent: var(--reader-custom-ink, #c9c5bc);
+}
+
 /* RCSS_INTEGRATION: extended reading themes */
 .br-reader[data-reader-theme="paper"] {
   --br-reader-bg: #f8f4ec;

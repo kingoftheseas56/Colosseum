@@ -106,11 +106,31 @@
 
   // ── Core appearance functions ────────────────────────────────────
 
+  // Relative luminance of a #rgb / #rrggbb colour → true when it reads as "dark".
+  function isDarkHex(hex) {
+    var h = String(hex || '').replace('#', '');
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2];
+    if (h.length !== 6) return true;
+    var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 128;
+  }
+
   function applyThemeAttribute(theme) {
     var els = RS.ensureEls();
     var nextTheme = String(theme || 'light');
     if (els.readerView) els.readerView.setAttribute('data-reader-theme', nextTheme);
     if (els.host) els.host.setAttribute('data-reader-theme', nextTheme);
+    // 'custom' theme: push the user's page/ink into the chrome-side CSS vars so the
+    // reader frame around the book matches (the book iframe is coloured by the engine).
+    if (nextTheme === 'custom') {
+      var s = (RS.state && RS.state.settings) || {};
+      var page = s.customPage || '#111214', ink = s.customInk || '#c9c5bc';
+      [els.readerView, els.host, document.documentElement].forEach(function (el) {
+        if (!el || !el.style) return;
+        el.style.setProperty('--reader-custom-page', page);
+        el.style.setProperty('--reader-custom-ink', ink);
+      });
+    }
     try {
       var readingArea = (els.readerView && typeof els.readerView.querySelector === 'function')
         ? els.readerView.querySelector('.br-reading-area')
@@ -121,8 +141,10 @@
     var lp = document.getElementById('booksListenPlayerOverlay');
     if (lp) lp.setAttribute('data-reader-theme', nextTheme);
     // FIX-TTS03: set blend mode for TTS highlight overlayer (lighten for dark themes)
-    // BUILD_THEMES: nord and gruvboxDark are dark themes
-    var isDark = isDarkReaderTheme(nextTheme);
+    // BUILD_THEMES: nord and gruvboxDark are dark themes; 'custom' judged by its page colour
+    var isDark = (nextTheme === 'custom')
+      ? isDarkHex((RS.state && RS.state.settings && RS.state.settings.customPage) || '#111214')
+      : isDarkReaderTheme(nextTheme);
     document.documentElement.style.setProperty('--overlayer-highlight-blend-mode', isDark ? 'lighten' : 'normal');
   }
 
@@ -289,6 +311,11 @@
     for (var i = 0; i < chips.length; i++) {
       chips[i].classList.toggle('active', chips[i].getAttribute('data-theme') === curTheme);
     }
+    // Seed the custom-colour pickers + swatch from the saved colours.
+    var page = state.settings.customPage || '#111214', ink = state.settings.customInk || '#c9c5bc';
+    var pi = document.getElementById('brCustomPage'); if (pi) pi.value = page;
+    var ii = document.getElementById('brCustomInk'); if (ii) ii.value = ink;
+    var sw = document.getElementById('brCustomSwatch'); if (sw) { sw.style.background = page; sw.style.color = ink; }
     applyThemeAttribute(curTheme);
   }
 
@@ -442,6 +469,18 @@
         });
       })(themeChips[t]);
     }
+
+    // Custom page/ink colour pickers → drive the 'custom' theme live.
+    function onCustomColour() {
+      var pi = document.getElementById('brCustomPage'), ii = document.getElementById('brCustomInk');
+      if (pi) state.settings.customPage = String(pi.value || '#111214');
+      if (ii) state.settings.customInk = String(ii.value || '#c9c5bc');
+      setTheme('custom');   // sets theme, re-applies (engine recolours the book), syncs UI + persists
+    }
+    var customPageInput = document.getElementById('brCustomPage');
+    var customInkInput = document.getElementById('brCustomInk');
+    if (customPageInput) customPageInput.addEventListener('input', onCustomColour);
+    if (customInkInput) customInkInput.addEventListener('input', onCustomColour);
 
     // Font family select
     els.fontFamily && els.fontFamily.addEventListener('change', function () {

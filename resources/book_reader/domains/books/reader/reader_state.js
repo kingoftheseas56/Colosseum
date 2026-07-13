@@ -7,7 +7,9 @@
   // ── Constants ──────────────────────────────────────────────────
   // RCSS_INTEGRATION: ReadiumCSS-based settings model
   var DEFAULT_SETTINGS = {
-    theme: 'light',           // light|sepia|dark|paper|contrast1|contrast2|contrast3|contrast4
+    theme: 'light',           // light|sepia|dark|paper|contrast1..4|nord|gruvbox|gruvboxDark|solarized|custom
+    customPage: '#111214',    // 'custom' theme: user-chosen page (background) colour
+    customInk: '#c9c5bc',     // 'custom' theme: user-chosen ink (text) colour
     fontSize: 100,            // percentage 75-250 (ReadiumCSS --USER__fontSize)
     fontFamily: 'publisher',  // publisher|oldStyleTf|modernTf|sansTf|humanistTf|monospaceTf|AccessibleDfA|IAWriterDuospace
     lineHeight: 1.5,          // 1.0-2.0 (ReadiumCSS --USER__lineHeight)
@@ -414,6 +416,8 @@
     var s = (settingsObj && typeof settingsObj === 'object') ? settingsObj : {};
     return {
       theme: s.theme,
+      customPage: s.customPage,
+      customInk: s.customInk,
       fontFamily: s.fontFamily,
       fontSize: s.fontSize,
       lineHeight: s.lineHeight,

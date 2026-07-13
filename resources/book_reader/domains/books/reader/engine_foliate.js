@@ -504,14 +504,14 @@
         if (bodyHyphens) docEl.style.setProperty('--USER__bodyHyphens', bodyHyphens);
         else docEl.style.removeProperty('--USER__bodyHyphens');
 
-        // Extended theme colors (paper, contrast1-4)
-        applyExtendedThemeColors(docEl, theme);
+        // Extended theme colors (paper, contrast1-4, and the user 'custom' theme)
+        applyExtendedThemeColors(docEl, theme, s);
       }
     }
 
     // RCSS_INTEGRATION: custom bg/fg for extended themes not built into ReadiumCSS
-    function applyExtendedThemeColors(docEl, theme) {
-      const custom = {
+    function applyExtendedThemeColors(docEl, theme, s) {
+      const palette = {
         paper:      { bg: '#f8f4ec', fg: '#2c2c2c' },
         contrast1:  { bg: '#000000', fg: '#ffff00' },
         contrast2:  { bg: '#0a0a3e', fg: '#ffd700' },
@@ -523,7 +523,10 @@
         gruvboxDark: { bg: '#282828', fg: '#ebdbb2' },
         solarized:   { bg: '#fdf6e3', fg: '#657b83' },
       };
-      const ct = custom[theme];
+      // The 'custom' theme draws its page/ink from the user's saved colours.
+      const ct = (theme === 'custom')
+        ? { bg: (s && s.customPage) || '#111214', fg: (s && s.customInk) || '#c9c5bc' }
+        : palette[theme];
       if (ct) {
         docEl.style.setProperty('--RS__backgroundColor', ct.bg);
         docEl.style.setProperty('--RS__textColor', ct.fg);
