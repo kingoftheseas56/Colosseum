@@ -89,7 +89,16 @@
     el.setAttribute('data-act', act);
     v.appendChild(el);
 
-    try { def.render(el); } catch (e) { try { console.error('[room-popover] render failed:', act, e); } catch (e2) {} }
+    // Quality review, fix 3: a broken panel must fail INVISIBLE — bail out
+    // BEFORE showBackdrop/setPopoverOpen(true), else the user gets a blank
+    // frozen card with a backdrop swallowing every click.
+    try {
+      def.render(el);
+    } catch (e) {
+      try { console.error('[room-popover] render failed:', act, e); } catch (e2) {}
+      if (el.parentNode) el.parentNode.removeChild(el);
+      return;
+    }
 
     positionUnder(el, anchorBtn);
     showBackdrop();

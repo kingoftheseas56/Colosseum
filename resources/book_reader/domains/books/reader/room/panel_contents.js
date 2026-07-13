@@ -71,14 +71,38 @@
   // Cache TOC + current-chapter state at load time (not just while the panel
   // is open) so the popover has data the instant it's opened, even if the
   // book finished loading before the pill was ever clicked.
+  // Boot-sliver seed (quality review, fix 4): TOC extraction can beat the
+  // phase-5 script load — if reader_toc.js already emitted toc:updated before
+  // this file existed, the event is gone but the payload lives on in
+  // booksReaderState.state.tocItems. Read it once at load; the listeners
+  // below take over from there.
+  try {
+    var RS = window.booksReaderState;
+    if (RS && RS.state && Array.isArray(RS.state.tocItems) && RS.state.tocItems.length) {
+      items = RS.state.tocItems;
+    }
+  } catch (e) {}
+
   if (bus && typeof bus.on === 'function') {
     bus.on('toc:updated', function (incoming) {
       items = Array.isArray(incoming) ? incoming : [];
+      // Quality review, fix 1: new TOC = new book. EPUB hrefs are zip-internal
+      // filenames that collide across books (every other epub has a
+      // ch2.xhtml) — a stale currentHref would paint a confident gold
+      // highlight that's a lie until the first relocate. Reset it; the
+      // highlight comes back on the book's first relocate.
+      currentHref = '';
       renderRows();
     });
     bus.on('reader:relocated', function (detail) {
       if (detail && detail.tocItem && detail.tocItem.href) {
-        currentHref = normalizeHref(detail.tocItem.href);
+        var href = normalizeHref(detail.tocItem.href);
+        // Quality review, fix 2: relocate fires on EVERY page turn, not just
+        // chapter changes — re-rendering each time wipes innerHTML and
+        // collapses the open popover's scrollTop. Only re-render on genuine
+        // chapter change.
+        if (href === currentHref) return;
+        currentHref = href;
         renderRows();
       }
     });
