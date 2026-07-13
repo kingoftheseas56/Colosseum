@@ -1,0 +1,125 @@
+name: RCO Wayback alignment
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - .github/workflows/chatgpt-rco-wayback-align.yml
+
+permissions:
+  contents: read
+
+jobs:
+  align:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install parser dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Fetch and align Wayback captures
+        run: |
+          python - <<'PY'
+          import json
+          import time
+          from pathlib import Path
+
+          import requests
+          from bs4 import BeautifulSoup
+
+          OUT = Path('rco-wayback-artifact')
+          OUT.mkdir(exist_ok=True)
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'Colosseum-RCO-Recovery/Wayback-1.0'})
+
+          EXPECTED = {
+            2: ['Action Comics (2016)','Fantastic Four (1961)','Doomsday Clock','Detective Comics (1937)','Teen Titans (2016)','Star Wars: Darth Vader (2020)','Watchmen (1986)','Spider-Man/Deadpool','Preacher','Injustice: Gods Among Us Year Three','Injustice: Gods Among Us: Year Two','Injustice: Gods Among Us Year Four','Hellblazer','Nickelodeon Avatar: The Last Airbender - The Promise','Wonder Woman (2016)','Deadly Class','Old Man Logan (2016)','Absolute Batman','Batman (2011)','Star Wars (2015)','Monstress','Teenage Mutant Ninja Turtles (2011)','Darth Vader (2015)','The Avengers (1963)','Dark Nights: Metal','Action Comics (1938)','Thor (2020)','Miles Morales: Spider-Man (2019)','Justice League (2011)','Nickelodeon Avatar: The Last Airbender - The Search','The Batman Who Laughs','Superior Spider-Man (2013)'],
+            4: ['Teenage Mutant Ninja Turtles: The Last Ronin','Batman/Superman (2019)','Lucifer (2000)','Superman (2018)','Secret Wars','Moon Knight (2016)','Ultimate X-Men (2001)','The Wicked + The Divine','Marauders (2019)','Sonic Universe','Ultimate Spider-Man (2009)','Dark Nights: Death Metal','Daredevil (1964)','Aquaman (2016)','House of X','Birthright (2014)','The Boys: Herogasm','The Spectacular Spider-Man (1976)','Harley Quinn (2016)','Bone (1991)','Justice League Dark (2018)','Invader Zim','Sex Criminals','Ultimate Spider-Man (2024)','Ultimate Comics Spider-Man (2011)','New Mutants (2019)','Star Wars: Knights Of The Old Republic','The Amazing Spider-Man (2014)','DCeased: Dead Planet','Star Wars (2020)','Hellboy','Hal Jordan And The Green Lantern Corps'],
+            5: ['Deathstroke (2016)','Excalibur (2019)','East Of West','Runaways (2017)','The Incredible Hulk (1968)','Superman (1939)',"DCeased: Hope At World's End",'Batman: Three Jokers','Nightwing (1996)','Civil War (2006)','Something is Killing the Children','Green Lanterns','Young Justice (2019)',"Saban's Go Go Power Rangers",'Transmetropolitan','Spider-Gwen [II]','Civil War II','Red Hood And The Outlaws (2011)','Suicide Squad (2016)','Mighty Thor (2016)','Nickelodeon The Legend of Korra: Ruins of the Empire','Paper Girls','Bloodborne','Moon Knight (2021)','Thanos (2016)','Superman/Batman','X-Men (1991)','Catwoman (2018)','Deadpool Kills the Marvel Universe','Batman: The Killing Joke','Infinity Gauntlet (1991)','Peter Parker: The Spectacular Spider-Man'],
+            7: ['Radiant Black','Captain Marvel (2019)','Avengers Vs. X-Men','King In Black','Batman and Robin (2011)','Amazing Spider-Man: Renew Your Vows (2017)','Ms. Marvel (2016)','Adventure Time (2012)','Daredevil (1998)','Die','G.I. Joe: A Real American Hero','Doctor Strange (2018)','Champions (2016)','Hawkeye (2012)','The Umbrella Academy: Hotel Oblivion','Injustice: Year Zero','All Star Superman (2006)','Scooby Apocalypse','Kingdom Come (1996)','Dark Knights of Steel','Powers of X','X-Men: Gold (2017)','Giant Days (2015)','Dark Nights: The Batman Who Laughs',"Batman/Superman: World's Finest",'The Savage Dragon (1993)','Batman: Damned','Batman Eternal','Deadpool (2013)','Robin (1993)','Batman: Legends of the Dark Knight','Doctor Strange (2015)']
+          }
+
+          def target(page):
+              return f'https://readcomiconline.li/ComicList/MostPopular?page={page}'
+
+          def parse_titles(html):
+              soup = BeautifulSoup(html or '', 'html.parser')
+              titles = []
+              for block in soup.select('.list-comic .item'):
+                  title = ''
+                  tooltip_html = block.get('title', '')
+                  if tooltip_html:
+                      node = BeautifulSoup(tooltip_html, 'html.parser').select_one('p.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      node = block.select_one('span.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      anchor = block.select_one('a[href*="/Comic/"]')
+                      if anchor:
+                          title = anchor.get_text(' ', strip=True)
+                  if title:
+                      titles.append(title)
+              return titles
+
+          report = {'pages': {}}
+          for page in range(2, 8):
+              page_report = {'target': target(page), 'cdx': {}, 'captures': []}
+              params = [
+                  ('url', target(page)), ('output', 'json'),
+                  ('fl', 'timestamp,original,statuscode,digest,mimetype'),
+                  ('filter', 'statuscode:200'), ('filter', 'mimetype:text/html'),
+                  ('collapse', 'digest'), ('limit', '100')
+              ]
+              try:
+                  response = session.get('https://web.archive.org/cdx/search/cdx', params=params, timeout=50)
+                  page_report['cdx'] = {'status': response.status_code, 'url': response.url, 'prefix': response.text[:1000]}
+                  response.raise_for_status()
+                  rows = response.json()
+                  captures = []
+                  if isinstance(rows, list) and rows:
+                      cols = rows[0]
+                      captures = [dict(zip(cols, row)) for row in rows[1:]]
+                  captures.sort(key=lambda r: r.get('timestamp',''), reverse=True)
+                  for capture in captures[:40]:
+                      ts = capture.get('timestamp','')
+                      original = capture.get('original',target(page))
+                      replay = f'https://web.archive.org/web/{ts}id_/{original}'
+                      item = {'timestamp': ts, 'original': original, 'replay': replay, 'digest': capture.get('digest')}
+                      try:
+                          archived = session.get(replay, timeout=45, allow_redirects=True)
+                          titles = parse_titles(archived.text)
+                          item.update({'status': archived.status_code, 'bytes': len(archived.content), 'titles': titles})
+                          if len(titles) == 32:
+                              if page in EXPECTED:
+                                  item['exact_current_match'] = titles == EXPECTED[page]
+                                  item['positional_matches'] = sum(a == b for a,b in zip(titles,EXPECTED[page]))
+                              safe_ts = ts or str(len(page_report['captures']))
+                              (OUT / f'page-{page}-{safe_ts}.html').write_text(archived.text, encoding='utf-8', errors='ignore')
+                      except Exception as exc:
+                          item['error'] = repr(exc)
+                      page_report['captures'].append(item)
+                      time.sleep(0.2)
+              except Exception as exc:
+                  page_report['cdx']['error'] = repr(exc)
+              report['pages'][str(page)] = page_report
+              valid = [c for c in page_report['captures'] if len(c.get('titles',[])) == 32]
+              exact = [c for c in valid if c.get('exact_current_match')]
+              best = max([c.get('positional_matches',0) for c in valid] or [0])
+              print('Page',page,'valid',len(valid),'exact',len(exact),'best positional',best)
+
+          (OUT / 'wayback-alignment.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+
+      - name: Upload Wayback alignment artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rco-wayback-alignment
+          path: rco-wayback-artifact/
+          if-no-files-found: error
+          retention-days: 1
