@@ -423,6 +423,10 @@
         // BUILD_THEMES: nord and gruvboxDark are dark themes
         if (theme === 'dark' || theme === 'contrast1' || theme === 'contrast2' || theme === 'contrast4' || theme === 'nord' || theme === 'gruvboxDark') appearance = 'readium-night-on';
         else if (theme === 'sepia') appearance = 'readium-sepia-on';
+        // ROOM_AA: theme=custom has no fixed appearance — pick night/default off
+        // the SAME luminance test reader_appearance.js uses for image-invert /
+        // highlight-blend decisions, so the two stay consistent for one user pick.
+        else if (theme === 'custom' && isCustomThemeDark(s)) appearance = 'readium-night-on';
         docEl.style.setProperty('--USER__appearance', appearance);
 
         // Advanced settings always on
@@ -504,13 +508,27 @@
         if (bodyHyphens) docEl.style.setProperty('--USER__bodyHyphens', bodyHyphens);
         else docEl.style.removeProperty('--USER__bodyHyphens');
 
-        // Extended theme colors (paper, contrast1-4)
-        applyExtendedThemeColors(docEl, theme);
+        // Extended theme colors (paper, contrast1-4, custom)
+        applyExtendedThemeColors(docEl, theme, s);
       }
     }
 
+    // ROOM_AA: relative-luminance test for theme=custom's page color — mirrors
+    // reader_appearance.js's hexLuminance (duplicated on purpose: separate
+    // closures, no shared module here — same pattern as panel_search.js's
+    // duplicated escHtml fallback).
+    function isCustomThemeDark(settings) {
+      const s = (settings && typeof settings === 'object') ? settings : {};
+      let hex = String(s.customPage || '#111214').replace('#', '');
+      if (hex.length === 3) hex = hex[0] + hex[0] + hex[1] + hex[1] + hex[2] + hex[2];
+      const n = parseInt(hex, 16);
+      if (!isFinite(n) || hex.length !== 6) return true;
+      const r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+      return (0.299 * r + 0.587 * g + 0.114 * b) / 255 < 0.5;
+    }
+
     // RCSS_INTEGRATION: custom bg/fg for extended themes not built into ReadiumCSS
-    function applyExtendedThemeColors(docEl, theme) {
+    function applyExtendedThemeColors(docEl, theme, settings) {
       const custom = {
         paper:      { bg: '#f8f4ec', fg: '#2c2c2c' },
         contrast1:  { bg: '#000000', fg: '#ffff00' },
@@ -523,7 +541,16 @@
         gruvboxDark: { bg: '#282828', fg: '#ebdbb2' },
         solarized:   { bg: '#fdf6e3', fg: '#657b83' },
       };
-      const ct = custom[theme];
+      let ct = custom[theme];
+      // ROOM_AA: theme=custom — user-chosen page/ink, same override path as the
+      // named themes above (--RS__backgroundColor/--RS__textColor inline on the
+      // iframe's documentElement; ReadiumCSS-before.css's `:root { color:
+      // var(--RS__textColor) !important; background-color: var(--RS__backgroundColor)
+      // !important; }` is what actually paints the book page with these).
+      if (theme === 'custom') {
+        const s = (settings && typeof settings === 'object') ? settings : {};
+        ct = { bg: String(s.customPage || '#111214'), fg: String(s.customInk || '#c9c5bc') };
+      }
       if (ct) {
         docEl.style.setProperty('--RS__backgroundColor', ct.bg);
         docEl.style.setProperty('--RS__textColor', ct.fg);

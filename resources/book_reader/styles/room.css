@@ -135,3 +135,124 @@
 }
 .room-search-row--empty { opacity: 0.5; cursor: default; white-space: normal; }
 .room-search-row--empty:hover { background: transparent; }
+
+/* room-appearance — "Aa" popover: theme grid + custom page/ink + sliders.
+   House rule: grayscale + gold only; the swatches SHOW real theme colors —
+   that's data (the actual page/ink a book will render in), not decoration. */
+.room-panel-subtitle {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.5;
+  padding: 10px 14px 6px;
+}
+
+.room-theme-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 4px 12px 8px;
+}
+
+.room-theme-chip {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 6px 4px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.room-theme-chip:hover { background: rgba(255, 255, 255, 0.06); }
+.room-theme-chip.is-active {
+  border-color: #efc54a;
+  box-shadow: 0 0 0 1px rgba(239, 197, 74, 0.35);
+}
+
+.room-theme-swatch {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.room-theme-label {
+  font-size: 10px;
+  line-height: 1.2;
+  text-align: center;
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.room-custom {
+  margin: 2px 12px 4px;
+  padding: 8px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.room-custom.is-active { border-color: #efc54a; }
+
+.room-custom-inputs {
+  display: flex;
+  gap: 16px;
+}
+
+.room-custom-swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.room-custom-swatch input[type="color"] {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 4px;
+  background: none;
+  cursor: pointer;
+}
+
+.room-slider {
+  padding: 6px 14px;
+}
+
+.room-slider-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-bottom: 4px;
+}
+
+.room-slider-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.room-slider-input {
+  flex: 1;
+  accent-color: #efc54a;
+}
+
+.room-slider-value {
+  font-size: 11px;
+  opacity: 0.6;
+  min-width: 36px;
+  text-align: right;
+}

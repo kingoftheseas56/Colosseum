@@ -21,6 +21,12 @@
     paraSpacing: 0,           // 0-2.0 rem (ReadiumCSS --USER__paraSpacing)
     paraIndent: '',           // ''|0|1em|1.5em|2em (ReadiumCSS --USER__paraIndent)
     bodyHyphens: '',          // ''|auto|none (ReadiumCSS --USER__bodyHyphens)
+    // ROOM_AA: 13th theme — user-chosen page/ink, rides the same extended-theme
+    // color path as paper/contrast*/nord/gruvbox/solarized (engine_foliate.js
+    // applyExtendedThemeColors) and the same --br-reader-bg/text chrome path
+    // (books-reader.css .br-reader[data-reader-theme] vars) as the 12 built-ins.
+    customPage: '#111214',    // theme=custom page (background) color
+    customInk: '#c9c5bc',     // theme=custom ink (text) color
   }; // LISTEN_P0: tts* settings removed — owned by Listening mode
 
   var DEFAULT_SHORTCUTS = {
@@ -429,6 +435,10 @@
       textAlign: s.textAlign,
       zoom: s.zoom,
       fitMode: s.fitMode,
+      // ROOM_AA: custom theme colors ride the same per-book/global view-settings
+      // path as everything else above — so theme=custom survives a reload.
+      customPage: s.customPage,
+      customInk: s.customInk,
     };
   }
 

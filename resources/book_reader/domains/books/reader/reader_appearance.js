@@ -9,6 +9,43 @@
   var DARK_READER_THEMES = ['dark', 'contrast1', 'contrast2', 'contrast3', 'contrast4', 'nord', 'gruvbox', 'gruvboxDark', 'solarized'];
   var CUSTOM_CSS_STYLE_ID = 'books-reader-user-custom-css';
 
+  // ROOM_AA: canonical swatch palette for the 12 built-in themes — same hex
+  // values already hardcoded three places (engine_foliate.js applyExtendedThemeColors,
+  // books-reader.css .br-host[data-reader-theme] rules, and the old #brOverlayTheme
+  // chip markup) — collected here once as the single JS-reachable source the
+  // room panel reads for swatch rendering instead of guessing/hardcoding its own.
+  var THEME_COLORS = {
+    light: { bg: '#ffffff', fg: '#111111' },
+    sepia: { bg: '#f4ecdc', fg: '#4d3d2c' },
+    dark: { bg: '#101216', fg: '#e4e8ef' },
+    paper: { bg: '#f8f4ec', fg: '#2c2c2c' },
+    contrast1: { bg: '#000000', fg: '#ffff00' },
+    contrast2: { bg: '#0a0a3e', fg: '#ffd700' },
+    contrast3: { bg: '#f5f5dc', fg: '#1a1a00' },
+    contrast4: { bg: '#1a1a2e', fg: '#e0e0e0' },
+    nord: { bg: '#2e3440', fg: '#d8dee9' },
+    gruvbox: { bg: '#fbf1c7', fg: '#3c3836' },
+    gruvboxDark: { bg: '#282828', fg: '#ebdbb2' },
+    solarized: { bg: '#fdf6e3', fg: '#657b83' },
+  };
+
+  // ROOM_AA: relative-luminance test for an arbitrary custom page color, so
+  // theme=custom can slot into every place that branches on "is this a dark
+  // theme" (image inversion, highlight blend mode) without a manual toggle.
+  function hexLuminance(hex) {
+    var s = String(hex || '').replace('#', '');
+    if (s.length === 3) s = s[0] + s[0] + s[1] + s[1] + s[2] + s[2];
+    var n = parseInt(s, 16);
+    if (!isFinite(n) || s.length !== 6) return 0;
+    var r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  }
+
+  function isCustomThemeDark() {
+    var s = (RS.state && RS.state.settings) || {};
+    return hexLuminance(s.customPage || '#111214') < 0.5;
+  }
+
   function injectCustomCssIntoIframes() {
     var css = String((RS.state.settings && RS.state.settings.customCss) || '').trim();
     var host = document.getElementById('booksReaderHost');
@@ -34,7 +71,9 @@
   }
 
   function isDarkReaderTheme(theme) {
-    return DARK_READER_THEMES.indexOf(String(theme || 'light')) !== -1;
+    var t = String(theme || 'light');
+    if (t === 'custom') return isCustomThemeDark();
+    return DARK_READER_THEMES.indexOf(t) !== -1;
   }
   var INVERT_DARK_IMAGES_STYLE_ID = 'books-reader-invert-dark-images-style';
 
@@ -109,6 +148,17 @@
   function applyThemeAttribute(theme) {
     var els = RS.ensureEls();
     var nextTheme = String(theme || 'light');
+    // ROOM_AA: theme=custom rides the SAME data-reader-theme mechanism as the
+    // 12 built-ins (books-reader.css .br-reader[data-reader-theme="custom"] /
+    // .br-host[data-reader-theme="custom"] read these two vars instead of a
+    // hardcoded hex pair) — set BEFORE the attribute so no stale-color frame.
+    if (nextTheme === 'custom') {
+      var s = RS.state.settings || {};
+      try {
+        document.documentElement.style.setProperty('--reader-custom-page', String(s.customPage || '#111214'));
+        document.documentElement.style.setProperty('--reader-custom-ink', String(s.customInk || '#c9c5bc'));
+      } catch (e) {}
+    }
     if (els.readerView) els.readerView.setAttribute('data-reader-theme', nextTheme);
     if (els.host) els.host.setAttribute('data-reader-theme', nextTheme);
     try {
@@ -670,7 +720,18 @@
     syncControlAvailability: syncControlAvailability,
     updateFlowBtnLabel: updateFlowBtnLabel,
     cycleTheme: cycleTheme,
+    setTheme: setTheme,
+    isDarkTheme: isDarkReaderTheme,
     onOpen: onOpen,
     onClose: onClose,
+    // ROOM_AA: theme model surface for room/panel_appearance.js — real names,
+    // not the plan's guess. order/labels = the 12 built-ins (THEME_ORDER/
+    // THEME_LABELS, unchanged — 'custom' is the panel's 13th, handled
+    // separately, never added to the cycle-theme 'm' shortcut).
+    themes: {
+      order: THEME_ORDER,
+      labels: THEME_LABELS,
+      colors: THEME_COLORS,
+    },
   };
 })();

@@ -701,6 +701,16 @@
   --br-reader-bar-bg: #f0e8d0;
   --br-reader-bar-border: rgba(0,0,0,0.18);
 }
+/* ROOM_AA: 13th theme -- user page/ink pick, set by reader_appearance.js
+   applyThemeAttribute() on document.documentElement before this attribute is
+   set. Only bg/text are overridden here; muted/border/accent/surface-rgb fall
+   through to the .br-reader base rule above (already a safe, complete
+   default set) -- no contrast guard needed per spec, and deriving accent/muted
+   math from an arbitrary user pick isn't earned by anything this UI needs. */
+.br-reader[data-reader-theme="custom"] {
+  --br-reader-bg: var(--reader-custom-page, #111214);
+  --br-reader-text: var(--reader-custom-ink, #c9c5bc);
+}
 
 /* â•â•â•â•â•â• SECTION: Toolbar â•â•â•â•â•â• */
 
@@ -1571,6 +1581,9 @@
 .br-host[data-reader-theme="gruvbox"] { background: #fbf1c7; color: #3c3836; }
 .br-host[data-reader-theme="gruvboxDark"] { background: #282828; color: #ebdbb2; }
 .br-host[data-reader-theme="solarized"] { background: #fdf6e3; color: #657b83; }
+/* ROOM_AA: custom theme host background, same --reader-custom-* vars as the
+   .br-reader block above. */
+.br-host[data-reader-theme="custom"] { background: var(--reader-custom-page, #111214); color: var(--reader-custom-ink, #c9c5bc); }
 
 /* FIX_AUDIT: remove native scrollbars in scroll mode while preserving scroll interaction. */
 .br-host,
@@ -3162,6 +3175,12 @@ select.booksReaderTtsHlStyle {
 .booksReaderHost[data-reader-theme="dark"] {
   background: #101216;
   color: #e4e8ef;
+}
+
+/* ROOM_AA: custom theme host background (same vars as .br-host above). */
+.booksReaderHost[data-reader-theme="custom"] {
+  background: var(--reader-custom-page, #111214);
+  color: var(--reader-custom-ink, #c9c5bc);
 }
 
 /* Open error card */
