@@ -34,23 +34,28 @@ function snapshot(cfg, resolved) {
         if (s) starters.push(s);
     }
 
-    var worlds = [];
-    var worldCfg = cfg.cosmereWorlds || [];
-    for (var w = 0; w < worldCfg.length; w++) {
-        var wc = worldCfg[w];
-        var books = [];
-        var declared = wc.books || [];
-        for (var b = 0; b < declared.length; b++) {
-            var p = portal(declared[b], resolved);
-            if (p) books.push(p);
+    function resolveSections(configs, fallback) {
+        var sections = [];
+        for (var w = 0; w < configs.length; w++) {
+            var wc = configs[w];
+            var books = [];
+            var declared = wc.books || [];
+            for (var b = 0; b < declared.length; b++) {
+                var p = portal(declared[b], resolved);
+                if (p) books.push(p);
+            }
+            sections.push({
+                name: wc.name || fallback,
+                epithet: wc.epithet || "",
+                accent: wc.accent || "#78cfe3",
+                books: books
+            });
         }
-        worlds.push({
-            name: wc.name || "Unknown system",
-            epithet: wc.epithet || "",
-            accent: wc.accent || "#78cfe3",
-            books: books
-        });
+        return sections;
     }
+
+    var worlds = resolveSections(cfg.cosmereWorlds || [], "Unknown system");
+    var series = resolveSections(cfg.cosmereSeries || [], "Untitled series");
 
     return {
         name: cfg.name || "Cosmere",
@@ -58,7 +63,8 @@ function snapshot(cfg, resolved) {
         banner: cfg.banner || "",
         metaline: (cfg.chips || []).map(function(c) { return c.t; }).join("   ·   "),
         starters: starters,
-        worlds: worlds
+        worlds: worlds,
+        series: series
     };
 }
 
@@ -73,6 +79,7 @@ function queriesFor(cfg) {
     }
     (cfg.cosmereStarters || []).forEach(add);
     (cfg.cosmereWorlds || []).forEach(function(world) { (world.books || []).forEach(add); });
+    (cfg.cosmereSeries || []).forEach(function(series) { (series.books || []).forEach(add); });
     return out;
 }
 

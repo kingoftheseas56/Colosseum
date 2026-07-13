@@ -25,7 +25,7 @@ Item {
     readonly property color copper: "#b8734a"
     property var guide: UDB.configFor(root.universeName)
     property var uni: ({ name: "Cosmere", blurb: "", banner: "", metaline: "",
-                         starters: [], worlds: [] })
+                         starters: [], worlds: [], series: [] })
 
     function reload() {
         root.guide = UDB.configFor(root.universeName)
@@ -301,6 +301,34 @@ Item {
                     world: modelData
                     width: contentColumn.width
                     alternate: index % 2 === 1
+                    onBookActivated: function(book) { root.openBook(book) }
+                }
+            }
+
+            // ===== THE COMPLETE SHELVES =====
+            // Starting points answer "where do I begin?"; these ordered rows answer the
+            // universe-page contract: everything the house provider can actually open.
+            Item {
+                width: parent.width; height: 126
+                Column {
+                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                    Text { text: "THE COMPLETE SHELVES"; color: theme.gold
+                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                    Text { text: "Every published road through the Cosmere"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 31 }
+                    Text { text: "Main arcs, novellas, graphic stories, and the books between worlds."
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                }
+            }
+
+            Repeater {
+                model: root.uni.series || []
+                delegate: WorldSection {
+                    required property var modelData
+                    required property int index
+                    world: modelData
+                    width: contentColumn.width
+                    alternate: index % 2 === 0
                     onBookActivated: function(book) { root.openBook(book) }
                 }
             }

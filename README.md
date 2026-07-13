@@ -178,7 +178,7 @@ The templates are not recolored grids:
 - **Star Wars** uses a trilogy triptych plus standalone, live-action, animated, and GetComics rails.
 - **Eras** pages organize franchises into chronological or continuity groups and can now carry book shelves, comics doors, and metadata-confirmed `UPCOMING` plates.
 - **Studio Ghibli** uses a numbered chronological filmography wall.
-- **Cosmere** uses a newcomer-first Cognitive Atlas whose planetary book gates resolve through Apple Books and open the existing Biblio detail page.
+- **Cosmere** uses a newcomer-first Cognitive Atlas, then continues beyond its world gates into eight complete ordered shelves (Mistborn's eras, Stormlight, Sel, Hoid, standalones, White Sand, and collections). All 26 book/story slots resolve through Apple Books and open the existing Biblio detail page.
 
 Pinned metadata IDs are used whenever title search is ambiguous. Upcoming entries are admitted only when a concrete metadata identity exists, rather than being inferred from an unverified name.
 

@@ -109,7 +109,7 @@ var universes = [
       // CC BY 4.0 star field by Sahisnusaha, Wikimedia Commons; the page draws its own
       // Cognitive Atlas over it. upload.wikimedia.org is already IPv4-pinned by Colosseum.
       banner: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Window_to_the_Cosmos.jpg/1920px-Window_to_the_Cosmos.jpg",
-      chips: [ { t: "6 Systems", ic: "books" }, { t: "14 Book Portals", ic: "books" },
+      chips: [ { t: "6 Systems", ic: "books" }, { t: "26 Books & Stories", ic: "books" },
                { t: "One Connected Epic", ic: "books" } ],
       cosmereStarters: [
         { label: "The balanced beginning", short: "MISTBORN",
@@ -150,6 +150,62 @@ var universes = [
             { label: "The Sunlit Man", query: "The Sunlit Man Brandon Sanderson" },
             { label: "Isles of the Emberdark", query: "Isles of the Emberdark Brandon Sanderson" },
             { label: "Arcanum Unbounded", query: "Arcanum Unbounded Brandon Sanderson" }
+          ] }
+      ],
+      // The atlas explains where to begin; these shelves contain the actual published
+      // roads. Wikipedia + Brandon's official catalog checked 2026-07-13, then every
+      // query live-verified against Apple Books US. Short fiction without its own Apple
+      // identity remains honestly represented by Arcanum Unbounded instead of a dead tile.
+      cosmereSeries: [
+        { name: "Mistborn — Era One", epithet: "THE ORIGINAL TRILOGY", accent: "#b8734a",
+          books: [
+            { label: "01", query: "Mistborn The Final Empire Brandon Sanderson" },
+            { label: "02", query: "The Well of Ascension Brandon Sanderson" },
+            { label: "03", query: "The Hero of Ages Brandon Sanderson" }
+          ] },
+        { name: "Mistborn — Era Two", epithet: "WAX & WAYNE", accent: "#ce9567",
+          books: [
+            { label: "01", query: "The Alloy of Law Brandon Sanderson" },
+            { label: "02", query: "Shadows of Self Brandon Sanderson" },
+            { label: "03", query: "The Bands of Mourning Brandon Sanderson" },
+            { label: "04", query: "The Lost Metal Brandon Sanderson" }
+          ] },
+        { name: "The Stormlight Archive", epithet: "FIRST ARC + NOVELLAS", accent: "#78cfe3",
+          books: [
+            { label: "01", query: "The Way of Kings Brandon Sanderson" },
+            { label: "02", query: "Words of Radiance Brandon Sanderson" },
+            { label: "2.5", query: "Edgedancer Brandon Sanderson" },
+            { label: "03", query: "Oathbringer Brandon Sanderson" },
+            { label: "3.5", query: "Dawnshard Brandon Sanderson" },
+            { label: "04", query: "Rhythm of War Brandon Sanderson" },
+            { label: "05", query: "Wind and Truth Brandon Sanderson" }
+          ] },
+        { name: "Selish Stories", epithet: "ELANTRIS + THE EMPEROR'S SOUL", accent: "#d9e8ff",
+          books: [
+            { label: "ELANTRIS", query: "Elantris Brandon Sanderson" },
+            { label: "SHARDWORLD NOVELLA", query: "The Emperor's Soul Brandon Sanderson" }
+          ] },
+        { name: "Hoid's Travails", epithet: "STORIES TOLD ACROSS THE STARS", accent: "#8ec7b5",
+          books: [
+            { label: "01", query: "Tress of the Emerald Sea Brandon Sanderson" },
+            { label: "02", query: "Yumi and the Nightmare Painter Brandon Sanderson" },
+            { label: "03", query: "The Fires of December Brandon Sanderson" }
+          ] },
+        { name: "Cosmere Standalones", epithet: "COMPLETE WORLDS IN ONE VOLUME", accent: "#d688b4",
+          books: [
+            { label: "NALTHIS", query: "Warbreaker Brandon Sanderson" },
+            { label: "CANTICLE", query: "The Sunlit Man Brandon Sanderson" },
+            { label: "FIRST OF THE SUN", query: "Isles of the Emberdark Brandon Sanderson" },
+            { label: "THRENODY", query: "Shadows for Silence in the Forests of Hell Brandon Sanderson" }
+          ] },
+        { name: "White Sand", epithet: "THE TALDAIN GRAPHIC NOVEL", accent: "#e5c77c",
+          books: [
+            { label: "COMPLETE EDITION", query: "White Sand Omnibus Brandon Sanderson" }
+          ] },
+        { name: "Collections & Secret Histories", epithet: "THE CONNECTIONS BENEATH", accent: "#9aa8c6",
+          books: [
+            { label: "THE COSMERE COLLECTION", query: "Arcanum Unbounded Brandon Sanderson" },
+            { label: "MISTBORN NOVELLA", query: "Mistborn Secret History Brandon Sanderson" }
           ] }
       ] },
     { name: "Harry Potter", c1: "#221c30", category: "saga",

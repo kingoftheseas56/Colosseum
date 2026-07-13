@@ -21,6 +21,12 @@ Assert-Contains $udb 'name: "Cosmere"' "Universes.js must carry Cosmere."
 Assert-Contains $udb 'category: "cosmere"' "Cosmere must select its own template."
 Assert-Contains $udb 'cosmereStarters:' "Cosmere must curate newcomer portals."
 Assert-Contains $udb 'cosmereWorlds:' "Cosmere must curate planetary systems."
+Assert-Contains $udb 'cosmereSeries:' "Cosmere must continue into complete series rows."
+foreach ($series in @('Mistborn — Era One', 'Mistborn — Era Two', 'The Stormlight Archive',
+                       'Selish Stories', 'Hoid''s Travails', 'Cosmere Standalones',
+                       'White Sand', 'Collections & Secret Histories')) {
+    Assert-Contains $udb $series "Cosmere must carry the full shelf: $series"
+}
 Assert-Lacks $udb 'name: "Pok' "Pokemon must not remain in the universe collection."
 
 $api = Read-File "qml/CosmereApi.js"
@@ -33,6 +39,8 @@ $page = Read-File "qml/CosmereUniversePage.qml"
 Assert-Contains $page 'signal bookRequested(var book)' "The atlas must expose the Biblio book verb."
 Assert-Contains $page 'root.bookRequested(book)' "Every live gate must emit a full book object."
 Assert-Contains $page 'THE COGNITIVE ATLAS' "The page must carry its own atlas identity."
+Assert-Contains $page 'THE COMPLETE SHELVES' "Starting points must lead into complete series shelves."
+Assert-Contains $page 'root.uni.series' "The page must render the resolved full series rows."
 Assert-Contains $page 'OPEN IN BIBLIO' "World gates must name their real destination."
 Assert-Contains $page 'activeFocusOnTab: true' "Book gates must be keyboard focusable."
 Assert-Contains $page 'Keys.onReturnPressed' "Book gates must activate from the keyboard."

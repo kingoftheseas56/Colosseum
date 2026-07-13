@@ -28,6 +28,16 @@ QtObject {
                 { name: "Roshar", books: [
                     { label: "Stormlight", query: "stormlight" }
                 ] }
+            ],
+            cosmereSeries: [
+                { name: "Mistborn — Era One", accent: "#b8734a", books: [
+                    { label: "Book One", query: "mistborn" },
+                    { label: "Book Two", query: "missing" },
+                    { label: "Book Three", query: "alloy" }
+                ] },
+                { name: "The Stormlight Archive", accent: "#78cfe3", books: [
+                    { label: "Book One", query: "stormlight" }
+                ] }
             ]
         }
         var resolved = {
@@ -47,6 +57,14 @@ QtObject {
             throw new Error("book order drifted")
         if (atlas.worlds[1].books[0].book.title !== "The Way of Kings")
             throw new Error("shared resolved book missing")
+        if (atlas.series.length !== 2 || atlas.series[0].name !== "Mistborn — Era One")
+            throw new Error("complete series rows must preserve authored order")
+        if (atlas.series[0].books.length !== 2)
+            throw new Error("unresolved series title must stay absent")
+        if (atlas.series[0].books[1].book.title !== "The Alloy of Law")
+            throw new Error("resolved series order drifted")
+        if (atlas.series[1].books[0].book.id !== 30)
+            throw new Error("series rows must carry full Biblio objects")
     }
 }
 
