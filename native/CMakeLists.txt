@@ -189,6 +189,19 @@ add_executable(torrent_engine_link_harness
 )
 target_link_libraries(torrent_engine_link_harness PRIVATE colosseum_libtorrent)
 
+add_executable(torrent_engine_download_harness
+    ../tests/torrent_engine_download_harness.cpp
+    torrent/engine/TorrentEngine.cpp
+    torrent/engine/TorrentEngine.h
+    torrent/engine/DebugLogBuffer.cpp
+    torrent/engine/DebugLogBuffer.h
+)
+target_include_directories(torrent_engine_download_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# Qt6::Network: TorrentEngine.cpp line 28 has a vestigial <QHostAddress> include
+# (TB2-ism, never referenced) — Network's include dirs are required to compile it.
+# Do NOT delete the include; that breaks byte-diffability with TB2 (review I1, 2026-07-13).
+target_link_libraries(torrent_engine_download_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
+
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
     get_filename_component(_qt_bin_dir "${_qt_qmake}" DIRECTORY)
