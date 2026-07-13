@@ -14,8 +14,16 @@
     return;
   }
 
-  // ROOM Phase 5: the old toolbar back button is deleted — closing the reader
-  // rides Esc → reader_keyboard → __ebookNav.requestClose().
+  // Wire the back button to close the reader (return to app shell)
+  var backBtn = document.getElementById('booksReaderBackBtn');
+  if (backBtn && !backBtn.__booksBackBound) {
+    backBtn.addEventListener('click', function () {
+      if (window.__ebookNav && typeof window.__ebookNav.requestClose === 'function') {
+        window.__ebookNav.requestClose();
+      }
+    });
+    backBtn.__booksBackBound = true;
+  }
 
   /**
    * Open a book by file path.

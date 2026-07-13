@@ -783,8 +783,7 @@ Window {
     function openAudiobookSession(pairKey, book) {
         if (!pairKey) return
         var b = book || ({})
-        audioSession.openFor(pairKey, b)      // the ONE engine starts (or keeps) the stream…
-        Sessions.openOrSwitch({               // …and the session record brings up the remote page
+        Sessions.openOrSwitch({
             "appType": "biblio", "contentKind": "audiobook", "title": b.title || "Audiobook",
             "target": { "pairKey": pairKey, "book": b, "id": pairKey }
         })
@@ -804,11 +803,6 @@ Window {
             if (playerLayer.item) playerLayer.item.stop()
             if (win.warmPlayerSessionId === id) win.warmPlayerSessionId = ""
         }
-        // audiobook: the engine outlives its remote page — a real close is the one place it
-        // stops. Guard on pairKey: closing a STALE tile (another book took the engine since)
-        // must leave the live stream alone (spec review catch, 2026-07-13).
-        if (rec && rec.contentKind === "audiobook" && rec.target
-                && rec.target.pairKey === audioSession.activePairKey) audioSession.stop()
         Sessions.close(id)
     }
     function minimizePlayer() {
@@ -865,11 +859,8 @@ Window {
     function minimizeAudiobook() { Sessions.switchTo("") }
     function closeAudiobookSession() {
         var rec = Sessions.get(Sessions.activeId)
-        if (rec && rec.contentKind === "audiobook") win.closeSession(rec.id)   // closeSession stops the engine
-        else {
-            audioSession.stop()
-            if (audiobookPlayerLayer.active) audiobookPlayerLayer.active = false
-        }
+        if (rec && rec.contentKind === "audiobook") win.closeSession(rec.id)
+        else if (audiobookPlayerLayer.active) audiobookPlayerLayer.active = false
     }
 
     // dispatcher: build the active surface from a record (+ restore its saved state).
@@ -923,12 +914,19 @@ Window {
             else bookReaderLayer.active = true
             // book precision: foliate auto-restores its own CFI on reopen of the same path (Task 6).
         } else if (rec.contentKind === "audiobook") {
-            // the engine is persistent and openFor is IDEMPOTENT: the live book keeps its
-            // stream + position untouched; a cold/other book loads fresh and resumes from
-            // the ProgressStore spot inside openFor (the 10s heartbeat keeps it current,
-            // so the old savedState dance is no longer needed here).
-            audioSession.openFor(t.pairKey, t.book || ({}))
             if (!audiobookPlayerLayer.active) audiobookPlayerLayer.active = true
+            var abp = audiobookPlayerLayer.item
+            if (abp) {
+                abp.start(t.pairKey, t.book || ({}))
+                // resume: in-session capture (minimize) wins; else the ProgressStore position.
+                var abSt = (st && st.position !== undefined) ? st : null
+                if (!abSt && typeof Progress !== 'undefined') {
+                    var pg = Progress.get("audiobook", t.pairKey || "")
+                    if (pg && pg.resume) abSt = { "fileIndex": Number(pg.resume.fileIndex) || 0,
+                                                  "position": Number(pg.resume.position) || 0 }
+                }
+                if (abSt && abp.restoreState) abp.restoreState(abSt)
+            }
         }
     }
     // capture the live outgoing surface's state (called BEFORE teardown).
@@ -942,12 +940,7 @@ Window {
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
-        if (rec.contentKind === "audiobook")
-            // only when the engine still plays THIS record's book — on an A→B switch the
-            // engine was retargeted to B before this capture ran, and stamping B's truth
-            // into A's savedState would plant a landmine (savedState is unread today).
-            return (rec.target && rec.target.pairKey === audioSession.activePairKey)
-                   ? audioSession.captureState() : ({})
+        if (rec.contentKind === "audiobook" && audiobookPlayerLayer.item && audiobookPlayerLayer.item.captureState) return audiobookPlayerLayer.item.captureState()
         return ({})
     }
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
@@ -968,8 +961,6 @@ Window {
         } else if (rec.contentKind === "book")  {
             bookReaderLayer.active = false
         } else if (rec.contentKind === "audiobook") {
-            // minimize drops only the REMOTE page — the shared engine keeps playing
-            // (listen while browsing/reading; a real close goes through closeSession).
             audiobookPlayerLayer.active = false
         }
     }
@@ -1747,11 +1738,6 @@ Window {
             item.minimizeRequested.connect(win.minimizeBookReader)
         }
     }
-
-    // ---- the ONE audiobook engine: a persistent session at the window root, NEVER inside a
-    // Loader (it must survive every surface change mid-playback). The player page below and
-    // the reader's listening strip are remotes that bind to this id (Hemanth 2026-07-13).
-    AudiobookSession { id: audioSession }
 
     // ---- audiobook player layer: A2's audio-session surface (over the world, below the reader) ----
     Loader {

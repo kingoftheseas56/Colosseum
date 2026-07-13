@@ -92,20 +92,8 @@
       };
       window.__ebookNav = {
         requestClose: function () { b.requestClose(); },
-        markReaderReady: function () { b.markReaderReady(); },
-        // Pill's "listen (audiobook)" button → BookBridge::listenRequested() → QML
-        // mounts the audiobook strip. Fire-and-forget; guarded so an older native
-        // build without the invokable can't throw into the pill layer.
-        requestListen: function () { try { b.requestListen(); } catch (e) {} }
+        markReaderReady: function () { b.markReaderReady(); }
       };
-      // One engine per ear (Task 4.4): tts_strip.js calls window.__roomStopAudiobook
-      // (guarded with typeof) when the TTS strip opens, so the QML audiobook strip
-      // pauses and yields the bottom edge. "readerAudio" is a QML object registered
-      // by BookReader.qml on the same channel; if it's absent (older QML), the hook
-      // stays undefined and TTS-open simply doesn't touch the audiobook.
-      var ra = channel.objects.readerAudio;
-      if (ra && typeof ra.pauseForTts === 'function')
-        window.__roomStopAudiobook = function () { try { ra.pauseForTts(); } catch (e) {} };
       console.log('[shim] electronAPI + __ebookNav ready');
     });
   } catch (e) { console.error('[shim] threw:', e && (e.stack || e.message || String(e))); }

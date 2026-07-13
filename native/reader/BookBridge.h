@@ -72,7 +72,6 @@ public:
     // ── navigation + readiness ──
     Q_INVOKABLE void requestClose();      // BACK to library
     Q_INVOKABLE void markReaderReady();   // foliate's `stabilized` → fade the loading overlay
-    Q_INVOKABLE void requestListen();     // pill's "listen (audiobook)" → QML mounts the strip
 
     // ── Edge TTS (STUBBED — answers each *Start with {ok:false}) ──
     Q_INVOKABLE void booksTtsEdgeProbeStart(quint64 reqId, const QString& voice);
@@ -89,9 +88,6 @@ signals:
     void closeRequested();
     void fullscreenRequested(bool enter);
     void readerReady();
-    // HTML pill asked for the audiobook strip. Pure signal — no payload; the QML
-    // reader layer already knows the open book's pairKey.
-    void listenRequested();
     // Emitted on every foliate progress save so QML can feed the Continue/resume
     // store (`Progress`). fraction is the 0..1 reading position foliate reports.
     void progressSaved(const QString& bookId, double fraction);
