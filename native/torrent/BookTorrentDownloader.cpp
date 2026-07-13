@@ -14,7 +14,6 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QStandardPaths>
-#include <QTimer>
 #include <QVector>
 
 namespace {
@@ -74,6 +73,12 @@ void BookTorrentDownloader::download(const QString& infoHashIn, const QString& t
     const QString hash = m_engine->addMagnet(BookTorrentMagnet::buildMagnet(infoHash),
                                              dirFor(infoHash), /*paused=*/false);
     if (hash.isEmpty()) { failJob(job, QStringLiteral("engine rejected magnet")); return; }
+
+    // A duplicate add (cancel+retry, or the same torrent already active on the shared
+    // engine) reuses the existing handle. metadata_received_alert is single-shot per
+    // handle, so metadataReady won't re-fire — drive the pick from the engine's existing
+    // file list, or the job would hang forever at "resolving".
+    if (m_engine->hasMetadata(hash)) applyMetadata(job, m_engine->torrentFiles(hash));
 }
 
 // ── engine handlers ──────────────────────────────────────────────────────────────
@@ -83,19 +88,31 @@ void BookTorrentDownloader::onMetadataReady(const QString& infoHash, const QStri
 {
     Job* job = jobForHash(infoHash);
     if (!alive(job) || job->picked) return;
+    applyMetadata(job, files);
+}
+
+// Pick the one ebook out of the resolved file list, tell the engine to fetch only it,
+// and record the choice on the job. Shared by the metadataReady signal path and the
+// duplicate-add synthesize path in download() (a reused handle won't re-emit the alert).
+void BookTorrentDownloader::applyMetadata(Job* job, const QJsonArray& files)
+{
     const QList<ManifestFile> mfs = BookTorrentMagnet::filesToManifest(files);
     const PickedFile pick = BookTorrentFilePicker::pick(job->title, job->author, mfs);
     if (pick.idx < 0) {
-        m_engine->removeTorrent(infoHash, /*deleteFiles=*/true);
+        m_engine->removeTorrent(job->infoHash, /*deleteFiles=*/true);
         failJob(job, QStringLiteral("this torrent has no ebook file (%1 file(s))").arg(mfs.size()));
         return;
     }
-    job->pickedIdx = pick.idx; job->fileName = pick.name; job->ext = pick.ext;
+    job->pickedIdx = pick.idx;
+    job->fileName  = pick.name;
+    // libtorrent file paths use '\' on Windows; forward-slash the stored index path and
+    // the finished() path so the reader opens a clean separator (Windows resolves either).
+    job->fileName.replace(QLatin1Char('\\'), QLatin1Char('/'));
     job->totalBytes = 0;
     for (const auto& m : mfs) if (m.idx == pick.idx) job->totalBytes = m.length;
     job->picked = true;
-    m_engine->setFilePriorities(infoHash, BookTorrentMagnet::pickToPriorities(pick.idx, mfs.size()));
-    qInfo() << "[BookTorrentDownloader]" << infoHash << "→ picked" << job->fileName
+    m_engine->setFilePriorities(job->infoHash, BookTorrentMagnet::pickToPriorities(pick.idx, mfs.size()));
+    qInfo() << "[BookTorrentDownloader]" << job->infoHash << "→ picked" << job->fileName
             << "(" << mfs.size() << "files," << job->totalBytes << "bytes )";
 }
 

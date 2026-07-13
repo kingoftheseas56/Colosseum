@@ -5,7 +5,8 @@
 // addMagnet -> metadataReady -> setFilePriorities -> torrentFinished -> finalize
 // from disk. Keys everything by infoHash; concurrent (QHash of jobs, each its own Job).
 //
-// On-disk: <appdata>/books-torrent/<infoHash>/<name>.<ext> + .../index.json (by infoHash).
+// On-disk: <appdata>/books-torrent/<infoHash>/<torrent-relative path> + .../index.json
+// (by infoHash). Multi-file packs keep their torrent-relative subfolders under the hash dir.
 #pragma once
 
 #include <QObject>
@@ -40,7 +41,7 @@ private:
     struct Job {
         QString infoHash, title, author;
         int     pickedIdx = -1;
-        QString fileName, ext;         // fileName = torrent-relative path from metadata
+        QString fileName;              // torrent-relative path from metadata (forward-slashed)
         qint64  totalBytes = 0, received = 0;
         qint64  lastProgressEmit = 0;
         bool    picked = false;        // metadata resolved + priorities set
@@ -51,6 +52,7 @@ private:
     void onEngineProgress(const QString& infoHash, float progress, int dl, int ul, int peers, int seeds);
     void onEngineFinished(const QString& infoHash);
     void onEngineFailed(const QString& infoHash, const QString& message);
+    void applyMetadata(Job* job, const QJsonArray& files);   // pick+priorities+record (signal or synthesize)
     void finalizeJob(Job* job);
     void failJob(Job* job, const QString& reason);
     Job* jobForHash(const QString& infoHash) const;
