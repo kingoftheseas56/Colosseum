@@ -246,6 +246,7 @@ void BookBridge::setFullscreen(bool fs) { m_fullscreen = fs; }
 
 void BookBridge::requestClose()    { emit closeRequested(); }
 void BookBridge::markReaderReady() { emit readerReady(); }
+void BookBridge::requestListen()   { emit listenRequested(); }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Edge TTS — LIVE (ported from Tankoban 2). *Start dispatches to the worker thread

@@ -80,6 +80,16 @@
       const b = pill.querySelector('[data-act="listen-audio"]');
       if (b) b.toggleAttribute('hidden', !has);
     };
+
+    // Ask QML for the audiobook strip (Task 4.4 catches BookBridge::listenRequested).
+    // Pure signal — no payload; QML already knows the open book's pairKey. Surface is
+    // read at CALL time (__ebookNav appears only after the async QWebChannel init).
+    window.__roomRequestAudiobook = function () {
+      try {
+        if (window.__ebookNav && typeof window.__ebookNav.requestListen === 'function')
+          window.__ebookNav.requestListen();
+      } catch (e) {}
+    };
   } catch (err) {
     // The pill layer must never throw and take down reader boot. Old chrome
     // still works even if the pill fails to mount.

@@ -92,7 +92,11 @@
       };
       window.__ebookNav = {
         requestClose: function () { b.requestClose(); },
-        markReaderReady: function () { b.markReaderReady(); }
+        markReaderReady: function () { b.markReaderReady(); },
+        // Pill's "listen (audiobook)" button → BookBridge::listenRequested() → QML
+        // mounts the audiobook strip. Fire-and-forget; guarded so an older native
+        // build without the invokable can't throw into the pill layer.
+        requestListen: function () { try { b.requestListen(); } catch (e) {} }
       };
       console.log('[shim] electronAPI + __ebookNav ready');
     });
