@@ -1,5 +1,26 @@
 // Universes.js — the UNIVERSE COLLECTION: the curated set of multi-medium IPs that feeds the home's
-// universe carousel AND each universe page. Real banner key-art, disk-cached like every remote image
+// universe carousel AND each universe page.
+//
+// ════════════════════════════════════════════════════════════════════════════════════════
+// THE UNIVERSE PAGE LAW (Hemanth, ratified 2026-07-13 — binding on every future AI/agent):
+// a universe page is a curated set of METADATA-PROVIDER SERIES IDS, never a name search.
+//   · Screen entries carry Cinemeta id-pins `{ t, id: "tt…" }` — same-name impostors are
+//     the NORM (two Avatar shows, four Dune films, 2003-vs-2008 Clone Wars, Ms. Marvel and
+//     She-Hulk on ADJACENT ids). A bare name is only legal when live-verified unambiguous.
+//   · Manga/anime entries resolve to MAL/AniList/Kitsu identities (id or a live-verified
+//     exact query — same-title NOVELS outrank manga on AniList; send format, prefer ids).
+//   · Comics doors pin the GetComics archive: `comics: { tag: <slug>, tagId: <id> }`.
+//   · Books are exact verified titles (Apple Books resolution; watch US/UK title splits).
+//   · METADATA ID = THE GATE, never release dates: no id → the work does not enter; an id
+//     with a future date enters wearing the small UPCOMING tag (probeUpcoming in SagaApi).
+//   · Providers only DRESS the slots (canon-over-search, slotByCanon): an unmatched slot
+//     stays EMPTY — never filled by a fuzzy stand-in.
+//   · Middlemen get ladders (Jikan→Kitsu precedent): the ID is what survives outages.
+//   · Every pin is verified LIVE against the provider before it lands here — a research
+//     report or memory is a lead, never evidence. Enforced by tests/test_universe_expansion_p0.ps1.
+// ════════════════════════════════════════════════════════════════════════════════════════
+//
+// Real banner key-art, disk-cached like every remote image
 // via the native launcher — every banner rides an IPv4-PINNED host (live.metahub.space backgrounds /
 // s4.anilist.co banners / upload.wikimedia.org), because this machine's dead IPv6 stalls unpinned
 // hosts ~21s. Every URL verified live (curl -4 HEAD 200) at curation time, 2026-07-12.

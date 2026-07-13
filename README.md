@@ -153,7 +153,11 @@ The Home surface is the meeting point for all three worlds. It currently include
 - A shared top bar for world switching and system actions
 - One app-wide `HouseScrollBar` for standard vertical pages
 
-Every universe in `Universes.js` is live in both the carousel and Hall of Worlds. The shell chooses a page template from the universe category:
+Every universe in `Universes.js` is live in both the carousel and Hall of Worlds. Universe
+curation is governed by **[the Universe Page Law](docs/UNIVERSE_PAGE_LAW.md)** (ratified
+2026-07-13): every entry is a metadata-provider series id — id-pinned, live-verified,
+release-date-blind (upcoming work enters tagged) — never a name search. Read it before
+touching a universe page. The shell chooses a page template from the universe category:
 
 | Template | Live universes |
 |---|---|
