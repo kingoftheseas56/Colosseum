@@ -52,6 +52,7 @@
 #include "torrent/TankorentSearchService.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
+#include "torrent/engine/TorrentEngine.h"
 
 class CachingNam : public QNetworkAccessManager {
 public:
@@ -384,6 +385,26 @@ int main(int argc, char *argv[]) {
     auto *searchNam = new CachingNam(pinnedHosts, ipv4ByHost, &app, /*useCache=*/false);
     auto *bookTorrents = new BookTorrents(searchNam, dlNam, stream, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
+
+    // ── Tankorent engine (Phase 1 — constructed-but-idle) ───────────────────
+    // One engine per job (spec 2026-07-13): Stremio keeps watch-now; this
+    // embedded libtorrent engine owns download-to-keep. No consumer is wired
+    // yet — books cut over in Phase 2 (A2 accepts), manga volumes in Phase 3.
+    // Session/resume state under Colosseum's OWN appdata, never TB2's.
+    // Download-and-stop posture: pause 1 s after seeding starts — no surprise
+    // seeding until Hemanth says otherwise. NOT start()ed and NOT exposed to
+    // QML: zero behavior change is this phase's contract.
+    const QString torrentEngineDir =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/torrent-engine");
+    QDir().mkpath(torrentEngineDir);
+    auto *torrentEngine = new TorrentEngine(torrentEngineDir, &app);
+    torrentEngine->setGlobalSeedingRules(0.f, 1);
+    // DebugLogBuffer's aboutToQuit -> flushToDiskIfEnabled() wiring (TB2 contract)
+    // is DEFERRED to Phase 2: the engine never start()s in this phase, the ring
+    // buffer stays empty, and the flush is opt-in via TANKOBAN_DEBUG_LOG anyway
+    // (review M3, 2026-07-13 — explicit defer, not an oversight).
+
     if (qEnvironmentVariableIsSet("COLOSSEUM_ABB_DLTEST")) {
         const QString spec = qEnvironmentVariable("COLOSSEUM_ABB_DLTEST");   // "<pairKey>|<infoHash>"
         const int bar = spec.lastIndexOf(QChar('|'));
