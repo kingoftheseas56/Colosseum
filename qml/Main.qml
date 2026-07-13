@@ -17,6 +17,8 @@ import "TheatreApi.js" as TheatreApi
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicResolve.js" as Resolve
+import "ComicsDb.js" as ComicsDb
+import "comics_db.gen.js" as ComicsDbData
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
@@ -90,6 +92,12 @@ Window {
 
     Component.onCompleted: {
         refreshWallpaper()
+        // Comics brain: read the weekly-built sidecar (rank → editions → download). Local file
+        // today; a hosted URL tomorrow — same load() seam. The ranked shelf reads from it; a
+        // load failure just falls back to the curated Catalog.topComics (ComicsDb.ready() gate).
+        var _cdbOk = ComicsDb.setData(ComicsDbData.data)   // local path: imported .gen.js, not a file read
+        if (_cdbOk) console.log("ComicsDb: loaded " + ComicsDb.rankedSeries().length + " series")
+        else console.warn("ComicsDb: comics_db.gen.js ingest FAILED — shelf/series fall back to live flow")
         // LOCG catalogue: real clock + polite request spacer + the resolve machine's deps
         Locg.nowFn = function() { return Date.now() }
         Locg.delayFn = function(ms, cb) { locgSpacer.fire(ms, cb) }

@@ -1,8 +1,11 @@
 #include "ComicDownloader.h"
 
 #include "ComicDlsParse.h"
+#include "torrent/ComicTorrents.h"
+#include "torrent/ComicTorrentMagnet.h"
 
 #include <QCollator>
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDebug>
@@ -103,9 +106,26 @@ QString bsdtarPath()
 } // namespace
 
 ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QObject* parent)
+    : ComicDownloader(nam, nullptr, nullptr, parent)
+{
+}
+
+ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManager* searchNam,
+                                 TorrentEngine* torrentEngine, QObject* parent)
     : QObject(parent), m_nam(nam)
 {
     loadIndex();
+    if (searchNam && torrentEngine) {
+        m_torrents = new ComicTorrents(searchNam, torrentEngine, this);
+        connect(m_torrents, &ComicTorrents::progress, this, &ComicDownloader::progress);
+        connect(m_torrents, &ComicTorrents::failed, this, &ComicDownloader::failed);
+        connect(m_torrents, &ComicTorrents::archiveReady, this,
+                [this](const QString& issueId, const QString& seriesId,
+                       const QString& seriesTitle, const QString& issueLabel,
+                       const QString& archivePath) {
+            ingestLocalArchive(issueId, seriesId, seriesTitle, issueLabel, archivePath);
+        });
+    }
 }
 
 ComicDownloader::~ComicDownloader()
@@ -214,6 +234,56 @@ bool ComicDownloader::isDownloaded(const QString& issueId) const
     return it != m_index.constEnd() && QDir(it.value().dir).exists();
 }
 
+void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString& seriesId,
+                                          const QString& seriesTitle, const QString& issueLabel,
+                                          const QString& archivePathIn)
+{
+    const QString id = issueIdIn.trimmed();
+    const QString archivePath = QDir::cleanPath(archivePathIn);
+    const QFileInfo archive(archivePath);
+    static const QSet<QString> allowed{
+        QStringLiteral("cbr"), QStringLiteral("cbz"),
+        QStringLiteral("cb7"), QStringLiteral("cbt")
+    };
+    if (id.isEmpty()) {
+        emit failed(id, QStringLiteral("empty issue id"));
+        return;
+    }
+    if (!archive.isFile() || !allowed.contains(archive.suffix().toLower())) {
+        emit failed(id, QStringLiteral("local comic archive missing or unsupported"));
+        return;
+    }
+    if (isDownloaded(id)) {
+        QFile::remove(archivePath);
+        emit finished(id);
+        return;
+    }
+    if (m_active && m_active->id == id) return;
+    for (const InFlight& queued : m_queue)
+        if (queued.id == id) return;
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        if (it.value().id == id) return;
+
+    InFlight flight;
+    flight.id = id;
+    flight.seriesId = seriesId;
+    flight.seriesTitle = seriesTitle;
+    flight.label = issueLabel.isEmpty() ? id : issueLabel;
+    flight.archivePath = archive.absoluteFilePath();
+    flight.receivedBytes = archive.size();
+    flight.expectedBytes = archive.size();
+    flight.localArchive = true;
+
+    emit progress(id, static_cast<double>(flight.receivedBytes),
+                  static_cast<double>(flight.expectedBytes));
+    if (m_active) {
+        m_queue.append(std::move(flight));
+        return;
+    }
+    m_active = new InFlight(std::move(flight));
+    beginExtract(*m_active);
+}
+
 QVariantMap ComicDownloader::statusOf(const QString& issueId) const
 {
     const QString id = issueId.trimmed();
@@ -238,8 +308,39 @@ QVariantMap ComicDownloader::statusOf(const QString& issueId) const
         if (it.value().id == id) { s[QStringLiteral("state")] = QStringLiteral("resolving"); return s; }
     for (const InFlight& q : m_queue)
         if (q.id == id) { s[QStringLiteral("state")] = QStringLiteral("queued"); return s; }
+    if (m_torrents) {
+        const QVariantMap torrent = m_torrents->statusOf(id);
+        if (torrent.value(QStringLiteral("state")).toString() != QStringLiteral("none"))
+            return torrent;
+    }
     s[QStringLiteral("state")] = QStringLiteral("none");
     return s;
+}
+
+void ComicDownloader::downloadIssueTorrent(const QString& issueIdIn, const QString& seriesId,
+                                            const QString& seriesTitle, const QString& issueLabel,
+                                            const QString& query)
+{
+    const QString id = issueIdIn.trimmed();
+    if (id.isEmpty() || query.trimmed().isEmpty()) {
+        emit failed(id, QStringLiteral("empty issue id / torrent query"));
+        return;
+    }
+    if (isDownloaded(id)) {
+        emit finished(id);
+        return;
+    }
+    if (!m_torrents) {
+        emit failed(id, QStringLiteral("comic torrent service unavailable"));
+        return;
+    }
+    if (m_torrents->contains(id)) return;
+    if (m_active && m_active->id == id) return;
+    for (const InFlight& queued : m_queue)
+        if (queued.id == id) return;
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        if (it.value().id == id) return;
+    m_torrents->downloadIssue(id, seriesId, seriesTitle, issueLabel, query);
 }
 
 void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& postUrl,
@@ -328,11 +429,14 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
     }
     for (int i = 0; i < m_queue.size(); ++i) {
         if (m_queue[i].id == id) {
+            if (m_queue[i].localArchive && !m_queue[i].archivePath.isEmpty())
+                QFile::remove(m_queue[i].archivePath);
             m_queue.removeAt(i);
             emit failed(id, QStringLiteral("cancelled by user (queued)"));
             return;
         }
     }
+    if (m_torrents) m_torrents->cancel(id);
 }
 
 void ComicDownloader::deleteIssue(const QString& issueIdIn)
@@ -581,7 +685,10 @@ void ComicDownloader::startNextQueued()
     if (!m_queue.isEmpty()) {
         m_active = new InFlight(std::move(m_queue[0]));
         m_queue.removeAt(0);
-        startAttempt(*m_active);
+        if (m_active->localArchive)
+            beginExtract(*m_active);
+        else
+            startAttempt(*m_active);
     }
 }
 
@@ -737,6 +844,41 @@ void ComicDownloader::selfTest(const QString& postUrl)
                   QStringLiteral("selftest"), 0);
 }
 
+void ComicDownloader::selfTestTorrent(const QString& magnetOrHash, const QString& seriesTitle,
+                                      const QString& issueLabel)
+{
+    const QString infoHash = ComicTorrentMagnet::infoHash(magnetOrHash);
+    const QString id = QStringLiteral("torrent-selftest-") + hash10(infoHash + issueLabel);
+    if (!m_torrents) {
+        qWarning() << "[comic-torrent-dl] FAIL service unavailable";
+        QCoreApplication::exit(1);
+        return;
+    }
+    deleteIssue(id);
+    connect(this, &ComicDownloader::finished, this, [this, id](const QString& finishedId) {
+        if (finishedId != id) return;
+        const int pages = localPages(id).size();
+        if (pages <= 0) {
+            qWarning() << "[comic-torrent-dl] FAIL no reader pages" << id;
+            QCoreApplication::exit(1);
+            return;
+        }
+        qInfo() << "[comic-torrent-dl] DONE" << id << "pages=" << pages;
+        QCoreApplication::exit(0);
+    });
+    connect(this, &ComicDownloader::failed, this, [id](const QString& failedId,
+                                                        const QString& reason) {
+        if (failedId != id) return;
+        qWarning() << "[comic-torrent-dl] FAIL" << id << reason;
+        QCoreApplication::exit(1);
+    });
+    m_torrents->downloadInfoHash(id, QStringLiteral("gc:torrent-selftest"),
+                                 seriesTitle, issueLabel, infoHash,
+                                 seriesTitle + QLatin1Char(' ') + issueLabel,
+                                 magnetOrHash.startsWith(QStringLiteral("magnet:?"))
+                                     ? magnetOrHash : QString());
+}
+
 QVariantList ComicDownloader::downloadedIssues() const
 {
     QVariantList out;
@@ -779,5 +921,9 @@ QVariantList ComicDownloader::activeIssueJobs() const
         out.append(row(it.value(), QStringLiteral("resolving")));
     for (const InFlight& q : m_queue)
         out.append(row(q, QStringLiteral("queued")));
+    if (m_torrents) {
+        const QVariantList torrentJobs = m_torrents->activeJobs();
+        for (const QVariant& job : torrentJobs) out.append(job);
+    }
     return out;
 }

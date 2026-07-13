@@ -46,12 +46,16 @@ class QNetworkAccessManager;
 class QNetworkReply;
 class QFile;
 class QProcess;
+class TorrentEngine;
+class ComicTorrents;
 
 class ComicDownloader : public QObject
 {
     Q_OBJECT
 public:
     explicit ComicDownloader(QNetworkAccessManager* nam, QObject* parent = nullptr);
+    ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManager* searchNam,
+                    TorrentEngine* torrentEngine, QObject* parent = nullptr);
     ~ComicDownloader() override;
 
     // ---- QML entry points ----
@@ -64,6 +68,19 @@ public:
     Q_INVOKABLE void downloadIssue(const QString& issueId, const QString& postUrl,
                                    const QString& seriesId, const QString& seriesTitle,
                                    const QString& issueLabel, double expectedBytes = 0);
+
+    // Feed a CBR/CBZ/CB7/CBT produced by another transport into the same
+    // extraction/index/reader pipeline. Ownership transfers to this object:
+    // the source archive is deleted after extraction or terminal failure.
+    Q_INVOKABLE void ingestLocalArchive(const QString& issueId, const QString& seriesId,
+                                        const QString& seriesTitle, const QString& issueLabel,
+                                        const QString& archivePath);
+
+    // Search the built-in torrent sources, download the best comic archive,
+    // then ingest it through this object's existing extraction/index contract.
+    Q_INVOKABLE void downloadIssueTorrent(const QString& issueId, const QString& seriesId,
+                                          const QString& seriesTitle, const QString& issueLabel,
+                                          const QString& query);
 
     // Local pages of a downloaded issue, MangaDownloader-shaped:
     // [{index, url: "file:///…/page_000.jpg", group: -1}] — or [] if not on disk.
@@ -85,6 +102,8 @@ public:
     // Headless smoke (COLOSSEUM_COMIC_DLTEST=<postUrl>): resolve → download →
     // extract a real post, log OK/FAILED + the page count. Drive-harness food.
     Q_INVOKABLE void selfTest(const QString& postUrl);
+    void selfTestTorrent(const QString& infoHash, const QString& seriesTitle,
+                         const QString& issueLabel);
 
 signals:
     void progress(const QString& issueId, double done, double total);   // bytes
@@ -122,6 +141,7 @@ private:
         qint64 lastProgressEmit = 0;
         qint64 lastProgressBytes = 0;
         bool extracting = false;
+        bool localArchive = false;   // starts at beginExtract(), never at HTTP startAttempt()
         QString extractTmp;
     };
 
@@ -155,4 +175,5 @@ private:
     InFlight* m_active = nullptr;
     QList<InFlight> m_queue;
     QProcess* m_proc = nullptr;
+    ComicTorrents* m_torrents = nullptr;
 };

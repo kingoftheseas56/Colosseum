@@ -19,6 +19,7 @@ import QtQuick.Controls
 import "ComicResolve.js" as Resolve
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
+import "ComicsDb.js" as ComicsDb
 
 Item {
     id: page
@@ -81,9 +82,22 @@ Item {
     property var locgIssuesRaw: []          // LOCG issue list, date-desc as served
     property var gcMatch: ({ byIssue: {}, collections: [] })
 
+    // DB-first (comics-brain step 3): if the weekly comics_db.json carries this series, render the
+    // ComicDbLedger straight from it — no live LOCG/GetComics resolution. Otherwise fall through to
+    // the old live attach() flow below. ComicsDb.ready() falls back gracefully when the sidecar
+    // isn't loaded.
+    readonly property var dbSeries: (ComicsDb.ready() && page.locgId.length)
+                                    ? ComicsDb.series(page.locgId) : null
+
     onLocgIdChanged: attach()
     function attach() {
         if (!locgId.length) return
+        if (page.dbSeries) {                 // DB has it → the ledger renders; skip live resolution
+            page.gcTag = String(locgId).replace(/^locg:/, "")   // download/reader namespace
+            page.loading = false
+            page.notAvailable = false
+            return
+        }
         notAvailable = false
         loading = true
         // clear any prior series' attach so a no-match (or a reused layer) can't leave
@@ -204,8 +218,20 @@ Item {
             width: parent.width - theme.margin * 2
             spacing: 26
 
-            // ===== hero =====
+            // ===== DB-driven ledger (comics_db.json): hero + format-grouped editions =====
+            ComicDbLedger {
+                visible: !!page.dbSeries
+                width: parent.width
+                theme: theme
+                dbSeries: page.dbSeries
+                seriesTitle: page.seriesTitle
+                gcTag: "gc:" + page.gcTag
+                onReadRequested: (chId, label) => { page.openChapterId = chId; page.openChapterLabel = label }
+            }
+
+            // ===== hero (live-flow fallback when the series isn't in the DB) =====
             Row {
+                visible: !page.dbSeries
                 spacing: 34
                 Rectangle {
                     width: 196; height: 294; radius: 10
@@ -277,8 +303,9 @@ Item {
                 }
             }
 
-            // ===== glass issue table (ascending #1 first) =====
+            // ===== glass issue table (ascending #1 first) — live-flow fallback =====
             Rectangle {
+                visible: !page.dbSeries
                 width: parent.width
                 height: tableCol.height
                 radius: 14
@@ -457,7 +484,7 @@ Item {
             // ===== Collected editions (GC mode): TPB/Omnibus/Epic posts — the way in
             //       for old series with no per-issue posts. Same verbs, own rows. =====
             Rectangle {
-                visible: page.gcMode && ((page.gcMatch && page.gcMatch.collections) || []).length > 0
+                visible: !page.dbSeries && page.gcMode && ((page.gcMatch && page.gcMatch.collections) || []).length > 0
                 width: parent.width
                 height: collCol.height
                 radius: 14

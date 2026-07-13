@@ -357,11 +357,6 @@ int main(int argc, char *argv[]) {
     // Western-comics download backbone (GetComics release → archive → local page
     // dir) exposed to QML as `Comics`. BookDownloader lineage: ONE signed-link
     // file per release post, extracted so MangaReader reads it like a chapter.
-    auto *comics = new ComicDownloader(dlNam, &app);
-    engine.rootContext()->setContextProperty(QStringLiteral("Comics"), comics);
-    if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_DLTEST"))
-        comics->selfTest(qEnvironmentVariable("COLOSSEUM_COMIC_DLTEST"));
-
     // Foliate EPUB reader bridge exposed to the WebEngine reader's QWebChannel as
     // `BookBridge` (a JS shim maps it to window.electronAPI). Ported from TB2.
     auto *bookBridge = new BookBridge(&app);
@@ -398,6 +393,14 @@ int main(int argc, char *argv[]) {
     // cache); torrentEngine carries the download bytes. pinnedHosts/ipv4ByHost include the
     // 3 indexers.
     auto *searchNam = new CachingNam(pinnedHosts, ipv4ByHost, &app, /*useCache=*/false);
+
+    // Comics keeps one public reader/download identity (`Comics`) while privately
+    // composing torrent search + archive download with its proven extraction/index.
+    auto *comics = new ComicDownloader(dlNam, searchNam, torrentEngine, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Comics"), comics);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_DLTEST"))
+        comics->selfTest(qEnvironmentVariable("COLOSSEUM_COMIC_DLTEST"));
+
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
 
@@ -416,10 +419,16 @@ int main(int argc, char *argv[]) {
         svc->selfTest(qEnvironmentVariable("COLOSSEUM_TORRENT_SEARCHTEST"));
         QTimer::singleShot(45000, &app, &QCoreApplication::quit);   // hard backstop only
     }
-    if (qEnvironmentVariableIsSet("COLOSSEUM_TORRENT_DLTEST")) {     // "<infoHash>|<title>"
+    if (qEnvironmentVariableIsSet("COLOSSEUM_TORRENT_DLTEST")) {
+        // Book lane: "<infoHash>|<title>". Comics end-to-end lane:
+        // "<infoHash>|<series title>|<edition title>" -> archive -> extract -> localPages.
         const QStringList a = qEnvironmentVariable("COLOSSEUM_TORRENT_DLTEST").split(QChar('|'));
-        auto* dl = new BookTorrentDownloader(torrentEngine, &app);
-        if (a.size() == 2) dl->selfTest(a[0], a[1]);
+        if (a.size() == 3) {
+            comics->selfTestTorrent(a[0], a[1], a[2]);
+        } else if (a.size() == 2) {
+            auto* dl = new BookTorrentDownloader(torrentEngine, &app);
+            dl->selfTest(a[0], a[1]);
+        }
         QTimer::singleShot(240000, &app, []() {   // >= live gate's 240s DHT wait
             qWarning() << "[bt-dl] FAIL timeout — no DONE/FAIL after 240s";
             QCoreApplication::exit(2);            // honest failing verdict, never a silent exit-0 green

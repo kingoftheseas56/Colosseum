@@ -13,6 +13,7 @@
 import QtQuick
 import "Catalog.js" as Catalog
 import "ComicsApi.js" as GcApi
+import "ComicsDb.js" as ComicsDb
 
 WorldPage {
     id: tanko
@@ -24,6 +25,11 @@ WorldPage {
     // the archive index (the middle layer, ratified 2026-07-04 — never raw feeds).
     signal westernRequested(string title)
     signal westernExploreRequested(var box)
+    // Comics brain (2026-07-13): the Top-Comics row now reads the weekly-built comics_db.json
+    // (RCO-ranked, LOCG-resolved) — a tile carries its LOCG id, so it opens the series directly
+    // via openComicSeries (Main wires comicSeriesRequested→openComicSeries). Falls back to the
+    // curated westernRequested path when the sidecar isn't loaded.
+    signal comicSeriesRequested(var d)
 
     // GetComics' own taxonomy (top tags by release count, publishers + franchises,
     // noise-filtered) drives the explore mosaic inline — the old Archives-door page
@@ -81,10 +87,17 @@ WorldPage {
 
     TrendingTop10 {
         title: "Top in Tankoban — Comics"
-        // Curated list (pre-LOCG behavior, Hemanth 2026-07-12) — every tile opens the
-        // GetComics shelf; ComicSeries resolves the tag from the title, slug-first.
-        items: Catalog.topComics
-        onItemClicked: (i) => tanko.westernRequested(Catalog.topComics[i].caption)
+        // DB-driven (2026-07-13): RCO-ranked series from the weekly comics_db.json sidecar; each
+        // tile carries its LOCG id and opens the series directly. Falls back to the curated list
+        // if the sidecar didn't load (ComicsDb.ready() gate). Evaluated at page creation, which is
+        // lazy — well after Main's startup load() — so the DB is ready by the time this renders.
+        property var comicRows: ComicsDb.ready() ? ComicsDb.rankedSeries() : Catalog.topComics
+        items: comicRows
+        onItemClicked: (i) => {
+            var it = comicRows[i]
+            if (it && it.locgId) tanko.comicSeriesRequested({ id: it.locgId, title: it.caption, cover: it.cover })
+            else tanko.westernRequested(it.caption)
+        }
     }
 
     GenreMosaic {
