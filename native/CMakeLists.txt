@@ -29,6 +29,47 @@ set(Libmpv_INCLUDE_DIRS "${LIBMPV_PREFIX}/include" CACHE PATH "" FORCE)
 set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/${_LIBMPV_IMPLIB}" CACHE FILEPATH "" FORCE)
 find_package(MpvQt REQUIRED)
 
+# ── libtorrent-rasterbar (tankorent engine core) ─────────────────────────────
+# Ported from TB2 CMakeLists.txt (TANKORENT_DOWNLOAD_FLOW_FIX lineage):
+# find_package CONFIG first, hardcoded C:/tools fallback second. Wrapped in an
+# INTERFACE target so the app and the engine harnesses share ONE definition.
+# Colosseum adaptation (justified): missing libtorrent is FATAL here, not a
+# soft-disable — Colosseum has no stub lane; the engine is a commissioned organ
+# (spec 2026-07-13) and a silent stub would violate source-honesty doctrine.
+add_library(colosseum_libtorrent INTERFACE)
+find_package(LibtorrentRasterbar CONFIG QUIET)
+find_package(Boost CONFIG QUIET COMPONENTS system filesystem)
+find_package(OpenSSL QUIET)
+if(LibtorrentRasterbar_FOUND AND Boost_FOUND AND OpenSSL_FOUND)
+    message(STATUS "libtorrent + Boost + OpenSSL found via find_package")
+    target_compile_definitions(colosseum_libtorrent INTERFACE
+        HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
+    target_link_libraries(colosseum_libtorrent INTERFACE
+        LibtorrentRasterbar::torrent-rasterbar Boost::system Boost::filesystem
+        OpenSSL::SSL OpenSSL::Crypto ws2_32 mswsock crypt32 iphlpapi bcrypt)
+else()
+    set(LIBTORRENT_ROOT "C:/tools/libtorrent-2.0-msvc" CACHE PATH "libtorrent MSVC install")
+    set(BOOST_ROOT "C:/tools/boost-1.84.0" CACHE PATH "Boost headers")
+    set(OPENSSL_MSVC_ROOT "C:/tools/openssl-msvc" CACHE PATH "OpenSSL MSVC install")
+    find_path(LIBTORRENT_INCLUDE_DIR libtorrent/session.hpp HINTS "${LIBTORRENT_ROOT}/include")
+    find_library(LIBTORRENT_LIBRARY torrent-rasterbar HINTS "${LIBTORRENT_ROOT}/lib")
+    find_path(BOOST_INCLUDE_DIR boost/version.hpp HINTS "${BOOST_ROOT}")
+    if(LIBTORRENT_INCLUDE_DIR AND LIBTORRENT_LIBRARY AND BOOST_INCLUDE_DIR)
+        message(STATUS "libtorrent found via C:/tools fallback: ${LIBTORRENT_LIBRARY}")
+        target_include_directories(colosseum_libtorrent INTERFACE
+            "${LIBTORRENT_INCLUDE_DIR}" "${BOOST_INCLUDE_DIR}" "${OPENSSL_MSVC_ROOT}/include")
+        target_compile_definitions(colosseum_libtorrent INTERFACE
+            HAS_LIBTORRENT=1 TORRENT_USE_OPENSSL BOOST_ALL_NO_LIB _WIN32_WINNT=0x0A00)
+        target_link_libraries(colosseum_libtorrent INTERFACE
+            "${LIBTORRENT_LIBRARY}"
+            "${OPENSSL_MSVC_ROOT}/lib/libssl.lib"
+            "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib"
+            ws2_32 mswsock crypt32 iphlpapi bcrypt)
+    else()
+        message(FATAL_ERROR "libtorrent NOT found (find_package or C:/tools/libtorrent-2.0-msvc) — the tankorent engine requires it. See TB2 CMakeLists TANKORENT_DOWNLOAD_FLOW_FIX comment.")
+    endif()
+endif()
+
 add_executable(colosseum
     main.cpp
     app_icon.rc              # Windows exe/taskbar icon (colosseum.ico)
@@ -135,6 +176,11 @@ add_executable(book_torrent_filepicker_harness
 )
 target_include_directories(book_torrent_filepicker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_filepicker_harness PRIVATE Qt6::Core)
+
+add_executable(torrent_engine_link_harness
+    ../tests/torrent_engine_link_harness.cpp
+)
+target_link_libraries(torrent_engine_link_harness PRIVATE colosseum_libtorrent)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
