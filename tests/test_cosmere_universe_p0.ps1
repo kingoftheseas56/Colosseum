@@ -25,10 +25,17 @@ Assert-Contains $api 'function snapshot(' "CosmereApi must expose the pure order
 Assert-Contains $api 'function loadAtlas(' "CosmereApi must expose the live atlas loader."
 Assert-Contains $api 'Biblio.lookupBook' "Every curated title must resolve through Biblio."
 
+$page = Read-File "qml/CosmereUniversePage.qml"
+Assert-Contains $page 'signal bookRequested(var book)' "The atlas must expose the Biblio book verb."
+Assert-Contains $page 'root.bookRequested(book)' "Every live gate must emit a full book object."
+Assert-Contains $page 'THE COGNITIVE ATLAS' "The page must carry its own atlas identity."
+Assert-Contains $page 'OPEN IN BIBLIO' "World gates must name their real destination."
+Assert-Contains $page 'activeFocusOnTab: true' "Book gates must be keyboard focusable."
+Assert-Contains $page 'Keys.onReturnPressed' "Book gates must activate from the keyboard."
+
 $harness = Join-Path $PSScriptRoot "cosmere_api_harness.qml"
 $env:QT_FORCE_STDERR_LOGGING = "1"
 cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Cosmere API harness failed (exit $LASTEXITCODE)" }
 
 Write-Host "cosmere universe p0: OK"
-
