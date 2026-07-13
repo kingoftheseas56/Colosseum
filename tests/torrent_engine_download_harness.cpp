@@ -9,7 +9,9 @@
 //   torrent_engine_download_harness.exe <workDir> [magnetUri]
 //   torrent_engine_download_harness.exe --resume <workDir>
 // Exit: 0 PASS · 1 FAIL · 2 TIMEOUT. Verdict rides the exit code; the watchdog
-// guarantees exit (house law: a hung harness is a failed harness).
+// guarantees the FRESH lane exits (house law: a hung harness is a failed
+// harness). The resume lane is synchronous-by-construction — no event loop,
+// so it cannot hang and needs no watchdog.
 // Default torrent: Blender's Sintel (open movie, legal, seeded for a decade).
 #include <QCoreApplication>
 #include <QDir>
@@ -53,6 +55,19 @@ int main(int argc, char** argv)
     QDir().mkpath(cacheDir);
     QDir().mkpath(saveDir);
 
+    if (!resumeLane) {
+        // Guard: a reused workDir false-greens the gate — libtorrent's recheck
+        // finds the picked file complete and torrentFinished fires with zero
+        // bytes downloaded. Fresh lane demands a fresh workDir (review 2026-07-13).
+        const bool staleFiles = !QDir(saveDir).entryList(QDir::Files | QDir::Dirs | QDir::NoDotAndDotDot).isEmpty();
+        const bool staleBlobs = !QDir(cacheDir).entryList({QStringLiteral("*.fastresume")}, QDir::Files).isEmpty();
+        if (staleFiles || staleBlobs) {
+            std::printf("FAIL: workDir not fresh (files=%d blobs=%d) — fresh lane needs an empty workDir\n",
+                        staleFiles, staleBlobs);
+            return 1;
+        }
+    }
+
     TorrentEngine engine(cacheDir);
     engine.setGlobalSeedingRules(0.f, 1);   // download-and-stop: pause 1 s after seeding starts
     engine.start();
@@ -66,7 +81,9 @@ int main(int argc, char** argv)
 
     if (resumeLane) {
         // ---- kill-and-restart lane: fully offline ----
-        watchdog.start(30000);
+        // synchronous lane — no event loop, no watchdog; every call below either
+        // returns or the engine dtor cleans up (verdict cannot hang on a timer
+        // that can't fire)
         const QStringList blobs = QDir(cacheDir).entryList({QStringLiteral("*.fastresume")}, QDir::Files);
         if (blobs.isEmpty()) { std::printf("FAIL: no .fastresume in %s\n", qPrintable(cacheDir)); return 1; }
         const QString resumePath = cacheDir + QLatin1Char('/') + blobs.first();
@@ -95,8 +112,16 @@ int main(int argc, char** argv)
             app.exit(1);
         });
 
+    QObject::connect(&engine, &TorrentEngine::torrentError, &app,
+        [&](const QString& infoHash, const QString& message) {
+            if (infoHash != ourHash) return;
+            std::printf("FAIL: torrent error: %s\n", qPrintable(message));
+            app.exit(1);
+        });
+
     QObject::connect(&engine, &TorrentEngine::metadataReady, &app,
         [&](const QString& infoHash, const QString& name, qint64, const QJsonArray& files) {
+            if (infoHash != ourHash) return;
             std::printf("metadata: %s (%d files)\n", qPrintable(name), int(files.size()));
             // per-file pick: keep ONLY the smallest nonzero file (proves the
             // Phase-2/3 mechanism — one book out of a 5-book pack, one volume
@@ -114,18 +139,22 @@ int main(int argc, char** argv)
             QVector<int> prio(int(files.size()), 0);  // 0 = skip
             prio[pickIdx] = 4;                        // libtorrent default priority
             engine.setFilePriorities(infoHash, prio);
+            watchdog.start(120000);  // download phase
             std::printf("picked file %d (%lld bytes), all others skipped\n",
                         pickIdx, static_cast<long long>(pickSize));
         });
 
     QObject::connect(&engine, &TorrentEngine::torrentFinished, &app,
         [&](const QString& infoHash) {
+            if (infoHash != ourHash) return;
             finished = true;
+            watchdog.start(60000);  // blob wait — auto-save tick is 30 s
             std::printf("finished: %s — waiting for resume blob\n", qPrintable(infoHash));
         });
 
     QObject::connect(&engine, &TorrentEngine::resumeDataAvailable, &app,
         [&](const QString& infoHash, const QByteArray& blob) {
+            if (infoHash != ourHash) return;
             if (!finished) return;  // only persist the post-completion blob
             const QString path = cacheDir + QLatin1Char('/') + infoHash
                                  + QStringLiteral(".fastresume");
