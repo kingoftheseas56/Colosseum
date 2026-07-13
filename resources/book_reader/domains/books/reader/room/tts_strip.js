@@ -401,6 +401,7 @@
 
     window.__roomStopTts = function () {
       _seq++; // fix 1: session over — a still-pending init must not play
+      _starting = false; // stop kills the live start — the pending init's token is already stale (mirrors tts_hud ttsStop clearing _ttsActive)
       try {
         var tts = window.booksTTS;
         if (tts && typeof tts.stop === 'function') { try { tts.stop(); } catch (e) {} }
