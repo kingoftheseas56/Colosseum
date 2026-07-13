@@ -159,6 +159,7 @@ Item {
         return (session.currentIndex + frac) / session.files.length
     }
     function recordProgress() {
+        if (session.pendingResumeSec > 0) return   // resume not applied yet — the store's spot is still the truth
         if (!session.ready || typeof Progress === 'undefined' || !session.activePairKey) return
         Progress.record({
             "kind": "audiobook", "id": session.activePairKey,
