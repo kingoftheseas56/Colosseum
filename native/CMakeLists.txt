@@ -142,10 +142,17 @@ add_executable(colosseum
     torrent/BookTorrentDownloader.h
     torrent/BookTorrents.cpp
     torrent/BookTorrents.h
+    torrent/engine/TorrentEngine.cpp
+    torrent/engine/TorrentEngine.h
+    torrent/engine/TorrentRow.h
+    torrent/engine/TorrentRepository.cpp
+    torrent/engine/TorrentRepository.h
+    torrent/engine/DebugLogBuffer.cpp
+    torrent/engine/DebugLogBuffer.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
-    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets)
+    Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp
