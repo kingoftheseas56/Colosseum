@@ -539,13 +539,6 @@ var universes = [
       seriesQueries: [ "avatar the last airbender", "the legend of korra" ],
       movieQueries: [ "the last airbender" ],
       chips: [ { t: "3 Shows", ic: "movies" }, { t: "2 Films", ic: "movies" }, { t: "6 Novels", ic: "books" }, { t: "Comics", ic: "comics" } ] },
-    { name: "Pokémon", c1: "#2c2418", category: "anime",
-      blurb: "Twenty-six seasons of Ash and Pikachu, the Horizons generation, the theatrical films, and the Adventures manga.",
-      banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30928-YSyv6mRbR73n.jpg",
-      readQueries: [ "Pokémon Adventures" ],
-      seriesQueries: [ "pokemon", "pokemon horizons", "pokemon concierge" ],
-      movieQueries: [ "pokemon", "detective pikachu" ],
-      chips: [ { t: "2 Shows", ic: "movies" }, { t: "23 Films", ic: "movies" }, { t: "Manga", ic: "manga" } ] },
     { name: "Attack on Titan", c1: "#2a2018", category: "anime",
       blurb: "Humanity's last walls and the titans beyond them — Isayama's manga, the landmark anime, and the compilation films.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/53390-6Uru5rrjh8zv.jpg",
@@ -558,6 +551,18 @@ var universes = [
       movieQueries: [ "attack on titan" ],
       chips: [ { t: "3 Manga", ic: "manga" }, { t: "1 Anime", ic: "movies" }, { t: "Films", ic: "movies" } ] }
 ];
+
+// Hemanth 2026-07-13: the Cognitive Atlas belongs at the front. Preserve One Piece as
+// the collection's first door, then promote Cosmere to slot 2 in both the carousel and Hall.
+function promoteUniverse(name, slot) {
+    for (var i = 0; i < universes.length; i++) {
+        if (universes[i].name !== name) continue;
+        var promoted = universes.splice(i, 1)[0];
+        universes.splice(slot, 0, promoted);
+        return;
+    }
+}
+promoteUniverse("Cosmere", 1);
 
 // (the placeholder bench is empty — the 2026-07-12 commission promoted everything;
 //  future curations land here first if their page needs work before surfacing)

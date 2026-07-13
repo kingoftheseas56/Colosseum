@@ -12,12 +12,16 @@ function Read-File($rel) {
 function Assert-Contains($text, $needle, $message) {
     if ($text -notlike "*$needle*") { throw $message }
 }
+function Assert-Lacks($text, $needle, $message) {
+    if ($text -like "*$needle*") { throw $message }
+}
 
 $udb = Read-File "qml/Universes.js"
 Assert-Contains $udb 'name: "Cosmere"' "Universes.js must carry Cosmere."
 Assert-Contains $udb 'category: "cosmere"' "Cosmere must select its own template."
 Assert-Contains $udb 'cosmereStarters:' "Cosmere must curate newcomer portals."
 Assert-Contains $udb 'cosmereWorlds:' "Cosmere must curate planetary systems."
+Assert-Lacks $udb 'name: "Pok' "Pokemon must not remain in the universe collection."
 
 $api = Read-File "qml/CosmereApi.js"
 Assert-Contains $api '.import "BiblioApi.js" as Biblio' "Cosmere books must use the Biblio lane."

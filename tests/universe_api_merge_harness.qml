@@ -43,11 +43,14 @@ QtObject {
             && Object.keys(UDB.configFor("No Such Universe")).length !== 0)
             throw new Error("unknown universe must yield an empty config")
 
-        // --- the collection: 12 live universes, every banner on a pinned host ---
-        if (UDB.universes.length !== 22) throw new Error("expected 22 universes, got " + UDB.universes.length)
+        // --- the collection: every live universe, ordered and on a pinned banner host ---
+        if (UDB.universes.length !== 21) throw new Error("expected 21 universes after Pokemon retirement, got " + UDB.universes.length)
+        if (UDB.universes[1].name !== "Cosmere") throw new Error("Cosmere must be collection slot 2")
         var pinned = ["live.metahub.space", "s4.anilist.co", "upload.wikimedia.org", "image.tmdb.org"]
         for (var i = 0; i < UDB.universes.length; i++) {
             var u = UDB.universes[i]
+            if (u.name.toLowerCase().indexOf("pok") === 0)
+                throw new Error("Pokemon must be retired from the universe collection")
             if (!u.banner || !u.blurb || !u.chips || !u.chips.length)
                 throw new Error(u.name + " missing banner/blurb/chips")
             var ok = pinned.some(function(h) { return u.banner.indexOf(h) !== -1 })

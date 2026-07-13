@@ -31,7 +31,7 @@ The interface is written in Qt Quick/QML. Native C++ objects provide the player,
 
 | Area | Current state |
 |---|---|
-| Home shell | Implemented: per-world wallpaper, 22-universe carousel, Hall of Worlds, mixed Continue row with See All, world-entry boards, top bar, taskbar, and a shared interactive scrollbar |
+| Home shell | Implemented: per-world wallpaper, 21-universe carousel, Hall of Worlds, mixed Continue row with See All, world-entry boards, top bar, taskbar, and a shared interactive scrollbar |
 | Tankoban | Implemented: manga discovery, genre fallback, volumes, downloads, GetComics-driven western-comics discovery, release shelves, archive delivery, and shared reader |
 | Biblio | Implemented: Apple Books discovery, native multi-indexer book-torrent search, ranked single-file torrent delivery, LibGen editions, AudioBookBay audiobook matching, EPUB reader, audiobook player, and live Edge TTS |
 | Theatre | Implemented: Movies, Shows, Anime, detail pages, stream selection, mpv playback, subtitles, sessions, video downloads, and a Jikan-to-Kitsu anime fallback lane |
@@ -39,7 +39,7 @@ The interface is written in Qt Quick/QML. Native C++ objects provide the player,
 | Extensions | Implemented for Theatre: install, preview, enable, order, remove, and browse the community catalog |
 | Downloads | Implemented for manga, comics, LibGen ebooks, and video through one cross-world vault; torrent-sourced ebooks and audiobook files currently remain in their Biblio-owned stores |
 | Sessions | Implemented for books, audiobooks, comics/manga, and video |
-| Universe pages | 22 live entries across anime, cinematic, saga, magazine, galaxy, eras, studio, and Cosmere atlas templates; no parked placeholders |
+| Universe pages | 21 live entries across anime, cinematic, saga, magazine, galaxy, eras, studio, and Cosmere atlas templates; no parked placeholders |
 | Vinyl | Visible as a coming-soon world, not implemented |
 | Platforms | Windows-first development build; other platforms are not currently packaged or verified |
 
@@ -145,7 +145,7 @@ The Home search button does not yet open a true cross-world search surface.
 The Home surface is the meeting point for all three worlds. It currently includes:
 
 - A persistent, user-selectable wallpaper system with separate picks for Home, Tankoban, Biblio, and Theatre
-- A 22-entry curated universe carousel
+- A 21-entry curated universe carousel
 - A **Hall of Worlds** see-all surface using the vertical Ledger Stack layout
 - A single Continue row mixing books, audiobooks, manga, comics, movies, and episodes by recency
 - A full Continue See All surface
@@ -161,7 +161,7 @@ touching a universe page. The shell chooses a page template from the universe ca
 
 | Template | Live universes |
 |---|---|
-| Generic anime/read-watch | One Piece, Dragon Ball, Naruto, Pokémon, Attack on Titan |
+| Generic anime/read-watch | One Piece, Dragon Ball, Naruto, Attack on Titan |
 | Cinematic | Marvel Cinematic Universe |
 | Saga | Harry Potter, Lord of the Rings, A Song of Ice and Fire, Dune, The Witcher, Sherlock Holmes, Jurassic Park, Percy Jackson |
 | Eras/timeline | DC Animated Universe, Star Trek, James Bond, Avatar: The Last Airbender |
@@ -508,7 +508,7 @@ The repository also contains focused PowerShell, QML, Node, and C++ contract che
 
 - Home-wide search has not yet been built. Search is currently scoped to the active world.
 - Vinyl is a non-interactive coming-soon entry.
-- All 22 registered universes are live, but their rails still depend on external source search, pinned IDs, registry availability, and curated query quality.
+- All 21 registered universes are live, but their rails still depend on external source search, pinned IDs, registry availability, and curated query quality.
 - Theatre extensions are live; Tankoban and Biblio extension consumption is future work.
 - GetComics tags are pragmatic series identities, not a canonical comic bibliography. A tag can mix reprints, collections, and issues, and site markup or mirror availability can change.
 - The LOCG catalogue path is parked rather than deleted; it is not the active Tankoban comics brain.
