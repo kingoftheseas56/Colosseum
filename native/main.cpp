@@ -420,7 +420,10 @@ int main(int argc, char *argv[]) {
         const QStringList a = qEnvironmentVariable("COLOSSEUM_TORRENT_DLTEST").split(QChar('|'));
         auto* dl = new BookTorrentDownloader(torrentEngine, &app);
         if (a.size() == 2) dl->selfTest(a[0], a[1]);
-        QTimer::singleShot(240000, &app, &QCoreApplication::quit);   // >= live gate's 240s DHT wait
+        QTimer::singleShot(240000, &app, []() {   // >= live gate's 240s DHT wait
+            qWarning() << "[bt-dl] FAIL timeout — no DONE/FAIL after 240s";
+            QCoreApplication::exit(2);            // honest failing verdict, never a silent exit-0 green
+        });
     }
 
     // Cast session state exposed to QML as `Cast`. Network discovery/control is the

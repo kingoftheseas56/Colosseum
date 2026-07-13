@@ -75,10 +75,14 @@ void BookTorrentDownloader::download(const QString& infoHashIn, const QString& t
     if (hash.isEmpty()) { failJob(job, QStringLiteral("engine rejected magnet")); return; }
 
     // A duplicate add (cancel+retry, or the same torrent already active on the shared
-    // engine) reuses the existing handle. metadata_received_alert is single-shot per
-    // handle, so metadataReady won't re-fire — drive the pick from the engine's existing
-    // file list, or the job would hang forever at "resolving".
-    if (m_engine->hasMetadata(hash)) applyMetadata(job, m_engine->torrentFiles(hash));
+    // engine) reuses the existing libtorrent handle. The metadata_received_alert is
+    // single-shot per handle, and on a duplicate add the engine rebuilds the record with
+    // metadataReady=false — so neither hasMetadata() (reads that stale flag) nor a
+    // re-fired alert will drive the pick. torrentFiles() reads the LIVE handle's file
+    // list, so a non-empty result means metadata is already here: apply it now, or the
+    // job hangs forever at "resolving". (Codex cross-model review 2026-07-13.)
+    const QJsonArray existing = m_engine->torrentFiles(hash);
+    if (!existing.isEmpty()) applyMetadata(job, existing);
 }
 
 // ── engine handlers ──────────────────────────────────────────────────────────────
