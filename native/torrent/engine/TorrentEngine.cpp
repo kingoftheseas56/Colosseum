@@ -27,6 +27,7 @@
 #include <QStringList>
 #include <QHostAddress>
 
+#include <atomic>
 #include <chrono>
 #include <fstream>
 
@@ -84,7 +85,7 @@ public slots:
 
 private:
     TorrentEngine* m_engine;
-    bool m_running = false;
+    std::atomic<bool> m_running{false};
     std::chrono::steady_clock::time_point m_lastResumeSave{std::chrono::steady_clock::now()};
     static constexpr int RESUME_SAVE_INTERVAL_S = 30;
 
@@ -650,7 +651,11 @@ void TorrentEngine::stop()
     if (m_alertWorker)
         m_alertWorker->requestStop();
     m_alertThread.quit();
-    m_alertThread.wait(5000);
+    if (!m_alertThread.wait(5000)) {
+        DebugLogBuffer::instance().warning("torrent-engine",
+            QStringLiteral("stop(): alert worker did not finish within 5s — proceeding with teardown"));
+        qWarning() << "TorrentEngine::stop() alert worker wait timed out";
+    }
 
     saveAllResumeData();
     saveDhtState();
