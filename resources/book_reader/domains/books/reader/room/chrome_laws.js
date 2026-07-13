@@ -54,8 +54,12 @@ export function createChromeLaws(deps) {
 
   function setPopoverOpen(v) {
     popoverOpen = !!v;
-    if (popoverOpen) { self.shown = true; if (idleTimer) { clearTimer(idleTimer); idleTimer = null; } }
-    else { reschedule(); }
+    if (popoverOpen) {
+      // Freeze never overrides an explicit hide (MangaReader.qml:544 —
+      // chromeShown: hudExplicitlyHidden ? false : (frozen || hudShown || pinned)).
+      if (!explicitlyHidden) { self.shown = true; }
+      if (idleTimer) { clearTimer(idleTimer); idleTimer = null; }
+    } else { reschedule(); }
   }
 
   reschedule();

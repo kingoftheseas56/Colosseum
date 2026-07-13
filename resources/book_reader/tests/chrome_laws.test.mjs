@@ -53,5 +53,8 @@ function harness(opts = {}) {
 // 10) Closing popover lets idle resume.
 { const { laws, advance } = harness(); laws.setPopoverOpen(true); advance(3000); laws.setPopoverOpen(false); advance(3000); ok(laws.shown === false, 'closing popover resumes idle-hide'); }
 
+// 11) Explicit hide survives popover-open (freeze must not reveal — MangaReader.qml:544).
+{ const { laws } = harness(); laws.toggleExplicit(); laws.setPopoverOpen(true); ok(laws.shown === false, 'explicit hide survives popover open'); }
+
 console.log(fails === 0 ? 'chrome_laws PASS' : `chrome_laws FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
