@@ -10,8 +10,8 @@ function harness(opts = {}) {
   let now = 0;
   const timers = [];
   const laws = createChromeLaws({
-    idleMs: 3000, edgeCooldownMs: 600,
-    now: () => now,
+    idleMs: 3000,
+    // deferred: edge cooldown (anti-flicker) — not in Phase-1 scope
     setTimer: (fn, ms) => { const t = { fn, at: now + ms, dead: false }; timers.push(t); return t; },
     clearTimer: (t) => { if (t) t.dead = true; },
     ...opts,
@@ -55,6 +55,19 @@ function harness(opts = {}) {
 
 // 11) Explicit hide survives popover-open (freeze must not reveal — MangaReader.qml:544).
 { const { laws } = harness(); laws.toggleExplicit(); laws.setPopoverOpen(true); ok(laws.shown === false, 'explicit hide survives popover open'); }
+
+// 12) Bare construction (no deps) is safe — real timers; construction-only assertion.
+{ let threw = false, laws = null; try { laws = createChromeLaws(); } catch (e) { threw = true; }
+  ok(!threw && laws && laws.shown === true, 'bare createChromeLaws() constructs shown'); }
+
+// 13) toggleExplicit while popover open is a no-op (QML toggleChrome guards anyModal — MangaReader.qml:559).
+{ const { laws } = harness(); laws.setPopoverOpen(true); laws.toggleExplicit(); ok(laws.shown === true, 'toggle while popover open is a no-op'); }
+
+// 14) toggleExplicit from hidden state reveals (the else-arm = pokeChrome).
+{ const { laws, advance } = harness(); advance(3000); laws.toggleExplicit(); ok(laws.shown === true, 'toggle from hidden reveals'); }
+
+// 15) Explicit hide THEN pin-on stays hidden (pin only prevents idle-hide, never reveals over explicit).
+{ const { laws } = harness(); laws.toggleExplicit(); laws.setPinned(true); ok(laws.shown === false, 'explicit hide survives pin-on'); }
 
 console.log(fails === 0 ? 'chrome_laws PASS' : `chrome_laws FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

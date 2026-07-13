@@ -1,9 +1,11 @@
 // chrome_laws.js — the manga reader's auto-hide contract as pure logic.
 // Ported from qml/MangaReader.qml:528-560. No DOM: caller injects clock+timers
 // and reads `.shown` to paint. Reading NEVER wakes chrome (scroll/keys/page turns).
-export function createChromeLaws(deps) {
+// NOTE: plain-script-parseable on purpose (no `export` keyword) — ebook_reader.html
+// loads this via <script src>; the Node test imports the CJS named export below
+// (resolved by cjs-module-lexer).
+function createChromeLaws(deps = {}) {
   const idleMs = deps.idleMs ?? 3000;
-  const now = deps.now ?? (() => Date.now());
   const setTimer = deps.setTimer ?? ((fn, ms) => setTimeout(fn, ms));
   const clearTimer = deps.clearTimer ?? ((t) => clearTimeout(t));
 
@@ -16,7 +18,6 @@ export function createChromeLaws(deps) {
     shown: true,
     onReach, onEdgeReach: onReach, onPageTurn, toggleExplicit,
     setPinned, setPopoverOpen, poke: onReach,
-    _reschedule: reschedule,   // exposed for tests/paint hooks
   };
 
   function frozen() { return popoverOpen; }               // panel open = never idle-hide
@@ -25,6 +26,7 @@ export function createChromeLaws(deps) {
     if (idleTimer) { clearTimer(idleTimer); idleTimer = null; }
     if (self.shown && !pinned && !frozen()) {
       idleTimer = setTimer(() => {
+        idleTimer = null;   // fired = no longer pending
         if (!pinned && !frozen()) { self.shown = false; }
       }, idleMs);
     }
@@ -66,5 +68,7 @@ export function createChromeLaws(deps) {
   return self;
 }
 
-// end of chrome_laws.js — dual export: ES for the Node test, global for the reader.
+// end of chrome_laws.js — dual export: global for the reader's plain <script src>,
+// CJS named export for the Node test (`import { createChromeLaws }` via cjs-module-lexer).
 if (typeof window !== 'undefined') window.createChromeLaws = createChromeLaws;
+if (typeof module !== 'undefined' && module.exports) module.exports = { createChromeLaws };
