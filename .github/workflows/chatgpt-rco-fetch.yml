@@ -18,7 +18,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,47 +30,85 @@ jobs:
       - name: Fetch and parse pages 3 and 6
         run: |
           python - <<'PY'
+          import ipaddress
           import json
+          import subprocess
           import time
           from pathlib import Path
 
           import requests
+          import urllib3
           from bs4 import BeautifulSoup
 
+          urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+          HOST = "readcomiconline.li"
           out_dir = Path(".chatgpt-rco-fetch")
           out_dir.mkdir(exist_ok=True)
 
-          headers = {
-              "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
-              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-              "Accept-Language": "en-US,en;q=0.9",
-              "Cache-Control": "no-cache",
-              "Pragma": "no-cache",
-          }
+          def valid_ipv4(value):
+              try:
+                  return ipaddress.ip_address(value).version == 4
+              except ValueError:
+                  return False
 
-          session = requests.Session()
-          session.headers.update(headers)
-          results = {}
+          def resolve_doh():
+              ips = []
+              attempts = []
+              queries = [
+                  ("google", "https://dns.google/resolve", {"name": HOST, "type": "A"}, {}, True),
+                  ("cloudflare", "https://cloudflare-dns.com/dns-query", {"name": HOST, "type": "A"}, {"accept": "application/dns-json"}, True),
+                  ("cloudflare-ip", "https://1.1.1.1/dns-query", {"name": HOST, "type": "A"}, {"accept": "application/dns-json", "host": "cloudflare-dns.com"}, False),
+              ]
+              for label, endpoint, params, headers, verify in queries:
+                  try:
+                      response = requests.get(endpoint, params=params, headers=headers, timeout=30, verify=verify)
+                      attempts.append({"resolver": label, "status": response.status_code, "body_prefix": response.text[:500]})
+                      response.raise_for_status()
+                      payload = response.json()
+                      for answer in payload.get("Answer", []):
+                          candidate = str(answer.get("data", "")).strip()
+                          if valid_ipv4(candidate) and candidate not in ips:
+                              ips.append(candidate)
+                  except Exception as exc:
+                      attempts.append({"resolver": label, "error": repr(exc)})
+              return ips, attempts
+
+          ips, dns_attempts = resolve_doh()
+          print("Resolved IPs:", ips)
+          results = {"dns": {"ips": ips, "attempts": dns_attempts}}
 
           for page in (3, 6):
-              url = f"https://readcomiconline.li/ComicList/MostPopular?page={page}"
-              last_error = None
+              url = f"https://{HOST}/ComicList/MostPopular?page={page}"
               html = ""
-              status = None
-              final_url = url
+              attempts = []
 
-              for attempt in range(1, 6):
-                  try:
-                      response = session.get(url, timeout=45, allow_redirects=True)
-                      status = response.status_code
-                      final_url = response.url
-                      html = response.text
-                      if response.ok and ".list-comic" in html:
+              for ip in ips:
+                  for try_number in range(1, 4):
+                      command = [
+                          "curl", "-4", "-L", "--fail", "--silent", "--show-error",
+                          "--connect-timeout", "20", "--max-time", "75",
+                          "--resolve", f"{HOST}:443:{ip}",
+                          "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
+                          "-H", "Accept-Language: en-US,en;q=0.9",
+                          "-H", "Cache-Control: no-cache",
+                          url,
+                      ]
+                      completed = subprocess.run(command, capture_output=True)
+                      body = completed.stdout.decode("utf-8", errors="ignore")
+                      attempts.append({
+                          "ip": ip,
+                          "try": try_number,
+                          "returncode": completed.returncode,
+                          "bytes": len(completed.stdout),
+                          "stderr": completed.stderr.decode("utf-8", errors="ignore")[:1000],
+                      })
+                      if completed.returncode == 0 and ".list-comic" in body:
+                          html = body
                           break
-                      last_error = f"HTTP {status}; bytes={len(response.content)}; final={final_url}"
-                  except Exception as exc:
-                      last_error = repr(exc)
-                  time.sleep(attempt * 3)
+                      time.sleep(try_number * 2)
+                  if html:
+                      break
 
               (out_dir / f"page-{page}.html").write_text(html, encoding="utf-8", errors="ignore")
               soup = BeautifulSoup(html, "html.parser")
@@ -91,30 +129,27 @@ jobs:
                       title = anchor.get_text(" ", strip=True)
                   if title:
                       titles.append(title)
-                      urls.append(requests.compat.urljoin("https://readcomiconline.li", anchor.get("href", "")) if anchor else "")
+                      href = anchor.get("href", "") if anchor else ""
+                      urls.append(requests.compat.urljoin(f"https://{HOST}", href))
 
               results[str(page)] = {
                   "source_url": url,
-                  "final_url": final_url,
-                  "status": status,
                   "html_bytes": len(html.encode("utf-8")),
                   "titles": titles,
                   "series_urls": urls,
-                  "error": last_error if len(titles) != 32 else None,
+                  "attempts": attempts,
+                  "valid": len(titles) == 32,
               }
 
-          (out_dir / "pages-3-6.json").write_text(
-              json.dumps(results, ensure_ascii=False, indent=2),
-              encoding="utf-8",
-          )
+          (out_dir / "pages-3-6.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
 
           for page in (3, 6):
-              count = len(results[str(page)]["titles"])
-              print(f"Page {page}: {count} titles")
-              for index, title in enumerate(results[str(page)]["titles"], start=(page - 1) * 32 + 1):
+              titles = results[str(page)]["titles"]
+              print(f"Page {page}: {len(titles)} titles")
+              for index, title in enumerate(titles, start=(page - 1) * 32 + 1):
                   print(f"{index}. {title}")
 
-          if any(len(results[str(page)]["titles"]) != 32 for page in (3, 6)):
+          if any(not results[str(page)]["valid"] for page in (3, 6)):
               raise SystemExit("Expected exactly 32 titles from each page")
           PY
 
