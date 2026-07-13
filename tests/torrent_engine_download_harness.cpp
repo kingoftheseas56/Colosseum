@@ -70,7 +70,6 @@ int main(int argc, char** argv)
 
     TorrentEngine engine(cacheDir);
     engine.setGlobalSeedingRules(0.f, 1);   // download-and-stop: pause 1 s after seeding starts
-    engine.start();
 
     QTimer watchdog;
     watchdog.setSingleShot(true);
@@ -80,10 +79,13 @@ int main(int argc, char** argv)
     });
 
     if (resumeLane) {
-        // ---- kill-and-restart lane: fully offline ----
-        // synchronous lane — no event loop, no watchdog; every call below either
-        // returns or the engine dtor cleans up (verdict cannot hang on a timer
-        // that can't fire)
+        // ---- kill-and-restart lane: OFFLINE BY CONSTRUCTION — start() is never
+        // called, so the born-asleep session never enables listeners/DHT/UPnP.
+        // resumeDataDiskState is pure file I/O; addFromResume adds paused.
+        // Synchronous, no event loop, no watchdog. (Codex review 2026-07-13: the
+        // old unconditional start() made this lane network-live.)
+        // Every call below either returns or the engine dtor cleans up (verdict
+        // cannot hang on a timer that can't fire).
         const QStringList blobs = QDir(cacheDir).entryList({QStringLiteral("*.fastresume")}, QDir::Files);
         if (blobs.isEmpty()) { std::printf("FAIL: no .fastresume in %s\n", qPrintable(cacheDir)); return 1; }
         const QString resumePath = cacheDir + QLatin1Char('/') + blobs.first();
@@ -102,6 +104,7 @@ int main(int argc, char** argv)
     }
 
     // ---- fresh lane: live network ----
+    engine.start();  // fresh lane only: bring the dormant session live (listeners + DHT) — the resume lane never does this
     watchdog.start(240000);  // metadata over DHT measured at 93-245 s in TB2
     QString ourHash;
     bool finished = false;
@@ -164,8 +167,15 @@ int main(int argc, char** argv)
                 app.exit(1);
                 return;
             }
-            f.write(blob);
+            const qint64 written = f.write(blob);
             f.close();
+            if (written != blob.size()) {
+                std::printf("FAIL: short resume write (%lld of %lld bytes)\n",
+                            static_cast<long long>(written),
+                            static_cast<long long>(blob.size()));
+                app.exit(1);
+                return;
+            }
             std::printf("PASS fresh: downloaded picked file + resume blob at %s\n",
                         qPrintable(path));
             app.exit(0);
