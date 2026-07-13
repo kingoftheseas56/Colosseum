@@ -1,0 +1,126 @@
+name: RCO alternate archive recovery
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - .github/workflows/chatgpt-rco-arquivo.yml
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install parser dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+
+      - name: Query alternate archives
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from urllib.parse import quote
+
+          import requests
+          from bs4 import BeautifulSoup
+
+          OUT = Path('rco-alt-archive-artifact')
+          OUT.mkdir(exist_ok=True)
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'Colosseum-RCO-Recovery/1.0'})
+
+          def parse_titles(html):
+              soup = BeautifulSoup(html or '', 'html.parser')
+              titles = []
+              for block in soup.select('.list-comic .item'):
+                  title = ''
+                  tooltip_html = block.get('title', '')
+                  if tooltip_html:
+                      node = BeautifulSoup(tooltip_html, 'html.parser').select_one('p.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      node = block.select_one('span.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      anchor = block.select_one('a[href*="/Comic/"]')
+                      if anchor:
+                          title = anchor.get_text(' ', strip=True)
+                  if title:
+                      titles.append(title)
+              return titles
+
+          report = {'pages': {}}
+          for page in (3, 6):
+              target = f'https://readcomiconline.li/ComicList/MostPopular?page={page}'
+              page_report = {'target': target, 'queries': [], 'candidates': []}
+              queries = [
+                  ('arquivo-cdx', 'https://arquivo.pt/wayback/cdx', {'url': target, 'output': 'json'}),
+                  ('arquivo-textsearch-version', 'https://arquivo.pt/textsearch', {'versionHistory': target, 'maxItems': 100}),
+                  ('arquivo-textsearch-url', 'https://arquivo.pt/textsearch', {'q': target, 'maxItems': 100}),
+                  ('arquivo-cdx-wildcard', 'https://arquivo.pt/wayback/cdx', {'url': target + '*', 'output': 'json'}),
+                  ('memento-timegate', 'http://timetravel.mementoweb.org/api/json/20260701/' + target, None),
+              ]
+              found_urls = []
+              for label, endpoint, params in queries:
+                  item = {'label': label, 'endpoint': endpoint, 'params': params}
+                  try:
+                      response = session.get(endpoint, params=params, timeout=45, allow_redirects=True)
+                      item.update({'status': response.status_code, 'final_url': response.url, 'body_prefix': response.text[:3000], 'bytes': len(response.content)})
+                      if response.ok:
+                          try:
+                              payload = response.json()
+                              item['json'] = payload
+                              # Collect likely replay links recursively.
+                              stack = [payload]
+                              while stack:
+                                  value = stack.pop()
+                                  if isinstance(value, dict):
+                                      for key, child in value.items():
+                                          if isinstance(child, str) and ('arquivo.pt' in child or 'web.archive.org/web/' in child) and child.startswith('http'):
+                                              if child not in found_urls:
+                                                  found_urls.append(child)
+                                          elif isinstance(child, (dict, list)):
+                                              stack.append(child)
+                                  elif isinstance(value, list):
+                                      stack.extend(value)
+                          except Exception:
+                              pass
+                  except Exception as exc:
+                      item['error'] = repr(exc)
+                  page_report['queries'].append(item)
+
+              # Known Arquivo replay patterns from captures returned by CDX/textsearch.
+              for replay_url in found_urls[:100]:
+                  candidate = {'url': replay_url}
+                  try:
+                      response = session.get(replay_url, timeout=50, allow_redirects=True)
+                      titles = parse_titles(response.text)
+                      candidate.update({'status': response.status_code, 'final_url': response.url, 'bytes': len(response.content), 'titles': titles})
+                      if len(titles) == 32:
+                          safe = str(len(page_report['candidates']))
+                          (OUT / f'page-{page}-candidate-{safe}.html').write_text(response.text, encoding='utf-8', errors='ignore')
+                  except Exception as exc:
+                      candidate['error'] = repr(exc)
+                  page_report['candidates'].append(candidate)
+
+              report['pages'][str(page)] = page_report
+              print('Page', page, 'found urls', len(found_urls), 'valid', sum(len(c.get('titles', [])) == 32 for c in page_report['candidates']))
+
+          (OUT / 'alternate-archive-recovery.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          PY
+
+      - name: Upload alternate archive artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rco-alternate-archive-recovery
+          path: rco-alt-archive-artifact/
+          if-no-files-found: error
+          retention-days: 1
