@@ -804,8 +804,11 @@ Window {
             if (playerLayer.item) playerLayer.item.stop()
             if (win.warmPlayerSessionId === id) win.warmPlayerSessionId = ""
         }
-        // audiobook: the engine outlives its remote page — a real close is the one place it stops.
-        if (rec && rec.contentKind === "audiobook") audioSession.stop()
+        // audiobook: the engine outlives its remote page — a real close is the one place it
+        // stops. Guard on pairKey: closing a STALE tile (another book took the engine since)
+        // must leave the live stream alone (spec review catch, 2026-07-13).
+        if (rec && rec.contentKind === "audiobook" && rec.target
+                && rec.target.pairKey === audioSession.activePairKey) audioSession.stop()
         Sessions.close(id)
     }
     function minimizePlayer() {
