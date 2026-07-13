@@ -1,28 +1,25 @@
 // BookTorrentDownloader.h
 //
-// Sibling transport to AudiobookDownloader: same proven Stremio engine handshake
-// (prefetch → fetchReady/pollEngine watchdog → POST /create manifest), but pulls the
-// SINGLE best ebook file (BookTorrentFilePicker) and keys everything by infoHash.
-// Concurrent: multiple infoHashes can download at once (QHash of jobs), each its own Job.
+// Engine-direct transport (Phase 2): pulls the SINGLE best ebook file
+// (BookTorrentFilePicker) through the imported libtorrent TorrentEngine —
+// addMagnet -> metadataReady -> setFilePriorities -> torrentFinished -> finalize
+// from disk. Keys everything by infoHash; concurrent (QHash of jobs, each its own Job).
 //
 // On-disk: <appdata>/books-torrent/<infoHash>/<name>.<ext> + .../index.json (by infoHash).
 #pragma once
 
 #include <QObject>
 #include <QHash>
-#include <QPointer>
+#include <QJsonArray>
 #include <QString>
 #include <QVariantMap>
 
-class QNetworkAccessManager;
-class QNetworkReply;
-class QFile;
-class StreamServer;
+class TorrentEngine;
 
 class BookTorrentDownloader : public QObject {
     Q_OBJECT
 public:
-    BookTorrentDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr);
+    BookTorrentDownloader(TorrentEngine* engine, QObject* parent = nullptr);
     ~BookTorrentDownloader() override;
 
     Q_INVOKABLE void download(const QString& infoHash, const QString& title, const QString& author);
@@ -42,33 +39,21 @@ signals:
 private:
     struct Job {
         QString infoHash, title, author;
-        QString baseUrl;                 // http://127.0.0.1:<port>/<infoHash>
         int     pickedIdx = -1;
-        QString fileName, ext;
+        QString fileName, ext;         // fileName = torrent-relative path from metadata
         qint64  totalBytes = 0, received = 0;
-        int     enginePolls = 0, createAttempts = 0;
         qint64  lastProgressEmit = 0;
-        QPointer<QNetworkReply> reply;         // the file-transfer reply
-        QPointer<QNetworkReply> createReply;   // the in-flight POST /create reply (tracked so cancel aborts it)
-        QFile*  file = nullptr;
-        QString finalPath, partPath;
+        bool    picked = false;        // metadata resolved + priorities set
     };
 
-    // engine handshake (adapted from AudiobookDownloader; liveness keyed to the QHash)
-    void onFetchReady(const QString& url, const QString& infoHash, int fileIdx);
-    void beginManifest(Job* job, const QString& url);
-    void pollEngine(Job* job);
-    void requestManifest(Job* job);
-    void onManifestReply(QNetworkReply* reply, Job* job);
-    // single-file streaming
-    void startFile(Job* job);
-    void onFileReadyRead();
-    void onFileFinished();
+    // engine handlers (TorrentEngine's addMagnet -> metadataReady -> progress/finished/error)
+    void onMetadataReady(const QString& infoHash, const QString& name, qint64 totalSize, const QJsonArray& files);
+    void onEngineProgress(const QString& infoHash, float progress, int dl, int ul, int peers, int seeds);
+    void onEngineFinished(const QString& infoHash);
+    void onEngineFailed(const QString& infoHash, const QString& message);
     void finalizeJob(Job* job);
     void failJob(Job* job, const QString& reason);
-    void cleanupInFlight(Job* job);
     Job* jobForHash(const QString& infoHash) const;
-    Job* jobForReply(QNetworkReply* r) const;
     bool alive(Job* job) const;          // job is still the active entry for its hash
     // disk + index
     QString baseDir() const;
@@ -78,8 +63,7 @@ private:
 
     struct Entry { QString path, title, author; qint64 bytes = 0, addedAt = 0; };
 
-    QNetworkAccessManager* m_nam = nullptr;
-    StreamServer* m_stream = nullptr;
+    TorrentEngine* m_engine = nullptr;
     QHash<QString, Job*> m_active;       // infoHash(lowercased) -> job
     QHash<QString, Entry> m_index;       // infoHash(lowercased) -> entry
 };

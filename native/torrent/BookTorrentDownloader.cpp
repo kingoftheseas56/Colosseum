@@ -1,7 +1,8 @@
 #include "BookTorrentDownloader.h"
 
 #include "BookTorrentFilePicker.h"
-#include "player/streamserver.h"
+#include "BookTorrentMagnet.h"
+#include "engine/TorrentEngine.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -12,33 +13,30 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QNetworkRequest>
 #include <QStandardPaths>
 #include <QTimer>
-#include <QUrl>
+#include <QVector>
 
 namespace {
 constexpr int kProgressThrottleMs = 500;
-constexpr int kMaxManifestPolls   = 4;      // ~4× (30s /create timeout) → honest fail, not a hang
-constexpr int kManifestPollMs     = 2000;
-constexpr int kMaxEnginePolls     = 40;     // ~40s cold-engine watchdog
-constexpr int kCreateTimeoutMs    = 30000;
-constexpr int kFileTransferTimeoutMs = 120000;
 }
 
-BookTorrentDownloader::BookTorrentDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent)
-    : QObject(parent), m_nam(nam), m_stream(stream)
+BookTorrentDownloader::BookTorrentDownloader(TorrentEngine* engine, QObject* parent)
+    : QObject(parent), m_engine(engine)
 {
     loadIndex();
-    if (m_stream)
-        connect(m_stream, &StreamServer::fetchReady, this, &BookTorrentDownloader::onFetchReady);
+    if (m_engine) {
+        connect(m_engine, &TorrentEngine::metadataReady,   this, &BookTorrentDownloader::onMetadataReady);
+        connect(m_engine, &TorrentEngine::torrentProgress, this, &BookTorrentDownloader::onEngineProgress);
+        connect(m_engine, &TorrentEngine::torrentFinished, this, &BookTorrentDownloader::onEngineFinished);
+        connect(m_engine, &TorrentEngine::torrentError,     this, &BookTorrentDownloader::onEngineFailed);
+        connect(m_engine, &TorrentEngine::torrentAddFailed, this, &BookTorrentDownloader::onEngineFailed);
+    }
 }
 
 BookTorrentDownloader::~BookTorrentDownloader()
 {
-    for (Job* j : m_active) { cleanupInFlight(j); delete j; }
+    for (Job* j : m_active) delete j;
     m_active.clear();
 }
 
@@ -54,13 +52,6 @@ BookTorrentDownloader::Job* BookTorrentDownloader::jobForHash(const QString& inf
     return m_active.value(infoHash.toLower(), nullptr);
 }
 
-BookTorrentDownloader::Job* BookTorrentDownloader::jobForReply(QNetworkReply* r) const
-{
-    if (!r) return nullptr;
-    for (Job* j : m_active) if (j->reply.data() == r) return j;
-    return nullptr;
-}
-
 // ── entry point ────────────────────────────────────────────────────────────────
 
 void BookTorrentDownloader::download(const QString& infoHashIn, const QString& title, const QString& author)
@@ -68,236 +59,111 @@ void BookTorrentDownloader::download(const QString& infoHashIn, const QString& t
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (infoHash.size() != 40) { emit failed(infoHash, QStringLiteral("bad infoHash")); return; }
     if (isDownloaded(infoHash)) { emit finished(infoHash, m_index.value(infoHash).path); return; }
-    if (m_active.contains(infoHash)) return;                          // already in flight (no-op)
-    if (!m_stream) { emit failed(infoHash, QStringLiteral("stream engine unavailable")); return; }
+    if (m_active.contains(infoHash)) return;                 // already in flight
+    if (!m_engine) { emit failed(infoHash, QStringLiteral("torrent engine unavailable")); return; }
+
+    // Lazy-wake the born-asleep engine on first real download — idle stays no-network.
+    if (!m_engine->isRunning()) m_engine->start();
 
     auto* job = new Job{};
     job->infoHash = infoHash; job->title = title; job->author = author;
     m_active.insert(infoHash, job);
     emit resolving(infoHash);
-    // Race two paths to the engine base: fetchReady (fast when warm) and pollEngine
-    // (robust when cold — fetchReady can be lost if the engine's /create POST hangs).
-    m_stream->prefetch(infoHash, 0);
-    pollEngine(job);
+
+    QDir().mkpath(dirFor(infoHash));
+    const QString hash = m_engine->addMagnet(BookTorrentMagnet::buildMagnet(infoHash),
+                                             dirFor(infoHash), /*paused=*/false);
+    if (hash.isEmpty()) { failJob(job, QStringLiteral("engine rejected magnet")); return; }
 }
 
-// ── engine handshake (adapted from AudiobookDownloader) ─────────────────────────
+// ── engine handlers ──────────────────────────────────────────────────────────────
 
-void BookTorrentDownloader::onFetchReady(const QString& url, const QString& infoHash, int /*fileIdx*/)
+void BookTorrentDownloader::onMetadataReady(const QString& infoHash, const QString&,
+                                            qint64, const QJsonArray& files)
 {
     Job* job = jobForHash(infoHash);
-    if (!alive(job)) return;
-    beginManifest(job, url);
-}
-
-// Derive the engine base from a stream URL (…/<hash>/0 → …/<hash>) and start the manifest.
-// Idempotent — whichever path (fetchReady OR watchdog) resolves the base first wins.
-void BookTorrentDownloader::beginManifest(Job* job, const QString& url)
-{
-    if (!alive(job) || !job->baseUrl.isEmpty() || url.isEmpty()) return;
-    QString base = url;
-    const int slash = base.lastIndexOf(QChar('/'));
-    if (slash > 0) base = base.left(slash);
-    job->baseUrl = base;
-    requestManifest(job);
-}
-
-// Watchdog: fetchReady can be LOST on a cold engine (its /create POST hangs before the
-// signal). So we ALSO poll streamUrl, which returns a URL the moment the port is known.
-void BookTorrentDownloader::pollEngine(Job* job)
-{
-    if (!alive(job) || !job->baseUrl.isEmpty()) return;
-    const QString url = m_stream ? m_stream->streamUrl(job->infoHash, 0) : QString();
-    if (!url.isEmpty()) { beginManifest(job, url); return; }
-    if (++job->enginePolls > kMaxEnginePolls) { failJob(job, QStringLiteral("stream engine did not start")); return; }
-    // Capture the hash by VALUE and re-validate with a pointer-only compare (no deref of a
-    // possibly-freed Job — cancelDownload may have deleted it while this timer was pending).
-    const QString h = job->infoHash;
-    QTimer::singleShot(1000, this, [this, h, job]() { if (m_active.value(h, nullptr) == job) pollEngine(job); });
-}
-
-void BookTorrentDownloader::requestManifest(Job* job)
-{
-    job->createAttempts += 1;
-    QNetworkRequest req(QUrl(job->baseUrl + QStringLiteral("/create")));
-    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
-    req.setTransferTimeout(kCreateTimeoutMs);   // a cold engine can hang /create → time out, retry
-    QNetworkReply* reply = m_nam->post(req, QByteArray("{}"));
-    job->createReply = reply;                   // tracked so cancelDownload/cleanupInFlight aborts it
-    const QString h = job->infoHash;
-    connect(reply, &QNetworkReply::finished, this, [this, reply, h, job]() {
-        if (m_active.value(h, nullptr) != job) { reply->deleteLater(); return; }  // pointer compare, no deref
-        onManifestReply(reply, job);
-    });
-}
-
-void BookTorrentDownloader::onManifestReply(QNetworkReply* reply, Job* job)
-{
-    const QByteArray body = reply->readAll();
-    const bool netOk = reply->error() == QNetworkReply::NoError;
-    job->createReply.clear();
-    reply->deleteLater();
-
-    const QJsonArray arr = netOk
-        ? QJsonDocument::fromJson(body).object().value(QStringLiteral("files")).toArray()
-        : QJsonArray();
-
-    if (arr.isEmpty()) {
-        // metadata still loading (no peers/pieces yet) → poll again, bounded
-        if (job->createAttempts < kMaxManifestPolls) {
-            const QString h = job->infoHash;
-            QTimer::singleShot(kManifestPollMs, this, [this, h, job]() { if (m_active.value(h, nullptr) == job) requestManifest(job); });
-            return;
-        }
-        failJob(job, QStringLiteral("torrent metadata unavailable (no peers?) after %1 tries").arg(job->createAttempts));
-        return;
-    }
-
-    QList<ManifestFile> mfs;
-    for (int i = 0; i < arr.size(); ++i) {
-        const QJsonObject o = arr[i].toObject();
-        mfs.push_back({ i, o.value(QStringLiteral("name")).toString(),
-                        static_cast<qint64>(o.value(QStringLiteral("length")).toDouble()) });
-    }
+    if (!alive(job) || job->picked) return;
+    const QList<ManifestFile> mfs = BookTorrentMagnet::filesToManifest(files);
     const PickedFile pick = BookTorrentFilePicker::pick(job->title, job->author, mfs);
     if (pick.idx < 0) {
+        m_engine->removeTorrent(infoHash, /*deleteFiles=*/true);
         failJob(job, QStringLiteral("this torrent has no ebook file (%1 file(s))").arg(mfs.size()));
         return;
     }
     job->pickedIdx = pick.idx; job->fileName = pick.name; job->ext = pick.ext;
     job->totalBytes = 0;
     for (const auto& m : mfs) if (m.idx == pick.idx) job->totalBytes = m.length;
-    qInfo() << "[BookTorrentDownloader]" << job->infoHash << "→ picked" << job->fileName
+    job->picked = true;
+    m_engine->setFilePriorities(infoHash, BookTorrentMagnet::pickToPriorities(pick.idx, mfs.size()));
+    qInfo() << "[BookTorrentDownloader]" << infoHash << "→ picked" << job->fileName
             << "(" << mfs.size() << "files," << job->totalBytes << "bytes )";
-    startFile(job);
 }
 
-// ── single-file streaming ───────────────────────────────────────────────────────
-
-void BookTorrentDownloader::startFile(Job* job)
+void BookTorrentDownloader::onEngineProgress(const QString& infoHash, float progress,
+                                             int, int, int, int)
 {
-    QDir().mkpath(dirFor(job->infoHash));
-    const QString safe = QFileInfo(job->fileName).fileName();
-    job->finalPath = dirFor(job->infoHash) + QStringLiteral("/")
-                     + (safe.isEmpty() ? QStringLiteral("book.") + job->ext : safe);
-    job->partPath  = job->finalPath + QStringLiteral(".part");
-    job->file = new QFile(job->partPath);
-    if (!job->file->open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        const QString err = job->file->errorString();
-        delete job->file; job->file = nullptr;
-        failJob(job, QStringLiteral("cannot open .part: %1").arg(err));
-        return;
-    }
-    job->received = 0;
-    job->lastProgressEmit = 0;
-    const QString url = job->baseUrl + QStringLiteral("/") + QString::number(job->pickedIdx);
-    QNetworkRequest req{QUrl(url)};
-    req.setRawHeader("Accept", "*/*");
-    req.setTransferTimeout(kFileTransferTimeoutMs);
-    job->reply = m_nam->get(req);                            // plain GET, no Range → whole file
-    connect(job->reply, &QNetworkReply::readyRead, this, &BookTorrentDownloader::onFileReadyRead);
-    connect(job->reply, &QNetworkReply::finished,  this, &BookTorrentDownloader::onFileFinished);
-}
-
-void BookTorrentDownloader::onFileReadyRead()
-{
-    auto* r = qobject_cast<QNetworkReply*>(sender());
-    Job* job = jobForReply(r);
-    if (!job || !job->file) return;
-    const QByteArray chunk = r->readAll();
-    if (chunk.isEmpty()) return;
-    const qint64 written = job->file->write(chunk);
-    if (written < 0) { failJob(job, QStringLiteral("disk write failed: %1").arg(job->file->errorString())); return; }
-    job->received += written;
+    Job* job = jobForHash(infoHash);
+    if (!alive(job) || !job->picked || job->totalBytes <= 0) return;
+    job->received = static_cast<qint64>(progress * static_cast<float>(job->totalBytes));
     const qint64 nowMs = QDateTime::currentMSecsSinceEpoch();
     if (job->lastProgressEmit == 0 || nowMs - job->lastProgressEmit >= kProgressThrottleMs) {
         job->lastProgressEmit = nowMs;
-        emit progress(job->infoHash, static_cast<double>(job->received), static_cast<double>(job->totalBytes));
+        emit this->progress(infoHash, static_cast<double>(job->received),
+                            static_cast<double>(job->totalBytes));
     }
 }
 
-void BookTorrentDownloader::onFileFinished()
+void BookTorrentDownloader::onEngineFinished(const QString& infoHash)
 {
-    auto* r = qobject_cast<QNetworkReply*>(sender());
-    Job* job = jobForReply(r);
-    if (!job) return;
-    const QNetworkReply::NetworkError err = r->error();
-    const QString errStr = r->errorString();
-    if (err == QNetworkReply::NoError && job->file) {
-        const QByteArray tail = r->readAll();
-        if (!tail.isEmpty()) { job->file->write(tail); job->received += tail.size(); }
-    }
-    r->deleteLater();
-    job->reply.clear();
-
-    if (err != QNetworkReply::NoError) {
-        if (job->file) { job->file->close(); job->file->remove(); delete job->file; job->file = nullptr; }
-        failJob(job, QStringLiteral("download failed: %1").arg(errStr));
-        return;
-    }
-    // short-read guard: Stremio serves the whole file; a truncated body = incomplete pieces.
-    if (job->totalBytes > 0 && job->received < job->totalBytes) {
-        if (job->file) { job->file->close(); job->file->remove(); delete job->file; job->file = nullptr; }
-        failJob(job, QStringLiteral("truncated (%1/%2 bytes)").arg(job->received).arg(job->totalBytes));
-        return;
-    }
+    Job* job = jobForHash(infoHash);
+    if (!alive(job) || !job->picked) return;   // pre-pick "finished" cannot happen; guard anyway
     finalizeJob(job);
+}
+
+void BookTorrentDownloader::onEngineFailed(const QString& infoHash, const QString& message)
+{
+    Job* job = jobForHash(infoHash);
+    if (!alive(job)) return;
+    m_engine->removeTorrent(infoHash, /*deleteFiles=*/true);
+    failJob(job, message.isEmpty() ? QStringLiteral("engine error") : message);
 }
 
 void BookTorrentDownloader::finalizeJob(Job* job)
 {
-    if (job->file) { job->file->close(); delete job->file; job->file = nullptr; }
-    if (QFile::exists(job->finalPath)) QFile::remove(job->finalPath);
-    if (!QFile::rename(job->partPath, job->finalPath)) {
-        QFile::remove(job->partPath);
-        failJob(job, QStringLiteral("rename failed for %1").arg(job->fileName));
+    // The engine saved the picked file under the per-book savePath, preserving the
+    // torrent-relative path. Point the index straight at it — no move (a move could
+    // race the engine's file handle). Release the engine handle but KEEP the file.
+    const QString onDisk = dirFor(job->infoHash) + QStringLiteral("/") + job->fileName;
+    if (!QFileInfo::exists(onDisk)) {
+        m_engine->removeTorrent(job->infoHash, /*deleteFiles=*/true);
+        failJob(job, QStringLiteral("finished but file missing: %1").arg(job->fileName));
         return;
     }
-    Entry e{ job->finalPath, job->title, job->author, job->totalBytes, QDateTime::currentMSecsSinceEpoch() };
+    m_engine->removeTorrent(job->infoHash, /*deleteFiles=*/false);   // stop tracking, keep bytes
+    Entry e{ onDisk, job->title, job->author, job->totalBytes, QDateTime::currentMSecsSinceEpoch() };
     m_index.insert(job->infoHash, e);
     saveIndex();
-    const QString hash = job->infoHash, path = job->finalPath;
-    qInfo() << "[BookTorrentDownloader] complete" << hash << "→" << path;
+    const QString hash = job->infoHash;
+    qInfo() << "[BookTorrentDownloader] complete" << hash << "→" << onDisk;
     m_active.remove(hash);
     delete job;
-    emit finished(hash, path);
+    emit finished(hash, onDisk);
 }
 
 void BookTorrentDownloader::failJob(Job* job, const QString& reason)
 {
     const QString hash = job->infoHash;
-    cleanupInFlight(job);
     qWarning() << "[BookTorrentDownloader] FAILED" << hash << reason;
     m_active.remove(hash);
     delete job;
     emit failed(hash, reason);
 }
 
-void BookTorrentDownloader::cleanupInFlight(Job* job)
-{
-    if (job->createReply) {
-        QNetworkReply* r = job->createReply.data();
-        if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
-        job->createReply.clear();
-    }
-    if (job->reply) {
-        QNetworkReply* r = job->reply.data();
-        if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
-        job->reply.clear();
-    }
-    if (job->file) {
-        job->file->close();
-        const QString p = job->file->fileName();
-        delete job->file; job->file = nullptr;
-        QFile::remove(p);
-    }
-}
-
 void BookTorrentDownloader::cancelDownload(const QString& infoHash)
 {
     const QString h = infoHash.toLower();
     if (Job* j = m_active.take(h)) {
-        cleanupInFlight(j);
+        if (m_engine) m_engine->removeTorrent(h, /*deleteFiles=*/true);
         delete j;
         emit failed(h, QStringLiteral("cancelled by user"));
     }
@@ -338,8 +204,7 @@ QVariantMap BookTorrentDownloader::statusOf(const QString& infoHash) const
         return s;
     }
     if (Job* j = m_active.value(h, nullptr)) {
-        s[QStringLiteral("state")]    = j->baseUrl.isEmpty() ? QStringLiteral("resolving")
-                                                             : QStringLiteral("downloading");
+        s[QStringLiteral("state")] = j->picked ? QStringLiteral("downloading") : QStringLiteral("resolving");
         s[QStringLiteral("received")] = static_cast<double>(j->received);
         s[QStringLiteral("total")]    = static_cast<double>(j->totalBytes);
         return s;

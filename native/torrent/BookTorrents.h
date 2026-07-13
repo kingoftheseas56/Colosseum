@@ -7,7 +7,7 @@
 #include <QVariantMap>
 
 class QNetworkAccessManager;
-class StreamServer;
+class TorrentEngine;
 class TankorentSearchService;
 class BookTorrentDownloader;
 
@@ -18,9 +18,8 @@ class BookTorrents : public QObject {
     Q_OBJECT
 public:
     // searchNam: pinned, UA-stamped, UNCACHED CachingNam for indexer HTTP.
-    // dlNam: uncached NAM for torrent bytes.
-    BookTorrents(QNetworkAccessManager* searchNam, QNetworkAccessManager* dlNam,
-                 StreamServer* stream, QObject* parent = nullptr);
+    // engine: the imported libtorrent TorrentEngine that carries the download bytes.
+    BookTorrents(QNetworkAccessManager* searchNam, TorrentEngine* engine, QObject* parent = nullptr);
 
     Q_INVOKABLE void search(const QString& title, const QString& author);
     Q_INVOKABLE void download(const QString& infoHash, const QString& title, const QString& author);

@@ -4,11 +4,10 @@
 #include "BookTorrentDownloader.h"
 #include "BookTorrentRanker.h"
 
-BookTorrents::BookTorrents(QNetworkAccessManager* searchNam, QNetworkAccessManager* dlNam,
-                           StreamServer* stream, QObject* parent)
+BookTorrents::BookTorrents(QNetworkAccessManager* searchNam, TorrentEngine* engine, QObject* parent)
     : QObject(parent),
       m_search(new TankorentSearchService(searchNam, this)),
-      m_dl(new BookTorrentDownloader(dlNam, stream, this))
+      m_dl(new BookTorrentDownloader(engine, this))
 {
     // Search wiring — connected ONCE to member slots (never per-search, which would
     // stack connections and, with Qt::UniqueConnection being a no-op for lambdas, cause
