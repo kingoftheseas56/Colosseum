@@ -34,6 +34,10 @@ Item {
     property alias paused: mpv.pause
     property alias speed: mpv.speed
 
+    // resume precision rides the load: a seek issued before the file is open NO-OPS
+    // (PlayerPage's pendingSeekSec lesson) — park it here, apply in onFileLoaded.
+    property real pendingResumeSec: -1
+
     // ── the engine (audio only; the mpv surface is never shown — cover art is the remotes' job) ──
     MpvItem { id: mpv; width: 1; height: 1; visible: false }
 
@@ -83,12 +87,13 @@ Item {
         }
         if (idx < 0 || idx >= session.files.length) idx = 0
         session.currentIndex = idx
+        session.pendingResumeSec = (pos > 0) ? pos : -1   // applied in onFileLoaded — a pre-load seek no-ops
         mpv.loadFile(session.files[idx])
         mpv.pause = false                     // a fresh open plays (parity with the old fresh-mpv surface)
-        if (pos > 0) mpv.seekExact(pos)       // shipped semantics: seek queued right after loadFile
     }
     function playIndex(i) {
         if (i < 0 || i >= session.files.length) return
+        session.pendingResumeSec = -1         // a deliberate jump cancels any in-flight resume seek
         session.currentIndex = i
         mpv.loadFile(session.files[i])
         mpv.pause = false
@@ -101,6 +106,7 @@ Item {
     function stop() {
         if (session.ready) session.recordProgress()          // save the spot before the stream dies
         mpv.command(["stop"])
+        session.pendingResumeSec = -1
         session.ready = false
         session.activePairKey = ""
         session.book = ({})
@@ -116,7 +122,17 @@ Item {
             if (reason === "eof" && session.multiFile && session.currentIndex + 1 < session.files.length)
                 session.playIndex(session.currentIndex + 1)
         }
-        function onFileLoaded() { session.recordProgress() }
+        function onFileLoaded() {
+            if (session.pendingResumeSec > 0) {
+                // apply the parked resume seek — and SKIP this heartbeat: mpv.position is
+                // still ~0 here (the seek lands async), so recording now would overwrite
+                // the saved Continue spot with 0. The 10s Timer records the true spot.
+                mpv.seekExact(session.pendingResumeSec)
+                session.pendingResumeSec = -1
+            } else {
+                session.recordProgress()
+            }
+        }
     }
 
     // ── session state (kept for the Sessions record contract; {fileIndex, position}) ──
@@ -126,9 +142,13 @@ Item {
     function restoreState(st) {
         if (!st) return
         var idx = Number(st.fileIndex) || 0
-        if (idx !== session.currentIndex && idx < session.files.length) session.playIndex(idx)
         var pos = Number(st.position) || 0
-        if (pos > 0) mpv.seekExact(pos)
+        if (idx !== session.currentIndex && idx >= 0 && idx < session.files.length) {
+            session.playIndex(idx)                           // triggers a load (and clears stale pending)…
+            if (pos > 0) session.pendingResumeSec = pos      // …so the seek rides its onFileLoaded
+        } else if (pos > 0) {
+            mpv.seekExact(pos)   // same file, already open — a live seek works (acceptResumeChoice precedent)
+        }
     }
 
     // ── Continue/resume: record listening position (never a movie-style 90% auto-drop) ──

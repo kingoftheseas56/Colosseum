@@ -32,6 +32,9 @@ Item {
     }
 
     // ── remote glue: everything below delegates to the shared session ──
+    // No live callers today (Main.qml drives audioSession directly) — kept deliberately:
+    // every session surface exposes this start/captureState/restoreState shape, so the
+    // cheap delegates keep this page duck-type compatible with the surface contract.
     function start(pk, b) { audioSession.openFor(pk, b) }
     function captureState() { return audioSession.captureState() }
     function restoreState(st) { audioSession.restoreState(st) }

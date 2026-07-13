@@ -942,7 +942,12 @@ Window {
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
-        if (rec.contentKind === "audiobook") return audioSession.captureState()   // engine holds the truth, page or not
+        if (rec.contentKind === "audiobook")
+            // only when the engine still plays THIS record's book — on an A→B switch the
+            // engine was retargeted to B before this capture ran, and stamping B's truth
+            // into A's savedState would plant a landmine (savedState is unread today).
+            return (rec.target && rec.target.pairKey === audioSession.activePairKey)
+                   ? audioSession.captureState() : ({})
         return ({})
     }
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
