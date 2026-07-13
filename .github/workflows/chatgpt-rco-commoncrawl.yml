@@ -1,0 +1,228 @@
+name: RCO Common Crawl recovery
+
+on:
+  pull_request:
+    branches:
+      - master
+    paths:
+      - .github/workflows/chatgpt-rco-commoncrawl.yml
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install parser dependencies
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4 warcio
+
+      - name: Recover and compare ranking pages
+        run: |
+          python - <<'PY'
+          import io
+          import json
+          from concurrent.futures import ThreadPoolExecutor, as_completed
+          from pathlib import Path
+          from urllib.parse import parse_qs, urlparse
+
+          import requests
+          from bs4 import BeautifulSoup
+          from warcio.archiveiterator import ArchiveIterator
+
+          OUT = Path('rco-recovery-artifact')
+          OUT.mkdir(exist_ok=True)
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'Colosseum-RCO-Recovery/2.0'})
+
+          EXPECTED = {
+              2: [
+                  'Action Comics (2016)','Fantastic Four (1961)','Doomsday Clock','Detective Comics (1937)','Teen Titans (2016)','Star Wars: Darth Vader (2020)','Watchmen (1986)','Spider-Man/Deadpool','Preacher','Injustice: Gods Among Us Year Three','Injustice: Gods Among Us: Year Two','Injustice: Gods Among Us Year Four','Hellblazer','Nickelodeon Avatar: The Last Airbender - The Promise','Wonder Woman (2016)','Deadly Class','Old Man Logan (2016)','Absolute Batman','Batman (2011)','Star Wars (2015)','Monstress','Teenage Mutant Ninja Turtles (2011)','Darth Vader (2015)','The Avengers (1963)','Dark Nights: Metal','Action Comics (1938)','Thor (2020)','Miles Morales: Spider-Man (2019)','Justice League (2011)','Nickelodeon Avatar: The Last Airbender - The Search','The Batman Who Laughs','Superior Spider-Man (2013)'
+              ],
+              4: [
+                  'Teenage Mutant Ninja Turtles: The Last Ronin','Batman/Superman (2019)','Lucifer (2000)','Superman (2018)','Secret Wars','Moon Knight (2016)','Ultimate X-Men (2001)','The Wicked + The Divine','Marauders (2019)','Sonic Universe','Ultimate Spider-Man (2009)','Dark Nights: Death Metal','Daredevil (1964)','Aquaman (2016)','House of X','Birthright (2014)','The Boys: Herogasm','The Spectacular Spider-Man (1976)','Harley Quinn (2016)','Bone (1991)','Justice League Dark (2018)','Invader Zim','Sex Criminals','Ultimate Spider-Man (2024)','Ultimate Comics Spider-Man (2011)','New Mutants (2019)','Star Wars: Knights Of The Old Republic','The Amazing Spider-Man (2014)','DCeased: Dead Planet','Star Wars (2020)','Hellboy','Hal Jordan And The Green Lantern Corps'
+              ],
+              5: [
+                  'Deathstroke (2016)','Excalibur (2019)','East Of West','Runaways (2017)','The Incredible Hulk (1968)','Superman (1939)',"DCeased: Hope At World's End",'Batman: Three Jokers','Nightwing (1996)','Civil War (2006)','Something is Killing the Children','Green Lanterns','Young Justice (2019)',"Saban's Go Go Power Rangers",'Transmetropolitan','Spider-Gwen [II]','Civil War II','Red Hood And The Outlaws (2011)','Suicide Squad (2016)','Mighty Thor (2016)','Nickelodeon The Legend of Korra: Ruins of the Empire','Paper Girls','Bloodborne','Moon Knight (2021)','Thanos (2016)','Superman/Batman','X-Men (1991)','Catwoman (2018)','Deadpool Kills the Marvel Universe','Batman: The Killing Joke','Infinity Gauntlet (1991)','Peter Parker: The Spectacular Spider-Man'
+              ],
+              7: [
+                  'Radiant Black','Captain Marvel (2019)','Avengers Vs. X-Men','King In Black','Batman and Robin (2011)','Amazing Spider-Man: Renew Your Vows (2017)','Ms. Marvel (2016)','Adventure Time (2012)','Daredevil (1998)','Die','G.I. Joe: A Real American Hero','Doctor Strange (2018)','Champions (2016)','Hawkeye (2012)','The Umbrella Academy: Hotel Oblivion','Injustice: Year Zero','All Star Superman (2006)','Scooby Apocalypse','Kingdom Come (1996)','Dark Knights of Steel','Powers of X','X-Men: Gold (2017)','Giant Days (2015)','Dark Nights: The Batman Who Laughs',"Batman/Superman: World's Finest",'The Savage Dragon (1993)','Batman: Damned','Batman Eternal','Deadpool (2013)','Robin (1993)','Batman: Legends of the Dark Knight','Doctor Strange (2015)'
+              ],
+          }
+
+          def parse_titles(html):
+              soup = BeautifulSoup(html or '', 'html.parser')
+              titles = []
+              for block in soup.select('.list-comic .item'):
+                  title = ''
+                  tooltip_html = block.get('title', '')
+                  if tooltip_html:
+                      tooltip = BeautifulSoup(tooltip_html, 'html.parser')
+                      node = tooltip.select_one('p.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      node = block.select_one('span.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      anchor = block.select_one('a[href*="/Comic/"]')
+                      if anchor:
+                          title = anchor.get_text(' ', strip=True)
+                  if title:
+                      titles.append(title)
+              return titles
+
+          def page_number(url):
+              query = parse_qs(urlparse(url).query)
+              try:
+                  return int(query.get('page', ['1'])[0])
+              except Exception:
+                  return 1
+
+          def fetch_index(collection):
+              api = collection.get('cdx-api')
+              cid = collection.get('id')
+              result = {'collection': cid, 'api': api, 'records': [], 'error': None}
+              try:
+                  response = session.get(api, params={
+                      'url': 'readcomiconline.li/ComicList/MostPopular*',
+                      'output': 'json',
+                      'filter': 'status:200',
+                      'matchType': 'prefix',
+                  }, timeout=45)
+                  response.raise_for_status()
+                  records = []
+                  for line in response.text.splitlines():
+                      line = line.strip()
+                      if line.startswith('{'):
+                          record = json.loads(line)
+                          page = page_number(record.get('url', ''))
+                          if 1 <= page <= 8:
+                              record['_page'] = page
+                              records.append(record)
+                  result['records'] = records
+              except Exception as exc:
+                  result['error'] = repr(exc)
+              return result
+
+          def fetch_warc(candidate):
+              record = candidate['record']
+              try:
+                  offset = int(record['offset'])
+                  length = int(record['length'])
+                  response = session.get(
+                      f"https://data.commoncrawl.org/{record['filename']}",
+                      headers={'Range': f'bytes={offset}-{offset + length - 1}'},
+                      timeout=75,
+                  )
+                  response.raise_for_status()
+                  html = ''
+                  for warc_record in ArchiveIterator(io.BytesIO(response.content)):
+                      if warc_record.rec_type in ('response', 'conversion'):
+                          payload = warc_record.content_stream().read()
+                          html = payload.decode('utf-8', errors='ignore')
+                          break
+                  titles = parse_titles(html)
+                  return {
+                      'collection': candidate['collection'],
+                      'page': candidate['page'],
+                      'timestamp': record.get('timestamp'),
+                      'url': record.get('url'),
+                      'digest': record.get('digest'),
+                      'titles': titles,
+                      'html': html if len(titles) == 32 else '',
+                      'error': None,
+                  }
+              except Exception as exc:
+                  return {
+                      'collection': candidate['collection'],
+                      'page': candidate['page'],
+                      'timestamp': record.get('timestamp'),
+                      'url': record.get('url'),
+                      'digest': record.get('digest'),
+                      'titles': [],
+                      'html': '',
+                      'error': repr(exc),
+                  }
+
+          collections = requests.get('https://index.commoncrawl.org/collinfo.json', timeout=45).json()[:30]
+          index_results = []
+          with ThreadPoolExecutor(max_workers=10) as executor:
+              futures = [executor.submit(fetch_index, collection) for collection in collections]
+              for future in as_completed(futures):
+                  index_results.append(future.result())
+
+          candidates = []
+          for result in index_results:
+              by_page = {}
+              for record in result.get('records', []):
+                  by_page.setdefault(record['_page'], []).append(record)
+              for page in (2, 3, 4, 5, 6, 7):
+                  records = sorted(by_page.get(page, []), key=lambda r: r.get('timestamp', ''), reverse=True)
+                  for record in records[:4]:
+                      candidates.append({'collection': result['collection'], 'page': page, 'record': record})
+
+          fetched = []
+          with ThreadPoolExecutor(max_workers=8) as executor:
+              futures = [executor.submit(fetch_warc, candidate) for candidate in candidates]
+              for future in as_completed(futures):
+                  fetched.append(future.result())
+
+          grouped = {}
+          for item in fetched:
+              key = (item['collection'], item['timestamp'][:8] if item.get('timestamp') else '')
+              grouped.setdefault(key, {}).setdefault(item['page'], []).append(item)
+
+          snapshots = []
+          for (collection, date), pages in grouped.items():
+              snapshot = {'collection': collection, 'date': date, 'pages': {}, 'validation': {}, 'score': 0}
+              for page, items in pages.items():
+                  valid_items = [item for item in items if len(item.get('titles', [])) == 32]
+                  if not valid_items:
+                      continue
+                  chosen = sorted(valid_items, key=lambda item: item.get('timestamp', ''), reverse=True)[0]
+                  snapshot['pages'][str(page)] = {
+                      'timestamp': chosen.get('timestamp'),
+                      'url': chosen.get('url'),
+                      'digest': chosen.get('digest'),
+                      'titles': chosen.get('titles'),
+                  }
+                  if page in EXPECTED:
+                      exact = chosen.get('titles') == EXPECTED[page]
+                      positional = sum(a == b for a, b in zip(chosen.get('titles', []), EXPECTED[page]))
+                      snapshot['validation'][str(page)] = {'exact': exact, 'positional_matches': positional}
+                      snapshot['score'] += 100 if exact else positional
+              if '3' in snapshot['pages'] or '6' in snapshot['pages']:
+                  snapshots.append(snapshot)
+
+          snapshots.sort(key=lambda item: (item['score'], item['date']), reverse=True)
+          payload = {
+              'collections_checked': len(collections),
+              'index_results': index_results,
+              'candidate_count': len(candidates),
+              'fetched_count': len(fetched),
+              'snapshots': snapshots,
+          }
+          (OUT / 'commoncrawl-recovery.json').write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+
+          for index, snapshot in enumerate(snapshots[:20], 1):
+              print(index, snapshot['collection'], snapshot['date'], 'score=', snapshot['score'], 'pages=', sorted(snapshot['pages']))
+              print(' validation=', snapshot['validation'])
+
+          for item in fetched:
+              if item.get('html'):
+                  safe_collection = str(item['collection']).replace('/', '-')
+                  (OUT / f"{safe_collection}-page-{item['page']}-{item.get('timestamp','')}.html").write_text(item['html'], encoding='utf-8', errors='ignore')
+          PY
+
+      - name: Upload recovery artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rco-commoncrawl-recovery
+          path: rco-recovery-artifact/
+          if-no-files-found: error
+          retention-days: 1
