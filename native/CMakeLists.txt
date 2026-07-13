@@ -138,6 +138,7 @@ add_executable(colosseum
     torrent/BookTorrentRanker.h
     torrent/BookTorrentFilePicker.cpp
     torrent/BookTorrentFilePicker.h
+    torrent/BookTorrentMagnet.h
     torrent/BookTorrentDownloader.cpp
     torrent/BookTorrentDownloader.h
     torrent/BookTorrents.cpp
@@ -183,6 +184,12 @@ add_executable(book_torrent_filepicker_harness
 )
 target_include_directories(book_torrent_filepicker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_filepicker_harness PRIVATE Qt6::Core)
+
+add_executable(book_torrent_magnet_harness
+    ../tests/book_torrent_magnet_harness.cpp
+)
+target_include_directories(book_torrent_magnet_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(book_torrent_magnet_harness PRIVATE Qt6::Core)
 
 add_executable(torrent_engine_link_harness
     ../tests/torrent_engine_link_harness.cpp
