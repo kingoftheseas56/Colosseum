@@ -68,7 +68,11 @@
   var searchSeq = 0;  // guards a stale async response from painting over a newer query
 
   function escHtml(s) {
-    return (RS && typeof RS.escHtml === 'function') ? RS.escHtml(s) : String(s == null ? '' : s);
+    if (RS && typeof RS.escHtml === 'function') return RS.escHtml(s);
+    // Fallback must ESCAPE, never hand raw book content to innerHTML — same
+    // replacement chain as reader_state.js escHtml (quality review fold 1).
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function fmtExcerpt(excerpt) {
@@ -139,6 +143,15 @@
     catch (e) { res = null; }
 
     if (mySeq !== searchSeq) return; // a newer query landed first — drop this stale response
+
+    // Honest error split (quality review fold 2): a thrown search or an
+    // engine-reported failure (ok:false) reads as FAILURE, never as an empty
+    // result. Only ok:true with zero hits earns "No matches".
+    if (!res || res.ok === false) {
+      hits = [];
+      renderStatus('Search failed');
+      return;
+    }
 
     var rawHits = (res && Array.isArray(res.hits)) ? res.hits : [];
     var flat = (res && Array.isArray(res.flat)) ? res.flat : rawHits.map(function (h) {
