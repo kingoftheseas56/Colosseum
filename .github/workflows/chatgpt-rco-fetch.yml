@@ -27,122 +27,69 @@ jobs:
       - name: Install parser dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Recover pages 3 and 6 only
+      - name: Fetch surviving RCO mirror pages
         run: |
           python - <<'PY'
           import json
-          import subprocess
           from pathlib import Path
-
           import requests
           from bs4 import BeautifulSoup
 
-          HOST = "readcomiconline.li"
-          BASE = f"https://{HOST}/ComicList/MostPopular"
-          OUT = Path(".chatgpt-rco-fetch")
+          OUT = Path('.chatgpt-rco-fetch')
           OUT.mkdir(exist_ok=True)
-          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
           session = requests.Session()
-          session.headers.update({"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"})
+          session.headers.update({
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
+              'Accept-Language': 'en-US,en;q=0.9',
+          })
 
           def parse_titles(html):
-              soup = BeautifulSoup(html or "", "html.parser")
+              soup = BeautifulSoup(html or '', 'html.parser')
               titles = []
-              for block in soup.select(".list-comic .item"):
-                  node = block.select_one("span.title")
-                  anchor = block.select_one('a[href^="/Comic/"]')
-                  title = node.get_text(" ", strip=True) if node else ""
-                  if not title and anchor:
-                      title = anchor.get_text(" ", strip=True)
+              for block in soup.select('.list-comic .item'):
+                  title = ''
+                  tooltip_html = block.get('title', '')
+                  if tooltip_html:
+                      tooltip = BeautifulSoup(tooltip_html, 'html.parser')
+                      node = tooltip.select_one('p.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      node = block.select_one('span.title')
+                      if node:
+                          title = node.get_text(' ', strip=True)
+                  if not title:
+                      anchor = block.select_one('a[href^="/Comic/"]')
+                      if anchor:
+                          title = anchor.get_text(' ', strip=True)
                   if title:
                       titles.append(title)
               return titles
 
-          report = {"passive_ips": [], "pages": {}}
-          ips = []
-          endpoints = [
-              ("otx", "https://otx.alienvault.com/api/v1/indicators/domain/readcomiconline.li/passive_dns", None),
-              ("urlscan", "https://urlscan.io/api/v1/search/", {"q": f"domain:{HOST}", "size": 100}),
-              ("threatminer", "https://api.threatminer.org/v2/domain.php", {"q": HOST, "rt": 2}),
-          ]
-          report["passive_attempts"] = []
-          for label, endpoint, params in endpoints:
-              item = {"source": label}
+          report = {'pages': {}}
+          for page in range(1, 9):
+              url = 'https://rcostation.xyz/ComicList/MostPopular' + ('' if page == 1 else f'?page={page}')
+              entry = {'url': url}
               try:
-                  response = session.get(endpoint, params=params, timeout=15)
-                  item.update({"status": response.status_code, "prefix": response.text[:500]})
-                  payload = response.json()
-                  candidates = []
-                  if label == "otx":
-                      candidates = [row.get("address") for row in payload.get("passive_dns", [])]
-                  elif label == "urlscan":
-                      candidates = [(row.get("page") or {}).get("ip") for row in payload.get("results", [])]
-                  elif label == "threatminer":
-                      candidates = payload.get("results", []) or []
-                  for value in candidates:
-                      value = str(value or "").strip()
-                      if value.count(".") == 3 and value not in ips:
-                          ips.append(value)
+                  response = session.get(url, timeout=40, allow_redirects=True)
+                  titles = parse_titles(response.text)
+                  entry.update({'status': response.status_code, 'final_url': response.url, 'bytes': len(response.content), 'titles': titles})
+                  (OUT / f'rcostation-page-{page}.html').write_text(response.text, encoding='utf-8', errors='ignore')
               except Exception as exc:
-                  item["error"] = repr(exc)
-              report["passive_attempts"].append(item)
-          report["passive_ips"] = ips
+                  entry['error'] = repr(exc)
+              report['pages'][str(page)] = entry
+              print(f'Page {page}: {len(entry.get("titles", []))} titles')
 
-          for page in (3, 6):
-              url = f"{BASE}?page={page}"
-              page_report = {"url": url, "live_attempts": [], "archive_candidates": []}
-              for ip in ips[:30]:
-                  cmd = ["curl", "-4", "-L", "--fail", "--silent", "--show-error",
-                         "--connect-timeout", "8", "--max-time", "18",
-                         "--resolve", f"{HOST}:443:{ip}", "-A", UA, url]
-                  done = subprocess.run(cmd, capture_output=True)
-                  html = done.stdout.decode("utf-8", errors="ignore")
-                  titles = parse_titles(html)
-                  page_report["live_attempts"].append({"ip": ip, "returncode": done.returncode, "bytes": len(done.stdout), "titles": len(titles), "stderr": done.stderr.decode("utf-8", errors="ignore")[:300]})
-                  if len(titles) == 32:
-                      page_report["live_titles"] = titles
-                      page_report["live_ip"] = ip
-                      break
-
-              params = [("url", url), ("output", "json"), ("fl", "timestamp,original,statuscode,digest"), ("filter", "statuscode:200"), ("collapse", "digest"), ("limit", "10")]
-              try:
-                  cdx = session.get("https://web.archive.org/cdx/search/cdx", params=params, timeout=20)
-                  page_report["cdx"] = {"status": cdx.status_code, "final_url": cdx.url, "prefix": cdx.text[:800]}
-                  rows = cdx.json() if cdx.ok else []
-                  captures = []
-                  if isinstance(rows, list) and rows:
-                      columns = rows[0]
-                      captures = [dict(zip(columns, row)) for row in rows[1:]]
-                  captures.sort(key=lambda row: row.get("timestamp", ""), reverse=True)
-                  for capture in captures[:5]:
-                      ts = capture.get("timestamp", "")
-                      original = capture.get("original", url)
-                      archive_url = f"https://web.archive.org/web/{ts}id_/{original}"
-                      candidate = {"timestamp": ts, "archive_url": archive_url}
-                      try:
-                          archived = session.get(archive_url, timeout=20, allow_redirects=True)
-                          titles = parse_titles(archived.text)
-                          candidate.update({"status": archived.status_code, "bytes": len(archived.content), "titles": titles})
-                      except Exception as exc:
-                          candidate["error"] = repr(exc)
-                      page_report["archive_candidates"].append(candidate)
-              except Exception as exc:
-                  page_report["cdx_error"] = repr(exc)
-              report["pages"][str(page)] = page_report
-
-          (OUT / "targeted-recovery.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
-          for page in (3, 6):
-              data = report["pages"][str(page)]
-              print(f"Page {page}: live={len(data.get('live_titles', []))}; archived={[len(c.get('titles', [])) for c in data.get('archive_candidates', [])]}")
+          (OUT / 'rcostation-pages-1-8.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
           PY
 
-      - name: Commit recovery data
+      - name: Commit mirror snapshot
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .chatgpt-rco-fetch
           if ! git diff --cached --quiet; then
-            git commit -m "chore: store targeted temporary RCO recovery"
+            git commit -m "chore: store temporary RCO mirror snapshot"
             git push origin HEAD:chatgpt-rco-snapshot-scratch
           fi
