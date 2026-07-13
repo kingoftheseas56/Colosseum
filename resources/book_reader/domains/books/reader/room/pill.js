@@ -36,8 +36,19 @@
     if (bus && typeof bus.on === 'function') {
       bus.on('reader:relocated', function () { laws.onPageTurn(); });
     }
-    // H key = explicit toggle.
+    // H key = explicit toggle. Guards match reader_keyboard.js's convention
+    // (isTypingElement + modifier bail): never fire while typing (input/textarea/
+    // select/contentEditable — the Phase-3 search box types "h" too) and never
+    // on modifier chords (Ctrl+H / Alt+H / Cmd+H belong to other owners).
+    function isTypingElement(node) {
+      if (!node || !node.tagName) return false;
+      var tag = String(node.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
+      return !!node.isContentEditable;
+    }
     document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isTypingElement(e.target)) return;
       if (e.key === 'h' || e.key === 'H') laws.toggleExplicit();
     });
 
