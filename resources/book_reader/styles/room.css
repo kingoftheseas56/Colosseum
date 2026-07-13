@@ -9,3 +9,72 @@
 [data-chrome="shown"]  #roomPill { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
 #roomProgressLine { position: fixed; left: 0; right: 0; bottom: 0; height: 2px; z-index: 39; }
 /* …glass, gold, sizing → frontend-design (later polish pass) */
+
+/* room-backdrop — OUR OWN transparent click-catcher, not the old chrome's
+   #brOverlayBackdrop (that one is a shared singleton driven by
+   reader_overlays.js's own one-at-a-time bookkeeping for the search/font/
+   theme/tts/keys overlays; reusing it while both chrome layers coexist would
+   let the two "close everything else" logics fight each other). Sits below
+   the popover, above the pill and the reading surface — it must swallow
+   outside clicks (including on the reading area) so a stray tap can't both
+   dismiss the popover AND turn a page underneath it. */
+.room-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 41;
+  background: transparent;
+}
+.room-backdrop.hidden { display: none; }
+
+/* room-popover — the glass card itself, one level above the backdrop so it's
+   click-through-proof against its own backdrop, and below the old chrome's
+   overlay family (z-index 59/60) so nothing here can occlude old-chrome UI
+   while both coexist pre-Phase-5-deletion. */
+.room-popover {
+  position: fixed;
+  z-index: 42;
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 60vh;
+  overflow-y: auto;
+  background: var(--br-reader-bg, rgba(16, 18, 22, 0.86));
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 10px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--br-reader-text, var(--text, #e4e8ef));
+  padding: 6px 0;
+}
+
+.room-panel-title {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  opacity: 0.6;
+  padding: 8px 14px 6px;
+}
+
+.room-toc { display: flex; flex-direction: column; }
+
+.room-toc-row {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  padding: 7px 14px 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.room-toc-row:hover { background: rgba(255, 255, 255, 0.06); }
+.room-toc-row.is-current { border-left-color: #efc54a; color: #efc54a; }
+.room-toc-row--empty { opacity: 0.5; cursor: default; }
+.room-toc-row--empty:hover { background: transparent; }

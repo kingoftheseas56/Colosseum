@@ -424,6 +424,13 @@
                 setBootPhase('phase5');
                 loadInOrder([
                   './domains/books/reader/room/chrome_laws.js',
+                  // popovers.js defines window.__roomRegisterPanel; must load
+                  // before panel_contents.js, which calls it at top-level on
+                  // load. pill.js only calls __roomOpenPanel from a click
+                  // handler (post-boot), so its position after both is a
+                  // convenience, not a hard requirement.
+                  './domains/books/reader/room/popovers.js',
+                  './domains/books/reader/room/panel_contents.js',
                   './domains/books/reader/room/pill.js',
                 ], 0, function() {
                   console.log('[ebook-boot] All reader modules loaded.');
