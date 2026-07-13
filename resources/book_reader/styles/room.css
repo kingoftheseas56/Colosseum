@@ -383,3 +383,125 @@ select.room-select option { background: #101216; color: #e4e8ef; }
 }
 .room-pdf-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
 .room-pdf-btn:disabled { opacity: 0.4; cursor: default; }
+
+/* room-strip — the TTS (and future audiobook) transport strip. Bottom-docked,
+   persistent while playback runs — unlike .room-popover it is NOT gated by
+   chrome-laws [data-chrome]; visibility is purely the .hidden class toggled
+   by tts_strip.js's own open/stop calls. Button glyphs match the pill's
+   current state (plain text — SVG-or-text is the house rule, and the pill
+   itself has no glyphs painted in yet; a later frontend-design pass fills
+   both together). */
+.room-strip {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  /* Above .room-backdrop (41) so the strip stays clickable while a popover's
+     backdrop is up (otherwise the backdrop would swallow taps meant for the
+     strip's own buttons before they reach it). Same tier as .room-popover
+     (42) is fine — the two never overlap on screen (strip bottom-docked,
+     popover anchored under the top pill) — and both stay below the old
+     chrome's overlay family (59/60) for pre-Phase-5 coexistence. */
+  z-index: 42;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 300px;
+  max-width: 440px;
+  padding: 8px 10px 8px 16px;
+  background: var(--br-reader-bg, rgba(16, 18, 22, 0.86));
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  color: var(--br-reader-text, var(--text, #e4e8ef));
+}
+.room-strip.hidden { display: none; }
+
+.room-strip-btn {
+  flex: 0 0 auto;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.room-strip-btn:hover { background: rgba(255, 255, 255, 0.12); }
+
+.room-strip-playpause {
+  min-width: 56px;
+  text-align: center;
+  color: #efc54a;
+  border-color: rgba(239, 197, 74, 0.4);
+}
+
+.room-strip-info {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.room-strip-title {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.room-strip-progress {
+  font-size: 11px;
+  opacity: 0.55;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 13px;
+}
+.room-strip-progress.is-empty { opacity: 0; }
+.room-strip-progress.is-error { color: #ff9a9a; opacity: 0.95; }
+
+/* Indeterminate sweep — reuses the exact @keyframes brTtsIndeterminate
+   already defined in books-reader.css (loaded before this file), so the
+   strip's loading pattern is the SAME honest "no fake percent" indicator as
+   the old #brTtsLoadingOverlay, not a re-invented one. */
+.room-strip-loading-track {
+  position: relative;
+  width: 100%;
+  height: 3px;
+  margin-top: 2px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.room-strip-loading-track.hidden { display: none; }
+.room-strip-loading-fill {
+  position: absolute;
+  top: 0;
+  left: -35%;
+  height: 100%;
+  width: 35%;
+  background: linear-gradient(90deg,
+    color-mix(in srgb, #efc54a 30%, transparent),
+    #efc54a,
+    color-mix(in srgb, #efc54a 30%, transparent));
+  border-radius: 2px;
+  animation: brTtsIndeterminate 1.15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .room-strip-loading-fill { animation: brTtsPulse 1.6s ease-in-out infinite; left: 0; width: 100%; }
+}
+
+.room-strip-rate { min-width: 48px; text-align: center; }
+
+.room-strip-close { opacity: 0.65; }
+.room-strip-close:hover { opacity: 1; }

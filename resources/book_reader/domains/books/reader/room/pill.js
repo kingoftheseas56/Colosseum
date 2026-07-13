@@ -66,7 +66,13 @@
     pill.addEventListener('click', function (e) {
       const btn = e.target.closest('.room-pill-btn'); if (!btn) return;
       laws.poke();
-      window.__roomOpenPanel && window.__roomOpenPanel(btn.dataset.act, btn);
+      const act = btn.dataset.act;
+      // Listen buttons don't open a popover — they mount their own docked
+      // strip (tts_strip.js / audiobook strip, Task 4.4). Both handlers are
+      // guarded no-ops until their owning task lands.
+      if (act === 'listen-tts') { window.__roomOpenTts && window.__roomOpenTts(); return; }
+      if (act === 'listen-audio') { window.__roomRequestAudiobook && window.__roomRequestAudiobook(); return; }
+      window.__roomOpenPanel && window.__roomOpenPanel(act, btn);
     });
 
     // Show/hide the audiobook button per pairing state (set by QML via bridge shim).

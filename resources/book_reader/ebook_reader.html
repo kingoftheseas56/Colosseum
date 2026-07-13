@@ -433,6 +433,12 @@
                   './domains/books/reader/room/panel_contents.js',
                   './domains/books/reader/room/panel_search.js',
                   './domains/books/reader/room/panel_appearance.js',
+                  // tts_strip.js defines window.__roomOpenTts/__roomStopTts;
+                  // loads before pill.js so both exist the instant pill.js's
+                  // click handler can route to them (pill.js only calls them
+                  // from a click, post-boot, so a guard-late-bind isn't
+                  // actually required — this ordering is just the tidy one).
+                  './domains/books/reader/room/tts_strip.js',
                   './domains/books/reader/room/pill.js',
                 ], 0, function() {
                   console.log('[ebook-boot] All reader modules loaded.');
