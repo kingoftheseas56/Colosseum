@@ -18,28 +18,29 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 8
     steps:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt-rco-snapshot-scratch
 
       - name: Install parser dependencies
-        run: python -m pip install --disable-pip-version-check beautifulsoup4
+        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Test direct Cloudflare edge IPs
+      - name: Query Common Crawl for pages 3 and 6
         run: |
           python - <<'PY'
+          import gzip
           import json
-          import subprocess
           from pathlib import Path
+
+          import requests
           from bs4 import BeautifulSoup
 
           OUT = Path('.chatgpt-rco-fetch')
           OUT.mkdir(exist_ok=True)
-          HOST = 'readcomiconline.li'
-          IPS = ['172.67.206.247', '104.21.69.95']
-          UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
+          session = requests.Session()
+          session.headers.update({'User-Agent': 'Colosseum-RCO-Recovery/1.0'})
 
           def parse_titles(html):
               soup = BeautifulSoup(html or '', 'html.parser')
@@ -56,55 +57,102 @@ jobs:
                       node = block.select_one('span.title')
                       if node:
                           title = node.get_text(' ', strip=True)
+                  if not title:
+                      anchor = block.select_one('a[href^="/Comic/"]')
+                      if anchor:
+                          title = anchor.get_text(' ', strip=True)
                   if title:
                       titles.append(title)
               return titles
 
-          report = {'pages': {}}
-          for page in (3, 6):
-              path = f'/ComicList/MostPopular?page={page}'
-              entry = {'attempts': []}
-              for ip in IPS:
-                  variants = [
-                      ('https-ip-host', ['curl', '-k', '--http1.1', '-L', '--silent', '--show-error', '--connect-timeout', '10', '--max-time', '30', '-A', UA, '-H', f'Host: {HOST}', f'https://{ip}{path}']),
-                      ('http-ip-host', ['curl', '--http1.1', '-L', '--silent', '--show-error', '--connect-timeout', '10', '--max-time', '30', '-A', UA, '-H', f'Host: {HOST}', f'http://{ip}{path}']),
-                      ('https-resolve-tls12', ['curl', '-k', '--tlsv1.2', '--http1.1', '-L', '--silent', '--show-error', '--connect-timeout', '10', '--max-time', '30', '--resolve', f'{HOST}:443:{ip}', '-A', UA, f'https://{HOST}{path}']),
-                  ]
-                  for label, cmd in variants:
-                      done = subprocess.run(cmd, capture_output=True)
-                      html = done.stdout.decode('utf-8', errors='ignore')
-                      titles = parse_titles(html)
-                      attempt = {
-                          'ip': ip,
-                          'variant': label,
-                          'returncode': done.returncode,
-                          'bytes': len(done.stdout),
-                          'title_count': len(titles),
-                          'stderr': done.stderr.decode('utf-8', errors='ignore')[:1000],
-                          'body_prefix': html[:1000],
-                      }
-                      entry['attempts'].append(attempt)
-                      if len(titles) == 32:
-                          entry['titles'] = titles
-                          entry['winning_ip'] = ip
-                          entry['winning_variant'] = label
-                          (OUT / f'direct-edge-page-{page}.html').write_text(html, encoding='utf-8', errors='ignore')
-                          break
-                  if entry.get('titles'):
-                      break
-              report['pages'][str(page)] = entry
-              print(f'Page {page}: {len(entry.get("titles", []))} titles')
+          def extract_http_body(warc_bytes):
+              try:
+                  raw = gzip.decompress(warc_bytes)
+              except Exception:
+                  raw = warc_bytes
+              # Strip WARC headers, then embedded HTTP headers.
+              parts = raw.split(b'\r\n\r\n', 2)
+              if len(parts) >= 3:
+                  body = parts[2]
+              elif len(parts) == 2:
+                  body = parts[1]
+              else:
+                  body = raw
+              return body.decode('utf-8', errors='ignore')
 
-          (OUT / 'direct-edge-recovery.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          report = {'collections': [], 'pages': {}}
+          try:
+              collections_response = session.get('https://index.commoncrawl.org/collinfo.json', timeout=30)
+              collections_response.raise_for_status()
+              collections = collections_response.json()
+          except Exception as exc:
+              report['collections_error'] = repr(exc)
+              collections = []
+
+          for collection in collections[:24]:
+              report['collections'].append({'id': collection.get('id'), 'api': collection.get('cdx-api')})
+
+          for page in (3, 6):
+              url = f'https://readcomiconline.li/ComicList/MostPopular?page={page}'
+              page_report = {'url': url, 'queries': [], 'candidates': []}
+              for collection in collections[:24]:
+                  cid = collection.get('id')
+                  api = collection.get('cdx-api')
+                  if not api:
+                      continue
+                  query = {'collection': cid, 'api': api}
+                  try:
+                      response = session.get(api, params={'url': url, 'output': 'json'}, timeout=30)
+                      query.update({'status': response.status_code, 'prefix': response.text[:500]})
+                      response.raise_for_status()
+                      records = []
+                      for line in response.text.splitlines():
+                          line = line.strip()
+                          if line.startswith('{'):
+                              records.append(json.loads(line))
+                      query['record_count'] = len(records)
+                      for record in reversed(records[-10:]):
+                          candidate = {'collection': cid, 'record': record}
+                          try:
+                              filename = record['filename']
+                              offset = int(record['offset'])
+                              length = int(record['length'])
+                              headers = {'Range': f'bytes={offset}-{offset + length - 1}'}
+                              data_url = f'https://data.commoncrawl.org/{filename}'
+                              warc_response = session.get(data_url, headers=headers, timeout=60)
+                              candidate.update({'status': warc_response.status_code, 'bytes': len(warc_response.content), 'data_url': data_url})
+                              warc_response.raise_for_status()
+                              html = extract_http_body(warc_response.content)
+                              titles = parse_titles(html)
+                              candidate['titles'] = titles
+                              if len(titles) == 32:
+                                  safe_cid = str(cid).replace('/', '-')
+                                  (OUT / f'commoncrawl-page-{page}-{safe_cid}.html').write_text(html, encoding='utf-8', errors='ignore')
+                                  page_report['candidates'].append(candidate)
+                                  break
+                          except Exception as exc:
+                              candidate['error'] = repr(exc)
+                          page_report['candidates'].append(candidate)
+                      if any(len(c.get('titles', [])) == 32 for c in page_report['candidates']):
+                          page_report['winning_collection'] = cid
+                          break
+                  except Exception as exc:
+                      query['error'] = repr(exc)
+                  page_report['queries'].append(query)
+              report['pages'][str(page)] = page_report
+              valid = [c for c in page_report['candidates'] if len(c.get('titles', [])) == 32]
+              print(f'Page {page}: {len(valid)} valid Common Crawl captures')
+
+          (OUT / 'commoncrawl-recovery.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
           PY
 
-      - name: Commit direct-edge result
+      - name: Commit Common Crawl result
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .chatgpt-rco-fetch
           if ! git diff --cached --quiet; then
-            git commit -m "chore: store temporary direct-edge RCO result"
+            git commit -m "chore: store temporary Common Crawl RCO result"
             git push origin HEAD:chatgpt-rco-snapshot-scratch
           fi
