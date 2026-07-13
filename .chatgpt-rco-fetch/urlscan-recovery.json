@@ -1,0 +1,78 @@
+{
+  "pages": {
+    "3": {
+      "target": "https://readcomiconline.li/ComicList/MostPopular?page=3",
+      "searches": [
+        {
+          "query": "page.url:\"https://readcomiconline.li/ComicList/MostPopular?page=3\"",
+          "status": 200,
+          "url": "https://urlscan.io/api/v1/search/?q=page.url%3A%22https%3A%2F%2Freadcomiconline.li%2FComicList%2FMostPopular%3Fpage%3D3%22&size=100",
+          "prefix": "{\n  \"results\": [],\n  \"total\": 0,\n  \"took\": 139,\n  \"has_more\": false\n}",
+          "total": 0,
+          "results_count": 0
+        },
+        {
+          "query": "task.url:\"https://readcomiconline.li/ComicList/MostPopular?page=3\"",
+          "status": 200,
+          "url": "https://urlscan.io/api/v1/search/?q=task.url%3A%22https%3A%2F%2Freadcomiconline.li%2FComicList%2FMostPopular%3Fpage%3D3%22&size=100",
+          "prefix": "{\n  \"results\": [],\n  \"total\": 0,\n  \"took\": 112,\n  \"has_more\": false\n}",
+          "total": 0,
+          "results_count": 0
+        },
+        {
+          "query": "filename:\"MostPopular\" AND domain:readcomiconline.li",
+          "status": 200,
+          "url": "https://urlscan.io/api/v1/search/?q=filename%3A%22MostPopular%22+AND+domain%3Areadcomiconline.li&size=100",
+          "prefix": "{\n  \"results\": [],\n  \"total\": 0,\n  \"took\": 275,\n  \"has_more\": false\n}",
+          "total": 0,
+          "results_count": 0
+        },
+        {
+          "query": "domain:readcomiconline.li AND page.url:*MostPopular*page=3*",
+          "status": 403,
+          "url": "https://urlscan.io/api/v1/search/?q=domain%3Areadcomiconline.li+AND+page.url%3A%2AMostPopular%2Apage%3D3%2A&size=100",
+          "prefix": "{\n  \"message\": \"Regular Expressions and leading wildcard searches are not supported for anonymous users, please create a user-account.\",\n  \"status\": 403,\n  \"errors\": [\n    {\n      \"title\": \"Regular Expressions and leading wildcard searches are not supported for anonymous users, please create a user-account.\",\n      \"detail\": \"Regular Expressions and leading wildcard searches are not supported for anonymous users, please create a user-account.\",\n      \"status\": 403\n    }\n  ]\n}",
+          "error": "HTTPError('403 Client Error: Forbidden for url: https://urlscan.io/api/v1/search/?q=domain%3Areadcomiconline.li+AND+page.url%3A%2AMostPopular%2Apage%3D3%2A&size=100')"
+        }
+      ],
+      "captures": []
+    },
+    "6": {
+      "target": "https://readcomiconline.li/ComicList/MostPopular?page=6",
+      "searches": [
+        {
+          "query": "page.url:\"https://readcomiconline.li/ComicList/MostPopular?page=6\"",
+          "status": 200,
+          "url": "https://urlscan.io/api/v1/search/?q=page.url%3A%22https%3A%2F%2Freadcomiconline.li%2FComicList%2FMostPopular%3Fpage%3D6%22&size=100",
+          "prefix": "{\n  \"results\": [],\n  \"total\": 0,\n  \"took\": 244,\n  \"has_more\": false\n}",
+          "total": 0,
+          "results_count": 0
+        },
+        {
+          "query": "task.url:\"https://readcomiconline.li/ComicList/MostPopular?page=6\"",
+          "status": 200,
+          "url": "https://urlscan.io/api/v1/search/?q=task.url%3A%22https%3A%2F%2Freadcomiconline.li%2FComicList%2FMostPopular%3Fpage%3D6%22&size=100",
+          "prefix": "{\n  \"results\": [],\n  \"total\": 0,\n  \"took\": 279,\n  \"has_more\": false\n}",
+          "total": 0,
+          "results_count": 0
+        },
+        {
+          "query": "filename:\"MostPopular\" AND domain:readcomiconline.li",
+          "status": 200,
+          "url": "https://urlscan.io/api/v1/search/?q=filename%3A%22MostPopular%22+AND+domain%3Areadcomiconline.li&size=100",
+          "prefix": "{\n  \"results\": [],\n  \"total\": 0,\n  \"took\": 190,\n  \"has_more\": false\n}",
+          "total": 0,
+          "results_count": 0
+        },
+        {
+          "query": "domain:readcomiconline.li AND page.url:*MostPopular*page=6*",
+          "status": 403,
+          "url": "https://urlscan.io/api/v1/search/?q=domain%3Areadcomiconline.li+AND+page.url%3A%2AMostPopular%2Apage%3D6%2A&size=100",
+          "prefix": "{\n  \"message\": \"Regular Expressions and leading wildcard searches are not supported for anonymous users, please create a user-account.\",\n  \"status\": 403,\n  \"errors\": [\n    {\n      \"title\": \"Regular Expressions and leading wildcard searches are not supported for anonymous users, please create a user-account.\",\n      \"detail\": \"Regular Expressions and leading wildcard searches are not supported for anonymous users, please create a user-account.\",\n      \"status\": 403\n    }\n  ]\n}",
+          "error": "HTTPError('403 Client Error: Forbidden for url: https://urlscan.io/api/v1/search/?q=domain%3Areadcomiconline.li+AND+page.url%3A%2AMostPopular%2Apage%3D6%2A&size=100')"
+        }
+      ],
+      "captures": []
+    }
+  }
+}
