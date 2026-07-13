@@ -110,6 +110,14 @@
     if (typeof def.onOpen === 'function') { try { def.onOpen(); } catch (e) {} }
   };
 
+  // ROOM Phase 5: honest open-check for the keyboard tree. Iframe-origin keys
+  // never reach this file's capture-phase document listener (engine_foliate
+  // forwards them straight into reader_keyboard.handleKeyEvent), so the
+  // Escape chain there asks this before falling through to closing the reader.
+  window.__roomPanelOpen = function () {
+    return !!open;
+  };
+
   window.__roomClosePanels = function () {
     if (!open) return;
     var def = registry[open.act];

@@ -470,10 +470,17 @@ select.room-select option { background: #101216; color: #e4e8ef; }
 .room-strip-progress.is-empty { opacity: 0; }
 .room-strip-progress.is-error { color: #ff9a9a; opacity: 0.95; }
 
-/* Indeterminate sweep — reuses the exact @keyframes brTtsIndeterminate
-   already defined in books-reader.css (loaded before this file), so the
-   strip's loading pattern is the SAME honest "no fake percent" indicator as
-   the old #brTtsLoadingOverlay, not a re-invented one. */
+/* Indeterminate sweep — the SAME honest "no fake percent" indicator as
+   #brTtsLoadingOverlay. ROOM Phase 5: the keyframes are defined HERE too
+   (identical to the books-reader.css copies) so the strip survives any
+   future pruning of the old-chrome stylesheet — this file is the room's
+   only hard CSS dependency. */
+@keyframes brTtsIndeterminate {
+  0%   { left: -35%; width: 35%; }
+  55%  { width: 48%; }
+  100% { left: 100%; width: 35%; }
+}
+@keyframes brTtsPulse { 0%,100% { opacity: 0.35; } 50% { opacity: 0.85; } }
 .room-strip-loading-track {
   position: relative;
   width: 100%;

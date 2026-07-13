@@ -31,11 +31,12 @@
 
   var DEFAULT_SHORTCUTS = {
     // LISTEN_P0: ttsToggle/voiceNext/voicePrev removed — owned by Listening mode
+    // ROOM Phase 5: sidebarToggle 'h' retired — the sidebar is deleted; bare H
+    // is the room's chrome toggle (reader_keyboard → window.__roomLaws).
     tocToggle: 'o',
     bookmarkToggle: 'b',
     dictLookup: 'd',
     fullscreen: 'f',
-    sidebarToggle: 'h',
     themeToggle: 'm',
     gotoPage: 'ctrl+g',
   };
@@ -65,8 +66,6 @@
     pendingProgressSave: false,
     progressSaveInFlight: false,
     progressSaveReschedule: false,
-    sidebarOpen: false,
-    sidebarTab: 'toc',
     lastError: '',
     els: null,
     searchHits: [],
@@ -104,77 +103,18 @@
 
   function ensureEls() {
     if (state.els) return state.els;
+    // ROOM Phase 5: old-chrome entries (toolbar buttons, sidebar, br-overlays,
+    // old settings controls) deleted with their markup — the Disappearing Room
+    // (room/*.js) owns those surfaces now. Modules that referenced them are
+    // null-guarded, so absent keys read as undefined and stay inert.
     state.els = {
       readerView: qs('booksReaderView'),
       host: qs('booksReaderHost'),
-      title: qs('booksReaderTitle'),
-      subtitle: qs('booksReaderSubtitle'),
+      // The room pill's title span — reader_core.open() writes the book title here.
+      title: qs('roomPillTitle'),
       status: qs('booksReaderStatus'),
-      // Toolbar
-      backBtn: qs('booksReaderBackBtn'),
-      searchBtn: qs('booksReaderSearchBtn'),
-      bookmarksBtn: qs('booksReaderBookmarksBtn'),
-      annotBtn: qs('booksReaderAnnotBtn'),
-      sidebarToggle: qs('booksReaderTocNavBtn'),
-      histBackBtn: qs('booksReaderHistBackBtn'),
-      histFwdBtn: qs('booksReaderHistFwdBtn'),
-      fontBtn: qs('booksReaderFontBtn'),
-      themeBtn: qs('booksReaderThemeBtn'),
-      // FIX_TTSH: settings button triggers mega panel
-      listenBtn: qs('booksReaderListenToggle') || qs('booksReaderListenBtn'),
-      minBtn: qs('booksReaderMinBtn'),
-      maxBtn: qs('booksReaderMaxBtn'),
-      maxIcon: qs('booksReaderMaxIcon'),
-      fsBtn: qs('booksReaderFsBtn'),
-      closeBtn: qs('booksReaderCloseBtn'),
-      // Overlay panels
-      overlayBackdrop: qs('brOverlayBackdrop'),
-      overlaySearch: qs('brOverlaySearch'),
-      overlayBookmarks: qs('brOverlayBookmarks'),
-      overlayAnnotations: qs('brOverlayAnnotations'),
-      overlayFont: qs('brOverlayFont'),
-      overlayTheme: qs('brOverlayTheme'),
-      // Sidebar (TOC only)
-      sidebar: qs('booksSidebar'),
-      tocSearch: qs('booksTocSearch'),
-      tocList: qs('booksTocList'),
-      // Search (in overlay)
-      utilSearchInput: qs('booksUtilSearchInput'),
-      utilSearchBtn: qs('booksUtilSearchBtn'),
-      utilSearchCount: qs('booksUtilSearchCount'),
-      utilSearchPrev: qs('booksUtilSearchPrev'),
-      utilSearchNext: qs('booksUtilSearchNext'),
-      // Sidebar bookmarks
-      utilBookmarkToggle: qs('booksUtilBookmarkToggle'),
-      utilBookmarkList: qs('booksUtilBookmarkList'),
-      // Sidebar annotations
-      annotList: qs('booksUtilAnnotationList'),
-      // Settings controls (inside sidebar settings pane)
-      theme: qs('booksReaderTheme'),
-      fontSizeSlider: qs('booksReaderFontSizeSlider'),
-      fontSizeValue: qs('booksReaderFontSizeValue'),
-      fontFamily: qs('booksReaderFontFamily'),
-      lineHeightSlider: qs('booksReaderLineHeightSlider'),
-      lineHeightValue: qs('booksReaderLineHeightValue'),
-      marginSlider: qs('booksReaderMarginSlider'),
-      marginValue: qs('booksReaderMarginValue'),
-      maxLineWidthSlider: qs('booksReaderMaxLineWidthSlider'),
-      maxLineWidthValue: qs('booksReaderMaxLineWidthValue'),
-      columnToggle: qs('booksReaderColumnToggle'),
-      // RCSS_INTEGRATION: new typography controls
-      letterSpacingSlider: qs('booksReaderLetterSpacingSlider'),
-      letterSpacingValue: qs('booksReaderLetterSpacingValue'),
-      wordSpacingSlider: qs('booksReaderWordSpacingSlider'),
-      wordSpacingValue: qs('booksReaderWordSpacingValue'),
-      paraSpacingSlider: qs('booksReaderParaSpacingSlider'),
-      paraSpacingValue: qs('booksReaderParaSpacingValue'),
-      paraIndent: qs('booksReaderParaIndent'),
-      hyphens: qs('booksReaderHyphens'),
-      fitPageBtn: qs('booksReaderFitPageBtn'),
-      fitWidthBtn: qs('booksReaderFitWidthBtn'),
-      zoomDown: qs('booksReaderZoomDown'),
-      zoomUp: qs('booksReaderZoomUp'),
-      pdfGroup: qs('booksMegaPdfGroup'),
+      // FIX_TTSH: hidden compat stub carries the narration-toggle click handler
+      listenBtn: qs('booksReaderListenBtn'),
       // Nav arrows
       prevBtn: qs('booksReaderPrevBtn'),
       nextBtn: qs('booksReaderNextBtn'),
@@ -196,10 +136,8 @@
       dictClose: qs('booksReaderDictClose'),
       dictBack: qs('booksReaderDictBack'),
       ttsBar: qs('lpTtsBar'),
-      flowToggle: qs('brSettingsFlowToggle'),
-      invertDarkImagesToggle: qs('brSettingsInvertDarkImagesToggle'),
-      flowBtn: qs('booksReaderFlowBtn'), // FIX-TTS03: toolbar flow mode toggle
-      shortcutsList: qs('brSettingsShortcuts'),
+      // Hidden compat stub select (custom_select SKIP_IDS keeps it native)
+      theme: qs('booksReaderTheme'),
       // Annotation popup
       annotPopup: qs('booksAnnotPopup'),
       annotClose: qs('booksAnnotClose'),

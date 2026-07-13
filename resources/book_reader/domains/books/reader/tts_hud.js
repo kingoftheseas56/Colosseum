@@ -217,9 +217,10 @@
     el.title = eid ? ('TTS engine: ' + eid) : '';
   }
 
-  // Listen toggle button active state
+  // Listen toggle button active state (ROOM Phase 5: old toolbar button
+  // deleted — the hidden compat stub is the one shared listen surface)
   function syncListenBtn(active) {
-    var btn = qs('booksReaderListenToggle') || qs('booksReaderListenBtn');
+    var btn = qs('booksReaderListenBtn');
     if (btn) btn.classList.toggle('ttsActive', !!active);
   }
 
@@ -768,8 +769,10 @@
     console.log('[tts-hud] bind()');
     _wireAutoHideUi();
 
-    // Listen toggle (toolbar button)
-    var listenBtn = qs('booksReaderListenToggle') || qs('booksReaderListenBtn');
+    // Listen toggle (ROOM Phase 5: hidden compat stub — same button the T key
+    // clicks and reader_core's narration handler binds to, matching the old
+    // shared-button behavior)
+    var listenBtn = qs('booksReaderListenBtn');
     if (listenBtn) listenBtn.addEventListener('click', function () { toggleListenMode(); });
 
     // Transport buttons

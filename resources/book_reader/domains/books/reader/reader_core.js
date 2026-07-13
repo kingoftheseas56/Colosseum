@@ -12,7 +12,8 @@
   // ── Module registry ──────────────────────────────────────────
 
   var modules = [
-    window.booksReaderOverlays,
+    // ROOM Phase 5: booksReaderOverlays + booksReaderSidebar deleted — the
+    // Disappearing Room (room/*.js) is the only chrome now.
     window.booksReaderAppearance,
     window.booksReaderDict,
     window.booksReaderSearch,
@@ -20,7 +21,6 @@
     window.booksReaderAnnotations,
     window.booksReaderToc,
     window.booksReaderNav,
-    window.booksReaderSidebar,
     window.booksReaderRuler,
     // LISTEN_P0: TTS removed from reader — moved to dedicated Listening mode
     window.booksReaderKeyboard,
@@ -363,8 +363,8 @@
 
   function shouldKeepHudVisible() {
     var els = RS.ensureEls();
-    var OV = window.booksReaderOverlays;
-    if (OV && OV.isOpen && OV.isOpen()) return true;
+    // ROOM Phase 5: room popovers freeze the pill via chrome_laws.setPopoverOpen;
+    // the old booksReaderOverlays check is gone with the module.
     if (els.gotoOverlay && !els.gotoOverlay.classList.contains('hidden')) return true;
     if (els.chapterTransition && !els.chapterTransition.classList.contains('hidden')) return true;
     if (els.annotPopup && !els.annotPopup.classList.contains('hidden')) return true;
@@ -376,8 +376,6 @@
   function setHudVisible(visible) {
     var els = RS.ensureEls();
     if (!els.readerView) return;
-    // FIX_HUD: don't show toolbar/footer while sidebar is open — it overlaps sidebar tabs
-    if (visible && RS.state.sidebarOpen) return;
     // BOOK_FIX 5.1: pinned HUD never hides. `visible===true` still applies —
     // pin keeps the toolbar up, not nothing.
     if (!visible && RS.state.hudPinned) return;
@@ -502,11 +500,6 @@
 
   function onEngineUserActivity(e) {
     if (!RS.state.open) return;
-    // FIX_HUD: click/tap inside reading content closes sidebar
-    if (RS.state.sidebarOpen && e && e.type === 'pointerdown') {
-      bus.emit('sidebar:close');
-      return;
-    }
     var els = RS.ensureEls();
     if (!els.readerView) return;
     // ROOM Phase 2: rebroadcast iframe-origin activity in PARENT-space coords
@@ -841,45 +834,9 @@
   function bind() {
     var els = RS.ensureEls();
 
-    // Back / close / minimize buttons
-    if (els.backBtn && !els.backBtn.__booksBackBound) {
-      els.backBtn.addEventListener('click', function () {
-        try {
-          if (window.__ebookNav && typeof window.__ebookNav.requestClose === 'function') {
-            window.__ebookNav.requestClose();
-            return;
-          }
-        } catch (e) {}
-        close().catch(function () {});
-      });
-      els.backBtn.__booksBackBound = true;
-    }
-    els.minBtn && els.minBtn.addEventListener('click', function () { try { Tanko.api.window.minimize(); } catch (e) {} });
-    // PER_VIEW_CHROME_FIX 2026-05-02 P5 — chrome Max-toggle button + icon
-    // swap. Subscribe to windowMaximizeChanged so the icon (single square
-    // ↔ overlapping squares) reflects the live MainWindow state, even when
-    // toggled via Win+Up / Win+Down / OS taskbar / drag-to-screen-edge.
-    els.maxBtn && els.maxBtn.addEventListener('click', function () { try { Tanko.api.window.toggleMaximize(); } catch (e) {} });
-    function _setMaxIcon(isMax) {
-      var ic = els.maxIcon;
-      if (!ic) return;
-      // Restore icon = two overlapping squares; Max icon = single square.
-      // Both use stroke="currentColor" so they pick up theme + br-btn hover.
-      if (isMax) {
-        ic.innerHTML = '<rect x="6" y="9" width="9" height="9" rx="1"/><path d="M9 9V6h9v9h-3"/>';
-        if (els.maxBtn) els.maxBtn.title = 'Restore';
-      } else {
-        ic.innerHTML = '<rect x="6" y="6" width="12" height="12" rx="1"/>';
-        if (els.maxBtn) els.maxBtn.title = 'Maximize';
-      }
-    }
-    try {
-      Tanko.api.window.isMaximized().then(function (v) { _setMaxIcon(!!v); });
-      if (typeof Tanko.api.window.onMaximizeChanged === 'function') {
-        Tanko.api.window.onMaximizeChanged(_setMaxIcon);
-      }
-    } catch (e) {}
-    els.closeBtn && els.closeBtn.addEventListener('click', function () { try { Tanko.api.window.close(); } catch (e) {} });
+    // ROOM Phase 5: old toolbar back/min/max/close buttons deleted with the
+    // top bar — close rides Esc → __ebookNav.requestClose (reader_keyboard);
+    // window verbs live on the QML side.
 
     // Safety-net progress saves: catch window close, app quit, tab switch
     window.addEventListener('beforeunload', function () {
@@ -913,8 +870,7 @@
       ttsReturnBtn.__booksReaderBound = true;
     }
 
-    // Fullscreen button
-    els.fsBtn && els.fsBtn.addEventListener('click', function () { toggleReaderFullscreen().catch(function () {}); });
+    // Fullscreen: 'f' shortcut → bus 'reader:fullscreen' (toolbar button deleted).
 
     // Reader-owned narration toggle (no legacy listening HUD).
     els.listenBtn && els.listenBtn.addEventListener('click', function () {
@@ -1005,16 +961,6 @@
     });
     bus.on('tts:show-return', function () {
       evaluateTtsReturnButton();
-    });
-    // FIX_HUD: hide toolbar when sidebar opens, restore when it closes
-    bus.on('sidebar:toggled', function (isOpen) {
-      if (isOpen) {
-        setHudVisible(false);
-        if (hudHideTimer) { clearTimeout(hudHideTimer); hudHideTimer = null; }
-      } else {
-        setHudVisible(true);
-        scheduleHudAutoHide();
-      }
     });
 
     if (els.readerView) {

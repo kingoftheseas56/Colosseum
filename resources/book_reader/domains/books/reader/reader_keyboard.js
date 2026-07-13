@@ -8,12 +8,13 @@
   var shortcutCaptureAction = '';
 
   // LISTEN_P0: ttsToggle, voiceNext, voicePrev removed — owned by Listening mode
+  // ROOM Phase 5: sidebarToggle retired — the sidebar is deleted; bare H is the
+  // room's chrome toggle (handled below via window.__roomLaws).
   var SHORTCUT_ACTIONS = [
-    { id: 'tocToggle', label: 'Toggle TOC' },
+    { id: 'tocToggle', label: 'Toggle contents' },
     { id: 'bookmarkToggle', label: 'Toggle bookmark' },
     { id: 'dictLookup', label: 'Dictionary lookup' },
     { id: 'fullscreen', label: 'Toggle fullscreen' },
-    { id: 'sidebarToggle', label: 'Toggle sidebar' },
     { id: 'themeToggle', label: 'Cycle theme' },
   ];
 
@@ -151,6 +152,18 @@
     } catch (e) { return false; }
   }
 
+  // ROOM Phase 5: keyboard-side door into the room's popovers. Anchors on the
+  // matching pill button so the popover lands where a click would put it.
+  // __roomOpenPanel toggles on same-act (open contents twice = closed), which
+  // matches the old overlay:toggle semantics these shortcuts had.
+  function openRoomPanel(act) {
+    if (typeof window.__roomOpenPanel !== 'function') return false;
+    var btn = null;
+    try { btn = document.querySelector('#roomPill .room-pill-btn[data-act="' + act + '"]'); } catch (err) {}
+    window.__roomOpenPanel(act, btn);
+    return true;
+  }
+
   // Returns true if consumed (caller should preventDefault on its event).
   function handleKeyEvent(e) {
     var state = RS.state;
@@ -183,10 +196,10 @@
       return true;
     }
 
-    // Ctrl+F or /: open search overlay
+    // Ctrl+F or /: toggle the room's search popover (old overlay deleted).
     if (!typingNow && (e.ctrlKey || e.metaKey) && (e.key === 'f' || e.key === 'F')) {
       e.preventDefault();
-      bus.emit('overlay:toggle', 'search');
+      openRoomPanel('search');
       return true;
     }
 
@@ -214,7 +227,7 @@
 
     if (!e.ctrlKey && !e.metaKey && !e.altKey && e.key === '/') {
       e.preventDefault();
-      bus.emit('overlay:toggle', 'search');
+      openRoomPanel('search');
       return true;
     }
 
@@ -223,23 +236,27 @@
     // Escape: priority chain
     if (e.key === 'Escape') {
       e.preventDefault();
+      // ROOM Phase 5: room popover first. popovers.js's own capture-phase
+      // document listener already covers parent-document Escapes, but
+      // iframe-origin keys never become real DOM events here — engine_foliate
+      // forwards them straight into this tree — so the popover branch must
+      // ALSO live at the top of this chain.
+      if (typeof window.__roomPanelOpen === 'function' && window.__roomPanelOpen()) {
+        if (typeof window.__roomClosePanels === 'function') window.__roomClosePanels();
+        return true;
+      }
       var Nav2 = window.booksReaderNav;
       if (Nav2 && Nav2.isGotoOpen && Nav2.isGotoOpen()) { bus.emit('nav:goto-close'); return true; }
       var Annot = window.booksReaderAnnotations;
       if (Annot && Annot.isAnnotPopupOpen && Annot.isAnnotPopupOpen()) { bus.emit('annot:hide-popup'); return true; }
       // Dictionary popup
       if (els.dictPopup && !els.dictPopup.classList.contains('hidden')) { bus.emit('dict:hide'); return true; }
-      // Floating overlays
-      var OV = window.booksReaderOverlays;
-      if (OV && OV.isOpen()) { OV.closeAll(); return true; }
       // Chapter transition card
       var Nav3 = window.booksReaderNav;
       if (Nav3 && Nav3.isChapterTransitionOpen && Nav3.isChapterTransitionOpen()) {
         Nav3.dismissChapterTransition(false);
         return true;
       }
-      // Sidebar
-      if (state.sidebarOpen) { bus.emit('sidebar:close'); return true; }
       // Close reader (prefer host-level close for stable shell transition)
       try {
         if (window.__ebookNav && typeof window.__ebookNav.requestClose === 'function') {
@@ -249,13 +266,6 @@
       } catch (err) {}
       // Fallback: local reader close
       bus.emit('reader:close');
-      return true;
-    }
-
-    // FIX_HUD: Backspace closes sidebar when open
-    if (e.key === 'Backspace' && state.sidebarOpen) {
-      e.preventDefault();
-      bus.emit('sidebar:close');
       return true;
     }
 
@@ -344,7 +354,9 @@
     // Listening mode: T key toggles TTS
     if (e.key === 't' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
       e.preventDefault();
-      var listenBtn = document.getElementById('booksReaderListenToggle') || document.getElementById('booksReaderListenBtn');
+      // ROOM Phase 5: old toolbar listen button deleted — the hidden compat
+      // stub carries reader_core's narration-toggle click handler.
+      var listenBtn = document.getElementById('booksReaderListenBtn');
       if (listenBtn) listenBtn.click();
       return true;
     }
@@ -366,19 +378,16 @@
       } catch (err) { /* swallow */ }
       return true;
     }
-    if (RS.matchShortcut(e, 'sidebarToggle')) {
-      e.preventDefault();
-      bus.emit('sidebar:toggle');
-      return true;
-    }
     if (RS.matchShortcut(e, 'fullscreen')) {
       e.preventDefault();
       bus.emit('reader:fullscreen');
       return true;
     }
+    // ROOM Phase 5: 'o' now toggles the room's contents popover (the sidebar
+    // it used to toggle is deleted; sidebarToggle 'h' retired with it).
     if (RS.matchShortcut(e, 'tocToggle')) {
       e.preventDefault();
-      bus.emit('sidebar:toggle');
+      openRoomPanel('contents');
       return true;
     }
     if (RS.matchShortcut(e, 'themeToggle')) {
@@ -392,21 +401,18 @@
     // engine_foliate.js reaches it — parent-document listeners never see keys
     // typed while focus is inside the book iframe. Placed AFTER the
     // customizable RS.matchShortcut checks so a user-captured 'h' binding
-    // still wins; normalizeShortcutInput bails on Ctrl/Meta/Alt chords and
-    // the typingNow gate above covers inputs. Bare h only (Shift+H stays
-    // free, matching the T / Shift+T precedent).
+    // still wins (sidebarToggle's default 'h' retired in Phase 5, so bare H
+    // reaches here unshadowed); normalizeShortcutInput bails on Ctrl/Meta/Alt
+    // chords and the typingNow gate above covers inputs. Bare h only (Shift+H
+    // stays free, matching the T / Shift+T precedent).
     if (normalizeShortcutInput(e) === 'h' && window.__roomLaws) {
       e.preventDefault();
       window.__roomLaws.toggleExplicit();
       return true;
     }
 
-    // ? or K key: open keyboard shortcuts overlay
-    if ((!e.ctrlKey && !e.metaKey && !e.altKey) && (e.key === '?' || (!e.shiftKey && (e.key === 'k' || e.key === 'K')))) {
-      e.preventDefault();
-      bus.emit('overlay:toggle', 'keys');
-      return true;
-    }
+    // ROOM Phase 5: '?'/'K' shortcuts-overlay branch removed — the old keys
+    // overlay died with booksReaderOverlays.
 
     return false;
   }
