@@ -9,6 +9,7 @@ tools/
 *-proto.png
 mocks/*-shot.png
 .codex-history/
+.worktrees/
 
 # Cover art — fetched from remote URLs (Catalog.js) + cached to disk; not source
 assets/covers/
