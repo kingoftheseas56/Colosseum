@@ -1,0 +1,120 @@
+{
+  "pages": {
+    "3": {
+      "attempts": [
+        {
+          "ip": "172.67.206.247",
+          "variant": "https-ip-host",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        },
+        {
+          "ip": "172.67.206.247",
+          "variant": "http-ip-host",
+          "returncode": 0,
+          "bytes": 16,
+          "title_count": 0,
+          "stderr": "",
+          "body_prefix": "error code: 1001"
+        },
+        {
+          "ip": "172.67.206.247",
+          "variant": "https-resolve-tls12",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        },
+        {
+          "ip": "104.21.69.95",
+          "variant": "https-ip-host",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        },
+        {
+          "ip": "104.21.69.95",
+          "variant": "http-ip-host",
+          "returncode": 0,
+          "bytes": 16,
+          "title_count": 0,
+          "stderr": "",
+          "body_prefix": "error code: 1001"
+        },
+        {
+          "ip": "104.21.69.95",
+          "variant": "https-resolve-tls12",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        }
+      ]
+    },
+    "6": {
+      "attempts": [
+        {
+          "ip": "172.67.206.247",
+          "variant": "https-ip-host",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        },
+        {
+          "ip": "172.67.206.247",
+          "variant": "http-ip-host",
+          "returncode": 0,
+          "bytes": 16,
+          "title_count": 0,
+          "stderr": "",
+          "body_prefix": "error code: 1001"
+        },
+        {
+          "ip": "172.67.206.247",
+          "variant": "https-resolve-tls12",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        },
+        {
+          "ip": "104.21.69.95",
+          "variant": "https-ip-host",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        },
+        {
+          "ip": "104.21.69.95",
+          "variant": "http-ip-host",
+          "returncode": 0,
+          "bytes": 16,
+          "title_count": 0,
+          "stderr": "",
+          "body_prefix": "error code: 1001"
+        },
+        {
+          "ip": "104.21.69.95",
+          "variant": "https-resolve-tls12",
+          "returncode": 35,
+          "bytes": 0,
+          "title_count": 0,
+          "stderr": "curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure\n",
+          "body_prefix": ""
+        }
+      ]
+    }
+  }
+}
