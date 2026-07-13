@@ -1,0 +1,36 @@
+{
+  "pages": {
+    "1": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867debf7d0>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "2": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=2",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=2 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867debf980>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "3": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=3",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=3 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867debfd40>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "4": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=4",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=4 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867deec140>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "5": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=5",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=5 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867deec500>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "6": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=6",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=6 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867deec8c0>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "7": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=7",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=7 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867deecc80>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    },
+    "8": {
+      "url": "https://rcostation.xyz/ComicList/MostPopular?page=8",
+      "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'rcostation.xyz\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=8 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f867deed220>: Failed to resolve \\'rcostation.xyz\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    }
+  }
+}
