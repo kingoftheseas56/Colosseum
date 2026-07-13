@@ -6,6 +6,11 @@ on:
       - chatgpt-rco-snapshot-scratch
     paths:
       - .github/workflows/chatgpt-rco-fetch.yml
+  pull_request:
+    branches:
+      - master
+    paths:
+      - .github/workflows/chatgpt-rco-fetch.yml
 
 permissions:
   contents: write
