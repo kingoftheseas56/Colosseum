@@ -61,8 +61,15 @@
     var elProgress = null;
     var elRate = null;
     var elLoadingTrack = null;
-    var _wired = false;       // tts.on(...) listeners bound once
-    var _clicksWired = false; // strip's own click delegate bound once
+    var _wired = false;    // tts.on(...) listeners bound once
+    var _starting = false; // init+play sequence in flight — blocks stacked starts
+    // Session token (quality review, fix 1): tts_hud guards its async init
+    // with _ttsActive (tts_hud.js:654/400); the port dropped that guard, so
+    // close-during-init would still start audio with the strip hidden
+    // (stop() during 'idle' is a state no-op in tts_core). Open AND stop
+    // both bump the token; doInitThenPlay captures it and refuses to play
+    // if the session changed while init was pending.
+    var _seq = 0;
 
     function warn(msg, e) {
       try { console.warn('[room-tts] ' + msg, e || ''); } catch (e2) {}
@@ -148,9 +155,13 @@
     // whatever the page/global chrome does with clicks (edge-reach, popover
     // backdrop dismissal, etc. — QML floating-panel doctrine, applied to
     // HTML: a panel over a tap-catcher needs its own swallower).
+    // Guard keyed on the ELEMENT, not a module flag (quality review, fix 3):
+    // a module-level boolean survives strip recreation — if the old node got
+    // removed from the DOM, the rebuilt strip would be inert (no handlers,
+    // no swallower). Same pattern as popovers.js ensureBackdrop.
     function wireStripClicks(el) {
-      if (_clicksWired) return;
-      _clicksWired = true;
+      if (el.__roomStripWired) return;
+      el.__roomStripWired = true;
       el.addEventListener('mousedown', function (e) { e.stopPropagation(); });
       el.addEventListener('click', function (e) {
         e.stopPropagation();
@@ -271,6 +282,8 @@
     // ── Real start/resume sequence (recon'd from tts_hud.js startTts()) ──
 
     function doInitThenPlay(tts) {
+      var tok = _seq; // session token — see fix-1 comment at declaration
+      _starting = true; // fix 2: block stacked starts while init is in flight
       showLoading(true, 'Warming up the voice…');
       var RS = window.booksReaderState;
       var book = RS && RS.state ? RS.state.book : null;
@@ -288,6 +301,11 @@
       };
 
       Promise.resolve(tts.init(opts)).then(function () {
+        _starting = false;
+        // Fix 1: user closed the strip (or a new session superseded this
+        // one) while init was pending — clear the loading state and DON'T
+        // start audio into a hidden strip.
+        if (tok !== _seq) { showLoading(false); return; }
         showLoading(false);
         if (typeof tts.isAvailable === 'function' && !tts.isAvailable()) {
           renderUnavailable(tts);
@@ -295,14 +313,26 @@
         }
         try { tts.play(0, { startFromVisible: true }); } catch (e) { warn('play after init failed', e); }
       }).catch(function (e) {
+        _starting = false;
         showLoading(false);
         warn('tts.init failed', e);
+        // Fix 4: an init rejection must READ as an error on the strip, not
+        // vanish into the console — consistent with renderInfo/renderUnavailable.
+        if (tok === _seq && elProgress) {
+          elProgress.textContent = 'Read-aloud error: init failed';
+          elProgress.classList.remove('is-empty');
+          elProgress.classList.add('is-error');
+        }
       });
     }
 
     function startOrResumeTts() {
       var tts = window.booksTTS;
       if (!tts) { warn('booksTTS unavailable'); return; }
+      // Fix 2: an init+play sequence is already in flight — a second click
+      // would stack another play() when its .then fires (tts.init dedupes
+      // via initPromise, but every caller's .then still runs).
+      if (_starting) return;
       var st = tts.getState();
       if (isPausedState(st)) { try { tts.resume(); } catch (e) { warn('resume failed', e); } return; }
       if (st === 'playing') return; // already playing — strip just reflects it
@@ -345,6 +375,16 @@
 
     window.__roomOpenTts = function () {
       try {
+        // Fix 2 interplay: a repeat click while THIS session's init is still
+        // pending must not bump _seq — that would stale the in-flight token
+        // and the resolved init would refuse to play (probe (b) caught this).
+        // Just make sure the strip is up and let the pending start finish.
+        if (_starting) {
+          var pendingEl = ensureStrip();
+          if (pendingEl) pendingEl.classList.remove('hidden');
+          return;
+        }
+        _seq++; // fix 1: new session — invalidate any prior pending init's play
         if (typeof window.__roomStopAudiobook === 'function') {
           try { window.__roomStopAudiobook(); } catch (e) {}
         }
@@ -360,6 +400,7 @@
     };
 
     window.__roomStopTts = function () {
+      _seq++; // fix 1: session over — a still-pending init must not play
       try {
         var tts = window.booksTTS;
         if (tts && typeof tts.stop === 'function') { try { tts.stop(); } catch (e) {} }
