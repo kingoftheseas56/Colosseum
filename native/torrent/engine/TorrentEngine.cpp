@@ -280,8 +280,31 @@ private:
 
 // ── TorrentEngine implementation ────────────────────────────────────────────
 
+// COLOSSEUM PHASE 1c ORGAN PATCH (Hemanth-sanctioned deviation from verbatim
+// import, 2026-07-13) — construct the session DORMANT. A default-constructed
+// lt::session goes network-live at construction: binds listen sockets on 6881
+// (listen_interfaces default "0.0.0.0:6881,[::]:6881"), bootstraps DHT, starts
+// UPnP/NAT-PMP. In TB2 the ctor→start() gap was momentary; in Colosseum the
+// engine sits constructed-but-NOT-started for the whole app lifetime, so that
+// default is live surprise network activity at every boot. Empty
+// listen_interfaces disables networking entirely per libtorrent's own docs
+// ("No DHT will start, no outgoing uTP or tracker connections will be made");
+// the four enable_* flags are belt-and-suspenders. start() → applySettings()
+// sets the real listen_interfaces and re-enables DHT/LSD/UPnP/NAT-PMP, which
+// brings the session live — no other change needed.
+static lt::session_params dormantSessionParams()
+{
+    lt::session_params params;
+    params.settings.set_str (lt::settings_pack::listen_interfaces, "");
+    params.settings.set_bool(lt::settings_pack::enable_dht,    false);
+    params.settings.set_bool(lt::settings_pack::enable_lsd,    false);
+    params.settings.set_bool(lt::settings_pack::enable_upnp,   false);
+    params.settings.set_bool(lt::settings_pack::enable_natpmp, false);
+    return params;
+}
+
 TorrentEngine::TorrentEngine(const QString& cacheDir, QObject* parent)
-    : QObject(parent), m_cacheDir(cacheDir)
+    : QObject(parent), m_session(dormantSessionParams()), m_cacheDir(cacheDir)
 {
 }
 
