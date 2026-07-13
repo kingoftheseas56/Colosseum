@@ -18,30 +18,28 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 6
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt-rco-snapshot-scratch
 
       - name: Install parser dependencies
-        run: python -m pip install --disable-pip-version-check requests beautifulsoup4
+        run: python -m pip install --disable-pip-version-check beautifulsoup4
 
-      - name: Fetch surviving RCO mirror pages
+      - name: Test direct Cloudflare edge IPs
         run: |
           python - <<'PY'
           import json
+          import subprocess
           from pathlib import Path
-          import requests
           from bs4 import BeautifulSoup
 
           OUT = Path('.chatgpt-rco-fetch')
           OUT.mkdir(exist_ok=True)
-          session = requests.Session()
-          session.headers.update({
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36',
-              'Accept-Language': 'en-US,en;q=0.9',
-          })
+          HOST = 'readcomiconline.li'
+          IPS = ['172.67.206.247', '104.21.69.95']
+          UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36'
 
           def parse_titles(html):
               soup = BeautifulSoup(html or '', 'html.parser')
@@ -58,38 +56,55 @@ jobs:
                       node = block.select_one('span.title')
                       if node:
                           title = node.get_text(' ', strip=True)
-                  if not title:
-                      anchor = block.select_one('a[href^="/Comic/"]')
-                      if anchor:
-                          title = anchor.get_text(' ', strip=True)
                   if title:
                       titles.append(title)
               return titles
 
           report = {'pages': {}}
-          for page in range(1, 9):
-              url = 'https://rcostation.xyz/ComicList/MostPopular' + ('' if page == 1 else f'?page={page}')
-              entry = {'url': url}
-              try:
-                  response = session.get(url, timeout=40, allow_redirects=True)
-                  titles = parse_titles(response.text)
-                  entry.update({'status': response.status_code, 'final_url': response.url, 'bytes': len(response.content), 'titles': titles})
-                  (OUT / f'rcostation-page-{page}.html').write_text(response.text, encoding='utf-8', errors='ignore')
-              except Exception as exc:
-                  entry['error'] = repr(exc)
+          for page in (3, 6):
+              path = f'/ComicList/MostPopular?page={page}'
+              entry = {'attempts': []}
+              for ip in IPS:
+                  variants = [
+                      ('https-ip-host', ['curl', '-k', '--http1.1', '-L', '--silent', '--show-error', '--connect-timeout', '10', '--max-time', '30', '-A', UA, '-H', f'Host: {HOST}', f'https://{ip}{path}']),
+                      ('http-ip-host', ['curl', '--http1.1', '-L', '--silent', '--show-error', '--connect-timeout', '10', '--max-time', '30', '-A', UA, '-H', f'Host: {HOST}', f'http://{ip}{path}']),
+                      ('https-resolve-tls12', ['curl', '-k', '--tlsv1.2', '--http1.1', '-L', '--silent', '--show-error', '--connect-timeout', '10', '--max-time', '30', '--resolve', f'{HOST}:443:{ip}', '-A', UA, f'https://{HOST}{path}']),
+                  ]
+                  for label, cmd in variants:
+                      done = subprocess.run(cmd, capture_output=True)
+                      html = done.stdout.decode('utf-8', errors='ignore')
+                      titles = parse_titles(html)
+                      attempt = {
+                          'ip': ip,
+                          'variant': label,
+                          'returncode': done.returncode,
+                          'bytes': len(done.stdout),
+                          'title_count': len(titles),
+                          'stderr': done.stderr.decode('utf-8', errors='ignore')[:1000],
+                          'body_prefix': html[:1000],
+                      }
+                      entry['attempts'].append(attempt)
+                      if len(titles) == 32:
+                          entry['titles'] = titles
+                          entry['winning_ip'] = ip
+                          entry['winning_variant'] = label
+                          (OUT / f'direct-edge-page-{page}.html').write_text(html, encoding='utf-8', errors='ignore')
+                          break
+                  if entry.get('titles'):
+                      break
               report['pages'][str(page)] = entry
               print(f'Page {page}: {len(entry.get("titles", []))} titles')
 
-          (OUT / 'rcostation-pages-1-8.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+          (OUT / 'direct-edge-recovery.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
           PY
 
-      - name: Commit mirror snapshot
+      - name: Commit direct-edge result
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .chatgpt-rco-fetch
           if ! git diff --cached --quiet; then
-            git commit -m "chore: store temporary RCO mirror snapshot"
+            git commit -m "chore: store temporary direct-edge RCO result"
             git push origin HEAD:chatgpt-rco-snapshot-scratch
           fi
