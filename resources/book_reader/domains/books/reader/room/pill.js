@@ -1,6 +1,19 @@
 // pill.js — mounts the pill, binds chrome laws to paint, dispatches button acts.
 // House rule: SVG glyphs (grayscale + gold accent), never emoji/unicode in prod —
 // the glyph <use> refs are filled by frontend-design; this file owns behavior only.
+//
+// Input routing contract (quality review, Phase 2): the reading surface is an
+// IFRAME, so parent-document listeners never see events that originate inside
+// it. Anything the pill needs from inside the book arrives via the reader's own
+// forwarding paths instead:
+//   - H key: handled in reader_keyboard.js handleKeyEvent (the single decision
+//     tree both the parent document AND engine_foliate's iframe listener call).
+//     pill.js deliberately has NO keydown listener of its own.
+//   - Edge-reach from inside the book: reader_core.js onEngineUserActivity
+//     rebroadcasts iframe activity as bus 'reader:activity' with PARENT-space
+//     coords; we run the same edge test on those.
+//   - Edge-reach over parent chrome/margins: our own document mousemove
+//     (parent-space already) — kept alongside the bus feed.
 (function () {
   'use strict';
   try {
@@ -11,46 +24,44 @@
 
     const pill = document.getElementById('roomPill');
     const view = document.getElementById('booksReaderView');
-    if (!pill || !view || !laws) return;
+    if (!pill || !view || !laws) {
+      try { console.warn('[room] pill prerequisites missing', { pill: !!pill, view: !!view, laws: !!laws }); } catch (e2) {}
+      return;
+    }
 
     function paint() {
       view.setAttribute('data-chrome', laws.shown ? 'shown' : 'hidden');
     }
-    // Repaint on every state transition: the machine is authoritative, paint mirrors `.shown`.
+    // Repaint on every state transition: the machine is authoritative, paint
+    // mirrors `.shown`. Next frame is registered BEFORE paint so a paint throw
+    // can never kill the loop permanently.
     let last = null;
     (function loop() {
-      if (laws.shown !== last) { last = laws.shown; paint(); }
       requestAnimationFrame(loop);
+      if (laws.shown !== last) { last = laws.shown; paint(); }
     })();
 
-    // Edge band: cursor within 60px of top OR bottom = reach.
-    document.addEventListener('mousemove', function (e) {
-      const h = window.innerHeight;
-      if (e.clientY <= 60 || e.clientY >= h - 60) laws.onEdgeReach();
-    });
-    // Reading inputs feed onPageTurn (no-op for visibility) so intent is explicit.
-    // Real event (confirmed via recon, reader_nav.js:433 handleRelocate): 'reader:relocated' —
-    // fired on every navigation (page turn, chapter change, TOC/search jump). There is no
-    // 'nav:pageTurn' event in this codebase; this is the correct analog. No-op-safe if the
-    // bus isn't present yet (bookless/standalone probe contexts).
+    // Edge band: one zone, owned by reader_core (REVEAL_ZONE = 48px top/bottom).
+    // Read from the controller export so the pill and the HUD can't drift apart.
+    const EDGE = (window.booksReaderController && Number(window.booksReaderController.REVEAL_ZONE)) || 48;
+    function edgeReachAt(clientY) {
+      if (!Number.isFinite(Number(clientY))) return;
+      if (clientY <= EDGE || clientY >= window.innerHeight - EDGE) laws.onEdgeReach();
+    }
+    // Feed 1: parent-space mousemove (cursor over parent chrome/margins).
+    document.addEventListener('mousemove', function (e) { edgeReachAt(e.clientY); });
+    // Feed 2: iframe-origin activity, already translated to parent space by
+    // reader_core's _activityClientX/Y before the bus emit.
     if (bus && typeof bus.on === 'function') {
+      bus.on('reader:activity', function (detail) {
+        if (detail) edgeReachAt(detail.clientY);
+      });
+      // Reading inputs feed onPageTurn (no-op for visibility) so intent is
+      // explicit. Real event (recon, reader_nav.js handleRelocate):
+      // 'reader:relocated' fires on every navigation — page turn, chapter
+      // change, TOC/search jump. No 'nav:pageTurn' exists in this codebase.
       bus.on('reader:relocated', function () { laws.onPageTurn(); });
     }
-    // H key = explicit toggle. Guards match reader_keyboard.js's convention
-    // (isTypingElement + modifier bail): never fire while typing (input/textarea/
-    // select/contentEditable — the Phase-3 search box types "h" too) and never
-    // on modifier chords (Ctrl+H / Alt+H / Cmd+H belong to other owners).
-    function isTypingElement(node) {
-      if (!node || !node.tagName) return false;
-      var tag = String(node.tagName || '').toLowerCase();
-      if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
-      return !!node.isContentEditable;
-    }
-    document.addEventListener('keydown', function (e) {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
-      if (isTypingElement(e.target)) return;
-      if (e.key === 'h' || e.key === 'H') laws.toggleExplicit();
-    });
 
     pill.addEventListener('click', function (e) {
       const btn = e.target.closest('.room-pill-btn'); if (!btn) return;

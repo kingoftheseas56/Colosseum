@@ -509,6 +509,13 @@
     }
     var els = RS.ensureEls();
     if (!els.readerView) return;
+    // ROOM Phase 2: rebroadcast iframe-origin activity in PARENT-space coords
+    // (_activityClientX/Y add the frameElement offset). Parent-document
+    // listeners never see events that originate inside the book iframe — this
+    // bus event is the one honest feed for them (the pill's edge-reach).
+    var x = _activityClientX(e);
+    var y = _activityClientY(e);
+    bus.emit('reader:activity', { clientX: x, clientY: y, type: e && e.type });
     var hidden = els.readerView.classList.contains('br-hud-hidden');
     if (!hidden) {
       // While HUD is visible, any activity should reset inactivity timer.
@@ -516,8 +523,6 @@
       return;
     }
     // When hidden, only edge-zone motion reveals HUD.
-    var x = _activityClientX(e);
-    var y = _activityClientY(e);
     if (_isRevealZonePoint(x, y)) onAnyUserActivity();
     else bus.emit('reader:user-activity');
   }
@@ -1049,5 +1054,8 @@
     // BOOK_FIX 5.1: toolbar pin toggle — keyboard handler calls this on Shift+T.
     toggleHudPin: toggleHudPin,
     isHudPinned: function () { return !!RS.state.hudPinned; },
+    // ROOM Phase 2: the edge band lives HERE, once — pill.js reads this
+    // instead of hardcoding its own zone, so the reveal geometry can't drift.
+    REVEAL_ZONE: REVEAL_ZONE,
   };
 })();

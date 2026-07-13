@@ -387,6 +387,20 @@
       return true;
     }
 
+    // ROOM Phase 2: bare H = explicit chrome toggle for the Disappearing Room
+    // pill. Lives HERE (not in pill.js) so the iframe forward path in
+    // engine_foliate.js reaches it — parent-document listeners never see keys
+    // typed while focus is inside the book iframe. Placed AFTER the
+    // customizable RS.matchShortcut checks so a user-captured 'h' binding
+    // still wins; normalizeShortcutInput bails on Ctrl/Meta/Alt chords and
+    // the typingNow gate above covers inputs. Bare h only (Shift+H stays
+    // free, matching the T / Shift+T precedent).
+    if (normalizeShortcutInput(e) === 'h' && window.__roomLaws) {
+      e.preventDefault();
+      window.__roomLaws.toggleExplicit();
+      return true;
+    }
+
     // ? or K key: open keyboard shortcuts overlay
     if ((!e.ctrlKey && !e.metaKey && !e.altKey) && (e.key === '?' || (!e.shiftKey && (e.key === 'k' || e.key === 'K')))) {
       e.preventDefault();
