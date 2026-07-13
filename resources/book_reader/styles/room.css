@@ -1,0 +1,11 @@
+/* room.css — chrome visibility driven by [data-chrome] on #booksReaderView. */
+#roomPill, #roomProgressLabel {
+  transition: opacity .28s ease, transform .28s ease;
+}
+#roomPill { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 40; }
+/* [data-chrome=...] #roomPill has higher specificity (attr + id) than the bare
+   #roomPill rule above (id only) — these two rules win regardless of source order. */
+[data-chrome="hidden"] #roomPill { opacity: 0; transform: translate(-50%, -8px); pointer-events: none; }
+[data-chrome="shown"]  #roomPill { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
+#roomProgressLine { position: fixed; left: 0; right: 0; bottom: 0; height: 2px; z-index: 39; }
+/* …glass, gold, sizing → frontend-design (later polish pass) */

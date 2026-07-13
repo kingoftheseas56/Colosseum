@@ -26,6 +26,8 @@
   <link rel="stylesheet" href="./styles/overhaul.css"/>
   <!-- Book reader styles -->
   <link rel="stylesheet" href="./styles/books-reader.css"/>
+  <!-- The Disappearing Room — pill chrome (Phase 2) -->
+  <link rel="stylesheet" href="./styles/room.css"/>
   <style>
     /* Standalone overrides — reader fills entire viewport */
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #101216; }
@@ -38,6 +40,18 @@
 
   <!-- Book reader — extracted from Butterfly index.html (TTS/audiobook stripped) -->
   <div id="booksReaderView" class="br-reader">
+
+    <!-- The Disappearing Room pill — all chrome summons from here. -->
+    <div id="roomPill" class="room-pill" role="toolbar" aria-label="Reader controls">
+      <button class="room-pill-btn" data-act="contents" title="Contents" aria-label="Contents"></button>
+      <span id="roomPillTitle" class="room-pill-title">&#8212;</span>
+      <button class="room-pill-btn" data-act="aa" title="Type &amp; theme" aria-label="Type and theme"></button>
+      <button class="room-pill-btn" data-act="search" title="Search" aria-label="Search"></button>
+      <button class="room-pill-btn" data-act="listen-audio" title="Listen — audiobook" aria-label="Play audiobook" hidden></button>
+      <button class="room-pill-btn" data-act="listen-tts" title="Read aloud" aria-label="Read aloud"></button>
+    </div>
+    <div id="roomProgressLine" class="room-progress"><span class="room-progress-fill"></span></div>
+    <div id="roomProgressLabel" class="room-progress-label"></div>
 
     <!-- Toolbar (always visible) -->
     <div class="br-toolbar">
@@ -403,7 +417,17 @@
                   clearTimeout(_bootWatchdog);
                   _bootWatchdog = null;
                 }
-                console.log('[ebook-boot] All reader modules loaded.');
+
+                // Phase 5: The Disappearing Room — chrome laws + pill mount.
+                // Coexists with the old toolbar for now (deletion is Phase 5 of the
+                // reader-rebuild plan, not this boot-phase-5). Non-fatal if it fails.
+                setBootPhase('phase5');
+                loadInOrder([
+                  './domains/books/reader/room/chrome_laws.js',
+                  './domains/books/reader/room/pill.js',
+                ], 0, function() {
+                  console.log('[ebook-boot] All reader modules loaded.');
+                });
               });
             });
           });
