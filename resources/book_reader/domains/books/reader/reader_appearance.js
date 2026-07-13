@@ -428,6 +428,28 @@
 
   // ── PDF helpers ──────────────────────────────────────────────────
 
+  // ── ROOM_AA_ADV: seams for room/panel_appearance.js's Advanced section ──
+  // Each mirrors the corresponding old-overlay handler body in bind() below
+  // EXACTLY (same statements, same order) — the room panel must not invent a
+  // second discipline for the same setting while both chrome layers coexist.
+
+  // Mirrors the els.fontWeightSlider 'input' handler.
+  function setFontWeight(v) {
+    var state = RS.state;
+    state.settings.fontWeight = clampFontWeight(v);
+    persistFontWeightSetting(state.settings.fontWeight);
+    applySettings();
+    RS.persistSettings().catch(function () {});
+    return state.settings.fontWeight;
+  }
+
+  // Mirrors the els.invertDarkImagesToggle 'change' handler (localStorage-only
+  // preference — deliberately NOT part of persistSettings, same as the old UI).
+  function setInvertDarkImages(enabled) {
+    setInvertDarkImagesEnabled(!!enabled);
+    injectDarkImageInvertStyleIntoIframes(RS.state.settings && RS.state.settings.theme);
+  }
+
   async function applyPdfFit(mode) {
     var state = RS.state;
     if (!state.engine || typeof state.engine.setFitMode !== 'function') return;
@@ -721,9 +743,16 @@
     updateFlowBtnLabel: updateFlowBtnLabel,
     cycleTheme: cycleTheme,
     setTheme: setTheme,
-    isDarkTheme: isDarkReaderTheme,
     onOpen: onOpen,
     onClose: onClose,
+    // ROOM_AA_ADV: Advanced-section seams (each mirrors its old-overlay
+    // handler; see the seam block above applyPdfFit). getInvertDarkImages is
+    // the same localStorage read the old toggle seeds from.
+    setFontWeight: setFontWeight,
+    setInvertDarkImages: setInvertDarkImages,
+    getInvertDarkImages: isInvertDarkImagesEnabled,
+    applyPdfFit: applyPdfFit,
+    adjustPdfZoom: adjustPdfZoom,
     // ROOM_AA: theme model surface for room/panel_appearance.js — real names,
     // not the plan's guess. order/labels = the 12 built-ins (THEME_ORDER/
     // THEME_LABELS, unchanged — 'custom' is the panel's 13th, handled

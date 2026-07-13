@@ -256,3 +256,130 @@
   min-width: 36px;
   text-align: right;
 }
+
+/* room-adv — collapsed "Advanced" parity section (old font/theme overlay
+   controls, control-for-control). Collapsed by default so the primary panel
+   stays the clean readest-style house. */
+.room-adv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: calc(100% - 24px);
+  margin: 6px 12px 4px;
+  padding: 7px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 8px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.room-adv-toggle:hover { background: rgba(255, 255, 255, 0.07); }
+.room-adv-toggle.is-open { border-color: rgba(239, 197, 74, 0.5); }
+
+.room-adv-caret {
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 6px solid currentColor;
+  opacity: 0.55;
+  transform: rotate(-90deg);
+  transition: transform .15s ease;
+}
+.room-adv-toggle.is-open .room-adv-caret { transform: rotate(0deg); }
+
+.room-adv { padding-bottom: 6px; }
+
+.room-field { padding: 6px 14px; }
+
+/* Element-qualified: custom_select.js's wrapper DIV copies this className
+   but carries its own .br-custom-select trigger chrome — only the (hidden
+   post-upgrade) native select gets these rules. */
+select.room-select {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  padding: 6px 8px;
+  outline: none;
+}
+select.room-select:focus { border-color: #efc54a; }
+/* Native dropdown list renders on the OS side; give options a dark base so
+   light-theme popover text doesn't land on a same-color list background. */
+select.room-select option { background: #101216; color: #e4e8ef; }
+
+.room-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 14px;
+  font-size: 12px;
+  opacity: 0.85;
+  cursor: pointer;
+}
+.room-toggle-row input[type="checkbox"] { accent-color: #efc54a; }
+
+.room-align-chips { display: flex; gap: 6px; }
+
+.room-align-chip {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  padding: 5px 4px;
+  cursor: pointer;
+}
+.room-align-chip:hover { background: rgba(255, 255, 255, 0.08); }
+.room-align-chip.is-active {
+  border-color: #efc54a;
+  color: #efc54a;
+}
+
+.room-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  color: inherit;
+  font-family: ui-monospace, "Cascadia Code", Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.4;
+  padding: 6px 8px;
+  outline: none;
+}
+.room-textarea:focus { border-color: #efc54a; }
+
+.room-pdf-btns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.room-pdf-btn {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--lib-border, rgba(255, 255, 255, 0.16));
+  border-radius: 6px;
+  color: inherit;
+  font: inherit;
+  font-size: 11px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+.room-pdf-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.08); }
+.room-pdf-btn:disabled { opacity: 0.4; cursor: default; }
