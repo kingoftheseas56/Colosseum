@@ -1,20 +1,38 @@
 {
+  "dns": {
+    "ips": [],
+    "attempts": [
+      {
+        "resolver": "google",
+        "status": 200,
+        "body_prefix": "{\"Status\":2,\"TC\":false,\"RD\":true,\"RA\":true,\"AD\":false,\"CD\":false,\"Question\":[{\"name\":\"readcomiconline.li.\",\"type\":1}],\"Comment\":\"Name servers refused query (lame delegation?) [173.245.59.211, 172.64.32.95, 172.64.33.211, 173.245.58.95, 108.162.193.211, 108.162.192.95].\",\"extended_dns_errors\":[{\"info_code\":23,\"extra_text\":\"[173.245.59.211] rcode=REFUSED for readcomiconline.li/a\"},{\"info_code\":23,\"extra_text\":\"[172.64.32.95] rcode=REFUSED for readcomiconline.li/a\"},{\"info_code\":23,\"extra_text\":\"[1"
+      },
+      {
+        "resolver": "cloudflare",
+        "status": 200,
+        "body_prefix": "{\"Status\":2,\"TC\":false,\"RD\":true,\"RA\":true,\"AD\":false,\"CD\":false,\"Question\":[{\"name\":\"readcomiconline.li\",\"type\":1}],\"Comment\":[\"EDE(20): Not Authoritative\",\"EDE(22): No Reachable Authority at delegation readcomiconline.li.\"]}"
+      },
+      {
+        "resolver": "cloudflare-ip",
+        "status": 200,
+        "body_prefix": "{\"Status\":2,\"TC\":false,\"RD\":true,\"RA\":true,\"AD\":false,\"CD\":false,\"Question\":[{\"name\":\"readcomiconline.li\",\"type\":1}],\"Comment\":[\"EDE(20): Not Authoritative\",\"EDE(22): No Reachable Authority at delegation readcomiconline.li.\"]}"
+      }
+    ]
+  },
   "3": {
     "source_url": "https://readcomiconline.li/ComicList/MostPopular?page=3",
-    "final_url": "https://readcomiconline.li/ComicList/MostPopular?page=3",
-    "status": null,
     "html_bytes": 0,
     "titles": [],
     "series_urls": [],
-    "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'readcomiconline.li\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=3 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f742afe9400>: Failed to resolve \\'readcomiconline.li\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    "attempts": [],
+    "valid": false
   },
   "6": {
     "source_url": "https://readcomiconline.li/ComicList/MostPopular?page=6",
-    "final_url": "https://readcomiconline.li/ComicList/MostPopular?page=6",
-    "status": null,
     "html_bytes": 0,
     "titles": [],
     "series_urls": [],
-    "error": "ConnectionError(MaxRetryError('HTTPSConnectionPool(host=\\'readcomiconline.li\\', port=443): Max retries exceeded with url: /ComicList/MostPopular?page=6 (Caused by NameResolutionError(\"<urllib3.connection.HTTPSConnection object at 0x7f742afea930>: Failed to resolve \\'readcomiconline.li\\' ([Errno -3] Temporary failure in name resolution)\"))'))"
+    "attempts": [],
+    "valid": false
   }
 }
