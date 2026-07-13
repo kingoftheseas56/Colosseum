@@ -18,7 +18,7 @@ permissions:
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
         with:
@@ -27,93 +27,36 @@ jobs:
       - name: Install parser dependencies
         run: python -m pip install --disable-pip-version-check requests beautifulsoup4
 
-      - name: Fetch and parse pages 3 and 6
+      - name: Recover RCO popularity pages
         run: |
           python - <<'PY'
+          import gzip
           import ipaddress
           import json
           import subprocess
           import time
           from pathlib import Path
+          from urllib.parse import urlparse
 
           import requests
           import urllib3
           from bs4 import BeautifulSoup
 
           urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
           HOST = "readcomiconline.li"
-          out_dir = Path(".chatgpt-rco-fetch")
-          out_dir.mkdir(exist_ok=True)
+          BASE = f"https://{HOST}/ComicList/MostPopular"
+          OUT = Path(".chatgpt-rco-fetch")
+          OUT.mkdir(exist_ok=True)
+          UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+          SESSION = requests.Session()
+          SESSION.headers.update({"User-Agent": UA, "Accept-Language": "en-US,en;q=0.9"})
 
-          def valid_ipv4(value):
-              try:
-                  return ipaddress.ip_address(value).version == 4
-              except ValueError:
-                  return False
+          def page_url(page):
+              return BASE if page == 1 else f"{BASE}?page={page}"
 
-          def resolve_doh():
-              ips = []
-              attempts = []
-              queries = [
-                  ("google", "https://dns.google/resolve", {"name": HOST, "type": "A"}, {}, True),
-                  ("cloudflare", "https://cloudflare-dns.com/dns-query", {"name": HOST, "type": "A"}, {"accept": "application/dns-json"}, True),
-                  ("cloudflare-ip", "https://1.1.1.1/dns-query", {"name": HOST, "type": "A"}, {"accept": "application/dns-json", "host": "cloudflare-dns.com"}, False),
-              ]
-              for label, endpoint, params, headers, verify in queries:
-                  try:
-                      response = requests.get(endpoint, params=params, headers=headers, timeout=30, verify=verify)
-                      attempts.append({"resolver": label, "status": response.status_code, "body_prefix": response.text[:500]})
-                      response.raise_for_status()
-                      payload = response.json()
-                      for answer in payload.get("Answer", []):
-                          candidate = str(answer.get("data", "")).strip()
-                          if valid_ipv4(candidate) and candidate not in ips:
-                              ips.append(candidate)
-                  except Exception as exc:
-                      attempts.append({"resolver": label, "error": repr(exc)})
-              return ips, attempts
-
-          ips, dns_attempts = resolve_doh()
-          print("Resolved IPs:", ips)
-          results = {"dns": {"ips": ips, "attempts": dns_attempts}}
-
-          for page in (3, 6):
-              url = f"https://{HOST}/ComicList/MostPopular?page={page}"
-              html = ""
-              attempts = []
-
-              for ip in ips:
-                  for try_number in range(1, 4):
-                      command = [
-                          "curl", "-4", "-L", "--fail", "--silent", "--show-error",
-                          "--connect-timeout", "20", "--max-time", "75",
-                          "--resolve", f"{HOST}:443:{ip}",
-                          "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36",
-                          "-H", "Accept-Language: en-US,en;q=0.9",
-                          "-H", "Cache-Control: no-cache",
-                          url,
-                      ]
-                      completed = subprocess.run(command, capture_output=True)
-                      body = completed.stdout.decode("utf-8", errors="ignore")
-                      attempts.append({
-                          "ip": ip,
-                          "try": try_number,
-                          "returncode": completed.returncode,
-                          "bytes": len(completed.stdout),
-                          "stderr": completed.stderr.decode("utf-8", errors="ignore")[:1000],
-                      })
-                      if completed.returncode == 0 and ".list-comic" in body:
-                          html = body
-                          break
-                      time.sleep(try_number * 2)
-                  if html:
-                      break
-
-              (out_dir / f"page-{page}.html").write_text(html, encoding="utf-8", errors="ignore")
-              soup = BeautifulSoup(html, "html.parser")
+          def parse_titles(html):
+              soup = BeautifulSoup(html or "", "html.parser")
               titles = []
-              urls = []
               for block in soup.select(".list-comic .item"):
                   anchor = block.select_one('a[href^="/Comic/"]')
                   title_node = block.select_one("span.title")
@@ -129,37 +72,182 @@ jobs:
                       title = anchor.get_text(" ", strip=True)
                   if title:
                       titles.append(title)
-                      href = anchor.get("href", "") if anchor else ""
-                      urls.append(requests.compat.urljoin(f"https://{HOST}", href))
+              return titles
 
-              results[str(page)] = {
-                  "source_url": url,
-                  "html_bytes": len(html.encode("utf-8")),
-                  "titles": titles,
-                  "series_urls": urls,
-                  "attempts": attempts,
-                  "valid": len(titles) == 32,
-              }
+          def is_ipv4(value):
+              try:
+                  return ipaddress.ip_address(value).version == 4
+              except Exception:
+                  return False
 
-          (out_dir / "pages-3-6.json").write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
+          report = {"passive_dns": {"ips": [], "sources": []}, "live": {}, "wayback": {}, "commoncrawl": {}}
+          ips = []
+
+          def add_ip(value, source):
+              value = str(value or "").strip()
+              if is_ipv4(value) and value not in ips:
+                  ips.append(value)
+                  report["passive_dns"]["sources"].append({"ip": value, "source": source})
+
+          passive_sources = [
+              ("otx", "https://otx.alienvault.com/api/v1/indicators/domain/readcomiconline.li/passive_dns", None),
+              ("mnemonic", "https://api.mnemonic.no/pdns/v3/readcomiconline.li", None),
+              ("threatminer", "https://api.threatminer.org/v2/domain.php", {"q": HOST, "rt": 2}),
+              ("urlscan", "https://urlscan.io/api/v1/search/", {"q": f"domain:{HOST}", "size": 100}),
+          ]
+          for label, endpoint, params in passive_sources:
+              entry = {"source": label, "endpoint": endpoint}
+              try:
+                  response = SESSION.get(endpoint, params=params, timeout=40)
+                  entry.update({"status": response.status_code, "body_prefix": response.text[:1000]})
+                  response.raise_for_status()
+                  payload = response.json()
+                  if label == "otx":
+                      for row in payload.get("passive_dns", []):
+                          add_ip(row.get("address"), label)
+                  elif label == "mnemonic":
+                      rows = payload.get("data", payload if isinstance(payload, list) else [])
+                      for row in rows if isinstance(rows, list) else []:
+                          add_ip(row.get("answer") or row.get("value"), label)
+                  elif label == "threatminer":
+                      for value in payload.get("results", []) or []:
+                          add_ip(value, label)
+                  elif label == "urlscan":
+                      for row in payload.get("results", []) or []:
+                          add_ip((row.get("page") or {}).get("ip"), label)
+              except Exception as exc:
+                  entry["error"] = repr(exc)
+              report["passive_dns"].setdefault("attempts", []).append(entry)
+
+          report["passive_dns"]["ips"] = ips
+          print("Historical IP candidates:", ips)
+
+          for page in range(1, 9):
+              url = page_url(page)
+              live_entry = {"source_url": url, "attempts": [], "titles": []}
+              for ip in ips:
+                  cmd = [
+                      "curl", "-4", "-L", "--fail", "--silent", "--show-error",
+                      "--connect-timeout", "15", "--max-time", "50",
+                      "--resolve", f"{HOST}:443:{ip}",
+                      "-A", UA, "-H", "Accept-Language: en-US,en;q=0.9", url,
+                  ]
+                  done = subprocess.run(cmd, capture_output=True)
+                  html = done.stdout.decode("utf-8", errors="ignore")
+                  titles = parse_titles(html)
+                  live_entry["attempts"].append({
+                      "ip": ip, "returncode": done.returncode, "bytes": len(done.stdout),
+                      "title_count": len(titles), "stderr": done.stderr.decode("utf-8", errors="ignore")[:500],
+                  })
+                  if len(titles) == 32:
+                      live_entry["titles"] = titles
+                      live_entry["ip"] = ip
+                      (OUT / f"live-page-{page}.html").write_text(html, encoding="utf-8", errors="ignore")
+                      break
+              report["live"][str(page)] = live_entry
+
+          for page in range(1, 9):
+              url = page_url(page)
+              wb = {"source_url": url, "cdx": {}, "candidates": []}
+              params = [
+                  ("url", url), ("output", "json"), ("fl", "timestamp,original,statuscode,digest"),
+                  ("filter", "statuscode:200"), ("filter", "mimetype:text/html"),
+                  ("collapse", "digest"), ("limit", "30"), ("filter", "timestamp:2020-2026"),
+              ]
+              try:
+                  response = SESSION.get("https://web.archive.org/cdx/search/cdx", params=params, timeout=60)
+                  wb["cdx"] = {"status": response.status_code, "url": response.url, "body_prefix": response.text[:1000]}
+                  response.raise_for_status()
+                  rows = response.json()
+                  captures = []
+                  if isinstance(rows, list) and rows:
+                      headers = rows[0]
+                      for raw in rows[1:]:
+                          captures.append(dict(zip(headers, raw)))
+                  captures.sort(key=lambda row: row.get("timestamp", ""), reverse=True)
+                  for capture in captures[:15]:
+                      ts = capture.get("timestamp", "")
+                      original = capture.get("original", url)
+                      archive_url = f"https://web.archive.org/web/{ts}id_/{original}"
+                      candidate = {"timestamp": ts, "archive_url": archive_url, "original": original}
+                      try:
+                          archived = SESSION.get(archive_url, timeout=60, allow_redirects=True)
+                          titles = parse_titles(archived.text)
+                          candidate.update({"status": archived.status_code, "bytes": len(archived.content), "titles": titles})
+                          if len(titles) == 32:
+                              (OUT / f"wayback-page-{page}-{ts}.html").write_text(archived.text, encoding="utf-8", errors="ignore")
+                      except Exception as exc:
+                          candidate["error"] = repr(exc)
+                      wb["candidates"].append(candidate)
+              except Exception as exc:
+                  wb["cdx"]["error"] = repr(exc)
+              report["wayback"][str(page)] = wb
+
+          try:
+              collections = SESSION.get("https://index.commoncrawl.org/collinfo.json", timeout=60).json()
+          except Exception as exc:
+              report["commoncrawl"]["error"] = repr(exc)
+              collections = []
 
           for page in (3, 6):
-              titles = results[str(page)]["titles"]
-              print(f"Page {page}: {len(titles)} titles")
-              for index, title in enumerate(titles, start=(page - 1) * 32 + 1):
-                  print(f"{index}. {title}")
+              url = page_url(page)
+              page_results = []
+              for collection in collections[:12]:
+                  api = collection.get("cdx-api")
+                  if not api:
+                      continue
+                  entry = {"collection": collection.get("id"), "api": api}
+                  try:
+                      response = SESSION.get(api, params={"url": url, "output": "json", "filter": "status:200"}, timeout=60)
+                      entry.update({"status": response.status_code, "body_prefix": response.text[:1000]})
+                      response.raise_for_status()
+                      records = [json.loads(line) for line in response.text.splitlines() if line.strip().startswith("{")]
+                      entry["records"] = records[-5:]
+                      for record in reversed(records[-5:]):
+                          filename = record.get("filename")
+                          offset = record.get("offset")
+                          length = record.get("length")
+                          if not filename or offset is None or length is None:
+                              continue
+                          headers = {"Range": f"bytes={offset}-{int(offset)+int(length)-1}"}
+                          warc = SESSION.get(f"https://data.commoncrawl.org/{filename}", headers=headers, timeout=90)
+                          blob = gzip.decompress(warc.content)
+                          text = blob.decode("utf-8", errors="ignore")
+                          marker = "\r\n\r\n"
+                          html = text.split(marker, 2)[-1] if marker in text else text
+                          titles = parse_titles(html)
+                          if len(titles) == 32:
+                              entry["titles"] = titles
+                              entry["record_used"] = record
+                              (OUT / f"commoncrawl-page-{page}-{collection.get('id')}.html").write_text(html, encoding="utf-8", errors="ignore")
+                              break
+                  except Exception as exc:
+                      entry["error"] = repr(exc)
+                  page_results.append(entry)
+                  if entry.get("titles"):
+                      break
+              report["commoncrawl"][str(page)] = page_results
 
-          if any(not results[str(page)]["valid"] for page in (3, 6)):
-              raise SystemExit("Expected exactly 32 titles from each page")
+          (OUT / "recovery-report.json").write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding="utf-8")
+
+          for page in range(1, 9):
+              live_titles = report["live"].get(str(page), {}).get("titles", [])
+              print(f"Live page {page}: {len(live_titles)}")
+              good_archives = [c for c in report["wayback"].get(str(page), {}).get("candidates", []) if len(c.get("titles", [])) == 32]
+              print(f"Wayback page {page}: {len(good_archives)} valid candidates")
+          for page in (3, 6):
+              cc = report["commoncrawl"].get(str(page), [])
+              good = [entry for entry in cc if len(entry.get("titles", [])) == 32]
+              print(f"Common Crawl page {page}: {len(good)} valid candidates")
           PY
 
-      - name: Commit fetched snapshot
+      - name: Commit recovered snapshot
         if: always()
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .chatgpt-rco-fetch
           if ! git diff --cached --quiet; then
-            git commit -m "chore: store temporary RCO page snapshot"
+            git commit -m "chore: store temporary RCO recovery data"
             git push origin HEAD:chatgpt-rco-snapshot-scratch
           fi
