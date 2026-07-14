@@ -103,7 +103,7 @@ Item {
     }
     Connections {
         target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
-        function onResultsReady(rows) { detail.torrents = rows; detail.torLoading = false }
+        function onResultsReady(rows) { detail.torrents = rows; detail.torLoading = false; detail.refreshLocal() }
         function onSearchFinished()   { detail.torLoading = false }
     }
     function edMeta(ed) {
@@ -135,8 +135,19 @@ Item {
         for (var i = 0; i < detail.editions.length; i++) if (detail.editions[i].best) return detail.editions[i]
         return detail.editions.length ? detail.editions[0] : null
     }
+    // One copy per book: before any new download, drop the previous copy — LibGen edition
+    // OR torrent — so a fresh pick REPLACES the old one instead of piling up on disk.
+    function clearExistingCopies() {
+        if (typeof Books !== 'undefined')
+            for (var i = 0; i < detail.editions.length; i++)
+                if (Books.isDownloaded(detail.editions[i].md5)) Books.deleteBook(detail.editions[i].md5)
+        if (typeof BookTorrents !== 'undefined')
+            for (var j = 0; j < detail.torrents.length; j++)
+                if (BookTorrents.isDownloaded(detail.torrents[j].infoHash)) BookTorrents.deleteDownload(detail.torrents[j].infoHash)
+    }
     function startDownload(ed) {
         if (!ed) return
+        detail.clearExistingCopies()   // replace, don't accumulate
         // LibGen rows carry an md5 the native engine pulls in-app; page-URL sources (e.g.
         // OceanofPDF, when it lands) open the page to grab the file until native fetch arrives.
         if (ed.md5 && typeof Books !== 'undefined')
@@ -145,18 +156,31 @@ Item {
         else if (ed.url)
             Qt.openUrlExternally(ed.url)
     }
+    // "Do I have a readable copy?" — ONE book-level question across BOTH sources
+    // (LibGen edition on disk, or a downloaded torrent). Either answers "Ready to read".
     function refreshLocal() {
-        if (typeof Books === 'undefined') { detail.localPath = ""; return }
         var p = ""
-        for (var i = 0; i < detail.editions.length; i++) {
-            var lp = Books.localBook(detail.editions[i].md5)
-            if (lp) { p = lp; break }
-        }
+        if (typeof Books !== 'undefined')
+            for (var i = 0; i < detail.editions.length; i++) {
+                var lp = Books.localBook(detail.editions[i].md5)
+                if (lp) { p = lp; break }
+            }
+        if (!p && typeof BookTorrents !== 'undefined')
+            for (var j = 0; j < detail.torrents.length; j++) {
+                var lf = BookTorrents.localFile(detail.torrents[j].infoHash)
+                if (lf) { p = lf; break }
+            }
         detail.localPath = p
     }
     Connections {
         target: (typeof Books !== 'undefined') ? Books : null
         function onFinished(md5, path) { detail.refreshLocal() }
+        function onRemoved(md5) { detail.refreshLocal() }
+    }
+    Connections {
+        target: (typeof BookTorrents !== 'undefined') ? BookTorrents : null
+        function onFinished(h, path) { detail.refreshLocal() }
+        function onRemoved(h) { detail.refreshLocal() }
     }
 
     // ── top bar ────────────────────────────────────────────────────────────
@@ -414,8 +438,11 @@ Item {
                                     function onProgress(h, rcv, tot) { if (h === torRow.modelData.infoHash) { torRow.dlState = "downloading"; torRow.dlPct = tot > 0 ? rcv / tot : 0 } }
                                     function onFinished(h, path) { if (h === torRow.modelData.infoHash) { torRow.dlState = "done"; torRow.dlPct = 1 } }
                                     function onFailed(h, why) { if (h === torRow.modelData.infoHash) torRow.dlState = "failed" }
+                                    function onRemoved(h) { if (h === torRow.modelData.infoHash) { torRow.dlState = "idle"; torRow.dlPct = 0 } }
                                 }
-                                Rectangle { anchors.fill: parent; color: torMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent" }
+                                // Top row = the recommended pick (best title-match × seeders) — subtly lit; the rest stay one tap away.
+                                Rectangle { anchors.fill: parent; color: torMa.containsMouse ? Qt.rgba(1,1,1,0.06)
+                                    : (index === 0 ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent") }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 // No format pill on torrents: a torrent is an opaque bundle,
                                 // so any format tag is a title-guess (often wrong) — and after
@@ -458,8 +485,10 @@ Item {
                                             if (lf) { detail.readRequested(lf, detail.book); return }
                                             torRow.dlState = "idle"   // file vanished from disk since page opened — re-derive, fall through to re-download
                                         }
-                                        if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving")
+                                        if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving") {
+                                            detail.clearExistingCopies()   // replace any previous copy of this book
                                             BookTorrents.download(torRow.modelData.infoHash, detail.book.title, detail.book.author || "")
+                                        }
                                     }
                                 }
                             }
@@ -525,6 +554,7 @@ Item {
                                     function onProgress(md5, rcv, tot) { if (md5 === edRow.modelData.md5) { edRow.dlState = "downloading"; edRow.dlPct = tot > 0 ? rcv / tot : 0 } }
                                     function onFinished(md5, path) { if (md5 === edRow.modelData.md5) { edRow.dlState = "done"; edRow.dlPct = 1 } }
                                     function onFailed(md5, why) { if (md5 === edRow.modelData.md5) edRow.dlState = "failed" }
+                                    function onRemoved(md5) { if (md5 === edRow.modelData.md5) { edRow.dlState = "idle"; edRow.dlPct = 0 } }
                                 }
                                 Rectangle { anchors.fill: parent; color: edMa.containsMouse ? Qt.rgba(1,1,1,0.06)
                                     : (modelData.best ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent") }

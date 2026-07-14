@@ -13,15 +13,20 @@ static QString normName(QString s){
 QString BookTorrentFilePicker::extOf(const QString& name){ return QFileInfo(name).suffix().toLower(); }
 
 bool BookTorrentFilePicker::isEbook(const QString& name){
-    static const QSet<QString> exts{"epub","pdf","mobi","azw3","fb2"};   // NO djvu (reader can't render)
+    // Only formats the reader actually renders (getEngineCandidates): epub/mobi/fb2/pdf.
+    // NO azw3 (not wired into the reader) and NO djvu — picking one the reader can't open
+    // would leave the download unreadable.
+    static const QSet<QString> exts{"epub","mobi","fb2","pdf"};
     return exts.contains(extOf(name));
 }
 
 int BookTorrentFilePicker::formatRank(const QString& ext){
+    // TTS-aware: reflowable + TTS-capable (epub/mobi/fb2) beat fixed-layout PDF, which
+    // the reader can't read aloud. epub first (best all-round), pdf last.
     if (ext=="epub") return 6;
-    if (ext=="azw3"||ext=="mobi") return 5;
-    if (ext=="fb2") return 4;
-    if (ext=="pdf") return 3;
+    if (ext=="mobi") return 5;
+    if (ext=="fb2")  return 4;
+    if (ext=="pdf")  return 3;
     return 0;
 }
 

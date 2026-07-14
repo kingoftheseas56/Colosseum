@@ -45,5 +45,15 @@ int main(){
     auto p6 = BookTorrentFilePicker::pick("Dune","",f);
     require(p6.idx==-1, "djvu excluded -> no pickable ebook");
 
+    // 7) azw3 is NOT wired into the reader → excluded (a lone azw3 = nothing pickable)
+    QList<ManifestFile> g{ mf(0,"Dune.azw3") };
+    auto p7 = BookTorrentFilePicker::pick("Dune","",g);
+    require(p7.idx==-1, "azw3 excluded -> no pickable ebook");
+
+    // 8) with both, the reader-renderable epub is picked over the azw3
+    QList<ManifestFile> h{ mf(0,"Dune.azw3"), mf(1,"Dune.epub") };
+    auto p8 = BookTorrentFilePicker::pick("Dune","",h);
+    require(p8.idx==1 && p8.ext=="epub", "epub picked over azw3");
+
     std::cout<<"book_torrent_filepicker_harness PASS\n"; return 0;
 }

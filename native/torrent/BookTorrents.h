@@ -23,6 +23,7 @@ public:
 
     Q_INVOKABLE void search(const QString& title, const QString& author);
     Q_INVOKABLE void download(const QString& infoHash, const QString& title, const QString& author);
+    Q_INVOKABLE void deleteDownload(const QString& infoHash);   // remove the copy + files (one-per-book replace)
     Q_INVOKABLE bool    isDownloaded(const QString& infoHash) const;
     Q_INVOKABLE QString localFile(const QString& infoHash) const;
     Q_INVOKABLE QVariantMap statusOf(const QString& infoHash) const;
@@ -34,6 +35,7 @@ signals:
     void progress(const QString& infoHash, double received, double total);
     void finished(const QString& infoHash, const QString& path);
     void failed(const QString& infoHash, const QString& reason);
+    void removed(const QString& infoHash);
 
 private slots:
     void onIndexerResults(const QString& handle, const QList<TorrentResult>& r);

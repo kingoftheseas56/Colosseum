@@ -337,6 +337,27 @@ function cellsOf(rowHtml) {
     return cells;
 }
 
+// Format policy (shared): the reader renders epub/mobi/fb2/pdf (getEngineCandidates).
+// Preference is TTS-aware — reflowable + read-aloud-capable formats (epub, then mobi/fb2)
+// beat fixed-layout PDF, which the reader can't TTS. azw3/djvu/cbz and anything else the
+// reader can't open score 0 and are hidden. LibGen shows only the best-available tier.
+var LIBGEN_FORMAT_TIER = { epub: 3, mobi: 2, fb2: 2, pdf: 1 };   // absent = not renderable → hidden
+function libgenFormatTier(fmt) { return LIBGEN_FORMAT_TIER[String(fmt || '').toLowerCase().trim()] || 0; }
+// Keep only the highest-preference tier present (epub → mobi/fb2 → pdf), dropping the rest
+// and every non-renderable format. Returns [] when nothing is readable.
+function cascadeEditions(editions) {
+    var renderable = [];
+    for (var i = 0; i < editions.length; i++)
+        if (libgenFormatTier(editions[i].format) > 0) renderable.push(editions[i]);
+    if (!renderable.length) return [];
+    var top = 0;
+    for (var j = 0; j < renderable.length; j++) {
+        var t = libgenFormatTier(renderable[j].format);
+        if (t > top) top = t;
+    }
+    return renderable.filter(function (e) { return libgenFormatTier(e.format) === top; });
+}
+
 // search libgen for a book → its available editions (one row = one downloadable file)
 // columns (verified 2026-06-27): [3]=year [4]=language [6]=size [7]=extension [8]=mirrors(md5)
 function searchLibgen(title, author, done) {
@@ -352,7 +373,7 @@ function searchLibgen(title, author, done) {
         if (!tm) { done([]); return; }
         var body = tm[1].replace(/<(br|wbr|hr)\s*\/?>/gi, " ");
         var rows = body.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
-        var out = [], bestSet = false;
+        var out = [];
         for (var i = 0; i < rows.length; i++) {
             var md5m = rows[i].match(/(?:ads|get)\.php\?[^"']*md5=([a-fA-F0-9]{32})/i);
             if (!md5m) continue;                       // skips the header row
@@ -367,11 +388,12 @@ function searchLibgen(title, author, done) {
                 detailUrl: LIBGEN + "/ads.php?md5=" + md5m[1],
                 best: false
             };
-            if (!bestSet && ed.format === "epub") { ed.best = true; bestSet = true; }
             out.push(ed);
-            if (out.length >= 12) break;
+            if (out.length >= 40) break;   // gather generously; the cascade filters down a tier
         }
-        if (!bestSet && out.length > 0) out[0].best = true;
-        done(out);
+        // Cascade to the best-available renderable tier, then recommend the first of it.
+        var shown = cascadeEditions(out).slice(0, 12);
+        for (var k = 0; k < shown.length; k++) shown[k].best = (k === 0);
+        done(shown);
     });
 }

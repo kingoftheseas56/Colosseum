@@ -190,6 +190,20 @@ void BookTorrentDownloader::cancelDownload(const QString& infoHash)
     }
 }
 
+// Remove a completed (or in-flight) download and its files from disk — used by the
+// book page's "one copy per book" replace: a new download deletes the previous one.
+void BookTorrentDownloader::deleteDownload(const QString& infoHash)
+{
+    const QString h = infoHash.toLower();
+    if (Job* j = m_active.take(h)) {           // still downloading → stop + drop engine files
+        if (m_engine) m_engine->removeTorrent(h, /*deleteFiles=*/true);
+        delete j;
+    }
+    if (m_index.remove(h)) saveIndex();        // drop from the completed index
+    QDir(dirFor(h)).removeRecursively();       // wipe the on-disk copy
+    emit removed(h);
+}
+
 // ── disk + index ────────────────────────────────────────────────────────────────
 
 QString BookTorrentDownloader::baseDir() const

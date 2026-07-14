@@ -28,6 +28,7 @@ public:
     Q_INVOKABLE bool    isDownloaded(const QString& infoHash) const;
     Q_INVOKABLE QVariantMap statusOf(const QString& infoHash) const; // {state,received,total}
     Q_INVOKABLE void cancelDownload(const QString& infoHash);
+    Q_INVOKABLE void deleteDownload(const QString& infoHash);   // remove the copy + files (one-per-book replace)
 
     void selfTest(const QString& infoHash, const QString& title); // COLOSSEUM_TORRENT_DLTEST
 
@@ -36,6 +37,7 @@ signals:
     void progress(const QString& infoHash, double received, double total);
     void finished(const QString& infoHash, const QString& path);
     void failed(const QString& infoHash, const QString& reason);
+    void removed(const QString& infoHash);
 
 private:
     struct Job {

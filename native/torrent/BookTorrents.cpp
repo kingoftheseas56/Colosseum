@@ -19,6 +19,7 @@ BookTorrents::BookTorrents(QNetworkAccessManager* searchNam, TorrentEngine* engi
     connect(m_dl, &BookTorrentDownloader::progress,  this, &BookTorrents::progress);
     connect(m_dl, &BookTorrentDownloader::finished,  this, &BookTorrents::finished);
     connect(m_dl, &BookTorrentDownloader::failed,    this, &BookTorrents::failed);
+    connect(m_dl, &BookTorrentDownloader::removed,   this, &BookTorrents::removed);
 }
 
 void BookTorrents::search(const QString& title, const QString& author)
@@ -66,6 +67,7 @@ void BookTorrents::download(const QString& infoHash, const QString& title, const
 {
     m_dl->download(infoHash, title, author);
 }
+void BookTorrents::deleteDownload(const QString& h) { m_dl->deleteDownload(h); }
 bool        BookTorrents::isDownloaded(const QString& h) const { return m_dl->isDownloaded(h); }
 QString     BookTorrents::localFile(const QString& h) const    { return m_dl->localFile(h); }
 QVariantMap BookTorrents::statusOf(const QString& h) const     { return m_dl->statusOf(h); }
