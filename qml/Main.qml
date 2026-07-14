@@ -1759,6 +1759,11 @@ Window {
     }
 
     // ---- the reader: foliate EPUB reader (WebEngine), over the book detail ----
+    // The ONE audiobook engine for read-along, hoisted at the window root (never in a
+    // Loader) so the stream survives the reader opening/closing. The reader's docked
+    // listen strip binds to this; the standalone AudiobookPlayer keeps its own engine.
+    AudiobookSession { id: audioSession }
+
     Loader {
         id: bookReaderLayer
         anchors.fill: parent

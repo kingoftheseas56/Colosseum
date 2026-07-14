@@ -100,4 +100,14 @@ Item {
             })
         }
     }
+
+    // Docked read-along audiobook player — a remote onto the app-wide AudiobookSession
+    // (hoisted in Main.qml, reachable here by dynamic scope). Dormant until the Audio
+    // tab's pairing summons it; plays the paired audiobook while you read.
+    AudiobookStrip {
+        id: listenStrip
+        session: audioSession
+        anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
+        z: 5
+    }
 }
