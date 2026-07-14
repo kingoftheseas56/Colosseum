@@ -395,7 +395,7 @@ Item {
                                 }
                                 Text {
                                     anchors.right: parent.right
-                                    text: "came with the house"
+                                    text: "built-in"
                                     color: theme.inkDimmer
                                     font.family: theme.ui; font.pixelSize: 12
                                 }
@@ -484,33 +484,37 @@ Item {
                                                 Item { width: 1; height: 9 }
                                                 Text { text: card.modelData.kind; color: theme.inkDim
                                                        font.family: theme.ui; font.pixelSize: 12 }
-                                                Item { width: 1; height: 11 }
-                                                Text {
-                                                    text: card.modelData.core ? "Built-in"
-                                                        : root.carried(card.modelData) ? "Installed"
-                                                        : root.pendingUrls[card.modelData.url] ? "Installing…"
-                                                        : "Install"
-                                                    color: card.modelData.core || root.carried(card.modelData)
-                                                           || root.pendingUrls[card.modelData.url]
-                                                           ? theme.inkDimmer
-                                                           : verbMa.containsMouse ? "#ffd968" : theme.gold
-                                                    font.family: theme.ui; font.pixelSize: 13
-                                                    font.weight: root.carried(card.modelData) ? Font.Normal : Font.DemiBold
-                                                    MouseArea {
-                                                        id: verbMa
-                                                        anchors.fill: parent
-                                                        hoverEnabled: true
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        enabled: !card.modelData.core && !root.carried(card.modelData)
-                                                        onClicked: root.installFromCard(card.modelData)
-                                                    }
-                                                }
                                             }
                                             MouseArea {
                                                 id: cardMa
                                                 anchors.fill: parent
                                                 hoverEnabled: true
                                                 acceptedButtons: Qt.NoButton
+                                            }
+                                            // status tag — pinned to the tile's bottom-right corner
+                                            Text {
+                                                anchors.right: parent.right
+                                                anchors.bottom: parent.bottom
+                                                anchors.rightMargin: 18
+                                                anchors.bottomMargin: 16
+                                                text: card.modelData.core ? "Built-in"
+                                                    : root.carried(card.modelData) ? "Installed"
+                                                    : root.pendingUrls[card.modelData.url] ? "Installing…"
+                                                    : "Install"
+                                                color: card.modelData.core || root.carried(card.modelData)
+                                                       || root.pendingUrls[card.modelData.url]
+                                                       ? theme.inkDimmer
+                                                       : verbMa.containsMouse ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: 13
+                                                font.weight: root.carried(card.modelData) ? Font.Normal : Font.DemiBold
+                                                MouseArea {
+                                                    id: verbMa
+                                                    anchors.fill: parent
+                                                    hoverEnabled: true
+                                                    cursorShape: Qt.PointingHandCursor
+                                                    enabled: !card.modelData.core && !root.carried(card.modelData)
+                                                    onClicked: root.installFromCard(card.modelData)
+                                                }
                                             }
                                         }
                                     }
