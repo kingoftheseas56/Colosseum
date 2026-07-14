@@ -192,10 +192,10 @@ Item {
                         function primary() {
                             if (typeof Comics === "undefined" || !chId.length || !canAcquire) return
                             if (dlState === "dead") return
-                            if (dlState === "done") { ledger.readRequested(chId, String(ed.modelData.title || "")); return }
+                            if (dlState === "done") { ledger.readRequested(chId, String(ed.modelData.display_title || ed.modelData.title || "")); return }
                             if (inFlight) return
                             ed.dlState = "queued"
-                            var editionTitle = String(ed.modelData.title || "")
+                            var editionTitle = String(ed.modelData.display_title || ed.modelData.title || "")
                             Comics.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
                                                  editionTitle, 0)
                         }
@@ -236,7 +236,7 @@ Item {
                             anchors.right: edState.left; anchors.rightMargin: 16
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 7
-                            Text { width: parent.width; text: ledger.displayTitle(ed.modelData.title)
+                            Text { width: parent.width; text: ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
                                 color: edMa.containsMouse && ed.canAcquire ? theme.gold : theme.ink
                                 opacity: 1
                                 font.family: theme.display; font.pixelSize: 21; font.weight: Font.Medium

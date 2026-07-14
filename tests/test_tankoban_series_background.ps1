@@ -4,6 +4,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $files = @(
     "qml/TheatreSeries.qml",
     "qml/ComicSeries.qml",
+    "qml/ComicSeriesPage.qml",
     "qml/MangaSeries.qml"
 )
 $tokens = @(

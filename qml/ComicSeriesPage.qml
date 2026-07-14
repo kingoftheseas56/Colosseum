@@ -144,31 +144,21 @@ Item {
         return bits.join("   ·   ")
     }
 
-    // ---- backdrop: the cover washed dark, bleeding from the right (house language) ----
+    // ---- pitch-black Theatre stack: opaque base, world art, then a heavy black wash ----
+    Rectangle { anchors.fill: parent; color: "#000000" }
+    ShaderEffectSource {
+        anchors.fill: parent
+        sourceItem: page.backdrop
+        live: true; hideSource: false
+        visible: page.backdrop !== null
+        opacity: 0.5
+    }
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.04, 0.06, 0.82) }
-            GradientStop { position: 1.0; color: Qt.rgba(0.02, 0.025, 0.04, 0.94) }
-        }
-    }
-    Image {
-        anchors.right: parent.right; anchors.top: parent.top
-        width: parent.width * 0.5; height: parent.height
-        source: page.cover
-        fillMode: Image.PreserveAspectCrop
-        opacity: 0.14
-        visible: status === Image.Ready
-        asynchronous: true; cache: true
-        layer.enabled: true
-        // fade the left edge so it bleeds into the glass, not a hard seam
-        Rectangle {
-            anchors.fill: parent
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: Qt.rgba(0.02, 0.025, 0.04, 1) }
-                GradientStop { position: 0.9; color: Qt.rgba(0.02, 0.025, 0.04, 0) }
-            }
+            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.5) }
+            GradientStop { position: 0.42; color: Qt.rgba(0, 0, 0, 0.78) }
+            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.95) }
         }
     }
     ChromeScrim { z: 16 }

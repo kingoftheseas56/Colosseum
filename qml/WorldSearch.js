@@ -6,6 +6,7 @@
 // Both verified reachable 2026-06-27; GetComics WP REST proven 2026-07-04.
 .pragma library
 .import "ComicsApi.js" as ComicsApi
+.import "ComicsDb.js" as ComicsDb
 .import "LocgApi.js" as Locg
 
 function reqJson(url, done) {
@@ -191,6 +192,59 @@ function searchWestern(query, done) {
     });
 }
 
+// Offline GCD catalog lane. ComicsDb is populated only when the lazy Tankoban world is
+// instantiated, so importing the singleton here does not pull comics_db.gen.js onto app startup.
+function searchCatalog(query) {
+    if (!query || query.trim().length < 2 || !ComicsDb.ready()) return [];
+    var rows = ComicsDb.rankedSeries();
+    var matches = [];
+    for (var i = 0; i < rows.length; ++i) {
+        var row = rows[i];
+        var relevance = scoreTitle(query, row.title);
+        if (relevance <= 0) continue;
+        matches.push({
+            cover: row.cover || "",
+            title: row.title,
+            subtitle: row.publisher || "Comic series",
+            meta: "Comics   ·   " + (row.publisher || "Collected editions"),
+            synopsis: "",
+            backdrop: "",
+            group: "Comics",
+            rank: row.rank || i,
+            _catalogScore: relevance,
+            data: {
+                locg: true,
+                id: row.locgId,
+                title: row.title,
+                cover: row.cover || "",
+                locgMeta: { publisher: row.publisher || "" }
+            }
+        });
+    }
+    matches.sort(function(a, b) {
+        return b._catalogScore - a._catalogScore || a.rank - b.rank;
+    });
+    return matches.slice(0, 48);
+}
+
+function mergeTankobanResults(query, manga, locg, western) {
+    manga = manga || [];
+    locg = locg || [];
+    western = western || [];
+    var localTitles = {};
+    locg.forEach(function(row) { localTitles[normTitle(row.title)] = true; });
+    western = western.filter(function(row) {
+        return !localTitles[normTitle(row.title)];
+    });
+    var rank = function(lane) {
+        lane.forEach(function(row, index) {
+            if (row.rank === undefined) row.rank = index;
+        });
+        return lane;
+    };
+    return pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(western)));
+}
+
 // ── LOCG catalogue search lane — PARKED 2026-07-12 (Hemanth: GetComics = brain AND
 //    content; the archive tags drive the pages). Kept in-tree, no caller in the
 //    fan-out below — revive when an RCO/Batcave-class source restores the split. ──
@@ -221,14 +275,13 @@ function searchLocg(query, done) {
 
 function searchTankoban(query, done) {
     if (!query || query.trim().length < 2) { done([]); return; }
-    var manga = null, western = null;
+    var manga = null, locg = searchCatalog(query), western = null;
     function finish() {
         if (manga === null || western === null) return;
         // Top Match = most title-relevant hit across ALL lanes, via the shared scorer
         // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
         // Each lane degrades to [] on its own failure — peer independence is free.
-        var rank = function(lane) { lane.forEach(function(r, i) { r.rank = i; }); return lane; };
-        done(pickTopMatch(query, rank(manga).concat(rank(western))));
+        done(mergeTankobanResults(query, manga, locg, western));
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });

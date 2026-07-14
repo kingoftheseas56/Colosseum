@@ -36,6 +36,8 @@ Assert-Contains $ledger 'if (typeof Comics === "undefined" || !chId.length || !c
     "The ledger primary action must reject unavailable editions."
 Assert-NotContains $ledger 'downloadIssueTorrent' `
     "Torrent fallback is v2 and must remain dormant in the v1 ledger."
+Assert-Contains $ledger 'ed.modelData.display_title || ed.modelData.title' `
+    "Ledger rows and download labels must prefer the exact-ISBN canonical edition name."
 
 $env:QT_FORCE_STDERR_LOGGING = "1"
 $harness = Join-Path $PSScriptRoot "comics_catalog_logic_harness.qml"
