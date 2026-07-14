@@ -210,6 +210,7 @@ Item {
 
             // ===== DB-driven ledger (comics_db.json): hero + format-grouped editions =====
             ComicDbLedger {
+                id: ledger
                 visible: !!page.dbSeries
                 width: parent.width
                 theme: theme
@@ -217,6 +218,16 @@ Item {
                 seriesTitle: page.seriesTitle
                 gcTag: "gc:" + page.gcTag
                 onReadRequested: (chId, label) => { page.openChapterId = chId; page.openChapterLabel = label }
+                onAlternateSourcesRequested: (edition, chId) => torrentSources.show({
+                    issueId: chId,
+                    seriesId: ledger.gcTag,          // already "gc:<tag>" — do not double-prefix
+                    seriesTitle: page.seriesTitle,
+                    editionTitle: String(edition.display_title || edition.title || ""),
+                    isbn: String(edition.isbn || ""),
+                    collects: String(edition.collects || ""),
+                    year: String(edition.published || ""),
+                    cover: String(edition.cover || page.cover || "")
+                })
             }
 
             // ===== hero (live-flow fallback when the series isn't in the DB) =====
@@ -630,5 +641,15 @@ Item {
         onBackRequested: { page.openChapterId = ""; page.openChapterLabel = "" }
         onMinimizeRequested: page.readerMinimizeRequested()
         onCloseRequested: page.readerCloseRequested()
+    }
+
+    // ---- alternate torrent sources: full-screen picker opened from a ledger row.
+    //      A sibling of the reader (they're mutually-exclusive overlays); acquisition
+    //      rides the global Comics object under the same edition chId. ----
+    ComicTorrentSourcesPage {
+        id: torrentSources
+        anchors.fill: parent
+        z: 70
+        backdrop: page.backdrop
     }
 }

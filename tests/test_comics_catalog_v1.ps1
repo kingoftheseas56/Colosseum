@@ -35,7 +35,7 @@ Assert-Contains $ledger 'property bool   hasSource: !!ed.modelData.available && 
 Assert-Contains $ledger 'if (typeof Comics === "undefined" || !chId.length || !canAcquire) return' `
     "The ledger primary action must reject unavailable editions."
 Assert-NotContains $ledger 'downloadIssueTorrent' `
-    "Torrent fallback is v2 and must remain dormant in the v1 ledger."
+    "The ledger must never auto-pick a torrent source."
 Assert-Contains $ledger 'ed.modelData.display_title || ed.modelData.title' `
     "Ledger rows and download labels must prefer the exact-ISBN canonical edition name."
 

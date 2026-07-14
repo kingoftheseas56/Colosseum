@@ -10,6 +10,7 @@
 // Download reuses the SAME engine as the live rows: the global `Comics` bridge (downloadIssue /
 // statusOf / progress signals) + Resolve.failureIsTerminal. Reading is emitted up via readRequested.
 import QtQuick
+import QtQuick.Controls
 import "ComicResolve.js" as Resolve
 
 Item {
@@ -22,6 +23,8 @@ Item {
     property real   contentWidth: width
 
     signal readRequested(string chId, string label)
+    // A user opened the alternate-sources picker for an idle, undownloaded edition.
+    signal alternateSourcesRequested(var edition, string chId)
 
     implicitHeight: col.implicitHeight
     height: col.implicitHeight        // a Column child sizes by height, not implicitHeight
@@ -183,6 +186,10 @@ Item {
                         property real   dlTotal: 0
                         readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
                                                       || dlState === "resolving"   || dlState === "extracting"
+                                                      || dlState === "choosing"
+                        // Every idle, undownloaded edition offers a smaller "Find alternate
+                        // sources" action — whether or not a verified GetComics post exists.
+                        readonly property bool canAlternate: chId.length > 0 && !inFlight && dlState !== "done"
 
                         function refreshDl() {
                             if (typeof Comics === "undefined" || !chId.length) return
@@ -233,7 +240,7 @@ Item {
 
                         Column {                             // title · spec · blurb
                             anchors.left: edCover.right; anchors.leftMargin: 20
-                            anchors.right: edState.left; anchors.rightMargin: 16
+                            anchors.right: ed.canAlternate ? altBtn.left : edState.left; anchors.rightMargin: 16
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 7
                             Text { width: parent.width; text: ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
@@ -289,6 +296,35 @@ Item {
                             id: edMa; anchors.fill: parent; enabled: ed.canAcquire; hoverEnabled: ed.canAcquire
                             cursorShape: (ed.canAcquire || ed.dlState === "done") ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: ed.primary()
+                        }
+
+                        // ── Find alternate sources: a smaller circular action with its OWN
+                        //    MouseArea, declared AFTER edMa so it stacks above it — clicking
+                        //    here opens the torrent picker and NEVER the GetComics download. ──
+                        Rectangle {
+                            id: altBtn
+                            visible: ed.canAlternate
+                            anchors.right: edState.left; anchors.rightMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 38; height: 38; radius: 19
+                            color: altMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05)
+                            border.width: 1
+                            border.color: altMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.45) : theme.edge
+                            Behavior on border.color { ColorAnimation { duration: 140 } }
+                            Image {
+                                anchors.centerIn: parent
+                                source: "../assets/icons/search.svg"; width: 17; height: 17
+                                opacity: altMa.containsMouse ? 1.0 : 0.82
+                            }
+                            MouseArea {
+                                id: altMa; anchors.fill: parent; enabled: ed.canAlternate
+                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: ledger.alternateSourcesRequested(ed.modelData, ed.chId)
+                                ToolTip.visible: containsMouse
+                                ToolTip.text: "Find alternate sources"
+                            }
+                            Accessible.role: Accessible.Button
+                            Accessible.name: "Find alternate sources"
                         }
                     }
                 }

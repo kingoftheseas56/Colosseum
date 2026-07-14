@@ -25,7 +25,7 @@ function Assert-NotContains([string]$text, [string]$needle, [string]$message) {
 $page = Read-RepoFile "qml/ComicTorrentSourcesPage.qml"
 $picker = Read-RepoFile "qml/ComicTorrentArchivePicker.qml"
 
-# The page drives the universal-search facade — the same verbs ComicDownloader exposes.
+# The page drives the universal-search facade - the same verbs ComicDownloader exposes.
 Assert-Contains $page 'comicsApi.searchTorrentSources(' `
     "Auto search must call searchTorrentSources."
 Assert-Contains $page 'comicsApi.searchTorrentSourcesQuery(' `
@@ -62,6 +62,23 @@ Assert-NotContains $picker 'TorrentEngine' `
 # Only backend-validated candidates render; the picker emits an index to choose.
 Assert-Contains $picker 'signal archiveChosen(int fileIndex)' `
     "The archive picker emits the chosen manifest index."
+
+# The ledger offers the manual alternate action for idle, undownloaded editions and
+# ComicSeriesPage hosts the picker - but the ledger NEVER auto-picks a torrent.
+$ledger = Read-RepoFile "qml/ComicDbLedger.qml"
+$series = Read-RepoFile "qml/ComicSeriesPage.qml"
+Assert-Contains $ledger 'signal alternateSourcesRequested(var edition, string chId)' `
+    "The ledger emits alternateSourcesRequested for the picker."
+Assert-Contains $ledger 'Find alternate sources' `
+    "The alternate action carries the 'Find alternate sources' label."
+Assert-Contains $ledger 'ledger.alternateSourcesRequested(ed.modelData, ed.chId)' `
+    "The alternate button emits only alternateSourcesRequested, never a direct download."
+Assert-NotContains $ledger 'downloadIssueTorrent' `
+    "The ledger must never auto-pick a torrent source."
+Assert-Contains $series 'ComicTorrentSourcesPage' `
+    "ComicSeriesPage hosts the full-screen alternate-sources picker."
+Assert-Contains $series 'onAlternateSourcesRequested' `
+    "ComicSeriesPage wires the ledger's alternate-sources signal to the picker."
 
 # Behavioural: the headless page harness drives show -> weak-confirm -> archive-choice.
 $env:QT_FORCE_STDERR_LOGGING = "1"
