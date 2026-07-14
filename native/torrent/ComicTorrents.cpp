@@ -1,6 +1,7 @@
 #include "ComicTorrents.h"
 
 #include "ComicTorrentDownloader.h"
+#include "ComicTorrentQueryPlanner.h"
 #include "ComicTorrentRanker.h"
 #include "TankorentSearchService.h"
 
@@ -9,6 +10,20 @@ ComicTorrents::ComicTorrents(QNetworkAccessManager* searchNam, TorrentEngine* en
     : QObject(parent),
       m_search(new TankorentSearchService(searchNam, this)),
       m_downloader(new ComicTorrentDownloader(engine, this))
+{
+    wireSignals();
+}
+
+ComicTorrents::ComicTorrents(TankorentSearchService* search,
+                             ComicTorrentDownloader* downloader, QObject* parent)
+    : QObject(parent), m_search(search), m_downloader(downloader)
+{
+    if (m_search) m_search->setParent(this);
+    if (m_downloader) m_downloader->setParent(this);
+    wireSignals();
+}
+
+void ComicTorrents::wireSignals()
 {
     connect(m_search, &TankorentSearchService::resultsReady,
             this, &ComicTorrents::onIndexerResults);
@@ -66,22 +81,135 @@ void ComicTorrents::onIndexerResults(const QString& handle,
                                      const QList<TorrentResult>& results)
 {
     auto it = m_searchesByHandle.find(handle);
-    if (it != m_searchesByHandle.end()) it.value().results += results;
+    if (it != m_searchesByHandle.end()) {
+        it.value().results += results;
+        return;
+    }
+    if (m_sourceIssueByHandle.contains(handle))
+        handleSourceResults(handle, results);
 }
 
 void ComicTorrents::onSearchFinished(const QString& handle)
 {
     auto it = m_searchesByHandle.find(handle);
-    if (it == m_searchesByHandle.end()) return;
-    Request request = it.value();
-    m_searchesByHandle.erase(it);
-    m_handleByIssue.remove(request.issueId);
-    const TorrentResult selected = ComicTorrentRanker::best(request.query, request.results);
-    if (selected.infoHash.isEmpty()) {
-        emit failed(request.issueId, QStringLiteral("no matching seeded comic torrent found"));
+    if (it != m_searchesByHandle.end()) {
+        Request request = it.value();
+        m_searchesByHandle.erase(it);
+        m_handleByIssue.remove(request.issueId);
+        const TorrentResult selected = ComicTorrentRanker::best(request.query, request.results);
+        if (selected.infoHash.isEmpty()) {
+            emit failed(request.issueId, QStringLiteral("no matching seeded comic torrent found"));
+            return;
+        }
+        beginDownload(request, selected.infoHash, request.query, selected.magnetUri);
         return;
     }
-    beginDownload(request, selected.infoHash, request.query, selected.magnetUri);
+    if (m_sourceIssueByHandle.contains(handle))
+        handleSourceFinished(handle);
+}
+
+// ── Manual source browsing (v2) ─────────────────────────────────────────────
+// These sessions never touch m_downloadsByIssue and are never reported through
+// statusOf()/activeJobs(): browsing sources must not look like an acquisition.
+
+void ComicTorrents::searchSources(const QString& issueIdIn, const QString& seriesTitle,
+                                  const QString& editionTitle, const QString& isbn,
+                                  const QString& collects)
+{
+    const QString issueId = issueIdIn.trimmed();
+    if (issueId.isEmpty()) return;
+    cancelSourceSearch(issueId);
+    const QStringList queries =
+        ComicTorrentQueryPlanner::automaticQueries(seriesTitle, editionTitle, isbn, collects);
+    startSourceSession(issueId, seriesTitle, editionTitle, isbn, collects, queries);
+}
+
+void ComicTorrents::searchSourcesQuery(const QString& issueIdIn, const QString& query)
+{
+    const QString issueId = issueIdIn.trimmed();
+    if (issueId.isEmpty()) return;
+    const QStringList queries = ComicTorrentQueryPlanner::manualQuery(query);
+    if (queries.isEmpty()) return;  // blank manual query — no-op (page guards this)
+    // Preserve the edition identity so a manual query re-ranks against the same
+    // edition; capture it before cancelSourceSearch tears the session down.
+    const SourceSession prev = m_sourceSessionsByIssue.value(issueId);
+    cancelSourceSearch(issueId);
+    startSourceSession(issueId, prev.seriesTitle, prev.editionTitle, prev.isbn,
+                       prev.collects, queries);
+}
+
+void ComicTorrents::cancelSourceSearch(const QString& issueIdIn)
+{
+    const QString issueId = issueIdIn.trimmed();
+    auto it = m_sourceSessionsByIssue.find(issueId);
+    if (it == m_sourceSessionsByIssue.end()) return;
+    for (const QString& handle : it.value().pendingHandles) {
+        m_search->cancelSearch(handle);
+        m_sourceIssueByHandle.remove(handle);
+    }
+    m_sourceSessionsByIssue.erase(it);
+}
+
+void ComicTorrents::startSourceSession(const QString& issueId, const QString& seriesTitle,
+                                       const QString& editionTitle, const QString& isbn,
+                                       const QString& collects, const QStringList& queries)
+{
+    SourceSession session;
+    session.issueId = issueId;
+    session.seriesTitle = seriesTitle;
+    session.editionTitle = editionTitle;
+    session.isbn = isbn;
+    session.collects = collects;
+    // Insert first so an (async) callback can always find its live session.
+    m_sourceSessionsByIssue.insert(issueId, session);
+    SourceSession& live = m_sourceSessionsByIssue[issueId];
+    for (const QString& query : queries) {
+        const QString handle = m_search->startSearch(QStringLiteral("comics"),
+                                                     QStringLiteral("all"), query, 80);
+        if (handle.isEmpty()) continue;
+        live.pendingHandles.insert(handle);
+        m_sourceIssueByHandle.insert(handle, issueId);
+    }
+    if (live.pendingHandles.isEmpty()) {
+        m_sourceSessionsByIssue.remove(issueId);
+        emit sourceSearchFailed(issueId, QStringLiteral("no comic torrent indexers available"));
+    }
+}
+
+void ComicTorrents::handleSourceResults(const QString& handle,
+                                        const QList<TorrentResult>& results)
+{
+    const QString issueId = m_sourceIssueByHandle.value(handle);
+    if (issueId.isEmpty()) return;                 // stale handle from a replaced search
+    auto it = m_sourceSessionsByIssue.find(issueId);
+    if (it == m_sourceSessionsByIssue.end()) return;
+    it.value().results += results;
+    emit sourcesUpdated(issueId, sourceRows(it.value()), false);   // cumulative partial
+}
+
+void ComicTorrents::handleSourceFinished(const QString& handle)
+{
+    const QString issueId = m_sourceIssueByHandle.value(handle);
+    if (issueId.isEmpty()) return;
+    m_sourceIssueByHandle.remove(handle);
+    auto it = m_sourceSessionsByIssue.find(issueId);
+    if (it == m_sourceSessionsByIssue.end()) return;
+    it.value().pendingHandles.remove(handle);
+    if (!it.value().pendingHandles.isEmpty()) return;  // more queries still in flight
+    const QVariantList rows = sourceRows(it.value());
+    if (rows.isEmpty())
+        emit sourceSearchFailed(issueId, QStringLiteral("No torrents matched this query."));
+    else
+        emit sourcesUpdated(issueId, rows, true);
+    // Session is retained (identity only, no pending handles) so a manual query
+    // can re-rank against the same edition; cancelSourceSearch clears it.
+}
+
+QVariantList ComicTorrents::sourceRows(const SourceSession& session) const
+{
+    return ComicTorrentRanker::toVariantRows(
+        ComicTorrentRanker::rankForEdition(session.seriesTitle, session.editionTitle,
+                                           session.isbn, session.collects, session.results));
 }
 
 void ComicTorrents::beginDownload(Request request, const QString& infoHash,

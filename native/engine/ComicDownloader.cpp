@@ -125,6 +125,10 @@ ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManag
                        const QString& archivePath) {
             ingestLocalArchive(issueId, seriesId, seriesTitle, issueLabel, archivePath);
         });
+        connect(m_torrents, &ComicTorrents::sourcesUpdated,
+                this, &ComicDownloader::torrentSourcesUpdated);
+        connect(m_torrents, &ComicTorrents::sourceSearchFailed,
+                this, &ComicDownloader::torrentSourceSearchFailed);
     }
 }
 
@@ -341,6 +345,63 @@ void ComicDownloader::downloadIssueTorrent(const QString& issueIdIn, const QStri
     for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
         if (it.value().id == id) return;
     m_torrents->downloadIssue(id, seriesId, seriesTitle, issueLabel, query);
+}
+
+void ComicDownloader::searchTorrentSources(const QString& issueIdIn, const QString& seriesTitle,
+                                           const QString& editionTitle, const QString& isbn,
+                                           const QString& collects)
+{
+    const QString id = issueIdIn.trimmed();
+    if (!m_torrents) {
+        emit torrentSourceSearchFailed(id, QStringLiteral("comic torrent service unavailable"));
+        return;
+    }
+    m_torrents->searchSources(id, seriesTitle, editionTitle, isbn, collects);
+}
+
+void ComicDownloader::searchTorrentSourcesQuery(const QString& issueIdIn, const QString& query)
+{
+    const QString id = issueIdIn.trimmed();
+    if (!m_torrents) {
+        emit torrentSourceSearchFailed(id, QStringLiteral("comic torrent service unavailable"));
+        return;
+    }
+    m_torrents->searchSourcesQuery(id, query);
+}
+
+void ComicDownloader::cancelTorrentSourceSearch(const QString& issueIdIn)
+{
+    if (m_torrents) m_torrents->cancelSourceSearch(issueIdIn.trimmed());
+}
+
+void ComicDownloader::downloadTorrentSource(const QString& issueIdIn, const QString& seriesId,
+                                            const QString& seriesTitle, const QString& issueLabel,
+                                            const QString& infoHash, const QString& releaseTitle,
+                                            const QString& magnetUri)
+{
+    const QString id = issueIdIn.trimmed();
+    if (id.isEmpty() || infoHash.trimmed().isEmpty()) {
+        emit failed(id, QStringLiteral("empty issue id / infoHash"));
+        return;
+    }
+    if (isDownloaded(id)) { emit finished(id); return; }
+    if (!m_torrents) {
+        emit failed(id, QStringLiteral("comic torrent service unavailable"));
+        return;
+    }
+    if (m_torrents->contains(id)) return;
+    if (m_active && m_active->id == id) return;
+    for (const InFlight& queued : m_queue)
+        if (queued.id == id) return;
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        if (it.value().id == id) return;
+    // The user has chosen a source — stop browsing and acquire it. The canonical
+    // edition title (issueLabel) is the archive picker's matching title; the
+    // chosen torrent's releaseTitle is diagnostic-only and never becomes it.
+    m_torrents->cancelSourceSearch(id);
+    qInfo() << "[ComicDownloader] torrent source chosen" << id << "release=" << releaseTitle;
+    m_torrents->downloadInfoHash(id, seriesId, seriesTitle, issueLabel, infoHash,
+                                 /*pickerTitle=*/issueLabel, magnetUri);
 }
 
 void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& postUrl,

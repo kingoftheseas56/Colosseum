@@ -82,6 +82,22 @@ public:
                                           const QString& seriesTitle, const QString& issueLabel,
                                           const QString& query);
 
+    // ── Alternate torrent sources (v2): manual, edition-aware browsing ────────
+    // These NEVER auto-pick — the user chooses a torrent in the picker. Search
+    // is cancellable and creates no Downloads job. downloadTorrentSource() then
+    // rides the existing infoHash → downloadInfoHash → archiveReady → ingest
+    // path under the SAME edition chId; releaseTitle is display-only and must
+    // never replace the canonical issueLabel used for archive matching.
+    Q_INVOKABLE void searchTorrentSources(const QString& issueId, const QString& seriesTitle,
+                                          const QString& editionTitle, const QString& isbn,
+                                          const QString& collects);
+    Q_INVOKABLE void searchTorrentSourcesQuery(const QString& issueId, const QString& query);
+    Q_INVOKABLE void cancelTorrentSourceSearch(const QString& issueId);
+    Q_INVOKABLE void downloadTorrentSource(const QString& issueId, const QString& seriesId,
+                                           const QString& seriesTitle, const QString& issueLabel,
+                                           const QString& infoHash, const QString& releaseTitle,
+                                           const QString& magnetUri);
+
     // Local pages of a downloaded issue, MangaDownloader-shaped:
     // [{index, url: "file:///…/page_000.jpg", group: -1}] — or [] if not on disk.
     Q_INVOKABLE QVariantList localPages(const QString& issueId) const;
@@ -110,6 +126,9 @@ signals:
     void finished(const QString& issueId);
     void failed(const QString& issueId, const QString& reason);
     void removed(const QString& issueId);
+    // Source browsing (v2) — search-only, distinct from the acquisition signals.
+    void torrentSourcesUpdated(const QString& issueId, const QVariantList& rows, bool complete);
+    void torrentSourceSearchFailed(const QString& issueId, const QString& reason);
 
 private:
     struct Entry {

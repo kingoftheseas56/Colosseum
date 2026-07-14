@@ -146,6 +146,8 @@ add_executable(colosseum
     torrent/BookTorrents.h
     torrent/ComicTorrentRanker.cpp
     torrent/ComicTorrentRanker.h
+    torrent/ComicTorrentQueryPlanner.cpp
+    torrent/ComicTorrentQueryPlanner.h
     torrent/ComicTorrentFilePicker.cpp
     torrent/ComicTorrentFilePicker.h
     torrent/ComicTorrentMagnet.h
@@ -246,6 +248,8 @@ add_executable(comic_downloader_ingest_harness
     torrent/ComicTorrentFilePicker.h
     torrent/ComicTorrentRanker.cpp
     torrent/ComicTorrentRanker.h
+    torrent/ComicTorrentQueryPlanner.cpp
+    torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
     torrent/TorrentIndexer.cpp
@@ -263,6 +267,40 @@ add_executable(comic_downloader_ingest_harness
 )
 target_include_directories(comic_downloader_ingest_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_downloader_ingest_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
+
+add_executable(comic_torrents_search_harness
+    ../tests/comic_torrents_search_harness.cpp
+    engine/ComicDownloader.cpp
+    engine/ComicDownloader.h
+    engine/ComicDlsParse.cpp
+    engine/ComicDlsParse.h
+    torrent/ComicTorrents.cpp
+    torrent/ComicTorrents.h
+    torrent/ComicTorrentDownloader.cpp
+    torrent/ComicTorrentDownloader.h
+    torrent/ComicTorrentFilePicker.cpp
+    torrent/ComicTorrentFilePicker.h
+    torrent/ComicTorrentRanker.cpp
+    torrent/ComicTorrentRanker.h
+    torrent/ComicTorrentQueryPlanner.cpp
+    torrent/ComicTorrentQueryPlanner.h
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+    torrent/PirateBayIndexer.cpp
+    torrent/PirateBayIndexer.h
+    torrent/ExtTorrentsIndexer.cpp
+    torrent/ExtTorrentsIndexer.h
+    torrent/TorrentsCsvIndexer.cpp
+    torrent/TorrentsCsvIndexer.h
+    torrent/engine/TorrentEngine.cpp
+    torrent/engine/TorrentEngine.h
+    torrent/engine/DebugLogBuffer.cpp
+    torrent/engine/DebugLogBuffer.h
+)
+target_include_directories(comic_torrents_search_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_torrents_search_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
 
 add_executable(book_torrent_magnet_harness
     ../tests/book_torrent_magnet_harness.cpp
