@@ -2,10 +2,12 @@
 // special volumes never collapse through float), identity ids/settings keys escape
 // the series id, and every volume row is emitted as a canonical record even when no
 // chapter maps onto it.
+#include "engine/MangaSynopsisEnricher.h"
 #include "engine/MangaTankobanLogic.h"
 #include "torrent/MangaNyaaSource.h"
 
 #include <QByteArray>
+#include <QDir>
 #include <QFile>
 #include <QStringList>
 #include <QVariant>
@@ -299,6 +301,171 @@ int main()
             {"s3", "JoJo's Bizarre Adventure", "", {}, {}}, "2", parsed, trust);
         require(ranked.size() == 1,
                 "apostrophe-folded series title (JoJo's) matches a JoJos release");
+    }
+
+    // ── Task 3: honest lazy synopsis enrichment (Open Library + Apple Books) ──
+    // matchOpenLibrary / matchApple accept a synopsis ONLY on genuine target-
+    // volume evidence; equal-strong Apple candidates with no author distinction
+    // are left empty; the series synopsis is never repeated as a volume synopsis.
+    {
+        SeriesSnapshot series;
+        series.seriesId = QStringLiteral("mangadex:grand-blue");
+        series.title = QStringLiteral("Grand Blue Dreaming");
+        series.author = QStringLiteral("Kenji Inoue");
+        series.aliases = QStringList{QStringLiteral("Grand Blue")};
+
+        VolumeRecord vol1;
+        vol1.seriesId = series.seriesId;
+        vol1.number = QStringLiteral("1");
+        vol1.id = volumeId(series.seriesId, vol1.number);
+        vol1.title = QStringLiteral("Grand Blue Dreaming, Vol. 1");
+
+        VolumeRecord vol4;
+        vol4.seriesId = series.seriesId;
+        vol4.number = QStringLiteral("4");
+        vol4.id = volumeId(series.seriesId, vol4.number);
+        vol4.title = QStringLiteral("Grand Blue Dreaming, Vol. 4");
+        series.volumes = QList<VolumeRecord>{vol1, vol4};
+
+        const QString seriesSynopsis = QStringLiteral(
+            "Grand Blue Dreaming follows college freshman Iori Kitahara as he joins a "
+            "raucous seaside diving club and stumbles through the drunken, sun-soaked "
+            "chaos of student life on the Izu peninsula.");
+
+        const QByteArray olFixture = fixture("openlibrary_volume.json");
+        const QByteArray appleFixture = fixture("apple_books_volume.json");
+        const QByteArray ambiguousFixture = fixture("apple_books_ambiguous.json");
+
+        // ── Pinned contract ────────────────────────────────────────────────
+        const auto ol = MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olFixture);
+        require(ol.accepted && ol.source == "openlibrary", "strong OL result accepted");
+        const auto apple = MangaSynopsisEnricher::matchApple(series, vol4, appleFixture);
+        require(apple.accepted && apple.sourceUrl.contains("books.apple"),
+                "exact Apple volume accepted");
+        const auto ambiguous = MangaSynopsisEnricher::matchApple(series, vol4, ambiguousFixture);
+        require(!ambiguous.accepted, "equal strong candidates remain empty");
+        require(!MangaSynopsisEnricher::acceptDistinctVolumeText(seriesSynopsis, seriesSynopsis),
+                "series synopsis is never repeated as volume synopsis");
+
+        // ── Provenance on the accepted results ─────────────────────────────
+        require(ol.volumeId == vol1.id && ol.confidence == "exact-isbn"
+                    && ol.sourceUrl.contains("openlibrary.org"),
+                "accepted OL record carries volumeId, exact-isbn confidence and an OL url");
+        require(apple.source == "apple" && apple.volumeId == vol4.id
+                    && apple.confidence == "exact-title-volume",
+                "accepted Apple record carries volumeId and exact-title-volume confidence");
+
+        // ── OL honesty: wrong volume, bare series, edition qualifier rejected ─
+        const QByteArray olWrongVol = QByteArray(
+            "{\"docs\":[{\"key\":\"/works/OLW\",\"title\":\"Grand Blue Dreaming, Vol. 2\","
+            "\"isbn\":[\"9781632365705\"],\"description\":\"Second-volume synopsis, plenty long to be real.\"}]}");
+        require(!MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olWrongVol).accepted,
+                "an OL doc whose volume does not match the target is rejected");
+        const QByteArray olBareSeries = QByteArray(
+            "{\"docs\":[{\"key\":\"/works/OLB\",\"title\":\"Grand Blue Dreaming\","
+            "\"isbn\":[\"9781632365606\"],\"description\":\"A whole-series blurb with no volume marker at all.\"}]}");
+        require(!MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olBareSeries).accepted,
+                "an OL doc with no explicit volume (bare series) is rejected");
+        const QByteArray olFrench = QByteArray(
+            "{\"docs\":[{\"key\":\"/works/OLF\",\"title\":\"Grand Blue Dreaming, Vol. 1 (French Edition)\","
+            "\"isbn\":[\"9781632365606\"],\"description\":\"Une longue description qui ne correspond pas au disque canonique.\"}]}");
+        require(!MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olFrench).accepted,
+                "an OL edition qualifier that is not the canonical record (French Edition) is rejected");
+
+        // ── OL confidence gradation: title+volume without an English ISBN ───
+        const QByteArray olNoIsbn = QByteArray(
+            "{\"docs\":[{\"key\":\"/works/OLZ\",\"title\":\"Grand Blue Dreaming, Vol. 1\","
+            "\"description\":\"A distinct first-volume synopsis with enough words to count.\"}]}");
+        const auto olTv = MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olNoIsbn);
+        require(olTv.accepted && olTv.confidence == "exact-title-volume",
+                "an OL title+volume match without an English ISBN is exact-title-volume");
+        const QByteArray olJpIsbn = QByteArray(
+            "{\"docs\":[{\"key\":\"/works/OLJ\",\"title\":\"Grand Blue Dreaming, Vol. 1\","
+            "\"isbn\":[\"9784063842401\"],\"description\":\"Distinct first-volume text, long enough to be a synopsis.\"}]}");
+        const auto olJp = MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olJpIsbn);
+        require(olJp.accepted && olJp.confidence == "exact-title-volume",
+                "a non-English (978-4) ISBN does not earn exact-isbn confidence");
+
+        // ── Apple honesty: wrong volume, author tie-break, no-author-distinction ─
+        const QByteArray appleWrong = QByteArray(
+            "{\"results\":[{\"trackName\":\"Grand Blue Dreaming, Vol. 3\",\"artistName\":\"Kenji Inoue\","
+            "\"description\":\"Third volume, not the requested target.\","
+            "\"trackViewUrl\":\"https://books.apple.com/us/book/x/id3\"}]}");
+        require(!MangaSynopsisEnricher::matchApple(series, vol4, appleWrong).accepted,
+                "an Apple result for the wrong volume is rejected");
+        const QByteArray appleAuthorTie = QByteArray(
+            "{\"results\":["
+            "{\"trackName\":\"Grand Blue Dreaming, Vol. 4\",\"artistName\":\"Kenji Inoue\","
+            "\"description\":\"The canonical author fourth-volume blurb, distinct and lengthy.\","
+            "\"trackViewUrl\":\"https://books.apple.com/us/book/a/id4a\"},"
+            "{\"trackName\":\"Grand Blue Dreaming, Vol. 4\",\"artistName\":\"Bootleg Press\","
+            "\"description\":\"A different fourth-volume blurb from an unrelated label.\","
+            "\"trackViewUrl\":\"https://books.apple.com/us/book/b/id4b\"}]}");
+        const auto appleTie = MangaSynopsisEnricher::matchApple(series, vol4, appleAuthorTie);
+        require(appleTie.accepted && appleTie.text.contains("canonical author"),
+                "author agreement breaks a near-tie and selects the canonical-author edition");
+        const QByteArray appleBothAuthor = QByteArray(
+            "{\"results\":["
+            "{\"trackName\":\"Grand Blue Dreaming, Vol. 4\",\"artistName\":\"Kenji Inoue\","
+            "\"description\":\"One fourth-volume blurb, plenty long to be a real synopsis.\","
+            "\"trackViewUrl\":\"https://books.apple.com/us/book/c/id4c\"},"
+            "{\"trackName\":\"Grand Blue Dreaming, Vol. 4\",\"artistName\":\"Kenji Inoue\","
+            "\"description\":\"A second, different fourth-volume blurb also from the author.\","
+            "\"trackViewUrl\":\"https://books.apple.com/us/book/d/id4d\"}]}");
+        require(!MangaSynopsisEnricher::matchApple(series, vol4, appleBothAuthor).accepted,
+                "equal-strong candidates with no distinguishing author signal stay empty");
+
+        // ── acceptDistinctVolumeText: accept different, reject echoes/siblings ─
+        require(MangaSynopsisEnricher::acceptDistinctVolumeText(
+                    QStringLiteral("A genuinely different volume-specific synopsis."), seriesSynopsis),
+                "genuinely different volume text is accepted");
+        const QString echoed = QStringLiteral(
+            "  GRAND blue dreaming FOLLOWS college freshman iori kitahara as he JOINS a raucous "
+            "seaside diving club and stumbles through the drunken, sun-soaked chaos of student "
+            "life on the izu peninsula!!!  ");
+        require(!MangaSynopsisEnricher::acceptDistinctVolumeText(echoed, seriesSynopsis),
+                "text equal to the series synopsis (case/space/punct-insensitive) is rejected");
+        const QString sharedVolText = QStringLiteral("Identical text pasted across two different volumes.");
+        require(!MangaSynopsisEnricher::acceptDistinctVolumeText(sharedVolText, sharedVolText),
+                "text repeated verbatim from another volume is withheld");
+
+        // ── Cache round-trip: accepted provenance survives, rejected never promotes ─
+        const QString cachePath =
+            QDir::tempPath() + QStringLiteral("/tankoban_synopsis_cache_test.json");
+        QFile::remove(cachePath);
+        const QString acceptedId = vol1.id;
+        const QString rejectedId = vol4.id;
+        {
+            MangaSynopsisEnricher writer(nullptr, cachePath);
+            SynopsisRecord acc;
+            acc.volumeId = acceptedId;
+            acc.text = QStringLiteral("An accepted, provenance-bearing volume synopsis.");
+            acc.source = QStringLiteral("openlibrary");
+            acc.sourceUrl = QStringLiteral("https://openlibrary.org/works/OL20948209W");
+            acc.confidence = QStringLiteral("exact-isbn");
+            acc.fetchedAt = QStringLiteral("2026-07-14T12:00:00Z");
+            acc.accepted = true;
+            writer.cacheRecord(acc);
+
+            SynopsisRecord rej; // an ambiguous/miss record — kept, but never accepted
+            rej.volumeId = rejectedId;
+            rej.confidence = QStringLiteral("none");
+            rej.fetchedAt = QStringLiteral("2026-07-14T12:00:00Z");
+            rej.accepted = false;
+            writer.cacheRecord(rej);
+        }
+        {
+            MangaSynopsisEnricher reader(nullptr, cachePath);
+            const SynopsisRecord got = reader.cached(acceptedId);
+            require(got.accepted && got.source == "openlibrary"
+                        && got.sourceUrl.contains("openlibrary.org")
+                        && got.confidence == "exact-isbn" && got.text.contains("provenance"),
+                    "accepted provenance survives a cache reload");
+            const SynopsisRecord miss = reader.cached(rejectedId);
+            require(!miss.accepted,
+                    "an ambiguous (rejected) record never reloads as accepted");
+        }
+        QFile::remove(cachePath);
     }
 
     std::cout << "MANGA_TANKOBAN_LOGIC_OK\n";
