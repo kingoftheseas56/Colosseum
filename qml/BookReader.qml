@@ -81,6 +81,13 @@ Item {
         function onWindowCloseRequested() { reader.closed() }
         function onWindowMinimizeRequested() { reader.minimizeRequested() }
         function onFullscreenRequested(on) { /* Colosseum is always fullscreen */ }
+        // Read-along: the reader's Audio tab asks the docked session to load a paired
+        // audiobook (optionally jumping to the mapped chapter), or to drop it on unlink.
+        function onAudiobookLoadRequested(pairKey, chapterIndex) {
+            audioSession.openFor(pairKey, {})
+            if (chapterIndex >= 0) audioSession.goToChapter(chapterIndex)
+        }
+        function onAudiobookCloseRequested() { audioSession.stop() }
         // Feed the unified Continue/resume row (download-fed reading, like manga).
         function onProgressSaved(bookId, fraction) {
             if (typeof Progress === "undefined" || reader.bookPath === "") return

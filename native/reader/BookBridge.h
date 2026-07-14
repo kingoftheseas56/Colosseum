@@ -23,12 +23,21 @@
 
 class EdgeTtsWorker;
 class QThread;
+class AudiobookDownloader;
+class AudioPairingStore;
 
 class BookBridge : public QObject {
     Q_OBJECT
 public:
     explicit BookBridge(QObject* parent = nullptr);
     ~BookBridge() override;
+
+    // Read-along dependencies, injected from main.cpp after construction (the
+    // downloader + pairing store are built later in the wiring order). The reader's
+    // Audio tab reaches the SAME instances QML uses, so a pairing saved in the
+    // reader is the one the auto-load path reads back.
+    void setAudiobooks(AudiobookDownloader* books) { m_audiobooks = books; }
+    void setPairing(AudioPairingStore* pairing) { m_pairing = pairing; }
 
     // ── files ──
     Q_INVOKABLE QByteArray filesRead(const QString& filePath);
@@ -58,6 +67,23 @@ public:
     Q_INVOKABLE QJsonObject booksDisplayNamesGetAll();
     Q_INVOKABLE void booksDisplayNamesSave(const QString& bookId, const QString& name);
     Q_INVOKABLE void booksDisplayNamesDelete(const QString& bookId);
+
+    // ── audiobook read-along (the reader's Audio tab) ──
+    // The library: every downloaded audiobook with its chapter list already
+    // assembled — [ { id (pairKey), title, author, chapters: [ { title } ] } ].
+    // Chapters are derived from the on-disk audio files (localFiles), so the tab
+    // can offer a per-chapter mapping without a second round-trip.
+    Q_INVOKABLE QJsonArray audiobookLibrary();
+    // Pairing persistence — a thin pass-through to AudioPairingStore (the same
+    // store QML's auto-load path reads), so the Audio tab and QML agree.
+    Q_INVOKABLE QJsonObject audiobookPairingGet(const QString& bookId);
+    Q_INVOKABLE void audiobookPairingSave(const QString& bookId, const QJsonObject& pairing);
+    Q_INVOKABLE void audiobookPairingDelete(const QString& bookId);
+    // Commands routed to the docked AudiobookSession via signals (QML owns the
+    // player; the reader iframe can only reach it through the bridge). chapterIndex
+    // < 0 means "load and resume wherever it left off" (no chapter jump).
+    Q_INVOKABLE void audiobookLoadAtChapter(const QString& pairKey, int chapterIndex);
+    Q_INVOKABLE void audiobookClose();
 
     // ── window chrome (routed to QML via signals) ──
     Q_INVOKABLE bool windowIsFullscreen() const;
@@ -96,6 +122,11 @@ signals:
     void windowCloseRequested();
     void windowMaximizeChanged(bool isMax);
 
+    // Read-along: the reader asks the docked AudiobookSession (in QML) to load a
+    // paired audiobook (optionally at a chapter) or to drop the stream on unlink.
+    void audiobookLoadRequested(const QString& pairKey, int chapterIndex);
+    void audiobookCloseRequested();
+
     void booksTtsEdgeProbeFinished(quint64 reqId, const QJsonObject& result);
     void booksTtsEdgeVoicesReady(quint64 reqId, const QJsonObject& result);
     void booksTtsEdgeSynthFinished(quint64 reqId, const QJsonObject& result);
@@ -128,6 +159,10 @@ private:
 
     bool m_fullscreen = true;     // Colosseum is a fullscreen surface by default
     bool m_isMaximized = true;
+
+    // ── read-along deps (injected; may be null if wiring is absent) ──
+    AudiobookDownloader* m_audiobooks = nullptr;
+    AudioPairingStore* m_pairing = nullptr;
 
     // ── Edge TTS worker (own thread; QWebSocket must live off the GUI thread) ──
     QThread* m_ttsThread = nullptr;

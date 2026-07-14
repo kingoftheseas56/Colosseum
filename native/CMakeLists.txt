@@ -79,6 +79,7 @@ add_executable(colosseum
     ProgressStore.h
     SearchHistoryStore.h
     SessionStore.h
+    AudioPairingStore.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h

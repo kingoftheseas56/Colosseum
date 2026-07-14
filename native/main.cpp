@@ -34,6 +34,7 @@
 #include "ProgressStore.h"
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
+#include "AudioPairingStore.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
@@ -506,6 +507,17 @@ int main(int argc, char *argv[]) {
     // QSettings-backed, so it survives a restart.
     auto *progress = new ProgressStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
+
+    // Read-along pairings: which audiobook is linked to which book + chapter map.
+    // The reader's Audio tab writes it; opening a book reads it to auto-summon the
+    // paired audiobook at the right chapter. QSettings-backed, survives a restart.
+    auto *audioPairing = new AudioPairingStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("AudioPairing"), audioPairing);
+
+    // Hand the reader bridge the SAME audiobook library + pairing store QML uses,
+    // so a pairing saved in the reader's Audio tab is what the auto-load path reads.
+    bookBridge->setAudiobooks(audiobooks);
+    bookBridge->setPairing(audioPairing);
 
     // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
     // is recreated, so remote provider success is irrelevant to whether intent is remembered.

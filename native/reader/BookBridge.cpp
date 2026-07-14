@@ -1,10 +1,13 @@
 #include "BookBridge.h"
 #include "../tts/EdgeTtsWorker.h"
+#include "../engine/AudiobookDownloader.h"
+#include "../AudioPairingStore.h"
 
 #include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QStandardPaths>
@@ -216,6 +219,71 @@ void BookBridge::booksDisplayNamesDelete(const QString& bookId)
     QJsonObject all = readStore(QStringLiteral("display_names.json"));
     all.remove(bookId);
     writeStore(QStringLiteral("display_names.json"), all);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// audiobook read-along (the reader's Audio tab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+QJsonArray BookBridge::audiobookLibrary()
+{
+    QJsonArray out;
+    if (!m_audiobooks)
+        return out;
+    const QVariantList books = m_audiobooks->downloadedAudiobooks();
+    for (const QVariant& v : books) {
+        const QVariantMap b = v.toMap();
+        const QString id = b.value(QStringLiteral("id")).toString();
+        if (id.isEmpty())
+            continue;
+        // Chapters = the on-disk audio files, in order, titled by filename stem.
+        QJsonArray chapters;
+        const QStringList files = m_audiobooks->localFiles(id);
+        for (const QString& path : files) {
+            QJsonObject ch;
+            ch[QStringLiteral("title")] = QFileInfo(path).completeBaseName();
+            chapters.append(ch);
+        }
+        QJsonObject rec;
+        rec[QStringLiteral("id")]       = id;
+        rec[QStringLiteral("title")]    = b.value(QStringLiteral("title")).toString();
+        rec[QStringLiteral("author")]   = b.value(QStringLiteral("author")).toString();
+        rec[QStringLiteral("chapters")] = chapters;
+        out.append(rec);
+    }
+    return out;
+}
+
+QJsonObject BookBridge::audiobookPairingGet(const QString& bookId)
+{
+    if (!m_pairing)
+        return {};
+    return QJsonObject::fromVariantMap(m_pairing->getPairing(bookId));
+}
+
+void BookBridge::audiobookPairingSave(const QString& bookId, const QJsonObject& pairing)
+{
+    if (!m_pairing)
+        return;
+    m_pairing->savePairing(bookId, pairing.toVariantMap());
+}
+
+void BookBridge::audiobookPairingDelete(const QString& bookId)
+{
+    if (m_pairing)
+        m_pairing->deletePairing(bookId);
+}
+
+void BookBridge::audiobookLoadAtChapter(const QString& pairKey, int chapterIndex)
+{
+    if (pairKey.isEmpty())
+        return;
+    emit audiobookLoadRequested(pairKey, chapterIndex);
+}
+
+void BookBridge::audiobookClose()
+{
+    emit audiobookCloseRequested();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
