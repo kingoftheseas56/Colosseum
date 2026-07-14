@@ -1,5 +1,6 @@
 <!DOCTYPE RCC><RCC version="1.0">
 <qresource prefix="/">
     <file alias="colosseum.ico">../assets/icons/colosseum.ico</file>
+    <file alias="tankoban/manga_uploader_trust.json">torrent/manga_uploader_trust.json</file>
 </qresource>
 </RCC>
