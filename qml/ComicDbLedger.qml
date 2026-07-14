@@ -177,7 +177,7 @@ Item {
                         property string chId: String(ed.modelData.locg_comic_id || ed.modelData.slug || "")
                         property string postUrl: ed.modelData.getcomics_post || ""
                         property bool   hasSource: !!ed.modelData.available && postUrl.length > 0
-                        readonly property bool canAcquire: chId.length > 0
+                        readonly property bool canAcquire: chId.length > 0 && (hasSource || dlState === "done")
                         property string dlState: "none"     // none|resolving|queued|downloading|extracting|done|error|dead
                         property real   dlDone: 0
                         property real   dlTotal: 0
@@ -190,20 +190,14 @@ Item {
                             ed.dlState = st.state; ed.dlDone = st.done; ed.dlTotal = st.total
                         }
                         function primary() {
-                            if (typeof Comics === "undefined" || !chId.length) return
+                            if (typeof Comics === "undefined" || !chId.length || !canAcquire) return
                             if (dlState === "dead") return
                             if (dlState === "done") { ledger.readRequested(chId, String(ed.modelData.title || "")); return }
                             if (inFlight) return
                             ed.dlState = "queued"
                             var editionTitle = String(ed.modelData.title || "")
-                            if (hasSource) {
-                                Comics.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
-                                                     editionTitle, 0)
-                            } else {
-                                Comics.downloadIssueTorrent(chId, ledger.gcTag, ledger.seriesTitle,
-                                                            editionTitle,
-                                                            ledger.seriesTitle + " " + editionTitle)
-                            }
+                            Comics.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
+                                                 editionTitle, 0)
                         }
                         Component.onCompleted: refreshDl()
                         Connections {
@@ -219,7 +213,7 @@ Item {
                             function onRemoved(cid) { if (cid === ed.chId) ed.dlState = "none" }
                         }
 
-                        Rectangle { anchors.fill: parent; color: edMa.containsMouse ? Qt.rgba(1,1,1,0.045) : "transparent"; radius: 8 }
+                        Rectangle { anchors.fill: parent; color: ed.canAcquire && edMa.containsMouse ? Qt.rgba(1,1,1,0.045) : "transparent"; radius: 8 }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.055) }
 
                         Rectangle {                          // LARGE edition cover
@@ -244,7 +238,7 @@ Item {
                             spacing: 7
                             Text { width: parent.width; text: ledger.displayTitle(ed.modelData.title)
                                 color: edMa.containsMouse && ed.canAcquire ? theme.gold : theme.ink
-                                opacity: ed.canAcquire || ed.dlState === "done" ? 1 : 0.62
+                                opacity: 1
                                 font.family: theme.display; font.pixelSize: 21; font.weight: Font.Medium
                                 elide: Text.ElideRight }
                             Text { width: parent.width; visible: !!ed.modelData.collects   // the issue list — the headline datum
@@ -271,7 +265,8 @@ Item {
                                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.3 }
                         }
 
-                        // download-state symbol: read (done) · % (in flight) · download (available) · ghost (none)
+                        // download-state symbol: read (done) · % (in flight) · GetComics download.
+                        // Unavailable editions stay visible as bibliography with no action glyph.
                         Item {
                             id: edState
                             anchors.right: parent.right; anchors.rightMargin: 8
@@ -284,14 +279,14 @@ Item {
                                 anchors.centerIn: parent; visible: ed.inFlight
                                 text: ed.dlTotal > 0 ? Math.round(ed.dlDone / ed.dlTotal * 100) + "%" : "…"
                                 color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-                            Image {                          // download / ghost (unavailable)
+                            Image {                          // verified GetComics download
                                 anchors.centerIn: parent
-                                visible: !ed.inFlight && ed.dlState !== "done"
+                                visible: ed.hasSource && !ed.inFlight && ed.dlState !== "done"
                                 source: "../assets/icons/download.svg"; width: 23; height: 23
-                                opacity: ed.canAcquire ? 0.92 : 0.3 }
+                                opacity: 0.92 }
                         }
                         MouseArea {
-                            id: edMa; anchors.fill: parent; hoverEnabled: true
+                            id: edMa; anchors.fill: parent; enabled: ed.canAcquire; hoverEnabled: ed.canAcquire
                             cursorShape: (ed.canAcquire || ed.dlState === "done") ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: ed.primary()
                         }

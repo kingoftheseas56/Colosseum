@@ -14,6 +14,7 @@ import QtQuick
 import "Catalog.js" as Catalog
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
+import "comics_db.gen.js" as ComicsDbData
 
 WorldPage {
     id: tanko
@@ -36,6 +37,7 @@ WorldPage {
     // one click earlier. Covers land in a second callback (iTunes art trailing in).
     property var comicBoxes: []
     property var comicCovers: []            // real covers → the mosaic's art pool
+    property var comicRows: []              // populated when this lazy world is first created
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
         ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
@@ -43,6 +45,12 @@ WorldPage {
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
     Component.onCompleted: {
+        // The generated full catalog is deliberately imported here, behind Main's keep-alive
+        // world Loader. Root startup never parses or ingests this multi-megabyte object.
+        var catalogOk = ComicsDb.setData(ComicsDbData.data)
+        tanko.comicRows = catalogOk ? ComicsDb.rankedSeries() : Catalog.topComics
+        if (catalogOk) console.log("ComicsDb: loaded " + tanko.comicRows.length + " series")
+        else console.warn("ComicsDb: ingest failed — using curated fallback")
         GcApi.explore(function(boxes) {
             tanko.comicBoxes = (boxes || []).map(function(b, i) {
                 var pal = tanko._genrePalette[i % tanko._genrePalette.length];
@@ -89,12 +97,10 @@ WorldPage {
         title: "Top in Tankoban — Comics"
         // DB-driven (2026-07-13): RCO-ranked series from the weekly comics_db.json sidecar; each
         // tile carries its LOCG id and opens the series directly. Falls back to the curated list
-        // if the sidecar didn't load (ComicsDb.ready() gate). Evaluated at page creation, which is
-        // lazy — well after Main's startup load() — so the DB is ready by the time this renders.
-        property var comicRows: ComicsDb.ready() ? ComicsDb.rankedSeries() : Catalog.topComics
-        items: comicRows
+        // if the generated catalog did not ingest when this lazy world was created.
+        items: tanko.comicRows
         onItemClicked: (i) => {
-            var it = comicRows[i]
+            var it = tanko.comicRows[i]
             if (it && it.locgId) tanko.comicSeriesRequested({ id: it.locgId, title: it.caption, cover: it.cover })
             else tanko.westernRequested(it.caption)
         }
