@@ -130,6 +130,19 @@ public:
     Q_INVOKABLE QVariantMap statusOf(QString volumeId) const;
     Q_INVOKABLE QVariantList localPages(QString volumeId) const;
 
+    // ── Test-only end-to-end self-test (COLOSSEUM_TANKOBAN_DLTEST) ─────────────
+    // Honest end-to-end proof, wired from main.cpp only when the env var is set
+    // (an idle app never calls it, so it touches no network). Spec:
+    //   "<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeNumber>"
+    // Builds ONE canonical snapshot + one candidate (a bare 40-hex hash becomes a
+    // tracker-bearing magnet; a full magnet is used verbatim), then drives the
+    // SAME transport→ingest→index path downloadNyaa uses AFTER its cache lookup —
+    // bypassing the search-candidate cache. On the façade's finished(volumeId) it
+    // asserts localPages(volumeId).size() > 0, prints "[tankoban-dltest] DONE" and
+    // QCoreApplication::exit(0). ANY failure prints "[tankoban-dltest] FAIL
+    // <reason>" and exit(2). A 240 s hard backstop guarantees a verdict.
+    Q_INVOKABLE void runDownloadSelfTest(const QString& spec);
+
 signals:
     void volumesChanged(const QString& seriesId);
     void sourcesReady(const QString& volumeId, const QVariantList& results);

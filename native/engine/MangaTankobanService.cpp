@@ -6,11 +6,15 @@
 #include "engine/MangaVolumeArchiveIngestor.h"
 #include "engine/MangaVolumeIndex.h"
 #include "engine/MangaVolumePacker.h"
+#include "torrent/ComicTorrentMagnet.h"         // infoHash() — extract a canonical hash from a magnet-or-hash
+#include "torrent/BookTorrentMagnet.h"          // buildMagnet() — tracker-bearing magnet for a bare infohash
 
+#include <QCoreApplication>
 #include <QDir>
 #include <QSettings>
 #include <QStandardPaths>
 #include <QStringList>
+#include <QTimer>
 #include <QVariant>
 
 #ifdef HAS_LIBTORRENT
@@ -359,6 +363,101 @@ QVariantMap MangaTankobanService::statusOf(QString volumeId) const
 QVariantList MangaTankobanService::localPages(QString volumeId) const
 {
     return m_index->localPages(volumeId);
+}
+
+// ── Test-only end-to-end self-test (COLOSSEUM_TANKOBAN_DLTEST) ────────────────
+
+void MangaTankobanService::runDownloadSelfTest(const QString& spec)
+{
+    // Spec: "<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeNumber>".
+    const QStringList parts = spec.split(QLatin1Char('|'));
+    if (parts.size() != 4) {
+        qWarning().noquote() << "[tankoban-dltest] FAIL bad spec — expected "
+                                "<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeNumber>";
+        QCoreApplication::exit(2);
+        return;
+    }
+    const QString magnetOrHash = parts.at(0).trimmed();
+    const QString seriesId     = parts.at(1).trimmed();
+    const QString seriesTitle  = parts.at(2).trimmed();
+    const QString volumeRaw    = parts.at(3).trimmed();
+
+    // Normalize the source: extract the canonical 40-hex infoHash from a bare hash
+    // OR a full magnet. An unparseable hash / empty required field is a bad spec.
+    const QString hash = ComicTorrentMagnet::infoHash(magnetOrHash);
+    if (hash.isEmpty() || seriesId.isEmpty() || volumeRaw.isEmpty()) {
+        qWarning().noquote() << "[tankoban-dltest] FAIL bad spec — empty field or "
+                                "unparseable magnet/infohash";
+        QCoreApplication::exit(2);
+        return;
+    }
+
+    // ONE canonical snapshot: a single volume for this series, keyed by the same
+    // stable id everything downstream (transport, ingestor, index) agrees on.
+    const QString number = MangaTankoban::normalizeVolumeNumber(volumeRaw);
+    VolumeRecord vol;
+    vol.id       = MangaTankoban::volumeId(seriesId, number);
+    vol.seriesId = seriesId;
+    vol.number   = number;
+    vol.title    = seriesTitle + QStringLiteral(" Vol ") + number;
+
+    SeriesSnapshot snap;
+    snap.seriesId = seriesId;
+    snap.title    = seriesTitle;
+    snap.volumes.append(vol);
+    m_series[seriesId] = snap;
+    m_volumes[vol.id]  = vol;
+
+    // Build the candidate from the supplied source: a bare 40-hex hash is
+    // normalized into a tracker-bearing magnet (fast DHT metadata); a full magnet
+    // is passed through verbatim.
+    MangaNyaaCandidate candidate;
+    candidate.infoHash  = hash;
+    candidate.magnetUri =
+        magnetOrHash.startsWith(QStringLiteral("magnet:?"), Qt::CaseInsensitive)
+            ? magnetOrHash
+            : BookTorrentMagnet::buildMagnet(hash);
+    candidate.title = vol.title;
+
+    const QString volId = vol.id;
+
+    // Clear any prior ready/in-flight row for this id so the run proves a REAL
+    // acquisition, never a cached one (a quiet no-op on a first run).
+    remove(volId);
+
+    // The façade owns terminal state — verdict on ITS finished/failed for volId.
+    connect(this, &MangaTankobanService::finished, this, [this, volId](const QString& id) {
+        if (id != volId)
+            return;
+        const int pages = localPages(volId).size();
+        if (pages <= 0) {
+            qWarning().noquote() << "[tankoban-dltest] FAIL no reader pages";
+            QCoreApplication::exit(2);
+            return;
+        }
+        qInfo().noquote() << "[tankoban-dltest] DONE pages=" << pages;
+        QCoreApplication::exit(0);
+    });
+    connect(this, &MangaTankobanService::failed, this,
+            [volId](const QString& id, const QString& reason) {
+                if (id != volId)
+                    return;
+                qWarning().noquote() << "[tankoban-dltest] FAIL" << reason;
+                QCoreApplication::exit(2);
+            });
+
+    // Hard backstop: never hang — 240 s then an honest failing verdict.
+    QTimer::singleShot(240000, this, []() {
+        qWarning().noquote() << "[tankoban-dltest] FAIL timeout";
+        QCoreApplication::exit(2);
+    });
+
+    // Drive the transport exactly as downloadNyaa does after its cache lookup,
+    // but with a directly-constructed candidate (no search-candidate cache).
+    m_tornDown.remove(volId);
+    m_chosen[volId] = candidate;
+    m_acq[volId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("resolving")}};
+    m_transport->download(vol, candidate);
 }
 
 // ── Terminal-state ownership + model assembly ────────────────────────────────
