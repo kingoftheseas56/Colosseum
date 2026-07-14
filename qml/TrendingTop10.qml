@@ -14,6 +14,7 @@ Column {
     property string title: "Top 10 This Week"
     property var items: []            // [{ caption, cover, c1, c2 }]
     signal itemClicked(int index)
+    signal exploreClicked()
 
     width: parent ? parent.width : 800
     spacing: 14
@@ -59,7 +60,12 @@ Column {
         }
     }
 
-    WidgetHeader { width: parent.width; title: top10.title; moreLabel: "Explore" }
+    WidgetHeader {
+        width: parent.width
+        title: top10.title
+        moreLabel: "Explore"
+        onMoreClicked: top10.exploreClicked()
+    }
 
     Item {
         id: strip

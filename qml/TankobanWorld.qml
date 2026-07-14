@@ -31,6 +31,7 @@ WorldPage {
     // via openComicSeries (Main wires comicSeriesRequested→openComicSeries). Falls back to the
     // curated westernRequested path when the sidecar isn't loaded.
     signal comicSeriesRequested(var d)
+    signal comicCatalogRequested(var rows)
 
     // GetComics' own taxonomy (top tags by release count, publishers + franchises,
     // noise-filtered) drives the explore mosaic inline — the old Archives-door page
@@ -98,12 +99,15 @@ WorldPage {
         // DB-driven (2026-07-13): RCO-ranked series from the weekly comics_db.json sidecar; each
         // tile carries its LOCG id and opens the series directly. Falls back to the curated list
         // if the generated catalog did not ingest when this lazy world was created.
-        items: tanko.comicRows
+        items: tanko.comicRows.slice(0, 10)
         onItemClicked: (i) => {
-            var it = tanko.comicRows[i]
+            var topComics = tanko.comicRows.slice(0, 10)
+            var it = topComics[i]
+            if (!it) return
             if (it && it.locgId) tanko.comicSeriesRequested({ id: it.locgId, title: it.caption, cover: it.cover })
             else tanko.westernRequested(it.caption)
         }
+        onExploreClicked: tanko.comicCatalogRequested(tanko.comicRows)
     }
 
     GenreMosaic {
