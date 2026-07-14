@@ -67,7 +67,7 @@ Colosseum integration sources:
 - Consumes: QML-style `QVariantMap` series/volume/chapter snapshots.
 - Produces: `MangaTankoban::SeriesSnapshot`, `VolumeRecord`, `normalizeVolumeNumber`, `volumeId`, `settingsKey`, and `prepareSeries`.
 
-- [ ] **Step 1: Write the failing canonical-identity tests**
+- [x] **Step 1: Write the failing canonical-identity tests**
 
 Create assertions that prove string-safe identity and complete-volume assembly:
 
@@ -88,11 +88,11 @@ require(snap.volumes.size() == 2, "source-less volume remains canonical");
 require(snap.volumes[0].chapterIds == QStringList{"c1", "c2"}, "chapter mapping retained");
 ```
 
-- [ ] **Step 2: Add the harness target and verify RED**
+- [x] **Step 2: Add the harness target and verify RED**
 
 Add `manga_tankoban_logic_harness` to `native/CMakeLists.txt`, linked to `Qt6::Core`. Run the absolute `native\build-msvc.bat`; expect compilation failure because the new headers/functions do not exist.
 
-- [ ] **Step 3: Implement the minimal canonical model**
+- [x] **Step 3: Implement the minimal canonical model**
 
 Define focused value types:
 
@@ -119,11 +119,11 @@ SeriesSnapshot prepareSeries(const QVariantMap& descriptor,
 
 Normalize whitespace and leading zeroes while preserving non-integral suffixes. Match chapter rows by explicit volume first, then by the existing `chapterStart/chapterEnd` range. Never drop a volume because its mapped chapter list is empty.
 
-- [ ] **Step 4: Verify GREEN**
+- [x] **Step 4: Verify GREEN**
 
 Run `native\build-msvc.bat`, then `native\build-msvc\manga_tankoban_logic_harness.exe`. Expect exit 0 and `MANGA_TANKOBAN_LOGIC_OK`.
 
-- [ ] **Step 5: Commit surgically**
+- [x] **Step 5: Commit surgically**
 
 ```powershell
 git add -- native/engine/MangaTankobanTypes.h native/engine/MangaTankobanLogic.h native/engine/MangaTankobanLogic.cpp tests/manga_tankoban_logic_harness.cpp native/CMakeLists.txt
@@ -145,7 +145,7 @@ git commit -m "feat(manga): add canonical Tankoban volume model"
 - Consumes: `SeriesSnapshot`, target volume number, shared search `QNetworkAccessManager`.
 - Produces: `MangaNyaaCandidate`, `queryVariants`, `parseRss`, `filterAndRank`, plus correlated `searchSucceeded(volumeId, rows)` / `searchFailed(volumeId, reason)`.
 
-- [ ] **Step 1: Capture deterministic RSS and write failing tests**
+- [x] **Step 1: Capture deterministic RSS and write failing tests**
 
 The fixture must contain: exact Volume 2 digital, Volumes 1-12 pack, Chapter 2, Volume 3, a blocked uploader, a raw, and duplicate infohash entries. Assert:
 
@@ -163,11 +163,11 @@ require(queryVariants("Grand Blue Dreaming", "2").contains("Grand Blue Dreaming 
         "Tankoban 2 query family retained");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add the new `.cpp` to the existing logic harness target and run `native\build-msvc.bat`. Expect unresolved `MangaNyaaSource` symbols.
 
-- [ ] **Step 3: Port the proven runtime source**
+- [x] **Step 3: Port the proven runtime source**
 
 Port parsing/query behavior from Tankoban 2, retaining Nyaa category `3_1`, seed-desc RSS ordering, batched query variants, infohash dedupe, and trust tiers. Extend the candidate only with derived coverage fields/chips needed by QML:
 
@@ -183,11 +183,11 @@ struct MangaNyaaCandidate {
 
 Reject chapter packs, wrong target volumes, blocked uploaders, raw markers, weak series matches, and missing hashes. Order by tier, standalone, digital hint, seeders, then case-folded title. Do not expose an auto-pick method.
 
-- [ ] **Step 4: Embed trust data and verify GREEN**
+- [x] **Step 4: Embed trust data and verify GREEN**
 
 Copy Tankoban 2's trust JSON as data, add it to `app_resources.qrc` under `:/tankoban/manga_uploader_trust.json`, and load once in the constructor. Run the build and logic harness; expect `MANGA_TANKOBAN_LOGIC_OK`.
 
-- [ ] **Step 5: Commit surgically**
+- [x] **Step 5: Commit surgically**
 
 ```powershell
 git add -- native/torrent/MangaNyaaSource.h native/torrent/MangaNyaaSource.cpp native/torrent/manga_uploader_trust.json native/app_resources.qrc native/CMakeLists.txt tests/manga_tankoban_logic_harness.cpp tests/fixtures/tankoban/nyaa_volume_results.xml
@@ -209,7 +209,7 @@ git commit -m "feat(manga): port trusted Nyaa volume discovery"
 - Consumes: `SeriesSnapshot`, `VolumeRecord`, shared search NAM, cache path.
 - Produces: `SynopsisRecord`, pure `matchOpenLibrary` / `matchApple`, `enrichSeries`, and `synopsisReady(volumeId, record)`.
 
-- [ ] **Step 1: Write failing match-honesty tests**
+- [x] **Step 1: Write failing match-honesty tests**
 
 ```cpp
 const auto ol = MangaSynopsisEnricher::matchOpenLibrary(series, vol1, olFixture);
@@ -222,11 +222,11 @@ require(!MangaSynopsisEnricher::acceptDistinctVolumeText(seriesSynopsis, seriesS
         "series synopsis is never repeated as volume synopsis");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add the `.cpp` and `Qt6::Network` to the logic harness target; run the build and expect missing enricher types.
 
-- [ ] **Step 3: Implement pure matching and cache schema**
+- [x] **Step 3: Implement pure matching and cache schema**
 
 Use this durable record:
 
@@ -239,7 +239,7 @@ struct SynopsisRecord {
 
 Normalize punctuation, apostrophes, `Vol`/`Volume`, edition qualifiers, and creator names. Require target-volume evidence and a strong series token score; reject equal top scores. Store cache JSON with schema version 1 using `QSaveFile`, one record per `volumeId`.
 
-- [ ] **Step 4: Implement sequential network cascade**
+- [x] **Step 4: Implement sequential network cascade**
 
 For each uncached volume, request Open Library first. If it yields no strong record, enqueue:
 
@@ -249,11 +249,11 @@ https://itunes.apple.com/search?term=<series+Volume+N>&entity=ebook&limit=8&coun
 
 Use one Apple request at a time with at least 3200 ms between starts. A failed request records no negative forever; cache misses for 24 hours and accepted records for 30 days. Emit results incrementally. Never delay canonical volume rendering.
 
-- [ ] **Step 5: Verify GREEN and persistence**
+- [x] **Step 5: Verify GREEN and persistence**
 
 Extend the harness with a temporary cache round-trip. Build, run the harness, and require that accepted provenance survives reload while ambiguous results do not become accepted.
 
-- [ ] **Step 6: Commit surgically**
+- [x] **Step 6: Commit surgically**
 
 ```powershell
 git add -- native/engine/MangaSynopsisEnricher.h native/engine/MangaSynopsisEnricher.cpp native/CMakeLists.txt tests/manga_tankoban_logic_harness.cpp tests/fixtures/tankoban/openlibrary_volume.json tests/fixtures/tankoban/apple_books_volume.json tests/fixtures/tankoban/apple_books_ambiguous.json
@@ -272,7 +272,7 @@ git commit -m "feat(manga): add honest volume synopsis enrichment"
 - Consumes: requested volume string and `QJsonArray` metadata files from `TorrentEngine::metadataReady`.
 - Produces: `MangaVolumePick pick(target, files)` and `QVector<int> unionPriorities(picks, fileCount)`.
 
-- [ ] **Step 1: Write failing picker tests**
+- [x] **Step 1: Write failing picker tests**
 
 ```cpp
 require(pick("2", files({"Series v01.cbz", "Series v02.cbz", "Series v03.cbz"})).index == 1,
@@ -285,11 +285,11 @@ require(unionPriorities({0, 2}, 4) == QVector<int>({7, 0, 7, 0}),
         "shared torrent priorities are a union");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add a `manga_volume_filepicker_harness` target linked to `Qt6::Core`; run the build and expect missing picker symbols.
 
-- [ ] **Step 3: Implement exact file selection**
+- [x] **Step 3: Implement exact file selection**
 
 Accept `.cbz`, `.cbr`, `.cb7`, and `.cbt`. Parse coverage from the base filename and parent directories. Score exact target filename above directory-only evidence. Return an explicit reason enum:
 
@@ -298,7 +298,7 @@ enum class PickFailure { None, NoArchive, TargetMissing, Ambiguous, CombinedArch
 struct MangaVolumePick { int index = -1; QString path; qint64 size = 0; PickFailure failure; };
 ```
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Build, run `native\build-msvc\manga_volume_filepicker_harness.exe`, expect `MANGA_VOLUME_FILEPICKER_OK`, then commit only the four task files plus CMake.
 
@@ -317,7 +317,7 @@ Build, run `native\build-msvc\manga_volume_filepicker_harness.exe`, expect `MANG
 - Consumes: canonical `volumeId`, series metadata, source provenance, and local archive or prepared page directory.
 - Produces: `localPages`, `statusOf`, `remove`, atomic `publish`, and `ingestArchive`.
 
-- [ ] **Step 1: Write failing index/ingestion tests**
+- [x] **Step 1: Write failing index/ingestion tests**
 
 Test a temporary AppData root:
 
@@ -333,11 +333,11 @@ index.heal();
 require(index.statusOf(record.id).value("state") == "none", "missing payload is pruned");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add `manga_volume_index_harness` linked to `Qt6::Core` and the ingestor sources. Build and expect missing classes.
 
-- [ ] **Step 3: Implement the durable index**
+- [x] **Step 3: Implement the durable index**
 
 Store `<AppData>/manga-volumes/volume-index.json` via `QSaveFile`. Each entry records volume ID, series ID/title, volume number, final directory, naturally ordered filenames, byte count, source kind, release title, uploader, infohash, chapter IDs, and added time. `localPages` must return the existing reader shape:
 
@@ -345,11 +345,11 @@ Store `<AppData>/manga-volumes/volume-index.json` via `QSaveFile`. Each entry re
 {{"index", 0}, {"url", QUrl::fromLocalFile(path)}, {"group", chapterGroup}}
 ```
 
-- [ ] **Step 4: Implement lossless archive ingestion**
+- [x] **Step 4: Implement lossless archive ingestion**
 
 Lift the proven extraction lifecycle from `ComicDownloader.cpp:592-818` into the focused ingestor: extract to a staging directory, validate at least one decodable image, natural-sort image files, write the per-volume `index.json`, atomically rename staging to the final directory, publish the global index, then delete the staging archive. Never recompress images.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Build, run `manga_volume_index_harness.exe`, expect `MANGA_VOLUME_INDEX_OK`, and commit only the task files and CMake.
 
@@ -367,7 +367,7 @@ Build, run `manga_volume_index_harness.exe`, expect `MANGA_VOLUME_INDEX_OK`, and
 - Consumes: selected `MangaNyaaCandidate`, target `VolumeRecord`, shared `TorrentEngine`, `MangaVolumeFilePicker`.
 - Produces: volume-keyed resolving/progress/finished/failed signals and replayable request rows.
 
-- [ ] **Step 1: Write failing ledger and union-job tests**
+- [x] **Step 1: Write failing ledger and union-job tests**
 
 Use a fake engine seam that records `addMagnet`, `setFilePriorities`, and `startTorrent` calls. Prove paused add, target selection, two-volume union, cancellation, and ledger reload:
 
@@ -382,17 +382,17 @@ ledger.reload();
 require(ledger.active().size() == 2, "both intents survive restart");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add the harness target linked to Qt Core/Network and the new sources. Build and expect missing downloader/ledger types.
 
-- [ ] **Step 3: Implement transport and ledger**
+- [x] **Step 3: Implement transport and ledger**
 
 Mirror `ComicTorrentDownloader` signal wiring but key public state by `volumeId` and internal jobs by infohash. Always call `addMagnet(..., paused=true)`. On metadata, resolve every requested volume, reject ambiguous/combined files before starting, union priorities, persist selected indices, then call `startTorrent`. On completion, emit each requested archive path independently for ingestion.
 
 Persist rows with states `awaiting_metadata`, `downloading`, `validating`, `completed`, `failed`, and `cancelled` using `QSaveFile`. Replay active rows at service construction against the existing engine resume state.
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Build, run `manga_volume_torrent_harness.exe`, expect `MANGA_VOLUME_TORRENT_OK`, then commit only this task's files and CMake.
 
@@ -409,7 +409,7 @@ Build, run `manga_volume_torrent_harness.exe`, expect `MANGA_VOLUME_TORRENT_OK`,
 - Consumes: `VolumeRecord.chapterIds`, `WeebCentralScraper`, download NAM, `MangaVolumeIndex` publication shape.
 - Produces: `progress(volumeId, done, total)`, `finished(volumeId, preparedDirectory)`, `failed(volumeId, reason)`.
 
-- [ ] **Step 1: Write failing completeness/order tests**
+- [x] **Step 1: Write failing completeness/order tests**
 
 Inject recorded page lists and local image responses. Assert chapter order followed by natural page order, stable chapter `group`, and no publication on a missing chapter/page:
 
@@ -421,15 +421,15 @@ require(groups == QList<int>{0, 0, 1}, "chapter boundaries retained");
 require(!packer.complete(incompleteV2), "partial fallback never becomes ready");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add the harness with `WeebCentralScraper.cpp`, `MangaScraper.cpp`, and Qt Network. Build and expect missing packer symbols.
 
-- [ ] **Step 3: Implement direct fallback compilation**
+- [x] **Step 3: Implement direct fallback compilation**
 
 Port the request lifecycle from Tankoban 2's `WeebCentralVolumePacker`, but publish Colosseum's extracted directory rather than creating a CBZ that would immediately be extracted. Fetch each chapter's pages, download images into a staging directory, validate content using MangaDownloader's real-image checks, write chapter group metadata, and atomically hand the prepared directory to `MangaVolumeIndex`. Cancellation aborts all replies and removes staging.
 
-- [ ] **Step 4: Verify GREEN and commit**
+- [x] **Step 4: Verify GREEN and commit**
 
 Build, run `manga_volume_packer_harness.exe`, expect `MANGA_VOLUME_PACKER_OK`, then commit the task files and CMake.
 
@@ -446,7 +446,7 @@ Build, run `manga_volume_packer_harness.exe`, expect `MANGA_VOLUME_PACKER_OK`, t
 - Consumes: shared search NAM, download NAM, shared `TorrentEngine`, dynamic `prepareSeries` snapshots, Tasks 1-7 components.
 - Produces: the complete spec facade exposed as QML context property `TankobanVolumes`.
 
-- [ ] **Step 1: Write the failing façade state-machine test**
+- [x] **Step 1: Write the failing façade state-machine test**
 
 Prove Off-default settings, snapshot preparation, Nyaa/Weeb source ordering, stable progress routing, and terminal ingestion:
 
@@ -462,11 +462,11 @@ transport.emitFinished(volumeId, archivePath);
 require(service.statusOf(volumeId).value("state") == "ready", "one facade owns terminal state");
 ```
 
-- [ ] **Step 2: Verify RED**
+- [x] **Step 2: Verify RED**
 
 Add the service harness and main target sources. Build and expect missing service API.
 
-- [ ] **Step 3: Implement the exact QML API**
+- [x] **Step 3: Implement the exact QML API**
 
 Expose:
 
@@ -488,11 +488,11 @@ Emit `volumesChanged`, `sourcesReady`, `progress`, `finished`, `failed`, `remove
 
 Always append a WeebCentral source map after the ranked Nyaa maps. When `chapterIds` is empty or the canonical range is incomplete, keep the card visible with `enabled:false` and a concrete `reason` such as `Chapter mapping unavailable`; never hide the fallback or pretend it can build an incomplete book.
 
-- [ ] **Step 4: Wire shared runtime dependencies**
+- [x] **Step 4: Wire shared runtime dependencies**
 
 In `native/main.cpp`, after `torrentEngine` and `searchNam` exist, construct one service with `searchNam`, `dlNam`, and `torrentEngine`; expose it as `TankobanVolumes`. Add `COLOSSEUM_TANKOBAN_DLTEST` parsing but do not run it unless the environment variable exists.
 
-- [ ] **Step 5: Verify GREEN and commit**
+- [x] **Step 5: Verify GREEN and commit**
 
 Build, run `manga_tankoban_service_harness.exe`, expect `MANGA_TANKOBAN_SERVICE_OK`, then stage only the new service files, `main.cpp`, and precise CMake additions.
 
@@ -509,7 +509,7 @@ Build, run `manga_tankoban_service_harness.exe`, expect `MANGA_TANKOBAN_SERVICE_
 - Consumes: `TankobanVolumes`, existing `volumes`, `chaptersModel`, series identity/art.
 - Produces: hero mode control, bound volume library, inline source chooser, and volume reader handoff.
 
-- [ ] **Step 1: Write the failing QML contract test**
+- [x] **Step 1: Write the failing QML contract test**
 
 The PowerShell test must assert these exact contracts and then run the offscreen harness:
 
@@ -526,11 +526,11 @@ Assert-Contains $card 'Build from chapters' "WeebCentral fallback copy missing"
 
 The QML harness supplies a fake `TankobanVolumes`, toggles two series, and proves Off default, independent persistence, every volume visible, Nyaa order unchanged, fallback last, and progress attached to the selected volume.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run `powershell -ExecutionPolicy Bypass -File tests\test_manga_tankoban_mode.ps1`; expect a missing component/contract failure.
 
-- [ ] **Step 3: Implement the hero control and lazy snapshot handoff**
+- [x] **Step 3: Implement the hero control and lazy snapshot handoff**
 
 Add a `Settings` JSON map keyed by stable series ID or bind directly to the native `modeEnabled/setModeEnabled` pair. Once chapters, art, and volumes are ready, call:
 
@@ -543,11 +543,11 @@ TankobanVolumes.prepareSeries({
 
 Off keeps the existing shelf/chapter table visible. On hides only those lower sections and displays `MangaTankobanLibrary`.
 
-- [ ] **Step 4: Implement the bound library visual system**
+- [x] **Step 4: Implement the bound library visual system**
 
 Use the existing black/gold/glass theme. Draw one thin gold binding rule from the enabled control through the left edge of the list. Each row shows cover, `Vol. N`, title, synopsis when present, state, progress, and one action. Expanding a row shows Nyaa cards followed by the quieter WeebCentral card. Apple synopsis attribution opens `synopsisSourceUrl` only for Apple records.
 
-- [ ] **Step 5: Run GREEN and commit**
+- [x] **Step 5: Run GREEN and commit**
 
 Run the PowerShell/QML test and require `MANGA_TANKOBAN_PAGE_OK`, then commit only the five task files.
 
@@ -564,7 +564,7 @@ Run the PowerShell/QML test and require `MANGA_TANKOBAN_PAGE_OK`, then commit on
 - Consumes: `pageStore`, `entryKind`, ordered chapter or volume entries.
 - Produces: separate `manga`/`tankoban` progress namespaces and next-volume behavior.
 
-- [ ] **Step 1: Add failing reader tests**
+- [x] **Step 1: Add failing reader tests**
 
 Assert the generic inputs and progress split:
 
@@ -577,11 +577,11 @@ readonly property string progressKind: entryKind
 
 The harness must open a ready Volume 1, verify `localPages(volumeId)` is called, record progress under `tankoban`, then switch Off and verify chapter progress under `manga` remains unchanged.
 
-- [ ] **Step 2: Run RED**
+- [x] **Step 2: Run RED**
 
 Run `tests\test_manga_tankoban_mode.ps1`; expect missing generic reader contract.
 
-- [ ] **Step 3: Make the smallest reader generalization**
+- [x] **Step 3: Make the smallest reader generalization**
 
 Keep the existing public chapter property names for compatibility, but add `pageStore`, `entryKind`, `entryLabelPrefix`, and `signal sourceRequested(string entryId)`. Replace hard-coded `Downloads/Comics` selection with the injected store when present. In Tankoban Mode pass canonical volumes transformed to `{id, number, name}` entries, `pageStore: TankobanVolumes`, and `entryKind: "tankoban"`.
 
@@ -589,11 +589,11 @@ The visible library remains ascending, but its reader model is a separate descen
 
 Teach `Main.qml` and the series-layer resume handoff that a saved `tankoban` progress record routes to the same manga series with Tankoban Mode enabled before assigning the saved volume ID. A chapter `manga` record continues to restore Mode Off behavior. Preserve all reading styles, RTL behavior, bookmarks, thumbnails, and wide-image settings.
 
-- [ ] **Step 4: Run GREEN and existing reader regressions**
+- [x] **Step 4: Run GREEN and existing reader regressions**
 
 Run `test_manga_tankoban_mode.ps1` plus the existing reader-related P0 harnesses selected by `rg -l "MangaReader" tests/test_*`. Require all exit 0.
 
-- [ ] **Step 5: Commit surgically**
+- [x] **Step 5: Commit surgically**
 
 Stage only `MangaReader.qml`, `MangaSeries.qml`, `Main.qml`, and the two Tankoban test files; commit `feat(manga): read Tankoban volumes through shared reader`.
 
@@ -610,7 +610,9 @@ Stage only `MangaReader.qml`, `MangaSeries.qml`, `Main.qml`, and the two Tankoba
 - Consumes: `COLOSSEUM_TANKOBAN_DLTEST` and a real Nyaa magnet chosen by the executor.
 - Produces: process exit 0 only after archive download -> ingestion -> `localPages` succeeds.
 
-- [ ] **Step 1: Implement the honest DLTEST contract**
+- [x] **Step 1: Implement the honest DLTEST contract**
+
+> Done (2026-07-15): added Q_INVOKABLE MangaTankobanService::runDownloadSelfTest(const QString& spec) - parses "<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeNumber>", extracts a canonical 40-hex infoHash (bare hash -> tracker-bearing magnet, full magnet verbatim), builds ONE snapshot+candidate, drives the transport->ingest->index path with the search-candidate cache bypassed, asserts localPages(volumeId).size() > 0 on finished(), prints "[tankoban-dltest] DONE" + exit(0) / "[tankoban-dltest] FAIL <reason>" + exit(2), 240s hard backstop. main.cpp calls it only when COLOSSEUM_TANKOBAN_DLTEST is set (idle app touches no network).
 
 Use:
 
@@ -620,31 +622,45 @@ COLOSSEUM_TANKOBAN_DLTEST=<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeN
 
 The service constructs one canonical snapshot, downloads the selected target, waits for `finished(volumeId)`, asserts `localPages(volumeId).size() > 0`, prints `[tankoban-dltest] DONE`, and exits 0. Any search, metadata, picker, engine, extraction, or page failure prints `[tankoban-dltest] FAIL <reason>` and exits 2. Retain the 240-second hard backstop.
 
-- [ ] **Step 2: Run all deterministic tests**
+- [x] **Step 2: Run all deterministic tests**
+
+> Done (2026-07-15): full build BUILD_OK (exit 0); tests/test_manga_tankoban_native.ps1 (WITHOUT the DLTEST var) -> all 6 harnesses green (MANGA_TANKOBAN_LOGIC_OK / MANGA_VOLUME_FILEPICKER_OK / MANGA_VOLUME_INDEX_OK / MANGA_VOLUME_TORRENT_OK / MANGA_VOLUME_PACKER_OK / MANGA_TANKOBAN_SERVICE_OK) + "manga tankoban native: OK", exit 0; tests/test_manga_tankoban_mode.ps1 -> MANGA_TANKOBAN_PAGE_OK / "manga tankoban mode: OK", exit 0.
 
 Run the native build, all four new native harness executables, `test_manga_tankoban_mode.ps1`, and `test_manga_tankoban_native.ps1`. Record exact exit codes in the plan execution notes.
 
 - [ ] **Step 3: Prove one real Nyaa acquisition**
 
+> Held for Hemanth go-ahead: live Nyaa download gate (real BitTorrent) not run offline; mechanism shipped + wired.
+
 Choose a legal test release manually from the source cards, set `COLOSSEUM_TANKOBAN_DLTEST`, launch `native\build-msvc\colosseum.exe qml\Main.qml` with `QML_DISABLE_DISK_CACHE=1`, and require `[tankoban-dltest] DONE` plus a non-empty canonical page directory.
 
 - [ ] **Step 4: Prove one real WeebCentral fallback**
+
+> Held for Hemanth go-ahead: live WeebCentral fallback gate not run offline; mechanism shipped.
 
 Use a known mapped short volume, select `Build from chapters`, and require progress -> validation -> ready -> reader pages. Record the volume ID and page count.
 
 - [ ] **Step 5: Prove restart recovery**
 
+> Held for Hemanth go-ahead: live restart-recovery gate not run offline; ledger replay path shipped.
+
 Start a real volume torrent, wait until payload progress is non-zero, kill only that `colosseum.exe` PID, restart with the same AppData, and require the ledger to reconnect and finish without a second canonical record.
 
-- [ ] **Step 6: Run the final MSVC build exactly as required**
+- [x] **Step 6: Run the final MSVC build exactly as required**
+
+> Done (2026-07-15): native/build-msvc.bat (direct, not cmd //c) -> BUILD_OK, exit 0; colosseum.exe freshly linked with the DLTEST wiring. No colosseum.exe was running in this worktree.
 
 Find and kill any running Colosseum PID, then run `C:\Users\Suprabha\Desktop\Brotherhood\Colosseum\native\build-msvc.bat` directly. Require `BUILD_OK`, exit 0. Do not claim visual completion; hand Hemanth the manga series page for eyes-on verification.
 
 - [ ] **Step 7: Review against the written Definition of Done**
 
+> Held for Hemanth go-ahead: brotherhood-review against the DoD pending.
+
 Invoke `brotherhood-review` on the full implementation diff against the spec's Definition of Done. Every item must be `MET`; any `PARTIAL` or `NOT-MET` is fixed before the final commit.
 
 - [ ] **Step 8: Final surgical commit and push**
+
+> Held for Hemanth go-ahead: final commit + push after the live gates (this deterministic slice is committed separately).
 
 Confirm `git status --short` contains no staged A2/A5 paths. Commit the DLTEST/test additions and any review fixes, then push together under Hemanth's standing rule. Sign the handoff `[Agent 1 (Claude), comics]` and include changed files, deterministic test results, real Nyaa evidence, fallback evidence, restart evidence, build evidence, and the remaining Hemanth visual smoke.
 

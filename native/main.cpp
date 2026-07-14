@@ -41,6 +41,7 @@
 #include "engine/ComicDownloader.h"
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
+#include "engine/MangaTankobanService.h"
 #include "reader/BookBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
@@ -404,6 +405,25 @@ int main(int argc, char *argv[]) {
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
+
+    // Tankoban "volume mode" façade exposed to QML as `TankobanVolumes` (Task 8).
+    // ONE object composes the whole volume lifecycle: Nyaa search over the pinned
+    // uncached searchNam, per-volume download through the shared TorrentEngine
+    // (wrapped in a queued IMangaTorrentEngine adapter built inside), the
+    // WeebCentral chapter-pack fallback + synopsis enrichment over the plain
+    // dlNam, and ingestion into a durable local index under AppDataLocation.
+    auto *tankobanVolumes = new MangaTankobanService(searchNam, dlNam, torrentEngine, QString(), &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("TankobanVolumes"), tankobanVolumes);
+    if (qEnvironmentVariableIsSet("COLOSSEUM_TANKOBAN_DLTEST")) {
+        // Honest end-to-end self-test (Task 11). Spec:
+        //   "<magnet-or-infohash>|<seriesId>|<seriesTitle>|<volumeNumber>".
+        // Drives search-cache-bypassed download → ingest → index and exits 0 on
+        // ready pages / 2 on any failure (240 s backstop). Mirrors the
+        // COLOSSEUM_COMIC_DLTEST / COLOSSEUM_TORRENT_DLTEST self-test idiom above.
+        // Never runs unless the env var is set (an idle app touches no network).
+        tankobanVolumes->runDownloadSelfTest(
+            qEnvironmentVariable("COLOSSEUM_TANKOBAN_DLTEST"));
+    }
 
     if (qEnvironmentVariableIsSet("COLOSSEUM_ABB_DLTEST")) {
         const QString spec = qEnvironmentVariable("COLOSSEUM_ABB_DLTEST");   // "<pairKey>|<infoHash>"
