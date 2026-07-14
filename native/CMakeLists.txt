@@ -290,6 +290,15 @@ target_compile_definitions(manga_volume_index_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_volume_index_harness PRIVATE Qt6::Core)
 
+add_executable(manga_volume_torrent_harness
+    ../tests/manga_volume_torrent_harness.cpp
+    torrent/MangaVolumeTorrentDownloader.cpp
+    torrent/MangaVolumeRequestLedger.cpp
+    torrent/MangaVolumeFilePicker.cpp
+)
+target_include_directories(manga_volume_torrent_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_volume_torrent_harness PRIVATE Qt6::Core)
+
 add_executable(torrent_engine_link_harness
     ../tests/torrent_engine_link_harness.cpp
 )
