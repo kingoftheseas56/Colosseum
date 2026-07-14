@@ -1,4 +1,5 @@
-// Offscreen logic harness for MangaTankobanLibrary (Task 9).
+// Offscreen logic harness for MangaTankobanLibrary (Task 9) + the generalized
+// MangaReader (Task 10).
 //
 // A grep test proves the wiring strings exist; THIS proves the volume-first
 // surface actually behaves. It supplies a FAKE `TankobanVolumes` (an in-memory
@@ -10,6 +11,13 @@
 //   * The Nyaa cards keep the service's order and the WeebCentral card is LAST.
 //   * A `progress` for one volume attaches to that volume's row only — and never
 //     to another SERIES' library that shares the same service.
+//
+// Task 10 adds the reader contract: the SAME MangaReader, given an injected
+// `pageStore`, reads a READY volume through localPages(volumeId), namespaces its
+// Continue record under the "tankoban" kind (a chapter reader keeps "manga", so
+// they never overwrite), and — on a DESCENDING volume model — crosses off the end
+// of a ready volume into the next higher one, or emits sourceRequested when it
+// isn't ready yet (without moving curChapterId).
 //
 // Verdict rides the sentinel + exit code: a thrown QML error HANGS qml.exe
 // offscreen, so every check is wrapped in try/catch → Qt.exit(1).
@@ -56,6 +64,34 @@ Item {
         function localPages(vid) { return [] }
     }
 
+    // ── the fake PAGE store the reader is injected with (Task 10) ─────────────
+    // Same localPages/statusOf shape the reader reads from Downloads/Comics. Only
+    // a whitelisted set of volumes are "ready" (localPages non-empty); everything
+    // else reads empty, which is exactly how the reader tells ready from not-ready.
+    // It records the last localPages() arg so the harness can prove the page model
+    // was sourced from localPages(volumeId), and flags any (wrong) chapter-download
+    // call so a tankoban startDownload leaking to the chapter API is caught.
+    component FakePageStore: QtObject {
+        property var readyPages: ({})        // volumeId -> [page,...]
+        property string lastLocalPagesArg: ""
+        property bool chapterDownloadCalled: false
+
+        signal progress(string cid, real done, real total)
+        signal finished(string cid)
+        signal failed(string cid, string reason)
+
+        function localPages(vid) {
+            lastLocalPagesArg = String(vid)
+            return readyPages[vid] !== undefined ? readyPages[vid] : []
+        }
+        function statusOf(vid) {
+            var ready = readyPages[vid] !== undefined && readyPages[vid].length > 0
+            return { "state": ready ? "ready" : "none", "done": 0, "total": 0 }
+        }
+        function downloadChapter(cid, sid, title, label) { chapterDownloadCalled = true }
+        function downloadIssue(cid, url, sid, title, label, bytes) { chapterDownloadCalled = true }
+    }
+
     FakeService {
         id: svc
         modeMap: ({})
@@ -100,8 +136,33 @@ Item {
         })
     }
 
+    // Volume 1 ("volA1") is READY (3 local pages); volume 2 ("volA2") is NOT — so a
+    // cross off the end of volume 1 must ask for volA2's source, never navigate to it.
+    FakePageStore {
+        id: pageStore
+        readyPages: ({
+            "volA1": [
+                { "index": 0, "url": "file:///fake/A/v1/p0.png", "group": 0 },
+                { "index": 1, "url": "file:///fake/A/v1/p1.png", "group": 0 },
+                { "index": 2, "url": "file:///fake/A/v1/p2.png", "group": 0 }
+            ]
+        })
+    }
+
     property var libA: null
     property var libB: null
+    property var readerT: null            // tankoban (volume) reader
+    property var readerC: null            // chapter (manga) reader
+    property string lastSourceReq: ""     // last reader.sourceRequested(entryId)
+
+    // the reader's DESCENDING volume model (highest volume first) — the series page
+    // builds exactly this from the ascending library so curIndex-1 is the next HIGHER
+    // volume, preserving MangaReader's newest-first crossing law.
+    readonly property var volEntriesDesc: [
+        { "id": "volA3", "number": "3", "name": "Don't Get Fooled" },
+        { "id": "volA2", "number": "2", "name": "Buggy the Clown" },
+        { "id": "volA1", "number": "1", "name": "Romance Dawn" }
+    ]
 
     function ck(cond, msg) { if (!cond) throw new Error(msg) }
     function rowById(lib, id) {
@@ -117,6 +178,25 @@ Item {
         harness.libA = comp.createObject(harness, { "service": svc, "seriesId": "A", "width": 620 })
         harness.libB = comp.createObject(harness, { "service": svc, "seriesId": "B", "width": 620 })
         if (!harness.libA || !harness.libB) throw new Error("createObject returned null")
+
+        // Task 10: the SAME reader, opened on a READY volume through the injected store.
+        var rc = Qt.createComponent("../qml/MangaReader.qml")
+        if (rc.status === Component.Error) throw new Error("reader component: " + rc.errorString())
+        harness.readerT = rc.createObject(harness, {
+            "width": 640, "height": 480, "seriesId": "A", "seriesTitle": "One Piece",
+            "pageStore": pageStore, "entryKind": "tankoban", "entryLabelPrefix": "Vol. ",
+            "chapters": harness.volEntriesDesc, "chapterId": "volA1", "chapterLabel": "Vol. 1"
+        })
+        if (!harness.readerT) throw new Error("reader createObject returned null")
+        harness.readerT.sourceRequested.connect(function (id) { harness.lastSourceReq = String(id) })
+
+        // …and a chapter reader for the SAME series — a SEPARATE progress namespace.
+        harness.readerC = rc.createObject(harness, {
+            "width": 640, "height": 480, "seriesId": "A", "seriesTitle": "One Piece",
+            "chapters": [{ "id": "chA9", "number": "9", "name": "" }],
+            "chapterId": "chA9", "chapterLabel": "Chapter 9"
+        })
+        if (!harness.readerC) throw new Error("chapter reader createObject returned null")
     }
 
     function runChecks() {
@@ -167,6 +247,45 @@ Item {
                "an apple-sourced volume row must expose a non-empty synopsisSourceUrl")
             ck(rowPlain && String(rowPlain.synopsisSourceUrl || "").length === 0,
                "a non-apple volume row must NOT expose a synopsisSourceUrl")
+
+            // ── Task 10: the generalized reader ──────────────────────────────
+            var rT = harness.readerT
+            var rC = harness.readerC
+            // 7. the injected page store WINS as the reader's store…
+            ck(rT.store === pageStore, "an injected pageStore must win as the reader store")
+            // …and null pageStore falls back to the default (undefined offscreen -> null).
+            ck(rC.store === null, "a chapter reader with no injected store falls back to the default")
+
+            // 8. the page model is sourced from localPages(volumeId).
+            ck(pageStore.lastLocalPagesArg === "volA1", "reader must ask the store for localPages(volumeId)")
+            ck(rT.max === 3, "reader must load Volume 1's 3 local pages, got " + rT.max)
+
+            // 9. progress NAMESPACES on the entry kind: a volume record ("tankoban") and a
+            //    chapter record ("manga") for the SAME series get different ProgressStore
+            //    keys (kind\x1fid), so neither can overwrite the other.
+            ck(rT.progressKind === "tankoban", "a volume reader must record under kind 'tankoban'")
+            ck(rC.progressKind === "manga", "a chapter reader must record under kind 'manga'")
+            ck(rT.progressKind !== rC.progressKind,
+               "tankoban and manga progress must be SEPARATE namespaces (no overwrite)")
+
+            // 10. the reader model is DESCENDING (highest volume first) so curIndex-1 is the
+            //     next HIGHER volume — MangaReader's newest-first crossing law, intact.
+            ck(String(rT.chapters[0].id) === "volA3", "reader model must be DESCENDING (highest volume first)")
+            ck(rT.curChapterId === "volA1" && rT.curIndex === 2, "reader opened on Volume 1 (last in the descending model)")
+
+            // 11. crossing off the end of a READY volume into a NOT-ready one asks the series
+            //     page for its source and does NOT move curChapterId.
+            harness.lastSourceReq = ""
+            rT.goNextChapter()
+            ck(harness.lastSourceReq === "volA2", "a not-ready next volume must raise sourceRequested(volA2), got '" + harness.lastSourceReq + "'")
+            ck(rT.curChapterId === "volA1", "curChapterId must stay on the ready volume when the next isn't ready")
+
+            // 12. startDownload() in tankoban mode routes to the source chooser, never the
+            //     chapter download API.
+            harness.lastSourceReq = ""
+            rT.startDownload()
+            ck(harness.lastSourceReq === "volA1", "tankoban startDownload must emit sourceRequested(curChapterId)")
+            ck(pageStore.chapterDownloadCalled === false, "tankoban startDownload must NOT hit the chapter download API")
 
             console.log("MANGA_TANKOBAN_PAGE_OK")
             Qt.exit(0)

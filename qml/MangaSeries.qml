@@ -44,9 +44,15 @@ Item {
     // ON hides those and shows the MangaTankobanLibrary volume-first surface.
     property bool tankobanMode: false
     property bool _tankobanPrepared: false
-    onSeriesIdChanged: page.tankobanMode =
-        (typeof TankobanVolumes !== "undefined" && page.seriesId.length > 0)
-        ? TankobanVolumes.modeEnabled(page.seriesId) : false
+    // A REUSED page item (openSeries/openSeriesAt switching series) must re-prepare
+    // for the new series, or it would keep the old series' volumes. Reset the prepare
+    // latch + the reader's volume model whenever the id changes.
+    onSeriesIdChanged: {
+        page._tankobanPrepared = false
+        page.tankobanReaderEntries = []
+        page.tankobanMode = (typeof TankobanVolumes !== "undefined" && page.seriesId.length > 0)
+            ? TankobanVolumes.modeEnabled(page.seriesId) : false
+    }
 
     // --- seamless reveal gate ---
     // The page fires WeebCentral (chapters), AniList (art) and MangaDex (volumes) in parallel,
@@ -73,12 +79,76 @@ Item {
             seriesId: page.seriesId, title: page.seriesTitle,
             author: page.author, aliases: []
         }, page.volumes, page.chaptersModel)
+        page._rebuildTankobanEntries()
     }
     function _setTankobanMode(on) {
         if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
         TankobanVolumes.setModeEnabled(page.seriesId, on)
         page.tankobanMode = on
         if (on) page._prepareTankoban()
+    }
+
+    // --- reader entry kind: "manga" (chapters) or "tankoban" (volumes). The one
+    //     MangaReader below reads BOTH; this picks its store + model per open. ---
+    property string openEntryKind: "manga"
+    // The reader's DESCENDING volume model (highest volume first). The library shelf
+    // stays ascending; this separate copy preserves MangaReader's newest-first
+    // crossing law so curIndex-1 is the next HIGHER volume. Rebuilt whenever the
+    // service's canonical volumes change (covers/synopsis/ready-state lands).
+    property var tankobanReaderEntries: []
+    function _rebuildTankobanEntries() {
+        var s = (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
+        if (!s || !page.seriesId.length) { page.tankobanReaderEntries = []; return }
+        var vols = s.volumesForSeries(page.seriesId) || []
+        var out = []
+        for (var i = 0; i < vols.length; i++)
+            out.push({ id: String(vols[i].id),
+                       number: vols[i].number,
+                       name: (vols[i].title && String(vols[i].title).length) ? String(vols[i].title) : "" })
+        out.sort(function (a, b) {
+            var an = Number(a.number), bn = Number(b.number)
+            if (!isNaN(an) && !isNaN(bn)) return bn - an     // DESCENDING by volume number
+            return String(b.number) < String(a.number) ? -1 : (String(b.number) > String(a.number) ? 1 : 0)
+        })
+        page.tankobanReaderEntries = out
+    }
+    // Open a downloaded volume in the reader (the library's Downloaded->Open action).
+    function _openVolume(volumeId) {
+        var id = String(volumeId)
+        if (!id.length) return
+        page._rebuildTankobanEntries()
+        var lbl = ""
+        var ents = page.tankobanReaderEntries
+        for (var i = 0; i < ents.length; i++)
+            if (String(ents[i].id) === id) { lbl = ents[i].name; break }
+        page.openEntryKind = "tankoban"                       // set BEFORE the id (store/model bind on it)
+        page.openChapterLabel = lbl.length ? lbl : ("Vol. " + id)
+        page.openChapterId = id
+    }
+    // The reader hit a NOT-ready volume (crossed off the end, or the download button):
+    // leave the reader and open THAT volume's inline source chooser in the library.
+    function _handleVolumeSource(entryId) {
+        page.openChapterId = ""
+        page.openChapterLabel = ""
+        page.openEntryKind = "manga"
+        if (!page.tankobanMode) page._setTankobanMode(true)
+        if (tankLib.openVolumes[String(entryId)] !== true) tankLib.chooseSource(String(entryId))
+    }
+    // Continue/session resume of a saved tankoban record: turn Tankoban Mode ON,
+    // then open the saved volume through the shared reader.
+    function resumeTankobanVolume(volumeId) {
+        if (!volumeId || !String(volumeId).length) return
+        if (typeof TankobanVolumes !== "undefined" && page.seriesId.length)
+            TankobanVolumes.setModeEnabled(page.seriesId, true)
+        page.tankobanMode = true
+        page._openVolume(String(volumeId))
+    }
+
+    // Keep the reader's descending volume model current as the service learns more.
+    Connections {
+        target: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
+        ignoreUnknownSignals: true
+        function onVolumesChanged(sid) { if (sid === page.seriesId) page._rebuildTankobanEntries() }
     }
 
     // --- volumes (MangaDex via MangaVolumes.js; ranges partial — covers-first) ---
@@ -636,6 +706,7 @@ Item {
                                     return ""
                                 }
                                 function openReader() {
+                                    page.openEntryKind = "manga"   // chapters always read as manga
                                     page.openChapterId = row.chId
                                     page.openChapterLabel = row.chLabel()
                                 }
@@ -751,12 +822,14 @@ Item {
             }
 
             // ── TANKOBAN MODE — the volume library (replaces the shelf + chapter table when ON) ──
-            // service defaults to the native TankobanVolumes context property; opening a
-            // downloaded volume in the reader is a later layer (signal left unwired here).
+            // service defaults to the native TankobanVolumes context property. A Downloaded->Open
+            // action opens that volume through the SAME reader below (volume model + injected store).
             MangaTankobanLibrary {
+                id: tankLib
                 width: parent.width
                 visible: page.tankobanMode
                 seriesId: page.seriesId
+                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
             }
 
             // post-reveal error (inset)
@@ -815,10 +888,18 @@ Item {
         seriesTitle: page.seriesTitle
         seriesId: page.seriesId
         seriesCover: page.cover
-        chapters: page.chaptersModel
+        // chapter mode: default store (Downloads) + the flat chapter list.
+        // tankoban mode: the native volume service + the DESCENDING volume model.
+        entryKind: page.openEntryKind
+        entryLabelPrefix: page.openEntryKind === "tankoban" ? "Vol. " : ""
+        pageStore: page.openEntryKind === "tankoban"
+                   ? ((typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null)
+                   : null
+        chapters: page.openEntryKind === "tankoban" ? page.tankobanReaderEntries : page.chaptersModel
         chapterId: page.openChapterId
         chapterLabel: page.openChapterLabel
-        onBackRequested: { page.openChapterId = ""; page.openChapterLabel = "" }
+        onBackRequested: { page.openChapterId = ""; page.openChapterLabel = ""; page.openEntryKind = "manga" }
+        onSourceRequested: (entryId) => page._handleVolumeSource(entryId)
         onMinimizeRequested: page.readerMinimizeRequested()
         onCloseRequested: page.readerCloseRequested()
     }

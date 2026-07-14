@@ -362,8 +362,10 @@ Window {
     function openSeries(title) {
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
+        seriesLayer.resumeVolumeId = ""
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
+            seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = ""        // leave the reader, show the chapter list
             seriesLayer.item.seriesTitle = title
         } else seriesLayer.active = true
@@ -372,10 +374,12 @@ Window {
     function openSeriesAt(title, seriesId, chapterId) {
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
+        seriesLayer.resumeVolumeId = ""
         seriesLayer.title = title
         if (seriesLayer.active && seriesLayer.item) {
             seriesLayer.item.seriesTitle = title
             if (seriesId) seriesLayer.item.seriesId = seriesId
+            seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
             seriesLayer.item.openChapterId = chapterId || ""
         } else seriesLayer.active = true
     }
@@ -705,6 +709,10 @@ Window {
                                             "kind": r.subType === "series" ? "episode" : "movie",
                                             "position": r.position || 0 })
             else if (r.infoHash) win.openMovieSession(r.infoHash, r.fileIdx || 0, title, entry.cover || "", r.subType || "", r.subId || "", [], {}, r.position || 0)
+        } else if (entry.kind === "tankoban") {
+            // a saved VOLUME read: same manga series, Tankoban Mode ON, the saved
+            // volume id rides in resume.chapterId (curChapterId of the volume reader).
+            win.openComicSession(title, entry.id || "", r.chapterId || "", "tankoban")
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             win.openComicSession(title, entry.id || "", r.chapterId || "")
         } else if (entry.kind === "book") {
@@ -738,6 +746,10 @@ Window {
                 win.openTheatreSeries({ id: id, type: meta ? "series" : "movie",
                                         title: title, cover: entry.cover || "" })
             })
+        } else if (entry.kind === "tankoban") {
+            // detail = the manga series page; Tankoban Mode restores itself from the
+            // service's per-series flag once the id resolves.
+            win.openSeries(title)
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
@@ -777,10 +789,14 @@ Window {
                         "art": v.art || "", "kind": v.kind || "", "position": v.position || 0 }
         })
     }
-    function openComicSession(title, seriesId, chapterId) {
+    // entryKind "tankoban" marks a VOLUME read (the same manga series, Tankoban Mode
+    // ON); anything else is a chapter read. It rides the target so restore/resume
+    // rebuilds the right surface.
+    function openComicSession(title, seriesId, chapterId, entryKind) {
         Sessions.openOrSwitch({
             "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
-            "target": { "title": title || "", "seriesId": seriesId || "", "chapterId": chapterId || "" }
+            "target": { "title": title || "", "seriesId": seriesId || "", "chapterId": chapterId || "",
+                        "entryKind": entryKind || "" }
         })
     }
     function openBookSession(path, book) {
@@ -842,7 +858,7 @@ Window {
             } else {
                 var s = seriesLayer.item
                 if (!s || !s.openChapterId) { win.closeSeries(); return }
-                win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId)
+                win.openComicSession(s.seriesTitle, s.seriesId, s.openChapterId, s.openEntryKind)
             }
         }
         Sessions.switchTo("")
@@ -911,13 +927,30 @@ Window {
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
             }
+            var savedComicId = (st.chapterId || t.chapterId || "")
+            if (t.entryKind === "tankoban") {
+                // a VOLUME session: restore the series with Tankoban Mode ON, then open the
+                // saved volume through the shared reader (never the chapter path).
+                seriesLayer.resumeSeriesId = t.seriesId || ""
+                seriesLayer.resumeChapterId = ""
+                seriesLayer.resumeVolumeId = savedComicId
+                seriesLayer.title = t.title
+                if (seriesLayer.active && seriesLayer.item) {
+                    seriesLayer.item.seriesTitle = t.title
+                    if (t.seriesId) seriesLayer.item.seriesId = t.seriesId
+                    seriesLayer.item.resumeTankobanVolume(savedComicId)
+                } else seriesLayer.active = true
+                return
+            }
             seriesLayer.resumeSeriesId = t.seriesId || ""
-            seriesLayer.resumeChapterId = (st.chapterId || t.chapterId || "")
+            seriesLayer.resumeChapterId = savedComicId
+            seriesLayer.resumeVolumeId = ""
             seriesLayer.title = t.title
             if (seriesLayer.active && seriesLayer.item) {
                 seriesLayer.item.seriesTitle = t.title
                 if (t.seriesId) seriesLayer.item.seriesId = t.seriesId
-                seriesLayer.item.openChapterId = (st.chapterId || t.chapterId || "")
+                seriesLayer.item.openEntryKind = "manga"   // a reused item may still be in a volume read
+                seriesLayer.item.openChapterId = savedComicId
             } else seriesLayer.active = true
             if (seriesLayer.item && seriesLayer.item.restoreState) seriesLayer.item.restoreState(st)  // Task 4
         } else if (rec.contentKind === "book") {
@@ -1527,12 +1560,14 @@ Window {
         property string title: ""
         property string resumeSeriesId: ""    // Continue resume: jump straight to this chapter…
         property string resumeChapterId: ""   //   …in this series (set seriesId BEFORE the chapter)
+        property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
         source: "MangaSeries.qml"
         onLoaded: {
             item.backdrop = wall
             item.seriesTitle = seriesLayer.title
             if (seriesLayer.resumeSeriesId) item.seriesId = seriesLayer.resumeSeriesId
             if (seriesLayer.resumeChapterId) item.openChapterId = seriesLayer.resumeChapterId
+            if (seriesLayer.resumeVolumeId) item.resumeTankobanVolume(seriesLayer.resumeVolumeId)
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
