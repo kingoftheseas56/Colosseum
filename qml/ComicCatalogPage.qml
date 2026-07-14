@@ -408,11 +408,14 @@ Item {
             anchors.rightMargin: 25
             anchors.verticalCenter: parent.verticalCenter
             spacing: 18
-            Text {
-                text: "—"
-                color: minimizeHover.hovered ? theme.gold : theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 21
+            Item {
+                width: 17
+                height: 17
+                Image {
+                    anchors.fill: parent
+                    source: "../assets/icons/minimize.svg"
+                    opacity: minimizeHover.hovered ? 1 : 0.7
+                }
                 HoverHandler { id: minimizeHover }
                 MouseArea {
                     anchors.fill: parent
@@ -421,11 +424,14 @@ Item {
                     onClicked: root.minimizeRequested()
                 }
             }
-            Text {
-                text: "⏻"
-                color: powerHover.hovered ? theme.gold : theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 18
+            Item {
+                width: 17
+                height: 17
+                Image {
+                    anchors.fill: parent
+                    source: "../assets/icons/power.svg"
+                    opacity: powerHover.hovered ? 1 : 0.7
+                }
                 HoverHandler { id: powerHover }
                 MouseArea {
                     anchors.fill: parent

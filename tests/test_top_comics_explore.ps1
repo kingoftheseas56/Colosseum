@@ -77,6 +77,10 @@ Assert-Contains $page 'text: card.modelData.displayRank' `
 Assert-Contains $page 'asynchronous: true' "Cover loading must be asynchronous."
 Assert-Contains $page 'text: "Downloadable"' "The honest availability filter must be visible."
 Assert-Contains $page 'placeholderText: "Search comics"' "The sticky search field must be visible."
+Assert-Contains $page 'source: "../assets/icons/minimize.svg"' `
+    "The catalog chrome must reuse the house minimize SVG."
+Assert-Contains $page 'source: "../assets/icons/power.svg"' `
+    "The catalog chrome must reuse the house power SVG."
 Assert-Contains $page 'text: "Catalog unavailable"' "The empty catalog state must be explicit."
 Assert-Contains $page 'text: "No comics match this view"' "The filtered empty state must be explicit."
 
