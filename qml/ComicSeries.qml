@@ -150,19 +150,20 @@ Item {
     // ===================== visual tree =====================
     MouseArea { anchors.fill: parent }                      // absorb clicks from the world below
 
-    Rectangle { anchors.fill: parent; color: "#07080c" }
+    Rectangle { anchors.fill: parent; color: "#000000" }
     ShaderEffectSource {
         anchors.fill: parent
         sourceItem: page.backdrop
         live: true; hideSource: false
         visible: page.backdrop !== null
+        opacity: 0.5
     }
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.04, 0.06, 0.42) }
-            GradientStop { position: 0.42; color: Qt.rgba(0.03, 0.035, 0.05, 0.72) }
-            GradientStop { position: 1.0; color: Qt.rgba(0.02, 0.025, 0.04, 0.9) }
+            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.5) }
+            GradientStop { position: 0.42; color: Qt.rgba(0, 0, 0, 0.78) }
+            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.95) }
         }
     }
 

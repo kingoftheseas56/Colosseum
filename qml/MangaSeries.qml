@@ -146,22 +146,22 @@ Item {
     // ===================== visual tree =====================
     MouseArea { anchors.fill: parent }                          // absorb clicks from the world page below
 
-    // Base: a live mirror of the wallpaper so the series view FLOATS over the backdrop (the doctrine's
-    // "fancy OS-widget table over the backdrop") while still hiding the world page it sits on top of.
-    Rectangle { anchors.fill: parent; color: "#07080c" }        // fallback if backdrop is ever null
+    // Match Theatre's pitch-black series surface while retaining a faint wallpaper relationship.
+    Rectangle { anchors.fill: parent; color: "#000000" }
     ShaderEffectSource {
         anchors.fill: parent
         sourceItem: page.backdrop
         live: true; hideSource: false
         visible: page.backdrop !== null
+        opacity: 0.5
     }
     // adaptive scrim — keeps text + chrome legible over any wallpaper, darker toward the chapter list
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.04, 0.06, 0.42) }
-            GradientStop { position: 0.42; color: Qt.rgba(0.03, 0.035, 0.05, 0.72) }
-            GradientStop { position: 1.0; color: Qt.rgba(0.02, 0.025, 0.04, 0.9) }
+            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.5) }
+            GradientStop { position: 0.42; color: Qt.rgba(0, 0, 0, 0.78) }
+            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.95) }
         }
     }
 
