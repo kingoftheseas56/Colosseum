@@ -32,6 +32,12 @@ public:
     virtual QString displayName() const = 0;
     virtual void    search(const QString& query, int limit = 30, const QString& categoryId = {}) = 0;
 
+    // This indexer's NATIVE category id for a media type ("books"/"audiobooks"),
+    // or empty if it can't scope by category (the caller's post-filter handles it).
+    // Restores TB2's source-side filtering: ask each tracker for books only, so
+    // audiobooks never come back to be misclassified downstream.
+    virtual QString categoryFor(const QString& /*mediaType*/) const { return {}; }
+
     // Health + telemetry contract (Phase 3). Subclasses expose their own
     // state; the default protected members and helpers below let each
     // override be a one-liner returning m_health etc.

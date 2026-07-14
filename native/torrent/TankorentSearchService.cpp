@@ -115,7 +115,11 @@ QString TankorentSearchService::startSearch(const QString& mediaType,
             emit indexerError(handle, indexerId, error);
             settleOne(handle);
         });
-        idx->search(query, limit, categoryId);
+        // Restore TB2's source-side filtering: if the caller didn't pin a category,
+        // ask each indexer for its own book/audiobook category so off-type results
+        // (e.g. audiobooks) never come back to be misclassified downstream.
+        const QString cat = categoryId.isEmpty() ? idx->categoryFor(mediaType) : categoryId;
+        idx->search(query, limit, cat);
     }
 
     return handle;

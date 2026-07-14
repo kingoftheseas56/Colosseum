@@ -103,7 +103,13 @@ bool BookTorrentRanker::isReadableBook(const TorrentResult& r){
     const MediaKind ck = kindFromCategory(r);
     if (ck == MediaKind::Audio || ck == MediaKind::Video || ck == MediaKind::NonBook)
         return false;
-    // Book, or Unknown with no disqualifying signal → keep on the reading shelf.
+    if (ck == MediaKind::Book) return true;   // tracker-confirmed e-book category → trust it at ANY size
+    // ck == Unknown (e.g. torrents-csv exposes no categories): the title cleared the
+    // audio/video nets, so a generous size cap is the THIRD net — a genuine e-book is
+    // small; anything past ~100 MB here is almost certainly a plainly-named audiobook
+    // or an A/V rip that beat the title regex. (sizeBytes 0 = unknown → don't guess.)
+    static const qint64 kMaxUncategorizedEbookBytes = 100LL * 1024 * 1024;
+    if (r.sizeBytes > kMaxUncategorizedEbookBytes) return false;
     return true;
 }
 

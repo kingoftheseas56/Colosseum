@@ -16,6 +16,15 @@ public:
     QString displayName() const override { return "PirateBay"; }
     void search(const QString& query, int limit = 30, const QString& categoryId = {}) override;
 
+    // Scope the query to apibay's own category so audiobooks never come back:
+    // 601 = E-books, 102 = Audio books. (ExtTorrents/Torrents-CSV keep the base
+    // no-scope default — their results are classified by the downstream post-filter.)
+    QString categoryFor(const QString& mediaType) const override {
+        if (mediaType == QStringLiteral("books"))      return QStringLiteral("601");
+        if (mediaType == QStringLiteral("audiobooks")) return QStringLiteral("102");
+        return {};
+    }
+
     IndexerHealth health() const override         { return m_health; }
     QDateTime     lastSuccess() const override    { return m_lastSuccess; }
     QString       lastError() const override      { return m_lastError; }

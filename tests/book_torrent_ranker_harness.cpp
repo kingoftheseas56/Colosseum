@@ -106,6 +106,26 @@ int main(){
     require(BookTorrentRanker::isReadableBook(mk("A Game of Thrones",8,"csv")),
             "uncategorized clean book title kept");
 
+    // 18) Uncategorized (torrents-csv) large file, clean title, no audio token ->
+    //     NOT readable. The size cap is the third net for a plainly-named audiobook
+    //     that beat both the category and title filters (no e-book is this large).
+    {
+        TorrentResult big; big.title="A Game of Thrones - Roy Dotrice"; big.seeders=10;
+        big.infoHash="big"; big.sizeBytes=350LL*1024*1024;   // 350 MB
+        require(!BookTorrentRanker::isReadableBook(big),
+                "large uncategorized file dropped by size cap");
+    }
+
+    // 19) A tracker-CONFIRMED e-book (PirateBay 601) is trusted at ANY size — a big
+    //     scanned/art/reference PDF the tracker filed under e-books must not be capped.
+    {
+        TorrentResult bigPdf; bigPdf.title="Grays Anatomy 41st Edition"; bigPdf.seeders=10;
+        bigPdf.infoHash="pdf"; bigPdf.sourceKey="piratebay"; bigPdf.categoryId="601";
+        bigPdf.category="Other"; bigPdf.sizeBytes=180LL*1024*1024;
+        require(BookTorrentRanker::isReadableBook(bigPdf),
+                "large tracker-confirmed e-book kept despite size");
+    }
+
     // ── ranking: among genuine matches, seeders decide (title-first vs author-first
     //    is the SAME book — it must not gate above the seeder count) ──
 
