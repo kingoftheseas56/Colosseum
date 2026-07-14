@@ -515,6 +515,7 @@ QVariantMap MangaTankobanService::volumeMap(const VolumeRecord& volume) const
         if (syn.accepted) {
             m[QStringLiteral("synopsis")] = syn.text;
             m[QStringLiteral("synopsisSource")] = syn.source;
+            m[QStringLiteral("synopsisSourceUrl")] = syn.sourceUrl;
             m[QStringLiteral("synopsisConfidence")] = syn.confidence;
         }
     }

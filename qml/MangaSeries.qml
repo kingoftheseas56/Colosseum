@@ -39,6 +39,15 @@ Item {
     property bool loading: true
     property string errorMsg: ""
 
+    // --- Tankoban mode (per-series; native TankobanVolumes context property) ---
+    // OFF (default) keeps the classic volume shelf + chapter table below untouched;
+    // ON hides those and shows the MangaTankobanLibrary volume-first surface.
+    property bool tankobanMode: false
+    property bool _tankobanPrepared: false
+    onSeriesIdChanged: page.tankobanMode =
+        (typeof TankobanVolumes !== "undefined" && page.seriesId.length > 0)
+        ? TankobanVolumes.modeEnabled(page.seriesId) : false
+
     // --- seamless reveal gate ---
     // The page fires WeebCentral (chapters), AniList (art) and MangaDex (volumes) in parallel,
     // each at a different speed. We must NEVER reveal the page until ALL three are in — otherwise
@@ -48,7 +57,28 @@ Item {
     property bool artReady: false
     property bool volumesReady: false
     function _maybeReveal() {
-        if (chaptersReady && artReady && volumesReady) { loading = false; revealGuard.stop() }
+        if (chaptersReady && artReady && volumesReady) {
+            loading = false; revealGuard.stop()
+            page._prepareTankoban()
+        }
+    }
+    // Hand the fully-resolved snapshot to the native volume service ONCE, lazily —
+    // only after all three sources are in, so volumes/chapters/art are final. The
+    // volume library reads its canonical volumes back from the service.
+    function _prepareTankoban() {
+        if (page._tankobanPrepared) return
+        if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
+        page._tankobanPrepared = true
+        TankobanVolumes.prepareSeries({
+            seriesId: page.seriesId, title: page.seriesTitle,
+            author: page.author, aliases: []
+        }, page.volumes, page.chaptersModel)
+    }
+    function _setTankobanMode(on) {
+        if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
+        TankobanVolumes.setModeEnabled(page.seriesId, on)
+        page.tankobanMode = on
+        if (on) page._prepareTankoban()
     }
 
     // --- volumes (MangaDex via MangaVolumes.js; ranges partial — covers-first) ---
@@ -89,6 +119,7 @@ Item {
         synopsis = ""; genres = []; score = 0; chaptersModel = []
         volumes = []; activeVol = ""
         chaptersReady = false; artReady = false; volumesReady = false
+        _tankobanPrepared = false
         if (seriesTitle.length) {
             revealGuard.restart()        // never hang on a dead source — reveal what we have after N s
             Manga.search(seriesTitle)    // → chapters + WeebCentral detail
@@ -300,6 +331,47 @@ Item {
                             MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onEntered: parent.opacity = 0.92; onExited: parent.opacity = 1.0 }
                         }
+
+                        // TANKOBAN MODE — the per-series switch. OFF = the classic chapter shelf
+                        // below; ON = the volume library. Gold marks the enabled state (and only it).
+                        Row {
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 12
+                            Text {
+                                text: "TANKOBAN MODE"
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                                font.letterSpacing: 2; font.capitalization: Font.AllUppercase
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: modeRow.implicitWidth + 8; height: 30; radius: 8
+                                color: theme.glassTint; border.width: 1; border.color: theme.edge
+                                Row {
+                                    id: modeRow; anchors.centerIn: parent; spacing: 0
+                                    Rectangle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: offTx.implicitWidth + 20; height: 26; radius: 6
+                                        color: page.tankobanMode ? "transparent" : theme.glassHi
+                                        Text { id: offTx; anchors.centerIn: parent; text: "Off"
+                                            color: page.tankobanMode ? theme.inkDimmer : theme.ink
+                                            font.family: theme.ui; font.pixelSize: 13 }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: page._setTankobanMode(false) }
+                                    }
+                                    Rectangle {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: onTx.implicitWidth + 20; height: 26; radius: 6
+                                        color: page.tankobanMode ? theme.gold : "transparent"
+                                        Text { id: onTx; anchors.centerIn: parent; text: "On"
+                                            color: page.tankobanMode ? "#1a1306" : theme.inkDim
+                                            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                            onClicked: page._setTankobanMode(true) }
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -318,7 +390,7 @@ Item {
             // ── VOLUMES — the signature shelf ──
             Item {
                 width: parent.width; height: volumesSec.height
-                visible: page.volumes.length > 0
+                visible: !page.tankobanMode && page.volumes.length > 0
                 Column {
                     id: volumesSec
                     width: parent.width
@@ -457,7 +529,7 @@ Item {
             Item {
                 width: parent.width
                 height: chTable.height + 24
-                visible: page.visibleChapters.length > 0
+                visible: !page.tankobanMode && page.visibleChapters.length > 0
 
                 Glass {
                     id: chTable
@@ -676,6 +748,15 @@ Item {
                         }
                     }
                 }
+            }
+
+            // ── TANKOBAN MODE — the volume library (replaces the shelf + chapter table when ON) ──
+            // service defaults to the native TankobanVolumes context property; opening a
+            // downloaded volume in the reader is a later layer (signal left unwired here).
+            MangaTankobanLibrary {
+                width: parent.width
+                visible: page.tankobanMode
+                seriesId: page.seriesId
             }
 
             // post-reveal error (inset)
