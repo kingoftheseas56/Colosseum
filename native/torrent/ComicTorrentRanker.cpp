@@ -142,27 +142,14 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
     const QString& isbn, const QString& collects,
     const QList<TorrentResult>& raw)
 {
-    // Dedup by canonical hash, keeping the highest-seeded representative.
-    QHash<QString, TorrentResult> bestByHash;
-    for (const TorrentResult& result : raw) {
-        const QString hash = canonicalizeInfoHash(result.infoHash);
-        if (hash.isEmpty()) continue;
-        TorrentResult canonical = result;
-        canonical.infoHash = hash;
-        auto it = bestByHash.find(hash);
-        if (it == bestByHash.end() || canonical.seeders > it.value().seeders)
-            bestByHash.insert(hash, canonical);
-    }
-
     const QString normEdition = normalized(editionTitle);
     const QStringList editionTokens = tokensOf(normEdition);
     const QStringList seriesTokens = tokensOf(normalized(seriesTitle));
     const QString isbnDigits = digitsOf(isbn);
     const QStringList collectedNums = collectedNumbers(collects);
 
-    QList<RankedComicTorrent> ranked;
-    ranked.reserve(bestByHash.size());
-    for (const TorrentResult& result : bestByHash) {
+    // Grade one listing's edition-identity evidence (title / ISBN / range / archive).
+    const auto scoreRow = [&](const TorrentResult& result) {
         RankedComicTorrent r;
         r.src = result;
         r.matchTier = matchTier(editionTitle, result.title);
@@ -211,9 +198,34 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
         r.identityScore = score;
         r.confidence = confidence;
         r.evidence = evidence;
-        ranked.append(r);
+        return r;
+    };
+
+    // Dedup by canonical hash: the STRONGEST-identity listing wins, so a generic
+    // high-seed title cannot bury an exact-title one that shares the same hash.
+    // Only volatile metadata (seed/leech counts) merges to its highest observed
+    // value — the matched evidence of the best listing is retained, not discarded.
+    QHash<QString, RankedComicTorrent> bestByHash;
+    for (const TorrentResult& result : raw) {
+        const QString hash = canonicalizeInfoHash(result.infoHash);
+        if (hash.isEmpty()) continue;
+        TorrentResult canonical = result;
+        canonical.infoHash = hash;
+        const RankedComicTorrent scored = scoreRow(canonical);
+        auto it = bestByHash.find(hash);
+        if (it == bestByHash.end()) {
+            bestByHash.insert(hash, scored);
+        } else {
+            RankedComicTorrent& kept = it.value();
+            const int maxSeeders = qMax(kept.src.seeders, scored.src.seeders);
+            const int maxLeechers = qMax(kept.src.leechers, scored.src.leechers);
+            if (scored.identityScore > kept.identityScore) kept = scored;
+            kept.src.seeders = maxSeeders;
+            kept.src.leechers = maxLeechers;
+        }
     }
 
+    QList<RankedComicTorrent> ranked = bestByHash.values();
     std::sort(ranked.begin(), ranked.end(), [](const RankedComicTorrent& a,
                                                const RankedComicTorrent& b) {
         if (a.identityScore != b.identityScore) return a.identityScore > b.identityScore;

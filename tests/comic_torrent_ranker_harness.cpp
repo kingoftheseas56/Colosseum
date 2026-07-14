@@ -89,6 +89,21 @@ int main()
     require(merged.size() == 1 && merged.first().src.seeders == 41,
             "duplicate canonical hash collapses and keeps the higher seed count");
 
+    // Same infohash listed two ways: a generic high-seed title and an exact-title
+    // low-seed one. Dedup must keep the STRONGER identity, not bury it under seeds.
+    const QList<RankedComicTorrent> dupEvidence = ComicTorrentRanker::rankForEdition(
+        "Saga", "Saga: Book One", "9781632150783", "Saga #1-18",
+        {
+            row("Comics Weekly Pack 2014", 900, hashB),   // generic title, high seed
+            row("Saga Book One 1-18 CBZ", 4, hashB)        // exact title/range, low seed
+        });
+    require(dupEvidence.size() == 1, "the shared hash collapses to one row");
+    require(dupEvidence.first().confidence == QStringLiteral("strong")
+                && dupEvidence.first().evidence.contains(QStringLiteral("TITLE")),
+            "the exact-title listing's evidence survives dedup, not the generic one");
+    require(dupEvidence.first().src.seeders == 900,
+            "the highest seed count is retained as volatile metadata");
+
     // Variant-row projection exposes the QML-facing contract fields.
     const QVariantList variants = ComicTorrentRanker::toVariantRows(picker);
     require(variants.size() == 3, "variant projection preserves every ranked row");
