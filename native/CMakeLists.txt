@@ -261,6 +261,13 @@ add_executable(book_torrent_magnet_harness
 target_include_directories(book_torrent_magnet_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(book_torrent_magnet_harness PRIVATE Qt6::Core)
 
+add_executable(manga_tankoban_logic_harness
+    ../tests/manga_tankoban_logic_harness.cpp
+    engine/MangaTankobanLogic.cpp
+)
+target_include_directories(manga_tankoban_logic_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(manga_tankoban_logic_harness PRIVATE Qt6::Core)
+
 add_executable(torrent_engine_link_harness
     ../tests/torrent_engine_link_harness.cpp
 )
