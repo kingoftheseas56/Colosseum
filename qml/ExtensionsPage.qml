@@ -345,17 +345,20 @@ Item {
                             anchors.fill: parent
                             anchors.margins: 30
                             spacing: 30
-                            Rectangle {
+                            Item {
                                 width: 96; height: 96
                                 anchors.verticalCenter: parent.verticalCenter
-                                radius: 22
-                                border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
-                                gradient: Gradient {
-                                    GradientStop { position: 0.0; color: "#2d2a1c" }
-                                    GradientStop { position: 1.0; color: "#181405" }
+                                AddonLogo {
+                                    anchors.centerIn: parent
+                                    addonId: Catalog.featured().id
+                                    addonName: Catalog.featured().name
+                                    size: 96; radius: 22
+                                    tone1: "#2d2a1c"; tone2: "#181405"
                                 }
-                                Text { anchors.centerIn: parent; text: "T"
-                                       color: theme.gold; font.family: theme.display; font.pixelSize: 44 }
+                                Rectangle {   // gold ring — the featured accent
+                                    anchors.fill: parent; color: "transparent"; radius: 22
+                                    border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
+                                }
                             }
                             Column {
                                 width: parent.width - 96 - 180 - 60
@@ -386,7 +389,7 @@ Item {
                                 spacing: 5
                                 Text {
                                     anchors.right: parent.right
-                                    text: "Installed ✓"
+                                    text: "Installed"
                                     color: theme.gold
                                     font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                 }
@@ -458,16 +461,12 @@ Item {
                                                 anchors.fill: parent
                                                 anchors.margins: 18
                                                 spacing: 0
-                                                Rectangle {
-                                                    width: 42; height: 42; radius: 11
-                                                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
-                                                    gradient: Gradient {
-                                                        GradientStop { position: 0.0; color: card.modelData.tone1 }
-                                                        GradientStop { position: 1.0; color: card.modelData.tone2 }
-                                                    }
-                                                    Text { anchors.centerIn: parent
-                                                           text: card.modelData.name.charAt(0)
-                                                           color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
+                                                AddonLogo {
+                                                    addonId: card.modelData.id
+                                                    addonName: card.modelData.name
+                                                    size: 42; radius: 11
+                                                    tone1: card.modelData.tone1
+                                                    tone2: card.modelData.tone2
                                                 }
                                                 Item { width: 1; height: 12 }
                                                 Text { text: card.modelData.name; color: theme.ink
@@ -487,8 +486,8 @@ Item {
                                                        font.family: theme.ui; font.pixelSize: 12 }
                                                 Item { width: 1; height: 11 }
                                                 Text {
-                                                    text: card.modelData.core ? "Built in — always on"
-                                                        : root.carried(card.modelData) ? "Installed ✓"
+                                                    text: card.modelData.core ? "Built-in"
+                                                        : root.carried(card.modelData) ? "Installed"
                                                         : root.pendingUrls[card.modelData.url] ? "Installing…"
                                                         : "Install"
                                                     color: card.modelData.core || root.carried(card.modelData)
@@ -632,17 +631,14 @@ Item {
                                             font.family: theme.display; font.pixelSize: 16
                                             horizontalAlignment: Text.AlignRight
                                         }
-                                        Rectangle {
-                                            width: 40; height: 40; radius: 10
+                                        AddonLogo {
                                             anchors.verticalCenter: parent.verticalCenter
-                                            border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
-                                            gradient: Gradient {
-                                                GradientStop { position: 0.0; color: crow.modelData.tone1 }
-                                                GradientStop { position: 1.0; color: crow.modelData.tone2 }
-                                            }
-                                            Text { anchors.centerIn: parent
-                                                   text: crow.modelData.name.charAt(0)
-                                                   color: theme.ink; font.family: theme.display; font.pixelSize: 17 }
+                                            addonId: crow.modelData.id
+                                            addonName: crow.modelData.name
+                                            manifestLogo: crow.modelData.logo || ""
+                                            size: 40; radius: 10
+                                            tone1: crow.modelData.tone1
+                                            tone2: crow.modelData.tone2
                                         }
                                         Column {
                                             width: parent.width - 24 - 40 - 120 - 110 - 18 * 4
@@ -673,7 +669,7 @@ Item {
                                             width: 110
                                             anchors.verticalCenter: parent.verticalCenter
                                             horizontalAlignment: Text.AlignRight
-                                            text: root.carried(crow.modelData) ? "Installed ✓"
+                                            text: root.carried(crow.modelData) ? "Installed"
                                                 : root.pendingUrls[crow.modelData.url] ? "Installing…"
                                                 : "Install"
                                             color: root.carried(crow.modelData) || root.pendingUrls[crow.modelData.url]
@@ -782,15 +778,13 @@ Item {
 
     ScrollGlide { flick: page }
 
-    Rectangle {
-                                            width: 44; height: 44; radius: 11
+    AddonLogo {
                                             anchors.verticalCenter: parent.verticalCenter
                                             opacity: irow.isOn ? 1 : 0.45
-                                            border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
-                                            color: "#1a2028"
-                                            Text { anchors.centerIn: parent
-                                                   text: (irow.manifest.name || "?").charAt(0)
-                                                   color: theme.ink; font.family: theme.display; font.pixelSize: 19 }
+                                            addonId: irow.manifest.id || irow.modelData.id
+                                            addonName: irow.manifest.name || irow.modelData.id
+                                            manifestLogo: irow.manifest.logo || ""
+                                            size: 44; radius: 11
                                         }
 
                                         Column {
@@ -1109,14 +1103,12 @@ Item {
                         anchors.fill: parent
                         anchors.margins: 15
                         spacing: 15
-                        Rectangle {
-                            width: 44; height: 44; radius: 11
+                        AddonLogo {
                             anchors.verticalCenter: parent.verticalCenter
-                            color: "#1a2430"
-                            border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
-                            Text { anchors.centerIn: parent
-                                   text: sheet.previewManifest ? (sheet.previewManifest.name || "?").charAt(0) : ""
-                                   color: theme.ink; font.family: theme.display; font.pixelSize: 19 }
+                            addonId: sheet.previewManifest ? (sheet.previewManifest.id || "") : ""
+                            addonName: sheet.previewManifest ? (sheet.previewManifest.name || "") : ""
+                            manifestLogo: sheet.previewManifest ? (sheet.previewManifest.logo || "") : ""
+                            size: 44; radius: 11
                         }
                         Column {
                             anchors.verticalCenter: parent.verticalCenter

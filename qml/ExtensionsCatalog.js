@@ -225,12 +225,15 @@ function _rowFrom(entry, i) {
     var name = m.name || entry.name || "";
     if (!name || !url) return null;
     var t = _tones[i % _tones.length];
+    var logo = (m && m.logo) || entry.logo || entry.icon || "";
+    if (typeof logo !== "string" || logo.indexOf("data:") === 0) logo = "";
     return {
         id: m.id || entry.id || url,
         name: name,
         desc: (m.description || entry.description || "").split("\n")[0].slice(0, 140),
         kind: _kindLine(m, entry.categories),
         url: url,
+        logo: logo,
         stars: entry.stars || entry.votes || 0,
         tone1: t[0], tone2: t[1]
     };
