@@ -136,11 +136,17 @@ Item {
         })
     }
 
-    // Volume 1 ("volA1") is READY (3 local pages); volume 2 ("volA2") is NOT — so a
-    // cross off the end of volume 1 must ask for volA2's source, never navigate to it.
+    // Volumes 1 and 3 are READY (3 local pages each); volume 2 is NOT — so crossing
+    // toward volA2 from EITHER side (forward off volA1, backward off volA3) must ask
+    // for volA2's source rather than navigate onto an unreadable volume.
     FakePageStore {
         id: pageStore
         readyPages: ({
+            "volA3": [
+                { "index": 0, "url": "file:///fake/A/v3/p0.png", "group": 0 },
+                { "index": 1, "url": "file:///fake/A/v3/p1.png", "group": 0 },
+                { "index": 2, "url": "file:///fake/A/v3/p2.png", "group": 0 }
+            ],
             "volA1": [
                 { "index": 0, "url": "file:///fake/A/v1/p0.png", "group": 0 },
                 { "index": 1, "url": "file:///fake/A/v1/p1.png", "group": 0 },
@@ -153,6 +159,7 @@ Item {
     property var libB: null
     property var readerT: null            // tankoban (volume) reader
     property var readerC: null            // chapter (manga) reader
+    property var readerComp: null         // the MangaReader component (reused for the backward-cross reader)
     property string lastSourceReq: ""     // last reader.sourceRequested(entryId)
 
     // the reader's DESCENDING volume model (highest volume first) — the series page
@@ -182,6 +189,7 @@ Item {
         // Task 10: the SAME reader, opened on a READY volume through the injected store.
         var rc = Qt.createComponent("../qml/MangaReader.qml")
         if (rc.status === Component.Error) throw new Error("reader component: " + rc.errorString())
+        harness.readerComp = rc            // reused later for the backward-cross reader
         harness.readerT = rc.createObject(harness, {
             "width": 640, "height": 480, "seriesId": "A", "seriesTitle": "One Piece",
             "pageStore": pageStore, "entryKind": "tankoban", "entryLabelPrefix": "Vol. ",
@@ -286,6 +294,23 @@ Item {
             rT.startDownload()
             ck(harness.lastSourceReq === "volA1", "tankoban startDownload must emit sourceRequested(curChapterId)")
             ck(pageStore.chapterDownloadCalled === false, "tankoban startDownload must NOT hit the chapter download API")
+
+            // 13. crossing is SYMMETRIC: paging BACKWARD off a READY volume (volA3) into a
+            //     NOT-ready LOWER volume (volA2) also routes to the source chooser and leaves
+            //     curChapterId put — the mirror of check 11. (Built here, after the localPages
+            //     assertion above, so it can't disturb it.)
+            var rB = harness.readerComp.createObject(harness, {
+                "width": 640, "height": 480, "seriesId": "A", "seriesTitle": "One Piece",
+                "pageStore": pageStore, "entryKind": "tankoban", "entryLabelPrefix": "Vol. ",
+                "chapters": harness.volEntriesDesc, "chapterId": "volA3", "chapterLabel": "Vol. 3"
+            })
+            ck(rB, "backward-cross reader createObject returned null")
+            rB.sourceRequested.connect(function (id) { harness.lastSourceReq = String(id) })
+            ck(rB.curChapterId === "volA3" && rB.curIndex === 0, "backward reader opens on the highest volume")
+            harness.lastSourceReq = ""
+            rB.goPrevChapter(true)
+            ck(harness.lastSourceReq === "volA2", "a not-ready LOWER volume must raise sourceRequested(volA2), got '" + harness.lastSourceReq + "'")
+            ck(rB.curChapterId === "volA3", "curChapterId must stay put when the lower volume isn't ready")
 
             console.log("MANGA_TANKOBAN_PAGE_OK")
             Qt.exit(0)

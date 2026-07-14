@@ -270,8 +270,12 @@ Item {
         page = 1; pendingAtLast = false
         var st = (curChapterId.length && store)
                  ? store.statusOf(curChapterId) : { state: "none", done: 0, total: 0 }
+        // in-flight states span all stores: chapter/comic (downloading·queued·resolving·
+        // extracting) AND tankoban volumes (ingesting·packing) — so an acquiring volume
+        // shows a progress line, never a bare "Starting…".
         downloading = (st.state === "downloading" || st.state === "queued"
-                       || st.state === "resolving" || st.state === "extracting")
+                       || st.state === "resolving" || st.state === "extracting"
+                       || st.state === "ingesting" || st.state === "packing")
         dlDone = st.done; dlTotal = st.total
     }
 
@@ -422,8 +426,14 @@ Item {
         var lp = store.localPages(id)
         return !!(lp && lp.length > 0)
     }
+    // symmetric with goNextChapter: the previous entry is curIndex+1 (older chapter,
+    // or the next LOWER volume). In tankoban mode a not-ready lower volume routes to
+    // the source chooser instead of landing on the generic download panel.
     function goPrevChapter(atLast) {
-        if (hasOlder) openChapterById(chapters[curIndex + 1].id, atLast)
+        if (!hasOlder) return
+        var prevId = String(chapters[curIndex + 1].id)
+        if (entryKind === "tankoban" && !entryReady(prevId)) { sourceRequested(prevId); return }
+        openChapterById(prevId, atLast)
     }
 
     // --- paged turning (direction-aware; crosses chapter at the ends) ---
@@ -1053,15 +1063,24 @@ Item {
             text: reader.errorMsg; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }
         Text { width: parent.width; horizontalAlignment: Text.AlignHCenter
             visible: !reader.downloading && reader.errorMsg.length === 0
-            text: "Not downloaded yet — download this chapter to read it offline."
+            // a tankoban volume isn't page-downloaded — its not-ready action opens the
+            // source chooser, so the copy asks for a SOURCE, not a chapter download.
+            text: reader.entryKind === "tankoban"
+                  ? "Not downloaded yet — choose a source for this volume."
+                  : "Not downloaded yet — download this chapter to read it offline."
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }
         Text { width: parent.width; horizontalAlignment: Text.AlignHCenter
             visible: reader.downloading
-            text: reader.dlTotal > 0
-                  ? (reader.western
-                     ? ("Downloading… " + Math.round(reader.dlDone / 1048576) + " / " + Math.round(reader.dlTotal / 1048576) + " MB")
-                     : ("Downloading… " + reader.dlDone + " / " + reader.dlTotal + " pages"))
-                  : "Starting download…"
+            // tankoban progress is torrent bytes, not pages — show a unit-agnostic percent.
+            text: reader.entryKind === "tankoban"
+                  ? (reader.dlTotal > 0
+                     ? ("Acquiring volume… " + Math.round(reader.dlDone / reader.dlTotal * 100) + "%")
+                     : "Finding a source…")
+                  : (reader.dlTotal > 0
+                     ? (reader.western
+                        ? ("Downloading… " + Math.round(reader.dlDone / 1048576) + " / " + Math.round(reader.dlTotal / 1048576) + " MB")
+                        : ("Downloading… " + reader.dlDone + " / " + reader.dlTotal + " pages"))
+                     : "Starting download…")
             color: theme.gold; font.family: theme.ui; font.pixelSize: 14 }
         Rectangle {
             visible: reader.downloading && reader.dlTotal > 0
@@ -1077,7 +1096,9 @@ Item {
             radius: 10; height: 40; width: dlt.implicitWidth + 40
             color: dlMa.containsMouse ? Qt.lighter(theme.gold, 1.1) : theme.gold
             Text { id: dlt; anchors.centerIn: parent
-                text: reader.errorMsg.length ? "Retry download" : "⬇  Download chapter"
+                text: reader.entryKind === "tankoban"
+                      ? "Choose source"
+                      : (reader.errorMsg.length ? "Retry download" : "⬇  Download chapter")
                 color: "#1a1306"; font.family: theme.ui; font.weight: Font.DemiBold; font.pixelSize: 14 }
             MouseArea { id: dlMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: reader.startDownload() }
