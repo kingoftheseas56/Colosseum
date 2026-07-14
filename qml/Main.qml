@@ -211,6 +211,7 @@ Window {
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (comicSeriesLayer.active) win.closeComicSeries()
+        else if (comicCatalogLayer.active) win.closeComicCatalog()
         else if (westernLayer.active) win.closeWestern()
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
@@ -427,6 +428,16 @@ Window {
         } else comicSeriesLayer.active = true
     }
     function closeComicSeries() { comicSeriesLayer.active = false }
+
+    // ---- complete ranked comics catalog: opened from Top Comics Explore and kept alive
+    //      underneath ComicSeriesPage so Back returns to the same wall state. ----
+    function openComicCatalog(rows) {
+        comicCatalogLayer.rows = rows || []
+        if (comicCatalogLayer.active && comicCatalogLayer.item)
+            comicCatalogLayer.item.rows = comicCatalogLayer.rows
+        else comicCatalogLayer.active = true
+    }
+    function closeComicCatalog() { comicCatalogLayer.active = false }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -1304,6 +1315,8 @@ Window {
                     if (westernExploreSignal) westernExploreSignal.connect(win.openComicArchive)
                     var comicSeriesSignal = item["comicSeriesRequested"]
                     if (comicSeriesSignal) comicSeriesSignal.connect(win.openComicSeries)
+                    var comicCatalogSignal = item["comicCatalogRequested"]
+                    if (comicCatalogSignal) comicCatalogSignal.connect(win.openComicCatalog)
                     var locgPubSignal = item["locgPublisherRequested"]
                     if (locgPubSignal) locgPubSignal.connect(win.openLocgPublisher)
                     var comicBoardSignal = item["comicArchiveBoardRequested"]
@@ -1579,6 +1592,27 @@ Window {
             item.readerCloseRequested.connect(win.closeComicReader)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
+        }
+    }
+
+    // ---- complete Top Comics catalog wall. z 49 keeps it above TankobanWorld but below
+    //      ComicSeriesPage (z 50), preserving filters and scroll while a series is open. ----
+    Loader {
+        id: comicCatalogLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        property var rows: []
+        source: "ComicCatalogPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.rows = comicCatalogLayer.rows
+            item.backRequested.connect(win.closeComicCatalog)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.searchClicked.connect(win.openSearch)
+            item.seriesRequested.connect(win.openComicSeries)
         }
     }
 

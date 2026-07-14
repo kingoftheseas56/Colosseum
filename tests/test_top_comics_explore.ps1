@@ -16,6 +16,7 @@ function Assert-NotContains([string]$text, [string]$needle, [string]$message) {
 
 $top = Read-RepoFile "qml/TrendingTop10.qml"
 $world = Read-RepoFile "qml/TankobanWorld.qml"
+$main = Read-RepoFile "qml/Main.qml"
 
 Assert-Contains $top 'signal exploreClicked()' `
     "TrendingTop10 must expose the existing Explore label as an event."
@@ -29,6 +30,30 @@ Assert-Contains $world 'var topComics = tanko.comicRows.slice(0, 10)' `
     "Top Comics clicks must resolve against the same ten-row slice."
 Assert-Contains $world 'tanko.comicCatalogRequested(tanko.comicRows)' `
     "Top Comics Explore must receive the unsliced full catalog."
+Assert-Contains $main 'function openComicCatalog(rows)' `
+    "Main must expose a lazy catalog opener."
+Assert-Contains $main 'function closeComicCatalog()' `
+    "Main must expose a catalog closer."
+Assert-Contains $main 'var comicCatalogSignal = item["comicCatalogRequested"]' `
+    "Main must discover the additive Tankoban catalog signal safely."
+Assert-Contains $main 'comicCatalogSignal.connect(win.openComicCatalog)' `
+    "Tankoban Explore must route to the catalog Loader."
+Assert-Contains $main 'id: comicCatalogLayer' "Main must own the catalog layer."
+Assert-Contains $main 'source: "ComicCatalogPage.qml"' "The catalog layer must remain lazy."
+Assert-Contains $main 'item.seriesRequested.connect(win.openComicSeries)' `
+    "Catalog cards must reuse the existing series route."
+if ($main.IndexOf('else if (comicSeriesLayer.active) win.closeComicSeries()') -ge `
+        $main.IndexOf('else if (comicCatalogLayer.active) win.closeComicCatalog()')) {
+    throw "Escape must close a comic series before the catalog beneath it."
+}
+if ($main.IndexOf('else if (comicCatalogLayer.active) win.closeComicCatalog()') -ge `
+        $main.IndexOf('else if (worldStack.current !== "") win.closeWorld()')) {
+    throw "Escape must close the catalog before leaving Tankoban."
+}
+if ($main.Contains('import "comics_db.gen.js" as ComicsDbData') `
+        -or $main.Contains('ComicsDb.setData(ComicsDbData.data)')) {
+    throw "Root Main.qml must remain free of generated catalog ingest."
+}
 
 $pagePath = Join-Path $root "qml/ComicCatalogPage.qml"
 if (!(Test-Path -LiteralPath $pagePath)) {
