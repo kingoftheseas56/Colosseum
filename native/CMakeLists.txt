@@ -211,6 +211,14 @@ add_executable(comic_torrent_ranker_harness
 target_include_directories(comic_torrent_ranker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_torrent_ranker_harness PRIVATE Qt6::Core)
 
+add_executable(comic_torrent_query_planner_harness
+    ../tests/comic_torrent_query_planner_harness.cpp
+    torrent/ComicTorrentQueryPlanner.cpp
+    torrent/ComicTorrentQueryPlanner.h
+)
+target_include_directories(comic_torrent_query_planner_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_torrent_query_planner_harness PRIVATE Qt6::Core)
+
 add_executable(comic_torrent_magnet_harness
     ../tests/comic_torrent_magnet_harness.cpp
     torrent/ComicTorrentMagnet.h
