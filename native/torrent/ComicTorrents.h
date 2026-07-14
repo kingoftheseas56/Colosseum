@@ -69,6 +69,7 @@ signals:
 
 private slots:
     void onIndexerResults(const QString& handle, const QList<TorrentResult>& results);
+    void onIndexerError(const QString& handle, const QString& indexerId, const QString& error);
     void onSearchFinished(const QString& handle);
     void onDownloadFinished(const QString& issueId, const QString& path);
     void onDownloadFailed(const QString& issueId, const QString& reason);

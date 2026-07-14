@@ -5,6 +5,8 @@
 #include "ComicTorrentRanker.h"
 #include "TankorentSearchService.h"
 
+#include <QDebug>
+
 ComicTorrents::ComicTorrents(QNetworkAccessManager* searchNam, TorrentEngine* engine,
                              QObject* parent)
     : QObject(parent),
@@ -27,6 +29,8 @@ void ComicTorrents::wireSignals()
 {
     connect(m_search, &TankorentSearchService::resultsReady,
             this, &ComicTorrents::onIndexerResults);
+    connect(m_search, &TankorentSearchService::indexerError,
+            this, &ComicTorrents::onIndexerError);
     connect(m_search, &TankorentSearchService::searchFinished,
             this, &ComicTorrents::onSearchFinished);
     connect(m_downloader, &ComicTorrentDownloader::progress,
@@ -96,6 +100,17 @@ void ComicTorrents::onIndexerResults(const QString& handle,
     }
     if (m_sourceIssueByHandle.contains(handle))
         handleSourceResults(handle, results);
+}
+
+void ComicTorrents::onIndexerError(const QString& handle, const QString& indexerId,
+                                   const QString& error)
+{
+    // Source-honest: a browse session survives partial indexer failure (the
+    // successful indexers' results still reach the picker), but the failing
+    // source is no longer silently dropped — it is logged, not hidden.
+    if (m_sourceIssueByHandle.contains(handle))
+        qInfo().noquote() << "[comic-sources] indexer failed:" << indexerId << "-" << error
+                          << "(issue" << m_sourceIssueByHandle.value(handle) << ")";
 }
 
 void ComicTorrents::onSearchFinished(const QString& handle)
