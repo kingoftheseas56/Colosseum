@@ -3340,3 +3340,62 @@ select.booksReaderTtsHlStyle {
   border: 1px solid var(--border, #333); border-radius: 4px; padding: 6px;
   resize: vertical; min-height: 48px;
 }
+
+/* ── Read-along "Audio" tab — book↔audiobook chapter pairing ───────────────── */
+.ab-pair-head {
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--lib-border, rgba(255,255,255,0.07));
+  display: flex; flex-direction: column; gap: 8px;
+}
+.ab-pair-select {
+  width: 100%;
+  background: #1a1c22;
+  border: 1px solid var(--lib-border, rgba(255,255,255,0.08));
+  border-radius: 6px;
+  padding: 7px 10px;
+  color: var(--text, #e4e8ef);
+  font-size: 12px;
+  outline: none;
+}
+.ab-pair-select:focus { border-color: rgba(var(--br-reader-accent-rgb, 74,144,217), 0.55); }
+.ab-pair-actions { display: flex; gap: 6px; }
+.ab-pair-btn {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--lib-border, rgba(255,255,255,0.12));
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: var(--text, #e4e8ef);
+  font-size: 11.5px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ab-pair-btn:hover { background: rgba(255,255,255,0.06); }
+.ab-pair-btn-primary {
+  border-color: rgba(var(--br-reader-accent-rgb, 74,144,217), 0.6);
+  color: var(--br-reader-accent, #4a90d9);
+}
+.ab-pair-btn-primary:hover { background: rgba(var(--br-reader-accent-rgb, 74,144,217), 0.12); }
+.ab-pair-status { font-size: 11px; color: var(--muted, #8b8fa3); }
+.ab-pair-list { padding: 6px 8px; }
+.ab-pair-empty { padding: 14px 10px; font-size: 12px; color: var(--muted, #8b8fa3); text-align: center; }
+.ab-pair-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 2px;
+}
+.ab-pair-book-ch {
+  flex: 1; min-width: 0;
+  font-size: 12px; color: var(--text, #e4e8ef);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.ab-pair-arrow { color: var(--muted, #8b8fa3); font-size: 12px; flex: none; }
+.ab-pair-ch-select {
+  flex: none; max-width: 46%;
+  background: #1a1c22;
+  border: 1px solid var(--lib-border, rgba(255,255,255,0.08));
+  border-radius: 5px;
+  padding: 4px 6px;
+  color: var(--text, #e4e8ef);
+  font-size: 11px;
+  outline: none;
+}

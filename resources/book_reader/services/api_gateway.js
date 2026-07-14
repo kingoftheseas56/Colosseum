@@ -152,6 +152,17 @@
       warmup: tw(function() { var a = arguments; return ea.booksTtsEdge && ea.booksTtsEdge.warmup ? ea.booksTtsEdge.warmup.apply(ea.booksTtsEdge, a) : Promise.resolve({ ok: false, error: 'tts_warmup_unavailable' }); }, { ok: false, error: 'tts_warmup_unavailable' }, 'booksTtsEdge.warmup'),
       resetInstance: tw(function() { var a = arguments; return ea.booksTtsEdge && ea.booksTtsEdge.resetInstance ? ea.booksTtsEdge.resetInstance.apply(ea.booksTtsEdge, a) : Promise.resolve({ ok: true }); }, { ok: true }, 'booksTtsEdge.resetInstance'),
     },
+
+    // Read-along audiobook pairing (the reader's Audio tab), wired to Qt-side
+    // AudiobookDownloader + AudioPairingStore via the QWebChannel BookBridge.
+    audiobook: {
+      library: tw(function() { return ea.audiobook && ea.audiobook.library ? ea.audiobook.library() : Promise.resolve([]); }, [], 'audiobook.library'),
+      pairingGet: tw(function() { var a = arguments; return ea.audiobook && ea.audiobook.pairingGet ? ea.audiobook.pairingGet.apply(ea.audiobook, a) : Promise.resolve(null); }, null, 'audiobook.pairingGet'),
+      pairingSave: tw(function() { var a = arguments; return ea.audiobook && ea.audiobook.pairingSave ? ea.audiobook.pairingSave.apply(ea.audiobook, a) : Promise.resolve(); }, undefined, 'audiobook.pairingSave'),
+      pairingDelete: tw(function() { var a = arguments; return ea.audiobook && ea.audiobook.pairingDelete ? ea.audiobook.pairingDelete.apply(ea.audiobook, a) : Promise.resolve(); }, undefined, 'audiobook.pairingDelete'),
+      loadAtChapter: safe(function() { var a = arguments; return ea.audiobook && ea.audiobook.loadAtChapter ? ea.audiobook.loadAtChapter.apply(ea.audiobook, a) : undefined; }, undefined),
+      close: safe(function() { return ea.audiobook && ea.audiobook.close ? ea.audiobook.close() : undefined; }, undefined),
+    },
   };
 
   window.Tanko.apiReady = true;

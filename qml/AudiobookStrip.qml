@@ -47,9 +47,38 @@ Item {
         strip.summoned = true
     }
 
+    // Read-along summon: like openFor, but the fresh open lands PAUSED at the exact last
+    // spot (the reader auto-summons this when you open a paired book — you press play to
+    // start reading along). Idempotent: if the session already streams this pairKey the
+    // stream is untouched (openFor no-ops), and we just (re)bind the strip so it shows.
+    function summonPaused(pk) {
+        if (!strip.session || !pk) { toast.show("No audiobook downloaded"); return }
+        if (typeof Audiobooks !== 'undefined' && !Audiobooks.isDownloaded(pk)) {
+            toast.show("No audiobook downloaded")
+            return
+        }
+        strip.session.openFor(pk, ({}), true)   // paused at last spot; no-op if already live
+        if (!strip.session.ready) { toast.show("No audiobook downloaded"); return }
+        strip.boundPairKey = pk
+        strip.summoned = true
+    }
+
     // Drop the strip WITHOUT stopping the session — the stream may play on elsewhere
     // (that's the whole remote contract; stopping is the full player's job).
     function hide() { strip.summoned = false }
+
+    // Leaving the reader ends the read-along companion. When this strip is torn down
+    // (the reader was exited) while it was still actively summoned for THIS book, stop
+    // the stream — otherwise the audiobook plays on with no visible player (Hemanth
+    // 2026-07-15). This refines the 2026-07-13 remote contract for the read-along entry
+    // point: an explicit hide() sets summoned=false first, so "keep playing behind the
+    // reader" still survives; only a live companion you walk out of is stopped. The
+    // activePairKey guard means we never stop a stream another book has taken over.
+    Component.onDestruction: {
+        if (strip.summoned && strip.session && strip.session.ready
+            && strip.session.activePairKey === strip.boundPairKey)
+            strip.session.stop()
+    }
 
     // TTS mutual exclusion (one engine per ear): the HTML TTS strip is opening, so
     // pause OUR stream and get out of its way (both strips dock to the same bottom

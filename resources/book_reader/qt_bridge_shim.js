@@ -42,6 +42,17 @@
           delete: function (id) { return b.booksDisplayNamesDelete(id); },
           clear: function () { return Promise.resolve(); }
         },
+        // Read-along: the reader's Audio tab. library() lists downloaded audiobooks
+        // with their chapters; pairing* persist the book↔audiobook link; loadAtChapter
+        // / close command the docked QML AudiobookSession (chapterIndex < 0 = resume).
+        audiobook: {
+          library: function () { return b.audiobookLibrary(); },
+          pairingGet: function (id) { return b.audiobookPairingGet(id); },
+          pairingSave: function (id, p) { return b.audiobookPairingSave(id, p); },
+          pairingDelete: function (id) { return b.audiobookPairingDelete(id); },
+          loadAtChapter: function (pk, idx) { try { b.audiobookLoadAtChapter(String(pk || ''), (idx == null ? -1 : (idx | 0))); } catch (e) {} return Promise.resolve({ ok: true }); },
+          close: function () { try { b.audiobookClose(); } catch (e) {} return Promise.resolve({ ok: true }); }
+        },
         window: {
           isFullscreen: function () { return Promise.resolve(b.windowIsFullscreen()); },
           toggleFullscreen: function () { return b.windowToggleFullscreen(); },

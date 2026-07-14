@@ -65,7 +65,11 @@ Item {
     // ── open / load — THE HEART ──
     // Same pairKey + ready → NO-OP (the stream keeps playing exactly where it is).
     // Different pairKey → save the outgoing book's spot, load fresh, resume from Continue.
-    function openFor(pk, b) {
+    // startPaused (optional): true → load at the resumed spot but DON'T play. The reader's
+    // read-along summon uses this — opening a paired book restores the exact last listening
+    // spot, paused, waiting for you to press play (Hemanth 2026-07-15). Default false keeps
+    // the full player + fresh opens playing, as before.
+    function openFor(pk, b, startPaused) {
         if (!pk) return
         if (session.ready && session.activePairKey === pk) return
         if (session.ready) session.recordProgress()          // leaving the old book: save its spot first
@@ -89,7 +93,7 @@ Item {
         session.currentIndex = idx
         session.pendingResumeSec = (pos > 0) ? pos : -1   // applied in onFileLoaded — a pre-load seek no-ops
         mpv.loadFile(session.files[idx])
-        mpv.pause = false                     // a fresh open plays (parity with the old fresh-mpv surface)
+        mpv.pause = (startPaused === true)    // summon-on-open loads paused at last spot; else plays
     }
     function playIndex(i) {
         if (i < 0 || i >= session.files.length) return
@@ -110,6 +114,26 @@ Item {
             if (ch.index !== session.currentIndex) session.playIndex(ch.index)
         } else {
             session.seekTo(Number(ch.time) || 0)
+        }
+    }
+    // Read-along follow: same as goToChapter, but PRESERVE the current play/pause state so
+    // turning a page repositions the companion audiobook without force-playing a paused
+    // stream (or pausing a playing one). Used by the reader's page-turn sync.
+    function playIndexKeepState(i) {
+        if (i < 0 || i >= session.files.length) return
+        var wasPaused = mpv.pause
+        session.pendingResumeSec = -1
+        session.currentIndex = i
+        mpv.loadFile(session.files[i])
+        mpv.pause = wasPaused
+    }
+    function goToChapterKeepState(index) {
+        if (!session.ready || index < 0 || index >= session.chapterModel.length) return
+        var ch = session.chapterModel[index]
+        if (ch.kind === "file") {
+            if (ch.index !== session.currentIndex) session.playIndexKeepState(ch.index)
+        } else {
+            session.seekTo(Number(ch.time) || 0)   // a seek already preserves play state
         }
     }
     function setRate(r) { mpv.speed = r }

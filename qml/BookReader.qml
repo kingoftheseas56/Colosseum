@@ -81,11 +81,18 @@ Item {
         function onWindowCloseRequested() { reader.closed() }
         function onWindowMinimizeRequested() { reader.minimizeRequested() }
         function onFullscreenRequested(on) { /* Colosseum is always fullscreen */ }
-        // Read-along: the reader's Audio tab asks the docked session to load a paired
-        // audiobook (optionally jumping to the mapped chapter), or to drop it on unlink.
+        // Read-along: the reader asks the docked session either to SUMMON a paired
+        // audiobook (a fresh pairKey → open at the exact last spot, PAUSED, per Hemanth
+        // 2026-07-15) or to FOLLOW along (same pairKey already open → reposition to the
+        // mapped chapter, preserving whatever play/pause state you're in). chapterIndex
+        // < 0 means "just restore the last spot" (no chapter jump).
         function onAudiobookLoadRequested(pairKey, chapterIndex) {
-            audioSession.openFor(pairKey, {})
-            if (chapterIndex >= 0) audioSession.goToChapter(chapterIndex)
+            // Summon THROUGH the strip so it binds + shows (a bare session.openFor would
+            // leave the strip hidden). summonPaused is idempotent: a fresh pairKey opens
+            // paused at the last spot; an already-live one is left untouched and just
+            // (re)bound. Then, if a chapter is given, follow to it preserving play state.
+            listenStrip.summonPaused(pairKey)
+            if (chapterIndex >= 0) audioSession.goToChapterKeepState(chapterIndex)
         }
         function onAudiobookCloseRequested() { audioSession.stop() }
         // Feed the unified Continue/resume row (download-fed reading, like manga).
