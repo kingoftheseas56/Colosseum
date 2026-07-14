@@ -155,6 +155,33 @@ SeriesSnapshot prepareSeries(const QVariantMap& descriptor,
         }
     }
 
+    // Phase 3: mark each volume's chapter map complete. A volume with a valid
+    // numeric range is complete ONLY when every in-range chapter that exists is
+    // mapped to it (so a volume holding 1 of its 10 chapters is not buildable). A
+    // volume without a valid range trusts explicit assignment: complete iff it got
+    // any chapter at all. The mapping above is untouched — this only classifies.
+    for (VolumeRecord& rec : snap.volumes) {
+        bool okStart = false, okEnd = false;
+        const double start = rec.chapterStart.trimmed().toDouble(&okStart);
+        const double end = rec.chapterEnd.trimmed().toDouble(&okEnd);
+        if (okStart && okEnd && start <= end) {
+            const QSet<QString> ids(rec.chapterIds.constBegin(), rec.chapterIds.constEnd());
+            int expected = 0, mapped = 0;
+            for (const QVariant& cRaw : chapterRows) {
+                const QVariantMap row = cRaw.toMap();
+                double num = 0.0;
+                if (!chapterNumberOf(row, num) || num < start || num > end)
+                    continue;
+                ++expected;
+                if (ids.contains(row.value(QStringLiteral("id")).toString()))
+                    ++mapped;
+            }
+            rec.chapterMapComplete = (expected > 0 && mapped == expected);
+        } else {
+            rec.chapterMapComplete = !rec.chapterIds.isEmpty();
+        }
+    }
+
     return snap;
 }
 

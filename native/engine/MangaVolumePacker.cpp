@@ -48,6 +48,8 @@ MangaVolumePacker::~MangaVolumePacker()
 {
     if (m_job)
         teardown(m_job);
+    for (const std::shared_ptr<Job>& j : m_queue)
+        teardown(j);
 }
 
 QString MangaVolumePacker::stagingDirFor(const VolumeRecord& volume) const
@@ -65,7 +67,7 @@ bool MangaVolumePacker::complete(const VolumeRecord& volume) const
            == QLatin1String("ready");
 }
 
-void MangaVolumePacker::pack(const VolumeRecord& volume)
+void MangaVolumePacker::pack(const VolumeRecord& volume, const QString& seriesTitle)
 {
     const QString vid = MangaTankoban::volumeId(volume.seriesId, volume.number);
     if (volume.chapterIds.isEmpty()) {
@@ -78,9 +80,10 @@ void MangaVolumePacker::pack(const VolumeRecord& volume)
     }
 
     auto job = std::make_shared<Job>();
-    job->volume     = volume;
-    job->volumeId   = vid;
-    job->stagingDir = stagingDirFor(volume);
+    job->volume      = volume;
+    job->seriesTitle = seriesTitle;
+    job->volumeId    = vid;
+    job->stagingDir  = stagingDirFor(volume);
 
     QDir(job->stagingDir).removeRecursively();
     if (!QDir().mkpath(job->stagingDir)) {
@@ -88,8 +91,27 @@ void MangaVolumePacker::pack(const VolumeRecord& volume)
         return;
     }
 
+    // Serialize: only one pack runs at a time. If a pack is already active, queue
+    // this one (staging is prepared) and start it when the active job reaches a
+    // terminal state — so two concurrent volumes never share the scraper's
+    // uncorrelated pagesReady emit or clobber each other's m_job.
+    if (m_job && !m_job->cancelled) {
+        m_queue.append(job);
+        return;
+    }
+
     m_job = job;
     startChapter(job);
+}
+
+void MangaVolumePacker::advanceQueue()
+{
+    if (!m_queue.isEmpty()) {
+        m_job = m_queue.takeFirst();
+        startChapter(m_job);
+    } else {
+        m_job.reset();
+    }
 }
 
 void MangaVolumePacker::startChapter(const std::shared_ptr<Job>& job)
@@ -210,10 +232,11 @@ void MangaVolumePacker::finalize(const std::shared_ptr<Job>& job)
     VolumeProvenance prov;
     prov.id           = job->volumeId;
     prov.seriesId     = job->volume.seriesId;
-    prov.seriesTitle  = job->volume.title;
+    prov.seriesTitle  = job->seriesTitle;   // the SERIES title, not the volume title
     prov.volumeNumber = job->volume.number;
     prov.sourceKind   = QStringLiteral("weebcentral");
-    prov.releaseTitle = job->volume.title;
+    // A clear, always-non-empty release label (the volume title may be empty).
+    prov.releaseTitle = QStringLiteral("WeebCentral · Vol ") + job->volume.number;
     prov.chapterIds   = job->volume.chapterIds;
 
     // The publish path natural-sorts the staging filenames before it renames them
@@ -244,17 +267,18 @@ void MangaVolumePacker::finalize(const std::shared_ptr<Job>& job)
     const QString stagingDir = job->stagingDir;
     const QString finalDir   = m_index->pagesDirFor(prov);
 
-    if (m_job == job)
-        m_job.reset();
-
     // Atomic hand-off: finalize + publish into the shared index (consumes staging).
     if (!m_ingestor->publish(prov, stagingDir, groupVec)) {
         QDir(stagingDir).removeRecursively();
         emit failed(vid, QStringLiteral("index publish rejected the prepared volume"));
+        if (m_job == job)
+            advanceQueue();   // terminal — hand off to the next queued volume
         return;
     }
 
     emit finished(vid, finalDir);
+    if (m_job == job)
+        advanceQueue();       // terminal — hand off to the next queued volume
 }
 
 void MangaVolumePacker::failJob(const std::shared_ptr<Job>& job, const QString& reason)
@@ -264,9 +288,9 @@ void MangaVolumePacker::failJob(const std::shared_ptr<Job>& job, const QString& 
     job->cancelled = true; // latch: stop every further page + chapter for this job
     const QString vid = job->volumeId;
     teardown(job);
-    if (m_job == job)
-        m_job.reset();
     emit failed(vid, reason);
+    if (m_job == job)
+        advanceQueue();    // terminal — hand off to the next queued volume
 }
 
 void MangaVolumePacker::teardown(const std::shared_ptr<Job>& job)
@@ -286,14 +310,29 @@ void MangaVolumePacker::teardown(const std::shared_ptr<Job>& job)
 
 void MangaVolumePacker::cancel(const QString& volumeId)
 {
-    if (!m_job || m_job->volumeId != volumeId.trimmed())
+    const QString vid = volumeId.trimmed();
+    // Active job: latch cancel, tear down its staging, and advance to the next
+    // queued volume so a cancel never strands the queue.
+    if (m_job && m_job->volumeId == vid) {
+        auto job = m_job;
+        if (job->cancelled)
+            return;
+        job->cancelled = true;
+        teardown(job);
+        advanceQueue();
         return;
-    auto job = m_job;
-    if (job->cancelled)
-        return;
-    job->cancelled = true;
-    teardown(job);
-    m_job.reset();
+    }
+    // Queued (displaced) job: remove it from the queue and tear down its page-less
+    // staging so a queued volume's cancel is actually effective; the active job is
+    // untouched and no signal is emitted (same as the active-cancel path).
+    for (int i = 0; i < m_queue.size(); ++i) {
+        if (m_queue.at(i)->volumeId == vid) {
+            auto job = m_queue.takeAt(i);
+            job->cancelled = true;
+            teardown(job);
+            return;
+        }
+    }
 }
 
 // Parse a chapter label from an (opaque, in production) chapterId. A trailing

@@ -58,8 +58,13 @@ public:
     ~MangaVolumePacker() override;
 
     // Async. Synthesize `volume` from its chapter page fetches + image downloads,
-    // then publish it. Progress/finished/failed report the run.
-    void pack(const VolumeRecord& volume);
+    // then publish it. `seriesTitle` is the SERIES snapshot title (not the volume
+    // title) and is recorded as the published volume's provenance seriesTitle.
+    // Progress/finished/failed report the run. Only ONE pack runs at a time: a
+    // second call while a pack is active is queued and started when the active job
+    // reaches a terminal state, so concurrent volumes never share the scraper's
+    // uncorrelated pagesReady emit.
+    void pack(const VolumeRecord& volume, const QString& seriesTitle);
 
     // Abort the in-flight pack for this volumeId: cancels every pending reply and
     // removes the staging dir. No ready volume is published.
@@ -86,6 +91,7 @@ signals:
 private:
     struct Job {
         VolumeRecord volume;
+        QString      seriesTitle;      // series snapshot title → provenance seriesTitle
         QString      volumeId;
         QString      stagingDir;
         int          chapterIdx = 0;  // chapter currently being fetched/downloaded
@@ -103,6 +109,9 @@ private:
     void finalize(const std::shared_ptr<Job>& job);
     void failJob(const std::shared_ptr<Job>& job, const QString& reason);
     void teardown(const std::shared_ptr<Job>& job);
+    // Pop the next queued job into m_job and start it, or reset m_job when the
+    // queue is empty. Called on every terminal transition of the active job.
+    void advanceQueue();
 
     static QString chapterLabel(const QString& chapterId, int ordinal1Based);
     static QString extFor(const QString& imageUrl, const QByteArray& bytes);
@@ -113,7 +122,8 @@ private:
     MangaVolumeIndex*           m_index = nullptr;
     MangaVolumeArchiveIngestor* m_ingestor = nullptr;
     QString                     m_stagingRoot;
-    std::shared_ptr<Job>        m_job; // single active pack (harness packs serially)
+    std::shared_ptr<Job>        m_job;   // single active pack; only one runs at a time
+    QList<std::shared_ptr<Job>> m_queue; // packs waiting for the active one to finish
     QStringList                 m_lastSavedNames;
     QList<int>                  m_lastGroups;
 };

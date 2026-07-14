@@ -371,6 +371,42 @@ int main(int argc, char** argv)
     require(v1Sources.last().toMap().value(QStringLiteral("enabled")).toBool(),
             "the WeebCentral card is enabled when the volume has mapped chapters");
 
+    // ── Fix 1: an INCOMPLETE chapter map DISABLES the WeebCentral fallback ─────
+    // Series s2 volume 1 has range [1,3] but chapters 2 & 3 are explicitly tagged
+    // to volume 2, so only chapter 1 maps to volume 1. The fallback card is still
+    // offered (last) but disabled with a concrete reason — a 1-of-3 volume must not
+    // be presented as buildable.
+    {
+        const QVariantMap desc2{{QStringLiteral("seriesId"), QStringLiteral("s2")},
+                                {QStringLiteral("title"), QStringLiteral("Series Two")}};
+        const QVariantList vols2{
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("1")},
+                        {QStringLiteral("chapterStart"), QStringLiteral("1")},
+                        {QStringLiteral("chapterEnd"), QStringLiteral("3")}},
+            QVariantMap{{QStringLiteral("number"), QStringLiteral("2")}},
+        };
+        const QVariantList chaps2{
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("d1")}, {QStringLiteral("number"), QStringLiteral("1")}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("d2")}, {QStringLiteral("number"), QStringLiteral("2")}, {QStringLiteral("volume"), QStringLiteral("2")}},
+            QVariantMap{{QStringLiteral("id"), QStringLiteral("d3")}, {QStringLiteral("number"), QStringLiteral("3")}, {QStringLiteral("volume"), QStringLiteral("2")}},
+        };
+        service.prepareSeries(desc2, vols2, chaps2);
+        const QString s2v1 = volumeId(QStringLiteral("s2"), QStringLiteral("1"));
+        search.next = {};
+        service.searchSources(s2v1);
+        const QVariantList s2Sources = sources.value(s2v1);
+        require(!s2Sources.isEmpty(), "sourcesReady delivered for s2 volume 1");
+        const QVariantMap weeb = s2Sources.last().toMap();
+        require(weeb.value(QStringLiteral("kind")).toString() == QStringLiteral("weebcentral"),
+                "s2 fallback card present and last");
+        require(weeb.value(QStringLiteral("chapterCount")).toInt() == 1,
+                "the incomplete volume still carries its partial chapterCount");
+        require(!weeb.value(QStringLiteral("enabled")).toBool(),
+                "an incomplete chapter map disables the WeebCentral card");
+        require(!weeb.value(QStringLiteral("reason")).toString().isEmpty(),
+                "the incomplete-map card carries a concrete reason");
+    }
+
     // ── downloadNyaa rejects a hash not among the cached candidates ───────────
     {
         const int before = failures.size();

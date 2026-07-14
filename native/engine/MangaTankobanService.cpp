@@ -292,7 +292,10 @@ void MangaTankobanService::compileWeebCentral(QString volumeId)
     m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("packing")},
                                   {QStringLiteral("done"), 0},
                                   {QStringLiteral("total"), 0}};
-    m_packer->pack(m_volumes.value(volumeId));
+    const VolumeRecord vol = m_volumes.value(volumeId);
+    // Pass the SERIES snapshot title (not the volume title) so the published
+    // provenance records the series, matching the nyaa path's provenanceFor.
+    m_packer->pack(vol, m_series.value(vol.seriesId).title);
 }
 
 void MangaTankobanService::cancel(QString volumeId)
@@ -572,11 +575,14 @@ QVariantMap MangaTankobanService::sourceCard(const MangaNyaaCandidate& candidate
 
 QVariantMap MangaTankobanService::weebCardFor(const QString& volumeId) const
 {
-    // enabled when the volume carries a mapped chapter range to build from;
-    // otherwise a concrete reason explains why the fallback is disabled.
+    // Enabled ONLY when this volume's chapter map is COMPLETE — every in-range
+    // chapter that exists is mapped, so the fallback can build the whole volume. A
+    // partial map (some-but-not-all chapters) is offered but disabled, with a
+    // concrete reason; the volume + its Nyaa path are unaffected.
     const bool known = m_volumes.contains(volumeId);
-    const int chapterCount = known ? m_volumes.value(volumeId).chapterIds.size() : 0;
-    const bool enabled = chapterCount > 0;
+    const VolumeRecord vol = known ? m_volumes.value(volumeId) : VolumeRecord{};
+    const int chapterCount = known ? vol.chapterIds.size() : 0;
+    const bool enabled = known && vol.chapterMapComplete;
     QVariantMap card{
         {QStringLiteral("kind"), QStringLiteral("weebcentral")},
         {QStringLiteral("label"), QStringLiteral("Build from chapters")},
@@ -584,9 +590,14 @@ QVariantMap MangaTankobanService::weebCardFor(const QString& volumeId) const
         {QStringLiteral("chapterCount"), chapterCount},
     };
     if (!enabled) {
-        card[QStringLiteral("reason")] = known
-            ? QStringLiteral("No WeebCentral chapters map to this volume yet.")
-            : QStringLiteral("This volume has not been prepared.");
+        if (!known)
+            card[QStringLiteral("reason")] = QStringLiteral("This volume has not been prepared.");
+        else if (chapterCount == 0)
+            card[QStringLiteral("reason")] =
+                QStringLiteral("No WeebCentral chapters map to this volume yet.");
+        else
+            card[QStringLiteral("reason")] =
+                QStringLiteral("Only part of this volume's chapters are available yet.");
     } else {
         card[QStringLiteral("reason")] = QString();
     }

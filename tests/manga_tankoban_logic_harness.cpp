@@ -144,6 +144,42 @@ int main()
     require(lsnap.volumes[0].chapterIds.isEmpty(), "lone volume has an empty chapter list");
     require(lsnap.volumes[0].id == QStringLiteral("tankoban:l1:volume:7"), "lone volume id");
 
+    // ── Fix 1: chapterMapComplete gates the WeebCentral fallback ──────────
+    // A range-only volume whose whole [1,3] range exists and maps is COMPLETE:
+    // chapters 1,2,3 all fall in range and all land here.
+    {
+        const QVariantList cVols{
+            {QVariantMap{{"number", "1"}, {"chapterStart", "1"}, {"chapterEnd", "3"}}}};
+        const QVariantList cChaps{{QVariantMap{{"id", "c1"}, {"number", "1"}}},
+                                  {QVariantMap{{"id", "c2"}, {"number", "2"}}},
+                                  {QVariantMap{{"id", "c3"}, {"number", "3"}}}};
+        const auto csnap = prepareSeries({{"seriesId", "cc"}}, cVols, cChaps);
+        require(csnap.volumes.size() == 1, "complete-range volume emitted");
+        require(csnap.volumes[0].chapterIds == QStringList({"c1", "c2", "c3"}),
+                "complete-range volume collects its whole [1,3] range");
+        require(csnap.volumes[0].chapterMapComplete,
+                "a fully-mapped [1,3] range volume is chapterMapComplete");
+    }
+    // Volume 1 has range [1,3] but chapters 2 & 3 are explicitly tagged to volume 2,
+    // so only chapter 1 maps to volume 1 → its map is INCOMPLETE.
+    {
+        const QVariantList iVols{
+            {QVariantMap{{"number", "1"}, {"chapterStart", "1"}, {"chapterEnd", "3"}}},
+            {QVariantMap{{"number", "2"}}}};
+        const QVariantList iChaps{
+            {QVariantMap{{"id", "c1"}, {"number", "1"}}},
+            {QVariantMap{{"id", "c2"}, {"number", "2"}, {"volume", "2"}}},
+            {QVariantMap{{"id", "c3"}, {"number", "3"}, {"volume", "2"}}}};
+        const auto isnap = prepareSeries({{"seriesId", "ii"}}, iVols, iChaps);
+        require(isnap.volumes.size() == 2, "incomplete-range volumes emitted");
+        require(isnap.volumes[0].chapterIds == QStringList({"c1"}),
+                "volume 1 maps only its one un-claimed in-range chapter");
+        require(!isnap.volumes[0].chapterMapComplete,
+                "a [1,3] range volume missing chapters 2 & 3 (claimed elsewhere) is NOT complete");
+        require(isnap.volumes[1].chapterMapComplete,
+                "an explicitly-tagged (range-less) volume with chapters is complete");
+    }
+
     // ── Nyaa volume discovery: query family + parse + trust filter + rank ──
     // Contract: for target volume "2" of "Grand Blue Dreaming" (alias "Grand
     // Blue"), only the exact Volume 2 and the inclusive 1-12 pack survive; the

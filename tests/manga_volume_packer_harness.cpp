@@ -157,6 +157,7 @@ public:
 
     void fetchPages(const QString& chapterId) override
     {
+        fetched << chapterId; // record which chapters were actually requested
         QList<PageInfo> pages;
         const QJsonArray arr =
             m_chapters.value(chapterId).toObject().value(QStringLiteral("pages")).toArray();
@@ -169,6 +170,8 @@ public:
         }
         emit pagesReady(pages); // synchronous replay
     }
+
+    QStringList fetched; // every chapterId passed to fetchPages, in order
 
 private:
     QJsonObject m_chapters;
@@ -237,7 +240,10 @@ int main(int argc, char** argv)
     v2.title      = QStringLiteral("Berserk Vol. 2");
     v2.chapterIds = QStringList{QStringLiteral("wc-chapter-10"), QStringLiteral("wc-chapter-11")};
 
-    packer.pack(v2);
+    // The SERIES title is distinct from the volume title so Fix 3 can prove the
+    // provenance stores the series, not the volume.
+    const QString seriesTitle = QStringLiteral("Berserk");
+    packer.pack(v2, seriesTitle);
     require(waitFor(&packer, &MangaVolumePacker::finished, 30000),
             "pack(v2) emitted finished before timeout");
 
@@ -264,6 +270,17 @@ int main(int argc, char** argv)
     require(startsWithJpegMagic(pageLocalFile(lp[0].toMap())),
             "published page is a real downloaded JPEG");
 
+    // ── Fix 3: provenance stores the SERIES title, not the volume title ───────────
+    {
+        const QVariantMap st = index.statusOf(v2.id);
+        require(st.value(QStringLiteral("seriesTitle")).toString() == seriesTitle,
+                "published provenance seriesTitle is the series title passed to pack()");
+        require(st.value(QStringLiteral("seriesTitle")).toString() != v2.title,
+                "provenance seriesTitle is NOT the volume title");
+        require(!st.value(QStringLiteral("releaseTitle")).toString().isEmpty(),
+                "the WeebCentral volume carries a concrete non-empty releaseTitle");
+    }
+
     // ── Partial fallback never becomes ready (a page download fails) ──────────────
     VolumeRecord incompleteV2;
     incompleteV2.seriesId   = QStringLiteral("weebcentral:berserk");
@@ -275,7 +292,7 @@ int main(int argc, char** argv)
                                           QStringLiteral("wc-chapter-12-missing")};
 
     const QString incStaging = packer.stagingDirFor(incompleteV2);
-    packer.pack(incompleteV2);
+    packer.pack(incompleteV2, seriesTitle);
     require(waitFor(&packer, &MangaVolumePacker::failed, 30000),
             "pack(incompleteV2) emitted failed before timeout");
     require(!packer.complete(incompleteV2), "partial fallback never becomes ready");
@@ -293,7 +310,7 @@ int main(int argc, char** argv)
     cancelVol.chapterIds = QStringList{QStringLiteral("wc-chapter-10"), QStringLiteral("wc-chapter-11")};
 
     const QString cancelStaging = packer.stagingDirFor(cancelVol);
-    packer.pack(cancelVol);
+    packer.pack(cancelVol, seriesTitle);
     require(QDir(cancelStaging).exists(), "staging created for the in-flight pack");
     packer.cancel(cancelVol.id);
     require(!QDir(cancelStaging).exists(), "cancel removed the staging dir");
@@ -302,6 +319,87 @@ int main(int argc, char** argv)
                 == QStringLiteral("none"),
             "cancelled volume is never published");
     require(!packer.complete(cancelVol), "cancelled volume is not ready");
+
+    // ── Fix 2: concurrent packs are SERIALIZED — the second waits for the first ────
+    // A (chapter 10 only) and B (chapter 11 only) use DISJOINT chapters so the fake
+    // scraper's fetch log distinguishes them. Packing A then B must NOT begin B until
+    // A reaches a terminal state: B's chapter is never fetched and B stages no pages
+    // while A runs; then A completes with ITS pages and B runs with ITS page.
+    {
+        VolumeRecord a;
+        a.seriesId   = QStringLiteral("weebcentral:berserk");
+        a.number     = QStringLiteral("20");
+        a.id         = volumeId(a.seriesId, a.number);
+        a.title      = QStringLiteral("Berserk Vol. 20");
+        a.chapterIds = QStringList{QStringLiteral("wc-chapter-10")};
+
+        VolumeRecord b;
+        b.seriesId   = QStringLiteral("weebcentral:berserk");
+        b.number     = QStringLiteral("21");
+        b.id         = volumeId(b.seriesId, b.number);
+        b.title      = QStringLiteral("Berserk Vol. 21");
+        b.chapterIds = QStringList{QStringLiteral("wc-chapter-11")};
+
+        scraper.fetched.clear();
+        const QString bStaging = packer.stagingDirFor(b);
+        packer.pack(a, seriesTitle);   // becomes the active job
+        packer.pack(b, seriesTitle);   // must be queued, NOT started
+
+        // Synchronously (before any event-loop pump) B must not have begun.
+        require(!scraper.fetched.contains(QStringLiteral("wc-chapter-11")),
+                "the queued volume B is never fetched while A is active");
+        require(QDir(bStaging).entryList(QDir::Files).isEmpty(),
+                "the queued volume B stages no pages while A is active");
+
+        // Drive A to completion (its OWN pages only — no cross-contamination from B).
+        require(waitFor(&packer, &MangaVolumePacker::finished, 30000),
+                "the active volume A completes");
+        require(packer.complete(a), "A becomes ready");
+        require(packer.lastSavedNames() == QStringList{QStringLiteral("c010_001.jpg"),
+                                                       QStringLiteral("c010_002.jpg")},
+                "A published its own two pages, uncontaminated by B");
+
+        // Now B starts automatically and completes with ITS page.
+        require(waitFor(&packer, &MangaVolumePacker::finished, 30000),
+                "the queued volume B starts and completes once A is terminal");
+        require(scraper.fetched.contains(QStringLiteral("wc-chapter-11")),
+                "B's chapter is fetched only after A finishes");
+        require(packer.complete(b), "B becomes ready");
+        require(packer.lastSavedNames() == QStringList{QStringLiteral("c011_001.jpg")},
+                "B published its own single page");
+    }
+
+    // ── Fix 2: cancelling a QUEUED volume before the active one finishes removes it ─
+    {
+        VolumeRecord a;
+        a.seriesId   = QStringLiteral("weebcentral:berserk");
+        a.number     = QStringLiteral("22");
+        a.id         = volumeId(a.seriesId, a.number);
+        a.title      = QStringLiteral("Berserk Vol. 22");
+        a.chapterIds = QStringList{QStringLiteral("wc-chapter-10")};
+
+        VolumeRecord b;
+        b.seriesId   = QStringLiteral("weebcentral:berserk");
+        b.number     = QStringLiteral("23");
+        b.id         = volumeId(b.seriesId, b.number);
+        b.title      = QStringLiteral("Berserk Vol. 23");
+        b.chapterIds = QStringList{QStringLiteral("wc-chapter-11")};
+
+        scraper.fetched.clear();
+        const QString bStaging = packer.stagingDirFor(b);
+        packer.pack(a, seriesTitle);   // active
+        packer.pack(b, seriesTitle);   // queued
+        packer.cancel(b.id);           // cancel the QUEUED job
+
+        require(!QDir(bStaging).exists(), "cancelling a queued volume removes its staging");
+
+        require(waitFor(&packer, &MangaVolumePacker::finished, 30000),
+                "the active volume A still completes after the queued cancel");
+        require(packer.complete(a), "A becomes ready");
+        require(!scraper.fetched.contains(QStringLiteral("wc-chapter-11")),
+                "the cancelled queued volume B never runs (its chapter is never fetched)");
+        require(!packer.complete(b), "the cancelled queued volume B never becomes ready");
+    }
 
     std::cout << "MANGA_VOLUME_PACKER_OK\n";
     return 0;
