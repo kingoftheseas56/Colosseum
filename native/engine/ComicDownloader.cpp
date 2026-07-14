@@ -129,6 +129,10 @@ ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManag
                 this, &ComicDownloader::torrentSourcesUpdated);
         connect(m_torrents, &ComicTorrents::sourceSearchFailed,
                 this, &ComicDownloader::torrentSourceSearchFailed);
+        connect(m_torrents, &ComicTorrents::archiveSelectionRequired,
+                this, &ComicDownloader::torrentArchiveSelectionRequired);
+        connect(m_torrents, &ComicTorrents::archiveSelected,
+                this, &ComicDownloader::torrentArchiveSelected);
     }
 }
 
@@ -372,6 +376,11 @@ void ComicDownloader::searchTorrentSourcesQuery(const QString& issueIdIn, const 
 void ComicDownloader::cancelTorrentSourceSearch(const QString& issueIdIn)
 {
     if (m_torrents) m_torrents->cancelSourceSearch(issueIdIn.trimmed());
+}
+
+void ComicDownloader::chooseTorrentArchive(const QString& issueIdIn, int fileIndex)
+{
+    if (m_torrents) m_torrents->chooseArchive(issueIdIn.trimmed(), fileIndex);
 }
 
 void ComicDownloader::downloadTorrentSource(const QString& issueIdIn, const QString& seriesId,

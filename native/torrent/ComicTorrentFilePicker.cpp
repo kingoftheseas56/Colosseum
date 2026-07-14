@@ -3,6 +3,9 @@
 #include <QFileInfo>
 #include <QRegularExpression>
 #include <QSet>
+#include <QStringList>
+
+#include <algorithm>
 
 namespace {
 QString normalized(QString value)
@@ -38,34 +41,68 @@ int ComicTorrentFilePicker::formatRank(const QString& ext)
     return 0;
 }
 
-PickedFile ComicTorrentFilePicker::pick(const QString& title,
-                                         const QList<ManifestFile>& files)
+ComicArchiveDecision ComicTorrentFilePicker::decide(const QString& title,
+                                                    const QList<ManifestFile>& files)
 {
     const QString wanted = normalized(title);
     const QStringList tokens = wanted.split(QLatin1Char(' '), Qt::SkipEmptyParts);
-    PickedFile best;
-    int bestWhole = -1;
-    int bestCoverage = -1;
-    int bestFormat = -1;
 
+    ComicArchiveDecision decision;
+    QList<ComicArchiveCandidate> eligible;
     for (const ManifestFile& file : files) {
         if (!isComicArchive(file.name)) continue;
         const QString stem = normalized(QFileInfo(file.name).completeBaseName());
-        const int whole = (!wanted.isEmpty() && stem == wanted) ? 1 : 0;
-        int coverage = 0;
+        ComicArchiveCandidate c;
+        c.index = file.idx;
+        c.name = file.name;
+        c.extension = extOf(file.name);
+        c.bytes = file.length;
+        c.exactTitle = (!wanted.isEmpty() && stem == wanted);
         for (const QString& token : tokens)
-            if (stem.contains(token)) ++coverage;
-        const QString ext = extOf(file.name);
-        const int format = formatRank(ext);
-        const bool better = whole > bestWhole
-            || (whole == bestWhole && coverage > bestCoverage)
-            || (whole == bestWhole && coverage == bestCoverage && format > bestFormat);
-        if (best.idx < 0 || better) {
-            best = PickedFile{file.idx, file.name, ext};
-            bestWhole = whole;
-            bestCoverage = coverage;
-            bestFormat = format;
-        }
+            if (stem.contains(token)) ++c.tokenCoverage;
+        eligible.append(c);
     }
-    return best;
+
+    // Order candidates for display only: exact-title first, then token coverage,
+    // then easiest-to-extract format. Ordering NEVER decides an ambiguous pack.
+    std::sort(eligible.begin(), eligible.end(),
+              [](const ComicArchiveCandidate& a, const ComicArchiveCandidate& b) {
+        if (a.exactTitle != b.exactTitle) return a.exactTitle;
+        if (a.tokenCoverage != b.tokenCoverage) return a.tokenCoverage > b.tokenCoverage;
+        const int fa = formatRank(a.extension), fb = formatRank(b.extension);
+        if (fa != fb) return fa > fb;
+        return a.index < b.index;
+    });
+    decision.candidates = eligible;
+
+    if (eligible.isEmpty())
+        return decision;   // no comic file — the caller fails honestly
+
+    const auto toPicked = [](const ComicArchiveCandidate& c) {
+        return PickedFile{c.index, c.name, c.extension};
+    };
+
+    if (eligible.size() == 1) {
+        decision.selected = toPicked(eligible.first());
+        return decision;   // a lone comic archive auto-selects
+    }
+
+    int exactCount = 0;
+    const ComicArchiveCandidate* exactOne = nullptr;
+    for (const ComicArchiveCandidate& c : eligible)
+        if (c.exactTitle) { ++exactCount; exactOne = &c; }
+    if (exactCount == 1) {
+        decision.selected = toPicked(*exactOne);
+        return decision;   // one and only one exact canonical-title archive
+    }
+
+    decision.requiresChoice = true;   // multi-volume / ambiguous — the user chooses
+    return decision;
+}
+
+PickedFile ComicTorrentFilePicker::pick(const QString& title,
+                                         const QList<ManifestFile>& files)
+{
+    const ComicArchiveDecision decision = decide(title, files);
+    return decision.requiresChoice ? PickedFile{} : decision.selected;
 }

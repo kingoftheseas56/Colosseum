@@ -97,6 +97,9 @@ public:
                                            const QString& seriesTitle, const QString& issueLabel,
                                            const QString& infoHash, const QString& releaseTitle,
                                            const QString& magnetUri);
+    // Commit a user-chosen archive from an ambiguous, paused torrent (fileIndex
+    // is a manifest index the picker offered via torrentArchiveSelectionRequired).
+    Q_INVOKABLE void chooseTorrentArchive(const QString& issueId, int fileIndex);
 
     // Local pages of a downloaded issue, MangaDownloader-shaped:
     // [{index, url: "file:///…/page_000.jpg", group: -1}] — or [] if not on disk.
@@ -129,6 +132,9 @@ signals:
     // Source browsing (v2) — search-only, distinct from the acquisition signals.
     void torrentSourcesUpdated(const QString& issueId, const QVariantList& rows, bool complete);
     void torrentSourceSearchFailed(const QString& issueId, const QString& reason);
+    // Ambiguous torrent paused for a manual archive choice, then the outcome.
+    void torrentArchiveSelectionRequired(const QString& issueId, const QVariantList& files);
+    void torrentArchiveSelected(const QString& issueId, const QString& fileName, bool automatic);
 
 private:
     struct Entry {

@@ -2,6 +2,7 @@
 
 #include "ComicTorrentFilePicker.h"
 #include "ComicTorrentMagnet.h"
+#include "TorrentResult.h"   // humanSize
 #include "engine/TorrentEngine.h"
 
 #include <QDateTime>
@@ -110,23 +111,87 @@ void ComicTorrentDownloader::onMetadataReady(const QString& infoHash, const QStr
 void ComicTorrentDownloader::applyMetadata(Job* job, const QJsonArray& files)
 {
     const QList<ManifestFile> manifest = BookTorrentMagnet::filesToManifest(files);
-    const PickedFile picked = ComicTorrentFilePicker::pick(job->title, manifest);
-    if (picked.idx < 0) {
+    const ComicArchiveDecision decision = ComicTorrentFilePicker::decide(job->title, manifest);
+    if (decision.candidates.isEmpty()) {
         m_engine->removeTorrent(job->infoHash, true);
         failJob(job, QStringLiteral("this torrent has no CBR/CBZ/CB7/CBT file (%1 file(s))")
                          .arg(manifest.size()));
         return;
     }
-    job->pickedIdx = picked.idx;
-    job->fileName = picked.name;
-    job->fileName.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    if (decision.requiresChoice) {
+        // Ambiguous / multi-volume: pause, zero every priority, and wait for the
+        // user to pick one archive. Nothing downloads until chooseFile() lands.
+        m_engine->pauseTorrent(job->infoHash);
+        m_engine->setFilePriorities(job->infoHash, QVector<int>(manifest.size(), 0));
+        job->choosing = true;
+        job->candidates = decision.candidates;
+        job->manifestSize = manifest.size();
+        qInfo() << "[ComicTorrentDownloader]" << job->issueId << "awaiting archive choice among"
+                << decision.candidates.size() << "candidates";
+        emit fileSelectionRequired(job->issueId, toVariantFiles(decision.candidates));
+        return;
+    }
+    qint64 bytes = 0;
     for (const ManifestFile& file : manifest)
-        if (file.idx == picked.idx) job->totalBytes = file.length;
+        if (file.idx == decision.selected.idx) bytes = file.length;
+    applyPickedFile(job, decision.selected.idx, decision.selected.name, bytes,
+                    manifest.size(), true);
+}
+
+void ComicTorrentDownloader::applyPickedFile(Job* job, int pickedIdx, const QString& name,
+                                             qint64 bytes, int fileCount, bool automatic)
+{
+    const bool wasChoosing = job->choosing;
+    job->pickedIdx = pickedIdx;
+    job->fileName = name;
+    job->fileName.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    job->totalBytes = bytes;
     job->picked = true;
+    job->choosing = false;
+    job->candidates.clear();
     m_engine->setFilePriorities(job->infoHash,
-        BookTorrentMagnet::pickToPriorities(picked.idx, manifest.size()));
+        BookTorrentMagnet::pickToPriorities(pickedIdx, fileCount));
+    // A manual choice resumes the torrent we paused; an auto-pick was never paused.
+    if (wasChoosing) m_engine->resumeTorrent(job->infoHash);
     qInfo() << "[ComicTorrentDownloader]" << job->issueId << job->infoHash
-            << "picked" << job->fileName << job->totalBytes << "bytes";
+            << (automatic ? "auto-picked" : "user-picked") << job->fileName
+            << job->totalBytes << "bytes";
+    emit fileSelected(job->issueId, job->fileName, automatic);
+}
+
+bool ComicTorrentDownloader::chooseFile(const QString& issueId, int fileIndex)
+{
+    Job* job = jobForIssue(issueId);
+    if (!alive(job) || !job->choosing) return false;
+    // Only an eligible comic archive index is accepted — never a non-comic file.
+    const ComicArchiveCandidate* chosen = nullptr;
+    for (const ComicArchiveCandidate& c : job->candidates)
+        if (c.index == fileIndex) { chosen = &c; break; }
+    if (!chosen) return false;
+    const int idx = chosen->index;
+    const QString name = chosen->name;
+    const qint64 bytes = chosen->bytes;
+    applyPickedFile(job, idx, name, bytes, job->manifestSize, false);
+    return true;
+}
+
+QVariantList ComicTorrentDownloader::toVariantFiles(
+    const QList<ComicArchiveCandidate>& candidates) const
+{
+    QVariantList out;
+    out.reserve(candidates.size());
+    for (const ComicArchiveCandidate& c : candidates) {
+        out.append(QVariantMap{
+            {QStringLiteral("index"), c.index},
+            {QStringLiteral("name"), c.name},
+            {QStringLiteral("extension"), c.extension},
+            {QStringLiteral("sizeBytes"), QVariant::fromValue(c.bytes)},
+            {QStringLiteral("sizeText"), humanSize(c.bytes)},
+            {QStringLiteral("exactTitle"), c.exactTitle},
+            {QStringLiteral("tokenCoverage"), c.tokenCoverage}
+        });
+    }
+    return out;
 }
 
 void ComicTorrentDownloader::onEngineProgress(const QString& infoHash, float fraction,
@@ -200,8 +265,9 @@ QVariantMap ComicTorrentDownloader::statusOf(const QString& issueId) const
                        {QStringLiteral("done"), 0.0},
                        {QStringLiteral("total"), 0.0}};
     if (Job* job = jobForIssue(issueId)) {
-        status[QStringLiteral("state")] = job->picked ? QStringLiteral("downloading")
-                                                       : QStringLiteral("resolving");
+        status[QStringLiteral("state")] = job->choosing ? QStringLiteral("choosing")
+                                        : job->picked   ? QStringLiteral("downloading")
+                                                        : QStringLiteral("resolving");
         status[QStringLiteral("done")] = static_cast<double>(job->received);
         status[QStringLiteral("total")] = static_cast<double>(job->totalBytes);
     }
@@ -215,8 +281,9 @@ QVariantList ComicTorrentDownloader::activeJobs() const
         rows.append(QVariantMap{
             {QStringLiteral("id"), job->issueId},
             {QStringLiteral("label"), job->title},
-            {QStringLiteral("state"), job->picked ? QStringLiteral("downloading")
-                                                   : QStringLiteral("resolving")},
+            {QStringLiteral("state"), job->choosing ? QStringLiteral("choosing")
+                                    : job->picked   ? QStringLiteral("downloading")
+                                                    : QStringLiteral("resolving")},
             {QStringLiteral("done"), static_cast<double>(job->received)},
             {QStringLiteral("total"), static_cast<double>(job->totalBytes)}
         });

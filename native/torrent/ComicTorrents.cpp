@@ -35,6 +35,15 @@ void ComicTorrents::wireSignals()
             this, &ComicTorrents::onDownloadFinished);
     connect(m_downloader, &ComicTorrentDownloader::failed,
             this, &ComicTorrents::onDownloadFailed);
+    connect(m_downloader, &ComicTorrentDownloader::fileSelectionRequired,
+            this, &ComicTorrents::archiveSelectionRequired);
+    connect(m_downloader, &ComicTorrentDownloader::fileSelected,
+            this, &ComicTorrents::archiveSelected);
+}
+
+void ComicTorrents::chooseArchive(const QString& issueId, int fileIndex)
+{
+    m_downloader->chooseFile(issueId.trimmed(), fileIndex);
 }
 
 bool ComicTorrents::contains(const QString& issueId) const

@@ -50,6 +50,8 @@ public:
                        const QString& collects);
     void searchSourcesQuery(const QString& issueId, const QString& query);
     void cancelSourceSearch(const QString& issueId);
+    // Commit a user-chosen archive from an ambiguous, paused torrent.
+    void chooseArchive(const QString& issueId, int fileIndex);
 
 signals:
     void progress(const QString& issueId, double received, double total);
@@ -61,6 +63,9 @@ signals:
     void sourcesUpdated(const QString& issueId, const QVariantList& rows, bool complete);
     // Search-only failure — never the terminal acquisition failed() signal.
     void sourceSearchFailed(const QString& issueId, const QString& reason);
+    // Ambiguous manifest paused for a manual archive choice, then the outcome.
+    void archiveSelectionRequired(const QString& issueId, const QVariantList& files);
+    void archiveSelected(const QString& issueId, const QString& fileName, bool automatic);
 
 private slots:
     void onIndexerResults(const QString& handle, const QList<TorrentResult>& results);
