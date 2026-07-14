@@ -374,6 +374,11 @@ QVariantMap MangaVolumeTorrentDownloader::statusOf(const QString& volumeId) cons
     return status;
 }
 
+VolumeRequestRow MangaVolumeTorrentDownloader::ledgerRow(const QString& volumeId) const
+{
+    return m_ledger.row(volumeId);
+}
+
 void MangaVolumeTorrentDownloader::failIntent(Intent& intent, const QString& reason)
 {
     intent.terminal = true;

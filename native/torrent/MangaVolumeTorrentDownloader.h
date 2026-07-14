@@ -77,6 +77,11 @@ public:
     bool cancel(const QString& volumeId);
     // {state, done, total} for one volume ("none" when unknown).
     QVariantMap statusOf(const QString& volumeId) const;
+    // Additive const accessor (Task 8 restart-resume): the PERSISTED ledger row
+    // for `volumeId`, so a façade can recover provenance (infoHash / seriesId /
+    // volumeNumber / savePath / pickedFileIndex) from disk after a restart replay
+    // when its in-memory model is empty. The row's volumeId is empty when unknown.
+    MangaTankoban::VolumeRequestRow ledgerRow(const QString& volumeId) const;
 
 signals:
     void resolving(const QString& volumeId);

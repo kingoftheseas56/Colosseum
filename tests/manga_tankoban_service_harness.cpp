@@ -1,0 +1,528 @@
+// Tankoban volume-mode FAÇADE contract — the single object QML talks to.
+//
+// Composes Tasks 1–7 end-to-end and proves the façade OWNS terminal state across
+// every path, with no stubbing of the terminal step. Driven through:
+//   * a FAKE IMangaNyaaSearch  → deterministic per-volume candidates;
+//   * the REAL MangaVolumeTorrentDownloader over a FAKE IMangaTorrentEngine (no
+//     libtorrent) → a finished transfer is simulated by materialising the REAL
+//     tests/fixtures/tankoban/tiny-volume.cbz as the resolved archive;
+//   * the REAL MangaVolumePacker over a FAKE MangaScraper serving file:// JPEG
+//     pages (Task 7 approach) → the WeebCentral terminal path is real, not stubbed;
+//   * the REAL MangaVolumeIndex / MangaVolumeArchiveIngestor / MangaSynopsisEnricher
+//     over QTemporaryDirs → so statusOf == "ready" is a genuine ingest/pack→index
+//     result (real extracted/downloaded pages).
+//
+// Beyond the pinned pipeline it locks the five approved-with-fixes behaviours:
+//   #1 a RESTART-replayed torrent that finishes ingests with ledger-recovered
+//      provenance even when the series was never re-prepared (no orphan);
+//   #2 remove() during an in-flight ingest ARRESTS the pipeline — no resurrection;
+//   #3 a second concurrent acquisition for one volume is rejected;
+//   #4 cancel/remove on an idle volume is a quiet no-op (no spurious `removed`);
+//   #5 the packer-finished path converges through the façade to ONE ready record.
+#include "engine/MangaResult.h"
+#include "engine/MangaScraper.h"
+#include "engine/MangaSeriesDetail.h"
+#include "engine/MangaSynopsisEnricher.h"
+#include "engine/MangaTankobanLogic.h"
+#include "engine/MangaTankobanService.h"
+#include "engine/MangaVolumeArchiveIngestor.h"
+#include "engine/MangaVolumeIndex.h"
+#include "engine/MangaVolumePacker.h"
+#include "torrent/MangaNyaaSource.h"
+#include "torrent/MangaVolumeRequestLedger.h"
+#include "torrent/MangaVolumeTorrentDownloader.h"
+
+#include <QCoreApplication>
+#include <QDir>
+#include <QEventLoop>
+#include <QFile>
+#include <QHash>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QSettings>
+#include <QString>
+#include <QStringList>
+#include <QTemporaryDir>
+#include <QTimer>
+#include <QUrl>
+#include <QVariantList>
+#include <QVariantMap>
+#include <QVector>
+
+#include <cstdlib>
+#include <iostream>
+
+using namespace MangaTankoban;
+
+namespace {
+
+// A real, decodable 1x1 baseline JPEG (embedded — no committed binary fixture),
+// lifted verbatim from manga_volume_packer_harness so the fake scraper serves a
+// page the packer's magic-byte sniff accepts.
+const unsigned char kJpeg[] = {
+    0xff,0xd8,0xff,0xe0,0x00,0x10,0x4a,0x46,0x49,0x46,0x00,0x01,0x01,0x00,0x00,0x01,
+    0x00,0x01,0x00,0x00,0xff,0xdb,0x00,0x43,0x00,0x08,0x06,0x06,0x07,0x06,0x05,0x08,
+    0x07,0x07,0x07,0x09,0x09,0x08,0x0a,0x0c,0x14,0x0d,0x0c,0x0b,0x0b,0x0c,0x19,0x12,
+    0x13,0x0f,0x14,0x1d,0x1a,0x1f,0x1e,0x1d,0x1a,0x1c,0x1c,0x20,0x24,0x2e,0x27,0x20,
+    0x22,0x2c,0x23,0x1c,0x1c,0x28,0x37,0x29,0x2c,0x30,0x31,0x34,0x34,0x34,0x1f,0x27,
+    0x39,0x3d,0x38,0x32,0x3c,0x2e,0x33,0x34,0x32,0xff,0xdb,0x00,0x43,0x01,0x09,0x09,
+    0x09,0x0c,0x0b,0x0c,0x18,0x0d,0x0d,0x18,0x32,0x21,0x1c,0x21,0x32,0x32,0x32,0x32,
+    0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,
+    0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,
+    0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0x32,0xff,0xc0,
+    0x00,0x11,0x08,0x00,0x01,0x00,0x01,0x03,0x01,0x22,0x00,0x02,0x11,0x01,0x03,0x11,
+    0x01,0xff,0xc4,0x00,0x1f,0x00,0x00,0x01,0x05,0x01,0x01,0x01,0x01,0x01,0x01,0x00,
+    0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
+    0x0a,0x0b,0xff,0xc4,0x00,0xb5,0x10,0x00,0x02,0x01,0x03,0x03,0x02,0x04,0x03,0x05,
+    0x05,0x04,0x04,0x00,0x00,0x01,0x7d,0x01,0x02,0x03,0x00,0x04,0x11,0x05,0x12,0x21,
+    0x31,0x41,0x06,0x13,0x51,0x61,0x07,0x22,0x71,0x14,0x32,0x81,0x91,0xa1,0x08,0x23,
+    0x42,0xb1,0xc1,0x15,0x52,0xd1,0xf0,0x24,0x33,0x62,0x72,0x82,0x09,0x0a,0x16,0x17,
+    0x18,0x19,0x1a,0x25,0x26,0x27,0x28,0x29,0x2a,0x34,0x35,0x36,0x37,0x38,0x39,0x3a,
+    0x43,0x44,0x45,0x46,0x47,0x48,0x49,0x4a,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5a,
+    0x63,0x64,0x65,0x66,0x67,0x68,0x69,0x6a,0x73,0x74,0x75,0x76,0x77,0x78,0x79,0x7a,
+    0x83,0x84,0x85,0x86,0x87,0x88,0x89,0x8a,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,
+    0x9a,0xa2,0xa3,0xa4,0xa5,0xa6,0xa7,0xa8,0xa9,0xaa,0xb2,0xb3,0xb4,0xb5,0xb6,0xb7,
+    0xb8,0xb9,0xba,0xc2,0xc3,0xc4,0xc5,0xc6,0xc7,0xc8,0xc9,0xca,0xd2,0xd3,0xd4,0xd5,
+    0xd6,0xd7,0xd8,0xd9,0xda,0xe1,0xe2,0xe3,0xe4,0xe5,0xe6,0xe7,0xe8,0xe9,0xea,0xf1,
+    0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,0xfa,0xff,0xc4,0x00,0x1f,0x01,0x00,0x03,
+    0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x01,
+    0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,0x0a,0x0b,0xff,0xc4,0x00,0xb5,0x11,0x00,
+    0x02,0x01,0x02,0x04,0x04,0x03,0x04,0x07,0x05,0x04,0x04,0x00,0x01,0x02,0x77,0x00,
+    0x01,0x02,0x03,0x11,0x04,0x05,0x21,0x31,0x06,0x12,0x41,0x51,0x07,0x61,0x71,0x13,
+    0x22,0x32,0x81,0x08,0x14,0x42,0x91,0xa1,0xb1,0xc1,0x09,0x23,0x33,0x52,0xf0,0x15,
+    0x62,0x72,0xd1,0x0a,0x16,0x24,0x34,0xe1,0x25,0xf1,0x17,0x18,0x19,0x1a,0x26,0x27,
+    0x28,0x29,0x2a,0x35,0x36,0x37,0x38,0x39,0x3a,0x43,0x44,0x45,0x46,0x47,0x48,0x49,
+    0x4a,0x53,0x54,0x55,0x56,0x57,0x58,0x59,0x5a,0x63,0x64,0x65,0x66,0x67,0x68,0x69,
+    0x6a,0x73,0x74,0x75,0x76,0x77,0x78,0x79,0x7a,0x82,0x83,0x84,0x85,0x86,0x87,0x88,
+    0x89,0x8a,0x92,0x93,0x94,0x95,0x96,0x97,0x98,0x99,0x9a,0xa2,0xa3,0xa4,0xa5,0xa6,
+    0xa7,0xa8,0xa9,0xaa,0xb2,0xb3,0xb4,0xb5,0xb6,0xb7,0xb8,0xb9,0xba,0xc2,0xc3,0xc4,
+    0xc5,0xc6,0xc7,0xc8,0xc9,0xca,0xd2,0xd3,0xd4,0xd5,0xd6,0xd7,0xd8,0xd9,0xda,0xe2,
+    0xe3,0xe4,0xe5,0xe6,0xe7,0xe8,0xe9,0xea,0xf2,0xf3,0xf4,0xf5,0xf6,0xf7,0xf8,0xf9,
+    0xfa,0xff,0xda,0x00,0x0c,0x03,0x01,0x00,0x02,0x11,0x03,0x11,0x00,0x3f,0x00,0xf1,
+    0x1a,0x28,0xa2,0xb6,0x32,0x3f,0xff,0xd9
+};
+
+void require(bool condition, const char* message)
+{
+    if (!condition) {
+        std::cerr << "FAIL: " << message << '\n';
+        std::exit(1);
+    }
+}
+
+QString fixturePath(const QString& name)
+{
+    return QStringLiteral(TANKOBAN_FIXTURES_DIR) + QLatin1Char('/') + name;
+}
+
+bool writeJpeg(const QString& path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) return false;
+    return f.write(reinterpret_cast<const char*>(kJpeg), sizeof(kJpeg))
+           == static_cast<qint64>(sizeof(kJpeg));
+}
+
+template <typename Obj, typename Signal>
+bool waitFor(Obj* obj, Signal signal, int timeoutMs)
+{
+    QEventLoop loop;
+    bool fired = false;
+    const QMetaObject::Connection c =
+        QObject::connect(obj, signal, &loop, [&]() { fired = true; loop.quit(); });
+    QTimer::singleShot(timeoutMs, &loop, [&]() { loop.quit(); });
+    loop.exec();
+    QObject::disconnect(c);
+    return fired;
+}
+
+// ── Fake torrent engine (no libtorrent) ──────────────────────────────────────
+class FakeEngine : public IMangaTorrentEngine {
+    Q_OBJECT
+public:
+    using IMangaTorrentEngine::IMangaTorrentEngine;
+
+    QString addMagnet(const QString& magnetUri, const QString& savePath, bool paused) override
+    {
+        lastPaused = paused; lastMagnet = magnetUri; lastSavePath = savePath;
+        ++addMagnetCount;
+        return QString();
+    }
+    void setFilePriorities(const QString&, const QVector<int>& p) override { priorities = p; }
+    void startTorrent(const QString& infoHash, const QString&) override { startedHashes << infoHash.toLower(); }
+    void removeTorrent(const QString& infoHash, bool deleteFiles) override { removed << qMakePair(infoHash.toLower(), deleteFiles); }
+    QJsonArray torrentFiles(const QString& infoHash) const override { return known.value(infoHash.toLower()); }
+
+    void emitMetadata(const QString& hash, const QJsonArray& files)
+    {
+        known.insert(hash.toLower(), files);
+        emit metadataReady(hash, QStringLiteral("torrent"), 0, files);
+    }
+    void emitFinished(const QString& hash) { emit torrentFinished(hash); }
+
+    bool lastPaused = false;
+    QString lastMagnet, lastSavePath;
+    int addMagnetCount = 0;
+    QVector<int> priorities;
+    QStringList startedHashes;
+    QList<QPair<QString, bool>> removed;
+    QHash<QString, QJsonArray> known;
+};
+
+// ── Fake Nyaa search — returns whatever `next` holds, keyed to the real id ─────
+class FakeNyaaSearch : public IMangaNyaaSearch {
+    Q_OBJECT
+public:
+    using IMangaNyaaSearch::IMangaNyaaSearch;
+    void search(const SeriesSnapshot& series, const QString& targetVolume) override
+    {
+        emit searchSucceeded(volumeId(series.seriesId, targetVolume), next);
+    }
+    QList<MangaNyaaCandidate> next;
+};
+
+// ── Fake WeebCentral scraper — replays weeb-pages.json as file:// JPEG pages ───
+class FakeWeebScraper : public MangaScraper {
+    Q_OBJECT
+public:
+    FakeWeebScraper(QNetworkAccessManager* nam, const QJsonObject& chapters,
+                    const QString& imagesDir, QObject* parent = nullptr)
+        : MangaScraper(nam, parent), m_chapters(chapters), m_imagesDir(imagesDir) {}
+    QString sourceId() const override { return QStringLiteral("weebcentral"); }
+    QString sourceName() const override { return QStringLiteral("WeebCentral"); }
+    void search(const QString&, int) override {}
+    void fetchChapters(const QString&) override {}
+    void fetchDetail(const MangaResult&) override {}
+    void fetchPages(const QString& chapterId) override
+    {
+        QList<PageInfo> pages;
+        const QJsonArray arr =
+            m_chapters.value(chapterId).toObject().value(QStringLiteral("pages")).toArray();
+        int idx = 0;
+        for (const QJsonValue& v : arr) {
+            PageInfo p;
+            p.index = idx++;
+            p.imageUrl = QUrl::fromLocalFile(m_imagesDir + QLatin1Char('/') + v.toString()).toString();
+            pages.append(p);
+        }
+        emit pagesReady(pages); // synchronous replay
+    }
+private:
+    QJsonObject m_chapters;
+    QString     m_imagesDir;
+};
+
+// A 3-file volume pack: volume "2" -> "Series v02.cbz" (index 1), "3" -> index 2.
+QJsonArray packFiles()
+{
+    const char* names[] = {"Series v01.cbz", "Series v02.cbz", "Series v03.cbz"};
+    QJsonArray arr;
+    for (int i = 0; i < 3; ++i) {
+        QJsonObject o;
+        o[QStringLiteral("index")] = i;
+        o[QStringLiteral("name")]  = QString::fromLatin1(names[i]);
+        o[QStringLiteral("size")]  = static_cast<qint64>(48 * 1024 * 1024);
+        arr.append(o);
+    }
+    return arr;
+}
+
+QJsonArray oneFile(const QString& name)
+{
+    QJsonObject o;
+    o[QStringLiteral("index")] = 0;
+    o[QStringLiteral("name")]  = name;
+    o[QStringLiteral("size")]  = static_cast<qint64>(48 * 1024 * 1024);
+    QJsonArray arr; arr.append(o);
+    return arr;
+}
+
+MangaNyaaCandidate makeCandidate(const QString& hash)
+{
+    MangaNyaaCandidate c;
+    c.infoHash   = hash;
+    c.magnetUri  = QStringLiteral("magnet:?xt=urn:btih:") + hash;
+    c.title      = QStringLiteral("Series (Digital) (v01-03)");
+    c.uploader   = QStringLiteral("danke");
+    c.coverageLo = QStringLiteral("1");
+    c.coverageHi = QStringLiteral("3");
+    c.seeders    = 40;
+    return c;
+}
+
+} // namespace
+
+int main(int argc, char** argv)
+{
+    QCoreApplication app(argc, argv);
+
+    // QSettings → a disposable Ini scope so modeEnabled starts empty and persists.
+    QTemporaryDir settingsDir;
+    require(settingsDir.isValid(), "settings scope dir created");
+    QCoreApplication::setOrganizationName(QStringLiteral("BrotherhoodTest"));
+    QCoreApplication::setApplicationName(QStringLiteral("TankobanServiceHarness"));
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settingsDir.path());
+
+    // ── Real collaborators over temp dirs ─────────────────────────────────────
+    QTemporaryDir indexRoot, dlRoot, imagesDir, stagingRoot;
+    require(indexRoot.isValid() && dlRoot.isValid() && imagesDir.isValid() && stagingRoot.isValid(),
+            "temp roots created");
+
+    // WeebCentral fixture pages the fake scraper serves over file://.
+    QFile jf(fixturePath(QStringLiteral("weeb-pages.json")));
+    require(jf.open(QIODevice::ReadOnly), "open weeb-pages.json fixture");
+    const QJsonObject wcChapters =
+        QJsonDocument::fromJson(jf.readAll()).object().value(QStringLiteral("chapters")).toObject();
+    require(!wcChapters.isEmpty(), "weeb-pages.json has chapters");
+    require(writeJpeg(imagesDir.path() + QStringLiteral("/weeb-c10-p1.jpg")), "wrote c10 p1");
+    require(writeJpeg(imagesDir.path() + QStringLiteral("/weeb-c10-p2.jpg")), "wrote c10 p2");
+    require(writeJpeg(imagesDir.path() + QStringLiteral("/weeb-c11-p1.jpg")), "wrote c11 p1");
+
+    const QString saveRoot   = dlRoot.filePath(QStringLiteral("dl"));
+    const QString ledgerPath = dlRoot.filePath(QStringLiteral("ledger.json"));
+
+    FakeEngine engine;
+    MangaVolumeTorrentDownloader transport(&engine, ledgerPath, saveRoot);
+    MangaVolumeIndex index(indexRoot.path());
+    MangaVolumeArchiveIngestor ingestor(&index);
+    MangaSynopsisEnricher enricher(nullptr, indexRoot.filePath(QStringLiteral("synopsis.json"))); // cache-only
+    QNetworkAccessManager packerNam;
+    FakeWeebScraper scraper(&packerNam, wcChapters, imagesDir.path());
+    MangaVolumePacker packer(&scraper, &packerNam, &index, stagingRoot.path());
+    FakeNyaaSearch search;
+
+    // The façade drives a REAL packer here so #5 (packer terminal path) is proven.
+    MangaTankobanService service(&search, &transport, &index, &ingestor, &enricher, &packer);
+
+    // Signal trackers (no fatal handler — expected failures are asserted by delta).
+    QStringList failures, finishedIds, removedIds;
+    QObject::connect(&service, &MangaTankobanService::failed, &app,
+        [&](const QString& id, const QString& reason) { failures << (id + QLatin1Char('|') + reason); });
+    QObject::connect(&service, &MangaTankobanService::finished, &app,
+        [&](const QString& id) { finishedIds << id; });
+    QObject::connect(&service, &MangaTankobanService::removed, &app,
+        [&](const QString& id) { removedIds << id; });
+    QHash<QString, QVariantList> sources;
+    QObject::connect(&service, &MangaTankobanService::sourcesReady, &app,
+        [&](const QString& vid, const QVariantList& results) { sources.insert(vid, results); });
+
+    // ── Prepare the snapshot (Task 1): vol1 has WeebCentral chapters; 2 & 3 none.
+    const QVariantMap descriptor{{QStringLiteral("seriesId"), QStringLiteral("s1")},
+                                 {QStringLiteral("title"), QStringLiteral("Series")},
+                                 {QStringLiteral("author"), QStringLiteral("A. Mangaka")}};
+    const QVariantList volumes{
+        QVariantMap{{QStringLiteral("number"), QStringLiteral("1")}, {QStringLiteral("cover"), QStringLiteral("a.jpg")}},
+        QVariantMap{{QStringLiteral("number"), QStringLiteral("2")}, {QStringLiteral("cover"), QStringLiteral("b.jpg")}},
+        QVariantMap{{QStringLiteral("number"), QStringLiteral("3")}, {QStringLiteral("cover"), QStringLiteral("c.jpg")}},
+    };
+    const QVariantList chapters{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("wc-chapter-10")}, {QStringLiteral("volume"), QStringLiteral("1")}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("wc-chapter-11")}, {QStringLiteral("volume"), QStringLiteral("1")}},
+    };
+    service.prepareSeries(descriptor, volumes, chapters);
+
+    const QString vol1Id = volumeId(QStringLiteral("s1"), QStringLiteral("1"));
+    const QString vol2Id = volumeId(QStringLiteral("s1"), QStringLiteral("2"));
+    const QString vol3Id = volumeId(QStringLiteral("s1"), QStringLiteral("3"));
+
+    // ── Pinned: mode preference ───────────────────────────────────────────────
+    require(!service.modeEnabled(QStringLiteral("s1")), "missing preference is Off");
+    service.setModeEnabled(QStringLiteral("s1"), true);
+    require(service.modeEnabled(QStringLiteral("s1")), "preference persists per series");
+    {
+        MangaTankobanService fresh(&search, &transport, &index, &ingestor, &enricher, &packer);
+        require(fresh.modeEnabled(QStringLiteral("s1")),
+                "mode preference persists across a fresh service over the same settings scope");
+    }
+
+    // ── Every canonical volume returned even with no source ───────────────────
+    require(service.volumesForSeries(QStringLiteral("s1")).size() == 3,
+            "every canonical volume is returned by volumesForSeries even with no source");
+
+    // ── Sources: volume 2 (no chapters) → one Nyaa card + disabled WeebCentral ─
+    const QString hash2(40, QLatin1Char('a'));
+    search.next = {makeCandidate(hash2)};
+    service.searchSources(vol2Id);
+    const QVariantList v2Sources = sources.value(vol2Id);
+    require(!v2Sources.isEmpty(), "sourcesReady delivered candidates for volume 2");
+    require(v2Sources.last().toMap().value(QStringLiteral("kind")).toString()
+                == QStringLiteral("weebcentral"),
+            "fallback always last");
+    require(v2Sources.size() == 2, "one Nyaa card plus the WeebCentral fallback");
+    {
+        const QVariantMap weeb = v2Sources.last().toMap();
+        require(!weeb.value(QStringLiteral("enabled")).toBool(),
+                "chapterless volume disables the WeebCentral card");
+        require(!weeb.value(QStringLiteral("reason")).toString().isEmpty(),
+                "the disabled WeebCentral card carries a concrete reason");
+    }
+
+    // Volume 1 (has chapters): Nyaa returns nothing → WeebCentral card still last + enabled.
+    search.next = {};
+    service.searchSources(vol1Id);
+    const QVariantList v1Sources = sources.value(vol1Id);
+    require(!v1Sources.isEmpty()
+                && v1Sources.last().toMap().value(QStringLiteral("kind")).toString()
+                       == QStringLiteral("weebcentral"),
+            "WeebCentral card present and last even when Nyaa returns nothing");
+    require(v1Sources.last().toMap().value(QStringLiteral("enabled")).toBool(),
+            "the WeebCentral card is enabled when the volume has mapped chapters");
+
+    // ── downloadNyaa rejects a hash not among the cached candidates ───────────
+    {
+        const int before = failures.size();
+        service.downloadNyaa(vol2Id, QString(40, QLatin1Char('f')));
+        require(failures.size() == before + 1 && failures.last().startsWith(vol2Id),
+                "downloadNyaa rejects an unknown infoHash, never accepts an arbitrary magnet");
+        require(engine.addMagnetCount == 0, "a rejected hash never reaches the transport");
+    }
+
+    // ── Real search→choose→download→ingest→ready (volume 2) ───────────────────
+    require(service.statusOf(vol2Id).value(QStringLiteral("state")).toString() == QStringLiteral("none"),
+            "an un-acquired volume reports state none");
+    service.downloadNyaa(vol2Id, hash2);
+    require(engine.addMagnetCount == 1, "the chosen candidate reaches the transport");
+    require(engine.lastPaused, "the candidate is added paused for metadata inspection");
+    engine.emitMetadata(hash2, packFiles());
+    require(engine.startedHashes.count(hash2) == 1, "the resolved volume torrent starts");
+
+    const QString saveDir2 = saveRoot + QLatin1Char('/') + hash2;
+    require(QDir().mkpath(saveDir2), "transport save dir created");
+    require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                        saveDir2 + QStringLiteral("/Series v02.cbz")),
+            "the real fixture is materialised as the finished archive");
+    engine.emitFinished(hash2);
+    require(waitFor(&service, &MangaTankobanService::finished, 30000),
+            "facade emitted finished after a real ingest→index run");
+    require(service.statusOf(vol2Id).value(QStringLiteral("state")).toString() == QStringLiteral("ready"),
+            "one facade owns terminal state");
+    require(service.localPages(vol2Id).size() == 3, "the ready volume exposes its three extracted pages");
+    require(!failures.contains(vol2Id + QLatin1Char('|')), "no spurious failure on the happy path");
+
+    // remove() clears the ready state (and emits removed exactly once).
+    {
+        const int rBefore = removedIds.size();
+        service.remove(vol2Id);
+        require(service.statusOf(vol2Id).value(QStringLiteral("state")).toString() == QStringLiteral("none"),
+                "remove clears the ready state");
+        require(removedIds.size() == rBefore + 1 && removedIds.last() == vol2Id,
+                "remove of a published volume emits removed once");
+    }
+
+    // ── #4: cancel/remove on an idle volume is a quiet no-op ──────────────────
+    {
+        const int rBefore = removedIds.size();
+        service.cancel(vol3Id);   // nothing in flight
+        service.remove(vol3Id);   // nothing ready
+        require(removedIds.size() == rBefore,
+                "cancel/remove on a never-started volume is a quiet no-op (no spurious removed)");
+    }
+
+    // ── #3 + #2: concurrent reject, then remove() arrests an in-flight ingest ─
+    const QString hash3(40, QLatin1Char('c'));
+    search.next = {makeCandidate(hash3)};
+    service.searchSources(vol3Id);
+    service.downloadNyaa(vol3Id, hash3);   // first acquisition → in flight
+    {
+        const int before = failures.size();
+        const int addBefore = engine.addMagnetCount;
+        service.downloadNyaa(vol3Id, hash3);   // second concurrent request
+        require(failures.size() == before + 1 && failures.last().contains(QStringLiteral("acquiring")),
+                "a second concurrent acquisition for one volume is rejected");
+        require(engine.addMagnetCount == addBefore, "the rejected concurrent request never re-adds the torrent");
+    }
+    engine.emitMetadata(hash3, packFiles());   // volume 3 -> "Series v03.cbz" (index 2)
+    const QString saveDir3 = saveRoot + QLatin1Char('/') + hash3;
+    require(QDir().mkpath(saveDir3), "vol3 save dir created");
+    require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                        saveDir3 + QStringLiteral("/Series v03.cbz")),
+            "vol3 archive materialised");
+    engine.emitFinished(hash3);   // façade begins the async ingest (state: ingesting)
+    require(service.statusOf(vol3Id).value(QStringLiteral("state")).toString() == QStringLiteral("ingesting"),
+            "the finished transfer hands off to the ingest step");
+    const int fin3Before = finishedIds.size();
+    service.remove(vol3Id);       // ARREST mid-ingest
+    require(removedIds.last() == vol3Id, "remove during ingest emits removed");
+    // The async ingest still completes; the façade must undo the stray publish.
+    require(waitFor(&ingestor, &MangaVolumeArchiveIngestor::finished, 30000),
+            "the in-flight ingest actually completed (so the arrest is real, not a race win)");
+    require(finishedIds.size() == fin3Before,
+            "a removed volume never resurrects as finished after a stray ingest");
+    require(service.statusOf(vol3Id).value(QStringLiteral("state")).toString() == QStringLiteral("none"),
+            "a removed volume stays none even though its ingest completed");
+
+    // ── #5: WeebCentral terminal path converges to ONE ready record ───────────
+    const int fin1Before = finishedIds.size();
+    service.compileWeebCentral(vol1Id);
+    require(waitFor(&service, &MangaTankobanService::finished, 30000),
+            "packer-finished converges to the facade's finished");
+    require(finishedIds.size() == fin1Before + 1 && finishedIds.last() == vol1Id,
+            "the packer terminal path emits finished(volumeId) exactly once");
+    require(service.statusOf(vol1Id).value(QStringLiteral("state")).toString() == QStringLiteral("ready"),
+            "the WeebCentral-built volume goes ready through the facade");
+    {
+        const QVariantList lp = service.localPages(vol1Id);
+        require(lp.size() == 3, "WeebCentral volume publishes three pages");
+        require(lp[0].toMap().value(QStringLiteral("group")).toInt() == 0
+                    && lp[1].toMap().value(QStringLiteral("group")).toInt() == 0
+                    && lp[2].toMap().value(QStringLiteral("group")).toInt() == 1,
+                "chapter groups preserved as {0,0,1}");
+    }
+
+    // ── #1: a RESTART-replayed torrent that finishes ingests with ledger-recovered
+    // provenance even though prepareSeries/downloadNyaa were never called ───────
+    {
+        QTemporaryDir rRoot, rDl;
+        require(rRoot.isValid() && rDl.isValid(), "restart temp roots created");
+        const QString rSaveRoot   = rDl.filePath(QStringLiteral("dl"));
+        const QString rLedgerPath = rDl.filePath(QStringLiteral("ledger.json"));
+        const QString rHash(40, QLatin1Char('b'));
+        const QString rVolId = volumeId(QStringLiteral("s9"), QStringLiteral("5"));
+
+        // Seed an active ledger row, as if a prior session was mid-download.
+        {
+            MangaVolumeRequestLedger seed(rLedgerPath);
+            VolumeRequestRow row;
+            row.volumeId     = rVolId;
+            row.infoHash     = rHash;
+            row.magnetUri    = QStringLiteral("magnet:?xt=urn:btih:") + rHash;
+            row.seriesId     = QStringLiteral("s9");
+            row.volumeNumber = QStringLiteral("5");
+            row.savePath     = QString();   // transport computes saveDirFor(infoHash)
+            row.state        = QStringLiteral("downloading");
+            seed.upsert(row);
+        }
+
+        FakeEngine rEngine;
+        MangaVolumeTorrentDownloader rTransport(&rEngine, rLedgerPath, rSaveRoot); // replays → re-adds paused
+        require(rEngine.addMagnetCount == 1, "restart replay re-adds the persisted torrent");
+        MangaVolumeIndex rIndex(rRoot.path());
+        MangaVolumeArchiveIngestor rIngestor(&rIndex);
+        MangaSynopsisEnricher rEnricher(nullptr, rRoot.filePath(QStringLiteral("syn.json")));
+        FakeNyaaSearch rSearch;
+        // NOTE: prepareSeries / downloadNyaa are deliberately NOT called.
+        MangaTankobanService rService(&rSearch, &rTransport, &rIndex, &rIngestor, &rEnricher, nullptr);
+
+        rEngine.emitMetadata(rHash, oneFile(QStringLiteral("Series v05.cbz")));  // resolves volume 5
+        const QString rSaveDir = rSaveRoot + QLatin1Char('/') + rHash;
+        require(QDir().mkpath(rSaveDir), "restart save dir created");
+        require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                            rSaveDir + QStringLiteral("/Series v05.cbz")),
+                "restart archive materialised");
+        rEngine.emitFinished(rHash);
+        require(waitFor(&rService, &MangaTankobanService::finished, 30000),
+                "a resumed torrent that finishes ingests with ledger-recovered provenance");
+        require(rService.statusOf(rVolId).value(QStringLiteral("state")).toString() == QStringLiteral("ready"),
+                "the resumed volume becomes exactly one canonical ready record (no orphan)");
+        require(rIndex.localPages(rVolId).size() == 3,
+                "the ledger-recovered ready volume exposes its three extracted pages");
+    }
+
+    std::cout << "MANGA_TANKOBAN_SERVICE_OK\n";
+    return 0;
+}
+
+#include "manga_tankoban_service_harness.moc"

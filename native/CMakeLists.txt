@@ -159,6 +159,28 @@ add_executable(colosseum
     torrent/engine/TorrentRepository.h
     torrent/engine/DebugLogBuffer.cpp
     torrent/engine/DebugLogBuffer.h
+    # ── Tankoban volume mode (Tasks 1–8): now shipped in the app, not just harnesses ──
+    engine/MangaTankobanTypes.h
+    engine/MangaTankobanLogic.cpp
+    engine/MangaTankobanLogic.h
+    torrent/MangaNyaaSource.cpp
+    torrent/MangaNyaaSource.h
+    engine/MangaSynopsisEnricher.cpp
+    engine/MangaSynopsisEnricher.h
+    torrent/MangaVolumeFilePicker.cpp
+    torrent/MangaVolumeFilePicker.h
+    engine/MangaVolumeIndex.cpp
+    engine/MangaVolumeIndex.h
+    engine/MangaVolumeArchiveIngestor.cpp
+    engine/MangaVolumeArchiveIngestor.h
+    torrent/MangaVolumeTorrentDownloader.cpp
+    torrent/MangaVolumeTorrentDownloader.h
+    torrent/MangaVolumeRequestLedger.cpp
+    torrent/MangaVolumeRequestLedger.h
+    engine/MangaVolumePacker.cpp
+    engine/MangaVolumePacker.h
+    engine/MangaTankobanService.cpp
+    engine/MangaTankobanService.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
@@ -316,6 +338,30 @@ add_executable(torrent_engine_link_harness
     ../tests/torrent_engine_link_harness.cpp
 )
 target_link_libraries(torrent_engine_link_harness PRIVATE colosseum_libtorrent)
+
+# The façade harness composes the whole pipeline with a FAKE torrent engine +
+# FAKE Nyaa search, so it must NOT link colosseum_libtorrent. With HAS_LIBTORRENT
+# undefined here, MangaTankobanService's real TorrentEngine adapter + production
+# ctor compile out, and the DI ctor drives the real index/ingestor/enricher.
+add_executable(manga_tankoban_service_harness
+    ../tests/manga_tankoban_service_harness.cpp
+    engine/MangaTankobanService.cpp
+    engine/MangaTankobanService.h
+    engine/MangaTankobanLogic.cpp
+    engine/MangaSynopsisEnricher.cpp
+    engine/MangaVolumeIndex.cpp
+    engine/MangaVolumeArchiveIngestor.cpp
+    engine/MangaVolumePacker.cpp
+    engine/MangaScraper.h
+    torrent/MangaNyaaSource.cpp
+    torrent/MangaVolumeTorrentDownloader.cpp
+    torrent/MangaVolumeRequestLedger.cpp
+    torrent/MangaVolumeFilePicker.cpp
+)
+target_include_directories(manga_tankoban_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(manga_tankoban_service_harness PRIVATE
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
+target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(torrent_engine_download_harness
     ../tests/torrent_engine_download_harness.cpp

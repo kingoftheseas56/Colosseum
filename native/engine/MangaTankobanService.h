@@ -1,0 +1,175 @@
+#pragma once
+
+// The single Tankoban "volume mode" façade the QML page talks to (`TankobanVolumes`).
+//
+// Tasks 1–7 built the organs; this composes them into ONE object that owns the
+// whole lifecycle of a tankōbon volume: it turns a MangaFire snapshot into
+// canonical volume records (Task 1), searches Nyaa for a per-volume source
+// (Task 2), lazily enriches each volume's synopsis (Task 3), downloads a chosen
+// candidate through the restart-safe torrent transport (Task 6) or synthesizes
+// the volume from WeebCentral chapters (Task 7), and ingests the result into the
+// durable local index (Task 5) so it reads through MangaReader like any other
+// download. ONE object owns terminal ("ready") state, so QML never has to reason
+// about which collaborator finished.
+//
+// Testability by dependency injection: the DI constructor takes already-built
+// collaborators (a fake Nyaa search, the real transport over a fake torrent
+// engine, and real index/ingestor/enricher over a temp dir), so the whole
+// search→choose→download→ingest→ready pipeline is provable offline without
+// libtorrent (see tests/manga_tankoban_service_harness.cpp). The production
+// constructor builds the same collaborators over the shared runtime NAMs and the
+// real TorrentEngine.
+//
+// The concrete IMangaTorrentEngine adapter over the real (non-virtual)
+// TorrentEngine lives here too, gated on HAS_LIBTORRENT so the harness (which
+// never links libtorrent) compiles the façade without the engine.
+
+#include "engine/MangaTankobanTypes.h"                 // VolumeRecord, SeriesSnapshot
+#include "engine/MangaVolumeIndex.h"                   // MangaVolumeIndex, VolumeProvenance
+#include "torrent/MangaNyaaSource.h"                   // MangaNyaaCandidate, MangaNyaaSource
+#include "torrent/MangaVolumeTorrentDownloader.h"      // IMangaTorrentEngine, MangaVolumeTorrentDownloader
+
+#include <QHash>
+#include <QList>
+#include <QObject>
+#include <QSet>
+#include <QString>
+#include <QVariantList>
+#include <QVariantMap>
+
+class QNetworkAccessManager;
+class TorrentEngine;
+
+namespace MangaTankoban {
+class MangaVolumeArchiveIngestor;
+class MangaSynopsisEnricher;
+class MangaVolumePacker;
+}
+
+// ── Nyaa-search seam ─────────────────────────────────────────────────────────
+// A minimal abstraction over MangaNyaaSource so the façade can be driven by a
+// deterministic fake in tests. The real adapter forwards search() and re-emits
+// the source's signals 1:1.
+class IMangaNyaaSearch : public QObject {
+    Q_OBJECT
+public:
+    using QObject::QObject;
+    ~IMangaNyaaSearch() override = default;
+    virtual void search(const MangaTankoban::SeriesSnapshot& series,
+                        const QString& targetVolume) = 0;
+signals:
+    void searchSucceeded(const QString& volumeId,
+                         const QList<MangaTankoban::MangaNyaaCandidate>& rows);
+    void searchFailed(const QString& volumeId, const QString& reason);
+};
+
+// Real Nyaa search: owns a MangaNyaaSource over the pinned/uncached search NAM.
+class MangaNyaaSearchAdapter : public IMangaNyaaSearch {
+    Q_OBJECT
+public:
+    explicit MangaNyaaSearchAdapter(QNetworkAccessManager* nam, QObject* parent = nullptr);
+    void search(const MangaTankoban::SeriesSnapshot& series,
+                const QString& targetVolume) override;
+private:
+    MangaTankoban::MangaNyaaSource* m_source = nullptr;
+};
+
+#ifdef HAS_LIBTORRENT
+// Real torrent-engine seam: wraps the concrete, non-virtual TorrentEngine and
+// forwards addMagnet/setFilePriorities/startTorrent/removeTorrent/torrentFiles,
+// re-emitting metadataReady/torrentProgress/torrentFinished/torrentError. The
+// re-emit is connected Qt::QueuedConnection so a synchronous engine callback
+// during removeTorrent can never re-enter the transport's teardown.
+class MangaTorrentEngineAdapter : public IMangaTorrentEngine {
+    Q_OBJECT
+public:
+    explicit MangaTorrentEngineAdapter(TorrentEngine* engine, QObject* parent = nullptr);
+    QString addMagnet(const QString& magnetUri, const QString& savePath, bool paused) override;
+    void setFilePriorities(const QString& infoHash, const QVector<int>& priorities) override;
+    void startTorrent(const QString& infoHash, const QString& savePath) override;
+    void removeTorrent(const QString& infoHash, bool deleteFiles) override;
+    QJsonArray torrentFiles(const QString& infoHash) const override;
+private:
+    TorrentEngine* m_engine = nullptr;
+};
+#endif // HAS_LIBTORRENT
+
+class MangaTankobanService : public QObject {
+    Q_OBJECT
+public:
+    // Production: builds every collaborator internally over the shared runtime
+    // NAMs and the real TorrentEngine. `rootDir` defaults to AppDataLocation.
+    MangaTankobanService(QNetworkAccessManager* searchNam,
+                         QNetworkAccessManager* dlNam,
+                         TorrentEngine* torrentEngine,
+                         const QString& rootDir = QString(),
+                         QObject* parent = nullptr);
+
+    // Dependency-injected (tests): the caller owns every collaborator; the
+    // façade only wires their signals and drives them. `packer` may be null when
+    // the caller never exercises the WeebCentral fallback.
+    MangaTankobanService(IMangaNyaaSearch* search,
+                         MangaVolumeTorrentDownloader* transport,
+                         MangaTankoban::MangaVolumeIndex* index,
+                         MangaTankoban::MangaVolumeArchiveIngestor* ingestor,
+                         MangaTankoban::MangaSynopsisEnricher* enricher,
+                         MangaTankoban::MangaVolumePacker* packer,
+                         QObject* parent = nullptr);
+
+    // ── QML API ─────────────────────────────────────────────────────────────
+    Q_INVOKABLE void prepareSeries(QVariantMap descriptor, QVariantList volumes,
+                                   QVariantList chapters);
+    Q_INVOKABLE QVariantList volumesForSeries(QString seriesId) const;
+    Q_INVOKABLE bool modeEnabled(QString seriesId) const;
+    Q_INVOKABLE void setModeEnabled(QString seriesId, bool enabled);
+    Q_INVOKABLE void searchSources(QString volumeId);
+    Q_INVOKABLE void downloadNyaa(QString volumeId, QString infoHash);
+    Q_INVOKABLE void compileWeebCentral(QString volumeId);
+    Q_INVOKABLE void cancel(QString volumeId);
+    Q_INVOKABLE void remove(QString volumeId);
+    Q_INVOKABLE QVariantMap statusOf(QString volumeId) const;
+    Q_INVOKABLE QVariantList localPages(QString volumeId) const;
+
+signals:
+    void volumesChanged(const QString& seriesId);
+    void sourcesReady(const QString& volumeId, const QVariantList& results);
+    void progress(const QString& volumeId, double done, double total);
+    void finished(const QString& volumeId);
+    void failed(const QString& volumeId, const QString& reason);
+    void removed(const QString& volumeId);
+    void synopsisReady(const QString& volumeId);
+
+private:
+    void wireSignals();
+    void onSourcesFound(const QString& volumeId,
+                        const QList<MangaTankoban::MangaNyaaCandidate>& rows);
+    void onTransportFinished(const QString& volumeId, const QString& archivePath);
+    void onAcquired(const QString& volumeId);          // index now holds a ready volume
+    void onFailed(const QString& volumeId, const QString& reason);
+    // True while an acquisition is genuinely running (resolving / downloading /
+    // ingesting / packing). A terminal "failed" state is NOT in-flight.
+    bool isInFlight(const QString& volumeId) const;
+
+    QVariantMap sourceCard(const MangaTankoban::MangaNyaaCandidate& candidate) const;
+    QVariantMap weebCardFor(const QString& volumeId) const;
+    QVariantMap volumeMap(const MangaTankoban::VolumeRecord& volume) const;
+    MangaTankoban::VolumeProvenance provenanceFor(const MangaTankoban::VolumeRecord& volume,
+                                                  const MangaTankoban::MangaNyaaCandidate& candidate) const;
+
+    // Collaborators. Parented to `this` in the production ctor; borrowed (not
+    // owned) in the DI ctor.
+    IMangaNyaaSearch* m_search = nullptr;
+    MangaVolumeTorrentDownloader* m_transport = nullptr;
+    MangaTankoban::MangaVolumeIndex* m_index = nullptr;
+    MangaTankoban::MangaVolumeArchiveIngestor* m_ingestor = nullptr;
+    MangaTankoban::MangaSynopsisEnricher* m_enricher = nullptr;
+    MangaTankoban::MangaVolumePacker* m_packer = nullptr;
+
+    // Canonical model + acquisition bookkeeping, all keyed by the same ids.
+    QHash<QString, MangaTankoban::SeriesSnapshot> m_series;                     // seriesId -> snapshot
+    QHash<QString, MangaTankoban::VolumeRecord> m_volumes;                      // volumeId -> record
+    QHash<QString, QList<MangaTankoban::MangaNyaaCandidate>> m_candidates;      // volumeId -> cached search
+    QHash<QString, MangaTankoban::MangaNyaaCandidate> m_chosen;                 // volumeId -> chosen candidate
+    QHash<QString, QVariantMap> m_acq;                                          // volumeId -> in-flight status
+    QSet<QString> m_tornDown;   // volumeIds explicitly cancelled/removed — never resurrect as ready
+};
