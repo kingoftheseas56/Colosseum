@@ -106,3 +106,13 @@ function series(locgId) {
 function downloadPost(edition) {
     return (edition && edition.available && edition.getcomics_post) ? edition.getcomics_post : null;
 }
+
+// Whether the series contains at least one edition with a real GetComics source.
+// This is intentionally derived from the same downloadPost() truth used by the ledger.
+function hasDownloadableEdition(locgId) {
+    var rows = editions(locgId);
+    for (var i = 0; i < rows.length; i++) {
+        if (downloadPost(rows[i]) !== null) return true;
+    }
+    return false;
+}
