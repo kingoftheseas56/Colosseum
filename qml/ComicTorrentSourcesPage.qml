@@ -29,6 +29,7 @@ Item {
     property bool complete: false
     property bool confirmingWeak: false
     property bool archiveChoosing: false
+    property bool acquiring: false        // a torrent has been chosen and is being acquired
     property var pendingRow: null
     readonly property var visibleRows: rows
     readonly property string identityLine: buildIdentityLine()
@@ -55,7 +56,7 @@ Item {
         rows = []; errors = []; archiveFiles = []
         queryText = ""
         loading = true; complete = false
-        confirmingWeak = false; archiveChoosing = false; pendingRow = null
+        confirmingWeak = false; archiveChoosing = false; acquiring = false; pendingRow = null
         open = true
         if (comicsApi)
             comicsApi.searchTorrentSources(context.issueId, context.seriesTitle,
@@ -63,9 +64,14 @@ Item {
     }
 
     function hide() {
-        if (comicsApi && context.issueId) comicsApi.cancelTorrentSourceSearch(context.issueId)
+        if (comicsApi && context.issueId) {
+            comicsApi.cancelTorrentSourceSearch(context.issueId)
+            // Backing out of a live acquisition (resolving/choosing/downloading, not yet
+            // handed off to the ledger) tears down the torrent + temp files too.
+            if (acquiring) comicsApi.cancelDownload(context.issueId)
+        }
         open = false; rows = []; pendingRow = null
-        confirmingWeak = false; archiveChoosing = false
+        confirmingWeak = false; archiveChoosing = false; acquiring = false
         closed()
     }
 
@@ -98,6 +104,7 @@ Item {
         // Stop browsing, then acquire. The CANONICAL edition title is the picker
         // title; the row's release title is passed only as display/diagnostic.
         comicsApi.cancelTorrentSourceSearch(context.issueId)
+        acquiring = true   // a live acquisition now exists under this chId
         comicsApi.downloadTorrentSource(context.issueId, context.seriesId,
             context.seriesTitle, context.editionTitle, pendingRow.infoHash,
             pendingRow.title, pendingRow.magnetUri)
@@ -134,7 +141,9 @@ Item {
         function onTorrentSourceSearchFailed(issueId, reason) { sheet.applyFailure(issueId, reason) }
         function onTorrentArchiveSelectionRequired(issueId, files) { sheet.applyArchiveChoices(issueId, files) }
         function onTorrentArchiveSelected(issueId, fileName, automatic) {
-            if (issueId === sheet.context.issueId) sheet.hide()
+            // Committed to a file and downloading — the ledger owns it now, so close
+            // WITHOUT cancelling (clear acquiring first so hide() won't tear it down).
+            if (issueId === sheet.context.issueId) { sheet.acquiring = false; sheet.hide() }
         }
     }
 

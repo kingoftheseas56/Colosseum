@@ -18,6 +18,7 @@ ApplicationWindow {
         property int manualSearchCount: 0
         property int cancelCount: 0
         property int downloadCount: 0
+        property int cancelDownloadCount: 0
         property int chosenFileIndex: -1
         property string lastPickerTitle: ""
         signal torrentSourcesUpdated(string issueId, var rows, bool complete)
@@ -30,6 +31,7 @@ ApplicationWindow {
         function downloadTorrentSource(issueId, seriesId, seriesTitle, issueLabel, infoHash, releaseTitle, magnetUri) {
             downloadCount++; lastPickerTitle = issueLabel
         }
+        function cancelDownload(issueId) { cancelDownloadCount++ }
         function chooseTorrentArchive(issueId, fileIndex) { chosenFileIndex = fileIndex }
     }
 
@@ -87,6 +89,23 @@ ApplicationWindow {
                 if (!page.archiveChoosing) return fail("ambiguous manifest opens the archive picker", 2)
                 page.chooseArchive(1)
                 if (fakeApi.chosenFileIndex !== 1) return fail("chosen archive index forwards to the facade", 2)
+
+                // Backing out of a live acquisition (selected, not yet handed off) must
+                // tear down the download, not just the search.
+                if (!page.acquiring) return fail("a selected-but-unfinished acquisition is live", 2)
+                page.hide()
+                if (fakeApi.cancelDownloadCount !== 1) return fail("Back must cancel the live download", 2)
+
+                // A successful archive handoff closes the page WITHOUT cancelling.
+                page.show({ issueId: "gc:saga:book-one", seriesId: "gc:saga",
+                            seriesTitle: "Saga", editionTitle: "Saga: Book One",
+                            isbn: "9781632150783", collects: "Saga #1-18", year: "2014", cover: "" })
+                page.applySources("gc:saga:book-one", [strongRow], true)
+                page.selectRow(strongRow)
+                if (!page.acquiring) return fail("a strong-row selection is a live acquisition", 2)
+                fakeApi.torrentArchiveSelected("gc:saga:book-one", "Saga.cbz", true)
+                if (page.open || page.acquiring) return fail("archive handoff closes the page", 2)
+                if (fakeApi.cancelDownloadCount !== 1) return fail("a successful handoff must NOT cancel the download", 2)
 
                 console.log("COMIC_TORRENT_SOURCES_PAGE_OK")
                 Qt.exit(0)
