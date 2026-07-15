@@ -133,6 +133,12 @@ ComicDownloader::ComicDownloader(QNetworkAccessManager* nam, QNetworkAccessManag
                 this, &ComicDownloader::torrentArchiveSelectionRequired);
         connect(m_torrents, &ComicTorrents::archiveSelected,
                 this, &ComicDownloader::torrentArchiveSelected);
+        connect(m_torrents, &ComicTorrents::resolving,
+                this, &ComicDownloader::resolving);
+        connect(m_torrents, &ComicTorrents::combinedArchiveConfirmationRequired,
+                this, &ComicDownloader::torrentCombinedArchiveConfirmationRequired);
+        connect(m_torrents, &ComicTorrents::incompleteIssueSetDetected,
+                this, &ComicDownloader::torrentIncompleteIssueSetDetected);
     }
 }
 
@@ -480,6 +486,53 @@ void ComicDownloader::downloadTorrentSource(const QString& issueIdIn, const QStr
     qInfo() << "[ComicDownloader] torrent source chosen" << id << "release=" << releaseTitle;
     m_torrents->downloadInfoHash(id, seriesId, seriesTitle, issueLabel, infoHash,
                                  /*pickerTitle=*/issueLabel, magnetUri);
+}
+
+// ── Automatic pack-selection path (v2, Task 10) ─────────────────────────────
+
+void ComicDownloader::downloadTorrentEdition(const QString& issueIdIn, const QString& seriesId,
+                                             const QString& seriesTitle, const QString& editionTitle,
+                                             const QString& isbn, const QString& collects,
+                                             const QString& infoHash, const QString& magnetUri)
+{
+    const QString id = issueIdIn.trimmed();
+    if (id.isEmpty() || infoHash.trimmed().isEmpty()) {
+        emit failed(id, QStringLiteral("empty edition id / infoHash"));
+        return;
+    }
+    if (isDownloaded(id)) { emit finished(id); return; }
+    if (!m_torrents) {
+        emit failed(id, QStringLiteral("comic torrent service unavailable"));
+        return;
+    }
+    if (m_torrents->contains(id)) return;
+    if (m_active && m_active->id == id) return;
+    for (const InFlight& queued : m_queue)
+        if (queued.id == id) return;
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        if (it.value().id == id) return;
+    // Stop browsing (a live source-search session may still be open behind
+    // this call) and hand off to the automatic pack transport — it isolates
+    // the edition itself; the transport's own idempotency guard (one live
+    // intent per editionId) makes a duplicate call here harmless.
+    m_torrents->cancelSourceSearch(id);
+    qInfo() << "[ComicDownloader] torrent edition chosen" << id << "hash=" << infoHash;
+    m_torrents->downloadEditionTorrent(id, seriesId, seriesTitle, editionTitle, isbn, collects,
+                                       infoHash, magnetUri);
+}
+
+void ComicDownloader::chooseTorrentFiles(const QString& issueIdIn, const QVariantList& indices)
+{
+    if (!m_torrents) return;
+    QList<int> idx;
+    idx.reserve(indices.size());
+    for (const QVariant& v : indices) idx.append(v.toInt());
+    m_torrents->chooseEditionFiles(issueIdIn.trimmed(), idx);
+}
+
+void ComicDownloader::confirmCombinedArchive(const QString& issueIdIn)
+{
+    if (m_torrents) m_torrents->confirmEditionCombined(issueIdIn.trimmed());
 }
 
 void ComicDownloader::downloadIssue(const QString& issueIdIn, const QString& postUrl,

@@ -81,6 +81,19 @@ public:
     // Commit a user-chosen archive from an ambiguous, paused torrent.
     void chooseArchive(const QString& issueId, int fileIndex);
 
+    // ── Automatic pack-selection path (v2 wiring, Task 10) ───────────────────
+    // Builds the canonical ComicEditionTarget once, then hands it straight to
+    // the edition pack transport: isolate + download automatically, no manual
+    // file pick, unless the manifest is Ambiguous/CombinedOnly/
+    // IncompleteIssueSet (typed signals below).
+    void downloadEditionTorrent(const QString& issueId, const QString& seriesId,
+                                const QString& seriesTitle, const QString& editionTitle,
+                                const QString& isbn, const QString& collects,
+                                const QString& infoHash, const QString& magnetUri);
+    // Fallbacks for the typed non-automatic outcomes.
+    bool chooseEditionFiles(const QString& issueId, const QList<int>& indices);
+    bool confirmEditionCombined(const QString& issueId);
+
 signals:
     void progress(const QString& issueId, double received, double total);
     void archiveReady(const QString& issueId, const QString& seriesId,
@@ -94,6 +107,12 @@ signals:
     // Ambiguous manifest paused for a manual archive choice, then the outcome.
     void archiveSelectionRequired(const QString& issueId, const QVariantList& files);
     void archiveSelected(const QString& issueId, const QString& fileName, bool automatic);
+    // Shared by both subsystems (legacy job / edition pack) — a torrent was
+    // added and is being inspected before any payload downloads.
+    void resolving(const QString& issueId);
+    // Pack-only typed selection variants, re-emitted 1:1 from the transport.
+    void combinedArchiveConfirmationRequired(const QString& issueId, const QVariantList& files);
+    void incompleteIssueSetDetected(const QString& issueId, const QStringList& missingIssues);
 
 private slots:
     void onIndexerResults(const QString& handle, const QList<TorrentResult>& results);

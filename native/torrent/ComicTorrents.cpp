@@ -4,6 +4,7 @@
 #include "ComicTorrentQueryPlanner.h"
 #include "ComicTorrentRanker.h"
 #include "TankorentSearchService.h"
+#include "engine/ComicDownloader.h"   // qobject_cast target for the ingest-publish seam
 
 #include <QDebug>
 #include <QStandardPaths>
@@ -80,14 +81,16 @@ ComicTorrents::ComicTorrents(QNetworkAccessManager* searchNam, TorrentEngine* en
 #ifdef HAS_LIBTORRENT
     if (engine) packEngine = new ComicTorrentEngineAdapter(engine, this);
 #endif
-    // Edition pack transport (Task 9): shares the SAME engine as the legacy
-    // single-archive path below. `ingestTarget` stays null here — no
-    // production QML entry point calls downloadEdition() yet (Task 10 wires
-    // that); the capability builds/replays/tests via dependency injection in
-    // tests/comic_torrent_pack_transport_harness.cpp regardless.
+    // Edition pack transport (Task 9 built it; Task 10 connects it): shares
+    // the SAME engine as the legacy single-archive path below. ComicTorrents
+    // is always constructed BY a ComicDownloader passing itself as our QObject
+    // parent (native/engine/ComicDownloader.cpp) — recover it here so
+    // assemble -> ingestAssembledEdition -> publish actually reaches the
+    // library/reader contract instead of dead-ending in staging.
+    ComicDownloader* ingestTarget = qobject_cast<ComicDownloader*>(parent);
     const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/comics-torrent");
-    m_downloader = new ComicTorrentDownloader(packEngine, /*ingestTarget=*/nullptr,
+    m_downloader = new ComicTorrentDownloader(packEngine, ingestTarget,
                                               base + QStringLiteral("/edition-requests.json"),
                                               base + QStringLiteral("/torrent"),
                                               base + QStringLiteral("/staging"), this);
@@ -121,11 +124,41 @@ void ComicTorrents::wireSignals()
             this, &ComicTorrents::archiveSelectionRequired);
     connect(m_downloader, &ComicTorrentDownloader::fileSelected,
             this, &ComicTorrents::archiveSelected);
+    connect(m_downloader, &ComicTorrentDownloader::resolving,
+            this, &ComicTorrents::resolving);
+    connect(m_downloader, &ComicTorrentDownloader::combinedArchiveConfirmationRequired,
+            this, &ComicTorrents::combinedArchiveConfirmationRequired);
+    connect(m_downloader, &ComicTorrentDownloader::incompleteIssueSetDetected,
+            this, &ComicTorrents::incompleteIssueSetDetected);
 }
 
 void ComicTorrents::chooseArchive(const QString& issueId, int fileIndex)
 {
     m_downloader->chooseFile(issueId.trimmed(), fileIndex);
+}
+
+// ── Automatic pack-selection path (v2 wiring, Task 10) ──────────────────────
+
+void ComicTorrents::downloadEditionTorrent(const QString& issueIdIn, const QString& seriesId,
+                                           const QString& seriesTitle, const QString& editionTitle,
+                                           const QString& isbn, const QString& collects,
+                                           const QString& infoHash, const QString& magnetUri)
+{
+    const QString issueId = issueIdIn.trimmed();
+    if (issueId.isEmpty()) return;
+    const ComicEditionIdentity::ComicEditionTarget target = ComicEditionIdentity::buildTarget(
+        issueId, seriesId, seriesTitle, editionTitle, QString(), isbn, collects);
+    m_downloader->downloadEdition(target, infoHash, magnetUri);
+}
+
+bool ComicTorrents::chooseEditionFiles(const QString& issueId, const QList<int>& indices)
+{
+    return m_downloader->chooseFiles(issueId.trimmed(), indices);
+}
+
+bool ComicTorrents::confirmEditionCombined(const QString& issueId)
+{
+    return m_downloader->confirmCombined(issueId.trimmed());
 }
 
 bool ComicTorrents::contains(const QString& issueId) const
@@ -355,7 +388,15 @@ bool ComicTorrents::cancel(const QString& issueIdIn)
         emit failed(issueId, QStringLiteral("cancelled by user"));
         return true;
     }
-    return m_downloader->cancel(issueId);
+    if (m_downloader->cancel(issueId)) return true;
+    // Not a legacy job — try the edition pack transport. cancelEdition() never
+    // emits failed() itself (it is a quiet ledger/teardown op), so surface the
+    // same "cancelled by user" outcome the legacy path already gives the UI.
+    if (m_downloader->cancelEdition(issueId)) {
+        emit failed(issueId, QStringLiteral("cancelled by user"));
+        return true;
+    }
+    return false;
 }
 
 QVariantMap ComicTorrents::statusOf(const QString& issueIdIn) const

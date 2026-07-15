@@ -21,7 +21,8 @@ $baseline = @(
     'comic_torrent_ranker_harness.exe',
     'comic_torrent_filepicker_harness.exe',
     'comic_torrents_search_harness.exe',
-    'comic_downloader_ingest_harness.exe'
+    'comic_downloader_ingest_harness.exe',
+    'comic_torrent_pack_transport_harness.exe'
 )
 foreach ($name in $baseline) {
     $exe = Join-Path $build $name
@@ -51,10 +52,40 @@ Assert-Contains $page 'comicsApi.searchTorrentSourcesQuery(' `
     "Manual query must call searchTorrentSourcesQuery."
 Assert-Contains $page 'comicsApi.cancelTorrentSourceSearch(' `
     "The page must cancel its search on close/select."
-Assert-Contains $page 'comicsApi.downloadTorrentSource(' `
-    "Row selection must call downloadTorrentSource."
-Assert-Contains $page 'comicsApi.chooseTorrentArchive(' `
-    "Archive choice must call chooseTorrentArchive."
+
+# Row selection rides the AUTOMATIC pack-selection path (Task 10) - no manual
+# file pick unless the transport itself says the manifest needs one.
+Assert-Contains $page 'comicsApi.downloadTorrentEdition(' `
+    "Row selection must call the automatic downloadTorrentEdition entry point."
+Assert-Contains $page 'context.editionTitle, context.isbn, context.collects, row.infoHash' `
+    "The canonical edition title/isbn/collects must be the match identity, not the release title."
+Assert-Contains $page 'comicsApi.chooseTorrentFiles(' `
+    "An ambiguous manifest's manual pick must call chooseTorrentFiles."
+Assert-Contains $page 'comicsApi.confirmCombinedArchive(' `
+    "A combined-only manifest's explicit confirm must call confirmCombinedArchive."
+Assert-Contains $page 'comicsApi.cancelDownload(' `
+    "Backing out of a live acquisition must cancel it."
+
+# The legacy single-archive verbs stay available as backend compat surface but
+# this page no longer drives them directly (GetComics primary still does).
+Assert-NotContains $page 'comicsApi.downloadTorrentSource(' `
+    "Row selection must no longer call the legacy single-archive downloadTorrentSource."
+Assert-NotContains $page 'comicsApi.chooseTorrentArchive(' `
+    "The archive picker must no longer call the legacy single-archive chooseTorrentArchive."
+
+# One typed-state driver renders every safe pack outcome.
+Assert-Contains $page 'property string selectionState' `
+    "The page must track exactly one selectionState string property."
+Assert-Contains $page 'Inspecting pack' `
+    "A chosen row enters an Inspecting pack state while metadata resolves."
+Assert-Contains $page 'This pack is missing issues this edition needs.' `
+    "An incomplete issue set must be named to the user, never silently downloaded."
+Assert-Contains $page 'Download whole archive anyway' `
+    "A combined-only manifest must require an explicit confirmation."
+Assert-Contains $page 'FORMAT RANGE' `
+    "Coverage rows must show a restrained FORMAT RANGE badge."
+Assert-Contains $page 'TRUSTED' `
+    "A trusted uploader must show a restrained trust marker."
 
 # Manual query, weak confirmation, and the archive picker are all present.
 Assert-Contains $page 'function submitManualQuery' `
@@ -63,8 +94,6 @@ Assert-Contains $page 'This release does not closely match the collected edition
     "Weak matches must warn before download."
 Assert-Contains $page 'ComicTorrentArchivePicker' `
     "The page must host the archive picker for ambiguous packs."
-Assert-Contains $page 'context.editionTitle, pendingRow.infoHash' `
-    "The canonical edition title must be the picker title, not the release title."
 
 # It stays comics-native: no Theatre stream-addon machinery, no direct engine.
 Assert-NotContains $page 'AddonClient' `

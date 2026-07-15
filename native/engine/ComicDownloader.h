@@ -119,6 +119,23 @@ public:
     // is a manifest index the picker offered via torrentArchiveSelectionRequired).
     Q_INVOKABLE void chooseTorrentArchive(const QString& issueId, int fileIndex);
 
+    // ── Automatic pack-selection path (v2, Task 10) ───────────────────────────
+    // The AUTOMATIC counterpart to downloadTorrentSource(): the caller has
+    // picked a torrent for a collected edition; this isolates + downloads the
+    // edition itself (shared-infohash pack transport), NO manual file pick,
+    // unless the manifest is Ambiguous/CombinedOnly/IncompleteIssueSet — those
+    // pause and surface the typed signals below instead of guessing.
+    Q_INVOKABLE void downloadTorrentEdition(const QString& issueId, const QString& seriesId,
+                                            const QString& seriesTitle, const QString& editionTitle,
+                                            const QString& isbn, const QString& collects,
+                                            const QString& infoHash, const QString& magnetUri);
+    // Commit a manual pick among an Ambiguous decision's candidates (one or
+    // more manifest indices — a split multi-file pick counts as one edition).
+    Q_INVOKABLE void chooseTorrentFiles(const QString& issueId, const QVariantList& indices);
+    // Accept a CombinedOnly decision's whole archive as an explicit,
+    // user-confirmed release (it likely also contains other editions).
+    Q_INVOKABLE void confirmCombinedArchive(const QString& issueId);
+
     // Local pages of a downloaded issue, MangaDownloader-shaped:
     // [{index, url: "file:///…/page_000.jpg", group: -1}] — or [] if not on disk.
     Q_INVOKABLE QVariantList localPages(const QString& issueId) const;
@@ -151,8 +168,17 @@ signals:
     void torrentSourcesUpdated(const QString& issueId, const QVariantList& rows, bool complete);
     void torrentSourceSearchFailed(const QString& issueId, const QString& reason);
     // Ambiguous torrent paused for a manual archive choice, then the outcome.
+    // Reused for the edition pack transport's Ambiguous case too (same
+    // "pick one of these files" shape — see ComicTorrentDownloader.h).
     void torrentArchiveSelectionRequired(const QString& issueId, const QVariantList& files);
     void torrentArchiveSelected(const QString& issueId, const QString& fileName, bool automatic);
+    // Shared by both torrent subsystems — a torrent was added and is being
+    // inspected before any payload downloads.
+    void resolving(const QString& issueId);
+    // Edition pack transport only (v2, Task 10) — typed non-automatic
+    // outcomes; never auto-download, always wait for the matching Q_INVOKABLE.
+    void torrentCombinedArchiveConfirmationRequired(const QString& issueId, const QVariantList& files);
+    void torrentIncompleteIssueSetDetected(const QString& issueId, const QStringList& missingIssues);
 
 private:
     struct Entry {

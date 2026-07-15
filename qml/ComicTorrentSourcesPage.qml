@@ -22,15 +22,23 @@ Item {
     property var context: ({})
     property var rows: []
     property var errors: []
-    property var archiveFiles: []
+    property var archiveFiles: []          // ambiguous: eligible candidates
+    property var missingIssues: []         // incomplete: named missing issues
+    property var combinedFiles: []         // combined: the whole-archive candidate
     property string queryText: ""
     property bool open: false
     property bool loading: false
     property bool complete: false
     property bool confirmingWeak: false
-    property bool archiveChoosing: false
     property bool acquiring: false        // a torrent has been chosen and is being acquired
     property var pendingRow: null
+    // ONE typed-state driver for everything past "a torrent was tapped":
+    //   results     — browsing/query, nothing chosen yet (also the confirmingWeak gate)
+    //   inspecting  — automatic pack path is resolving metadata / just resumed after a choice
+    //   ambiguous   — two+ eligible files, user must pick (ComicTorrentArchivePicker)
+    //   incomplete  — the pack is missing required issues; no auto-download
+    //   combined    — only a combined multi-edition archive covers this edition
+    property string selectionState: "results"
     readonly property var visibleRows: rows
     readonly property string identityLine: buildIdentityLine()
 
@@ -53,10 +61,10 @@ Item {
 
     function show(contextObject) {
         context = contextObject
-        rows = []; errors = []; archiveFiles = []
+        rows = []; errors = []; archiveFiles = []; missingIssues = []; combinedFiles = []
         queryText = ""
         loading = true; complete = false
-        confirmingWeak = false; archiveChoosing = false; acquiring = false; pendingRow = null
+        confirmingWeak = false; selectionState = "results"; acquiring = false; pendingRow = null
         open = true
         if (comicsApi)
             comicsApi.searchTorrentSources(context.issueId, context.seriesTitle,
@@ -66,12 +74,16 @@ Item {
     function hide() {
         if (comicsApi && context.issueId) {
             comicsApi.cancelTorrentSourceSearch(context.issueId)
-            // Backing out of a live acquisition (resolving/choosing/downloading, not yet
-            // handed off to the ledger) tears down the torrent + temp files too.
+            // Backing out of a live acquisition (resolving/choosing/downloading/
+            // assembling — anything past "results", not yet handed off to the
+            // ledger) tears down the torrent + temp files too. Exactly one call:
+            // any handler that closes the page on a SAFE outcome clears
+            // `acquiring` itself before calling hide().
             if (acquiring) comicsApi.cancelDownload(context.issueId)
         }
         open = false; rows = []; pendingRow = null
-        confirmingWeak = false; archiveChoosing = false; acquiring = false
+        confirmingWeak = false; selectionState = "results"; acquiring = false
+        archiveFiles = []; missingIssues = []; combinedFiles = []
         closed()
     }
 
@@ -101,25 +113,82 @@ Item {
     function confirmWeakSelection() {
         confirmingWeak = false
         if (!comicsApi || !pendingRow) return
-        // Stop browsing, then acquire. The CANONICAL edition title is the picker
-        // title; the row's release title is passed only as display/diagnostic.
         comicsApi.cancelTorrentSourceSearch(context.issueId)
-        acquiring = true   // a live acquisition now exists under this chId
-        comicsApi.downloadTorrentSource(context.issueId, context.seriesId,
-            context.seriesTitle, context.editionTitle, pendingRow.infoHash,
-            pendingRow.title, pendingRow.magnetUri)
+        beginAutomaticDownload(pendingRow)
     }
 
     function cancelWeakSelection() { confirmingWeak = false; pendingRow = null }
 
+    // Tap a coverage/identity-matched result -> auto isolate + download the
+    // edition (the shared-infohash pack transport), NO manual file pick. The
+    // CANONICAL edition title/isbn/collects are the identity the transport
+    // matches against; the row's release title/magnet are display/source only.
+    function beginAutomaticDownload(row) {
+        acquiring = true
+        selectionState = "inspecting"
+        comicsApi.downloadTorrentEdition(context.issueId, context.seriesId, context.seriesTitle,
+            context.editionTitle, context.isbn, context.collects, row.infoHash, row.magnetUri)
+    }
+
+    // ── typed outcomes from the automatic pack path ──────────────────────────
+
     function applyArchiveChoices(issueId, files) {
         if (issueId !== context.issueId) return
-        archiveFiles = files; archiveChoosing = true
+        archiveFiles = files; selectionState = "ambiguous"
     }
 
     function chooseArchive(index) {
-        if (comicsApi) comicsApi.chooseTorrentArchive(context.issueId, index)
-        archiveChoosing = false
+        if (comicsApi) comicsApi.chooseTorrentFiles(context.issueId, [index])
+        selectionState = "inspecting"   // resumes; closes on the next safe progress/finish
+    }
+
+    function applyIncomplete(issueId, missing) {
+        if (issueId !== context.issueId) return
+        missingIssues = missing || []; selectionState = "incomplete"
+    }
+
+    // "Try another source" and "Search manually" both give up on this pack —
+    // there is no backend capability to hand-pick individual files out of an
+    // incomplete set — and return to browsing; the manual variant also focuses
+    // the query field so the user can type a more complete release right away.
+    function rejectIncomplete(focusManualQuery) {
+        if (comicsApi) comicsApi.cancelDownload(context.issueId)
+        acquiring = false; selectionState = "results"; missingIssues = []
+        if (focusManualQuery) queryInput.forceActiveFocus()
+    }
+
+    function applyCombined(issueId, files) {
+        if (issueId !== context.issueId) return
+        combinedFiles = files || []; selectionState = "combined"
+    }
+
+    function confirmCombined() {
+        if (comicsApi) comicsApi.confirmCombinedArchive(context.issueId)
+        selectionState = "inspecting"   // resumes; closes on the next safe progress/finish
+    }
+
+    function rejectCombined() {
+        if (comicsApi) comicsApi.cancelDownload(context.issueId)
+        acquiring = false; selectionState = "results"; combinedFiles = []
+    }
+
+    // A safe, unique auto-decision (or a resumed manual choice) has started
+    // moving bytes — hand off to the normal ledger-row progress and close.
+    // Cleared BEFORE hide() so its cancel-on-Back guard does not fire.
+    function closeOnSafeProgress(issueId) {
+        if (issueId !== context.issueId) return
+        if (selectionState !== "inspecting") return
+        acquiring = false
+        hide()
+    }
+
+    // Any typed failure while a pack attempt is live (TargetMissing,
+    // UnsupportedPayload, an assembly error after a manual choice, …) — never
+    // leave the user stuck mid-state; fall back to browsing the same results.
+    function applyAcquisitionFailure(issueId) {
+        if (issueId !== context.issueId) return
+        if (selectionState === "results") return
+        acquiring = false; selectionState = "results"
     }
 
     function confidenceColor(c) {
@@ -139,12 +208,17 @@ Item {
         ignoreUnknownSignals: true
         function onTorrentSourcesUpdated(issueId, rows, complete) { sheet.applySources(issueId, rows, complete) }
         function onTorrentSourceSearchFailed(issueId, reason) { sheet.applyFailure(issueId, reason) }
+        // Reused for the pack transport's Ambiguous case too (same "pick one of
+        // these files" shape — see ComicTorrentDownloader.h).
         function onTorrentArchiveSelectionRequired(issueId, files) { sheet.applyArchiveChoices(issueId, files) }
-        function onTorrentArchiveSelected(issueId, fileName, automatic) {
-            // Committed to a file and downloading — the ledger owns it now, so close
-            // WITHOUT cancelling (clear acquiring first so hide() won't tear it down).
-            if (issueId === sheet.context.issueId) { sheet.acquiring = false; sheet.hide() }
-        }
+        function onTorrentCombinedArchiveConfirmationRequired(issueId, files) { sheet.applyCombined(issueId, files) }
+        function onTorrentIncompleteIssueSetDetected(issueId, missingIssues) { sheet.applyIncomplete(issueId, missingIssues) }
+        // A safe, unique auto-decision (or a resumed manual choice) has begun
+        // moving bytes, or has already finished outright — either way the
+        // ledger row owns it now; close without cancelling.
+        function onProgress(issueId, done, total) { sheet.closeOnSafeProgress(issueId) }
+        function onFinished(issueId) { sheet.closeOnSafeProgress(issueId) }
+        function onFailed(issueId, reason) { sheet.applyAcquisitionFailure(issueId) }
     }
 
     // ── base: float over the wallpaper, not a flat void ──
@@ -229,7 +303,7 @@ Item {
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
         anchors.top: bannerStrip.bottom; anchors.topMargin: 20
         height: 56
-        visible: !sheet.archiveChoosing
+        visible: sheet.selectionState === "results"
 
         Rectangle {
             id: queryField
@@ -292,7 +366,7 @@ Item {
         // ---- results view ----
         Item {
             anchors.fill: parent
-            visible: !sheet.archiveChoosing
+            visible: sheet.selectionState === "results"
 
             Item {
                 id: tableHead
@@ -389,19 +463,42 @@ Item {
                             text: row.modelData.title || ""
                             color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
                         }
+                        // Restrained evidence: a FORMAT RANGE / coverage badge, an ISSUES
+                        // badge, and an uploader-trust marker — the SAME gold evidence
+                        // styling as the confidence label above, no new color/emoji.
                         Row {
                             spacing: 7
-                            Repeater {
-                                model: row.modelData.evidence || []
-                                delegate: Rectangle {
-                                    required property string modelData
-                                    width: ev.implicitWidth + 16; height: 20; radius: 6
-                                    color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
-                                    Text {
-                                        id: ev; anchors.centerIn: parent; text: parent.modelData
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
-                                        font.weight: Font.DemiBold; font.letterSpacing: 0.6
-                                    }
+                            Rectangle {
+                                visible: !!row.modelData.coverage
+                                width: covText.implicitWidth + 16; height: 20; radius: 6
+                                color: Qt.rgba(0.94, 0.77, 0.29, 0.12); border.width: 1
+                                border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
+                                Text {
+                                    id: covText; anchors.centerIn: parent; text: "FORMAT RANGE"
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 10
+                                    font.weight: Font.DemiBold; font.letterSpacing: 0.6
+                                }
+                            }
+                            Rectangle {
+                                visible: (row.modelData.evidence || []).indexOf("ISSUES") >= 0
+                                width: issText.implicitWidth + 16; height: 20; radius: 6
+                                color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
+                                Text {
+                                    id: issText; anchors.centerIn: parent; text: "ISSUES"
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
+                                    font.weight: Font.DemiBold; font.letterSpacing: 0.6
+                                }
+                            }
+                            Rectangle {
+                                visible: !!row.modelData.uploader && Number(row.modelData.trustTier) <= 2
+                                width: upText.implicitWidth + 16; height: 20; radius: 6
+                                color: Qt.rgba(0.94, 0.77, 0.29, 0.12); border.width: 1
+                                border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
+                                Text {
+                                    id: upText; anchors.centerIn: parent
+                                    text: "TRUSTED · " + String(row.modelData.uploader || "")
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 10
+                                    font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
                         }
@@ -438,12 +535,115 @@ Item {
             ScrollGlide { flick: list }
         }
 
-        // ---- archive picker (ambiguous manifest) ----
+        // ---- inspecting: the automatic pack path is resolving metadata ----
+        Item {
+            anchors.fill: parent
+            visible: sheet.selectionState === "inspecting"
+            Column {
+                anchors.centerIn: parent
+                width: parent.width - 80
+                spacing: 14
+                Text {
+                    width: parent.width; horizontalAlignment: Text.AlignHCenter
+                    text: "Inspecting pack…"
+                    color: theme.ink; font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+                }
+                Text {
+                    width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
+                    visible: !!(sheet.pendingRow && sheet.pendingRow.title)
+                    text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                }
+            }
+        }
+
+        // ---- archive picker (ambiguous manifest — pack candidates {index,path,bytes}) ----
         ComicTorrentArchivePicker {
             anchors.fill: parent
-            visible: sheet.archiveChoosing
+            visible: sheet.selectionState === "ambiguous"
             files: sheet.archiveFiles
             onArchiveChosen: (fileIndex) => sheet.chooseArchive(fileIndex)
+        }
+
+        // ---- incomplete: names the missing issues, never auto-downloads ----
+        Item {
+            anchors.fill: parent
+            visible: sheet.selectionState === "incomplete"
+            Column {
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.leftMargin: 40; anchors.rightMargin: 40
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 18
+                Text {
+                    width: parent.width
+                    text: "This pack is missing issues this edition needs."
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
+                }
+                Text {
+                    width: parent.width
+                    text: (sheet.missingIssues || []).join("   ·   ")
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap
+                }
+                Row {
+                    spacing: 14
+                    Rectangle {
+                        width: 190; height: 44; radius: 12
+                        color: anotherMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                        border.width: 1; border.color: theme.edge
+                        Text { anchors.centerIn: parent; text: "Try another source"; color: theme.ink
+                            font.family: theme.ui; font.pixelSize: 14 }
+                        MouseArea { id: anotherMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(false) }
+                    }
+                    Rectangle {
+                        width: 190; height: 44; radius: 12
+                        color: manualMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                        border.width: 1; border.color: theme.edge
+                        Text { anchors.centerIn: parent; text: "Search manually"; color: theme.ink
+                            font.family: theme.ui; font.pixelSize: 14 }
+                        MouseArea { id: manualMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(true) }
+                    }
+                }
+            }
+        }
+
+        // ---- combined: only a whole multi-edition archive covers this edition ----
+        Item {
+            anchors.fill: parent
+            visible: sheet.selectionState === "combined"
+            Column {
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.leftMargin: 40; anchors.rightMargin: 40
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 18
+                Text {
+                    width: parent.width
+                    text: "Only a combined archive covers this edition — it likely includes other editions too."
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
+                }
+                Row {
+                    spacing: 14
+                    Rectangle {
+                        width: 150; height: 44; radius: 12
+                        color: combBackMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                        border.width: 1; border.color: theme.edge
+                        Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
+                            font.family: theme.ui; font.pixelSize: 15 }
+                        MouseArea { id: combBackMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectCombined() }
+                    }
+                    Rectangle {
+                        width: 260; height: 44; radius: 12
+                        color: combGoMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
+                        Behavior on color { ColorAnimation { duration: 140 } }
+                        Text { anchors.centerIn: parent; text: "Download whole archive anyway"; color: "#1a1306"
+                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        MouseArea { id: combGoMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmCombined() }
+                    }
+                }
+            }
         }
     }
 

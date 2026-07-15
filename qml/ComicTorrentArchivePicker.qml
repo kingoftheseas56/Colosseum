@@ -8,10 +8,42 @@ import QtQuick.Controls
 Item {
     id: picker
 
+    // Renders TWO candidate shapes: the legacy single-archive manifest
+    // {index, name, extension, sizeBytes, sizeText, exactTitle, tokenCoverage}
+    // and the edition pack transport's {index, path, bytes} (ComicTorrentDownloader.h,
+    // "Reused for the pack Ambiguous case too"). Missing name/extension/sizeText
+    // are derived from path/bytes below so both shapes render identically.
     property var files: []
     signal archiveChosen(int fileIndex)
 
     Theme { id: t }
+
+    function baseName(path) {
+        if (!path) return ""
+        var s = String(path)
+        var i = s.lastIndexOf("/")
+        return i < 0 ? s : s.slice(i + 1)
+    }
+    function extOf(path) {
+        var b = picker.baseName(path)
+        var i = b.lastIndexOf(".")
+        return i < 0 ? "" : b.slice(i + 1).toUpperCase()
+    }
+    function nameOf(row) {
+        return String(row.name || picker.baseName(row.path) || "")
+    }
+    function extensionOf(row) {
+        return String(row.extension || picker.extOf(row.path) || "")
+    }
+    function sizeTextOf(row) {
+        if (row.sizeText) return String(row.sizeText)
+        var bytes = Number(row.bytes || row.sizeBytes || 0)
+        if (!bytes) return ""
+        var units = ["B", "KB", "MB", "GB", "TB"]
+        var i = 0
+        while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++ }
+        return (i === 0 ? bytes.toFixed(0) : bytes.toFixed(1)) + " " + units[i]
+    }
 
     Item {
         id: head
@@ -61,7 +93,7 @@ Item {
                 color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: t.edge
                 Text {
                     anchors.centerIn: parent
-                    text: String(fileRow.modelData.extension || "").toUpperCase()
+                    text: picker.extensionOf(fileRow.modelData)
                     color: t.inkDim; font.family: t.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                 }
             }
@@ -72,11 +104,11 @@ Item {
                 spacing: 6
                 Text {
                     width: parent.width
-                    text: String(fileRow.modelData.name || "")
+                    text: picker.nameOf(fileRow.modelData)
                     color: t.ink; font.family: t.ui; font.pixelSize: 15; elide: Text.ElideMiddle
                 }
                 Text {
-                    text: String(fileRow.modelData.sizeText || "")
+                    text: picker.sizeTextOf(fileRow.modelData)
                     color: t.inkDim; font.family: t.ui; font.pixelSize: 13
                 }
             }
