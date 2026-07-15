@@ -107,8 +107,29 @@ def build_launch(reader, profile, cache_hint):
     raise ValueError(reader)
 
 
+PRESENTMON = os.environ.get("PRESENTMON", "C:/tools/presentmon/PresentMon.exe")
+
+
 def presentmon_available():
-    return shutil.which("PresentMon") or shutil.which("presentmon")
+    return os.path.exists(PRESENTMON) or shutil.which("PresentMon") or shutil.which("presentmon")
+
+
+def presentmon_exe():
+    return PRESENTMON if os.path.exists(PRESENTMON) else (shutil.which("PresentMon") or shutil.which("presentmon"))
+
+
+def process_name_for(reader):
+    return {"colosseum": "colosseum.exe", "tb2": "Tankoban.exe", "max": "electron.exe"}[reader]
+
+
+def start_presentmon(reader, run_dir, seconds):
+    """Launch PresentMon to capture presented-frame cadence for exactly one
+    reader process, one common clock/methodology for all three (spec §7.1)."""
+    csv = os.path.join(run_dir, "presentmon.csv")
+    argv = [presentmon_exe(), "--process_name", process_name_for(reader),
+            "--output_file", csv, "--timed", str(int(seconds + 2)),
+            "--track_gpu_video", "--terminate_after_timed", "--stop_existing_session"]
+    return subprocess.Popen(argv), csv
 
 
 def run_manifest(reader, run_id, cache, motion, rep, profile, cbz_sha, exe):
