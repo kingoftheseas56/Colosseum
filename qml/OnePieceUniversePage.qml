@@ -52,6 +52,12 @@ Item {
 
     function poster(id) { return id ? "https://live.metahub.space/poster/medium/" + id + "/img" : "" }
 
+    // Theatre's series view needs { id, type, title }: `type` picks the Cinemeta meta
+    // endpoint (series vs movie) — without it TheatreSeries defaults to "movie" and a
+    // series id like One Piece comes back empty. Our pins carry { t, id }; normalize here.
+    function watchSeries(pin) { return pin ? { "id": pin.id, "type": "series", "title": pin.t } : null }
+    function watchMovie(pin)  { return pin ? { "id": pin.id, "type": "movie",  "title": pin.t } : null }
+
     // chart geometry — one slot per saga; nodes ride the course, staggered high/low
     readonly property int slotW: 252
     readonly property int courseY: 212
@@ -229,7 +235,7 @@ Item {
                             }
                             MouseArea { id: sailMa; anchors.fill: parent; hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: if (root.uni.anime) root.watchRequested(root.uni.anime) }
+                                onClicked: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime)) }
                         }
                         // Read from Chapter 1 → the manga
                         Rectangle {
@@ -415,7 +421,7 @@ Item {
                             MouseArea {
                                 id: adMa; anchors.fill: parent
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: root.watchRequested(adTile.modelData)
+                                onClicked: root.watchRequested(root.watchSeries(adTile.modelData))
                             }
                         }
                     }
@@ -511,7 +517,7 @@ Item {
                                             id: fMa
                                             anchors.fill: parent
                                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.watchRequested(fTile.modelData)
+                                            onClicked: root.watchRequested(root.watchMovie(fTile.modelData))
                                         }
                                     }
                                 }
@@ -712,11 +718,11 @@ Item {
             id: islandMa
             anchors.fill: parent
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: if (root.uni.anime) root.watchRequested(root.uni.anime)
+            onClicked: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
         }
-        Keys.onReturnPressed: if (root.uni.anime) root.watchRequested(root.uni.anime)
-        Keys.onEnterPressed: if (root.uni.anime) root.watchRequested(root.uni.anime)
-        Keys.onSpacePressed: if (root.uni.anime) root.watchRequested(root.uni.anime)
+        Keys.onReturnPressed: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
+        Keys.onEnterPressed: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
+        Keys.onSpacePressed: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
     }
 
     // ═══ WantedPoster — a manga posted on the bounty board: parchment, letterhead, mugshot ═══

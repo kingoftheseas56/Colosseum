@@ -21,10 +21,15 @@ Item {
         // signal contract: watchRequested (anime/film) + seriesRequested (manga) must exist
         var hasWatch = (typeof p.watchRequested !== "undefined")
         var hasSeries = (typeof p.seriesRequested !== "undefined")
+        // the anime orbs must open as series (type:"series"), films as movies
+        var ws = p.watchSeries(u.saga[0])
+        var wm = p.watchMovie(u.filmEras[0].films[0])
+        var watchOk = !!ws && ws.type === "series" && ws.id === "tt0088509" && ws.title === "Dragon Ball"
+                      && !!wm && wm.type === "movie" && String(wm.id).indexOf("tt") === 0
         var ok = u.saga.length === 7 && u.filmEras.length === 3 && films === 25
-                 && u.manga.length === 8 && hasWatch && hasSeries
+                 && u.manga.length === 8 && hasWatch && hasSeries && watchOk
                  && p.poster(u.saga[0].id).indexOf("live.metahub.space") !== -1
-        console.log(ok ? "PASS" : "FAIL (watch=" + hasWatch + " series=" + hasSeries + ")")
+        console.log(ok ? "PASS" : "FAIL (watch=" + hasWatch + " series=" + hasSeries + " watchOk=" + watchOk + ")")
         Qt.exit(ok ? 0 : 1)
     }
 }

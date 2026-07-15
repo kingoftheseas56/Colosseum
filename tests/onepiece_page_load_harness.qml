@@ -19,11 +19,17 @@ Item {
                     + " poster=" + (u.anime ? p.poster(u.anime.id) : "-"))
         var hasWatch = (typeof p.watchRequested !== "undefined")
         var hasSeries = (typeof p.seriesRequested !== "undefined")
+        // the saga/anime click must carry type:"series" so Theatre opens the series view
+        var ws = p.watchSeries(u.anime)
+        var wm = p.watchMovie(u.filmEras[0].films[0])
+        var watchOk = !!ws && ws.id === "tt0388629" && ws.type === "series" && ws.title === "One Piece"
+                      && !!wm && wm.type === "movie" && String(wm.id).indexOf("tt") === 0
+        console.log("watchSeries(anime)=" + JSON.stringify(ws))
         var ok = u.sagas.length === 11 && u.adaptations.length === 2 && u.filmEras.length === 2
                  && films === 17 && u.manga.length === 8 && !!u.anime && u.anime.id === "tt0388629"
-                 && hasWatch && hasSeries
+                 && hasWatch && hasSeries && watchOk
                  && p.poster(u.anime.id).indexOf("live.metahub.space") !== -1
-        console.log(ok ? "PASS" : "FAIL (watch=" + hasWatch + " series=" + hasSeries + ")")
+        console.log(ok ? "PASS" : "FAIL (watch=" + hasWatch + " series=" + hasSeries + " watchOk=" + watchOk + ")")
         Qt.exit(ok ? 0 : 1)
     }
 }

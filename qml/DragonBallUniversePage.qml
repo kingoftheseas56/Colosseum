@@ -50,6 +50,12 @@ Item {
     function poster(id) { return id ? "https://live.metahub.space/poster/medium/" + id + "/img" : "" }
     function backdropFor(id) { return id ? "https://live.metahub.space/background/medium/" + id + "/img" : "" }
 
+    // Theatre's series view needs { id, type, title }: `type` picks the Cinemeta meta
+    // endpoint (series vs movie) — without it TheatreSeries defaults to "movie" and a
+    // series id comes back empty. Our pins carry { t, id }; normalize at emit.
+    function watchSeries(pin) { return pin ? { "id": pin.id, "type": "series", "title": pin.t } : null }
+    function watchMovie(pin)  { return pin ? { "id": pin.id, "type": "movie",  "title": pin.t } : null }
+
     // ---- the wall ----
     Item {
         anchors.fill: parent
@@ -155,7 +161,7 @@ Item {
                         MouseArea {
                             id: beginMa; anchors.fill: parent
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: if (root.uni.firstWatch) root.watchRequested(root.uni.firstWatch)
+                            onClicked: if (root.uni.firstWatch) root.watchRequested(root.watchSeries(root.uni.firstWatch))
                         }
                     }
                 }
@@ -246,7 +252,7 @@ Item {
                                             id: orbMa
                                             anchors.fill: parent
                                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.watchRequested(orbTile.modelData)
+                                            onClicked: root.watchRequested(root.watchSeries(orbTile.modelData))
                                         }
                                     }
                                     // ---- era name / year / note ----
@@ -360,7 +366,7 @@ Item {
                                                 id: fMa
                                                 anchors.fill: parent
                                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                                onClicked: root.watchRequested(fTile.modelData)
+                                                onClicked: root.watchRequested(root.watchMovie(fTile.modelData))
                                             }
                                         }
                                     }
