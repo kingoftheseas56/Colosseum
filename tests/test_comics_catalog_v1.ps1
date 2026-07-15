@@ -42,7 +42,7 @@ Assert-Contains $ledger 'ed.modelData.display_title || ed.modelData.title' `
 $env:QT_FORCE_STDERR_LOGGING = "1"
 $harness = Join-Path $PSScriptRoot "comics_catalog_logic_harness.qml"
 $output = cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-String
-if ($LASTEXITCODE -ne 0 -or $output -notlike "*COMICS_CATALOG_OK 806*") {
+if ($LASTEXITCODE -ne 0 -or $output -notlike "*COMICS_CATALOG_OK*") {
     throw "Comics catalog logic harness failed (exit $LASTEXITCODE):`n$output"
 }
 

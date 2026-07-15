@@ -453,11 +453,13 @@ Window {
 
     // ---- complete ranked comics catalog: opened from Top Comics Explore and kept alive
     //      underneath ComicSeriesPage so Back returns to the same wall state. ----
-    function openComicCatalog(rows) {
+    function openComicCatalog(rows, genre) {
         comicCatalogLayer.rows = rows || []
-        if (comicCatalogLayer.active && comicCatalogLayer.item)
+        comicCatalogLayer.genre = genre || ""
+        if (comicCatalogLayer.active && comicCatalogLayer.item) {
             comicCatalogLayer.item.rows = comicCatalogLayer.rows
-        else comicCatalogLayer.active = true
+            comicCatalogLayer.item.genre = comicCatalogLayer.genre
+        } else comicCatalogLayer.active = true
     }
     function closeComicCatalog() { comicCatalogLayer.active = false }
 
@@ -1376,6 +1378,10 @@ Window {
                     if (comicSeriesSignal) comicSeriesSignal.connect(win.openComicSeries)
                     var comicCatalogSignal = item["comicCatalogRequested"]
                     if (comicCatalogSignal) comicCatalogSignal.connect(win.openComicCatalog)
+                    var comicGenreSignal = item["comicGenreRequested"]
+                    if (comicGenreSignal) comicGenreSignal.connect(function(payload) {
+                        win.openComicCatalog((payload || {}).rows, (payload || {}).genre)
+                    })
                     var locgPubSignal = item["locgPublisherRequested"]
                     if (locgPubSignal) locgPubSignal.connect(win.openLocgPublisher)
                     var comicBoardSignal = item["comicArchiveBoardRequested"]
@@ -1665,10 +1671,12 @@ Window {
         active: false
         visible: active
         property var rows: []
+        property string genre: ""
         source: "ComicCatalogPage.qml"
         onLoaded: {
             item.backdrop = wall
             item.rows = comicCatalogLayer.rows
+            item.genre = comicCatalogLayer.genre
             item.backRequested.connect(win.closeComicCatalog)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })

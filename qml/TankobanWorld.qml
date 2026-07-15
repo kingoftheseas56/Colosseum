@@ -32,6 +32,7 @@ WorldPage {
     // curated westernRequested path when the sidecar isn't loaded.
     signal comicSeriesRequested(var d)
     signal comicCatalogRequested(var rows)
+    signal comicGenreRequested(var payload)   // { genre, rows } → catalog page scoped to one shelf
 
     // GetComics' own taxonomy (top tags by release count, publishers + franchises,
     // noise-filtered) drives the explore mosaic inline — the old Archives-door page
@@ -39,6 +40,7 @@ WorldPage {
     property var comicBoxes: []
     property var comicCovers: []            // real covers → the mosaic's art pool
     property var comicRows: []              // populated when this lazy world is first created
+    property var comicGenreBoxes: []        // our OWN DB's genre shelves (GCD+VerseDB metadata)
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
         ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
@@ -52,6 +54,12 @@ WorldPage {
         tanko.comicRows = catalogOk ? ComicsDb.rankedSeries() : Catalog.topComics
         if (catalogOk) console.log("ComicsDb: loaded " + tanko.comicRows.length + " series")
         else console.warn("ComicsDb: ingest failed — using curated fallback")
+        // Genre shelves from our own DB (GCD story-vote + VerseDB metadata, stamped
+        // by the catalog pipeline) — every series added upstream sorts in automatically.
+        tanko.comicGenreBoxes = catalogOk ? ComicsDb.genreShelves().map(function(b, i) {
+            var pal = tanko._genrePalette[i % tanko._genrePalette.length];
+            return { name: b.name, count: b.count, covers: b.covers, c1: pal[0], c2: pal[1] };
+        }) : [];
         GcApi.explore(function(boxes) {
             tanko.comicBoxes = (boxes || []).map(function(b, i) {
                 var pal = tanko._genrePalette[i % tanko._genrePalette.length];
@@ -126,5 +134,18 @@ WorldPage {
         covers: tanko.comicCovers          // real comic art behind the box gradients
         navigable: false
         onGenreClicked: (i) => tanko.westernExploreRequested(tanko.comicBoxes[i])
+    }
+
+    GenreMosaic {
+        title: "Explore by Genre — Comics"
+        // OUR catalog's genre axis (GCD story-vote + VerseDB metadata) — complementary
+        // to the archive-tag mosaic above: a box opens the catalog page scoped to
+        // that shelf, all cards our own DB series.
+        genres: tanko.comicGenreBoxes
+        covers: tanko.comicGenreBoxes.reduce(function(acc, b) { return acc.concat(b.covers || []) }, [])
+        navigable: false
+        visible: tanko.comicGenreBoxes.length > 0
+        onGenreClicked: (i) => tanko.comicGenreRequested({
+            genre: tanko.comicGenreBoxes[i].name, rows: tanko.comicRows })
     }
 }

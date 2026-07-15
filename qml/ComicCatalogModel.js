@@ -13,11 +13,13 @@ function prepare(rows, availabilityFn) {
     })
 }
 
-function filter(rows, query, downloadableOnly) {
+function filter(rows, query, downloadableOnly, genre) {
     var needle = String(query || "").trim().toLowerCase()
+    var shelf = String(genre || "").trim()
     var source = Array.isArray(rows) ? rows : []
     return source.filter(function(row) {
         if (downloadableOnly && !row.downloadable) return false
+        if (shelf.length && (row.genres || []).indexOf(shelf) < 0) return false
         if (!needle.length) return true
         var title = String(row.title || row.caption || "").toLowerCase()
         var publisher = String(row.publisher || "").toLowerCase()

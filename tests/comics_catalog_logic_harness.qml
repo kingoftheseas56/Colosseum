@@ -9,11 +9,14 @@ QtObject {
             if (!ComicsDb.setData(ComicsDbData.data))
                 throw new Error("generated catalog ingest failed")
             var rows = ComicsDb.rankedSeries()
-            if (rows.length !== 806)
-                throw new Error("expected 806 ranked rows, got " + rows.length)
+            // 806 GCD-spine rows + the VerseDB-recovered tail/top-sellers, which
+            // grows with each harvest — assert the floor and the shape, not a
+            // frozen total (stale-contract lesson, 2026-07-15).
+            if (rows.length < 1100)
+                throw new Error("expected >=1100 ranked rows, got " + rows.length)
             var prepared = CatalogModel.prepare(rows, ComicsDb.hasDownloadableEdition)
-            if (prepared.length !== 806 || prepared[0].displayRank !== 1
-                    || prepared[prepared.length - 1].displayRank !== 806)
+            if (prepared.length !== rows.length || prepared[0].displayRank !== 1
+                    || prepared[prepared.length - 1].displayRank !== rows.length)
                 throw new Error("display ranks are not sequential")
             var seenRoutes = ({})
             for (var i = 0; i < rows.length; i++) {

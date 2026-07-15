@@ -83,8 +83,32 @@ function rankedSeries() {
         // caption == title so TrendingTop10's {caption, cover} tile renders these directly;
         // locgId is the extra the click handler needs to open the series.
         out.push({ rank: s.rank, caption: s.title, title: s.title, cover: s.cover || "",
-                   locgId: "locg:" + s.locg_id, publisher: s.publisher || "" });
+                   locgId: "locg:" + s.locg_id, publisher: s.publisher || "",
+                   genres: s.genres || [] });
     }
+    return out;
+}
+
+// Genre shelves for the Explore mosaic: every genre the catalog carries, biggest
+// shelf first, with a small cover pool for the box art. Series without genres
+// simply don't shelve (they stay reachable via rank rows + search).
+function genreShelves(maxCovers) {
+    if (!_db) return [];
+    var caps = maxCovers || 8;
+    var by = {};
+    for (var i = 0; i < _db.series.length; i++) {
+        var s = _db.series[i];
+        if (!s.locg_id) continue;
+        var gs = s.genres || [];
+        for (var g = 0; g < gs.length; g++) {
+            var shelf = by[gs[g]] || (by[gs[g]] = { name: gs[g], count: 0, covers: [] });
+            shelf.count += 1;
+            if (s.cover && shelf.covers.length < caps) shelf.covers.push(s.cover);
+        }
+    }
+    var out = [];
+    for (var name in by) out.push(by[name]);
+    out.sort(function(a, b) { return b.count - a.count || (a.name < b.name ? -1 : 1); });
     return out;
 }
 

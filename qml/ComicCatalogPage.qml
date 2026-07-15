@@ -13,7 +13,8 @@ Item {
     property var catalogRows: CatalogModel.prepare(rows, ComicsDb.hasDownloadableEdition)
     property string query: ""
     property bool downloadableOnly: false
-    property var visibleRows: CatalogModel.filter(catalogRows, query, downloadableOnly)
+    property string genre: ""            // genre shelf scope — set by the Explore-by-Genre mosaic
+    property var visibleRows: CatalogModel.filter(catalogRows, query, downloadableOnly, genre)
     property real savedAllContentY: 0
     readonly property bool filterViewActive: query.trim().length > 0 || downloadableOnly
 
@@ -132,7 +133,7 @@ Item {
                 font.weight: Font.DemiBold
             }
             Text {
-                text: "Top Comics"
+                text: root.genre.length ? root.genre + " — Comics" : "Top Comics"
                 color: theme.ink
                 font.family: theme.display
                 font.pixelSize: 48
