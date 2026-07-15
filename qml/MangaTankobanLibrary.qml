@@ -4,9 +4,9 @@
 // A series IS its volumes here: EVERY canonical volume the service knows renders
 // as a row (cover, Vol. N, title, synopsis when present, live state + real
 // progress bar, and ONE action — Downloaded->Open, Available->Choose source,
-// Downloading%->Cancel). Tapping an undownloaded volume opens an inline source
-// chooser BENEATH that row: the ranked Nyaa MangaTankobanSourceCards in the
-// service's order, then the quieter WeebCentral card LAST.
+// Downloading%->Cancel). Tapping "Choose source" on an undownloaded volume emits
+// `sourcesRequested` with that volume's identity; MangaSeries opens the full-screen
+// MangaTankobanSourcesPage (the ranked Nyaa releases then the WeebCentral fallback).
 //
 // The signature: ONE thin GOLD bookbinding rule runs down the LEFT edge, binding
 // the run. Restrained — it is not a new theme; gold stays a sparing accent.
@@ -32,10 +32,6 @@ Item {
     property var volumeRows: []
     // per-volume live download progress { volumeId: {done,total,state} } (reassigned to stay reactive)
     property var progressByVolume: ({})
-    // per-volume cached source results from searchSources — order preserved VERBATIM
-    property var expandedByVolume: ({})
-    // per-volume chooser open/closed state
-    property var openVolumes: ({})
 
     // inspection: how many volume rows the Repeater actually instantiated
     readonly property int renderedCount: rowsRepeater.count
@@ -43,6 +39,10 @@ Item {
     // Opening a downloaded volume in the reader is a later layer; surfaced as a
     // signal so the page can wire it without this surface knowing about readers.
     signal openVolumeRequested(string volumeId)
+    // "Choose source" on an undownloaded volume raises this with the volume's
+    // identity; MangaSeries merges the series id/title and opens the full-screen
+    // MangaTankobanSourcesPage. This surface never renders the picker itself.
+    signal sourcesRequested(var context)
 
     Theme { id: theme }
 
@@ -77,15 +77,25 @@ Item {
         for (var k in root.progressByVolume) if (k !== vid) m[k] = root.progressByVolume[k]
         root.progressByVolume = m
     }
-    // Tap an undownloaded volume -> toggle its inline chooser; first open kicks a search.
+    // "Choose source" on an undownloaded volume -> emit the volume's identity so
+    // MangaSeries opens the full-screen sources picker. The picker (not this surface)
+    // kicks the native searchSources; the row just reflects the resulting in-flight state.
     function chooseSource(vid) {
-        var open = !(root.openVolumes[vid] === true)
-        root.openVolumes = root._reassign(root.openVolumes, vid, open)
-        if (open && root.expandedByVolume[vid] === undefined) {
-            var s = root.serviceObject
-            if (s) s.searchSources(vid)
-            else if (typeof TankobanVolumes !== "undefined") TankobanVolumes.searchSources(vid)
+        var rows = root.volumeRows || []
+        for (var i = 0; i < rows.length; i++) {
+            if (String(rows[i].id) === String(vid)) {
+                root.sourcesRequested({
+                    "volumeId": String(vid),
+                    "number": rows[i].number,
+                    "title": (rows[i].title && String(rows[i].title).length) ? String(rows[i].title) : "",
+                    "cover": rows[i].cover ? String(rows[i].cover) : ""
+                })
+                return
+            }
         }
+        // Volume not in the current rows (e.g. a reader escape before refresh) — still
+        // open the picker keyed on the id; identity fields fill in when volumes land.
+        root.sourcesRequested({ "volumeId": String(vid), "number": "", "title": "", "cover": "" })
     }
     // The single per-row action, dispatched off the volume's live (effective) state.
     function primaryAction(rowItem) {
@@ -100,27 +110,11 @@ Item {
         }
         root.chooseSource(vid)
     }
-    // A chosen source card -> the matching native call, then collapse the chooser.
-    function dispatchSource(vid, cardData) {
-        var s = root.serviceObject
-        if (cardData && cardData.kind === "weebcentral") {
-            if (s) s.compileWeebCentral(vid)
-            else if (typeof TankobanVolumes !== "undefined") TankobanVolumes.compileWeebCentral(vid)
-        } else if (cardData) {
-            if (s) s.downloadNyaa(vid, cardData.infoHash)
-            else if (typeof TankobanVolumes !== "undefined") TankobanVolumes.downloadNyaa(vid, cardData.infoHash)
-        }
-        root.openVolumes = root._reassign(root.openVolumes, vid, false)
-    }
 
     Connections {
         target: root.serviceObject
         ignoreUnknownSignals: true
         function onVolumesChanged(sid) { if (sid === root.seriesId) root.refresh() }
-        function onSourcesReady(vid, results) {
-            if (!root._ownsVolume(vid)) return
-            root.expandedByVolume = root._reassign(root.expandedByVolume, vid, results)
-        }
         function onProgress(vid, done, total) {
             if (!root._ownsVolume(vid)) return
             var s = root.serviceObject
@@ -133,7 +127,6 @@ Item {
         function onFailed(vid, reason) { root.clearProgress(vid); root.refresh() }
         function onRemoved(vid) {
             root.clearProgress(vid)
-            root.openVolumes = root._reassign(root.openVolumes, vid, false)
             root.refresh()
         }
         function onSynopsisReady(vid) { root.refresh() }
@@ -174,8 +167,6 @@ Item {
                 readonly property string effectiveState: (prog !== undefined && prog !== null)
                     ? String(prog.state || "downloading")
                     : String(modelData.state || "none")
-                readonly property bool isOpen: root.openVolumes[volumeId] === true
-                readonly property var sources: root.expandedByVolume[volumeId] || []
                 readonly property string synopsisText:
                     (modelData.synopsis && String(modelData.synopsis).length) ? String(modelData.synopsis) : ""
 
@@ -337,41 +328,6 @@ Item {
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1
                             color: Qt.rgba(1, 1, 1, 0.05) }
-                    }
-
-                    // ── inline source chooser (beneath the row) ──
-                    Item {
-                        id: chooser
-                        width: parent.width
-                        visible: vrow.isOpen
-                        height: visible ? chooserCol.height + 14 : 0
-                        Column {
-                            id: chooserCol
-                            x: theme.margin; y: 4
-                            width: parent.width - theme.margin - 24
-                            spacing: 8
-                            Repeater {
-                                model: vrow.isOpen ? vrow.sources : []
-                                delegate: Item {
-                                    id: srcDelegate
-                                    required property var modelData
-                                    width: chooserCol.width
-                                    height: srcCard.height
-                                    MangaTankobanSourceCard {
-                                        id: srcCard
-                                        width: parent.width
-                                        modelData: srcDelegate.modelData
-                                        volumeId: vrow.volumeId
-                                        onChosen: root.dispatchSource(vrow.volumeId, srcDelegate.modelData)
-                                    }
-                                }
-                            }
-                            Text {
-                                visible: vrow.isOpen && vrow.sources.length === 0
-                                text: "Searching sources…"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                            }
-                        }
                     }
                 }
             }

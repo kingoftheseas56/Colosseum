@@ -126,13 +126,14 @@ Item {
         page.openChapterId = id
     }
     // The reader hit a NOT-ready volume (crossed off the end, or the download button):
-    // leave the reader and open THAT volume's inline source chooser in the library.
+    // leave the reader and open THAT volume's full-screen source picker via the library
+    // (chooseSource emits sourcesRequested, which opens MangaTankobanSourcesPage).
     function _handleVolumeSource(entryId) {
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
         if (!page.tankobanMode) page._setTankobanMode(true)
-        if (tankLib.openVolumes[String(entryId)] !== true) tankLib.chooseSource(String(entryId))
+        tankLib.chooseSource(String(entryId))
     }
     // Continue/session resume of a saved tankoban record: turn Tankoban Mode ON,
     // then open the saved volume through the shared reader.
@@ -830,6 +831,15 @@ Item {
                 visible: page.tankobanMode
                 seriesId: page.seriesId
                 onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
+                // "Choose source" -> the full-screen picker. Merge the series identity
+                // (the library only knows the volume) and open the overlay below.
+                onSourcesRequested: (ctx) => {
+                    ctx.seriesId = page.seriesId
+                    ctx.seriesTitle = page.seriesTitle
+                    ctx.volumeNumber = ctx.number
+                    ctx.volumeTitle = ctx.title
+                    sourcesPage.show(ctx)
+                }
             }
 
             // post-reveal error (inset)
@@ -902,5 +912,16 @@ Item {
         onSourceRequested: (entryId) => page._handleVolumeSource(entryId)
         onMinimizeRequested: page.readerMinimizeRequested()
         onCloseRequested: page.readerCloseRequested()
+    }
+
+    // ---- full-screen "Choose source" picker: opened from a volume row (or the reader
+    //      escape) via the library's sourcesRequested. A sibling of the reader (they're
+    //      mutually-exclusive overlays); acquisition rides the native TankobanVolumes
+    //      service under the original volumeId. ----
+    MangaTankobanSourcesPage {
+        id: sourcesPage
+        anchors.fill: parent
+        z: 70
+        backdrop: page.backdrop
     }
 }
