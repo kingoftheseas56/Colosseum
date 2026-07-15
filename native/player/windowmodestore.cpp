@@ -27,6 +27,13 @@ WindowModeStore::WindowModeStore(QObject *parent)
     m_captureDebounce.setInterval(250);
     connect(&m_captureDebounce, &QTimer::timeout,
             this, &WindowModeStore::captureStableWindowState);
+
+    // A shutdown mid-transition must still leave the last stable state on disk. Hook once
+    // here (not per-initializeShell) so live-reload re-attach cannot register it twice.
+    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
+        captureStableWindowState();
+        persistStableState();
+    });
 }
 
 // ---- PiP (Harbor parity) — now restores onto the persistent base shell mode ----
@@ -85,8 +92,16 @@ void WindowModeStore::setPipMode(bool enabled) {
 // ---- Persistent shell-mode authority (secret windowed developer mode, 2026-07-15) ----
 
 void WindowModeStore::initializeShell(QQuickWindow *window) {
-    if (!window || m_window)
+    if (!window)
         return;
+    if (m_window == window)
+        return;  // idempotent: already the attached root
+    // Colosseum's dev reloader loads the replacement root BEFORE deleting the old one, so a
+    // second call arrives while the previous window is still registered. Detach the old root
+    // and adopt the replacement instead of bailing — otherwise the new Main.qml stays
+    // visible:false and the live-reload workflow this mode serves goes blank.
+    if (m_window)
+        disconnect(m_window, nullptr, this, nullptr);
     m_window = window;
 
     // Validate any restored windowed rectangle against the screens present now, so a
@@ -100,11 +115,6 @@ void WindowModeStore::initializeShell(QQuickWindow *window) {
     connect(window, &QWindow::widthChanged, this, &WindowModeStore::scheduleStableCapture);
     connect(window, &QWindow::heightChanged, this, &WindowModeStore::scheduleStableCapture);
     connect(window, &QWindow::visibilityChanged, this, &WindowModeStore::scheduleStableCapture);
-    // A shutdown mid-transition must still leave the last stable state on disk.
-    connect(qApp, &QCoreApplication::aboutToQuit, this, [this]() {
-        captureStableWindowState();
-        persistStableState();
-    });
 
     applyBaseMode(window);
     emit changed();

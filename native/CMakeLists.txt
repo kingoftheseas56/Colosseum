@@ -457,6 +457,16 @@ add_executable(window_state_policy_harness
 target_include_directories(window_state_policy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(window_state_policy_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
 
+# GUI harness (offscreen QPA): PiP round-trips + live-reload re-attach on a real QQuickWindow.
+add_executable(window_shell_gui_harness
+    ../tests/window_shell_gui_harness.cpp
+    player/windowstatepolicy.cpp
+    player/windowstatepolicy.h
+    player/windowmodestore.cpp
+    player/windowmodestore.h)
+target_include_directories(window_shell_gui_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(window_shell_gui_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
     get_filename_component(_qt_bin_dir "${_qt_qmake}" DIRECTORY)

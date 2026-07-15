@@ -22,26 +22,32 @@ Item {
     anchors.fill: parent
     z: 100000
 
-    // Move/double-click surface, reparented behind TopBar's controls (z: -1). TopBar's
+    // Move + double-click surface, reparented behind TopBar's controls (z: -1). TopBar's
     // pills/system icons sit above it, so unused space drags while controls still click.
-    Item {
+    // One MouseArea owns both gestures: crossing a small drag threshold hands off to the
+    // native system move, and a double-click maximizes/restores. (A DragHandler + TapHandler
+    // pair on the same region contend for the pointer grab and drop the double-tap; a single
+    // MouseArea disambiguates drag vs double-click cleanly and is deterministically testable.)
+    MouseArea {
         parent: root.dragSurface
         anchors.fill: parent
         z: -1
         enabled: root.shellInteractive
-
-        DragHandler {
-            target: null
-            enabled: root.shell.visibility === Window.Windowed
-            acceptedButtons: Qt.LeftButton
-            onActiveChanged: if (active)
+        acceptedButtons: Qt.LeftButton
+        property real pressX: 0
+        property real pressY: 0
+        property bool moveStarted: false
+        onPressed: mouse => { pressX = mouse.x; pressY = mouse.y; moveStarted = false }
+        onPositionChanged: mouse => {
+            if (!pressed || moveStarted
+                || root.shell.visibility !== Window.Windowed)
+                return
+            if (Math.abs(mouse.x - pressX) > 6 || Math.abs(mouse.y - pressY) > 6) {
+                moveStarted = true
                 root.controller.startSystemMove(root.shell)
+            }
         }
-        TapHandler {
-            acceptedButtons: Qt.LeftButton
-            gesturePolicy: TapHandler.DragThreshold
-            onDoubleTapped: root.controller.toggleMaximized(root.shell)
-        }
+        onDoubleClicked: root.controller.toggleMaximized(root.shell)
     }
 
     component ResizeZone: MouseArea {
