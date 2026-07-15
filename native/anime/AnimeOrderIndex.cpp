@@ -556,23 +556,35 @@ QVariantMap AnimeOrderIndex::resolve(const QVariantMap& identities,
                        < b.toMap().value(QStringLiteral("absoluteNumber")).toInt();
               });
 
-    // Completeness is judged only across the regular rows the provider supplied:
-    // unique, positive, and contiguous (a truthful window is allowed; holes and
-    // ambiguity are not).
+    // Completeness is judged only across the regular rows the provider supplied.
+    // The mapped numbers must be unique, positive, and form a DENSE run: a few
+    // genuinely-missing episodes (a recap the provider omits, a stray hole in a
+    // 1000+ episode run — e.g. One Piece skipping absolute 628) are tolerated so
+    // long-runners still get Absolute; a sparse or broken numbering, duplicates,
+    // ambiguity, or an unmapped row are not. A truthful window (not starting at
+    // 1) is still allowed.
     QList<int> absNums;
     absNums.reserve(regularMatched.size());
     for (const QVariant& v : regularMatched)
         absNums.append(v.toMap().value(QStringLiteral("absoluteNumber")).toInt());
-    bool contiguous = true;
+    bool unique = true;
     for (int i = 1; i < absNums.size(); ++i) {
-        if (absNums.at(i) != absNums.at(i - 1) + 1) {
-            contiguous = false;
+        if (absNums.at(i) == absNums.at(i - 1)) {
+            unique = false;
             break;
         }
     }
+    bool denseEnough = false;
+    if (!absNums.isEmpty()) {
+        const int count = static_cast<int>(absNums.size());
+        const int span = absNums.last() - absNums.first() + 1; // sorted ascending
+        const int missing = span - count;
+        const int tolerance = std::max(2, count / 50);         // ~2% of the run, min 2
+        denseEnough = missing >= 0 && missing <= tolerance;
+    }
     const int regularCount = regularMatched.size() + regularUnmatched.size();
     const bool complete = regularCount > 0 && !anyAmbiguous && regularUnmatched.isEmpty()
-        && absNums.size() == regularCount && contiguous;
+        && absNums.size() == regularCount && unique && denseEnough;
 
     QVariantList episodes = regularMatched;
     episodes.append(regularUnmatched);

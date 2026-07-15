@@ -272,6 +272,34 @@ int main(int argc, char** argv)
         require(foundZero, "target-zero row remains present");
     }
 
+    // ── A few genuinely-missing episodes are tolerated (long-runners) ─────────
+    // One Piece window abs 1,2,4,5,6,7,8,9 (absolute 3 absent, as real providers
+    // do) still completes: a skipped absolute number is an honestly-missing
+    // episode, not a broken mapping.
+    {
+        const QVariantList rows{
+            row("tt0388629:1:1", 1, 1, "a"), row("tt0388629:1:2", 1, 2, "b"),
+            row("tt0388629:1:4", 1, 4, "d"), row("tt0388629:1:5", 1, 5, "e"),
+            row("tt0388629:1:6", 1, 6, "f"), row("tt0388629:1:7", 1, 7, "g"),
+            row("tt0388629:1:8", 1, 8, "h"), row("tt0388629:2:1", 2, 1, "i")
+        };
+        const QVariantMap r = index->resolve({{"sourceId", "mal:21"}}, rows);
+        require(r.value("absoluteComplete").toBool(),
+                "one missing episode in a dense run is still absolute-complete");
+        require(r.value("defaultOrder").toString() == "absolute",
+                "a dense a-mapping with a small gap still defaults to absolute");
+        // Every supplied row is preserved and the queue still crosses the boundary.
+        require(r.value("episodes").toList().size() == rows.size(), "no supplied row is dropped");
+    }
+
+    // ── A sparse / broken numbering is still rejected ────────────────────────
+    {
+        const QVariantList rows{ row("tt0388629:1:1", 1, 1, "a"), row("tt0388629:2:1", 2, 1, "b") };
+        const QVariantMap r = index->resolve({{"sourceId", "mal:21"}}, rows);
+        require(!r.value("absoluteComplete").toBool(),
+                "a sparse mapping (abs 1 then 9, 7 missing) is not complete");
+    }
+
     // ── Provider input order does not affect canonical regular ordering ───────
     {
         const QVariantList forward{
