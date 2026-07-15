@@ -265,15 +265,70 @@ var universes = [
                 { t: "A Knight of the Seven Kingdoms", id: "tt27497448" } ],
       seriesQueries: [ "Game of Thrones", "House of the Dragon", "a knight of the seven kingdoms" ],
       chips: [ { t: "9 Books", ic: "books" }, { t: "3 Shows", ic: "movies" }, { t: "Graphic Novels", ic: "comics" } ] },
-    { name: "Dragon Ball", c1: "#3a2a10", category: "anime",
-      blurb: "Toriyama's world from the Dragon Radar to Ultra Instinct — the manga, four eras of anime, the films.",
+    // ── DRAGON BALL — the bespoke SAGA page (category "dragonball" → DragonBallUniversePage,
+    //    Agent 5, 2026-07-15, Hemanth free-reign commission). Every work id-pinned and
+    //    LIVE-verified against Cinemeta (anime/films) + AniList (manga) at curation time.
+    //    Same-name impostors resolved by id: DB = tt0088509 (1986 Toei original, NOT the 1995
+    //    US listing tt0280249), DBZ = tt0121220 (1989 Toei original, NOT the 1996 US dub
+    //    tt0214341). Fan works (Abridged, Absalon) and the unofficial live-action "The Magic
+    //    Begins" excluded — canon only. The SEVEN anime map to the seven Dragon Balls.
+    { name: "Dragon Ball", c1: "#e8791e", category: "dragonball",
+      blurb: "Akira Toriyama's world, whole — from a boy with a tail chasing seven wish-granting orbs to gods trading blows across universes. Every anime era, every film, and the manga that started it all.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30042-4aSSSOxCNWgE.jpg",
-      // expansion 2026-07-13 (AniList/Kitsu-verified): Super manga (AL 86508) + DAIMA
-      // (Kitsu 48108 — invisible on the bare "dragon ball" query)
-      readQueries: [ "Dragon Ball", "Dragon Ball Super" ],
-      seriesQueries: [ "dragon ball", "dragon ball daima" ],
-      movieQueries: [ "dragon ball" ],
-      chips: [ { t: "2 Manga", ic: "manga" }, { t: "6 Anime", ic: "movies" }, { t: "21 Films", ic: "movies" } ] },
+      // THE SEVEN-STAR SAGA — the seven anime, broadcast order, one per Dragon Ball.
+      saga: [
+        { star: 1, era: "Dragon Ball",              t: "Dragon Ball",              id: "tt0088509",  year: "1986", note: "The boy, the tail, the first search" },
+        { star: 2, era: "Dragon Ball Z",            t: "Dragon Ball Z",            id: "tt0121220",  year: "1989", note: "Saiyans arrive, and the sky gets higher" },
+        { star: 3, era: "Dragon Ball GT",           t: "Dragon Ball GT",           id: "tt0139774",  year: "1996", note: "Off Earth, chasing the Black Star balls" },
+        { star: 4, era: "Dragon Ball Z Kai",        t: "Dragon Ball Z Kai",        id: "tt1409055",  year: "2009", note: "Z re-cut, tighter, closer to the manga" },
+        { star: 5, era: "Dragon Ball Super",        t: "Dragon Ball Super",        id: "tt4644488",  year: "2015", note: "Gods of destruction, other universes" },
+        { star: 6, era: "Super Dragon Ball Heroes", t: "Super Dragon Ball Heroes", id: "tt8433216",  year: "2018", note: "Every hero, every timeline at once" },
+        { star: 7, era: "Dragon Ball Daima",        t: "Dragon Ball Daima",        id: "tt29485149", year: "2024", note: "Toriyama's parting gift — small again" }
+      ],
+      // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
+      filmEras: [
+        { era: "The Dragon Ball Films", films: [
+            { t: "Curse of the Blood Rubies",           id: "tt0142251", year: "1986" },
+            { t: "Sleeping Princess in Devil's Castle", id: "tt0142249", year: "1987" },
+            { t: "Mystical Adventure",                  id: "tt0142248", year: "1988" },
+            { t: "The Path to Power",                   id: "tt0142250", year: "1996" } ] },
+        { era: "The Z Films & Specials", films: [
+            { t: "Dead Zone",                           id: "tt0142235", year: "1989" },
+            { t: "The World's Strongest",               id: "tt0142240", year: "1990" },
+            { t: "The Tree of Might",                   id: "tt0142233", year: "1990" },
+            { t: "Bardock — The Father of Goku",        id: "tt0142245", year: "1990" },
+            { t: "Lord Slug",                           id: "tt0142244", year: "1991" },
+            { t: "Cooler's Revenge",                    id: "tt1125254", year: "1991" },
+            { t: "The Return of Cooler",                id: "tt0142237", year: "1992" },
+            { t: "Super Android 13!",                   id: "tt0142241", year: "1992" },
+            { t: "Broly — The Legendary Super Saiyan",  id: "tt0142242", year: "1993" },
+            { t: "The History of Trunks",               id: "tt0142247", year: "1993" },
+            { t: "Bojack Unbound",                      id: "tt0142238", year: "1993" },
+            { t: "Plan to Eradicate the Saiyans",       id: "tt1286785", year: "1993" },
+            { t: "Broly — Second Coming",               id: "tt0142239", year: "1994" },
+            { t: "Bio-Broly",                           id: "tt0142234", year: "1994" },
+            { t: "Fusion Reborn",                       id: "tt0142236", year: "1995" },
+            { t: "Wrath of the Dragon",                 id: "tt0142243", year: "1995" },
+            { t: "GT: A Hero's Legacy",                 id: "tt0142232", year: "1997" } ] },
+        { era: "The Modern Films", films: [
+            { t: "Battle of Gods",                      id: "tt2263944",  year: "2013" },
+            { t: "Resurrection 'F'",                    id: "tt3819668",  year: "2015" },
+            { t: "Dragon Ball Super: Broly",            id: "tt7961060",  year: "2018" },
+            { t: "Dragon Ball Super: Super Hero",       id: "tt14614892", year: "2022" } ] }
+      ],
+      // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
+      manga: [
+        { t: "Dragon Ball",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
+        { t: "Dragon Ball Super",          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
+        { t: "Dragon Ball SD",             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
+        { t: "Reincarnated as Yamcha!",    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
+        { t: "Episode of Bardock",         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
+        { t: "Resurrection 'F'",           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
+        { t: "Dragon Ball Minus",          q: "Dragon Ball Minus Departure Fated Child", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx97900-EqScEWX0U6Tj.png" },
+        { t: "Goku & Friends Return!!",    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
+      ],
+      firstWatch: { t: "Dragon Ball", id: "tt0088509" },
+      chips: [ { t: "8 Manga", ic: "manga" }, { t: "7 Anime", ic: "movies" }, { t: "25 Films", ic: "movies" } ] },
     { name: "Naruto", c1: "#2a3212", category: "anime",
       blurb: "The Hidden Leaf's loudest ninja — Kishimoto's manga, the anime and Shippuden, and Boruto's generation.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30011-pkX1O0EFqvV7.jpg",

@@ -59,7 +59,7 @@ QtObject {
                 throw new Error(u.name + " chips must never say volumes (ratified)")
         }
         if (UDB.categoryFor("Marvel Cinematic Universe") !== "cinematic") throw new Error("the MCU must stay cinematic (renamed from Marvel, Hemanth 2026-07-13)")
-        if (UDB.categoryFor("Dragon Ball") !== "anime") throw new Error("Dragon Ball must ride the generic template")
+        if (UDB.categoryFor("Dragon Ball") !== "dragonball") throw new Error("Dragon Ball must ride the bespoke Seven-Star Saga template")
         if (UDB.categoryFor("Cosmere") !== "cosmere") throw new Error("Cosmere must ride the Cognitive Atlas template")
     }
 }

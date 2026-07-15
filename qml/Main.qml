@@ -271,6 +271,7 @@ Window {
     //      anime UniversePage. ----
     function universeSourceFor(category) {
         return category === "cinematic" ? "CinematicPage.qml"
+             : category === "dragonball" ? "DragonBallUniversePage.qml" // Dragon Ball — the seven-star saga
              : category === "cosmere"   ? "CosmereUniversePage.qml"  // Cosmere — newcomer portals + planetary atlas
              : category === "saga"      ? "SagaUniversePage.qml"      // book-first IPs (HP/LOTR/ASOIAF/Dune/Witcher/Sherlock/…)
              : category === "magazine"  ? "MagazineUniversePage.qml"  // Weekly Shonen Jump — manga only
