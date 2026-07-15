@@ -1,16 +1,25 @@
 // External-archive ingest contract: two locally produced CBZs enter the existing
 // ComicDownloader extraction queue, finish under their original issue IDs, and
 // expose reader-shaped localPages through ComicDownloader itself.
+//
+// Also covers Task 7's C++-only ingestAssembledEdition() boundary (design:
+// docs/superpowers/specs/2026-07-15-colosseum-tankorent-comic-volume-mode-
+// design.md, "ComicDownloader ingest boundary"): a Task-6 ComicEditionAssembler
+// staging dir publishes through the SAME index/reader contract GetComics
+// downloads use, atomically, queued behind the same single lane, and a
+// cancel while queued leaves no index record and no partial comics dir.
 #include "engine/ComicDownloader.h"
 
 #include <QCoreApplication>
 #include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QNetworkAccessManager>
 #include <QProcess>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTimer>
+#include <QUrl>
 
 #include <cstdio>
 
@@ -32,6 +41,171 @@ bool makeCbz(const QString& root, const QString& name, QString* archivePath)
     if (exitCode != 0) return false;
     *archivePath = root + QLatin1Char('/') + name + QStringLiteral(".cbz");
     return QFile::rename(zip, *archivePath);
+}
+
+// Builds a Task-6-shaped "<id>.staging" dir of page_NNN.<ext> fixture files
+// directly under a QTemporaryDir root (the harness's own scratch app-data,
+// never the real comics library — that side stays isolated the same way the
+// rest of this file already isolates it: a dedicated org/app name plus
+// explicit deleteIssue() cleanup before/after).
+QString buildAssembledStaging(const QTemporaryDir& root, const QString& id, const QStringList& names)
+{
+    const QString dir = root.path() + QLatin1Char('/') + id + QStringLiteral(".staging");
+    QDir().mkpath(dir);
+    for (const QString& name : names) {
+        QFile f(dir + QLatin1Char('/') + name);
+        if (f.open(QIODevice::WriteOnly)) f.write("assembled-page-bytes");
+    }
+    return dir;
+}
+
+// Runs the assembled-edition success scenario against its own ComicDownloader
+// instance. Fully synchronous — publishAssembledEdition() is a validate+move,
+// no network/subprocess — so no event loop needs to be pumped. Returns true
+// and prints OK, or prints FAIL and returns false.
+bool runAssembledIngestSuccessScenario(QNetworkAccessManager* nam)
+{
+    const QString id = QStringLiteral("assembled-ingest-1");
+    ComicDownloader comics(nam);
+    comics.deleteIssue(id);
+
+    QTemporaryDir stagingRoot;
+    if (!stagingRoot.isValid()) {
+        std::printf("FAIL: assembled staging temp dir invalid\n");
+        return false;
+    }
+    const QStringList names = { QStringLiteral("page_000.jpg"), QStringLiteral("page_001.jpg"),
+                                 QStringLiteral("page_002.jpg"), QStringLiteral("page_003.jpg") };
+    const QString stagingDir = buildAssembledStaging(stagingRoot, id, names);
+    const QList<int> groups = { 0, 0, 1, 1 };
+
+    bool sawFinished = false;
+    bool sawFailed = false;
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& fid) { if (fid == id) sawFinished = true; });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& fid, const QString& reason) {
+            if (fid != id) return;
+            sawFailed = true;
+            std::printf("FAIL: assembled ingest reported failed: %s\n", qPrintable(reason));
+        });
+
+    comics.ingestAssembledEdition(id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                                  QStringLiteral("Assembled Edition One"), stagingDir, names, groups);
+
+    if (sawFailed || !sawFinished) {
+        std::printf("FAIL: assembled ingest did not finish cleanly\n");
+        return false;
+    }
+    if (QDir(stagingDir).exists()) {
+        std::printf("FAIL: staging dir still present after atomic publish\n");
+        return false;
+    }
+    if (!comics.isDownloaded(id)) {
+        std::printf("FAIL: assembled edition not marked downloaded\n");
+        return false;
+    }
+
+    const QVariantList pages = comics.localPages(id);
+    if (pages.size() != names.size()) {
+        std::printf("FAIL: expected %d assembled pages, got %d\n", int(names.size()), int(pages.size()));
+        return false;
+    }
+    for (int i = 0; i < pages.size(); ++i) {
+        const QVariantMap p = pages.at(i).toMap();
+        const QString localFile = QUrl(p.value(QStringLiteral("url")).toString()).toLocalFile();
+        if (!QFileInfo::exists(localFile)) {
+            std::printf("FAIL: assembled page %d file missing on disk (%s)\n", i, qPrintable(localFile));
+            return false;
+        }
+        if (p.value(QStringLiteral("group")).toInt() != groups.at(i)) {
+            std::printf("FAIL: assembled page %d group mismatch (got %d, want %d)\n",
+                        i, p.value(QStringLiteral("group")).toInt(), groups.at(i));
+            return false;
+        }
+    }
+
+    int matches = 0;
+    for (const QVariant& row : comics.downloadedIssues())
+        if (row.toMap().value(QStringLiteral("id")).toString() == id) ++matches;
+    if (matches != 1) {
+        std::printf("FAIL: expected exactly one index entry for %s, found %d\n", qPrintable(id), matches);
+        return false;
+    }
+
+    comics.deleteIssue(id);
+    std::printf("OK: assembled edition ingest publishes through the Comics contract\n");
+    return true;
+}
+
+// Cancel-before-publication: force the assembled ingest to QUEUE behind a
+// still-extracting blocker job (a real archive ingest, async QProcess, event
+// loop never pumped here — so it cannot possibly finish out from under this
+// scenario), then cancel the queued edition. No index record, no partial
+// comics dir, and the staging dir this call brought is cleaned up too.
+bool runAssembledIngestCancelScenario(QNetworkAccessManager* nam)
+{
+    const QString blockerId = QStringLiteral("assembled-ingest-blocker");
+    const QString id = QStringLiteral("assembled-ingest-cancelled");
+    ComicDownloader comics(nam);
+    comics.deleteIssue(blockerId);
+    comics.deleteIssue(id);
+
+    QTemporaryDir archiveRoot;
+    QString blockerArchive;
+    if (!archiveRoot.isValid() || !makeCbz(archiveRoot.path(), QStringLiteral("blocker"), &blockerArchive)) {
+        std::printf("FAIL: could not create blocker CBZ fixture\n");
+        return false;
+    }
+
+    QTemporaryDir stagingRoot;
+    if (!stagingRoot.isValid()) {
+        std::printf("FAIL: cancel-scenario staging temp dir invalid\n");
+        return false;
+    }
+    const QStringList names = { QStringLiteral("page_000.jpg"), QStringLiteral("page_001.jpg") };
+    const QString stagingDir = buildAssembledStaging(stagingRoot, id, names);
+
+    bool sawFinished = false;
+    bool sawCancelled = false;
+    QObject::connect(&comics, &ComicDownloader::finished, &comics,
+        [&](const QString& fid) { if (fid == id) sawFinished = true; });
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& fid, const QString&) { if (fid == id) sawCancelled = true; });
+
+    // Occupies the single lane: beginExtract() starts a real bsdtar QProcess
+    // asynchronously and returns immediately, still "extracting" — since we
+    // never call app.exec() in this scenario, its finished signal cannot fire
+    // out from under the assertions below.
+    comics.ingestLocalArchive(blockerId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                              QStringLiteral("Blocker"), blockerArchive);
+    comics.ingestAssembledEdition(id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                                  QStringLiteral("Assembled Edition Cancelled"), stagingDir, names,
+                                  QList<int>{});
+    comics.cancelDownload(id);
+
+    if (sawFinished || !sawCancelled) {
+        std::printf("FAIL: queued assembled ingest was not cleanly cancelled\n");
+        return false;
+    }
+    if (comics.isDownloaded(id)) {
+        std::printf("FAIL: cancelled assembled edition still marked downloaded\n");
+        return false;
+    }
+    if (comics.localPages(id).size() != 0) {
+        std::printf("FAIL: cancelled assembled edition still has reader pages\n");
+        return false;
+    }
+    if (QDir(stagingDir).exists()) {
+        std::printf("FAIL: cancelled assembled ingest left a staging dir behind\n");
+        return false;
+    }
+
+    comics.cancelDownload(blockerId);   // stop the blocker too — nothing left running
+    comics.deleteIssue(id);
+    comics.deleteIssue(blockerId);
+    std::printf("OK: cancelled/queued assembled ingest leaves no index record or partial dir\n");
+    return true;
 }
 } // namespace
 
@@ -85,5 +259,13 @@ int main(int argc, char** argv)
     const int code = app.exec();
     comics.deleteIssue(QStringLiteral("torrent-ingest-1"));
     comics.deleteIssue(QStringLiteral("torrent-ingest-2"));
-    return code;
+    if (code != 0) return code;
+
+    // Task 7: ingestAssembledEdition() — separate ComicDownloader instances so
+    // these fully-synchronous scenarios never interact with the event loop or
+    // signal handlers wired up for the scenario above.
+    if (!runAssembledIngestSuccessScenario(&nam)) return 1;
+    if (!runAssembledIngestCancelScenario(&nam)) return 1;
+
+    return 0;
 }

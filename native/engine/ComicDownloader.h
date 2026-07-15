@@ -76,6 +76,24 @@ public:
                                         const QString& seriesTitle, const QString& issueLabel,
                                         const QString& archivePath);
 
+    // ── C++-only ingest boundary (NOT QML-invokable) ──────────────────────────
+    // Publishes a complete Task-6 ComicEditionAssembler staging directory
+    // (an "<editionId>.staging" dir of page_NNN.<ext> files, already in
+    // reading order) into the SAME comics library dir/index/reader contract
+    // GetComics downloads use, under the edition's own catalog chId. Queues
+    // behind the existing single extraction/publication lane — this is never
+    // a second concurrent publisher. Every supplied file is verified to live
+    // inside stagingDir before anything is touched; the complete staging dir
+    // is then moved into place with ONE atomic rename — a partial directory
+    // is never published. `groups` is an optional per-page group parallel to
+    // `orderedFiles` (one int per page, e.g. a source-issue index); empty
+    // means "no grouping", matching the group -1 existing GetComics/single-
+    // archive rows already return from localPages().
+    void ingestAssembledEdition(const QString& editionId, const QString& seriesId,
+                                const QString& seriesTitle, const QString& editionLabel,
+                                const QString& stagingDir, const QStringList& orderedFiles,
+                                const QList<int>& groups);
+
     // Search the built-in torrent sources, download the best comic archive,
     // then ingest it through this object's existing extraction/index contract.
     Q_INVOKABLE void downloadIssueTorrent(const QString& issueId, const QString& seriesId,
@@ -143,6 +161,7 @@ private:
         QString label;
         QString dir;
         QStringList files;
+        QList<int> groups;   // parallel to files; empty = no grouping (localPages() reports -1)
         qint64 bytes = 0;
         qint64 addedAt = 0;
     };
@@ -168,6 +187,14 @@ private:
         bool extracting = false;
         bool localArchive = false;   // starts at beginExtract(), never at HTTP startAttempt()
         QString extractTmp;
+
+        // Assembled-edition ingest (Task 7): set only by ingestAssembledEdition().
+        // No archive, no network — publishAssembledEdition() validates+moves
+        // assembledStagingDir directly, sharing this same single-lane queue.
+        bool assembledIngest = false;
+        QString assembledStagingDir;
+        QStringList assembledOrderedFiles;
+        QList<int> assembledGroups;
     };
 
     QString baseDir() const;
@@ -193,6 +220,8 @@ private:
     void onExtractDone(int exitCode, int which);
     void finalizeExtract(InFlight& f);
     void cleanupExtract(InFlight& f);
+
+    void publishAssembledEdition(InFlight& f);
 
     QNetworkAccessManager* m_nam = nullptr;
     QHash<QString, Entry> m_index;

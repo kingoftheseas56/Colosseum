@@ -184,6 +184,8 @@ void ComicDownloader::loadIndex()
         e.addedAt     = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
         for (const QJsonValue& v : o.value(QStringLiteral("files")).toArray())
             e.files.append(v.toString());
+        for (const QJsonValue& v : o.value(QStringLiteral("groups")).toArray())
+            e.groups.append(v.toInt());
         // Drop stale entries whose dir was deleted outside the app.
         if (!e.dir.isEmpty() && QDir(e.dir).exists() && !e.files.isEmpty())
             m_index.insert(it.key(), e);
@@ -205,6 +207,9 @@ void ComicDownloader::saveIndex() const
         QJsonArray files;
         for (const QString& n : it.value().files) files.append(n);
         o[QStringLiteral("files")] = files;
+        QJsonArray groups;
+        for (int g : it.value().groups) groups.append(g);
+        o[QStringLiteral("groups")] = groups;
         root[it.key()] = o;
     }
     QFile f(baseDir() + QStringLiteral("/index.json"));
@@ -221,16 +226,21 @@ QVariantList ComicDownloader::localPages(const QString& issueId) const
     QVariantList out;
     auto it = m_index.constFind(issueId.trimmed());
     if (it == m_index.constEnd()) return out;
-    const QDir dir(it.value().dir);
+    const Entry& e = it.value();
+    const QDir dir(e.dir);
     if (!dir.exists()) return out;
     int idx = 0;
-    for (const QString& name : it.value().files) {
-        const QString abs = dir.absoluteFilePath(name);
+    for (int i = 0; i < e.files.size(); ++i) {
+        const QString abs = dir.absoluteFilePath(e.files.at(i));
         if (!QFileInfo::exists(abs)) continue;
         QVariantMap m;
         m[QStringLiteral("index")] = idx++;
         m[QStringLiteral("url")]   = QUrl::fromLocalFile(abs).toString();
-        m[QStringLiteral("group")] = -1;
+        // Existing GetComics/single-archive/torrent-issue rows leave `groups`
+        // empty, so QList::value() falls back to -1 — byte-for-byte the same
+        // as before this field existed. Assembled editions (Task 7) populate
+        // real per-page group values (see ingestAssembledEdition).
+        m[QStringLiteral("group")] = e.groups.value(i, -1);
         out.append(m);
     }
     return out;
@@ -290,6 +300,65 @@ void ComicDownloader::ingestLocalArchive(const QString& issueIdIn, const QString
     }
     m_active = new InFlight(std::move(flight));
     beginExtract(*m_active);
+}
+
+void ComicDownloader::ingestAssembledEdition(const QString& editionIdIn, const QString& seriesId,
+                                             const QString& seriesTitle, const QString& editionLabel,
+                                             const QString& stagingDirIn, const QStringList& orderedFiles,
+                                             const QList<int>& groups)
+{
+    const QString id = editionIdIn.trimmed();
+    const QString stagingDir = QDir::cleanPath(stagingDirIn);
+    if (id.isEmpty()) {
+        emit failed(id, QStringLiteral("empty edition id"));
+        return;
+    }
+    if (orderedFiles.isEmpty()) {
+        emit failed(id, QStringLiteral("assembled edition has no pages"));
+        if (!stagingDir.isEmpty()) QDir(stagingDir).removeRecursively();
+        return;
+    }
+    if (!groups.isEmpty() && groups.size() != orderedFiles.size()) {
+        emit failed(id, QStringLiteral("assembled edition group count does not match page count"));
+        if (!stagingDir.isEmpty()) QDir(stagingDir).removeRecursively();
+        return;
+    }
+    if (stagingDir.isEmpty() || !QDir(stagingDir).exists()) {
+        emit failed(id, QStringLiteral("assembled staging directory missing"));
+        return;
+    }
+    if (isDownloaded(id)) {
+        // Already published under this id (re-publish/replay) — the staging
+        // dir this call brought is now redundant.
+        QDir(stagingDir).removeRecursively();
+        emit finished(id);
+        return;
+    }
+    if (m_active && m_active->id == id) return;
+    for (const InFlight& queued : m_queue)
+        if (queued.id == id) return;
+    for (auto it = m_resolving.constBegin(); it != m_resolving.constEnd(); ++it)
+        if (it.value().id == id) return;
+
+    InFlight flight;
+    flight.id                   = id;
+    flight.seriesId              = seriesId;
+    flight.seriesTitle           = seriesTitle;
+    flight.label                 = editionLabel.isEmpty() ? id : editionLabel;
+    flight.assembledIngest       = true;
+    flight.assembledStagingDir   = stagingDir;
+    flight.assembledOrderedFiles = orderedFiles;
+    flight.assembledGroups       = groups;
+
+    emit progress(id, 0.0, static_cast<double>(orderedFiles.size()));
+    // Queue behind the EXISTING single extraction/publication lane — never a
+    // second concurrent publisher (design: "ComicDownloader ingest boundary").
+    if (m_active) {
+        m_queue.append(std::move(flight));
+        return;
+    }
+    m_active = new InFlight(std::move(flight));
+    publishAssembledEdition(*m_active);
 }
 
 QVariantMap ComicDownloader::statusOf(const QString& issueId) const
@@ -501,6 +570,8 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
         if (m_queue[i].id == id) {
             if (m_queue[i].localArchive && !m_queue[i].archivePath.isEmpty())
                 QFile::remove(m_queue[i].archivePath);
+            if (m_queue[i].assembledIngest && !m_queue[i].assembledStagingDir.isEmpty())
+                QDir(m_queue[i].assembledStagingDir).removeRecursively();
             m_queue.removeAt(i);
             emit failed(id, QStringLiteral("cancelled by user (queued)"));
             return;
@@ -725,6 +796,11 @@ void ComicDownloader::failAndCleanup(InFlight& f, const QString& reason)
 {
     closeAndDeletePart(f);
     cleanupExtract(f);
+    // Assembled-edition ingest (Task 7): any failure/cancellation before the
+    // single atomic publish leaves NO index record — and leaves no orphaned
+    // staging dir behind either.
+    if (f.assembledIngest && !f.assembledStagingDir.isEmpty())
+        QDir(f.assembledStagingDir).removeRecursively();
     const QString id = f.id;
     emit failed(id, reason);
     delete m_active; m_active = nullptr;
@@ -755,7 +831,9 @@ void ComicDownloader::startNextQueued()
     if (!m_queue.isEmpty()) {
         m_active = new InFlight(std::move(m_queue[0]));
         m_queue.removeAt(0);
-        if (m_active->localArchive)
+        if (m_active->assembledIngest)
+            publishAssembledEdition(*m_active);
+        else if (m_active->localArchive)
             beginExtract(*m_active);
         else
             startAttempt(*m_active);
@@ -893,6 +971,83 @@ void ComicDownloader::cleanupExtract(InFlight& f)
 {
     if (!f.extractTmp.isEmpty()) QDir(f.extractTmp).removeRecursively();
     f.extracting = false;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// assembled-edition publication (Task 7: ComicDownloader ingest boundary)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Validates the complete Task-6 ComicEditionAssembler staging directory (every
+// page lives inside it, nothing escapes, nothing missing) and, only once that
+// is proven, moves it into the library with ONE atomic rename — the same
+// whole-directory rename the shipped app already uses to relocate its own
+// AppData tree (main.cpp's org-name migration). `f` is always `*m_active`
+// (mirrors beginExtract's convention), so any failure path can safely reuse
+// failAndCleanup()/startNextQueued().
+void ComicDownloader::publishAssembledEdition(InFlight& f)
+{
+    const QString root = QDir::cleanPath(QFileInfo(f.assembledStagingDir).absoluteFilePath());
+
+    // Completeness + traversal safety FIRST — nothing is touched until every
+    // page is proven to live inside stagingDir. A partial directory is never
+    // published (design safety contract: "no filesystem path derived from
+    // torrent metadata" — here, from the assembler — "before reading, moving,
+    // or deleting it" without being cleaned/verified to stay inside its root).
+    QSet<QString> seen;
+    for (const QString& name : f.assembledOrderedFiles) {
+        if (name.trimmed().isEmpty()) {
+            failAndCleanup(f, QStringLiteral("assembled edition has an empty page filename"));
+            return;
+        }
+        const QString candidate = QDir::cleanPath(root + QChar('/') + name);
+        if (candidate != root && !candidate.startsWith(root + QChar('/'), Qt::CaseInsensitive)) {
+            failAndCleanup(f, QStringLiteral("assembled page path escapes staging dir: %1").arg(name));
+            return;
+        }
+        const QFileInfo fi(candidate);
+        if (!fi.exists() || !fi.isFile()) {
+            failAndCleanup(f, QStringLiteral("assembled page missing on disk: %1").arg(name));
+            return;
+        }
+        if (seen.contains(candidate)) {
+            failAndCleanup(f, QStringLiteral("duplicate assembled page: %1").arg(name));
+            return;
+        }
+        seen.insert(candidate);
+    }
+
+    qint64 bytes = 0;
+    for (const QString& name : f.assembledOrderedFiles)
+        bytes += QFileInfo(root + QChar('/') + name).size();
+
+    const QString dirPath = issueDir(f.seriesId, f.label, f.id);
+    QDir().mkpath(QFileInfo(dirPath).absolutePath());
+    QDir(dirPath).removeRecursively();   // never leave a stale/partial prior attempt in place
+
+    if (!QDir().rename(root, dirPath)) {
+        failAndCleanup(f, QStringLiteral("failed publishing assembled edition (atomic move failed)"));
+        return;
+    }
+
+    Entry e;
+    e.seriesId    = f.seriesId;
+    e.seriesTitle = f.seriesTitle;
+    e.label       = f.label;
+    e.dir         = dirPath;
+    e.files       = f.assembledOrderedFiles;
+    e.groups      = f.assembledGroups;
+    e.bytes       = bytes;
+    e.addedAt     = QDateTime::currentMSecsSinceEpoch();
+    m_index.insert(f.id, e);
+    saveIndex();
+
+    const QString id = f.id;
+    qInfo() << "[ComicDownloader] assembled edition published id=" << id
+            << "pages=" << e.files.size() << "dir=" << dirPath;
+    emit finished(id);
+
+    delete m_active; m_active = nullptr;
+    startNextQueued();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
