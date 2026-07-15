@@ -909,7 +909,10 @@ Item {
     function retryAnimeOrderHydration() {
         if (!EpisodeBrowser.isEpisodeId(root.mediaId))
             return
-        if (root.playbackQueueOrderingMode === "absolute")
+        // Only upgrade a bare-door queue: an empty one, or one hydrated from the
+        // same-season meta fallback (mode "seasons"). A queue a door supplied
+        // (mode "") that the user deliberately opened is never silently swapped.
+        if (root.playbackQueue.length > 0 && root.playbackQueueOrderingMode !== "seasons")
             return
         root.hydrateGen += 1
         var myGen = root.hydrateGen
@@ -1733,6 +1736,7 @@ Item {
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
         root.playbackQueue = []
         root.playbackQueueIndex = -1
+        root.playbackQueueOrderingMode = ""
         root.updateMediaSubtitle()
         root.mediaResumeHash = ""
         root.mediaResumeFileIdx = 0

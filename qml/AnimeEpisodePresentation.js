@@ -74,12 +74,15 @@ function playbackEpisodes(model, mode, activeSeason) {
 
 // Playback targets in the shape the player's jumpToEpisode consumes, keeping the
 // original provider stream id, season, and episode. Absolute titles read
-// "Episode N" (continuous); the queue crosses provider season boundaries.
-function playbackTargets(model, mode, activeSeason, showTitle, backdrop) {
+// "Episode N" (continuous); the queue crosses provider season boundaries. A row
+// with no usable stream id falls back to seriesId:season:episode, exactly like
+// EpisodeBrowser.episodesFor, so non-anime/id-less rows never lose their id.
+function playbackTargets(model, mode, activeSeason, showTitle, backdrop, seriesId) {
     var eps = playbackEpisodes(model, mode, activeSeason);
     var absolute = effectiveMode(model, mode) === "absolute";
     var title = showTitle || "";
     var art = backdrop || "";
+    var root = String(seriesId || "");
     var out = [];
     for (var i = 0; i < eps.length; i++) {
         var e = eps[i];
@@ -88,9 +91,14 @@ function playbackTargets(model, mode, activeSeason, showTitle, backdrop) {
         var label = (absolute && e.absoluteNumber !== undefined && e.absoluteNumber !== null)
                     ? ("Episode " + e.absoluteNumber)
                     : ("S" + _season(e) + "E" + _episode(e));
+        var streamId = (e.streamId !== undefined && e.streamId !== null && String(e.streamId).length)
+                       ? e.streamId
+                       : ((e.id !== undefined && e.id !== null && String(e.id).length)
+                          ? e.id
+                          : (root + ":" + _season(e) + ":" + _episode(e)));
         out.push({
             "type": "series",
-            "id": (e.streamId !== undefined ? e.streamId : e.id),
+            "id": streamId,
             "title": title + " - " + label,
             "backdrop": art,
             "season": _season(e),

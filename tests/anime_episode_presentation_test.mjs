@@ -96,5 +96,21 @@ eq(ids[ids.indexOf('tt:1:8') + 1], 'tt:2:1', 'absolute queue crosses S1E8 into S
 // 9. Locating the now-playing target yields the correct queue index.
 eq(targets.findIndex(t => t.id === 'tt:2:1'), 2, 'now-playing target index located in the queue');
 
+// 10. Rows with no (or empty) stream id fall back to seriesId:season:episode,
+//     matching EpisodeBrowser.episodesFor — otherwise non-anime queues lose ids.
+const idless = {
+    absoluteComplete: true, defaultOrder: 'absolute',
+    episodes: [
+        { sourceSeason: 1, sourceEpisode: 4, absoluteNumber: 4, kind: 'episode', mapped: true },
+        { streamId: '', sourceSeason: 1, sourceEpisode: 5, absoluteNumber: 5, kind: 'episode', mapped: true }
+    ]
+};
+const idlessTargets = mod.playbackTargets(idless, 'absolute', 0, 'Show', 'art', 'kitsu:99');
+eq(idlessTargets[0].id, 'kitsu:99:1:4', 'a missing stream id is built from seriesId:season:episode');
+eq(idlessTargets[1].id, 'kitsu:99:1:5', 'an empty stream id is also rebuilt from seriesId');
+// A present stream id still wins over the constructed fallback.
+eq(mod.playbackTargets(complete, 'absolute', 0, 'One Piece', 'art', 'seriesX')[2].id, 'tt:2:1',
+   'a present stream id is never overwritten by the fallback');
+
 console.log('PASS anime episode presentation and playback queues');
 process.exit(0);

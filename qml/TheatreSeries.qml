@@ -282,7 +282,7 @@ Item {
     function adjacentEpisodeContext(v) {
         var queue = AnimeEpisodePresentation.playbackTargets(
                         page.animeOrder, page.effectiveEpisodeOrder, page.activeSeason,
-                        page.title, page.sourceBackdrop());
+                        page.title, page.sourceBackdrop(), page.currentId());
         var targetId = episodeStreamId(v);
         var idx = -1;
         for (var i = 0; i < queue.length; i++)
@@ -346,11 +346,25 @@ Item {
         return entry.watched === true || episodeProgressRatio(v) >= 0.85;
     }
 
-    function nextUpEpisodeNumber() {
+    function nextUpEpisode() {
         for (var i = 0; i < episodes.length; i++)
             if (!episodeWatched(episodes[i]))
-                return episodeNumber(episodes[i]);
-        return episodes.length ? episodeNumber(episodes[episodes.length - 1]) : 0;
+                return episodes[i];
+        return episodes.length ? episodes[episodes.length - 1] : null;
+    }
+    function nextUpEpisodeNumber() {
+        var e = nextUpEpisode();
+        return e ? episodeNumber(e) : 0;
+    }
+    // Next-up identity rides the stream id: provider episode numbers repeat across
+    // seasons, so matching by number lights up two rows at once in Absolute view.
+    function nextUpEpisodeId() {
+        var e = nextUpEpisode();
+        return e ? episodeStreamId(e) : "";
+    }
+    function nextUpDisplayNumber() {
+        var e = nextUpEpisode();
+        return e ? episodeDisplayNumber(e) : 0;
     }
 
     function recentProgressSeason() {
@@ -932,9 +946,12 @@ Item {
 
                         // Season checkout: queue every not-yet-downloaded episode of the
                         // ACTIVE season. Each job resolves its stream lazily when promoted.
+                        // Hidden in Absolute view — there "episodes" is the whole run, so a
+                        // "Download <season>" button would flood the queue under a wrong label.
                         Rectangle {
                             // the ACTION wears the glass tablet...
                             visible: typeof Download !== "undefined" && page.episodes.length > 0
+                                     && page.effectiveEpisodeOrder !== "absolute"
                             anchors.verticalCenter: parent.verticalCenter
                             width: dlSeasonT.implicitWidth + 32
                             height: 30
@@ -968,8 +985,8 @@ Item {
 
                         Text {
                             // ...the STATUS reads as a quiet tag, not a second button
-                            visible: page.nextUpEpisodeNumber() > 0
-                            text: "NEXT \u00b7 E" + page.nextUpEpisodeNumber()
+                            visible: page.nextUpDisplayNumber() > 0
+                            text: "NEXT \u00b7 E" + page.nextUpDisplayNumber()
                             color: theme.inkDimmer
                             font.family: theme.ui
                             font.pixelSize: 11
@@ -1199,7 +1216,7 @@ Item {
                             property bool strip: page.episodeLayout === "strip"
                             property real progressRatio: page.episodeProgressRatio(modelData)
                             property bool watched: page.episodeWatched(modelData)
-                            property bool nextUp: page.nextUpEpisodeNumber() === page.episodeNumber(modelData)
+                            property bool nextUp: page.nextUpEpisodeId() === page.episodeStreamId(modelData)
                             width: strip ? 246 : ListView.view.width
                             height: strip ? 190 : episodeList.rowHeight
                             Rectangle {

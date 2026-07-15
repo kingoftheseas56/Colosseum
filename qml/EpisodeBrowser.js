@@ -180,7 +180,8 @@ function queueContextFromMeta(videos, nowId, showTitle, backdrop, year) {
 function queueContextFromOrder(model, nowId, showTitle, backdrop, year) {
     if (!model || model.absoluteComplete !== true)
         return null;
-    var queue = AnimeEpisodePresentation.playbackTargets(model, "absolute", 0, showTitle, backdrop);
+    var queue = AnimeEpisodePresentation.playbackTargets(
+                    model, "absolute", 0, showTitle, backdrop, seriesRootId(nowId));
     for (var i = 0; i < queue.length; i++) {
         if (String(queue[i].id) === String(nowId))
             return { "episodeQueue": queue, "episodeIndex": i, "year": String(year || "") };
