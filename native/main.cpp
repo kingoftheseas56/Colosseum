@@ -321,7 +321,19 @@ int main(int argc, char *argv[]) {
         // Jikan (2026-07-13, genre-pages triage): api.jikan.moe publishes AAAA and was
         // NEVER pinned — every manga genre / Jump registry / Theatre anime call rode the
         // dead-IPv6 stall on top of whatever Jikan itself was doing. Same scar, same fix.
-        QStringLiteral("api.jikan.moe")
+        QStringLiteral("api.jikan.moe"),
+        // Tankoban Mode (2026-07-15, eyes-on): per-volume MangaDex cover thumbnails ride
+        // uploads.mangadex.org (QML Image via this factory); the volume catalog rides
+        // api.mangadex.org (MangaEngine NAM, pins passed via setIpv4Pins); Apple Books +
+        // Open Library per-volume synopsis lookups ride itunes.apple.com / openlibrary.org.
+        // All publish a dead AAAA on this ISP → ~21s stall per request (covers never
+        // painted; Apple synopses trickled a scattered few). Same scar, same fix. NOTE:
+        // Open Library's IPv4 is ALSO ISP-firewalled — pinning only makes it fail fast so
+        // the Apple fallback runs sooner; it never returns data here.
+        QStringLiteral("uploads.mangadex.org"),
+        QStringLiteral("api.mangadex.org"),
+        QStringLiteral("itunes.apple.com"),
+        QStringLiteral("openlibrary.org")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {

@@ -487,7 +487,10 @@ void MangaSynopsisEnricher::startOpenLibrary(const Job& job)
     q.addQueryItem(QStringLiteral("limit"), QStringLiteral("10"));
     url.setQuery(q);
 
-    auto* reply = m_nam->get(QNetworkRequest(url));
+    QNetworkRequest req(url);
+    req.setTransferTimeout(6000);   // OL is ISP-firewalled here — bound the wait so a dead
+                                    // provider can't stall the cascade; fail fast → Apple.
+    auto* reply = m_nam->get(req);
     const Job captured = job;
     connect(reply, &QNetworkReply::finished, this, [this, reply, captured]() {
         reply->deleteLater();
@@ -543,7 +546,10 @@ void MangaSynopsisEnricher::startNextApple()
     q.addQueryItem(QStringLiteral("country"), QStringLiteral("us"));
     url.setQuery(q);
 
-    auto* reply = m_nam->get(QNetworkRequest(url));
+    QNetworkRequest req(url);
+    req.setTransferTimeout(6000);   // bound the wait so a slow/dead Apple can't wedge the
+                                    // single-flight queue (releases the gate on timeout).
+    auto* reply = m_nam->get(req);
     const Job captured = job;
     connect(reply, &QNetworkReply::finished, this, [this, reply, captured]() {
         reply->deleteLater();

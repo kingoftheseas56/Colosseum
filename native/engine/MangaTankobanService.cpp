@@ -113,7 +113,10 @@ MangaTankobanService::MangaTankobanService(QNetworkAccessManager* searchNam,
 
     m_index    = new MangaVolumeIndex(base, this);
     m_ingestor = new MangaVolumeArchiveIngestor(m_index, this);
-    m_enricher = new MangaSynopsisEnricher(dlNam, mv + QStringLiteral("/synopsis-cache.json"), this);
+    // Synopsis lookups (Apple Books / Open Library) MUST ride the IPv4-pinned searchNam,
+    // not the bare dlNam — those hosts publish a dead AAAA on this ISP, so an unpinned
+    // request stalls ~21s each and the cascade barely advanced (eyes-on 2026-07-15).
+    m_enricher = new MangaSynopsisEnricher(searchNam, mv + QStringLiteral("/synopsis-cache.json"), this);
 
     auto* scraper = new WeebCentralScraper(dlNam, this);
     m_packer   = new MangaVolumePacker(scraper, dlNam, m_index, mv + QStringLiteral("/staging"), this);
