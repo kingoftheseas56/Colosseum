@@ -1,5 +1,8 @@
 #include "ComicTorrentRanker.h"
 
+#include "ComicCoverage.h"
+#include "ComicUploaderTrust.h"
+
 #include <QHash>
 #include <QRegularExpression>
 #include <QSet>
@@ -29,17 +32,6 @@ QString digitsOf(const QString& value)
     for (const QChar& c : value)
         if (c.isDigit()) out.append(c);
     return out;
-}
-
-// The digit sequences appearing in a collected string, e.g. "Saga #1-18" -> ["1","18"].
-QStringList collectedNumbers(const QString& collects)
-{
-    QStringList nums;
-    static const QRegularExpression numRe(QStringLiteral("\\d+"));
-    auto it = numRe.globalMatch(collects);
-    while (it.hasNext())
-        nums.append(it.next().captured(0));
-    return nums;
 }
 
 // True when the candidate's tokens contain the collected numbers as a
@@ -137,58 +129,210 @@ TorrentResult ComicTorrentRanker::best(const QString& query,
     return ranked.first().src;
 }
 
-QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
-    const QString& seriesTitle, const QString& editionTitle,
-    const QString& isbn, const QString& collects,
-    const QList<TorrentResult>& raw)
-{
-    const QString normEdition = normalized(editionTitle);
-    const QStringList editionTokens = tokensOf(normEdition);
-    const QStringList seriesTokens = tokensOf(normalized(seriesTitle));
-    const QString isbnDigits = digitsOf(isbn);
-    const QStringList collectedNums = collectedNumbers(collects);
+namespace {
+using ComicEditionIdentity::ComicCollectionFormat;
+using ComicEditionIdentity::ComicEditionTarget;
 
-    // Grade one listing's edition-identity evidence (title / ISBN / range / archive).
-    const auto scoreRow = [&](const TorrentResult& result) {
-        RankedComicTorrent r;
-        r.src = result;
-        r.matchTier = matchTier(editionTitle, result.title);
-        r.archiveHint = hasComicArchiveHint(result.title);
+// Identity-evidence weights, strongest first (design doc "Torrent-level
+// ranking"): ISBN > exact title > format-scoped coverage > complete
+// collected-issue range > general series/title tokens > archive hint >
+// uploader trust. Seeder count is never folded into identityScore — it stays
+// a separate, explicitly volatile sort key (see the final std::sort below).
+constexpr int kIsbnScore          = 100000;
+constexpr int kTitleExactScore    = 50000;
+constexpr int kCoverageScore      = 20000;
+constexpr int kIssuesScore        = 8000;
+constexpr int kTitlePrefixScore   = 3000;
+constexpr int kTitleTokensScore   = 1500;
+constexpr int kArchiveScore       = 100;
+constexpr int kTrustTier1Score    = 50;
+constexpr int kTrustTier2Score    = 20;
+
+// One listing's raw identity evidence against `target`, computed BEFORE
+// infohash dedup so duplicate rows can be unioned rather than one winner
+// silently discarding what another duplicate proved.
+struct RowEvidence {
+    TorrentResult src;
+    bool isbnMatch = false;
+    bool titleExact = false;
+    bool titlePrefix = false;
+    bool titleAllTokens = false;
+    bool coverageMatch = false;
+    bool rangeMatch = false;
+    bool archiveHint = false;
+    bool seriesPresent = false;
+    int trustTier = 99;
+    QString uploaderName;
+    bool blocked = false;
+};
+
+// Sum of the weighted evidence a single row carries, used only to pick which
+// duplicate becomes the DISPLAYED representative (title/magnet/etc.) — never
+// the score that decides confidence, which is computed from the union.
+int rowWeight(const RowEvidence& e)
+{
+    int score = 0;
+    if (e.isbnMatch) score += kIsbnScore;
+    if (e.titleExact) score += kTitleExactScore;
+    else if (e.titlePrefix) score += kTitlePrefixScore;
+    else if (e.titleAllTokens) score += kTitleTokensScore;
+    if (e.coverageMatch) score += kCoverageScore;
+    if (e.rangeMatch) score += kIssuesScore;
+    if (e.archiveHint) score += kArchiveScore;
+    if (e.trustTier == 1) score += kTrustTier1Score;
+    else if (e.trustTier == 2) score += kTrustTier2Score;
+    return score;
+}
+} // namespace
+
+QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
+    const ComicEditionTarget& target, const QList<TorrentResult>& raw)
+{
+    const QString normEdition = normalized(target.editionTitle);
+    const QStringList editionTokens = tokensOf(normEdition);
+    const QStringList seriesTokens = tokensOf(normalized(target.seriesTitle));
+
+    // Complete collected-issue evidence is scoped to the target's own lo/hi
+    // span (e.g. "Saga #1-18" -> ["1","18"]) — a partial parse never lets a
+    // subset of issues masquerade as range coverage.
+    QStringList issueRangeTokens;
+    if (target.collectedIssuesComplete && !target.collectedIssues.isEmpty()) {
+        int lo = target.collectedIssues.first().number;
+        int hi = lo;
+        for (const ComicEditionIdentity::ComicIssueRef& issue : target.collectedIssues) {
+            lo = qMin(lo, issue.number);
+            hi = qMax(hi, issue.number);
+        }
+        issueRangeTokens << QString::number(lo) << QString::number(hi);
+    }
+
+    const ComicUploaderTrust::TrustTable trustTable = ComicUploaderTrust::load();
+
+    // Grade one listing's edition-identity evidence (title / ISBN / coverage /
+    // issue-range / archive / uploader trust) against `target`.
+    const auto evaluateRow = [&](const TorrentResult& result) {
+        RowEvidence e;
+        e.src = result;
 
         const QString normCand = normalized(result.title);
         const QStringList candTokens = tokensOf(normCand);
         const QSet<QString> candSet(candTokens.cbegin(), candTokens.cend());
         const QString candDigits = digitsOf(result.title);
 
-        int score = 0;
-        QStringList evidence;
-
-        const bool isbnMatch = !isbnDigits.isEmpty() && candDigits.contains(isbnDigits);
-        if (isbnMatch) { score += 1000; evidence << QStringLiteral("ISBN"); }
+        e.isbnMatch = !target.isbnDigits.isEmpty() && candDigits.contains(target.isbnDigits);
 
         // Title evidence ladder: exact > canonical prefix > all significant tokens.
-        bool titleExact = false, titlePrefix = false, titleAllTokens = false;
         if (!normEdition.isEmpty()) {
             if (normCand == normEdition)
-                titleExact = true;
+                e.titleExact = true;
             else if (normCand.startsWith(normEdition + QLatin1Char(' ')))
-                titlePrefix = true;
+                e.titlePrefix = true;
             else
-                titleAllTokens = allTokensPresent(editionTokens, candSet);
+                e.titleAllTokens = allTokensPresent(editionTokens, candSet);
         }
-        if (titleExact)          { score += 600; evidence << QStringLiteral("TITLE"); }
-        else if (titlePrefix)    { score += 400; evidence << QStringLiteral("TITLE"); }
-        else if (titleAllTokens) { score += 200; evidence << QStringLiteral("TITLE"); }
 
-        const bool rangeMatch = containsNumberRun(candTokens, collectedNums);
-        if (rangeMatch) { score += 100; evidence << QStringLiteral("ISSUES"); }
+        // Format-scoped coverage: a DIFFERENT format matching the same ordinal
+        // is never coverage (ComicCoverage::coverageCovers requires format
+        // equality), and an ambiguous target never auto-matches.
+        if (!target.formatAmbiguous && target.format != ComicCollectionFormat::Unknown
+                && target.ordinal >= 0) {
+            const auto spans = ComicCoverage::detectComicCoverage(result.title);
+            e.coverageMatch = ComicCoverage::coverageCovers(spans, target.format, target.ordinal);
+        }
 
-        if (r.archiveHint) { score += 10; evidence << QStringLiteral("ARCHIVE"); }
+        e.rangeMatch = !issueRangeTokens.isEmpty() && containsNumberRun(candTokens, issueRangeTokens);
+        e.archiveHint = hasComicArchiveHint(result.title);
+        e.seriesPresent = allTokensPresent(seriesTokens, candSet);
 
-        const bool seriesPresent = allTokensPresent(seriesTokens, candSet);
+        const ComicUploaderTrust::UploaderTrust trust =
+            ComicUploaderTrust::taggedUploader(result.title, trustTable);
+        e.trustTier = trust.tier;
+        e.uploaderName = trust.name;
+        e.blocked = (trust.tier == -1);
+        return e;
+    };
 
+    // Union raw rows sharing a canonical infohash BEFORE grading confidence:
+    // a high-seed generic-title listing and a low-seed exact/covering one for
+    // the SAME release must combine into one canonical row whose evidence is
+    // the union of both, not whichever happened to be scored first.
+    QHash<QString, QList<RowEvidence>> byHash;
+    QStringList hashOrder;   // first-seen order — stable output when scores tie
+    for (const TorrentResult& result : raw) {
+        const QString hash = canonicalizeInfoHash(result.infoHash);
+        if (hash.isEmpty()) continue;
+        TorrentResult canonical = result;
+        canonical.infoHash = hash;
+        if (!byHash.contains(hash)) hashOrder << hash;
+        byHash[hash].append(evaluateRow(canonical));
+    }
+
+    QList<RankedComicTorrent> ranked;
+    for (const QString& hash : hashOrder) {
+        const QList<RowEvidence>& rows = byHash.value(hash);
+
+        // A blocked uploader tag on ANY duplicate removes the whole canonical
+        // release — trust never bypasses identity safety in the other
+        // direction either (a blocked tag can't be laundered by a clean dupe).
+        bool anyBlocked = false;
+        for (const RowEvidence& e : rows)
+            if (e.blocked) { anyBlocked = true; break; }
+        if (anyBlocked) continue;
+
+        bool isbnMatch = false, titleExact = false, titlePrefix = false, titleAllTokens = false,
+             coverageMatch = false, rangeMatch = false, archiveHint = false, seriesPresent = false;
+        int bestTier = 99;
+        QString uploaderName;
+        int maxSeeders = 0, maxLeechers = 0;
+        const RowEvidence* representative = nullptr;
+
+        for (const RowEvidence& e : rows) {
+            isbnMatch      |= e.isbnMatch;
+            titleExact     |= e.titleExact;
+            titlePrefix    |= e.titlePrefix;
+            titleAllTokens |= e.titleAllTokens;
+            coverageMatch  |= e.coverageMatch;
+            rangeMatch     |= e.rangeMatch;
+            archiveHint    |= e.archiveHint;
+            seriesPresent  |= e.seriesPresent;
+            if (e.trustTier < bestTier) { bestTier = e.trustTier; uploaderName = e.uploaderName; }
+            maxSeeders  = qMax(maxSeeders, e.src.seeders);
+            maxLeechers = qMax(maxLeechers, e.src.leechers);
+            // The highest-IDENTITY-weight duplicate supplies the displayed
+            // src (title/magnet/etc.); only seeders/leechers are the
+            // volatile fields unioned to their highest observed value.
+            if (!representative || rowWeight(e) > rowWeight(*representative))
+                representative = &e;
+        }
+
+        RankedComicTorrent r;
+        r.src = representative->src;
+        r.src.seeders = maxSeeders;
+        r.src.leechers = maxLeechers;
+        r.matchTier = matchTier(target.editionTitle, r.src.title);
+        r.archiveHint = archiveHint;
+        r.coverageMatch = coverageMatch;
+        r.uploaderName = uploaderName;
+        r.trustTier = bestTier;
+
+        int score = 0;
+        QStringList evidence;
+        if (isbnMatch)           { score += kIsbnScore;        evidence << QStringLiteral("ISBN"); }
+        if (titleExact)          { score += kTitleExactScore;  evidence << QStringLiteral("TITLE"); }
+        else if (titlePrefix)    { score += kTitlePrefixScore; evidence << QStringLiteral("TITLE"); }
+        else if (titleAllTokens) { score += kTitleTokensScore; evidence << QStringLiteral("TITLE"); }
+        if (coverageMatch)       { score += kCoverageScore;    evidence << QStringLiteral("COVERAGE"); }
+        if (rangeMatch)          { score += kIssuesScore;      evidence << QStringLiteral("ISSUES"); }
+        if (archiveHint)         { score += kArchiveScore;     evidence << QStringLiteral("ARCHIVE"); }
+        if (bestTier == 1)       { score += kTrustTier1Score;  evidence << QStringLiteral("UPLOADER"); }
+        else if (bestTier == 2)  { score += kTrustTier2Score;  evidence << QStringLiteral("UPLOADER"); }
+
+        // Trust can never rescue a format conflict: coverageMatch is only
+        // ever true for a format-equal span (ComicCoverage's own contract),
+        // and uploader trust does not appear in the strong condition below —
+        // so no trust tier can promote a conflicting-format row to strong.
         QString confidence;
-        if (isbnMatch || titleExact || (titlePrefix && rangeMatch))
+        if (isbnMatch || titleExact || coverageMatch || (titlePrefix && rangeMatch))
             confidence = QStringLiteral("strong");
         else if (titleAllTokens || (seriesPresent && rangeMatch))
             confidence = QStringLiteral("possible");
@@ -198,34 +342,9 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
         r.identityScore = score;
         r.confidence = confidence;
         r.evidence = evidence;
-        return r;
-    };
-
-    // Dedup by canonical hash: the STRONGEST-identity listing wins, so a generic
-    // high-seed title cannot bury an exact-title one that shares the same hash.
-    // Only volatile metadata (seed/leech counts) merges to its highest observed
-    // value — the matched evidence of the best listing is retained, not discarded.
-    QHash<QString, RankedComicTorrent> bestByHash;
-    for (const TorrentResult& result : raw) {
-        const QString hash = canonicalizeInfoHash(result.infoHash);
-        if (hash.isEmpty()) continue;
-        TorrentResult canonical = result;
-        canonical.infoHash = hash;
-        const RankedComicTorrent scored = scoreRow(canonical);
-        auto it = bestByHash.find(hash);
-        if (it == bestByHash.end()) {
-            bestByHash.insert(hash, scored);
-        } else {
-            RankedComicTorrent& kept = it.value();
-            const int maxSeeders = qMax(kept.src.seeders, scored.src.seeders);
-            const int maxLeechers = qMax(kept.src.leechers, scored.src.leechers);
-            if (scored.identityScore > kept.identityScore) kept = scored;
-            kept.src.seeders = maxSeeders;
-            kept.src.leechers = maxLeechers;
-        }
+        ranked.append(r);
     }
 
-    QList<RankedComicTorrent> ranked = bestByHash.values();
     std::sort(ranked.begin(), ranked.end(), [](const RankedComicTorrent& a,
                                                const RankedComicTorrent& b) {
         if (a.identityScore != b.identityScore) return a.identityScore > b.identityScore;
@@ -255,6 +374,9 @@ QVariantList ComicTorrentRanker::toVariantRows(const QList<RankedComicTorrent>& 
         m.insert(QStringLiteral("matchTier"), r.matchTier);
         m.insert(QStringLiteral("evidence"), r.evidence);
         m.insert(QStringLiteral("archiveHint"), r.archiveHint);
+        m.insert(QStringLiteral("coverage"), r.coverageMatch);
+        m.insert(QStringLiteral("uploader"), r.uploaderName);
+        m.insert(QStringLiteral("trustTier"), r.trustTier);
         rows.append(m);
     }
     return rows;

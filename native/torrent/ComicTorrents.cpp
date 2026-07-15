@@ -184,6 +184,13 @@ void ComicTorrents::startSourceSession(const QString& issueId, const QString& se
     session.editionTitle = editionTitle;
     session.isbn = isbn;
     session.collects = collects;
+    // Built ONCE here, at the facade boundary — seriesId/catalogFormat are not
+    // yet threaded through this Q_INVOKABLE surface, so format falls back to
+    // whatever ComicEditionIdentity::buildTarget detects inside editionTitle
+    // itself (still format-scoped, just not catalog-corroborated). QML-side
+    // wiring of seriesId/catalogFormat is a later task.
+    session.target = ComicEditionIdentity::buildTarget(issueId, QString(), seriesTitle,
+                                                        editionTitle, QString(), isbn, collects);
     // Insert first so an (async) callback can always find its live session.
     m_sourceSessionsByIssue.insert(issueId, session);
     SourceSession& live = m_sourceSessionsByIssue[issueId];
@@ -232,8 +239,7 @@ void ComicTorrents::handleSourceFinished(const QString& handle)
 QVariantList ComicTorrents::sourceRows(const SourceSession& session) const
 {
     return ComicTorrentRanker::toVariantRows(
-        ComicTorrentRanker::rankForEdition(session.seriesTitle, session.editionTitle,
-                                           session.isbn, session.collects, session.results));
+        ComicTorrentRanker::rankForEdition(session.target, session.results));
 }
 
 void ComicTorrents::beginDownload(Request request, const QString& infoHash,

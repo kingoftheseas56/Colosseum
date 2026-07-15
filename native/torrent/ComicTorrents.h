@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ComicEditionIdentity.h"
 #include "TorrentResult.h"
 
 #include <QHash>
@@ -87,13 +88,17 @@ private:
 
     // A live browse session, keyed by edition issueId. Holds edition identity
     // so a later manual query re-ranks against the same edition, and the set of
-    // in-flight query handles so completion fires once all settle.
+    // in-flight query handles so completion fires once all settle. `target` is
+    // built ONCE at this facade boundary (ComicEditionIdentity::buildTarget)
+    // and reused by every rankForEdition() call the session makes — ranking
+    // code never re-derives identity from raw strings itself.
     struct SourceSession {
         QString issueId;
         QString seriesTitle;
         QString editionTitle;
         QString isbn;
         QString collects;
+        ComicEditionIdentity::ComicEditionTarget target;
         QSet<QString> pendingHandles;
         QList<TorrentResult> results;
     };
