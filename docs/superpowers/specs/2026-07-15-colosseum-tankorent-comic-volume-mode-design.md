@@ -1,203 +1,541 @@
-# Colosseum Tankorent Comic — Collected-Edition Volume-in-Pack Design
+# Colosseum Tankorent Comics: Collected-Edition-in-Pack Design
 
-> Agent 0 (Claude), 2026-07-15. Tankorent enrichment lane. Mirrors the manga
+> Enhanced by `[Agent 1 (Codex), comics]`, 2026-07-15. Product decisions originate
+> with Hemanth and Agent 0. This design extends the shipped
+> [Alternate Torrent Sources v2](2026-07-15-colosseum-comics-alternate-torrent-sources-v2-design.md)
+> and borrows the proven transport discipline of
 > [Tankoban Nyaa Volume Mode](2026-07-14-colosseum-tankoban-nyaa-volume-mode-design.md)
-> — same logic, comic vocabulary. Builds on the comics
-> [Alternate Torrent Sources v2](2026-07-15-colosseum-comics-alternate-torrent-sources-v2-design.md).
+> without modifying manga code.
 
 ## Purpose
 
-Give a comics **collected edition** (Compendium, Omnibus, TPB, Deluxe, Absolute, Vol…) the same
-automatic acquisition manga volumes already have: you tap a torrent, and the app pulls **exactly
-that edition** out of a full-series pack — no second file-pick. Collected editions rarely have
-standalone torrents; they live inside mega-packs (e.g. Nem's *"Invincible Collection (000-144,
-Spin-offs, TPBs v01-v25, Compendiums v01-v03+Extras)"*), so we match the edition **by name/coverage
-to its file or folder inside the pack**, exactly like Stremio wires an episode to a file inside a
-season pack and like manga wires Vol N to its file.
+Make full-series comic torrent packs useful for bibliographic collected editions. The user still
+chooses a torrent manually in the existing alternate-sources page. After that choice, Colosseum
+must identify and download only the file or files that constitute the selected GCD edition, publish
+them under the edition's existing `chId`, and open them through the existing `Comics` reader
+contract.
 
-## Locked product decisions (Hemanth, 2026-07-15)
+Examples:
 
-1. **Extend, don't rebuild.** Evolve the existing comics alt-sources pieces (`ComicTorrentRanker`,
-   `ComicTorrentFilePicker`, `ComicTorrentDownloader`) in place. Converge with manga into one shared
-   Tankorent engine *later*, once comics is proven — do **not** touch manga's shipped code now.
-2. **Full manga-Tankoban parity** — "in terms of logic and everything": automatic matching,
-   coverage grammar, trusted uploaders, restart-safe ledger, one-pack-serves-many.
-3. **Automatic.** Search Compendium #1 → tap the torrent → download Compendium #1. The manual file
-   picker survives only as a **fallback** for genuinely ambiguous packs (manga's `Ambiguous`).
-4. **Name/coverage match is the PRIMARY path** (collected editions appear by name in packs);
-   issue-range selection is the **fallback** for issue-only packs.
-5. **Format-aware.** A mega-pack carries issues *and* TPBs *and* Compendiums at once. "Compendium #1"
-   must lock onto the Compendium file — never TPB v01 or issue #1. Matching is scoped by collection
-   format + number, not number alone.
-6. **Trusted uploaders**, mirroring Nyaa. First trusted comics uploader: **Nem**.
+- `Invincible Compendium #1` selects the Compendium 1 archive from a pack containing issues, TPBs,
+  hardcovers, and several compendiums.
+- An edition collecting issues `#14-16, #18-36, #38, #40-47` can be assembled from those issue
+  archives when the pack has no collected-edition archive.
+- A loose-page directory representing exactly one collected edition can be published without
+  pretending it is an archive.
 
-## Canonical data model
+This is automatic file-in-pack isolation, not automatic torrent selection.
 
-Source of truth is the GCD catalog edition (`comics_db.gen.js` / `ComicsApi.js`): a series carries
-`editions[]`, each `{ title, format, isbn, collects, locg_comic_id, slug, … }`. From an edition we
-derive a **match target**:
+## Locked product decisions
 
+1. Extend the existing comics torrent components; do not rebuild them or modify manga's shipped
+   Tankoban Mode implementation.
+2. Preserve manga-Tankoban transport parity where it fits: paused metadata inspection,
+   exact file priorities, restart-safe intent ledger, shared infohash jobs, and per-edition signals.
+3. The user always chooses the torrent. File selection inside that torrent is automatic when the
+   evidence is unique and safe. Manual file choice remains the ambiguity fallback.
+4. Canonical collection format plus edition number is the primary identity. ISBN is corroborating
+   evidence. The exact collected-issue set is the issue-pack fallback.
+5. Matching is format-scoped. `Compendium #1` must never silently resolve to TPB 1, issue 1,
+   Omnibus 1, or a generic `v01` whose collection format is unknown.
+6. Uploader trust influences ranking but never bypasses identity safety. Initial tier-1 uploader:
+   `Nem`.
+7. All progress, status, cancellation, extraction, completion, local pages, and reader opening
+   remain on the public `Comics` object under the original catalog `chId`.
+8. A combined archive containing several editions is not an isolated match. It requires an
+   explicit whole-archive confirmation and is never labeled as the requested edition automatically.
+
+## Non-goals
+
+- No automatic selection of a torrent search result.
+- No cross-media Tankorent consolidation.
+- No new torrent indexers or Cloudflare bypasses.
+- No manga/Tankoban Mode changes.
+- No catalog rebuild or GCD matching changes.
+- No bulk whole-series acquisition button.
+- No attempt to split a monolithic CBZ/CBR internally by detecting cover pages.
+
+## Architecture
+
+The pipeline is intentionally divided into pure identity/selection logic, durable torrent
+transport, and canonical publication:
+
+```text
+GCD edition row
+  -> ComicEditionIdentity (canonical target)
+  -> ComicTorrentRanker (torrent-level advisory evidence)
+  -> user chooses torrent
+  -> ComicTorrentDownloader (paused metadata + shared infohash intent)
+  -> ComicEditionFileSelector (safe payload decision)
+  -> ComicEditionAssembler (archive set / loose subtree -> ordered page staging)
+  -> ComicDownloader ingest entry (existing index + reader contract)
+  -> Comics.finished(chId) / Comics.localPages(chId)
 ```
-ComicEditionTarget {
-  seriesTitle   // "Invincible"
-  format        // Compendium | Omnibus | TPB | Deluxe | Absolute | Volume | HC | Collection
-  number        // 1            (parsed from title/format; may be absent for one-shots)
-  isbn          // 9781607064114 (strongest identity signal when present)
-  collects      // parsed issue set: {0, 14,15,16, 18..36, 38, 40..47}  (issue-range fallback)
+
+QML paints and forwards intent. C++ owns parsing, identity, file priorities, assembly, persistence,
+and terminal state.
+
+## Canonical edition identity
+
+### `ComicEditionIdentity`
+
+Create `native/torrent/ComicEditionIdentity.{h,cpp}` as a pure module. It owns catalog-facing
+normalization so coverage and file-selection code do not reinterpret raw strings independently.
+
+```cpp
+enum class ComicCollectionFormat {
+    Unknown,
+    Compendium,
+    Omnibus,
+    TradePaperback,
+    Deluxe,
+    Absolute,
+    Hardcover,
+    Collection,
+    Volume,
+    Book
+};
+
+struct ComicIssueRef {
+    QString series;
+    int number = -1;
+};
+
+struct ComicEditionTarget {
+    QString editionId;       // existing ledger chId
+    QString seriesId;
+    QString seriesTitle;
+    QString editionTitle;
+    ComicCollectionFormat format = ComicCollectionFormat::Unknown;
+    int ordinal = -1;        // collection number; -1 for named one-shots
+    QString isbnDigits;
+    QList<ComicIssueRef> collectedIssues; // canonical order, deduplicated
+};
+```
+
+`buildTarget(...)` receives the fields already available in `ComicDbLedger.qml`: `chId`, series
+identity, display title, catalog format, ISBN, and `collects`. The output is passed through the
+facade as structured values; QML never recreates it.
+
+### Format normalization
+
+Normalize these aliases:
+
+| Canonical | Accepted aliases |
+|---|---|
+| Compendium | `compendium`, `compendiums` |
+| Omnibus | `omnibus`, `omnibuses`, `omni` |
+| TradePaperback | `tpb`, `trade`, `trade paperback` |
+| Deluxe | `deluxe`, `deluxe edition` |
+| Absolute | `absolute`, `absolute edition` |
+| Hardcover | `hc`, `hardcover`, `hard cover` |
+| Collection | `collection`, `collected edition` |
+| Volume | `vol`, `volume`, `v` |
+| Book | `book` |
+
+The explicit catalog `format` field wins when it maps cleanly. Title-derived format fills only an
+unknown catalog value. Conflicting explicit and title formats make the target invalid for automatic
+format matching; the eventual decision must be manual.
+
+### Ordinal parsing
+
+Parse `#1`, `No. 1`, `Vol 01`, `Book One`, Roman numerals `I` through `XX`, and a trailing numeric
+ordinal adjacent to an accepted collection token. Bare numbers elsewhere in a title are not
+collection ordinals. Named one-shots retain `ordinal == -1` and can auto-match only by unique exact
+title or ISBN-bearing filename evidence.
+
+### Collected-issue parsing
+
+`parseCollectedIssues(seriesTitle, collects)` recognizes comma-separated single issues and ranges,
+including multiple named series within one edition:
+
+```text
+Invincible #0, #14-16, #18-36, #38, #40-47
+The Pact #4; Image Comics Summer Special #1
+```
+
+Each range expands into ordered `ComicIssueRef` values. Repeated entries are deduplicated without
+changing first-seen order. Unparseable fragments are returned separately as diagnostics. The
+issue-pack path is eligible only when every required numeric fragment parsed successfully.
+
+## Coverage and trust
+
+### `ComicCoverage`
+
+Create `native/torrent/ComicCoverage.{h,cpp}` as pure text grammar:
+
+```cpp
+struct ComicCoverageSpan {
+    ComicCollectionFormat format = ComicCollectionFormat::Unknown;
+    int lo = -1;
+    int hi = -1;
+    QString evidenceText;
+};
+
+QList<ComicCoverageSpan> detectComicCoverage(const QString& text);
+bool coverageCovers(const QList<ComicCoverageSpan>& spans,
+                    ComicCollectionFormat format, int ordinal);
+```
+
+Rules:
+
+- Range forms include `v01-v03`, `Vol 1-3`, `Compendiums #1-3`, `Book One-Three`, and a single
+  `Omnibus 02`.
+- A range is bound to the closest preceding recognized format token inside the same punctuation
+  clause. `TPBs v01-v25, Compendiums v01-v03` yields two independent spans.
+- Generic `v01`/`Volume 1` yields `Volume`, never Compendium or TPB.
+- Bare issue numbers and issue ranges are not collection coverage.
+- Coverage matches only when canonical formats are equal and the target ordinal lies inside the
+  inclusive span.
+
+### Uploader trust
+
+Add `native/torrent/comics_uploader_trust.json`, versioned like the manga trust resource:
+
+```json
+{
+  "version": 1,
+  "tier1": ["Nem"],
+  "tier2": [],
+  "blocked": []
 }
 ```
 
-`format` + `number` come from the edition title (`"Invincible Compendium #1"` → `Compendium`, `1`)
-cross-checked against the `format` field. `collects` is parsed from the edition's collected-issue
-string into a canonical integer set once, reused by both ranking and the issue-range fallback.
+`ComicUploaderTrust` parses only bounded release-tag positions such as `[Nem]`, `(Nem)`,
+`(- Nem -)`, or a final `- Nem`. A mere occurrence of `nem` inside another word is not trust
+evidence. Blocked tags remove a row; tier 1/2 adjust ranking only after identity evidence.
 
-## Discovery and ranking
+## Torrent-level ranking
 
-Search rides the existing `TankorentSearchService` (piratebay / exttorrents / torrentscsv) via
-`ComicTorrents`; queries come from `ComicTorrentQueryPlanner` (edition title, ISBN, collected-range).
-`ComicTorrentRanker.rankForEdition(...)` gains two new signals on top of its current
-ISBN/title/issue-run grade:
+Extend `ComicTorrentRanker::rankForEdition` to accept a `ComicEditionTarget` and preserve evidence
+across duplicate infohashes.
 
-- **Coverage grade (new).** Parse the torrent NAME for format-scoped ranges (see grammar below). If a
-  range of the target's format covers the target number, add a strong coverage score and mark
-  evidence `COVERAGE`. This is the fix for the *"Invincible Collection (…Compendiums v01-v03…)"*
-  pack currently scored **WEAK** despite containing Compendium 1 — it becomes **STRONG**.
-- **Uploader trust (new).** `comics_uploader_trust.json` (schema mirrors `manga_uploader_trust.json`:
-  `tier1` / `tier2` / `blocked`) parsed from the release tag (`(- Nem -)`, `[group]`). Trust lifts
-  ranking exactly like Nyaa's tiers. Seed `tier1: ["Nem"]`.
+Identity score order:
 
-Ranking stays **advisory** (stable-sort, never silent auto-pick of a *torrent*) — the automatic step
-is the file-in-pack isolation *after* the user taps a result. Size is a weak signal for comics
-(ExtraTorrents reports `0 B`), so coverage + trust carry confidence.
+1. ISBN digits in release title: strongest.
+2. Exact normalized edition title.
+3. Matching format-scoped coverage.
+4. Complete collected-issue range evidence.
+5. General series/title token evidence.
+6. Comic archive hint.
+7. Uploader trust.
+8. Seeder count as the final volatile tie-break.
 
-## The coverage grammar (the new brain) — `ComicCoverage`
+Trust cannot turn a format conflict into `strong`. All universal-filter results remain visible;
+weak rows still require the existing explicit confirmation.
 
-New pure-logic native module (analogue of manga's `detectCoverage` / `coverageIncludesTarget`,
-`MangaVolumeFilePicker.cpp:38-57,159-170`), but **format-aware**. Two entry points, both pure and
-headless-testable:
+Deduplication aggregates evidence per canonical infohash. The highest-seeded representative may
+supply volatile fields, but exact title, ISBN, coverage, issue-range, archive, source, and uploader
+evidence are unioned from every duplicate row before confidence is assigned.
 
-- `detectComicCoverage(text) -> [{ format, lo, hi }]` — scan a string (torrent name OR a filename OR
-  a directory segment) for collection markers and their number ranges:
-  - Format tokens: `Compendium(s)`, `Omnibus`, `Deluxe`, `Absolute`, `TPB` / `Trade Paperback`,
-    `Vol` / `Volume` / `v`, `Book`, `HC` / `Hardcover`, `Collection`. Normalized to canonical format.
-  - Range forms: `v01-v03`, `1-3`, `01`, `#1`, `Book One`/`Book Two` (worded), zero-stripped to
-    canonical integers. A range wins over a single, mirroring manga.
-  - Multiple formats coexist in one string (`"TPBs v01-v25, Compendiums v01-v03"` → two entries).
-- `coverageCovers(coverages, target) -> bool` — true iff some entry has `format == target.format`
-  **and** `lo <= target.number <= hi`. Format equality is required — the core comics rule.
+## Manifest selection
 
-Bare issue numbers (`Invincible 025`) are **not** collection coverage — they feed the issue-range
-fallback, never the format-coverage match (keeps loose issues out of "Compendium" matching, the
-comic analogue of manga keeping "Chapter 2" out of volume coverage).
+### Payload decision model
 
-## Source selection and acquisition
+Replace the single `PickedFile` assumption with an explicit decision:
 
-### Coverage path (primary — automatic)
+```cpp
+enum class ComicPayloadKind {
+    None,
+    SingleArchive,
+    IssueArchiveSet,
+    LooseImageSubtree,
+    CombinedWholeArchive
+};
 
-Mirrors `MangaVolumeTorrentDownloader` discipline (add **paused** → inspect metadata → set
-priorities → start; `MangaVolumeTorrentDownloader.h:8-14`):
+enum class ComicSelectionFailure {
+    None,
+    TargetMissing,
+    Ambiguous,
+    CombinedOnly,
+    IncompleteIssueSet,
+    UnsupportedPayload
+};
 
-1. Tap a result → `ComicTorrents.downloadTorrentSource(editionId, infoHash)` adds the torrent
-   **paused**, journals the intent, waits for metadata.
-2. On metadata, `ComicTorrentFilePicker` (extended) runs `ComicCoverage` over the real file list:
-   - **Base filename wins**, then parent directory segments deepest-first (so
-     `Compendiums/Invincible Compendium v01/…` resolves to `Compendium 1`), mirroring
-     `MangaVolumeFilePicker::resolveCandidate` (`:72-100`).
-   - **Isolation tiers:** exact format+number in a filename → pick; exact format+number declared only
-     by a directory (a folder of loose pages/issues) → pick that subtree; two equal candidates →
-     `Ambiguous`; an inclusive combined archive (single omnibus file covering the target) →
-     `CombinedArchive` (download whole, cannot split); none → `TargetMissing` → try fallback.
-3. `unionPriorities` sets libtorrent priority **7** on the picked file(s)/subtree, **0** elsewhere
-   (union so one pack serving several requested editions grabs all their files) — same as manga
-   (`MangaVolumeFilePicker.cpp:185-192`).
-4. `TorrentEngine::setFilePriorities` → `startTorrent`. On finish, ingest the archive/subtree into
-   the comics loose-page store like `ComicDownloader` does today.
+struct ComicSelectedFile {
+    int index = -1;
+    QString path;
+    qint64 bytes = 0;
+    int order = -1;
+};
 
-### Issue-range path (fallback — automatic)
+struct ComicPayloadDecision {
+    ComicPayloadKind kind = ComicPayloadKind::None;
+    ComicSelectionFailure failure = ComicSelectionFailure::TargetMissing;
+    QList<ComicSelectedFile> files;
+    QVariantList manualCandidates;
+};
+```
 
-When coverage yields `TargetMissing` but the pack contains loose issue files: match the edition's
-parsed `collects` set against issue-numbered files, select **all** matching issue files (multi-file
-union, priority 7), and ingest them as one reading unit in `collects` order. This is the comics-only
-capability manga never needed (manga volume = one file).
+### Selection tiers
 
-### Manual fallback (safety net only)
+`ComicEditionFileSelector` evaluates only supported comic archives and image files:
 
-`Ambiguous` or `CombinedArchive`-with-choice surfaces the existing `ComicTorrentSourcesPage` /
-`ComicTorrentArchivePicker` for a human pick (`chooseFile`), unchanged. Automatic is the default;
-the picker only appears when the grammar honestly cannot isolate.
+1. Unique exact normalized edition-title archive.
+2. Unique filename coverage match for target format + ordinal.
+3. Unique deepest parent-directory coverage match, selecting supported payload files in that
+   subtree.
+4. Complete collected-issue archive set, ordered by `ComicEditionTarget.collectedIssues`.
+5. Otherwise return a typed failure/manual decision.
 
-## State machine and durable memory — `ComicRequestLedger`
+Filename evidence wins over directory evidence. Two equal candidates are `Ambiguous`; no size or
+extension preference silently breaks the tie.
 
-Comics has **no** restart resume today (`ComicTorrentDownloader` is in-memory `Job*` only). Port
-`MangaVolumeRequestLedger` (`MangaVolumeRequestLedger.h`):
+### Issue archive identity
 
-- One `EditionRequestRow` per requested edition: `{ editionId, infoHash, magnetUri, seriesId,
-  format, number, savePath, pickedFileIndices[], state }`.
-- States: `awaiting_metadata → downloading → validating → completed | failed | cancelled`, atomic via
-  `QSaveFile`.
-- **Restart replay:** on ctor, re-add every active row's torrent **paused**, forget the prior pick,
-  re-resolve from re-emitted metadata (honest re-derivation), then resume. `markDownloading` records
-  the resolved file indices durably.
-- **One pack → many editions:** an already-live torrent **joins** the existing job and grows its
-  intent set; priorities re-union; cancel re-narrows to survivors (manga's model exactly).
+Loose issue archives require both strong series agreement and an explicit issue marker (`#14`,
+`Issue 14`, `0014`). Files inside a directory already carrying the exact canonical series may use
+bare zero-padded numeric stems. Annuals, specials, and cross-series issues match only when the
+parsed `ComicIssueRef.series` agrees. A complete set is required: one missing required issue makes
+the automatic decision `IncompleteIssueSet` and downloads no payload.
 
-`pickedFileIndices` is a **list** (not manga's single index) because the issue-range path selects
-several files per edition — the one structural widening over the manga ledger.
+### Loose image subtree
 
-## Colosseum-native component boundary ("QML paints, C++ decides")
+A directory coverage match can select loose JPEG, PNG, GIF, WebP, or AVIF pages. The subtree is
+eligible only when all selected images live under the same matched directory and no sibling
+subdirectory advertises another collection ordinal. Images are naturally ordered by relative path.
 
-All matching, coverage, priorities, ledger, and transport are **C++** in `native/torrent/`
-(the machine). QML only renders the results list + progress and forwards taps. Extended/new files:
+### Combined archives
 
-| File | Change |
-|---|---|
-| `native/torrent/ComicCoverage.{h,cpp}` | **NEW** — pure format-aware coverage grammar. |
-| `native/torrent/comics_uploader_trust.json` | **NEW** — `{tier1:["Nem"],tier2:[],blocked:[]}`. |
-| `native/torrent/ComicRequestLedger.{h,cpp}` | **NEW** — restart-safe edition-request ledger. |
-| `native/torrent/ComicTorrentRanker.{h,cpp}` | Extend — coverage grade + uploader trust. |
-| `native/torrent/ComicTorrentFilePicker.{h,cpp}` | Extend — coverage auto-isolation + issue-range + tiers. |
-| `native/torrent/ComicTorrentDownloader.{h,cpp}` | Extend — add-paused→inspect→isolate→priorities→start; ledger; intents. |
-| `qml/ComicTorrentSourcesPage.qml` | Minor — coverage/trust badges; picker demoted to fallback. |
+An archive whose own name advertises an inclusive multi-edition range is `CombinedOnly`, not an
+isolated edition. QML may offer **Download whole archive anyway** with explicit copy explaining
+that Colosseum cannot separate its internal books. Acceptance downloads and publishes it as the
+release title, not falsely as the target edition. It never occurs without a second confirmation.
 
-## Reader integration & durable representation
+## Assembly and publication
 
-Ingested edition lands in the comics loose-page store exactly as `ComicDownloader` produces today
-(one indexed page dir per edition), so the comic reader opens it with no reader change. The
-issue-range path stitches its N issue files into a single page sequence in `collects` order.
+### `ComicEditionAssembler`
 
-## Testing strategy (house patterns)
+Create `native/engine/ComicEditionAssembler.{h,cpp}`. It converts the selected payload into one
+validated staging page directory without publishing partial output.
 
-- **Headless logic harnesses** (`tests/*.qml` or C++ GoogleTest, offscreen, exit-code verdict):
-  - `ComicCoverage`: `"Compendiums v01-v03"` covers `(Compendium,1)` but NOT `(TPB,1)`; `"TPBs
-    v01-v25"` covers `(TPB,7)`; bare `"Invincible 025"` yields no coverage; worded `Book One`.
-  - `ComicTorrentFilePicker`: filename pick, directory pick, Ambiguous, CombinedArchive,
-    TargetMissing→issue-range, union priorities.
-  - `collects` parser: `"#0, #14-16, #18-36, #38, #40-47"` → correct integer set.
-- **Grep contracts:** trust file wired into ranker; coverage grade present; downloader adds paused.
-- **Build** (`./build-msvc.bat` → `BUILD_OK`) + qmllint.
-- **Real eyes-on smoke** (Hemanth): search "Invincible Compendium #1" → Nem pack ranks STRONG → tap →
-  Compendium 1 downloads (only its file) → opens in the reader. A TPB and an issue-only pack each too.
+- `SingleArchive`: extract through the same bsdtar/7-Zip policy as `ComicDownloader`.
+- `IssueArchiveSet`: extract each archive into an isolated child staging directory, validate image
+  pages, then append them in canonical collected-issue order. Preserve an integer group per source
+  issue for reader navigation.
+- `LooseImageSubtree`: validate and copy selected images in natural relative-path order. Never move,
+  rename, or delete anything beneath the shared torrent job root because sibling edition intents may
+  still depend on the same payload.
+- `CombinedWholeArchive`: extract as one explicitly user-confirmed release; group `-1`.
 
-## Build order (full feature; sequenced)
+No source image is recompressed. Output names are `page_NNN.<ext>`. Validation requires at least one
+real supported image, unique destination names, and no path escaping the staging root.
 
-- **Phase 1** — `ComicCoverage` + coverage grade in ranker + `comics_uploader_trust.json` (Nem) +
-  automatic file-isolation in the picker/downloader. This *is* "click Compendium 1, get Compendium 1."
-- **Phase 2** — issue-range fallback (`collects` parser + multi-file selection + stitched ingest).
-- **Phase 3** — `ComicRequestLedger` (restart-safe replay) + one-pack-serves-many intents.
+### `ComicDownloader` ingest boundary
 
-## Explicit exclusions (v1)
+Keep `Comics` as the only public QML object. Add one C++-only entry receiving an assembled payload:
 
-- No shared cross-media Tankorent engine yet (comics stays its own pieces; converge later).
-- No new indexers (piratebay/exttorrents/torrentscsv only).
-- No manga-code changes.
-- No auto-pick of a *torrent* from search (user still taps the source; only the file-in-pack is auto).
+```cpp
+void ingestAssembledEdition(const QString& editionId,
+                            const QString& seriesId,
+                            const QString& seriesTitle,
+                            const QString& editionLabel,
+                            const QString& stagingDir,
+                            const QStringList& orderedFiles,
+                            const QList<int>& groups);
+```
+
+It queues behind the existing single extraction/publication lane, atomically moves a complete
+staging directory into the normal comics directory, saves the existing index, and emits the normal
+`progress`, `failed`, or `finished(editionId)` signals. `localPages(editionId)` gains real group
+values when an issue set supplied them; existing GetComics and single-archive behavior remains
+unchanged.
+
+## Durable shared-infohash transport
+
+### `ComicRequestLedger`
+
+Create a versioned `QSaveFile` ledger under
+`<AppDataLocation>/comics-torrent/edition-requests.json`:
+
+```cpp
+struct ComicEditionRequestRow {
+    QString editionId;
+    QString infoHash;
+    QString magnetUri;
+    QString seriesId;
+    QString seriesTitle;
+    QString editionTitle;
+    ComicCollectionFormat format;
+    int ordinal = -1;
+    QString isbnDigits;
+    QList<ComicIssueRef> collectedIssues;
+    QString savePath;
+    QList<int> pickedFileIndices;
+    ComicPayloadKind payloadKind;
+    QString state;
+};
+```
+
+States:
+
+```text
+awaiting_metadata -> downloading -> assembling -> publishing -> completed
+                                      |              |
+                                      +-> failed     +-> failed
+cancelled is terminal from any active state
+```
+
+Unknown ledger versions are ignored with a diagnostic. Invalid or incomplete rows are quarantined
+as failed rather than partially replayed.
+
+### Shared job model
+
+`ComicTorrentDownloader` becomes one job per canonical infohash with one or more edition intents.
+
+- A new job adds the magnet paused and journals the intent before payload starts.
+- Another edition choosing the same infohash joins the job; metadata is reused and priorities
+  become the union of every live intent's selected indices.
+- Canceling one edition marks only that intent cancelled and re-narrows priorities. The torrent is
+  removed with files only when the final live intent is gone.
+- On engine completion, each intent assembles and publishes independently. One edition's assembly
+  failure does not fail siblings.
+- The shared torrent directory is deleted only after every intent has copied/consumed its selected
+  payload or reached a terminal state. Reference counting is explicit; no intent owns the whole
+  shared directory.
+- A later intent joining an already completed payload resolves against existing metadata/files and
+  can assemble immediately without re-downloading present files.
+
+### Restart replay
+
+At construction, load active ledger rows, regroup them by infohash, and re-add each torrent paused.
+Forget persisted file choices for execution purposes, re-run selection against current metadata,
+then rewrite `pickedFileIndices` and resume. Replay emits status under the original edition IDs even
+before QML reopens the series.
+
+An app kill during assembly leaves only staging directories. Startup cleanup removes stale staging
+that has no active ledger owner; no partial edition is ever inserted into the comics index.
+
+## QML behavior
+
+The existing `ComicTorrentSourcesPage.qml` remains the entry surface.
+
+- Torrent cards gain restrained `FORMAT RANGE`, `ISSUES`, and uploader trust evidence.
+- Selecting a row transitions to `Inspecting pack...` while metadata is resolved.
+- Safe unique decisions close the source page and continue through the normal ledger row progress.
+- `Ambiguous` shows the existing archive picker with only eligible candidates.
+- `IncompleteIssueSet` explains which required issues were not found and offers another-source or
+  manual-file options; it does not download the partial set automatically.
+- `CombinedOnly` shows the explicit whole-archive warning and confirmation.
+- Back during resolving, choosing, downloading, or assembly calls `Comics.cancelDownload(chId)`.
+
+GetComics remains the primary one-click action. This feature changes only the alternate-source path.
+
+## Error and safety contracts
+
+- Search failure remains separate from acquisition failure and never creates a Downloads job.
+- Invalid catalog identity disables automatic format/issue selection but still allows manual source
+  inspection.
+- Metadata timeout, missing payload, archive extraction failure, invalid image content, disk-space
+  failure, cancellation, and restart corruption terminate under the original `chId`.
+- Zero file priorities are applied before an ambiguous/manual decision is exposed.
+- No automatic decision downloads a subset of the required collected issues.
+- Every filesystem path derived from torrent metadata is cleaned and verified to remain inside the
+  job root before reading, moving, or deleting it.
+
+## Files and ownership
+
+### New files
+
+- `native/torrent/ComicEditionIdentity.{h,cpp}`
+- `native/torrent/ComicCoverage.{h,cpp}`
+- `native/torrent/ComicUploaderTrust.{h,cpp}`
+- `native/torrent/comics_uploader_trust.json`
+- `native/torrent/ComicEditionFileSelector.{h,cpp}`
+- `native/torrent/ComicRequestLedger.{h,cpp}`
+- `native/engine/ComicEditionAssembler.{h,cpp}`
+- Focused C++ harnesses and legal loopback pack fixtures under `tests/fixtures/comics-pack/`
+
+### Modified files
+
+- `native/torrent/ComicTorrentRanker.{h,cpp}`
+- `native/torrent/ComicTorrentDownloader.{h,cpp}`
+- `native/torrent/ComicTorrents.{h,cpp}`
+- `native/engine/ComicDownloader.{h,cpp}`
+- `native/CMakeLists.txt`
+- `native/app_resources.qrc`
+- `qml/ComicTorrentSourcesPage.qml`
+- `qml/ComicTorrentArchivePicker.qml`
+- Existing comics torrent test runners
+
+Do not modify manga/Tankoban Mode, Biblio, Theatre, catalog artifacts, Python catalog builders, or
+unrelated dirty files.
+
+## Testing strategy
+
+### Pure deterministic harnesses
+
+- Identity: format aliases/conflicts, numbered/worded/Roman ordinals, named one-shots, ISBN digits,
+  multi-series collected-issue parsing, malformed-range rejection.
+- Coverage: multiple formats in one name, format equality, range precedence, generic volume not
+  masquerading as Compendium, bare issue numbers rejected.
+- Trust: exact Nem tags, blocked tags, false substring rejection.
+- Ranking: coverage upgrades the right format, trust cannot rescue a conflict, duplicate hashes
+  retain strongest evidence.
+- Selection: unique filename, directory subtree, ambiguous tie, combined-only, complete issue set,
+  incomplete issue set, cross-series specials, loose images, union priorities.
+- Assembly: single archive, ordered multi-archive issue set with groups, loose pages, traversal
+  rejection, corrupt archive, cancellation, and atomic publication.
+- Ledger/transport: versioning, atomic reload, one infohash/two editions, cancel narrowing, sibling
+  failure isolation, completed-payload join, restart regroup/reselect.
+
+### Headless QML
+
+Prove badges, inspecting state, automatic transition, ambiguity fallback, incomplete-set copy,
+combined confirmation, and Back-to-cancel under the same `chId`.
+
+### Deterministic real-engine gates
+
+Add a legal loopback seeder that creates a torrent containing:
+
+- `Compendiums/Invincible Compendium v01.cbz`
+- `Compendiums/Invincible Compendium v02.cbz`
+- issue archives sufficient for a small fixture edition
+- decoy TPB and loose-issue files
+
+Required gates:
+
+1. Compendium 1 selects only its archive, downloads, assembles, indexes, and reports positive pages.
+2. A fixture collected edition selects several issue archives in canonical order and reports groups.
+3. Two editions share one infohash; canceling one preserves and completes the other.
+4. Kill only the test `colosseum.exe` after non-zero progress, restart with the same AppData, and
+   finish exactly one canonical edition record.
+
+Public-indexer eyes-on smoke is additional evidence, not a substitute for deterministic gates.
+
+## Build and rollout order
+
+1. Identity, coverage, trust, ranking, and pure selection decisions.
+2. Assembler plus canonical `ComicDownloader` publication boundary.
+3. Shared-infohash downloader and versioned restart ledger.
+4. QML ambiguity/combined/incomplete states.
+5. Regression, loopback, restart, build, and Hemanth eyes-on smoke.
+
+Each increment is independently testable and committed surgically.
 
 ## Definition of Done
 
-- Search Compendium #1 → tap → Compendium #1 (only) downloads and opens, no file-pick.
-- A pack advertising a matching-format range ranks STRONG (not WEAK); trusted uploaders lift ranking.
-- Format-scoped: a Compendium target never picks a TPB/issue file of the same series.
-- Issue-only packs resolve via the `collects` issue-range.
-- A download resumes after an app restart; one pack serves multiple requested editions.
-- Genuinely ambiguous packs fall back to the manual picker.
-- Logic harnesses + grep contracts green; `BUILD_OK`; qmllint clean; eyes-on smoke passes.
+1. A chosen pack containing `Compendium v01-v03` ranks as strong coverage for Compendium 1 and
+   automatically selects only Compendium 1.
+2. Format conflicts are safe: Compendium 1 never auto-selects TPB 1, Omnibus 1, issue 1, or an
+   unscoped generic volume.
+3. ISBN, title, coverage, collected issues, archive, source, and uploader evidence survive
+   infohash deduplication; trust cannot override an identity conflict.
+4. A complete issue-only pack assembles every required issue in canonical `collects` order; an
+   incomplete set downloads nothing automatically and reports missing issues.
+5. Single archives, ordered issue-archive sets, and loose-image subtrees publish through `Comics`
+   under the original edition `chId` with positive `localPages`.
+6. Combined multi-edition archives require explicit whole-archive confirmation and are never
+   mislabeled as an isolated edition.
+7. One infohash serves multiple editions with priority union, per-edition progress/terminal state,
+   cancellation narrowing, sibling-failure isolation, and reference-safe cleanup.
+8. Active requests survive an app restart by re-deriving selection from metadata; interrupted
+   assembly never publishes partial pages or duplicate index records.
+9. Ambiguous packs retain the manual picker with zero priorities until the user chooses; Back from
+   any acquisition state cancels through `Comics.cancelDownload(chId)`.
+10. Existing GetComics downloads, standalone torrent downloads, source browsing, comics reader,
+    manga/Tankoban Mode, Biblio, and Theatre regressions remain green.
+11. Pure C++ harnesses, async facade tests, headless QML tests, deterministic single-file,
+    multi-issue, shared-infohash, and restart DLTESTs all exit 0.
+12. `native\build-msvc.bat` exits 0 with `BUILD_OK`, qmllint is clean for changed QML, and Hemanth's
+    eyes-on Invincible smoke confirms the intended source-selection experience.
