@@ -107,7 +107,28 @@ Item {
     }
     onSeriesIdChanged: loadSeriesPrefs()
     function setDirection(d) { dirOv = d; prefs.reading_direction = d; saveSeriesPrefs() }
-    function setWidthPct(w)  { widthOv = w; prefs.portrait_width_pct = w; saveSeriesPrefs() }
+    function setWidthPct(w)  {
+        // Long strip: a width change rescales every page height, which used to
+        // leave contentY pointing at a different spot in the book. Anchor the
+        // viewport-center page (and the fraction within it) across the relayout.
+        if (style === "long_strip" && max > 0 && flick.contentHeight > 0) {
+            var cy = flick.contentY + flick.height / 2
+            var idx = pageAtY(cy) - 1
+            var it = stripRep.itemAt(idx)
+            var frac = (it && it.height > 0) ? Math.max(0, Math.min(1, (cy - it.y) / it.height)) : 0
+            widthOv = w; prefs.portrait_width_pct = w; saveSeriesPrefs()
+            Qt.callLater(function() {                 // Column has repositioned by now
+                var it2 = stripRep.itemAt(idx)
+                if (!it2) return
+                var hmax = Math.max(0, flick.contentHeight - flick.height)
+                var y = Math.max(0, Math.min(hmax, it2.y + frac * it2.height - flick.height / 2))
+                reader.haltScrollAt(y)
+                reader.zoneY = y
+            })
+            return
+        }
+        widthOv = w; prefs.portrait_width_pct = w; saveSeriesPrefs()
+    }
     function setFit(f)       { fitOv = f; prefs.image_fit = f; saveSeriesPrefs() }
 
     readonly property string style: styleOv.length ? styleOv : prefs.reading_style

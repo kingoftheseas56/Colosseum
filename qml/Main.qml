@@ -16,6 +16,7 @@ import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
+import "ComicsDb.js" as ComicsDb
 import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
@@ -411,6 +412,15 @@ Window {
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
     function openWestern(d) {
+        // DB-first (Hemanth 2026-07-15): the catalog series view is THE series
+        // view now. Resolve the title against our DB (ingesting it on demand);
+        // the GetComics shelf remains only for series the catalog doesn't carry.
+        var hit = win.comicsDbHit((d && d.title) || "")
+        if (hit) {
+            win.openComicSeries({ id: hit.locgId, title: hit.title,
+                                  cover: hit.cover || (d && d.cover) || "" })
+            return
+        }
         westernLayer.resumeChapterId = ""
         westernLayer.title = (d && d.title) || ""
         westernLayer.tagId = (d && d.tagId) || 0
@@ -440,6 +450,15 @@ Window {
 
     // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
     //      Opened from search (data.locg), the world Top-Comics row, or a publisher grid. ----
+    // catalog lookup with on-demand ingest: Main never imports the multi-MB
+    // gen.js itself; the first route that needs the catalog activates the tiny
+    // ComicsDbLoader (synchronous Loader -> ingest completes before we return).
+    function comicsDbHit(title) {
+        if (!title || !String(title).length) return null
+        if (!ComicsDb.ready()) comicsDbLoader.active = true
+        return ComicsDb.ready() ? ComicsDb.seriesByTitle(title) : null
+    }
+
     function openComicSeries(d) {
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
@@ -1668,6 +1687,13 @@ Window {
 
     // ---- complete Top Comics catalog wall. z 49 keeps it above TankobanWorld but below
     //      ComicSeriesPage (z 50), preserving filters and scroll while a series is open. ----
+    // On-demand comics-catalog ingest (see comicsDbHit) — never active at startup.
+    Loader {
+        id: comicsDbLoader
+        active: false
+        source: "ComicsDbLoader.qml"
+    }
+
     // Bakeoff-only page surface (COLOSSEUM_BAKEOFF_STRIP): topmost so the blind
     // trial shows nothing but pages — no world chrome, no identity tells.
     Loader {

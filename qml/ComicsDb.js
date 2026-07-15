@@ -54,7 +54,7 @@ function _ingest(d) {
 // wrapper) that Main.qml imports and hands here. No file read — QML's import system delivers the
 // data reliably (Qt's XHR CANNOT read local files at runtime; the app's own tests ship data as
 // generated .js for exactly this reason). This is the sidecar today; load(url) is the hosted path.
-function setData(obj) { return _ingest(obj); }
+function setData(obj) { _byTitle = null; return _ingest(obj); }
 
 // load(source, done(ok)) — the HOSTED path (later): fetch + parse a URL. Kept for when the DB moves
 // to a static host; not used for the local sidecar (see setData).
@@ -71,6 +71,32 @@ function load(source, done) {
 }
 
 function ready() { return _db !== null; }
+
+// ── normalized-title lookup: routes any GetComics-era series open to OUR series
+//    view when the catalog carries it (Hemanth 2026-07-15: the DB view is THE
+//    series view; the GC shelf is the fallback for series we don't carry). ──
+var _byTitle = null;
+function _normTitle(s) {
+    s = String(s || "").toLowerCase();
+    s = s.replace(/['’]s/g, "");
+    s = s.replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+    return s.replace(/^(the|a|an) /, "");
+}
+function seriesByTitle(title) {
+    if (!_db) return null;
+    if (!_byTitle) {
+        _byTitle = {};
+        for (var i = 0; i < _db.series.length; i++) {
+            var s = _db.series[i];
+            if (!s.locg_id) continue;
+            var key = _normTitle(s.title);
+            if (key && !_byTitle[key]) _byTitle[key] = s;   // first hit = highest ranked
+        }
+    }
+    var hit = _byTitle[_normTitle(title)];
+    return hit ? { locgId: "locg:" + hit.locg_id, title: hit.title,
+                   cover: hit.cover || "", publisher: hit.publisher || "" } : null;
+}
 
 // The ranked shelf: [{rank, title, cover, locgId, publisher}] in rank order. `locgId` carries the
 // "locg:<id>" form the rest of the app (openComicSeries/LocgApi) already speaks.
