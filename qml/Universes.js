@@ -41,16 +41,74 @@
 // opens a real universe page. All ride the generic name/query-driven template except Marvel
 // (cinematic = the MCU Fandom-wiki phase template).
 var universes = [
-    { name: "One Piece", c1: "#1d121b", category: "anime",
-      blurb: "Luffy's voyage for the Grand Line — the manga, the anime, and the films, in one place.",
+    // ── ONE PIECE — the bespoke GRAND LINE page (category "onepiece" → OnePieceUniversePage,
+    //    Agent 5, 2026-07-15, Hemanth free-reign commission). Unlike Dragon Ball's seven
+    //    separate anime, One Piece is ONE continuous voyage — so the signature is the Grand
+    //    Line itself: the canon sagas charted as island waypoints. Every WORK id-pinned and
+    //    LIVE-verified: the anime tt0388629 (the 1999 Toei series), the Netflix live action
+    //    (tt11737520) and the announced WIT remake "The One Piece" (tt30476502, upcoming),
+    //    12 theatrical films + 5 "Episode of"/special films (Cinemeta), 8 manga (AniList).
+    //    Sagas are the story's spine (arcs of the one anime), not separate ids — each opens
+    //    the anime; ranges from the Wikipedia media list.
+    { name: "One Piece", c1: "#0e2a3f", category: "onepiece",
+      blurb: "Eiichiro Oda's Grand Line, whole — one crew, one dream, one impossibly long voyage. The manga that started it all, the anime that never stops, every film, and the sagas charted end to end.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg",
-      continueLabel: "Continue — Ch. 1090",
-      // expansion 2026-07-13 (AniList/Kitsu-verified): Ace's Story manga (AL 117802 — the
-      // source NOVEL outranks it on bare search) + Fan Letter (Kitsu 49259, invisible on
-      // bare "one piece")
-      readQueries: [ "One Piece", "One Piece: Ace's Story" ],
-      seriesQueries: [ "one piece", "one piece fan letter" ],
-      chips: [ { t: "8 Manga", ic: "manga" }, { t: "2 Anime", ic: "movies" }, { t: "15 Films", ic: "movies" } ] },
+      // the one grand anime — the "Set sail" hero and every saga waypoint open this.
+      anime: { t: "One Piece", id: "tt0388629", year: "1999" },
+      firstRead: { t: "One Piece" },
+      // THE GRAND LINE — the canon sagas as charted waypoints (arcs of the one anime).
+      sagas: [
+        { n: 1,  name: "East Blue",         eps: "Ep 1–61",     hook: "Where the dream sets sail" },
+        { n: 2,  name: "Alabasta",          eps: "Ep 62–135",   hook: "Into the Grand Line, a kingdom to save" },
+        { n: 3,  name: "Sky Island",        eps: "Ep 136–206",  hook: "A sea in the sky, a city of gold" },
+        { n: 4,  name: "Water Seven",       eps: "Ep 207–325",  hook: "A betrayal, Enies Lobby, a new ship" },
+        { n: 5,  name: "Thriller Bark",     eps: "Ep 326–384",  hook: "A long night among the dead" },
+        { n: 6,  name: "Summit War",        eps: "Ep 385–516",  hook: "Sabaody, Impel Down, the war for Ace" },
+        { n: 7,  name: "Fish-Man Island",   eps: "Ep 517–574",  hook: "Two years on — ten thousand metres down" },
+        { n: 8,  name: "Dressrosa",         eps: "Ep 575–746",  hook: "Toys, tyrants, a gladiator's colosseum" },
+        { n: 9,  name: "Whole Cake Island", eps: "Ep 747–877",  hook: "A tea party with an Emperor" },
+        { n: 10, name: "Wano Country",      eps: "Ep 878–1085", hook: "The land of samurai, the dawn of liberation" },
+        { n: 11, name: "The Final Sea",     eps: "Ep 1086– ",   hook: "Egghead, and the last of the treasure", treasure: true }
+      ],
+      // the other adaptations — the live action and the announced remake.
+      adaptations: [
+        { t: "One Piece — Live Action", id: "tt11737520", year: "2023", note: "Netflix sets sail in the flesh" },
+        { t: "The One Piece",           id: "tt30476502", year: "2026", note: "The WIT Studio remake", upcoming: true }
+      ],
+      // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
+      filmEras: [
+        { era: "The Films", films: [
+            { t: "One Piece: The Movie",                   id: "tt0814243", year: "2000" },
+            { t: "Clockwork Island Adventure",             id: "tt0832449", year: "2001" },
+            { t: "Chopper's Kingdom on the Island of Strange Animals", id: "tt0997084", year: "2002" },
+            { t: "Dead End Adventure",                     id: "tt1006926", year: "2003" },
+            { t: "The Cursed Holy Sword",                  id: "tt1010435", year: "2004" },
+            { t: "Baron Omatsuri and the Secret Island",   id: "tt1018764", year: "2005" },
+            { t: "The Giant Mechanical Soldier of Karakuri Castle", id: "tt1059950", year: "2006" },
+            { t: "Strong World",                           id: "tt1485763", year: "2009" },
+            { t: "Film Z",                                 id: "tt2375379", year: "2012" },
+            { t: "Film: Gold",                             id: "tt5251328", year: "2016" },
+            { t: "Stampede",                               id: "tt9430698", year: "2019" },
+            { t: "Film: Red",                              id: "tt16183464", year: "2022" } ] },
+        { era: "Episode Of & Specials", films: [
+            { t: "Episode of Alabasta",                    id: "tt1037116", year: "2007" },
+            { t: "Episode of Chopper Plus",                id: "tt1206326", year: "2008" },
+            { t: "Episode of Luffy — Hand Island",         id: "tt3354344", year: "2012" },
+            { t: "Episode of Merry",                       id: "tt3354352", year: "2013" },
+            { t: "3D2Y — Overcome Ace's Death",            id: "tt5098548", year: "2014" } ] }
+      ],
+      // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
+      manga: [
+        { t: "One Piece",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+        { t: "Ace's Story",              q: "One Piece Ace Story",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx117802-CsCjUyuG4lSB.jpg" },
+        { t: "One Piece Party",          q: "One Piece Party",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx102533-YLT9eI1BH2a1.jpg" },
+        { t: "Shokugeki no Sanji",       q: "One Piece Shokugeki no Sanji",   cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx103252-58RbwHibqsJY.jpg" },
+        { t: "Koisuru One Piece",        q: "Koisuru One Piece",              cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx110233-7Z79ZksUA043.jpg" },
+        { t: "One Piece × Toriko",       q: "One Piece Toriko",               cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/25146.jpg" },
+        { t: "Chapter 1000 Special",     q: "One Piece 1000",                 cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx154266-V6HV8ReEygYZ.png" },
+        { t: "Wanted! — Oda's Origins",  q: "Wanted Eiichiro Oda",            cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30793-Zca4SIWG5j8e.png" }
+      ],
+      chips: [ { t: "8 Manga", ic: "manga" }, { t: "3 Anime", ic: "movies" }, { t: "17 Films", ic: "movies" } ] },
     // renamed Marvel → full name (Hemanth 2026-07-13) + THE TELEVISION ACT: every Marvel
     // Studios series + the Special Presentations, release-ordered, ALL id-pinned (bare
     // names are impostor minefields — Loki/Hawkeye/Echo/What If all collide; Ms. Marvel
@@ -104,6 +162,63 @@ var universes = [
     // Every query below was live-verified against Apple Books US on 2026-07-13. The author
     // is carried in the query because Biblio.lookupBook returns the first provider hit; this
     // makes each portal an exact Brandon Sanderson object, never a title-shaped stand-in.
+    { name: "Dragon Ball", c1: "#e8791e", category: "dragonball",
+      blurb: "Akira Toriyama's world, whole — from a boy with a tail chasing seven wish-granting orbs to gods trading blows across universes. Every anime era, every film, and the manga that started it all.",
+      banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30042-4aSSSOxCNWgE.jpg",
+      // THE SEVEN-STAR SAGA — the seven anime, broadcast order, one per Dragon Ball.
+      saga: [
+        { star: 1, era: "Dragon Ball",              t: "Dragon Ball",              id: "tt0088509",  year: "1986", note: "The boy, the tail, the first search" },
+        { star: 2, era: "Dragon Ball Z",            t: "Dragon Ball Z",            id: "tt0121220",  year: "1989", note: "Saiyans arrive, and the sky gets higher" },
+        { star: 3, era: "Dragon Ball GT",           t: "Dragon Ball GT",           id: "tt0139774",  year: "1996", note: "Off Earth, chasing the Black Star balls" },
+        { star: 4, era: "Dragon Ball Z Kai",        t: "Dragon Ball Z Kai",        id: "tt1409055",  year: "2009", note: "Z re-cut, tighter, closer to the manga" },
+        { star: 5, era: "Dragon Ball Super",        t: "Dragon Ball Super",        id: "tt4644488",  year: "2015", note: "Gods of destruction, other universes" },
+        { star: 6, era: "Super Dragon Ball Heroes", t: "Super Dragon Ball Heroes", id: "tt8433216",  year: "2018", note: "Every hero, every timeline at once" },
+        { star: 7, era: "Dragon Ball Daima",        t: "Dragon Ball Daima",        id: "tt29485149", year: "2024", note: "Toriyama's parting gift — small again" }
+      ],
+      // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
+      filmEras: [
+        { era: "The Dragon Ball Films", films: [
+            { t: "Curse of the Blood Rubies",           id: "tt0142251", year: "1986" },
+            { t: "Sleeping Princess in Devil's Castle", id: "tt0142249", year: "1987" },
+            { t: "Mystical Adventure",                  id: "tt0142248", year: "1988" },
+            { t: "The Path to Power",                   id: "tt0142250", year: "1996" } ] },
+        { era: "The Z Films & Specials", films: [
+            { t: "Dead Zone",                           id: "tt0142235", year: "1989" },
+            { t: "The World's Strongest",               id: "tt0142240", year: "1990" },
+            { t: "The Tree of Might",                   id: "tt0142233", year: "1990" },
+            { t: "Bardock — The Father of Goku",        id: "tt0142245", year: "1990" },
+            { t: "Lord Slug",                           id: "tt0142244", year: "1991" },
+            { t: "Cooler's Revenge",                    id: "tt1125254", year: "1991" },
+            { t: "The Return of Cooler",                id: "tt0142237", year: "1992" },
+            { t: "Super Android 13!",                   id: "tt0142241", year: "1992" },
+            { t: "Broly — The Legendary Super Saiyan",  id: "tt0142242", year: "1993" },
+            { t: "The History of Trunks",               id: "tt0142247", year: "1993" },
+            { t: "Bojack Unbound",                      id: "tt0142238", year: "1993" },
+            { t: "Plan to Eradicate the Saiyans",       id: "tt1286785", year: "1993" },
+            { t: "Broly — Second Coming",               id: "tt0142239", year: "1994" },
+            { t: "Bio-Broly",                           id: "tt0142234", year: "1994" },
+            { t: "Fusion Reborn",                       id: "tt0142236", year: "1995" },
+            { t: "Wrath of the Dragon",                 id: "tt0142243", year: "1995" },
+            { t: "GT: A Hero's Legacy",                 id: "tt0142232", year: "1997" } ] },
+        { era: "The Modern Films", films: [
+            { t: "Battle of Gods",                      id: "tt2263944",  year: "2013" },
+            { t: "Resurrection 'F'",                    id: "tt3819668",  year: "2015" },
+            { t: "Dragon Ball Super: Broly",            id: "tt7961060",  year: "2018" },
+            { t: "Dragon Ball Super: Super Hero",       id: "tt14614892", year: "2022" } ] }
+      ],
+      // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
+      manga: [
+        { t: "Dragon Ball",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
+        { t: "Dragon Ball Super",          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
+        { t: "Dragon Ball SD",             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
+        { t: "Reincarnated as Yamcha!",    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
+        { t: "Episode of Bardock",         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
+        { t: "Resurrection 'F'",           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
+        { t: "Dragon Ball Minus",          q: "Dragon Ball Minus Departure Fated Child", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx97900-EqScEWX0U6Tj.png" },
+        { t: "Goku & Friends Return!!",    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
+      ],
+      firstWatch: { t: "Dragon Ball", id: "tt0088509" },
+      chips: [ { t: "8 Manga", ic: "manga" }, { t: "7 Anime", ic: "movies" }, { t: "25 Films", ic: "movies" } ] },
     { name: "Cosmere", c1: "#101927", category: "cosmere",
       blurb: "Independent worlds, one hidden cosmology — choose a first doorway, then follow the light between them.",
       // CC BY 4.0 star field by Sahisnusaha, Wikimedia Commons; the page draws its own
@@ -272,63 +387,6 @@ var universes = [
     //    US listing tt0280249), DBZ = tt0121220 (1989 Toei original, NOT the 1996 US dub
     //    tt0214341). Fan works (Abridged, Absalon) and the unofficial live-action "The Magic
     //    Begins" excluded — canon only. The SEVEN anime map to the seven Dragon Balls.
-    { name: "Dragon Ball", c1: "#e8791e", category: "dragonball",
-      blurb: "Akira Toriyama's world, whole — from a boy with a tail chasing seven wish-granting orbs to gods trading blows across universes. Every anime era, every film, and the manga that started it all.",
-      banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30042-4aSSSOxCNWgE.jpg",
-      // THE SEVEN-STAR SAGA — the seven anime, broadcast order, one per Dragon Ball.
-      saga: [
-        { star: 1, era: "Dragon Ball",              t: "Dragon Ball",              id: "tt0088509",  year: "1986", note: "The boy, the tail, the first search" },
-        { star: 2, era: "Dragon Ball Z",            t: "Dragon Ball Z",            id: "tt0121220",  year: "1989", note: "Saiyans arrive, and the sky gets higher" },
-        { star: 3, era: "Dragon Ball GT",           t: "Dragon Ball GT",           id: "tt0139774",  year: "1996", note: "Off Earth, chasing the Black Star balls" },
-        { star: 4, era: "Dragon Ball Z Kai",        t: "Dragon Ball Z Kai",        id: "tt1409055",  year: "2009", note: "Z re-cut, tighter, closer to the manga" },
-        { star: 5, era: "Dragon Ball Super",        t: "Dragon Ball Super",        id: "tt4644488",  year: "2015", note: "Gods of destruction, other universes" },
-        { star: 6, era: "Super Dragon Ball Heroes", t: "Super Dragon Ball Heroes", id: "tt8433216",  year: "2018", note: "Every hero, every timeline at once" },
-        { star: 7, era: "Dragon Ball Daima",        t: "Dragon Ball Daima",        id: "tt29485149", year: "2024", note: "Toriyama's parting gift — small again" }
-      ],
-      // THE FILMS — grouped, chronological, all id-pinned to Cinemeta.
-      filmEras: [
-        { era: "The Dragon Ball Films", films: [
-            { t: "Curse of the Blood Rubies",           id: "tt0142251", year: "1986" },
-            { t: "Sleeping Princess in Devil's Castle", id: "tt0142249", year: "1987" },
-            { t: "Mystical Adventure",                  id: "tt0142248", year: "1988" },
-            { t: "The Path to Power",                   id: "tt0142250", year: "1996" } ] },
-        { era: "The Z Films & Specials", films: [
-            { t: "Dead Zone",                           id: "tt0142235", year: "1989" },
-            { t: "The World's Strongest",               id: "tt0142240", year: "1990" },
-            { t: "The Tree of Might",                   id: "tt0142233", year: "1990" },
-            { t: "Bardock — The Father of Goku",        id: "tt0142245", year: "1990" },
-            { t: "Lord Slug",                           id: "tt0142244", year: "1991" },
-            { t: "Cooler's Revenge",                    id: "tt1125254", year: "1991" },
-            { t: "The Return of Cooler",                id: "tt0142237", year: "1992" },
-            { t: "Super Android 13!",                   id: "tt0142241", year: "1992" },
-            { t: "Broly — The Legendary Super Saiyan",  id: "tt0142242", year: "1993" },
-            { t: "The History of Trunks",               id: "tt0142247", year: "1993" },
-            { t: "Bojack Unbound",                      id: "tt0142238", year: "1993" },
-            { t: "Plan to Eradicate the Saiyans",       id: "tt1286785", year: "1993" },
-            { t: "Broly — Second Coming",               id: "tt0142239", year: "1994" },
-            { t: "Bio-Broly",                           id: "tt0142234", year: "1994" },
-            { t: "Fusion Reborn",                       id: "tt0142236", year: "1995" },
-            { t: "Wrath of the Dragon",                 id: "tt0142243", year: "1995" },
-            { t: "GT: A Hero's Legacy",                 id: "tt0142232", year: "1997" } ] },
-        { era: "The Modern Films", films: [
-            { t: "Battle of Gods",                      id: "tt2263944",  year: "2013" },
-            { t: "Resurrection 'F'",                    id: "tt3819668",  year: "2015" },
-            { t: "Dragon Ball Super: Broly",            id: "tt7961060",  year: "2018" },
-            { t: "Dragon Ball Super: Super Hero",       id: "tt14614892", year: "2022" } ] }
-      ],
-      // THE MANGA — the source + spin-offs (AniList covers; opens the manga reader by title).
-      manga: [
-        { t: "Dragon Ball",                cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
-        { t: "Dragon Ball Super",          cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx86508-QSahE7mTFEXl.png" },
-        { t: "Dragon Ball SD",             cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx53446-iJhUffEy8U9u.jpg" },
-        { t: "Reincarnated as Yamcha!",    q: "Dragon Ball Yamcha",                     cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx98030-ljTCpp4oILtu.jpg" },
-        { t: "Episode of Bardock",         q: "Dragon Ball Episode of Bardock",         cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx56373-VBxH4drN6jJ1.png" },
-        { t: "Resurrection 'F'",           q: "Dragon Ball Z Resurrection F",           cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx94109-oCtSkyO2NOUW.jpg" },
-        { t: "Dragon Ball Minus",          q: "Dragon Ball Minus Departure Fated Child", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx97900-EqScEWX0U6Tj.png" },
-        { t: "Goku & Friends Return!!",    q: "Dragon Ball Son Goku and His Friends Return", cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx46110-J5o0hRODa79o.jpg" }
-      ],
-      firstWatch: { t: "Dragon Ball", id: "tt0088509" },
-      chips: [ { t: "8 Manga", ic: "manga" }, { t: "7 Anime", ic: "movies" }, { t: "25 Films", ic: "movies" } ] },
     { name: "Naruto", c1: "#2a3212", category: "anime",
       blurb: "The Hidden Leaf's loudest ninja — Kishimoto's manga, the anime and Shippuden, and Boruto's generation.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30011-pkX1O0EFqvV7.jpg",
