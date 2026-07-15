@@ -285,6 +285,22 @@ add_executable(comic_edition_file_selector_harness
 target_include_directories(comic_edition_file_selector_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_edition_file_selector_harness PRIVATE Qt6::Core)
 
+# Assembly: selected payload (single archive / issue-archive set / loose-image
+# subtree / confirmed combined archive) -> one validated page staging dir,
+# never publishing partial output (spec 2026-07-15 "Assembly and
+# publication"). Only needs ComicEditionFileSelector.h's POD types (enum +
+# struct) — no linkage against ComicEditionFileSelector.cpp/ComicEditionIdentity
+# is required since this harness never calls into that selection logic.
+add_executable(comic_edition_assembler_harness
+    ../tests/comic_edition_assembler_harness.cpp
+    engine/ComicEditionAssembler.cpp
+    engine/ComicEditionAssembler.h
+)
+target_include_directories(comic_edition_assembler_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(comic_edition_assembler_harness PRIVATE
+    COMICS_PACK_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/comics-pack")
+target_link_libraries(comic_edition_assembler_harness PRIVATE Qt6::Core)
+
 # Coverage grammar + uploader trust reader (spec 2026-07-15 "Coverage and
 # trust"). app_resources.qrc is listed as a source so AUTORCC compiles the
 # bundled comics_uploader_trust.json into THIS harness too — otherwise
