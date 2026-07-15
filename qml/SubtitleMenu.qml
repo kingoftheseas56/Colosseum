@@ -41,6 +41,20 @@ Item {
     property var searchResults: null
     property string searchError: ""
 
+    // Click-through fix (Agent 0 on A4's behalf, 2026-07-15). The popover is hosted on the
+    // full-screen chrome layer (like Speed/Fill) so rows above the short bottom dock stay
+    // clickable — Qt bounds pointer delivery to the dock ancestor otherwise. When overlayParent
+    // is null the popover falls back to its in-menu parent (keeps the component standalone/testable).
+    property Item overlayParent: null
+    // Confirm-before-close: a pick stays PENDING until mpv confirms the switch (via selectedId),
+    // so a slow or rejected selection never looks identical to success.
+    property string pendingId: ""
+    property bool pendingOff: false
+    property bool pendingOnline: false
+    property string pendingBaseId: ""
+    property string selectionError: ""
+    readonly property bool pending: pendingId.length > 0 || pendingOff || pendingOnline
+
     readonly property var groups: SubtitleGroups.groupByLanguage(tracks)
     readonly property var visibleTracks: SubtitleGroups.filterTracks(tracks, {
         "lang": lang,
@@ -108,6 +122,71 @@ Item {
         });
     }
 
+    function clampX(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    function clearPending() { pendingId = ""; pendingOff = false; pendingOnline = false; }
+
+    // Route a subtitle pick: emit the request ONCE, mark it pending, and wait for mpv to confirm
+    // via selectedId before closing. Callable (not inline in the delegate) so the interaction is
+    // drivable headlessly, and so a delayed/failed switch can't masquerade as success.
+    function pickTrack(id) {
+        selectionError = "";
+        pendingId = String(id); pendingOff = false; pendingOnline = false;
+        trackPicked(String(id));
+        pendingTimer.restart();
+        resolvePending();               // re-picking the current track confirms at once
+    }
+    function pickOff() {
+        selectionError = "";
+        pendingOff = true; pendingId = ""; pendingOnline = false;
+        offPicked();
+        pendingTimer.restart();
+        resolvePending();
+    }
+    function pickOnline(fileUrl, title, lang) {
+        selectionError = "";
+        pendingBaseId = selectedId;
+        pendingOnline = true; pendingId = ""; pendingOff = false;
+        onlinePicked(fileUrl, title, lang);
+        pendingTimer.restart();         // online waits for a NEW selected track (no immediate resolve)
+    }
+    function resolvePending() {
+        if (!pending)
+            return;
+        var sel = selectedId;
+        var done = (pendingId.length > 0 && sel === pendingId)
+                || (pendingOff && sel === "")
+                || (pendingOnline && sel.length > 0 && sel !== pendingBaseId);
+        if (done) {
+            clearPending();
+            pendingTimer.stop();
+            panelOpen = false;
+        }
+    }
+    function failPending() {
+        if (!pending)
+            return;
+        clearPending();                 // stay OPEN — surface the error instead of vanishing
+        pendingTimer.stop();
+        selectionError = "Couldn't switch subtitle. Try again.";
+    }
+    // Rise on the full-screen overlay centered-right on the chip, clamped to the window; falls
+    // back to the in-menu placement when no overlay is wired (standalone/tests).
+    function positionPanel(panel) {
+        if (overlayParent) {
+            var p = menu.mapToItem(overlayParent, 0, 0);
+            panel.x = clampX(p.x + menu.width - panel.width, 10, overlayParent.width - panel.width - 10);
+            panel.y = p.y - panel.height - 10;
+        } else {
+            panel.x = menu.width - panel.width;
+            panel.y = -panel.height - 10;
+        }
+    }
+
+    onSelectedIdChanged: resolvePending()
+    onPanelOpenChanged: if (!panelOpen) { clearPending(); pendingTimer.stop(); selectionError = ""; }
+
+    Timer { id: pendingTimer; interval: 8000; onTriggered: menu.failPending() }
+
     Theme { id: theme }
 
     // Chip face (native chrome spec 2026-07-08) — mirrors PlayerPage.PanelChip, duplicated
@@ -171,12 +250,14 @@ Item {
     }
 
     Rectangle {
+        id: panel
+        // Hosted on the full-screen chrome layer when wired, so every row stays clickable.
+        parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
-        z: 30
+        z: menu.overlayParent ? 40 : 30
         width: 500
         height: 400
-        x: parent.width - width
-        y: -height - 10
+        onVisibleChanged: if (visible) menu.positionPanel(panel)
         radius: 14
         // Native chrome (spec 2026-07-08): house popover surface.
         color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
@@ -209,14 +290,14 @@ Item {
         }
         Text {
             id: autoStatus
-            visible: menu.showAutoStatus
+            visible: menu.showAutoStatus || menu.selectionError.length > 0
             anchors.left: title.right
             anchors.leftMargin: 48
             anchors.right: styleButton.left
             anchors.rightMargin: 8
             anchors.verticalCenter: title.verticalCenter
-            text: menu.autoStatusText
-            color: theme.inkDimmer
+            text: menu.selectionError.length > 0 ? menu.selectionError : menu.autoStatusText
+            color: menu.selectionError.length > 0 ? "#ff8a8a" : theme.inkDimmer
             font.family: theme.hud
             font.pixelSize: 11
             elide: Text.ElideRight
@@ -279,10 +360,7 @@ Item {
                         selected: menu.active
                         radio: true
                         countText: ""
-                        onClicked: {
-                            menu.offPicked();
-                            menu.panelOpen = false;
-                        }
+                        onClicked: menu.pickOff()
                     }
                     Text {
                         width: parent.width
@@ -390,10 +468,8 @@ Item {
                         width: variants.width
                         track: modelData
                         selected: String(modelData.id) === menu.selectedId || modelData.selected === true
-                        onClicked: {
-                            menu.trackPicked(String(modelData.id));
-                            menu.panelOpen = false;
-                        }
+                        pending: menu.pendingId.length > 0 && String(modelData.id) === menu.pendingId
+                        onClicked: menu.pickTrack(String(modelData.id))
                     }
                 }
                 Text {
@@ -543,10 +619,7 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                menu.onlinePicked(resultRow.modelData.url, resultRow.modelData.title || resultRow.modelData.label || "OpenSubtitles", resultRow.modelData.lang || "");
-                                menu.panelOpen = false;
-                            }
+                            onClicked: menu.pickOnline(resultRow.modelData.url, resultRow.modelData.title || resultRow.modelData.label || "OpenSubtitles", resultRow.modelData.lang || "")
                         }
                     }
                 }
@@ -743,6 +816,7 @@ Item {
         id: row
         property var track
         property bool selected: false
+        property bool pending: false
         signal clicked()
         height: 54
         radius: 8
@@ -755,10 +829,10 @@ Item {
             width: 16
             height: 16
             radius: 8
-            color: row.selected ? theme.gold : Qt.rgba(1, 1, 1, 0.12)
+            color: row.selected ? theme.gold : row.pending ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.45) : Qt.rgba(1, 1, 1, 0.12)
             Text {
                 anchors.centerIn: parent
-                text: row.selected ? "✓" : ""
+                text: row.selected ? "✓" : row.pending ? "…" : ""
                 color: "#111111"
                 font.family: theme.hud
                 font.pixelSize: 10

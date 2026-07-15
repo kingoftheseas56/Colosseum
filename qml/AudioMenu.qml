@@ -20,6 +20,10 @@ Item {
     property int panelWidth: 360
     property int panelHeight: 280
     property string emptyText: ""
+    // Click-through fix (2026-07-15): host the popover on the full-screen chrome layer, like the
+    // subtitle/speed/fill popovers, so rows above the short bottom dock stay clickable. Falls back
+    // to the in-menu parent when no overlay is wired.
+    property Item overlayParent: null
 
     signal toggleRequested(bool wasOpen)
     signal trackPicked(string trackId)
@@ -46,6 +50,20 @@ Item {
         if (track.default)
             parts.push("Default");
         return parts.join(" · ");
+    }
+
+    function clampX(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
+    // Rise on the overlay centered-right on the chip, clamped to the window; falls back to the
+    // in-menu placement when no overlay is wired (standalone/tests).
+    function positionPanel(panel) {
+        if (overlayParent) {
+            var p = menu.mapToItem(overlayParent, 0, 0);
+            panel.x = clampX(p.x + menu.width - panel.width, 10, overlayParent.width - panel.width - 10);
+            panel.y = p.y - panel.height - 10;
+        } else {
+            panel.x = menu.width - panel.width;
+            panel.y = -panel.height - 10;
+        }
     }
 
     Theme { id: theme }
@@ -114,12 +132,12 @@ Item {
 
     Rectangle {
         id: audioPopover
+        parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
-        z: 30
+        z: menu.overlayParent ? 40 : 30
         width: 360
         height: Math.min(360, 94 + Math.max(1, (menu.tracks || []).length) * 54 + 44)
-        x: parent.width - width
-        y: -height - 10
+        onVisibleChanged: if (visible) menu.positionPanel(audioPopover)
         radius: 14
         // Native chrome (spec 2026-07-08): house popover surface.
         color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
