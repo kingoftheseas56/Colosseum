@@ -12,6 +12,25 @@ if (!(Test-Path -LiteralPath $qmlExe)) {
     throw "qml.exe not found at $qmlExe"
 }
 
+# Frozen baseline gate (Tankorent Comic, 2026-07-15): the shipped comics-torrent C++
+# harnesses must stay green through the whole collected-edition-in-pack build. Any later
+# task that regresses one of these fails here, fast, before the QML contract checks.
+$build = Join-Path $PSScriptRoot '..\native\build-msvc'
+$baseline = @(
+    'comic_torrent_query_planner_harness.exe',
+    'comic_torrent_ranker_harness.exe',
+    'comic_torrent_filepicker_harness.exe',
+    'comic_torrents_search_harness.exe',
+    'comic_downloader_ingest_harness.exe'
+)
+foreach ($name in $baseline) {
+    $exe = Join-Path $build $name
+    if (Test-Path -LiteralPath $exe) {
+        & $exe | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw "baseline harness $name failed: $LASTEXITCODE" }
+    }
+}
+
 function Read-RepoFile([string]$relativePath) {
     return Get-Content -Raw -LiteralPath (Join-Path $root $relativePath)
 }
