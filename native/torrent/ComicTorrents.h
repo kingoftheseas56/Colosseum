@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ComicEditionIdentity.h"
+#include "ComicTorrentDownloader.h"   // IComicTorrentEngine
 #include "TorrentResult.h"
 
 #include <QHash>
@@ -15,7 +16,33 @@
 class QNetworkAccessManager;
 class TorrentEngine;
 class TankorentSearchService;
-class ComicTorrentDownloader;
+class ComicDownloader;
+
+#ifdef HAS_LIBTORRENT
+// Real torrent-engine seam: wraps the concrete, non-virtual TorrentEngine and
+// forwards addMagnet/setFilePriorities/startTorrent/pauseTorrent/
+// resumeTorrent/removeTorrent/torrentFiles/isRunning/start, re-emitting
+// metadataReady/torrentProgress/torrentFinished/torrentError/torrentAddFailed.
+// The re-emit is connected Qt::QueuedConnection so a synchronous engine
+// callback during removeTorrent can never re-enter the transport's teardown.
+// Mirrors MangaTorrentEngineAdapter (native/engine/MangaTankobanService.h).
+class ComicTorrentEngineAdapter : public IComicTorrentEngine {
+    Q_OBJECT
+public:
+    explicit ComicTorrentEngineAdapter(TorrentEngine* engine, QObject* parent = nullptr);
+    bool isRunning() const override;
+    void start() override;
+    QString addMagnet(const QString& magnetUri, const QString& savePath, bool paused) override;
+    void setFilePriorities(const QString& infoHash, const QVector<int>& priorities) override;
+    void startTorrent(const QString& infoHash, const QString& savePath) override;
+    void pauseTorrent(const QString& infoHash) override;
+    void resumeTorrent(const QString& infoHash) override;
+    void removeTorrent(const QString& infoHash, bool deleteFiles) override;
+    QJsonArray torrentFiles(const QString& infoHash) const override;
+private:
+    TorrentEngine* m_engine = nullptr;
+};
+#endif // HAS_LIBTORRENT
 
 // Private comics transport facade. ComicDownloader owns this object and is the
 // only QML-visible surface, preserving the issue-id reader contract.

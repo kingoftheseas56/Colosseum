@@ -6,13 +6,91 @@
 #include "TankorentSearchService.h"
 
 #include <QDebug>
+#include <QStandardPaths>
+
+#ifdef HAS_LIBTORRENT
+#include "engine/TorrentEngine.h"
+
+// ── ComicTorrentEngineAdapter (real engine, HAS_LIBTORRENT only) ────────────
+
+ComicTorrentEngineAdapter::ComicTorrentEngineAdapter(TorrentEngine* engine, QObject* parent)
+    : IComicTorrentEngine(parent), m_engine(engine)
+{
+    // Re-emit engine signals via QUEUED connections: a synchronous re-emit
+    // that TorrentEngine could fire while we are inside removeTorrent()
+    // (teardown) then lands on the downloader on the next event-loop turn,
+    // never re-entrant.
+    connect(m_engine, &TorrentEngine::metadataReady,
+            this, &IComicTorrentEngine::metadataReady, Qt::QueuedConnection);
+    connect(m_engine, &TorrentEngine::torrentProgress,
+            this, &IComicTorrentEngine::torrentProgress, Qt::QueuedConnection);
+    connect(m_engine, &TorrentEngine::torrentFinished,
+            this, &IComicTorrentEngine::torrentFinished, Qt::QueuedConnection);
+    connect(m_engine, &TorrentEngine::torrentError,
+            this, &IComicTorrentEngine::torrentError, Qt::QueuedConnection);
+    connect(m_engine, &TorrentEngine::torrentAddFailed,
+            this, &IComicTorrentEngine::torrentAddFailed, Qt::QueuedConnection);
+}
+
+bool ComicTorrentEngineAdapter::isRunning() const { return m_engine->isRunning(); }
+void ComicTorrentEngineAdapter::start() { m_engine->start(); }
+
+QString ComicTorrentEngineAdapter::addMagnet(const QString& magnetUri, const QString& savePath, bool paused)
+{
+    return m_engine->addMagnet(magnetUri, savePath, paused);
+}
+
+void ComicTorrentEngineAdapter::setFilePriorities(const QString& infoHash, const QVector<int>& priorities)
+{
+    m_engine->setFilePriorities(infoHash, priorities);
+}
+
+void ComicTorrentEngineAdapter::startTorrent(const QString& infoHash, const QString& savePath)
+{
+    m_engine->startTorrent(infoHash, savePath);
+}
+
+void ComicTorrentEngineAdapter::pauseTorrent(const QString& infoHash)
+{
+    m_engine->pauseTorrent(infoHash);
+}
+
+void ComicTorrentEngineAdapter::resumeTorrent(const QString& infoHash)
+{
+    m_engine->resumeTorrent(infoHash);
+}
+
+void ComicTorrentEngineAdapter::removeTorrent(const QString& infoHash, bool deleteFiles)
+{
+    m_engine->removeTorrent(infoHash, deleteFiles);
+}
+
+QJsonArray ComicTorrentEngineAdapter::torrentFiles(const QString& infoHash) const
+{
+    return m_engine->torrentFiles(infoHash);
+}
+#endif // HAS_LIBTORRENT
 
 ComicTorrents::ComicTorrents(QNetworkAccessManager* searchNam, TorrentEngine* engine,
                              QObject* parent)
     : QObject(parent),
-      m_search(new TankorentSearchService(searchNam, this)),
-      m_downloader(new ComicTorrentDownloader(engine, this))
+      m_search(new TankorentSearchService(searchNam, this))
 {
+    IComicTorrentEngine* packEngine = nullptr;
+#ifdef HAS_LIBTORRENT
+    if (engine) packEngine = new ComicTorrentEngineAdapter(engine, this);
+#endif
+    // Edition pack transport (Task 9): shares the SAME engine as the legacy
+    // single-archive path below. `ingestTarget` stays null here — no
+    // production QML entry point calls downloadEdition() yet (Task 10 wires
+    // that); the capability builds/replays/tests via dependency injection in
+    // tests/comic_torrent_pack_transport_harness.cpp regardless.
+    const QString base = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/comics-torrent");
+    m_downloader = new ComicTorrentDownloader(packEngine, /*ingestTarget=*/nullptr,
+                                              base + QStringLiteral("/edition-requests.json"),
+                                              base + QStringLiteral("/torrent"),
+                                              base + QStringLiteral("/staging"), this);
     wireSignals();
 }
 
