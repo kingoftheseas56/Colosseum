@@ -423,6 +423,14 @@ target_include_directories(torrent_engine_download_harness PRIVATE ${CMAKE_CURRE
 # Do NOT delete the include; that breaks byte-diffability with TB2 (review I1, 2026-07-13).
 target_link_libraries(torrent_engine_download_harness PRIVATE Qt6::Core Qt6::Network colosseum_libtorrent)
 
+# ── Keyless anime ordering (spec 2026-07-15): pure parser/resolver harness ──
+add_executable(anime_order_index_harness
+    ../tests/anime_order_index_harness.cpp
+    anime/AnimeOrderIndex.cpp
+    anime/AnimeOrderIndex.h)
+target_include_directories(anime_order_index_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(anime_order_index_harness PRIVATE Qt6::Core)
+
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
     get_filename_component(_qt_bin_dir "${_qt_qmake}" DIRECTORY)
