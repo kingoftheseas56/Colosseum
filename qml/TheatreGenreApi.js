@@ -10,6 +10,10 @@
 var JIKAN = "https://api.jikan.moe/v4";
 var CINEMETA_CATALOGS = "https://cinemeta-catalogs.strem.io/top";
 var CINEMETA = "https://v3-cinemeta.strem.io";
+// Fallback for anime cards when Jikan's /anime?genres= filter endpoint 504s
+// (its /genres/anime list + /top/anime stay up, so tiles/counts still come from
+// Jikan). Same move the manga lane made. Keyless, no login — honors the standing law.
+var ANILIST = "https://graphql.anilist.co";
 
 var MOVIE_GENRES = ["Action", "Drama", "Comedy", "Sci-Fi", "Thriller", "Horror", "Romance",
                     "Animation", "Adventure", "Crime", "Mystery", "Fantasy", "Documentary"];
@@ -75,6 +79,19 @@ function requestJson(url, done) {
     xhr.send();
 }
 
+function postJson(url, body, done) {
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return;
+        if (xhr.status < 200 || xhr.status >= 300) { done(null); return; }
+        try { done(JSON.parse(xhr.responseText)); } catch (e) { done(null); }
+    };
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "application/json");
+    xhr.send(body);
+}
+
 function normalizeArtUrl(url) {
     if (!url) return "";
     return String(url)
@@ -123,6 +140,56 @@ function animeToCard(m, i) {
     };
 }
 
+// ---- anime AniList fallback (Jikan /anime?genres= 504s) ----
+function anilistSort(sort) {
+    return (sort === "score") ? "SCORE_DESC" : "POPULARITY_DESC";
+}
+
+// one AniList media → the SAME MAL-template card animeToCard produces, so the
+// page renders identically. idMal keeps the "mal:" click scheme so a card opens
+// the series exactly like a Jikan card; only a media with no MAL id uses anilist:.
+function anilistToCard(m, i) {
+    var t = tone(i);
+    var img = (m.coverImage && (m.coverImage.large || m.coverImage.extraLarge)) || "";
+    var title = (m.title && (m.title.english || m.title.romaji)) || "Untitled";
+    var year = m.seasonYear || ((m.startDate && m.startDate.year) ? m.startDate.year : null);
+    var syn = (m.description || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (syn.length > 240) syn = syn.slice(0, 240) + "…";
+    var score = (m.averageScore !== null && m.averageScore !== undefined)
+                ? Math.round(m.averageScore) / 10 : null;
+    var studios = (m.studios && m.studios.nodes) ? m.studios.nodes : [];
+    return {
+        title: title,
+        cover: img, c1: t[0], c2: t[1],
+        type: m.format || "", year: year, status: m.status || "",
+        metaCounts: m.episodes ? m.episodes + " ep" : (m.status === "RELEASING" ? "airing" : "—"),
+        score: score,
+        members: membersLabel(m.popularity),
+        authors: studios.map(function(s) { return s.name; }).slice(0, 2).join(", "),
+        genres: (m.genres || []).slice(0, 5),
+        synopsis: syn,
+        item: { id: m.idMal ? ("mal:" + m.idMal) : ("anilist:" + m.id),
+                type: "series", title: title, cover: img }
+    };
+}
+
+function loadAnimeGenreFromAniList(name, sort, knownCount, push) {
+    var query = "query($g:String){Page(perPage:24){pageInfo{total}"
+        + " media(genre:$g,type:ANIME,sort:" + anilistSort(sort) + ",isAdult:false){"
+        + "idMal id title{english romaji} coverImage{large} format seasonYear"
+        + " startDate{year} episodes status averageScore popularity"
+        + " studios(isMain:true){nodes{name}} genres description}}}";
+    var body = JSON.stringify({ query: query, variables: { g: name } });
+    postJson(ANILIST, body, function(j) {
+        var media = (j && j.data && j.data.Page && j.data.Page.media) ? j.data.Page.media : null;
+        if (!media || !media.length) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
+        var cards = media.map(anilistToCard);
+        var total = (j.data.Page.pageInfo && j.data.Page.pageInfo.total) || knownCount || cards.length;
+        var montage = cards.slice(0, 7).map(function(c) { return c.cover; }).filter(function(u) { return u; });
+        push({ count: total, desc: descFor(name), cards: cards, montage: montage });
+    });
+}
+
 // one Cinemeta meta → the lean card (poster · title · rank · rating; absent fields don't render)
 function cinemetaToCard(kind, meta, i) {
     var t = tone(i);
@@ -149,11 +216,18 @@ function loadGenre(kind, name, sort, push) {
     if (kind === "anime") {
         ensureAnimeGenres(function() {
             var g = animeGenreEntry(name);
-            if (!g) { fail(); return; }
+            // No genre id (Jikan /genres/anime down, or a name Jikan doesn't list)
+            // → AniList by genre name directly.
+            if (!g) { loadAnimeGenreFromAniList(name, sort, 0, push); return; }
             var order = (sort === "score") ? "score&sort=desc" : "popularity&sort=asc";
             var url = JIKAN + "/anime?genres=" + g.mal_id + "&order_by=" + order + "&limit=24&sfw=true";
             requestJson(url, function(j) {
-                if (!j || !j.data) { fail(); return; }
+                // Jikan's filter endpoint 504s far more than its cached routes; on
+                // any empty/failed response, fall to AniList (keeping Jikan's count).
+                if (!j || !j.data || !j.data.length) {
+                    loadAnimeGenreFromAniList(name, sort, g.count, push);
+                    return;
+                }
                 var cards = j.data.map(animeToCard);
                 var total = (j.pagination && j.pagination.items && j.pagination.items.total) || g.count || cards.length;
                 var montage = cards.slice(0, 7).map(function(c) { return c.cover; }).filter(function(u) { return u; });
