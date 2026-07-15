@@ -5,6 +5,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import "TheatreApi.js" as TheatreApi
+import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
 
 Item {
     id: page
@@ -24,10 +25,22 @@ Item {
     property string rating: ""
     property string runtime: ""
     property string synopsis: ""
-    property var videos: []
+    // Keyless anime ordering (spec 2026-07-15) sits between the raw provider list
+    // and the episode UI. sourceVideos is the untouched provider array; animeOrder
+    // is the native resolver's annotation; videos/episodes derive from it and fall
+    // back to sourceVideos whenever ordering is unavailable or incomplete.
+    property var sourceVideos: []
+    property var animeOrder: page.defaultAnimeOrder()
+    property string episodeOrderMode: ""
+    property string requestedSourceId: ""
+    property int animeOrderRevision: (typeof AnimeOrder !== "undefined") ? AnimeOrder.revision : 0
+    onAnimeOrderRevisionChanged: page.rebuildAnimeOrder()
+    property var videos: (animeOrder && animeOrder.episodes && animeOrder.episodes.length)
+                         ? animeOrder.episodes : sourceVideos
+    property string effectiveEpisodeOrder: AnimeEpisodePresentation.effectiveMode(animeOrder, episodeOrderMode)
     property var seasons: []
     property int activeSeason: 0
-    property var episodes: filterEpisodes(videos, activeSeason)
+    property var episodes: AnimeEpisodePresentation.visibleEpisodes(animeOrder, effectiveEpisodeOrder, activeSeason)
     property string episodeLayout: "list"
     property bool episodeJumpOpen: false
     property var seasonQueued: ({})   // season -> queued this visit
@@ -44,8 +57,53 @@ Item {
         if (resolvedId.length) return resolvedId;
         return (itemData && itemData.id) ? itemData.id : "";
     }
-    function episodeSeason(v) { return (v.season !== undefined) ? v.season : (v.seasonNumber || 0) }
-    function episodeNumber(v) { return (v.episode !== undefined) ? v.episode : (v.number || 0) }
+    // Canonical annotations win when present (sourceSeason/sourceEpisode from the
+    // native resolver); raw provider rows fall back to season/episode so non-anime
+    // and unmapped titles behave exactly as before.
+    function episodeSeason(v) {
+        return (v.sourceSeason !== undefined) ? v.sourceSeason
+             : ((v.season !== undefined) ? v.season : (v.seasonNumber || 0))
+    }
+    function episodeNumber(v) {
+        return (v.sourceEpisode !== undefined) ? v.sourceEpisode
+             : ((v.episode !== undefined) ? v.episode : (v.number || 0))
+    }
+    // The number shown to the user: the continuous absolute number in Absolute
+    // view, otherwise the provider episode number.
+    function episodeDisplayNumber(v) {
+        if (page.effectiveEpisodeOrder === "absolute"
+                && v.absoluteNumber !== undefined && v.absoluteNumber !== null)
+            return v.absoluteNumber
+        return episodeNumber(v)
+    }
+    function episodeIsSpecial(v) {
+        return v.kind === "special" || episodeSeason(v) === 0
+    }
+    function defaultAnimeOrder() {
+        return { "status": "unavailable", "episodes": [], "seasons": [],
+                 "absoluteComplete": false, "defaultOrder": "seasons" }
+    }
+    // Ask the native AnimeOrder service to annotate this title's provider rows.
+    // Runs on first meta load and whenever the service installs a new generation
+    // (revision change). It never fetches anything from QML; the C++ service owns
+    // all transport, cache, and completeness decisions.
+    function rebuildAnimeOrder() {
+        if (typeof AnimeOrder === "undefined") {
+            page.animeOrder = page.defaultAnimeOrder()
+            return
+        }
+        var ids = {}
+        if (page.requestedSourceId && page.requestedSourceId.length)
+            ids.sourceId = page.requestedSourceId
+        if (page.resolvedId && page.resolvedId.length)
+            ids.resolvedId = page.resolvedId
+        if (page.resolvedId && page.resolvedId.indexOf("tt") === 0)
+            ids.imdbIds = [page.resolvedId]
+        page.animeOrder = AnimeOrder.resolve(ids, page.sourceVideos)
+        // Adopt the native default view once per title; the selector overrides it.
+        if (page.animeOrder.absoluteComplete === true && page.episodeOrderMode === "")
+            page.episodeOrderMode = page.animeOrder.defaultOrder
+    }
 
     function filterEpisodes(vids, season) {
         var out = [];
@@ -173,6 +231,7 @@ Item {
         : ({})
 
     function episodeStreamId(v) {
+        if (v.streamId && v.streamId.length) return v.streamId;
         if (v.id && v.id.length) return v.id;
         return currentId() + ":" + episodeSeason(v) + ":" + episodeNumber(v);
     }
@@ -216,20 +275,27 @@ Item {
         };
     }
 
+    // The playback queue for the active view, built from the native order:
+    // Absolute yields one regular queue across source seasons; Seasons yields the
+    // active-season queue exactly as before. The clicked row is located by exact
+    // stream id (never by episode number, which repeats across seasons).
     function adjacentEpisodeContext(v) {
-        var idx = episodeIndex(episodeNumber(v));
-        var queue = [];
-        for (var i = 0; i < episodes.length; i++)
-            queue.push(shallowEpisodeTarget(episodes[i]));
+        var queue = AnimeEpisodePresentation.playbackTargets(
+                        page.animeOrder, page.effectiveEpisodeOrder, page.activeSeason,
+                        page.title, page.sourceBackdrop());
+        var targetId = episodeStreamId(v);
+        var idx = -1;
+        for (var i = 0; i < queue.length; i++)
+            if (queue[i].id === targetId) { idx = i; break; }
         return {
             "year": page.year,
             "episodeQueue": queue,
             "episodeIndex": idx,
             "adjacentEpisodes": {
-                "prev": idx > 0 ? Object.assign(shallowEpisodeTarget(episodes[idx - 1]),
+                "prev": idx > 0 ? Object.assign({}, queue[idx - 1],
                                                 { "context": { "year": page.year, "episodeQueue": queue, "episodeIndex": idx - 1 } }) : null,
-                "next": (idx >= 0 && idx + 1 < episodes.length)
-                        ? Object.assign(shallowEpisodeTarget(episodes[idx + 1]),
+                "next": (idx >= 0 && idx + 1 < queue.length)
+                        ? Object.assign({}, queue[idx + 1],
                                         { "context": { "year": page.year, "episodeQueue": queue, "episodeIndex": idx + 1 } }) : null
             }
         };
@@ -237,7 +303,7 @@ Item {
 
     function episodeIndex(number) {
         for (var i = 0; i < episodes.length; i++)
-            if (episodeNumber(episodes[i]) === number)
+            if (episodeDisplayNumber(episodes[i]) === number)
                 return i;
         return -1;
     }
@@ -327,10 +393,15 @@ Item {
         rating = "";
         runtime = "";
         synopsis = "";
-        videos = [];
+        sourceVideos = [];
+        animeOrder = page.defaultAnimeOrder();
+        episodeOrderMode = "";
         seasons = [];
         activeSeason = 0;
         resolvedId = "";
+        // Capture the originally requested id before resolvedId pivots to IMDb, so
+        // the resolver still gets the provider source id (mal:/kitsu:/anidb:...).
+        requestedSourceId = currentId();
         var id = currentId();
         if (!id) { loading = false; errorMsg = "No id for this title."; return; }
         revealGuard.restart();
@@ -352,7 +423,8 @@ Item {
             rating = meta.imdbRating || "";
             runtime = meta.runtime || "";
             synopsis = meta.description || "";
-            videos = meta.videos || [];
+            sourceVideos = meta.videos || [];
+            page.rebuildAnimeOrder();
             page.onMetaLoaded();
             loading = false;
             revealGuard.stop();
@@ -638,13 +710,61 @@ Item {
                     width: parent.width
                     spacing: 0
 
+                    // Absolute / Seasons selector — shown only when the native mapping is
+                    // complete. Absolute plays one continuous run across provider seasons;
+                    // Seasons keeps the provider grouping and stream ids untouched.
+                    Row {
+                        visible: page.animeOrder && page.animeOrder.absoluteComplete === true
+                        x: theme.margin
+                        topPadding: 18
+                        spacing: 22
+                        Repeater {
+                            model: ["absolute", "seasons"]
+                            delegate: Item {
+                                id: orderBtn
+                                required property string modelData
+                                width: orderCol.width
+                                height: orderCol.height
+                                property bool on: page.effectiveEpisodeOrder === orderBtn.modelData
+                                Column {
+                                    id: orderCol
+                                    spacing: 5
+                                    Text {
+                                        text: orderBtn.modelData === "absolute" ? "Absolute" : "Seasons"
+                                        color: orderBtn.on ? theme.gold : (orderMa.containsMouse ? theme.ink : theme.inkDim)
+                                        font.family: theme.ui
+                                        font.pixelSize: 15
+                                        font.weight: orderBtn.on ? Font.DemiBold : Font.Normal
+                                    }
+                                    Rectangle {
+                                        visible: orderBtn.on
+                                        width: 26
+                                        height: 2
+                                        radius: 2
+                                        color: theme.gold
+                                    }
+                                }
+                                MouseArea {
+                                    id: orderMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        page.episodeOrderMode = orderBtn.modelData
+                                        episodeList.positionViewAtBeginning()
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Item {
                         // 11+ seasons: a Netflix-style dropdown — the sideways strip has no
                         // sideways browsing affordance in this app, so long shows use this.
                         width: parent.width
                         height: 56
                         z: 40
-                        visible: page.seasons.length > 10
+                        visible: page.seasons.length > 10 && page.effectiveEpisodeOrder !== "absolute"
                         Rectangle {
                             id: seasonTrigger
                             x: theme.margin
@@ -738,9 +858,9 @@ Item {
                     }
 
                     Flickable {
-                        visible: page.seasons.length <= 10
+                        visible: page.seasons.length <= 10 && page.effectiveEpisodeOrder !== "absolute"
                         width: parent.width
-                        height: page.seasons.length <= 10 ? 44 : 0
+                        height: (page.seasons.length <= 10 && page.effectiveEpisodeOrder !== "absolute") ? 44 : 0
                         contentWidth: seasonRow.width
                         contentHeight: height
                         clip: true
@@ -1112,7 +1232,7 @@ Item {
                                 Text {
                                     anchors.centerIn: parent
                                     visible: !ep.modelData.thumbnail
-                                    text: "E" + page.episodeNumber(ep.modelData)
+                                    text: "E" + page.episodeDisplayNumber(ep.modelData)
                                     color: Qt.rgba(1, 1, 1, 0.5)
                                     font.family: theme.display
                                     font.pixelSize: 22
@@ -1128,7 +1248,7 @@ Item {
                                     Text {
                                         id: numT
                                         anchors.centerIn: parent
-                                        text: page.episodeNumber(ep.modelData)
+                                        text: page.episodeDisplayNumber(ep.modelData)
                                         color: theme.ink
                                         font.family: theme.ui
                                         font.pixelSize: 12
@@ -1177,15 +1297,36 @@ Item {
                                 spacing: 5
                                 Text {
                                     width: parent.width
-                                    text: "E" + page.episodeNumber(ep.modelData) + " - "
+                                    text: "E" + page.episodeDisplayNumber(ep.modelData) + " - "
                                           + ((ep.modelData.name && ep.modelData.name.length) ? ep.modelData.name
                                              : (ep.modelData.title && ep.modelData.title.length ? ep.modelData.title
-                                                : "Episode " + page.episodeNumber(ep.modelData)))
+                                                : "Episode " + page.episodeDisplayNumber(ep.modelData)))
                                     color: theme.ink
                                     font.family: theme.ui
                                     font.pixelSize: 15
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
+                                }
+                                Rectangle {
+                                    // Honest single badge for a Specials (season 0) row.
+                                    visible: page.episodeIsSpecial(ep.modelData)
+                                    width: spBadge.implicitWidth + 14
+                                    height: 18
+                                    radius: 4
+                                    color: Qt.rgba(1, 1, 1, 0.08)
+                                    border.width: 1
+                                    border.color: theme.edge
+                                    Text {
+                                        id: spBadge
+                                        anchors.centerIn: parent
+                                        text: "Special"
+                                        color: theme.inkDim
+                                        font.family: theme.ui
+                                        font.pixelSize: 10
+                                        font.letterSpacing: 1
+                                        font.capitalization: Font.AllUppercase
+                                        font.weight: Font.DemiBold
+                                    }
                                 }
                                 Text {
                                     // one dim status line: state + date joined, gold ONLY for Next up

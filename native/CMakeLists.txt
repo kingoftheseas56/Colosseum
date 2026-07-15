@@ -184,6 +184,11 @@ add_executable(colosseum
     engine/MangaVolumePacker.h
     engine/MangaTankobanService.cpp
     engine/MangaTankobanService.h
+    # ── Keyless anime ordering (spec 2026-07-15) ──
+    anime/AnimeOrderIndex.cpp
+    anime/AnimeOrderIndex.h
+    anime/AnimeOrderService.cpp
+    anime/AnimeOrderService.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt

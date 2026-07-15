@@ -77,12 +77,15 @@ function playbackEpisodes(model, mode, activeSeason) {
 // "Episode N" (continuous); the queue crosses provider season boundaries.
 function playbackTargets(model, mode, activeSeason, showTitle, backdrop) {
     var eps = playbackEpisodes(model, mode, activeSeason);
+    var absolute = effectiveMode(model, mode) === "absolute";
     var title = showTitle || "";
     var art = backdrop || "";
     var out = [];
     for (var i = 0; i < eps.length; i++) {
         var e = eps[i];
-        var label = (e.absoluteNumber !== undefined && e.absoluteNumber !== null)
+        // Absolute titles run continuously ("Episode N"); Seasons titles keep the
+        // provider "SxEy" shape so the queue matches today's active-season queue.
+        var label = (absolute && e.absoluteNumber !== undefined && e.absoluteNumber !== null)
                     ? ("Episode " + e.absoluteNumber)
                     : ("S" + _season(e) + "E" + _episode(e));
         out.push({

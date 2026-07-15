@@ -42,6 +42,7 @@
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
+#include "anime/AnimeOrderService.h"
 #include "reader/BookBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
@@ -566,6 +567,13 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Sessions"), sessions);
     if (qEnvironmentVariableIsSet("COLOSSEUM_SESSION_SELFTEST"))
         sessions->selfTest();
+
+    // Keyless anime ordering (spec 2026-07-15): downloads two community mapping
+    // datasets at runtime, caches immutable generations, and hands Theatre/player
+    // a cheap synchronous resolver as `AnimeOrder`. Shares the plain download NAM;
+    // never blocks first paint (progressive enhancement).
+    auto *animeOrder = new AnimeOrderService(dlNam, &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("AnimeOrder"), animeOrder);
 
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
