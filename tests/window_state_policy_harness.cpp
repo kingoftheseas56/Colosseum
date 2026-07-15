@@ -1,7 +1,11 @@
 #include "player/windowstatepolicy.h"
+#include "player/windowmodestore.h"
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QDir>
+#include <QSettings>
+#include <QTemporaryDir>
 
 namespace {
 void require(bool condition, const char *message) {
@@ -46,6 +50,31 @@ int main(int argc, char **argv) {
                 QRect(1500, 700, 1280, 720), {primary}, primary)
                 == QRect(640, 320, 1280, 720),
             "partly off-screen geometry must clamp inside the chosen screen");
+
+    QTemporaryDir settingsDir;
+    require(settingsDir.isValid(), "temporary settings directory must exist");
+    QSettings::setDefaultFormat(QSettings::IniFormat);
+    QSettings::setPath(QSettings::IniFormat, QSettings::UserScope,
+                       settingsDir.path());
+    QCoreApplication::setOrganizationName(QStringLiteral("BrotherhoodTest"));
+    QCoreApplication::setApplicationName(QStringLiteral("WindowModeHarness"));
+
+    {
+        QSettings settings;
+        settings.clear();
+        settings.setValue(QStringLiteral("window/baseMode"),
+                          QStringLiteral("windowed"));
+        settings.setValue(QStringLiteral("window/normalGeometry"),
+                          QRect(100, 120, 1280, 720));
+        settings.setValue(QStringLiteral("window/maximized"), true);
+        settings.sync();
+    }
+
+    WindowModeStore restored;
+    require(restored.shellWindowed(), "saved windowed base mode must load");
+    require(restored.savedNormalGeometry() == QRect(100, 120, 1280, 720),
+            "saved normal geometry must load independently");
+    require(restored.savedMaximized(), "saved maximized state must load");
 
     qInfo("window_state_policy_harness: PASS");
     return 0;

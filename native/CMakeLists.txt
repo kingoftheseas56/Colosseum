@@ -451,9 +451,11 @@ target_link_libraries(anime_order_service_harness PRIVATE Qt6::Core Qt6::Network
 add_executable(window_state_policy_harness
     ../tests/window_state_policy_harness.cpp
     player/windowstatepolicy.cpp
-    player/windowstatepolicy.h)
+    player/windowstatepolicy.h
+    player/windowmodestore.cpp
+    player/windowmodestore.h)
 target_include_directories(window_state_policy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(window_state_policy_harness PRIVATE Qt6::Core)
+target_link_libraries(window_state_policy_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
