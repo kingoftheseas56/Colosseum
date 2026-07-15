@@ -24,8 +24,9 @@ import "EpisodeBrowser.js" as EpisodeBrowser
 
 Window {
     id: win
-    visible: true
-    visibility: Window.FullScreen
+    // Hidden until the native WindowModeStore chooses the startup presentation
+    // (fullscreen by default; developer-windowed if that was the last stable mode).
+    visible: false
     flags: Qt.Window | Qt.FramelessWindowHint
     color: "#05060a"
     title: "Colosseum"
@@ -89,6 +90,12 @@ Window {
     }
 
     Component.onCompleted: {
+        // Native state owns the startup presentation and shows the window; the fallback
+        // keeps a bare QML run (harnesses) fullscreen as before.
+        if (typeof WindowMode !== "undefined")
+            WindowMode.initializeShell(win)
+        else
+            win.showFullScreen()
         refreshWallpaper()
         // The full comics catalog is intentionally absent here. TankobanWorld owns its generated
         // import and ingest so root startup never parses the multi-megabyte payload.
@@ -228,12 +235,21 @@ Window {
     } }
     Shortcut { sequences: ["Ctrl+Q"]; onActivated: Qt.quit() }
 
-    // Minimize the OS surface to the taskbar — "get it off my screen" WITHOUT quitting (the shell keeps
-    // running, art stays warm). A frameless fullscreen window has no normal frame to land in, so when
-    // Windows restores it from the taskbar we snap it straight back to fullscreen — never a stray bare
-    // rectangle stuck with no titlebar to grab.
+    // The secret developer door: F11 flips the whole shell between fullscreen (Colosseum's
+    // public identity) and the frameless developer window. Application-scoped so it works on
+    // home, world pages, readers, overlays, and active playback alike. The native store is the
+    // single authority — it exits PiP first if needed, then toggles the base mode.
+    Shortcut {
+        sequences: ["F11"]
+        context: Qt.ApplicationShortcut
+        onActivated: if (typeof WindowMode !== "undefined")
+            WindowMode.toggleShellMode(win)
+    }
+
+    // Minimize the OS surface to the taskbar — "get it off my screen" WITHOUT quitting (the shell
+    // keeps running, art stays warm). Windows restores it to whatever base mode it held before
+    // minimizing (fullscreen or the developer window), so no forced snap-back is needed.
     function minimizeShell() { win.showMinimized() }
-    onVisibilityChanged: if (win.visibility === Window.Windowed) win.visibility = Window.FullScreen
 
     // ---- navigation: open a medium's world page over the persistent wallpaper ----
     // Each visited mode keeps ONE live Loader (created on first entry, never destroyed); navigating
@@ -1091,6 +1107,14 @@ Window {
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: Qt.quit()
+    }
+
+    // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
+    // as the drag surface (no titlebar added) and self-disables in fullscreen. See WindowBehavior.qml.
+    WindowBehavior {
+        shell: win
+        dragSurface: topbar
+        controller: WindowMode
     }
 
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
