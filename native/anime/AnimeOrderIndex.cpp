@@ -1,6 +1,8 @@
 #include "anime/AnimeOrderIndex.h"
 
 #include <QHash>
+#include <QList>
+#include <QMap>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -9,6 +11,9 @@
 #include <QSet>
 #include <QStringList>
 #include <QXmlStreamReader>
+
+#include <algorithm>
+#include <optional>
 
 // AnimeOrderIndex parses two community datasets into one immutable identity
 // index:
@@ -63,6 +68,80 @@ QVariantList toVariantList(const QList<int>& ids)
     for (int id : ids)
         out.append(id);
     return out;
+}
+
+// Provider rows carry TVDB-style season/episode; tolerate the common aliases.
+int seasonOf(const QVariantMap& row)
+{
+    if (row.contains(QStringLiteral("season")))
+        return row.value(QStringLiteral("season")).toInt();
+    if (row.contains(QStringLiteral("seasonNumber")))
+        return row.value(QStringLiteral("seasonNumber")).toInt();
+    return 0;
+}
+
+int episodeOf(const QVariantMap& row)
+{
+    if (row.contains(QStringLiteral("episode")))
+        return row.value(QStringLiteral("episode")).toInt();
+    if (row.contains(QStringLiteral("number")))
+        return row.value(QStringLiteral("number")).toInt();
+    return 0;
+}
+
+// Invert one TVDB-style (season, episode) into an AniDB absolute number.
+// Precedence: explicit body pair > matching range > default season+offset. A
+// one-to-many or many-to-one body sets `ambiguous` so completeness can refuse
+// to guess which playable row owns the slot. Returns nullopt when nothing maps.
+std::optional<int> resolveAbsolute(const Entry& e, int providerSeason, int providerEpisode,
+                                   bool& ambiguous)
+{
+    ambiguous = false;
+
+    // 1. Explicit body pair — highest precedence.
+    for (const MappingRule& m : e.mappings) {
+        if (m.tvdbSeason != providerSeason)
+            continue;
+        const auto it = m.bodyTvdbToAnidb.constFind(providerEpisode);
+        if (it == m.bodyTvdbToAnidb.constEnd())
+            continue;
+        if (m.anidbSeason == 0)
+            return std::nullopt; // a special body is never a regular absolute
+        const QList<int>& anidbEps = it.value();
+        if (anidbEps.isEmpty())
+            return std::nullopt;
+        if (anidbEps.size() != 1 || m.bodyOneToMany)
+            ambiguous = true; // many-to-one / one-to-many: retained but not trusted
+        return anidbEps.first();
+    }
+
+    // 2. Matching range: anidbEpisode = providerEpisode - offset, bounds-checked.
+    for (const MappingRule& m : e.mappings) {
+        if (m.tvdbSeason != providerSeason || !m.hasRange || m.anidbSeason == 0)
+            continue;
+        const int absolute = providerEpisode - m.offset;
+        const bool inside = absolute >= m.start && (!m.hasEnd || absolute <= m.end);
+        if (inside && absolute > 0)
+            return absolute;
+    }
+
+    // 3. Default season + episode offset, only when no explicit mapping applies.
+    if (!e.defaultTvdbSeason.isEmpty()) {
+        bool numeric = false;
+        const int defSeason = e.defaultTvdbSeason.toInt(&numeric);
+        if (numeric && defSeason == providerSeason) {
+            const int absolute = providerEpisode - e.episodeOffset;
+            if (absolute > 0)
+                return absolute;
+        } else if (e.defaultTvdbSeason == QLatin1String("a") && e.mappings.isEmpty()
+                   && providerSeason >= 1) {
+            const int absolute = providerEpisode - e.episodeOffset;
+            if (absolute > 0)
+                return absolute;
+        }
+    }
+
+    return std::nullopt;
 }
 
 } // namespace
@@ -424,15 +503,104 @@ QVariantMap AnimeOrderIndex::resolve(const QVariantMap& identities,
         status = QStringLiteral("mapped");
 
     result.insert(QStringLiteral("status"), status);
-    if (status == QLatin1String("mapped"))
-        result.insert(QStringLiteral("ids"), m_data->buildIds(m_data->entries.value(*matches.constBegin())));
-    else
+    if (status != QLatin1String("mapped")) {
+        // Unmapped/ambiguous: leave the original provider array untouched so the
+        // UI simply keeps today's season behavior.
         result.insert(QStringLiteral("ids"), QVariantMap{});
+        result.insert(QStringLiteral("episodes"), providerEpisodes);
+        result.insert(QStringLiteral("diagnostic"), QStringLiteral("identity %1").arg(status));
+        return result;
+    }
 
-    // Task 1 preserves provider rows verbatim; reconciliation is added in Task 2.
-    result.insert(QStringLiteral("episodes"), providerEpisodes);
+    const Entry& entry = m_data->entries.value(*matches.constBegin());
+    result.insert(QStringLiteral("ids"), m_data->buildIds(entry));
+
+    // Annotate every provider row without dropping or renaming one. Regular rows
+    // resolve to an absolute number; specials are transported but stay out of the
+    // absolute queue and never affect regular completeness.
+    QVariantList regularMatched, regularUnmatched, specials;
+    bool anyAmbiguous = false;
+    for (const QVariant& rowVar : providerEpisodes) {
+        QVariantMap out = rowVar.toMap();
+        const int season = seasonOf(out);
+        const int episode = episodeOf(out);
+        out.insert(QStringLiteral("streamId"), out.value(QStringLiteral("id")).toString());
+        out.insert(QStringLiteral("sourceSeason"), season);
+        out.insert(QStringLiteral("sourceEpisode"), episode);
+        if (season == 0) {
+            out.insert(QStringLiteral("kind"), QStringLiteral("special"));
+            out.insert(QStringLiteral("mapped"), false);
+            out.insert(QStringLiteral("absoluteNumber"), QVariant());
+            specials.append(out);
+            continue;
+        }
+        out.insert(QStringLiteral("kind"), QStringLiteral("episode"));
+        bool ambiguous = false;
+        const std::optional<int> absolute = resolveAbsolute(entry, season, episode, ambiguous);
+        if (absolute && *absolute > 0) {
+            out.insert(QStringLiteral("absoluteNumber"), *absolute);
+            out.insert(QStringLiteral("mapped"), true);
+            if (ambiguous)
+                anyAmbiguous = true;
+            regularMatched.append(out);
+        } else {
+            out.insert(QStringLiteral("absoluteNumber"), QVariant());
+            out.insert(QStringLiteral("mapped"), false);
+            regularUnmatched.append(out);
+        }
+    }
+
+    std::sort(regularMatched.begin(), regularMatched.end(),
+              [](const QVariant& a, const QVariant& b) {
+                  return a.toMap().value(QStringLiteral("absoluteNumber")).toInt()
+                       < b.toMap().value(QStringLiteral("absoluteNumber")).toInt();
+              });
+
+    // Completeness is judged only across the regular rows the provider supplied:
+    // unique, positive, and contiguous (a truthful window is allowed; holes and
+    // ambiguity are not).
+    QList<int> absNums;
+    absNums.reserve(regularMatched.size());
+    for (const QVariant& v : regularMatched)
+        absNums.append(v.toMap().value(QStringLiteral("absoluteNumber")).toInt());
+    bool contiguous = true;
+    for (int i = 1; i < absNums.size(); ++i) {
+        if (absNums.at(i) != absNums.at(i - 1) + 1) {
+            contiguous = false;
+            break;
+        }
+    }
+    const int regularCount = regularMatched.size() + regularUnmatched.size();
+    const bool complete = regularCount > 0 && !anyAmbiguous && regularUnmatched.isEmpty()
+        && absNums.size() == regularCount && contiguous;
+
+    QVariantList episodes = regularMatched;
+    episodes.append(regularUnmatched);
+    episodes.append(specials);
+
+    // Season summary in ascending order (0 == Specials).
+    QMap<int, int> seasonCounts;
+    for (const QVariant& v : episodes)
+        seasonCounts[v.toMap().value(QStringLiteral("sourceSeason")).toInt()]++;
+    QVariantList seasons;
+    for (auto it = seasonCounts.constBegin(); it != seasonCounts.constEnd(); ++it) {
+        QVariantMap s;
+        s.insert(QStringLiteral("number"), it.key());
+        s.insert(QStringLiteral("label"),
+                 it.key() == 0 ? QStringLiteral("Specials") : QStringLiteral("Season %1").arg(it.key()));
+        s.insert(QStringLiteral("count"), it.value());
+        seasons.append(s);
+    }
+
+    const bool defaultAbsolute = complete && entry.defaultTvdbSeason == QLatin1String("a");
+    result.insert(QStringLiteral("episodes"), episodes);
+    result.insert(QStringLiteral("seasons"), seasons);
+    result.insert(QStringLiteral("absoluteComplete"), complete);
+    result.insert(QStringLiteral("defaultOrder"),
+                  defaultAbsolute ? QStringLiteral("absolute") : QStringLiteral("seasons"));
     result.insert(QStringLiteral("diagnostic"),
-                  status == QLatin1String("mapped") ? QString()
-                                                    : QStringLiteral("identity %1").arg(status));
+                  complete ? QString()
+                           : (anyAmbiguous ? QStringLiteral("ambiguous episode mapping")
+                                           : QStringLiteral("incomplete absolute mapping")));
     return result;
 }
