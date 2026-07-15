@@ -262,7 +262,7 @@ Item {
             // strip: settle from a clean top, then restore fraction / jump to the resume page
             // (300ms — TB2's proven layout-settle delay before a fractional restore)
             if (style === "long_strip") {
-                scrollAnim.stop(); flick.contentY = 0; _scrollTarget = 0
+                haltScrollAt(0)
                 stripRestore.restart()
             }
             return
@@ -469,20 +469,56 @@ Item {
         }
     }
 
-    // Smooth long-strip scrolling (wheel + click + edge bars): animate contentY toward
-    // an accumulating target so rapid wheel notches glide instead of stepping harshly.
-    property real _scrollTarget: 0
-    NumberAnimation { id: scrollAnim; target: flick; property: "contentY"
-        duration: 240; easing.type: Easing.OutCubic }
-    function smoothScrollBy(dy) {
-        var hmax = Math.max(0, flick.contentHeight - flick.height)
-        var base = scrollAnim.running ? reader._scrollTarget : flick.contentY
-        var t = Math.max(0, Math.min(hmax, base + dy))
-        reader._scrollTarget = t
-        reader.zoneY = t   // start loading the destination pages during the glide
-        scrollAnim.stop(); scrollAnim.from = flick.contentY; scrollAnim.to = t; scrollAnim.start()
+    // Smooth long-strip scrolling (wheel + click + edge bars) — Tankoban 2's
+    // SmoothScrollArea pattern, ported: input accumulates into a bounded pixel
+    // BACKLOG and a frame-synced tick drains a fixed fraction of it each frame
+    // with float accumulation. Velocity never resets when a new notch lands
+    // mid-glide (the old per-event 240ms animation restart was the notchy feel).
+    property real _pendingPx: 0                     // un-applied scroll backlog
+    property real _smoothY: 0                       // float accumulator for contentY
+    readonly property real _drainFraction: 0.38     // TB2: 38% of backlog per 16ms
+    readonly property real _maxBacklogPx: 6000      // a wheel flurry can't queue forever
+    FrameAnimation {
+        id: scrollDrain
+        running: false
+        onTriggered: {
+            // re-anchor if something else moved the view (drag, restore, seek)
+            if (Math.abs(flick.contentY - reader._smoothY) > 1.5)
+                reader._smoothY = flick.contentY
+            // frame-time-aware drain: same 38%-per-16.7ms feel on any refresh rate
+            var frames = Math.min(3, Math.max(0.25, scrollDrain.frameTime * 60))
+            var step = reader._pendingPx * (1 - Math.pow(1 - reader._drainFraction, frames))
+            if (Math.abs(reader._pendingPx) <= 1) step = reader._pendingPx   // final settle
+            var hmax = Math.max(0, flick.contentHeight - flick.height)
+            var y = reader._smoothY + step
+            if (y <= 0 || y >= hmax) {              // ran into an edge: clamp, drop backlog
+                y = Math.max(0, Math.min(hmax, y))
+                reader._pendingPx = 0
+            } else {
+                reader._pendingPx -= step
+            }
+            reader._smoothY = y
+            flick.contentY = y
+            if (reader._pendingPx === 0) scrollDrain.stop()
+        }
     }
-    function smoothScrollTo(y) { smoothScrollBy(y - flick.contentY) }
+    function smoothScrollBy(dy) {
+        if (!scrollDrain.running) reader._smoothY = flick.contentY
+        reader._pendingPx = Math.max(-reader._maxBacklogPx,
+                            Math.min(reader._maxBacklogPx, reader._pendingPx + dy))
+        var hmax = Math.max(0, flick.contentHeight - flick.height)
+        // start loading the destination pages while the glide is still travelling
+        reader.zoneY = Math.max(0, Math.min(hmax, reader._smoothY + reader._pendingPx))
+        scrollDrain.start()
+    }
+    function smoothScrollTo(y) { smoothScrollBy(y - (scrollDrain.running ? reader._smoothY + reader._pendingPx : flick.contentY)) }
+    // stop any glide and pin the view at y — every instant reposition goes through here
+    function haltScrollAt(y) {
+        scrollDrain.stop()
+        reader._pendingPx = 0
+        reader._smoothY = y
+        flick.contentY = y
+    }
 
     // ── strip page geometry (PASS 3): which page sits at a content Y, and jumping to one ──
     function pageAtY(cy) {
@@ -505,7 +541,7 @@ Item {
             var y = it ? it.y : (p - 1) / Math.max(1, max) * hmax
             y = Math.max(0, Math.min(y, hmax))
             zoneY = y
-            if (instant) { scrollAnim.stop(); flick.contentY = y; _scrollTarget = y }
+            if (instant) haltScrollAt(y)
             else smoothScrollTo(y)
             page = p
         } else {
@@ -537,9 +573,7 @@ Item {
             if (reader.style !== "long_strip" || reader.max <= 0) return
             if (reader._pendingFrac > 0) {
                 var hmax = Math.max(0, flick.contentHeight - flick.height)
-                scrollAnim.stop()
-                flick.contentY = reader._pendingFrac * hmax
-                reader._scrollTarget = flick.contentY
+                reader.haltScrollAt(reader._pendingFrac * hmax)
                 reader.zoneY = flick.contentY
                 reader._pendingFrac = 0
             } else if (reader.page > 1) {
@@ -729,7 +763,12 @@ Item {
         WheelHandler {
             enabled: reader.style === "long_strip" && reader.max > 0
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-            onWheel: (e) => reader.smoothScrollBy(-e.angleDelta.y * 1.4)   // scrolling = reading — never wakes the HUD
+            onWheel: (e) => {   // scrolling = reading — never wakes the HUD
+                // touchpads deliver fine-grained pixelDelta — use it verbatim; wheel
+                // notches fall back to angleDelta at the house 1.4 px/unit tuning
+                var dy = e.pixelDelta.y !== 0 ? -e.pixelDelta.y : -e.angleDelta.y * 1.4
+                reader.smoothScrollBy(dy)
+            }
         }
         // paged: Ctrl+wheel zooms (TB2: ±20% per notch, 100–260%)
         WheelHandler {
@@ -1203,9 +1242,7 @@ Item {
         function seek(f) {
             if (reader.style === "long_strip") {
                 var hmax = Math.max(0, flick.contentHeight - flick.height)
-                scrollAnim.stop()
-                flick.contentY = f * hmax
-                reader._scrollTarget = flick.contentY
+                reader.haltScrollAt(f * hmax)
                 // zoneY deliberately NOT written here — seek() runs per mouse-move while
                 // dragging, and stamping zoneY each move would re-evaluate every delegate's
                 // loading window at pointer rate. The 150ms throttle timer follows contentY.
