@@ -71,6 +71,37 @@ function scoreTitle(query, title) {
     if (t.indexOf(q) >= 0) return 100;
     return 0;
 }
+// ── Catalog-lane scoring: the phrase tiers above are too strict for our own DB.
+// Users type more words than a run's short title ("justice league unlimited" vs
+// our "Justice League"), which zeroed every catalog row and left GetComics alone
+// in the results (screenshot bug 2026-07-15). Phrase tiers still win; below them
+// a token tier: subset either direction beats plain overlap, more shared words =
+// closer name. Catalog lane only — Theatre keeps the strict scorer. ──
+var CATALOG_STOP = { the: 1, a: 1, an: 1, of: 1, and: 1, vol: 1, volume: 1 };
+function catalogTokens(s) {
+    var raw = normTitle(s).split(" ");
+    var out = [];
+    for (var i = 0; i < raw.length; i++)
+        if (raw[i] && !CATALOG_STOP[raw[i]]) out.push(raw[i]);
+    return out;
+}
+function scoreCatalogTitle(query, title) {
+    var phrase = scoreTitle(query, title);
+    if (phrase > 0) return phrase;
+    var q = catalogTokens(query), t = catalogTokens(title);
+    if (!q.length || !t.length) return 0;
+    // unique-token sets: "Justice League: No Justice" must not count "justice"
+    // twice and fake a full match for "justice league unlimited"
+    var qset = {}, tset = {}, qn = 0, tn = 0, shared = 0, w;
+    for (var i = 0; i < q.length; i++) if (!qset[q[i]]) { qset[q[i]] = 1; qn += 1; }
+    for (var j = 0; j < t.length; j++) if (!tset[t[j]]) { tset[t[j]] = 1; tn += 1; }
+    for (w in tset) if (qset[w]) shared += 1;
+    if (shared === tn || shared === qn)                // one name inside the other
+        return 60 + Math.min(30, shared * 10);
+    if (shared >= 2)                                   // same family ("Justice League of America")
+        return 40 + Math.min(15, shared * 5);
+    return 0;
+}
 function pickTopMatch(query, all) {
     var bestIdx = -1, best = 0;
     for (var i = 0; i < all.length; i++) {
@@ -200,7 +231,7 @@ function searchCatalog(query) {
     var matches = [];
     for (var i = 0; i < rows.length; ++i) {
         var row = rows[i];
-        var relevance = scoreTitle(query, row.title);
+        var relevance = scoreCatalogTitle(query, row.title);
         if (relevance <= 0) continue;
         matches.push({
             cover: row.cover || "",
