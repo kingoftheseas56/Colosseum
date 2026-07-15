@@ -32,18 +32,24 @@ function Assert-Contains([string]$text, [string]$needle, [string]$message) {
 
 $series  = Read-RepoFile "qml/MangaSeries.qml"
 $library = Read-RepoFile "qml/MangaTankobanLibrary.qml"
-$card    = Read-RepoFile "qml/MangaTankobanSourceCard.qml"
+$page    = Read-RepoFile "qml/MangaTankobanSourcesPage.qml"
 $reader  = Read-RepoFile "qml/MangaReader.qml"
 $main    = Read-RepoFile "qml/Main.qml"
 
 Assert-Contains $series 'text: "TANKOBAN MODE"' "series-level mode label missing"
 Assert-Contains $series 'TankobanVolumes.prepareSeries' "dynamic snapshot is not handed off"
 Assert-Contains $series 'MangaTankobanLibrary {' "volume-first surface missing"
+Assert-Contains $series 'MangaTankobanSourcesPage {' "full-screen sources page must be hosted"
 Assert-Contains $library 'model: root.volumeRows' "all canonical volumes must render"
-Assert-Contains $library 'TankobanVolumes.searchSources' "volume click must open sources"
-Assert-Contains $card 'modelData.uploader' "uploader evidence must remain visible"
-Assert-Contains $card 'modelData.seeders' "seed evidence must remain visible"
-Assert-Contains $card 'Build from chapters' "WeebCentral fallback copy missing"
+Assert-Contains $library 'signal sourcesRequested' "library must emit a full-screen sources request"
+# --- the full-screen sources picker (replaces the inline MangaTankobanSourceCard) ---
+Assert-Contains $page 'text: "SOURCES' "sources page gold eyebrow missing"
+Assert-Contains $page 'searchSources' "sources page must kick a source search"
+Assert-Contains $page 'modelData.uploader' "uploader evidence must remain visible"
+Assert-Contains $page 'modelData.seeders' "seed evidence must remain visible"
+Assert-Contains $page 'Build from chapters' "WeebCentral fallback copy missing"
+Assert-Contains $page 'downloadNyaa' "a Nyaa pick must call downloadNyaa"
+Assert-Contains $page 'compileWeebCentral' "a WeebCentral pick must call compileWeebCentral"
 
 # --- Task 10: the generalized reader contract (chapter reading must NOT regress) ---
 Assert-Contains $reader 'property var pageStore: null' "reader must accept an injected page store"

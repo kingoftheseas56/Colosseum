@@ -1,5 +1,5 @@
-// Offscreen logic harness for MangaTankobanLibrary (Task 9) + the generalized
-// MangaReader (Task 10).
+// Offscreen logic harness for MangaTankobanLibrary + MangaTankobanSourcesPage
+// (Task 9) + the generalized MangaReader (Task 10).
 //
 // A grep test proves the wiring strings exist; THIS proves the volume-first
 // surface actually behaves. It supplies a FAKE `TankobanVolumes` (an in-memory
@@ -8,7 +8,10 @@
 //   * Off is the default, and enabling series A does NOT enable series B
 //     (per-series persistence lives in the service, keyed by seriesId).
 //   * EVERY canonical volume renders as a row, even one with no source.
-//   * The Nyaa cards keep the service's order and the WeebCentral card is LAST.
+//   * "Choose source" raises sourcesRequested with the volume identity, and the
+//     full-screen MangaTankobanSourcesPage renders the service's sources VERBATIM
+//     (Nyaa rows in order, the WeebCentral fallback LAST) — a Nyaa pick dispatches
+//     downloadNyaa(volumeId, infoHash), an enabled WeebCentral pick compiles.
 //   * A `progress` for one volume attaches to that volume's row only — and never
 //     to another SERIES' library that shares the same service.
 //
@@ -38,6 +41,11 @@ Item {
         property var volMap: ({})
         property var srcMap: ({})
 
+        // records the last picker dispatch so the page test can assert the exact call
+        property string lastNyaaVol: ""
+        property string lastNyaaHash: ""
+        property string lastCompileVol: ""
+
         signal volumesChanged(string seriesId)
         signal sourcesReady(string volumeId, var results)
         signal progress(string volumeId, real done, real total)
@@ -56,8 +64,8 @@ Item {
             volumesChanged(sid)
         }
         function searchSources(vid) { sourcesReady(vid, srcMap[vid] !== undefined ? srcMap[vid] : []) }
-        function downloadNyaa(vid, infoHash) { /* recorded elsewhere; no-op here */ }
-        function compileWeebCentral(vid) { /* no-op */ }
+        function downloadNyaa(vid, infoHash) { lastNyaaVol = String(vid); lastNyaaHash = String(infoHash) }
+        function compileWeebCentral(vid) { lastCompileVol = String(vid) }
         function cancel(vid) { /* no-op */ }
         function remove(vid) { /* no-op */ }
         function statusOf(vid) { return { "state": "none", "done": 0, "total": 0 } }
@@ -157,10 +165,12 @@ Item {
 
     property var libA: null
     property var libB: null
+    property var page: null               // MangaTankobanSourcesPage (full-screen picker)
     property var readerT: null            // tankoban (volume) reader
     property var readerC: null            // chapter (manga) reader
     property var readerComp: null         // the MangaReader component (reused for the backward-cross reader)
     property string lastSourceReq: ""     // last reader.sourceRequested(entryId)
+    property var lastLibReq: null          // last library.sourcesRequested(context)
 
     // the reader's DESCENDING volume model (highest volume first) — the series page
     // builds exactly this from the ascending library so curIndex-1 is the next HIGHER
@@ -185,6 +195,14 @@ Item {
         harness.libA = comp.createObject(harness, { "service": svc, "seriesId": "A", "width": 620 })
         harness.libB = comp.createObject(harness, { "service": svc, "seriesId": "B", "width": 620 })
         if (!harness.libA || !harness.libB) throw new Error("createObject returned null")
+        harness.libA.sourcesRequested.connect(function (ctx) { harness.lastLibReq = ctx })
+
+        // The full-screen picker, sharing the SAME fake service. show() kicks the fake's
+        // searchSources, which synchronously emits sourcesReady back into the page.
+        var pc = Qt.createComponent("../qml/MangaTankobanSourcesPage.qml")
+        if (pc.status === Component.Error) throw new Error("page component: " + pc.errorString())
+        harness.page = pc.createObject(harness, { "service": svc, "width": 640, "height": 480 })
+        if (!harness.page) throw new Error("page createObject returned null")
 
         // Task 10: the SAME reader, opened on a READY volume through the injected store.
         var rc = Qt.createComponent("../qml/MangaReader.qml")
@@ -223,19 +241,50 @@ Item {
             ck(harness.libA.renderedCount === 3, "A must RENDER 3 rows, got " + harness.libA.renderedCount)
             ck(harness.libB.renderedCount === 2, "B must RENDER 2 rows, got " + harness.libB.renderedCount)
 
-            // 4. Nyaa cards keep service order; WeebCentral card is LAST.
+            // 4. "Choose source" RAISES sourcesRequested with the volume identity (the
+            //    library no longer renders an inline chooser); MangaSeries merges the
+            //    series id/title and opens the full-screen picker.
+            harness.lastLibReq = null
             harness.libA.chooseSource("volA1")
-            var r = harness.libA.expandedByVolume["volA1"]
-            ck(r !== undefined && r.length === 3, "volA1 must expose 3 source cards")
-            ck(r[0].kind === "nyaa" && r[0].uploader === "Stumbleine", "first card must be the service's first Nyaa row")
-            ck(r[1].kind === "nyaa" && r[1].uploader === "danke-Empire", "second card must keep service order")
-            ck(r[2].kind === "weebcentral", "the WeebCentral card must be LAST")
+            ck(harness.lastLibReq !== null, "chooseSource must emit sourcesRequested")
+            ck(String(harness.lastLibReq.volumeId) === "volA1", "the request must carry the volumeId")
+            ck(String(harness.lastLibReq.number) === "1", "the request must carry the volume number")
+            ck(harness.lastLibReq.title === "Romance Dawn", "the request must carry the volume title")
 
-            // ...even a volume with no Nyaa source still gets the WeebCentral card last.
-            harness.libA.chooseSource("volA3")
-            var r3 = harness.libA.expandedByVolume["volA3"]
-            ck(r3 !== undefined && r3.length === 1 && r3[0].kind === "weebcentral",
-               "a source-less volume must still show the WeebCentral card")
+            // 4b. The full-screen picker renders the service's sources VERBATIM — the two
+            //     Nyaa rows in order, the WeebCentral fallback LAST.
+            harness.page.show({ "volumeId": "volA1", "seriesTitle": "One Piece",
+                                "volumeNumber": "1", "volumeTitle": "Romance Dawn", "cover": "" })
+            ck(harness.page.rows.length === 3, "the picker must render all 3 sources, got " + harness.page.rows.length)
+            ck(harness.page.rows[0].kind === "nyaa" && harness.page.rows[0].uploader === "Stumbleine",
+               "picker row 0 must be the service's first Nyaa row")
+            ck(harness.page.rows[1].kind === "nyaa" && harness.page.rows[1].uploader === "danke-Empire",
+               "picker row 1 must keep service order")
+            ck(harness.page.rows[2].kind === "weebcentral", "the WeebCentral row must be LAST")
+
+            // 4c. Picking the (enabled) WeebCentral fallback compiles from chapters, then closes.
+            svc.lastCompileVol = ""
+            harness.page.pickWeeb(harness.page.rows[2])
+            ck(svc.lastCompileVol === "volA1", "a WeebCentral pick must call compileWeebCentral(volumeId)")
+            ck(harness.page.open === false, "choosing the WeebCentral fallback closes the picker")
+
+            // 4d. Picking a Nyaa row calls downloadNyaa(volumeId, infoHash) and closes.
+            harness.page.show({ "volumeId": "volA1", "seriesTitle": "One Piece", "volumeNumber": "1", "cover": "" })
+            var firstNyaa = harness.page.rows[0]
+            svc.lastNyaaVol = ""; svc.lastNyaaHash = ""
+            harness.page.pickNyaa(firstNyaa)
+            ck(svc.lastNyaaVol === "volA1", "a Nyaa pick must call downloadNyaa with the volumeId")
+            ck(svc.lastNyaaHash === firstNyaa.infoHash, "a Nyaa pick must pass the row's infoHash")
+            ck(harness.page.open === false, "choosing a source closes the picker")
+
+            // 4e. A source-less volume still shows the WeebCentral fallback last; when that
+            //     fallback is DISABLED, picking it does nothing (no compile).
+            harness.page.show({ "volumeId": "volA3", "seriesTitle": "One Piece", "volumeNumber": "3", "cover": "" })
+            ck(harness.page.rows.length === 1 && harness.page.rows[0].kind === "weebcentral",
+               "a source-less volume must still show the WeebCentral fallback")
+            svc.lastCompileVol = ""
+            harness.page.pickWeeb(harness.page.rows[0])
+            ck(svc.lastCompileVol === "", "a DISABLED WeebCentral fallback must not compile")
 
             // 5. progress attaches to that volume's row ONLY — not sibling volumes,
             //    and not another series' library sharing the same service.
