@@ -285,6 +285,19 @@ add_executable(comic_edition_file_selector_harness
 target_include_directories(comic_edition_file_selector_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_edition_file_selector_harness PRIVATE Qt6::Core)
 
+# Restart-safe collected-edition request ledger (spec 2026-07-15 "Durable
+# shared-infohash transport" -> ComicRequestLedger). Pure QSaveFile/QJson
+# persistence, ported from the proven MangaVolumeRequestLedger discipline.
+add_executable(comic_request_ledger_harness
+    ../tests/comic_request_ledger_harness.cpp
+    torrent/ComicRequestLedger.cpp
+    torrent/ComicRequestLedger.h
+    torrent/ComicEditionIdentity.cpp
+    torrent/ComicEditionIdentity.h
+)
+target_include_directories(comic_request_ledger_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_request_ledger_harness PRIVATE Qt6::Core)
+
 # Assembly: selected payload (single archive / issue-archive set / loose-image
 # subtree / confirmed combined archive) -> one validated page staging dir,
 # never publishing partial output (spec 2026-07-15 "Assembly and
