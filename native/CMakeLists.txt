@@ -256,6 +256,23 @@ add_executable(comic_edition_identity_harness
 target_include_directories(comic_edition_identity_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_edition_identity_harness PRIVATE Qt6::Core)
 
+# Coverage grammar + uploader trust reader (spec 2026-07-15 "Coverage and
+# trust"). app_resources.qrc is listed as a source so AUTORCC compiles the
+# bundled comics_uploader_trust.json into THIS harness too — otherwise
+# ComicUploaderTrust::load() would find no ":/tankorent/..." resource here.
+add_executable(comic_coverage_trust_harness
+    ../tests/comic_coverage_trust_harness.cpp
+    torrent/ComicCoverage.cpp
+    torrent/ComicCoverage.h
+    torrent/ComicEditionIdentity.cpp
+    torrent/ComicEditionIdentity.h
+    torrent/ComicUploaderTrust.cpp
+    torrent/ComicUploaderTrust.h
+    app_resources.qrc
+)
+target_include_directories(comic_coverage_trust_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_coverage_trust_harness PRIVATE Qt6::Core)
+
 add_executable(comic_torrent_magnet_harness
     ../tests/comic_torrent_magnet_harness.cpp
     torrent/ComicTorrentMagnet.h
