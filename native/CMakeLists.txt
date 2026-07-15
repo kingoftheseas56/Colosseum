@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)   # compile app_resources.qrc (embeds the .ico for setWindowIcon)
 
-find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets)
+find_package(Qt6 REQUIRED COMPONENTS Quick Network Qml Gui Sql WebEngineQuick WebChannel WebSockets Concurrent)
 
 # --- video player: KDE mpvqt (libmpv-in-QtQuick) + libmpv ---
 # Consumes the PROVEN feasibility build (don't rebuild — see kindled-reel recap).
@@ -186,7 +186,7 @@ add_executable(colosseum
     engine/MangaTankobanService.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
-target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql MpvQt::MpvQt
+target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
 
 add_executable(search_history_store_harness
@@ -430,6 +430,14 @@ add_executable(anime_order_index_harness
     anime/AnimeOrderIndex.h)
 target_include_directories(anime_order_index_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(anime_order_index_harness PRIVATE Qt6::Core)
+
+# ── Anime ordering cache/refresh service harness (local HTTP server, no net) ──
+add_executable(anime_order_service_harness
+    ../tests/anime_order_service_harness.cpp
+    anime/AnimeOrderIndex.cpp
+    anime/AnimeOrderService.cpp)
+target_include_directories(anime_order_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(anime_order_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
