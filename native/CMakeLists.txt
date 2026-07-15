@@ -350,6 +350,19 @@ add_executable(comic_torrent_seed_harness
 target_include_directories(comic_torrent_seed_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comic_torrent_seed_harness PRIVATE Qt6::Core colosseum_libtorrent)
 
+# Task 11 (real-engine DLTEST gate): a legal loopback seeder for the
+# select->download->assemble->publish->restart chain's Compendium/issue-set/
+# shared-infohash/restart-replay scenarios. Needs libtorrent — same
+# colosseum_libtorrent INTERFACE target as its single-file sibling above
+# (this build FATAL_ERRORs already if libtorrent is missing, so there is no
+# separate CMake-level HAS_LIBTORRENT branch to gate; the .cpp itself carries
+# no #ifdef because it always builds alongside the rest of this torrent code).
+add_executable(comic_torrent_pack_seed_harness
+    ../tests/comic_torrent_pack_seed_harness.cpp
+)
+target_include_directories(comic_torrent_pack_seed_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comic_torrent_pack_seed_harness PRIVATE Qt6::Core colosseum_libtorrent)
+
 add_executable(comic_downloader_ingest_harness
     ../tests/comic_downloader_ingest_harness.cpp
     engine/ComicDownloader.cpp

@@ -241,6 +241,23 @@ int main(int argc, char *argv[]) {
                      qUtf8Printable(oldAppData), qUtf8Printable(newAppData));
     }
 
+    // Test-only AppData isolation (Task 11, COLOSSEUM_COMIC_PACK_DLTEST gate).
+    // Qt's Windows QStandardPaths backend reads AppDataLocation from the
+    // registry (SHGetKnownFolderPath), NOT the $env:APPDATA process variable —
+    // verified empirically (a probe with $env:APPDATA overridden still
+    // resolved the real Roaming path). QStandardPaths DOES re-resolve from the
+    // CURRENT applicationName on every call, so a per-run name suffix reliably
+    // redirects every AppData-backed store (comics index, the pack transport's
+    // ledger/staging/torrent dirs, QSettings, ...) to a disposable sibling
+    // folder — never the real Roaming/Brotherhood/Colosseum tree a brother's
+    // real downloads live in. Applied AFTER the migration above so that
+    // one-time logic is never confused by a suffixed name. Runs ONLY when the
+    // env var is set — an ordinary launch is byte-for-byte unaffected.
+    if (qEnvironmentVariableIsSet("COLOSSEUM_APPDATA_TAG")) {
+        app.setApplicationName(QStringLiteral("Colosseum-dltest-")
+            + qEnvironmentVariable("COLOSSEUM_APPDATA_TAG"));
+    }
+
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
 
@@ -436,6 +453,20 @@ int main(int argc, char *argv[]) {
         // Never runs unless the env var is set (an idle app touches no network).
         tankobanVolumes->runDownloadSelfTest(
             qEnvironmentVariable("COLOSSEUM_TANKOBAN_DLTEST"));
+    }
+
+    if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_PACK_DLTEST")) {
+        // Honest end-to-end self-test (Task 11) for the Tankorent Comic
+        // shared-infohash pack-selection transport. Spec:
+        //   "<scenario>|<magnet>|<fixture-id>[|<fixture-id2>]"
+        // scenario in {single, issues, shared, restart}. Drives the REAL
+        // production downloadTorrentEdition() path against a legal loopback
+        // seeder (tests/comic_torrent_pack_seed_harness.cpp), prints
+        // "COMIC_PACK_<SCENARIO>_DONE pages=<n> [groups=<n>]" and exits 0, or
+        // "[comic-pack-dltest] FAIL <reason>" and exits 2. Mirrors the
+        // COLOSSEUM_TANKOBAN_DLTEST self-test idiom above. Never runs unless
+        // the env var is set.
+        comics->runPackSelfTest(qEnvironmentVariable("COLOSSEUM_COMIC_PACK_DLTEST"));
     }
 
     if (qEnvironmentVariableIsSet("COLOSSEUM_ABB_DLTEST")) {

@@ -159,6 +159,20 @@ public:
     void selfTestTorrent(const QString& infoHash, const QString& seriesTitle,
                          const QString& issueLabel);
 
+    // ── Test-only end-to-end self-test (COLOSSEUM_COMIC_PACK_DLTEST, Task 11) ──
+    // Honest end-to-end proof for the shared-infohash edition PACK transport
+    // (downloadTorrentEdition), wired from main.cpp only when the env var is
+    // set (an idle app never calls it, so it touches no network). Spec:
+    //   "<scenario>|<magnet>|<fixture-id>[|<fixture-id2>]"
+    // scenario in {single, issues, shared, restart}; fixture-id(s) select a
+    // canonical edition target from the fixed table this method carries
+    // in-source (matching the archives tests/comic_torrent_pack_seed_harness.cpp
+    // seeds). Drives the SAME downloadTorrentEdition() entry point QML uses —
+    // never a shortcut path. Prints "COMIC_PACK_<SCENARIO>_DONE pages=<n>
+    // [groups=<n>]" and exits 0 on success; "[comic-pack-dltest] FAIL <reason>"
+    // and exits 2 on any failure or a 240s hard timeout.
+    Q_INVOKABLE void runPackSelfTest(const QString& spec);
+
 signals:
     void progress(const QString& issueId, double done, double total);   // bytes
     void finished(const QString& issueId);

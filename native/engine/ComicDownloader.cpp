@@ -22,6 +22,7 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
+#include <QSharedPointer>
 #include <QStandardPaths>
 #include <QStorageInfo>
 #include <QTimer>
@@ -101,6 +102,46 @@ QString bsdtarPath()
     const QString sys = QStringLiteral("C:/Windows/System32/tar.exe");
     if (QFileInfo::exists(sys)) return sys;
     return QStandardPaths::findExecutable(QStringLiteral("tar"));
+}
+
+// ── COLOSSEUM_COMIC_PACK_DLTEST fixture table (Task 11) ─────────────────────
+// The canonical edition identity for each fixture id the seed harness
+// (tests/comic_torrent_pack_seed_harness.cpp) bakes into its ONE loopback
+// torrent. "compendium-v01"/"v02" resolve via the exact-title tier against
+// "Compendiums/Invincible Compendium vNN.cbz"; "issue-set" resolves via the
+// collected-issue-set tier against "Issues/Guardians #1..3.cbz" — a
+// DIFFERENT series name than the Compendiums on purpose, so the issue tier's
+// series-agreement check can never accidentally match a Compendium archive.
+struct DltestPackFixture {
+    QString seriesId;
+    QString seriesTitle;
+    QString editionTitle;
+    QString isbn;
+    QString collects;
+};
+
+DltestPackFixture dltestPackFixture(const QString& fixtureId)
+{
+    if (fixtureId == QStringLiteral("compendium-v01")) {
+        return { QStringLiteral("gc:series:dltest-invincible"), QStringLiteral("Invincible"),
+                 QStringLiteral("Invincible Compendium v01"), QString(), QString() };
+    }
+    if (fixtureId == QStringLiteral("compendium-v02")) {
+        return { QStringLiteral("gc:series:dltest-invincible"), QStringLiteral("Invincible"),
+                 QStringLiteral("Invincible Compendium v02"), QString(), QString() };
+    }
+    if (fixtureId == QStringLiteral("issue-set")) {
+        return { QStringLiteral("gc:series:dltest-guardians"), QStringLiteral("Guardians"),
+                 QStringLiteral("Guardians Fixture Set"), QString(), QStringLiteral("#1-3") };
+    }
+    return {};
+}
+
+// editionId for a DLTEST fixture — deterministic so a "restart" launch
+// derives the SAME id a prior "single" launch used on the same AppData root.
+QString dltestPackEditionId(const QString& fixtureId)
+{
+    return QStringLiteral("comicpack-dltest-") + fixtureId;
 }
 
 } // namespace
@@ -1155,6 +1196,197 @@ void ComicDownloader::selfTestTorrent(const QString& magnetOrHash, const QString
                                  seriesTitle + QLatin1Char(' ') + issueLabel,
                                  magnetOrHash.startsWith(QStringLiteral("magnet:?"))
                                      ? magnetOrHash : QString());
+}
+
+// ── Test-only end-to-end self-test (COLOSSEUM_COMIC_PACK_DLTEST, Task 11) ───
+
+void ComicDownloader::runPackSelfTest(const QString& spec)
+{
+    const QStringList parts = spec.split(QLatin1Char('|'));
+    if (parts.size() < 3) {
+        qWarning().noquote() << "[comic-pack-dltest] FAIL bad spec — expected "
+                                 "<scenario>|<magnet>|<fixture-id>[|<fixture-id2>]";
+        QCoreApplication::exit(2);
+        return;
+    }
+    const QString scenario     = parts.at(0).trimmed().toLower();
+    const QString magnetOrHash = parts.at(1).trimmed();
+    const QString fixtureId1   = parts.at(2).trimmed();
+    const QString fixtureId2   = parts.size() > 3 ? parts.at(3).trimmed() : QString();
+
+    const QString hash = ComicTorrentMagnet::infoHash(magnetOrHash);
+    const QString magnetUri = magnetOrHash.startsWith(QStringLiteral("magnet:?"), Qt::CaseInsensitive)
+        ? magnetOrHash : QString();
+    if (hash.isEmpty() || fixtureId1.isEmpty()) {
+        qWarning().noquote() << "[comic-pack-dltest] FAIL bad spec — empty/unparseable "
+                                 "magnet/infohash or empty fixture id";
+        QCoreApplication::exit(2);
+        return;
+    }
+    if (!m_torrents) {
+        qWarning().noquote() << "[comic-pack-dltest] FAIL comic torrent service unavailable";
+        QCoreApplication::exit(2);
+        return;
+    }
+
+    // Hard backstop: never hang — matches the manga/tankoban DLTEST idiom.
+    QTimer::singleShot(240000, this, [scenario]() {
+        qWarning().noquote() << "[comic-pack-dltest] FAIL timeout scenario=" << scenario;
+        QCoreApplication::exit(2);
+    });
+
+    if (scenario == QStringLiteral("single")) {
+        const DltestPackFixture fx = dltestPackFixture(fixtureId1);
+        const QString editionId = dltestPackEditionId(fixtureId1);
+        connect(this, &ComicDownloader::finished, this, [this, editionId](const QString& id) {
+            if (id != editionId) return;
+            const int pages = localPages(editionId).size();
+            if (pages <= 0) {
+                qWarning().noquote() << "[comic-pack-dltest] FAIL no reader pages for" << editionId;
+                QCoreApplication::exit(2);
+                return;
+            }
+            qInfo().noquote() << QStringLiteral("COMIC_PACK_SINGLE_DONE pages=%1").arg(pages);
+            QCoreApplication::exit(0);
+        });
+        connect(this, &ComicDownloader::failed, this,
+                [editionId](const QString& id, const QString& reason) {
+            if (id != editionId) return;
+            qWarning().noquote() << "[comic-pack-dltest] FAIL" << reason;
+            QCoreApplication::exit(2);
+        });
+        downloadTorrentEdition(editionId, fx.seriesId, fx.seriesTitle, fx.editionTitle,
+                               fx.isbn, fx.collects, hash, magnetUri);
+        return;
+    }
+
+    if (scenario == QStringLiteral("issues")) {
+        const DltestPackFixture fx = dltestPackFixture(fixtureId1);
+        const QString editionId = dltestPackEditionId(fixtureId1);
+        connect(this, &ComicDownloader::finished, this, [this, editionId](const QString& id) {
+            if (id != editionId) return;
+            const QVariantList pages = localPages(editionId);
+            if (pages.isEmpty()) {
+                qWarning().noquote() << "[comic-pack-dltest] FAIL no reader pages for" << editionId;
+                QCoreApplication::exit(2);
+                return;
+            }
+            QSet<int> groups;
+            for (const QVariant& p : pages)
+                groups.insert(p.toMap().value(QStringLiteral("group")).toInt());
+            qInfo().noquote() << QStringLiteral("COMIC_PACK_ISSUES_DONE pages=%1 groups=%2")
+                                     .arg(pages.size()).arg(groups.size());
+            QCoreApplication::exit(0);
+        });
+        connect(this, &ComicDownloader::failed, this,
+                [editionId](const QString& id, const QString& reason) {
+            if (id != editionId) return;
+            qWarning().noquote() << "[comic-pack-dltest] FAIL" << reason;
+            QCoreApplication::exit(2);
+        });
+        downloadTorrentEdition(editionId, fx.seriesId, fx.seriesTitle, fx.editionTitle,
+                               fx.isbn, fx.collects, hash, magnetUri);
+        return;
+    }
+
+    if (scenario == QStringLiteral("shared")) {
+        if (fixtureId2.isEmpty()) {
+            qWarning().noquote() << "[comic-pack-dltest] FAIL shared scenario needs two fixture ids";
+            QCoreApplication::exit(2);
+            return;
+        }
+        const DltestPackFixture fxA = dltestPackFixture(fixtureId1);
+        const DltestPackFixture fxB = dltestPackFixture(fixtureId2);
+        const QString editionA = dltestPackEditionId(fixtureId1);
+        const QString editionB = dltestPackEditionId(fixtureId2);
+        // Heap-owned (not a stack local) — the lambdas that reference it fire
+        // later, from the event loop, after this function has returned.
+        auto cancelledA = QSharedPointer<bool>::create(false);
+
+        connect(this, &ComicDownloader::progress, this,
+                [this, editionA, cancelledA](const QString& id, double done, double) {
+            if (id != editionA || *cancelledA || done <= 0) return;
+            *cancelledA = true;
+            qInfo().noquote() << "[comic-pack-dltest] cancelling" << editionA << "mid-flight";
+            cancelDownload(editionA);
+        });
+        connect(this, &ComicDownloader::finished, this, [this, editionA, editionB](const QString& id) {
+            if (id == editionA) {
+                qWarning().noquote() << "[comic-pack-dltest] FAIL cancelled edition finished anyway:"
+                                      << editionA;
+                QCoreApplication::exit(2);
+                return;
+            }
+            if (id != editionB) return;
+            const int pages = localPages(editionB).size();
+            if (pages <= 0) {
+                qWarning().noquote() << "[comic-pack-dltest] FAIL no reader pages for" << editionB;
+                QCoreApplication::exit(2);
+                return;
+            }
+            qInfo().noquote() << QStringLiteral("COMIC_PACK_SHARED_DONE pages=%1").arg(pages);
+            QCoreApplication::exit(0);
+        });
+        connect(this, &ComicDownloader::failed, this,
+                [editionA, editionB](const QString& id, const QString& reason) {
+            if (id == editionA) {
+                // Expected — this is OUR deliberate mid-flight cancel.
+                if (reason.contains(QStringLiteral("cancelled"))) return;
+                qWarning().noquote() << "[comic-pack-dltest] FAIL edition A failed unexpectedly:"
+                                      << reason;
+                QCoreApplication::exit(2);
+                return;
+            }
+            if (id != editionB) return;
+            qWarning().noquote() << "[comic-pack-dltest] FAIL" << reason;
+            QCoreApplication::exit(2);
+        });
+
+        downloadTorrentEdition(editionA, fxA.seriesId, fxA.seriesTitle, fxA.editionTitle,
+                               fxA.isbn, fxA.collects, hash, magnetUri);
+        downloadTorrentEdition(editionB, fxB.seriesId, fxB.seriesTitle, fxB.editionTitle,
+                               fxB.isbn, fxB.collects, hash, magnetUri);
+        return;
+    }
+
+    if (scenario == QStringLiteral("restart")) {
+        // The ledger replay this proves already ran INSIDE this object's own
+        // construction (ComicTorrentDownloader's constructor replays every
+        // active row, re-adding the shared torrent paused before this method
+        // is ever reached from main.cpp) — this branch only OBSERVES that
+        // in-flight replay to its terminal state. It must never start a fresh
+        // request; doing so would defeat the point of proving replay works.
+        const QString editionId = dltestPackEditionId(fixtureId1);
+        auto reportDone = [this, editionId]() {
+            const int pages = localPages(editionId).size();
+            if (pages <= 0) {
+                qWarning().noquote() << "[comic-pack-dltest] FAIL no reader pages for" << editionId;
+                QCoreApplication::exit(2);
+                return;
+            }
+            int records = 0;
+            for (const QVariant& row : downloadedIssues())
+                if (row.toMap().value(QStringLiteral("id")).toString() == editionId) ++records;
+            qInfo().noquote() << QStringLiteral("COMIC_PACK_RESTART_DONE pages=%1 records=%2")
+                                     .arg(pages).arg(records);
+            QCoreApplication::exit(0);
+        };
+        if (isDownloaded(editionId)) { reportDone(); return; }
+        connect(this, &ComicDownloader::finished, this, [editionId, reportDone](const QString& id) {
+            if (id != editionId) return;
+            reportDone();
+        });
+        connect(this, &ComicDownloader::failed, this,
+                [editionId](const QString& id, const QString& reason) {
+            if (id != editionId) return;
+            qWarning().noquote() << "[comic-pack-dltest] FAIL" << reason;
+            QCoreApplication::exit(2);
+        });
+        return;
+    }
+
+    qWarning().noquote() << "[comic-pack-dltest] FAIL unknown scenario" << scenario;
+    QCoreApplication::exit(2);
 }
 
 QVariantList ComicDownloader::downloadedIssues() const

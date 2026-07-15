@@ -385,9 +385,31 @@ void ComicTorrentDownloader::replayPackActive()
         m_hashByEdition.insert(row.editionId, row.infoHash);
         m_ledger->setState(row.editionId, QStringLiteral("awaiting_metadata"));
     }
-    for (PackJob* job : m_packJobs) {
+    // Same engine-lifecycle guard as downloadEdition() (see its comment) —
+    // a restart that resumes an in-flight edition-pack row must start the
+    // engine itself; nothing else is guaranteed to have done so first. Only
+    // touched when there is actually something to replay (an idle app with
+    // an empty ledger starts no engine, no network — untouched doctrine).
+    if (m_engine && !m_packJobs.isEmpty() && !m_engine->isRunning()) m_engine->start();
+    // Snapshot the jobs before mutating m_packJobs inside the loop (the
+    // canonical-hash rebind below re-keys it) — iterating a QHash while
+    // inserting/removing its own keys is unsafe.
+    const QList<PackJob*> jobsToResume = m_packJobs.values();
+    for (PackJob* job : jobsToResume) {
         QDir().mkpath(job->saveDir);
-        if (m_engine) m_engine->addMagnet(job->magnetUri, job->saveDir, /*paused=*/true);
+        if (!m_engine) continue;
+        const QString added = m_engine->addMagnet(job->magnetUri, job->saveDir, /*paused=*/true);
+        // Same hybrid v1/v2 canonical-hash rebind as downloadEdition() (see
+        // its comment) — a replayed row's ledger-persisted infoHash can be
+        // the v1 BTIH it was originally requested by, but every engine
+        // signal from here on reports the canonical "best" hash.
+        if (!added.isEmpty() && added != job->infoHash) {
+            m_packJobs.remove(job->infoHash);
+            job->infoHash = added;
+            m_packJobs.insert(job->infoHash, job);
+            for (const EditionIntent& intent : job->intents)
+                m_hashByEdition.insert(intent.editionId, job->infoHash);
+        }
     }
 }
 
@@ -454,6 +476,15 @@ void ComicTorrentDownloader::downloadEdition(const ComicEditionIdentity::ComicEd
         emit failed(editionId, QStringLiteral("edition transport unavailable"));
         return;
     }
+    // The legacy single-archive path (download(), above) always guards its
+    // addMagnet with this same check; the pack transport had silently
+    // dropped it, so a session where a comics edition-pack was the FIRST
+    // torrent request ever added a magnet to a session whose network
+    // threads/alert loop had never started — the torrent sat inert forever
+    // (no connection attempt, no metadata, no timeout, no error). Caught by
+    // the real-engine DLTEST gate (Task 11): a fake-engine harness can never
+    // exercise engine lifecycle bugs like this one.
+    if (!m_engine->isRunning()) m_engine->start();
 
     PackJob* job = m_packJobs.value(hash);
     if (!job) {
@@ -466,13 +497,29 @@ void ComicTorrentDownloader::downloadEdition(const ComicEditionIdentity::ComicEd
         m_packJobs.insert(hash, job);
 
         QDir().mkpath(job->saveDir);
-        m_engine->addMagnet(magnetUri, job->saveDir, /*paused=*/true);
+        const QString added = m_engine->addMagnet(magnetUri, job->saveDir, /*paused=*/true);
+        // Hybrid (v1+v2) torrents are requested by v1 BTIH but the engine's
+        // OWN signals (metadataReady/torrentProgress/torrentFinished) always
+        // report its "best" hash — v2 when both are present (TorrentEngine::
+        // hashToHex() -> info_hashes().get_best()). Without this rebind,
+        // every engine signal for a hybrid torrent silently misses
+        // m_packJobs under the wrong key and the job sits in
+        // awaiting_metadata forever — no error, no timeout, nothing arrives.
+        // Mirrors the legacy download() path's identical rebind above in
+        // this file. Caught by the real-engine DLTEST gate (Task 11): the
+        // fake-engine unit harness never constructs a real hybrid
+        // torrent_handle, so it could never exercise this.
+        if (!added.isEmpty() && added != job->infoHash) {
+            m_packJobs.remove(job->infoHash);
+            job->infoHash = added;
+            m_packJobs.insert(job->infoHash, job);
+        }
         addPackIntent(job, target, QStringLiteral("awaiting_metadata"));
         emit resolving(editionId);
 
         // Mirror the legacy path: if the engine already holds metadata (e.g. a
         // re-add of a live torrent) resolve immediately instead of waiting.
-        const QJsonArray existing = m_engine->torrentFiles(hash);
+        const QJsonArray existing = m_engine->torrentFiles(job->infoHash);
         if (!existing.isEmpty()) {
             job->metadataKnown = true;
             job->files = existing;
