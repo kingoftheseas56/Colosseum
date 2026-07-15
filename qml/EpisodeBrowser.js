@@ -1,4 +1,5 @@
 .pragma library
+.import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
 // EpisodeBrowser.js — pure derivations for the in-player episode/source drawer (Feature 8).
 // Everything here is mpv-free and QML-free so the headless harness can prove it behaves.
 // Season/episode rules mirror TheatreSeries.qml (computeSeasons/filterEpisodes) and
@@ -166,6 +167,22 @@ function queueContextFromMeta(videos, nowId, showTitle, backdrop, year) {
     var queue = queueFrom(rows, showTitle, backdrop);
     for (var i = 0; i < queue.length; i++) {
         if (queue[i].id === String(nowId))
+            return { "episodeQueue": queue, "episodeIndex": i, "year": String(year || "") };
+    }
+    return null;
+}
+
+// Anime absolute queue (spec 2026-07-15): when the native order model is a
+// COMPLETE mapping, the bare door recovers one continuous cross-season queue
+// keyed on the original provider stream ids. Returns null for an incomplete or
+// unavailable model so the caller falls back to queueContextFromMeta. null too
+// when the playing id isn't in the queue — an honest no-op, never a guess.
+function queueContextFromOrder(model, nowId, showTitle, backdrop, year) {
+    if (!model || model.absoluteComplete !== true)
+        return null;
+    var queue = AnimeEpisodePresentation.playbackTargets(model, "absolute", 0, showTitle, backdrop);
+    for (var i = 0; i < queue.length; i++) {
+        if (String(queue[i].id) === String(nowId))
             return { "episodeQueue": queue, "episodeIndex": i, "year": String(year || "") };
     }
     return null;

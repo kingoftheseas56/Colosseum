@@ -103,6 +103,12 @@ Item {
     // the drawer's Episodes tab has an instant, fetch-free floor.
     property var playbackQueue: []
     property int playbackQueueIndex: -1
+    // The ordering the current queue was built in ("absolute" | "seasons" | "").
+    // A later AnimeOrder revision upgrades a non-absolute queue to absolute once
+    // the cache is ready; an absolute queue is never re-fetched.
+    property string playbackQueueOrderingMode: ""
+    property int animeOrderRevision: (typeof AnimeOrder !== "undefined") ? AnimeOrder.revision : 0
+    onAnimeOrderRevisionChanged: root.retryAnimeOrderHydration()
 
     property var streamCandidates: []
     property int currentStreamIndex: -1
@@ -828,19 +834,33 @@ Item {
         // Episode neighbors — only when the door passed none.
         if (EpisodeBrowser.isEpisodeId(root.mediaId)
                 && !root.hasAdjacentEpisode("prev") && !root.hasAdjacentEpisode("next")) {
-            TheatreApi.loadMeta("series", EpisodeBrowser.seriesRootId(root.mediaId), function(meta) {
-                if (myGen !== root.hydrateGen)
-                    return
+            var requestedRoot = EpisodeBrowser.seriesRootId(root.mediaId)
+            TheatreApi.loadMeta("series", requestedRoot, function(meta) {
                 var vids = (meta && meta.videos) ? meta.videos : []
-                var ctx = EpisodeBrowser.queueContextFromMeta(
+                // Canonical absolute order first (native service), same-season meta second.
+                var identities = { "resolvedId": requestedRoot, "imdbIds": [requestedRoot] }
+                var order = (typeof AnimeOrder !== "undefined")
+                          ? AnimeOrder.resolve(identities, vids) : ({})
+                var ctx = EpisodeBrowser.queueContextFromOrder(
+                            order, root.mediaId,
+                            EpisodeBrowser.showTitleFrom(root.mediaTitle),
+                            root.mediaArt, root.mediaYear)
+                if (!ctx)
+                    ctx = EpisodeBrowser.queueContextFromMeta(
                             vids, root.mediaId,
                             EpisodeBrowser.showTitleFrom(root.mediaTitle),
                             root.mediaArt, root.mediaYear)
+                // Reject a stale generation or a callback for another title.
+                if (myGen !== root.hydrateGen
+                        || requestedRoot !== EpisodeBrowser.seriesRootId(root.mediaId))
+                    return
                 if (!ctx)
                     return
                 root.playbackQueue = ctx.episodeQueue
                 root.playbackQueueIndex = ctx.episodeIndex
                 root.adjacentEpisodes = root.resolveAdjacentContext(ctx)
+                root.playbackQueueOrderingMode =
+                    (order && order.absoluteComplete === true) ? "absolute" : "seasons"
             })
         }
         // Source list — streamed sessions that arrived with just the one saved torrent.
@@ -878,6 +898,41 @@ Item {
         } else {
             Torrentio.loadStreams(subType, subId, applyRows)
         }
+    }
+
+    // A later service revision can upgrade a bare-door queue to the canonical
+    // absolute order. Retry only while the current media is still an episode and
+    // the queue isn't already absolute; bump hydrateGen first so an earlier
+    // metadata callback cannot land afterward. Never downgrades: if the mapping
+    // still isn't complete, queueContextFromOrder returns null and the existing
+    // queue stands.
+    function retryAnimeOrderHydration() {
+        if (!EpisodeBrowser.isEpisodeId(root.mediaId))
+            return
+        if (root.playbackQueueOrderingMode === "absolute")
+            return
+        root.hydrateGen += 1
+        var myGen = root.hydrateGen
+        var requestedRoot = EpisodeBrowser.seriesRootId(root.mediaId)
+        TheatreApi.loadMeta("series", requestedRoot, function(meta) {
+            var vids = (meta && meta.videos) ? meta.videos : []
+            var identities = { "resolvedId": requestedRoot, "imdbIds": [requestedRoot] }
+            var order = (typeof AnimeOrder !== "undefined")
+                      ? AnimeOrder.resolve(identities, vids) : ({})
+            var ctx = EpisodeBrowser.queueContextFromOrder(
+                        order, root.mediaId,
+                        EpisodeBrowser.showTitleFrom(root.mediaTitle),
+                        root.mediaArt, root.mediaYear)
+            if (!ctx)
+                return
+            if (myGen !== root.hydrateGen
+                    || requestedRoot !== EpisodeBrowser.seriesRootId(root.mediaId))
+                return
+            root.playbackQueue = ctx.episodeQueue
+            root.playbackQueueIndex = ctx.episodeIndex
+            root.adjacentEpisodes = root.resolveAdjacentContext(ctx)
+            root.playbackQueueOrderingMode = "absolute"
+        })
     }
 
     function playStreamAt(index, reason) {
@@ -973,6 +1028,9 @@ Item {
         root.playbackQueue = (playbackContext || ({})).episodeQueue || []
         root.playbackQueueIndex = (playbackContext || ({})).episodeIndex !== undefined
                                   ? Number((playbackContext || ({})).episodeIndex) : -1
+        // A door-provided queue's ordering is unknown; leave it upgradeable so a
+        // ready AnimeOrder generation can lift it to absolute.
+        root.playbackQueueOrderingMode = ""
         root.deadStreamKeys = ({})
         root.stubCheckedKey = ""
         root.autoPausedInactive = false
@@ -1615,6 +1673,7 @@ Item {
 
     function playUrl(url, title) {
         root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
+        root.playbackQueueOrderingMode = ""
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -4112,6 +4171,7 @@ Item {
                     AudioMenu {
                         id: audioMenu
                         anchors.verticalCenter: parent.verticalCenter
+                        overlayParent: chrome
                         visible: !root.barTiny || audioMenu.panelOpen
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
@@ -4136,6 +4196,7 @@ Item {
                     SubtitleMenu {
                         id: subMenu
                         anchors.verticalCenter: parent.verticalCenter
+                        overlayParent: chrome
                         onToggleRequested: function(wasOpen) {
                             root.closeMenus()
                             subMenu.panelOpen = !wasOpen

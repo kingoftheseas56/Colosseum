@@ -145,5 +145,36 @@ QtObject {
         pick = EB.pickContinuityRow(packRows, "", 0)
         if (!pick || pick.infoHash !== "AAA111")
             throw new Error("no current hash -> rank-best")
+
+        // --- queueContextFromOrder: the canonical absolute queue for a bare door ---
+        var completeModel = {
+            absoluteComplete: true, defaultOrder: "absolute",
+            episodes: [
+                { streamId: "tt9:1:7", sourceSeason: 1, sourceEpisode: 7, absoluteNumber: 7, kind: "episode", mapped: true },
+                { streamId: "tt9:1:8", sourceSeason: 1, sourceEpisode: 8, absoluteNumber: 8, kind: "episode", mapped: true },
+                { streamId: "tt9:2:1", sourceSeason: 2, sourceEpisode: 1, absoluteNumber: 9, kind: "episode", mapped: true },
+                { streamId: "tt9:0:3", sourceSeason: 0, sourceEpisode: 3, absoluteNumber: null, kind: "special", mapped: false }
+            ]
+        }
+        var oc = EB.queueContextFromOrder(completeModel, "tt9:2:1", "Long Show", "art.jpg", "1999")
+        if (!oc)
+            throw new Error("complete model must yield an order context")
+        if (oc.episodeQueue.length !== 3)
+            throw new Error("absolute queue excludes the special, got " + oc.episodeQueue.length)
+        if (oc.episodeIndex !== 2)
+            throw new Error("current row must be located by exact stream id, got " + oc.episodeIndex)
+        if (oc.episodeQueue[1].id !== "tt9:1:8" || oc.episodeQueue[2].id !== "tt9:2:1")
+            throw new Error("absolute queue must cross S1E8 into S2E1")
+        if (oc.year !== "1999")
+            throw new Error("order context must carry the year")
+        for (var qi = 0; qi < oc.episodeQueue.length; qi++)
+            if (oc.episodeQueue[qi].id === "tt9:0:3")
+                throw new Error("a special must be excluded from the absolute queue")
+        if (EB.queueContextFromOrder({ absoluteComplete: false, episodes: completeModel.episodes }, "tt9:2:1", "X", "", "") !== null)
+            throw new Error("an incomplete model must return null (caller uses queueContextFromMeta)")
+        if (EB.queueContextFromOrder(null, "tt9:2:1", "X", "", "") !== null)
+            throw new Error("a null model must return null")
+        if (EB.queueContextFromOrder(completeModel, "tt9:9:9", "X", "", "") !== null)
+            throw new Error("a missing current id must return null")
     }
 }
