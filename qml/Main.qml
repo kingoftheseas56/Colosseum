@@ -138,6 +138,10 @@ Window {
         // dev harness (COLOSSEUM_OPEN_WORLD="Theatre"): boot straight into a world
         if (typeof DevOpenWorld !== "undefined" && String(DevOpenWorld).length)
             win.openWorld(String(DevOpenWorld))
+        // bakeoff harness (COLOSSEUM_BAKEOFF_STRIP=<dir>): page-only production
+        // MangaReader over the canonical fixture (long-strip bakeoff spec §10)
+        if (typeof DevBakeoffStripPages !== "undefined" && DevBakeoffStripPages.length)
+            bakeoffStripLayer.active = true
         // dev harness (COLOSSEUM_SUBS_SELFTEST="movie|tt0111161"): headless proof
         // of the multi-well subtitle pipeline — logs subtitle rows per source
         if (typeof DevSubsSelfTest !== "undefined" && String(DevSubsSelfTest).length) {
@@ -1664,6 +1668,17 @@ Window {
 
     // ---- complete Top Comics catalog wall. z 49 keeps it above TankobanWorld but below
     //      ComicSeriesPage (z 50), preserving filters and scroll while a series is open. ----
+    // Bakeoff-only page surface (COLOSSEUM_BAKEOFF_STRIP): topmost so the blind
+    // trial shows nothing but pages — no world chrome, no identity tells.
+    Loader {
+        id: bakeoffStripLayer
+        anchors.fill: parent
+        z: 200
+        active: false
+        visible: active
+        source: "BakeoffStripHost.qml"
+    }
+
     Loader {
         id: comicCatalogLayer
         anchors.fill: parent

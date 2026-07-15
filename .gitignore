@@ -24,3 +24,4 @@ player.ini
 Thumbs.db
 .DS_Store
 tests/xoxo_fixtures.gen.js
+artifacts/reader-bakeoff/

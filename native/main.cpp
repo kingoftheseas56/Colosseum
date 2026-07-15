@@ -510,6 +510,34 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("DevOpenWorld"),
         qEnvironmentVariable("COLOSSEUM_OPEN_WORLD"));
+    // bakeoff harness (long-strip reader bakeoff, spec 2026-07-15): point
+    // COLOSSEUM_BAKEOFF_STRIP at an extracted fixture page directory and the shell
+    // boots a page-only MangaReader over those exact bytes. Adapter only — the
+    // production reader component and its scroll behavior are untouched.
+    {
+        const QString bakeoffDir = qEnvironmentVariable("COLOSSEUM_BAKEOFF_STRIP");
+        QVariantList bakeoffPages;
+        if (!bakeoffDir.isEmpty()) {
+            QDir dir(bakeoffDir);
+            const QStringList names = dir.entryList(
+                QStringList() << QStringLiteral("*.jpg") << QStringLiteral("*.jpeg")
+                              << QStringLiteral("*.png") << QStringLiteral("*.webp"),
+                QDir::Files, QDir::Name);
+            int idx = 0;
+            for (const QString& name : names) {
+                QVariantMap page;
+                page[QStringLiteral("index")] = idx++;
+                page[QStringLiteral("url")] =
+                    QUrl::fromLocalFile(dir.absoluteFilePath(name)).toString();
+                page[QStringLiteral("group")] = -1;
+                bakeoffPages.append(page);
+            }
+            qInfo() << "[bakeoff] strip fixture pages:" << bakeoffPages.size()
+                    << "from" << bakeoffDir;
+        }
+        engine.rootContext()->setContextProperty(
+            QStringLiteral("DevBakeoffStripPages"), bakeoffPages);
+    }
     // dev harness: COLOSSEUM_SUBS_SELFTEST="movie|tt0111161" logs subtitle rows
     // per source (multi-well proof) headlessly at boot.
     engine.rootContext()->setContextProperty(
