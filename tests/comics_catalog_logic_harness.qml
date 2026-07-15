@@ -9,11 +9,11 @@ QtObject {
             if (!ComicsDb.setData(ComicsDbData.data))
                 throw new Error("generated catalog ingest failed")
             var rows = ComicsDb.rankedSeries()
-            if (rows.length !== 688)
-                throw new Error("expected 688 ranked rows, got " + rows.length)
+            if (rows.length !== 806)
+                throw new Error("expected 806 ranked rows, got " + rows.length)
             var prepared = CatalogModel.prepare(rows, ComicsDb.hasDownloadableEdition)
-            if (prepared.length !== 688 || prepared[0].displayRank !== 1
-                    || prepared[prepared.length - 1].displayRank !== 688)
+            if (prepared.length !== 806 || prepared[0].displayRank !== 1
+                    || prepared[prepared.length - 1].displayRank !== 806)
                 throw new Error("display ranks are not sequential")
             var seenRoutes = ({})
             for (var i = 0; i < rows.length; i++) {
