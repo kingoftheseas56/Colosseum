@@ -124,6 +124,8 @@ add_executable(colosseum
     player/streamserver.h
     player/windowmodestore.cpp
     player/windowmodestore.h
+    player/windowstatepolicy.cpp
+    player/windowstatepolicy.h
     torrent/TorrentResult.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
@@ -443,6 +445,15 @@ add_executable(anime_order_service_harness
     anime/AnimeOrderService.cpp)
 target_include_directories(anime_order_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(anime_order_service_harness PRIVATE Qt6::Core Qt6::Network Qt6::Concurrent)
+
+# ── Secret windowed developer mode (spec 2026-07-15): pure geometry policy +
+#    persisted shell-state harness (extended in Task 2 to link Gui/Quick) ──
+add_executable(window_state_policy_harness
+    ../tests/window_state_policy_harness.cpp
+    player/windowstatepolicy.cpp
+    player/windowstatepolicy.h)
+target_include_directories(window_state_policy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(window_state_policy_harness PRIVATE Qt6::Core)
 
 if(WIN32)
     get_target_property(_qt_qmake Qt6::qmake IMPORTED_LOCATION)
