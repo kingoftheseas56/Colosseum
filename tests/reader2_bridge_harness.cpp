@@ -5,6 +5,7 @@
 // dictLookup needs a real event loop + the network — deliberately NOT exercised
 // here so the harness stays deterministic and offline (see Task 4 spec).
 #include "reader2/Reader2Bridge.h"
+#include "reader/BookStores.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -66,21 +67,20 @@ int main(int argc, char** argv)
     check(gotName == QStringLiteral("relocated"), "paperEventReceived name matches");
     check(gotJson == QStringLiteral("{\"percent\":7}"), "paperEventReceived payload matches");
 
-    // (d) bookKey — the zero-migration store key. Must equal SHA1[:20] of the
-    //     path-normalized absolute path, IDENTICAL to BookBridge::progressKey. Compute
-    //     the expected fingerprint independently here and compare, for a couple of paths.
-    auto expectedKey = [](const QString& absPath) {
-        const QString norm = QDir::fromNativeSeparators(absPath);
-        const QByteArray hex =
-            QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
-        return QString::fromLatin1(hex.left(20));
-    };
+    // (d) bookKey — the zero-migration store key. It must (1) delegate to the ONE
+    //     shared derivation BookStores::keyFor (so old + fresh readers can never drift),
+    //     and (2) equal a KNOWN-GOOD fingerprint for a fixed path (a hardcoded expected
+    //     value, not a recomputation — that's what catches a formula change, whereas a
+    //     recompute-here would be a tautology that drifts in lockstep).
     const QString p1 = QStringLiteral("C:/x/y.epub");
     const QString p2 = QStringLiteral("C:/Users/Suprabha/Desktop/book with spaces.epub");
-    check(bridge.bookKey(p1) == expectedKey(p1), "bookKey matches SHA1[:20] formula (p1)");
-    check(bridge.bookKey(p2) == expectedKey(p2), "bookKey matches SHA1[:20] formula (p2)");
+    check(bridge.bookKey(p1) == BookStores::keyFor(p1), "bookKey delegates to BookStores::keyFor (p1)");
+    check(bridge.bookKey(p2) == BookStores::keyFor(p2), "bookKey delegates to BookStores::keyFor (p2)");
+    // Known-good: SHA1[:20] of the UTF-8 bytes of "C:/x/y.epub" (drift tripwire).
+    check(bridge.bookKey(p1) == QStringLiteral("c6c28cd2ca56ec13e016"),
+          "bookKey matches known-good SHA1[:20] for C:/x/y.epub");
     check(bridge.bookKey(p1).size() == 20, "bookKey is 20 hex chars");
-    // Native separators normalize to the SAME key (BookBridge does QDir::fromNativeSeparators).
+    // Native separators normalize to the SAME key (keyFor does QDir::fromNativeSeparators).
     check(bridge.bookKey(QStringLiteral("C:\\x\\y.epub")) == bridge.bookKey(p1),
           "bookKey normalizes backslashes to forward slashes");
 

@@ -1,5 +1,6 @@
 #include "BookStores.h"
 
+#include <QCryptographicHash>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -22,6 +23,18 @@ QString stateDir()
 } // namespace
 
 namespace BookStores {
+
+// Canonical store key: normalize separators, SHA1 the UTF-8 bytes, take the first
+// 20 hex chars. The old reader keyed progress/bookmarks/annotations by exactly this
+// (it set state.book.id before every save/read); the fresh reader must derive the
+// SAME fingerprint to read those records — so both call HERE, never their own copy.
+QString keyFor(const QString& absPath)
+{
+    const QString norm = QDir::fromNativeSeparators(absPath);
+    const QByteArray hex =
+        QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
+    return QString::fromLatin1(hex.left(20));
+}
 
 QJsonObject readStore(const QString& fileName)
 {

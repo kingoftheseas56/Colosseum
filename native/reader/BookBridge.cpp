@@ -74,12 +74,11 @@ QByteArray BookBridge::filesRead(const QString& filePath)
     return {};
 }
 
+// Delegates to BookStores::keyFor — the ONE derivation shared with the fresh reader
+// (Reader2Bridge::bookKey), so the zero-migration key can't drift between readers.
 QString BookBridge::progressKey(const QString& absPath) const
 {
-    const QString norm = QDir::fromNativeSeparators(absPath);
-    const QByteArray hex =
-        QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
-    return QString::fromLatin1(hex.left(20));
+    return BookStores::keyFor(absPath);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

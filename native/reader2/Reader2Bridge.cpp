@@ -39,17 +39,14 @@ void Reader2Bridge::paperEvent(const QString& name, const QString& json)
     emit paperEventReceived(name, json);
 }
 
-// Canonical store key. IDENTICAL derivation to BookBridge::progressKey
-// (native/reader/BookBridge.cpp): normalize separators, SHA1 the UTF-8 bytes, take
-// the first 20 hex chars. This is the fingerprint under which the old reader wrote
-// progress.json / bookmarks.json / annotations.json (it sets state.book.id =
-// keyFor(path) before every save/read), so the fresh reader reads the same records.
+// Canonical store key — delegates to BookStores::keyFor, the ONE derivation shared
+// with the old reader (BookBridge::progressKey). This is the fingerprint under which
+// the old reader wrote progress.json / bookmarks.json / annotations.json (it sets
+// state.book.id = keyFor(path) before every save/read), so the fresh reader reads the
+// same records. Both readers call the same function; neither owns its own copy.
 QString Reader2Bridge::bookKey(const QString& absPath) const
 {
-    const QString norm = QDir::fromNativeSeparators(absPath);
-    const QByteArray hex =
-        QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
-    return QString::fromLatin1(hex.left(20));
+    return BookStores::keyFor(absPath);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

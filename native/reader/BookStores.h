@@ -19,6 +19,13 @@
 
 namespace BookStores {
 
+// ── canonical store key ──
+// SHA1[:20] of the path-normalized absolute path. This is the ONE place the
+// fingerprint is derived: the old reader (BookBridge::progressKey) and the fresh
+// reader (Reader2Bridge::bookKey) both delegate here, so the zero-migration promise
+// can never drift between them.
+QString keyFor(const QString& absPath);
+
 // ── raw whole-file JSON object store ──
 QJsonObject readStore(const QString& fileName);
 void        writeStore(const QString& fileName, const QJsonObject& all);
