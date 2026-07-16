@@ -531,10 +531,16 @@ Window {
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
+    // Every reader/player surface that must suppress the OS-shell taskbar. There are THREE
+    // comic/manga reader lanes (all share the reader chrome — see minimizeComicReader):
+    // seriesLayer=manga, westernLayer=western comics, comicSeriesLayer=the LOCG catalogue.
+    // comicSeriesLayer was missing here, so the taskbar rode in front of that reader while
+    // the other two + book + player suppressed it correctly (Hemanth, 2026-07-16).
     readonly property bool immersiveSurfaceOpen: win.playerOpen
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
+        || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
