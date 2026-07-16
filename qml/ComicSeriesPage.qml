@@ -89,10 +89,24 @@ Item {
     readonly property var dbSeries: (ComicsDb.ready() && page.locgId.length)
                                     ? ComicsDb.series(page.locgId) : null
 
+    // Generation guard: this page is REUSED across series opens (Main.openComicSeries reassigns
+    // locgId without unloading), and the live attach() path fires async callbacks. Every attach
+    // bumps attachGen; each async callback below bails unless its captured gen is still current —
+    // otherwise a slow no-match callback for a PREVIOUS series clobbers page state (notAvailable,
+    // rows) on the series now on screen. Bumped on EVERY attach, incl. the DB path, so a pending
+    // live callback for a prior series can't paint over a DB-backed series' ledger.
+    property int attachGen: 0
     onLocgIdChanged: attach()
     function attach() {
+        var gen = ++page.attachGen
         if (!locgId.length) return
-        if (page.dbSeries) {                 // DB has it → the ledger renders; skip live resolution
+        // Read ComicsDb FRESH for the branch decision — do NOT trust the page.dbSeries binding
+        // here. Inside onLocgIdChanged, that binding (which also depends on locgId) may not have
+        // re-evaluated yet, so it can return the PREVIOUS series' cached value: a DB-backed series
+        // would then wrongly take the live path, fire Resolve.resolve, and its own no-match set
+        // notAvailable=true over a fully-catalogued series. The binding stays for rendering.
+        var dbHit = (ComicsDb.ready() && locgId.length) ? ComicsDb.series(locgId) : null
+        if (dbHit) {                         // DB has it → the ledger renders; skip live resolution
             page.gcTag = String(locgId).replace(/^locg:/, "")   // download/reader namespace
             page.loading = false
             page.notAvailable = false
@@ -108,16 +122,18 @@ Item {
         page.errorMsg = ""
         Resolve.resolve({ id: locgId, title: seriesTitle, startYear: (locgMeta.startYear || 0) },
             function(res) {
+                if (gen !== page.attachGen) return           // stale: we've navigated on
                 if (!res.attached) { page.loading = false; page.notAvailable = true; return }
                 var parts = String(res.sourceId).split("|")
                 page.gcTag = parts[0]
                 page.gcTagId = parts.length > 1 ? parts[1] : ""
-                page.loadGc()
+                page.loadGc(gen)
             })
     }
-    function loadGc() {
+    function loadGc(gen) {
         // rows are LOCG's issue list (catalogue-first); GC attaches onto them
         Locg.series(locgId, function(det, meta) {
+            if (gen !== page.attachGen) return               // stale: a newer series is on screen
             page.locgIssuesRaw = (det && det.issues) ? det.issues : []
             if (!page.locgIssuesRaw.length) {
                 page.loading = false
@@ -126,6 +142,7 @@ Item {
                 return
             }
             GcApi.releases(Number(page.gcTagId), function(posts) {
+                if (gen !== page.attachGen) return           // stale: drop late release data
                 // fires twice on big archives (page 1, then full) — reassignment is the refresh
                 page.gcMatch = Resolve.matchIssues(page.locgIssuesRaw, posts || [])
                 page.loading = false
@@ -616,9 +633,11 @@ Item {
         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
     }
 
-    // honest empty state: catalogued, but no reading source carries it yet
+    // honest empty state: catalogued, but no reading source carries it yet. This is a LIVE-path-
+    // only state — a DB-backed series always has a ledger, so the banner must never show over one
+    // (guards any path that leaves notAvailable set while dbSeries is present).
     Column {
-        visible: page.notAvailable
+        visible: page.notAvailable && !page.dbSeries
         anchors.centerIn: parent
         spacing: 8
         Text { text: "Not available from sources yet"; color: "#e8e8e8"; font.pixelSize: 18; anchors.horizontalCenter: parent.horizontalCenter }
