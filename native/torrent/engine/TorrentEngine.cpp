@@ -171,16 +171,21 @@ private:
                 emit m_engine->torrentFinished(hash);
             }
             else if (auto* srd = lt::alert_cast<lt::save_resume_data_alert>(a)) {
-                auto hash = m_engine->canonicalKeyForHandle(srd->handle);
-                auto path = m_engine->m_cacheDir + "/resume/" + hash + ".fastresume";
-                try {
-                    auto buf = lt::write_resume_data_buf(srd->params);
-                    QByteArray blob(buf.data(), static_cast<int>(buf.size()));
-                    emit m_engine->resumeDataAvailable(hash, blob);
-                    std::ofstream ofs(path.toStdString(), std::ios::binary | std::ios::trunc);
-                    ofs.write(buf.data(), static_cast<std::streamsize>(buf.size()));
-                } catch (const std::exception& e) {
-                    qWarning() << "Failed to write resume data for" << hash << ":" << e.what();
+                // Pin-only: a resume alert delivered AFTER removeTorrent finds no
+                // pin -> suppress it, so a delayed save never recreates an orphan
+                // .fastresume under the raw get_best() (v2) hash.
+                auto hash = m_engine->pinnedKeyForHandle(srd->handle);
+                if (!hash.isEmpty()) {
+                    auto path = m_engine->m_cacheDir + "/resume/" + hash + ".fastresume";
+                    try {
+                        auto buf = lt::write_resume_data_buf(srd->params);
+                        QByteArray blob(buf.data(), static_cast<int>(buf.size()));
+                        emit m_engine->resumeDataAvailable(hash, blob);
+                        std::ofstream ofs(path.toStdString(), std::ios::binary | std::ios::trunc);
+                        ofs.write(buf.data(), static_cast<std::streamsize>(buf.size()));
+                    } catch (const std::exception& e) {
+                        qWarning() << "Failed to write resume data for" << hash << ":" << e.what();
+                    }
                 }
             }
             else if (lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
@@ -566,13 +571,18 @@ void TorrentEngine::saveAllResumeData()
         m_session.pop_alerts(&alerts);
         for (auto* a : alerts) {
             if (auto* srd = lt::alert_cast<lt::save_resume_data_alert>(a)) {
-                auto hash = canonicalKeyForHandle(srd->handle);
-                auto resumePath = m_cacheDir + "/resume/" + hash + ".fastresume";
-                try {
-                    auto buf = lt::write_resume_data_buf(srd->params);
-                    std::ofstream ofs(resumePath.toStdString(), std::ios::binary | std::ios::trunc);
-                    ofs.write(buf.data(), static_cast<std::streamsize>(buf.size()));
-                } catch (...) {}
+                // Pin-only (see drainAlerts): skip a delayed post-removal alert so
+                // shutdown never re-writes an orphan .fastresume. Still count it so
+                // the drain loop terminates.
+                auto hash = pinnedKeyForHandle(srd->handle);
+                if (!hash.isEmpty()) {
+                    auto resumePath = m_cacheDir + "/resume/" + hash + ".fastresume";
+                    try {
+                        auto buf = lt::write_resume_data_buf(srd->params);
+                        std::ofstream ofs(resumePath.toStdString(), std::ios::binary | std::ios::trunc);
+                        ofs.write(buf.data(), static_cast<std::streamsize>(buf.size()));
+                    } catch (...) {}
+                }
                 --remaining;
             } else if (lt::alert_cast<lt::save_resume_data_failed_alert>(a)) {
                 --remaining;
@@ -610,6 +620,13 @@ QString TorrentEngine::canonicalKeyForHandle(const lt::torrent_handle& h) const
 {
     QMutexLocker lock(&m_mutex);
     return canonicalKeyForHandleLocked(h);
+}
+
+QString TorrentEngine::pinnedKeyForHandle(const lt::torrent_handle& h) const
+{
+    if (!h.is_valid()) return {};
+    QMutexLocker lock(&m_mutex);
+    return m_handleKeyById.value(h.id());   // {} once the pin is gone (post-removal)
 }
 
 QString TorrentEngine::stateToString(lt::torrent_status::state_t s, bool paused)

@@ -404,6 +404,11 @@ private:
     // in m_handleKeyById and never re-derived. *Locked assumes m_mutex is held.
     QString canonicalKeyForHandleLocked(const lt::torrent_handle& h) const;
     QString canonicalKeyForHandle(const lt::torrent_handle& h) const;
+    // Pin-ONLY variant: empty when the handle is no longer registered. The resume
+    // writers use this (NOT canonicalKeyForHandle) so a save_resume_data alert
+    // that libtorrent delivers AFTER removeTorrent is SUPPRESSED rather than
+    // recreating an orphan .fastresume under the raw get_best() hash.
+    QString pinnedKeyForHandle(const lt::torrent_handle& h) const;
     static QString stateToString(lt::torrent_status::state_t s, bool paused);
 
     struct SeedingRule { float ratioLimit = 0.f; int seedTimeSecs = 0; };
