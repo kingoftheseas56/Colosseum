@@ -148,14 +148,9 @@ private slots:
 
 private:
     // ── self-contained JSON store under <appdata>/book_reader/ ──
-    QString stateDir() const;
-    QJsonObject readStore(const QString& file) const;
-    void writeStore(const QString& file, const QJsonObject& obj) const;
-    // bookmarks/annotations share the same {bookId: [items]} shape + save/delete logic.
-    QJsonArray listGet(const QString& file, const QString& bookId) const;
-    QJsonObject listSave(const QString& file, const QString& bookId, QJsonObject item);
-    QJsonObject listDelete(const QString& file, const QString& bookId, const QString& itemId);
-    void listClear(const QString& file, const QString& bookId);
+    // The actual file I/O (readStore/writeStore/get/save/listGet/listSave/
+    // listDelete/listClear) now lives in BookStores (native/reader/BookStores.h),
+    // shared with reader2 so both readers hit the SAME files byte-for-byte.
 
     bool m_fullscreen = true;     // Colosseum is a fullscreen surface by default
     bool m_isMaximized = true;

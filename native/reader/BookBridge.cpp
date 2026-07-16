@@ -1,4 +1,5 @@
 #include "BookBridge.h"
+#include "BookStores.h"
 #include "../tts/EdgeTtsWorker.h"
 #include "../engine/AudiobookDownloader.h"
 #include "../AudioPairingStore.h"
@@ -82,43 +83,20 @@ QString BookBridge::progressKey(const QString& absPath) const
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// JSON store
+// JSON store — delegates to BookStores (native/reader/BookStores.h), shared
+// with reader2. SAME files, SAME shapes; only the call site moved.
 // ─────────────────────────────────────────────────────────────────────────────
-
-QString BookBridge::stateDir() const
-{
-    const QString d = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-                      + QStringLiteral("/book_reader");
-    QDir().mkpath(d);
-    return d;
-}
-
-QJsonObject BookBridge::readStore(const QString& file) const
-{
-    QFile f(stateDir() + QLatin1Char('/') + file);
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    return QJsonDocument::fromJson(f.readAll()).object();
-}
-
-void BookBridge::writeStore(const QString& file, const QJsonObject& obj) const
-{
-    QFile f(stateDir() + QLatin1Char('/') + file);
-    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate))
-        f.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
-}
 
 // ── progress ──
 
 QJsonObject BookBridge::booksProgressGet(const QString& bookId)
 {
-    return readStore(QStringLiteral("progress.json")).value(bookId).toObject();
+    return BookStores::get(QStringLiteral("progress.json"), bookId);
 }
 
 void BookBridge::booksProgressSave(const QString& bookId, const QJsonObject& data)
 {
-    QJsonObject all = readStore(QStringLiteral("progress.json"));
-    all[bookId] = data;
-    writeStore(QStringLiteral("progress.json"), all);
+    BookStores::save(QStringLiteral("progress.json"), bookId, data);
     emit progressSaved(bookId, data.value(QStringLiteral("fraction")).toDouble());
 }
 
@@ -127,98 +105,46 @@ void BookBridge::booksProgressSave(const QString& bookId, const QJsonObject& dat
 QJsonObject BookBridge::booksSettingsGet()
 {
     QJsonObject wrap;
-    wrap[QStringLiteral("settings")] = readStore(QStringLiteral("settings.json"));
+    wrap[QStringLiteral("settings")] = BookStores::readStore(QStringLiteral("settings.json"));
     return wrap;
 }
 
 void BookBridge::booksSettingsSave(const QJsonObject& data)
 {
-    writeStore(QStringLiteral("settings.json"), data);
+    BookStores::writeStore(QStringLiteral("settings.json"), data);
 }
 
 // ── shared {bookId: [items]} list logic for bookmarks + annotations ──
 
-QJsonArray BookBridge::listGet(const QString& file, const QString& bookId) const
-{
-    return readStore(file).value(bookId).toArray();
-}
+QJsonArray  BookBridge::booksBookmarksGet(const QString& bookId)            { return BookStores::listGet(QStringLiteral("bookmarks.json"), bookId); }
+QJsonObject BookBridge::booksBookmarksSave(const QString& bookId, const QJsonObject& bm)   { return BookStores::listSave(QStringLiteral("bookmarks.json"), bookId, bm); }
+QJsonObject BookBridge::booksBookmarksDelete(const QString& bookId, const QString& bmId)   { return BookStores::listDelete(QStringLiteral("bookmarks.json"), bookId, bmId); }
+void        BookBridge::booksBookmarksClear(const QString& bookId)          { BookStores::listClear(QStringLiteral("bookmarks.json"), bookId); }
 
-QJsonObject BookBridge::listSave(const QString& file, const QString& bookId, QJsonObject item)
-{
-    if (!item.contains(QStringLiteral("id")) || item.value(QStringLiteral("id")).toString().isEmpty())
-        item[QStringLiteral("id")] = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    if (!item.contains(QStringLiteral("createdAt")))
-        item[QStringLiteral("createdAt")] = now;
-    item[QStringLiteral("updatedAt")] = now;
-
-    const QString id = item.value(QStringLiteral("id")).toString();
-    QJsonObject all = readStore(file);
-    QJsonArray arr = all.value(bookId).toArray();
-    bool replaced = false;
-    for (int i = 0; i < arr.size(); ++i) {
-        if (arr.at(i).toObject().value(QStringLiteral("id")).toString() == id) {
-            arr[i] = item; replaced = true; break;
-        }
-    }
-    if (!replaced) arr.append(item);
-    all[bookId] = arr;
-    writeStore(file, all);
-    return item;
-}
-
-QJsonObject BookBridge::listDelete(const QString& file, const QString& bookId, const QString& itemId)
-{
-    QJsonObject all = readStore(file);
-    if (itemId.isEmpty()) {
-        all.remove(bookId);                       // empty id ⇒ clear all for this book
-    } else {
-        QJsonArray arr = all.value(bookId).toArray();
-        QJsonArray kept;
-        for (const QJsonValue& v : arr)
-            if (v.toObject().value(QStringLiteral("id")).toString() != itemId) kept.append(v);
-        all[bookId] = kept;
-    }
-    writeStore(file, all);
-    return QJsonObject{{QStringLiteral("ok"), true}};
-}
-
-void BookBridge::listClear(const QString& file, const QString& bookId)
-{
-    QJsonObject all = readStore(file);
-    all.remove(bookId);
-    writeStore(file, all);
-}
-
-QJsonArray  BookBridge::booksBookmarksGet(const QString& bookId)            { return listGet(QStringLiteral("bookmarks.json"), bookId); }
-QJsonObject BookBridge::booksBookmarksSave(const QString& bookId, const QJsonObject& bm)   { return listSave(QStringLiteral("bookmarks.json"), bookId, bm); }
-QJsonObject BookBridge::booksBookmarksDelete(const QString& bookId, const QString& bmId)   { return listDelete(QStringLiteral("bookmarks.json"), bookId, bmId); }
-void        BookBridge::booksBookmarksClear(const QString& bookId)          { listClear(QStringLiteral("bookmarks.json"), bookId); }
-
-QJsonArray  BookBridge::booksAnnotationsGet(const QString& bookId)          { return listGet(QStringLiteral("annotations.json"), bookId); }
-QJsonObject BookBridge::booksAnnotationsSave(const QString& bookId, const QJsonObject& an) { return listSave(QStringLiteral("annotations.json"), bookId, an); }
-QJsonObject BookBridge::booksAnnotationsDelete(const QString& bookId, const QString& anId) { return listDelete(QStringLiteral("annotations.json"), bookId, anId); }
-void        BookBridge::booksAnnotationsClear(const QString& bookId)        { listClear(QStringLiteral("annotations.json"), bookId); }
+QJsonArray  BookBridge::booksAnnotationsGet(const QString& bookId)          { return BookStores::listGet(QStringLiteral("annotations.json"), bookId); }
+QJsonObject BookBridge::booksAnnotationsSave(const QString& bookId, const QJsonObject& an) { return BookStores::listSave(QStringLiteral("annotations.json"), bookId, an); }
+QJsonObject BookBridge::booksAnnotationsDelete(const QString& bookId, const QString& anId) { return BookStores::listDelete(QStringLiteral("annotations.json"), bookId, anId); }
+void        BookBridge::booksAnnotationsClear(const QString& bookId)        { BookStores::listClear(QStringLiteral("annotations.json"), bookId); }
 
 // ── display names ──
 
 QJsonObject BookBridge::booksDisplayNamesGetAll()
 {
-    return readStore(QStringLiteral("display_names.json"));
+    return BookStores::readStore(QStringLiteral("display_names.json"));
 }
 
 void BookBridge::booksDisplayNamesSave(const QString& bookId, const QString& name)
 {
-    QJsonObject all = readStore(QStringLiteral("display_names.json"));
+    QJsonObject all = BookStores::readStore(QStringLiteral("display_names.json"));
     all[bookId] = name;
-    writeStore(QStringLiteral("display_names.json"), all);
+    BookStores::writeStore(QStringLiteral("display_names.json"), all);
 }
 
 void BookBridge::booksDisplayNamesDelete(const QString& bookId)
 {
-    QJsonObject all = readStore(QStringLiteral("display_names.json"));
+    QJsonObject all = BookStores::readStore(QStringLiteral("display_names.json"));
     all.remove(bookId);
-    writeStore(QStringLiteral("display_names.json"), all);
+    BookStores::writeStore(QStringLiteral("display_names.json"), all);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

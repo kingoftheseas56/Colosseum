@@ -103,6 +103,8 @@ add_executable(colosseum
     engine/ExtensionsStore.h
     reader/BookBridge.cpp
     reader/BookBridge.h
+    reader/BookStores.cpp
+    reader/BookStores.h
     tts/EdgeTtsClient.cpp
     tts/EdgeTtsClient.h
     tts/EdgeTtsWorker.cpp
@@ -216,6 +218,14 @@ add_executable(search_history_store_harness
 )
 target_include_directories(search_history_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(search_history_store_harness PRIVATE Qt6::Core)
+
+add_executable(reader2_stores_harness
+    ../tests/reader2_stores_harness.cpp
+    reader/BookStores.cpp
+    reader/BookStores.h
+)
+target_include_directories(reader2_stores_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(reader2_stores_harness PRIVATE Qt6::Core)
 
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
