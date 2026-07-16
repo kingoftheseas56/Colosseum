@@ -77,28 +77,34 @@ Item {
         onClicked: root.backRequested()
     }
 
-    // centered title + author (title = Fraunces medium, author = Inter, quiet)
-    Row {
+    // centered title + author (title = Fraunces medium, author = Inter, quiet).
+    // NOT a Row: baseline-aligning two different font sizes needs a sibling anchor,
+    // which positioners disallow — so an anchored Item centers the pair cleanly.
+    Item {
         anchors.centerIn: parent
-        spacing: 10
+        height: parent.height
+        width: titleText.width + (authorText.visible ? authorText.width + 10 : 0)
+
         Text {
             id: titleText
-            anchors.baseline: authorText.baseline
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
             text: root.title
             color: Theme.inkTitle
             font.family: Theme.display
             font.weight: Font.Medium
             font.pixelSize: 17
-            elide: Text.ElideRight
         }
         Text {
             id: authorText
+            anchors.left: titleText.right
+            anchors.leftMargin: 10
+            anchors.baseline: titleText.baseline
             text: root.author
             visible: root.author !== ""
             color: Theme.inkFaint
             font.family: Theme.ui
             font.pixelSize: 13
-            elide: Text.ElideRight
         }
     }
 
