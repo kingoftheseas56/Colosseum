@@ -174,6 +174,7 @@ const makeBook = async file => {
 let currentView = null
 let flatToc = []                       // [{index,label,href}] flattened, DFS order
 const annotations = new Map()          // id -> { id, value:cfi, type, color }
+let readyEmitted = false               // gate: suppress 'relocated' until 'ready' has fired for THIS book
 
 // appearance state + defaults (dark paper)
 let appearance = {
@@ -294,6 +295,11 @@ const attachSelection = (view, doc, index) => {
 
 const wireView = view => {
   view.addEventListener('relocate', e => {
+    // Suppress any relocate that fires BEFORE we've emitted 'ready' for this book
+    // (the chrome doesn't know the book identity/toc yet — a pre-ready relocated is
+    // out of order and the resume seam would mis-save on it). init()'s first relocate
+    // lands AFTER ready (see paperOpen ordering), so real positions still flow.
+    if (!readyEmitted) return
     const d = e.detail || {}
     // The engine's live per-page fraction is (page-1)/(pages-2); it degenerates to NaN
     // when a section is a single page (pages===2). Prefer it when finite, else fall back
@@ -347,6 +353,21 @@ const wireView = view => {
 // ---------------------------------------------------------------------------
 const paperOpen = async (path, cfi) => {
   try {
+    // Teardown the PREVIOUS book first (open A -> Esc -> open B): without this the
+    // old <foliate-view> stays in the DOM and its relocate/selection listeners keep
+    // firing stale events into our seam. close() destroys+removes the renderer and
+    // its book iframes (whose docs carry the pointerup/selectionchange listeners) and
+    // clears view internal state; remove() drops the <foliate-view> element itself.
+    // annotations/flatToc/readyEmitted belong to the previous book — reset them.
+    readyEmitted = false
+    if (currentView) {
+      try { currentView.close?.() } catch (e) { /* vendor teardown best-effort */ }
+      try { currentView.remove() } catch (e) { /* already detached */ }
+      currentView = null
+    }
+    annotations.clear()
+    flatToc = []
+
     if (!window.bridge || typeof window.bridge.filesRead !== 'function')
       throw new Error('bridge.filesRead is not available')
     // Timeout guard: the native callback normally fires within a few ms, but if the
@@ -390,14 +411,20 @@ const paperOpen = async (path, cfi) => {
     flatToc = flattenToc(view.book?.toc)
     applyAppearance()                             // set flow/margins/bg/styles before first paint
 
-    if (cfi) await view.init({ lastLocation: cfi })
-    else await view.init({})                      // pushState(0) + first page (single advance)
-
+    // Emit 'ready' BEFORE init(). init() fires the book's FIRST relocate; the resume
+    // seam saves progress on 'relocated', so the chrome must already know the book
+    // identity/toc (which 'ready' carries) when that first relocated lands. ready's
+    // payload is fully available here — right after open() + flattenToc. Setting
+    // readyEmitted lets the relocate handler (gated above) start emitting from init on.
     emit('ready', {
       toc: flatToc.map(t => ({ index: t.index, label: t.label, href: t.href })),
       metadata: view.book?.metadata ?? {},
       sections: view.book?.sections?.length ?? 0,
     })
+    readyEmitted = true
+
+    if (cfi) await view.init({ lastLocation: cfi })
+    else await view.init({})                      // pushState(0) + first page (single advance)
   } catch (e) {
     console.error('[paper] open failed', e)
     emit('error', { message: String(e?.message || e) })

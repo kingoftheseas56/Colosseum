@@ -33,6 +33,13 @@ public:
     // paper-facing
     Q_INVOKABLE QString filesRead(const QString& filePath);     // base64, "" on error
     Q_INVOKABLE void paperEvent(const QString& name, const QString& json);
+    // Canonical store key — SHA1[:20] of the path-normalized absolute path. MUST match
+    // the old reader's BookBridge::progressKey byte-for-byte: progress.json AND
+    // bookmarks.json AND annotations.json are all keyed by this fingerprint (the old
+    // reader sets state.book.id = keyFor(path) before every save/read). QML derives
+    // bookId through this so the fresh reader finds the old reader's records — the
+    // zero-migration promise. Never key the stores by the raw path.
+    Q_INVOKABLE QString bookKey(const QString& absPath) const;
     // QML-facing stores (delegate to BookStores — same files as old reader)
     Q_INVOKABLE QJsonObject progressGet(const QString& bookId);
     Q_INVOKABLE void progressSave(const QString& bookId, const QJsonObject& data);

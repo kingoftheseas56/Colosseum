@@ -9,7 +9,11 @@ import QtQuick
 FocusScope {
     id: shell
     property string bookPath: ""
-    property string bookId: bookPath
+    // Store key = the SHA1[:20] fingerprint of the path, NOT the raw path. The old
+    // reader keyed progress/bookmarks/annotations by this (BookBridge::progressKey);
+    // deriving it here is what makes positions/marks survive the swap (zero migration).
+    // Reader2Bridge.bookKey mirrors that derivation byte-for-byte.
+    property string bookId: bookPath === "" ? "" : Reader2Bridge.bookKey(bookPath)
     signal closed()
     focus: true
 

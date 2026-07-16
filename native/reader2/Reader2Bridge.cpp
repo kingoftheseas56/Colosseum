@@ -1,6 +1,8 @@
 #include "Reader2Bridge.h"
 #include "../reader/BookStores.h"
 
+#include <QCryptographicHash>
+#include <QDir>
 #include <QFile>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
@@ -35,6 +37,19 @@ QString Reader2Bridge::filesRead(const QString& filePath)
 void Reader2Bridge::paperEvent(const QString& name, const QString& json)
 {
     emit paperEventReceived(name, json);
+}
+
+// Canonical store key. IDENTICAL derivation to BookBridge::progressKey
+// (native/reader/BookBridge.cpp): normalize separators, SHA1 the UTF-8 bytes, take
+// the first 20 hex chars. This is the fingerprint under which the old reader wrote
+// progress.json / bookmarks.json / annotations.json (it sets state.book.id =
+// keyFor(path) before every save/read), so the fresh reader reads the same records.
+QString Reader2Bridge::bookKey(const QString& absPath) const
+{
+    const QString norm = QDir::fromNativeSeparators(absPath);
+    const QByteArray hex =
+        QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
+    return QString::fromLatin1(hex.left(20));
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

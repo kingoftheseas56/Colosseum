@@ -8,6 +8,7 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
+#include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
 #include <QJsonObject>
@@ -64,6 +65,24 @@ int main(int argc, char** argv)
     check(signalCount == 1, "paperEvent fired paperEventReceived exactly once");
     check(gotName == QStringLiteral("relocated"), "paperEventReceived name matches");
     check(gotJson == QStringLiteral("{\"percent\":7}"), "paperEventReceived payload matches");
+
+    // (d) bookKey — the zero-migration store key. Must equal SHA1[:20] of the
+    //     path-normalized absolute path, IDENTICAL to BookBridge::progressKey. Compute
+    //     the expected fingerprint independently here and compare, for a couple of paths.
+    auto expectedKey = [](const QString& absPath) {
+        const QString norm = QDir::fromNativeSeparators(absPath);
+        const QByteArray hex =
+            QCryptographicHash::hash(norm.toUtf8(), QCryptographicHash::Sha1).toHex();
+        return QString::fromLatin1(hex.left(20));
+    };
+    const QString p1 = QStringLiteral("C:/x/y.epub");
+    const QString p2 = QStringLiteral("C:/Users/Suprabha/Desktop/book with spaces.epub");
+    check(bridge.bookKey(p1) == expectedKey(p1), "bookKey matches SHA1[:20] formula (p1)");
+    check(bridge.bookKey(p2) == expectedKey(p2), "bookKey matches SHA1[:20] formula (p2)");
+    check(bridge.bookKey(p1).size() == 20, "bookKey is 20 hex chars");
+    // Native separators normalize to the SAME key (BookBridge does QDir::fromNativeSeparators).
+    check(bridge.bookKey(QStringLiteral("C:\\x\\y.epub")) == bridge.bookKey(p1),
+          "bookKey normalizes backslashes to forward slashes");
 
     std::printf(fails ? "VERDICT: FAIL\n" : "VERDICT: PASS\n");
     return fails ? 1 : 0;
