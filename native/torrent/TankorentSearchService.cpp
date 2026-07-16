@@ -4,6 +4,7 @@
 #include "PirateBayIndexer.h"
 #include "ExtTorrentsIndexer.h"
 #include "TorrentsCsvIndexer.h"
+#include "KnabenIndexer.h"
 
 #include <QCoreApplication>
 #include <QSettings>
@@ -18,10 +19,16 @@ namespace {
 // Colosseum port (2026-07-13): only the 3 keyless, CF-free book indexers survive.
 // 1337x/nyaa/yts/eztv were dropped — 1337x needs a QtWebEngine CF-cookie harvester
 // (banned), the rest are video/anime lanes Biblio doesn't use.
+// 2026-07-16: added "knaben" — a keyless meta-search AGGREGATOR that reaches 1337x
+// (and dozens of other trackers) through its own backend, so we get 1337x results
+// without ever fighting its Cloudflare wall. Its API is CF-fronted but not
+// challenge-walled for Qt's QNAM (proven in-process, tests/knaben_probe.cpp).
+// Additive, not a replacement: the 3 direct indexers stay as a resilient floor
+// if knaben's domain hops (it's moved .eu -> .org -> .xyz before).
 const QHash<QString, QSet<QString>> kMediaTypeIndexers = {
-    { "books",      { "piratebay", "exttorrents", "torrentscsv" } },
-    { "audiobooks", { "piratebay", "exttorrents", "torrentscsv" } },
-    { "comics",     { "piratebay", "exttorrents", "torrentscsv" } },
+    { "books",      { "piratebay", "exttorrents", "torrentscsv", "knaben" } },
+    { "audiobooks", { "piratebay", "exttorrents", "torrentscsv", "knaben" } },
+    { "comics",     { "piratebay", "exttorrents", "torrentscsv", "knaben" } },
 };
 
 } // anonymous namespace
@@ -78,6 +85,7 @@ QList<TorrentIndexer*> TankorentSearchService::buildIndexersFor(const QString& m
     addIf("piratebay",    new PirateBayIndexer(m_nam, this));
     addIf("exttorrents",  new ExtTorrentsIndexer(m_nam, this));
     addIf("torrentscsv",  new TorrentsCsvIndexer(m_nam, this));
+    addIf("knaben",       new KnabenIndexer(m_nam, this));
 
     return out;
 }
@@ -181,7 +189,12 @@ void TankorentSearchService::selfTest(const QString& query)
                 qInfo() << "[torrent-smoke] indexer returned" << r.size() << "rows";
                 for (const auto& t : r)
                     if (t.infoHash.size() == 40 && t.seeders > 0)
-                        qInfo().noquote() << "  [hit]" << t.seeders << "seeders" << t.infoHash << t.title;
+                        // Show source + origin tracker (knaben carries the real
+                        // origin, e.g. 1337x, in `category`) so multi-indexer
+                        // provenance is legible in the smoke.
+                        qInfo().noquote() << "  [hit]" << t.sourceKey
+                                          << (t.category.isEmpty() ? QString() : "(" + t.category + ")")
+                                          << t.seeders << "seeders" << t.infoHash << t.title;
             });
     connect(this, &TankorentSearchService::indexerError, this,
             [](const QString&, const QString& id, const QString& e) {

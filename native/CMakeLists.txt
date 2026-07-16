@@ -135,6 +135,8 @@ add_executable(colosseum
     torrent/ExtTorrentsIndexer.h
     torrent/TorrentsCsvIndexer.cpp
     torrent/TorrentsCsvIndexer.h
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
     torrent/BookTorrentRanker.cpp
@@ -401,6 +403,8 @@ add_executable(comic_downloader_ingest_harness
     torrent/ExtTorrentsIndexer.h
     torrent/TorrentsCsvIndexer.cpp
     torrent/TorrentsCsvIndexer.h
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
     torrent/engine/TorrentEngine.cpp
     torrent/engine/TorrentEngine.h
     torrent/engine/DebugLogBuffer.cpp
@@ -448,6 +452,8 @@ add_executable(comic_torrents_search_harness
     torrent/ExtTorrentsIndexer.h
     torrent/TorrentsCsvIndexer.cpp
     torrent/TorrentsCsvIndexer.h
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
     torrent/engine/TorrentEngine.cpp
     torrent/engine/TorrentEngine.h
     torrent/engine/DebugLogBuffer.cpp
@@ -505,6 +511,8 @@ add_executable(comic_torrent_pack_transport_harness
     torrent/ExtTorrentsIndexer.h
     torrent/TorrentsCsvIndexer.cpp
     torrent/TorrentsCsvIndexer.h
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
     torrent/engine/TorrentEngine.cpp
     torrent/engine/TorrentEngine.h
     torrent/engine/DebugLogBuffer.cpp
@@ -537,6 +545,28 @@ target_include_directories(manga_tankoban_logic_harness PRIVATE ${CMAKE_CURRENT_
 target_compile_definitions(manga_tankoban_logic_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_tankoban_logic_harness PRIVATE Qt6::Core Qt6::Network)
+
+# knaben_probe — in-process Cloudflare/results gate for the knaben.org meta-search
+# aggregator, a candidate Tankorent indexer. Hits the API through Qt's QNAM (the
+# same TLS/HTTP-2 fingerprint the live indexers present) so the CF verdict is real,
+# not curl's. Qt6::Network only, no libtorrent.
+add_executable(knaben_probe
+    ../tests/knaben_probe.cpp
+)
+target_include_directories(knaben_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(knaben_probe PRIVATE Qt6::Core Qt6::Network)
+
+# knaben_indexer_harness — pure contract test for KnabenIndexer's request shape
+# (relevance, never seeder-sorted) and JSON->TorrentResult parse. No network.
+add_executable(knaben_indexer_harness
+    ../tests/knaben_indexer_harness.cpp
+    torrent/KnabenIndexer.cpp
+    torrent/KnabenIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(knaben_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(knaben_indexer_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(manga_volume_index_harness
     ../tests/manga_volume_index_harness.cpp
