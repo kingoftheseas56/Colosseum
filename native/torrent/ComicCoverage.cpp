@@ -181,6 +181,23 @@ bool numericRangeIn(const QString& window, int& lo, int& hi, QString& evidence)
         }
     }
 
+    // A SINGLE worded ordinal immediately after the format token ("Book One" ->
+    // 1). Anchored to the window start so it only reads a number-word that
+    // actually governs the format token, never a stray word later in the clause
+    // (e.g. "Deluxe Two-Face"). Mirrors ComicEditionIdentity::parseOrdinal, which
+    // already reads worded ordinals off the edition title — coverage detection on
+    // release filenames must read them the same way, or a "Book One" edition can
+    // never match a "Book One" torrent.
+    static const QRegularExpression wordedSingleRe(QStringLiteral("^\\s*([A-Za-z]+)\\b"));
+    if (const auto m = wordedSingleRe.match(window); m.hasMatch()) {
+        const int a = wordedNumber(m.captured(1));
+        if (a != -1) {
+            lo = hi = a;
+            evidence = m.captured(0).trimmed();
+            return true;
+        }
+    }
+
     return false;
 }
 

@@ -188,6 +188,26 @@ int main()
         require(nonZero == 0, "every unselected index carries priority 0");
     }
 
+    // ── A collected edition under the generic "Collected Edition" umbrella must
+    //    match as the WHOLE volume, never fall into issue-set assembly. Real
+    //    eyes-on regression: "Saga: Book One" was wrongly flagged "missing
+    //    issues #10-18" because the umbrella conflicted with the title's Book. ──
+    {
+        const ComicEditionTarget sagaBookOne = buildTarget(
+            "chSaga", "sid", "Saga", "Saga: Book One", "Collected Edition",
+            "9781632150783", "Saga #1-18");
+        require(sagaBookOne.format == ComicCollectionFormat::Book && sagaBookOne.ordinal == 1
+                    && !sagaBookOne.formatAmbiguous,
+                "umbrella defers to Book/1 so the whole-edition coverage tiers stay enabled");
+
+        const QList<ManifestFile> volume = { mf(0, "Saga Book One (2014) (Digital).cbz") };
+        const ComicPayloadDecision d = select(sagaBookOne, volume);
+        require(d.kind == ComicPayloadKind::SingleArchive && d.failure == ComicSelectionFailure::None,
+                "the collected volume matches as a single archive");
+        require(d.failure != ComicSelectionFailure::IncompleteIssueSet,
+                "a collected edition is never judged an incomplete issue pack");
+    }
+
     std::cout << "COMIC_EDITION_FILE_SELECTOR_OK\n";
     return 0;
 }

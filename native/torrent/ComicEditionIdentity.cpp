@@ -290,12 +290,33 @@ ComicEditionTarget buildTarget(const QString& editionId,
     const ComicCollectionFormat explicitFormat = parseFormat(catalogFormat);
     const ComicCollectionFormat titleFormat = detectFormatInTitle(editionTitle);
 
-    if (explicitFormat != ComicCollectionFormat::Unknown) {
+    // "Collected Edition" (-> Collection) is the catalog's GENERIC umbrella label
+    // — ~80% of GCD editions carry it. It is a category ("this is A collected
+    // edition"), NOT a specific collection line, so it must never CONFLICT with,
+    // or override, the specific format the title itself states ("Book One",
+    // "Vol 3", "Omnibus 1"). Releases are named after the title, never the
+    // umbrella ("Saga Collected Edition 1" does not exist), so a specific title
+    // format is the better matching key. Treating the umbrella as a conflict was
+    // flagging thousands of editions formatAmbiguous, zeroing their ordinal, and
+    // dropping them into issue-set assembly ("missing issues") instead of
+    // matching the collected volume as a whole.
+    const bool explicitIsUmbrella = (explicitFormat == ComicCollectionFormat::Collection);
+
+    if (explicitFormat != ComicCollectionFormat::Unknown && !explicitIsUmbrella) {
+        // A SPECIFIC catalog format (Omnibus/Deluxe/Absolute/Compendium/...) is
+        // authoritative; a differing specific title format is a genuine conflict
+        // the eventual decision must resolve manually.
         target.format = explicitFormat;
         if (titleFormat != ComicCollectionFormat::Unknown && titleFormat != explicitFormat)
             target.formatAmbiguous = true;
-    } else {
+    } else if (titleFormat != ComicCollectionFormat::Unknown) {
+        // Umbrella or absent catalog format -> defer to the specific format the
+        // title states (the name a real release actually carries).
         target.format = titleFormat;
+    } else {
+        // Neither side is specific -> keep whatever the catalog gave (umbrella or
+        // Unknown); the edition matches by ISBN / title / collected-issue set.
+        target.format = explicitFormat;
     }
 
     target.ordinal = parseOrdinal(editionTitle, target.format);

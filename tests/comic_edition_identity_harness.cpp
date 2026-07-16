@@ -50,6 +50,33 @@ int main()
     require(!partial.collectedIssuesComplete,
             "buildTarget preserves an incomplete collected-issue set");
 
+    // Generic umbrella catalog format ("Collected Edition" -> Collection) must
+    // DEFER to the specific title format, never conflict with it. Real case:
+    // "Saga: Book One" (catalog "Collected Edition", title "Book One") — before
+    // this, Collection != Book flagged formatAmbiguous and zeroed the ordinal,
+    // dropping the whole collected volume into issue-set assembly.
+    const auto saga = buildTarget("chId3", "sid", "Saga", "Saga: Book One",
+                                  "Collected Edition", "9781632150783", "Saga #1-18");
+    require(saga.format == ComicCollectionFormat::Book,
+            "umbrella 'Collected Edition' defers to the title's specific 'Book' format");
+    require(saga.ordinal == 1, "ordinal parsed against the deferred title format (Book One -> 1)");
+    require(!saga.formatAmbiguous,
+            "a generic umbrella never conflicts with the specific title format");
+
+    // A generic umbrella with NO specific title format keeps Collection (matches
+    // by ISBN/title/issues, not format coverage).
+    const auto generic = buildTarget("chId4", "sid", "Saga", "Saga #1",
+                                     "Collected Edition", "", "Saga #1-18");
+    require(generic.format == ComicCollectionFormat::Collection,
+            "umbrella with no specific title format stays Collection");
+
+    // A SPECIFIC catalog format still wins, and a differing specific title
+    // format is still a genuine conflict (manual decision).
+    const auto conflict = buildTarget("chId5", "sid", "Hellboy", "Hellboy Omnibus 1",
+                                      "Compendium", "", "");
+    require(conflict.format == ComicCollectionFormat::Compendium && conflict.formatAmbiguous,
+            "specific-vs-specific format mismatch still flags ambiguous");
+
     std::cout << "COMIC_EDITION_IDENTITY_OK\n";
     return 0;
 }

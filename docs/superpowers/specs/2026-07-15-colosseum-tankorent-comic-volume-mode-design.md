@@ -137,6 +137,17 @@ The explicit catalog `format` field wins when it maps cleanly. Title-derived for
 unknown catalog value. Conflicting explicit and title formats make the target invalid for automatic
 format matching; the eventual decision must be manual.
 
+**AMENDMENT (2026-07-16):** the catalog's generic umbrella label `"Collected Edition"` (→ `Collection`)
+is NOT a specific collection line — it is a category carried by ~80% of GCD editions (5,515 of ~6,700).
+It must never *conflict with* or *override* the specific format the title itself states ("Book One",
+"Vol 3", "Omnibus 1"), because releases are named after the title, never the umbrella ("Saga Collected
+Edition 1" does not exist). So when the catalog format is this umbrella, the target *defers to* the
+title's specific format (and parses its ordinal there). Treating the umbrella as a conflict flagged
+thousands of editions `formatAmbiguous`, zeroed their ordinal, and dropped them into issue-set
+assembly ("missing issues") instead of matching the collected volume as a whole. Corollary:
+coverage detection (`ComicCoverage`) must read a **single worded ordinal** ("Book One" → 1), not only
+worded ranges, so a "Book One" edition can match a "Book One" release.
+
 ### Ordinal parsing
 
 Parse `#1`, `No. 1`, `Vol 01`, `Book One`, Roman numerals `I` through `XX`, and a trailing numeric

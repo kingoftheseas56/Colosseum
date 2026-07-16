@@ -90,11 +90,35 @@ bool ComicTorrentRanker::hasComicArchiveHint(const QString& title)
     return archive.match(title).hasMatch();
 }
 
+namespace {
+// A comic edition is NEVER distributed as a reflowable ebook, a console game,
+// or a video/audio release. These markers positively identify a non-comic
+// medium, so the aggregator firehose can't surface a Switch game or a prose
+// novel as a "possible" comic match on a shared word ("Saga") + a range
+// ("1-18"). Bare resolutions (1080p/1440p) are deliberately NOT listed — comic
+// scans legitimately carry them. A row matching this is dropped entirely.
+bool looksNonComicMedium(const QString& title)
+{
+    static const QRegularExpression re(
+        QStringLiteral(
+            "(?:^|[ ._\\-\\[(])"
+            "(?:epub|mobi|azw3?|"                                    // reflowable prose ebook
+            "nsz|nsp|xci|nsw|nintendo switch|ps[345]|xbox|wii|3ds|"  // console / game
+            "x264|x265|h264|h265|hevc|bluray|blu-ray|bdrip|dvdrip|"  // video
+            "web-?dl|web-?rip|hdtv|hdrip|"
+            "flac|m4b)"                                              // lossless audio / audiobook
+            "(?:$|[ ._\\-\\])])"),
+        QRegularExpression::CaseInsensitiveOption);
+    return re.match(title).hasMatch();
+}
+} // namespace
+
 QList<RankedComicTorrent> ComicTorrentRanker::rank(const QString& query,
                                                     const QList<TorrentResult>& raw)
 {
     QHash<QString, TorrentResult> bestByHash;
     for (const TorrentResult& result : raw) {
+        if (looksNonComicMedium(result.title)) continue;   // never auto-pick a game/ebook/video
         const QString hash = canonicalizeInfoHash(result.infoHash);
         if (hash.isEmpty()) continue;
         TorrentResult canonical = result;
@@ -259,6 +283,9 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
     QHash<QString, QList<RowEvidence>> byHash;
     QStringList hashOrder;   // first-seen order — stable output when scores tie
     for (const TorrentResult& result : raw) {
+        // Drop non-comic media (games/ebooks/video) before it can ever rank —
+        // a Switch game or a prose novel is not an alternate source for a comic.
+        if (looksNonComicMedium(result.title)) continue;
         const QString hash = canonicalizeInfoHash(result.infoHash);
         if (hash.isEmpty()) continue;
         TorrentResult canonical = result;

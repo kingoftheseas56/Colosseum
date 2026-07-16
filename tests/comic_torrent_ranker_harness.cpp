@@ -106,6 +106,20 @@ int main()
     require(picker[2].src.infoHash == hashA && picker[2].confidence == QStringLiteral("weak"),
             "unrelated result remains visible but weak");
 
+    // ── Non-comic media (games / ebooks / video) is dropped before it can rank ──
+    // The eyes-on false positives for "Saga: Book One": a Switch game and a prose
+    // novel both matched on the bare word "Saga" + a "1-18" range and showed as
+    // POSSIBLE MATCH. A comic is never an NSZ game or an EPUB/MOBI novel.
+    const QList<RankedComicTorrent> filtered = ComicTorrentRanker::rankForEdition(
+        sagaTarget,
+        {
+            row("[Nintendo Switch] Hiveswap Friendsim Vol. 1-18 Complete - MS Paint Reader Saga [NSZ][ENG]", 4, hashA),
+            row("Vorkosigan Saga (1-18) - Lois McMaster Bujold [EPUB + MOBI + PDF]", 4, hashB),
+            row("Saga Book One 1-18 CBZ", 8, hashC)
+        });
+    require(filtered.size() == 1 && filtered.first().src.infoHash == hashC,
+            "the Switch game and the prose ebook are dropped; only the real comic survives");
+
     // Duplicate canonical hash across query slices collapses to one, higher seed wins.
     const QList<RankedComicTorrent> merged = ComicTorrentRanker::rankForEdition(
         sagaTarget,
