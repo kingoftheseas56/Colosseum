@@ -19,16 +19,18 @@ namespace {
 // Colosseum port (2026-07-13): only the 3 keyless, CF-free book indexers survive.
 // 1337x/nyaa/yts/eztv were dropped — 1337x needs a QtWebEngine CF-cookie harvester
 // (banned), the rest are video/anime lanes Biblio doesn't use.
-// 2026-07-16: added "knaben" — a keyless meta-search AGGREGATOR that reaches 1337x
-// (and dozens of other trackers) through its own backend, so we get 1337x results
-// without ever fighting its Cloudflare wall. Its API is CF-fronted but not
-// challenge-walled for Qt's QNAM (proven in-process, tests/knaben_probe.cpp).
-// Additive, not a replacement: the 3 direct indexers stay as a resilient floor
-// if knaben's domain hops (it's moved .eu -> .org -> .xyz before).
+// 2026-07-16: "knaben" was added as a keyless meta-search AGGREGATOR to reach
+// 1337x — but Hemanth eyes-on (2026-07-16) found it rarely returns a real match
+// (its fuzzy `search_type: score` relevance surfaces look-alikes on a shared
+// word), while PirateBay + Torrents-CSV return the actual matches. So knaben is
+// DISABLED here. The KnabenIndexer class + its harness stay in the tree for an
+// easy, category-scoped re-enable later; dropping it from every allowlist means
+// buildIndexersFor() never instantiates or queries it. Trade-off recorded: we
+// lose knaben's 1337x reach — acceptable, the 3 direct indexers carry matches.
 const QHash<QString, QSet<QString>> kMediaTypeIndexers = {
-    { "books",      { "piratebay", "exttorrents", "torrentscsv", "knaben" } },
-    { "audiobooks", { "piratebay", "exttorrents", "torrentscsv", "knaben" } },
-    { "comics",     { "piratebay", "exttorrents", "torrentscsv", "knaben" } },
+    { "books",      { "piratebay", "exttorrents", "torrentscsv" } },
+    { "audiobooks", { "piratebay", "exttorrents", "torrentscsv" } },
+    { "comics",     { "piratebay", "exttorrents", "torrentscsv" } },
 };
 
 } // anonymous namespace
