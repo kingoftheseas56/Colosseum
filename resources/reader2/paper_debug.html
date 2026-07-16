@@ -21,8 +21,10 @@
 </head>
 <body>
   <dialog id="footnote-dialog"><main></main></dialog>
-  <!-- Bench-only: defines window.bridge + a file picker. CLASSIC script, runs before the module. -->
+  <!-- Bench-only: defines window.bridge + a file picker. CLASSIC script, runs first. -->
   <script src="./mock_bridge.js"></script>
-  <script type="module" src="./paper_glue.js"></script>
+  <!-- CLASSIC script (matches production paper.html): paper_glue.js dynamic-imports its
+       vendor modules in boot(), so no type=module is needed on either page. -->
+  <script src="./paper_glue.js"></script>
 </body>
 </html>

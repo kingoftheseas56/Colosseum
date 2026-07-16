@@ -239,6 +239,20 @@ add_executable(reader2_bridge_harness
 target_include_directories(reader2_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
+# Task 5: standalone "first pixels" harness — boots the fresh reader (native QML
+# chrome over the vendored foliate paper) with a book shelf, no Colosseum shell.
+# Links only what the reader seam needs (Reader2Bridge + BookStores) plus the QML
+# stack; deploy with windeployqt (WebEngine variant) before running.
+add_executable(reader2_harness
+    reader2/reader2_harness_main.cpp
+    reader2/Reader2Bridge.cpp
+    reader2/Reader2Bridge.h
+    reader/BookStores.cpp
+    reader/BookStores.h
+)
+target_include_directories(reader2_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(reader2_harness PRIVATE Qt6::Quick Qt6::Qml Qt6::Network Qt6::WebEngineQuick Qt6::WebChannel)
+
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
     engine/ComicDlsParse.cpp

@@ -13,9 +13,18 @@
 // import, so we cannot import it — we call the SAME book-maker modules it calls).
 //
 // [Agent 2 (Claude), biblio]
-
-import './vendor/foliate-anx/src/view.js'                 // registers <foliate-view>
-import { Overlayer } from './vendor/foliate-anx/src/overlayer.js'
+//
+// ESM-over-file:// (Qt) — this file is a CLASSIC script (loaded via a plain
+// <script src="paper_glue.js">, NOT type=module), so it CANNOT use top-level
+// static `import` statements: over file:// in QtWebEngine a module entry script
+// with static imports is blocked. Instead the vendored fork's view.js (registers
+// <foliate-view>) and overlayer.js (the highlight/underline painter) are pulled
+// in via DYNAMIC `import(new URL(..., location.href))` inside boot() at the bottom
+// — the proven house pattern (see resources/book_reader/.../engine_foliate.js),
+// which works over BOTH file:// (Qt, localContentCanAccessFileUrls) and http://
+// (the browser bench). The book-maker modules below (epub/mobi/fb2/pdf/zip) were
+// already dynamic-imported, so only these two entry modules needed converting.
+let Overlayer = null   // assigned in boot() once overlayer.js resolves
 
 // ---------------------------------------------------------------------------
 // event emit (UP)
@@ -340,7 +349,31 @@ const paperOpen = async (path, cfi) => {
   try {
     if (!window.bridge || typeof window.bridge.filesRead !== 'function')
       throw new Error('bridge.filesRead is not available')
-    const b64 = await new Promise((resolve) => window.bridge.filesRead(path, resolve))
+    // Timeout guard: the native callback normally fires within a few ms, but if the
+    // C++ seam never answers (bridge torn down mid-open, wedged NAM, etc.) the await
+    // would hang paperOpen silently. Reject after 8s so the catch below emits an
+    // 'error' event the chrome can surface, instead of a dead reader.
+    const b64 = await new Promise((resolve, reject) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (settled) return
+        settled = true
+        reject(new Error('filesRead timed out (8s) for ' + path))
+      }, 8000)
+      try {
+        window.bridge.filesRead(path, (data) => {
+          if (settled) return
+          settled = true
+          clearTimeout(timer)
+          resolve(data)
+        })
+      } catch (e) {
+        if (settled) return
+        settled = true
+        clearTimeout(timer)
+        reject(e)
+      }
+    })
     if (!b64) throw new Error('no book bytes for ' + path)
 
     syncVendorParams()                            // satisfy epub.js Loader's URL 'style' read
@@ -437,17 +470,55 @@ const paperRemoveHighlight = id => {
 
 const paperClearSelection = () => { currentView?.deselect?.() }
 
-window.paper = {
-  open: (path, cfi) => paperOpen(path, cfi ?? ''),
-  next: paperNext,
-  prev: paperPrev,
-  goTo: paperGoTo,
-  setAppearance: paperSetAppearance,
-  search: paperSearch,
-  clearSearch: paperClearSearch,
-  addHighlight: paperAddHighlight,
-  removeHighlight: paperRemoveHighlight,
-  clearSelection: paperClearSelection,
+// ---------------------------------------------------------------------------
+// bridge readiness — QWebChannel's handshake is async, so window.bridge may not
+// exist the instant the glue finishes loading. Wait for it (bounded) before we
+// announce glueLoaded, so the C++ seam actually receives the event (and every
+// later emit has a live bridge). In the browser bench window.bridge is defined
+// synchronously by mock_bridge.js, so this resolves immediately.
+// ---------------------------------------------------------------------------
+const bridgeReady = () =>
+  !!(window.bridge && typeof window.bridge.paperEvent === 'function')
+
+const waitForBridge = (timeoutMs = 5000) => new Promise((resolve) => {
+  if (bridgeReady()) return resolve(true)
+  const start = Date.now()
+  const iv = setInterval(() => {
+    if (bridgeReady()) { clearInterval(iv); resolve(true) }
+    else if (Date.now() - start > timeoutMs) { clearInterval(iv); resolve(false) }
+  }, 25)
+})
+
+// ---------------------------------------------------------------------------
+// boot — load the vendor entry modules by DYNAMIC import (file:// safe), then
+// publish window.paper and announce glueLoaded. Ordering matters: view.js must
+// register <foliate-view> and Overlayer must be assigned BEFORE any book opens,
+// and window.paper must exist BEFORE glueLoaded so the shell's open-on-glue works.
+// ---------------------------------------------------------------------------
+const boot = async () => {
+  const mod = rel => new URL(rel, window.location.href).toString()
+  await import(mod('./vendor/foliate-anx/src/view.js'))          // registers <foliate-view>
+  const ov = await import(mod('./vendor/foliate-anx/src/overlayer.js'))
+  Overlayer = ov.Overlayer
+
+  window.paper = {
+    open: (path, cfi) => paperOpen(path, cfi ?? ''),
+    next: paperNext,
+    prev: paperPrev,
+    goTo: paperGoTo,
+    setAppearance: paperSetAppearance,
+    search: paperSearch,
+    clearSearch: paperClearSearch,
+    addHighlight: paperAddHighlight,
+    removeHighlight: paperRemoveHighlight,
+    clearSelection: paperClearSelection,
+  }
+
+  await waitForBridge()
+  emit('glueLoaded', {})
 }
 
-emit('glueLoaded', {})
+boot().catch(e => {
+  console.error('[paper] boot failed', e)
+  emit('error', { message: 'boot failed: ' + String(e?.message || e) })
+})
