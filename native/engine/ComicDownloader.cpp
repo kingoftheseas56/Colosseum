@@ -1395,8 +1395,9 @@ QVariantList ComicDownloader::downloadedIssues() const
     QVariantList out;
     for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
         const Entry& e = it.value();
-        const bool missing = e.files.isEmpty()
-            || !QFile::exists(e.dir + QStringLiteral("/") + e.files.first());
+        const QString first = e.files.isEmpty()
+            ? QString() : e.dir + QStringLiteral("/") + e.files.first();
+        const bool missing = first.isEmpty() || !QFile::exists(first);
         out.append(QVariantMap{
             {QStringLiteral("id"), it.key()},
             {QStringLiteral("seriesId"), e.seriesId},
@@ -1405,7 +1406,10 @@ QVariantList ComicDownloader::downloadedIssues() const
             {QStringLiteral("pages"), e.files.size()},
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},
-            {QStringLiteral("missing"), missing}
+            {QStringLiteral("missing"), missing},
+            // First page = the issue's own local cover (Downloads-page art).
+            {QStringLiteral("art"), missing
+                ? QString() : QUrl::fromLocalFile(first).toString()}
         });
     }
     return out;

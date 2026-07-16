@@ -1,13 +1,16 @@
 #pragma once
 
 // LocalDownloads — the unified read-model behind the Downloads page.
-// Normalizes all four download backbones (MangaDownloader, BookDownloader,
-// ComicDownloader, player DownloadStore) into one world → series → item shape
-// so QML only renders. It owns NO files and NO network: every action routes to
-// the owning backend. Progress (resume) is deliberately NOT consulted here —
-// downloads answer "what exists locally", not "where do I resume".
+// Normalizes all five download backbones (MangaDownloader, BookDownloader,
+// ComicDownloader, player DownloadStore, and MangaTankobanService's volume
+// lane) into one world → series → item shape so QML only renders. It owns NO
+// files and NO network: every action routes to the owning backend. Progress
+// (resume) is deliberately NOT consulted here — downloads answer "what exists
+// locally", not "where do I resume".
 // Design: chatgpt_requests/20260629-171426-…-plan-review/response.md (ratified),
 // layout ratified 2026-07-04 (agents/colosseum-downloads-mock.html).
+// 2026-07-16: Tankoban volume mode composed in — the page predated volume mode
+// and silently omitted every volume it ingested (Hemanth eyes-on).
 
 #include <QObject>
 #include <QVariantList>
@@ -17,6 +20,7 @@ class MangaDownloader;
 class BookDownloader;
 class ComicDownloader;
 class DownloadStore;
+class MangaTankobanService;
 
 class LocalDownloads : public QObject {
     Q_OBJECT
@@ -26,6 +30,7 @@ class LocalDownloads : public QObject {
 public:
     LocalDownloads(MangaDownloader *manga, BookDownloader *books,
                    ComicDownloader *comics, DownloadStore *videos,
+                   MangaTankobanService *volumes = nullptr,
                    QObject *parent = nullptr);
 
     int revision() const { return m_revision; }
@@ -56,5 +61,6 @@ private:
     BookDownloader *m_books = nullptr;
     ComicDownloader *m_comics = nullptr;
     DownloadStore *m_videos = nullptr;
+    MangaTankobanService *m_volumes = nullptr;   // Tankoban volume mode
     int m_revision = 0;
 };

@@ -83,6 +83,13 @@ public:
     // any caller having to run heal() first.
     Q_INVOKABLE QVariantMap statusOf(const QString& volumeId) const;
 
+    // Every published volume as a Downloads-page row: {id, seriesId, seriesTitle,
+    // label "Vol. N", pages, bytes, addedAt, missing, art (file:// URL of the
+    // first page — the volume's own honest local cover)}. Mirrors
+    // MangaDownloader::downloadedChapters so LocalDownloads composes both lanes
+    // with one shape.
+    Q_INVOKABLE QVariantList downloadedVolumes() const;
+
     // Delete the pages dir + ledger row. Idempotent: returns false (no-op) when
     // the id is unknown.
     Q_INVOKABLE bool remove(const QString& volumeId);

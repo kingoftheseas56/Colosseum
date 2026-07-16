@@ -514,7 +514,8 @@ int main(int argc, char *argv[]) {
     // Unified downloads read-model exposed to QML as `LocalDownloads` — the
     // Downloads page renders this; every mutation still routes to the owning
     // backend (Downloads / Books / Comics / Download).
-    auto *localDownloads = new LocalDownloads(downloads, books, comics, download, &app);
+    auto *localDownloads = new LocalDownloads(downloads, books, comics, download,
+                                              tankobanVolumes, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
 
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.

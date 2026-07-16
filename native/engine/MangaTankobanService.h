@@ -130,6 +130,13 @@ public:
     Q_INVOKABLE QVariantMap statusOf(QString volumeId) const;
     Q_INVOKABLE QVariantList localPages(QString volumeId) const;
 
+    // ── Downloads-page surface (LocalDownloads composes these) ──────────────
+    // Every published (ready) volume as a normalized row incl. first-page art.
+    Q_INVOKABLE QVariantList downloadedVolumes() const;
+    // Every acquisition currently in flight: {id, seriesTitle, label, state
+    // ("resolving"|"downloading"|"ingesting"|"packing"), done, total}.
+    Q_INVOKABLE QVariantList activeVolumeJobs() const;
+
     // ── Test-only end-to-end self-test (COLOSSEUM_TANKOBAN_DLTEST) ─────────────
     // Honest end-to-end proof, wired from main.cpp only when the env var is set
     // (an idle app never calls it, so it touches no network). Spec:

@@ -371,6 +371,29 @@ QVariantList MangaTankobanService::localPages(QString volumeId) const
     return m_index->localPages(volumeId);
 }
 
+QVariantList MangaTankobanService::downloadedVolumes() const
+{
+    return m_index->downloadedVolumes();
+}
+
+QVariantList MangaTankobanService::activeVolumeJobs() const
+{
+    QVariantList out;
+    for (auto it = m_acq.constBegin(); it != m_acq.constEnd(); ++it) {
+        const QVariantMap& acq = it.value();
+        const MangaTankoban::VolumeRecord vol = m_volumes.value(it.key());
+        out.append(QVariantMap{
+            {QStringLiteral("id"), it.key()},
+            {QStringLiteral("seriesTitle"), m_series.value(vol.seriesId).title},
+            {QStringLiteral("label"), QStringLiteral("Vol. %1").arg(vol.number)},
+            {QStringLiteral("state"), acq.value(QStringLiteral("state"))},
+            {QStringLiteral("done"), acq.value(QStringLiteral("done"), 0.0)},
+            {QStringLiteral("total"), acq.value(QStringLiteral("total"), 0.0)}
+        });
+    }
+    return out;
+}
+
 // ── Test-only end-to-end self-test (COLOSSEUM_TANKOBAN_DLTEST) ────────────────
 
 void MangaTankobanService::runDownloadSelfTest(const QString& spec)
