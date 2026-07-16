@@ -74,7 +74,7 @@ Item {
         var s = String(t || "")
         var pre = String(ledger.seriesTitle || "")
         if (pre.length && s.toLowerCase().indexOf(pre.toLowerCase()) === 0) {
-            var rest = s.slice(pre.length).replace(/^[\s:/–—\-]+/, "")   // also strip a dangling "/" (Batman / The Flash)
+            var rest = s.slice(pre.length).replace(/^[\s:,./–—\-]+/, "")   // strip dangling "/" (Batman / The Flash) and "," (TWD, Book One)
             if (rest.length >= 2) return rest
         }
         return s
