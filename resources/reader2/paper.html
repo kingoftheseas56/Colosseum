@@ -1,0 +1,31 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>paper</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    /* footnote popup host used by the fork's footnote path (kept for parity) */
+    #footnote-dialog { display: none; }
+    foliate-view { width: 100%; height: 100%; }
+  </style>
+  <!--
+    Production paper page: native QML chrome sits above this. QML injects qwebchannel.js
+    and window.bridge before paper_glue.js runs. PDF support needs pdf.js (classic) loaded
+    before any PDF is opened; harmless for other formats.
+  -->
+  <script src="./vendor/foliate-anx/src/vendor/pdfjs/pdf.js"></script>
+</head>
+<body>
+  <dialog id="footnote-dialog"><main></main></dialog>
+  <script type="module" src="./paper_glue.js"></script>
+</body>
+</html>

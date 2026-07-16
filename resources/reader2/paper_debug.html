@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>paper (debug bench)</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+    }
+    #footnote-dialog { display: none; }
+    foliate-view { width: 100%; height: 100%; }
+  </style>
+  <!-- PDF support (harmless for other formats) -->
+  <script src="./vendor/foliate-anx/src/vendor/pdfjs/pdf.js"></script>
+</head>
+<body>
+  <dialog id="footnote-dialog"><main></main></dialog>
+  <!-- Bench-only: defines window.bridge + a file picker. CLASSIC script, runs before the module. -->
+  <script src="./mock_bridge.js"></script>
+  <script type="module" src="./paper_glue.js"></script>
+</body>
+</html>
