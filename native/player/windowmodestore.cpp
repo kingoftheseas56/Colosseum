@@ -115,6 +115,8 @@ void WindowModeStore::initializeShell(QQuickWindow *window) {
     connect(window, &QWindow::widthChanged, this, &WindowModeStore::scheduleStableCapture);
     connect(window, &QWindow::heightChanged, this, &WindowModeStore::scheduleStableCapture);
     connect(window, &QWindow::visibilityChanged, this, &WindowModeStore::scheduleStableCapture);
+    connect(window, &QWindow::visibilityChanged,
+            this, &WindowModeStore::reassertBaseModeAfterRestore);
 
     applyBaseMode(window);
     emit changed();
@@ -202,6 +204,29 @@ bool WindowModeStore::startSystemResize(QQuickWindow *window, int edges) {
     if (window->visibility() != QWindow::Windowed)
         return false;
     return window->startSystemResize(static_cast<Qt::Edges>(edges));
+}
+
+void WindowModeStore::reassertBaseModeAfterRestore(QWindow::Visibility visibility) {
+    // Windows restores a minimized frameless-FULLSCREEN shell into Windowed visibility at
+    // a default "normal placement" rect (the shell was born fullscreen, so it has none) —
+    // the taskbar-restore blob, 2026-07-16. The old Main.qml one-liner that snapped it
+    // back was retired by the F11 mode ("Restore must preserve the current base mode"),
+    // and the authority must enforce that sentence itself: outside transitions and PiP,
+    // a fullscreen-base shell must never sit in plain Windowed visibility.
+    if (visibility != QWindow::Windowed)
+        return;
+    if (m_transitioning || m_pipMode || m_shellWindowed)
+        return;
+    // Queued: never re-enter show*() inside the visibility notification itself, and
+    // re-check state when it fires — enterPip()'s showNormal() lands here while its
+    // pipMode flag is still pending, and must be left alone.
+    QMetaObject::invokeMethod(this, [this]() {
+        QQuickWindow *window = m_window;
+        if (!window || m_transitioning || m_pipMode || m_shellWindowed)
+            return;
+        if (window->visibility() == QWindow::Windowed)
+            applyFullscreen(window);
+    }, Qt::QueuedConnection);
 }
 
 void WindowModeStore::scheduleStableCapture() {

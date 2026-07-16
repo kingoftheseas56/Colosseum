@@ -1,7 +1,13 @@
 // GUI harness (offscreen QPA) for the parts of WindowModeStore that need a real
-// QQuickWindow: PiP round-trips onto the base shell mode, F11-in-PiP ordering, and
-// the live-reload re-attach lifecycle. Pure geometry math lives in the QCoreApplication
-// window_state_policy_harness; this one drives the actual window transitions.
+// QQuickWindow: PiP round-trips onto the base shell mode, F11-in-PiP ordering, the
+// live-reload re-attach lifecycle, and restore-from-minimize. Pure geometry math lives
+// in the QCoreApplication window_state_policy_harness; this drives real transitions.
+//
+// RUNNING from build-msvc: the windeployqt'd platforms/ dir beside the exe carries ONLY
+// qwindows.dll and overrides the Qt install's plugins, so "offscreen" fails with a
+// silent 0xC0000409 fail-fast (output needs QT_FORCE_STDERR_LOGGING=1 to even appear).
+// Set QT_QPA_PLATFORM=offscreen AND
+//     QT_QPA_PLATFORM_PLUGIN_PATH=C:/Qt/6.11.1/msvc2022_64/plugins/platforms
 #include "player/windowmodestore.h"
 #include "player/windowstatepolicy.h"
 
@@ -127,6 +133,61 @@ int main(int argc, char **argv) {
         require(replacement.isVisible(), "re-init of the same window stays shown");
     }
     qInfo("window_shell_gui_harness: live-reload re-attach OK");
+
+    // --- Test E: restore-from-minimize must reassert the fullscreen base ---
+    // On Windows, restoring a minimized frameless-fullscreen shell from the taskbar lands
+    // it in Windowed visibility at a default tiny "normal placement" rect (the window was
+    // born fullscreen, so it has none) — the centered-blob bug, 2026-07-16. The old
+    // Main.qml one-liner guard was removed by the F11 mode; the authority must do it now.
+    auto settle = []() {
+        for (int i = 0; i < 20; ++i)
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    };
+    {
+        clearSettings();
+        WindowModeStore store;
+        QQuickWindow win;
+        win.setVisible(false);
+        store.initializeShell(&win);
+        require(win.visibility() == QWindow::FullScreen,
+                "fullscreen base must show fullscreen at init");
+        win.showMinimized();
+        settle();
+        win.showNormal();   // what the taskbar restore does to the shell
+        settle();
+        require(win.visibility() == QWindow::FullScreen,
+                "restore from minimize must snap the fullscreen shell back, not a tiny normal rect");
+    }
+    qInfo("window_shell_gui_harness: fullscreen restore-from-minimize OK");
+
+    // --- Test F: the reassert must NOT fight legitimate windowed or PiP states ---
+    {
+        seedWindowed(QRect(120, 140, 1280, 720));
+        WindowModeStore store;
+        QQuickWindow win;
+        win.setVisible(false);
+        store.initializeShell(&win);
+        require(store.shellWindowed(), "windowed base loads");
+        win.showMinimized();
+        settle();
+        win.showNormal();
+        settle();
+        require(win.visibility() == QWindow::Windowed,
+                "windowed-base restore must stay windowed (never forced fullscreen)");
+    }
+    {
+        clearSettings();
+        WindowModeStore store;
+        QQuickWindow win;
+        win.setVisible(false);
+        store.initializeShell(&win);
+        store.enterPip(&win);
+        settle();
+        require(store.pipMode(), "in PiP");
+        require(win.visibility() == QWindow::Windowed && store.pipMode(),
+                "PiP sits in Windowed visibility and must be left alone by the reassert");
+    }
+    qInfo("window_shell_gui_harness: windowed/PiP restore untouched OK");
 
     qInfo("window_shell_gui_harness: PASS");
     return 0;

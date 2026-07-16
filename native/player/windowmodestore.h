@@ -51,6 +51,7 @@ private:
     void applyBaseMode(QQuickWindow *window);
     void applyFullscreen(QQuickWindow *window);
     void applyWindowed(QQuickWindow *window);
+    void reassertBaseModeAfterRestore(QWindow::Visibility visibility);
     void scheduleStableCapture();
     void captureStableWindowState();
     void persistStableState();
