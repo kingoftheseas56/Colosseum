@@ -364,6 +364,28 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
                 representative = &e;
         }
 
+        // POSITIVE COMIC-IDENTITY FLOOR: the picker shows ONLY rows that
+        // positively identify as THIS comic — the comic equivalent of TB2
+        // streaming's PackClassifier, which required a result to carry video
+        // (season/episode) grammar before it could show as a video pack.
+        //
+        // The old contract was a labeler: it displayed the entire fuzzy firehose
+        // (minus the looksNonComicMedium blocklist), tagging near-zero-relevance
+        // rows "weak". Because the source search has no relevance floor, a
+        // generic edition title ("... Year One: The Deluxe Edition") fuzzy-matched
+        // games ("The Sims 4 (Deluxe Edition)") and anime ("Pocket Monsters 071")
+        // on a single shared word — and a blocklist can never enumerate every
+        // non-comic title shape. So we gate POSITIVELY instead: a row qualifies
+        // only when it leads with our series, carries the ISBN, is an exact/prefix
+        // title match, or is a real comic archive (cbr/cbz) that names the series.
+        // Everything else is dropped, not shown weak. When nothing clears the
+        // floor the list is empty and the page shows its "no source found" state —
+        // the honest answer when the edition simply isn't seeded on these trackers.
+        const bool comicIdentity =
+            isbnMatch || titleExact || titlePrefix || seriesLead
+            || (archiveHint && seriesPresent);
+        if (!comicIdentity) continue;
+
         // SERIES GATE: format-coverage / issue-range / token evidence only
         // identifies OUR edition when the candidate actually LEADS with our
         // series. Without it, "Book One" coverage + a bare "Saga" token promotes

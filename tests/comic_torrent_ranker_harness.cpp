@@ -120,11 +120,13 @@ int main()
     require(filtered.size() == 1 && filtered.first().src.infoHash == hashC,
             "the Switch game and the prose ebook are dropped; only the real comic survives");
 
-    // ── Series gate: a "Book One" coverage match for the WRONG series is never
-    //    our edition. Eyes-on false positives for "Saga: Book One": a video game
-    //    and a LitRPG novel, both "Book One" + a bare "Saga" (as a suffix / genre
-    //    tag), were ranking STRONG. They must demote to weak; the real Saga
-    //    edition (its release LEADS with the series) stays strong. ──
+    // ── Series gate + positive floor: a "Book One" match for the WRONG series is
+    //    never our edition. Eyes-on false positives for "Saga: Book One": a video
+    //    game and a LitRPG novel, both "Book One" + a bare "Saga" (as a suffix /
+    //    genre tag). Neither leads with our series nor is a comic archive, so the
+    //    positive comic-identity floor now DROPS them entirely (they used to show
+    //    as WEAK). The real Saga edition (its release LEADS with the series) stays
+    //    strong. ──
     {
         const QList<RankedComicTorrent> gated = ComicTorrentRanker::rankForEdition(
             sagaTarget,
@@ -138,14 +140,43 @@ int main()
             for (const auto& r : gated) if (r.src.infoHash == h) return r.confidence;
             return QStringLiteral("<absent>");
         };
-        require(conf(hashA) == QStringLiteral("weak"),
-                "'The Fernweh Saga: Book One' (wrong series) is weak, not a strong coverage match");
-        require(conf(hashB) == QStringLiteral("weak"),
-                "the LitRPG 'Saga' novel (Saga only as a genre tag) is weak");
+        require(gated.size() == 2,
+                "only the two real Saga editions clear the floor; the game and novel are dropped");
+        require(conf(hashA) == QStringLiteral("<absent>"),
+                "'The Fernweh Saga: Book One' (wrong series, not a comic) is dropped by the floor");
+        require(conf(hashB) == QStringLiteral("<absent>"),
+                "the LitRPG 'Saga' novel (Saga only as a genre tag, not a comic) is dropped");
         require(conf(hashC) == QStringLiteral("strong"),
                 "the real Saga edition (release leads with the series) is a strong coverage match");
         require(conf(hashD) == QStringLiteral("strong"),
                 "a bracket-tagged real Saga release still leads with the series after tag-strip");
+    }
+
+    // ── Positive comic-identity floor (2026-07-16, Hemanth eyes-on): the picker
+    //    shows ONLY rows that positively identify as THIS comic — the comic
+    //    equivalent of TB2 streaming's PackClassifier gating on video (season /
+    //    episode) grammar. The live alternate-sources firehose surfaced games and
+    //    anime that share only a common word with the edition ("Deluxe Edition",
+    //    "Among Us") and carry NO comic markers; those are dropped now, not shown
+    //    as WEAK. A real comic edition — leads with the series, or is a .cbr/.cbz
+    //    that names it — survives. Exact strings are the ones Hemanth screenshotted. ──
+    {
+        const ComicEditionIdentity::ComicEditionTarget injusticeTarget =
+            makeTarget(QStringLiteral("Injustice: Gods Among Us"),
+                       QStringLiteral("Injustice: Gods Among Us: Year One: The Deluxe Edition"),
+                       QString(), QStringLiteral("9781401284343"),
+                       QStringLiteral("Injustice: Gods Among Us #1-12"));
+        const QList<RankedComicTorrent> floored = ComicTorrentRanker::rankForEdition(
+            injusticeTarget,
+            {
+                row("The Sims 4 (Deluxe Edition) [amd64] [Multi] [Wine]", 120, hashA),
+                row("[Some-Stuffs] Pocket Monsters (2023) 071 (1080p) [C31D9783]", 22, hashB),
+                row("Among Us v2022.7.12s", 40, hashC),
+                row("One Piece - 978 (720p)-Erai-raws", 340, hashD),
+                row("Injustice Gods Among Us Year One - The Deluxe Edition (2015) (digital) (Son of Ultron-Empire) CBR", 6, hashE)
+            });
+        require(floored.size() == 1 && floored.first().src.infoHash == hashE,
+                "games/anime sharing only a common word are dropped; the real comic edition survives");
     }
 
     // ── Serious media filter drops video by container/codec, incl. Knaben's
