@@ -60,6 +60,47 @@ QtObject {
             check(rail2.fillPct === 0, "railState: empty -> fillPct 0")
             check(rail2.label === "", "railState: empty -> no label")
 
+            // 5. revealReducer — pointer-driven reveal; keys NEVER wake the chrome.
+            var s0 = { awake: false, lastMove: 0, pinned: false }
+            var sMove = L.revealReducer(s0, "move", 1000)
+            check(sMove.awake === true && sMove.lastMove === 1000, "reveal: move wakes + stamps lastMove")
+            var sTick1 = L.revealReducer(sMove, "tick", 2000)      // +1000ms (< 1800) still awake
+            check(sTick1.awake === true, "reveal: tick +1000ms stays awake")
+            var sTick2 = L.revealReducer(sMove, "tick", 3000)      // +2000ms (> 1800) hides
+            check(sTick2.awake === false, "reveal: tick +2000ms past idle hides")
+            var sPin = L.revealReducer(sMove, "panelOpen", 1200)
+            check(sPin.pinned === true && sPin.awake === true, "reveal: panelOpen pins awake")
+            var sPinTick = L.revealReducer(sPin, "tick", 6200)     // +5000ms but pinned
+            check(sPinTick.awake === true, "reveal: pinned stays awake past idle")
+            var sClose = L.revealReducer(sPin, "panelClose", 6200)
+            check(sClose.pinned === false, "reveal: panelClose unpins")
+            var sCloseTick = L.revealReducer(sClose, "tick", 8200) // +2000ms after close
+            check(sCloseTick.awake === false, "reveal: after panelClose hides on idle")
+            var sKey = L.revealReducer(sMove, "key", 9999)         // a key event is NOT routed here
+            check(sKey.awake === sMove.awake && sKey.lastMove === sMove.lastMove
+                  && sKey.pinned === sMove.pinned, "reveal: unknown/key event leaves state unchanged")
+
+            // 6. railTicks — chapter marks: ascending fractions strictly inside (0,1).
+            var tk = L.railTicks(null, 5)
+            check(tk.length === 4, "railTicks: sections=5 -> 4 interior marks")
+            var asc = true, inRange = true, prevF = -1
+            for (var ti = 0; ti < tk.length; ti++) {
+                if (!(tk[ti] > 0 && tk[ti] < 1)) inRange = false
+                if (!(tk[ti] > prevF)) asc = false
+                prevF = tk[ti]
+            }
+            check(inRange, "railTicks: all fractions in (0,1)")
+            check(asc, "railTicks: strictly ascending")
+            var tkToc = L.railTicks([{ fraction: 0.6 }, { fraction: 0.2 }, { fraction: 0.9 }], 0)
+            check(tkToc.length === 3 && tkToc[0] === 0.2 && tkToc[2] === 0.9, "railTicks: explicit fractions sorted")
+            check(L.railTicks([], 0).length === 0, "railTicks: empty -> []")
+
+            // 7. authorText — normalize foliate metadata.author shapes.
+            check(L.authorText({ author: "Herman Melville" }) === "Herman Melville", "authorText: string")
+            check(L.authorText({ author: [{ name: "A" }, { name: "B" }] }) === "A, B", "authorText: array of {name}")
+            check(L.authorText({ author: ["X", "Y"] }) === "X, Y", "authorText: array of strings")
+            check(L.authorText({}) === "", "authorText: missing -> ''")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

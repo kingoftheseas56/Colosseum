@@ -79,3 +79,86 @@ function railState(relocated, tocLength) {
         label = "Page " + cur + " of " + tot + " in chapter"
     return { fillPct: pct, label: label }
 }
+
+// ---------------------------------------------------------------------------
+// TASK 7 — reveal state machine + rail ticks (pure; proven headless).
+// ---------------------------------------------------------------------------
+
+// Chrome idle timeout (ms). Kept in lock-step with Theme.idleMs. Keys NEVER feed
+// the reducer — only pointer moves + panel open/close — so a keypress can never
+// wake the chrome (that is the whole point of the naked reading surface).
+var REVEAL_IDLE_MS = 1800
+
+// revealReducer(state, event, nowMs) → a NEW reveal state (pure, no side effects).
+//   state : { awake:bool, lastMove:ms, pinned:bool }
+//   events:
+//     "move"       pointer moved  → wake + remember nowMs (keeps any pin)
+//     "tick"       time advanced  → hide IFF not pinned and idle past the timeout
+//     "panelOpen"  a panel opened → pin awake (idle can't hide it)
+//     "panelClose" panel closed   → unpin + restart the idle countdown from nowMs
+//   anything else (a key the chrome deliberately does NOT route here, or an
+//   unknown event) returns the state unchanged.
+function revealReducer(state, event, nowMs) {
+    var s = state || {}
+    var awake = !!s.awake
+    var lastMove = Number.isFinite(s.lastMove) ? s.lastMove : 0
+    var pinned = !!s.pinned
+    var now = Number.isFinite(nowMs) ? nowMs : 0
+
+    switch (event) {
+    case "move":
+        return { awake: true, lastMove: now, pinned: pinned }
+    case "tick":
+        if (!pinned && (now - lastMove) > REVEAL_IDLE_MS)
+            return { awake: false, lastMove: lastMove, pinned: pinned }
+        return { awake: awake, lastMove: lastMove, pinned: pinned }
+    case "panelOpen":
+        return { awake: true, lastMove: now, pinned: true }
+    case "panelClose":
+        return { awake: true, lastMove: now, pinned: false }
+    default:
+        return { awake: awake, lastMove: lastMove, pinned: pinned }
+    }
+}
+
+// railTicks(toc, sections) → chapter-mark positions as fractions in (0,1), ascending.
+// Prefer an explicit per-entry fraction when the toc carries one; otherwise fall back
+// to evenly-spaced interior marks (one between each pair of consecutive sections).
+// Pure: no engine, no Date, no side effects.
+function railTicks(toc, sections) {
+    var out = []
+    if (toc && toc.length) {
+        for (var i = 0; i < toc.length; i++) {
+            var t = toc[i]
+            var f = (t && typeof t === "object") ? t.fraction : undefined
+            if (Number.isFinite(f) && f > 0 && f < 1) out.push(f)
+        }
+        if (out.length) { out.sort(function (a, b) { return a - b }); return out }
+        var n = toc.length
+        for (var j = 1; j < n; j++) out.push(j / n)   // interior marks by toc count
+        return out
+    }
+    var s = (Number.isFinite(sections) && sections > 1) ? Math.floor(sections) : 0
+    for (var k = 1; k < s; k++) out.push(k / s)
+    return out
+}
+
+// authorText(metadata) → a display author string from foliate book metadata, whose
+// `author` field may be a plain string, an array of strings, or an array/one of
+// { name } objects. Pure normalizer so the chrome shows one clean line.
+function authorText(metadata) {
+    var a = metadata && metadata.author
+    if (!a) return ""
+    function nameOf(x) {
+        if (!x) return ""
+        if (typeof x === "string") return x
+        if (typeof x === "object" && x.name) return String(x.name)
+        return String(x)
+    }
+    if (Array.isArray(a)) {
+        var parts = []
+        for (var i = 0; i < a.length; i++) { var nm = nameOf(a[i]); if (nm) parts.push(nm) }
+        return parts.join(", ")
+    }
+    return nameOf(a)
+}
