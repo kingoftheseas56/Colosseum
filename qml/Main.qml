@@ -255,6 +255,11 @@ Window {
     // keeps running, art stays warm). Windows restores it to whatever base mode it held before
     // minimizing (fullscreen or the developer window), so no forced snap-back is needed.
     function minimizeShell() { win.showMinimized() }
+    // Topbar fullscreen toggle — the same shell flip as the F11 developer door
+    // (WindowModeStore stays the single native authority for the mode).
+    function toggleFullscreenShell() {
+        if (typeof WindowMode !== "undefined") WindowMode.toggleShellMode(win)
+    }
 
     // ---- navigation: open a medium's world page over the persistent wallpaper ----
     // Each visited mode keeps ONE live Loader (created on first entry, never destroyed); navigating
@@ -1136,6 +1141,7 @@ Window {
         width: win.width - theme.margin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
+        onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: Qt.quit()
     }
@@ -1435,6 +1441,7 @@ Window {
                         if (tgiSignal) tgiSignal.connect(win.openTheatreGenreIndex)
                     }
                     item.searchClicked.connect(win.openSearch)
+                    if (item.fullscreenClicked) item.fullscreenClicked.connect(win.toggleFullscreenShell)
                     item.minimizeClicked.connect(win.minimizeShell)
                     item.powerClicked.connect(function() { Qt.quit() })
                 }

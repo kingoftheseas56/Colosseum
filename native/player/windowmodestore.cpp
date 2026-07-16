@@ -160,14 +160,22 @@ void WindowModeStore::applyWindowed(QQuickWindow *window) {
         m_normalGeometry, availableScreenGeometries(),
         primaryAvailableGeometry());
     m_normalGeometry = restored;
-    window->showNormal();
+    // ONE visibility change, then ONE geometry apply. The old sequence
+    // (showNormal -> flags -> geometry -> showNormal again) left fullscreen at
+    // Qt's stale "normal" rect, jumped it, then poked the platform window a
+    // third time — every extra native churn is a visible blink of the D3D
+    // swapchain (Hemanth eyes-on 2026-07-16, first daylight use of the flip
+    // via the new topbar toggle). Flags/min-size are set BEFORE any show so
+    // they can never force a second visible reconfigure; setFlags is a no-op
+    // when unchanged (both modes share the frameless flags).
     window->setFlags(Qt::Window | Qt::FramelessWindowHint);
     window->setMinimumSize(WindowStatePolicy::minimumSize());
-    window->setGeometry(restored);
-    if (m_windowedMaximized)
+    if (m_windowedMaximized) {
         window->showMaximized();
-    else
+    } else {
         window->showNormal();
+        window->setGeometry(restored);
+    }
     window->requestActivate();
 }
 
