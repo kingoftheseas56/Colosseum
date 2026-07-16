@@ -38,10 +38,10 @@ ApplicationWindow {
         signal progress(string issueId, double done, double total)
         signal finished(string issueId)
         signal failed(string issueId, string reason)
-        function searchTorrentSources(issueId, seriesTitle, editionTitle, isbn, collects) { autoSearchCount++ }
+        function searchTorrentSources(issueId, seriesTitle, editionTitle, isbn, collects, catalogFormat) { autoSearchCount++ }
         function searchTorrentSourcesQuery(issueId, query) { manualSearchCount++ }
         function cancelTorrentSourceSearch(issueId) { cancelCount++ }
-        function downloadTorrentEdition(issueId, seriesId, seriesTitle, editionTitle, isbn, collects, infoHash, magnetUri) {
+        function downloadTorrentEdition(issueId, seriesId, seriesTitle, editionTitle, isbn, collects, catalogFormat, infoHash, magnetUri) {
             downloadCount++
             lastEditionTitle = editionTitle; lastIsbn = isbn; lastCollects = collects; lastInfoHash = infoHash
         }

@@ -145,7 +145,7 @@ int main(int argc, char** argv)
     // ── Scenario 1: automatic three-query merge ──
     torrents.searchSources(QStringLiteral("gc:saga:book-one"), QStringLiteral("Saga"),
                            QStringLiteral("Saga: Book One"), QStringLiteral("9781632150783"),
-                           QStringLiteral("Saga #1-18"));
+                           QStringLiteral("Saga #1-18"), QString());
     pump([&] { return finalCount >= 1; });
 
     require(lastRows.size() == 3, "merged search exposes all canonical results");
@@ -164,7 +164,7 @@ int main(int argc, char** argv)
 
     torrents.searchSources(QStringLiteral("gc:saga:comp"), QStringLiteral("Saga"),
                            QStringLiteral("Saga: Book One"), QStringLiteral("9781632150783"),
-                           QStringLiteral("Saga #1-18"));
+                           QStringLiteral("Saga #1-18"), QString());
     // Replace before the loop turns: the three automatic handles are now stale.
     torrents.searchSourcesQuery(QStringLiteral("gc:saga:comp"), QStringLiteral("Saga Compendium"));
     pump([&] { return finalCount >= 1; });
