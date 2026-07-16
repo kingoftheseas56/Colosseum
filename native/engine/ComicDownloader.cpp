@@ -469,14 +469,14 @@ void ComicDownloader::downloadIssueTorrent(const QString& issueIdIn, const QStri
 
 void ComicDownloader::searchTorrentSources(const QString& issueIdIn, const QString& seriesTitle,
                                            const QString& editionTitle, const QString& isbn,
-                                           const QString& collects)
+                                           const QString& collects, const QString& catalogFormat)
 {
     const QString id = issueIdIn.trimmed();
     if (!m_torrents) {
         emit torrentSourceSearchFailed(id, QStringLiteral("comic torrent service unavailable"));
         return;
     }
-    m_torrents->searchSources(id, seriesTitle, editionTitle, isbn, collects);
+    m_torrents->searchSources(id, seriesTitle, editionTitle, isbn, collects, catalogFormat);
 }
 
 void ComicDownloader::searchTorrentSourcesQuery(const QString& issueIdIn, const QString& query)
@@ -534,6 +534,7 @@ void ComicDownloader::downloadTorrentSource(const QString& issueIdIn, const QStr
 void ComicDownloader::downloadTorrentEdition(const QString& issueIdIn, const QString& seriesId,
                                              const QString& seriesTitle, const QString& editionTitle,
                                              const QString& isbn, const QString& collects,
+                                             const QString& catalogFormat,
                                              const QString& infoHash, const QString& magnetUri)
 {
     const QString id = issueIdIn.trimmed();
@@ -559,7 +560,7 @@ void ComicDownloader::downloadTorrentEdition(const QString& issueIdIn, const QSt
     m_torrents->cancelSourceSearch(id);
     qInfo() << "[ComicDownloader] torrent edition chosen" << id << "hash=" << infoHash;
     m_torrents->downloadEditionTorrent(id, seriesId, seriesTitle, editionTitle, isbn, collects,
-                                       infoHash, magnetUri);
+                                       catalogFormat, infoHash, magnetUri);
 }
 
 void ComicDownloader::chooseTorrentFiles(const QString& issueIdIn, const QVariantList& indices)
@@ -1256,7 +1257,7 @@ void ComicDownloader::runPackSelfTest(const QString& spec)
             QCoreApplication::exit(2);
         });
         downloadTorrentEdition(editionId, fx.seriesId, fx.seriesTitle, fx.editionTitle,
-                               fx.isbn, fx.collects, hash, magnetUri);
+                               fx.isbn, fx.collects, QString(), hash, magnetUri);
         return;
     }
 
@@ -1285,7 +1286,7 @@ void ComicDownloader::runPackSelfTest(const QString& spec)
             QCoreApplication::exit(2);
         });
         downloadTorrentEdition(editionId, fx.seriesId, fx.seriesTitle, fx.editionTitle,
-                               fx.isbn, fx.collects, hash, magnetUri);
+                               fx.isbn, fx.collects, QString(), hash, magnetUri);
         return;
     }
 
@@ -1343,9 +1344,9 @@ void ComicDownloader::runPackSelfTest(const QString& spec)
         });
 
         downloadTorrentEdition(editionA, fxA.seriesId, fxA.seriesTitle, fxA.editionTitle,
-                               fxA.isbn, fxA.collects, hash, magnetUri);
+                               fxA.isbn, fxA.collects, QString(), hash, magnetUri);
         downloadTorrentEdition(editionB, fxB.seriesId, fxB.seriesTitle, fxB.editionTitle,
-                               fxB.isbn, fxB.collects, hash, magnetUri);
+                               fxB.isbn, fxB.collects, QString(), hash, magnetUri);
         return;
     }
 

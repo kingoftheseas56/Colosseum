@@ -158,15 +158,23 @@ Pop-Location
 
 $ledgerPath = Join-Path $restartRoot "comics-torrent/edition-requests.json"
 $sawDownloading = $false
+# A tiny loopback download races through awaiting_metadata -> downloading ->
+# completed in well under the old 250ms poll gap, so waiting to catch the
+# transient "downloading" state alone was flaky (it silently missed the window
+# and bailed). Poll tightly and catch ANY non-terminal (resumable) state: the
+# ledger writes a valid-infoHash row at awaiting_metadata BEFORE the download,
+# and active() replays every non-terminal row, so killing launch 1 at ANY of
+# these stages leaves exactly the interrupted request launch 2 must resume.
+$liveStates = @("awaiting_metadata", "downloading", "assembling", "publishing")
 $deadline = (Get-Date).AddSeconds(60)
 while ((Get-Date) -lt $deadline) {
-    Start-Sleep -Milliseconds 250
-    if ($launch1.HasExited) { break }   # finished (or died) before we could catch it downloading
+    Start-Sleep -Milliseconds 25
+    if ($launch1.HasExited) { break }   # finished (or died) before we could catch it mid-flight
     if (Test-Path -LiteralPath $ledgerPath) {
         try {
             $json = Get-Content -LiteralPath $ledgerPath -Raw -ErrorAction Stop | ConvertFrom-Json
             $rows = @($json.rows)
-            if ($rows | Where-Object { $_.state -eq "downloading" }) { $sawDownloading = $true; break }
+            if ($rows | Where-Object { $liveStates -contains $_.state }) { $sawDownloading = $true; break }
         } catch { }
     }
 }
@@ -178,12 +186,12 @@ Remove-Item Env:\COLOSSEUM_COMIC_PACK_DLTEST -ErrorAction SilentlyContinue
 Remove-Item Env:\COLOSSEUM_APPDATA_TAG -ErrorAction SilentlyContinue
 
 if (-not $sawDownloading) {
-    Write-Host "FAIL: restart scenario never observed a 'downloading' ledger row before launch 1 finished"
+    Write-Host "FAIL: restart scenario never observed a resumable (non-terminal) ledger row before launch 1 finished"
     Write-Host (Get-Content -LiteralPath $launch1OutLog -Raw -ErrorAction SilentlyContinue)
     Write-Host (Get-Content -LiteralPath $launch1ErrLog -Raw -ErrorAction SilentlyContinue)
     $failures += "restart"
 } else {
-    Write-Host "  restart: launch 1 killed mid-download (PID $($launch1.Id)) with a 'downloading' ledger row"
+    Write-Host "  restart: launch 1 killed mid-flight (PID $($launch1.Id)) with a resumable (non-terminal) ledger row"
     # Invoke-ScenarioIn (NOT Invoke-Scenario) - launch 2 must land in the SAME
     # AppData root launch 1 just wrote to, untouched, so the ledger replay has
     # something to resume.

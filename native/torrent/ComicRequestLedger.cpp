@@ -118,6 +118,9 @@ QJsonObject rowToJson(const ComicEditionRequestRow& r)
     }
     o[QStringLiteral("collectedIssues")] = issuesArr;
 
+    o[QStringLiteral("collectedIssuesComplete")] = r.collectedIssuesComplete;
+    o[QStringLiteral("formatAmbiguous")]         = r.formatAmbiguous;
+
     o[QStringLiteral("savePath")] = r.savePath;
 
     QJsonArray pickedArr;
@@ -157,6 +160,12 @@ bool rowFromJson(const QJsonObject& o, ComicEditionRequestRow* out)
         issue.number = io.value(QStringLiteral("number")).toInt(-1);
         r.collectedIssues.append(issue);
     }
+
+    // Safe read-defaults for a pre-fix journal that predates these keys: a set
+    // is NOT complete (hold back auto-download) and format IS treated ambiguous
+    // (force a manual choice) rather than risk an unscoped auto-match.
+    r.collectedIssuesComplete = o.value(QStringLiteral("collectedIssuesComplete")).toBool(false);
+    r.formatAmbiguous         = o.value(QStringLiteral("formatAmbiguous")).toBool(true);
 
     r.savePath = o.value(QStringLiteral("savePath")).toString();
 

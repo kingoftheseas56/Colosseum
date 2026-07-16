@@ -57,8 +57,10 @@ Assert-Contains $page 'comicsApi.cancelTorrentSourceSearch(' `
 # file pick unless the transport itself says the manifest needs one.
 Assert-Contains $page 'comicsApi.downloadTorrentEdition(' `
     "Row selection must call the automatic downloadTorrentEdition entry point."
-Assert-Contains $page 'context.editionTitle, context.isbn, context.collects, row.infoHash' `
+Assert-Contains $page 'context.editionTitle, context.isbn, context.collects,' `
     "The canonical edition title/isbn/collects must be the match identity, not the release title."
+Assert-Contains $page 'String(context.format || ""), row.infoHash' `
+    "The catalog format must be threaded to the pack transport for format-scoped identity safety."
 Assert-Contains $page 'comicsApi.chooseTorrentFiles(' `
     "An ambiguous manifest's manual pick must call chooseTorrentFiles."
 Assert-Contains $page 'comicsApi.confirmCombinedArchive(' `

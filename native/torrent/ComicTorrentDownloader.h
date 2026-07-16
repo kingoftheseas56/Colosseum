@@ -130,6 +130,31 @@ public:
     bool confirmCombined(const QString& editionId);
     QVariantMap statusOfEdition(const QString& editionId) const;
 
+    // ── Pure decision helpers (public for direct unit testing) ────────────────
+    // The on-disk state of a payload's selected files at assembly time.
+    // libtorrent posts torrentFinished the instant the last wanted piece passes
+    // hash-check, but the OS write of that piece can still be in flight —
+    // extracting a not-yet-flushed .cbz makes bsdtar/7z fail ("not a cbr/cbz?").
+    //   Ready    — every selected file exists AND is at its full manifest size.
+    //   Flushing — a selected file exists but is still SHORT (write in flight);
+    //              wait and re-check, this is the race to absorb.
+    //   Missing  — a selected file is absent entirely. After torrentFinished a
+    //              WANTED file always exists, so absence is a genuine error, not
+    //              the flush race: assemble anyway so it fails promptly (and a
+    //              synthetic missing-payload sibling still fails synchronously).
+    enum class DiskReadiness { Ready, Flushing, Missing };
+    static DiskReadiness diskReadiness(
+        const QString& saveDir,
+        const QList<ComicEditionFileSelector::ComicSelectedFile>& files);
+    // The label an assembled payload publishes under. A CombinedWholeArchive is
+    // several editions in one file, so it publishes as its own release title,
+    // never falsely as the single requested edition (design: "publishes it as
+    // the release title, not falsely as the target edition"). The edition chId
+    // is preserved separately by the caller — only the display label changes.
+    static QString publishLabel(ComicEditionFileSelector::ComicPayloadKind kind,
+                                const QString& editionTitle,
+                                const QList<ComicEditionFileSelector::ComicSelectedFile>& files);
+
 signals:
     // Shared by both subsystems, keyed by issueId (legacy) or editionId (pack).
     void resolving(const QString& id);
@@ -219,12 +244,24 @@ private:
     void emitTypedSelection(const EditionIntent& intent);
     void reapplyPackPriorities(PackJob* job);
     void assembleAndPublish(PackJob* job, EditionIntent& intent);
+    // Assemble as soon as the selected files are fully on disk; else re-check on
+    // a short timer (see filesReadyOnDisk below).
+    void tryAssembleWhenReady(const QString& infoHash, const QString& editionId, int attempt);
     bool hasLivePackIntent(const PackJob* job) const;
     // Tears the job down when it has no live intent left AND nothing on it
     // ever succeeded (pure cancel/fail-out). A job with >=1 successful intent
-    // stays resident (files already preserved, torrent left registered) so a
-    // LATER edition sharing the same infoHash can join and — since the
-    // payload already finished — assemble immediately without re-downloading.
+    // stays resident (files preserved on disk, torrent left registered).
+    //
+    // RATIFIED PRODUCT DECISION (Hemanth, 2026-07-16): a completed pack KEEPS
+    // SEEDING for the rest of the session. This is deliberate, not a leak —
+    // it (1) lets a LATER edition sharing the same infoHash join and assemble
+    // immediately without re-downloading, and (2) seeds the pack back, which is
+    // the seed toward Tankorent becoming a Torrentio-style source. This
+    // intentionally supersedes the design's DoD #7 "reference-safe cleanup"
+    // wording, which called for teardown once every intent reached terminal.
+    // (Codex flagged the old behavior as an unbounded leak; the residency is
+    // now the chosen behavior. Cross-restart re-seeding is a separate, future
+    // feature — completed rows are terminal, so replay does not re-add them.)
     void maybeTearDownPackJob(PackJob* job);
     void tearDownPackJob(PackJob* job, bool deleteFiles);
     QString packSaveDirFor(const QString& infoHash) const;

@@ -136,6 +136,12 @@ public:
 // + adjacent ordinal), so ComicEditionFileSelector's tierDirectoryCoverage
 // resolves each edition to its own LooseImageSubtree without touching the
 // others (different formats never trip the sibling-ordinal guard).
+// A completed page's on-disk size equals its manifest size in production, so
+// fixtures and the manifest share ONE size here: ComicTorrentDownloader::
+// diskReadiness treats a file shorter than its manifest size as still flushing,
+// and a "finished" fixture must model a fully-downloaded (full-size) file.
+constexpr int kPackPageBytes = 2048;
+
 QJsonArray sharedPackManifest()
 {
     struct Entry { int index; const char* name; };
@@ -152,7 +158,7 @@ QJsonArray sharedPackManifest()
         QJsonObject o;
         o[QStringLiteral("index")] = e.index;
         o[QStringLiteral("name")]  = QString::fromLatin1(e.name);
-        o[QStringLiteral("size")]  = static_cast<double>(2048);
+        o[QStringLiteral("size")]  = static_cast<double>(kPackPageBytes);
         arr.append(o);
     }
     return arr;
@@ -179,7 +185,10 @@ bool writePngFixture(const QString& absPath)
     if (!f.open(QIODevice::WriteOnly)) return false;
     static const unsigned char png[8] = {0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A};
     f.write(reinterpret_cast<const char*>(png), 8);
-    f.write("fixture-page-bytes");
+    // Pad to the full manifest page size so a written fixture models a
+    // fully-downloaded file (diskReadiness == Ready). looksDecodable() only
+    // sniffs the leading PNG magic, so the padding is harmless.
+    f.write(QByteArray(kPackPageBytes - 8, 'x'));
     return true;
 }
 
@@ -385,6 +394,69 @@ int main(int argc, char** argv)
         engine2.emitMetadata(hash3, sharedPackManifest());
         require(engine2.priorities == QVector<int>({7, 7, 7, 7, 0, 0}),
                 "(7) replay re-selects both editions against current metadata");
+    }
+
+    // ── publishLabel (Codex #2): a confirmed combined whole-archive publishes
+    //    under its OWN release title, never falsely as the requested edition ──
+    {
+        using ComicEditionFileSelector::ComicPayloadKind;
+        using ComicEditionFileSelector::ComicSelectedFile;
+
+        ComicSelectedFile combined;
+        combined.path = QStringLiteral("Compendiums/Invincible Compendium v01-v03.cbz");
+        combined.bytes = 100;
+        require(ComicTorrentDownloader::publishLabel(ComicPayloadKind::CombinedWholeArchive,
+                    QStringLiteral("Invincible Compendium #1"), { combined })
+                    == QStringLiteral("Invincible Compendium v01-v03"),
+                "publishLabel: combined archive publishes as its release title, not the target edition");
+
+        ComicSelectedFile single;
+        single.path = QStringLiteral("Invincible Compendium v01.cbz");
+        require(ComicTorrentDownloader::publishLabel(ComicPayloadKind::SingleArchive,
+                    QStringLiteral("Invincible Compendium #1"), { single })
+                    == QStringLiteral("Invincible Compendium #1"),
+                "publishLabel: a normal single archive still publishes under the requested edition title");
+
+        require(ComicTorrentDownloader::publishLabel(ComicPayloadKind::CombinedWholeArchive,
+                    QStringLiteral("Fallback"), {}) == QStringLiteral("Fallback"),
+                "publishLabel: combined with no files falls back to the edition title");
+    }
+
+    // ── diskReadiness (Codex #3): assembly must wait out the torrentFinished->
+    //    extract flush race (exists-but-short) that made real multi-issue
+    //    downloads intermittently fail, WITHOUT deferring a genuinely-missing
+    //    file (which must still fail promptly / synchronously) ──
+    {
+        using ComicEditionFileSelector::ComicSelectedFile;
+        using DiskReadiness = ComicTorrentDownloader::DiskReadiness;
+        QTemporaryDir dir;
+        require(dir.isValid(), "readiness temp dir is valid");
+        const QString saveDir = dir.path();
+
+        ComicSelectedFile f;
+        f.path = QStringLiteral("issues/Invincible 001.cbz");
+        f.bytes = 64;
+
+        require(ComicTorrentDownloader::diskReadiness(saveDir, { f }) == DiskReadiness::Missing,
+                "diskReadiness: a missing selected file is Missing (fails promptly, never deferred)");
+
+        const QString abs = saveDir + QStringLiteral("/issues/Invincible 001.cbz");
+        QDir().mkpath(QFileInfo(abs).absolutePath());
+        {
+            QFile part(abs);
+            require(part.open(QIODevice::WriteOnly), "short fixture opens for write");
+            part.write(QByteArray(32, 'x'));   // half the manifest size (mid-flush)
+        }
+        require(ComicTorrentDownloader::diskReadiness(saveDir, { f }) == DiskReadiness::Flushing,
+                "diskReadiness: a partially-written (short) file is Flushing (wait it out)");
+
+        {
+            QFile full(abs);
+            require(full.open(QIODevice::WriteOnly), "full fixture opens for write");
+            full.write(QByteArray(64, 'x'));   // exactly the manifest size
+        }
+        require(ComicTorrentDownloader::diskReadiness(saveDir, { f }) == DiskReadiness::Ready,
+                "diskReadiness: a fully-written file at manifest size is Ready");
     }
 
     std::cout << "COMIC_TORRENT_PACK_TRANSPORT_OK\n";

@@ -390,9 +390,16 @@ as failed rather than partially replayed.
   removed with files only when the final live intent is gone.
 - On engine completion, each intent assembles and publishes independently. One edition's assembly
   failure does not fail siblings.
-- The shared torrent directory is deleted only after every intent has copied/consumed its selected
-  payload or reached a terminal state. Reference counting is explicit; no intent owns the whole
+- A pack on which NO intent ever succeeded (pure cancel/fail-out) is torn down and its files deleted
+  once the final live intent is gone. Reference counting is explicit; no intent owns the whole
   shared directory.
+- **RATIFIED AMENDMENT (Hemanth, 2026-07-16):** a pack on which at least one intent SUCCEEDED KEEPS
+  SEEDING for the rest of the session (torrent left registered, files preserved). This deliberately
+  supersedes the original "delete after every intent reaches a terminal state" rule below. Rationale:
+  (1) a later intent joining the already-completed payload assembles immediately with no re-download,
+  and (2) seeding completed packs back is the seed toward Tankorent becoming a Torrentio-style source.
+  Cross-restart re-seeding is a separate future feature (completed rows are terminal, so replay does
+  not re-add them).
 - A later intent joining an already completed payload resolves against existing metadata/files and
   can assemble immediately without re-downloading present files.
 
@@ -528,7 +535,9 @@ Each increment is independently testable and committed surgically.
 6. Combined multi-edition archives require explicit whole-archive confirmation and are never
    mislabeled as an isolated edition.
 7. One infohash serves multiple editions with priority union, per-edition progress/terminal state,
-   cancellation narrowing, sibling-failure isolation, and reference-safe cleanup.
+   cancellation narrowing, sibling-failure isolation, and reference-safe cleanup of packs that never
+   succeeded. (Per the 2026-07-16 ratified amendment above, a pack with >=1 successful intent
+   intentionally keeps seeding for the session instead of being torn down.)
 8. Active requests survive an app restart by re-deriving selection from metadata; interrupted
    assembly never publishes partial pages or duplicate index records.
 9. Ambiguous packs retain the manual picker with zero priorities until the user chooses; Back from

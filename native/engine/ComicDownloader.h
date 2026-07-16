@@ -108,7 +108,7 @@ public:
     // never replace the canonical issueLabel used for archive matching.
     Q_INVOKABLE void searchTorrentSources(const QString& issueId, const QString& seriesTitle,
                                           const QString& editionTitle, const QString& isbn,
-                                          const QString& collects);
+                                          const QString& collects, const QString& catalogFormat);
     Q_INVOKABLE void searchTorrentSourcesQuery(const QString& issueId, const QString& query);
     Q_INVOKABLE void cancelTorrentSourceSearch(const QString& issueId);
     Q_INVOKABLE void downloadTorrentSource(const QString& issueId, const QString& seriesId,
@@ -128,6 +128,7 @@ public:
     Q_INVOKABLE void downloadTorrentEdition(const QString& issueId, const QString& seriesId,
                                             const QString& seriesTitle, const QString& editionTitle,
                                             const QString& isbn, const QString& collects,
+                                            const QString& catalogFormat,
                                             const QString& infoHash, const QString& magnetUri);
     // Commit a manual pick among an Ambiguous decision's candidates (one or
     // more manifest indices — a split multi-file pick counts as one edition).

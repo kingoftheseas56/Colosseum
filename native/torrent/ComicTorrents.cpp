@@ -142,12 +142,17 @@ void ComicTorrents::chooseArchive(const QString& issueId, int fileIndex)
 void ComicTorrents::downloadEditionTorrent(const QString& issueIdIn, const QString& seriesId,
                                            const QString& seriesTitle, const QString& editionTitle,
                                            const QString& isbn, const QString& collects,
+                                           const QString& catalogFormat,
                                            const QString& infoHash, const QString& magnetUri)
 {
     const QString issueId = issueIdIn.trimmed();
     if (issueId.isEmpty()) return;
+    // Forward the catalog format so buildTarget corroborates it against the
+    // title: an explicit format wins when clean, and an explicit-vs-title
+    // CONFLICT sets formatAmbiguous (forcing a manual choice) — a Compendium
+    // can no longer silently resolve to a TPB whose title merely reads like one.
     const ComicEditionIdentity::ComicEditionTarget target = ComicEditionIdentity::buildTarget(
-        issueId, seriesId, seriesTitle, editionTitle, QString(), isbn, collects);
+        issueId, seriesId, seriesTitle, editionTitle, catalogFormat, isbn, collects);
     m_downloader->downloadEdition(target, infoHash, magnetUri);
 }
 
@@ -249,14 +254,14 @@ void ComicTorrents::onSearchFinished(const QString& handle)
 
 void ComicTorrents::searchSources(const QString& issueIdIn, const QString& seriesTitle,
                                   const QString& editionTitle, const QString& isbn,
-                                  const QString& collects)
+                                  const QString& collects, const QString& catalogFormat)
 {
     const QString issueId = issueIdIn.trimmed();
     if (issueId.isEmpty()) return;
     cancelSourceSearch(issueId);
     const QStringList queries =
         ComicTorrentQueryPlanner::automaticQueries(seriesTitle, editionTitle, isbn, collects);
-    startSourceSession(issueId, seriesTitle, editionTitle, isbn, collects, queries);
+    startSourceSession(issueId, seriesTitle, editionTitle, isbn, collects, catalogFormat, queries);
 }
 
 void ComicTorrents::searchSourcesQuery(const QString& issueIdIn, const QString& query)
@@ -270,7 +275,7 @@ void ComicTorrents::searchSourcesQuery(const QString& issueIdIn, const QString& 
     const SourceSession prev = m_sourceSessionsByIssue.value(issueId);
     cancelSourceSearch(issueId);
     startSourceSession(issueId, prev.seriesTitle, prev.editionTitle, prev.isbn,
-                       prev.collects, queries);
+                       prev.collects, prev.catalogFormat, queries);
 }
 
 void ComicTorrents::cancelSourceSearch(const QString& issueIdIn)
@@ -287,7 +292,8 @@ void ComicTorrents::cancelSourceSearch(const QString& issueIdIn)
 
 void ComicTorrents::startSourceSession(const QString& issueId, const QString& seriesTitle,
                                        const QString& editionTitle, const QString& isbn,
-                                       const QString& collects, const QStringList& queries)
+                                       const QString& collects, const QString& catalogFormat,
+                                       const QStringList& queries)
 {
     SourceSession session;
     session.issueId = issueId;
@@ -295,13 +301,15 @@ void ComicTorrents::startSourceSession(const QString& issueId, const QString& se
     session.editionTitle = editionTitle;
     session.isbn = isbn;
     session.collects = collects;
-    // Built ONCE here, at the facade boundary — seriesId/catalogFormat are not
-    // yet threaded through this Q_INVOKABLE surface, so format falls back to
-    // whatever ComicEditionIdentity::buildTarget detects inside editionTitle
-    // itself (still format-scoped, just not catalog-corroborated). QML-side
-    // wiring of seriesId/catalogFormat is a later task.
+    session.catalogFormat = catalogFormat;
+    // Built ONCE here, at the facade boundary. The catalog format now flows in
+    // from QML: buildTarget uses the explicit format when it maps cleanly and
+    // flags formatAmbiguous on an explicit-vs-title conflict, so source ranking
+    // is catalog-corroborated, not just title-derived. (seriesId is still not
+    // threaded through this browse surface — the ranker uses title/isbn/format
+    // evidence, not seriesId.)
     session.target = ComicEditionIdentity::buildTarget(issueId, QString(), seriesTitle,
-                                                        editionTitle, QString(), isbn, collects);
+                                                        editionTitle, catalogFormat, isbn, collects);
     // Insert first so an (async) callback can always find its live session.
     m_sourceSessionsByIssue.insert(issueId, session);
     SourceSession& live = m_sourceSessionsByIssue[issueId];

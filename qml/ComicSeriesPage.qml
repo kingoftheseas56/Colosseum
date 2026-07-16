@@ -225,6 +225,8 @@ Item {
                     editionTitle: String(edition.display_title || edition.title || ""),
                     isbn: String(edition.isbn || ""),
                     collects: String(edition.collects || ""),
+                    format: String(edition.format || ""),   // catalog format -> format-scoped safety
+
                     year: String(edition.published || ""),
                     cover: String(edition.cover || page.cover || "")
                 })

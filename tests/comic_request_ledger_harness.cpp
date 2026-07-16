@@ -59,6 +59,8 @@ ComicEditionRequestRow fullRow(const QString& editionId, const QString& infoHash
     r.collectedIssues = { ComicIssueRef{QStringLiteral("Invincible"), 1},
                            ComicIssueRef{QStringLiteral("Invincible"), 2},
                            ComicIssueRef{QStringLiteral("Invincible"), 3} };
+    r.collectedIssuesComplete = true;    // distinctive: a fully-parsed set
+    r.formatAmbiguous = false;           // distinctive: a persisted false must survive
     r.savePath = QStringLiteral("C:/torrents/invincible-compendium-1");
     r.pickedFileIndices = { 0, 2, 5 };
     r.payloadKind = ComicPayloadKind::IssueArchiveSet;
@@ -112,11 +114,44 @@ int main()
             require(r.collectedIssues[0].series == QStringLiteral("Invincible") && r.collectedIssues[0].number == 1,
                     "round-trip: collectedIssues[0]");
             require(r.collectedIssues[2].number == 3, "round-trip: collectedIssues[2] number");
+            require(r.collectedIssuesComplete == true, "round-trip: collectedIssuesComplete (true survives)");
+            require(r.formatAmbiguous == false, "round-trip: formatAmbiguous (persisted false survives)");
             require(r.savePath == QStringLiteral("C:/torrents/invincible-compendium-1"), "round-trip: savePath");
             require(r.pickedFileIndices == QList<int>({0, 2, 5}), "round-trip: pickedFileIndices (several)");
             require(r.payloadKind == ComicPayloadKind::IssueArchiveSet, "round-trip: payloadKind enum");
             require(r.state == QStringLiteral("downloading"), "round-trip: state");
         }
+    }
+
+    // ── Backward-compat safe defaults: a PRE-FIX journal row that predates the
+    //    identity-safety keys must load on the SAFE side — a set is NOT complete
+    //    (hold back auto-download) and format IS treated ambiguous (force a
+    //    manual choice) rather than risk an unscoped auto-match ──
+    {
+        QTemporaryDir dir;
+        require(dir.isValid(), "legacy-defaults temp dir is valid");
+        const QString path = dir.path() + QStringLiteral("/edition-requests.json");
+
+        QJsonObject legacyRow;   // no collectedIssuesComplete / formatAmbiguous keys
+        legacyRow[QStringLiteral("editionId")] = QStringLiteral("ed-legacy");
+        legacyRow[QStringLiteral("infoHash")] = hex40('9');
+        legacyRow[QStringLiteral("state")] = QStringLiteral("downloading");
+
+        QJsonArray rows;
+        rows.append(legacyRow);
+        QJsonObject root;
+        root[QStringLiteral("version")] = ComicRequestLedger::schemaVersion();
+        root[QStringLiteral("rows")] = rows;
+        writeRawJournal(path, root);
+
+        ComicRequestLedger ledger(path);
+        ledger.load();
+        require(ledger.all().size() == 1, "legacy row loads (fields are additive, no version bump)");
+        const ComicEditionRequestRow& r = ledger.all().first();
+        require(r.collectedIssuesComplete == false,
+                "legacy default: collectedIssuesComplete is false (hold back auto-download)");
+        require(r.formatAmbiguous == true,
+                "legacy default: formatAmbiguous is true (force a manual choice)");
     }
 
     // ── Atomic replacement: upsert same editionId twice -> one row, latest

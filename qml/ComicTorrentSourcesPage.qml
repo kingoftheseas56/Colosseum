@@ -10,6 +10,7 @@
 // Belongs to ComicSeriesPage (lazy in practice — ComicSeriesPage is lazy-loaded);
 // never touches root startup. All acquisition rides the global Comics object
 // under the original ledger chId — this page emits no reader signal.
+pragma ComponentBehavior: Bound   // delegates bind outer ids (theme/sheet/row) at creation — clears qmllint unqualified-access
 import QtQuick
 import QtQuick.Controls
 
@@ -68,7 +69,8 @@ Item {
         open = true
         if (comicsApi)
             comicsApi.searchTorrentSources(context.issueId, context.seriesTitle,
-                context.editionTitle, context.isbn, context.collects)
+                context.editionTitle, context.isbn, context.collects,
+                String(context.format || ""))
     }
 
     function hide() {
@@ -127,7 +129,8 @@ Item {
         acquiring = true
         selectionState = "inspecting"
         comicsApi.downloadTorrentEdition(context.issueId, context.seriesId, context.seriesTitle,
-            context.editionTitle, context.isbn, context.collects, row.infoHash, row.magnetUri)
+            context.editionTitle, context.isbn, context.collects,
+            String(context.format || ""), row.infoHash, row.magnetUri)
     }
 
     // ── typed outcomes from the automatic pack path ──────────────────────────
@@ -242,7 +245,7 @@ Item {
             source: sheet.context.cover ? sheet.context.cover : ""
             fillMode: Image.PreserveAspectCrop
             asynchronous: true; cache: true
-            visible: source != ""
+            visible: source !== ""
             opacity: status === Image.Ready ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.OutCubic } }
         }

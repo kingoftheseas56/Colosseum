@@ -13,9 +13,17 @@
 #include <QJsonObject>
 #include <QSet>
 #include <QStandardPaths>
+#include <QTimer>
 
 namespace {
 constexpr int kProgressThrottleMs = 500;
+// Assembly-readiness poll: re-check the selected files' on-disk sizes every
+// kAssembleReadyRetryMs until they match the manifest, up to kMaxAssembleReady
+// Attempts (~30s). A real loopback flush lands in a frame or two; the ceiling
+// only guards against a genuinely-never-arriving file, after which we assemble
+// anyway so the extractor surfaces the real error instead of hanging.
+constexpr int kAssembleReadyRetryMs = 120;
+constexpr int kMaxAssembleReadyAttempts = 250;
 }
 
 using ComicEditionFileSelector::ComicPayloadKind;
@@ -376,11 +384,14 @@ void ComicTorrentDownloader::replayPackActive()
         intent.target.ordinal = row.ordinal;
         intent.target.isbnDigits = row.isbnDigits;
         intent.target.collectedIssues = row.collectedIssues;
-        // Persisted file choices are deliberately FORGOTTEN for execution: the
-        // ledger doesn't carry collectedIssuesComplete/formatAmbiguous, so a
-        // fresh selection pass (once metadata returns) is the honest source
-        // of truth rather than a stale/partial reconstruction.
-        intent.target.collectedIssuesComplete = !row.collectedIssues.isEmpty();
+        // Restore the identity-SAFETY flags exactly as they were journaled. The
+        // ledger now persists both, so a partially-parsed collected-issue set
+        // (some issues parsed, but not all) stays collectedIssuesComplete=false
+        // across a restart and is never promoted to auto-downloadable. The old
+        // reconstruction (`!collectedIssues.isEmpty()`) silently turned any
+        // non-empty partial parse into a "complete" set on replay.
+        intent.target.collectedIssuesComplete = row.collectedIssuesComplete;
+        intent.target.formatAmbiguous = row.formatAmbiguous;
         job->intents.append(intent);
         m_hashByEdition.insert(row.editionId, row.infoHash);
         m_ledger->setState(row.editionId, QStringLiteral("awaiting_metadata"));
@@ -437,6 +448,10 @@ void ComicTorrentDownloader::writePackLedgerRow(PackJob* job,
     row.ordinal = target.ordinal;
     row.isbnDigits = target.isbnDigits;
     row.collectedIssues = target.collectedIssues;
+    // Persist the identity-safety flags so a restart re-derives the SAME
+    // safe/unsafe verdict instead of guessing from collectedIssues alone.
+    row.collectedIssuesComplete = target.collectedIssuesComplete;
+    row.formatAmbiguous = target.formatAmbiguous;
     row.savePath = job->saveDir;
     row.pickedFileIndices = {};
     row.payloadKind = ComicPayloadKind::None;
@@ -616,10 +631,16 @@ void ComicTorrentDownloader::resolvePackJob(PackJob* job, bool payloadAlreadyFin
     }
 
     if (payloadAlreadyFinished) {
+        // Snapshot edition ids first — tryAssembleWhenReady() may re-key/tear
+        // down m_packJobs, invalidating the justResolvedLive pointers.
+        const QString hash = job->infoHash;
+        QStringList editionIds;
         for (EditionIntent* intent : justResolvedLive)
             if (!intent->terminal && !intent->awaitingChoice)
-                assembleAndPublish(job, *intent);
-        maybeTearDownPackJob(job);
+                editionIds << intent->editionId;
+        for (const QString& editionId : editionIds)
+            tryAssembleWhenReady(hash, editionId, 0);
+        if (PackJob* stillThere = m_packJobs.value(hash)) maybeTearDownPackJob(stillThere);
     }
 }
 
@@ -694,8 +715,13 @@ void ComicTorrentDownloader::assembleAndPublish(PackJob* job, EditionIntent& int
     job->anySuccess = true;
     if (m_ledger) m_ledger->setState(intent.editionId, QStringLiteral("publishing"));
     if (m_ingestTarget) {
+        // A confirmed CombinedWholeArchive publishes under its own release
+        // title, never falsely as the single requested edition — the chId
+        // (first arg) is unchanged, so it still lands under the catalog row.
+        const QString label = publishLabel(intent.decision.kind, intent.target.editionTitle,
+                                           intent.decision.files);
         m_ingestTarget->ingestAssembledEdition(intent.editionId, intent.target.seriesId,
-            intent.target.seriesTitle, intent.target.editionTitle,
+            intent.target.seriesTitle, label,
             result.stagingDir, result.orderedFiles, result.groups);
     } else if (m_ledger) {
         // No publication target wired (production, until a later task wires a
@@ -703,6 +729,67 @@ void ComicTorrentDownloader::assembleAndPublish(PackJob* job, EditionIntent& int
         // evidence of success even though nothing consumes it yet.
         m_ledger->setState(intent.editionId, QStringLiteral("completed"));
     }
+}
+
+// Classify the selected files' on-disk state. Mirrors the assembler's own path
+// join (cleanPath(jobRoot + '/' + rel)) so the readiness check and the
+// extraction target are the same file. A missing file short-circuits to Missing
+// (a genuine error, not the flush race); an existing-but-short file yields
+// Flushing (the race to wait out); all-present-and-full yields Ready.
+ComicTorrentDownloader::DiskReadiness ComicTorrentDownloader::diskReadiness(
+    const QString& saveDir,
+    const QList<ComicEditionFileSelector::ComicSelectedFile>& files)
+{
+    bool anyFlushing = false;
+    for (const ComicEditionFileSelector::ComicSelectedFile& f : files) {
+        const QString abs = QDir::cleanPath(saveDir + QLatin1Char('/') + f.path);
+        const QFileInfo fi(abs);
+        if (!fi.exists() || !fi.isFile()) return DiskReadiness::Missing;
+        if (f.bytes > 0 && fi.size() < f.bytes) anyFlushing = true;
+    }
+    return anyFlushing ? DiskReadiness::Flushing : DiskReadiness::Ready;
+}
+
+// Assemble as soon as the selected files are fully on disk; while any is still
+// flushing (exists but short), re-check on a short timer. Re-looks-up the
+// job/intent by id every call (never holds a pointer across the timer) so a
+// teardown/rebind in between is safe.
+void ComicTorrentDownloader::tryAssembleWhenReady(const QString& infoHash,
+                                                  const QString& editionId, int attempt)
+{
+    PackJob* job = m_packJobs.value(infoHash);
+    if (!job) return;                                   // torn down meanwhile
+    EditionIntent* intent = packIntentFor(job, editionId);
+    if (!intent || intent->terminal || intent->awaitingChoice || !intent->resolved) return;
+    if (intent->decision.failure != ComicSelectionFailure::None) return;
+
+    const DiskReadiness readiness = diskReadiness(job->saveDir, intent->decision.files);
+    if (readiness == DiskReadiness::Flushing && attempt < kMaxAssembleReadyAttempts) {
+        QTimer::singleShot(kAssembleReadyRetryMs, this, [this, infoHash, editionId, attempt]() {
+            tryAssembleWhenReady(infoHash, editionId, attempt + 1);
+        });
+        return;
+    }
+    if (readiness == DiskReadiness::Flushing) {
+        qWarning() << "[ComicTorrentDownloader]" << editionId << "assembling after"
+                   << attempt << "readiness retries with files still short — the"
+                   << "extractor will surface any real error";
+    }
+    // Ready (success), Missing (assembler fails cleanly), or Flushing-exhausted.
+    assembleAndPublish(job, *intent);
+    maybeTearDownPackJob(job);
+}
+
+QString ComicTorrentDownloader::publishLabel(
+    ComicEditionFileSelector::ComicPayloadKind kind, const QString& editionTitle,
+    const QList<ComicEditionFileSelector::ComicSelectedFile>& files)
+{
+    if (kind == ComicEditionFileSelector::ComicPayloadKind::CombinedWholeArchive
+        && !files.isEmpty()) {
+        const QString release = QFileInfo(files.first().path).completeBaseName().trimmed();
+        if (!release.isEmpty()) return release;
+    }
+    return editionTitle;
 }
 
 bool ComicTorrentDownloader::cancelEdition(const QString& editionId)
@@ -769,10 +856,10 @@ bool ComicTorrentDownloader::chooseFiles(const QString& editionId, const QList<i
         m_ledger->setState(editionId, QStringLiteral("downloading"));
     }
     reapplyPackPriorities(job);
-    if (job->payloadFinished) {
-        assembleAndPublish(job, *intent);
-        maybeTearDownPackJob(job);
-    }
+    // If the payload already finished, the user's choice arrived right at (or
+    // after) completion — gate assembly on the chosen files being flushed.
+    if (job->payloadFinished)
+        tryAssembleWhenReady(job->infoHash, editionId, 0);
     return true;
 }
 
@@ -795,10 +882,10 @@ bool ComicTorrentDownloader::confirmCombined(const QString& editionId)
         m_ledger->setState(editionId, QStringLiteral("downloading"));
     }
     reapplyPackPriorities(job);
-    if (job->payloadFinished) {
-        assembleAndPublish(job, *intent);
-        maybeTearDownPackJob(job);
-    }
+    // If the payload already finished, the user's choice arrived right at (or
+    // after) completion — gate assembly on the chosen files being flushed.
+    if (job->payloadFinished)
+        tryAssembleWhenReady(job->infoHash, editionId, 0);
     return true;
 }
 
@@ -918,12 +1005,22 @@ void ComicTorrentDownloader::onEngineFinished(const QString& infoHash)
     }
     if (PackJob* job = m_packJobs.value(infoHash.toLower())) {
         job->payloadFinished = true;
-        for (EditionIntent& intent : job->intents) {
+        // Snapshot the assemblable edition ids first: tryAssembleWhenReady()
+        // may tear the job down, so iterating job->intents across the calls is
+        // unsafe. Each intent assembles once its own files are flushed.
+        const QString hash = infoHash.toLower();
+        QStringList editionIds;
+        for (const EditionIntent& intent : job->intents) {
             if (intent.terminal || intent.awaitingChoice || !intent.resolved) continue;
             if (intent.decision.failure != ComicSelectionFailure::None) continue;
-            assembleAndPublish(job, intent);
+            editionIds << intent.editionId;
         }
-        maybeTearDownPackJob(job);
+        for (const QString& editionId : editionIds)
+            tryAssembleWhenReady(hash, editionId, 0);
+        // Handles the no-assemblable-intent case (e.g. all already terminal):
+        // clean up a fully-dead job. No-ops while any intent is still live or
+        // pending a readiness retry.
+        if (PackJob* stillThere = m_packJobs.value(hash)) maybeTearDownPackJob(stillThere);
     }
 }
 

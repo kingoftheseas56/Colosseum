@@ -75,7 +75,7 @@ public:
     // browsing sources must never register as a Downloads-page acquisition.
     void searchSources(const QString& issueId, const QString& seriesTitle,
                        const QString& editionTitle, const QString& isbn,
-                       const QString& collects);
+                       const QString& collects, const QString& catalogFormat);
     void searchSourcesQuery(const QString& issueId, const QString& query);
     void cancelSourceSearch(const QString& issueId);
     // Commit a user-chosen archive from an ambiguous, paused torrent.
@@ -89,6 +89,7 @@ public:
     void downloadEditionTorrent(const QString& issueId, const QString& seriesId,
                                 const QString& seriesTitle, const QString& editionTitle,
                                 const QString& isbn, const QString& collects,
+                                const QString& catalogFormat,
                                 const QString& infoHash, const QString& magnetUri);
     // Fallbacks for the typed non-automatic outcomes.
     bool chooseEditionFiles(const QString& issueId, const QList<int>& indices);
@@ -144,6 +145,7 @@ private:
         QString editionTitle;
         QString isbn;
         QString collects;
+        QString catalogFormat;
         ComicEditionIdentity::ComicEditionTarget target;
         QSet<QString> pendingHandles;
         QList<TorrentResult> results;
@@ -156,7 +158,8 @@ private:
 
     void startSourceSession(const QString& issueId, const QString& seriesTitle,
                             const QString& editionTitle, const QString& isbn,
-                            const QString& collects, const QStringList& queries);
+                            const QString& collects, const QString& catalogFormat,
+                            const QStringList& queries);
     void handleSourceResults(const QString& handle, const QList<TorrentResult>& results);
     void handleSourceFinished(const QString& handle);
     QVariantList sourceRows(const SourceSession& session) const;

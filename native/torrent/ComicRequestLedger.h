@@ -42,6 +42,13 @@ struct ComicEditionRequestRow {
     int     ordinal = -1;
     QString isbnDigits;
     QList<ComicEditionIdentity::ComicIssueRef> collectedIssues;
+    // Identity-safety flags — persisted so a restart re-derives the SAME
+    // safe/unsafe verdict. Without them, a partially-parsed collected-issue set
+    // would look "complete" on replay and could auto-download a subset it
+    // should have held back. Both default to the SAFE side (hold back / force
+    // manual) when a pre-fix journal row lacks the key.
+    bool collectedIssuesComplete = false;
+    bool formatAmbiguous = false;
     QString savePath;
     QList<int> pickedFileIndices;   // may hold several (issue-range assembly)
     ComicEditionFileSelector::ComicPayloadKind payloadKind = ComicEditionFileSelector::ComicPayloadKind::None;
