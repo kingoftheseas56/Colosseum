@@ -52,7 +52,11 @@ Item {
     // series-level hints (the DB is per-edition): synopsis from the first enriched edition,
     // byline = every distinct creator across editions (a run spans authors — Batman is King + Tynion)
     readonly property string heroCreators: distinctCreators()
-    readonly property string heroSynopsis: firstField("description")
+    // Series-level synopsis (Wikipedia lead via the Wikidata P3589 join) wins;
+    // the first edition's PRH back-cover copy remains the fallback.
+    readonly property string heroSynopsis: (dbSeries && dbSeries.synopsis)
+                                           ? String(dbSeries.synopsis)
+                                           : firstField("description")
     function firstField(k) {
         var eds = dbSeries && dbSeries.editions ? dbSeries.editions : []
         for (var i = 0; i < eds.length; i++) if (eds[i][k]) return eds[i][k]
