@@ -105,6 +105,8 @@ add_executable(colosseum
     reader/BookBridge.h
     reader/BookStores.cpp
     reader/BookStores.h
+    reader2/Reader2Bridge.cpp
+    reader2/Reader2Bridge.h
     tts/EdgeTtsClient.cpp
     tts/EdgeTtsClient.h
     tts/EdgeTtsWorker.cpp
@@ -226,6 +228,16 @@ add_executable(reader2_stores_harness
 )
 target_include_directories(reader2_stores_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_stores_harness PRIVATE Qt6::Core)
+
+add_executable(reader2_bridge_harness
+    ../tests/reader2_bridge_harness.cpp
+    reader2/Reader2Bridge.cpp
+    reader2/Reader2Bridge.h
+    reader/BookStores.cpp
+    reader/BookStores.h
+)
+target_include_directories(reader2_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(reader2_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
