@@ -115,7 +115,7 @@ private:
 
         for (auto* a : alerts) {
             if (auto* mra = lt::alert_cast<lt::metadata_received_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(mra->handle);
+                auto hash = m_engine->canonicalKeyForHandle(mra->handle);
                 QString name;
                 qint64 totalSize = 0;
                 QJsonArray files;
@@ -148,7 +148,7 @@ private:
             else if (auto* ata = lt::alert_cast<lt::add_torrent_alert>(a)) {
                 QString hash;
                 if (ata->handle.is_valid()) {
-                    hash = TorrentEngine::hashToHex(ata->handle);
+                    hash = m_engine->canonicalKeyForHandle(ata->handle);
                 } else {
                     const auto raw = ata->params.info_hashes.get_best().to_string();
                     hash.reserve(static_cast<int>(raw.size()) * 2);
@@ -163,15 +163,15 @@ private:
                 }
             }
             else if (auto* tea = lt::alert_cast<lt::torrent_error_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(tea->handle);
+                auto hash = m_engine->canonicalKeyForHandle(tea->handle);
                 emit m_engine->torrentError(hash, QString::fromStdString(tea->message()));
             }
             else if (auto* tfa = lt::alert_cast<lt::torrent_finished_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(tfa->handle);
+                auto hash = m_engine->canonicalKeyForHandle(tfa->handle);
                 emit m_engine->torrentFinished(hash);
             }
             else if (auto* srd = lt::alert_cast<lt::save_resume_data_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(srd->handle);
+                auto hash = m_engine->canonicalKeyForHandle(srd->handle);
                 auto path = m_engine->m_cacheDir + "/resume/" + hash + ".fastresume";
                 try {
                     auto buf = lt::write_resume_data_buf(srd->params);
@@ -187,24 +187,24 @@ private:
                 qWarning() << "Resume data save failed:" << a->message().c_str();
             }
             else if (auto* sma = lt::alert_cast<lt::storage_moved_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(sma->handle);
+                auto hash = m_engine->canonicalKeyForHandle(sma->handle);
                 QString newPath = QString::fromUtf8(sma->storage_path());
                 emit m_engine->storageMoved(hash, newPath);
             }
             else if (auto* smf = lt::alert_cast<lt::storage_moved_failed_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(smf->handle);
+                auto hash = m_engine->canonicalKeyForHandle(smf->handle);
                 emit m_engine->storageMoveFailed(hash,
                     QString::fromStdString(smf->message()));
             }
             else if (auto* fra = lt::alert_cast<lt::file_renamed_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(fra->handle);
+                auto hash = m_engine->canonicalKeyForHandle(fra->handle);
                 emit m_engine->fileRenamed(
                     hash,
                     static_cast<int>(fra->index),
                     QString::fromUtf8(fra->new_name()));
             }
             else if (auto* frf = lt::alert_cast<lt::file_rename_failed_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(frf->handle);
+                auto hash = m_engine->canonicalKeyForHandle(frf->handle);
                 emit m_engine->fileRenameFailed(
                     hash,
                     static_cast<int>(frf->index),
@@ -219,7 +219,7 @@ private:
             // signal; purely additive. Mode A diagnostic trace reuses the
             // same alert, still env-var gated.
             else if (auto* pfa = lt::alert_cast<lt::piece_finished_alert>(a)) {
-                auto hash = TorrentEngine::hashToHex(pfa->handle);
+                auto hash = m_engine->canonicalKeyForHandle(pfa->handle);
                 const int pieceIdx = static_cast<int>(pfa->piece_index);
                 emit m_engine->pieceFinished(hash, pieceIdx);
                 if (m_traceActive)
@@ -231,7 +231,7 @@ private:
             else if (m_traceActive) {
                 if (auto* bfa = lt::alert_cast<lt::block_finished_alert>(a)) {
                     writeAlertTrace("block_finished",
-                                    TorrentEngine::hashToHex(bfa->handle),
+                                    m_engine->canonicalKeyForHandle(bfa->handle),
                                     static_cast<int>(bfa->piece_index),
                                     static_cast<int>(bfa->block_index));
                 }
@@ -566,7 +566,7 @@ void TorrentEngine::saveAllResumeData()
         m_session.pop_alerts(&alerts);
         for (auto* a : alerts) {
             if (auto* srd = lt::alert_cast<lt::save_resume_data_alert>(a)) {
-                auto hash = hashToHex(srd->handle);
+                auto hash = canonicalKeyForHandle(srd->handle);
                 auto resumePath = m_cacheDir + "/resume/" + hash + ".fastresume";
                 try {
                     auto buf = lt::write_resume_data_buf(srd->params);
@@ -591,6 +591,25 @@ QString TorrentEngine::hashToHex(const lt::torrent_handle& h)
         hex += QString::asprintf("%02x", c);
     }
     return hex;
+}
+
+QString TorrentEngine::canonicalKeyForHandleLocked(const lt::torrent_handle& h) const
+{
+    if (!h.is_valid()) return {};
+    const auto it = m_handleKeyById.constFind(h.id());
+    if (it != m_handleKeyById.constEnd())
+        return it.value();
+    // Unregistered handle (never routed through addMagnet/addTorrent/
+    // addFromResume — e.g. a raw session torrent during the shutdown flush). Its
+    // hash has not drifted yet, so the raw best-hash is a safe fallback; every
+    // handle we registered resolves to its pinned key above.
+    return hashToHex(h);
+}
+
+QString TorrentEngine::canonicalKeyForHandle(const lt::torrent_handle& h) const
+{
+    QMutexLocker lock(&m_mutex);
+    return canonicalKeyForHandleLocked(h);
 }
 
 QString TorrentEngine::stateToString(lt::torrent_status::state_t s, bool paused)
@@ -724,6 +743,19 @@ QString TorrentEngine::addMagnet(const QString& magnetUri, const QString& savePa
 
         if (existing.is_valid()) {
             QMutexLocker lock(&m_mutex);
+            // Reuse this handle's PINNED identity if we already registered it.
+            // Recomputing hashToHex(existing) here after metadata would return the
+            // (truncated) v2 hash and insert a SECOND record beside the original
+            // v1 one — the exact drift that orphans v1-keyed consumers. Never do
+            // that: hand back the key the handle already lives under.
+            const auto pinned = m_handleKeyById.constFind(existing.id());
+            if (pinned != m_handleKeyById.constEnd()) {
+                dlog.info("torrent-engine",
+                    QStringLiteral("addMagnet: reusing pinned key %1 for existing handle (%2)")
+                        .arg(pinned.value().left(40)).arg(ecMsg));
+                return pinned.value();
+            }
+            // First time we see this handle — register + pin it now.
             QString hash = hashToHex(existing);
             if (!m_records.contains(hash)) {
                 TorrentRecord rec;
@@ -733,8 +765,9 @@ QString TorrentEngine::addMagnet(const QString& magnetUri, const QString& savePa
                 rec.handle   = existing;
                 m_records.insert(hash, rec);
             }
+            m_handleKeyById.insert(existing.id(), hash);
             dlog.info("torrent-engine",
-                QStringLiteral("addMagnet: reusing existing session handle for %1 (add_torrent said: %2)")
+                QStringLiteral("addMagnet: registered existing session handle under %1 (%2)")
                     .arg(hash.left(40)).arg(ecMsg));
             return hash;
         }
@@ -754,6 +787,7 @@ QString TorrentEngine::addMagnet(const QString& magnetUri, const QString& savePa
     rec.savePath = savePath;
     rec.handle   = handle;
     m_records.insert(hash, rec);
+    if (handle.is_valid()) m_handleKeyById.insert(handle.id(), hash);   // pin identity for life
 
     return hash;
 }
@@ -806,6 +840,7 @@ QString TorrentEngine::addFromResume(const QString& resumePath,
     rec.metadataReady = true;
     rec.handle        = handle;
     m_records.insert(hash, rec);
+    if (handle.is_valid()) m_handleKeyById.insert(handle.id(), hash);   // pin identity for life
 
     return hash;
 }
@@ -967,11 +1002,13 @@ void TorrentEngine::removeTorrent(const QString& infoHash, bool deleteFiles)
         if (deleteFiles)
             flags = lt::session::delete_files;
         m_session.remove_torrent(it->handle, flags);
+        m_handleKeyById.remove(it->handle.id());   // drop the pinned identity too
     }
 
     m_records.erase(it);
 
-    // Remove resume data file
+    // Remove resume data file (written under the SAME canonical key, so this
+    // matches even for a v1-registered hybrid whose get_best() drifted to v2).
     QFile::remove(m_cacheDir + "/resume/" + infoHash + ".fastresume");
 }
 

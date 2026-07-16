@@ -395,6 +395,15 @@ private:
     void ensureDirs();
 
     static QString hashToHex(const lt::torrent_handle& h);
+    // Canonical, lifetime-STABLE external identity for a handle. hashToHex()
+    // reflects libtorrent's current get_best() preference, which flips from v1
+    // to (truncated) v2 the instant a v1-only magnet's metadata reveals a HYBRID
+    // torrent — orphaning every consumer/ledger/resume-file keyed under the
+    // original v1 (comics "Inspecting pack…" hang; Nyaa manga is v1-only so never
+    // hits it). These return the key the handle was REGISTERED under, pinned once
+    // in m_handleKeyById and never re-derived. *Locked assumes m_mutex is held.
+    QString canonicalKeyForHandleLocked(const lt::torrent_handle& h) const;
+    QString canonicalKeyForHandle(const lt::torrent_handle& h) const;
     static QString stateToString(lt::torrent_status::state_t s, bool paused);
 
     struct SeedingRule { float ratioLimit = 0.f; int seedTimeSecs = 0; };
@@ -405,6 +414,11 @@ private:
 
     mutable QMutex                    m_mutex;
     QHash<QString, TorrentRecord>     m_records;
+    // handle.id() (session-unique in-process index) -> the QString identity the
+    // handle was registered under. Pinned once at registration, never changed
+    // when metadata later expands info_hashes() to hybrid. This is the durable
+    // external key; guarded by m_mutex alongside m_records.
+    QHash<quint32, QString>           m_handleKeyById;
     QString                           m_cacheDir;
     bool                              m_running = false;
 };
