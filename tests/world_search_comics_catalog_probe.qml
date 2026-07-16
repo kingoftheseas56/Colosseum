@@ -13,7 +13,14 @@ Item {
                          : i === 3 ? "Justice League"
                          : i === 4 ? "Justice League Dark"
                          : i === 5 ? "Nickelodeon Avatar: The Last Airbender - The Promise"
+                         // run-siblings: the SAME title as i===3, different runs (the GCD
+                         // catalog legitimately carries JL 2011/2016/2018 as separate series)
+                         : i === 6 ? "Justice League"
+                         : i === 7 ? "Justice League"
                          : "Catalog Comic " + i,
+                    // years drive run disambiguation on the card; i===3 stays yearless to
+                    // prove undated rows render undecorated
+                    year: i === 6 ? 2016 : i === 7 ? 2018 : undefined,
                     locg_id: String(100000 + i),
                     publisher: i === 2 ? "Image Comics" : "Test Press",
                     cover: "cover-" + i,
@@ -47,8 +54,25 @@ Item {
             // queries must still surface our own DB rows.
             var jlu = WorldSearch.searchCatalog("justice league unlimited")
             if (jlu.length < 2) throw new Error("longer-than-title query dropped catalog rows")
-            if (String(jlu[0].title) !== "Justice League")
+            if (String(jlu[0].title).indexOf("Justice League") !== 0)
                 throw new Error("closest catalog run should lead, got " + jlu[0].title)
+
+            // Run disambiguation (screenshot bug 2026-07-16): three JL runs rendered as
+            // three identical "Justice League" cards. Same-title runs must carry their
+            // year on the CARD ("Justice League (2018)"), stay distinct from each other,
+            // and keep the PURE title in data.title for routing/dedup.
+            var jlCards = jlu.filter(function(r) { return r.data.title === "Justice League" })
+            if (jlCards.length !== 3) throw new Error("expected 3 JL run cards, got " + jlCards.length)
+            var seen = {}
+            for (var d = 0; d < jlCards.length; ++d) {
+                var disp = String(jlCards[d].title)
+                if (seen[disp]) throw new Error("run cards not distinct: " + disp + " repeats")
+                seen[disp] = true
+            }
+            if (!seen["Justice League (2016)"] || !seen["Justice League (2018)"])
+                throw new Error("dated runs missing year suffix: " + Object.keys(seen).join(" | "))
+            if (!seen["Justice League"])
+                throw new Error("yearless run must render undecorated")
 
             // ...and the reverse: query tokens inside a longer catalog title.
             var promise = WorldSearch.searchCatalog("avatar promise")
@@ -65,7 +89,17 @@ Item {
                 title: "Justice League Unlimited",
                 group: "Comics · GetComics",
                 data: { western: true }
+            }, {
+                // we CARRY Justice League (3 runs) — the GetComics shelf row must dedupe
+                // away even though the catalog cards now wear "(year)" suffixes
+                title: "Justice League",
+                group: "Comics · GetComics",
+                data: { western: true }
             }])
+            for (var w = 0; w < merged2.length; ++w)
+                if (merged2[w].data && merged2[w].data.western
+                        && String(merged2[w].title) === "Justice League")
+                    throw new Error("carried-title GetComics row survived year-decorated dedupe")
             var firstCatalog = -1, firstWestern = -1
             for (var k = 0; k < merged2.length; ++k) {
                 if (merged2[k].data && merged2[k].data.locg && firstCatalog < 0) firstCatalog = k

@@ -110,6 +110,7 @@ function rankedSeries() {
         // locgId is the extra the click handler needs to open the series.
         out.push({ rank: s.rank, caption: s.title, title: s.title, cover: s.cover || "",
                    locgId: "locg:" + s.locg_id, publisher: s.publisher || "",
+                   year: s.year || 0,          // run year — disambiguates same-title runs (JL 2011/2016/2018)
                    genres: s.genres || [] });
     }
     return out;

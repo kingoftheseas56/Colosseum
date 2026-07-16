@@ -235,7 +235,11 @@ function searchCatalog(query) {
         if (relevance <= 0) continue;
         matches.push({
             cover: row.cover || "",
-            title: row.title,
+            // CARD title carries the run year — the catalog legitimately holds several
+            // runs of one name (Justice League 2011/2016/2018) and bare titles rendered
+            // them as identical cards (screenshot bug 2026-07-16). data.title below stays
+            // PURE for routing + dedup.
+            title: row.year ? row.title + " (" + row.year + ")" : row.title,
             subtitle: row.publisher || "Comic series",
             meta: "Comics   ·   " + (row.publisher || "Collected editions"),
             synopsis: "",
@@ -263,9 +267,11 @@ function mergeTankobanResults(query, manga, locg, western) {
     locg = locg || [];
     western = western || [];
     var localTitles = {};
-    locg.forEach(function(row) { localTitles[normTitle(row.title)] = true; });
+    // dedup on the PURE title (data.title) — the card title now wears a "(year)" run
+    // suffix, which must not let a carried series' GetComics row slip past the filter
+    locg.forEach(function(row) { localTitles[normTitle((row.data && row.data.title) || row.title)] = true; });
     western = western.filter(function(row) {
-        return !localTitles[normTitle(row.title)];
+        return !localTitles[normTitle((row.data && row.data.title) || row.title)];
     });
     var rank = function(lane) {
         lane.forEach(function(row, index) {
