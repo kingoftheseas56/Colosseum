@@ -56,6 +56,33 @@ bool allTokensPresent(const QStringList& wanted, const QSet<QString>& have)
         if (!have.contains(t)) return false;
     return true;
 }
+
+// Strip leading release-group / publisher tags ("[shincaps] ", "(Digital) ",
+// "{DCP} ") so a real "[Group] Saga Book One" still reads as leading with the
+// series, not with "group".
+QString stripLeadingTags(QString title)
+{
+    static const QRegularExpression lead(
+        QStringLiteral("^\\s*(?:\\[[^\\]]*\\]|\\([^)]*\\)|\\{[^}]*\\})\\s*"));
+    for (auto m = lead.match(title); m.hasMatch(); m = lead.match(title))
+        title.remove(0, m.capturedLength());
+    return title;
+}
+
+// A STRICT series match: the candidate (after stripping leading tags) LEADS with
+// the target series as a whole phrase. Token-presence alone is far too loose for
+// a short/common series name — "Saga" appears in "The Fernweh Saga" and "(An
+// Epic Cultivation LitRPG Saga)" without being that series at all. The real
+// edition's release leads with the series ("Saga Book One", "Saga v01",
+// "[Group] Saga ..."), so a format/range/coverage match only counts toward OUR
+// edition when this holds.
+bool seriesLeadMatch(const QString& seriesTitle, const QString& candidateTitle)
+{
+    const QString ns = normalized(seriesTitle);
+    if (ns.isEmpty()) return false;
+    const QString nc = normalized(stripLeadingTags(candidateTitle));
+    return nc == ns || nc.startsWith(ns + QLatin1Char(' '));
+}
 } // namespace
 
 int ComicTorrentRanker::matchTier(const QString& query, const QString& candidate)
@@ -104,9 +131,10 @@ bool looksNonComicMedium(const QString& title)
             "(?:^|[ ._\\-\\[(])"
             "(?:epub|mobi|azw3?|"                                    // reflowable prose ebook
             "nsz|nsp|xci|nsw|nintendo switch|ps[345]|xbox|wii|3ds|"  // console / game
-            "x264|x265|h264|h265|hevc|bluray|blu-ray|bdrip|dvdrip|"  // video
-            "web-?dl|web-?rip|hdtv|hdrip|"
-            "flac|m4b)"                                              // lossless audio / audiobook
+            "mkv|mp4|m4v|avi|mov|wmv|flv|webm|m2ts|ts|vob|mpg|mpeg|mpeg2|"  // video containers/streams
+            "x264|x265|h264|h265|hevc|xvid|divx|"                    // video codecs
+            "bluray|blu-ray|bdrip|dvdrip|web-?dl|web-?rip|hdtv|hdrip|"  // video sources
+            "flac|m4b|aacx2)"                                        // lossless audio / audiobook / anime-cap audio
             "(?:$|[ ._\\-\\])])"),
         QRegularExpression::CaseInsensitiveOption);
     return re.match(title).hasMatch();
@@ -185,6 +213,7 @@ struct RowEvidence {
     bool rangeMatch = false;
     bool archiveHint = false;
     bool seriesPresent = false;
+    bool seriesLead = false;    // candidate LEADS with our exact series (strict)
     int trustTier = 99;
     QString uploaderName;
     bool blocked = false;
@@ -267,6 +296,7 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
         e.rangeMatch = !issueRangeTokens.isEmpty() && containsNumberRun(candTokens, issueRangeTokens);
         e.archiveHint = hasComicArchiveHint(result.title);
         e.seriesPresent = allTokensPresent(seriesTokens, candSet);
+        e.seriesLead = seriesLeadMatch(target.seriesTitle, result.title);
 
         const ComicUploaderTrust::UploaderTrust trust =
             ComicUploaderTrust::taggedUploader(result.title, trustTable);
@@ -307,7 +337,8 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
         if (anyBlocked) continue;
 
         bool isbnMatch = false, titleExact = false, titlePrefix = false, titleAllTokens = false,
-             coverageMatch = false, rangeMatch = false, archiveHint = false, seriesPresent = false;
+             coverageMatch = false, rangeMatch = false, archiveHint = false, seriesPresent = false,
+             seriesLead = false;
         int bestTier = 99;
         QString uploaderName;
         int maxSeeders = 0, maxLeechers = 0;
@@ -322,6 +353,7 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
             rangeMatch     |= e.rangeMatch;
             archiveHint    |= e.archiveHint;
             seriesPresent  |= e.seriesPresent;
+            seriesLead     |= e.seriesLead;
             if (e.trustTier < bestTier) { bestTier = e.trustTier; uploaderName = e.uploaderName; }
             maxSeeders  = qMax(maxSeeders, e.src.seeders);
             maxLeechers = qMax(maxLeechers, e.src.leechers);
@@ -332,36 +364,47 @@ QList<RankedComicTorrent> ComicTorrentRanker::rankForEdition(
                 representative = &e;
         }
 
+        // SERIES GATE: format-coverage / issue-range / token evidence only
+        // identifies OUR edition when the candidate actually LEADS with our
+        // series. Without it, "Book One" coverage + a bare "Saga" token promotes
+        // an unrelated video game ("The Fernweh Saga: Book One") or prose novel
+        // ("... Book One (An Epic Cultivation LitRPG Saga)") to a strong match.
+        // ISBN and an exact edition-title match are self-identifying and bypass
+        // the gate; titlePrefix (candidate starts with the full edition title)
+        // is itself stricter than the series lead.
+        const bool coverageOk = coverageMatch && seriesLead;
+        const bool rangeOk     = rangeMatch && seriesLead;
+        const bool tokensOk    = titleAllTokens && seriesLead;
+
         RankedComicTorrent r;
         r.src = representative->src;
         r.src.seeders = maxSeeders;
         r.src.leechers = maxLeechers;
         r.matchTier = matchTier(target.editionTitle, r.src.title);
         r.archiveHint = archiveHint;
-        r.coverageMatch = coverageMatch;
+        r.coverageMatch = coverageOk;
         r.uploaderName = uploaderName;
         r.trustTier = bestTier;
 
         int score = 0;
         QStringList evidence;
-        if (isbnMatch)           { score += kIsbnScore;        evidence << QStringLiteral("ISBN"); }
-        if (titleExact)          { score += kTitleExactScore;  evidence << QStringLiteral("TITLE"); }
-        else if (titlePrefix)    { score += kTitlePrefixScore; evidence << QStringLiteral("TITLE"); }
-        else if (titleAllTokens) { score += kTitleTokensScore; evidence << QStringLiteral("TITLE"); }
-        if (coverageMatch)       { score += kCoverageScore;    evidence << QStringLiteral("COVERAGE"); }
-        if (rangeMatch)          { score += kIssuesScore;      evidence << QStringLiteral("ISSUES"); }
-        if (archiveHint)         { score += kArchiveScore;     evidence << QStringLiteral("ARCHIVE"); }
-        if (bestTier == 1)       { score += kTrustTier1Score;  evidence << QStringLiteral("UPLOADER"); }
-        else if (bestTier == 2)  { score += kTrustTier2Score;  evidence << QStringLiteral("UPLOADER"); }
+        if (isbnMatch)          { score += kIsbnScore;        evidence << QStringLiteral("ISBN"); }
+        if (titleExact)         { score += kTitleExactScore;  evidence << QStringLiteral("TITLE"); }
+        else if (titlePrefix)   { score += kTitlePrefixScore; evidence << QStringLiteral("TITLE"); }
+        else if (tokensOk)      { score += kTitleTokensScore; evidence << QStringLiteral("TITLE"); }
+        if (coverageOk)         { score += kCoverageScore;    evidence << QStringLiteral("COVERAGE"); }
+        if (rangeOk)            { score += kIssuesScore;      evidence << QStringLiteral("ISSUES"); }
+        if (archiveHint)        { score += kArchiveScore;     evidence << QStringLiteral("ARCHIVE"); }
+        if (bestTier == 1)      { score += kTrustTier1Score;  evidence << QStringLiteral("UPLOADER"); }
+        else if (bestTier == 2) { score += kTrustTier2Score;  evidence << QStringLiteral("UPLOADER"); }
 
-        // Trust can never rescue a format conflict: coverageMatch is only
-        // ever true for a format-equal span (ComicCoverage's own contract),
-        // and uploader trust does not appear in the strong condition below —
-        // so no trust tier can promote a conflicting-format row to strong.
+        // Uploader trust never appears in the strong condition, and every strong
+        // signal is series-gated (or self-identifying), so no trust tier or
+        // wrong-series coverage can reach strong.
         QString confidence;
-        if (isbnMatch || titleExact || coverageMatch || (titlePrefix && rangeMatch))
+        if (isbnMatch || titleExact || coverageOk || (titlePrefix && rangeOk))
             confidence = QStringLiteral("strong");
-        else if (titleAllTokens || (seriesPresent && rangeMatch))
+        else if (tokensOk || rangeOk)
             confidence = QStringLiteral("possible");
         else
             confidence = QStringLiteral("weak");

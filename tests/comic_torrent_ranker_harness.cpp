@@ -120,6 +120,48 @@ int main()
     require(filtered.size() == 1 && filtered.first().src.infoHash == hashC,
             "the Switch game and the prose ebook are dropped; only the real comic survives");
 
+    // ── Series gate: a "Book One" coverage match for the WRONG series is never
+    //    our edition. Eyes-on false positives for "Saga: Book One": a video game
+    //    and a LitRPG novel, both "Book One" + a bare "Saga" (as a suffix / genre
+    //    tag), were ranking STRONG. They must demote to weak; the real Saga
+    //    edition (its release LEADS with the series) stays strong. ──
+    {
+        const QList<RankedComicTorrent> gated = ComicTorrentRanker::rankForEdition(
+            sagaTarget,
+            {
+                row("The Fernweh Saga: Book One", 36, hashA),
+                row("C.M. Carney - Awakened The Quintessence Crucible, Book One (An Epic Cultivation LitRPG Saga)", 20, hashB),
+                row("Saga Book One (2014) (Digital) (Empire) CBZ", 8, hashC),
+                row("[DCP] Saga Book One CBZ", 5, hashD)
+            });
+        const auto conf = [&](const QString& h) -> QString {
+            for (const auto& r : gated) if (r.src.infoHash == h) return r.confidence;
+            return QStringLiteral("<absent>");
+        };
+        require(conf(hashA) == QStringLiteral("weak"),
+                "'The Fernweh Saga: Book One' (wrong series) is weak, not a strong coverage match");
+        require(conf(hashB) == QStringLiteral("weak"),
+                "the LitRPG 'Saga' novel (Saga only as a genre tag) is weak");
+        require(conf(hashC) == QStringLiteral("strong"),
+                "the real Saga edition (release leads with the series) is a strong coverage match");
+        require(conf(hashD) == QStringLiteral("strong"),
+                "a bracket-tagged real Saga release still leads with the series after tag-strip");
+    }
+
+    // ── Serious media filter drops video by container/codec, incl. Knaben's
+    //    anime-capture firehose (.ts / .mkv / MPEG2). ──
+    {
+        const QList<RankedComicTorrent> filteredVideo = ComicTorrentRanker::rankForEdition(
+            sagaTarget,
+            {
+                row("[shincaps] One Piece - 978 (BS-FUJI 1440x1080 MPEG2 AACx2).ts", 340, hashA),
+                row("[SubsPlease] Kill Ao - 11 (720p) [2D978D5F].mkv", 50, hashB),
+                row("Saga Book One (2014) CBZ", 8, hashC)
+            });
+        require(filteredVideo.size() == 1 && filteredVideo.first().src.infoHash == hashC,
+                "anime .ts/.mkv/MPEG2 video captures are dropped; only the comic survives");
+    }
+
     // Duplicate canonical hash across query slices collapses to one, higher seed wins.
     const QList<RankedComicTorrent> merged = ComicTorrentRanker::rankForEdition(
         sagaTarget,
