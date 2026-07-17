@@ -280,6 +280,77 @@ function highlightRow(h) {
              color: a.color ? String(a.color) : "" }
 }
 
+// ---------------------------------------------------------------------------
+// TASK 9 (the pen — Round 2) — dictionary + footnote text shaping (pure; headless).
+// ---------------------------------------------------------------------------
+
+// stripTags(html) → plain text: drop tags, decode the handful of entities that show up
+// in Wiktionary definitions / footnote fragments, collapse whitespace. Pure — no DOM
+// (this runs in a .pragma library, where there is no `document`), so the DictCard and
+// FootnoteCard get clean strings without parsing HTML in QML.
+function stripTags(html) {
+    var s = String(html === undefined || html === null ? "" : html)
+    s = s.replace(/<[^>]*>/g, " ")           // drop every tag
+    s = s.replace(/&nbsp;/g, " ")
+         .replace(/&lt;/g, "<")
+         .replace(/&gt;/g, ">")
+         .replace(/&quot;/g, '"')
+         .replace(/&#39;/g, "'")
+         .replace(/&apos;/g, "'")
+    s = s.replace(/&#(\d+);/g, function (_, n) { return String.fromCharCode(parseInt(n, 10)) })
+    s = s.replace(/&amp;/g, "&")              // last: so "&amp;lt;" → "&lt;" not "<"
+    s = s.replace(/\s+/g, " ").trim()
+    // A tag became a space, so text like "word</a>." collapses to "word ." — drop the space
+    // that now sits before closing punctuation so definitions/footnotes read clean.
+    s = s.replace(/\s+([.,;:!?)\]}])/g, "$1")
+    return s
+}
+
+// firstWord(text) → the word to define. Wiktionary's REST definition endpoint is
+// single-word, so a multi-word selection defines its FIRST token. Trims, takes the first
+// whitespace-delimited token, and strips surrounding punctuation/quotes while keeping
+// internal apostrophes/hyphens (don't, well-being). Pure; ASCII-punctuation only (V4's
+// regex has no reliable \p{L} unicode classes).
+function firstWord(text) {
+    var s = String(text === undefined || text === null ? "" : text).trim()
+    if (!s) return ""
+    var tok = s.split(/\s+/)[0]
+    tok = tok.replace(/^[\"'“”‘’(\[{.,;:!?¿¡…—–\-]+/, "")
+             .replace(/[\"'“”‘’)\]}.,;:!?…—–\-]+$/, "")
+    return tok
+}
+
+// dictParse(json) → normalized definition entries from Wiktionary REST JSON. The endpoint
+// returns { "en": [ { partOfSpeech, definitions:[{definition, ...}, ...] }, ... ], ... };
+// we read the English ("en") entries only, strip HTML from each definition string, and
+// drop empties. Tolerant of a JSON STRING (dictResult hands the raw body across the seam)
+// or an already-parsed object. Returns [] on bad/empty input → the DictCard shows its
+// "no definition" state. Pure.
+function dictParse(json) {
+    var data = json
+    if (typeof json === "string") {
+        try { data = JSON.parse(json) } catch (e) { return [] }
+    }
+    if (!data || typeof data !== "object") return []
+    var en = data.en
+    if (!Array.isArray(en)) return []
+    var out = []
+    for (var i = 0; i < en.length; i++) {
+        var entry = en[i] || {}
+        var defs = Array.isArray(entry.definitions) ? entry.definitions : []
+        var cleaned = []
+        for (var j = 0; j < defs.length; j++) {
+            var d = defs[j] || {}
+            var txt = stripTags(d.definition)
+            if (txt) cleaned.push(txt)
+        }
+        if (cleaned.length)
+            out.push({ partOfSpeech: entry.partOfSpeech ? String(entry.partOfSpeech) : "",
+                       definitions: cleaned })
+    }
+    return out
+}
+
 // authorText(metadata) → a display author string from foliate book metadata, whose
 // `author` field may be a plain string, an array of strings, or an array/one of
 // { name } objects. Pure normalizer so the chrome shows one clean line.

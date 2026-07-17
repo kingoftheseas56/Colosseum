@@ -25,6 +25,9 @@
 // (the browser bench). The book-maker modules below (epub/mobi/fb2/pdf/zip) were
 // already dynamic-imported, so only these two entry modules needed converting.
 let Overlayer = null   // assigned in boot() once overlayer.js resolves
+let FootnoteHandler = null  // the fork's footnote extractor class (footnotes.js), assigned in boot()
+let footnoteHandler = null  // one instance; its render/before-render listeners attach once
+let pendingFootnoteRect = null  // the tapped anchor's rect, captured at 'link' time (render is async)
 
 // ---------------------------------------------------------------------------
 // event emit (UP)
@@ -272,6 +275,70 @@ const reAddAnnotations = () => {
 }
 
 // ---------------------------------------------------------------------------
+// footnotes (TASK 9 R2) — reuse the fork's FootnoteHandler (footnotes.js), the proven
+// path book.js uses. On a footnote/endnote/noteref link tap the handler resolves the
+// note href, spins a throwaway <foliate-view> to render just the note fragment, and
+// fires 'render'; we read that fragment's TEXT and emit it UP as 'footnote' for a native
+// FootnoteCard — we do NOT navigate the page to the note (book.js shows a modal; we show
+// a card). The offscreen render host is our own hidden div (not the fork's
+// #footnote-dialog) so it always renders regardless of the dialog's display state.
+// ---------------------------------------------------------------------------
+const footnoteHost = () => {
+  let host = document.getElementById('reader2-footnote-host')
+  if (!host) {
+    host = document.createElement('div')
+    host.id = 'reader2-footnote-host'
+    // connected + laid out but off-screen: an iframe only loads (fires the view 'load'
+    // that drives extraction) while attached to the document; visibility is irrelevant.
+    host.style.cssText =
+      'position:fixed;left:-99999px;top:0;width:600px;height:600px;overflow:hidden;pointer-events:none;'
+    document.body.appendChild(host)
+  }
+  return host
+}
+
+const FOOTNOTE_TEXT_CAP = 4000   // defensive: a well-formed note is short; never ship a chapter
+
+const setupFootnoteHandler = () => {
+  if (!FootnoteHandler || footnoteHandler) return
+  footnoteHandler = new FootnoteHandler()
+  // before-render: attach the throwaway view to our hidden host so its section iframe
+  // actually loads (mirrors book.js replaceFootnote, minus the modal styling).
+  footnoteHandler.addEventListener('before-render', e => {
+    const view = e.detail?.view
+    if (!view) return
+    try {
+      footnoteHost().replaceChildren(view)
+      const r = view.renderer
+      if (r) {
+        r.setAttribute('flow', 'scrolled')
+        r.setAttribute('gap', '5%')
+        r.setAttribute('top-margin', '0px')
+        r.setAttribute('bottom-margin', '0px')
+      }
+    } catch (err) { console.warn('[paper] footnote before-render', err) }
+  })
+  // render: the note fragment now lives in the throwaway view's section doc.body — read
+  // its text, emit UP, then drop the view. (Text v1: the native card renders plain text.)
+  footnoteHandler.addEventListener('render', e => {
+    const view = e.detail?.view
+    const target = e.detail?.target
+    let text = ''
+    try {
+      const contents = view?.renderer?.getContents?.() || []
+      text = contents.map(c => (c?.doc?.body?.textContent || '')).join('\n').trim()
+    } catch (err) { /* fall through to target */ }
+    if (!text && target) { try { text = String(target.textContent || '').trim() } catch (e) {} }
+    if (text.length > FOOTNOTE_TEXT_CAP) text = text.slice(0, FOOTNOTE_TEXT_CAP) + '…'
+    emit('footnote', { html: text, rect: pendingFootnoteRect })
+    // Do NOT remove the throwaway view here: it still has a pending iframe 'load' handler
+    // (paginator getDirection → getComputedStyle) that would throw on a null doc if we detach
+    // mid-load. The next footnote's before-render replaceChildren()s it out of the hidden host,
+    // so at most ONE inert footnote view ever lingers (off-screen, not on our event seam).
+  })
+}
+
+// ---------------------------------------------------------------------------
 // in-page keyboard (OLD-READER MODEL) — the web view owns keys; we handle the
 // nav/Esc set here and emit semantic events UP. foliate renders each section in an
 // IFRAME, so a keydown handler on the TOP document alone misses keys while the iframe
@@ -404,12 +471,16 @@ const wireView = view => {
   })
 
   // Highlight/underline rendering — the view asks US to draw (matches book.js Reader.setView).
+  // Draw ONLY for the types we know: 'highlight' → wash, 'underline' → rule; anything else
+  // is a no-op (Task 2 carry-forward a). The previous default-to-highlight would mis-paint a
+  // future non-highlight annotation type as a highlight — mirror book.js's exact-match handler.
   view.addEventListener('draw-annotation', e => {
     const { draw, annotation } = e.detail || {}
     if (!draw) return
     const opts = { color: annotation?.color, writingMode: view.renderer?.writingMode }
-    if (annotation?.type === 'underline') draw(Overlayer.underline, opts)
-    else draw(Overlayer.highlight, opts)
+    if (annotation?.type === 'highlight') draw(Overlayer.highlight, opts)
+    else if (annotation?.type === 'underline') draw(Overlayer.underline, opts)
+    // else: unknown annotation type → don't draw (no mis-render).
   })
 
   // A (re)loaded section rebuilds its overlay — re-attach our annotations.
@@ -417,9 +488,41 @@ const wireView = view => {
 
   view.addEventListener('show-annotation', e => {
     const { value, range } = e.detail || {}
+    // GUARD (Task 2 carry-forward b): a click that BOTH ends a text selection AND lands on
+    // an existing highlight would otherwise fire 'selection' AND 'highlightTapped' — dueling
+    // popovers (the delete menu opening over a fresh selection). If there's a live selection,
+    // bail: the selection path owns this click. Check the note's own document first (the
+    // selection lives in the section iframe), then the top window (book.js mirrors this).
+    const selDoc = (range && range.startContainer) ? range.startContainer.ownerDocument : null
+    const selText = (selDoc && selDoc.getSelection && selDoc.getSelection().toString())
+                 || (window.getSelection && window.getSelection().toString()) || ''
+    if (selText) return
     const found = [...annotations.values()].find(a => a.value === value)
     const rect = range ? clientRectOf(range, range.startContainer?.ownerDocument) : null
     emit('highlightTapped', { id: found?.id ?? null, rect })
+  })
+
+  // Footnote/endnote link taps (TASK 9 R2). The view emits 'link' (cancelable) for every
+  // internal <a href> click. Hand it to the fork's FootnoteHandler: for a footnote/noteref
+  // it calls preventDefault() (so the view does NOT navigate) and renders the note fragment,
+  // which our render listener above turns into a 'footnote' event. For a NORMAL internal
+  // link handle() returns undefined and does not preventDefault, so the view goToes as usual.
+  view.addEventListener('link', e => {
+    // Capture the tapped anchor's rect NOW — the render (and thus our emit) is async.
+    pendingFootnoteRect = null
+    try {
+      const a = e.detail && e.detail.a
+      if (a && a.ownerDocument) {
+        const rng = a.ownerDocument.createRange()
+        rng.selectNode(a)
+        pendingFootnoteRect = clientRectOf(rng, a.ownerDocument)
+      }
+    } catch (err) { /* rect stays null → the card clamps to frame center */ }
+    try {
+      const p = footnoteHandler && footnoteHandler.handle(view.book, e)
+      if (p && typeof p.catch === 'function')
+        p.catch(err => { console.warn('[paper] footnote render failed', err) })
+    } catch (err) { console.warn('[paper] footnote handle threw', err) }
   })
 }
 
@@ -623,6 +726,21 @@ const boot = async () => {
   await import(mod('./vendor/foliate-anx/src/view.js'))          // registers <foliate-view>
   const ov = await import(mod('./vendor/foliate-anx/src/overlayer.js'))
   Overlayer = ov.Overlayer
+  // footnotes: the fork's FootnoteHandler (no self-boot, imports nothing DOM-bound) — the
+  // proven note-extraction path. Set up one handler for the page lifetime (its listeners
+  // fan out per book via handle(view.book, e)).
+  try {
+    const fn = await import(mod('./vendor/foliate-anx/src/footnotes.js'))
+    FootnoteHandler = fn.FootnoteHandler
+    setupFootnoteHandler()
+  } catch (e) { console.warn('[paper] footnotes.js load failed (footnotes disabled)', e) }
+
+  // The vendored view.js #handleClick calls window.isFootNoteOpen()/closeFootNote() on every
+  // click in the book — globals that the fork's OWN reader (book.js, which we do NOT use)
+  // defines. We render footnotes in native QML, so provide inert stubs; without them every tap
+  // throws a console error and the handler bails before its (unused-by-us) click-view emit.
+  if (typeof window.isFootNoteOpen !== 'function') window.isFootNoteOpen = () => false
+  if (typeof window.closeFootNote !== 'function') window.closeFootNote = () => {}
 
   window.paper = {
     open: (path, cfi) => paperOpen(path, cfi ?? ''),

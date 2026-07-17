@@ -9,6 +9,7 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 import "../qml/reader2" as R
+import "../qml/reader2/Reader2Logic.js" as L
 
 Item {
     width: 1280
@@ -66,6 +67,9 @@ Item {
     property string pickedColor: ""
     property int copyCount: 0
     property int dismissCount: 0
+    property int defineCount: 0
+    property int deleteCount: 0
+    property string savedNote: ""
     R.SelectionMenu {
         id: selMenu
         width: 1280
@@ -74,7 +78,41 @@ Item {
         sel: ({ x: 600, y: 300, w: 140, h: 22 })
         onColorPicked: (c) => pickedColor = c
         onCopyRequested: copyCount++
+        onDefineRequested: defineCount++
+        onDeleteRequested: deleteCount++
+        onNoteSaved: (n) => savedNote = n
         onDismissed: dismissCount++
+    }
+
+    // DictCard (Task 9 R2) — the Define glass card. Prove it instantiates in every state,
+    // clamps in-frame, and fires its signals.
+    property int dictDismissCount: 0
+    property int openExternalCount: 0
+    R.DictCard {
+        id: dictCard
+        width: 1280
+        height: 720
+        shown: true
+        anchorRect: ({ x: 600, y: 300, w: 140, h: 22 })
+        word: "whale"
+        dictState: "ok"
+        entries: L.dictParse(JSON.stringify({
+            en: [{ partOfSpeech: "Noun", definitions: [{ definition: "A very large marine mammal." }] }]
+        }))
+        onDismissed: dictDismissCount++
+        onOpenExternal: openExternalCount++
+    }
+
+    // FootnoteCard (Task 9 R2) — the footnote peek card.
+    property int fnDismissCount: 0
+    R.FootnoteCard {
+        id: fnCard
+        width: 1280
+        height: 720
+        shown: true
+        anchorRect: ({ x: 300, y: 200, w: 12, h: 16 })
+        text: "A note about the great fish of the sea, extracted plain."
+        onDismissed: fnDismissCount++
     }
 
     Component.onCompleted: {
@@ -123,7 +161,45 @@ Item {
             selMenu.colorPicked("#F0C24A"); check(pickedColor === "#F0C24A", "SelectionMenu colorPicked signal carries the color")
             selMenu.copyRequested();        check(copyCount === 1, "SelectionMenu copyRequested signal fires")
             selMenu.dismissed();            check(dismissCount === 1, "SelectionMenu dismissed signal fires")
-            selMenu.shown = false;          check(selMenu.visible === false, "SelectionMenu hides when shown=false")
+
+            // ---- SelectionMenu Round-2: modes + new actions ----
+            selMenu.shown = true
+            selMenu.mode = "select"; check(selMenu.mode === "select", "SelectionMenu select mode")
+            selMenu.defineRequested();  check(defineCount === 1, "SelectionMenu defineRequested fires")
+            selMenu.noteSaved("a note"); check(savedNote === "a note", "SelectionMenu noteSaved carries the text")
+            // note editor toggles the card size (taller when editing).
+            var hSmall = selMenu.cardH
+            selMenu.noteEditing = true;  check(selMenu.cardH > hSmall, "SelectionMenu grows for the note editor")
+            selMenu.noteEditing = false
+            // existing-highlight mode exposes Delete.
+            selMenu.mode = "existing"; check(selMenu.mode === "existing", "SelectionMenu existing mode")
+            selMenu.deleteRequested();  check(deleteCount === 1, "SelectionMenu deleteRequested fires")
+            selMenu.shown = false;      check(selMenu.visible === false, "SelectionMenu hides when shown=false")
+
+            // ---- DictCard (Task 9 R2) ----
+            check(dictCard !== null && dictCard.visible === true, "DictCard instantiated + visible when shown")
+            check(dictCard.cardW > 0 && dictCard.cardH > 0, "DictCard has a positive card size")
+            check(dictCard.pos.x >= 0 && dictCard.pos.x <= dictCard.width - dictCard.cardW,
+                  "DictCard clamped horizontally in-frame")
+            check(dictCard.pos.y >= 0 && dictCard.pos.y <= dictCard.height - dictCard.cardH,
+                  "DictCard clamped vertically in-frame")
+            check(dictCard.entries.length === 1 && dictCard.entries[0].definitions.length === 1,
+                  "DictCard entries bound from dictParse")
+            dictCard.dictState = "loading"; check(dictCard.cardH > 0, "DictCard loading state sizes")
+            dictCard.dictState = "empty";   check(dictCard.cardH > 0, "DictCard empty state sizes")
+            dictCard.openExternal();        check(openExternalCount === 1, "DictCard openExternal fires")
+            dictCard.dismissed();           check(dictDismissCount === 1, "DictCard dismissed fires")
+            dictCard.shown = false;         check(dictCard.visible === false, "DictCard hides when shown=false")
+
+            // ---- FootnoteCard (Task 9 R2) ----
+            check(fnCard !== null && fnCard.visible === true, "FootnoteCard instantiated + visible when shown")
+            check(fnCard.cardW > 0 && fnCard.cardH > 0, "FootnoteCard has a positive card size")
+            check(fnCard.pos.x >= 0 && fnCard.pos.x <= fnCard.width - fnCard.cardW,
+                  "FootnoteCard clamped horizontally in-frame")
+            check(fnCard.pos.y >= 0 && fnCard.pos.y <= fnCard.height - fnCard.cardH,
+                  "FootnoteCard clamped vertically in-frame")
+            fnCard.dismissed();  check(fnDismissCount === 1, "FootnoteCard dismissed fires")
+            fnCard.shown = false; check(fnCard.visible === false, "FootnoteCard hides when shown=false")
 
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)

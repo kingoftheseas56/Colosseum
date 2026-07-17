@@ -58,4 +58,9 @@ signals:
     void dictResult(const QString& word, const QString& json, bool ok);
 private:
     QNetworkAccessManager* m_nam;
+    // IPv4 pin for the Wiktionary host (house scar: Wikimedia publishes AAAA records and
+    // Qt-on-Windows stalls ~21s on the dead IPv6 route). Resolved once, then reused; empty
+    // string = resolution failed, fall back to the plain hostname. See dictLookup().
+    QString m_wiktIpv4;
+    bool m_wiktResolved = false;
 };

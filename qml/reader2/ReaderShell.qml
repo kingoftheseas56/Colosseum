@@ -54,12 +54,29 @@ FocusScope {
     property var bookmarks: []
     property var highlights: []
 
-    // ---- selection / highlight view-model (Task 9, the pen — Round 1) ----
-    // Stashed from the paper's 'selection' event; drive the native SelectionMenu popover.
+    // ---- selection / highlight view-model (Task 9, the pen) ----
+    // Stashed from the paper's 'selection' / 'highlightTapped' event; drive the native
+    // SelectionMenu popover. selMenuMode = "select" (a fresh selection: color/note/define/copy)
+    // or "existing" (a tapped highlight: delete + re-color); existingHlId is the tapped
+    // highlight's id in "existing" mode.
     property var selRect: ({ x: 0, y: 0, w: 0, h: 0 })
     property string selText: ""
     property string selCfi: ""
     property bool selMenuShown: false
+    property string selMenuMode: "select"
+    property string existingHlId: ""
+
+    // ---- Define (dictionary) card view-model (Round 2) ----
+    property bool dictShown: false
+    property var dictRect: ({ x: 0, y: 0, w: 0, h: 0 })
+    property string dictWord: ""
+    property var dictEntries: []
+    property string dictState: "loading"   // "loading" | "ok" | "empty"
+
+    // ---- footnote card view-model (Round 2) ----
+    property bool footnoteShown: false
+    property var footnoteRect: ({ x: 0, y: 0, w: 0, h: 0 })
+    property string footnoteText: ""
     // Keep the web view focused while the popover is up. QtWebEngine only DRAWS the selection
     // while the view has focus — on blur it hides the visual selection but keeps the DOM
     // selection (so no selectionchange fires, and the menu would float over an invisible
@@ -91,23 +108,26 @@ FocusScope {
     // Dismiss the selection popover and drop the paper's live selection.
     function dismissSelectionMenu() {
         shell.selMenuShown = false
+        shell.selMenuMode = "select"
+        shell.existingHlId = ""
         paper.clearSelection()
     }
 
-    // Persist a highlight in the chosen color and paint it on the paper. The record shape
-    // satisfies BOTH readers: LeftPanel.highlightRow reads cfi from value|cfi|locator.cfi,
-    // plus color/text/note/chapterLabel; the glue's addHighlight needs { id, cfi, color }.
-    // annotationsSave (→ BookStores::listSave) STAMPS a fresh id when absent AND returns
-    // the stored record, so we don't double-stamp — we read the id back from it and hand
-    // that SAME id to the paper so re-apply/remove stay consistent across a reopen.
-    function applyHighlight(color) {
+    // Persist a highlight for the CURRENT selection in `color`, with an optional `note`, and
+    // paint it on the paper. The record shape satisfies BOTH readers: LeftPanel.highlightRow
+    // reads cfi from value|cfi|locator.cfi, plus color/text/note/chapterLabel; the glue's
+    // addHighlight needs { id, cfi, color }. annotationsSave (→ BookStores::listSave) STAMPS a
+    // fresh id when absent AND returns the stored record, so we don't double-stamp — we read
+    // the id back and hand that SAME id to the paper so re-apply/remove stay consistent across
+    // a reopen. The Highlights pane renders `note` indented under the quote.
+    function saveSelectionAnnotation(color, note) {
         if (shell.bookPath === "" || shell.selCfi === "") { shell.dismissSelectionMenu(); return }
         var rec = {
             cfi: shell.selCfi,          // read by highlightRow (and by us for addHighlight)
             value: shell.selCfi,        // the glue's annotation identity field (belt + suspenders)
             color: color,
             text: shell.selText,
-            note: "",
+            note: note,
             chapterLabel: shell.chapterLabel
         }
         var saved = Reader2Bridge.annotationsSave(shell.bookId, rec)   // stamps id, returns record
@@ -116,6 +136,63 @@ FocusScope {
         shell.refreshMarks()                                          // Highlights pane picks it up
         shell.dismissSelectionMenu()
     }
+    // A color dot on a fresh selection → highlight in that color (no note).
+    function applyHighlight(color) { shell.saveSelectionAnnotation(color, "") }
+    // The Note editor's Save → a gold highlight carrying the note. (Picking a color closes the
+    // menu, so Note always defaults to gold; the note is what the user came for.)
+    function applyNote(note) { shell.saveSelectionAnnotation("#F0C24A", note) }
+
+    // ---- existing-highlight actions (SelectionMenu mode "existing") ----
+    // Re-color a tapped highlight: update its stored color in place (listSave replaces by id),
+    // then repaint (remove + re-add so the overlayer re-draws in the new color).
+    function recolorHighlight(color) {
+        if (shell.existingHlId === "") { shell.dismissSelectionMenu(); return }
+        var list = shell.highlights || []
+        var rec = null
+        for (var i = 0; i < list.length; i++) {
+            if (String(L.highlightRow(list[i]).id) === shell.existingHlId) { rec = list[i]; break }
+        }
+        if (!rec) { shell.dismissSelectionMenu(); return }
+        var cfi = L.highlightRow(rec).cfi
+        var updated = {}
+        for (var k in rec) updated[k] = rec[k]     // preserve every field
+        updated.color = color
+        Reader2Bridge.annotationsSave(shell.bookId, updated)          // same id → in-place update
+        if (cfi !== "") {
+            paper.removeHighlight(shell.existingHlId)
+            paper.addHighlight({ id: shell.existingHlId, cfi: cfi, color: color })
+        }
+        shell.refreshMarks()
+        shell.dismissSelectionMenu()
+    }
+    // Delete a tapped highlight from the store AND the paper. The empty-id guard matters:
+    // BookStores::listDelete treats an empty id as "clear ALL for this book", so we only ever
+    // call it with a real id.
+    function deleteHighlight() {
+        if (shell.existingHlId !== "") {
+            Reader2Bridge.annotationsDelete(shell.bookId, shell.existingHlId)
+            paper.removeHighlight(shell.existingHlId)
+            shell.refreshMarks()
+        }
+        shell.dismissSelectionMenu()
+    }
+
+    // ---- Define (dictionary) ----
+    // Extract the first word of the selection and look it up (Wiktionary REST, C++ side). The
+    // card opens in the loading state anchored at the selection; dictResult (below) fills it.
+    function openDict() {
+        var word = L.firstWord(shell.selText)
+        if (word === "") { shell.dismissSelectionMenu(); return }
+        shell.dictWord = word
+        shell.dictEntries = []
+        shell.dictState = "loading"
+        shell.dictRect = shell.selRect
+        shell.dictShown = true
+        shell.dismissSelectionMenu()          // the selection menu gives way to the card
+        Reader2Bridge.dictLookup(word)
+    }
+    function dismissDict() { shell.dictShown = false }
+    function dismissFootnote() { shell.footnoteShown = false }
 
     // Ratified default paper appearance (Night) — pushed at open so the FIRST paint
     // already matches the mock. The full adjustable panel is Task 10; this is just the
@@ -163,11 +240,33 @@ FocusScope {
                 chrome.toggle()
             } else if (name === "escape") {
                 // Esc from the glue's in-page keyboard. Cascading close, same order the old
-                // reader uses: dismiss the selection popover first; else close the left panel;
-                // else close the book.
-                if (shell.selMenuShown) shell.dismissSelectionMenu()
+                // reader uses: the pen's floating cards first (dict/footnote), then the
+                // selection popover, then the left panel, then the book.
+                if (shell.dictShown) shell.dismissDict()
+                else if (shell.footnoteShown) shell.dismissFootnote()
+                else if (shell.selMenuShown) shell.dismissSelectionMenu()
                 else if (chrome.panelOpen) chrome.closePanel()
                 else shell.closed()
+            } else if (name === "footnote") {
+                // A footnote/endnote link was tapped (the glue extracted its text). Show the
+                // FootnoteCard near the anchor; the page does NOT navigate to the note.
+                shell.footnoteText = (p.html !== undefined && p.html !== null) ? String(p.html) : ""
+                shell.footnoteRect = (p.rect && typeof p.rect === "object") ? p.rect : ({ x: 0, y: 0, w: 0, h: 0 })
+                if (shell.footnoteText !== "") shell.footnoteShown = true
+                else console.log("[shell] footnote had no extractable text — skipping card")
+            } else if (name === "highlightTapped") {
+                // An existing highlight was tapped (the glue guards against a selection-ending
+                // click also firing this). Open the SelectionMenu in "existing" mode at its
+                // rect: Delete (+ re-color dots). p.id is the annotation id; p.rect the anchor.
+                var hid = (p.id !== undefined && p.id !== null) ? String(p.id) : ""
+                if (hid !== "") {
+                    shell.existingHlId = hid
+                    shell.selText = ""
+                    shell.selCfi = ""
+                    shell.selRect = (p.rect && typeof p.rect === "object") ? p.rect : ({ x: 0, y: 0, w: 0, h: 0 })
+                    shell.selMenuMode = "existing"
+                    shell.selMenuShown = true
+                }
             } else if (name === "selectionCleared") {
                 // The underlying selection went away (clicked elsewhere, an arrow key turned
                 // the page out from under the menu). Dismiss the popover so it never floats
@@ -179,6 +278,8 @@ FocusScope {
                 shell.selText = (p.text !== undefined && p.text !== null) ? String(p.text) : ""
                 shell.selCfi = (p.cfi !== undefined && p.cfi !== null) ? String(p.cfi) : ""
                 shell.selRect = (p.rect && typeof p.rect === "object") ? p.rect : ({ x: 0, y: 0, w: 0, h: 0 })
+                shell.selMenuMode = "select"
+                shell.existingHlId = ""
                 shell.selMenuShown = (shell.selText !== "")
             } else if (name === "relocated" && shell.bookPath !== "") {
                 // --- chrome view-model (rail + top bar + Contents current row) ---
@@ -277,20 +378,65 @@ FocusScope {
         onAppearanceRequested: console.log("[shell] appearanceRequested (appearance panel = Task 10)")
     }
 
-    // The selection popover (Task 9, the pen — Round 1). Declared LAST so it floats above
-    // the chrome; bridge-free, driven by shell.sel* and reporting back via signals. Its own
-    // backdrop dismisses on tap-outside; ReaderShell does the save/paint/copy.
+    // The selection popover (Task 9, the pen). Declared near-LAST so it floats above the
+    // chrome; bridge-free, driven by shell.sel* and reporting back via signals. Its own
+    // backdrop dismisses on tap-outside; ReaderShell does the save/paint/copy/delete.
     SelectionMenu {
         id: selectionMenu
         anchors.fill: parent
         shown: shell.selMenuShown
         sel: shell.selRect
-        onColorPicked: (color) => shell.applyHighlight(color)
+        mode: shell.selMenuMode
+        // a color dot: highlight-in-color on a fresh selection, or re-color an existing one.
+        onColorPicked: (color) => shell.selMenuMode === "existing"
+                       ? shell.recolorHighlight(color) : shell.applyHighlight(color)
+        onNoteSaved: (note) => shell.applyNote(note)
+        onDefineRequested: shell.openDict()
+        onDeleteRequested: shell.deleteHighlight()
         onCopyRequested: {
             if (shell.selText !== "") Clipboard.copy(shell.selText)   // exposed by main.cpp + the harness
             shell.dismissSelectionMenu()
         }
         onDismissed: shell.dismissSelectionMenu()
+    }
+
+    // The Define (dictionary) card. dictLookup is C++-side; dictResult (below) parses the
+    // Wiktionary JSON into entries and flips the card to "ok"/"empty".
+    DictCard {
+        id: dictCard
+        anchors.fill: parent
+        shown: shell.dictShown
+        anchorRect: shell.dictRect
+        word: shell.dictWord
+        entries: shell.dictEntries
+        dictState: shell.dictState
+        onDismissed: shell.dismissDict()
+        onOpenExternal: {
+            Qt.openUrlExternally("https://en.wiktionary.org/wiki/" + encodeURIComponent(shell.dictWord))
+            shell.dismissDict()
+        }
+    }
+
+    // The footnote/endnote peek card — text extracted by the glue, shown near the tap.
+    FootnoteCard {
+        id: footnoteCard
+        anchors.fill: parent
+        shown: shell.footnoteShown
+        anchorRect: shell.footnoteRect
+        text: shell.footnoteText
+        onDismissed: shell.dismissFootnote()
+    }
+
+    // Dictionary result from the native seam (Wiktionary REST). Parse the JSON to entries;
+    // empty / not-ok → the card's quiet "no definition" state (with Open-in-Wiktionary).
+    Connections {
+        target: Reader2Bridge
+        function onDictResult(word, json, ok) {
+            if (word !== shell.dictWord) return          // ignore a stale/late reply
+            var entries = ok ? L.dictParse(json) : []
+            shell.dictEntries = entries
+            shell.dictState = (entries && entries.length > 0) ? "ok" : "empty"
+        }
     }
 
     // Resolve the saved resume position and open the book there. Read by the derived

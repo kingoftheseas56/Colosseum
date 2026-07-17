@@ -194,6 +194,51 @@ QtObject {
             var hlEmpty = L.highlightRow(null)
             check(hlEmpty.cfi === "" && hlEmpty.text === "" && hlEmpty.note === "", "highlightRow: null-safe")
 
+            // 11. stripTags — HTML → plain text (dict definitions + footnote fragments).
+            check(L.stripTags("<b>hello</b> <i>world</i>") === "hello world", "stripTags: drops tags")
+            check(L.stripTags("a&amp;b &lt;c&gt; &quot;d&quot;") === 'a&b <c> "d"', "stripTags: decodes entities")
+            check(L.stripTags("  spaced   \n out  ") === "spaced out", "stripTags: collapses whitespace")
+            check(L.stripTags("caf&#233;") === "café", "stripTags: numeric entity")
+            check(L.stripTags(null) === "", "stripTags: null-safe")
+            check(L.stripTags("<a href='x'>link</a> text") === "link text", "stripTags: anchor with attrs")
+
+            // 12. firstWord — the single word to define (Wiktionary REST is single-word).
+            check(L.firstWord("whale") === "whale", "firstWord: single word")
+            check(L.firstWord("  the great whale ") === "the", "firstWord: first of many, trimmed")
+            check(L.firstWord("“whale,”") === "whale", "firstWord: strips curly quotes + comma")
+            check(L.firstWord("(portentous)") === "portentous", "firstWord: strips parens")
+            check(L.firstWord("well-being of") === "well-being", "firstWord: keeps internal hyphen")
+            check(L.firstWord("don't") === "don't", "firstWord: keeps internal apostrophe")
+            check(L.firstWord("   ") === "", "firstWord: whitespace-only -> ''")
+            check(L.firstWord(null) === "", "firstWord: null-safe")
+
+            // 13. dictParse — Wiktionary REST JSON → normalized entries (HTML stripped).
+            var djson = JSON.stringify({
+                en: [
+                    { partOfSpeech: "Noun", definitions: [
+                        { definition: "A very large <a href='x'>marine mammal</a>." },
+                        { definition: "" },
+                        { definition: "Something &amp; big." } ] },
+                    { partOfSpeech: "Verb", definitions: [ { definition: "To hunt whales." } ] }
+                ]
+            })
+            var parsed = L.dictParse(djson)
+            check(parsed.length === 2, "dictParse: two POS entries")
+            check(parsed[0].partOfSpeech === "Noun", "dictParse: partOfSpeech")
+            check(parsed[0].definitions.length === 2, "dictParse: drops empty definition")
+            check(parsed[0].definitions[0] === "A very large marine mammal.", "dictParse: strips HTML in definition")
+            check(parsed[0].definitions[1] === "Something & big.", "dictParse: decodes entity in definition")
+            check(parsed[1].definitions[0] === "To hunt whales.", "dictParse: second entry")
+            // accepts an already-parsed object too, not just a JSON string.
+            check(L.dictParse({ en: [{ partOfSpeech: "Noun", definitions: [{ definition: "x" }] }] }).length === 1,
+                  "dictParse: accepts a parsed object")
+            check(L.dictParse("not json").length === 0, "dictParse: bad JSON -> []")
+            check(L.dictParse({ fr: [] }).length === 0, "dictParse: no 'en' -> []")
+            check(L.dictParse(null).length === 0, "dictParse: null -> []")
+            // an entry whose definitions are all empty is dropped entirely.
+            check(L.dictParse({ en: [{ partOfSpeech: "Noun", definitions: [{ definition: "" }] }] }).length === 0,
+                  "dictParse: entry with only-empty definitions dropped")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

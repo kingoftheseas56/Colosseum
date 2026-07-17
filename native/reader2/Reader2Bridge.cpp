@@ -1,9 +1,12 @@
 #include "Reader2Bridge.h"
 #include "../reader/BookStores.h"
 
+#include <QAbstractSocket>
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFile>
+#include <QHostAddress>
+#include <QHostInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -109,12 +112,43 @@ void Reader2Bridge::annotationsDelete(const QString& bookId, const QString& id)
 // dictionary — Wiktionary REST, C++ side (house rule: no network on the paper)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Resolve a host to its first IPv4 address ("" if none / lookup failed).
+static QString resolveHostIpv4(const QString& host)
+{
+    const QHostInfo info = QHostInfo::fromName(host);
+    for (const QHostAddress& a : info.addresses())
+        if (a.protocol() == QAbstractSocket::IPv4Protocol) return a.toString();
+    return {};
+}
+
 void Reader2Bridge::dictLookup(const QString& word)
 {
-    const QUrl url(QStringLiteral("https://en.wiktionary.org/api/rest_v1/page/definition/")
-                   + QString::fromUtf8(QUrl::toPercentEncoding(word)));
+    const QString host = QStringLiteral("en.wiktionary.org");
+    QUrl url(QStringLiteral("https://") + host
+             + QStringLiteral("/api/rest_v1/page/definition/")
+             + QString::fromUtf8(QUrl::toPercentEncoding(word)));
+
     QNetworkRequest req(url);
-    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum/1.0"));
+    req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum/1.0 (book reader)"));
+
+    // IPv4 PIN (house scar: Wikimedia publishes AAAA records; Qt-on-Windows tries the dead
+    // IPv6 route first and stalls ~21s — the same black hole main.cpp's CachingNam pins the
+    // poster/indexer hosts against). Rewrite the URL host to the resolved IPv4 and carry the
+    // real host in the Host header + TLS SNI (setPeerVerifyName), and disable HTTP/2. Applied
+    // proactively — this is the first LIVE dict call, en.wiktionary.org is an AAAA host, and
+    // the fix is the proven one; if resolution fails we fall back to the plain hostname.
+    // Resolved once (m_wiktResolved) so only the first lookup pays the DNS cost.
+    if (!m_wiktResolved) { m_wiktIpv4 = resolveHostIpv4(host); m_wiktResolved = true; }
+    if (!m_wiktIpv4.isEmpty()) {
+        req.setRawHeader("Host", host.toUtf8());
+        req.setPeerVerifyName(host);
+        req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
+        QUrl pinned = url;
+        pinned.setHost(m_wiktIpv4);
+        req.setUrl(pinned);
+    }
+    req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
     QNetworkReply* rep = m_nam->get(req);
     connect(rep, &QNetworkReply::finished, this, [this, rep, word] {
         rep->deleteLater();
