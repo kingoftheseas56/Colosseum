@@ -80,16 +80,28 @@ Item {
     // centered title + author (title = Fraunces medium, author = Inter, quiet).
     // NOT a Row: baseline-aligning two different font sizes needs a sibling anchor,
     // which positioners disallow — so an anchored Item centers the pair cleanly.
+    //
+    // ELIDE CLAMP: the block is centered on the bar, so a very long title must not slide
+    // under the back arrow (left) or the right icon cluster. We reserve the WIDER of the two
+    // side clusters on BOTH sides (the block is symmetric about center) plus margins, cap the
+    // block to what's left, and elide the title. The author keeps its natural width right
+    // after the (possibly elided) title.
     Item {
+        id: titleBlock
         anchors.centerIn: parent
         height: parent.height
-        width: titleText.width + (authorText.visible ? authorText.width + 10 : 0)
+        readonly property real authorW: authorText.visible ? authorText.implicitWidth + 10 : 0
+        readonly property real sideReserve: Math.max(rightRow.width, backBtn.width) + 22 + 18
+        readonly property real availW: Math.max(80, root.width - 2 * sideReserve)
+        width: Math.min(titleText.implicitWidth + authorW, availW)
 
         Text {
             id: titleText
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            width: Math.max(0, parent.width - titleBlock.authorW)
             text: root.title
+            elide: Text.ElideRight
             color: Theme.inkTitle
             font.family: Theme.display
             font.weight: Font.Medium
@@ -102,6 +114,7 @@ Item {
             anchors.baseline: titleText.baseline
             text: root.author
             visible: root.author !== ""
+            elide: Text.ElideRight
             color: Theme.inkFaint
             font.family: Theme.ui
             font.pixelSize: 13
@@ -110,6 +123,7 @@ Item {
 
     // right cluster: chapter label + four icons
     Row {
+        id: rightRow
         anchors.verticalCenter: parent.verticalCenter
         anchors.right: parent.right
         anchors.rightMargin: 22

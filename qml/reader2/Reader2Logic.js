@@ -68,6 +68,18 @@ function resumeCfiOf(entry) {
     return (entry && entry.locator && entry.locator.cfi) ? entry.locator.cfi : ""
 }
 
+// staleRelocate(eventGen, currentGen) → true when a 'relocated' (or the save it drives)
+// belongs to a PREVIOUS book open and must be ignored — the cross-book race guard. The
+// glue stamps each 'ready'/'relocated' with a per-open `gen`; ReaderShell tracks the
+// current open's gen (set from 'ready') and drops any relocated whose gen differs, so a
+// relocated from book A already in flight over QWebChannel can't mis-save into book B.
+// An event carrying no gen (undefined / non-finite — e.g. a pre-gen glue) is NEVER stale
+// (defensive: never suppress a real save just because the stamp is missing).
+function staleRelocate(eventGen, currentGen) {
+    if (!Number.isFinite(eventGen)) return false
+    return eventGen !== currentGen
+}
+
 // railState(relocated, tocLength) → the progress-rail view model for Task 7's chrome.
 // Pure derivation from a relocated event; kept simple and side-effect-free.
 function railState(relocated, tocLength) {
@@ -84,8 +96,10 @@ function railState(relocated, tocLength) {
 // TASK 7 — reveal state machine + rail ticks (pure; proven headless).
 // ---------------------------------------------------------------------------
 
-// Chrome idle timeout (ms). Kept in lock-step with Theme.idleMs, and matched to the
-// comic reader (MangaReader.qml) so both readers retreat on the same 3s beat. There is
+// Chrome idle timeout (ms). MANUALLY kept in lock-step with Theme.idleMs (they are two
+// separate literals on purpose — a `.pragma library` can't import a QML singleton, so this
+// file can't read Theme; change one, change the other). Matched to the comic reader
+// (MangaReader.qml) so both readers retreat on the same 3s beat. There is
 // deliberately NO pointer-move event into this reducer: the chrome wakes ONLY when you
 // reach for it (cursor enters the top/bottom edge band → "enterBar"), on the book-open
 // orientation beat / an explicit double-click ("wake"/"toggle"), or a panel. Body
@@ -534,8 +548,10 @@ function rulerGeometry(yPct, heightPx, overlayH) {
 //
 // The reader's Audio tab keeps a paired audiobook in step with the page. When
 // "Follow my reading" is on, every page turn asks: which AUDIOBOOK chapter matches
-// the BOOK chapter I'm now in? chapterFor answers it, in three tiers ported from
-// TB-Max's pairing brain (src/domains/books/reader/reader_audiobook_pairing.js):
+// the BOOK chapter I'm now in? chapterFor answers it with ORIGINAL 3-tier matching
+// (title / roman / proportional) written for reader2 — inspired by the pairing concept,
+// NOT ported: TB-Max had only a manual chapter dropdown + a naive ordinal, no title or
+// roman-numeral matching and no proportional fallback. The three tiers:
 //   (1) title match  — normalize both titles and pair by text, else by a shared
 //        leading chapter NUMBER (so book "Chapter 3" ↔ audio "3. The Spouter-Inn");
 //   (2) ordinal      — book chapter N → audio chapter N, when that index exists;

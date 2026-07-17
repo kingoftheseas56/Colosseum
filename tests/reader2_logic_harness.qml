@@ -52,6 +52,16 @@ QtObject {
             check(L.resumeCfiOf({}) === "", "resumeCfiOf: empty entry -> ''")
             check(L.resumeCfiOf({ locator: {} }) === "", "resumeCfiOf: no cfi -> ''")
 
+            // 3b. staleRelocate — cross-book generation guard (Part B1). A relocated whose gen
+            // differs from the current open's gen is stale (drop it + its save); a missing/
+            // non-finite gen is NEVER stale (defensive: never suppress a real save).
+            check(L.staleRelocate(5, 5) === false, "staleRelocate: same gen -> not stale")
+            check(L.staleRelocate(4, 5) === true, "staleRelocate: older gen -> stale")
+            check(L.staleRelocate(6, 5) === true, "staleRelocate: any different gen -> stale")
+            check(L.staleRelocate(undefined, 5) === false, "staleRelocate: missing gen -> never stale (defensive)")
+            check(L.staleRelocate(NaN, 5) === false, "staleRelocate: non-finite gen -> never stale")
+            check(L.staleRelocate(0, -1) === true, "staleRelocate: gen 0 vs initial -1 -> stale")
+
             // 4. railState — pure view model for Task 7's rail.
             var rail = L.railState({ percent: 42, pageInChapter: 3, pagesInChapter: 10 }, 5)
             check(rail.fillPct === 42, "railState: fillPct = percent")

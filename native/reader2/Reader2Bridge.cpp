@@ -2,8 +2,6 @@
 #include "../reader/BookStores.h"
 
 #include <QAbstractSocket>
-#include <QCryptographicHash>
-#include <QDir>
 #include <QFile>
 #include <QHostAddress>
 #include <QHostInfo>

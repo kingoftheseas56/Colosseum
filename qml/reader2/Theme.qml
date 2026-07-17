@@ -59,8 +59,9 @@ QtObject {
     readonly property string display: "Fraunces"
 
     // reveal idle timeout (ms) — chrome sleeps this long after the cursor leaves the
-    // top/bottom edge band (or the book-open/toggle reveal). Mirrors Reader2Logic's
-    // REVEAL_IDLE_MS and matches the comic reader's 3s beat; kept here so the chrome's
-    // Timer and the pure reducer agree on one number.
+    // top/bottom edge band (or the book-open/toggle reveal). MANUALLY kept in lock-step
+    // with Reader2Logic's REVEAL_IDLE_MS: they are two separate literals because a
+    // `.pragma library` (Reader2Logic.js) can't import this singleton, so the reducer
+    // can't read this value — change one, change the other. Matches the comic reader's 3s beat.
     readonly property int idleMs: 3000
 }

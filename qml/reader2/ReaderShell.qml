@@ -28,6 +28,30 @@ FocusScope {
     signal closed()
     focus: true
 
+    // ---- debug logging (Part C5) — OFF by default so a shipped embedding stays quiet; the
+    // standalone harness flips it on. Gates the [shell]/[paper] event tracing (never ships spam).
+    property bool readerDebug: false
+
+    // ---- cross-book generation guard (Part B1) — the glue stamps every 'ready'/'relocated'
+    // with a per-open `gen`; we adopt it from 'ready' and DROP any relocated (and its save)
+    // whose gen differs, so a relocated from book A already in flight over QWebChannel can't
+    // land after we switched to book B and mis-save into B. L.staleRelocate is the pure test.
+    property int currentGen: -1
+    // Has the CURRENT open reached 'ready'? Gates the failed-open surface (Part B3): an
+    // 'error' BEFORE ready = the book won't open (show the surface); after ready it's an
+    // operational error (a failed search/highlight) that just traces.
+    property bool bookReady: false
+    property bool openErrorShown: false
+    property string openErrorText: ""
+
+    // ---- progress-save debounce (Part B4) — coalesce rapid page turns into ONE store write
+    // (~60ms after the last turn) instead of a JSON read+write per turn. The pending relocated
+    // + its book identity are stashed; the timer (or an explicit flush on close / book switch)
+    // writes it. Capturing id/path at stash time keeps a flush correct across a book change.
+    property var pendingSave: null
+    property string pendingSaveId: ""
+    property string pendingSaveBookPath: ""
+
     // ---- chrome view-model (fed by paper 'ready' + 'relocated' events) ----
     property string bookTitle: ""
     property string bookAuthor: ""
@@ -416,14 +440,42 @@ FocusScope {
         }
     }
 
+    // Debounce that coalesces rapid page-turn saves (Part B4): restarted on each relocated,
+    // fires ~60ms after the LAST turn to write the final position once.
+    Timer {
+        id: progressSaveTimer
+        interval: 60
+        onTriggered: shell.flushProgressSave()
+    }
+    // Write the pending progress NOW (timer fire, or an explicit flush on close / book switch).
+    // No-op when nothing is pending. Same read-prev + L.progressRecord path as before; only the
+    // TIMING moved off the per-event hot path.
+    function flushProgressSave() {
+        progressSaveTimer.stop()
+        var pend = shell.pendingSave
+        if (!pend || shell.pendingSaveId === "") { shell.pendingSave = null; return }
+        var id = shell.pendingSaveId
+        var prev = Reader2Bridge.progressGet(id)
+        Reader2Bridge.progressSave(id, L.progressRecord(prev, pend, shell.pendingSaveBookPath))
+        shell.pendingSave = null
+    }
+    // Leave the reader: FLUSH any pending save first (so a page turn within the debounce window
+    // isn't lost when the book closes), then tell the embedder. Used everywhere we'd emit closed().
+    function goBack() { shell.flushProgressSave(); shell.closed() }
+    Component.onDestruction: shell.flushProgressSave()
+
     Paper {
         id: paper
         anchors.fill: parent
+        readerDebug: shell.readerDebug
         onGlueUpChanged: if (glueUp && shell.bookPath !== "") shell.openAtResume(shell.bookPath)
         onPaperEvent: (name, p) => {
-            console.log("[shell]", name, JSON.stringify(p).slice(0, 160))
+            if (shell.readerDebug) console.log("[shell]", name, JSON.stringify(p).slice(0, 160))
 
             if (name === "ready") {
+                shell.currentGen = Number.isFinite(p.gen) ? p.gen : shell.currentGen  // adopt this open's generation (Part B1)
+                shell.bookReady = true                            // opened OK → later 'error' is operational, not a failed open
+                shell.openErrorShown = false                      // clear any failed-open surface from a prior attempt
                 // book identity + toc arrive here (before the first relocate).
                 shell.bookTitle = (p.metadata && p.metadata.title) ? String(p.metadata.title) : ""
                 shell.bookAuthor = L.authorText(p.metadata)
@@ -456,7 +508,7 @@ FocusScope {
                 else if (shell.footnoteShown) shell.dismissFootnote()
                 else if (shell.selMenuShown) shell.dismissSelectionMenu()
                 else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left/right panel OR search sheet
-                else shell.closed()
+                else shell.goBack()                                    // flushes the pending save, then closes
             } else if (name === "footnote") {
                 // A footnote/endnote link was tapped (the glue extracted its text). Show the
                 // FootnoteCard near the anchor; the page does NOT navigate to the note.
@@ -499,7 +551,19 @@ FocusScope {
                 shell.searchCount = Number.isFinite(p.count) ? p.count : shell.searchResults.length
                 shell.searchCapped = !!p.capped
                 shell.searchLastQuery = (p.query !== undefined && p.query !== null) ? String(p.query) : ""
+            } else if (name === "error") {
+                // Part B3: the glue failed. If the book never reached 'ready' it won't open —
+                // show the quiet failed-open surface with the message. If it WAS ready this is
+                // an operational error (a failed search/highlight); just trace it (readerDebug).
+                var emsg = (p.message !== undefined && p.message !== null) ? String(p.message) : ""
+                if (!shell.bookReady) {
+                    shell.openErrorText = emsg
+                    shell.openErrorShown = true
+                } else if (shell.readerDebug) {
+                    console.log("[shell] operational error:", emsg)
+                }
             } else if (name === "relocated" && shell.bookPath !== "") {
+                if (L.staleRelocate(p.gen, shell.currentGen)) return   // stale cross-book relocated → ignore (Part B1)
                 // --- chrome view-model (rail + top bar + Contents current row) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)
                 if (p.chapterTitle !== undefined) shell.chapterLabel = String(p.chapterTitle)
@@ -510,14 +574,18 @@ FocusScope {
                 if (Number.isFinite(p.pageInChapter)) { shell.pageInChapter = p.pageInChapter; shell.lastPageInChapter = p.pageInChapter }
                 if (Number.isFinite(p.pagesInChapter)) shell.pagesInChapter = p.pagesInChapter
 
-                // --- RESUME SEAM save (Task 6, unchanged) ---
-                // Read the key + prev entry AT SAVE TIME (shell.bookId, not a stale
-                // capture) so a relocated can only ever write the CURRENT book. The
-                // .pragma logic can't touch Date, so we stamp updatedAt here.
-                var id = shell.bookId
-                var prev = Reader2Bridge.progressGet(id)
+                // --- RESUME SEAM save (Task 6) — now DEBOUNCED (Part B4) ---
+                // Stash the position + THIS book's identity and restart the 60ms timer, so a
+                // burst of page turns writes the store once (a JSON read+write per turn was the
+                // cost). Capturing id/path here (not at flush time) keeps a flush correct even if
+                // the book switches before it fires. The .pragma logic can't touch Date, so we
+                // stamp updatedAt now. flushProgressSave() (close / book switch) never loses the
+                // final position.
                 p.updatedAt = Date.now()
-                Reader2Bridge.progressSave(id, L.progressRecord(prev, p, shell.bookPath))
+                shell.pendingSave = p
+                shell.pendingSaveId = shell.bookId
+                shell.pendingSaveBookPath = shell.bookPath
+                progressSaveTimer.restart()
 
                 // --- read-along sync (Task 13) ---
                 // If Follow is on and the companion audiobook is loaded, snap it to the
@@ -584,7 +652,7 @@ FocusScope {
         searchCapped: shell.searchCapped
         searchLastQuery: shell.searchLastQuery
 
-        onBackRequested: shell.closed()
+        onBackRequested: shell.goBack()
         onPrevRequested: paper.prev()
         onNextRequested: paper.next()
         onScrubbed: (f) => {
@@ -703,6 +771,71 @@ FocusScope {
         onDismissed: shell.dismissFootnote()
     }
 
+    // Failed-open surface (Part B3). A quiet centered message over the dead (black) paper when
+    // the glue emits 'error' before the book became 'ready'. Declared top-most (last visible
+    // item) so it covers the page; "Go back" (or Esc, when it holds focus) returns to the shelf.
+    Rectangle {
+        id: openErrorView
+        anchors.fill: parent
+        visible: shell.openErrorShown
+        color: Qt.rgba(Theme.scrim.r, Theme.scrim.g, Theme.scrim.b, 0.97)
+        focus: shell.openErrorShown
+        onVisibleChanged: if (visible) forceActiveFocus()
+        Keys.onEscapePressed: shell.goBack()
+        // swallow clicks + wheel so nothing reaches the dead paper beneath (declared FIRST → the
+        // Column below sits on top and still gets its button clicks).
+        MouseArea { anchors.fill: parent; onWheel: (w) => { w.accepted = true } }
+
+        Column {
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 96, 440)
+            spacing: 14
+
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: "Couldn't open this book"
+                color: Theme.ink
+                font.family: Theme.display
+                font.pixelSize: 22
+            }
+            Text {
+                width: parent.width
+                visible: shell.openErrorText !== ""
+                text: shell.openErrorText
+                color: Theme.inkFaint
+                font.family: Theme.ui
+                font.pixelSize: 13
+                wrapMode: Text.WordWrap
+                horizontalAlignment: Text.AlignHCenter
+            }
+            Rectangle {
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: backLabel.width + 34
+                height: 38
+                radius: 19
+                color: Theme.bar
+                border.color: Theme.barBorder
+                border.width: 1
+                Text {
+                    id: backLabel
+                    anchors.centerIn: parent
+                    text: "Go back"
+                    color: backMa.containsMouse ? Theme.ink : Theme.inkDim
+                    font.family: Theme.ui
+                    font.weight: Font.DemiBold
+                    font.pixelSize: 14
+                }
+                MouseArea {
+                    id: backMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: shell.goBack()
+                }
+            }
+        }
+    }
+
     // Dictionary result from the native seam (Wiktionary REST). Parse the JSON to entries;
     // empty / not-ok → the card's quiet "no definition" state (with Open-in-Wiktionary).
     Connections {
@@ -726,5 +859,12 @@ FocusScope {
         paper.open(path, L.resumeCfiOf(entry))
     }
 
-    function openBook(path) { bookPath = path; if (paper.glueUp) shell.openAtResume(path) }
+    function openBook(path) {
+        shell.flushProgressSave()          // don't lose the previous book's last position (Part B4)
+        shell.bookReady = false            // the new book hasn't reached 'ready' yet (Part B3 gate)
+        shell.openErrorShown = false       // drop any prior failed-open surface
+        shell.openErrorText = ""
+        bookPath = path
+        if (paper.glueUp) shell.openAtResume(path)
+    }
 }

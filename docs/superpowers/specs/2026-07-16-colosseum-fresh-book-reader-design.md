@@ -64,9 +64,13 @@ cloud sync, no TTS.
 
 ## Section 1 — Anatomy (chrome layout)
 
-The reading state is **naked**: paper edge to edge, zero chrome. Mouse movement fades
-chrome in over the page (glass over paper, player-HUD behavior); idle fades it out.
-Keys never wake chrome.
+The reading state is **naked**: paper edge to edge, zero chrome. The chrome follows the
+ratified **comic-reader reveal doctrine** (MangaReader.qml), NOT the early "mouse-move
+reveals" idea: it wakes ONLY when the cursor enters the top/bottom edge band, on a
+double-click on empty page space, or on the book-open orientation beat — then idle-hides
+after ~3s. Body mouse-movement, keys, and scrolling NEVER wake it (that "move reveals"
+path was the bug this doctrine fixes). The mock is the visual reference; its hover-reveal
+note is superseded by this edge-band / double-click behavior.
 
 What wakes:
 
@@ -87,8 +91,9 @@ What wakes:
 5. **Search** — thin floating sheet under the top bar: input, result count,
    jump-rows with the hit marked.
 
-Page turning: click left/right page edges (subtle chevrons while chrome is awake),
-arrow keys, PgUp/PgDn, Space — all handled in QML.
+Page turning: click left/right page edges (subtle chevrons while chrome is awake) —
+handled in QML; arrow keys, PgUp/PgDn, and Space are handled IN-PAGE by the paper glue
+(see Section 2), never routed through QML.
 
 Visual language: player-HUD constants — Inter UI, Fraunces display, gold accent,
 white-alpha grays, glass bars on near-black. The mock is the reference.
@@ -112,7 +117,15 @@ search results, footnote/link tapped, error). Nothing else.
   QByteArray — lesson baked in from day one).
 - **Audiobook playback + attachment** (existing `AudioPairingStore` plumbing).
 
-**QML owns:** all chrome, all keyboard, volatile UI state only.
+**QML owns:** all chrome and volatile UI state only.
+
+**Input model (amended 2026-07-17).** The **web view owns focus + pointer + keyboard**
+(the old-reader model — the fix that made text selection AND page-turn keys both work).
+Page-turn keys (arrows / Space / PageUp / PageDown) are handled IN-PAGE by the glue (it
+calls the renderer directly) and are NOT sent up. Esc, a double-click on empty page
+space, and a selection being cleared are also handled in-page and emitted up as semantic
+events (`escape`, `toggleChrome`, `selectionCleared`) that QML acts on. There is **no QML
+FocusScope keyboard handling** — QML never routes a page-turn key.
 
 **The seam:** a small versioned message vocabulary (~a dozen commands down, ~eight
 events up), shaped after Anx's proven bridge, carried over QWebChannel.
@@ -140,7 +153,7 @@ Reference flows:
 | Dictionary | Wiktionary via web fetch | Same lookup via C++ net; QML card |
 | Footnotes | in-page popups | Tap → QML footnote card |
 | Appearance | literary themes, font, size, spacing, margins, justify | Right panel, live-apply; same store |
-| Reading ruler | drawn inside the web page | **Pure QML overlay** (leaves web entirely) |
+| Reading ruler | drawn inside the web page | **Pure QML overlay** (leaves web entirely); renders on reflowable **text pages only** — never on fixed-layout books (PDF/CBZ) or cover / full-image pages |
 | Read-along audio | foundation landed (`fb5a741`) | Audio tab: attached audiobook, Follow toggle, transport; reuses the QML docked player |
 
 **Deliberately gone:**

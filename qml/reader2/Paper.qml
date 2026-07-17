@@ -18,6 +18,9 @@ Item {
     id: paper
     signal paperEvent(string name, var payload)
     property bool glueUp: false
+    // Forward the paper page's console messages to the Qt log ONLY when debugging (Part C5):
+    // default false so a shipped embedding never spams; the standalone harness flips it on.
+    property bool readerDebug: false
 
     function open(path, cfi) { run("window.paper.open(" + JSON.stringify(path) + "," + JSON.stringify(cfi || "") + ")") }
     function next() { run("window.paper.next()") }
@@ -64,7 +67,7 @@ Item {
         settings.localContentCanAccessRemoteUrls: true
         webChannel: WebChannel { id: channel }
         url: Qt.resolvedUrl("../../resources/reader2/paper.html")
-        onJavaScriptConsoleMessage: (lvl, msg, line, src) => console.log("[paper]", msg)
+        onJavaScriptConsoleMessage: (lvl, msg, line, src) => { if (paper.readerDebug) console.log("[paper]", msg) }
         // When paper.html finishes loading, hand it active focus so the in-page keyboard
         // is live without needing a click first (ReaderShell also focuses it on book-ready).
         onLoadingChanged: (info) => { if (info.status === WebEngineView.LoadSucceededStatus) web.forceActiveFocus() }

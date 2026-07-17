@@ -17,6 +17,7 @@ const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (
 
 // escapeXml — the four XML-significant chars, null-safe.
 check(escapeXml('a & b < c > "d"') === 'a &amp; b &lt; c &gt; &quot;d&quot;', 'escapeXml: escapes & < > "')
+check(escapeXml("it's a 'quote'") === 'it&#39;s a &#39;quote&#39;', "escapeXml: escapes apostrophe -> &#39;")
 check(escapeXml(null) === '', 'escapeXml: null-safe -> ""')
 check(escapeXml("plain") === 'plain', 'escapeXml: leaves plain text alone')
 

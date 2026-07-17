@@ -4,9 +4,7 @@
 #include "../engine/AudiobookDownloader.h"
 #include "../AudioPairingStore.h"
 
-#include <QCryptographicHash>
 #include <QDateTime>
-#include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonArray>

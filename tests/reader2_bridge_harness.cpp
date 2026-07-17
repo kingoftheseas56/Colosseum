@@ -9,8 +9,6 @@
 
 #include <QByteArray>
 #include <QCoreApplication>
-#include <QCryptographicHash>
-#include <QDir>
 #include <QFile>
 #include <QJsonObject>
 #include <QStandardPaths>

@@ -20,6 +20,7 @@ export const escapeXml = s => String(s ?? '')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')     // defense-in-depth (element text today; harmless, future-proof for attrs)
 
 // Blank-line-separated blocks -> paragraphs (same split the old engine_txt used). A
 // hard-wrapped file with no blank lines becomes ONE paragraph and still reflows fine;

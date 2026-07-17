@@ -6,7 +6,6 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
-import "Reader2Logic.js" as L
 
 Item {
     id: root

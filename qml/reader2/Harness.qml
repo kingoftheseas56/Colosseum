@@ -59,6 +59,7 @@ Window {
         id: shell
         anchors.fill: parent
         visible: false
+        readerDebug: true                     // standalone bench keeps the [shell]/[paper] event trace (Part C5)
         audioSession: audiobookSession        // inject the shared engine → the Audio tab drives it
         onClosed: {
             shell.visible = false

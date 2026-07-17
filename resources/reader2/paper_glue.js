@@ -186,6 +186,13 @@ let currentView = null
 let flatToc = []                       // [{index,label,href}] flattened, DFS order
 const annotations = new Map()          // id -> { id, value:cfi, type, color }
 let readyEmitted = false               // gate: suppress 'relocated' until 'ready' has fired for THIS book
+// Per-open generation counter (cross-book stale-relocated guard). Bumped on every
+// paperOpen and stamped into every 'ready'/'relocated' as `gen`. A 'relocated' from
+// book A that was already in flight over QWebChannel when we switched to book B would
+// otherwise land after B's 'ready' and mis-save into B's progress; ReaderShell ignores
+// any relocated whose gen != the current open's gen. (See ReaderShell + L.staleRelocate.)
+let openGen = 0
+let footnoteRenderPending = false      // one throwaway footnote render host loads at a time (see setupFootnoteHandler)
 let sectionHasText = true              // is the CURRENT section real prose (vs a cover/full-image page)?
                                        // reported as relocated.textPage so the reading ruler only dims
                                        // TEXT pages — a focus band over a cover image is a bug, not an aid.
@@ -352,9 +359,18 @@ const setupFootnoteHandler = () => {
   footnoteHandler = new FootnoteHandler()
   // before-render: attach the throwaway view to our hidden host so its section iframe
   // actually loads (mirrors book.js replaceFootnote, minus the modal styling).
+  //
+  // RAPID DOUBLE-TAP GUARD: only ONE render host loads at a time. A second footnote tap
+  // whose before-render arrives while the first is still loading is DROPPED (return without
+  // attaching) — replaceChildren()-ing a second view in would detach the first's still-
+  // loading iframe mid-flight, and its pending paginator load handler (getDirection →
+  // getComputedStyle) throws on the now-null doc. The first render wins and emits its card;
+  // the flag clears on 'render' (below) or on the handle() promise reject (link handler).
   footnoteHandler.addEventListener('before-render', e => {
     const view = e.detail?.view
     if (!view) return
+    if (footnoteRenderPending) return          // a prior footnote is still rendering — drop this one
+    footnoteRenderPending = true
     try {
       footnoteHost().replaceChildren(view)
       const r = view.renderer
@@ -364,7 +380,7 @@ const setupFootnoteHandler = () => {
         r.setAttribute('top-margin', '0px')
         r.setAttribute('bottom-margin', '0px')
       }
-    } catch (err) { console.warn('[paper] footnote before-render', err) }
+    } catch (err) { footnoteRenderPending = false; console.warn('[paper] footnote before-render', err) }
   })
   // render: the note fragment now lives in the throwaway view's section doc.body — read
   // its text, emit UP, then drop the view. (Text v1: the native card renders plain text.)
@@ -379,6 +395,7 @@ const setupFootnoteHandler = () => {
     if (!text && target) { try { text = String(target.textContent || '').trim() } catch (e) {} }
     if (text.length > FOOTNOTE_TEXT_CAP) text = text.slice(0, FOOTNOTE_TEXT_CAP) + '…'
     emit('footnote', { html: text, rect: pendingFootnoteRect })
+    footnoteRenderPending = false   // host free again → the next footnote tap can render
     // Do NOT remove the throwaway view here: it still has a pending iframe 'load' handler
     // (paginator getDirection → getComputedStyle) that would throw on a null doc if we detach
     // mid-load. The next footnote's before-render replaceChildren()s it out of the hidden host,
@@ -503,6 +520,7 @@ const wireView = view => {
     }
     const finite = (n, fb = 0) => (Number.isFinite(n) ? n : fb)
     emit('relocated', {
+      gen: openGen,                              // cross-book guard: ReaderShell drops a stale gen
       cfi: d.cfi ?? '',
       fraction,
       tocIndex: tocIndexByHref(d.tocItem?.href),
@@ -579,8 +597,10 @@ const wireView = view => {
     try {
       const p = footnoteHandler && footnoteHandler.handle(view.book, e)
       if (p && typeof p.catch === 'function')
-        p.catch(err => { console.warn('[paper] footnote render failed', err) })
-    } catch (err) { console.warn('[paper] footnote handle threw', err) }
+        // Clear the render-pending guard if the render fails (resolveHref/load reject),
+        // so a failed footnote can never wedge every later footnote shut.
+        p.catch(err => { footnoteRenderPending = false; console.warn('[paper] footnote render failed', err) })
+    } catch (err) { footnoteRenderPending = false; console.warn('[paper] footnote handle threw', err) }
   })
 }
 
@@ -596,6 +616,8 @@ const paperOpen = async (path, cfi) => {
     // clears view internal state; remove() drops the <foliate-view> element itself.
     // annotations/flatToc/readyEmitted belong to the previous book — reset them.
     readyEmitted = false
+    openGen++                       // new open → later events carry this gen (cross-book guard)
+    footnoteRenderPending = false   // a prior book's in-flight footnote render can't gate this one
     if (currentView) {
       try { currentView.close?.() } catch (e) { /* vendor teardown best-effort */ }
       try { currentView.remove() } catch (e) { /* already detached */ }
@@ -674,6 +696,7 @@ const paperOpen = async (path, cfi) => {
     // payload is fully available here — right after open() + flattenToc. Setting
     // readyEmitted lets the relocate handler (gated above) start emitting from init on.
     emit('ready', {
+      gen: openGen,                               // ReaderShell sets currentGen from this
       toc: tocForReady,
       metadata: view.book?.metadata ?? {},
       sections: view.book?.sections?.length ?? 0,

@@ -69,8 +69,6 @@ Item {
     // ---- signals up ----
     signal backRequested()
     signal searchRequested()
-    signal contentsRequested()
-    signal appearanceRequested()
     signal bookmarkRequested()
     signal prevRequested()
     signal nextRequested()
@@ -120,7 +118,6 @@ Item {
     // Contents icon: open to Contents; if already open ON Contents, close; if open on
     // another tab, switch to Contents (don't close).
     function handleContents() {
-        contentsRequested()
         if (panelOpen && activeTab === "contents") closePanel()
         else openPanelTo("contents")
     }
@@ -129,7 +126,6 @@ Item {
     function closeAppearance() { appearanceOpen = false }
     // Appearance icon: toggle the right panel; opening it closes the left panel + search.
     function handleAppearance() {
-        appearanceRequested()
         if (appearanceOpen) appearanceOpen = false
         else { panelOpen = false; searchOpen = false; appearanceOpen = true }
     }
@@ -211,14 +207,16 @@ Item {
     }
 
     // ---------- 3. reveal scrims (paint-only, never block input) ----------
+    // The near-black RGB comes from Theme.scrim (the shared token); each gradient stop just
+    // varies its alpha. (Qt.rgba wants 0..1 channels — Theme.scrim.r/g/b already are.)
     Rectangle {
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         height: 130
         opacity: chrome.awake ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(8 / 255, 8 / 255, 10 / 255, 0.72) }
-            GradientStop { position: 1.0; color: Qt.rgba(8 / 255, 8 / 255, 10 / 255, 0.0) }
+            GradientStop { position: 0.0; color: Qt.rgba(Theme.scrim.r, Theme.scrim.g, Theme.scrim.b, 0.72) }
+            GradientStop { position: 1.0; color: Qt.rgba(Theme.scrim.r, Theme.scrim.g, Theme.scrim.b, 0.0) }
         }
     }
     Rectangle {
@@ -227,8 +225,8 @@ Item {
         opacity: chrome.awake ? 1 : 0
         Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(8 / 255, 8 / 255, 10 / 255, 0.0) }
-            GradientStop { position: 1.0; color: Qt.rgba(8 / 255, 8 / 255, 10 / 255, 0.78) }
+            GradientStop { position: 0.0; color: Qt.rgba(Theme.scrim.r, Theme.scrim.g, Theme.scrim.b, 0.0) }
+            GradientStop { position: 1.0; color: Qt.rgba(Theme.scrim.r, Theme.scrim.g, Theme.scrim.b, 0.78) }
         }
     }
 
