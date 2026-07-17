@@ -92,16 +92,16 @@ Item {
 
     Timer { interval: 300; running: true; repeat: true; onTriggered: chrome.tick() }
 
-    // ---------- 1. center body = double-click toggles chrome (edges override at sides) ----------
-    // Body MOVEMENT feeds nothing — there is deliberately NO hover tracker here. A single
-    // click is harmlessly swallowed for now (Task 9 reworks this area for text selection);
-    // a double-click toggles the chrome. The top/bottom reveal bands (§5, top-most,
-    // hover-only) never consume this click.
-    MouseArea {
-        anchors.fill: parent
-        acceptedButtons: Qt.LeftButton
-        onDoubleClicked: chrome.toggle()
-    }
+    // ---------- 1. center body: NO QML overlay — the paper owns pointer input ----------
+    // THE POINTER REWORK (Task 9): there is deliberately NO full-fill MouseArea over the
+    // center anymore. The old center-tap `onDoubleClicked: chrome.toggle()` sat OVER the
+    // WebEngineView and ate every press/drag, so in-page text selection could never fire.
+    // Removing it lets drags reach the paper (the glue's `selection` event flows). The
+    // double-click-to-toggle affordance now lives in the glue (paper_glue.js `dblclick`):
+    // a double-click on EMPTY space emits `toggleChrome` → ReaderShell → chrome.toggle();
+    // a double-click on a word selects it (and opens the menu). The edge page-turn zones
+    // (§2, outer ~11%) and the reveal bands (§5, hover-only, no MouseArea) stay — neither
+    // covers the central text column where selection happens.
 
     // ---------- 2. edge page-turn zones (~11% each side) ----------
     MouseArea {

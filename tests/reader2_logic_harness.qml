@@ -125,6 +125,34 @@ QtObject {
             var tkToc = L.railTicks([{ fraction: 0.6 }, { fraction: 0.2 }, { fraction: 0.9 }], 0)
             check(tkToc.length === 3 && tkToc[0] === 0.2 && tkToc[2] === 0.9, "railTicks: explicit fractions sorted")
             check(L.railTicks([], 0).length === 0, "railTicks: empty -> []")
+            // ALL-OR-NOTHING: a MIXED toc (some entries resolve a fraction, some don't) must
+            // NOT draw the sparse resolved subset — the whole set falls back to even spacing.
+            var tkMixed = L.railTicks([{ fraction: 0.3 }, { label: "x" }, { fraction: 0.7 }], 0)
+            check(tkMixed.length === 2 && Math.abs(tkMixed[0] - 1 / 3) < 1e-9 && Math.abs(tkMixed[1] - 2 / 3) < 1e-9,
+                  "railTicks: mixed toc -> even spacing for the whole set (not the resolved subset)")
+            // an out-of-range fraction (>=1) counts as a gap → whole set falls back too.
+            var tkBad = L.railTicks([{ fraction: 0.5 }, { fraction: 1.0 }], 0)
+            check(tkBad.length === 1 && Math.abs(tkBad[0] - 0.5) < 1e-9, "railTicks: out-of-range fraction -> even fallback")
+            // EVERY entry resolves → the true-fraction fast-path (sorted).
+            var tkAll = L.railTicks([{ fraction: 0.25 }, { fraction: 0.5 }, { fraction: 0.75 }], 0)
+            check(tkAll.length === 3 && tkAll[0] === 0.25 && tkAll[2] === 0.75, "railTicks: every entry has fraction -> real ticks")
+
+            // 6b. selectionMenuPos — clamp the popover card inside the frame; above else below.
+            // above the selection when there's room (sel high on the page):
+            var pA = L.selectionMenuPos({ x: 500, y: 400, w: 120, h: 20 }, 1280, 720, 180, 44, 12, 10)
+            check(pA.y === 400 - 44 - 12, "selMenuPos: placed ABOVE when room (y = sy - cardH - gap)")
+            check(pA.x === 500 + 60 - 90, "selMenuPos: horizontally centered on the selection")
+            // no room above (sel near the top) → placed BELOW.
+            var pB = L.selectionMenuPos({ x: 500, y: 4, w: 120, h: 20 }, 1280, 720, 180, 44, 12, 10)
+            check(pB.y === 4 + 20 + 12, "selMenuPos: placed BELOW when no room above")
+            // far-right selection → x clamped so the card never spills past the right margin.
+            var pC = L.selectionMenuPos({ x: 1270, y: 400, w: 8, h: 20 }, 1280, 720, 180, 44, 12, 10)
+            check(pC.x === 1280 - 180 - 10, "selMenuPos: right edge clamps x to frameW - cardW - margin")
+            // far-left selection → x clamped to the left margin.
+            var pD = L.selectionMenuPos({ x: 0, y: 400, w: 8, h: 20 }, 1280, 720, 180, 44, 12, 10)
+            check(pD.x === 10, "selMenuPos: left edge clamps x to margin")
+            var pNull = L.selectionMenuPos(null, 1280, 720, 180, 44, 12, 10)
+            check(Number.isFinite(pNull.x) && Number.isFinite(pNull.y), "selMenuPos: null-safe (finite x,y)")
 
             // 7. authorText — normalize foliate metadata.author shapes.
             check(L.authorText({ author: "Herman Melville" }) === "Herman Melville", "authorText: string")

@@ -53,12 +53,61 @@ FocusScope {
     property var bookmarks: []
     property var highlights: []
 
+    // ---- selection / highlight view-model (Task 9, the pen — Round 1) ----
+    // Stashed from the paper's 'selection' event; drive the native SelectionMenu popover.
+    property var selRect: ({ x: 0, y: 0, w: 0, h: 0 })
+    property string selText: ""
+    property string selCfi: ""
+    property bool selMenuShown: false
+
     // Reload marks from the shared stores (on ready, on panel open, and after any change).
     function refreshMarks() {
         if (shell.bookPath === "") return
         var id = shell.bookId
         shell.bookmarks = Reader2Bridge.bookmarksGet(id)
         shell.highlights = Reader2Bridge.annotationsGet(id)
+    }
+
+    // Re-paint every stored highlight onto the paper (called after 'ready', once the
+    // shared annotations are loaded). The glue's addHighlight is idempotent by id, so a
+    // section reload / a repeat call never doubles a highlight. L.highlightRow normalizes
+    // both reader2's write shape and the old annotations.json into { id, cfi, color }.
+    function reapplyHighlights() {
+        var list = shell.highlights || []
+        for (var i = 0; i < list.length; i++) {
+            var r = L.highlightRow(list[i])
+            if (r.id !== "" && r.cfi !== "")
+                paper.addHighlight({ id: r.id, cfi: r.cfi, color: r.color })
+        }
+    }
+
+    // Dismiss the selection popover and drop the paper's live selection.
+    function dismissSelectionMenu() {
+        shell.selMenuShown = false
+        paper.clearSelection()
+    }
+
+    // Persist a highlight in the chosen color and paint it on the paper. The record shape
+    // satisfies BOTH readers: LeftPanel.highlightRow reads cfi from value|cfi|locator.cfi,
+    // plus color/text/note/chapterLabel; the glue's addHighlight needs { id, cfi, color }.
+    // annotationsSave (→ BookStores::listSave) STAMPS a fresh id when absent AND returns
+    // the stored record, so we don't double-stamp — we read the id back from it and hand
+    // that SAME id to the paper so re-apply/remove stay consistent across a reopen.
+    function applyHighlight(color) {
+        if (shell.bookPath === "" || shell.selCfi === "") { shell.dismissSelectionMenu(); return }
+        var rec = {
+            cfi: shell.selCfi,          // read by highlightRow (and by us for addHighlight)
+            value: shell.selCfi,        // the glue's annotation identity field (belt + suspenders)
+            color: color,
+            text: shell.selText,
+            note: "",
+            chapterLabel: shell.chapterLabel
+        }
+        var saved = Reader2Bridge.annotationsSave(shell.bookId, rec)   // stamps id, returns record
+        var id = (saved && saved.id !== undefined && saved.id !== null) ? String(saved.id) : ""
+        if (id !== "") paper.addHighlight({ id: id, cfi: shell.selCfi, color: color })
+        shell.refreshMarks()                                          // Highlights pane picks it up
+        shell.dismissSelectionMenu()
     }
 
     // Ratified default paper appearance (Night) — pushed at open so the FIRST paint
@@ -73,9 +122,10 @@ FocusScope {
     Keys.onPressed: (e) => {
         if (e.key === Qt.Key_Right || e.key === Qt.Key_Space || e.key === Qt.Key_PageDown) { paper.next(); e.accepted = true }
         else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { paper.prev(); e.accepted = true }
-        // Esc: if the left panel is open, close IT first; else close the book.
+        // Esc: dismiss the selection popover first; else close the left panel; else the book.
         else if (e.key === Qt.Key_Escape) {
-            if (chrome.panelOpen) chrome.closePanel()
+            if (shell.selMenuShown) shell.dismissSelectionMenu()
+            else if (chrome.panelOpen) chrome.closePanel()
             else shell.closed()
             e.accepted = true
         }
@@ -102,8 +152,19 @@ FocusScope {
                 shell.currentTocIndex = -1                        // unknown until the first relocate
                 shell.chapterTicks = L.railTicks(p.toc, (p.toc && p.toc.length) ? p.toc.length : 0)
                 shell.refreshMarks()                              // load bookmarks/highlights from the shared stores
+                shell.reapplyHighlights()                         // re-paint stored highlights onto the fresh paper
                 paper.setAppearance(shell.defaultAppearance)      // ratified Night default
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
+            } else if (name === "toggleChrome") {
+                // double-click on EMPTY paper space (glue) → toggle the chrome reveal.
+                chrome.toggle()
+            } else if (name === "selection") {
+                // text selected in the paper → stash it + open the SelectionMenu at its rect.
+                // A new selection while the menu is up simply re-stashes (the menu repositions).
+                shell.selText = (p.text !== undefined && p.text !== null) ? String(p.text) : ""
+                shell.selCfi = (p.cfi !== undefined && p.cfi !== null) ? String(p.cfi) : ""
+                shell.selRect = (p.rect && typeof p.rect === "object") ? p.rect : ({ x: 0, y: 0, w: 0, h: 0 })
+                shell.selMenuShown = (shell.selText !== "")
             } else if (name === "relocated" && shell.bookPath !== "") {
                 // --- chrome view-model (rail + top bar + Contents current row) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)
@@ -165,8 +226,13 @@ FocusScope {
         onBookmarkActivated: (cfi) => { if (cfi !== "") paper.goTo(cfi) }
         onHighlightActivated: (cfi) => { if (cfi !== "") paper.goTo(cfi) }
         onBookmarkDeleted: (id) => {
-            Reader2Bridge.bookmarksDelete(shell.bookId, id)
-            shell.refreshMarks()
+            // GUARD: an empty itemId means "CLEAR ALL bookmarks for this book" to
+            // BookStores::listDelete — a malformed id-less record must never wipe the whole
+            // set. Only delete a real id (siblings guard cfi !== "" the same way).
+            if (id !== "") {
+                Reader2Bridge.bookmarksDelete(shell.bookId, id)
+                shell.refreshMarks()
+            }
         }
         onTabSelected: (tab) => shell.refreshMarks()
 
@@ -194,6 +260,22 @@ FocusScope {
         // Panels for search / appearance arrive in Tasks 10-11; wired now, filled later.
         onSearchRequested: console.log("[shell] searchRequested (search sheet = Task 11)")
         onAppearanceRequested: console.log("[shell] appearanceRequested (appearance panel = Task 10)")
+    }
+
+    // The selection popover (Task 9, the pen — Round 1). Declared LAST so it floats above
+    // the chrome; bridge-free, driven by shell.sel* and reporting back via signals. Its own
+    // backdrop dismisses on tap-outside; ReaderShell does the save/paint/copy.
+    SelectionMenu {
+        id: selectionMenu
+        anchors.fill: parent
+        shown: shell.selMenuShown
+        sel: shell.selRect
+        onColorPicked: (color) => shell.applyHighlight(color)
+        onCopyRequested: {
+            if (shell.selText !== "") Clipboard.copy(shell.selText)   // exposed by main.cpp + the harness
+            shell.dismissSelectionMenu()
+        }
+        onDismissed: shell.dismissSelectionMenu()
     }
 
     // Resolve the saved resume position and open the book there. Read by the derived

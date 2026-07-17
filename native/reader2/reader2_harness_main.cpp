@@ -18,6 +18,7 @@
 //
 // [Agent 2 (Claude), biblio]
 #include "reader2/Reader2Bridge.h"
+#include "ClipboardHelper.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -49,9 +50,11 @@ int main(int argc, char** argv)
     qInfo("[reader2] booksDir: %s", qUtf8Printable(booksDir));
 
     Reader2Bridge bridge;
+    ClipboardHelper clipboard;   // SelectionMenu "Copy" (Task 9) — same helper main.cpp exposes
 
     QQmlApplicationEngine engine;
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), &bridge);
+    engine.rootContext()->setContextProperty(QStringLiteral("Clipboard"), &clipboard);
     engine.rootContext()->setContextProperty(QStringLiteral("booksDir"), booksDir);
 
     // Exe lands in native/build-msvc/ (Ninja single-config) → repo root is two up,

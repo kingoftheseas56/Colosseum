@@ -10,5 +10,6 @@ ReaderChrome ReaderChrome.qml
 TopBar TopBar.qml
 BottomRail BottomRail.qml
 LeftPanel LeftPanel.qml
+SelectionMenu SelectionMenu.qml
 HarnessShelf HarnessShelf.qml
 Harness Harness.qml

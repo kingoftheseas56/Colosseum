@@ -61,6 +61,22 @@ Item {
         highlights: sampleHighlights
     }
 
+    // The SelectionMenu popover (Task 9) — bridge-free, driven by a sample rect. Proves it
+    // parses + instantiates + the swatch/copy delegates realize, and that its signals fire.
+    property string pickedColor: ""
+    property int copyCount: 0
+    property int dismissCount: 0
+    R.SelectionMenu {
+        id: selMenu
+        width: 1280
+        height: 720
+        shown: true
+        sel: ({ x: 600, y: 300, w: 140, h: 22 })
+        onColorPicked: (c) => pickedColor = c
+        onCopyRequested: copyCount++
+        onDismissed: dismissCount++
+    }
+
     Component.onCompleted: {
         var fails = 0
         function check(ok, what) { if (!ok) { console.log("FAIL " + what); fails++ } else console.log("ok   " + what) }
@@ -96,6 +112,18 @@ Item {
             check(chrome.panelOpen === true && chrome.activeTab === "bookmarks", "openPanelTo switches tab + opens")
             chrome.closePanel()
             check(chrome.panelOpen === false, "closePanel closes")
+
+            // ---- SelectionMenu (Task 9) instantiates, positions in-bounds, fires signals ----
+            check(selMenu !== null && selMenu.visible === true, "SelectionMenu instantiated + visible when shown")
+            check(selMenu.cardW > 0 && selMenu.cardH > 0, "SelectionMenu card has a positive size")
+            check(selMenu.pos.x >= 0 && selMenu.pos.x <= selMenu.width - selMenu.cardW,
+                  "SelectionMenu card clamped horizontally in-frame")
+            check(selMenu.pos.y >= 0 && selMenu.pos.y <= selMenu.height - selMenu.cardH,
+                  "SelectionMenu card clamped vertically in-frame")
+            selMenu.colorPicked("#F0C24A"); check(pickedColor === "#F0C24A", "SelectionMenu colorPicked signal carries the color")
+            selMenu.copyRequested();        check(copyCount === 1, "SelectionMenu copyRequested signal fires")
+            selMenu.dismissed();            check(dismissCount === 1, "SelectionMenu dismissed signal fires")
+            selMenu.shown = false;          check(selMenu.visible === false, "SelectionMenu hides when shown=false")
 
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)

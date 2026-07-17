@@ -291,6 +291,26 @@ const attachSelection = (view, doc, index) => {
     clearTimeout(debounce)
     debounce = setTimeout(tryEmit, 250)
   })
+
+  // Double-click reveal (the POINTER REWORK): QML no longer covers the paper with a
+  // full-fill toggle MouseArea (it ate every press → text selection was impossible), so
+  // the "double-click toggles the chrome" affordance moves HERE, on the book iframe doc.
+  //   • double-click on TEXT → the browser selects a word → the selection path above
+  //     already emits 'selection' (which opens the menu); we do NOT toggle the chrome.
+  //   • double-click on EMPTY space (a margin / whitespace, no word selected) → emit
+  //     'toggleChrome'; ReaderShell routes that to chrome.toggle() — the same reveal
+  //     Hemanth ratified, minus the selection-blocking overlay.
+  doc.addEventListener('dblclick', () => {
+    let hasText = false
+    try {
+      const sel = doc.getSelection && doc.getSelection()
+      if (sel && sel.rangeCount) {
+        const range = sel.getRangeAt(0)
+        hasText = !!range && !range.collapsed && !!(range.toString() || sel.toString() || '').trim()
+      }
+    } catch (e) { /* treat as empty → toggle */ }
+    if (!hasText) emit('toggleChrome', {})
+  })
 }
 
 const wireView = view => {

@@ -140,25 +140,77 @@ function revealReducer(state, event, nowMs) {
 }
 
 // railTicks(toc, sections) → chapter-mark positions as fractions in (0,1), ascending.
-// Prefer an explicit per-entry fraction when the toc carries one; otherwise fall back
-// to evenly-spaced interior marks (one between each pair of consecutive sections).
-// Pure: no engine, no Date, no side effects.
+// Prefer explicit per-entry fractions when the toc carries them; otherwise fall back to
+// evenly-spaced interior marks (one between each pair of consecutive sections). Pure: no
+// engine, no Date, no side effects.
+//
+// ALL-OR-NOTHING (the fix): the glue (paper_glue.js `ready`) attaches a start `fraction`
+// per toc entry best-effort — but SOME entries can fail to resolve (an href the book
+// can't map, a book that exposes no section fractions). Taking only the RESOLVED subset
+// would draw a sparse/skewed rail (e.g. ticks only for the 3 of 12 chapters that mapped).
+// So the real-fraction fast-path fires ONLY when EVERY entry carries a finite fraction in
+// (0,1); if even one is missing/out-of-range we fall back to even spacing for the WHOLE
+// set. (The glue keeps its own per-entry guard; this is the whole-set gate.)
 function railTicks(toc, sections) {
     var out = []
     if (toc && toc.length) {
-        for (var i = 0; i < toc.length; i++) {
+        var n = toc.length
+        var all = []
+        var everyHasFraction = true
+        for (var i = 0; i < n; i++) {
             var t = toc[i]
             var f = (t && typeof t === "object") ? t.fraction : undefined
-            if (Number.isFinite(f) && f > 0 && f < 1) out.push(f)
+            if (Number.isFinite(f) && f > 0 && f < 1) all.push(f)
+            else { everyHasFraction = false; break }   // one gap → whole set falls back
         }
-        if (out.length) { out.sort(function (a, b) { return a - b }); return out }
-        var n = toc.length
-        for (var j = 1; j < n; j++) out.push(j / n)   // interior marks by toc count
+        if (everyHasFraction && all.length === n) {
+            all.sort(function (a, b) { return a - b })
+            return all
+        }
+        for (var j = 1; j < n; j++) out.push(j / n)   // even interior marks by toc count
         return out
     }
     var s = (Number.isFinite(sections) && sections > 1) ? Math.floor(sections) : 0
     for (var k = 1; k < s; k++) out.push(k / s)
     return out
+}
+
+// selectionMenuPos(sel, frameW, frameH, cardW, cardH, gap, margin) → { x, y } for the
+// selection menu CARD: horizontally centered on the selection and clamped inside the
+// frame; placed ABOVE the selection when there's room, else BELOW (also clamped). `sel`
+// is the paper's selection rect { x, y, w, h } in frame coordinates. Pure — no engine,
+// no Date; the SelectionMenu binds card.x/card.y to this so the popover never spills off
+// screen. (The actual on-screen feel is Hemanth's eyes-on; this just keeps it in-bounds.)
+function selectionMenuPos(sel, frameW, frameH, cardW, cardH, gap, margin) {
+    var s = sel || {}
+    var sx = Number.isFinite(s.x) ? s.x : 0
+    var sy = Number.isFinite(s.y) ? s.y : 0
+    var sw = Number.isFinite(s.w) ? s.w : 0
+    var sh = Number.isFinite(s.h) ? s.h : 0
+    var fw = Number.isFinite(frameW) ? frameW : 0
+    var fh = Number.isFinite(frameH) ? frameH : 0
+    var cw = Number.isFinite(cardW) ? cardW : 0
+    var ch = Number.isFinite(cardH) ? cardH : 0
+    var g = Number.isFinite(gap) ? gap : 10
+    var m = Number.isFinite(margin) ? margin : 8
+
+    // horizontal: center on the selection, clamp within [m, fw - cw - m].
+    var x = sx + sw / 2 - cw / 2
+    var maxX = fw - cw - m
+    if (maxX < m) maxX = m
+    if (x < m) x = m
+    else if (x > maxX) x = maxX
+
+    // vertical: prefer above the selection; if it won't fit, drop below. Clamp either way.
+    var above = sy - ch - g
+    var below = sy + sh + g
+    var y = (above >= m) ? above : below
+    var maxY = fh - ch - m
+    if (maxY < m) maxY = m
+    if (y < m) y = m
+    else if (y > maxY) y = maxY
+
+    return { x: x, y: y }
 }
 
 // ---------------------------------------------------------------------------

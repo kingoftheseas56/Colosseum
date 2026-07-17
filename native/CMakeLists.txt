@@ -249,6 +249,7 @@ add_executable(reader2_harness
     reader2/Reader2Bridge.h
     reader/BookStores.cpp
     reader/BookStores.h
+    ClipboardHelper.h          # Q_OBJECT header → listed so AUTOMOC generates its meta-object
 )
 target_include_directories(reader2_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_harness PRIVATE Qt6::Quick Qt6::Qml Qt6::Network Qt6::WebEngineQuick Qt6::WebChannel)
