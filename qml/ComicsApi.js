@@ -132,14 +132,16 @@ function tagBySlug(slug, done) {
         });
 }
 
+// Raw WP posts -> row objects. keepAll=true skips the weekly-pack noise filter
+// (for by-id fetches where every requested post must survive).
 // ── the shelf: every release post under a tag, cover + year + size parsed out. ──
 // Weekly packs ("… Week 27.2026" dumps) are noise in a series view — filtered.
-function mapPosts(j) {
+function mapPosts(j, keepAll) {
     var out = [];
     for (var i = 0; i < j.length; i++) {
         var p = j[i];
         var title = decodeEntities(p.title && p.title.rendered);
-        if (/weekly pack|week \d+\.\d{4}|^\d{4}\.\d{2}\.\d{2}/i.test(title)) continue;
+        if (!keepAll && /weekly pack|week \d+\.\d{4}|^\d{4}\.\d{2}\.\d{2}/i.test(title)) continue;
         var ex = String((p.excerpt && p.excerpt.rendered) || "");
         var ym = ex.match(/Year\s*:\s*<\/strong>\s*(\d{4})/i);
         var sm = ex.match(/Size\s*:\s*<\/strong>\s*([\d.]+)\s*(GB|MB)/i);
@@ -192,6 +194,30 @@ function releases(tagId, done) {
             });
         })(p);
     });
+}
+
+// ── enrichment for the BAKED catalogue pages (spec 2026-07-17): covers + sizes
+//    for specific post ids, CHUNKED at WP's per_page=100 ceiling (catalogue runs
+//    can exceed it — Action Comics carries 134 downloads). Parsing rides
+//    mapPosts(keepAll) so a by-id fetch returns exactly the posts the catalogue
+//    asked for. Failure => missing entries; the page keeps date order, no covers.
+function postsById(ids, done) {
+    if (!ids || !ids.length) { done({}); return; }
+    var map = {}, pending = 0;
+    for (var i = 0; i < ids.length; i += 100) (function(chunk) {
+        pending += 1;
+        gcJson(GC + "/posts?include=" + chunk.join(",")
+               + "&per_page=" + chunk.length
+               + "&_fields=id,link,title,date,excerpt,yoast_head_json.og_image", function(j) {
+            if (j && j.length) {
+                var rows = mapPosts(j, true);
+                for (var k = 0; k < rows.length; k++)
+                    map[rows[k].id] = { cover: rows[k].cover, sizeMB: rows[k].sizeMB,
+                                        year: rows[k].year };
+            }
+            if (--pending === 0) done(map);
+        });
+    })(ids.slice(i, i + 100));
 }
 
 // ── Explore board: GetComics' REAL taxonomy — publishers + franchises, live counts. ──
