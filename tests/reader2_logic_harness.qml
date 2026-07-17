@@ -60,25 +60,56 @@ QtObject {
             check(rail2.fillPct === 0, "railState: empty -> fillPct 0")
             check(rail2.label === "", "railState: empty -> no label")
 
-            // 5. revealReducer — pointer-driven reveal; keys NEVER wake the chrome.
-            var s0 = { awake: false, lastMove: 0, pinned: false }
-            var sMove = L.revealReducer(s0, "move", 1000)
-            check(sMove.awake === true && sMove.lastMove === 1000, "reveal: move wakes + stamps lastMove")
-            var sTick1 = L.revealReducer(sMove, "tick", 2000)      // +1000ms (< 1800) still awake
-            check(sTick1.awake === true, "reveal: tick +1000ms stays awake")
-            var sTick2 = L.revealReducer(sMove, "tick", 3000)      // +2000ms (> 1800) hides
-            check(sTick2.awake === false, "reveal: tick +2000ms past idle hides")
-            var sPin = L.revealReducer(sMove, "panelOpen", 1200)
-            check(sPin.pinned === true && sPin.awake === true, "reveal: panelOpen pins awake")
-            var sPinTick = L.revealReducer(sPin, "tick", 6200)     // +5000ms but pinned
-            check(sPinTick.awake === true, "reveal: pinned stays awake past idle")
-            var sClose = L.revealReducer(sPin, "panelClose", 6200)
+            // 5. revealReducer — comic-reader doctrine. The chrome wakes ONLY on a
+            // deliberate reach (edge band → enterBar), the book-open beat / a toggle, or a
+            // panel; there is NO "move" event, so body movement can never wake it.
+            var s0 = { shown: false, lastActive: 0, pinned: false, frozen: false }
+
+            // wake (book-open beat): shows; +1000ms tick still shown; +3500ms idle-hides.
+            var sWake = L.revealReducer(s0, "wake", 0)
+            check(sWake.shown === true, "reveal: wake shows the chrome")
+            var sWakeT1 = L.revealReducer(sWake, "tick", 1000)     // +1000ms (< 3000)
+            check(sWakeT1.shown === true, "reveal: tick +1000ms stays shown")
+            var sWakeT2 = L.revealReducer(sWake, "tick", 3500)     // +3500ms (> 3000)
+            check(sWakeT2.shown === false, "reveal: tick +3500ms past idle hides")
+
+            // enterBar: shows + freezes; a tick far past idle can't hide while frozen;
+            // exitBar keeps it shown but drops the freeze so the next idle tick hides.
+            var sEnter = L.revealReducer(s0, "enterBar", 0)
+            check(sEnter.shown === true && sEnter.frozen === true, "reveal: enterBar shows + freezes")
+            var sEnterT = L.revealReducer(sEnter, "tick", 5000)    // +5000ms but frozen
+            check(sEnterT.shown === true, "reveal: frozen survives a tick past idle")
+            var sExit = L.revealReducer(sEnter, "exitBar", 0)
+            check(sExit.shown === true && sExit.frozen === false, "reveal: exitBar keeps shown, drops freeze")
+            var sExitT = L.revealReducer(sExit, "tick", 3500)      // +3500ms after leaving the band
+            check(sExitT.shown === false, "reveal: after exitBar idle hides")
+
+            // toggle: from shown → hides; from hidden → shows.
+            var sTogOff = L.revealReducer(sWake, "toggle", 100)
+            check(sTogOff.shown === false, "reveal: toggle from shown hides")
+            var sTogOn = L.revealReducer(s0, "toggle", 100)
+            check(sTogOn.shown === true, "reveal: toggle from hidden shows")
+
+            // panelOpen pins shown (idle can't hide); panelClose unpins → idle hides.
+            var sPin = L.revealReducer(s0, "panelOpen", 0)
+            check(sPin.pinned === true && sPin.shown === true, "reveal: panelOpen pins shown")
+            var sPinTick = L.revealReducer(sPin, "tick", 5000)     // +5000ms but pinned
+            check(sPinTick.shown === true, "reveal: pinned stays shown past idle")
+            var sClose = L.revealReducer(sPin, "panelClose", 5000)
             check(sClose.pinned === false, "reveal: panelClose unpins")
-            var sCloseTick = L.revealReducer(sClose, "tick", 8200) // +2000ms after close
-            check(sCloseTick.awake === false, "reveal: after panelClose hides on idle")
-            var sKey = L.revealReducer(sMove, "key", 9999)         // a key event is NOT routed here
-            check(sKey.awake === sMove.awake && sKey.lastMove === sMove.lastMove
-                  && sKey.pinned === sMove.pinned, "reveal: unknown/key event leaves state unchanged")
+            var sCloseTick = L.revealReducer(sClose, "tick", 8500) // +3500ms after close
+            check(sCloseTick.shown === false, "reveal: after panelClose idle hides")
+
+            // THE REGRESSION (Hemanth's bug): a stray "move" — or any unknown event — on a
+            // HIDDEN state leaves it unchanged. Body movement can NEVER wake the chrome.
+            var sMove = L.revealReducer(s0, "move", 9999)
+            check(sMove.shown === false && sMove.lastActive === s0.lastActive
+                  && sMove.pinned === s0.pinned && sMove.frozen === s0.frozen,
+                  "reveal: 'move' on a hidden state cannot wake (unchanged)")
+            var sKey = L.revealReducer(sWake, "key", 9999)         // unknown event on a shown state
+            check(sKey.shown === sWake.shown && sKey.lastActive === sWake.lastActive
+                  && sKey.pinned === sWake.pinned && sKey.frozen === sWake.frozen,
+                  "reveal: unknown/key event leaves state unchanged")
 
             // 6. railTicks — chapter marks: ascending fractions strictly inside (0,1).
             var tk = L.railTicks(null, 5)

@@ -1,11 +1,12 @@
 // ReaderShell.qml — the reader component Biblio embeds on swap day (Task 16).
 //
 // Composition: the web Paper on the bottom, the native ReaderChrome (glass over
-// paper — TASK 7) on top. The chrome reveals on mouse-move, turns pages at the
-// edges, and scrubs the gold rail; ReaderShell owns the wiring to the paper + the
-// native stores. Keyboard turns (Right/Space/PageDown → next, Left/PageUp → prev,
-// Esc → back) stay on this FocusScope and NEVER wake the chrome (keys are not routed
-// to the reveal reducer — the whole point of the naked reading surface).
+// paper — TASK 7) on top. The chrome stays hidden while you read and returns only when
+// you reach for the top/bottom edge (or double-click / the book-open orientation beat),
+// turns pages at the edges, and scrubs the gold rail; ReaderShell owns the wiring to
+// the paper + the native stores. Keyboard turns (Right/Space/PageDown → next,
+// Left/PageUp → prev, Esc → back) stay on this FocusScope and NEVER wake the chrome
+// (keys are not routed to the reveal reducer — the whole point of the naked surface).
 //
 // The RESUME SEAM (Task 6) is unchanged: every 'relocated' persists position to the
 // SAME progress.json the old reader uses, and reopening returns to where you left off.
@@ -69,6 +70,7 @@ FocusScope {
                 shell.bookAuthor = L.authorText(p.metadata)
                 shell.chapterTicks = L.railTicks(p.toc, (p.toc && p.toc.length) ? p.toc.length : 0)
                 paper.setAppearance(shell.defaultAppearance)      // ratified Night default
+                chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
             } else if (name === "relocated" && shell.bookPath !== "") {
                 // --- chrome view-model (rail + top bar) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)

@@ -84,40 +84,58 @@ function railState(relocated, tocLength) {
 // TASK 7 — reveal state machine + rail ticks (pure; proven headless).
 // ---------------------------------------------------------------------------
 
-// Chrome idle timeout (ms). Kept in lock-step with Theme.idleMs. Keys NEVER feed
-// the reducer — only pointer moves + panel open/close — so a keypress can never
-// wake the chrome (that is the whole point of the naked reading surface).
-var REVEAL_IDLE_MS = 1800
+// Chrome idle timeout (ms). Kept in lock-step with Theme.idleMs, and matched to the
+// comic reader (MangaReader.qml) so both readers retreat on the same 3s beat. There is
+// deliberately NO pointer-move event into this reducer: the chrome wakes ONLY when you
+// reach for it (cursor enters the top/bottom edge band → "enterBar"), on the book-open
+// orientation beat / an explicit double-click ("wake"/"toggle"), or a panel. Body
+// movement, scroll, and keys can NEVER wake it — the whole point of the naked surface.
+var REVEAL_IDLE_MS = 3000
 
 // revealReducer(state, event, nowMs) → a NEW reveal state (pure, no side effects).
-//   state : { awake:bool, lastMove:ms, pinned:bool }
+//   state : { shown:bool, lastActive:ms, pinned:bool, frozen:bool }
 //   events:
-//     "move"       pointer moved  → wake + remember nowMs (keeps any pin)
-//     "tick"       time advanced  → hide IFF not pinned and idle past the timeout
-//     "panelOpen"  a panel opened → pin awake (idle can't hide it)
-//     "panelClose" panel closed   → unpin + restart the idle countdown from nowMs
-//   anything else (a key the chrome deliberately does NOT route here, or an
-//   unknown event) returns the state unchanged.
+//     "wake"       book opened / toggle-from-hidden → show + restart the idle beat
+//     "enterBar"   cursor entered the top/bottom edge band → show AND freeze (idle
+//                  can't hide it while the cursor stays inside the band)
+//     "exitBar"    cursor left the band → drop the freeze + restart the idle countdown
+//     "tick"       time advanced → hide IFF shown, not pinned, not frozen, and idle
+//                  past the timeout
+//     "toggle"     double-click → hide if shown (and not pinned), else show
+//     "panelOpen"  a panel opened → pin shown (idle can't hide it)
+//     "panelClose" panel closed → unpin + restart the idle countdown from nowMs
+//   anything else — a stray "move", a key the chrome deliberately does NOT route here,
+//   or any unknown event — returns the state UNCHANGED. That is the guarantee: body
+//   movement can never wake the chrome.
 function revealReducer(state, event, nowMs) {
     var s = state || {}
-    var awake = !!s.awake
-    var lastMove = Number.isFinite(s.lastMove) ? s.lastMove : 0
+    var shown = !!s.shown
+    var lastActive = Number.isFinite(s.lastActive) ? s.lastActive : 0
     var pinned = !!s.pinned
+    var frozen = !!s.frozen
     var now = Number.isFinite(nowMs) ? nowMs : 0
 
     switch (event) {
-    case "move":
-        return { awake: true, lastMove: now, pinned: pinned }
+    case "wake":
+        return { shown: true, lastActive: now, pinned: pinned, frozen: false }
+    case "enterBar":
+        return { shown: true, lastActive: now, pinned: pinned, frozen: true }
+    case "exitBar":
+        return { shown: shown, lastActive: now, pinned: pinned, frozen: false }
     case "tick":
-        if (!pinned && (now - lastMove) > REVEAL_IDLE_MS)
-            return { awake: false, lastMove: lastMove, pinned: pinned }
-        return { awake: awake, lastMove: lastMove, pinned: pinned }
+        if (shown && !pinned && !frozen && (now - lastActive) > REVEAL_IDLE_MS)
+            return { shown: false, lastActive: lastActive, pinned: pinned, frozen: frozen }
+        return { shown: shown, lastActive: lastActive, pinned: pinned, frozen: frozen }
+    case "toggle":
+        if (shown && !pinned)
+            return { shown: false, lastActive: now, pinned: pinned, frozen: false }
+        return { shown: true, lastActive: now, pinned: pinned, frozen: false }
     case "panelOpen":
-        return { awake: true, lastMove: now, pinned: true }
+        return { shown: true, lastActive: now, pinned: true, frozen: frozen }
     case "panelClose":
-        return { awake: true, lastMove: now, pinned: false }
+        return { shown: shown, lastActive: now, pinned: false, frozen: frozen }
     default:
-        return { awake: awake, lastMove: lastMove, pinned: pinned }
+        return { shown: shown, lastActive: lastActive, pinned: pinned, frozen: frozen }
     }
 }
 
