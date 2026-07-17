@@ -60,6 +60,23 @@ QtObject {
                 throw new Error("unavailable edition exposed a download post")
             if (ComicsDb.downloadPost({ available: true, getcomics_post: "https://right" }) !== "https://right")
                 throw new Error("available edition lost its download post")
+            // "Also on GetComics" rail accessor (parser+attachment arc): a series
+            // carrying a `sources` array exposes it via ComicsDb.sources(); a series
+            // without the field, and an unknown id, both yield []. (setData a fixture
+            // LAST — it replaces the loaded catalog, and nothing follows but exit.)
+            if (!ComicsDb.setData({ series: [
+                    { locg_id: "srctest", title: "Src Test", editions: [],
+                      sources: [ { id: 9, title: "Src Omnibus", link: "https://g/9/",
+                                   kind: "collection", fan_made: false } ] },
+                    { locg_id: "nosrc", title: "No Src", editions: [] } ] }))
+                throw new Error("sources fixture ingest failed")
+            var srcs = ComicsDb.sources("locg:srctest")
+            if (!srcs || srcs.length !== 1 || srcs[0].kind !== "collection" || srcs[0].id !== 9)
+                throw new Error("sources accessor broken: " + JSON.stringify(srcs))
+            if (ComicsDb.sources("locg:nosrc").length !== 0)
+                throw new Error("series without a rail must yield empty sources")
+            if (ComicsDb.sources("locg:does-not-exist").length !== 0)
+                throw new Error("unknown series must yield empty sources")
             console.log("COMICS_CATALOG_OK " + rows.length)
             Qt.exit(0)
         } catch (error) {

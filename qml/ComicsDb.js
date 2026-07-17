@@ -152,6 +152,16 @@ function series(locgId) {
     return _bySid[id] || null;
 }
 
+// A series' "Also on GetComics" rail: GetComics posts the id-anchored attachment
+// (parser+attachment arc 2026-07-16) proved belong to this series but no edition
+// auto-wired — bundles, compendium packs, story-title posts. Availability was
+// verified at fold time. [] if none. (Distinct from the per-edition torrent
+// picker in ComicTorrentSourcesPage — this is series-level GetComics downloads.)
+function sources(locgId) {
+    var s = series(locgId);
+    return (s && s.sources) ? s.sources : [];
+}
+
 // The downloadable GetComics post URL for an edition, or null. The app re-parses the signed /dls/
 // link fresh at click (those expire), so we store/return only the stable POST url here.
 function downloadPost(edition) {
