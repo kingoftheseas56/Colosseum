@@ -39,6 +39,7 @@
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
+#include "engine/ComicsCatalog.h"
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
@@ -432,6 +433,11 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Comics"), comics);
     if (qEnvironmentVariableIsSet("COLOSSEUM_COMIC_DLTEST"))
         comics->selfTest(qEnvironmentVariable("COLOSSEUM_COMIC_DLTEST"));
+
+    // Availability-first SQLite catalogue (spec 2026-07-17): read-only seam; the db
+    // is pipeline-deployed to data/ (cwd = repo root), dormant when absent.
+    auto *comicsCatalog = new ComicsCatalog(QStringLiteral("data/comics_catalog.db"), &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("ComicsCatalog"), comicsCatalog);
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);
