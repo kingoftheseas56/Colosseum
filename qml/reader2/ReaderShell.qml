@@ -60,6 +60,12 @@ FocusScope {
     property string selText: ""
     property string selCfi: ""
     property bool selMenuShown: false
+    // Keep the web view focused while the popover is up. QtWebEngine only DRAWS the selection
+    // while the view has focus — on blur it hides the visual selection but keeps the DOM
+    // selection (so no selectionchange fires, and the menu would float over an invisible
+    // selection: the exact "selection gone but pop-up isn't" bug). Re-assert focus when the
+    // menu opens; callLater beats any async focus-steal from the overlay arming.
+    onSelMenuShownChanged: if (shell.selMenuShown) Qt.callLater(function () { paper.focusPaper() })
 
     // Reload marks from the shared stores (on ready, on panel open, and after any change).
     function refreshMarks() {
