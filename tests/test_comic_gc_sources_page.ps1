@@ -20,4 +20,12 @@ if ($output -notlike "*GC-SOURCES-LOGIC OK*") { throw "harness ran but verdict l
 $api = Get-Content (Join-Path $root "qml/ComicsApi.js") -Raw
 Assert-Contains $api 'function postsById' "sources page enrichment entry point"
 Assert-Contains $api 'include=' "by-id fetch must ride WP's include param (one request, fold caps at 20 ids)"
+# -- the page: house shell + moved-in download state machine --
+$pg = Get-Content (Join-Path $root "qml/ComicGcSourcesPage.qml") -Raw
+Assert-Contains $pg '"gcpost-"' "download identity must stay in the rail's namespace - history carries over"
+Assert-Contains $pg 'failureIsTerminal' "dead posts are terminal: grayed, no retry (rail rule moves over)"
+Assert-Contains $pg 'readRequested' "downloaded post must open the reader via the series page's path"
+Assert-Contains $pg 'ComicGcSources.js' "grouping/sort must ride the tested pure-logic module"
+Assert-Contains $pg 'postsById' "covers+sizes arrive via the one-call enrichment"
+Assert-Contains $pg 'ALSO ON GETCOMICS' "hero eyebrow"
 Write-Host "comic gc sources page contract OK"
