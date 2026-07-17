@@ -243,6 +243,62 @@ QtObject {
             check(L.dictParse({ en: [{ partOfSpeech: "Noun", definitions: [{ definition: "" }] }] }).length === 0,
                   "dictParse: entry with only-empty definitions dropped")
 
+            // 14. appearance model (Task 10) — pure knobs over the paper.
+            // defaults: the ratified starting point (Literata is the default typeface now).
+            var ad = L.appearanceDefaults()
+            check(ad.theme === "night", "appearanceDefaults: theme night")
+            check(ad.font === "literata", "appearanceDefaults: font literata")
+            check(ad.sizePx === 18 && ad.marginPx === 72, "appearanceDefaults: size + margins")
+            check(ad.lineHeight === 1.6 && ad.justify === true, "appearanceDefaults: lineHeight + justify")
+            check(ad.rulerOn === false && ad.rulerHeightPx === 92 && ad.rulerDimPct === 42,
+                  "appearanceDefaults: ruler controls")
+
+            // themeColors: each of the four names → the mock's bg/fg.
+            check(L.themeColors("paper").bg === "#e9e4d8" && L.themeColors("paper").fg === "#3a362c", "themeColors: paper")
+            check(L.themeColors("sepia").bg === "#e5d5b8" && L.themeColors("sepia").fg === "#4a3f2c", "themeColors: sepia")
+            check(L.themeColors("slate").bg === "#232830" && L.themeColors("slate").fg === "#c6cdd8", "themeColors: slate")
+            check(L.themeColors("night").bg === "#111013" && L.themeColors("night").fg === "#eee9de", "themeColors: night")
+            check(L.themeColors("nonsense").bg === "#111013", "themeColors: unknown -> night")
+
+            // fontFamilyFor: name → the CSS family the glue applies.
+            check(L.fontFamilyFor("literata") === "Literata", "fontFamilyFor: literata -> Literata")
+            check(L.fontFamilyFor("fraunces") === "Fraunces", "fontFamilyFor: fraunces -> Fraunces")
+            check(L.fontFamilyFor("inter") === "Inter", "fontFamilyFor: inter -> Inter")
+            check(L.fontFamilyFor("book") === "book", "fontFamilyFor: book stays 'book'")
+            check(L.fontFamilyFor("weird") === "book", "fontFamilyFor: unknown -> book")
+
+            // appearanceToPaper: shapes the glue payload + CLAMPS the numeric fields.
+            var pPay = L.appearanceToPaper({ theme: "sepia", font: "literata", sizePx: 20, lineHeight: 1.8, marginPx: 100, justify: false })
+            check(pPay.theme.bg === "#e5d5b8" && pPay.theme.fg === "#4a3f2c", "appearanceToPaper: theme -> colors")
+            check(pPay.font === "Literata", "appearanceToPaper: font -> family")
+            check(pPay.sizePx === 20 && pPay.lineHeight === 1.8 && pPay.marginPx === 100, "appearanceToPaper: passes through in-range")
+            check(pPay.justify === false, "appearanceToPaper: justify bool")
+            // clamps: below-min and above-max on every numeric field.
+            var pLo = L.appearanceToPaper({ theme: "night", font: "book", sizePx: 4, lineHeight: 0.5, marginPx: 5 })
+            check(pLo.sizePx === 12 && pLo.lineHeight === 1.2 && pLo.marginPx === 24, "appearanceToPaper: clamps to the floors")
+            var pHi = L.appearanceToPaper({ theme: "night", font: "book", sizePx: 99, lineHeight: 9, marginPx: 999 })
+            check(pHi.sizePx === 26 && pHi.lineHeight === 2.2 && pHi.marginPx === 160, "appearanceToPaper: clamps to the ceilings")
+
+            // mergeAppearance: patches ONE key, keeps the rest (pure new object).
+            var mBase = L.appearanceDefaults()
+            var mNext = L.mergeAppearance(mBase, { theme: "paper" })
+            check(mNext.theme === "paper", "mergeAppearance: patched key applied")
+            check(mNext.font === "literata" && mNext.sizePx === 18 && mNext.marginPx === 72, "mergeAppearance: other keys intact")
+            check(mBase.theme === "night", "mergeAppearance: original not mutated (pure)")
+            check(L.mergeAppearance(null, { sizePx: 22 }).sizePx === 22, "mergeAppearance: null prev -> patch only")
+
+            // initialAppearance: reads back settings.reader2, else courtesy-seeds theme from the
+            // old flat `theme`, else the ratified default — the store-boundary logic.
+            var iRead = L.initialAppearance({ theme: "sepia", reader2: { theme: "slate", sizePx: 22 } })
+            check(iRead.theme === "slate" && iRead.sizePx === 22, "initialAppearance: reader2 sub-object wins")
+            check(iRead.font === "literata", "initialAppearance: reader2 merged over defaults (missing key filled)")
+            var iSeed = L.initialAppearance({ theme: "sepia" })      // old flat key only, first run
+            check(iSeed.theme === "sepia", "initialAppearance: first run courtesy-seeds theme from old flat key")
+            check(iSeed.font === "literata" && iSeed.sizePx === 18, "initialAppearance: seed keeps the rest of the defaults")
+            check(L.initialAppearance({ theme: "not-a-theme" }).theme === "night", "initialAppearance: unknown old theme -> default night")
+            check(L.initialAppearance({}).theme === "night", "initialAppearance: empty settings -> default night")
+            check(L.initialAppearance(null).theme === "night", "initialAppearance: null-safe -> default night")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

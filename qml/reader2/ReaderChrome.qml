@@ -40,6 +40,12 @@ Item {
     property bool panelOpen: false
     property string activeTab: "contents"
 
+    // ---- appearance panel (Task 10) state + current settings (bound from ReaderShell) ----
+    property bool appearanceOpen: false
+    property var appearance: ({})
+    // Either panel open pins the chrome shown; Esc closes whichever is open (ReaderShell).
+    readonly property bool anyPanelOpen: panelOpen || appearanceOpen
+
     // ---- signals up ----
     signal backRequested()
     signal searchRequested()
@@ -56,6 +62,8 @@ Item {
     signal bookmarkDeleted(string id)
     signal highlightActivated(string cfi)
     signal tabSelected(string tab)
+    // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
+    signal appearanceEdited(string key, var value)
 
     // ---- reveal state (pure reducer in Reader2Logic; `awake` mirrors revealState.shown) ----
     property bool awake: false
@@ -77,7 +85,9 @@ Item {
     function toggle() { revealState = L.revealReducer(revealState, "toggle", Date.now()); awake = revealState.shown }
 
     // ---- left panel (Task 8) open/close, and the Contents-icon toggle ----
-    function openPanelTo(tab) { activeTab = tab; panelOpen = true }
+    // The left (Contents) and right (Appearance) panels are MUTUALLY EXCLUSIVE — opening one
+    // closes the other (keep it simple, per the task).
+    function openPanelTo(tab) { appearanceOpen = false; activeTab = tab; panelOpen = true }
     function closePanel() { panelOpen = false }
     // Contents icon: open to Contents; if already open ON Contents, close; if open on
     // another tab, switch to Contents (don't close).
@@ -86,9 +96,25 @@ Item {
         if (panelOpen && activeTab === "contents") closePanel()
         else openPanelTo("contents")
     }
-    // While the panel is open the chrome is PINNED shown (can't idle-hide); closing
-    // unpins and restarts the idle countdown.
-    onPanelOpenChanged: setPanelOpen(panelOpen)
+
+    // ---- appearance panel (Task 10) open/close, and the Appearance-icon toggle ----
+    function closeAppearance() { appearanceOpen = false }
+    // Appearance icon: toggle the right panel; opening it closes the left one.
+    function handleAppearance() {
+        appearanceRequested()
+        if (appearanceOpen) appearanceOpen = false
+        else { panelOpen = false; appearanceOpen = true }
+    }
+    // Esc / a shared close: drop whichever panel is open.
+    function closeAnyPanel() { panelOpen = false; appearanceOpen = false }
+
+    // While EITHER panel is open the chrome is PINNED shown (can't idle-hide); closing the
+    // last one unpins and restarts the idle countdown. Both open-state changes route here.
+    // Read the RAW open flags (not the derived anyPanelOpen binding, which can lag one beat
+    // behind a change signal) so the pin reflects the just-applied state.
+    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen) }
+    onPanelOpenChanged: updatePin()
+    onAppearanceOpenChanged: updatePin()
 
     Timer { interval: 300; running: true; repeat: true; onTriggered: chrome.tick() }
 
@@ -176,7 +202,7 @@ Item {
         onBackRequested: chrome.backRequested()
         onSearchRequested: chrome.searchRequested()
         onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
-        onAppearanceRequested: chrome.appearanceRequested()
+        onAppearanceRequested: chrome.handleAppearance()  // toggles the right panel (Task 10)
         onBookmarkRequested: chrome.bookmarkRequested()
     }
 
@@ -237,5 +263,17 @@ Item {
         onBookmarkActivated: (cfi) => chrome.bookmarkActivated(cfi)
         onBookmarkDeleted: (id) => chrome.bookmarkDeleted(id)
         onHighlightActivated: (cfi) => chrome.highlightActivated(cfi)
+    }
+
+    // ---------- 7. RIGHT PANEL (Task 10) — Appearance; same z as the left panel ----------
+    // Off-screen (x = +width) while closed, so it intercepts nothing; owns its column + the
+    // click-outside catcher when open. Bridge-free: it emits appearanceEdited up to ReaderShell.
+    AppearancePanel {
+        id: appearancePanel
+        anchors.fill: parent
+        open: chrome.appearanceOpen
+        appearance: chrome.appearance
+        onCloseRequested: chrome.closeAppearance()
+        onChanged: (key, value) => chrome.appearanceEdited(key, value)
     }
 }

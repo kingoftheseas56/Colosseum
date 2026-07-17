@@ -90,3 +90,43 @@ Anime identity and mapping data © their respective upstream projects
 [Anime-Lists/anime-lists](https://github.com/Anime-Lists/anime-lists)). Colosseum
 is an independent consumer of these public datasets and claims no affiliation
 with or endorsement by either project.
+
+---
+
+# Third-party bundled fonts — reader2 reading typefaces
+
+The fresh ebook reader (reader2, Task 10 appearance panel) ships static TrueType
+font files, bundled in `assets/fonts/` and committed to the repo. They render the
+native chrome (QML `FontLoader`) AND the book text (an `@font-face` the paper glue
+injects into the WebEngine page, `resources/reader2/paper_glue.js`).
+
+## Font
+
+| Family | Files (in `assets/fonts/`) | Source | License |
+|---|---|---|---|
+| **Literata** | `Literata-Regular.ttf`, `Literata-Italic.ttf` | [googlefonts/literata](https://github.com/googlefonts/literata) — `fonts/ttf/` static instances | SIL Open Font License 1.1 (OFL) |
+
+Fraunces and Inter (already bundled for the chrome from earlier tasks) are also
+declared as book `@font-face` faces so their typeface cards apply to the book text;
+they carry their own upstream OFL/OFL-style licenses.
+
+## Why STATIC instances (not the variable font)
+
+Qt's font loader registers a variable TTF under a "`<Name> Variable`" family, so a
+request for the plain family (`Literata`) silently falls back to Tahoma. The static
+`fonts/ttf/Literata-Regular.ttf` / `Literata-Italic.ttf` register as the plain family
+**"Literata"** (verified via the name table), so both the QML card and the book text
+resolve the real face.
+
+## License — SIL Open Font License, Version 1.1
+
+Copyright 2017 The Literata Project Authors
+(https://github.com/googlefonts/literata).
+
+This Font Software is licensed under the SIL Open Font License, Version 1.1. The
+license is available with a FAQ at https://scripts.sil.org/OFL and is reproduced in
+full in the upstream repository's `OFL.txt`. Under the OFL the fonts may be bundled,
+embedded, and redistributed with the software; they may not be sold on their own, and
+the reserved names must not be used to promote derivative fonts. Colosseum bundles the
+unmodified font files as a runtime asset and claims no affiliation with or endorsement
+by the Literata project.

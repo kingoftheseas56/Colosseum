@@ -230,6 +230,31 @@ const clientRectOf = (range, doc) => {
 // ---------------------------------------------------------------------------
 // appearance -> renderer
 // ---------------------------------------------------------------------------
+// THE CLASSIC GOTCHA (Task 10): the QML FontLoader that registers our shipped fonts for
+// the native chrome does NOT make them available to the WebEngine BOOK page — that page is
+// a separate document (the book renders in an iframe whose styles come from setStyles). So
+// asking for `* { font-family: Literata }` alone would silently fall back to a system serif.
+// The fix is to declare the fonts with @font-face INSIDE the book's own stylesheet, pointing
+// at the bundled TTFs by absolute file:// URL. The old reader proves this resolves in
+// QtWebEngine (localContentCanAccessFileUrls) — it injects ReadiumCSS @font-face the same way.
+// Built once from paper.html's location (../../assets/fonts/), reused on every setStyles.
+const fontUrl = rel => {
+  try { return new URL(rel, window.location.href).toString() }
+  catch (e) { return rel }
+}
+const FONT_FACE_CSS = `
+    @font-face { font-family: 'Literata'; font-style: normal; font-weight: 400;
+      src: url('${fontUrl('../../assets/fonts/Literata-Regular.ttf')}') format('truetype'); }
+    @font-face { font-family: 'Literata'; font-style: italic; font-weight: 400;
+      src: url('${fontUrl('../../assets/fonts/Literata-Italic.ttf')}') format('truetype'); }
+    @font-face { font-family: 'Fraunces'; font-style: normal; font-weight: 400;
+      src: url('${fontUrl('../../assets/fonts/Fraunces-Regular.ttf')}') format('truetype'); }
+    @font-face { font-family: 'Fraunces'; font-style: italic; font-weight: 400;
+      src: url('${fontUrl('../../assets/fonts/Fraunces-Italic.ttf')}') format('truetype'); }
+    @font-face { font-family: 'Inter'; font-style: normal; font-weight: 400;
+      src: url('${fontUrl('../../assets/fonts/Inter-Regular.otf')}') format('opentype'); }
+`
+
 const buildCss = (bg, fg) => {
   const font = appearance.font
   const fontCss = (!font || font === 'book') ? ''
@@ -240,6 +265,7 @@ const buildCss = (bg, fg) => {
   const align = appearance.justify ? 'justify' : 'start'
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
+    ${FONT_FACE_CSS}
     html { color: ${fg} !important; background-color: transparent !important; font-size: ${size}px !important; }
     body { background: none !important; padding: 0; }
     p, li, blockquote, dd, div, font { color: ${fg} !important; line-height: ${lh} !important; text-align: ${align}; }

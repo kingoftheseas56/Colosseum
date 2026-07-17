@@ -199,14 +199,26 @@ FocusScope {
     function dismissDict() { shell.dictShown = false }
     function dismissFootnote() { shell.footnoteShown = false }
 
-    // Ratified default paper appearance (Night) — pushed at open so the FIRST paint
-    // already matches the mock. The full adjustable panel is Task 10; this is just the
-    // correct default. (Shape mirrors paper_glue.js: theme{bg,fg}/font/sizePx/lineHeight/
-    // marginPx/justify.)
-    readonly property var defaultAppearance: ({
-        theme: { bg: "#111013", fg: "#eee9de" },
-        font: "book", sizePx: 18, lineHeight: 1.6, marginPx: 72, justify: true
-    })
+    // ---- appearance (Task 10) ----
+    // The CURRENT reader2 appearance (theme/font/size/lineHeight/margins/justify + the ruler
+    // CONTROLS). Loaded from the SHARED settings.json `reader2` sub-object on 'ready' (courtesy-
+    // seeded from the old reader's flat `theme` on first run), pushed to the paper as the first
+    // paint, and re-pushed LIVE on every panel edit. Seeded to the ratified defaults until 'ready'.
+    property var appearance: L.appearanceDefaults()
+
+    // A single appearance edit from the panel: merge into shell.appearance, PERSIST under the
+    // namespaced settings.reader2 (READ-MODIFY-WRITE — the OLD reader's flat keys are never
+    // clobbered), and LIVE-APPLY to the paper. The ruler fields (rulerOn/Height/Dim) ride along
+    // in the store but are ignored by appearanceToPaper — their overlay is Task 11.
+    function applyAppearancePatch(key, value) {
+        var patch = {}
+        patch[key] = value
+        shell.appearance = L.mergeAppearance(shell.appearance, patch)
+        var all = Reader2Bridge.settingsGet() || ({})
+        all.reader2 = shell.appearance
+        Reader2Bridge.settingsSave(all)
+        paper.setAppearance(L.appearanceToPaper(shell.appearance))
+    }
 
     // Keyboard now lives IN-PAGE (paper_glue.js): the web view owns focus + keys, so a key
     // turns the page from inside the paper and never fights QML focus. Page-turn keys arrive
@@ -237,7 +249,8 @@ FocusScope {
                 shell.chapterTicks = L.railTicks(p.toc, (p.toc && p.toc.length) ? p.toc.length : 0)
                 shell.refreshMarks()                              // load bookmarks/highlights from the shared stores
                 shell.reapplyHighlights()                         // re-paint stored highlights onto the fresh paper
-                paper.setAppearance(shell.defaultAppearance)      // ratified Night default
+                shell.appearance = L.initialAppearance(Reader2Bridge.settingsGet())  // persisted reader2 appearance (or seeded default)
+                paper.setAppearance(L.appearanceToPaper(shell.appearance))           // first paint = the persisted appearance
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
                 paper.focusPaper()                                // the web view owns keys — focus it so keys work immediately
             } else if (name === "toggleChrome") {
@@ -250,7 +263,7 @@ FocusScope {
                 if (shell.dictShown) shell.dismissDict()
                 else if (shell.footnoteShown) shell.dismissFootnote()
                 else if (shell.selMenuShown) shell.dismissSelectionMenu()
-                else if (chrome.panelOpen) chrome.closePanel()
+                else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left OR right panel
                 else shell.closed()
             } else if (name === "footnote") {
                 // A footnote/endnote link was tapped (the glue extracted its text). Show the
@@ -327,6 +340,9 @@ FocusScope {
         bookmarks: shell.bookmarks
         highlights: shell.highlights
 
+        // appearance panel data (Task 10)
+        appearance: shell.appearance
+
         onBackRequested: shell.closed()
         onPrevRequested: paper.prev()
         onNextRequested: paper.next()
@@ -378,9 +394,11 @@ FocusScope {
             shell.refreshMarks()
         }
 
-        // Panels for search / appearance arrive in Tasks 10-11; wired now, filled later.
+        // Search sheet arrives in Task 11; wired now, filled later.
         onSearchRequested: console.log("[shell] searchRequested (search sheet = Task 11)")
-        onAppearanceRequested: console.log("[shell] appearanceRequested (appearance panel = Task 10)")
+        // Appearance panel (Task 10): the chrome owns the right panel; each control edit lands
+        // here → merge + persist (reader2 sub-object) + live-apply to the paper.
+        onAppearanceEdited: (key, value) => shell.applyAppearancePatch(key, value)
     }
 
     // The selection popover (Task 9, the pen). Declared near-LAST so it floats above the

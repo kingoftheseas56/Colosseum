@@ -11,6 +11,7 @@ TopBar TopBar.qml
 BottomRail BottomRail.qml
 LeftPanel LeftPanel.qml
 SelectionMenu SelectionMenu.qml
+AppearancePanel AppearancePanel.qml
 DictCard DictCard.qml
 FootnoteCard FootnoteCard.qml
 HarnessShelf HarnessShelf.qml

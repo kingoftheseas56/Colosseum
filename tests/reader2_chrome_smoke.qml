@@ -115,6 +115,23 @@ Item {
         onDismissed: fnDismissCount++
     }
 
+    // AppearancePanel (Task 10) — the right glass column. Bridge-free: it takes the current
+    // appearance and reports each edit via changed(key, value). Prove it instantiates, derives
+    // its current values from `appearance`, and its edit signal carries (key, value).
+    property var sampleAppearance: L.appearanceDefaults()
+    property string appEditKey: ""
+    property var appEditValue: null
+    property int appCloseCount: 0
+    R.AppearancePanel {
+        id: appPanel
+        width: 1280
+        height: 720
+        open: true
+        appearance: sampleAppearance
+        onChanged: (key, value) => { appEditKey = key; appEditValue = value }
+        onCloseRequested: appCloseCount++
+    }
+
     Component.onCompleted: {
         var fails = 0
         function check(ok, what) { if (!ok) { console.log("FAIL " + what); fails++ } else console.log("ok   " + what) }
@@ -200,6 +217,47 @@ Item {
                   "FootnoteCard clamped vertically in-frame")
             fnCard.dismissed();  check(fnDismissCount === 1, "FootnoteCard dismissed fires")
             fnCard.shown = false; check(fnCard.visible === false, "FootnoteCard hides when shown=false")
+
+            // ---- AppearancePanel (Task 10) instantiates, derives values, fires its edit signal ----
+            check(appPanel !== null && appPanel.open === true, "AppearancePanel instantiated + open")
+            check(appPanel.curTheme === "night" && appPanel.curFont === "literata",
+                  "AppearancePanel derives theme/font from appearance")
+            check(appPanel.curSize === 18 && appPanel.curMargin === 72 && appPanel.curJustify === true,
+                  "AppearancePanel derives size/margins/justify")
+            check(appPanel.curRulerOn === false && appPanel.curBand === 92 && appPanel.curDim === 42,
+                  "AppearancePanel derives ruler controls")
+            // a different bound appearance flows through to the derived values.
+            appPanel.appearance = L.mergeAppearance(L.appearanceDefaults(), { theme: "sepia", font: "inter", sizePx: 22 })
+            check(appPanel.curTheme === "sepia" && appPanel.curFont === "inter" && appPanel.curSize === 22,
+                  "AppearancePanel re-derives on a new appearance")
+            // the changed(key,value) signal carries the edit (what ReaderShell persists + live-applies).
+            appPanel.changed("theme", "slate")
+            check(appEditKey === "theme" && String(appEditValue) === "slate", "AppearancePanel changed(key,value) carries the edit")
+            appPanel.closeRequested()
+            check(appCloseCount === 1, "AppearancePanel closeRequested fires")
+            appPanel.open = false; check(appPanel.open === false, "AppearancePanel closes")
+
+            // ---- ReaderChrome right-panel wiring (Task 10): toggle, mutual exclusivity, pin, Esc ----
+            chrome.appearance = L.appearanceDefaults()
+            chrome.handleAppearance()
+            check(chrome.appearanceOpen === true && chrome.anyPanelOpen === true, "handleAppearance opens the right panel")
+            check(chrome.awake === true && chrome.revealState.pinned === true, "open appearance PINS the chrome shown")
+            chrome.tick(); check(chrome.awake === true, "pinned-by-appearance survives a tick")
+            // mutual exclusivity: opening Contents closes Appearance.
+            chrome.handleContents()
+            check(chrome.panelOpen === true && chrome.appearanceOpen === false, "opening Contents closes Appearance (mutually exclusive)")
+            // and opening Appearance closes Contents.
+            chrome.handleAppearance()
+            check(chrome.appearanceOpen === true && chrome.panelOpen === false, "opening Appearance closes Contents")
+            // handleAppearance again toggles the right panel shut.
+            chrome.handleAppearance()
+            check(chrome.appearanceOpen === false, "handleAppearance again closes the right panel")
+            check(chrome.revealState.pinned === false, "closing the last panel unpins the chrome")
+            // closeAnyPanel drops whichever is open (the Esc target).
+            chrome.handleAppearance(); check(chrome.appearanceOpen === true, "reopen appearance for closeAnyPanel")
+            chrome.closeAnyPanel()
+            check(chrome.panelOpen === false && chrome.appearanceOpen === false, "closeAnyPanel closes both panels")
+            check(chrome.revealState.pinned === false, "closeAnyPanel unpins the chrome")
 
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)

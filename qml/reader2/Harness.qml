@@ -24,6 +24,13 @@ Window {
     FontLoader { source: "../../assets/fonts/Inter-Medium.otf" }
     FontLoader { source: "../../assets/fonts/Inter-SemiBold.otf" }
     FontLoader { source: "../../assets/fonts/Inter-Bold.otf" }
+    // Literata (Task 10 appearance) — the shipped reading serif + default typeface. STATIC
+    // instances register as the plain family "Literata" (a variable TTF would register as
+    // "Literata Variable" and silently fall back to Tahoma), so the panel's Literata card +
+    // any serif chrome resolve correctly. The BOOK text gets Literata separately, via an
+    // @font-face the glue injects into the paper page (paper_glue.js FONT_FACE_CSS).
+    FontLoader { source: "../../assets/fonts/Literata-Regular.ttf" }
+    FontLoader { source: "../../assets/fonts/Literata-Italic.ttf" }
 
     HarnessShelf {
         id: shelf

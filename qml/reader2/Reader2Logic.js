@@ -375,3 +375,96 @@ function authorText(metadata) {
     }
     return nameOf(a)
 }
+
+// ---------------------------------------------------------------------------
+// TASK 10 — appearance model (pure; proven headless).
+//
+// The APPEARANCE panel (right glass column) is a set of pure knobs over the paper:
+// theme swatch / typeface / size / line-spacing / margins / justify, plus the reading
+// ruler's CONTROLS (the overlay itself is Task 11). This block holds ALL of it as
+// data-in/data-out so ReaderShell can persist it (settings.json → `reader2` sub-object)
+// and hand the glue a payload without any QML/Date in the way.
+// ---------------------------------------------------------------------------
+
+function clamp_(v, lo, hi) {
+    var n = Number(v)
+    if (!Number.isFinite(n)) return lo
+    return n < lo ? lo : (n > hi ? hi : n)
+}
+
+// appearanceDefaults() → the ratified default reader2 appearance. Literata is the default
+// typeface now that we ship it; Night is the ratified default theme.
+function appearanceDefaults() {
+    return {
+        theme: "night", font: "literata", sizePx: 18, lineHeight: 1.6, marginPx: 72,
+        justify: true, rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42
+    }
+}
+
+// themeColors(name) → { bg, fg } for a theme swatch (the four from the mock). Unknown
+// names fall back to Night so the paper never renders on a broken/absent theme.
+function themeColors(name) {
+    switch (String(name || "").toLowerCase()) {
+    case "paper": return { bg: "#e9e4d8", fg: "#3a362c" }
+    case "sepia": return { bg: "#e5d5b8", fg: "#4a3f2c" }
+    case "slate": return { bg: "#232830", fg: "#c6cdd8" }
+    case "night": return { bg: "#111013", fg: "#eee9de" }
+    default: return { bg: "#111013", fg: "#eee9de" }
+    }
+}
+
+// fontFamilyFor(name) → the CSS family the glue applies. 'book' = publisher default,
+// 'system' = system-ui; a real family name (Literata/Fraunces/Inter) is applied by the
+// glue as `* { font-family: NAME !important }` (the paper resolves it via an @font-face).
+function fontFamilyFor(name) {
+    switch (String(name || "").toLowerCase()) {
+    case "literata": return "Literata"
+    case "fraunces": return "Fraunces"
+    case "inter": return "Inter"
+    case "system": return "system"
+    case "book": return "book"
+    default: return "book"
+    }
+}
+
+// appearanceToPaper(settings) → the glue payload the paper's setAppearance() takes:
+// { theme:{bg,fg}, font, sizePx, lineHeight, marginPx, justify }. Numeric fields are
+// CLAMPED to sane ranges here (sizePx 12..26, lineHeight 1.2..2.2, marginPx 24..160) so a
+// bad stored value can never break the paper. The ruler fields are intentionally NOT part
+// of this payload — they drive the Task 11 overlay, not the paper's text layout.
+function appearanceToPaper(settings) {
+    var s = settings || {}
+    return {
+        theme: themeColors(s.theme),
+        font: fontFamilyFor(s.font),
+        sizePx: clamp_(s.sizePx, 12, 26),
+        lineHeight: clamp_(s.lineHeight, 1.2, 2.2),
+        marginPx: clamp_(s.marginPx, 24, 160),
+        justify: !!s.justify
+    }
+}
+
+// mergeAppearance(prev, patch) → a NEW settings object (prev overlaid by patch), so a
+// single control change is a pure update that keeps every other field intact.
+function mergeAppearance(prev, patch) {
+    var out = {}
+    if (prev && typeof prev === "object") for (var k in prev) out[k] = prev[k]
+    if (patch && typeof patch === "object") for (var p in patch) out[p] = patch[p]
+    return out
+}
+
+// initialAppearance(settings) → the reader2 appearance to open with, from the WHOLE
+// settings.json object. Reads back our namespaced `settings.reader2` sub-object when present
+// (merged over the defaults, so a missing key falls back and a future key survives). On
+// FIRST run (no reader2 sub-object) it courtesy-seeds the theme from the old reader's flat
+// `theme` name when that name is one of our four; otherwise the ratified default (Night).
+function initialAppearance(settings) {
+    var s = settings || {}
+    var base = appearanceDefaults()
+    if (s.reader2 && typeof s.reader2 === "object")
+        return mergeAppearance(base, s.reader2)
+    var known = { paper: 1, sepia: 1, slate: 1, night: 1 }
+    if (s.theme && known[String(s.theme).toLowerCase()])
+        return mergeAppearance(base, { theme: String(s.theme).toLowerCase() })
+    return base
+}
