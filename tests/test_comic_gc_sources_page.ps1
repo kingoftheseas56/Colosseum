@@ -28,4 +28,10 @@ Assert-Contains $pg 'readRequested' "downloaded post must open the reader via th
 Assert-Contains $pg 'ComicGcSources.js' "grouping/sort must ride the tested pure-logic module"
 Assert-Contains $pg 'postsById' "covers+sizes arrive via the one-call enrichment"
 Assert-Contains $pg 'ALSO ON GETCOMICS' "hero eyebrow"
+# -- ledger: rail retired, doorway banner in (mock option C, universe-door sibling) --
+$led = Get-Content (Join-Path $root "qml/ComicDbLedger.qml") -Raw
+Assert-Contains $led 'sourcesPageRequested' "banner must emit the page-open signal"
+Assert-Contains $led 'ALSO ON GETCOMICS' "doorway banner eyebrow"
+Assert-Absent $led '"gcpost-"' "download state machine moved to ComicGcSourcesPage - none may remain in the ledger"
+Assert-Absent $led 'statusLine' "rail row machinery must be fully removed, not hidden"
 Write-Host "comic gc sources page contract OK"

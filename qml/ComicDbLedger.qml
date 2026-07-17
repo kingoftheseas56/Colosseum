@@ -25,6 +25,8 @@ Item {
     signal readRequested(string chId, string label)
     // A user opened the alternate-sources picker for an idle, undownloaded edition.
     signal alternateSourcesRequested(var edition, string chId)
+    // The doorway banner was clicked — host opens the ComicGcSourcesPage (spec 2026-07-17).
+    signal sourcesPageRequested()
 
     implicitHeight: col.implicitHeight
     height: col.implicitHeight        // a Column child sizes by height, not implicitHeight
@@ -337,158 +339,65 @@ Item {
             }
         }
 
-        // ================= ALSO ON GETCOMICS =================
-        // Attached posts the matcher proved belong to this series but couldn't wire to a
-        // specific edition — bundles/packs/story-title posts. Same download engine as the
-        // edition rows above (Comics bridge), own chId namespace ("gcpost-<id>") so it can
-        // never collide with an edition's locg/slug chId.
-        Column {
-            id: sourcesSection
+        // ================= ALSO ON GETCOMICS — the doorway =================
+        // The attached posts live on their own page now (ComicGcSourcesPage, spec
+        // 2026-07-17); the ledger keeps ONE banner, a direct sibling of the universe
+        // page's GETCOMICS ARCHIVE door (GalaxyUniversePage.qml). Accepted trade,
+        // Hemanth-aware: in-flight downloads of attached posts are visible on the
+        // page and in Downloads, no longer on this ledger.
+        Item { width: 1; height: 26; visible: ledger.ledgerSources.length > 0 }
+        Rectangle {
+            id: sourcesDoor
             visible: ledger.ledgerSources.length > 0
-            width: col.width
-            topPadding: 26
-            spacing: 4
-
-            Row {                                     // section header (mirrors format-group headers)
-                width: parent.width; spacing: 14
-                Text { text: "Also on GetComics"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
-                    font.letterSpacing: 2.8; font.capitalization: Font.AllUppercase
-                    anchors.verticalCenter: parent.verticalCenter }
-                Text { text: ledger.ledgerSources.length; color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12; anchors.verticalCenter: parent.verticalCenter }
-                Rectangle { width: parent.width - x; height: 1; color: Qt.rgba(0.94,0.77,0.29,0.34)
-                    anchors.verticalCenter: parent.verticalCenter }
+            width: col.width; height: 108
+            radius: 12; clip: true
+            color: "#241813"
+            border.width: 1
+            border.color: doorMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.7)
+                                               : Qt.rgba(0.97, 0.97, 0.96, 0.10)
+            Image {
+                anchors.fill: parent
+                source: (ledger.dbSeries && ledger.dbSeries.cover) ? ledger.dbSeries.cover : ""
+                asynchronous: true; cache: true
+                fillMode: Image.PreserveAspectCrop
+                opacity: status === Image.Ready ? (doorMa.containsMouse ? 0.5 : 0.28) : 0
+                Behavior on opacity { NumberAnimation { duration: 220 } }
             }
-
-            Repeater {
-                model: ledger.ledgerSources
-                delegate: Item {
-                    id: src
-                    required property var modelData
-                    width: col.width
-                    height: 68
-
-                    property string chId: "gcpost-" + String(src.modelData.id)
-                    property string dlState: "none"     // none|resolving|queued|downloading|extracting|choosing|done|error|dead
-                    property real   dlDone: 0
-                    property real   dlTotal: 0
-                    readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
-                                                  || dlState === "resolving"   || dlState === "extracting"
-                                                  || dlState === "choosing"
-
-                    function refreshDl() {
-                        if (typeof Comics === "undefined" || !chId.length) return
-                        var st = Comics.statusOf(chId)
-                        src.dlState = st.state; src.dlDone = st.done; src.dlTotal = st.total
-                    }
-                    function primary() {
-                        if (typeof Comics === "undefined" || !chId.length) return
-                        if (dlState === "dead") return
-                        if (dlState === "done") { ledger.readRequested(chId, String(src.modelData.title || "")); return }
-                        if (inFlight) return
-                        src.dlState = "queued"
-                        Comics.downloadIssue(chId, src.modelData.link, ledger.gcTag, ledger.seriesTitle,
-                                             String(src.modelData.title), 0)
-                    }
-                    // wording mirrors the live rows' statusLine() (ComicSeriesPage.qml /
-                    // ComicSeries.qml) — the ledger's own edition delegate has no text status
-                    // line (icon-only), so this rail gets the fuller wording those rows use.
-                    function statusLine() {
-                        if (dlState === "done") return "● Downloaded"
-                        if (dlState === "resolving") return "Resolving…"
-                        if (dlState === "queued") return "Queued…"
-                        if (dlState === "extracting") return "Extracting…"
-                        if (dlState === "choosing") return "Choosing a source…"
-                        if (dlState === "downloading")
-                            return dlTotal > 0 ? ("Downloading " + Math.round(dlDone / dlTotal * 100) + "%") : "Downloading…"
-                        if (dlState === "dead") return "Not available from this source"
-                        if (dlState === "error") return "⚠ Failed — tap to retry"
-                        return ""
-                    }
-                    // inline metadata bits (no pills): kind label, "Fan-made" flag, download state
-                    function subBits() {
-                        var bits = []
-                        if (src.modelData.kind === "bundle") bits.push({ text: "Multi-volume pack", color: theme.inkDim })
-                        else if (src.modelData.kind === "collection") bits.push({ text: "Collected edition", color: theme.inkDim })
-                        if (src.modelData.fan_made) bits.push({ text: "Fan-made", color: theme.inkDimmer })
-                        var st = src.statusLine()
-                        if (st.length) bits.push({ text: st, color: src.dlState === "done" ? theme.gold
-                                                                    : (src.dlState === "error" ? "#e6a3a3" : theme.inkDim) })
-                        return bits
-                    }
-                    Component.onCompleted: refreshDl()
-                    Connections {
-                        target: typeof Comics !== "undefined" ? Comics : null
-                        function onProgress(cid, done, total) {
-                            if (cid !== src.chId) return
-                            src.dlState = "downloading"; src.dlDone = done; src.dlTotal = total
-                        }
-                        function onFinished(cid) { if (cid === src.chId) src.dlState = "done" }
-                        function onFailed(cid, reason) {
-                            if (cid === src.chId) src.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
-                        }
-                        function onRemoved(cid) { if (cid === src.chId) src.dlState = "none" }
-                    }
-
-                    Rectangle { anchors.fill: parent; radius: 8
-                        color: src.dlState !== "dead" && srcMa.containsMouse ? Qt.rgba(1,1,1,0.045) : "transparent" }
-                    Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.055) }
-
-                    Column {                             // title · kind/fan-made/state
-                        anchors.left: parent.left; anchors.leftMargin: 8
-                        anchors.right: srcState.left; anchors.rightMargin: 16
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 6
-                        Text { width: parent.width; text: src.modelData.title || ""
-                            color: srcMa.containsMouse && src.dlState !== "dead" ? theme.gold : theme.ink
-                            font.family: theme.display; font.pixelSize: 17; font.weight: Font.Medium
-                            elide: Text.ElideRight }
-                        Row {
-                            spacing: 10; visible: subRep.count > 0
-                            Repeater { id: subRep; model: src.subBits()
-                                delegate: Row { spacing: 10
-                                    required property var modelData
-                                    required property int index
-                                    Text { visible: index > 0; text: "·"; color: theme.inkDimmer; opacity: 0.5
-                                        font.family: theme.ui; font.pixelSize: 13 }
-                                    Text { text: modelData.text; color: modelData.color
-                                        font.family: theme.ui; font.pixelSize: 13 }
-                                }
-                            }
-                        }
-                    }
-
-                    // download-state symbol: read (done) · % (in flight) · GetComics download.
-                    // dead = terminal, no glyph, no retry (mirrors the edition delegate's rule).
-                    Item {
-                        id: srcState
-                        anchors.right: parent.right; anchors.rightMargin: 8
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 36; height: 36
-                        Image {                          // read (downloaded)
-                            anchors.centerIn: parent; visible: src.dlState === "done"
-                            source: "../assets/icons/books.svg"; width: 22; height: 22 }
-                        Text {                           // download progress %
-                            anchors.centerIn: parent; visible: src.inFlight
-                            text: src.dlTotal > 0 ? Math.round(src.dlDone / src.dlTotal * 100) + "%" : "…"
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
-                        Image {                          // GetComics download
-                            anchors.centerIn: parent
-                            visible: src.dlState !== "done" && src.dlState !== "dead" && !src.inFlight
-                            source: "../assets/icons/download.svg"; width: 21; height: 21
-                            opacity: 0.92 }
-                    }
-
-                    MouseArea {
-                        id: srcMa; anchors.fill: parent
-                        enabled: src.dlState !== "dead"; hoverEnabled: src.dlState !== "dead"
-                        cursorShape: src.dlState !== "dead" ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: src.primary()
-                        Accessible.role: Accessible.Button
-                        Accessible.name: (src.dlState === "done" ? "Read " : "Download ") + (src.modelData.title || "")
-                    }
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.76) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.30) }
                 }
             }
+            Column {
+                anchors.left: parent.left; anchors.leftMargin: 26
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 7
+                Text { text: "ALSO ON GETCOMICS"; color: theme.gold
+                       font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                Text { text: "Packs, collected editions & more"
+                       color: theme.ink; font.family: theme.display; font.pixelSize: 19 }
+            }
+            Row {
+                anchors.right: parent.right; anchors.rightMargin: 26
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                Text { text: "Browse " + ledger.ledgerSources.length
+                             + (ledger.ledgerSources.length === 1 ? " download" : " downloads")
+                       color: theme.ink; font.family: theme.ui
+                       font.pixelSize: 13; font.weight: Font.DemiBold }
+                Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
+            }
+            MouseArea {
+                id: doorMa
+                anchors.fill: parent
+                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: ledger.sourcesPageRequested()
+            }
+            Accessible.role: Accessible.Button
+            Accessible.name: "Browse GetComics downloads"
         }
     }
 }
