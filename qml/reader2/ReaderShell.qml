@@ -51,6 +51,9 @@ FocusScope {
     property var bookToc: []
     property int currentTocIndex: -1
     property real lastFraction: 0
+    // Is the current page real prose (vs a cover / full-image page)? From relocated.textPage.
+    // The reading ruler only shows on text pages — a focus band over a cover image is a bug.
+    property bool currentPageIsText: true
     property var bookmarks: []
     property var highlights: []
 
@@ -503,6 +506,7 @@ FocusScope {
                 if (Number.isFinite(p.percent)) shell.percent = p.percent
                 if (Number.isFinite(p.tocIndex)) shell.currentTocIndex = p.tocIndex
                 if (Number.isFinite(p.fraction)) shell.lastFraction = p.fraction
+                if (typeof p.textPage === "boolean") shell.currentPageIsText = p.textPage
                 if (Number.isFinite(p.pageInChapter)) { shell.pageInChapter = p.pageInChapter; shell.lastPageInChapter = p.pageInChapter }
                 if (Number.isFinite(p.pagesInChapter)) shell.pagesInChapter = p.pagesInChapter
 
@@ -530,9 +534,11 @@ FocusScope {
     RulerOverlay {
         id: rulerOverlay
         anchors.fill: parent
-        // On only when the setting is enabled AND no overlay is up — the ruler is a reading
-        // aid, so it recedes behind an open search sheet / panel / selection popover / pen card.
+        // On only when the setting is enabled, the current page is real TEXT (not a cover /
+        // full-image page — a focus band over a cover is a bug), AND no overlay is up (the
+        // ruler recedes behind an open search sheet / panel / selection popover / pen card).
         on: (shell.appearance ? !!shell.appearance.rulerOn : false)
+            && shell.currentPageIsText
             && !chrome.anyPanelOpen && !shell.selMenuShown && !shell.dictShown && !shell.footnoteShown
         heightPx: (shell.appearance && Number.isFinite(shell.appearance.rulerHeightPx)) ? shell.appearance.rulerHeightPx : 92
         dimPct: (shell.appearance && Number.isFinite(shell.appearance.rulerDimPct)) ? shell.appearance.rulerDimPct : 42

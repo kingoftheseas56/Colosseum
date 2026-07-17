@@ -186,6 +186,9 @@ let currentView = null
 let flatToc = []                       // [{index,label,href}] flattened, DFS order
 const annotations = new Map()          // id -> { id, value:cfi, type, color }
 let readyEmitted = false               // gate: suppress 'relocated' until 'ready' has fired for THIS book
+let sectionHasText = true              // is the CURRENT section real prose (vs a cover/full-image page)?
+                                       // reported as relocated.textPage so the reading ruler only dims
+                                       // TEXT pages — a focus band over a cover image is a bug, not an aid.
 
 // appearance state + defaults (dark paper)
 let appearance = {
@@ -507,12 +510,18 @@ const wireView = view => {
       pageInChapter: finite(d.chapterLocation?.current),
       pagesInChapter: finite(d.chapterLocation?.total),
       percent: Math.round(fraction * 100),
+      textPage: sectionHasText,          // false on a cover/full-image page → ruler stays hidden
     })
   })
 
   view.addEventListener('load', e => {
     const { doc, index } = e.detail || {}
     if (doc) attachSelection(view, doc, index)
+    // Is this section real prose or a cover/full-image page? Cheap heuristic: how much
+    // visible text the body carries. Covers/title-image pages have ~none; chapters have lots.
+    // Reported on the next relocate so the reading ruler skips non-text pages.
+    const txt = (doc && doc.body ? (doc.body.textContent || '') : '').replace(/\s+/g, ' ').trim()
+    sectionHasText = txt.length >= 200
   })
 
   // Highlight/underline rendering — the view asks US to draw (matches book.js Reader.setView).
