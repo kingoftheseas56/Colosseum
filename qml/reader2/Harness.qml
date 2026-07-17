@@ -5,6 +5,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import "../" as App
 
 Window {
     id: win
@@ -47,10 +48,18 @@ Window {
         }
     }
 
+    // The ONE shared audiobook engine (Task 13). In the real app this lives at Main.qml's
+    // window root; here it lives at the harness root the same way, and the reader is a REMOTE
+    // that drives it (Hemanth: one engine, many faces). Uses `Audiobooks`/`Progress` context
+    // props when present; the harness registers Audiobooks + AudioPairing, Progress is absent
+    // (AudiobookSession guards `typeof Progress` so resume just no-ops).
+    App.AudiobookSession { id: audiobookSession }
+
     ReaderShell {
         id: shell
         anchors.fill: parent
         visible: false
+        audioSession: audiobookSession        // inject the shared engine → the Audio tab drives it
         onClosed: {
             shell.visible = false
             shelf.visible = true

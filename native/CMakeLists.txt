@@ -266,9 +266,21 @@ add_executable(reader2_harness
     reader/BookStores.cpp
     reader/BookStores.h
     ClipboardHelper.h          # Q_OBJECT header → listed so AUTOMOC generates its meta-object
+    # Task 13 read-along backends — the same types main.cpp registers. AudiobookDownloader
+    # links with just Core/Network (StreamServer passed nullptr; its .cpp is QProcess+NAM,
+    # no libtorrent). MpvItem gives AudiobookSession.qml its `Colosseum.Player` surface so
+    # the harness drives the REAL shared session; libmpv-2.dll/MpvQt.dll already sit beside
+    # the exe (deployed for colosseum.exe in the shared build dir).
+    AudioPairingStore.h
+    engine/AudiobookDownloader.cpp
+    engine/AudiobookDownloader.h
+    player/streamserver.cpp
+    player/streamserver.h
+    player/mpvitem.cpp
+    player/mpvitem.h
 )
 target_include_directories(reader2_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(reader2_harness PRIVATE Qt6::Quick Qt6::Qml Qt6::Network Qt6::WebEngineQuick Qt6::WebChannel)
+target_link_libraries(reader2_harness PRIVATE Qt6::Quick Qt6::Qml Qt6::Network Qt6::WebEngineQuick Qt6::WebChannel MpvQt::MpvQt)
 
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp

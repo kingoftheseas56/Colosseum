@@ -36,6 +36,17 @@ Item {
     property var bookmarks: []
     property var highlights: []
 
+    // ---- Audio pane data (Task 13), bound through from ReaderShell ----
+    property bool audioAttached: false
+    property string audioTitle: ""
+    property url audioCover: ""
+    property string audioMetaLine: ""
+    property bool followOn: false
+    property bool audioPlaying: false
+    property string audioTimeLine: ""
+    property real audioProgress: 0
+    property string audioSpeedLabel: "1.0×"
+
     // ---- left-panel state (owned here; the panel is a pure view over these) ----
     property bool panelOpen: false
     property string activeTab: "contents"
@@ -71,6 +82,11 @@ Item {
     signal bookmarkDeleted(string id)
     signal highlightActivated(string cfi)
     signal tabSelected(string tab)
+    // Audio pane actions (Task 13) forwarded to ReaderShell (which owns the AudiobookSession)
+    signal followToggled(bool on)
+    signal audioPlayToggled()
+    signal audioSpeedCycled()
+    signal audioSeekRequested(real fraction)
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
     // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
@@ -282,12 +298,27 @@ Item {
         bookmarks: chrome.bookmarks
         highlights: chrome.highlights
 
+        // Audio pane (Task 13) — data down, intent up.
+        audioAttached: chrome.audioAttached
+        audioTitle: chrome.audioTitle
+        audioCover: chrome.audioCover
+        audioMetaLine: chrome.audioMetaLine
+        followOn: chrome.followOn
+        audioPlaying: chrome.audioPlaying
+        audioTimeLine: chrome.audioTimeLine
+        audioProgress: chrome.audioProgress
+        audioSpeedLabel: chrome.audioSpeedLabel
+
         onCloseRequested: chrome.closePanel()
         onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }
         onTocActivated: (href) => chrome.tocActivated(href)
         onBookmarkActivated: (cfi) => chrome.bookmarkActivated(cfi)
         onBookmarkDeleted: (id) => chrome.bookmarkDeleted(id)
         onHighlightActivated: (cfi) => chrome.highlightActivated(cfi)
+        onFollowToggled: (on) => chrome.followToggled(on)
+        onAudioPlayToggled: chrome.audioPlayToggled()
+        onAudioSpeedCycled: chrome.audioSpeedCycled()
+        onAudioSeekRequested: (f) => chrome.audioSeekRequested(f)
     }
 
     // ---------- 7. RIGHT PANEL (Task 10) — Appearance; same z as the left panel ----------

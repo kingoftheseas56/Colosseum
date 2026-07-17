@@ -38,6 +38,14 @@ QtObject {
     // the indented-note left rule (mock rgba(255,255,255,.14)).
     readonly property color noteRule: Qt.rgba(1, 1, 1, 0.14)
 
+    // Audio pane (Task 13) — the mock's inset cards + switch track.
+    // card fill (mock .audiohead/.followrow/.transport background rgba(255,255,255,.04)).
+    readonly property color cardBg: Qt.rgba(1, 1, 1, 0.04)
+    // OFF switch track (mock .switch.off rgba(255,255,255,.16)); ON track is `gold`.
+    readonly property color switchTrackOff: Qt.rgba(1, 1, 1, 0.16)
+    // the switch knob (mock ::after background #141416 on gold, #… kept dark on both).
+    readonly property color switchKnob: "#141416"
+
     // progress rail
     readonly property color track: Qt.rgba(1, 1, 1, 0.13)
     readonly property color tick: Qt.rgba(1, 1, 1, 0.22)

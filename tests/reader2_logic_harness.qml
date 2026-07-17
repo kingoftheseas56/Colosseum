@@ -347,6 +347,56 @@ QtObject {
             var g5 = L.rulerGeometry(40, 92, 0)
             check(Number.isFinite(g5.bandTop) && Number.isFinite(g5.botScrimH), "rulerGeometry: zero height is finite-safe")
 
+            // 17. chapterFor (Task 13) — read-along chapter matching, three tiers.
+            var bToc = [ { label: "Chapter 1" }, { label: "Chapter 2" },
+                         { label: "Chapter 3" }, { label: "Chapter 4" } ]
+            var aCh  = [ { label: "1. Loomings" }, { label: "2. The Carpet-Bag" },
+                         { label: "3. The Spouter-Inn" }, { label: "4. The Counterpane" } ]
+            // exact chapter-NUMBER title match: book "Chapter 3" ↔ audio "3. The Spouter-Inn".
+            check(L.chapterFor(2, bToc, aCh) === 2, "chapterFor: number/title match (Chapter 3 -> '3. ...')")
+            check(L.chapterFor(0, bToc, aCh) === 0, "chapterFor: number/title match (Chapter 1 -> '1. ...')")
+            // TEXT title match — audio order swapped, paired by normalized title (no numbers).
+            var bToc2 = [ { label: "Loomings" }, { label: "The Spouter-Inn" } ]
+            var aCh2  = [ { label: "The Spouter-Inn" }, { label: "Loomings" } ]
+            check(L.chapterFor(0, bToc2, aCh2) === 1, "chapterFor: text title match finds swapped order (Loomings)")
+            check(L.chapterFor(1, bToc2, aCh2) === 0, "chapterFor: text title match (The Spouter-Inn -> idx 0)")
+            // ORDINAL fallback — titles share nothing, counts equal → same index.
+            var bToc3 = [ { label: "Alpha" }, { label: "Beta" }, { label: "Gamma" } ]
+            var aCh3  = [ { label: "Track One" }, { label: "Track Two" }, { label: "Track Three" } ]
+            check(L.chapterFor(1, bToc3, aCh3) === 1, "chapterFor: ordinal fallback (no title match, same index)")
+            check(L.chapterFor(2, bToc3, aCh3) === 2, "chapterFor: ordinal fallback (last index)")
+            // PROPORTIONAL fallback — book has MORE chapters than the audiobook.
+            var bToc4 = []; for (var bi = 0; bi < 10; bi++) bToc4.push({ label: "C" + bi })
+            var aCh4  = [ { label: "P1" }, { label: "P2" }, { label: "P3" }, { label: "P4" } ]
+            check(L.chapterFor(8, bToc4, aCh4) === 3, "chapterFor: proportional (book 8/10 -> audio 3/4)")
+            check(L.chapterFor(3, bToc4, aCh4) === 3, "chapterFor: ordinal wins while index is in audio range (book 3 -> audio 3)")
+            check(L.chapterFor(4, bToc4, aCh4) === 1, "chapterFor: proportional once past audio range (book 4/10 -> audio 1/4)")
+            // ROMAN numerals normalize: book "Chapter IV" ↔ audio "4 — ...".
+            check(L.chapterFor(0, [ { label: "Chapter IV" } ],
+                               [ { label: "1" }, { label: "2" }, { label: "3" }, { label: "4 — The Counterpane" } ]) === 3,
+                  "chapterFor: roman 'Chapter IV' -> audio '4 ...'")
+            // string entries (not objects) are tolerated.
+            check(L.chapterFor(1, [ "Chapter 1", "Chapter 2" ], [ "1 a", "2 b", "3 c" ]) === 1,
+                  "chapterFor: bare-string entries pair by number")
+            // degenerate / empty inputs are safe.
+            check(L.chapterFor(0, bToc, []) === -1, "chapterFor: no audio chapters -> -1")
+            check(L.chapterFor(-1, bToc, aCh) === -1, "chapterFor: unknown book chapter (-1) -> -1")
+            check(L.chapterFor(0, null, aCh) === 0, "chapterFor: null bookToc -> ordinal (index 0)")
+            check(L.chapterFor(5, [], aCh) === 3, "chapterFor: empty toc, i beyond audio -> proportional clamps to last")
+
+            // 18. Audio-card / transport text shapers (Task 13).
+            check(L.audiobookMetaLine(135, 0) === "135 chapters", "audiobookMetaLine: chapters only when no duration")
+            check(L.audiobookMetaLine(1, 0) === "1 chapter", "audiobookMetaLine: singular chapter")
+            check(L.audiobookMetaLine(135, 75840) === "21 h 04 m · 135 chapters", "audiobookMetaLine: duration + chapters")
+            check(L.audiobookMetaLine(3, 600) === "10 min · 3 chapters", "audiobookMetaLine: sub-hour duration")
+            check(L.audiobookTimeLine("Chapter 1 — Loomings", 252, 1350) === "Chapter 1 — Loomings · 4:12 / 22:30",
+                  "audiobookTimeLine: chapter + times")
+            check(L.audiobookTimeLine("", 0, 0) === "", "audiobookTimeLine: empty when nothing known")
+            check(L.audiobookTimeLine("Only label", 0, 0) === "Only label", "audiobookTimeLine: label alone when no duration")
+            check(L.speedLabel(1) === "1.0×", "speedLabel: 1 -> 1.0×")
+            check(L.speedLabel(1.5) === "1.5×", "speedLabel: 1.5 -> 1.5×")
+            check(L.speedLabel(1.25) === "1.25×", "speedLabel: 1.25 -> 1.25×")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

@@ -223,6 +223,158 @@ FocusScope {
         shell.searchLastQuery = ""
     }
 
+    // ---- read-along (Task 13) — the Audio tab + page/chapter sync ----
+    // The ONE app-wide AudiobookSession is INJECTED by the embedder (Harness.qml here,
+    // Main.qml on swap day): "one engine, many faces" (Hemanth 2026-07-13) — the reader is
+    // a REMOTE that drives the shared session, never a second player. Null in a bare
+    // instance; every read/drive below is guarded.
+    property var audioSession: null
+    // "Follow my reading" — OFF by default; each book open resets it (set on 'ready').
+    property bool followOn: false
+    // Remember the last audiobook chapter we synced to, so a debounced page turn that maps
+    // to the SAME chapter is a no-op (an m4b's currentIndex stays 0, so we can't rely on it).
+    property int lastSyncedAudioChapter: -1
+
+    // The pairing Task 12 wrote for THIS book (keyed by shell.bookId). Reactive: it
+    // re-evaluates when the book changes AND when the store bumps (an audiobook that
+    // finishes downloading while the book is open auto-attaches → revision changes).
+    property int audioPairingRev: (typeof AudioPairing !== "undefined") ? AudioPairing.revision : 0
+    property var audioPairing: shell.lookupPairing(shell.bookId, shell.audioPairingRev)
+    function lookupPairing(id, rev) {
+        if (id === "" || typeof AudioPairing === "undefined") return ({})
+        return AudioPairing.getPairing(id) || ({})
+    }
+    readonly property string audioPairKey: (shell.audioPairing && shell.audioPairing.pairKey)
+                                           ? String(shell.audioPairing.pairKey) : ""
+    // Attached = a pairing exists AND its audiobook is actually on disk (a stale pairing
+    // whose files were deleted must fall back to the unattached state, never a dead card).
+    readonly property bool audioAttached: shell.audioPairKey !== ""
+        && typeof Audiobooks !== "undefined" && Audiobooks.isDownloaded(shell.audioPairKey)
+
+    // The downloaded-audiobook index entry (title/author/fileCount) for the card BEFORE
+    // the session loads. Recomputed on the same triggers as the pairing.
+    property var audioEntry: shell.findAudioEntry(shell.audioPairKey, shell.audioPairingRev)
+    function findAudioEntry(pk, rev) {
+        if (pk === "" || typeof Audiobooks === "undefined") return ({})
+        var list = Audiobooks.downloadedAudiobooks() || []
+        for (var i = 0; i < list.length; i++)
+            if (String(list[i].id) === pk) return list[i]
+        return ({})
+    }
+
+    // The session is LIVE for THIS book when it's loaded and streaming our pairKey (it may
+    // be streaming a DIFFERENT book — another reader/full player — in which case our
+    // transport shows the idle state, never the other book's position).
+    readonly property bool audioSessionLive: !!(shell.audioSession && shell.audioSession.ready
+                                                && shell.audioSession.activePairKey === shell.audioPairKey
+                                                && shell.audioPairKey !== "")
+
+    // ---- card + transport props (fed to the chrome → LeftPanel Audio pane) ----
+    readonly property string audioTitle:
+        (shell.audioSessionLive && shell.audioSession.book && shell.audioSession.book.title)
+            ? String(shell.audioSession.book.title)
+        : (shell.audioEntry && shell.audioEntry.title) ? String(shell.audioEntry.title)
+        : (shell.bookTitle !== "" ? shell.bookTitle : "Audiobook")
+    readonly property url audioCover:
+        (shell.audioSessionLive && shell.audioSession.book && shell.audioSession.book.cover)
+            ? shell.audioSession.book.cover : ""
+    readonly property int audioChapterCount:
+        (shell.audioSessionLive && shell.audioSession.chapterModel)
+            ? shell.audioSession.chapterModel.length
+        : (shell.audioEntry && Number.isFinite(shell.audioEntry.fileCount)) ? shell.audioEntry.fileCount : 0
+    // A total duration is only trustworthy for a single-file m4b (mpv knows the whole
+    // book); a multi-file set would need every file probed, so we omit hours there.
+    readonly property real audioTotalSec:
+        (shell.audioSessionLive && !shell.audioSession.multiFile && shell.audioSession.duration > 0)
+            ? shell.audioSession.duration : 0
+    readonly property string audioMetaLine: L.audiobookMetaLine(shell.audioChapterCount, shell.audioTotalSec)
+
+    readonly property string currentAudioChapterLabel:
+        (shell.audioSessionLive && shell.audioSession.chapterModel
+         && shell.audioSession.currentIndex >= 0
+         && shell.audioSession.currentIndex < shell.audioSession.chapterModel.length)
+            ? String(shell.audioSession.chapterModel[shell.audioSession.currentIndex].label || "")
+            : ""
+    readonly property bool audioPlaying: shell.audioSessionLive && !shell.audioSession.paused
+    readonly property string audioTimeLine: shell.audioSessionLive
+        ? L.audiobookTimeLine(shell.currentAudioChapterLabel, shell.audioSession.position, shell.audioSession.duration)
+        : "Press play to listen along"
+    readonly property real audioProgress: (shell.audioSessionLive && shell.audioSession.duration > 0)
+        ? shell.audioSession.position / shell.audioSession.duration : 0
+    readonly property string audioSpeedLabel: L.speedLabel(shell.audioSessionLive ? shell.audioSession.speed : 1)
+
+    // ---- driving the shared session ----
+    // A light book object for the session's Continue record (title/author).
+    function audioSessionBook() {
+        var e = shell.audioEntry || ({})
+        return {
+            title: (e.title ? String(e.title) : (shell.bookTitle !== "" ? shell.bookTitle : "Audiobook")),
+            author: (e.author ? String(e.author) : shell.bookAuthor),
+            cover: ""
+        }
+    }
+    // Load the paired audiobook into the shared session if it isn't already streaming for
+    // this book. openFor is IDEMPOTENT (same pairKey already live → no-op, stream untouched).
+    // startPaused=true lands at the last spot paused (the Follow-on summon); false plays.
+    function ensureAudioLoaded(startPaused) {
+        if (!shell.audioSession || shell.audioPairKey === "") return false
+        if (typeof Audiobooks !== "undefined" && !Audiobooks.isDownloaded(shell.audioPairKey)) return false
+        shell.audioSession.openFor(shell.audioPairKey, shell.audioSessionBook(), startPaused === true)
+        return !!shell.audioSession.ready
+    }
+
+    // The speed cycle (AudiobookPlayer's ladder), shared by the transport pill.
+    readonly property var audioSpeeds: [1.0, 1.25, 1.5, 1.75, 2.0, 0.75]
+
+    // Debounced read-along sync: a page turn restarts this; on fire it snaps the audiobook
+    // to the chapter matching the current page (once, not per intermediate flip).
+    Timer {
+        id: followSyncTimer
+        interval: 400
+        onTriggered: shell.syncAudioToPage(false)
+    }
+    // Snap the audiobook to the chapter matching the current book page. Guards: Follow must
+    // be on and the session live for this book; an unknown/degenerate match (-1) is skipped;
+    // a match equal to the last-synced chapter is a no-op (no redundant seek). Preserves the
+    // play/pause state (goToChapterKeepState) so following never force-plays a paused stream.
+    function syncAudioToPage(immediate) {
+        if (!shell.followOn || !shell.audioSessionLive) return
+        var chapters = shell.audioSession.chapterModel || []
+        var ch = L.chapterFor(shell.currentTocIndex, shell.bookToc, chapters)
+        if (ch < 0) return
+        if (ch === shell.lastSyncedAudioChapter && !immediate) return
+        shell.lastSyncedAudioChapter = ch
+        shell.audioSession.goToChapterKeepState(ch)
+    }
+    // Follow switch → set state; turning ON loads (paused at last spot) + syncs immediately.
+    function setFollow(on) {
+        shell.followOn = on
+        if (on) {
+            shell.lastSyncedAudioChapter = -1        // force the first sync through
+            shell.ensureAudioLoaded(true)
+            shell.syncAudioToPage(true)
+        }
+    }
+    // Play/pause from the transport: toggle a live stream, else load-and-play this book's audiobook.
+    function audioPlayToggle() {
+        if (!shell.audioSession) return
+        if (shell.audioSessionLive) shell.audioSession.togglePlay()
+        else shell.ensureAudioLoaded(false)          // load + play
+    }
+    // Cycle the playback speed (no-op unless the session is live for this book).
+    function audioCycleSpeed() {
+        if (!shell.audioSessionLive) return
+        var s = shell.audioSpeeds, cur = shell.audioSession.speed, next = s[0]
+        for (var i = 0; i < s.length; i++)
+            if (Math.abs(s[i] - cur) < 0.01) { next = s[(i + 1) % s.length]; break }
+        shell.audioSession.setRate(next)
+    }
+    // Scrub the mini rail (fraction 0..1 → absolute seek).
+    function audioSeekFraction(f) {
+        if (shell.audioSessionLive && shell.audioSession.duration > 0)
+            shell.audioSession.seekTo(shell.audioSession.duration * Math.max(0, Math.min(1, f)))
+    }
+
     // A single appearance edit from the panel: merge into shell.appearance, PERSIST under the
     // namespaced settings.reader2 (READ-MODIFY-WRITE — the OLD reader's flat keys are never
     // clobbered), and LIVE-APPLY to the paper. The ruler fields (rulerOn/Height/Dim) ride along
@@ -279,6 +431,8 @@ FocusScope {
                 shell.reapplyHighlights()                         // re-paint stored highlights onto the fresh paper
                 shell.appearance = L.initialAppearance(Reader2Bridge.settingsGet())  // persisted reader2 appearance (or seeded default)
                 paper.setAppearance(L.appearanceToPaper(shell.appearance))           // first paint = the persisted appearance
+                shell.followOn = false                            // read-along Follow resets per book (default OFF)
+                shell.lastSyncedAudioChapter = -1                 // fresh book → no prior audio-chapter sync
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
                 paper.focusPaper()                                // the web view owns keys — focus it so keys work immediately
             } else if (name === "toggleChrome") {
@@ -360,6 +514,11 @@ FocusScope {
                 var prev = Reader2Bridge.progressGet(id)
                 p.updatedAt = Date.now()
                 Reader2Bridge.progressSave(id, L.progressRecord(prev, p, shell.bookPath))
+
+                // --- read-along sync (Task 13) ---
+                // If Follow is on and the companion audiobook is loaded, snap it to the
+                // chapter for this page — DEBOUNCED, so rapid page flips seek once, not each.
+                if (shell.followOn && shell.audioSessionLive) followSyncTimer.restart()
             }
         }
     }
@@ -399,6 +558,17 @@ FocusScope {
         bookmarks: shell.bookmarks
         highlights: shell.highlights
 
+        // Audio pane data (Task 13)
+        audioAttached: shell.audioAttached
+        audioTitle: shell.audioTitle
+        audioCover: shell.audioCover
+        audioMetaLine: shell.audioMetaLine
+        followOn: shell.followOn
+        audioPlaying: shell.audioPlaying
+        audioTimeLine: shell.audioTimeLine
+        audioProgress: shell.audioProgress
+        audioSpeedLabel: shell.audioSpeedLabel
+
         // appearance panel data (Task 10)
         appearance: shell.appearance
 
@@ -437,6 +607,12 @@ FocusScope {
             }
         }
         onTabSelected: (tab) => shell.refreshMarks()
+
+        // --- Audio pane (Task 13): the reader drives the shared AudiobookSession ---
+        onFollowToggled: (on) => shell.setFollow(on)
+        onAudioPlayToggled: shell.audioPlayToggle()
+        onAudioSpeedCycled: shell.audioCycleSpeed()
+        onAudioSeekRequested: (f) => shell.audioSeekFraction(f)
 
         // The bookmark icon = "bookmark THIS page" (per the mock). Write the SAME shape the
         // old reader's reader_bookmarks.js uses (locator{cfi,href,fraction} + label + snippet)

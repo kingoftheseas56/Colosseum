@@ -50,6 +50,11 @@ Item {
 
     // A DIRECT LeftPanel instance, sized + open, so every pane's ListView actually
     // realizes its delegates (which call the pure row-shapers) under -platform offscreen.
+    // Audio-pane (Task 13) signal spies live on the root; the panel forwards its intent here.
+    property bool followState: false
+    property int playToggleCount: 0
+    property int speedCycleCount: 0
+    property real lastSeek: -1
     R.LeftPanel {
         id: panel
         width: 400
@@ -60,6 +65,10 @@ Item {
         currentTocIndex: 1
         bookmarks: sampleBookmarks
         highlights: sampleHighlights
+        onFollowToggled: (on) => followState = on
+        onAudioPlayToggled: playToggleCount++
+        onAudioSpeedCycled: speedCycleCount++
+        onAudioSeekRequested: (f) => lastSeek = f
     }
 
     // The SelectionMenu popover (Task 9) — bridge-free, driven by a sample rect. Proves it
@@ -356,6 +365,44 @@ Item {
             chrome.handleSearch(); check(chrome.searchOpen === true, "reopen search for closeAnyPanel")
             chrome.closeAnyPanel()
             check(chrome.searchOpen === false, "closeAnyPanel closes the search sheet")
+
+            // ---- Audio pane (Task 13): both states realize + the pane's signals fire ----
+            // The Audio tab is LIVE now (no disabled/"soon" state) — selecting it works.
+            panel.open = true
+            panel.activeTab = "audio"
+            check(panel.activeTab === "audio", "LeftPanel Audio tab selectable (no longer disabled)")
+            // UNATTACHED: no pairing → the quiet download message path realizes (no crash).
+            panel.audioAttached = false
+            check(panel.audioAttached === false, "Audio pane unattached state renders (no crash)")
+            // ATTACHED: feed the card + transport props and prove they bind + the pane realizes.
+            panel.audioTitle = "Moby Dick — Unabridged"
+            panel.audioMetaLine = "21 h 04 m · 135 chapters"
+            panel.audioTimeLine = "Chapter 1 — Loomings · 04:12 / 22:30"
+            panel.audioProgress = 0.18
+            panel.audioSpeedLabel = "1.0×"
+            panel.audioPlaying = false
+            panel.audioAttached = true
+            check(panel.audioAttached === true, "Audio pane attached state renders the card + transport")
+            check(panel.audioTitle === "Moby Dick — Unabridged" && panel.audioMetaLine.indexOf("chapters") > 0,
+                  "Audio pane binds title + meta line")
+            // the Follow switch reflects state and reports toggles up.
+            panel.followOn = false
+            panel.followToggled(true);  check(followState === true, "Audio pane followToggled(true) fires up")
+            panel.followOn = true;      check(panel.followOn === true, "Audio pane followOn switch binds")
+            // the transport controls report their intent up (ReaderShell drives the session).
+            panel.audioPlayToggled();   check(playToggleCount === 1, "Audio pane audioPlayToggled fires")
+            panel.audioPlaying = true;  check(panel.audioPlaying === true, "Audio pane play/pause glyph state binds")
+            panel.audioSpeedCycled();   check(speedCycleCount === 1, "Audio pane audioSpeedCycled fires")
+            panel.audioSeekRequested(0.5); check(Math.abs(lastSeek - 0.5) < 1e-9, "Audio pane audioSeekRequested carries the fraction")
+            // ReaderChrome forwards the Audio pane data + signals (data down / intent up).
+            var chromeFollow = -1
+            chrome.audioAttached = true
+            chrome.audioTitle = "AB"
+            chrome.followOn = true
+            check(chrome.audioAttached === true && chrome.audioTitle === "AB" && chrome.followOn === true,
+                  "ReaderChrome exposes the Audio pane inputs")
+            chrome.followToggled.connect(function (on) { chromeFollow = on ? 1 : 0 })
+            chrome.followToggled(false); check(chromeFollow === 0, "ReaderChrome re-emits followToggled")
 
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)

@@ -528,3 +528,148 @@ function rulerGeometry(yPct, heightPx, overlayH) {
     var botTop = top + bh
     return { bandTop: top, bandHeight: bh, topScrimH: top, botScrimH: H - botTop }
 }
+
+// ---------------------------------------------------------------------------
+// TASK 13 — read-along chapter matching (pure; proven headless).
+//
+// The reader's Audio tab keeps a paired audiobook in step with the page. When
+// "Follow my reading" is on, every page turn asks: which AUDIOBOOK chapter matches
+// the BOOK chapter I'm now in? chapterFor answers it, in three tiers ported from
+// TB-Max's pairing brain (src/domains/books/reader/reader_audiobook_pairing.js):
+//   (1) title match  — normalize both titles and pair by text, else by a shared
+//        leading chapter NUMBER (so book "Chapter 3" ↔ audio "3. The Spouter-Inn");
+//   (2) ordinal      — book chapter N → audio chapter N, when that index exists;
+//   (3) proportional — bookTocIndex/bookToc.length scaled onto audioChapters.length,
+//        the safety net when the counts differ (a book with more chapters than the
+//        audiobook has files/chapters).
+// Returns -1 when there is nothing to sync to (no audio chapters) or the book
+// chapter is unknown (index < 0). PURE — no Date, no QML, no DOM.
+// ---------------------------------------------------------------------------
+
+var ROMAN_ = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 }
+
+// romanToArabic_("iv") → 4, or NaN for a non-roman token. Lowercase, subtractive.
+function romanToArabic_(s) {
+    var t = String(s || "").toLowerCase()
+    if (!t || !/^[ivxlcdm]+$/.test(t)) return NaN
+    var total = 0, prev = 0
+    for (var k = t.length - 1; k >= 0; k--) {
+        var v = ROMAN_[t[k]]
+        if (!v) return NaN
+        if (v < prev) total -= v
+        else { total += v; prev = v }
+    }
+    return total
+}
+
+// chapterLabelOf_(entry) → the display title of a toc/chapter entry, tolerating a
+// bare string OR an object with .label / .title (book toc uses label; the audiobook
+// session's chapterModel uses label too).
+function chapterLabelOf_(x) {
+    if (x === undefined || x === null) return ""
+    if (typeof x === "string") return x
+    if (typeof x === "object") return String(x.label || x.title || "")
+    return String(x)
+}
+
+// chapterKey_(title) → { text, num }. text = the fully normalized comparable string
+// (lowercase, a leading section word dropped, punctuation → spaces, whitespace
+// collapsed); num = the chapter's leading number as an integer (arabic digits, or a
+// leading roman numeral), or NaN when the title carries no leading number.
+function chapterKey_(title) {
+    var s = String(title === undefined || title === null ? "" : title).toLowerCase().trim()
+    // drop a single leading section word ("chapter"/"ch."/"part"/"book"/"section").
+    s = s.replace(/^(chapters?|chapitre|ch\.?|parts?|books?|sections?)\s+/, "")
+    var text = s.replace(/[^a-z0-9]+/g, " ").replace(/\s+/g, " ").trim()
+    var num = NaN
+    var mNum = text.match(/^(\d+)\b/)
+    if (mNum) num = parseInt(mNum[1], 10)
+    else {
+        var mRom = text.match(/^([ivxlcdm]+)\b/)
+        if (mRom) num = romanToArabic_(mRom[1])
+    }
+    return { text: text, num: num }
+}
+
+// chapterFor(bookTocIndex, bookToc, audioChapters) → the best-matching audiobook
+// chapter index (see the block header for the three tiers). Pure.
+function chapterFor(bookTocIndex, bookToc, audioChapters) {
+    var audio = (audioChapters && audioChapters.length) ? audioChapters : []
+    var toc = (bookToc && bookToc.length) ? bookToc : []
+    var n = audio.length
+    if (n === 0) return -1                                  // nothing to sync to
+    var i = Number(bookTocIndex)
+    if (!Number.isFinite(i) || i < 0) return -1            // unknown book chapter
+
+    // precompute the audio chapter keys once.
+    var akeys = []
+    for (var a = 0; a < n; a++) akeys.push(chapterKey_(chapterLabelOf_(audio[a])))
+
+    // (1) title match — by normalized text first, then by a shared leading number.
+    if (i < toc.length) {
+        var bk = chapterKey_(chapterLabelOf_(toc[i]))
+        if (bk.text) {
+            for (var t1 = 0; t1 < n; t1++)
+                if (akeys[t1].text && akeys[t1].text === bk.text) return t1
+        }
+        if (Number.isFinite(bk.num)) {
+            for (var t2 = 0; t2 < n; t2++)
+                if (akeys[t2].num === bk.num) return t2
+        }
+    }
+
+    // (2) ordinal — same position, when the audiobook has a chapter there.
+    if (i < n) return i
+
+    // (3) proportional — the book ran past the audiobook's chapter count.
+    var len = toc.length > 0 ? toc.length : (i + 1)
+    var idx = Math.floor(i / len * n)
+    if (idx < 0) idx = 0
+    if (idx >= n) idx = n - 1
+    return idx
+}
+
+// audiobookMetaLine(chapterCount, totalSeconds) → the card's subtitle. Always names
+// the chapter count; prepends an "N h MM m" (or "MM min") duration ONLY when a real
+// total is known (a single-file m4b exposes it; a multi-file set does not until every
+// file is probed, so we honestly omit it). Pure — the seconds come from the session.
+function audiobookMetaLine(chapterCount, totalSeconds) {
+    var c = Number(chapterCount)
+    if (!Number.isFinite(c) || c < 0) c = 0
+    var chapters = c + (c === 1 ? " chapter" : " chapters")
+    var t = Number(totalSeconds)
+    if (!Number.isFinite(t) || t <= 0) return chapters
+    var mins = Math.floor(t / 60)
+    var h = Math.floor(mins / 60)
+    var m = mins % 60
+    var dur = h > 0 ? (h + " h " + (m < 10 ? "0" : "") + m + " m") : (m + " min")
+    return dur + " · " + chapters
+}
+
+// audiobookTimeLine(chapterLabel, positionSec, durationSec) → the transport's info
+// line: "<chapter> · MM:SS / MM:SS". Omits the times until a duration is known, and
+// the chapter label when empty. Pure (its own hh:mm:ss formatter; no Date).
+function fmtClock_(sec) {
+    var t = Math.max(0, Math.floor(Number(sec) || 0))
+    var h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = t % 60
+    function pad(x) { return (x < 10 ? "0" : "") + x }
+    return (h > 0 ? (h + ":" + pad(m)) : m) + ":" + pad(s)
+}
+function audiobookTimeLine(chapterLabel, positionSec, durationSec) {
+    var label = String(chapterLabel === undefined || chapterLabel === null ? "" : chapterLabel).trim()
+    var d = Number(durationSec)
+    var times = (Number.isFinite(d) && d > 0)
+        ? (fmtClock_(positionSec) + " / " + fmtClock_(durationSec)) : ""
+    if (label && times) return label + " · " + times
+    return label || times
+}
+
+// speedLabel(rate) → the speed pill text, e.g. 1 → "1.0×", 1.25 → "1.25×". Trims a
+// trailing zero on the hundredths so 1.50 reads "1.5×" but 1.0 keeps one decimal. Pure.
+function speedLabel(rate) {
+    var r = Number(rate)
+    if (!Number.isFinite(r) || r <= 0) r = 1
+    var s = r.toFixed(2)
+    s = s.replace(/(\.\d)0$/, "$1")   // 1.50 -> 1.5, but 1.00 -> 1.0
+    return s + "×"
+}
