@@ -36,7 +36,7 @@
 
     const input = document.createElement('input')
     input.type = 'file'
-    input.accept = '.epub,.mobi,.azw3,.fb2,.fbz,.cbz,.pdf'
+    input.accept = '.epub,.mobi,.azw3,.fb2,.fbz,.cbz,.pdf,.txt'
     input.style.color = '#e6e1d5'
     input.addEventListener('change', async () => {
       const file = input.files && input.files[0]

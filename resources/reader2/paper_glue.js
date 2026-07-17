@@ -72,6 +72,9 @@ const isFB2 = ({ name, type }) =>
 const isFBZ = ({ name, type }) =>
   type === 'application/x-zip-compressed-fb2'
   || name.endsWith('.fb2.zip') || name.endsWith('.fbz')
+// TXT is the one format the fork lacks — plain text has no magic bytes, so it can
+// only be identified by extension (checked last, after every magic-byte branch misses).
+const isTXT = ({ name }) => /\.txt$/i.test(name || '')
 
 const makeZipLoader = async file => {
   const { configure, ZipReader, BlobReader, TextWriter, BlobWriter } =
@@ -165,6 +168,11 @@ const makeBook = async file => {
     } else if (isFB2(file)) {
       const { makeFB2 } = await import('./vendor/foliate-anx/src/fb2.js')
       book = await makeFB2(file)
+    } else if (isTXT(file)) {
+      // OUR addition (not in the fork): synthesize a reflowable XHTML book from plain
+      // text so it reads with full appearance/pagination/selection. See paper_text.js.
+      const { makeTextBook } = await import('./paper_text.js')
+      book = await makeTextBook(file)
     }
   }
   if (!book) throw new Error('File type not supported')
@@ -281,6 +289,17 @@ const applyAppearance = () => {
   if (document.body) document.body.style.backgroundColor = bg
   const r = currentView?.renderer
   if (!r) return
+  // FIXED-LAYOUT FORMATS (PDF, CBZ): the pages are images, not reflowable text, so the
+  // reflow knobs — font / size / line-height / margins / justify / columns — have no
+  // meaning. Degrade GRACEFULLY: apply just the theme background (shown around the fixed
+  // page) and skip the rest. The <foliate-fxl> renderer ignores these attributes and has
+  // no setStyles(), so the appearance panel already can't throw here — but setting them
+  // is noise, and doing this explicitly keeps a future fxl build from honouring (and
+  // distorting) them. The sliders simply have no visible effect on a PDF, by design.
+  if (currentView?.isFixedLayout) {
+    r.setAttribute('background-color', bg)
+    return
+  }
   r.setAttribute('flow', 'paginated')
   r.setAttribute('background-color', bg)
   r.setAttribute('top-margin', `${appearance.marginPx ?? 48}px`)

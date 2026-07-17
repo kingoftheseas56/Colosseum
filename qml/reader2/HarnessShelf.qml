@@ -50,7 +50,7 @@ Rectangle {
             model: FolderListModel {
                 id: books
                 folder: root.booksFolder
-                nameFilters: ["*.epub", "*.mobi", "*.azw3", "*.fb2", "*.pdf"]
+                nameFilters: ["*.epub", "*.mobi", "*.azw3", "*.fb2", "*.fbz", "*.pdf", "*.txt", "*.cbz"]
                 showDirs: false
                 sortField: FolderListModel.Name
             }
