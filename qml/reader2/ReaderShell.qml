@@ -282,8 +282,15 @@ FocusScope {
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
                 paper.focusPaper()                                // the web view owns keys — focus it so keys work immediately
             } else if (name === "toggleChrome") {
-                // double-click on EMPTY paper space (glue) → toggle the chrome reveal.
-                chrome.toggle()
+                // double-click on EMPTY paper space (glue). If an overlay is open, dismiss it
+                // first (same cascade as Esc: pen cards → selection popover → panel/search),
+                // so a double-click also hides the search sheet / a panel. Otherwise toggle
+                // the chrome reveal.
+                if (shell.dictShown) shell.dismissDict()
+                else if (shell.footnoteShown) shell.dismissFootnote()
+                else if (shell.selMenuShown) shell.dismissSelectionMenu()
+                else if (chrome.anyPanelOpen) chrome.closeAnyPanel()
+                else chrome.toggle()
             } else if (name === "escape") {
                 // Esc from the glue's in-page keyboard. Cascading close, same order the old
                 // reader uses: the pen's floating cards first (dict/footnote), then the

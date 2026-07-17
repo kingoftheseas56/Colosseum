@@ -52,7 +52,9 @@ Item {
         x: (sheet.width - width) / 2
         y: 68
         radius: 13
-        color: Qt.rgba(13 / 255, 13 / 255, 16 / 255, 0.88)
+        // Near-opaque: dense page text was bleeding through the old 0.88 glass and reading
+        // as "shading" behind the results. Keep it a hair off solid so it still reads as glass.
+        color: Qt.rgba(13 / 255, 13 / 255, 16 / 255, 0.985)
         border.color: Theme.barBorder
         border.width: 1
         antialiasing: true
