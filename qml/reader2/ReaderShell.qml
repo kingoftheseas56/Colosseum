@@ -105,12 +105,17 @@ FocusScope {
         }
     }
 
-    // Dismiss the selection popover and drop the paper's live selection.
+    // Dismiss the selection popover and drop the paper's live selection. Always hand
+    // keyboard focus BACK to the web view: the Note editor grabs Qt focus (a TextEdit),
+    // and hiding it doesn't return focus on its own — so without this, page-turn keys +
+    // Esc silently die after using Note until you click the text. (The color/Copy/Delete
+    // paths use MouseAreas, which never take focus, so there this is a harmless no-op.)
     function dismissSelectionMenu() {
         shell.selMenuShown = false
         shell.selMenuMode = "select"
         shell.existingHlId = ""
         paper.clearSelection()
+        Qt.callLater(function () { paper.focusPaper() })
     }
 
     // Persist a highlight for the CURRENT selection in `color`, with an optional `note`, and
