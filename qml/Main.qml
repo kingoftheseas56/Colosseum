@@ -222,7 +222,6 @@ Window {
         else if (extensionsLayer.active) win.closeExtensionsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
-        else if (gcSourcesLayer.active) win.closeGcSources()
         else if (comicSeriesLayer.active) win.closeComicSeries()
         else if (comicCatalogLayer.active) win.closeComicCatalog()
         else if (westernLayer.active) win.closeWestern()
@@ -479,15 +478,6 @@ Window {
         } else comicSeriesLayer.active = true
     }
     function closeComicSeries() { comicSeriesLayer.active = false }
-
-    // ---- "Also on GetComics" sources page: the ledger banner's destination ----
-    //      (spec 2026-07-17; layers over the series page, which never unloads)
-    function openGcSources(d) {
-        gcSourcesLayer.pageData = d || ({})
-        if (gcSourcesLayer.active && gcSourcesLayer.item) gcSourcesLayer.item.apply(gcSourcesLayer.pageData)
-        else gcSourcesLayer.active = true
-    }
-    function closeGcSources() { gcSourcesLayer.active = false }
 
     // ---- complete ranked comics catalog: opened from Top Comics Explore and kept alive
     //      underneath ComicSeriesPage so Back returns to the same wall state. ----
@@ -1703,37 +1693,8 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerCloseRequested.connect(win.closeComicReader)
-            item.gcSourcesRequested.connect(win.openGcSources)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()
-        }
-    }
-
-    // ---- "Also on GetComics" sources layer: baked posts, grouped + size-sorted,
-    //      cover-enriched; rides over comicSeriesLayer (ComicGcSourcesPage.qml) ----
-    Loader {
-        id: gcSourcesLayer
-        anchors.fill: parent
-        z: 50
-        active: false
-        visible: active
-        property var pageData: ({})
-        source: "ComicGcSourcesPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.apply(gcSourcesLayer.pageData)
-            item.backRequested.connect(win.closeGcSources)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            item.readRequested.connect(function(chId, label) {
-                // reader opens on the series page underneath (its embed machinery owns
-                // progress/session); the sources page steps aside first
-                win.closeGcSources()
-                if (comicSeriesLayer.active && comicSeriesLayer.item) {
-                    comicSeriesLayer.item.openChapterLabel = label
-                    comicSeriesLayer.item.openChapterId = chId
-                }
-            })
         }
     }
 

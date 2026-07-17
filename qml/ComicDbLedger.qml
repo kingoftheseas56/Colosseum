@@ -25,8 +25,6 @@ Item {
     signal readRequested(string chId, string label)
     // A user opened the alternate-sources picker for an idle, undownloaded edition.
     signal alternateSourcesRequested(var edition, string chId)
-    // The doorway banner was clicked — host opens the ComicGcSourcesPage (spec 2026-07-17).
-    signal sourcesPageRequested()
 
     implicitHeight: col.implicitHeight
     height: col.implicitHeight        // a Column child sizes by height, not implicitHeight
@@ -51,8 +49,6 @@ Item {
             out.push({ format: k, editions: byFmt[k] })
         return out
     }
-    // "Also on GetComics" — attached posts beyond the auto-wired editions (may be [])
-    readonly property var ledgerSources: (dbSeries && dbSeries.sources) ? dbSeries.sources : []
     // series-level hints (the DB is per-edition): synopsis from the first enriched edition,
     // byline = every distinct creator across editions (a run spans authors — Batman is King + Tynion)
     readonly property string heroCreators: distinctCreators()
@@ -339,65 +335,5 @@ Item {
             }
         }
 
-        // ================= ALSO ON GETCOMICS — the doorway =================
-        // The attached posts live on their own page now (ComicGcSourcesPage, spec
-        // 2026-07-17); the ledger keeps ONE banner, a direct sibling of the universe
-        // page's GETCOMICS ARCHIVE door (GalaxyUniversePage.qml). Accepted trade,
-        // Hemanth-aware: in-flight downloads of attached posts are visible on the
-        // page and in Downloads, no longer on this ledger.
-        Item { width: 1; height: 26; visible: ledger.ledgerSources.length > 0 }
-        Rectangle {
-            id: sourcesDoor
-            visible: ledger.ledgerSources.length > 0
-            width: col.width; height: 108
-            radius: 12; clip: true
-            color: "#241813"
-            border.width: 1
-            border.color: doorMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.7)
-                                               : Qt.rgba(0.97, 0.97, 0.96, 0.10)
-            Image {
-                anchors.fill: parent
-                source: (ledger.dbSeries && ledger.dbSeries.cover) ? ledger.dbSeries.cover : ""
-                asynchronous: true; cache: true
-                fillMode: Image.PreserveAspectCrop
-                opacity: status === Image.Ready ? (doorMa.containsMouse ? 0.5 : 0.28) : 0
-                Behavior on opacity { NumberAnimation { duration: 220 } }
-            }
-            Rectangle {
-                anchors.fill: parent
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.76) }
-                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.30) }
-                }
-            }
-            Column {
-                anchors.left: parent.left; anchors.leftMargin: 26
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 7
-                Text { text: "ALSO ON GETCOMICS"; color: theme.gold
-                       font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                Text { text: "Packs, collected editions & more"
-                       color: theme.ink; font.family: theme.display; font.pixelSize: 19 }
-            }
-            Row {
-                anchors.right: parent.right; anchors.rightMargin: 26
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 8
-                Text { text: "Browse " + ledger.ledgerSources.length
-                             + (ledger.ledgerSources.length === 1 ? " download" : " downloads")
-                       color: theme.ink; font.family: theme.ui
-                       font.pixelSize: 13; font.weight: Font.DemiBold }
-                Text { text: "→"; color: theme.gold; font.pixelSize: 14 }
-            }
-            MouseArea {
-                id: doorMa
-                anchors.fill: parent
-                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                onClicked: ledger.sourcesPageRequested()
-            }
-            Accessible.role: Accessible.Button
-            Accessible.name: "Browse GetComics downloads"
-        }
     }
 }

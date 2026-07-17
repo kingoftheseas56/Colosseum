@@ -32,8 +32,6 @@ Item {
     signal closeRequested()
     signal readerMinimizeRequested()
     signal readerCloseRequested()
-    // Banner on the DB ledger clicked — host pushes ComicGcSourcesPage over this page.
-    signal gcSourcesRequested(var d)
 
     // --- resolved state ---
     property bool loading: true
@@ -248,13 +246,6 @@ Item {
 
                     year: String(edition.published || ""),
                     cover: String(edition.cover || page.cover || "")
-                })
-                onSourcesPageRequested: page.gcSourcesRequested({
-                    title: page.seriesTitle,
-                    publisher: (page.dbSeries && page.dbSeries.publisher) || "",
-                    cover: (page.dbSeries && page.dbSeries.cover) || page.cover || "",
-                    gcTag: ledger.gcTag,                 // already "gc:<tag>"
-                    sources: (page.dbSeries && page.dbSeries.sources) || []
                 })
             }
 
