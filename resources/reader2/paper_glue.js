@@ -500,7 +500,7 @@ const attachSelection = (view, doc, index) => {
   })
 }
 
-const wireView = view => {
+const wireView = (view, gen) => {
   view.addEventListener('relocate', e => {
     // Suppress any relocate that fires BEFORE we've emitted 'ready' for this book
     // (the chrome doesn't know the book identity/toc yet — a pre-ready relocated is
@@ -520,7 +520,7 @@ const wireView = view => {
     }
     const finite = (n, fb = 0) => (Number.isFinite(n) ? n : fb)
     emit('relocated', {
-      gen: openGen,                              // cross-book guard: ReaderShell drops a stale gen
+      gen,                                       // THIS view's captured open-gen (closed over, not live)
       cfi: d.cfi ?? '',
       fraction,
       tocIndex: tocIndexByHref(d.tocItem?.href),
@@ -617,6 +617,12 @@ const paperOpen = async (path, cfi) => {
     // annotations/flatToc/readyEmitted belong to the previous book — reset them.
     readyEmitted = false
     openGen++                       // new open → later events carry this gen (cross-book guard)
+    // Capture THIS open's gen in a local. The relocate listener + the ready emit below close
+    // over `myGen`, NOT the live module `openGen` — so a stale relocate from a PREVIOUS book
+    // (fired after a later open already bumped openGen) carries the OLD book's gen and is
+    // correctly dropped by ReaderShell. Reading openGen live would stamp it with the NEW gen
+    // and defeat the guard (the exact race it exists to close).
+    const myGen = openGen
     footnoteRenderPending = false   // a prior book's in-flight footnote render can't gate this one
     if (currentView) {
       try { currentView.close?.() } catch (e) { /* vendor teardown best-effort */ }
@@ -663,7 +669,7 @@ const paperOpen = async (path, cfi) => {
     const view = document.createElement('foliate-view')
     document.body.append(view)
     currentView = view
-    wireView(view)
+    wireView(view, myGen)
 
     await view.open(book)
     flatToc = flattenToc(view.book?.toc)
@@ -696,7 +702,7 @@ const paperOpen = async (path, cfi) => {
     // payload is fully available here — right after open() + flattenToc. Setting
     // readyEmitted lets the relocate handler (gated above) start emitting from init on.
     emit('ready', {
-      gen: openGen,                               // ReaderShell sets currentGen from this
+      gen: myGen,                                 // this open's captured gen; ReaderShell sets currentGen from it
       toc: tocForReady,
       metadata: view.book?.metadata ?? {},
       sections: view.book?.sections?.length ?? 0,

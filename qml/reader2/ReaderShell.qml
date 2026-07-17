@@ -515,7 +515,7 @@ FocusScope {
                 shell.footnoteText = (p.html !== undefined && p.html !== null) ? String(p.html) : ""
                 shell.footnoteRect = (p.rect && typeof p.rect === "object") ? p.rect : ({ x: 0, y: 0, w: 0, h: 0 })
                 if (shell.footnoteText !== "") shell.footnoteShown = true
-                else console.log("[shell] footnote had no extractable text — skipping card")
+                else if (shell.readerDebug) console.log("[shell] footnote had no extractable text — skipping card")
             } else if (name === "highlightTapped") {
                 // An existing highlight was tapped (the glue guards against a selection-ending
                 // click also firing this). Open the SelectionMenu in "existing" mode at its
