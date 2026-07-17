@@ -27,6 +27,17 @@ QtObject {
     readonly property color bar: Qt.rgba(16 / 255, 16 / 255, 19 / 255, 0.72)
     readonly property color barBorder: Qt.rgba(1, 1, 1, 0.07)
 
+    // slide-in glass panels (left Contents/Bookmarks/Highlights, right Appearance).
+    // A hair darker + more opaque than the bars, per the mock's .panel background
+    // rgba(13,13,16,.86) — reads as a solid column over the paper, not a thin scrim.
+    readonly property color panelBg: Qt.rgba(13 / 255, 13 / 255, 16 / 255, 0.86)
+    // faint gold wash behind the CURRENT contents row (mock rgba(240,194,74,.07)).
+    readonly property color goldWash: Qt.rgba(240 / 255, 194 / 255, 74 / 255, 0.07)
+    // hover tint on a panel row (mock rgba(255,255,255,.05)).
+    readonly property color rowHover: Qt.rgba(1, 1, 1, 0.05)
+    // the indented-note left rule (mock rgba(255,255,255,.14)).
+    readonly property color noteRule: Qt.rgba(1, 1, 1, 0.14)
+
     // progress rail
     readonly property color track: Qt.rgba(1, 1, 1, 0.13)
     readonly property color tick: Qt.rgba(1, 1, 1, 0.22)

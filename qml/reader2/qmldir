@@ -9,5 +9,6 @@ ReaderShell ReaderShell.qml
 ReaderChrome ReaderChrome.qml
 TopBar TopBar.qml
 BottomRail BottomRail.qml
+LeftPanel LeftPanel.qml
 HarnessShelf HarnessShelf.qml
 Harness Harness.qml

@@ -42,6 +42,25 @@ FocusScope {
     property bool returnVisible: false
     property string returnPageLabel: ""
 
+    // ---- left-panel view-model (Task 8) ----
+    // The raw toc array from 'ready' (each entry {index,label,href,fraction?}); the panel
+    // renders it and the rail derives ticks from it. currentTocIndex tracks relocated so
+    // the Contents pane can dim read rows + gold the current one. bookmarks/highlights are
+    // loaded from the SHARED stores through Reader2Bridge (zero migration).
+    property var bookToc: []
+    property int currentTocIndex: -1
+    property real lastFraction: 0
+    property var bookmarks: []
+    property var highlights: []
+
+    // Reload marks from the shared stores (on ready, on panel open, and after any change).
+    function refreshMarks() {
+        if (shell.bookPath === "") return
+        var id = shell.bookId
+        shell.bookmarks = Reader2Bridge.bookmarksGet(id)
+        shell.highlights = Reader2Bridge.annotationsGet(id)
+    }
+
     // Ratified default paper appearance (Night) — pushed at open so the FIRST paint
     // already matches the mock. The full adjustable panel is Task 10; this is just the
     // correct default. (Shape mirrors paper_glue.js: theme{bg,fg}/font/sizePx/lineHeight/
@@ -54,7 +73,18 @@ FocusScope {
     Keys.onPressed: (e) => {
         if (e.key === Qt.Key_Right || e.key === Qt.Key_Space || e.key === Qt.Key_PageDown) { paper.next(); e.accepted = true }
         else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { paper.prev(); e.accepted = true }
-        else if (e.key === Qt.Key_Escape) { shell.closed(); e.accepted = true }
+        // Esc: if the left panel is open, close IT first; else close the book.
+        else if (e.key === Qt.Key_Escape) {
+            if (chrome.panelOpen) chrome.closePanel()
+            else shell.closed()
+            e.accepted = true
+        }
+    }
+
+    // Refresh marks whenever the panel opens, so a change made elsewhere shows up.
+    Connections {
+        target: chrome
+        function onPanelOpenChanged() { if (chrome.panelOpen) shell.refreshMarks() }
     }
 
     Paper {
@@ -68,14 +98,19 @@ FocusScope {
                 // book identity + toc arrive here (before the first relocate).
                 shell.bookTitle = (p.metadata && p.metadata.title) ? String(p.metadata.title) : ""
                 shell.bookAuthor = L.authorText(p.metadata)
+                shell.bookToc = (p.toc && Array.isArray(p.toc)) ? p.toc : []
+                shell.currentTocIndex = -1                        // unknown until the first relocate
                 shell.chapterTicks = L.railTicks(p.toc, (p.toc && p.toc.length) ? p.toc.length : 0)
+                shell.refreshMarks()                              // load bookmarks/highlights from the shared stores
                 paper.setAppearance(shell.defaultAppearance)      // ratified Night default
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
             } else if (name === "relocated" && shell.bookPath !== "") {
-                // --- chrome view-model (rail + top bar) ---
+                // --- chrome view-model (rail + top bar + Contents current row) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)
                 if (p.chapterTitle !== undefined) shell.chapterLabel = String(p.chapterTitle)
                 if (Number.isFinite(p.percent)) shell.percent = p.percent
+                if (Number.isFinite(p.tocIndex)) shell.currentTocIndex = p.tocIndex
+                if (Number.isFinite(p.fraction)) shell.lastFraction = p.fraction
                 if (Number.isFinite(p.pageInChapter)) { shell.pageInChapter = p.pageInChapter; shell.lastPageInChapter = p.pageInChapter }
                 if (Number.isFinite(p.pagesInChapter)) shell.pagesInChapter = p.pagesInChapter
 
@@ -104,6 +139,12 @@ FocusScope {
         returnVisible: shell.returnVisible
         returnPageLabel: shell.returnPageLabel
 
+        // left-panel data (Task 8)
+        tocModel: shell.bookToc
+        currentTocIndex: shell.currentTocIndex
+        bookmarks: shell.bookmarks
+        highlights: shell.highlights
+
         onBackRequested: shell.closed()
         onPrevRequested: paper.prev()
         onNextRequested: paper.next()
@@ -118,12 +159,41 @@ FocusScope {
             if (shell.rememberedCfi !== "") paper.goTo(shell.rememberedCfi)   // cfi → goTo
             shell.returnVisible = false
         }
-        // Panels arrive in Tasks 8-11 / the pen in Task 9. The signals are WIRED now so
-        // those tasks just fill in the target instead of re-plumbing the chrome.
+        // --- left panel (Task 8) ---
+        // TOC / bookmark / highlight jumps go straight to the paper; the panel STAYS open.
+        onTocActivated: (href) => paper.goTo(href)
+        onBookmarkActivated: (cfi) => { if (cfi !== "") paper.goTo(cfi) }
+        onHighlightActivated: (cfi) => { if (cfi !== "") paper.goTo(cfi) }
+        onBookmarkDeleted: (id) => {
+            Reader2Bridge.bookmarksDelete(shell.bookId, id)
+            shell.refreshMarks()
+        }
+        onTabSelected: (tab) => shell.refreshMarks()
+
+        // The bookmark icon = "bookmark THIS page" (per the mock). Write the SAME shape the
+        // old reader's reader_bookmarks.js uses (locator{cfi,href,fraction} + label + snippet)
+        // so marks survive the swap. No text snippet yet — that needs a paper round-trip to
+        // pull the page's opening words; we use a "Page N of M" detail line for now (Task 9
+        // area can enrich it). href comes from the current toc entry when known.
+        onBookmarkRequested: {
+            if (shell.bookPath === "" || shell.lastCfi === "") return
+            var href = (shell.bookToc && shell.currentTocIndex >= 0 && shell.bookToc[shell.currentTocIndex])
+                       ? String(shell.bookToc[shell.currentTocIndex].href || "") : ""
+            var detail = shell.pagesInChapter > 0
+                       ? ("Page " + shell.pageInChapter + " of " + shell.pagesInChapter) : ""
+            var rec = {
+                locator: { cfi: shell.lastCfi, href: href, fraction: shell.lastFraction },
+                label: shell.chapterLabel,
+                snippet: detail,
+                page: shell.pageInChapter
+            }
+            Reader2Bridge.bookmarksSave(shell.bookId, rec)
+            shell.refreshMarks()
+        }
+
+        // Panels for search / appearance arrive in Tasks 10-11; wired now, filled later.
         onSearchRequested: console.log("[shell] searchRequested (search sheet = Task 11)")
-        onContentsRequested: console.log("[shell] contentsRequested (left panel = Task 8)")
         onAppearanceRequested: console.log("[shell] appearanceRequested (appearance panel = Task 10)")
-        onBookmarkRequested: console.log("[shell] bookmarkRequested (the pen = Task 9)")
     }
 
     // Resolve the saved resume position and open the book there. Read by the derived

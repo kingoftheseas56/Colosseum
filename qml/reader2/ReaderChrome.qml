@@ -30,6 +30,16 @@ Item {
     property bool returnVisible: false
     property string returnPageLabel: ""
 
+    // ---- left-panel data (Task 8), bound through from ReaderShell ----
+    property var tocModel: []
+    property int currentTocIndex: -1
+    property var bookmarks: []
+    property var highlights: []
+
+    // ---- left-panel state (owned here; the panel is a pure view over these) ----
+    property bool panelOpen: false
+    property string activeTab: "contents"
+
     // ---- signals up ----
     signal backRequested()
     signal searchRequested()
@@ -40,6 +50,12 @@ Item {
     signal nextRequested()
     signal scrubbed(real fraction)
     signal returnRequested()
+    // left-panel actions forwarded to ReaderShell (which owns the paper + stores)
+    signal tocActivated(string href)
+    signal bookmarkActivated(string cfi)
+    signal bookmarkDeleted(string id)
+    signal highlightActivated(string cfi)
+    signal tabSelected(string tab)
 
     // ---- reveal state (pure reducer in Reader2Logic; `awake` mirrors revealState.shown) ----
     property bool awake: false
@@ -59,6 +75,20 @@ Item {
     }
     // double-click in the reading body toggles the chrome (hide if shown, else show).
     function toggle() { revealState = L.revealReducer(revealState, "toggle", Date.now()); awake = revealState.shown }
+
+    // ---- left panel (Task 8) open/close, and the Contents-icon toggle ----
+    function openPanelTo(tab) { activeTab = tab; panelOpen = true }
+    function closePanel() { panelOpen = false }
+    // Contents icon: open to Contents; if already open ON Contents, close; if open on
+    // another tab, switch to Contents (don't close).
+    function handleContents() {
+        contentsRequested()
+        if (panelOpen && activeTab === "contents") closePanel()
+        else openPanelTo("contents")
+    }
+    // While the panel is open the chrome is PINNED shown (can't idle-hide); closing
+    // unpins and restarts the idle countdown.
+    onPanelOpenChanged: setPanelOpen(panelOpen)
 
     Timer { interval: 300; running: true; repeat: true; onTriggered: chrome.tick() }
 
@@ -145,7 +175,7 @@ Item {
         chapterLabel: chrome.chapterLabel
         onBackRequested: chrome.backRequested()
         onSearchRequested: chrome.searchRequested()
-        onContentsRequested: chrome.contentsRequested()
+        onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
         onAppearanceRequested: chrome.appearanceRequested()
         onBookmarkRequested: chrome.bookmarkRequested()
     }
@@ -186,5 +216,26 @@ Item {
         anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
         height: chrome.revealBandPx
         HoverHandler { onHoveredChanged: hovered ? chrome.enterBar() : chrome.exitBar() }
+    }
+
+    // ---------- 6. LEFT PANEL (Task 8) — top-most so it overlays the bars (mock z8 > z5) ----------
+    // Off-screen (x = -width) while closed, so it intercepts nothing and the reveal bands
+    // above keep working; it fully owns its column + the click-outside catcher when open.
+    LeftPanel {
+        id: leftPanel
+        anchors.fill: parent
+        open: chrome.panelOpen
+        activeTab: chrome.activeTab
+        tocModel: chrome.tocModel
+        currentTocIndex: chrome.currentTocIndex
+        bookmarks: chrome.bookmarks
+        highlights: chrome.highlights
+
+        onCloseRequested: chrome.closePanel()
+        onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }
+        onTocActivated: (href) => chrome.tocActivated(href)
+        onBookmarkActivated: (cfi) => chrome.bookmarkActivated(cfi)
+        onBookmarkDeleted: (id) => chrome.bookmarkDeleted(id)
+        onHighlightActivated: (cfi) => chrome.highlightActivated(cfi)
     }
 }

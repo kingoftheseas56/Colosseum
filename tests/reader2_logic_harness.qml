@@ -132,6 +132,40 @@ QtObject {
             check(L.authorText({ author: ["X", "Y"] }) === "X, Y", "authorText: array of strings")
             check(L.authorText({}) === "", "authorText: missing -> ''")
 
+            // 8. tocRowState — Contents row dimming (index-based, from relocated.tocIndex).
+            check(L.tocRowState(0, 2) === "read", "tocRowState: before current -> read")
+            check(L.tocRowState(2, 2) === "current", "tocRowState: at current -> current")
+            check(L.tocRowState(3, 2) === "unread", "tocRowState: after current -> unread")
+            check(L.tocRowState(0, -1) === "unread", "tocRowState: unknown current (-1) -> all unread")
+            check(L.tocRowState(5, undefined) === "unread", "tocRowState: undefined current -> unread")
+
+            // 9. bookmarkRow — tolerant of the old-reader shape AND reader2's write shape.
+            var bmNew = L.bookmarkRow({ id: "b1", locator: { cfi: "epubcfi(/6/4)", href: "h", fraction: 0.2 },
+                                       label: "Loomings", snippet: "Page 4 of 18", page: 4 })
+            check(bmNew.id === "b1", "bookmarkRow: id")
+            check(bmNew.cfi === "epubcfi(/6/4)", "bookmarkRow: cfi from locator")
+            check(bmNew.where === "Loomings", "bookmarkRow: where = label")
+            check(bmNew.snippet === "Page 4 of 18", "bookmarkRow: snippet detail line")
+            // old-reader record where label === snippet: don't render the same string twice.
+            var bmOld = L.bookmarkRow({ id: "b2", locator: { cfi: "c" }, label: "Ch 1 · 41%", snippet: "Ch 1 · 41%" })
+            check(bmOld.where === "Ch 1 · 41%" && bmOld.snippet === "", "bookmarkRow: label==snippet -> no duplicate snippet")
+            var bmEmpty = L.bookmarkRow(null)
+            check(bmEmpty.cfi === "" && bmEmpty.where === "" && bmEmpty.snippet === "", "bookmarkRow: null-safe")
+
+            // 10. highlightRow — old annotations.json shape + a value/locator variant.
+            var hl = L.highlightRow({ id: "a1", cfi: "epubcfi(/6/8)", text: "Call me Ishmael.",
+                                     color: "#FEF3BD", note: "famous line", chapterLabel: "Loomings" })
+            check(hl.id === "a1", "highlightRow: id")
+            check(hl.cfi === "epubcfi(/6/8)", "highlightRow: cfi")
+            check(hl.where === "Loomings", "highlightRow: where = chapterLabel")
+            check(hl.text === "Call me Ishmael.", "highlightRow: text quote")
+            check(hl.note === "famous line", "highlightRow: note")
+            check(hl.color === "#FEF3BD", "highlightRow: color")
+            var hlValue = L.highlightRow({ id: "a2", value: "epubcfi(/6/9)", text: "t" })
+            check(hlValue.cfi === "epubcfi(/6/9)", "highlightRow: cfi from value field")
+            var hlEmpty = L.highlightRow(null)
+            check(hlEmpty.cfi === "" && hlEmpty.text === "" && hlEmpty.note === "", "highlightRow: null-safe")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

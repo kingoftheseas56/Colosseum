@@ -161,6 +161,73 @@ function railTicks(toc, sections) {
     return out
 }
 
+// ---------------------------------------------------------------------------
+// TASK 8 — left panel row shaping (pure; proven headless).
+// ---------------------------------------------------------------------------
+
+// tocRowState(index, currentIndex) → "read" | "current" | "unread" for a Contents
+// row. Index-based (relocated carries a flat tocIndex): rows BEFORE the current one
+// are dimmed as read, the current row gets the gold wash, the rest are normal. When
+// the current index is unknown (< 0, e.g. before the first relocate or an href the
+// engine couldn't map), every row is "unread" — no false "read" dimming.
+function tocRowState(index, currentIndex) {
+    var i = Number(index)
+    var c = Number(currentIndex)
+    if (!Number.isFinite(c) || c < 0) return "unread"
+    if (i === c) return "current"
+    if (i < c) return "read"
+    return "unread"
+}
+
+// bookmarkRow(bm) → { id, cfi, where, snippet } display row, tolerant of BOTH the
+// reader2 write shape AND the old reader's records (zero migration). The old reader
+// stores { locator:{cfi,...}, label, snippet } and stamps id; ours adds a `page`.
+//   cfi     : the jump target (locator.cfi, or a bare cfi field).
+//   where   : the uppercase "where" line — the chapter/label.
+//   snippet : the serif detail line — a real text quote if we ever capture one, else
+//             the stored snippet (only when it differs from `where`, so old records
+//             whose label==snippet don't render the same string twice), else a
+//             "Page N" hint. May be "" → the row shows the where line alone.
+function bookmarkRow(bm) {
+    var b = bm || {}
+    var loc = (b.locator && typeof b.locator === "object") ? b.locator : {}
+    var cfi = (loc.cfi !== undefined && loc.cfi !== null) ? String(loc.cfi)
+            : (b.cfi !== undefined && b.cfi !== null) ? String(b.cfi) : ""
+    var where = b.label ? String(b.label)
+              : b.chapterLabel ? String(b.chapterLabel)
+              : b.snippet ? String(b.snippet) : ""
+    var snippet = ""
+    if (b.text) snippet = String(b.text)
+    else if (b.snippet && String(b.snippet) !== where) snippet = String(b.snippet)
+    else if (b.page) snippet = "Page " + b.page
+    return { id: b.id !== undefined && b.id !== null ? String(b.id) : "",
+             cfi: cfi, where: where, snippet: snippet }
+}
+
+// highlightRow(h) → { id, cfi, where, text, note, color } display row. Tolerant of
+// the old annotations.json shape { id, cfi, text, color, note, chapterLabel } AND a
+// `value:cfi`/`locator.cfi` variant. Highlights are CREATED in Task 9; this only
+// renders + jumps to existing ones.
+//   cfi   : jump target (value, else cfi, else locator.cfi).
+//   where : uppercase "where" line — chapterLabel/label if present.
+//   text  : the serif quote (the highlighted text).
+//   note  : optional indented note.
+//   color : the left edge-rule color (the highlight's own color).
+function highlightRow(h) {
+    var a = h || {}
+    var loc = (a.locator && typeof a.locator === "object") ? a.locator : {}
+    var cfi = (a.value !== undefined && a.value !== null) ? String(a.value)
+            : (a.cfi !== undefined && a.cfi !== null) ? String(a.cfi)
+            : (loc.cfi !== undefined && loc.cfi !== null) ? String(loc.cfi) : ""
+    var where = a.chapterLabel ? String(a.chapterLabel)
+              : a.label ? String(a.label) : ""
+    return { id: a.id !== undefined && a.id !== null ? String(a.id) : "",
+             cfi: cfi, where: where,
+             text: a.text ? String(a.text) : "",
+             note: a.note ? String(a.note) : "",
+             color: a.color ? String(a.color) : "" }
+}
+
 // authorText(metadata) → a display author string from foliate book metadata, whose
 // `author` field may be a plain string, an array of strings, or an array/one of
 // { name } objects. Pure normalizer so the chrome shows one clean line.

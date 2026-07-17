@@ -411,13 +411,34 @@ const paperOpen = async (path, cfi) => {
     flatToc = flattenToc(view.book?.toc)
     applyAppearance()                             // set flow/margins/bg/styles before first paint
 
+    // Attach a REAL start `fraction` to each toc entry from the fork's per-section
+    // fractions (getSectionFractions() is available right after open() — SectionProgress
+    // is built there, before init()). We resolve each toc href to its spine-section index
+    // and read that section's start fraction. This makes railTicks emit TRUE chapter
+    // marks (it already prefers t.fraction) instead of even spacing, and keeps the
+    // Contents current-row logic index-based. Best-effort + guarded: if a book can't map
+    // a href (or exposes no section fractions), we simply omit `fraction` for that entry
+    // and railTicks falls back to even spacing — never throw out of 'ready'.
+    let secFractions = []
+    try { secFractions = view.getSectionFractions?.() || [] } catch (e) { secFractions = [] }
+    const tocForReady = flatToc.map(t => {
+      const entry = { index: t.index, label: t.label, href: t.href }
+      try {
+        const resolved = view.book?.resolveHref?.(t.href)
+        const si = (resolved && Number.isFinite(resolved.index)) ? resolved.index : -1
+        const f = si >= 0 ? secFractions[si]?.fraction : undefined
+        if (Number.isFinite(f)) entry.fraction = f
+      } catch (e) { /* leave fraction off → even-spacing fallback in railTicks */ }
+      return entry
+    })
+
     // Emit 'ready' BEFORE init(). init() fires the book's FIRST relocate; the resume
     // seam saves progress on 'relocated', so the chrome must already know the book
     // identity/toc (which 'ready' carries) when that first relocated lands. ready's
     // payload is fully available here — right after open() + flattenToc. Setting
     // readyEmitted lets the relocate handler (gated above) start emitting from init on.
     emit('ready', {
-      toc: flatToc.map(t => ({ index: t.index, label: t.label, href: t.href })),
+      toc: tocForReady,
       metadata: view.book?.metadata ?? {},
       sections: view.book?.sections?.length ?? 0,
     })
