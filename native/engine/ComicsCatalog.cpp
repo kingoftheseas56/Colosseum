@@ -19,7 +19,7 @@ ComicsCatalog::ComicsCatalog(const QString& dbPath, QObject* parent) : QObject(p
     }
     QSqlQuery probe(m_db);   // schema sanity: the three catalogue tables must exist
     m_ok = probe.exec(QStringLiteral(
-        "select 1 from series limit 1")) && true;
+        "select 1 from series limit 1"));
     if (!m_ok) qInfo("[comics-catalog] db present but series table missing — dormant");
     else qInfo("[comics-catalog] ready (%s)", qUtf8Printable(dbPath));
 }

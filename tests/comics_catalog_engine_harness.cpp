@@ -29,6 +29,12 @@ int main(int argc, char** argv) {
         q.exec("insert into series_stats values (1,2,'collection,single','2022-01-09')");
         q.exec("insert into series_stats values (2,5,'single','2011-01-01')");
         q.exec("insert into series_stats values (3,1,'bundle','2020-01-01')");
+        q.exec("insert into series values (4,'Hulk',2020,0,10,'Marvel','','')");
+        q.exec("insert into series values (5,'Hulkverines',2019,2019,6,'Marvel','','')");
+        q.exec("insert into series values (6,'The Immortal Hulk',2018,2021,50,'Marvel','','')");
+        q.exec("insert into series_stats values (4,3,'single','2020-01-01')");
+        q.exec("insert into series_stats values (5,10,'bundle','2019-01-01')");
+        q.exec("insert into series_stats values (6,100,'collection','2021-01-01')");
         d.close();
     }
     QSqlDatabase::removeDatabase("fixture");
@@ -49,12 +55,18 @@ int main(int argc, char** argv) {
     if (hits[0].toMap().value("gcdId").toInt() != 2) return fail("same class -> downloads DESC (1940 run, 5 dls, first)");
     if (cat.search("saga", 10).size() != 1) return fail("search exact");
     if (!cat.search("zz%_zz", 10).isEmpty()) return fail("LIKE metachars must be escaped");
+    const QVariantList rank = cat.search("hulk", 10);
+    if (rank.size() != 3) return fail("hulk search should hit exactly 3");
+    if (rank[0].toMap().value("gcdId").toInt() != 4) return fail("exact 'Hulk' must rank first despite fewest downloads");
+    if (rank[1].toMap().value("gcdId").toInt() != 5) return fail("prefix 'Hulkverines' must rank second");
+    if (rank[2].toMap().value("gcdId").toInt() != 6) return fail("contains-only 'Immortal Hulk' ranks last despite most downloads");
     const QVariantList ex = cat.exactMatches("BATMAN");
     if (ex.size() != 2) return fail("exactMatches case-insensitive both runs");
     if (cat.exactMatches("bat").size() != 0) return fail("exactMatches is exact, not prefix");
     ComicsCatalog missing(dir.filePath("nope.db"));
     if (missing.ready()) return fail("missing db must not be ready");
-    if (!missing.search("x", 5).isEmpty() || !missing.series(1).isEmpty() || !missing.downloadsFor(1).isEmpty())
+    if (!missing.search("x", 5).isEmpty() || !missing.series(1).isEmpty()
+        || !missing.downloadsFor(1).isEmpty() || !missing.exactMatches("x").isEmpty())
         return fail("not-ready must return empty, never crash");
     std::fprintf(stdout, "COMICS-CATALOG-ENGINE OK\n");
     return 0;
