@@ -510,7 +510,11 @@ const wireView = view => {
       pageInChapter: finite(d.chapterLocation?.current),
       pagesInChapter: finite(d.chapterLocation?.total),
       percent: Math.round(fraction * 100),
-      textPage: sectionHasText,          // false on a cover/full-image page → ruler stays hidden
+      // A "text page" for the reading ruler = reflowable prose. FALSE for a whole
+      // fixed-layout book (PDF/CBZ — every page is a fixed image/page) AND for a
+      // reflowable book's cover/full-image section (little text). The ruler only dims
+      // real text pages; a focus band over a PDF page or a cover reads as a bug.
+      textPage: !(currentView && currentView.isFixedLayout) && sectionHasText,
     })
   })
 
