@@ -34,4 +34,12 @@ Assert-Contains $led 'sourcesPageRequested' "banner must emit the page-open sign
 Assert-Contains $led 'ALSO ON GETCOMICS' "doorway banner eyebrow"
 Assert-Absent $led '"gcpost-"' "download state machine moved to ComicGcSourcesPage - none may remain in the ledger"
 Assert-Absent $led 'statusLine' "rail row machinery must be fully removed, not hidden"
+# -- wiring: ledger -> series page -> Main layer over the series page --
+$sp = Get-Content (Join-Path $root "qml/ComicSeriesPage.qml") -Raw
+Assert-Contains $sp 'gcSourcesRequested' "series page must re-emit the banner click with the series payload"
+$mn = Get-Content (Join-Path $root "qml/Main.qml") -Raw
+Assert-Contains $mn 'gcSourcesLayer' "the page needs its Loader layer"
+Assert-Contains $mn 'openGcSources' "open verb"
+Assert-Contains $mn 'closeGcSources' "close verb (back + Esc)"
+Assert-Contains $mn 'gcSourcesLayer.active) win.closeGcSources()' "Esc must close the sources page BEFORE the series page under it"
 Write-Host "comic gc sources page contract OK"

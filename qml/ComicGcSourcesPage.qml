@@ -43,6 +43,15 @@ Item {
             page.enrich = map || ({})
         })
     }
+    // host re-open with a different series while the layer is still loaded
+    function apply(d) {
+        page.seriesTitle = (d && d.title) || ""
+        page.publisher = (d && d.publisher) || ""
+        page.cover = (d && d.cover) || ""
+        page.gcTag = (d && d.gcTag) || ""
+        page.sources = (d && d.sources) || []          // triggers fetchEnrich via onSourcesChanged
+        flick.contentY = 0
+    }
     readonly property var groups: Gc.groupSources(page.sources, page.enrich)
 
     // ---- pitch-black stack: opaque base, world art, heavy wash (house shell) ----
