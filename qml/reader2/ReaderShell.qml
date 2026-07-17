@@ -371,7 +371,10 @@ FocusScope {
     RulerOverlay {
         id: rulerOverlay
         anchors.fill: parent
-        on: shell.appearance ? !!shell.appearance.rulerOn : false
+        // On only when the setting is enabled AND no overlay is up — the ruler is a reading
+        // aid, so it recedes behind an open search sheet / panel / selection popover / pen card.
+        on: (shell.appearance ? !!shell.appearance.rulerOn : false)
+            && !chrome.anyPanelOpen && !shell.selMenuShown && !shell.dictShown && !shell.footnoteShown
         heightPx: (shell.appearance && Number.isFinite(shell.appearance.rulerHeightPx)) ? shell.appearance.rulerHeightPx : 92
         dimPct: (shell.appearance && Number.isFinite(shell.appearance.rulerDimPct)) ? shell.appearance.rulerDimPct : 42
         yPct: (shell.appearance && Number.isFinite(shell.appearance.rulerYPct)) ? shell.appearance.rulerYPct : 40
