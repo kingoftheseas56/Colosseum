@@ -679,24 +679,36 @@ const paperSetAppearance = json => {
   applyAppearance()
 }
 
+// Cap the number of hits we collect + ship to the UI thread. A common word ("the")
+// matches THOUSANDS of times; collecting them all builds a giant JSON that is parsed on
+// the GUI thread (a stall) and floods a list nobody scrolls to the end of. So we stop at
+// SEARCH_RESULT_CAP and set `capped` — and, crucially, BREAK out of the async generator so
+// the fork stops scanning the rest of the book (the generator's return() tears it down).
+const SEARCH_RESULT_CAP = 300
+
 const paperSearch = async query => {
   if (!currentView) return
   const q = String(query || '').trim()
   if (!q) return
   const results = []
+  let capped = false
   try {
     for await (const r of currentView.search({ query: q, index: null })) {
       if (r === 'done') break
       if (!r || typeof r !== 'object') continue
       if ('progress' in r) continue
       if (r.subitems) {
-        for (const s of r.subitems)
+        for (const s of r.subitems) {
+          if (results.length >= SEARCH_RESULT_CAP) { capped = true; break }
           results.push({ cfi: s.cfi, excerpt: s.excerpt ?? '', chapterTitle: r.label ?? '' })
+        }
       } else if (r.cfi) {
         results.push({ cfi: r.cfi, excerpt: r.excerpt ?? '', chapterTitle: '' })
       }
+      // At/over the cap → stop iterating the generator (don't scan the whole book).
+      if (results.length >= SEARCH_RESULT_CAP) { capped = true; break }
     }
-    emit('searchResults', { query: q, results, done: true })
+    emit('searchResults', { query: q, results, count: results.length, capped, done: true })
   } catch (e) {
     emit('error', { message: 'search failed: ' + String(e?.message || e) })
   }

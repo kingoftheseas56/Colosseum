@@ -40,6 +40,9 @@ Item {
     readonly property bool curRulerOn: appearance ? !!appearance.rulerOn : false
     readonly property int curBand: (appearance && Number.isFinite(appearance.rulerHeightPx)) ? appearance.rulerHeightPx : 92
     readonly property int curDim: (appearance && Number.isFinite(appearance.rulerDimPct)) ? appearance.rulerDimPct : 42
+    // band vertical position (0=top .. 100=bottom), clamped so a stored out-of-range value
+    // can't drive the overlay off-screen; the overlay's geometry also clamps as a backstop.
+    readonly property int curYPct: (appearance && Number.isFinite(appearance.rulerYPct)) ? clampInt(appearance.rulerYPct, 0, 100) : 40
 
     function clampInt(v, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(v))) }
 
@@ -270,6 +273,14 @@ Item {
                         caption: "Dim outside"; minValue: 0; maxValue: 100; stepSize: 2
                         value: panel.curDim; valueText: panel.curDim + "%"
                         onMoved: (v) => panel.changed("rulerDimPct", Math.round(v))
+                    }
+                    // Band position (0=top .. 100=bottom) — the pointer-transparent overlay
+                    // has no on-page grip, so the band is repositioned from here (Task 11).
+                    SliderRow {
+                        width: parent.width
+                        caption: "Band position"; minValue: 0; maxValue: 100; stepSize: 2
+                        value: panel.curYPct; valueText: panel.curYPct + "%"
+                        onMoved: (v) => panel.changed("rulerYPct", Math.round(v))
                     }
                 }
             }

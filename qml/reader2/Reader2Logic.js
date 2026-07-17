@@ -397,7 +397,7 @@ function clamp_(v, lo, hi) {
 function appearanceDefaults() {
     return {
         theme: "night", font: "literata", sizePx: 18, lineHeight: 1.6, marginPx: 72,
-        justify: true, rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42
+        justify: true, rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40
     }
 }
 
@@ -467,4 +467,64 @@ function initialAppearance(settings) {
     if (s.theme && known[String(s.theme).toLowerCase()])
         return mergeAppearance(base, { theme: String(s.theme).toLowerCase() })
     return base
+}
+
+// ---------------------------------------------------------------------------
+// TASK 11 — search-row shaping + reading-ruler geometry (pure; proven headless).
+// ---------------------------------------------------------------------------
+
+// escapeHtml_(s) → HTML-safe text so an excerpt piece can be dropped into a StyledText
+// string without a stray '<' or '&' breaking the markup. Order matters: '&' first.
+function escapeHtml_(s) {
+    return String(s === undefined || s === null ? "" : s)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+}
+
+// searchExcerpt(excerpt) → normalized { pre, match, post } strings. The glue passes the
+// foliate excerpt shape { pre, match, post }; tolerate a missing/partial object or a bare
+// string (older shape) by putting the whole string in `match` so it still renders.
+function searchExcerpt(excerpt) {
+    var e = excerpt
+    if (e && typeof e === "object")
+        return { pre: String(e.pre || ""), match: String(e.match || ""), post: String(e.post || "") }
+    return { pre: "", match: String(e === undefined || e === null ? "" : e), post: "" }
+}
+
+// searchRowStyled(excerpt, goldHex) → a StyledText string: pre + the matched substring in
+// GOLD + post, every piece HTML-escaped. The accent color is PASSED IN from QML (Theme.gold)
+// so the gold token stays in QML, not hard-coded here. Pure — no engine, no DOM.
+function searchRowStyled(excerpt, goldHex) {
+    var e = searchExcerpt(excerpt)
+    var g = String(goldHex === undefined || goldHex === null ? "#F0C24A" : goldHex)
+    return escapeHtml_(e.pre)
+         + '<font color="' + g + '">' + escapeHtml_(e.match) + '</font>'
+         + escapeHtml_(e.post)
+}
+
+// searchCountText(count, capped) → the sheet's result-count label. Capped searches show
+// "300+ results" (we stopped collecting at the cap), else "N result(s)". Pure.
+function searchCountText(count, capped) {
+    var n = Number.isFinite(count) ? count : 0
+    if (capped) return n + "+ results"
+    return n + (n === 1 ? " result" : " results")
+}
+
+// rulerGeometry(yPct, heightPx, overlayH) → the reading-ruler band + scrim layout, in px.
+// The band is a horizontal focus stripe of height `heightPx` whose TOP sits at yPct% down
+// the overlay (matching the mock's `.ruler{top:41%}`); the dimmed scrims fill everything
+// above and below it. The band is CLAMPED to stay fully on-screen (so a yPct near 100 or a
+// tall band never runs off the bottom). Pure — the RulerOverlay binds Rectangles to this.
+//   returns { bandTop, bandHeight, topScrimH, botScrimH }
+function rulerGeometry(yPct, heightPx, overlayH) {
+    var H = Number.isFinite(overlayH) && overlayH > 0 ? overlayH : 0
+    var bh = clamp_(heightPx, 0, H)
+    var y = clamp_(yPct, 0, 100)
+    var top = (y / 100) * H
+    if (top + bh > H) top = H - bh    // keep the band fully on-screen
+    if (top < 0) top = 0
+    var botTop = top + bh
+    return { bandTop: top, bandHeight: bh, topScrimH: top, botScrimH: H - botTop }
 }

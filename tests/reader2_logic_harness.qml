@@ -299,6 +299,54 @@ QtObject {
             check(L.initialAppearance({}).theme === "night", "initialAppearance: empty settings -> default night")
             check(L.initialAppearance(null).theme === "night", "initialAppearance: null-safe -> default night")
 
+            // appearanceDefaults now carries the ruler band POSITION (Task 11).
+            check(ad.rulerYPct === 40, "appearanceDefaults: rulerYPct default 40")
+
+            // 15. search-row shaping (Task 11) — escape + gold-mark the excerpt pieces.
+            var ex = { pre: "the great ", match: "whale", post: " himself" }
+            var se = L.searchExcerpt(ex)
+            check(se.pre === "the great " && se.match === "whale" && se.post === " himself", "searchExcerpt: passes {pre,match,post}")
+            var seBare = L.searchExcerpt("just a string")
+            check(seBare.pre === "" && seBare.match === "just a string" && seBare.post === "", "searchExcerpt: bare string -> all in match")
+            var seNull = L.searchExcerpt(null)
+            check(seNull.pre === "" && seNull.match === "" && seNull.post === "", "searchExcerpt: null-safe")
+            // searchRowStyled: order preserved, match wrapped in the passed-in gold color.
+            var styled = L.searchRowStyled(ex, "#F0C24A")
+            check(styled === 'the great <font color="#F0C24A">whale</font> himself', "searchRowStyled: pre + gold match + post")
+            // HTML in any piece is ESCAPED so it can't break the StyledText markup.
+            var styledEsc = L.searchRowStyled({ pre: "a < b & ", match: "<x>", post: ' "y"' }, "#F0C24A")
+            check(styledEsc === 'a &lt; b &amp; <font color="#F0C24A">&lt;x&gt;</font> &quot;y&quot;', "searchRowStyled: escapes < & > \" in every piece")
+            // gold color comes from the caller (QML passes Theme.gold); default when absent.
+            check(L.searchRowStyled({ pre: "", match: "m", post: "" }).indexOf('color="#F0C24A"') >= 0, "searchRowStyled: default gold when no color passed")
+            check(L.searchRowStyled({ pre: "", match: "m", post: "" }, "#abcdef") === '<font color="#abcdef">m</font>', "searchRowStyled: uses the passed color")
+
+            // searchCountText: "N results" / singular / "300+ results" when capped.
+            check(L.searchCountText(28, false) === "28 results", "searchCountText: plural")
+            check(L.searchCountText(1, false) === "1 result", "searchCountText: singular")
+            check(L.searchCountText(0, false) === "0 results", "searchCountText: zero")
+            check(L.searchCountText(300, true) === "300+ results", "searchCountText: capped -> N+ results")
+
+            // 16. rulerGeometry (Task 11) — band + scrim layout, clamped on-screen.
+            var g1 = L.rulerGeometry(40, 92, 720)
+            check(Math.abs(g1.bandTop - 288) < 1e-9, "rulerGeometry: bandTop = yPct% of height (40% of 720)")
+            check(g1.bandHeight === 92, "rulerGeometry: bandHeight = heightPx")
+            check(Math.abs(g1.topScrimH - 288) < 1e-9, "rulerGeometry: topScrimH = bandTop")
+            check(Math.abs(g1.botScrimH - (720 - 288 - 92)) < 1e-9, "rulerGeometry: botScrimH fills below the band")
+            // top scrim + band + bottom scrim == full height (no gaps/overlap).
+            check(Math.abs(g1.topScrimH + g1.bandHeight + g1.botScrimH - 720) < 1e-9, "rulerGeometry: pieces tile the whole height")
+            // yPct near the bottom clamps the band fully on-screen (bandTop = H - heightPx).
+            var g2 = L.rulerGeometry(100, 92, 720)
+            check(g2.bandTop === 720 - 92 && g2.botScrimH === 0, "rulerGeometry: yPct=100 clamps band to the bottom")
+            // yPct at the top → no top scrim.
+            var g3 = L.rulerGeometry(0, 92, 720)
+            check(g3.bandTop === 0 && g3.topScrimH === 0, "rulerGeometry: yPct=0 -> band at top, no top scrim")
+            // a band taller than the overlay is clamped to the overlay height.
+            var g4 = L.rulerGeometry(40, 5000, 720)
+            check(g4.bandHeight === 720 && g4.bandTop === 0, "rulerGeometry: band taller than overlay clamps to full height")
+            // zero / non-finite height is null-safe (no NaN).
+            var g5 = L.rulerGeometry(40, 92, 0)
+            check(Number.isFinite(g5.bandTop) && Number.isFinite(g5.botScrimH), "rulerGeometry: zero height is finite-safe")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

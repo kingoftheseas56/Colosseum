@@ -12,6 +12,8 @@ BottomRail BottomRail.qml
 LeftPanel LeftPanel.qml
 SelectionMenu SelectionMenu.qml
 AppearancePanel AppearancePanel.qml
+SearchSheet SearchSheet.qml
+RulerOverlay RulerOverlay.qml
 DictCard DictCard.qml
 FootnoteCard FootnoteCard.qml
 HarnessShelf HarnessShelf.qml

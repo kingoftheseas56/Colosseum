@@ -43,8 +43,17 @@ Item {
     // ---- appearance panel (Task 10) state + current settings (bound from ReaderShell) ----
     property bool appearanceOpen: false
     property var appearance: ({})
-    // Either panel open pins the chrome shown; Esc closes whichever is open (ReaderShell).
-    readonly property bool anyPanelOpen: panelOpen || appearanceOpen
+
+    // ---- search sheet (Task 11) state + data (bound from ReaderShell) ----
+    property bool searchOpen: false
+    property var searchResults: []
+    property int searchCount: 0
+    property bool searchCapped: false
+    property string searchLastQuery: ""
+
+    // Any of the three overlays open pins the chrome shown; Esc closes whichever is open
+    // (ReaderShell's cascade). Search counts too, so Esc dismisses it via closeAnyPanel.
+    readonly property bool anyPanelOpen: panelOpen || appearanceOpen || searchOpen
 
     // ---- signals up ----
     signal backRequested()
@@ -64,6 +73,9 @@ Item {
     signal tabSelected(string tab)
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
+    // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
+    signal searchSubmitted(string query)
+    signal searchResultActivated(string cfi)
 
     // ---- reveal state (pure reducer in Reader2Logic; `awake` mirrors revealState.shown) ----
     property bool awake: false
@@ -85,9 +97,9 @@ Item {
     function toggle() { revealState = L.revealReducer(revealState, "toggle", Date.now()); awake = revealState.shown }
 
     // ---- left panel (Task 8) open/close, and the Contents-icon toggle ----
-    // The left (Contents) and right (Appearance) panels are MUTUALLY EXCLUSIVE — opening one
-    // closes the other (keep it simple, per the task).
-    function openPanelTo(tab) { appearanceOpen = false; activeTab = tab; panelOpen = true }
+    // The left (Contents), right (Appearance), and search overlays are MUTUALLY EXCLUSIVE —
+    // opening one closes the others (keep it simple, per the task).
+    function openPanelTo(tab) { appearanceOpen = false; searchOpen = false; activeTab = tab; panelOpen = true }
     function closePanel() { panelOpen = false }
     // Contents icon: open to Contents; if already open ON Contents, close; if open on
     // another tab, switch to Contents (don't close).
@@ -99,22 +111,35 @@ Item {
 
     // ---- appearance panel (Task 10) open/close, and the Appearance-icon toggle ----
     function closeAppearance() { appearanceOpen = false }
-    // Appearance icon: toggle the right panel; opening it closes the left one.
+    // Appearance icon: toggle the right panel; opening it closes the left panel + search.
     function handleAppearance() {
         appearanceRequested()
         if (appearanceOpen) appearanceOpen = false
-        else { panelOpen = false; appearanceOpen = true }
+        else { panelOpen = false; searchOpen = false; appearanceOpen = true }
     }
-    // Esc / a shared close: drop whichever panel is open.
-    function closeAnyPanel() { panelOpen = false; appearanceOpen = false }
+
+    // ---- search sheet (Task 11) open/close, and the search-icon toggle ----
+    function openSearch() { panelOpen = false; appearanceOpen = false; searchOpen = true }
+    function closeSearch() { searchOpen = false }
+    // Search icon: toggle the sheet; opening it closes both panels. searchRequested() lets
+    // ReaderShell reset the model (and clear any prior search) as the sheet opens.
+    function handleSearch() {
+        searchRequested()
+        if (searchOpen) closeSearch()
+        else openSearch()
+    }
+
+    // Esc / a shared close: drop whichever overlay is open.
+    function closeAnyPanel() { panelOpen = false; appearanceOpen = false; searchOpen = false }
 
     // While EITHER panel is open the chrome is PINNED shown (can't idle-hide); closing the
     // last one unpins and restarts the idle countdown. Both open-state changes route here.
     // Read the RAW open flags (not the derived anyPanelOpen binding, which can lag one beat
     // behind a change signal) so the pin reflects the just-applied state.
-    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen) }
+    function updatePin() { setPanelOpen(chrome.panelOpen || chrome.appearanceOpen || chrome.searchOpen) }
     onPanelOpenChanged: updatePin()
     onAppearanceOpenChanged: updatePin()
+    onSearchOpenChanged: updatePin()
 
     Timer { interval: 300; running: true; repeat: true; onTriggered: chrome.tick() }
 
@@ -200,7 +225,7 @@ Item {
         author: chrome.author
         chapterLabel: chrome.chapterLabel
         onBackRequested: chrome.backRequested()
-        onSearchRequested: chrome.searchRequested()
+        onSearchRequested: chrome.handleSearch()          // toggles the search sheet (Task 11)
         onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
         onAppearanceRequested: chrome.handleAppearance()  // toggles the right panel (Task 10)
         onBookmarkRequested: chrome.bookmarkRequested()
@@ -275,5 +300,21 @@ Item {
         appearance: chrome.appearance
         onCloseRequested: chrome.closeAppearance()
         onChanged: (key, value) => chrome.appearanceEdited(key, value)
+    }
+
+    // ---------- 8. SEARCH SHEET (Task 11) — top-most so it floats above the bars/panels ----------
+    // A small centered card under the top bar (mock z9 > panels z8). Bridge-free: it emits
+    // submit/activate/close up to ReaderShell, which owns paper.search / goTo / clearSearch.
+    SearchSheet {
+        id: searchSheet
+        anchors.fill: parent
+        open: chrome.searchOpen
+        results: chrome.searchResults
+        resultCount: chrome.searchCount
+        capped: chrome.searchCapped
+        lastQuery: chrome.searchLastQuery
+        onSubmitted: (q) => chrome.searchSubmitted(q)
+        onResultActivated: (cfi) => chrome.searchResultActivated(cfi)
+        onCloseRequested: chrome.closeSearch()
     }
 }

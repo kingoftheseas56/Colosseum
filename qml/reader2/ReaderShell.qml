@@ -206,6 +206,23 @@ FocusScope {
     // paint, and re-pushed LIVE on every panel edit. Seeded to the ratified defaults until 'ready'.
     property var appearance: L.appearanceDefaults()
 
+    // ---- search view-model (Task 11) ----
+    // Fed by the paper's 'searchResults' event and handed to the SearchSheet through the
+    // chrome. searchLastQuery is set only when results ARRIVE (not at submit), so the sheet's
+    // empty state reads "Type to search" until a search returns, then "No results" if empty.
+    property var searchResults: []
+    property int searchCount: 0
+    property bool searchCapped: false
+    property string searchLastQuery: ""
+
+    // Reset the search view-model (used when the sheet opens and when it closes).
+    function resetSearch() {
+        shell.searchResults = []
+        shell.searchCount = 0
+        shell.searchCapped = false
+        shell.searchLastQuery = ""
+    }
+
     // A single appearance edit from the panel: merge into shell.appearance, PERSIST under the
     // namespaced settings.reader2 (READ-MODIFY-WRITE — the OLD reader's flat keys are never
     // clobbered), and LIVE-APPLY to the paper. The ruler fields (rulerOn/Height/Dim) ride along
@@ -231,6 +248,17 @@ FocusScope {
     Connections {
         target: chrome
         function onPanelOpenChanged() { if (chrome.panelOpen) shell.refreshMarks() }
+        // When the search sheet closes (Esc, toggle, tap a panel), drop the paper's search
+        // highlight, reset the view-model, and hand keyboard focus BACK to the web view — the
+        // sheet's TextInput held Qt focus (like the Note editor), so without this, page-turn
+        // keys + Esc would silently die until you click the page.
+        function onSearchOpenChanged() {
+            if (!chrome.searchOpen) {
+                paper.clearSearch()
+                shell.resetSearch()
+                Qt.callLater(function () { paper.focusPaper() })
+            }
+        }
     }
 
     Paper {
@@ -263,7 +291,7 @@ FocusScope {
                 if (shell.dictShown) shell.dismissDict()
                 else if (shell.footnoteShown) shell.dismissFootnote()
                 else if (shell.selMenuShown) shell.dismissSelectionMenu()
-                else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left OR right panel
+                else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left/right panel OR search sheet
                 else shell.closed()
             } else if (name === "footnote") {
                 // A footnote/endnote link was tapped (the glue extracted its text). Show the
@@ -299,6 +327,14 @@ FocusScope {
                 shell.selMenuMode = "select"
                 shell.existingHlId = ""
                 shell.selMenuShown = (shell.selText !== "")
+            } else if (name === "searchResults") {
+                // Hits from paper.search (the glue caps the payload at 300 + flags `capped`).
+                // Stash them for the SearchSheet; set searchLastQuery HERE (on arrival) so the
+                // sheet only shows "No results" once a search actually came back empty.
+                shell.searchResults = (p.results && Array.isArray(p.results)) ? p.results : []
+                shell.searchCount = Number.isFinite(p.count) ? p.count : shell.searchResults.length
+                shell.searchCapped = !!p.capped
+                shell.searchLastQuery = (p.query !== undefined && p.query !== null) ? String(p.query) : ""
             } else if (name === "relocated" && shell.bookPath !== "") {
                 // --- chrome view-model (rail + top bar + Contents current row) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)
@@ -319,6 +355,19 @@ FocusScope {
                 Reader2Bridge.progressSave(id, L.progressRecord(prev, p, shell.bookPath))
             }
         }
+    }
+
+    // The reading-ruler overlay (Task 11) sits BETWEEN the paper and the chrome: over the
+    // page (dims it), under the interactive chrome. PURE PAINT — no MouseArea — so it can
+    // never block text selection; its props come straight from shell.appearance's ruler
+    // controls, and it repositions via the Appearance panel's "Band position" slider (yPct).
+    RulerOverlay {
+        id: rulerOverlay
+        anchors.fill: parent
+        on: shell.appearance ? !!shell.appearance.rulerOn : false
+        heightPx: (shell.appearance && Number.isFinite(shell.appearance.rulerHeightPx)) ? shell.appearance.rulerHeightPx : 92
+        dimPct: (shell.appearance && Number.isFinite(shell.appearance.rulerDimPct)) ? shell.appearance.rulerDimPct : 42
+        yPct: (shell.appearance && Number.isFinite(shell.appearance.rulerYPct)) ? shell.appearance.rulerYPct : 40
     }
 
     ReaderChrome {
@@ -342,6 +391,12 @@ FocusScope {
 
         // appearance panel data (Task 10)
         appearance: shell.appearance
+
+        // search sheet data (Task 11)
+        searchResults: shell.searchResults
+        searchCount: shell.searchCount
+        searchCapped: shell.searchCapped
+        searchLastQuery: shell.searchLastQuery
 
         onBackRequested: shell.closed()
         onPrevRequested: paper.prev()
@@ -394,8 +449,14 @@ FocusScope {
             shell.refreshMarks()
         }
 
-        // Search sheet arrives in Task 11; wired now, filled later.
-        onSearchRequested: console.log("[shell] searchRequested (search sheet = Task 11)")
+        // Search sheet (Task 11). The icon click opens/toggles it; searchRequested fires as it
+        // opens, so we reset the view-model + drop any prior search-highlight for a fresh sheet.
+        onSearchRequested: { shell.resetSearch(); paper.clearSearch() }
+        // Enter in the sheet → search the book; the glue caps the payload + flags `capped`,
+        // and the hits arrive as the 'searchResults' paper event handled above.
+        onSearchSubmitted: (q) => { if (q !== "") paper.search(q); else { shell.resetSearch(); paper.clearSearch() } }
+        // A hit was clicked → jump there; the sheet STAYS OPEN so you can click through hits.
+        onSearchResultActivated: (cfi) => { if (cfi !== "") paper.goTo(cfi) }
         // Appearance panel (Task 10): the chrome owns the right panel; each control edit lands
         // here → merge + persist (reader2 sub-object) + live-apply to the paper.
         onAppearanceEdited: (key, value) => shell.applyAppearancePatch(key, value)

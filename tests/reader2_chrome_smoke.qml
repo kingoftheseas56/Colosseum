@@ -132,6 +132,43 @@ Item {
         onCloseRequested: appCloseCount++
     }
 
+    // SearchSheet (Task 11) — the floating search card. Bridge-free: it takes results +
+    // count/capped and reports submit/activate/close via signals. Includes a CAPPED sample.
+    readonly property var sampleResults: [
+        { cfi: "epubcfi(/6/2)", chapterTitle: "Extracts",
+          excerpt: { pre: "the great ", match: "whale", post: "'s belly" } },
+        { cfi: "epubcfi(/6/4)", chapterTitle: "Chapter 1 · Loomings",
+          excerpt: { pre: "processions of the ", match: "whale", post: "" } }
+    ]
+    property string searchSubmittedQ: ""
+    property string searchActivatedCfi: ""
+    property int searchCloseCount: 0
+    R.SearchSheet {
+        id: searchSheet
+        width: 1280
+        height: 720
+        open: true
+        results: sampleResults
+        resultCount: 300
+        capped: true
+        lastQuery: "whale"
+        onSubmitted: (q) => searchSubmittedQ = q
+        onResultActivated: (cfi) => searchActivatedCfi = cfi
+        onCloseRequested: searchCloseCount++
+    }
+
+    // RulerOverlay (Task 11) — PURE PAINT (no MouseArea). Prove it instantiates on/off and
+    // its geometry stays on-screen.
+    R.RulerOverlay {
+        id: ruler
+        width: 1280
+        height: 720
+        on: true
+        heightPx: 92
+        dimPct: 42
+        yPct: 40
+    }
+
     Component.onCompleted: {
         var fails = 0
         function check(ok, what) { if (!ok) { console.log("FAIL " + what); fails++ } else console.log("ok   " + what) }
@@ -258,6 +295,67 @@ Item {
             chrome.closeAnyPanel()
             check(chrome.panelOpen === false && chrome.appearanceOpen === false, "closeAnyPanel closes both panels")
             check(chrome.revealState.pinned === false, "closeAnyPanel unpins the chrome")
+
+            // ---- AppearancePanel ruler band-position (Task 11) ----
+            check(appPanel.curYPct === 40, "AppearancePanel derives rulerYPct (default 40)")
+            appPanel.appearance = L.mergeAppearance(L.appearanceDefaults(), { rulerYPct: 75 })
+            check(appPanel.curYPct === 75, "AppearancePanel re-derives rulerYPct on a new appearance")
+            // out-of-range stored value is clamped at the panel.
+            appPanel.appearance = L.mergeAppearance(L.appearanceDefaults(), { rulerYPct: 999 })
+            check(appPanel.curYPct === 100, "AppearancePanel clamps rulerYPct to 0..100")
+            appPanel.appearance = sampleAppearance
+
+            // ---- SearchSheet (Task 11) instantiates, binds, fires its signals ----
+            check(searchSheet !== null, "SearchSheet instantiated")
+            check(searchSheet.open === true, "SearchSheet open binds")
+            check(searchSheet.cardW > 0 && searchSheet.cardW <= 520, "SearchSheet card width = min(520, 80%)")
+            check(searchSheet.hasResults === true, "SearchSheet hasResults with sample data")
+            check(searchSheet.capped === true && searchSheet.resultCount === 300, "SearchSheet capped sample binds (300+)")
+            // the count-label helper renders the capped label.
+            check(L.searchCountText(searchSheet.resultCount, searchSheet.capped) === "300+ results", "SearchSheet count label = 300+ results")
+            searchSheet.submitted("moby"); check(searchSubmittedQ === "moby", "SearchSheet submitted(q) carries the query")
+            searchSheet.resultActivated("epubcfi(/6/4)"); check(searchActivatedCfi === "epubcfi(/6/4)", "SearchSheet resultActivated(cfi) carries the cfi")
+            searchSheet.closeRequested(); check(searchCloseCount === 1, "SearchSheet closeRequested fires")
+            // empty-state paths don't crash: no results, and no query yet.
+            searchSheet.results = []; searchSheet.resultCount = 0; searchSheet.capped = false
+            check(searchSheet.hasResults === false, "SearchSheet empty results -> placeholder path (no crash)")
+            searchSheet.lastQuery = ""; check(searchSheet.lastQuery === "", "SearchSheet no-query empty state binds")
+            searchSheet.open = false; check(searchSheet.open === false, "SearchSheet closes")
+
+            // ---- RulerOverlay (Task 11) — pure paint, on/off + geometry ----
+            check(ruler !== null && ruler.visible === true, "RulerOverlay instantiated + visible when on")
+            check(ruler.geo.bandHeight === 92, "RulerOverlay geo bandHeight = heightPx")
+            check(ruler.geo.bandTop >= 0 && ruler.geo.bandTop + ruler.geo.bandHeight <= ruler.height,
+                  "RulerOverlay band stays fully on-screen")
+            check(Math.abs(ruler.geo.topScrimH + ruler.geo.bandHeight + ruler.geo.botScrimH - ruler.height) < 1e-6,
+                  "RulerOverlay scrims + band tile the full height")
+            ruler.yPct = 100
+            check(ruler.geo.bandTop === ruler.height - ruler.geo.bandHeight, "RulerOverlay yPct=100 clamps band to bottom")
+            ruler.on = false; check(ruler.visible === false, "RulerOverlay hides when off")
+
+            // ---- ReaderChrome search-sheet wiring (Task 11): toggle, mutual exclusivity, pin, Esc ----
+            chrome.searchResults = sampleResults; chrome.searchCount = 300; chrome.searchCapped = true
+            chrome.handleSearch()
+            check(chrome.searchOpen === true && chrome.anyPanelOpen === true, "handleSearch opens the search sheet")
+            check(chrome.awake === true && chrome.revealState.pinned === true, "open search PINS the chrome shown")
+            chrome.tick(); check(chrome.awake === true, "pinned-by-search survives a tick")
+            // mutual exclusivity: opening Contents closes search; opening search closes panels.
+            chrome.handleContents()
+            check(chrome.panelOpen === true && chrome.searchOpen === false, "opening Contents closes search (mutually exclusive)")
+            chrome.handleSearch()
+            check(chrome.searchOpen === true && chrome.panelOpen === false, "opening search closes Contents")
+            chrome.handleAppearance()
+            check(chrome.appearanceOpen === true && chrome.searchOpen === false, "opening Appearance closes search")
+            chrome.handleSearch()
+            check(chrome.searchOpen === true && chrome.appearanceOpen === false, "opening search closes Appearance")
+            // handleSearch again toggles the sheet shut; the pin drops.
+            chrome.handleSearch()
+            check(chrome.searchOpen === false, "handleSearch again closes the search sheet")
+            check(chrome.revealState.pinned === false, "closing the search sheet unpins the chrome")
+            // closeAnyPanel (the Esc target) closes search too.
+            chrome.handleSearch(); check(chrome.searchOpen === true, "reopen search for closeAnyPanel")
+            chrome.closeAnyPanel()
+            check(chrome.searchOpen === false, "closeAnyPanel closes the search sheet")
 
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
