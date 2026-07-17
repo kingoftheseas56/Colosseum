@@ -120,6 +120,15 @@ FocusScope {
     })
 
     Keys.onPressed: (e) => {
+        // A page-turn key while the selection popover is open would slide the page out
+        // from under the menu (the tap-outside backdrop only catches the mouse, not keys),
+        // leaving the menu at a stale rect and a pick applying to an off-screen selection.
+        // So the first turn/nav key CANCELS the menu and does NOT turn — a second turns.
+        if (shell.selMenuShown
+            && (e.key === Qt.Key_Right || e.key === Qt.Key_Space || e.key === Qt.Key_PageDown
+                || e.key === Qt.Key_Left || e.key === Qt.Key_PageUp)) {
+            shell.dismissSelectionMenu(); e.accepted = true; return
+        }
         if (e.key === Qt.Key_Right || e.key === Qt.Key_Space || e.key === Qt.Key_PageDown) { paper.next(); e.accepted = true }
         else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { paper.prev(); e.accepted = true }
         // Esc: dismiss the selection popover first; else close the left panel; else the book.
