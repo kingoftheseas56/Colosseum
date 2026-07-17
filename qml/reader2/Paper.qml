@@ -31,6 +31,11 @@ Item {
     function clearSelection() { run("window.paper.clearSelection()") }
     function run(js) { web.runJavaScript(js) }
 
+    // Put active focus on the web view so its in-page keyboard (paper_glue.js) receives
+    // keys immediately. Called by ReaderShell when a book becomes 'ready' — the web view
+    // OWNS focus/pointer/keyboard (old-reader model), so keys work without a click first.
+    function focusPaper() { web.forceActiveFocus() }
+
     // Register the native bridge under the name "bridge" (what bridge_boot.js reads
     // as channel.objects.bridge). registerObject-by-name is required for a C++
     // context object — the QML-attached-id form can't carry one.
@@ -48,13 +53,20 @@ Item {
         id: web
         anchors.fill: parent
         backgroundColor: "#000000"
-        activeFocusOnPress: false          // ROOT FIX: the paper never owns a key —
-                                           // keeps focus on the ReaderShell FocusScope.
+        focus: true
+        // The web view OWNS focus + pointer + keyboard (the old reader's proven model).
+        // We deliberately do NOT set activeFocusOnPress:false: that starved the paper of
+        // the press/focus that TEXT SELECTION and the glue's double-click listener need
+        // (confirmed by a live diagnostic). Keyboard page-turns/Esc are handled IN-PAGE by
+        // paper_glue.js and emitted UP as semantic events — so the paper can own focus and
+        // keys STILL work. forceActiveFocus() below makes keys live the instant a book opens.
         settings.localContentCanAccessFileUrls: true
         settings.localContentCanAccessRemoteUrls: true
-        settings.focusOnNavigationEnabled: false
         webChannel: WebChannel { id: channel }
         url: Qt.resolvedUrl("../../resources/reader2/paper.html")
         onJavaScriptConsoleMessage: (lvl, msg, line, src) => console.log("[paper]", msg)
+        // When paper.html finishes loading, hand it active focus so the in-page keyboard
+        // is live without needing a click first (ReaderShell also focuses it on book-ready).
+        onLoadingChanged: (info) => { if (info.status === WebEngineView.LoadSucceededStatus) web.forceActiveFocus() }
     }
 }

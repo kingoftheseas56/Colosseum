@@ -5,8 +5,9 @@
 // you reach for the top/bottom edge (or double-click / the book-open orientation beat),
 // turns pages at the edges, and scrubs the gold rail; ReaderShell owns the wiring to
 // the paper + the native stores. Keyboard turns (Right/Space/PageDown → next,
-// Left/PageUp → prev, Esc → back) stay on this FocusScope and NEVER wake the chrome
-// (keys are not routed to the reveal reducer — the whole point of the naked surface).
+// Left/PageUp → prev, Esc → back) are handled IN-PAGE by the glue — the web view owns
+// focus + keyboard (old-reader model) — and arrive here as semantic paper events
+// ('escape', 'selectionCleared'); they NEVER wake the chrome (the naked surface's point).
 //
 // The RESUME SEAM (Task 6) is unchanged: every 'relocated' persists position to the
 // SAME progress.json the old reader uses, and reopening returns to where you left off.
@@ -119,26 +120,12 @@ FocusScope {
         font: "book", sizePx: 18, lineHeight: 1.6, marginPx: 72, justify: true
     })
 
-    Keys.onPressed: (e) => {
-        // A page-turn key while the selection popover is open would slide the page out
-        // from under the menu (the tap-outside backdrop only catches the mouse, not keys),
-        // leaving the menu at a stale rect and a pick applying to an off-screen selection.
-        // So the first turn/nav key CANCELS the menu and does NOT turn — a second turns.
-        if (shell.selMenuShown
-            && (e.key === Qt.Key_Right || e.key === Qt.Key_Space || e.key === Qt.Key_PageDown
-                || e.key === Qt.Key_Left || e.key === Qt.Key_PageUp)) {
-            shell.dismissSelectionMenu(); e.accepted = true; return
-        }
-        if (e.key === Qt.Key_Right || e.key === Qt.Key_Space || e.key === Qt.Key_PageDown) { paper.next(); e.accepted = true }
-        else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { paper.prev(); e.accepted = true }
-        // Esc: dismiss the selection popover first; else close the left panel; else the book.
-        else if (e.key === Qt.Key_Escape) {
-            if (shell.selMenuShown) shell.dismissSelectionMenu()
-            else if (chrome.panelOpen) chrome.closePanel()
-            else shell.closed()
-            e.accepted = true
-        }
-    }
+    // Keyboard now lives IN-PAGE (paper_glue.js): the web view owns focus + keys, so a key
+    // turns the page from inside the paper and never fights QML focus. Page-turn keys arrive
+    // as nothing to route here (the glue calls the renderer directly); Esc and an
+    // arrow-key-cleared selection arrive as the 'escape' / 'selectionCleared' paper events
+    // handled in onPaperEvent below. (The old QML Keys.onPressed page-turn + selection-guard
+    // handler was removed with this move.)
 
     // Refresh marks whenever the panel opens, so a change made elsewhere shows up.
     Connections {
@@ -164,9 +151,22 @@ FocusScope {
                 shell.reapplyHighlights()                         // re-paint stored highlights onto the fresh paper
                 paper.setAppearance(shell.defaultAppearance)      // ratified Night default
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
+                paper.focusPaper()                                // the web view owns keys — focus it so keys work immediately
             } else if (name === "toggleChrome") {
                 // double-click on EMPTY paper space (glue) → toggle the chrome reveal.
                 chrome.toggle()
+            } else if (name === "escape") {
+                // Esc from the glue's in-page keyboard. Cascading close, same order the old
+                // reader uses: dismiss the selection popover first; else close the left panel;
+                // else close the book.
+                if (shell.selMenuShown) shell.dismissSelectionMenu()
+                else if (chrome.panelOpen) chrome.closePanel()
+                else shell.closed()
+            } else if (name === "selectionCleared") {
+                // The underlying selection went away (clicked elsewhere, an arrow key turned
+                // the page out from under the menu). Dismiss the popover so it never floats
+                // over a stale/empty selection.
+                if (shell.selMenuShown) shell.dismissSelectionMenu()
             } else if (name === "selection") {
                 // text selected in the paper → stash it + open the SelectionMenu at its rect.
                 // A new selection while the menu is up simply re-stashes (the menu repositions).

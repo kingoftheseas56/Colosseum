@@ -271,16 +271,71 @@ const reAddAnnotations = () => {
   for (const a of annotations.values()) currentView?.addAnnotation(a)
 }
 
+// ---------------------------------------------------------------------------
+// in-page keyboard (OLD-READER MODEL) — the web view owns keys; we handle the
+// nav/Esc set here and emit semantic events UP. foliate renders each section in an
+// IFRAME, so a keydown handler on the TOP document alone misses keys while the iframe
+// has focus — we attach to BOTH the top document (once) and each section's iframe doc
+// (in the view 'load' handler, mirroring engine_foliate.js bindDocEvents). Reading stays
+// immersive: keys NEVER emit a reveal/chrome-wake event (matches the reveal doctrine —
+// the naked surface only wakes on a deliberate edge-reach / double-click).
+// ---------------------------------------------------------------------------
+const handleKeydown = e => {
+  // Never hijack modified chords (Ctrl/Alt/Meta) or typing — the book has no text inputs,
+  // but stay defensive: only the bare nav/Esc keys below are ours; everything else falls through.
+  if (e.ctrlKey || e.metaKey || e.altKey) return
+  const t = e.target
+  const tag = (t && t.tagName) ? String(t.tagName).toLowerCase() : ''
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || (t && t.isContentEditable)) return
+
+  switch (e.key) {
+    case 'ArrowLeft':
+    case 'PageUp':
+      currentView?.renderer?.prev()
+      e.preventDefault()
+      break
+    case 'ArrowRight':
+    case 'PageDown':
+    case ' ':                     // Space
+      currentView?.renderer?.next()
+      e.preventDefault()
+      break
+    case 'Escape':
+      emit('escape', {})
+      e.preventDefault()
+      break
+    default:
+      // not one of ours — leave native behavior alone.
+  }
+}
+
+let topKeysAttached = false
+const ensureTopKeys = () => {
+  if (topKeysAttached) return          // the top-document listener is attached exactly once
+  topKeysAttached = true
+  document.addEventListener('keydown', handleKeydown)
+}
+
 const attachSelection = (view, doc, index) => {
+  // In-page keyboard for THIS section's iframe (keys while the book text has focus) plus
+  // the one-time top-document listener (keys before any click / when the page body has focus).
+  ensureTopKeys()
+  doc.addEventListener('keydown', handleKeydown)
+
+  let hadSelection = false             // track the non-empty -> empty transition for selectionCleared
   const tryEmit = () => {
     const sel = doc.getSelection && doc.getSelection()
-    if (!sel || !sel.rangeCount) return
-    const range = sel.getRangeAt(0)
-    if (!range || range.collapsed) return
+    const range = (sel && sel.rangeCount) ? sel.getRangeAt(0) : null
     // range.toString() is the reliable source: sel.toString() can be empty for
     // programmatic / unfocused selections (book.js guards the same way).
-    const text = (range.toString() || sel.toString()).trim()
-    if (!text) return
+    const text = (range && !range.collapsed) ? (range.toString() || sel.toString()).trim() : ''
+    if (!text) {
+      // Selection went away (clicked elsewhere, a key turned the page, etc.). Emit ONCE on
+      // the non-empty -> empty edge so QML can dismiss the SelectionMenu popover.
+      if (hadSelection) { hadSelection = false; emit('selectionCleared', {}) }
+      return
+    }
+    hadSelection = true
     let cfi = ''
     try { cfi = view.getCFI(index, range) } catch (e) { /* boundary ranges */ }
     emit('selection', { text, cfi, rect: clientRectOf(range, doc) })

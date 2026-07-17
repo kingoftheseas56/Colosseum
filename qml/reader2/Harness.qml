@@ -33,6 +33,9 @@ Window {
             shell.openBook(path)
             shelf.visible = false
             shell.visible = true
+            // Focus the shell scope; keys now live IN-PAGE, so this no longer carries
+            // page-turns. The web view takes real key focus when the book becomes 'ready'
+            // (ReaderShell → paper.focusPaper()), which lands after this and doesn't fight it.
             shell.forceActiveFocus()
         }
     }
