@@ -499,10 +499,10 @@ Window {
             it.bakedReleases = null                 // reset first so re-injection repaints
             it.openChapterId = westernLayer.resumeChapterId || ""
             it.seriesTitle = westernLayer.title
-            it.tagId = 0; it.tagSlug = ""
             it.poster = westernLayer.baked.cover || ""
             it.gcdId = westernLayer.baked.gcdId
-            it.bakedReleases = westernLayer.baked.releases   // LAST — triggers paint
+            it.bakedReleases = westernLayer.baked.releases   // triggers paint (bakedReleases now non-null)
+            it.tagId = 0; it.tagSlug = ""                    // reset LAST — resolve() guard is true, no stray live lookup
         } else westernLayer.active = true
     }
 
@@ -969,7 +969,7 @@ Window {
             if (x && x.openChapterId) {
                 win.openComicSession(x.seriesTitle, "gc:" + x.gcTag, x.openChapterId)   // LOCG page reads GetComics content
             } else if (w && w.openChapterId) {
-                win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>"
+                win.openComicSession(w.seriesTitle, w.seriesId, w.openChapterId)   // seriesId = "gc:<slug>" (live) or "gcd:<id>" (baked catalogue run)
             } else {
                 var s = seriesLayer.item
                 if (!s || !s.openChapterId) { win.closeSeries(); return }
