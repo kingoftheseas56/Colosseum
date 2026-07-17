@@ -201,6 +201,10 @@ QtObject {
             check(L.stripTags("caf&#233;") === "café", "stripTags: numeric entity")
             check(L.stripTags(null) === "", "stripTags: null-safe")
             check(L.stripTags("<a href='x'>link</a> text") === "link text", "stripTags: anchor with attrs")
+            check(L.stripTags("suddenly<style>.mw-parser-output .defdate{font-size:smaller}</style>") === "suddenly",
+                  "stripTags: drops <style> block AND its CSS content (Wiktionary defdate)")
+            check(L.stripTags("a<script>var x=1<3;</script>b") === "a b",
+                  "stripTags: drops <script> block AND its content")
 
             // 12. firstWord — the single word to define (Wiktionary REST is single-word).
             check(L.firstWord("whale") === "whale", "firstWord: single word")

@@ -290,7 +290,12 @@ function highlightRow(h) {
 // FootnoteCard get clean strings without parsing HTML in QML.
 function stripTags(html) {
     var s = String(html === undefined || html === null ? "" : html)
-    s = s.replace(/<[^>]*>/g, " ")           // drop every tag
+    // Drop <style>/<script> blocks ENTIRELY (tag AND content) first — Wiktionary
+    // definitions embed a <style>.mw-parser-output .defdate{font-size:smaller}</style>,
+    // and a bare tag-strip removes the tags but leaves the CSS rules as visible text.
+    s = s.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    s = s.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    s = s.replace(/<[^>]*>/g, " ")           // drop every remaining tag
     s = s.replace(/&nbsp;/g, " ")
          .replace(/&lt;/g, "<")
          .replace(/&gt;/g, ">")
