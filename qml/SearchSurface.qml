@@ -78,7 +78,7 @@ Item {
             surf.results = items
             surf.searching = false
             surf.searched = true
-        })
+        }, (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null)
     }
     function historyScope() { return surf.searchMode.toLowerCase() }
     function loadRecent() { surf.recent = surf.historyStore.list(surf.historyScope()) }

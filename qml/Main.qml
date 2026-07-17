@@ -417,6 +417,8 @@ Window {
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
     function openWestern(d) {
+        westernLayer.baked = null
+        if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         // DB-first (Hemanth 2026-07-15): the catalog series view is THE series
         // view now. Resolve the title against our DB (ingesting it on demand);
         // the GetComics shelf remains only for series the catalog doesn't carry.
@@ -425,6 +427,17 @@ Window {
             win.openComicSeries({ id: hit.locgId, title: hit.title,
                                   cover: hit.cover || (d && d.cover) || "" })
             return
+        }
+        // catalogue redirect (spec 2026-07-17): exactly ONE run bears this title ->
+        // its run-scoped page. Multiple same-name runs -> the live shelf keeps the
+        // whole-franchise view; never guess a run.
+        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
+            var ex = ComicsCatalog.exactMatches((d && d.title) || "")
+            if (ex.length === 1) {
+                win.openGcdSeries({ gcdId: ex[0].gcdId, title: (d && d.title) || "",
+                                    cover: (d && d.cover) || "" })
+                return
+            }
         }
         westernLayer.resumeChapterId = ""
         westernLayer.title = (d && d.title) || ""
@@ -441,6 +454,8 @@ Window {
     }
     // open a western series AND jump straight into the reader (Continue / session resume)
     function openWesternAt(title, tagSlug, chapterId) {
+        westernLayer.baked = null
+        if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         westernLayer.title = title || ""
         westernLayer.tagId = 0
         westernLayer.tagSlug = tagSlug || ""
@@ -452,6 +467,44 @@ Window {
         } else westernLayer.active = true
     }
     function closeWestern() { westernLayer.active = false }
+
+    // ---- catalogue run page: the western shelf in baked mode (spec 2026-07-17).
+    //      d: { gcdId, title?, cover?, resumeChapterId? } ----
+    function openGcdSeries(d) {
+        if (typeof ComicsCatalog === "undefined" || !ComicsCatalog.ready()) {
+            if (d && d.title) win.openWestern({ title: d.title })   // graceful: live shelf
+            return
+        }
+        var gcdId = Number((d && d.gcdId) || 0)
+        var s = ComicsCatalog.series(gcdId)
+        if (!s || s.gcdId === undefined) {
+            if (d && d.title) win.openWestern({ title: d.title })
+            return
+        }
+        var rows = ComicsCatalog.downloadsFor(gcdId)
+        var rel = []
+        for (var i = 0; i < rows.length; i++) {
+            var r = rows[i]
+            rel.push({ id: String(r.postId), url: r.link, name: r.title, cover: "",
+                       year: r.yearStart || 0, sizeMB: 0, synopsis: "",
+                       date: r.date || "", collection: r.kind !== "single" })
+        }
+        westernLayer.baked = { gcdId: gcdId, releases: rel,
+                               cover: s.cover || (d && d.cover) || "" }
+        westernLayer.title = s.title + (s.year ? " (" + s.year + ")" : "")
+        westernLayer.tagSlug = ""; westernLayer.tagId = 0
+        westernLayer.resumeChapterId = (d && d.resumeChapterId) || ""
+        if (westernLayer.active && westernLayer.item) {
+            var it = westernLayer.item
+            it.bakedReleases = null                 // reset first so re-injection repaints
+            it.openChapterId = westernLayer.resumeChapterId || ""
+            it.seriesTitle = westernLayer.title
+            it.tagId = 0; it.tagSlug = ""
+            it.poster = westernLayer.baked.cover || ""
+            it.gcdId = westernLayer.baked.gcdId
+            it.bakedReleases = westernLayer.baked.releases   // LAST — triggers paint
+        } else westernLayer.active = true
+    }
 
     // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
     //      Opened from search (data.locg), the world Top-Comics row, or a publisher grid. ----
@@ -669,10 +722,14 @@ Window {
         } else if (item.world === "biblio") {
             win.openBookSession(item.path, { "title": item.title || "" })
         } else if (item.kind === "comic") {
-            // comics open only via the gc: lane; a stale foreign-prefixed id (retired source,
-            // cut 2026-07-12) is an honest no-op, not an empty western shelf (mirrors the browse guard)
+            // comics open only via the gc:/gcd: lanes; a stale foreign-prefixed id (retired
+            // source, cut 2026-07-12) is an honest no-op, not an empty western shelf (mirrors
+            // the browse guard)
             if (String(item.seriesId || "").indexOf("gc:") === 0)
                 win.openWesternAt(item.seriesTitle, String(item.seriesId).slice(3), item.id)
+            else if (String(item.seriesId || "").indexOf("gcd:") === 0)
+                win.openGcdSeries({ gcdId: Number(String(item.seriesId).slice(4)),
+                                    title: item.seriesTitle, resumeChapterId: item.id })
             else
                 console.log("[route] ignoring unknown comic id:", item.seriesId)
         } else {
@@ -737,6 +794,7 @@ Window {
         win.closeWorldSearch()
         if (worldSearchLayer.searchMode === "Tankoban") {
             if (data && data.locg) win.openComicSeries(data)        // LOCG catalogue series → resolve+attach
+            else if (data && data.gcd) win.openGcdSeries(data)      // catalogue run page
             else if (data && data.western) win.openWestern(data)   // GetComics shelf, not WeebCentral
             else win.openSeries(data.title)
         } else if (worldSearchLayer.searchMode === "Theatre") win.openTheatreSeries(data)
@@ -807,6 +865,9 @@ Window {
         } else if (entry.kind === "manga" || entry.kind === "comic") {
             if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
+            else if (String(entry.id || "").indexOf("gcd:") === 0)
+                win.openGcdSeries({ gcdId: Number(String(entry.id).slice(4)), title: title,
+                                    cover: entry.cover || "" })
             else if (entry.kind === "comic")
                 // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12);
                 // comics open only via the gc: lane, so a stale id never opens the manga page
@@ -978,6 +1039,14 @@ Window {
                 // GetComics content (western shelf OR LOCG-catalogue page) restores via the
                 // GetComics shelf — same tag, same reader, resumed at the chapter.
                 win.openWesternAt(t.title, String(t.seriesId).slice(3), (st.chapterId || t.chapterId || ""))
+                if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
+                return
+            }
+            if (String(t.seriesId || "").indexOf("gcd:") === 0) {
+                // catalogue run page (baked mode, spec 2026-07-17) restores via the same
+                // western shelf, baked branch — same run, same reader, resumed at the chapter.
+                win.openGcdSeries({ gcdId: Number(String(t.seriesId).slice(4)), title: t.title,
+                                    resumeChapterId: (st.chapterId || t.chapterId || "") })
                 if (westernLayer.item && westernLayer.item.restoreState) westernLayer.item.restoreState(st)
                 return
             }
@@ -1656,6 +1725,7 @@ Window {
         property string tagSlug: ""
         property int    tagId: 0
         property string resumeChapterId: ""   // Continue/session resume: straight into the reader
+        property var    baked: null           // catalogue run page (spec 2026-07-17): {gcdId,releases,cover}
         source: "ComicSeries.qml"
         onLoaded: {
             item.backdrop = wall
@@ -1663,6 +1733,11 @@ Window {
             item.tagId = westernLayer.tagId
             item.tagSlug = westernLayer.tagSlug        // set LAST — assigning it triggers resolve()
             if (westernLayer.resumeChapterId) item.openChapterId = westernLayer.resumeChapterId
+            if (westernLayer.baked) {
+                item.poster = westernLayer.baked.cover || item.poster
+                item.gcdId = westernLayer.baked.gcdId
+                item.bakedReleases = westernLayer.baked.releases
+            }
             item.backRequested.connect(win.closeWestern)
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })

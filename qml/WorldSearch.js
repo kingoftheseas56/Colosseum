@@ -262,16 +262,45 @@ function searchCatalog(query) {
     return matches.slice(0, 48);
 }
 
-function mergeTankobanResults(query, manga, locg, western) {
+// The availability-first catalogue lane (spec 2026-07-17): run-scoped results from
+// the SQLite seam. `engine` is the ComicsCatalog context property, passed in from
+// QML — a .pragma library can't see context properties itself.
+function searchCatalogDb(query, engine) {
+    if (!engine || !engine.ready()) return [];
+    var q = String(query || "").trim();
+    if (q.length < 2) return [];
+    var hits = engine.search(q, 12), out = [];
+    for (var i = 0; i < hits.length; i++) {
+        var h = hits[i];
+        out.push({ cover: h.cover || "", title: h.title,
+                   subtitle: h.publisher || "",
+                   meta: (h.year ? String(h.year) : "")
+                         + (h.downloads ? "   ·   " + h.downloads + " downloads" : ""),
+                   synopsis: "", backdrop: "", group: "Comics · Catalogue",
+                   data: { gcd: true, gcdId: h.gcdId, title: h.title, cover: h.cover || "" } });
+    }
+    return out;
+}
+
+function mergeTankobanResults(query, manga, locg, western, catalogDb) {
     manga = manga || [];
     locg = locg || [];
     western = western || [];
+    catalogDb = catalogDb || [];
     var localTitles = {};
     // dedup on the PURE title (data.title) — the card title now wears a "(year)" run
     // suffix, which must not let a carried series' GetComics row slip past the filter
     locg.forEach(function(row) { localTitles[normTitle((row.data && row.data.title) || row.title)] = true; });
-    western = western.filter(function(row) {
+    // the curated (locg) lane is richer — editions + synopsis — so it wins over a bare
+    // catalogDb row for the same run; catalogDb in turn wins over the live western shelf.
+    catalogDb = catalogDb.filter(function(row) {
         return !localTitles[normTitle((row.data && row.data.title) || row.title)];
+    });
+    var catalogTitles = {};
+    catalogDb.forEach(function(row) { catalogTitles[normTitle((row.data && row.data.title) || row.title)] = true; });
+    western = western.filter(function(row) {
+        var nt = normTitle((row.data && row.data.title) || row.title);
+        return !localTitles[nt] && !catalogTitles[nt];
     });
     var rank = function(lane) {
         lane.forEach(function(row, index) {
@@ -279,7 +308,7 @@ function mergeTankobanResults(query, manga, locg, western) {
         });
         return lane;
     };
-    return pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(western)));
+    return pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(catalogDb)).concat(rank(western)));
 }
 
 // ── LOCG catalogue search lane — PARKED 2026-07-12 (Hemanth: GetComics = brain AND
@@ -310,23 +339,24 @@ function searchLocg(query, done) {
     });
 }
 
-function searchTankoban(query, done) {
+function searchTankoban(query, done, catalogEngine) {
     if (!query || query.trim().length < 2) { done([]); return; }
     var manga = null, locg = searchCatalog(query), western = null;
+    var catalogDb = searchCatalogDb(query, catalogEngine);
     function finish() {
         if (manga === null || western === null) return;
         // Top Match = most title-relevant hit across ALL lanes, via the shared scorer
         // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
         // Each lane degrades to [] on its own failure — peer independence is free.
-        done(mergeTankobanResults(query, manga, locg, western));
+        done(mergeTankobanResults(query, manga, locg, western, catalogDb));
     }
     searchManga(query, function(items) { manga = items || []; finish(); });
     searchWestern(query, function(items) { western = items || []; finish(); });
 }
 
-function searchFor(mode, query, done) {
+function searchFor(mode, query, done, catalogEngine) {
     if (mode === "Theatre") searchTheatre(query, done);
-    else if (mode === "Tankoban") searchTankoban(query, done);
+    else if (mode === "Tankoban") searchTankoban(query, done, catalogEngine);
     else done([]);
 }
 
