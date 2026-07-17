@@ -134,12 +134,14 @@ function tagBySlug(slug, done) {
 
 // ── the shelf: every release post under a tag, cover + year + size parsed out. ──
 // Weekly packs ("… Week 27.2026" dumps) are noise in a series view — filtered.
-function mapPosts(j) {
+// Raw WP posts -> row objects. keepAll=true skips the weekly-pack noise filter
+// (for by-id fetches where every requested post must survive).
+function mapPosts(j, keepAll) {
     var out = [];
     for (var i = 0; i < j.length; i++) {
         var p = j[i];
         var title = decodeEntities(p.title && p.title.rendered);
-        if (/weekly pack|week \d+\.\d{4}|^\d{4}\.\d{2}\.\d{2}/i.test(title)) continue;
+        if (!keepAll && /weekly pack|week \d+\.\d{4}|^\d{4}\.\d{2}\.\d{2}/i.test(title)) continue;
         var ex = String((p.excerpt && p.excerpt.rendered) || "");
         var ym = ex.match(/Year\s*:\s*<\/strong>\s*(\d{4})/i);
         var sm = ex.match(/Size\s*:\s*<\/strong>\s*([\d.]+)\s*(GB|MB)/i);
@@ -197,7 +199,8 @@ function releases(tagId, done) {
 // ── enrichment for the BAKED sources page (spec 2026-07-17): covers + sizes for
 //    specific post ids. One request — the fold caps a series at 20 attached posts.
 //    Returns a map keyed by String(id): { cover, sizeMB, year }. Parsing rides
-//    mapPosts() verbatim so og_image/Size/Year handling stays single-sourced.
+//    mapPosts() (keepAll: the shelf-noise pack filter is a browse
+//    concern; a by-id fetch returns exactly the posts the catalog asked for).
 //    On any failure the map is empty — the page falls back to date order, no covers.
 function postsById(ids, done) {
     if (!ids || !ids.length) { done({}); return; }
@@ -206,7 +209,7 @@ function postsById(ids, done) {
            + "&_fields=id,link,title,date,excerpt,yoast_head_json.og_image", function(j) {
         var map = {};
         if (j && j.length) {
-            var rows = mapPosts(j);
+            var rows = mapPosts(j, true);
             for (var i = 0; i < rows.length; i++)
                 map[rows[i].id] = { cover: rows[i].cover, sizeMB: rows[i].sizeMB,
                                     year: rows[i].year };
