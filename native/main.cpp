@@ -611,6 +611,11 @@ int main(int argc, char *argv[]) {
     bookBridge->setAudiobooks(audiobooks);
     bookBridge->setPairing(audioPairing);
 
+    // Read-along auto-attach (Task 12): when an audiobook finishes downloading from a
+    // book's page, the downloader writes the pairing under the reader's bookId itself —
+    // no pairing UI. Same store instance QML/BookBridge use, so the Audio tab reads it.
+    audiobooks->setPairing(audioPairing);
+
     // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
     // is recreated, so remote provider success is irrelevant to whether intent is remembered.
     auto *history = new SearchHistoryStore(&app);

@@ -1,5 +1,6 @@
 #include "AudiobookDownloader.h"
 
+#include "../AudioPairingStore.h"
 #include "../player/streamserver.h"
 
 #include <QCryptographicHash>
@@ -239,12 +240,22 @@ AudiobookDownloader::Job* AudiobookDownloader::jobForHash(const QString& infoHas
 }
 
 void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QString& infoHashIn,
-                                            const QString& title, const QString& author)
+                                            const QString& title, const QString& author,
+                                            const QString& bookId)
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (pairKey.isEmpty()) { emit failed(pairKey, QStringLiteral("empty pairKey")); return; }
+    // Remember the reader's bookId for the auto-attach at finished(). Only overwrite
+    // with a real id — a later empty-bookId call (e.g. the 4-arg selfTest path) must
+    // not clobber a bookId a prior call already bound to this pairKey.
+    if (!bookId.isEmpty()) m_bookIdFor.insert(pairKey, bookId);
     if (infoHash.size() != 40) { emit failed(pairKey, QStringLiteral("bad infoHash")); return; }
-    if (isDownloaded(pairKey)) { emit finished(pairKey, localAudiobook(pairKey)); return; }
+    if (isDownloaded(pairKey)) {
+        const QString dir = localAudiobook(pairKey);
+        attachToBook(pairKey, dir);           // idempotent re-emit still attaches
+        emit finished(pairKey, dir);
+        return;
+    }
     if (isActive(pairKey)) return;
     if (!m_stream) { emit failed(pairKey, QStringLiteral("stream engine unavailable")); return; }
 
@@ -492,10 +503,26 @@ void AudiobookDownloader::finalizeJob(Job* job)
     const QString pk = job->pairKey;
     const QString dir = e.dir;
     qInfo() << "[AudiobookDownloader] complete" << pk << "files=" << e.files.size() << "dir=" << dir;
+    attachToBook(pk, dir);                    // read-along auto-attach (no pairing UI)
     emit finished(pk, dir);
 
     delete m_active; m_active = nullptr;
     promoteQueue();
+}
+
+// Write the read-along pairing under the reader's bookId — the SAME key Task 13's
+// Audio tab reads it back by (BookStores::keyFor(<ebook path>)). savePairing is an
+// upsert, so the idempotent re-emit path is safe. No-op without a store or a bookId.
+void AudiobookDownloader::attachToBook(const QString& pairKey, const QString& dirPath)
+{
+    if (!m_pairing) return;
+    const QString bookId = m_bookIdFor.value(pairKey);
+    if (bookId.isEmpty()) return;
+    m_pairing->savePairing(bookId, QVariantMap{
+        {QStringLiteral("pairKey"), pairKey},
+        {QStringLiteral("dirPath"), dirPath},
+    });
+    qInfo() << "[AudiobookDownloader] attached" << pairKey << "→ book" << bookId;
 }
 
 void AudiobookDownloader::failJob(Job* job, const QString& reason)

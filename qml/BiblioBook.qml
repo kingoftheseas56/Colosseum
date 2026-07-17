@@ -686,8 +686,16 @@ Item {
                                         Abb.fetchInfoHash(abRow.modelData.slug, function(d) {
                                             if (!d || !d.infoHash) { abCol.abState = "failed"; return }
                                             detail.abInfoHash = d.infoHash
+                                            // Auto-attach key: the reader's bookId = keyFor(<ebook path>),
+                                            // the SAME id the reader's Audio tab reads the pairing by. Only
+                                            // when the ebook is on disk (detail.localPath) can we produce it;
+                                            // mirror ReaderShell's guard — empty path → "" (NEVER bookKey(""),
+                                            // which the reader never queries). No path yet → no attach, no
+                                            // mismatched key.
+                                            var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined')
+                                                ? Reader2Bridge.bookKey(detail.localPath) : ""
                                             Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash,
-                                                detail.book.title || "", detail.book.author || "")
+                                                detail.book.title || "", detail.book.author || "", bookId)
                                         })
                                     }
                                 }

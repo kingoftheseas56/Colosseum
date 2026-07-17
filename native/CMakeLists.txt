@@ -239,6 +239,22 @@ add_executable(reader2_bridge_harness
 target_include_directories(reader2_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_bridge_harness PRIVATE Qt6::Core Qt6::Network)
 
+# Task 12: audiobook auto-attach on download completion. Offline/deterministic —
+# StreamServer is passed nullptr (its .cpp is only Qt Core/Network: QProcess + NAM,
+# no libtorrent), so the attach logic is proven without a live download.
+add_executable(reader2_autoattach_harness
+    ../tests/reader2_autoattach_harness.cpp
+    engine/AudiobookDownloader.cpp
+    engine/AudiobookDownloader.h
+    AudioPairingStore.h
+    player/streamserver.cpp
+    player/streamserver.h
+    reader/BookStores.cpp
+    reader/BookStores.h
+)
+target_include_directories(reader2_autoattach_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(reader2_autoattach_harness PRIVATE Qt6::Core Qt6::Network)
+
 # Task 5: standalone "first pixels" harness — boots the fresh reader (native QML
 # chrome over the vendored foliate paper) with a book shelf, no Colosseum shell.
 # Links only what the reader seam needs (Reader2Bridge + BookStores) plus the QML

@@ -36,6 +36,7 @@ class QNetworkAccessManager;
 class QNetworkReply;
 class QFile;
 class StreamServer;
+class AudioPairingStore;
 
 class AudiobookDownloader : public QObject {
     Q_OBJECT
@@ -45,13 +46,26 @@ public:
     AudiobookDownloader(QNetworkAccessManager* nam, StreamServer* stream, QObject* parent = nullptr);
     ~AudiobookDownloader() override;
 
+    // The read-along pairing store. When set, a completed download auto-attaches
+    // the audiobook to its book — the pairing is written under `bookId` (see
+    // downloadAudiobook's bookId arg) with NO pairing UI: you downloaded the
+    // audiobook FROM the book's page, so the system already knows the book.
+    void setPairing(AudioPairingStore* s) { m_pairing = s; }
+
     // ---- QML entry points (exposed as context property `Audiobooks`) ----
 
     // Resolve the torrent's audio files via the Stream engine, then download each
     // to disk. Idempotent: an already-downloaded pairKey re-emits finished(); an
     // active pairKey is a no-op.
+    //
+    // bookId (optional) is the READER'S book identity — BookStores::keyFor(<the
+    // ebook's file path>), the same key ReaderShell.bookId / Task 13's Audio tab
+    // looks the pairing up by. On completion, if a pairing store is set and bookId
+    // is non-empty, the audiobook auto-attaches to that book. Pass "" (the QML side
+    // does when no ebook is on disk yet) to skip the attach — never a mismatched key.
     Q_INVOKABLE void downloadAudiobook(const QString& pairKey, const QString& infoHash,
-                                       const QString& title, const QString& author);
+                                       const QString& title, const QString& author,
+                                       const QString& bookId = QString());
 
     // The local FLIP: absolute path of the audiobook's directory, or "" if not local.
     Q_INVOKABLE QString localAudiobook(const QString& pairKey) const;
@@ -121,6 +135,11 @@ private:
     Job* jobForHash(const QString& infoHash) const;
     bool isActive(const QString& pairKey) const;
 
+    // Read-along auto-attach: called at every finished() emit site. Writes the
+    // pairing (audiobook pairKey + dirPath) under the remembered bookId, keyed the
+    // SAME way Task 13's Audio tab reads it. No-op when no store or no bookId.
+    void attachToBook(const QString& pairKey, const QString& dirPath);
+
     // ── disk + index ──
     QString baseDir() const;                   // <appdata>/audiobooks
     QString dirFor(const QString& pairKey) const;  // <appdata>/audiobooks/<sha1[:16]>
@@ -139,4 +158,6 @@ private:
     Job* m_active = nullptr;
     QList<Job*> m_queue;
     QHash<QString, Entry> m_index;             // pairKey → entry
+    AudioPairingStore* m_pairing = nullptr;    // read-along attach target (not owned)
+    QHash<QString, QString> m_bookIdFor;       // pairKey → reader bookId (for auto-attach)
 };
