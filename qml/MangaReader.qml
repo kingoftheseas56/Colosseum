@@ -500,6 +500,7 @@ Item {
     property real _smoothY: 0                       // float accumulator for contentY
     readonly property real _drainFraction: 0.38     // TB2: 38% of backlog per 16ms
     readonly property real _maxBacklogPx: 6000      // a wheel flurry can't queue forever
+    property bool _drainFresh: false                // first tick after an idle start
     FrameAnimation {
         id: scrollDrain
         running: false
@@ -509,6 +510,11 @@ Item {
                 reader._smoothY = flick.contentY
             // frame-time-aware drain: same 38%-per-16.7ms feel on any refresh rate
             var frames = Math.min(3, Math.max(0.25, scrollDrain.frameTime * 60))
+            // cold-start fix (measured 2026-07-17, agents/wheel_latency_harness.qml): the first
+            // tick after idle reports a ~3ms frameTime → the 0.25 floor drained only 11% (~19px,
+            // sub-perceptual) and every fresh scroll felt like a dead beat before it moved. The
+            // first tick now always drains the full fraction — TB2's fixed-tick feel, restored.
+            if (reader._drainFresh) { frames = Math.max(1, frames); reader._drainFresh = false }
             var step = reader._pendingPx * (1 - Math.pow(1 - reader._drainFraction, frames))
             if (Math.abs(reader._pendingPx) <= 1) step = reader._pendingPx   // final settle
             var hmax = Math.max(0, flick.contentHeight - flick.height)
@@ -525,7 +531,7 @@ Item {
         }
     }
     function smoothScrollBy(dy) {
-        if (!scrollDrain.running) reader._smoothY = flick.contentY
+        if (!scrollDrain.running) { reader._smoothY = flick.contentY; reader._drainFresh = true }
         reader._pendingPx = Math.max(-reader._maxBacklogPx,
                             Math.min(reader._maxBacklogPx, reader._pendingPx + dy))
         var hmax = Math.max(0, flick.contentHeight - flick.height)
