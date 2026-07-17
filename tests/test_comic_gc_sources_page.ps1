@@ -16,4 +16,8 @@ $env:QT_FORCE_STDERR_LOGGING = "1"
 $output = cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-String
 if ($LASTEXITCODE -ne 0) { throw "GC sources logic harness failed (exit $LASTEXITCODE):`n$output" }
 if ($output -notlike "*GC-SOURCES-LOGIC OK*") { throw "harness ran but verdict line missing:`n$output" }
+# -- enrichment glue: one WP call for the attached ids, parse single-sourced in mapPosts --
+$api = Get-Content (Join-Path $root "qml/ComicsApi.js") -Raw
+Assert-Contains $api 'function postsById' "sources page enrichment entry point"
+Assert-Contains $api 'include=' "by-id fetch must ride WP's include param (one request, fold caps at 20 ids)"
 Write-Host "comic gc sources page contract OK"

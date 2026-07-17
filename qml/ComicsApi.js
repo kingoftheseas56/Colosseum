@@ -194,6 +194,27 @@ function releases(tagId, done) {
     });
 }
 
+// ── enrichment for the BAKED sources page (spec 2026-07-17): covers + sizes for
+//    specific post ids. One request — the fold caps a series at 20 attached posts.
+//    Returns a map keyed by String(id): { cover, sizeMB, year }. Parsing rides
+//    mapPosts() verbatim so og_image/Size/Year handling stays single-sourced.
+//    On any failure the map is empty — the page falls back to date order, no covers.
+function postsById(ids, done) {
+    if (!ids || !ids.length) { done({}); return; }
+    gcJson(GC + "/posts?include=" + ids.join(",")
+           + "&per_page=" + Math.min(ids.length, 100)
+           + "&_fields=id,link,title,date,excerpt,yoast_head_json.og_image", function(j) {
+        var map = {};
+        if (j && j.length) {
+            var rows = mapPosts(j);
+            for (var i = 0; i < rows.length; i++)
+                map[rows[i].id] = { cover: rows[i].cover, sizeMB: rows[i].sizeMB,
+                                    year: rows[i].year };
+        }
+        done(map);
+    });
+}
+
 // ── Explore board: GetComics' REAL taxonomy — publishers + franchises, live counts. ──
 // GetComics has no genre axis (ratified diagnosis 2026-07-04, Hemanth picked this
 // board over a genre facade): its archive is organized by publisher and franchise
