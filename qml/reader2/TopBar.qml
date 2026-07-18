@@ -19,6 +19,7 @@ Item {
     property string author: ""
     property string chapterLabel: ""
     property bool shown: false           // reveal drives this; controls interactivity
+    property bool shellWindowed: false
 
     // ---- signals up to ReaderChrome / ReaderShell ----
     signal backRequested()
@@ -27,6 +28,7 @@ Item {
     signal appearanceRequested()
     signal bookmarkRequested()
     signal minimizeRequested()   // window-verb parity with the player/comic readers (2026-07-18)
+    signal fullscreenRequested()
     signal closeRequested()
 
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
@@ -152,6 +154,11 @@ Item {
         // taskbar tile instead of closing it. Back = close; this = keep the session warm.
         IconButton { anchors.verticalCenter: parent.verticalCenter
             source: Qt.resolvedUrl("../../assets/icons/reader2/minimize.svg"); onClicked: root.minimizeRequested() }
+        IconButton { anchors.verticalCenter: parent.verticalCenter
+            source: Qt.resolvedUrl(root.shellWindowed
+                ? "../../assets/icons/reader2/fullscreen.svg"
+                : "../../assets/icons/reader2/fullscreen-exit.svg")
+            onClicked: root.fullscreenRequested() }
         // close (window verb, player-parity — the X ends the session; Back does the same
         // from the keyboard side. Rightmost, matching the player/comic chrome order.)
         IconButton { anchors.verticalCenter: parent.verticalCenter

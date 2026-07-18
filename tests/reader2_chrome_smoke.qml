@@ -29,6 +29,7 @@ Item {
         { id: "a1", cfi: "epubcfi(/6/8)", text: "Call me Ishmael.", color: "#FEF3BD", note: "famous line", chapterLabel: "Loomings" },
         { id: "a2", value: "epubcfi(/6/9)", text: "This is my substitute for pistol and ball.", color: "#B5E0C6", chapterLabel: "Loomings" }
     ]
+    property int fullscreenRequests: 0
 
     R.ReaderChrome {
         id: chrome
@@ -46,6 +47,10 @@ Item {
         currentTocIndex: 1
         bookmarks: sampleBookmarks
         highlights: sampleHighlights
+    }
+    Connections {
+        target: chrome
+        function onFullscreenRequested() { fullscreenRequests += 1 }
     }
 
     // A DIRECT LeftPanel instance, sized + open, so every pane's ListView actually
@@ -186,6 +191,9 @@ Item {
             check(String(R.Theme.gold).toLowerCase() === "#f0c24a", "Theme singleton resolves (gold)")
             check(chrome !== null, "ReaderChrome instantiated (TopBar + BottomRail + LeftPanel children)")
             check(chrome.awake === false, "chrome starts asleep (naked reading surface)")
+            chrome.fullscreenRequested()
+            check(fullscreenRequests === 1,
+                  "ReaderChrome exposes one fullscreen semantic request")
 
             // ---- LeftPanel instantiates + binds (Task 8) ----
             check(panel !== null, "LeftPanel instantiated")

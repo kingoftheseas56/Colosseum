@@ -27,6 +27,7 @@ Item {
     property int pageInChapter: 0
     property int pagesInChapter: 0
     property var ticks: []
+    property bool shellWindowed: false
     property bool returnVisible: false
     property string returnPageLabel: ""
 
@@ -73,6 +74,7 @@ Item {
     // ---- signals up ----
     signal backRequested()
     signal minimizeRequested()   // window verb: park the book in the taskbar (2026-07-18)
+    signal fullscreenRequested()
     signal closeRequested()      // window verb: the X — end the session (player-parity)
     signal searchRequested()
     signal bookmarkRequested()
@@ -248,8 +250,10 @@ Item {
         title: chrome.title
         author: chrome.author
         chapterLabel: chrome.chapterLabel
+        shellWindowed: chrome.shellWindowed
         onBackRequested: chrome.backRequested()
         onMinimizeRequested: chrome.minimizeRequested()
+        onFullscreenRequested: chrome.fullscreenRequested()
         onCloseRequested: chrome.closeRequested()
         onSearchRequested: chrome.handleSearch()          // toggles the search sheet (Task 11)
         onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)

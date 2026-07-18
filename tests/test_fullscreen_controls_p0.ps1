@@ -41,4 +41,34 @@ if ($main -notmatch 'item\.fullscreenRequested\.connect\(win\.toggleFullscreenSh
     throw 'playerLayer does not route fullscreen through Main'
 }
 
-Write-Host 'test_fullscreen_controls_p0: shell + player contract PASS'
+$bookFullscreen = Join-Path $root 'assets/icons/reader2/fullscreen.svg'
+$bookFullscreenExit = Join-Path $root 'assets/icons/reader2/fullscreen-exit.svg'
+if (-not (Test-Path $bookFullscreen) -or -not (Test-Path $bookFullscreenExit)) {
+    throw 'book reader fullscreen SVG pair is incomplete'
+}
+$bookTop = Get-Content (Join-Path $root 'qml/reader2/TopBar.qml') -Raw
+$bookChrome = Get-Content (Join-Path $root 'qml/reader2/ReaderChrome.qml') -Raw
+$bookShell = Get-Content (Join-Path $root 'qml/reader2/ReaderShell.qml') -Raw
+foreach ($entry in @(
+    @{ Text = $bookTop; Name = 'TopBar' },
+    @{ Text = $bookChrome; Name = 'ReaderChrome' },
+    @{ Text = $bookShell; Name = 'ReaderShell' }
+)) {
+    if ($entry.Text -notmatch 'signal fullscreenRequested\(\)') {
+        throw "$($entry.Name) lost fullscreenRequested()"
+    }
+}
+if ($bookTop -notmatch 'root\.shellWindowed[\s\S]{0,180}reader2/fullscreen\.svg[\s\S]{0,180}reader2/fullscreen-exit\.svg') {
+    throw 'book TopBar does not swap the reader-specific fullscreen action icon'
+}
+if ($bookChrome -notmatch 'onFullscreenRequested:\s*chrome\.fullscreenRequested\(\)') {
+    throw 'ReaderChrome does not forward the TopBar fullscreen request'
+}
+if ($bookShell -notmatch 'onFullscreenRequested:\s*shell\.fullscreenRequested\(\)') {
+    throw 'ReaderShell does not forward the chrome fullscreen request'
+}
+if ($main -notmatch 'item\.minimized\.connect\(win\.minimizeBookReader\)[\s\S]{0,160}item\.fullscreenRequested\.connect\(win\.toggleFullscreenShell\)') {
+    throw 'bookReaderLayer does not route fullscreen through Main'
+}
+
+Write-Host 'test_fullscreen_controls_p0: shell + player + book contract PASS'

@@ -20,6 +20,8 @@ import "../BiblioApi.js" as B    // pairKey(title, author) — the ONE derivatio
 FocusScope {
     id: shell
     property string bookPath: ""
+    readonly property bool shellWindowed:
+        typeof WindowMode !== "undefined" && WindowMode.shellWindowed
     // Store key = the SHA1[:20] fingerprint of the path, NOT the raw path. The old
     // reader keyed progress/bookmarks/annotations by this (BookBridge::progressKey);
     // deriving it here is what makes positions/marks survive the swap (zero migration).
@@ -30,6 +32,7 @@ FocusScope {
     // Minimize (2026-07-18, Hemanth: "books should minimize too"): the embedder parks the
     // book as a taskbar session instead of closing it. Same flush-first discipline as goBack.
     signal minimized()
+    signal fullscreenRequested()
     focus: true
 
     // ---- debug logging (Part C5) — OFF by default so a shipped embedding stays quiet; the
@@ -739,6 +742,7 @@ FocusScope {
         ticks: shell.chapterTicks
         returnVisible: shell.returnVisible
         returnPageLabel: shell.returnPageLabel
+        shellWindowed: shell.shellWindowed
 
         // left-panel data (Task 8)
         tocModel: shell.bookToc
@@ -772,6 +776,7 @@ FocusScope {
 
         onBackRequested: shell.goBack()
         onMinimizeRequested: shell.goMinimize()
+        onFullscreenRequested: shell.fullscreenRequested()
         onCloseRequested: shell.goBack()   // the X = same session-aware close as Back (flush + closed)
         onPrevRequested: paper.prev()
         onNextRequested: paper.next()

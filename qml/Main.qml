@@ -1964,6 +1964,7 @@ Window {
             item.openBook(bookReaderLayer.bookPath)
             item.closed.connect(win.closeBookReaderSession)
             item.minimized.connect(win.minimizeBookReader)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
         }
     }
 
