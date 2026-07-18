@@ -167,8 +167,11 @@ void Reader2Bridge::dictLookup(const QString& word)
         for (const QHostAddress& a : info.addresses())
             if (a.protocol() == QAbstractSocket::IPv4Protocol) { ipv4 = a.toString(); break; }
         m_wiktIpv4 = ipv4;          // "" if resolution failed → sendDictRequest falls back to the hostname
-        m_wiktResolved = true;
-        sendDictRequest(word, query);
+        // Cache ONLY on success. If this first lookup's DNS transiently failed (ipv4 empty), leave
+        // m_wiktResolved false so the NEXT lookup retries the resolve — otherwise one bad first
+        // lookup would permanently strand every future lookup on the un-pinned ~21s IPv6 stall path.
+        if (!ipv4.isEmpty()) m_wiktResolved = true;
+        sendDictRequest(word, query);   // still sends THIS lookup (pinned if resolved, else plain host)
     });
 }
 

@@ -32,10 +32,11 @@ FocusScope {
     // standalone harness flips it on. Gates the [shell]/[paper] event tracing (never ships spam).
     property bool readerDebug: false
 
-    // ---- cross-book generation guard (Part B1) — the glue stamps every 'ready'/'relocated'
-    // with a per-open `gen`; we adopt it from 'ready' and DROP any relocated (and its save)
-    // whose gen differs, so a relocated from book A already in flight over QWebChannel can't
-    // land after we switched to book B and mis-save into B. L.staleRelocate is the pure test.
+    // ---- cross-book generation guard (Part B1; hardened in the Codex-fix batch) — the glue
+    // stamps every book-scoped event ('ready'/'relocated'/'error'/'searchResults'/'footnote')
+    // with a per-open `gen`. We ADOPT currentGen from a fresh (newer) 'ready' and DROP any event
+    // whose gen is OLDER than the current open (L.staleRelocate = strictly-older), so a late
+    // event from book A already in flight over QWebChannel can't land after we switched to B.
     property int currentGen: -1
     // Has the CURRENT open reached 'ready'? Gates the failed-open surface (Part B3): an
     // 'error' BEFORE ready = the book won't open (show the surface); after ready it's an
