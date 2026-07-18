@@ -635,6 +635,30 @@ Item {
                             function onFinished(key, path) { if (key === detail.pairKey) { abCol.abState = "done"; abCol.abPct = 1; detail.audioLocal = true } }
                             function onFailed(key, why) { if (key === detail.pairKey) abCol.abState = "failed" }
                         }
+                        // REHYDRATE on page (re)entry: the download runs in C++ and survives leaving
+                        // this page, but abState/abPct are page-local and reset — without this seed a
+                        // running download read as "stopped" (the 2026-07-18 report). Which ROW was
+                        // picked (abActiveSlug) is unrecoverable by design; the banner below carries
+                        // slug-less background progress instead.
+                        Component.onCompleted: {
+                            if (typeof Audiobooks === 'undefined' || !detail.pairKey) return
+                            var st = Audiobooks.statusOf(detail.pairKey)
+                            if (st && (st.state === "downloading" || st.state === "resolving")) {
+                                abCol.abState = st.state
+                                abCol.abPct = (st.total > 0) ? st.received / st.total : 0
+                            }
+                        }
+                        Item {                              // background download banner (rehydrated state)
+                            visible: abCol.abActiveSlug === ""
+                                     && (abCol.abState === "downloading" || abCol.abState === "resolving")
+                            width: parent.width; height: visible ? 40 : 0
+                            Text {
+                                anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
+                                text: abCol.abState === "resolving" ? "Downloading in the background — resolving…"
+                                    : ("Downloading in the background — " + Math.round(abCol.abPct * 100) + "%")
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                            }
+                        }
                         Item {                              // loading / empty
                             visible: detail.abLoading || detail.abRows.length === 0
                             width: parent.width; height: 52

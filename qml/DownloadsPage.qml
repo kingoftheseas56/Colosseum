@@ -39,6 +39,28 @@ Item {
     // We hold resume-at wall-clock per chapterId and surface an honest live
     // countdown on its "Now arriving" row, cleared on the next progress/finish/fail.
     property var coolMap: ({})              // chapterId -> resume-at epoch ms (absent = not cooling)
+
+    // ---- audiobooks (A2 lane) ----
+    // The audiobook engine (`Audiobooks`) keys by pairKey ("title|author") and enumerates only
+    // COMPLETED sets (downloadedAudiobooks). Active jobs are mirrored HERE from its progress
+    // signals — a download streams in chunks, so an already-running job repaints within a beat
+    // of this page opening. (This closes the 2026-07-18 gap: audiobook downloads ran invisible.)
+    property var abActive: ({})        // pairKey -> { state: "resolving"|"downloading"|"failed", pct }
+    property var abDone: []            // downloadedAudiobooks() snapshot: {id,title,author,bytes,addedAt,missing,fileCount}
+    function abRefresh() {
+        abDone = (typeof Audiobooks !== "undefined") ? Audiobooks.downloadedAudiobooks() : [];
+    }
+    function abTitleOf(key) {          // pairKey → display title (its lowercased "title|author" front half)
+        var p = String(key || "").split("|");
+        return p[0] ? p[0] : String(key || "");
+    }
+    Connections {
+        target: typeof Audiobooks !== "undefined" ? Audiobooks : null
+        function onResolving(key)          { var m = root.abActive; m[key] = { state: "resolving", pct: 0 }; root.abActive = m }
+        function onProgress(key, rcv, tot) { var m = root.abActive; m[key] = { state: "downloading", pct: tot > 0 ? rcv / tot : 0 }; root.abActive = m }
+        function onFinished(key, path)     { var m = root.abActive; delete m[key]; root.abActive = m; root.abRefresh() }
+        function onFailed(key, why)        { var m = root.abActive; m[key] = { state: "failed", pct: 0 }; root.abActive = m }
+    }
     property double nowTick: Date.now()     // bumped 1/s while anything cools, drives the countdown
     readonly property bool anyCooling: {
         var m = root.coolMap;
@@ -53,6 +75,7 @@ Item {
     ]
 
     function refresh() {
+        abRefresh();                       // audiobooks ride their own engine, not LocalDownloads
         if (typeof LocalDownloads === "undefined") return;
         jobs = LocalDownloads.activeJobs();
         jobGroups = groupJobs(jobs);
@@ -937,6 +960,170 @@ Item {
                     }
                 }
             }
+            // ============ AUDIOBOOKS SHELF (A2 lane — its own engine, not LocalDownloads) ============
+            Column {
+                id: abLane
+                width: col.width
+                topPadding: 48
+                spacing: 16
+                readonly property var abKeys: Object.keys(root.abActive)
+
+                Row {
+                    spacing: 14
+                    Text { text: "Audiobooks"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
+                    Text {
+                        anchors.baseline: parent.children[0].baseline
+                        textFormat: Text.StyledText
+                        text: {
+                            var bytes = 0;
+                            for (var i = 0; i < root.abDone.length; i++) bytes += (root.abDone[i].bytes || 0);
+                            var s = "<b><font color='#f7f7f5'>" + root.abDone.length + "</font></b> audiobooks";
+                            if (bytes) s += " · " + root.fmtBytes(bytes);
+                            return s;
+                        }
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    }
+                }
+
+                Rectangle {
+                    width: parent.width
+                    implicitHeight: abShelfCol.implicitHeight + 52
+                    radius: 18
+                    color: Qt.rgba(0.04, 0.045, 0.065, 0.48)
+                    border.width: 1; border.color: theme.edge
+
+                    Column {
+                        id: abShelfCol
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.margins: 26
+                        spacing: 0
+
+                        // honest empty shelf
+                        Column {
+                            visible: abLane.abKeys.length === 0 && root.abDone.length === 0
+                            spacing: 12
+                            Text {
+                                text: "No audiobooks live here yet."
+                                color: theme.inkDim
+                                font.family: theme.display; font.italic: true; font.pixelSize: 19
+                            }
+                            Text {
+                                text: "Open a book in Biblio and pick a release ›"
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
+                            }
+                        }
+
+                        // active downloads first — mirrored live from the engine's signals
+                        Repeater {
+                            model: abLane.abKeys
+                            delegate: Item {
+                                id: abJobRow
+                                required property var modelData
+                                readonly property var st: root.abActive[modelData] || ({})
+                                width: abShelfCol.width; height: 54
+                                Column {
+                                    anchors.left: parent.left; anchors.right: abJobAct.left; anchors.rightMargin: 16
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 3
+                                    Text {
+                                        width: parent.width
+                                        text: root.abTitleOf(abJobRow.modelData)
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 15
+                                        font.weight: Font.Medium; font.capitalization: Font.Capitalize
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        text: abJobRow.st.state === "resolving" ? "resolving…"
+                                            : abJobRow.st.state === "failed" ? "failed — retry from the book's page"
+                                            : ("downloading — " + Math.round((abJobRow.st.pct || 0) * 100) + "%")
+                                        color: abJobRow.st.state === "failed" ? theme.inkDimmer : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 12
+                                    }
+                                }
+                                Text {
+                                    id: abJobAct
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    text: abJobRow.st.state === "failed" ? "Dismiss" : "Cancel"
+                                    color: abCancelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                    font.family: theme.ui; font.pixelSize: 13
+                                    MouseArea { id: abCancelMa; anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (abJobRow.st.state !== "failed" && typeof Audiobooks !== "undefined")
+                                                Audiobooks.cancelDownload(abJobRow.modelData)
+                                            var m = root.abActive; delete m[abJobRow.modelData]; root.abActive = m
+                                        } }
+                                }
+                            }
+                        }
+
+                        // completed sets
+                        Repeater {
+                            model: root.abDone
+                            delegate: Item {
+                                id: abDoneRow
+                                required property var modelData
+                                width: abShelfCol.width; height: 54
+                                Text {
+                                    id: abMark
+                                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                    width: 22
+                                    text: abDoneRow.modelData.missing ? "✕" : "✓"
+                                    color: abDoneRow.modelData.missing ? theme.inkDimmer : theme.inkDim
+                                    font.family: theme.ui; font.pixelSize: 13
+                                }
+                                Column {
+                                    anchors.left: abMark.right; anchors.leftMargin: 14
+                                    anchors.right: abDelT.left; anchors.rightMargin: 16
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 3
+                                    Text {
+                                        width: parent.width
+                                        text: abDoneRow.modelData.title || root.abTitleOf(abDoneRow.modelData.id)
+                                        color: abDoneRow.modelData.missing ? theme.inkDim : theme.ink
+                                        font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: {
+                                            if (abDoneRow.modelData.missing)
+                                                return "the files left the disk outside the app — delete the entry or fetch it again";
+                                            var parts = [];
+                                            if (abDoneRow.modelData.author) parts.push(abDoneRow.modelData.author);
+                                            var b = root.fmtBytes(abDoneRow.modelData.bytes || 0);
+                                            if (b) parts.push(b);
+                                            var w = root.fmtWhen(abDoneRow.modelData.addedAt || 0);
+                                            if (w) parts.push(w);
+                                            parts.push("listen from the book's page in Biblio");
+                                            return parts.join(" · ");
+                                        }
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                Text {
+                                    id: abDelT
+                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                                    text: "Delete"
+                                    color: abDelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                    font.family: theme.ui; font.pixelSize: 13
+                                    MouseArea { id: abDelMa; anchors.fill: parent; hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (typeof Audiobooks !== "undefined")
+                                                Audiobooks.deleteAudiobook(abDoneRow.modelData.id)
+                                            root.abRefresh()
+                                        } }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
             Item { width: 1; height: 40 }
         }
     }

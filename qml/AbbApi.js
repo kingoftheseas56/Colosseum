@@ -114,14 +114,47 @@ function constructMagnet(infoHash, title) {
         + "&tr=http%3A%2F%2Ftracker.vanitycore.co%3A6969%2Fannounce";
 }
 
+// The search term MUST go out LOWERCASE: ABB's ?s= REDIRECTS a query containing capital
+// letters to the HOMEPAGE (reproduced deterministically, 3/3, 2026-07-18), and the homepage's
+// latest posts then parse as plausible "results" — that is exactly how a "Joe Country" search
+// downloaded a romance novel. Lowercase queries never redirect and return the real matches.
+function searchTerm(title, author) {
+    return ((title || "") + (author ? " " + author : "")).trim().toLowerCase();
+}
+
+// Words that can't establish relevance on their own — generic catalog noise that would let
+// an unrelated post ("Al Clark: Book 3") count as a match for "The Book".
+var STOP = { "the": 1, "and": 1, "for": 1, "with": 1, "book": 1, "series": 1,
+             "audiobook": 1, "unabridged": 1, "novel": 1, "volume": 1 };
+
+// The homepage-junk gate (defense in depth behind the lowercase fix): keep only rows whose
+// title/author share at least one meaningful word with the requested book. If the site ever
+// hands us an unrelated page again (redirect, mirror weirdness, no-match filler), the whole
+// set collapses to [] and the caller shows "no audiobook found" — never strangers' uploads.
+function relevantRows(rows, title, author) {
+    var raw = ((title || "") + " " + (author || "")).toLowerCase().match(/[a-z0-9]{3,}/g) || [];
+    var words = raw.filter(function(w) { return !STOP[w]; });
+    if (words.length === 0) words = raw;   // stopword-only title ("The Book") → raw words are
+                                           // the only signal left; better than pass/drop-all
+    if (words.length === 0) return rows;   // no words at all → nothing to gate against
+    var out = [];
+    for (var i = 0; i < rows.length; i++) {
+        var hay = ((rows[i].title || "") + " " + (rows[i].author || "")).toLowerCase();
+        for (var j = 0; j < words.length; j++) {
+            if (hay.indexOf(words[j]) >= 0) { out.push(rows[i]); break; }
+        }
+    }
+    return out;
+}
+
 // full delivery flow: search ABB for a book → rows. Caller picks a row, then calls
 // fetchInfoHash(slug) to resolve the torrent hash. done({ rows }) or done(null) on miss.
 function resolveAudiobook(title, author, done) {
-    var term = (title || "") + (author ? " " + author : "");
-    if (!term.trim()) { done(null); return; }
+    var term = searchTerm(title, author);
+    if (!term) { done(null); return; }
     requestText(ABB + "/?s=" + encodeURIComponent(term), function(html) {
         if (!html) { done(null); return; }
-        var rows = parseSearch(html);
+        var rows = relevantRows(parseSearch(html), title, author);
         if (rows.length === 0) { done(null); return; }
         done({ rows: rows });
     });
