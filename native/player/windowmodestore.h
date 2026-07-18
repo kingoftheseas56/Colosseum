@@ -51,6 +51,9 @@ private:
     void applyBaseMode(QQuickWindow *window);
     void applyFullscreen(QQuickWindow *window);
     void applyWindowed(QQuickWindow *window);
+    void applyBorderlessGeometry(QQuickWindow *window, const QRect &geometry,
+                                 const QSize &minimumSize);
+    QRect activeFullScreenGeometry(QQuickWindow *window) const;
     void reassertBaseModeAfterRestore(QWindow::Visibility visibility);
     void scheduleStableCapture();
     void captureStableWindowState();
@@ -66,4 +69,5 @@ private:
     bool m_shellWindowed = false;
     bool m_windowedMaximized = false;
     bool m_transitioning = false;
+    bool m_restorePending = false;
 };

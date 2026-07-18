@@ -23,6 +23,12 @@ QRect centeredDefault(const QRect &available) {
     return centeredSized(safe, defaultSize());
 }
 
+QRect fullscreenGeometry(const QRect &screenGeometry, const QRect &fallback) {
+    if (screenGeometry.isValid())
+        return screenGeometry;
+    return fallback.isValid() ? fallback : QRect(0, 0, 1920, 1080);
+}
+
 bool isMeaningfullyVisible(const QRect &geometry,
                            const QList<QRect> &availableScreens) {
     for (const QRect &screen : availableScreens) {

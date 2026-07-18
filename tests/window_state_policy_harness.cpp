@@ -51,6 +51,14 @@ int main(int argc, char **argv) {
                 == QRect(640, 320, 1280, 720),
             "partly off-screen geometry must clamp inside the chosen screen");
 
+    const QRect fullPrimary(0, 0, 1920, 1080);
+    require(WindowStatePolicy::fullscreenGeometry(
+                fullPrimary, QRect(0, 0, 1280, 720)) == fullPrimary,
+            "fullscreen geometry must use the complete monitor, including reserved edges");
+    require(WindowStatePolicy::fullscreenGeometry(
+                QRect(), QRect(10, 20, 1600, 900)) == QRect(10, 20, 1600, 900),
+            "invalid screen geometry must use the supplied safe fallback");
+
     QTemporaryDir settingsDir;
     require(settingsDir.isValid(), "temporary settings directory must exist");
     QSettings::setDefaultFormat(QSettings::IniFormat);

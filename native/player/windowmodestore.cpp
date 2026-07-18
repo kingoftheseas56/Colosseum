@@ -149,10 +149,28 @@ void WindowModeStore::applyBaseMode(QQuickWindow *window) {
 }
 
 void WindowModeStore::applyFullscreen(QQuickWindow *window) {
+    applyBorderlessGeometry(window, activeFullScreenGeometry(window), QSize());
+}
+
+void WindowModeStore::applyBorderlessGeometry(QQuickWindow *window,
+                                               const QRect &geometry,
+                                               const QSize &minimumSize) {
+    if (!window)
+        return;
     window->setFlags(Qt::Window | Qt::FramelessWindowHint);
-    window->setMinimumSize(QSize());
-    window->showFullScreen();
+    window->setMinimumSize(minimumSize);
+    if (window->visibility() != QWindow::Windowed)
+        window->showNormal();
+    window->setGeometry(geometry);
     window->requestActivate();
+}
+
+QRect WindowModeStore::activeFullScreenGeometry(QQuickWindow *window) const {
+    QScreen *screen = window ? window->screen() : nullptr;
+    if (!screen)
+        screen = QGuiApplication::primaryScreen();
+    return WindowStatePolicy::fullscreenGeometry(
+        screen ? screen->geometry() : QRect(), QRect(0, 0, 1920, 1080));
 }
 
 void WindowModeStore::applyWindowed(QQuickWindow *window) {
@@ -168,15 +186,14 @@ void WindowModeStore::applyWindowed(QQuickWindow *window) {
     // via the new topbar toggle). Flags/min-size are set BEFORE any show so
     // they can never force a second visible reconfigure; setFlags is a no-op
     // when unchanged (both modes share the frameless flags).
-    window->setFlags(Qt::Window | Qt::FramelessWindowHint);
-    window->setMinimumSize(WindowStatePolicy::minimumSize());
     if (m_windowedMaximized) {
+        window->setFlags(Qt::Window | Qt::FramelessWindowHint);
+        window->setMinimumSize(WindowStatePolicy::minimumSize());
         window->showMaximized();
+        window->requestActivate();
     } else {
-        window->showNormal();
-        window->setGeometry(restored);
+        applyBorderlessGeometry(window, restored, WindowStatePolicy::minimumSize());
     }
-    window->requestActivate();
 }
 
 void WindowModeStore::toggleMaximized(QQuickWindow *window) {
@@ -215,17 +232,18 @@ bool WindowModeStore::startSystemResize(QQuickWindow *window, int edges) {
 }
 
 void WindowModeStore::reassertBaseModeAfterRestore(QWindow::Visibility visibility) {
-    // Windows restores a minimized frameless-FULLSCREEN shell into Windowed visibility at
-    // a default "normal placement" rect (the shell was born fullscreen, so it has none) —
-    // the taskbar-restore blob, 2026-07-16. The old Main.qml one-liner that snapped it
-    // back was retired by the F11 mode ("Restore must preserve the current base mode"),
-    // and the authority must enforce that sentence itself: outside transitions and PiP,
-    // a fullscreen-base shell must never sit in plain Windowed visibility.
-    if (visibility != QWindow::Windowed)
+    // Borderless fullscreen deliberately remains QWindow::Windowed. Remember the
+    // minimize edge explicitly, then reassert the full-monitor rectangle on restore;
+    // ordinary Windowed notifications must never create a geometry feedback loop.
+    if (visibility == QWindow::Minimized) {
+        if (!m_transitioning && !m_pipMode && !m_shellWindowed)
+            m_restorePending = true;
         return;
-    if (m_transitioning || m_pipMode || m_shellWindowed)
+    }
+    if (visibility != QWindow::Windowed || !m_restorePending)
         return;
-    // Queued: never re-enter show*() inside the visibility notification itself, and
+    m_restorePending = false;
+    // Queued: never write geometry inside the visibility notification itself, and
     // re-check state when it fires — enterPip()'s showNormal() lands here while its
     // pipMode flag is still pending, and must be left alone.
     QMetaObject::invokeMethod(this, [this]() {

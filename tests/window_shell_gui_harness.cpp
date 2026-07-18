@@ -59,6 +59,18 @@ int main(int argc, char **argv) {
         store.initializeShell(&win);
         require(!store.shellWindowed(), "clean settings -> fullscreen base");
         require(!store.pipMode(), "not in PiP initially");
+        require(win.screen(), "fullscreen shell must resolve an active screen");
+        require(win.visibility() == QWindow::Windowed,
+                "borderless fullscreen must remain a visible Windowed native surface");
+        require(win.geometry() == win.screen()->geometry(),
+                "borderless fullscreen must cover the active monitor geometry");
+        const WId originalId = win.winId();
+        store.toggleShellMode(&win);
+        store.toggleShellMode(&win);
+        require(win.winId() == originalId,
+                "fullscreen round-trip must retain the same native window identity");
+        require(win.visibility() == QWindow::Windowed,
+                "fullscreen round-trip must never enter native FullScreen visibility");
         store.enterPip(&win);
         require(store.pipMode(), "enterPip sets pipMode");
         require((win.flags() & Qt::WindowStaysOnTopHint) != 0,
@@ -134,7 +146,7 @@ int main(int argc, char **argv) {
     }
     qInfo("window_shell_gui_harness: live-reload re-attach OK");
 
-    // --- Test E: restore-from-minimize must reassert the fullscreen base ---
+    // --- Test E: restore-from-minimize must reassert borderless fullscreen geometry ---
     // On Windows, restoring a minimized frameless-fullscreen shell from the taskbar lands
     // it in Windowed visibility at a default tiny "normal placement" rect (the window was
     // born fullscreen, so it has none) — the centered-blob bug, 2026-07-16. The old
@@ -149,14 +161,19 @@ int main(int argc, char **argv) {
         QQuickWindow win;
         win.setVisible(false);
         store.initializeShell(&win);
-        require(win.visibility() == QWindow::FullScreen,
-                "fullscreen base must show fullscreen at init");
+        require(win.screen(), "fullscreen restore test needs an active screen");
+        require(win.visibility() == QWindow::Windowed,
+                "borderless fullscreen must use Windowed visibility at init");
+        require(win.geometry() == win.screen()->geometry(),
+                "fullscreen base must start at full-monitor geometry");
         win.showMinimized();
         settle();
         win.showNormal();   // what the taskbar restore does to the shell
         settle();
-        require(win.visibility() == QWindow::FullScreen,
-                "restore from minimize must snap the fullscreen shell back, not a tiny normal rect");
+        require(win.visibility() == QWindow::Windowed,
+                "restore from minimize must keep borderless fullscreen Windowed");
+        require(win.geometry() == win.screen()->geometry(),
+                "restore from minimize must reassert full-monitor geometry");
     }
     qInfo("window_shell_gui_harness: fullscreen restore-from-minimize OK");
 
