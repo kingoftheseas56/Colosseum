@@ -1496,6 +1496,14 @@ Window {
                                              : mode === "Biblio"  ? "book" : "tankoban")
                     })
                     if (item.wallpaperClicked) item.wallpaperClicked.connect(function() { win.openWallpaperSearch(mode) })
+                    // Next Up rows (spec 2026-07-18): Theatre's direct play walks the same
+                    // openMovieSession door as the series page; Tankoban's read walks the
+                    // same openComicSession door as Continue resume. Guarded — only the
+                    // worlds that declare the signals connect.
+                    var nextUpPlay = item["playRequested"]
+                    if (nextUpPlay) nextUpPlay.connect(win.openMovieSession)
+                    var nextUpRead = item["nextUpReadRequested"]
+                    if (nextUpRead) nextUpRead.connect(win.openComicSession)
                     if (mode === "Theatre") {
                         var theatreSignal = item["theatre" + "ItemRequested"]
                         if (theatreSignal) theatreSignal.connect(win.openTheatreSeries)

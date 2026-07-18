@@ -14,10 +14,51 @@ import QtQuick
 import "Catalog.js" as Catalog
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
+import "NextUp.js" as NextUp
 
 WorldPage {
     id: tanko
     medium: "Tankoban"
+
+    // Next Up (spec 2026-07-18, Jellyfin library inheritance): resume INTO the next
+    // chapter/volume through the same session door Continue uses (openComicSession).
+    signal nextUpReadRequested(string title, string seriesId, string unitId, string entryKind)
+
+    // "You finished the last one — here's the next one." MANGA ONLY (chapters +
+    // tankoban volumes) — western comics excluded by ruling: that catalogue isn't
+    // linear. Derivations live in NextUp.js; this only gathers what's on disk.
+    function nextUpRows() {
+        var fin = NextUp.finishedReads(Progress.recent("manga", 24),
+                                       Progress.recent("tankoban", 24))
+        var out = []
+        for (var i = 0; i < fin.length && out.length < 12; i++) {
+            var e = fin[i]
+            if (e.kind === "comic") continue
+            var next = null, downloaded = false
+            if (e.kind === "tankoban") {
+                if (typeof TankobanVolumes === "undefined") continue
+                var vols = (TankobanVolumes.volumesForSeries(String(e.id)) || []).map(function(v) {
+                    return { "id": v.id, "label": "Vol. " + v.number, "number": v.number,
+                             "ready": v.state === "ready" }
+                })
+                next = NextUp.nextUnit(e.sub, vols.filter(function(v) { return v.ready }))
+                downloaded = next !== null
+                if (!next) next = NextUp.nextUnit(e.sub, vols)   // exists, not downloaded → go-get card
+            } else {
+                var have = (typeof Downloads !== "undefined") ? Downloads.downloadedChapters() : []
+                var mine = have.filter(function(c) { return String(c.seriesId) === String(e.id) })
+                next = NextUp.nextUnit(e.sub, mine)
+                downloaded = next !== null
+                // nothing on disk past the finished chapter: the world can't know the next
+                // label without a scrape — honest generic card, routed to the series page.
+                if (!next && !isNaN(NextUp.unitNumber(e.sub)))
+                    next = { "id": "", "label": "Next chapter", "number": NaN }
+            }
+            if (!next) continue
+            out.push(NextUp.mangaCard(e, next, downloaded))
+        }
+        return out
+    }
 
     // Comics = GetComics for BOTH metadata and content (Hemanth 2026-07-12; the LOCG
     // catalogue-brain is PARKED in-tree). A comic tile opens the GetComics shelf
@@ -33,8 +74,6 @@ WorldPage {
     // Catalogue shelf rows (browse-landing, 2026-07-18): Most Stocked / publisher / decade /
     // deep-shelf / fan-made tiles all carry a gcd id and open the run page directly.
     signal gcdSeriesRequested(var d)
-    signal comicCatalogRequested(var rows)
-    signal comicGenreRequested(var payload)   // { genre, rows } → catalog page scoped to one shelf
 
     // GetComics' own taxonomy (top tags by release count, publishers + franchises,
     // noise-filtered) drives the explore mosaic inline — the old Archives-door page
@@ -42,7 +81,6 @@ WorldPage {
     property var comicBoxes: []
     property var comicCovers: []            // real covers → the mosaic's art pool
     property var comicRows: []              // populated when this lazy world is first created
-    property var comicGenreBoxes: []        // our OWN DB's genre shelves (GCD+VerseDB metadata)
     property var comicShelves: []           // catalogue shelf rows (browse-landing): [{label, rows}]
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
@@ -58,12 +96,6 @@ WorldPage {
         tanko.comicRows = catalogOk ? ComicsDb.rankedSeries() : Catalog.topComics
         if (catalogOk) console.log("ComicsDb: engine live, " + tanko.comicRows.length + " series")
         else console.warn("ComicsDb: catalogue engine unavailable — using curated fallback")
-        // Genre shelves from our own DB (GCD story-vote + VerseDB metadata, stamped
-        // by the catalog pipeline) — every series added upstream sorts in automatically.
-        tanko.comicGenreBoxes = catalogOk ? ComicsDb.genreShelves().map(function(b, i) {
-            var pal = tanko._genrePalette[i % tanko._genrePalette.length];
-            return { name: b.name, count: b.count, covers: b.covers, c1: pal[0], c2: pal[1] };
-        }) : [];
         // Catalogue shelf rows (browse-landing, ratified lineup): each row computes its
         // model once from ComicsCatalog.shelf(kind, arg, 24); rows with no rows just don't
         // render (Repeater below skips empty entries via a length check on the delegate).
@@ -108,6 +140,24 @@ WorldPage {
         slides: Catalog.featured
     }
 
+    // Next Up sits ABOVE Continue (Jellyfin's order — the freshest intent first).
+    // A card exists only when the series' LATEST read is finished; a half-read
+    // chapter keeps the series in Continue instead (the shared rule, NextUp.js).
+    ContinueRow {
+        title: "Next Up"
+        items: (Progress.revision, tanko.nextUpRows())
+        onResumeRequested: (item) => {
+            if (item.resume.downloaded && item.resume.unitId.length)
+                tanko.nextUpReadRequested(item.title, item.id,
+                                          item.resume.unitId,
+                                          item.kind === "tankoban" ? "tankoban" : "")
+            else
+                tanko.seriesRequested(item.title)   // not on disk → series page, go download it
+        }
+        onDetailRequested: (item) => tanko.seriesRequested(item.title)
+        onSeeAllRequested: tanko.continueSeeAllRequested()
+    }
+
     ContinueRow {
         title: "Continue Reading"
         // Real resume data — manga + comics BLENDED by true recency and capped like every other
@@ -146,7 +196,6 @@ WorldPage {
             if (it && it.locgId) tanko.comicSeriesRequested({ id: it.locgId, title: it.caption, cover: it.cover })
             else tanko.westernRequested(it.caption)
         }
-        onExploreClicked: tanko.comicCatalogRequested(tanko.comicRows)
     }
 
     // Catalogue shelf rows (browse-landing, ratified lineup 2026-07-18): Most Stocked,
@@ -182,18 +231,5 @@ WorldPage {
         covers: tanko.comicCovers          // real comic art behind the box gradients
         navigable: false
         onGenreClicked: (i) => tanko.westernExploreRequested(tanko.comicBoxes[i])
-    }
-
-    GenreMosaic {
-        title: "Explore by Genre — Comics"
-        // OUR catalog's genre axis (GCD story-vote + VerseDB metadata) — complementary
-        // to the archive-tag mosaic above: a box opens the catalog page scoped to
-        // that shelf, all cards our own DB series.
-        genres: tanko.comicGenreBoxes
-        covers: tanko.comicGenreBoxes.reduce(function(acc, b) { return acc.concat(b.covers || []) }, [])
-        navigable: false
-        visible: tanko.comicGenreBoxes.length > 0
-        onGenreClicked: (i) => tanko.comicGenreRequested({
-            genre: tanko.comicGenreBoxes[i].name, rows: tanko.comicRows })
     }
 }

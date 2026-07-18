@@ -5,6 +5,9 @@
 import QtQuick
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
+import "Torrentio.js" as Torrentio
+import "EpisodeBrowser.js" as EpisodeBrowser
+import "NextUp.js" as NextUp
 
 WorldPage {
     id: theatre
@@ -14,6 +17,9 @@ WorldPage {
     signal theatreItemRequested(var item)
     signal theatreGenreRequested(string kind, string name)
     signal theatreGenreIndexRequested(string kind)
+    // Next Up direct play — the exact TheatreSeries.playRequested shape, wired in Main
+    // to the same openMovieSession door (spec 2026-07-18, Jellyfin library inheritance).
+    signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
 
     property var featuredRows: Catalog.theatreFeatured
     // Real "Continue Watching" from the Progress store (what you actually started).
@@ -24,7 +30,66 @@ WorldPage {
     property var animeRows: []
     property string activeTab: "movies"
 
-    onProgressRevisionChanged: continueRows = Progress.recent("video", 12)
+    onProgressRevisionChanged: {
+        continueRows = Progress.recent("video", 12)
+        recomputeNextUp()
+    }
+
+    // ---- Next Up (spec 2026-07-18): "you finished the last episode — here's the next".
+    // A show cards ONLY when its latest episode entry is finished (the 0.90 line);
+    // otherwise it lives in Continue. Meta is fetched ONCE per show per app session
+    // (the same TheatreApi call the series page makes) and cached here.
+    property var nextUpRows: []
+    property var _nextUpMeta: ({})      // show root -> meta (videos carrier)
+    property var _nextUpPending: ({})   // show root -> true while a fetch is in flight
+
+    function recomputeNextUp() {
+        var fin = NextUp.finishedShows(Progress.recent("video", 48)).slice(0, 8)
+        var out = []
+        for (var i = 0; i < fin.length; i++) {
+            var rec = fin[i]
+            var meta = theatre._nextUpMeta[rec.show]
+            if (meta === undefined) {
+                theatre.fetchNextUpMeta(rec.show)
+                continue
+            }
+            if (!meta || !meta.videos || !meta.videos.length)
+                continue                        // meta came back empty — no honest card
+            var next = NextUp.nextEpisodeFromMeta(meta.videos, rec.entry.id)
+            if (next)
+                out.push(NextUp.theatreCard(rec, next))
+        }
+        theatre.nextUpRows = out
+    }
+
+    function fetchNextUpMeta(show) {
+        if (theatre._nextUpPending[show]) return
+        theatre._nextUpPending[show] = true
+        TheatreApi.loadMeta("series", show, function(meta) {
+            theatre._nextUpMeta[show] = meta || null   // null caches the miss — never refetch-loop
+            theatre.recomputeNextUp()
+        })
+    }
+
+    // The circle on a Next Up card: resolve the fresh episode's sources and walk in the
+    // series page's own door (playRequested → openMovieSession) with a full episode
+    // queue, so prev/next and the drawer work from the first frame. No sources → the
+    // series page (honest fallback, never a dead spinner).
+    function playNextUp(item) {
+        var showId = item.resume.showId
+        var detail = { "id": showId, "type": "series", "title": item.title, "cover": item.cover }
+        Torrentio.loadStreams("series", item.id, function(rows) {
+            if (!rows || !rows.length) { theatre.theatreItemRequested(detail); return }
+            var meta = theatre._nextUpMeta[showId]
+            var ctx = (meta && meta.videos)
+                      ? EpisodeBrowser.queueContextFromMeta(meta.videos, item.id, item.title,
+                                                            item.cover, meta.year || "")
+                      : null
+            var epTitle = item.title + " - S" + item.resume.season + "E" + item.resume.episode
+            theatre.playRequested(rows[0].infoHash || "", rows[0].fileIdx || 0, epTitle,
+                                  item.cover || "", "series", item.id, rows, ctx || ({}))
+        })
+    }
 
     function idFromArt(item) {
         var fields = [item.cover || "", item.art || ""]
@@ -47,7 +112,11 @@ WorldPage {
         return out
     }
 
-    Component.onCompleted: TheatreApi.loadTheatre(function(rows) {
+    Component.onCompleted: {
+        recomputeNextUp()
+        loadCatalog()
+    }
+    function loadCatalog() { TheatreApi.loadTheatre(function(rows) {
         if (rows.movies.length > 0)
             theatre.movieRows = rows.movies
         if (rows.series.length > 0)
@@ -56,7 +125,7 @@ WorldPage {
             theatre.animeRows = rows.anime
         if (rows.featured.length > 0)
             theatre.featuredRows = rows.featured
-    })
+    }) }
 
     FeaturedCarousel {
         kicker: "Featured in Theatre"
@@ -69,6 +138,17 @@ WorldPage {
             theatre.itemWithIdentity(theatre.featuredRows[index], theatre.featuredRows[index].ghost === "S" ? "series" : "movie"))
         onSecondaryClicked: (index) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(theatre.featuredRows[index], theatre.featuredRows[index].ghost === "S" ? "series" : "movie"))
+    }
+
+    // Next Up sits ABOVE Continue (Jellyfin's order — freshest intent first). Cards are
+    // fresh episodes (no progress bar); the circle plays, elsewhere opens the series.
+    ContinueRow {
+        title: "Next Up"
+        items: theatre.nextUpRows
+        onResumeRequested: (item) => theatre.playNextUp(item)
+        onDetailRequested: (item) => theatre.theatreItemRequested(
+            { "id": item.resume.showId, "type": "series", "title": item.title, "cover": item.cover })
+        onSeeAllRequested: theatre.continueSeeAllRequested()
     }
 
     ContinueRow {
