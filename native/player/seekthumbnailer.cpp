@@ -42,17 +42,37 @@ void SeekThumbnailer::request(const QUrl &source, double timeSec)
         Q_EMIT thumbReady(static_cast<double>(bucket), *hit);
         return;
     }
+    // Harbor's liveness rules (thumb-preview.tsx): while the exact frame loads, serve the
+    // NEAREST cached neighbour so a sweeping cursor sees motion, and NEVER kill an
+    // in-flight fetch — each completed frame fills the cache; the newest hover waits as
+    // the single pending slot (latest-wins). Killing on every bucket change is what made
+    // sweeps complete nothing and freeze on frame #1 (2026-07-18).
+    if (const QString *near = nearestCached(bucket))
+        Q_EMIT thumbReady(static_cast<double>(bucket), *near);
     if (m_proc) {
-        if (m_jobBucket == bucket)
-            return;               // already fetching this exact frame
-        killJob();                // latest-wins: the hover moved on
+        if (m_jobBucket != bucket)
+            m_pendingBucket = bucket;
+        return;
     }
     startJob(bucket);
+}
+
+const QString *SeekThumbnailer::nearestCached(qint64 bucket) const
+{
+    constexpr qint64 kBucket = static_cast<qint64>(kBucketSecs);
+    for (qint64 k = 1; k <= 6; ++k) {           // ±30s window, same as Harbor's
+        if (const QString *hit = m_cache.object(bucket + k * kBucket))
+            return hit;
+        if (const QString *hit = m_cache.object(bucket - k * kBucket))
+            return hit;
+    }
+    return nullptr;
 }
 
 void SeekThumbnailer::reset()
 {
     killJob();
+    m_pendingBucket = -1;
     m_cache.clear();
     m_source = QUrl();
 }
@@ -105,12 +125,20 @@ void SeekThumbnailer::onJobFinished(int exitCode, QProcess::ExitStatus status)
     if (!proc)
         return;
     proc->deleteLater();
-    if (exitCode != 0 || status != QProcess::NormalExit)
-        return;                   // dead stream / unseekable source: tooltip stays timestamp-only
-    const QByteArray jpeg = proc->readAllStandardOutput();
-    if (jpeg.isEmpty())
-        return;
-    auto *url = new QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(jpeg.toBase64()));
-    m_cache.insert(bucket, url);
-    Q_EMIT thumbReady(static_cast<double>(bucket), *url);
+    // Failure (dead stream / unseekable spot) files nothing — but ALWAYS falls through to
+    // chain the pending hover, or one bad frame would stall the whole pipeline.
+    const QByteArray jpeg = (exitCode == 0 && status == QProcess::NormalExit)
+                                ? proc->readAllStandardOutput() : QByteArray();
+    if (!jpeg.isEmpty()) {
+        auto *url = new QString(QStringLiteral("data:image/jpeg;base64,") + QString::fromLatin1(jpeg.toBase64()));
+        m_cache.insert(bucket, url);
+        Q_EMIT thumbReady(static_cast<double>(bucket), *url);
+    }
+    // Chain the newest hover that queued up while this frame was extracting.
+    if (m_pendingBucket >= 0) {
+        const qint64 next = m_pendingBucket;
+        m_pendingBucket = -1;
+        if (!m_cache.object(next))
+            startJob(next);
+    }
 }

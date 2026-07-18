@@ -28,10 +28,12 @@ private:
     void startJob(qint64 bucket);
     void killJob();
     void onJobFinished(int exitCode, QProcess::ExitStatus status);
+    const QString *nearestCached(qint64 bucket) const;
 
     QUrl m_source;
     QCache<qint64, QString> m_cache { 128 };
     QProcess *m_proc = nullptr;
     QTimer m_stallTimer;
     qint64 m_jobBucket = -1;
+    qint64 m_pendingBucket = -1;
 };

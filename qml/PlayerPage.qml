@@ -38,8 +38,6 @@ Item {
         property bool subtitleAutoUpgrade: false
         property bool forcedSubsWhenNativeAudio: false
         property bool subtitlesOffByDefault: false
-        // F10 Anime4K upscaling: "off" | "fast" | "quality" (sticky across sessions).
-        property string upscaleMode: "off"
         property string trackPrefsJson: "{}"
     }
 
@@ -687,31 +685,6 @@ Item {
         { id: "4:3", label: "4:3", panscan: 0, zoom: 0, aspect: "4:3" },
         { id: "scope", label: "2.39:1", panscan: 0, zoom: 0, aspect: "2.39:1" }
     ]
-
-    // F10 Anime4K upscaling — Mode A recipes straight from the shader pack's own
-    // instructions (restore + 2x CNN upscale; Fast = M/S nets, Quality = VL nets).
-    readonly property var upscaleModes: [
-        { id: "off", label: "Off", files: [] },
-        { id: "fast", label: "Anime4K Fast", files: [
-            "Anime4K_Clamp_Highlights.glsl", "Anime4K_Restore_CNN_M.glsl",
-            "Anime4K_Upscale_CNN_x2_M.glsl", "Anime4K_AutoDownscalePre_x2.glsl",
-            "Anime4K_AutoDownscalePre_x4.glsl", "Anime4K_Upscale_CNN_x2_S.glsl" ] },
-        { id: "quality", label: "Anime4K Quality", files: [
-            "Anime4K_Clamp_Highlights.glsl", "Anime4K_Restore_CNN_VL.glsl",
-            "Anime4K_Upscale_CNN_x2_VL.glsl", "Anime4K_AutoDownscalePre_x2.glsl",
-            "Anime4K_AutoDownscalePre_x4.glsl", "Anime4K_Upscale_CNN_x2_M.glsl" ] }
-    ]
-    property int upscaleModeIndex: 0
-    function applyUpscale(index) {
-        root.upscaleModeIndex = root.clamp(index, 0, root.upscaleModes.length - 1)
-        var mode = root.upscaleModes[root.upscaleModeIndex]
-        // Shaders ship in the repo beside qml/; mpv wants plain absolute paths.
-        var dir = decodeURIComponent(Qt.resolvedUrl("../resources/shaders/anime4k/").toString()
-                                       .replace(/^file:\/\/\//, ""))
-        mpv.setGlslShaders(mode.files.map(function(f) { return dir + f }))
-        playerSettings.upscaleMode = mode.id
-        root.wakeChrome()
-    }
 
     signal backRequested()
     signal minimizeRequested()
@@ -2467,13 +2440,6 @@ Item {
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
-        // Restore the sticky upscale choice; skip the mpv call when it's off anyway.
-        for (var ui = 0; ui < root.upscaleModes.length; ui++) {
-            if (root.upscaleModes[ui].id === playerSettings.upscaleMode && ui > 0) {
-                root.applyUpscale(ui)
-                break
-            }
-        }
     }
     Component.onDestruction: if (typeof Power !== "undefined") Power.release()
     onVisibleChanged: {
@@ -2495,6 +2461,18 @@ Item {
     property string hoverThumbUrl: ""
     property real hoverThumbBucket: -1
     function thumbBucketOf(t) { return Math.floor(Math.max(0, t) / 5) * 5 }
+    function chapterTitleAt(t) {
+        var best = ""
+        var list = mpv.chapters || []
+        for (var i = 0; i < list.length; i++) {
+            var c = list[i]
+            if ((c.startSec || 0) <= t)
+                best = c.title || ""
+            else
+                break
+        }
+        return best
+    }
     function requestSeekThumb() {
         if (mpv.duration > 0 && !root.seeking && mpv.currentUrl.toString().length > 0)
             seekThumbs.request(mpv.currentUrl, root.seekPreview)
@@ -4056,6 +4034,21 @@ Item {
                             color: Qt.rgba(1, 1, 1, 0.34)
                         }
                     }
+                    Repeater {
+                        // Jellyfin-style chapter marks: a notch at each chapter start (F4's
+                        // mpv.chapters data), slightly taller than the bar so it reads at rest.
+                        model: mpv.chapters
+                        Rectangle {
+                            required property var modelData
+                            visible: mpv.duration > 0 && (modelData.startSec || 0) > 1
+                            x: seekBar.width * root.clamp((modelData.startSec || 0) / mpv.duration, 0, 1) - width / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 2
+                            height: seekBar.hovered || root.seeking ? 12 : 9
+                            radius: 1
+                            color: Qt.rgba(1, 1, 1, 0.55)
+                        }
+                    }
                     Rectangle {
                         x: parent.width * root.seekFraction() - width / 2
                         anchors.verticalCenter: parent.verticalCenter
@@ -4072,11 +4065,14 @@ Item {
                         // grown and the picture swaps in place as frames arrive — never
                         // collapsing between buckets (that collapse read as "shaky").
                         readonly property bool hasThumb: root.hoverThumbUrl !== ""
+                        readonly property string chapterTitle: root.chapterTitleAt(root.seekPreview)
+                        readonly property bool hasChapter: chapterTitle !== ""
                         visible: seekBar.hovered && !root.seeking && mpv.duration > 0
                         x: root.clamp(seekHover.mouseX - width / 2, 0, parent.width - width)
                         y: -(height + 2)
-                        width: hasThumb ? 216 : previewText.implicitWidth + 16
-                        height: hasThumb ? previewThumb.height + 36 : 28
+                        width: hasThumb ? 216
+                                        : Math.min(240, Math.max(previewText.implicitWidth, chapterText.implicitWidth) + 16)
+                        height: (hasThumb ? previewThumb.height + 36 : 28) + (hasChapter ? 17 : 0)
                         radius: 7
                         color: Qt.rgba(0, 0, 0, 0.86)
                         border.width: 1
@@ -4094,10 +4090,24 @@ Item {
                             asynchronous: true
                         }
                         Text {
+                            id: chapterText
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: previewText.top
+                            anchors.bottomMargin: 1
+                            visible: parent.hasChapter
+                            text: parent.chapterTitle
+                            width: Math.min(implicitWidth, parent.width - 16)
+                            elide: Text.ElideRight
+                            horizontalAlignment: Text.AlignHCenter
+                            color: Qt.rgba(1, 1, 1, 0.72)
+                            font.family: theme.hud
+                            font.pixelSize: 11
+                        }
+                        Text {
                             id: previewText
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.bottom: parent.bottom
-                            anchors.bottomMargin: parent.hasThumb ? 7 : (parent.height - implicitHeight) / 2
+                            anchors.bottomMargin: parent.hasThumb || parent.hasChapter ? 7 : (parent.height - implicitHeight) / 2
                             text: root.fmtTime(root.seekPreview)
                             color: theme.ink
                             font.family: theme.hud; font.features: ({ "tnum": 1 })
@@ -5076,7 +5086,7 @@ Item {
             anchors.fill: parent
             size: 48
             icon: "fit"
-            active: fm.panelOpen || root.fillModeIndex !== 0 || root.upscaleModeIndex !== 0
+            active: fm.panelOpen || root.fillModeIndex !== 0
             tooltip: "Video fill"
             onClicked: {
                 var wasOpen = fm.panelOpen
@@ -5093,7 +5103,7 @@ Item {
             visible: fm.panelOpen
             z: 40
             width: 188
-            height: 56 + root.fillModes.length * 34 + 36 + root.upscaleModes.length * 34
+            height: 56 + root.fillModes.length * 34
             onVisibleChanged: if (visible) {
                 var p = fm.mapToItem(chrome, 0, 0)
                 x = root.clamp(p.x + fm.width / 2 - width / 2, 10, chrome.width - width - 10)
@@ -5149,44 +5159,6 @@ Item {
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.applyFill(index)
-                    }
-                }
-            }
-            Text {
-                x: 18
-                y: 48 + root.fillModes.length * 34 + 10
-                text: "Upscaling"
-                color: theme.ink
-                font.family: theme.hud
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-            }
-            Repeater {
-                model: root.upscaleModes
-                delegate: Rectangle {
-                    required property int index
-                    required property var modelData
-                    x: 8
-                    y: 48 + root.fillModes.length * 34 + 36 + index * 34
-                    width: parent.width - 16
-                    height: 32
-                    radius: 8
-                    property bool selected: root.upscaleModeIndex === index
-                    color: selected ? Qt.rgba(1, 1, 1, 0.10) : (upscaleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
-                    Text {
-                        anchors.centerIn: parent
-                        text: modelData.label
-                        color: parent.selected ? theme.gold : theme.ink
-                        font.family: theme.hud
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                    }
-                    MouseArea {
-                        id: upscaleMouse
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.applyUpscale(index)
                     }
                 }
             }
