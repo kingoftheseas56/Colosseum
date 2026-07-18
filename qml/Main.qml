@@ -927,16 +927,8 @@ Window {
             "target": { "path": path, "book": b, "id": (b.id !== undefined ? ("" + b.id) : path) }
         })
     }
-    // A2 audiobook session: the paired audiobook rides the biblio appType like the reader,
-    // so it gets a taskbar tile + Continue presence. id = pairKey (its pairing identity).
-    function openAudiobookSession(pairKey, book) {
-        if (!pairKey) return
-        var b = book || ({})
-        Sessions.openOrSwitch({
-            "appType": "biblio", "contentKind": "audiobook", "title": b.title || "Audiobook",
-            "target": { "pairKey": pairKey, "book": b, "id": pairKey }
-        })
-    }
+    // (openAudiobookSession retired 2026-07-18 — the standalone audiobook player is gone;
+    // the READER is the one audiobook surface. AudiobookSession, the engine, lives on below.)
 
     // ---- window-verbs for the reader/player chrome (Windows-taskbar vocabulary, 2026-07-04) ----
     // minimize = capture the exact spot, drop the surface, KEEP the session in the taskbar,
@@ -997,14 +989,7 @@ Window {
         if (rec && rec.contentKind === "book") win.closeSession(rec.id)
         else win.closeBookReader()
     }
-    // audiobook always registers a session before its player shows, so minimize = switch away
-    // (teardown hides the layer, tile stays), close = end the session.
-    function minimizeAudiobook() { Sessions.switchTo("") }
-    function closeAudiobookSession() {
-        var rec = Sessions.get(Sessions.activeId)
-        if (rec && rec.contentKind === "audiobook") win.closeSession(rec.id)
-        else if (audiobookPlayerLayer.active) audiobookPlayerLayer.active = false
-    }
+    // (minimizeAudiobook / closeAudiobookSession retired with the standalone player, 2026-07-18.)
 
     // dispatcher: build the active surface from a record (+ restore its saved state).
     function activateSession(rec) {
@@ -1078,24 +1063,16 @@ Window {
         } else if (rec.contentKind === "book") {
             bookReaderLayer.bookPath = t.path
             bookReaderLayer.bookMeta = t.book || ({})
-            if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.open(t.path, t.book || ({}))
-            else bookReaderLayer.active = true
-            // book precision: foliate auto-restores its own CFI on reopen of the same path (Task 6).
-        } else if (rec.contentKind === "audiobook") {
-            if (!audiobookPlayerLayer.active) audiobookPlayerLayer.active = true
-            var abp = audiobookPlayerLayer.item
-            if (abp) {
-                abp.start(t.pairKey, t.book || ({}))
-                // resume: in-session capture (minimize) wins; else the ProgressStore position.
-                var abSt = (st && st.position !== undefined) ? st : null
-                if (!abSt && typeof Progress !== 'undefined') {
-                    var pg = Progress.get("audiobook", t.pairKey || "")
-                    if (pg && pg.resume) abSt = { "fileIndex": Number(pg.resume.fileIndex) || 0,
-                                                  "position": Number(pg.resume.position) || 0 }
-                }
-                if (abSt && abp.restoreState) abp.restoreState(abSt)
-            }
+            // Fresh-reader contract (the old item.open(path, book) survived the swap here and
+            // THREW when the layer was already live — Continue resume into an open reader died).
+            if (bookReaderLayer.active && bookReaderLayer.item) {
+                bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
+                bookReaderLayer.item.openBook(t.path)
+            } else bookReaderLayer.active = true
+            // book precision: the reader restores its own saved position on reopen (resume seam).
         }
+        // ('audiobook' sessions retired with the standalone player, 2026-07-18 — a stale
+        // taskbar record of that kind now activates to nothing and closes normally.)
     }
     // capture the live outgoing surface's state (called BEFORE teardown).
     function captureSession(rec) {
@@ -1108,7 +1085,6 @@ Window {
             return (lay.item && lay.item.captureState) ? lay.item.captureState() : ({})
         }
         if (rec.contentKind === "book"  && bookReaderLayer.item && bookReaderLayer.item.captureState) return bookReaderLayer.item.captureState()
-        if (rec.contentKind === "audiobook" && audiobookPlayerLayer.item && audiobookPlayerLayer.item.captureState) return audiobookPlayerLayer.item.captureState()
         return ({})
     }
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
@@ -1128,8 +1104,6 @@ Window {
             else seriesLayer.active = false
         } else if (rec.contentKind === "book")  {
             bookReaderLayer.active = false
-        } else if (rec.contentKind === "audiobook") {
-            audiobookPlayerLayer.active = false
         }
     }
 
@@ -1960,14 +1934,14 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readRequested.connect(win.openBookSession)
-            item.listenRequested.connect(win.openAudiobookSession)
+            // (listenRequested retired — the reader carries audiobook playback now)
         }
     }
 
-    // ---- the reader: foliate EPUB reader (WebEngine), over the book detail ----
-    // The ONE audiobook engine for read-along, hoisted at the window root (never in a
-    // Loader) so the stream survives the reader opening/closing. The reader's docked
-    // listen strip binds to this; the standalone AudiobookPlayer keeps its own engine.
+    // ---- the ONE audiobook engine (read-along), hoisted at the window root (never in a
+    // Loader) so playback survives the reader opening/closing. The READER is the only
+    // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
+    // and Audio tab both drive this session. ----
     AudiobookSession { id: audioSession }
 
     Loader {
@@ -1993,21 +1967,9 @@ Window {
         }
     }
 
-    // ---- audiobook player layer: A2's audio-session surface (over the world, below the reader) ----
-    Loader {
-        id: audiobookPlayerLayer
-        anchors.fill: parent
-        z: 57
-        active: false
-        visible: active
-        source: "AudiobookPlayer.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.backRequested.connect(win.minimizeAudiobook)
-            item.minimizeRequested.connect(win.minimizeAudiobook)
-            item.closeRequested.connect(win.closeAudiobookSession)
-        }
-    }
+    // (The standalone audiobook player layer is retired — 2026-07-18, Hemanth: the reader
+    // IS the audiobook player. AudiobookSession above stays: it is the ENGINE the reader's
+    // HUD transport and Audio tab drive.)
 
     // ---- generic world search layer: Tankoban + Theatre (SearchSurface + their own source) ----
     Loader {

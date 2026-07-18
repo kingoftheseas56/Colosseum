@@ -28,7 +28,7 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
     signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
-    signal listenRequested(string bookKey, var book)   // a downloaded audiobook is ready for the player
+    // (listenRequested retired 2026-07-18 — the reader is the one audiobook surface)
 
     // ── audiobook pairing lane: the same title's audiobook, from AudioBookBay ──
     property var abRows: []                             // ABB search rows for this title
@@ -331,15 +331,9 @@ Item {
                         }
                         MouseArea { id: libMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor }
                     }
-                    Rectangle {                       // Listen — appears once the paired audiobook is on disk (Option A: Read + Listen side by side)
-                        visible: detail.audioLocal
-                        width: parent.width; height: 50; radius: 13; color: theme.gold
-                        Row { anchors.centerIn: parent; spacing: 8
-                            Image { source: "../assets/icons/music.svg"; width: 15; height: 15; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "Listen"; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold } }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: detail.listenRequested(detail.pairKey, detail.book) }
-                    }
+                    // (The standalone Listen button is retired — Hemanth 2026-07-18: the reader IS
+                    // the audiobook player. A downloaded audiobook auto-attaches; Read opens the
+                    // book and the reader's HUD transport + Audio tab carry playback.)
                 }
             }
 
@@ -701,7 +695,12 @@ Item {
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        if (abRow.rowState === "done") { detail.listenRequested(detail.pairKey, detail.book); return }
+                                        // ✓ row → into the READER (the one audiobook surface): the shell
+                                        // self-heals the pairing and its HUD/Audio tab carry playback.
+                                        if (abRow.rowState === "done") {
+                                            if (detail.localPath) detail.readRequested(detail.localPath, detail.book)
+                                            return
+                                        }
                                         // one download at a time: ignore clicks while another row is resolving/downloading
                                         if (abCol.abState === "downloading" || abCol.abState === "resolving") return
                                         if (typeof Audiobooks === 'undefined') return

@@ -123,12 +123,15 @@ Item {
 
             readonly property real tabW: (width - spacing * 3) / 4
 
-            Tab { width: tabStrip.tabW; label: "Contents";   active: panel.activeTab === "contents";   onPicked: panel.tabSelected("contents") }
-            Tab { width: tabStrip.tabW; label: "Bookmarks";  active: panel.activeTab === "bookmarks";  onPicked: panel.tabSelected("bookmarks") }
-            Tab { width: tabStrip.tabW; label: "Highlights"; active: panel.activeTab === "highlights"; onPicked: panel.tabSelected("highlights") }
+            // ICON tabs (Hemanth 2026-07-18: "change every name in toc to an SVG icon placed at
+            // equal distance") — equal-width cells, icon centered in each; the name lives on in
+            // the hover tooltip. Same SVG set as the rest of the reader chrome.
+            Tab { width: tabStrip.tabW; icon: "contents.svg";  tip: "Contents";   active: panel.activeTab === "contents";   onPicked: panel.tabSelected("contents") }
+            Tab { width: tabStrip.tabW; icon: "bookmark.svg";  tip: "Bookmarks";  active: panel.activeTab === "bookmarks";  onPicked: panel.tabSelected("bookmarks") }
+            Tab { width: tabStrip.tabW; icon: "highlight.svg"; tip: "Highlights"; active: panel.activeTab === "highlights"; onPicked: panel.tabSelected("highlights") }
             // Audio (Task 13) — the read-along pane: attached audiobook + Follow switch +
             // mini transport. Live now (the placeholder/disabled state is gone).
-            Tab { width: tabStrip.tabW; label: "Audio"; active: panel.activeTab === "audio"; onPicked: panel.tabSelected("audio") }
+            Tab { width: tabStrip.tabW; icon: "headphones.svg"; tip: "Audio"; active: panel.activeTab === "audio"; onPicked: panel.tabSelected("audio") }
         }
 
         // ---------- pane body ----------
@@ -718,26 +721,27 @@ Item {
         }
     }
 
-    // ---------- a tab: label + gold underline when active; hover tooltip when disabled ----------
+    // ---------- a tab: SVG icon centered in an equal-width cell + gold underline when
+    // active; the tab NAME lives in the hover tooltip (icon tabs, Hemanth 2026-07-18) ----------
     component Tab: Item {
         id: tab
-        property string label: ""
+        property string icon: ""            // filename under assets/icons/reader2/
         property bool active: false
         property bool tabEnabled: true
         property string tip: ""
         signal picked()
         height: 36
 
-        Text {
-            id: tabLabel
+        Image {
+            id: tabIcon
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 9
-            text: tab.label
-            font.family: Theme.ui
-            font.pixelSize: 13
-            font.weight: Font.DemiBold
-            color: tab.active ? Theme.ink : (tab.tabEnabled ? Theme.inkFaint : Theme.inkGhost)
+            anchors.topMargin: 7
+            width: 17; height: 17
+            source: tab.icon !== "" ? Qt.resolvedUrl("../../assets/icons/reader2/" + tab.icon) : ""
+            sourceSize: Qt.size(34, 34)     // 2x for crisp scaling
+            // icons ship white; dim inactive/disabled states via opacity (no recolor pass needed)
+            opacity: tab.active ? 1.0 : (tab.tabEnabled ? 0.45 : 0.22)
         }
         Rectangle {
             anchors.left: parent.left
@@ -754,9 +758,9 @@ Item {
             cursorShape: tab.tabEnabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             onClicked: if (tab.tabEnabled) tab.picked()
         }
-        // minimal hover tooltip for the disabled Audio tab (no QtQuick.Controls needed).
+        // hover tooltip — now carries the tab NAME for every tab (icons have no text).
         Rectangle {
-            visible: !tab.tabEnabled && tabMa.containsMouse && tab.tip !== ""
+            visible: tabMa.containsMouse && tab.tip !== ""
             anchors.top: parent.bottom
             anchors.topMargin: 2
             anchors.horizontalCenter: parent.horizontalCenter

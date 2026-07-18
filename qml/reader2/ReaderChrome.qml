@@ -85,6 +85,7 @@ Item {
     signal audioPlayToggled()
     signal audioSpeedCycled()
     signal audioSeekRequested(real fraction)
+    signal audioSkipRequested(real seconds)   // HUD transport pill: relative ±seek
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
     // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
@@ -258,6 +259,85 @@ Item {
         returnPageLabel: chrome.returnPageLabel
         onScrubbed: (f) => chrome.scrubbed(f)
         onReturnRequested: chrome.returnRequested()
+    }
+
+    // ---------- audiobook HUD transport (Hemanth 2026-07-18) — rides the chrome reveal ----------
+    // A centered pill above the bottom rail: skip back · play/pause · skip forward · time.
+    // Appears ONLY when this book has an attached audiobook, and fades on the same `awake`
+    // beat as the bars ("a HUD controller that lives on top of the reader and disappears
+    // along with the HUD"). Full controls — scrub rail, speed, Follow — stay in the left
+    // panel's Audio tab; this pill is the quick transport. Its backing MouseArea is the
+    // house click-swallower, so taps here never fall through to the page-turn zones.
+    Rectangle {
+        id: audioHud
+        visible: opacity > 0.01 && chrome.audioAttached
+        opacity: (chrome.awake && chrome.audioAttached) ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 160 } }
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: bottomRail.top
+        anchors.bottomMargin: 10
+        width: hudRow.implicitWidth + 40
+        height: 46
+        radius: 23
+        color: Theme.bar
+        border.color: Theme.barBorder
+        border.width: 1
+        MouseArea { anchors.fill: parent }        // swallow — nothing falls through to the page
+
+        Row {
+            id: hudRow
+            anchors.centerIn: parent
+            spacing: 18
+
+            Image {                               // skip back 15s
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16; height: 16
+                source: Qt.resolvedUrl("../../assets/icons/reader2/chevron-left.svg")
+                sourceSize: Qt.size(32, 32)
+                opacity: skipBackMa.containsMouse ? 1.0 : 0.55
+                MouseArea { id: skipBackMa; anchors.fill: parent; anchors.margins: -8
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: chrome.audioSkipRequested(-15) }
+            }
+
+            Rectangle {                           // play / pause — white circle, dark glyph
+                anchors.verticalCenter: parent.verticalCenter
+                width: 32; height: 32; radius: 16
+                color: Theme.ink
+                Image {
+                    anchors.centerIn: parent
+                    // nudge the play triangle right for optical centering (panel transport parity)
+                    anchors.horizontalCenterOffset: chrome.audioPlaying ? 0 : 1
+                    width: 13; height: 13
+                    source: chrome.audioPlaying
+                        ? Qt.resolvedUrl("../../assets/icons/reader2/pause-dark.svg")
+                        : Qt.resolvedUrl("../../assets/icons/reader2/play-dark.svg")
+                    sourceSize: Qt.size(26, 26)
+                }
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                            onClicked: chrome.audioPlayToggled() }
+            }
+
+            Image {                               // skip forward 15s
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16; height: 16
+                source: Qt.resolvedUrl("../../assets/icons/reader2/chevron-right.svg")
+                sourceSize: Qt.size(32, 32)
+                opacity: skipFwdMa.containsMouse ? 1.0 : 0.55
+                MouseArea { id: skipFwdMa; anchors.fill: parent; anchors.margins: -8
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: chrome.audioSkipRequested(15) }
+            }
+
+            Text {                                // "12:34 / 1:02:03" once live; quiet before play
+                anchors.verticalCenter: parent.verticalCenter
+                visible: chrome.audioTimeLine !== ""
+                text: chrome.audioTimeLine
+                color: Theme.inkDim
+                font.family: Theme.ui
+                font.pixelSize: 12
+            }
+        }
     }
 
     // ---------- 5. reveal bands (top + bottom) — the ONLY hover waker ----------

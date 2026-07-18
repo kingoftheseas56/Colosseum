@@ -406,6 +406,11 @@ FocusScope {
         if (shell.audioSessionLive && shell.audioSession.duration > 0)
             shell.audioSession.seekTo(shell.audioSession.duration * Math.max(0, Math.min(1, f)))
     }
+    // Relative skip (±seconds) from the HUD transport pill.
+    function audioSkip(sec) {
+        if (shell.audioSessionLive)
+            shell.audioSession.seekTo(Math.max(0, shell.audioSession.position + sec))
+    }
 
     // A single appearance edit from the panel: merge into shell.appearance, PERSIST under the
     // namespaced settings.reader2 (READ-MODIFY-WRITE — the OLD reader's flat keys are never
@@ -462,6 +467,26 @@ FocusScope {
         var id = shell.pendingSaveId
         var prev = Reader2Bridge.progressGet(id)
         Reader2Bridge.progressSave(id, L.progressRecord(prev, pend, shell.pendingSaveBookPath))
+        // Feed the unified home Continue/resume row (old-reader parity — the swap dropped this
+        // wire, so Continue went stale and never learned about fresh-reader sessions). Same
+        // record shape the old reader wrote; resume carries {path, book} for openBookSession.
+        // bookMeta is host-injected; the standalone harness has none and this quietly skips.
+        if (typeof Progress !== "undefined" && shell.pendingSaveBookPath !== "") {
+            var m = shell.bookMeta || ({})
+            var fraction = Number.isFinite(pend.fraction) ? Math.min(1, Math.max(0, pend.fraction)) : 0
+            Progress.record({
+                "id": (m.id !== undefined && ("" + m.id).length) ? ("" + m.id) : shell.pendingSaveBookPath,
+                "kind": "book",
+                "caption": m.title || shell.bookTitle || "",
+                "title": m.title || shell.bookTitle || "",
+                "sub": (fraction > 0 ? Math.round(fraction * 100) + "%" : "Reading"),
+                "cover": m.cover || "",
+                "c1": m.c1 !== undefined ? m.c1 : "#2a2440",
+                "c2": m.c2 !== undefined ? m.c2 : "#15111f",
+                "progress": fraction,
+                "resume": { "path": shell.pendingSaveBookPath, "book": m }
+            })
+        }
         shell.pendingSave = null
     }
     // Leave the reader: FLUSH any pending save first (so a page turn within the debounce window
@@ -713,6 +738,7 @@ FocusScope {
         onAudioPlayToggled: shell.audioPlayToggle()
         onAudioSpeedCycled: shell.audioCycleSpeed()
         onAudioSeekRequested: (f) => shell.audioSeekFraction(f)
+        onAudioSkipRequested: (s) => shell.audioSkip(s)
 
         // The bookmark icon = "bookmark THIS page" (per the mock). Write the SAME shape the
         // old reader's reader_bookmarks.js uses (locator{cfi,href,fraction} + label + snippet)
