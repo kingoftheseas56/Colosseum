@@ -29,3 +29,4 @@ artifacts/reader-bakeoff/
 # Comics catalogue SQLite db — pipeline-deployed by scripts/comics_brain/catalogue_build.py,
 # not shipped through git; app degrades gracefully when absent.
 data/
+data/vault_token.txt

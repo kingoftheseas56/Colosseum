@@ -254,8 +254,7 @@ Window {
     Shortcut {
         sequences: ["F11"]
         context: Qt.ApplicationShortcut
-        onActivated: if (typeof WindowMode !== "undefined")
-            WindowMode.toggleShellMode(win)
+        onActivated: win.toggleFullscreenShell()
     }
 
     // Minimize the OS surface to the taskbar — "get it off my screen" WITHOUT quitting (the shell
@@ -265,7 +264,8 @@ Window {
     // Topbar fullscreen toggle — the same shell flip as the F11 developer door
     // (WindowModeStore stays the single native authority for the mode).
     function toggleFullscreenShell() {
-        if (typeof WindowMode !== "undefined") WindowMode.toggleShellMode(win)
+        if (typeof WindowMode !== "undefined" && !fullscreenTransition.transitioning)
+            fullscreenTransition.begin()
     }
 
     // ---- navigation: open a medium's world page over the persistent wallpaper ----
@@ -2179,5 +2179,13 @@ Window {
         onFinished: { bootFade.start(); universeWarmer.warm() }
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
+    }
+
+    // One shell-wide cover turns the full-monitor geometry jump into a deliberate beat.
+    // Every entry point (F11, global chrome, player, book, comic) reaches this same gate.
+    FullscreenTransitionShield {
+        id: fullscreenTransition
+        anchors.fill: parent
+        onApplyRequested: WindowMode.toggleShellMode(win)
     }
 }
