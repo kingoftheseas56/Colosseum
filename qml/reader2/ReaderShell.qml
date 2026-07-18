@@ -336,6 +336,10 @@ FocusScope {
         : "Press play to listen along"
     readonly property real audioProgress: (shell.audioSessionLive && shell.audioSession.duration > 0)
         ? shell.audioSession.position / shell.audioSession.duration : 0
+    // The pill's scrub-rail flanks (TB2 parity): elapsed / total of the CURRENT stream.
+    readonly property string audioPosLabel: shell.audioSessionLive ? L.fmtClock_(shell.audioSession.position) : ""
+    readonly property string audioDurLabel: (shell.audioSessionLive && shell.audioSession.duration > 0)
+        ? L.fmtClock_(shell.audioSession.duration) : ""
     // CHOSEN speed (Hemanth 2026-07-18: "the speed button does not do anything" — it only
     // acted on a LIVE stream). The choice now lives shell-side: cycling always works and
     // shows, and it's applied to the session on load and on every cycle while live.
@@ -754,6 +758,8 @@ FocusScope {
         audioSpeedLabel: shell.audioSpeedLabel
         audioPlaylist: shell.audioPlaylist
         audioCurrentIndex: shell.audioCurrentIndex
+        audioPosLabel: shell.audioPosLabel
+        audioDurLabel: shell.audioDurLabel
 
         // appearance panel data (Task 10)
         appearance: shell.appearance
