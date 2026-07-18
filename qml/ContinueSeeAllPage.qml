@@ -47,7 +47,9 @@ Item {
         if (scope === "video")         rawItems = Progress.recent("video", 0)
         else if (scope === "book")     rawItems = Progress.recent("book", 0)
         else if (scope === "tankoban") rawItems = Progress.recent("manga", 0).concat(Progress.recent("comic", 0))
-        else                           rawItems = Progress.recent("", 0)
+        // all-scope: 'audiobook' records are resume positions for the reader's read-along,
+        // never tiles — the book's own tile represents both (Hemanth 2026-07-18).
+        else                           rawItems = Progress.recent("", 0).filter(function(e) { return e.kind !== "audiobook" })
     }
     // naming Progress.revision keeps removals/new progress live (house pattern)
     property int progressRevision: (typeof Progress !== "undefined") ? Progress.revision : 0

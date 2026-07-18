@@ -289,11 +289,11 @@ Item {
             anchors.centerIn: parent
             spacing: 18
 
-            Image {                               // skip back 15s
+            Image {                               // skip back 15s (arc-arrow SVG, house stroke)
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16; height: 16
-                source: Qt.resolvedUrl("../../assets/icons/reader2/chevron-left.svg")
-                sourceSize: Qt.size(32, 32)
+                width: 19; height: 19
+                source: Qt.resolvedUrl("../../assets/icons/reader2/skip-back-15.svg")
+                sourceSize: Qt.size(38, 38)
                 opacity: skipBackMa.containsMouse ? 1.0 : 0.55
                 MouseArea { id: skipBackMa; anchors.fill: parent; anchors.margins: -8
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -318,15 +318,36 @@ Item {
                             onClicked: chrome.audioPlayToggled() }
             }
 
-            Image {                               // skip forward 15s
+            Image {                               // skip forward 15s (arc-arrow SVG, house stroke)
                 anchors.verticalCenter: parent.verticalCenter
-                width: 16; height: 16
-                source: Qt.resolvedUrl("../../assets/icons/reader2/chevron-right.svg")
-                sourceSize: Qt.size(32, 32)
+                width: 19; height: 19
+                source: Qt.resolvedUrl("../../assets/icons/reader2/skip-forward-15.svg")
+                sourceSize: Qt.size(38, 38)
                 opacity: skipFwdMa.containsMouse ? 1.0 : 0.55
                 MouseArea { id: skipFwdMa; anchors.fill: parent; anchors.margins: -8
                             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: chrome.audioSkipRequested(15) }
+            }
+
+            Rectangle {                           // speed chip — cycles the ladder (panel parity)
+                anchors.verticalCenter: parent.verticalCenter
+                width: speedText.implicitWidth + 16
+                height: 24; radius: 12
+                color: "transparent"
+                border.width: 1
+                border.color: speedMa.containsMouse ? Theme.ink : Theme.barBorder
+                Text {
+                    id: speedText
+                    anchors.centerIn: parent
+                    text: chrome.audioSpeedLabel
+                    color: speedMa.containsMouse ? Theme.ink : Theme.inkDim
+                    font.family: Theme.ui
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                }
+                MouseArea { id: speedMa; anchors.fill: parent; hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: chrome.audioSpeedCycled() }
             }
 
             Text {                                // "12:34 / 1:02:03" once live; quiet before play

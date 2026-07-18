@@ -1357,7 +1357,10 @@ Window {
                 spacing: 14
                 // watched episodes sink below unfinished entries (both halves keep recency order)
                 property var contItems: (Progress.revision, (function() {
-                    var a = Progress.recent("", 12)
+                    // 'audiobook' records persist ONLY as resume positions for the reader's
+                    // read-along (Hemanth 2026-07-18: audio progress rides the BOOK — the
+                    // book's own tile represents both). Never surface them as tiles.
+                    var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
                     return a.filter(function(e) { return e.watched !== true })
                             .concat(a.filter(function(e) { return e.watched === true }))
                 })())
