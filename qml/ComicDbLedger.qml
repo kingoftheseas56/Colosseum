@@ -93,13 +93,6 @@ Item {
         }
         return bits
     }
-    // the collected-issue list — the ledger's most important datum (Hemanth 2026-07-13). Real,
-    // from PRH COLLECTING (Marvel) or the GetComics post (DC); absent when no source carries it.
-    function collectsText(ed) {
-        var c = String(ed.collects || "").replace(/^collect(s|ing)[: ]*/i, "").replace(/^the pages of\s+/i, "")
-        return c ? "Collects " + c : ""
-    }
-
     Column {
         id: col
         width: ledger.contentWidth
@@ -237,7 +230,20 @@ Item {
                             border.color: ed.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
                             clip: true
                             Image { anchors.fill: parent; anchors.margins: 1
-                                source: ed.modelData.cover || ""
+                                // cover ladder (Hemanth 2026-07-17): baked cover first, else PRH's
+                                // keyless ISBN cover CDN (images.penguinrandomhouse.com/cover/<isbn>,
+                                // IPv4-only — no dead-IPv6 stall) carries art for most ISBN'd
+                                // editions the pipeline missed. Error -> next rung -> quiet card.
+                                property int rung: 0
+                                readonly property var ladder: {
+                                    var l = []
+                                    if (ed.modelData.cover) l.push(ed.modelData.cover)
+                                    var isbn = String(ed.modelData.isbn || "").replace(/-/g, "")
+                                    if (isbn.length) l.push("https://images.penguinrandomhouse.com/cover/" + isbn)
+                                    return l
+                                }
+                                source: rung < ladder.length ? ladder[rung] : ""
+                                onStatusChanged: if (status === Image.Error && rung < ladder.length) rung += 1
                                 fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
                                 sourceSize.width: 220 }
                         }
@@ -252,11 +258,9 @@ Item {
                                 opacity: 1
                                 font.family: theme.display; font.pixelSize: 21; font.weight: Font.Medium
                                 elide: Text.ElideRight }
-                            Text { width: parent.width; visible: !!ed.modelData.collects   // the issue list — the headline datum
-                                text: ledger.collectsText(ed.modelData)
-                                color: theme.gold; opacity: 0.9
-                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.Medium
-                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight; lineHeight: 1.25 }
+                            // "Collects #1-6" lines REMOVED (Hemanth 2026-07-17, reversing his
+                            // 2026-07-13 headline-datum call): GCD titles collected editions like
+                            // single issues, so "…#1 · Collects #1-6" read as confusion, not data.
                             Row {
                                 spacing: 13; visible: specRep.count > 0
                                 Repeater { id: specRep; model: ledger.specLine(ed.modelData)
