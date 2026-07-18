@@ -711,6 +711,7 @@ FocusScope {
 
         onBackRequested: shell.goBack()
         onMinimizeRequested: shell.goMinimize()
+        onCloseRequested: shell.goBack()   // the X = same session-aware close as Back (flush + closed)
         onPrevRequested: paper.prev()
         onNextRequested: paper.next()
         onScrubbed: (f) => {

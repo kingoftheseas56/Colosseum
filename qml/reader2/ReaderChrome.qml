@@ -69,6 +69,7 @@ Item {
     // ---- signals up ----
     signal backRequested()
     signal minimizeRequested()   // window verb: park the book in the taskbar (2026-07-18)
+    signal closeRequested()      // window verb: the X — end the session (player-parity)
     signal searchRequested()
     signal bookmarkRequested()
     signal prevRequested()
@@ -242,6 +243,7 @@ Item {
         chapterLabel: chrome.chapterLabel
         onBackRequested: chrome.backRequested()
         onMinimizeRequested: chrome.minimizeRequested()
+        onCloseRequested: chrome.closeRequested()
         onSearchRequested: chrome.handleSearch()          // toggles the search sheet (Task 11)
         onContentsRequested: chrome.handleContents()      // toggles the left panel (Task 8)
         onAppearanceRequested: chrome.handleAppearance()  // toggles the right panel (Task 10)
