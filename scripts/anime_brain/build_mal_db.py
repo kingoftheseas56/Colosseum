@@ -74,6 +74,36 @@ def listify(raw: str):
         return []
 
 
+def credit_names(raw: str):
+    """Credits columns differ by medium: anime `studios` is a list of name STRINGS
+    (['Bones']), but manga `authors` is a list of OBJECTS
+    ([{'first_name': 'Kentarou', 'last_name': 'Miura', 'role': ...}]). Stringifying
+    an author object dumped the raw dict onto the card (the 2026-07-19 bug). Extract
+    the name in Jikan's "Last, First" shape so the card's flipName renders "First Last";
+    a studio (or a comma-less author) passes through unflipped."""
+    s = (raw or "").strip()
+    if not s or s == "[]":
+        return []
+    try:
+        v = ast.literal_eval(s)
+    except (ValueError, SyntaxError):
+        return []
+    if not isinstance(v, list):
+        return []
+    out = []
+    for x in v:
+        if isinstance(x, dict):
+            ln = str(x.get("last_name", "") or "").strip()
+            fn = str(x.get("first_name", "") or "").strip()
+            name = (ln + ", " + fn) if (ln and fn) else (ln or fn
+                    or str(x.get("name", "") or "").strip())
+        else:
+            name = str(x).strip()
+        if name:
+            out.append(name)
+    return out
+
+
 def num(raw, cast=float):
     try:
         v = cast(float(raw))
@@ -130,7 +160,7 @@ def load_rows(fname, medium):
                 "cover": (row.get("main_picture") or "").strip(),
                 "synopsis": clean_synopsis(row.get("synopsis")),
                 "credits": json.dumps(
-                    listify(row.get("studios" if medium == "anime" else "authors"))[:3]),
+                    credit_names(row.get("studios" if medium == "anime" else "authors"))[:3]),
                 "tags": tags,
             })
     return out
