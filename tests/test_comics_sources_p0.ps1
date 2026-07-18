@@ -7,7 +7,8 @@ function Assert-Absent($hay, $needle, $why) {
     if ($hay -like "*$needle*") { throw "STALE: $needle -- $why" }
 }
 # xoxo is RETIRED (scorched earth, spec 2026-07-12): no api, no genre page, no registry,
-# no fixtures, no C++ seam, no pin. The comics lane is LOCG (brain) + GetComics (content).
+# no fixtures, no C++ seam, no pin. Comics SEARCH rides the availability-first catalogue
+# only (2026-07-18); GetComics remains the content/download lane.
 if (Test-Path (Join-Path $root "qml/XoxoApi.js")) { throw "STALE: XoxoApi.js must be deleted" }
 if (Test-Path (Join-Path $root "qml/XoxoGenrePage.qml")) { throw "STALE: XoxoGenrePage.qml must be deleted" }
 if (Test-Path (Join-Path $root "qml/ComicSources.js")) { throw "STALE: ComicSources.js (registry of one, no consumer) must be deleted" }
@@ -17,9 +18,10 @@ $search = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
 # shortlist lane, the live GetComics lane, and the parked LOCG lane are written over.
 Assert-Contains $search 'searchCatalogDb' "the catalogue is the comics search lane"
 Assert-Contains $search 'data: { gcd: true' "catalogue results must carry gcd routing data"
+Assert-Contains $search 'group: "Comics"' "catalogue cards carry the comics group label the surface renders"
 Assert-Absent  $search 'searchWestern' "live GetComics search lane retired 2026-07-18"
 Assert-Absent  $search 'searchLocg' "parked LOCG lane deleted from the fan-out 2026-07-18 (LocgApi.js file stays parked)"
-Assert-Absent  $search 'ComicsApi' "search must not import the live GetComics api"
+Assert-Absent  $search 'ComicsApi' "search must not import the live GetComics api (retired 2026-07-18; needle bites comments too - keep the name out of WorldSearch.js entirely)"
 $dl = Get-Content (Join-Path $root "native/engine/MangaDownloader.h") -Raw
 Assert-Absent $dl 'downloadPages' "preset-pages seam retired with xoxo (sole consumer)"
 Assert-Absent $dl 'presetPages' "preset-pages seam retired with xoxo (sole consumer)"
