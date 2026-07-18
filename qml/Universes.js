@@ -51,7 +51,9 @@ var universes = [
     //    Sagas are the story's spine (arcs of the one anime), not separate ids — each opens
     //    the anime; ranges from the Wikipedia media list.
     { name: "One Piece", c1: "#0e2a3f", category: "onepiece",
-      blurb: "Eiichiro Oda's Grand Line, whole — one crew, one dream, one impossibly long voyage. The manga that started it all, the anime that never stops, every film, and the sagas charted end to end.",
+      // Wikipedia lead, fetched 2026-07-18 (verbatim) — sourced copy, never self-written
+      blurb: "One Piece is a Japanese manga series written and illustrated by Eiichiro Oda. It follows the adventures of Monkey D. Luffy and his crew, the Straw Hats, as he searches for the legendary treasure known as the \"One Piece\" to become the next King of the Pirates.",
+      blurbSource: "Wikipedia — One Piece",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg",
       // the one grand anime — the "Set sail" hero and every saga waypoint open this.
       anime: { t: "One Piece", id: "tt0388629", year: "1999" },
@@ -114,7 +116,9 @@ var universes = [
     // names are impostor minefields — Loki/Hawkeye/Echo/What If all collide; Ms. Marvel
     // and She-Hulk sit on ADJACENT ids). X-Men '97 carries no phase (Marvel assigns none).
     { name: "Marvel Cinematic Universe", c1: "#1a2436", category: "cinematic",
-      blurb: "The Marvel Cinematic Universe — decades of films and shows, grown from the comics.",
+      // Wikipedia lead, fetched 2026-07-18 (verbatim) — sourced copy, never self-written
+      blurb: "The Marvel Cinematic Universe (MCU) is an American media franchise and shared universe centered on a series of superhero films produced by Marvel Studios. The films are based on characters from American comic books published by Marvel Comics.",
+      blurbSource: "Wikipedia — Marvel Cinematic Universe",
       banner: "https://image.tmdb.org/t/p/w1280/gHLs7Fy3DzLmLsD4lmfqL55KGcl.jpg",
       continueLabel: "Continue — Loki S2",
       shows: [ { t: "WandaVision", id: "tt9140560" },
@@ -163,7 +167,9 @@ var universes = [
     // is carried in the query because Biblio.lookupBook returns the first provider hit; this
     // makes each portal an exact Brandon Sanderson object, never a title-shaped stand-in.
     { name: "Dragon Ball", c1: "#e8791e", category: "dragonball",
-      blurb: "Akira Toriyama's world, whole — from a boy with a tail chasing seven wish-granting orbs to gods trading blows across universes. Every anime era, every film, and the manga that started it all.",
+      // Wikipedia lead, fetched 2026-07-18 (verbatim) — sourced copy, never self-written
+      blurb: "Dragon Ball is a Japanese media franchise created by Akira Toriyama. The series follows the adventures of protagonist Son Goku from his childhood through adulthood as he trains in martial arts.",
+      blurbSource: "Wikipedia — Dragon Ball",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30042-4aSSSOxCNWgE.jpg",
       // THE SEVEN-STAR SAGA — the seven anime, broadcast order, one per Dragon Ball.
       saga: [
@@ -220,7 +226,10 @@ var universes = [
       firstWatch: { t: "Dragon Ball", id: "tt0088509" },
       chips: [ { t: "8 Manga", ic: "manga" }, { t: "7 Anime", ic: "movies" }, { t: "25 Films", ic: "movies" } ] },
     { name: "Cosmere", c1: "#101927", category: "cosmere",
-      blurb: "Independent worlds, one hidden cosmology — choose a first doorway, then follow the light between them.",
+      // Wikipedia lead (Brandon Sanderson — the Cosmere has no standalone article), fetched
+      // 2026-07-18, verbatim — sourced copy, never self-written
+      blurb: "Brandon Winn Sanderson is an American author of high fantasy, science fiction, and young adult books. His best known novels include the Mistborn series and The Stormlight Archive, which are set in the \"Cosmere\", a fictional universe.",
+      blurbSource: "Wikipedia — Brandon Sanderson",
       // CC BY 4.0 star field by Sahisnusaha, Wikimedia Commons; the page draws its own
       // Cognitive Atlas over it. upload.wikimedia.org is already IPv4-pinned by Colosseum.
       banner: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/99/Window_to_the_Cosmos.jpg/1920px-Window_to_the_Cosmos.jpg",
@@ -446,7 +455,9 @@ var universes = [
     // verification and handled: the bare "Kinnikuman" search lands the 2001 sequel (dropped),
     // and JoJo's pin is Part 1 — so it enters as Phantom Blood with Part 1's real 1986–87 run.
     { name: "Weekly Shonen Jump", c1: "#3a1414", category: "magazine",
-      blurb: "Shueisha's arena since 1968 — the magazine where One Piece, Naruto, Bleach and Dragon Ball fought for the reader's vote.",
+      // Wikipedia lead, fetched 2026-07-18 (verbatim sentences) — sourced copy, never self-written
+      blurb: "Weekly Shōnen Jump is a weekly shōnen manga anthology published in Japan by Shueisha under the Jump line of magazines. It is one of the longest-running manga magazines, with the first issue being released on July 11, 1968.",
+      blurbSource: "Wikipedia — Weekly Shōnen Jump",
       banner: "https://upload.wikimedia.org/wikipedia/en/0/02/Jump-Cover-1.jpg",
       // MAL's serialization registry pin (myanimelist.net/manga/magazine/83) — Jikan rides it
       malMagazineId: 83,
