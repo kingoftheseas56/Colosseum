@@ -26,6 +26,7 @@ Item {
     signal contentsRequested()
     signal appearanceRequested()
     signal bookmarkRequested()
+    signal minimizeRequested()
 
     enabled: shown                        // when asleep, clicks fall through to the turn/tap zones
 
@@ -146,5 +147,9 @@ Item {
             source: Qt.resolvedUrl("../../assets/icons/reader2/appearance.svg"); onClicked: root.appearanceRequested() }
         IconButton { anchors.verticalCenter: parent.verticalCenter
             source: Qt.resolvedUrl("../../assets/icons/reader2/bookmark.svg"); onClicked: root.bookmarkRequested() }
+        // minimize (window verb, comic-reader chrome parity 2026-07-18): park the book as a
+        // taskbar tile instead of closing it. Back = close; this = keep the session warm.
+        IconButton { anchors.verticalCenter: parent.verticalCenter
+            source: Qt.resolvedUrl("../../assets/icons/reader2/minimize.svg"); onClicked: root.minimizeRequested() }
     }
 }

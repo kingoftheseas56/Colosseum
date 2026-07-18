@@ -982,8 +982,18 @@ Window {
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
         else win.closeSeries()
     }
-    // (minimizeBookReader is gone with the swap — the fresh reader has no minimize
-    // affordance by design; Esc/Go-back closes through closed() → closeBookReaderSession.)
+    // Book minimize is BACK (2026-07-18, Hemanth — the swap had dropped the affordance):
+    // the fresh reader's chrome carries a minimize icon → minimized() lands here. Every
+    // live open path registers a session first (openBookSession), so this is normally just
+    // a park; the register-if-missing arm mirrors minimizeComicReader's defensive shape.
+    function minimizeBookReader() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (!(rec && rec.contentKind === "book")) {
+            if (!bookReaderLayer.active || !bookReaderLayer.bookPath.length) { win.closeBookReader(); return }
+            win.openBookSession(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
+        }
+        Sessions.switchTo("")
+    }
     function closeBookReaderSession() {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "book") win.closeSession(rec.id)
@@ -1958,15 +1968,15 @@ Window {
         // The FRESH reader (Task 16 swap): reader2/ReaderShell replaces the imported TB2
         // foliate web-app. Contract mapping per the ratified plan: open(path, meta) →
         // openBook(path) (meta stays on this layer for session records), closed() → the same
-        // session-aware close. The old reader's minimizeRequested affordance is gone by
-        // design — the shell's whole surface is the book; Esc/Go-back closes through
-        // closed(), and win.closeBookReaderSession still routes an active book session.
+        // session-aware close. minimized() (restored 2026-07-18 on Hemanth's call) parks the
+        // book as a taskbar tile via minimizeBookReader — the resume seam reopens it in place.
         source: "reader2/ReaderShell.qml"
         onLoaded: {
             item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
             item.bookMeta = bookReaderLayer.bookMeta   // catalog identity → the pairing self-heal
             item.openBook(bookReaderLayer.bookPath)
             item.closed.connect(win.closeBookReaderSession)
+            item.minimized.connect(win.minimizeBookReader)
         }
     }
 
@@ -2100,6 +2110,32 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
+        }
+    }
+
+    // ---- download feedback (2026-07-18, Hemanth): clicking Download anywhere pops the
+    //      taskbar out so the gold jobs badge is SEEN arriving — same auto-reveal (and same
+    //      15s pull-back) as a minimize. Fires only when the live-job count GROWS (a finish
+    //      or cancel never pops the bar). While a reader/player owns the screen the taskbar
+    //      is suppressed, so the reveal is held and fires when the shell is back — unless
+    //      every job already finished by then (no stale pop for nothing). ----
+    property int lastActiveDownloads: 0
+    property bool pendingDownloadReveal: false
+    onImmersiveSurfaceOpenChanged: {
+        if (!immersiveSurfaceOpen && pendingDownloadReveal) {
+            pendingDownloadReveal = false
+            if (lastActiveDownloads > 0) taskbar.reveal()
+        }
+    }
+    Connections {
+        target: typeof LocalDownloads !== "undefined" ? LocalDownloads : null
+        function onChanged() {
+            var n = Number(LocalDownloads.totals.active || 0)
+            var grew = n > win.lastActiveDownloads
+            win.lastActiveDownloads = n
+            if (!grew) return
+            if (win.immersiveSurfaceOpen) { win.pendingDownloadReveal = true; return }
+            taskbar.reveal()
         }
     }
 

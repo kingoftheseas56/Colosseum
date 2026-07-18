@@ -27,6 +27,9 @@ FocusScope {
     // BookStores::keyFor, the single shared formula).
     property string bookId: bookPath === "" ? "" : Reader2Bridge.bookKey(bookPath)
     signal closed()
+    // Minimize (2026-07-18, Hemanth: "books should minimize too"): the embedder parks the
+    // book as a taskbar session instead of closing it. Same flush-first discipline as goBack.
+    signal minimized()
     focus: true
 
     // ---- debug logging (Part C5) — OFF by default so a shipped embedding stays quiet; the
@@ -492,6 +495,9 @@ FocusScope {
     // Leave the reader: FLUSH any pending save first (so a page turn within the debounce window
     // isn't lost when the book closes), then tell the embedder. Used everywhere we'd emit closed().
     function goBack() { shell.flushProgressSave(); shell.closed() }
+    // Minimize: flush the position, then let the embedder park the session (the resume seam
+    // brings the book back to this exact page when the taskbar tile reopens it).
+    function goMinimize() { shell.flushProgressSave(); shell.minimized() }
     Component.onDestruction: shell.flushProgressSave()
 
     Paper {
@@ -704,6 +710,7 @@ FocusScope {
         searchLastQuery: shell.searchLastQuery
 
         onBackRequested: shell.goBack()
+        onMinimizeRequested: shell.goMinimize()
         onPrevRequested: paper.prev()
         onNextRequested: paper.next()
         onScrubbed: (f) => {
