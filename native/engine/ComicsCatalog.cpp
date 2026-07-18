@@ -1,5 +1,6 @@
 #include "engine/ComicsCatalog.h"
 #include <QFileInfo>
+#include <QRegularExpression>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QVariant>
@@ -70,20 +71,32 @@ QVariantList ComicsCatalog::search(const QString& text, int limit) const {
     QVariantList out;
     const QString t = text.trimmed();
     if (!m_ok || t.isEmpty()) return out;
-    QSqlQuery q(m_db);
-    q.prepare(QStringLiteral(
+    // Word-based matching (spec 2026-07-18): every typed word must appear in the
+    // title, any order. Ranking keeps the phrase tiers on top: exact title, then
+    // titles starting with the full typed phrase, then any all-words match —
+    // downloads DESC inside each tier (availability-first), year DESC last.
+    static const QRegularExpression wordSplit(QStringLiteral("[^\\p{L}\\p{N}]+"));
+    const QStringList words = t.split(wordSplit, Qt::SkipEmptyParts);
+    if (words.isEmpty()) return out;
+    QString sql = QStringLiteral(
         "select s.gcd_id, s.title, s.year, s.year_ended, s.publisher, s.cover,"
         "       coalesce(t.downloads,0) as dls"
         " from series s left join series_stats t on t.series_id = s.gcd_id"
-        " where s.title like :pat escape '\\'"
+        " where 1=1");
+    for (int i = 0; i < words.size(); ++i)
+        sql += QStringLiteral(" and s.title like :w%1 escape '\\'").arg(i);
+    sql += QStringLiteral(
         " order by case when lower(s.title) = lower(:txt) then 0"
         "               when s.title like :prefix escape '\\' then 1 else 2 end,"
         "          dls desc, s.year desc"
-        " limit :lim"));
-    const QString esc = likeEscape(t);
-    q.bindValue(QStringLiteral(":pat"), QStringLiteral("%%%1%%").arg(esc));
+        " limit :lim");
+    QSqlQuery q(m_db);
+    q.prepare(sql);
+    for (int i = 0; i < words.size(); ++i)
+        q.bindValue(QStringLiteral(":w%1").arg(i),
+                    QStringLiteral("%%%1%%").arg(likeEscape(words.at(i))));
     q.bindValue(QStringLiteral(":txt"), t);
-    q.bindValue(QStringLiteral(":prefix"), esc + QStringLiteral("%"));
+    q.bindValue(QStringLiteral(":prefix"), likeEscape(t) + QStringLiteral("%"));
     q.bindValue(QStringLiteral(":lim"), limit);
     if (!q.exec()) return out;
     while (q.next()) {

@@ -79,6 +79,20 @@ int main(int argc, char** argv) {
     if (rank[0].toMap().value("gcdId").toInt() != 4) return fail("exact 'Hulk' must rank first despite fewest downloads");
     if (rank[1].toMap().value("gcdId").toInt() != 5) return fail("prefix 'Hulkverines' must rank second");
     if (rank[2].toMap().value("gcdId").toInt() != 6) return fail("contains-only 'Immortal Hulk' ranks last despite most downloads");
+    // --- word-based matching (spec 2026-07-18): every typed word must appear in
+    // the title, ANY order; phrase tiers still rank first. ---
+    const QVariantList anyOrder = cat.search("hulk immortal", 10);
+    if (anyOrder.size() != 1) return fail("order-free words must find 'The Immortal Hulk'");
+    if (anyOrder[0].toMap().value("gcdId").toInt() != 6) return fail("order-free hit wrong row");
+    const QVariantList inOrder = cat.search("immortal hulk", 10);
+    if (inOrder.size() != 1 || inOrder[0].toMap().value("gcdId").toInt() != 6)
+        return fail("in-order words must find 'The Immortal Hulk'");
+    const QVariantList phrasePrefix = cat.search("the immortal", 10);
+    if (phrasePrefix.size() != 1) return fail("phrase-prefix multi-word must hit");
+    if (!cat.search("saga hulk", 10).isEmpty()) return fail("words that never co-occur must return empty");
+    if (!cat.search("%", 10).isEmpty()) return fail("punctuation-only query must return empty");
+    const QVariantList twoBat = cat.search("batman", 10);
+    if (twoBat.size() != 2) return fail("single word still matches both Batman runs");
     const QVariantList ex = cat.exactMatches("BATMAN");
     if (ex.size() != 2) return fail("exactMatches case-insensitive both runs");
     if (cat.exactMatches("bat").size() != 0) return fail("exactMatches is exact, not prefix");
