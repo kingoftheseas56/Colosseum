@@ -39,4 +39,24 @@ Assert-Contains $ctab 'signal westernRequested(string title)' "top-comics fallba
 Assert-Contains $ctab 'signal westernExploreRequested(var box)' "explore box opens the archive index"
 Assert-Absent  $ctab 'Top in Tankoban — Manga' "comics tab must not carry any manga row"
 
+# --- Task 4: TankobanWorld keeps shared rows + comics data, adds the tab bar + Loader swap,
+#     and the browse rows now live in the tab components (NOT inline in the world) ---
+$tw = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
+Assert-Contains $tw 'property string activeTab: "manga"' "world holds the active tab, default manga"
+Assert-Contains $tw 'WorldTabBar' "world mounts the tab bar"
+Assert-Contains $tw '"manga"' "tab model has the manga key"
+Assert-Contains $tw '"comics"' "tab model has the comics key"
+Assert-Contains $tw 'onTabRequested' "tab bar drives activeTab"
+Assert-Contains $tw 'TankobanComicsTab.qml' "world Loader-swaps to the comics half"
+Assert-Contains $tw 'TankobanMangaTab.qml' "world Loader-swaps to the manga half"
+Assert-Contains $tw 'Qt.binding' "comics data is reactively bound into the loaded view (no re-fetch)"
+Assert-Contains $tw 'FeaturedCarousel' "featured stays shared above the tabs"
+Assert-Contains $tw 'Next Up' "next up stays shared"
+Assert-Contains $tw 'Continue Reading' "continue stays shared"
+Assert-Contains $tw 'ComicsCatalog.shelf' "world still owns the one-time shelf compute"
+Assert-Contains $tw 'GcApi.explore' "world still owns the one-time explore fetch"
+Assert-Absent  $tw 'title: "Top in Tankoban — Manga"' "manga row moved out of the world into the tab"
+Assert-Absent  $tw 'title: "Top in Tankoban — Comics"' "comics row moved out of the world into the tab"
+Assert-Absent  $tw 'title: "Explore Comics"' "explore-comics moved out of the world into the tab"
+
 Write-Host "tankoban tabs contract OK"

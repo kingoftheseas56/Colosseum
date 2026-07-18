@@ -134,6 +134,8 @@ WorldPage {
         });
     }
 
+    property string activeTab: "manga"
+
     FeaturedCarousel {
         kicker: "Featured in Tankoban"
         primaryLabel: "Read"; secondaryLabel: "Details"
@@ -161,7 +163,8 @@ WorldPage {
     ContinueRow {
         title: "Continue Reading"
         // Real resume data — manga + comics BLENDED by true recency and capped like every other
-        // row (audit fix: was all-manga-then-all-comics, unbounded). Progress.revision keeps it live.
+        // row (audit fix: was all-manga-then-all-comics, unbounded). Stays shared above the tabs
+        // (the split is browse-only; personal rows blend both halves). Progress.revision keeps it live.
         items: (Progress.revision, (function() {
             var a = Progress.recent("manga", 12).concat(Progress.recent("comic", 12))
             a.sort(function(x, y) { return (y.updatedAt || 0) - (x.updatedAt || 0) })
@@ -177,61 +180,38 @@ WorldPage {
         onSeeAllRequested: tanko.continueSeeAllRequested()
     }
 
-    TrendingTop10 {
-        title: "Top in Tankoban — Manga"
-        items: Catalog.topManga
-        onItemClicked: (i) => tanko.seriesRequested(Catalog.topManga[i].caption)
+    // Manga | Comics — one mode, two tabs (mirrors Theatre's Movies/Shows/Anime). Only the
+    // browse rows split; Featured/Next Up/Continue above stay blended.
+    WorldTabBar {
+        backdrop: tanko.backdrop
+        currentTab: tanko.activeTab
+        tabModel: [ { key: "manga", label: "Manga" }, { key: "comics", label: "Comics" } ]
+        onTabRequested: (tab) => tanko.activeTab = tab
     }
 
-    TrendingTop10 {
-        title: "Top in Tankoban — Comics"
-        // DB-driven (2026-07-13): RCO-ranked series from the weekly comics_db.json sidecar; each
-        // tile carries its LOCG id and opens the series directly. Falls back to the curated list
-        // if the generated catalog did not ingest when this lazy world was created.
-        navigable: false          // the Explore wall retired 2026-07-18 — no See-all target
-        items: tanko.comicRows.slice(0, 10)
-        onItemClicked: (i) => {
-            var topComics = tanko.comicRows.slice(0, 10)
-            var it = topComics[i]
-            if (!it) return
-            if (it && it.locgId) tanko.comicSeriesRequested({ id: it.locgId, title: it.caption, cover: it.cover })
-            else tanko.westernRequested(it.caption)
-        }
-    }
-
-    // Catalogue shelf rows (browse-landing, ratified lineup 2026-07-18): Most Stocked,
-    // publisher shelves, decade shelves, deep-shelf (10+ downloads), fan-made. Each row
-    // reuses the same Top-Comics tile pattern; tiles carry a gcd id and open the run page.
-    Repeater {
-        model: tanko.comicShelves
-        delegate: TrendingTop10 {
-            required property var modelData
-            title: modelData.label
-            navigable: false          // shelf rows have no explore target either
-            items: modelData.rows
-            visible: modelData.rows.length > 0
-            onItemClicked: (i) => {
-                var it = modelData.rows[i]
-                if (it) tanko.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
+    // The active half's browse rows. Loader-swapped so only the shown half is built; the
+    // comics DATA is owned above (computed once in Component.onCompleted) and bound in
+    // reactively, so switching tabs never re-runs GcApi.explore / the shelf compute.
+    Loader {
+        id: tabContent
+        width: parent ? parent.width : 0
+        height: item ? item.implicitHeight : 0
+        source: tanko.activeTab === "comics" ? "TankobanComicsTab.qml" : "TankobanMangaTab.qml"
+        onLoaded: {
+            if (tanko.activeTab === "comics") {
+                item.comicRows   = Qt.binding(function() { return tanko.comicRows })
+                item.comicShelves = Qt.binding(function() { return tanko.comicShelves })
+                item.comicBoxes  = Qt.binding(function() { return tanko.comicBoxes })
+                item.comicCovers = Qt.binding(function() { return tanko.comicCovers })
+                item.gcdSeriesRequested.connect(tanko.gcdSeriesRequested)
+                item.comicSeriesRequested.connect(tanko.comicSeriesRequested)
+                item.westernRequested.connect(tanko.westernRequested)
+                item.westernExploreRequested.connect(tanko.westernExploreRequested)
+            } else {
+                item.seriesRequested.connect(tanko.seriesRequested)
+                item.genreRequested.connect(tanko.genreRequested)
+                item.genreIndexRequested.connect(tanko.genreIndexRequested)
             }
         }
-    }
-
-    GenreMosaic {
-        title: "Explore by Genre — Manga"
-        genres: Catalog.genresManga
-        onGenreClicked: (i) => tanko.genreRequested(Catalog.genresManga[i].name)
-        onExploreClicked: tanko.genreIndexRequested()
-    }
-
-    GenreMosaic {
-        title: "Explore Comics"
-        // GetComics' OWN taxonomy inline (publishers + franchises, top tags by release
-        // count) — the archive-tag axis IS the driving force (Hemanth 2026-07-12).
-        // A box opens the archive index: the series archives alive under that tag.
-        genres: tanko.comicBoxes
-        covers: tanko.comicCovers          // real comic art behind the box gradients
-        navigable: false
-        onGenreClicked: (i) => tanko.westernExploreRequested(tanko.comicBoxes[i])
     }
 }
