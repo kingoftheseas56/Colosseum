@@ -63,7 +63,9 @@ MpvItem::MpvItem(QQuickItem *parent)
     // "100%" (unity) feels quiet next to players that amplify. dynaudnorm lifts quiet passages
     // toward a consistent loudness live, without loudnorm's internal 192kHz resample; the UI
     // volume bar stays a plain 0..100 with 100 = normalized loudness.
-    setProperty(QStringLiteral("af"), QStringLiteral("dynaudnorm=g=5:f=250:r=0.9:p=0.5"));
+    // Gain must adapt over ~15s (f*g ms), not ~1s — fast windows audibly pump between dialogue
+    // and action (Hemanth heard it 2026-07-18); RMS targeting (r=) compresses too hard, peak-only.
+    setProperty(QStringLiteral("af"), QStringLiteral("dynaudnorm=f=500:g=31:p=0.95"));
     setProperty(QStringLiteral("embeddedfonts"), QStringLiteral("yes"));
     setProperty(QStringLiteral("sub-font-provider"), QStringLiteral("auto"));
     setProperty(QStringLiteral("hwdec"), QStringLiteral("auto-safe"));
