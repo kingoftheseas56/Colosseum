@@ -22,7 +22,9 @@ foreach ($n in @('property var roomLabels', 'function roomCount(', 'function scr
                  'component RoadStone', 'component MediaPortal', 'component MangaGate',
                  'component FilmFrame', 'WATCH', 'READ', 'FILMS', 'ADAPTATIONS',
                  '#8E1826', '#FFB35B', 'activeFocusOnTab: true',
-                 'Keys.onReturnPressed', 'maximumLineCount: 2')) {
+                 'Keys.onReturnPressed', 'maximumLineCount: 2', 'property bool reached',
+                 '1100+ EPISODES', 'status === Image.Ready',
+                 'root.width >= 760 ? 1060 : root.width >= 520 ? 1580 : 2440')) {
     Assert-Contains $page $n "One Piece chamber must carry: $n"
 }
 foreach ($n in @("THE CAPTAIN'S CHART", 'THE LOG POSE', "THE SHIP'S LOG",

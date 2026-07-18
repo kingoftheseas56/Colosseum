@@ -1,15 +1,9 @@
-// OnePieceUniversePage — THE CAPTAIN'S CHART. One Piece is ONE unbroken voyage, so the
-// page is drawn as a sea chart: a dotted treasure-map course undulating across the Grand
-// Line, saga islands staggered above and below the route, and a red X at the end — because
-// X marks the One Piece. The manga shelf is a row of WANTED posters (parchment, letterhead,
-// DEAD OR ALIVE) — the one aesthetic risk, spent where the subject earns it. (Agent 5,
-// 2026-07-15 free-reign commission, rebuilt to the Cosmere authored-artifact bar same day.)
-//
-// Data = the pinned curation in Universes.js (anime / sagas / adaptations / filmEras /
-// manga) — untouched by this rebuild. The one anime + every film dress DIRECTLY by
-// verified Cinemeta id via live.metahub.space (IPv4-pinned); manga carry AniList covers
-// (s4.anilist.co, IPv4-pinned). Anime/films → A4's TheatreSeries (watchRequested); manga →
-// the manga reader (seriesRequested). Every saga waypoint opens the one anime.
+// OnePieceUniversePage — ROAD PONEGLYPH CHAMBER.
+// Four monumental stones organize the pinned One Piece catalog into Watch, Read, Films,
+// and Adaptations. The layout carries the meaning; below the sourced hero lead, the page
+// uses labels, titles, years, counts, and actions only. (Agent 5 (Codex), 2026-07-18.)
+pragma ComponentBehavior: Bound
+
 import QtQuick
 import QtQuick.Controls
 import "Universes.js" as UDB
@@ -18,54 +12,70 @@ Item {
     id: root
     anchors.fill: parent
 
-    // shell contract
     property Item backdrop: null
     property string universeName: ""
+    property bool reducedMotion: false
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
     signal searchClicked()
-    signal watchRequested(var item)         // anime / film → A4's TheatreSeries.qml
-    signal seriesRequested(string title)    // manga → the manga reader
+    signal watchRequested(var item)
+    signal seriesRequested(string title)
 
     Theme { id: theme }
 
-    // The chart's inks — deep-sea night, chart gold, sunset buoys, treasure red, parchment.
-    readonly property color seaDeep:   "#04121c"
-    readonly property color chartInk:  "#1b4258"   // wave ripples / faint chart linework
-    readonly property color seaGold:   theme.gold
-    readonly property color sunset:    "#f2a04a"
-    readonly property color treasureX: "#d84a33"
-    readonly property color parchment: "#e6d2a4"
-    readonly property color parchInk:  "#3a2a16"
+    readonly property color abyss: "#08070A"
+    readonly property color basalt: "#17131A"
+    readonly property color stoneRed: "#8E1826"
+    readonly property color carvedLight: "#FFB35B"
+    readonly property color bone: "#F2E6CF"
+    readonly property color seaGlass: "#5CB8B2"
+    readonly property int pageMargin: Math.max(34, Math.min(76, width * 0.055))
 
+    property var roomLabels: ["WATCH", "READ", "FILMS", "ADAPTATIONS"]
     property var uni: ({ name: "", blurb: "", banner: "", anime: null, firstRead: null,
                          sagas: [], adaptations: [], filmEras: [], manga: [] })
+
     function reload() {
         if (!root.universeName.length) return
-        var arr = UDB.universes
-        for (var i = 0; i < arr.length; i++)
-            if (arr[i].name === root.universeName) { root.uni = arr[i]; return }
+        var found = UDB.configFor(root.universeName)
+        if (found && found.name) root.uni = found
     }
     Component.onCompleted: { reload(); reveal.start() }
     onUniverseNameChanged: reload()
 
-    function poster(id) { return id ? "https://live.metahub.space/poster/medium/" + id + "/img" : "" }
+    function poster(id) {
+        return id ? "https://live.metahub.space/poster/medium/" + id + "/img" : ""
+    }
+    function backdropFor(id) {
+        return id ? "https://live.metahub.space/background/medium/" + id + "/img" : ""
+    }
+    function watchSeries(pin) {
+        return pin ? { "id": pin.id, "type": "series", "title": pin.t } : null
+    }
+    function watchMovie(pin) {
+        return pin ? { "id": pin.id, "type": "movie", "title": pin.t } : null
+    }
+    function filmCount() {
+        var total = 0
+        for (var i = 0; i < (root.uni.filmEras || []).length; ++i)
+            total += root.uni.filmEras[i].films.length
+        return total
+    }
+    function roomCount(route) {
+        if (route === "WATCH") return root.uni.anime ? 1 : 0
+        if (route === "READ") return (root.uni.manga || []).length
+        if (route === "FILMS") return filmCount()
+        if (route === "ADAPTATIONS") return (root.uni.adaptations || []).length
+        return 0
+    }
+    function scrollToRoom(route) {
+        var target = route === "WATCH" ? watchRoom
+                   : route === "READ" ? readRoom
+                   : route === "FILMS" ? filmsRoom : adaptationsRoom
+        page.contentY = Math.max(0, target.y - 24)
+    }
 
-    // Theatre's series view needs { id, type, title }: `type` picks the Cinemeta meta
-    // endpoint (series vs movie) — without it TheatreSeries defaults to "movie" and a
-    // series id like One Piece comes back empty. Our pins carry { t, id }; normalize here.
-    function watchSeries(pin) { return pin ? { "id": pin.id, "type": "series", "title": pin.t } : null }
-    function watchMovie(pin)  { return pin ? { "id": pin.id, "type": "movie",  "title": pin.t } : null }
-
-    // chart geometry — one slot per saga; nodes ride the course, staggered high/low
-    readonly property int slotW: 252
-    readonly property int courseY: 212
-    readonly property int swing: 34
-    function nodeX(i) { return 150 + i * slotW }
-    function nodeY(i) { return courseY + (i % 2 === 0 ? -swing : swing) }
-
-    // ---- the wall: deep sea, the app wallpaper only a faint memory beneath ----
     Item {
         anchors.fill: parent
         ShaderEffectSource {
@@ -74,14 +84,30 @@ Item {
             live: true
             hideSource: false
             visible: root.backdrop !== null
+            opacity: 0.08
         }
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.016, 0.055, 0.09, 0.94) }
+        Rectangle { anchors.fill: parent; color: root.abyss }
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#07202f" }
-                GradientStop { position: 0.5; color: root.seaDeep }
-                GradientStop { position: 1.0; color: "#020a10" }
+                GradientStop { position: 0.0; color: "#120B10" }
+                GradientStop { position: 0.46; color: root.abyss }
+                GradientStop { position: 1.0; color: "#050508" }
+            }
+        }
+        Canvas {
+            anchors.fill: parent
+            opacity: 0.2
+            onWidthChanged: requestPaint()
+            onHeightChanged: requestPaint()
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.reset()
+                ctx.strokeStyle = "#8E1826"
+                ctx.lineWidth = 1
+                for (var x = 48; x < width; x += 112) {
+                    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x - 180, height); ctx.stroke()
+                }
             }
         }
     }
@@ -99,733 +125,734 @@ Item {
         Column {
             id: contentColumn
             width: page.width
-            opacity: 0
             spacing: 0
+            opacity: 0
 
-            // ═══════════ THE OPEN SEA — the invitation ═══════════
             Item {
                 id: hero
                 width: parent.width
-                height: Math.max(620, root.height * 0.86)
-                clip: true
-
-                Image {
-                    anchors.fill: parent
-                    source: root.uni.banner || ""
-                    asynchronous: true
-                    cache: true
-                    fillMode: Image.PreserveAspectCrop
-                    opacity: status === Image.Ready ? 0.16 : 0
-                    Behavior on opacity { NumberAnimation { duration: 500 } }
-                }
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: Qt.rgba(0.016,0.055,0.09,0.42) }
-                        GradientStop { position: 0.6; color: Qt.rgba(0.016,0.055,0.09,0.78) }
-                        GradientStop { position: 1.0; color: root.seaDeep }
-                    }
-                }
-
-                // the log pose — a drawn compass, the hero's quiet right-side instrument
-                Canvas {
-                    id: compass
-                    width: 300; height: 300
-                    anchors.right: parent.right
-                    anchors.rightMargin: theme.margin + 30
-                    anchors.verticalCenter: parent.verticalCenter
-                    opacity: 0.55
-                    onWidthChanged: requestPaint()
-                    onPaint: {
-                        var ctx = getContext("2d")
-                        ctx.reset()
-                        var cx = width / 2, cy = height / 2
-                        ctx.strokeStyle = "#2a5a76"; ctx.lineWidth = 1
-                        ctx.beginPath(); ctx.arc(cx, cy, 128, 0, Math.PI * 2); ctx.stroke()
-                        ctx.beginPath(); ctx.arc(cx, cy, 104, 0, Math.PI * 2); ctx.stroke()
-                        ctx.strokeStyle = "#3f7a99"
-                        for (var k = 0; k < 16; k++) {          // degree ticks
-                            var a = k * Math.PI / 8
-                            var r1 = k % 4 === 0 ? 88 : 97
-                            ctx.beginPath()
-                            ctx.moveTo(cx + Math.cos(a) * r1,  cy + Math.sin(a) * r1)
-                            ctx.lineTo(cx + Math.cos(a) * 104, cy + Math.sin(a) * 104)
-                            ctx.stroke()
-                        }
-                        // the needle — pointing up-sea, gold north / dim south
-                        ctx.fillStyle = "#f0c44a"
-                        ctx.beginPath()
-                        ctx.moveTo(cx, cy - 78); ctx.lineTo(cx - 11, cy); ctx.lineTo(cx + 11, cy)
-                        ctx.closePath(); ctx.fill()
-                        ctx.fillStyle = "#33607a"
-                        ctx.beginPath()
-                        ctx.moveTo(cx, cy + 78); ctx.lineTo(cx - 11, cy); ctx.lineTo(cx + 11, cy)
-                        ctx.closePath(); ctx.fill()
-                        ctx.fillStyle = "#dfeaf0"
-                        ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill()
-                    }
-                }
-                Text {
-                    anchors.horizontalCenter: compass.horizontalCenter
-                    anchors.top: compass.bottom
-                    anchors.topMargin: 2
-                    text: "THE LOG POSE HOLDS THE COURSE"
-                    color: Qt.rgba(0.47, 0.72, 0.85, 0.55)
-                    font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 3
-                }
-
-                Column {
-                    anchors.left: parent.left
-                    anchors.leftMargin: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.min(640, parent.width * 0.52)
-                    spacing: 15
-                    Text {
-                        text: "UNIVERSE  /  THE GREAT PIRATE ERA"
-                        color: root.sunset
-                        font.family: theme.ui
-                        font.pixelSize: 10
-                        font.letterSpacing: 3
-                    }
-                    // the name carries the hero; the description below is the Wikipedia
-                    // lead (sourced copy law, Hemanth 2026-07-18 — no self-written synopsis)
-                    Text {
-                        text: root.uni.name || "One Piece"
-                        color: theme.ink
-                        font.family: theme.display
-                        font.pixelSize: 52
-                        lineHeight: 0.95
-                    }
-                    Text {
-                        text: root.uni.blurb || ""
-                        color: theme.inkDim
-                        font.family: theme.ui
-                        font.pixelSize: 15
-                        lineHeight: 1.4
-                        width: parent.width - 30
-                        wrapMode: Text.WordWrap
-                        maximumLineCount: 3
-                        elide: Text.ElideRight
-                    }
-                    Text {
-                        text: "1,100+ episodes  ·  seventeen films  ·  the manga since 1997  —  Eiichiro Oda"
-                        color: theme.inkDimmer
-                        font.family: theme.ui
-                        font.pixelSize: 12
-                    }
-                    Item { width: 1; height: 8 }
-                    Row {
-                        spacing: 14
-                        // Set sail → the one anime
-                        Rectangle {
-                            radius: 12; height: 52; width: sailRow.implicitWidth + 48
-                            visible: !!root.uni.anime
-                            gradient: Gradient {
-                                GradientStop { position: 0; color: sailMa.containsMouse ? Qt.rgba(0.95,0.63,0.29,0.42) : Qt.rgba(0.95,0.63,0.29,0.22) }
-                                GradientStop { position: 1; color: sailMa.containsMouse ? Qt.rgba(0.82,0.45,0.14,0.30) : Qt.rgba(0.82,0.45,0.14,0.13) }
-                            }
-                            border.width: 1
-                            border.color: sailMa.containsMouse ? root.seaGold : Qt.rgba(0.95,0.63,0.29,0.55)
-                            Behavior on border.color { ColorAnimation { duration: 160 } }
-                            Row {
-                                id: sailRow; anchors.centerIn: parent; spacing: 10
-                                Text { text: "Set sail"; color: theme.ink
-                                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
-                                    anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "→"; color: root.seaGold; font.pixelSize: 17
-                                    anchors.verticalCenter: parent.verticalCenter }
-                            }
-                            MouseArea { id: sailMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime)) }
-                        }
-                        // Read from Chapter 1 → the manga
-                        Rectangle {
-                            radius: 12; height: 52; width: readRow.implicitWidth + 48
-                            visible: !!root.uni.firstRead
-                            color: "transparent"
-                            border.width: 1
-                            border.color: readMa.containsMouse ? theme.ink : Qt.rgba(1,1,1,0.26)
-                            Behavior on border.color { ColorAnimation { duration: 160 } }
-                            Row {
-                                id: readRow; anchors.centerIn: parent; spacing: 10
-                                Text { text: "Read from Chapter 1"; color: readMa.containsMouse ? theme.ink : theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
-                                    anchors.verticalCenter: parent.verticalCenter }
-                            }
-                            MouseArea { id: readMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: if (root.uni.firstRead) root.seriesRequested(root.uni.firstRead.t) }
-                        }
-                    }
-                }
-            }
-
-            // ═══════════ THE CHART — the Grand Line, saga by saga ═══════════
-            Item {
-                width: parent.width; height: 108
-                Column {
-                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                    Text { text: "THE CAPTAIN'S CHART"; color: root.seaGold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: "The whole voyage, island by island"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 31 }
-                    Text { text: "Eleven sagas, one course — every landing opens the anime. The X is where the treasure waits."
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                }
-            }
-
-            Flickable {
-                id: chartFlick
-                width: parent.width
-                height: 470
-                contentWidth: chart.width
-                contentHeight: height
-                clip: true
-                flickableDirection: Flickable.HorizontalFlick
-                boundsBehavior: Flickable.StopAtBounds
+                height: chamberGrid.columns === 2 ? 790 : 1260
 
                 Item {
-                    id: chart
-                    width: root.nodeX(Math.max(0, (root.uni.sagas || []).length - 1)) + 320
-                    height: 470
+                    id: heroTitle
+                    x: root.pageMargin
+                    y: 62
+                    width: parent.width - root.pageMargin * 2
+                    height: 176
 
-                    // the sea + the course, drawn: wave ripples, then the dotted route
-                    Canvas {
-                        anchors.fill: parent
-                        onWidthChanged: requestPaint()
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.reset()
-                            var n = (root.uni.sagas || []).length
-                            if (n < 2) return
-                            // ---- faint wave ripples (three drifting sine lines) ----
-                            ctx.lineWidth = 1
-                            var waves = [ { y: 92,  amp: 5, ph: 0.0,  op: 0.22 },
-                                          { y: 236, amp: 7, ph: 1.7,  op: 0.30 },
-                                          { y: 388, amp: 5, ph: 3.4,  op: 0.22 } ]
-                            for (var w = 0; w < waves.length; w++) {
-                                ctx.strokeStyle = Qt.rgba(0.19, 0.43, 0.56, waves[w].op)
-                                ctx.beginPath()
-                                for (var x = 0; x <= width; x += 12) {
-                                    var wy = waves[w].y + Math.sin(x / 68 + waves[w].ph) * waves[w].amp
-                                    if (x === 0) ctx.moveTo(x, wy); else ctx.lineTo(x, wy)
-                                }
-                                ctx.stroke()
-                            }
-                            // ---- the dotted course: quadratics through the staggered nodes,
-                            //      sampled into treasure-map dots (no setLineDash dependency) ----
-                            ctx.fillStyle = Qt.rgba(0.94, 0.77, 0.29, 0.75)
-                            function dotSeg(x0, y0, cx, cy, x1, y1) {
-                                var len = Math.abs(x1 - x0) + Math.abs(y1 - y0)
-                                var steps = Math.max(6, Math.round(len / 16))
-                                for (var s = 0; s <= steps; s++) {
-                                    var t = s / steps
-                                    var mt = 1 - t
-                                    var px = mt*mt*x0 + 2*mt*t*cx + t*t*x1
-                                    var py = mt*mt*y0 + 2*mt*t*cy + t*t*y1
-                                    ctx.beginPath(); ctx.arc(px, py, 2, 0, Math.PI * 2); ctx.fill()
-                                }
-                            }
-                            // course begins off-chart (the ship comes from East Blue's edge)
-                            var p0x = root.nodeX(0), p0y = root.nodeY(0)
-                            dotSeg(28, root.courseY, (28 + p0x) / 2, p0y, p0x, p0y)
-                            for (var i = 1; i < n; i++) {
-                                var ax = root.nodeX(i - 1), ay = root.nodeY(i - 1)
-                                var bx = root.nodeX(i),     by = root.nodeY(i)
-                                dotSeg(ax, ay, (ax + bx) / 2, ay, (ax + bx) / 2, (ay + by) / 2)
-                                dotSeg((ax + bx) / 2, (ay + by) / 2, (ax + bx) / 2, by, bx, by)
-                            }
+                    Text {
+                        id: title
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        text: root.uni.name || "One Piece"
+                        color: root.bone
+                        font.family: theme.display
+                        font.pixelSize: Math.max(50, Math.min(82, root.width * 0.06))
+                        font.weight: Font.DemiBold
+                        lineHeight: 0.9
+                    }
+                    Text {
+                        anchors.left: parent.left
+                        anchors.top: title.bottom
+                        anchors.topMargin: 12
+                        width: Math.min(650, parent.width * 0.62)
+                        text: root.uni.blurb || ""
+                        color: Qt.rgba(0.95, 0.90, 0.82, 0.68)
+                        font.family: theme.ui
+                        font.pixelSize: 14
+                        lineHeight: 1.3
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
+                    Row {
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        spacing: 12
+                        ActionPill {
+                            label: "WATCH"
+                            enabled: !!root.uni.anime
+                            onActivated: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
+                        }
+                        ActionPill {
+                            label: "READ"
+                            enabled: !!root.uni.firstRead
+                            onActivated: if (root.uni.firstRead) root.seriesRequested(root.uni.firstRead.t)
                         }
                     }
+                }
+
+                Grid {
+                    id: chamberGrid
+                    x: root.pageMargin
+                    y: 268
+                    width: parent.width - root.pageMargin * 2
+                    columns: width >= 820 ? 2 : 1
+                    columnSpacing: 18
+                    rowSpacing: 18
 
                     Repeater {
-                        model: root.uni.sagas
-                        delegate: SagaIsland {
+                        model: root.roomLabels
+                        delegate: RoadStone {
+                            required property string modelData
+                            required property int index
+                            width: chamberGrid.columns === 2
+                                   ? (chamberGrid.width - chamberGrid.columnSpacing) / 2
+                                   : chamberGrid.width
+                            height: 226
+                            route: modelData
+                            count: root.roomCount(modelData)
+                            order: index
+                            onActivated: root.scrollToRoom(route)
+                        }
+                    }
+                }
+            }
+
+            Item {
+                id: watchRoom
+                width: parent.width
+                height: 520
+                property bool reached: page.contentY + page.height >= watchRoom.y + 120
+                opacity: reached ? 1 : 0
+                transform: Translate {
+                    y: watchRoom.reached ? 0 : 14
+                    Behavior on y { NumberAnimation { duration: root.reducedMotion ? 0 : 240; easing.type: Easing.OutCubic } }
+                }
+                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 220 } }
+                RoomHeader { label: "WATCH"; count: root.roomCount("WATCH"); y: 42 }
+                MediaPortal {
+                    objectName: "watchPortal"
+                    x: root.pageMargin
+                    y: 122
+                    width: parent.width - root.pageMargin * 2
+                    height: 340
+                    media: root.uni.anime || ({})
+                    actionLabel: "WATCH"
+                    detail: "1100+ EPISODES"
+                    sourceUrl: root.backdropFor(media.id)
+                    onActivated: if (media.id) root.watchRequested(root.watchSeries(media))
+                }
+            }
+
+            Item {
+                id: readRoom
+                width: parent.width
+                height: root.width >= 1120 ? 800 : root.width >= 760 ? 1060 : root.width >= 520 ? 1580 : 2440
+                property bool reached: page.contentY + page.height >= readRoom.y + 120
+                opacity: reached ? 1 : 0
+                transform: Translate {
+                    y: readRoom.reached ? 0 : 14
+                    Behavior on y { NumberAnimation { duration: root.reducedMotion ? 0 : 240; easing.type: Easing.OutCubic } }
+                }
+                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 220 } }
+                RoomHeader { label: "READ"; count: root.roomCount("READ"); y: 38 }
+                Flow {
+                    id: mangaField
+                    x: root.pageMargin
+                    y: 118
+                    width: parent.width - root.pageMargin * 2
+                    spacing: 14
+                    Repeater {
+                        model: root.uni.manga || []
+                        delegate: MangaGate {
                             required property var modelData
                             required property int index
-                            saga: modelData
-                            ord: index
-                            x: root.nodeX(index) - width / 2
-                        }
-                    }
-                }
-            }
-
-            // ═══════════ ANOTHER SEA, SAME DREAM — the adaptations ═══════════
-            Item {
-                width: parent.width; height: 96
-                visible: (root.uni.adaptations || []).length > 0
-                Column {
-                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                    Text { text: "ANOTHER SEA, SAME DREAM"; color: root.sunset
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: "The voyage retold"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 27 }
-                }
-            }
-            Row {
-                x: theme.margin
-                spacing: 18
-                visible: (root.uni.adaptations || []).length > 0
-                Repeater {
-                    model: root.uni.adaptations
-                    delegate: Item {
-                        id: adTile
-                        required property var modelData
-                        width: 348; height: 150
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 12; clip: true
-                            color: "#071824"
-                            border.width: 1
-                            border.color: adMa.containsMouse ? root.seaGold : Qt.rgba(0.55,0.75,0.88,0.16)
-                            Behavior on border.color { ColorAnimation { duration: 140 } }
-                            Image {
-                                anchors.fill: parent
-                                source: root.poster(adTile.modelData.id)
-                                asynchronous: true; cache: true
-                                fillMode: Image.PreserveAspectCrop
-                                opacity: status === Image.Ready ? (adMa.containsMouse ? 0.55 : 0.34) : 0
-                                Behavior on opacity { NumberAnimation { duration: 220 } }
-                            }
-                            Rectangle {
-                                anchors.fill: parent
-                                gradient: Gradient {
-                                    orientation: Gradient.Horizontal
-                                    GradientStop { position: 0; color: Qt.rgba(0.016,0.055,0.09,0.92) }
-                                    GradientStop { position: 1; color: Qt.rgba(0.016,0.055,0.09,0.30) }
-                                }
-                            }
-                            Column {
-                                anchors.left: parent.left; anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.margins: 20
-                                spacing: 6
-                                Row {
-                                    spacing: 9
-                                    Text { text: adTile.modelData.t; color: theme.ink
-                                           font.family: theme.display; font.pixelSize: 20 }
-                                    Rectangle {
-                                        visible: adTile.modelData.upcoming === true
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        radius: 4; color: Qt.rgba(0,0,0,0.5)
-                                        border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.5)
-                                        width: upTag.implicitWidth + 12; height: upTag.implicitHeight + 6
-                                        Text { id: upTag; anchors.centerIn: parent; text: "UPCOMING"
-                                               color: root.seaGold; font.family: theme.ui
-                                               font.pixelSize: 9; font.letterSpacing: 2 }
-                                    }
-                                }
-                                Text { text: adTile.modelData.year + "  ·  " + adTile.modelData.note
-                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
-                            }
-                            MouseArea {
-                                id: adMa; anchors.fill: parent
-                                hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: root.watchRequested(root.watchSeries(adTile.modelData))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ═══════════ THE SHIP'S LOG — every film, in sailing order ═══════════
-            Repeater {
-                model: root.uni.filmEras
-                delegate: Column {
-                    id: filmEra
-                    required property var modelData
-                    required property int index
-                    width: contentColumn.width
-                    spacing: 0
-                    Item {
-                        width: parent.width; height: index === 0 ? 118 : 92
-                        Column {
-                            x: theme.margin; anchors.bottom: parent.bottom; anchors.bottomMargin: 18
-                            spacing: 6
-                            Text { visible: filmEra.index === 0
-                                   text: "THE SHIP'S LOG"; color: root.seaGold
-                                   font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                            Row {
-                                spacing: 12
-                                Text { text: filmEra.modelData.era; color: theme.ink
-                                       font.family: theme.display; font.pixelSize: 26 }
-                                Text { text: filmEra.modelData.films.length + " films  ·  sailing order"
-                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                                       anchors.baseline: parent.children[0].baseline }
-                            }
-                        }
-                    }
-                    Flickable {
-                        width: parent.width; height: 246
-                        contentWidth: filmRow.implicitWidth + theme.margin * 2
-                        contentHeight: height
-                        clip: true
-                        flickableDirection: Flickable.HorizontalFlick
-                        boundsBehavior: Flickable.StopAtBounds
-                        Row {
-                            id: filmRow
-                            x: theme.margin
-                            spacing: 16
-                            Repeater {
-                                model: filmEra.modelData.films
-                                delegate: Item {
-                                    id: fTile
-                                    required property var modelData
-                                    width: 150; height: 232
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        radius: 8; clip: true
-                                        color: "#071520"
-                                        border.width: 1
-                                        border.color: fMa.containsMouse ? root.seaGold : Qt.rgba(1,1,1,0.12)
-                                        Behavior on border.color { ColorAnimation { duration: 140 } }
-                                        Image {
-                                            anchors.fill: parent
-                                            source: root.poster(fTile.modelData.id)
-                                            asynchronous: true; cache: true
-                                            fillMode: Image.PreserveAspectCrop
-                                            opacity: status === Image.Ready ? 1 : 0
-                                            Behavior on opacity { NumberAnimation { duration: 220 } }
-                                        }
-                                        Rectangle {
-                                            anchors.left: parent.left; anchors.right: parent.right
-                                            anchors.bottom: parent.bottom
-                                            height: 60
-                                            gradient: Gradient {
-                                                GradientStop { position: 0; color: "transparent" }
-                                                GradientStop { position: 1; color: Qt.rgba(0,0,0,0.9) }
-                                            }
-                                        }
-                                        Column {
-                                            anchors.left: parent.left; anchors.right: parent.right
-                                            anchors.bottom: parent.bottom
-                                            anchors.margins: 9
-                                            spacing: 1
-                                            Text {
-                                                width: parent.width
-                                                text: fTile.modelData.t
-                                                color: theme.ink; font.family: theme.ui
-                                                font.pixelSize: 12; font.weight: Font.DemiBold
-                                                wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                                            }
-                                            Text {
-                                                text: fTile.modelData.year
-                                                color: root.sunset; font.family: theme.ui; font.pixelSize: 10
-                                            }
-                                        }
-                                        MouseArea {
-                                            id: fMa
-                                            anchors.fill: parent
-                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.watchRequested(root.watchMovie(fTile.modelData))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ═══════════ THE BOUNTY BOARD — the manga, posted like pirates ═══════════
-            Item {
-                width: parent.width; height: 118
-                visible: (root.uni.manga || []).length > 0
-                Column {
-                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                    Text { text: "THE BOUNTY BOARD"; color: root.seaGold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: "The manga, posted like pirates"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 31 }
-                    Text { text: "Oda's source and the crew's spin-offs — tear one down to read it."
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                }
-            }
-            Flickable {
-                width: parent.width; height: 292
-                contentWidth: posterRow.implicitWidth + theme.margin * 2
-                contentHeight: height
-                clip: true
-                flickableDirection: Flickable.HorizontalFlick
-                boundsBehavior: Flickable.StopAtBounds
-                visible: (root.uni.manga || []).length > 0
-                Row {
-                    id: posterRow
-                    x: theme.margin
-                    spacing: 20
-                    Repeater {
-                        model: root.uni.manga
-                        delegate: WantedPoster {
-                            required property var modelData
                             manga: modelData
+                            featured: index === 0
+                            width: featured ? 260 : 158
+                            height: featured ? 374 : 258
+                            onActivated: if (manga.t) root.seriesRequested(manga.q || manga.t)
                         }
                     }
                 }
             }
 
-            Item { width: 1; height: 76 }
+            Item {
+                id: filmsRoom
+                width: parent.width
+                height: 720
+                property bool reached: page.contentY + page.height >= filmsRoom.y + 120
+                opacity: reached ? 1 : 0
+                transform: Translate {
+                    y: filmsRoom.reached ? 0 : 14
+                    Behavior on y { NumberAnimation { duration: root.reducedMotion ? 0 : 240; easing.type: Easing.OutCubic } }
+                }
+                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 220 } }
+                RoomHeader { label: "FILMS"; count: root.roomCount("FILMS"); y: 36 }
+                Column {
+                    x: root.pageMargin
+                    y: 112
+                    width: parent.width - root.pageMargin * 2
+                    spacing: 22
+                    Repeater {
+                        model: root.uni.filmEras || []
+                        delegate: Item {
+                            id: filmRibbon
+                            required property var modelData
+                            width: parent.width
+                            height: 268
+                            Text {
+                                text: filmRibbon.modelData.era.toUpperCase()
+                                color: root.bone
+                                font.family: theme.ui
+                                font.pixelSize: 11
+                                font.weight: Font.DemiBold
+                                font.letterSpacing: 2.2
+                            }
+                            Text {
+                                anchors.right: parent.right
+                                text: filmRibbon.modelData.films.length
+                                color: root.carvedLight
+                                font.family: theme.ui
+                                font.pixelSize: 11
+                            }
+                            Flickable {
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.topMargin: 28
+                                height: 236
+                                contentWidth: filmRow.implicitWidth
+                                contentHeight: height
+                                clip: true
+                                flickableDirection: Flickable.HorizontalFlick
+                                boundsBehavior: Flickable.StopAtBounds
+                                Row {
+                                    id: filmRow
+                                    spacing: 12
+                                    Repeater {
+                                        model: filmRibbon.modelData.films
+                                        delegate: FilmFrame {
+                                            required property var modelData
+                                            film: modelData
+                                            onActivated: if (film.id) root.watchRequested(root.watchMovie(film))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Item {
+                id: adaptationsRoom
+                width: parent.width
+                height: 500
+                property bool reached: page.contentY + page.height >= adaptationsRoom.y + 120
+                opacity: reached ? 1 : 0
+                transform: Translate {
+                    y: adaptationsRoom.reached ? 0 : 14
+                    Behavior on y { NumberAnimation { duration: root.reducedMotion ? 0 : 240; easing.type: Easing.OutCubic } }
+                }
+                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 220 } }
+                RoomHeader { label: "ADAPTATIONS"; count: root.roomCount("ADAPTATIONS"); y: 38 }
+                Row {
+                    id: adaptationsRow
+                    x: root.pageMargin
+                    y: 122
+                    width: parent.width - root.pageMargin * 2
+                    spacing: 16
+                    Repeater {
+                        model: root.uni.adaptations || []
+                        delegate: MediaPortal {
+                            required property var modelData
+                            width: (adaptationsRow.width - adaptationsRow.spacing) / 2
+                            height: 312
+                            media: modelData
+                            upcoming: modelData.upcoming === true
+                            actionLabel: "WATCH"
+                            sourceUrl: root.backdropFor(media.id)
+                            onActivated: if (media.id) root.watchRequested(root.watchSeries(media))
+                        }
+                    }
+                }
+            }
+
+            Item { width: 1; height: 88 }
         }
 
         NumberAnimation {
             id: reveal
             target: contentColumn
             property: "opacity"
-            from: 0; to: 1
-            duration: 460
+            from: 0
+            to: 1
+            duration: root.reducedMotion ? 0 : 280
             easing.type: Easing.OutCubic
         }
     }
 
-    ChromeScrim { z: 16 }
-    BackAction { x: theme.margin; y: 28; z: 20; onTriggered: root.backRequested() }
-    Row {
-        z: 30
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
-        spacing: 20
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: minMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+    Rectangle {
+        id: topChrome
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.right: parent.right
+        height: 46
+        color: Qt.rgba(0.03, 0.025, 0.035, 0.82)
+        border.width: 0
+        z: 20
+
+        ChromeAction {
+            anchors.left: parent.left
+            anchors.leftMargin: 14
+            anchors.verticalCenter: parent.verticalCenter
+            label: "←"
+            onActivated: root.backRequested()
         }
-        Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
-                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
-                opacity: powerMa.containsMouse ? 1.0 : 0.72 }
-            MouseArea { id: powerMa; anchors.fill: parent; hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+        Row {
+            anchors.right: parent.right
+            anchors.rightMargin: 12
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 7
+            ChromeAction { label: "—"; onActivated: root.minimizeRequested() }
+            ChromeAction { label: "×"; onActivated: root.closeRequested() }
         }
     }
 
-    // ═══ SagaIsland — one landing on the chart: node on the course, card moored off it ═══
-    component SagaIsland: FocusScope {
-        id: island
-        property var saga: ({})
-        property int ord: 0
-        readonly property bool high: ord % 2 === 0          // node above the midline?
-        readonly property int nodeCY: root.nodeY(ord)
-        width: 236; height: 470
-        activeFocusOnTab: true
-
-        // ordinal — beside the node, off the card side
+    component RoomHeader: Item {
+        id: roomHeader
+        property string label: ""
+        property int count: 0
+        x: root.pageMargin
+        width: parent.width - root.pageMargin * 2
+        height: 56
         Text {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: island.high ? island.nodeCY - 58 : island.nodeCY + 26
-            text: (island.saga.n < 10 ? "0" : "") + island.saga.n
-            color: islandMa.containsMouse || island.activeFocus ? root.seaGold : Qt.rgba(0.94,0.77,0.29,0.5)
-            font.family: theme.display; font.italic: true; font.pixelSize: 21
-            Behavior on color { ColorAnimation { duration: 140 } }
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            text: roomHeader.label
+            color: root.bone
+            font.family: theme.display
+            font.pixelSize: 30
+            font.weight: Font.DemiBold
         }
-
-        // connector: node → card
+        Text {
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: 4
+            text: roomHeader.count < 10 ? "0" + roomHeader.count : String(roomHeader.count)
+            color: root.carvedLight
+            font.family: theme.ui
+            font.pixelSize: 13
+            font.letterSpacing: 2
+        }
         Rectangle {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: island.high ? island.nodeCY + 14 : island.nodeCY - 44
-            width: 1; height: 30
-            color: Qt.rgba(0.94, 0.77, 0.29, islandMa.containsMouse ? 0.55 : 0.25)
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: -14
+            height: 1
+            color: Qt.rgba(1.0, 0.70, 0.36, 0.26)
         }
-
-        // THE NODE — a sunset buoy; the last saga is the red X (treasure)
-        Item {
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: island.nodeCY - 15
-            width: 30; height: 30
-            Rectangle {                                     // hover halo
-                anchors.centerIn: parent
-                width: islandMa.containsMouse || island.activeFocus ? 34 : 22
-                height: width; radius: width / 2
-                color: "transparent"
-                border.width: islandMa.containsMouse ? 8 : 5
-                border.color: island.saga.treasure === true
-                              ? Qt.rgba(0.85, 0.29, 0.20, islandMa.containsMouse ? 0.4 : 0.16)
-                              : Qt.rgba(0.97, 0.79, 0.29, islandMa.containsMouse ? 0.34 : 0.13)
-                Behavior on width { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-            }
-            // the X — two crossed strokes, drawn, treasure red
-            Item {
-                visible: island.saga.treasure === true
-                anchors.centerIn: parent
-                width: 22; height: 22
-                Rectangle { anchors.centerIn: parent; width: 24; height: 4; radius: 2
-                            rotation: 45; color: root.treasureX }
-                Rectangle { anchors.centerIn: parent; width: 24; height: 4; radius: 2
-                            rotation: -45; color: root.treasureX }
-            }
-            // the buoy
-            Rectangle {
-                visible: island.saga.treasure !== true
-                anchors.centerIn: parent
-                width: 15; height: 15; radius: 7.5
-                gradient: Gradient {
-                    GradientStop { position: 0; color: root.sunset }
-                    GradientStop { position: 1; color: "#c9741f" }
-                }
-                border.width: 1; border.color: Qt.rgba(1,1,1,0.55)
-                Rectangle { anchors.centerIn: parent; width: 5; height: 5; radius: 2.5; color: "#dfeaf0" }
-            }
-        }
-
-        // THE CARD — moored on the opposite side of the course from the node's swing
-        Rectangle {
-            id: islandCard
-            anchors.horizontalCenter: parent.horizontalCenter
-            y: island.high ? island.nodeCY + 44 + (islandMa.containsMouse ? -4 : 0)
-                           : island.nodeCY - 44 - 158 + (islandMa.containsMouse ? 4 : 0)
-            width: 216; height: 158
-            radius: 14
-            color: islandMa.containsMouse || island.activeFocus ? Qt.rgba(0.075,0.15,0.21,0.94)
-                                                                : Qt.rgba(0.035,0.09,0.135,0.86)
-            border.width: island.activeFocus ? 2 : 1
-            border.color: island.activeFocus || islandMa.containsMouse
-                          ? (island.saga.treasure === true ? root.treasureX : root.seaGold)
-                          : Qt.rgba(0.55, 0.75, 0.88, 0.14)
-            Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-            Column {
-                anchors.left: parent.left; anchors.right: parent.right
-                anchors.top: parent.top; anchors.margins: 15
-                spacing: 8
-                Text {
-                    width: parent.width
-                    text: island.saga.name || ""
-                    color: islandMa.containsMouse ? root.seaGold : theme.ink
-                    font.family: theme.display; font.pixelSize: 19
-                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                    Behavior on color { ColorAnimation { duration: 140 } }
-                }
-                Rectangle {
-                    width: epText.implicitWidth + 18; height: 21; radius: 10
-                    color: Qt.rgba(0.94,0.77,0.29,0.13)
-                    border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.38)
-                    Text { id: epText; anchors.centerIn: parent
-                           text: island.saga.eps || ""; color: root.seaGold
-                           font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold }
-                }
-                Text {
-                    width: parent.width
-                    text: island.saga.hook || ""
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
-                    lineHeight: 1.3; wrapMode: Text.WordWrap
-                    maximumLineCount: 3; elide: Text.ElideRight
-                }
-            }
-        }
-
-        MouseArea {
-            id: islandMa
-            anchors.fill: parent
-            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
-        }
-        Keys.onReturnPressed: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
-        Keys.onEnterPressed: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
-        Keys.onSpacePressed: if (root.uni.anime) root.watchRequested(root.watchSeries(root.uni.anime))
     }
 
-    // ═══ WantedPoster — a manga posted on the bounty board: parchment, letterhead, mugshot ═══
-    component WantedPoster: FocusScope {
-        id: wp
-        property var manga: ({})
-        width: 176; height: 268
+    component RoadStone: FocusScope {
+        id: stone
+        property string route: ""
+        property int count: 0
+        property int order: 0
+        property real introOffset: root.reducedMotion ? 0 : 8
+        opacity: 0
+        signal activated()
         activeFocusOnTab: true
+        Keys.onReturnPressed: activated()
+        Keys.onEnterPressed: activated()
+        transform: Translate { y: stone.introOffset }
 
-        // pin shadow-lift on hover
-        Rectangle {                                       // the dark board frame behind
-            anchors.fill: poster
-            anchors.margins: -3
-            radius: 4
-            color: "#160e06"
-            opacity: 0.9
-        }
         Rectangle {
-            id: poster
+            id: stoneFace
             anchors.fill: parent
-            anchors.margins: 4
-            anchors.topMargin: wpMa.containsMouse || wp.activeFocus ? 0 : 6
-            anchors.bottomMargin: wpMa.containsMouse || wp.activeFocus ? 8 : 2
-            radius: 2
-            color: root.parchment
-            border.width: wp.activeFocus ? 2 : 1
-            border.color: wp.activeFocus ? root.seaGold : "#8a6a38"
-            Behavior on anchors.topMargin { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+            radius: 5
+            color: root.stoneRed
+            border.width: stone.activeFocus || stoneMouse.containsMouse ? 2 : 1
+            border.color: stone.activeFocus || stoneMouse.containsMouse
+                          ? root.carvedLight : Qt.rgba(1.0, 0.70, 0.36, 0.24)
 
-            // inner rule frame, like a printed notice
             Rectangle {
-                anchors.fill: parent; anchors.margins: 6
+                anchors.fill: parent
+                anchors.margins: 8
                 color: "transparent"
-                border.width: 1; border.color: Qt.rgba(0.42, 0.30, 0.13, 0.55)
+                border.width: 1
+                border.color: Qt.rgba(0.18, 0.02, 0.04, 0.55)
             }
-
-            Column {
-                anchors.left: parent.left; anchors.right: parent.right
-                anchors.top: parent.top; anchors.margins: 13
-                spacing: 7
-                Text {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    text: "WANTED"
-                    color: root.parchInk
-                    font.family: theme.display; font.pixelSize: 24; font.weight: Font.Bold
-                    font.letterSpacing: 5
+            Rectangle {
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 88
+                x: stoneMouse.containsMouse || stone.activeFocus ? parent.width - width : -width
+                opacity: 0.15
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0; color: "transparent" }
+                    GradientStop { position: 0.5; color: root.carvedLight }
+                    GradientStop { position: 1; color: "transparent" }
                 }
-                // the mugshot — the real AniList cover in a printed frame
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 132; height: 126
-                    color: "#d9c28e"
-                    border.width: 1; border.color: Qt.rgba(0.42, 0.30, 0.13, 0.7)
-                    Image {
-                        anchors.fill: parent; anchors.margins: 3
-                        source: wp.manga.cover || ""
-                        asynchronous: true; cache: true
-                        fillMode: Image.PreserveAspectCrop
-                        opacity: status === Image.Ready ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 220 } }
+                Behavior on x { NumberAnimation { duration: root.reducedMotion ? 0 : 260; easing.type: Easing.OutCubic } }
+            }
+            Canvas {
+                anchors.fill: parent
+                anchors.margins: 18
+                opacity: 0.42
+                onWidthChanged: requestPaint()
+                onHeightChanged: requestPaint()
+                onPaint: {
+                    var ctx = getContext("2d")
+                    ctx.reset()
+                    ctx.strokeStyle = "#FFB35B"
+                    ctx.lineWidth = 1.2
+                    var seed = stone.order + 2
+                    for (var i = 0; i < 9; ++i) {
+                        var x = 22 + ((i * 53 + seed * 17) % Math.max(60, width - 45))
+                        var y = 20 + ((i * 31 + seed * 23) % Math.max(55, height - 42))
+                        ctx.beginPath()
+                        ctx.moveTo(x - 10, y)
+                        ctx.lineTo(x, y - 10 - (i % 3) * 3)
+                        ctx.lineTo(x + 10 + (i % 2) * 4, y)
+                        ctx.lineTo(x, y + 11)
+                        ctx.closePath()
+                        ctx.stroke()
                     }
-                }
-                // DEAD OR ALIVE strip
-                Item {
-                    width: parent.width; height: 14
-                    Rectangle { anchors.verticalCenter: parent.verticalCenter
-                                width: parent.width; height: 1; color: Qt.rgba(0.42,0.30,0.13,0.5) }
-                    Rectangle {
-                        anchors.centerIn: parent
-                        width: doaText.implicitWidth + 14; height: 14
-                        color: root.parchment
-                        Text { id: doaText; anchors.centerIn: parent
-                               text: "DEAD OR ALIVE"; color: Qt.rgba(0.42,0.30,0.13,0.9)
-                               font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 2 }
-                    }
-                }
-                Text {
-                    width: parent.width
-                    horizontalAlignment: Text.AlignHCenter
-                    text: wp.manga.t || ""
-                    color: root.parchInk
-                    font.family: theme.display; font.pixelSize: 15
-                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                 }
             }
             Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.bottom: parent.bottom; anchors.bottomMargin: 9
-                text: wpMa.containsMouse ? "OPEN THE MANGA  →" : "TEAR DOWN TO READ"
-                color: wpMa.containsMouse ? "#7a4a14" : Qt.rgba(0.42, 0.30, 0.13, 0.75)
-                font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 2
+                anchors.left: parent.left
+                anchors.leftMargin: 25
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 24
+                text: stone.route
+                color: root.bone
+                font.family: theme.display
+                font.pixelSize: 31
+                font.weight: Font.DemiBold
+            }
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 24
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 28
+                text: (stone.count < 10 ? "0" : "") + stone.count
+                color: root.carvedLight
+                font.family: theme.ui
+                font.pixelSize: 13
+                font.letterSpacing: 2
+            }
+            Text {
+                anchors.right: parent.right
+                anchors.rightMargin: 24
+                anchors.top: parent.top
+                anchors.topMargin: 20
+                text: "↘"
+                color: stone.activeFocus || stoneMouse.containsMouse ? root.bone : Qt.rgba(0.95, 0.90, 0.82, 0.36)
+                font.pixelSize: 18
+                opacity: stone.activeFocus || stoneMouse.containsMouse ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 120 } }
             }
         }
         MouseArea {
-            id: wpMa
+            id: stoneMouse
             anchors.fill: parent
-            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: root.seriesRequested(wp.manga.q || wp.manga.t)
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { stone.forceActiveFocus(); stone.activated() }
         }
-        Keys.onReturnPressed: root.seriesRequested(wp.manga.q || wp.manga.t)
-        Keys.onEnterPressed: root.seriesRequested(wp.manga.q || wp.manga.t)
-        Keys.onSpacePressed: root.seriesRequested(wp.manga.q || wp.manga.t)
+        SequentialAnimation {
+            id: stoneIntro
+            PauseAnimation { duration: root.reducedMotion ? 0 : stone.order * 58 }
+            ParallelAnimation {
+                NumberAnimation { target: stone; property: "introOffset"; to: 0; duration: root.reducedMotion ? 0 : 260; easing.type: Easing.OutCubic }
+                NumberAnimation { target: stone; property: "opacity"; from: 0; to: 1; duration: root.reducedMotion ? 0 : 220 }
+            }
+        }
+        Component.onCompleted: stoneIntro.start()
+    }
+
+    component MediaPortal: FocusScope {
+        id: portal
+        property var media: ({})
+        property string sourceUrl: ""
+        property string actionLabel: "WATCH"
+        property string detail: ""
+        property bool upcoming: false
+        readonly property bool artReady: portalImage.status === Image.Ready
+        readonly property color fallbackColor: root.basalt
+        signal activated()
+        activeFocusOnTab: true
+        Keys.onReturnPressed: activated()
+        Keys.onEnterPressed: activated()
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 7
+            color: root.basalt
+            clip: true
+            border.width: portal.activeFocus || portalMouse.containsMouse ? 2 : 1
+            border.color: portal.activeFocus || portalMouse.containsMouse
+                          ? root.seaGlass : Qt.rgba(0.95, 0.90, 0.82, 0.13)
+            Image {
+                id: portalImage
+                anchors.fill: parent
+                source: portal.sourceUrl
+                asynchronous: true
+                cache: true
+                fillMode: Image.PreserveAspectCrop
+                opacity: status === Image.Ready ? (portalMouse.containsMouse || portal.activeFocus ? 0.78 : 0.58) : 0
+                Behavior on opacity { NumberAnimation { duration: root.reducedMotion ? 0 : 180 } }
+            }
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: Qt.rgba(0.03, 0.025, 0.035, 0.96) }
+                    GradientStop { position: 0.58; color: Qt.rgba(0.03, 0.025, 0.035, 0.44) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.03, 0.025, 0.035, 0.14) }
+                }
+            }
+            Column {
+                anchors.left: parent.left
+                anchors.leftMargin: 26
+                anchors.bottom: parent.bottom
+                anchors.bottomMargin: 24
+                width: parent.width * 0.72
+                spacing: 7
+                Text {
+                    text: portal.media.t || ""
+                    color: root.bone
+                    font.family: theme.display
+                    font.pixelSize: Math.min(30, Math.max(21, portal.width * 0.055))
+                    font.weight: Font.DemiBold
+                    width: parent.width
+                    elide: Text.ElideRight
+                }
+                Row {
+                    spacing: 12
+                    Text { text: portal.media.year || ""; color: root.carvedLight; font.family: theme.ui; font.pixelSize: 11 }
+                    Text { visible: portal.detail.length > 0; text: portal.detail; color: root.bone; opacity: 0.62; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.1 }
+                    Text { text: portal.actionLabel; color: root.seaGlass; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
+                }
+            }
+            Rectangle {
+                visible: portal.upcoming
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.margins: 18
+                width: upcomingText.implicitWidth + 16
+                height: 25
+                radius: 3
+                color: Qt.rgba(0.03, 0.025, 0.035, 0.74)
+                border.width: 1
+                border.color: root.carvedLight
+                Text {
+                    id: upcomingText
+                    anchors.centerIn: parent
+                    text: "UPCOMING"
+                    color: root.carvedLight
+                    font.family: theme.ui
+                    font.pixelSize: 9
+                    font.letterSpacing: 1.5
+                }
+            }
+        }
+        MouseArea {
+            id: portalMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { portal.forceActiveFocus(); portal.activated() }
+        }
+    }
+
+    component MangaGate: FocusScope {
+        id: gate
+        property var manga: ({})
+        property bool featured: false
+        signal activated()
+        activeFocusOnTab: true
+        Keys.onReturnPressed: activated()
+        Keys.onEnterPressed: activated()
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 5
+            color: root.basalt
+            clip: true
+            border.width: gate.activeFocus || gateMouse.containsMouse ? 2 : 1
+            border.color: gate.activeFocus || gateMouse.containsMouse
+                          ? root.carvedLight : Qt.rgba(0.95, 0.90, 0.82, 0.12)
+            Image {
+                anchors.fill: parent
+                source: gate.manga.cover || ""
+                asynchronous: true
+                cache: true
+                fillMode: Image.PreserveAspectCrop
+            }
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: gate.featured ? 108 : 78
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.03, 0.025, 0.035, 0.98) }
+                }
+            }
+            Column {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: gate.featured ? 16 : 11
+                spacing: 4
+                Text {
+                    width: parent.width
+                    text: gate.manga.t || ""
+                    color: root.bone
+                    font.family: theme.ui
+                    font.pixelSize: gate.featured ? 16 : 12
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                }
+                Text {
+                    text: "READ"
+                    color: root.carvedLight
+                    font.family: theme.ui
+                    font.pixelSize: 9
+                    font.letterSpacing: 1.7
+                    opacity: gateMouse.containsMouse || gate.activeFocus ? 1 : 0.58
+                }
+            }
+        }
+        MouseArea {
+            id: gateMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { gate.forceActiveFocus(); gate.activated() }
+        }
+    }
+
+    component FilmFrame: FocusScope {
+        id: frame
+        property var film: ({})
+        signal activated()
+        width: 146
+        height: 232
+        activeFocusOnTab: true
+        Keys.onReturnPressed: activated()
+        Keys.onEnterPressed: activated()
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 4
+            color: root.basalt
+            clip: true
+            border.width: frame.activeFocus || frameMouse.containsMouse ? 2 : 1
+            border.color: frame.activeFocus || frameMouse.containsMouse
+                          ? root.carvedLight : Qt.rgba(0.95, 0.90, 0.82, 0.12)
+            Image {
+                anchors.fill: parent
+                source: root.poster(frame.film.id)
+                asynchronous: true
+                cache: true
+                fillMode: Image.PreserveAspectCrop
+            }
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 74
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: "transparent" }
+                    GradientStop { position: 1.0; color: Qt.rgba(0.03, 0.025, 0.035, 0.98) }
+                }
+            }
+            Column {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.margins: 9
+                spacing: 2
+                Text {
+                    width: parent.width
+                    text: frame.film.t || ""
+                    color: root.bone
+                    font.family: theme.ui
+                    font.pixelSize: 11
+                    font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 2
+                    elide: Text.ElideRight
+                }
+                Text { text: frame.film.year || ""; color: root.carvedLight; font.family: theme.ui; font.pixelSize: 9 }
+            }
+        }
+        MouseArea {
+            id: frameMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { frame.forceActiveFocus(); frame.activated() }
+        }
+    }
+
+    component ActionPill: FocusScope {
+        id: action
+        property string label: ""
+        signal activated()
+        width: 92
+        height: 38
+        activeFocusOnTab: true
+        Keys.onReturnPressed: if (enabled) activated()
+        Keys.onEnterPressed: if (enabled) activated()
+        opacity: enabled ? 1 : 0.34
+        Rectangle {
+            anchors.fill: parent
+            radius: 4
+            color: actionMouse.containsMouse || action.activeFocus ? Qt.rgba(0.55, 0.09, 0.15, 0.72) : "transparent"
+            border.width: 1
+            border.color: actionMouse.containsMouse || action.activeFocus ? root.carvedLight : Qt.rgba(0.95, 0.90, 0.82, 0.25)
+            Text {
+                anchors.centerIn: parent
+                text: action.label
+                color: root.bone
+                font.family: theme.ui
+                font.pixelSize: 10
+                font.weight: Font.DemiBold
+                font.letterSpacing: 1.5
+            }
+        }
+        MouseArea {
+            id: actionMouse
+            anchors.fill: parent
+            enabled: action.enabled
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { action.forceActiveFocus(); action.activated() }
+        }
+    }
+
+    component ChromeAction: FocusScope {
+        id: chrome
+        property string label: ""
+        signal activated()
+        width: 32
+        height: 28
+        activeFocusOnTab: true
+        Keys.onReturnPressed: activated()
+        Keys.onEnterPressed: activated()
+        Rectangle {
+            anchors.fill: parent
+            radius: 4
+            color: chromeMouse.containsMouse || chrome.activeFocus ? Qt.rgba(1, 1, 1, 0.09) : "transparent"
+            Text { anchors.centerIn: parent; text: chrome.label; color: root.bone; font.family: theme.ui; font.pixelSize: 15 }
+        }
+        MouseArea {
+            id: chromeMouse
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { chrome.forceActiveFocus(); chrome.activated() }
+        }
     }
 }
