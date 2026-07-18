@@ -46,6 +46,8 @@ Item {
     property string audioTimeLine: ""
     property real audioProgress: 0
     property string audioSpeedLabel: "1.0×"
+    property var audioPlaylist: []            // chapter/file labels for the Audio tab's playlist
+    property int audioCurrentIndex: -1        // playing row (-1 = not live)
 
     // ---- left-panel state (owned here; the panel is a pure view over these) ----
     property bool panelOpen: false
@@ -88,6 +90,9 @@ Item {
     signal audioSpeedCycled()
     signal audioSeekRequested(real fraction)
     signal audioSkipRequested(real seconds)   // HUD transport pill: relative ±seek
+    signal audioPrevChapterRequested()        // pill ⏮ / ⏭ — chapter transport
+    signal audioNextChapterRequested()
+    signal audioChapterPicked(int index)      // Audio-tab playlist row → play that chapter/file
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
     // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
@@ -288,21 +293,38 @@ Item {
         border.width: 1
         MouseArea { anchors.fill: parent }        // swallow — nothing falls through to the page
 
+        // Ratified layout (Hemanth 2026-07-18): [prev chapter] [10s back] [play/pause]
+        // [10s fwd] [next chapter] [speed] [playlist] — icons only, no instruction text.
+        // A reusable icon button keeps the seven cells uniform.
+        component HudIcon: Item {
+            id: hi
+            property alias source: hiImg.source
+            property int box: 19
+            signal clicked()
+            width: box; height: box
+            anchors.verticalCenter: parent.verticalCenter
+            Image {
+                id: hiImg
+                anchors.fill: parent
+                sourceSize: Qt.size(hi.box * 2, hi.box * 2)
+                fillMode: Image.PreserveAspectFit; smooth: true
+                opacity: hiMa.containsMouse ? 1.0 : 0.55
+                Behavior on opacity { NumberAnimation { duration: 120 } }
+            }
+            MouseArea { id: hiMa; anchors.fill: parent; anchors.margins: -7
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: hi.clicked() }
+        }
+
         Row {
             id: hudRow
             anchors.centerIn: parent
-            spacing: 18
+            spacing: 17
 
-            Image {                               // skip back 15s (arc-arrow SVG, house stroke)
-                anchors.verticalCenter: parent.verticalCenter
-                width: 19; height: 19
-                source: Qt.resolvedUrl("../../assets/icons/reader2/skip-back-15.svg")
-                sourceSize: Qt.size(38, 38)
-                opacity: skipBackMa.containsMouse ? 1.0 : 0.55
-                MouseArea { id: skipBackMa; anchors.fill: parent; anchors.margins: -8
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: chrome.audioSkipRequested(-15) }
-            }
+            HudIcon { source: Qt.resolvedUrl("../../assets/icons/reader2/prev-chapter.svg")
+                      onClicked: chrome.audioPrevChapterRequested() }
+            HudIcon { source: Qt.resolvedUrl("../../assets/icons/reader2/skip-back-10.svg")
+                      onClicked: chrome.audioSkipRequested(-10) }
 
             Rectangle {                           // play / pause — white circle, dark glyph
                 anchors.verticalCenter: parent.verticalCenter
@@ -322,46 +344,40 @@ Item {
                             onClicked: chrome.audioPlayToggled() }
             }
 
-            Image {                               // skip forward 15s (arc-arrow SVG, house stroke)
-                anchors.verticalCenter: parent.verticalCenter
-                width: 19; height: 19
-                source: Qt.resolvedUrl("../../assets/icons/reader2/skip-forward-15.svg")
-                sourceSize: Qt.size(38, 38)
-                opacity: skipFwdMa.containsMouse ? 1.0 : 0.55
-                MouseArea { id: skipFwdMa; anchors.fill: parent; anchors.margins: -8
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: chrome.audioSkipRequested(15) }
-            }
+            HudIcon { source: Qt.resolvedUrl("../../assets/icons/reader2/skip-forward-10.svg")
+                      onClicked: chrome.audioSkipRequested(10) }
+            HudIcon { source: Qt.resolvedUrl("../../assets/icons/reader2/next-chapter.svg")
+                      onClicked: chrome.audioNextChapterRequested() }
 
-            Rectangle {                           // speed chip — cycles the ladder (panel parity)
+            Item {                                // speed — gauge icon + the current rate beside it
+                width: speedIconRow.implicitWidth; height: 22
                 anchors.verticalCenter: parent.verticalCenter
-                width: speedText.implicitWidth + 16
-                height: 24; radius: 12
-                color: "transparent"
-                border.width: 1
-                border.color: speedMa.containsMouse ? Theme.ink : Theme.barBorder
-                Text {
-                    id: speedText
-                    anchors.centerIn: parent
-                    text: chrome.audioSpeedLabel
-                    color: speedMa.containsMouse ? Theme.ink : Theme.inkDim
-                    font.family: Theme.ui
-                    font.pixelSize: 11
-                    font.weight: Font.DemiBold
+                Row {
+                    id: speedIconRow
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 5
+                    Image {
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 18; height: 18
+                        source: Qt.resolvedUrl("../../assets/icons/reader2/speed.svg")
+                        sourceSize: Qt.size(36, 36)
+                        opacity: spdMa.containsMouse ? 1.0 : 0.55
+                    }
+                    Text {
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: chrome.audioSpeedLabel
+                        color: spdMa.containsMouse ? Theme.ink : Theme.inkDim
+                        font.family: Theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                    }
                 }
-                MouseArea { id: speedMa; anchors.fill: parent; hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
+                MouseArea { id: spdMa; anchors.fill: parent; anchors.margins: -7
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                             onClicked: chrome.audioSpeedCycled() }
             }
 
-            Text {                                // "12:34 / 1:02:03" once live; quiet before play
-                anchors.verticalCenter: parent.verticalCenter
-                visible: chrome.audioTimeLine !== ""
-                text: chrome.audioTimeLine
-                color: Theme.inkDim
-                font.family: Theme.ui
-                font.pixelSize: 12
-            }
+            HudIcon { source: Qt.resolvedUrl("../../assets/icons/reader2/playlist.svg")
+                      // the playlist LIVES in the left panel's Audio tab — this opens it there
+                      onClicked: chrome.openPanelTo("audio") }
         }
     }
 
@@ -411,6 +427,9 @@ Item {
         audioTimeLine: chrome.audioTimeLine
         audioProgress: chrome.audioProgress
         audioSpeedLabel: chrome.audioSpeedLabel
+        audioPlaylist: chrome.audioPlaylist
+        audioCurrentIndex: chrome.audioCurrentIndex
+        onAudioChapterPicked: (i) => chrome.audioChapterPicked(i)
 
         onCloseRequested: chrome.closePanel()
         onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }

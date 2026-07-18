@@ -38,10 +38,12 @@ Item {
     property url audioCover: ""                   // cover art if any (else a placeholder glyph)
     property string audioMetaLine: ""            // "21 h 04 m · 135 chapters" (or "135 chapters")
     property bool followOn: false                // "Follow my reading" switch state
-    property bool audioPlaying: false            // session playing (drives play/pause glyph)
-    property string audioTimeLine: ""            // "Chapter 1 — Loomings · 04:12 / 22:30"
-    property real audioProgress: 0               // 0..1, the mini rail fill
-    property string audioSpeedLabel: "1.0×"       // the speed pill text
+    property bool audioPlaying: false            // session playing (drives the playing marker)
+    property string audioTimeLine: ""            // (transport moved to the HUD pill; kept for compat)
+    property real audioProgress: 0               // (kept for compat)
+    property string audioSpeedLabel: "1.0×"       // (kept for compat)
+    property var audioPlaylist: []               // chapter/file labels — the PLAYLIST rows
+    property int audioCurrentIndex: -1           // playing row (-1 = stream not live yet)
 
     // ---- signals up ----
     signal closeRequested()
@@ -54,7 +56,8 @@ Item {
     signal followToggled(bool on)
     signal audioPlayToggled()
     signal audioSpeedCycled()
-    signal audioSeekRequested(real fraction)     // scrub the mini rail (0..1)
+    signal audioSeekRequested(real fraction)     // (compat; the pill owns transport now)
+    signal audioChapterPicked(int index)         // playlist row tap → play that chapter/file
 
     readonly property int colWidth: 348
     readonly property int topBarPx: 64           // keep the top bar's right icons clickable
@@ -459,16 +462,22 @@ Item {
                     lineHeight: 1.4
                 }
 
-                // ---- attached state ----
-                Column {
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
+                // ---- attached state (scrollable — the playlist can outgrow the pane) ----
+                Flickable {
+                    anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 12
                     anchors.topMargin: 14
-                    spacing: 14
                     visible: panel.audioAttached
+                    contentWidth: width
+                    contentHeight: abPaneCol.implicitHeight + 24
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+
+                Column {
+                    id: abPaneCol
+                    width: parent.width
+                    spacing: 14
 
                     // --- attached-audiobook card (mock .audiohead) ---
                     Rectangle {
@@ -611,111 +620,77 @@ Item {
                         }
                     }
 
-                    // --- mini transport (mock .transport) ---
-                    Rectangle {
+                    // --- THE PLAYLIST (Hemanth 2026-07-18: every chapter/file of the audiobook,
+                    // listed the way Contents lists the book's chapters — filenames as labels;
+                    // tap a row to play it; the playing row is marked gold. The transport
+                    // itself lives on the reader's HUD pill now.) ---
+                    Column {
                         width: parent.width
-                        height: 68
-                        radius: 11
-                        color: Theme.cardBg
-                        border.color: Theme.barBorder
-                        border.width: 1
-
-                        // play / pause — white circle, dark glyph (mock .transport .play)
-                        Rectangle {
-                            id: playBtn
-                            width: 40; height: 40; radius: 20
-                            color: Theme.ink
-                            anchors.left: parent.left
-                            anchors.leftMargin: 14
-                            anchors.verticalCenter: parent.verticalCenter
-                            Image {
-                                anchors.centerIn: parent
-                                // nudge the play triangle right for optical centering (mock margin-left:2)
-                                anchors.horizontalCenterOffset: panel.audioPlaying ? 0 : 2
-                                source: panel.audioPlaying
-                                        ? Qt.resolvedUrl("../../assets/icons/reader2/pause-dark.svg")
-                                        : Qt.resolvedUrl("../../assets/icons/reader2/play-dark.svg")
-                                width: 16; height: 16
-                                sourceSize.width: 32; sourceSize.height: 32
-                                fillMode: Image.PreserveAspectFit; smooth: true
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: panel.audioPlayToggled()
-                            }
+                        spacing: 0
+                        Text {
+                            text: "Playlist"
+                            leftPadding: 4
+                            bottomPadding: 8
+                            font.family: Theme.ui
+                            font.pixelSize: 11
+                            font.weight: Font.Bold
+                            font.letterSpacing: 1.4
+                            font.capitalization: Font.AllUppercase
+                            color: Theme.inkFaint
                         }
-
-                        // chapter · time + the progress rail (mock .tinfo)
-                        Column {
-                            anchors.left: playBtn.right
-                            anchors.leftMargin: 14
-                            anchors.right: speedBtn.left
-                            anchors.rightMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 8
-                            Text {
-                                width: parent.width
-                                text: panel.audioTimeLine
-                                elide: Text.ElideRight
-                                font.family: Theme.ui
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
-                                color: Theme.inkDim
-                            }
-                            // scrubbable rail (mock .rail2 — display + click-to-seek)
-                            Rectangle {
-                                id: miniRail
-                                width: parent.width
-                                height: 3
-                                radius: 2
-                                color: Theme.track
+                        Repeater {
+                            model: panel.audioPlaylist
+                            delegate: Item {
+                                id: plRow
+                                required property var modelData
+                                required property int index
+                                readonly property bool current: index === panel.audioCurrentIndex
+                                width: parent.width; height: 40
                                 Rectangle {
-                                    height: parent.height
-                                    radius: 2
+                                    anchors.fill: parent; radius: 8
+                                    color: plMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06)
+                                         : plRow.current ? Qt.rgba(1, 1, 1, 0.04) : "transparent"
+                                }
+                                // playing marker — a slim gold bar, same vocabulary as the
+                                // Contents current-chapter marker.
+                                Rectangle {
+                                    visible: plRow.current
+                                    width: 3; height: 18; radius: 1.5
                                     color: Theme.gold
-                                    width: parent.width * Math.max(0, Math.min(1, panel.audioProgress))
+                                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                }
+                                Text {
+                                    anchors.left: parent.left; anchors.leftMargin: 14
+                                    anchors.right: plNum.left; anchors.rightMargin: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: String(plRow.modelData)
+                                    elide: Text.ElideRight
+                                    font.family: Theme.ui
+                                    font.pixelSize: 13
+                                    color: plRow.current ? Theme.inkTitle : Theme.inkDim
+                                }
+                                Text {
+                                    id: plNum
+                                    anchors.right: parent.right; anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    // the playing row shows a state glyph; others their track number
+                                    text: plRow.current ? (panel.audioPlaying ? "playing" : "paused")
+                                                        : (plRow.index + 1)
+                                    font.family: Theme.ui
+                                    font.pixelSize: 11
+                                    color: plRow.current ? Theme.gold : Theme.inkGhost
                                 }
                                 MouseArea {
+                                    id: plMa
                                     anchors.fill: parent
-                                    anchors.topMargin: -8
-                                    anchors.bottomMargin: -8
+                                    hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: (m) => panel.audioSeekRequested(
-                                                   Math.max(0, Math.min(1, m.x / miniRail.width)))
+                                    onClicked: panel.audioChapterPicked(plRow.index)
                                 }
-                            }
-                        }
-
-                        // speed pill (mock .spd)
-                        Rectangle {
-                            id: speedBtn
-                            anchors.right: parent.right
-                            anchors.rightMargin: 14
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: speedTxt.implicitWidth + 14
-                            height: 26
-                            radius: 6
-                            color: "transparent"
-                            border.color: Theme.barBorder
-                            border.width: 1
-                            Text {
-                                id: speedTxt
-                                anchors.centerIn: parent
-                                text: panel.audioSpeedLabel
-                                font.family: Theme.ui
-                                font.pixelSize: 11
-                                font.weight: Font.Bold
-                                font.letterSpacing: 0.6
-                                color: Theme.inkFaint
-                            }
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: panel.audioSpeedCycled()
                             }
                         }
                     }
+                }
                 }
             }
         }

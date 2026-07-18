@@ -336,7 +336,11 @@ FocusScope {
         : "Press play to listen along"
     readonly property real audioProgress: (shell.audioSessionLive && shell.audioSession.duration > 0)
         ? shell.audioSession.position / shell.audioSession.duration : 0
-    readonly property string audioSpeedLabel: L.speedLabel(shell.audioSessionLive ? shell.audioSession.speed : 1)
+    // CHOSEN speed (Hemanth 2026-07-18: "the speed button does not do anything" — it only
+    // acted on a LIVE stream). The choice now lives shell-side: cycling always works and
+    // shows, and it's applied to the session on load and on every cycle while live.
+    property real audioChosenSpeed: 1.0
+    readonly property string audioSpeedLabel: L.speedLabel(shell.audioChosenSpeed)
 
     // ---- driving the shared session ----
     // A light book object for the session's Continue record (title/author).
@@ -355,6 +359,7 @@ FocusScope {
         if (!shell.audioSession || shell.audioPairKey === "") return false
         if (typeof Audiobooks !== "undefined" && !Audiobooks.isDownloaded(shell.audioPairKey)) return false
         shell.audioSession.openFor(shell.audioPairKey, shell.audioSessionBook(), startPaused === true)
+        if (shell.audioSession.setRate) shell.audioSession.setRate(shell.audioChosenSpeed)  // carry the chosen speed in
         return !!shell.audioSession.ready
     }
 
@@ -396,13 +401,61 @@ FocusScope {
         if (shell.audioSessionLive) shell.audioSession.togglePlay()
         else shell.ensureAudioLoaded(false)          // load + play
     }
-    // Cycle the playback speed (no-op unless the session is live for this book).
+    // Cycle the playback speed — works BEFORE play too (the choice persists shell-side
+    // and is applied when the stream loads; live streams re-rate immediately).
     function audioCycleSpeed() {
-        if (!shell.audioSessionLive) return
-        var s = shell.audioSpeeds, cur = shell.audioSession.speed, next = s[0]
+        var s = shell.audioSpeeds, cur = shell.audioChosenSpeed, next = s[0]
         for (var i = 0; i < s.length; i++)
             if (Math.abs(s[i] - cur) < 0.01) { next = s[(i + 1) % s.length]; break }
-        shell.audioSession.setRate(next)
+        shell.audioChosenSpeed = next
+        if (shell.audioSessionLive) shell.audioSession.setRate(next)
+    }
+    // Chapter transport (the pill's ⏮ ⏭): live → clamped jump keeping play/pause state;
+    // not live yet → load the stream (the jump lands via the pending-index seam below).
+    function audioPrevChapter() {
+        if (!shell.audioSessionLive) { shell.ensureAudioLoaded(false); return }
+        var i = shell.audioSession.currentIndex
+        if (i > 0) shell.audioSession.goToChapterKeepState(i - 1)
+    }
+    function audioNextChapter() {
+        if (!shell.audioSessionLive) { shell.ensureAudioLoaded(false); return }
+        var i = shell.audioSession.currentIndex
+        var n = (shell.audioSession.chapterModel || []).length
+        if (i < n - 1) shell.audioSession.goToChapterKeepState(i + 1)
+    }
+    // ---- the playlist (Audio tab lists every chapter/file like Contents lists chapters) ----
+    // Live session → its chapterModel labels (m4b embedded chapters or the file set).
+    // Not live → the downloaded set's FILENAMES (Hemanth: "with the filenames"), so the
+    // list is there before the first play. audioPairingRev keeps it fresh across heals.
+    readonly property var audioPlaylist: (shell.audioPairingRev, (function() {
+        if (shell.audioSessionLive) {
+            var ch = shell.audioSession.chapterModel || []
+            return ch.map(function(c) { return String(c.label || "") })
+        }
+        if (!shell.audioAttached || typeof Audiobooks === "undefined") return []
+        return Audiobooks.localFiles(shell.audioPairKey).map(function(p) {
+            var base = String(p).split(/[\\/]/).pop()
+            return base.replace(/\.[a-z0-9]+$/i, "")      // filename, extension shed
+        })
+    })())
+    readonly property int audioCurrentIndex: shell.audioSessionLive ? shell.audioSession.currentIndex : -1
+    // Tap a playlist row: live → jump-and-play; cold → load, then the pending index lands
+    // once the session reports ready (openFor is async — a blind jump would race it).
+    property int audioPendingJump: -1
+    function audioPlayAt(i) {
+        if (shell.audioSessionLive) { shell.audioSession.goToChapter(i); return }
+        shell.audioPendingJump = i
+        shell.ensureAudioLoaded(false)
+    }
+    Connections {
+        target: shell.audioSession
+        function onReadyChanged() {
+            if (shell.audioPendingJump >= 0 && shell.audioSessionLive) {
+                var i = shell.audioPendingJump
+                shell.audioPendingJump = -1
+                if (i > 0) shell.audioSession.goToChapter(i)   // 0 = where openFor already landed
+            }
+        }
     }
     // Scrub the mini rail (fraction 0..1 → absolute seek).
     function audioSeekFraction(f) {
@@ -699,6 +752,8 @@ FocusScope {
         audioTimeLine: shell.audioTimeLine
         audioProgress: shell.audioProgress
         audioSpeedLabel: shell.audioSpeedLabel
+        audioPlaylist: shell.audioPlaylist
+        audioCurrentIndex: shell.audioCurrentIndex
 
         // appearance panel data (Task 10)
         appearance: shell.appearance
@@ -747,6 +802,9 @@ FocusScope {
         onAudioSpeedCycled: shell.audioCycleSpeed()
         onAudioSeekRequested: (f) => shell.audioSeekFraction(f)
         onAudioSkipRequested: (s) => shell.audioSkip(s)
+        onAudioPrevChapterRequested: shell.audioPrevChapter()
+        onAudioNextChapterRequested: shell.audioNextChapter()
+        onAudioChapterPicked: (i) => shell.audioPlayAt(i)
 
         // The bookmark icon = "bookmark THIS page" (per the mock). Write the SAME shape the
         // old reader's reader_bookmarks.js uses (locator{cfi,href,fraction} + label + snippet)
