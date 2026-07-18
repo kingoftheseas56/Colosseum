@@ -28,6 +28,8 @@ let Overlayer = null   // assigned in boot() once overlayer.js resolves
 let FootnoteHandler = null  // the fork's footnote extractor class (footnotes.js), assigned in boot()
 let footnoteHandler = null  // one instance; its render/before-render listeners attach once
 let pendingFootnoteRect = null  // the tapped anchor's rect, captured at 'link' time (render is async)
+let pendingFootnoteGen = 0  // the open-gen at 'link' time — threaded into the async 'footnote' emit
+                            // so a note whose book was switched away mid-render is dropped as stale.
 
 // ---------------------------------------------------------------------------
 // event emit (UP)
@@ -65,13 +67,18 @@ const isPDF = async file => {
   const a = new Uint8Array(await file.slice(0, 5).arrayBuffer())
   return a[0] === 0x25 && a[1] === 0x50 && a[2] === 0x44 && a[3] === 0x46 && a[4] === 0x2d
 }
+// Extension checks are CASE-INSENSITIVE: a `.CBZ` / `.FB2` / `.FBZ` (uppercase off some
+// exporters/OSes) must match too. Lowercase the name before every .endsWith (the isTXT
+// regex already uses /i). The magic-byte branches (isZip/isPDF) are case-agnostic already.
 const isCBZ = ({ name, type }) =>
-  type === 'application/vnd.comicbook+zip' || name.endsWith('.cbz')
+  type === 'application/vnd.comicbook+zip' || String(name || '').toLowerCase().endsWith('.cbz')
 const isFB2 = ({ name, type }) =>
-  type === 'application/x-fictionbook+xml' || name.endsWith('.fb2')
-const isFBZ = ({ name, type }) =>
-  type === 'application/x-zip-compressed-fb2'
-  || name.endsWith('.fb2.zip') || name.endsWith('.fbz')
+  type === 'application/x-fictionbook+xml' || String(name || '').toLowerCase().endsWith('.fb2')
+const isFBZ = ({ name, type }) => {
+  const n = String(name || '').toLowerCase()
+  return type === 'application/x-zip-compressed-fb2'
+    || n.endsWith('.fb2.zip') || n.endsWith('.fbz')
+}
 // TXT is the one format the fork lacks — plain text has no magic bytes, so it can
 // only be identified by extension (checked last, after every magic-byte branch misses).
 const isTXT = ({ name }) => /\.txt$/i.test(name || '')
@@ -394,7 +401,9 @@ const setupFootnoteHandler = () => {
     } catch (err) { /* fall through to target */ }
     if (!text && target) { try { text = String(target.textContent || '').trim() } catch (e) {} }
     if (text.length > FOOTNOTE_TEXT_CAP) text = text.slice(0, FOOTNOTE_TEXT_CAP) + '…'
-    emit('footnote', { html: text, rect: pendingFootnoteRect })
+    // gen-tagged with the open this note was tapped in (captured in the 'link' handler) so
+    // ReaderShell drops a footnote whose book was switched out from under the async render.
+    emit('footnote', { gen: pendingFootnoteGen, html: text, rect: pendingFootnoteRect })
     footnoteRenderPending = false   // host free again → the next footnote tap can render
     // Do NOT remove the throwaway view here: it still has a pending iframe 'load' handler
     // (paginator getDirection → getComputedStyle) that would throw on a null doc if we detach
@@ -501,6 +510,25 @@ const attachSelection = (view, doc, index) => {
 }
 
 const wireView = (view, gen) => {
+  // Is the CURRENT section real prose (vs a cover / full-image page)? RECOMPUTE from the live
+  // rendered doc at relocate time rather than trusting only the cached `sectionHasText` flag:
+  // the flag is set in the 'load' handler, and a relocate can, on some timing, fire for a
+  // section whose 'load' hasn't updated it yet (the flag would then describe the PREVIOUS
+  // section → the ruler could dim a cover or skip a chapter). getContents() reflects what's
+  // actually on screen now; fall back to the cached flag only if contents aren't readable.
+  const currentSectionHasText = () => {
+    try {
+      const contents = view.renderer?.getContents?.() || []
+      if (contents.length) {
+        const txt = contents
+          .map(c => (c?.doc?.body ? (c.doc.body.textContent || '') : ''))
+          .join(' ').replace(/\s+/g, ' ').trim()
+        return txt.length >= 200
+      }
+    } catch (e) { /* fall through to the cached flag */ }
+    return sectionHasText
+  }
+
   view.addEventListener('relocate', e => {
     // Suppress any relocate that fires BEFORE we've emitted 'ready' for this book
     // (the chrome doesn't know the book identity/toc yet — a pre-ready relocated is
@@ -531,8 +559,9 @@ const wireView = (view, gen) => {
       // A "text page" for the reading ruler = reflowable prose. FALSE for a whole
       // fixed-layout book (PDF/CBZ — every page is a fixed image/page) AND for a
       // reflowable book's cover/full-image section (little text). The ruler only dims
-      // real text pages; a focus band over a PDF page or a cover reads as a bug.
-      textPage: !(currentView && currentView.isFixedLayout) && sectionHasText,
+      // real text pages; a focus band over a PDF page or a cover reads as a bug. Recompute
+      // from the live section (robust vs a relocate that races ahead of this section's 'load').
+      textPage: !(currentView && currentView.isFixedLayout) && currentSectionHasText(),
     })
   })
 
@@ -584,8 +613,10 @@ const wireView = (view, gen) => {
   // which our render listener above turns into a 'footnote' event. For a NORMAL internal
   // link handle() returns undefined and does not preventDefault, so the view goToes as usual.
   view.addEventListener('link', e => {
-    // Capture the tapped anchor's rect NOW — the render (and thus our emit) is async.
+    // Capture the tapped anchor's rect + the current open-gen NOW — the render (and thus our
+    // emit) is async, so a book switch mid-render must be able to invalidate this footnote.
     pendingFootnoteRect = null
+    pendingFootnoteGen = openGen
     try {
       const a = e.detail && e.detail.a
       if (a && a.ownerDocument) {
@@ -607,23 +638,40 @@ const wireView = (view, gen) => {
 // ---------------------------------------------------------------------------
 // commands DOWN — window.paper.*
 // ---------------------------------------------------------------------------
+// Drop a <foliate-view> WE appended once a newer open superseded us: close+remove it, and
+// null currentView ONLY if it still points at ours (a newer open may already own currentView,
+// and we must never yank the newest book's view out from under it). Used at the two abort
+// points that come after the view is mounted (post view.open, post view.init).
+const removeSupersededView = view => {
+  try { view.close?.() } catch (e) { /* vendor teardown best-effort */ }
+  try { view.remove() } catch (e) { /* already detached */ }
+  if (currentView === view) currentView = null
+}
+
 const paperOpen = async (path, cfi) => {
+  // annotations/flatToc/readyEmitted belong to the previous book — reset them (below, in try).
+  readyEmitted = false
+  openGen++                       // new open → later events carry this gen (cross-book guard)
+  // Capture THIS open's gen in a local. The relocate listener + the ready emit below close
+  // over `myGen`, NOT the live module `openGen` — so a stale relocate from a PREVIOUS book
+  // (fired after a later open already bumped openGen) carries the OLD book's gen and is
+  // correctly dropped by ReaderShell. Reading openGen live would stamp it with the NEW gen
+  // and defeat the guard (the exact race it exists to close). Declared OUTSIDE the try so the
+  // catch's 'error' emit can gen-tag with `myGen` and superseded() can close over it.
+  const myGen = openGen
+  footnoteRenderPending = false   // a prior book's in-flight footnote render can't gate this one
+  // CANCEL-STALE-OPEN (the biggest fix): a newer paperOpen (book B) bumps openGen. After EVERY
+  // await below we re-check superseded() — a slow open of book A (a big PDF) whose awaits
+  // resolve AFTER B opened must NOT mount its view over B, emit a stale 'ready', or emit a
+  // stale 'error'. When true we abort cleanly: tear down any view we appended and RETURN,
+  // leaving currentView / state owned by the newest open only.
+  const superseded = () => myGen !== openGen
   try {
     // Teardown the PREVIOUS book first (open A -> Esc -> open B): without this the
     // old <foliate-view> stays in the DOM and its relocate/selection listeners keep
     // firing stale events into our seam. close() destroys+removes the renderer and
     // its book iframes (whose docs carry the pointerup/selectionchange listeners) and
     // clears view internal state; remove() drops the <foliate-view> element itself.
-    // annotations/flatToc/readyEmitted belong to the previous book — reset them.
-    readyEmitted = false
-    openGen++                       // new open → later events carry this gen (cross-book guard)
-    // Capture THIS open's gen in a local. The relocate listener + the ready emit below close
-    // over `myGen`, NOT the live module `openGen` — so a stale relocate from a PREVIOUS book
-    // (fired after a later open already bumped openGen) carries the OLD book's gen and is
-    // correctly dropped by ReaderShell. Reading openGen live would stamp it with the NEW gen
-    // and defeat the guard (the exact race it exists to close).
-    const myGen = openGen
-    footnoteRenderPending = false   // a prior book's in-flight footnote render can't gate this one
     if (currentView) {
       try { currentView.close?.() } catch (e) { /* vendor teardown best-effort */ }
       try { currentView.remove() } catch (e) { /* already detached */ }
@@ -659,12 +707,14 @@ const paperOpen = async (path, cfi) => {
         reject(e)
       }
     })
+    if (superseded()) return                      // a newer open replaced us during filesRead
     if (!b64) throw new Error('no book bytes for ' + path)
 
     syncVendorParams()                            // satisfy epub.js Loader's URL 'style' read
     const name = String(path).split(/[\\/]/).pop() || String(path)
     const file = base64ToFile(b64, name)
     const book = await makeBook(file)
+    if (superseded()) return                      // a newer open replaced us during makeBook (big-PDF parse)
 
     const view = document.createElement('foliate-view')
     document.body.append(view)
@@ -672,6 +722,7 @@ const paperOpen = async (path, cfi) => {
     wireView(view, myGen)
 
     await view.open(book)
+    if (superseded()) { removeSupersededView(view); return }  // switched during view.open — never mount over B
     flatToc = flattenToc(view.book?.toc)
     applyAppearance()                             // set flow/margins/bg/styles before first paint
 
@@ -711,9 +762,11 @@ const paperOpen = async (path, cfi) => {
 
     if (cfi) await view.init({ lastLocation: cfi })
     else await view.init({})                      // pushState(0) + first page (single advance)
+    if (superseded()) { removeSupersededView(view); return }  // switched during view.init
   } catch (e) {
+    if (superseded()) return                       // a newer open owns the surface now — its errors, not ours
     console.error('[paper] open failed', e)
-    emit('error', { message: String(e?.message || e) })
+    emit('error', { gen: myGen, message: String(e?.message || e) })
   }
 }
 
@@ -751,6 +804,7 @@ const paperSearch = async query => {
   if (!currentView) return
   const q = String(query || '').trim()
   if (!q) return
+  const searchGen = openGen        // the open this search belongs to (cross-book drop, mirrors relocate)
   const results = []
   let capped = false
   try {
@@ -769,9 +823,11 @@ const paperSearch = async query => {
       // At/over the cap → stop iterating the generator (don't scan the whole book).
       if (results.length >= SEARCH_RESULT_CAP) { capped = true; break }
     }
-    emit('searchResults', { query: q, results, count: results.length, capped, done: true })
+    if (searchGen !== openGen) return   // book switched mid-search → drop these (now stale) results
+    emit('searchResults', { gen: searchGen, query: q, results, count: results.length, capped, done: true })
   } catch (e) {
-    emit('error', { message: 'search failed: ' + String(e?.message || e) })
+    if (searchGen !== openGen) return   // superseded → don't surface a stale search error either
+    emit('error', { gen: searchGen, message: 'search failed: ' + String(e?.message || e) })
   }
 }
 

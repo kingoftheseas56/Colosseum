@@ -52,15 +52,23 @@ QtObject {
             check(L.resumeCfiOf({}) === "", "resumeCfiOf: empty entry -> ''")
             check(L.resumeCfiOf({ locator: {} }) === "", "resumeCfiOf: no cfi -> ''")
 
-            // 3b. staleRelocate — cross-book generation guard (Part B1). A relocated whose gen
-            // differs from the current open's gen is stale (drop it + its save); a missing/
-            // non-finite gen is NEVER stale (defensive: never suppress a real save).
+            // 3b. staleRelocate — cross-book generation guard (Part B1, hardened to gate
+            // ready/error/searchResults/footnote too, not just relocated). STRICTLY-OLDER = stale:
+            // a NEWER gen is a book switch to be ADOPTED (a fresh 'ready'), never dropped; a
+            // missing / non-finite gen is NEVER stale (defensive: never suppress a real event).
             check(L.staleRelocate(5, 5) === false, "staleRelocate: same gen -> not stale")
-            check(L.staleRelocate(4, 5) === true, "staleRelocate: older gen -> stale")
-            check(L.staleRelocate(6, 5) === true, "staleRelocate: any different gen -> stale")
+            check(L.staleRelocate(4, 5) === true, "staleRelocate: older gen -> stale (drop)")
+            check(L.staleRelocate(6, 5) === false, "staleRelocate: NEWER gen -> not stale (a 'ready' book switch is adopted)")
             check(L.staleRelocate(undefined, 5) === false, "staleRelocate: missing gen -> never stale (defensive)")
             check(L.staleRelocate(NaN, 5) === false, "staleRelocate: non-finite gen -> never stale")
-            check(L.staleRelocate(0, -1) === true, "staleRelocate: gen 0 vs initial -1 -> stale")
+            check(L.staleRelocate(0, -1) === false, "staleRelocate: first open vs initial -1 -> adopt (not stale)")
+            check(L.staleRelocate(1, -1) === false, "staleRelocate: first ready (gen 1) vs initial -1 -> adopt")
+            // Stale-event drops (Fix 1): a late event from a SUPERSEDED open (older gen) is dropped
+            // — this is the ONE pure gate ReaderShell now applies to relocated AND ready/error/
+            // searchResults/footnote. Book A's in-flight event (gen 1) after switching to B (gen 2)
+            // is stale; B's own event (gen 2) is kept.
+            check(L.staleRelocate(1, 2) === true, "staleRelocate: book A event (gen 1) after switch to B (gen 2) -> drop")
+            check(L.staleRelocate(2, 2) === false, "staleRelocate: current book B's own event (gen 2) -> keep")
 
             // 4. railState — pure view model for Task 7's rail.
             var rail = L.railState({ percent: 42, pageInChapter: 3, pagesInChapter: 10 }, 5)

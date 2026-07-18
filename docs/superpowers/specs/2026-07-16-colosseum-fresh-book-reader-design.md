@@ -203,6 +203,33 @@ deleted. Stores stay. Acceptance: this parity table walked in the full app, eyes
   door open.
 - Library/Biblio surfaces outside the reader (the book page, shelves, downloads).
 
+## Ratified constraints (v1)
+
+Added after the cross-model (Codex) review of reader2, to close the intent gaps that
+review surfaced. These are binding for v1:
+
+- **(a) Async work is cancelled on book switch.** Every open carries a per-open
+  generation (`openGen`); `paperOpen` re-checks it after each `await` (filesRead,
+  makeBook, view.open, view.init) and aborts — never mounting its view or emitting a
+  stale `ready` — once a newer open has superseded it. All book-scoped events
+  (`relocated`, `ready`, `error`, `searchResults`, `footnote`) are gen-tagged, and the
+  chrome drops any whose generation is older than the current open.
+- **(b) The paper is sandboxed.** No remote network from the book page
+  (`localContentCanAccessRemoteUrls: false`; file:// stays on for fonts + book bytes),
+  and `filesRead` is restricted to the currently-open book (`setAuthorizedBook`) — a
+  rigged book can neither phone home nor read arbitrary files off disk.
+- **(c) Bounds.** Dictionary input ≤ 64 chars, response ≤ 512 KB, 8 s timeout (DNS
+  resolved asynchronously so a bad network never blocks the UI thread); search results
+  capped at 300.
+- **(d) File extensions are matched case-insensitively** (`.CBZ` / `.FB2` / `.FBZ`
+  match as well as lowercase).
+- **(e) Audio-first is ebook-first in v1.** An audiobook downloaded *before* its ebook
+  does NOT auto-attach — attachment is keyed off the ebook path, so with no ebook there
+  is no key. Backfilling the pairing when the ebook later arrives is a future
+  enhancement, explicitly out of v1.
+- **(f) The reading ruler shows only on reflowable text sections** — never on a
+  fixed-layout page (PDF/CBZ), a cover, or a full-image page.
+
 ## Open items for the implementation plan
 
 - Exact bridge message list (names + payloads), drafted from Anx's channel vocabulary.

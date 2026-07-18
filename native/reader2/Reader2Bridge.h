@@ -31,7 +31,12 @@ class Reader2Bridge : public QObject {
 public:
     explicit Reader2Bridge(QObject* parent = nullptr);
     // paper-facing
-    Q_INVOKABLE QString filesRead(const QString& filePath);     // base64, "" on error
+    Q_INVOKABLE QString filesRead(const QString& filePath);     // base64, "" on error/unauthorized
+    // Authorize which book filesRead may serve (hardening). The paper is UNTRUSTED web content;
+    // without this it could pull ANY file off disk through the bridge. ReaderShell calls this
+    // with the book path BEFORE every paper.open, so filesRead serves ONLY the currently-open
+    // book and refuses ("") any other path. Stores a normalized (canonical) copy.
+    Q_INVOKABLE void setAuthorizedBook(const QString& absPath);
     Q_INVOKABLE void paperEvent(const QString& name, const QString& json);
     // Canonical store key — SHA1[:20] of the path-normalized absolute path. MUST match
     // the old reader's BookBridge::progressKey byte-for-byte: progress.json AND
@@ -57,7 +62,17 @@ signals:
     void paperEventReceived(const QString& name, const QString& json);
     void dictResult(const QString& word, const QString& json, bool ok);
 private:
+    // Fire the actual Wiktionary GET for `word` (URL term = `query`), with the IPv4 pin,
+    // an 8s timeout, and a ~512 KB response cap. Called either directly (host already
+    // resolved) or from the async DNS callback in dictLookup. Emits dictResult in every
+    // terminal path (ok / error / timeout / too-big). `word` is the emit key (matches the
+    // QML dictWord); `query` is the possibly-trimmed lookup term put in the URL.
+    void sendDictRequest(const QString& word, const QString& query);
+
     QNetworkAccessManager* m_nam;
+    // The one book filesRead is allowed to serve (normalized/canonical). Empty = nothing
+    // authorized yet → filesRead refuses everything. Set by setAuthorizedBook() per open.
+    QString m_authorizedBook;
     // IPv4 pin for the Wiktionary host (house scar: Wikimedia publishes AAAA records and
     // Qt-on-Windows stalls ~21s on the dead IPv6 route). Resolved once, then reused; empty
     // string = resolution failed, fall back to the plain hostname. See dictLookup().

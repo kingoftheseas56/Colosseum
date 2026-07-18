@@ -473,6 +473,11 @@ FocusScope {
             if (shell.readerDebug) console.log("[shell]", name, JSON.stringify(p).slice(0, 160))
 
             if (name === "ready") {
+                // Cross-book guard (Part B1, hardened): a 'ready' from a SUPERSEDED open (older
+                // gen) that slipped through is dropped; a fresh one (newer gen, or the defensive
+                // no-gen case) is ADOPTED as the current generation. staleRelocate is strictly-
+                // older, so a newer 'ready' — the book switch — passes and becomes currentGen.
+                if (L.staleRelocate(p.gen, shell.currentGen)) return
                 shell.currentGen = Number.isFinite(p.gen) ? p.gen : shell.currentGen  // adopt this open's generation (Part B1)
                 shell.bookReady = true                            // opened OK → later 'error' is operational, not a failed open
                 shell.openErrorShown = false                      // clear any failed-open surface from a prior attempt
@@ -510,6 +515,7 @@ FocusScope {
                 else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left/right panel OR search sheet
                 else shell.goBack()                                    // flushes the pending save, then closes
             } else if (name === "footnote") {
+                if (L.staleRelocate(p.gen, shell.currentGen)) return   // note from a superseded open — drop (Part B1)
                 // A footnote/endnote link was tapped (the glue extracted its text). Show the
                 // FootnoteCard near the anchor; the page does NOT navigate to the note.
                 shell.footnoteText = (p.html !== undefined && p.html !== null) ? String(p.html) : ""
@@ -544,6 +550,7 @@ FocusScope {
                 shell.existingHlId = ""
                 shell.selMenuShown = (shell.selText !== "")
             } else if (name === "searchResults") {
+                if (L.staleRelocate(p.gen, shell.currentGen)) return   // results from a superseded open — drop (Part B1)
                 // Hits from paper.search (the glue caps the payload at 300 + flags `capped`).
                 // Stash them for the SearchSheet; set searchLastQuery HERE (on arrival) so the
                 // sheet only shows "No results" once a search actually came back empty.
@@ -552,9 +559,12 @@ FocusScope {
                 shell.searchCapped = !!p.capped
                 shell.searchLastQuery = (p.query !== undefined && p.query !== null) ? String(p.query) : ""
             } else if (name === "error") {
+                if (L.staleRelocate(p.gen, shell.currentGen)) return   // error from a superseded open — drop (Part B1)
                 // Part B3: the glue failed. If the book never reached 'ready' it won't open —
                 // show the quiet failed-open surface with the message. If it WAS ready this is
                 // an operational error (a failed search/highlight); just trace it (readerDebug).
+                // A failed OPEN of the NEW book carries its (higher) gen, so it passes the gate
+                // above (not older than currentGen) and correctly shows the failed-open surface.
                 var emsg = (p.message !== undefined && p.message !== null) ? String(p.message) : ""
                 if (!shell.bookReady) {
                     shell.openErrorText = emsg
@@ -856,6 +866,9 @@ FocusScope {
         var entry = Reader2Bridge.progressGet(shell.bookId)
         if (!entry || Object.keys(entry).length === 0)
             entry = Reader2Bridge.progressGet(path)       // raw-path fallback (old-reader parity)
+        // Authorize the paper to read ONLY this book (hardening) BEFORE handing it the path —
+        // the untrusted paper can then pull this book's bytes and nothing else off disk.
+        Reader2Bridge.setAuthorizedBook(path)
         paper.open(path, L.resumeCfiOf(entry))
     }
 

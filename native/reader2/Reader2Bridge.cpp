@@ -2,13 +2,32 @@
 #include "../reader/BookStores.h"
 
 #include <QAbstractSocket>
+#include <QDebug>
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QHostAddress>
 #include <QHostInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QTimer>
 #include <QUrl>
+
+#include <memory>
+
+// Normalize a book path to a stable identity for authorization compares: strip a file:///
+// prefix, resolve to the canonical on-disk path when the file exists (collapses '..', native
+// separators, and — on Windows — the real casing), else fall back to a cleaned path. Both the
+// authorized book and every filesRead request pass through this, so a rigged book cannot slip a
+// different file past the check with an alternate spelling of the same-or-other path.
+static QString normalizeBookPath(const QString& raw)
+{
+    QString s = raw;
+    if (s.startsWith(QStringLiteral("file:///"))) s = QUrl(s).toLocalFile();
+    const QString canon = QFileInfo(s).canonicalFilePath();
+    return canon.isEmpty() ? QDir::cleanPath(s) : canon;
+}
 
 Reader2Bridge::Reader2Bridge(QObject* parent) : QObject(parent)
 {
@@ -28,11 +47,25 @@ Reader2Bridge::Reader2Bridge(QObject* parent) : QObject(parent)
 // QByteArray at the seam.
 QString Reader2Bridge::filesRead(const QString& filePath)
 {
+    // AUTHORIZATION (hardening): serve ONLY the currently-open book. The paper is untrusted web
+    // content; without this gate a rigged book could ask the bridge for ANY file on disk.
+    // ReaderShell calls setAuthorizedBook(path) before every open; a request for any other path
+    // (or before anything is authorized) is refused. Compare on the normalized/canonical form.
+    if (m_authorizedBook.isEmpty() || normalizeBookPath(filePath) != m_authorizedBook) {
+        qWarning() << "[reader2] filesRead refused — not the authorized book:" << filePath;
+        return QString();
+    }
     QString p = filePath;
     if (p.startsWith(QStringLiteral("file:///"))) p = QUrl(p).toLocalFile();
     QFile f(p);
     if (!f.open(QIODevice::ReadOnly)) return QString();
     return QString::fromLatin1(f.readAll().toBase64());
+}
+
+// Authorize the one book filesRead may serve this open (see header + filesRead above).
+void Reader2Bridge::setAuthorizedBook(const QString& absPath)
+{
+    m_authorizedBook = normalizeBookPath(absPath);
 }
 
 void Reader2Bridge::paperEvent(const QString& name, const QString& json)
@@ -110,36 +143,52 @@ void Reader2Bridge::annotationsDelete(const QString& bookId, const QString& id)
 // dictionary — Wiktionary REST, C++ side (house rule: no network on the paper)
 // ─────────────────────────────────────────────────────────────────────────────
 
-// Resolve a host to its first IPv4 address ("" if none / lookup failed).
-static QString resolveHostIpv4(const QString& host)
-{
-    const QHostInfo info = QHostInfo::fromName(host);
-    for (const QHostAddress& a : info.addresses())
-        if (a.protocol() == QAbstractSocket::IPv4Protocol) return a.toString();
-    return {};
-}
+static const QString kWiktHost = QStringLiteral("en.wiktionary.org");
+static constexpr int kDictTimeoutMs = 8000;            // abort a wedged lookup after 8s
+static constexpr qint64 kDictMaxBytes = 512 * 1024;    // a definition is a few KB; cap the body at 512 KB
+static constexpr int kDictMaxWordLen = 64;             // a "word" from a selection is short, not a paragraph
 
 void Reader2Bridge::dictLookup(const QString& word)
 {
-    const QString host = QStringLiteral("en.wiktionary.org");
-    QUrl url(QStringLiteral("https://") + host
+    // Bound the INPUT: a selection handed to Define should be one word. Cap at 64 chars so a
+    // stray paragraph-length selection can't become a giant URL / lookup term. (firstWord already
+    // narrows it QML-side; this is the defensive backstop.) Emit an empty result for an empty word.
+    QString query = word;
+    if (query.size() > kDictMaxWordLen) query = query.left(kDictMaxWordLen);
+    if (query.isEmpty()) { emit dictResult(word, QString(), false); return; }
+
+    // Host resolution is ASYNC (the fix): QHostInfo::fromName BLOCKS the GUI thread on DNS, so a
+    // bad network froze the whole app for seconds. If we've already resolved (or know it failed),
+    // fire immediately with the cached IPv4; otherwise kick off a non-blocking lookup and send
+    // from its callback. The IPv4 is cached process-wide so only the first lookup pays any DNS.
+    if (m_wiktResolved) { sendDictRequest(word, query); return; }
+    QHostInfo::lookupHost(kWiktHost, this, [this, word, query](const QHostInfo& info) {
+        QString ipv4;
+        for (const QHostAddress& a : info.addresses())
+            if (a.protocol() == QAbstractSocket::IPv4Protocol) { ipv4 = a.toString(); break; }
+        m_wiktIpv4 = ipv4;          // "" if resolution failed → sendDictRequest falls back to the hostname
+        m_wiktResolved = true;
+        sendDictRequest(word, query);
+    });
+}
+
+void Reader2Bridge::sendDictRequest(const QString& word, const QString& query)
+{
+    QUrl url(QStringLiteral("https://") + kWiktHost
              + QStringLiteral("/api/rest_v1/page/definition/")
-             + QString::fromUtf8(QUrl::toPercentEncoding(word)));
+             + QString::fromUtf8(QUrl::toPercentEncoding(query)));
 
     QNetworkRequest req(url);
     req.setHeader(QNetworkRequest::UserAgentHeader, QStringLiteral("Colosseum/1.0 (book reader)"));
 
-    // IPv4 PIN (house scar: Wikimedia publishes AAAA records; Qt-on-Windows tries the dead
-    // IPv6 route first and stalls ~21s — the same black hole main.cpp's CachingNam pins the
-    // poster/indexer hosts against). Rewrite the URL host to the resolved IPv4 and carry the
-    // real host in the Host header + TLS SNI (setPeerVerifyName), and disable HTTP/2. Applied
-    // proactively — this is the first LIVE dict call, en.wiktionary.org is an AAAA host, and
-    // the fix is the proven one; if resolution fails we fall back to the plain hostname.
-    // Resolved once (m_wiktResolved) so only the first lookup pays the DNS cost.
-    if (!m_wiktResolved) { m_wiktIpv4 = resolveHostIpv4(host); m_wiktResolved = true; }
+    // IPv4 PIN (house scar: Wikimedia publishes AAAA records; Qt-on-Windows tries the dead IPv6
+    // route first and stalls ~21s — the same black hole main.cpp's CachingNam pins the poster/
+    // indexer hosts against). Rewrite the URL host to the resolved IPv4 and carry the real host in
+    // the Host header + TLS SNI (setPeerVerifyName), and disable HTTP/2. If resolution failed
+    // (m_wiktIpv4 empty) we fall back to the plain hostname.
     if (!m_wiktIpv4.isEmpty()) {
-        req.setRawHeader("Host", host.toUtf8());
-        req.setPeerVerifyName(host);
+        req.setRawHeader("Host", kWiktHost.toUtf8());
+        req.setPeerVerifyName(kWiktHost);
         req.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
         QUrl pinned = url;
         pinned.setHost(m_wiktIpv4);
@@ -148,7 +197,39 @@ void Reader2Bridge::dictLookup(const QString& word)
     req.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
 
     QNetworkReply* rep = m_nam->get(req);
-    connect(rep, &QNetworkReply::finished, this, [this, rep, word] {
+
+    // `done` guards against a double terminal: timeout, size-cap, and finished can all race
+    // (abort() synchronously fires finished). Whoever gets there first sets it; the others bail.
+    auto done = std::make_shared<bool>(false);
+
+    // TIMEOUT — abort + emit a failed result after 8s so a wedged network never leaves the card
+    // stuck in 'loading'. The timer is parented to the reply, so it dies with it.
+    QTimer* timer = new QTimer(rep);
+    timer->setSingleShot(true);
+    connect(timer, &QTimer::timeout, this, [this, rep, word, done] {
+        if (*done) return;
+        *done = true;
+        rep->abort();
+        rep->deleteLater();
+        emit dictResult(word, QString(), false);
+    });
+    timer->start(kDictTimeoutMs);
+
+    // RESPONSE-SIZE CAP — abort if the body exceeds ~512 KB (a definition is tiny; an oversized
+    // response is a misfire we won't buffer + JSON-parse onto the GUI thread).
+    connect(rep, &QNetworkReply::downloadProgress, this, [this, rep, word, done](qint64 received, qint64) {
+        if (*done) return;
+        if (received > kDictMaxBytes) {
+            *done = true;
+            rep->abort();
+            rep->deleteLater();
+            emit dictResult(word, QString(), false);
+        }
+    });
+
+    connect(rep, &QNetworkReply::finished, this, [this, rep, word, done] {
+        if (*done) return;          // already resolved by the timeout / size-cap path
+        *done = true;
         rep->deleteLater();
         const bool ok = rep->error() == QNetworkReply::NoError;
         emit dictResult(word, ok ? QString::fromUtf8(rep->readAll()) : QString(), ok);

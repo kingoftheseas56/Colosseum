@@ -40,11 +40,29 @@ int main(int argc, char** argv)
         check(f.open(QIODevice::WriteOnly), "probe file opened for write");
         f.write(original);
     }
+    // Authorize THIS book first (hardening): filesRead serves ONLY the currently-open book —
+    // an untrusted paper can no longer pull arbitrary files off disk through the bridge.
+    bridge.setAuthorizedBook(path);
     const QString b64 = bridge.filesRead(path);
     const QByteArray decoded = QByteArray::fromBase64(b64.toLatin1());
-    check(decoded == original, "filesRead byte-exact base64 roundtrip");
+    check(decoded == original, "filesRead byte-exact base64 roundtrip (authorized book)");
     check(bridge.filesRead(tmp.path() + QStringLiteral("/does-not-exist.bin")).isEmpty(),
-          "filesRead returns empty string on open error");
+          "filesRead returns empty string for a missing / non-authorized path");
+
+    // (a2) filesRead AUTHORIZATION — a REAL file that is NOT the authorized book must be refused.
+    const QString other = tmp.path() + QStringLiteral("/other.bin");
+    {
+        QFile f(other);
+        check(f.open(QIODevice::WriteOnly), "second probe file opened for write");
+        f.write(original);
+    }
+    check(bridge.filesRead(other).isEmpty(),
+          "filesRead refuses a real but NON-authorized path (paper can't read arbitrary files)");
+    // Re-authorizing switches which single book is served (the per-open contract).
+    bridge.setAuthorizedBook(other);
+    check(!bridge.filesRead(other).isEmpty(), "filesRead serves the newly-authorized book");
+    check(bridge.filesRead(path).isEmpty(),   "filesRead now refuses the previously-authorized book");
+    bridge.setAuthorizedBook(path);           // restore for any later cases
 
     // (b) progress store roundtrip (delegates to BookStores — same file as old bridge)
     QJsonObject p{{"cfi", "epubcfi(/6/4!/4/2)"}, {"percent", 42}};

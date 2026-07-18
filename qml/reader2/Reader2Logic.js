@@ -68,16 +68,23 @@ function resumeCfiOf(entry) {
     return (entry && entry.locator && entry.locator.cfi) ? entry.locator.cfi : ""
 }
 
-// staleRelocate(eventGen, currentGen) → true when a 'relocated' (or the save it drives)
-// belongs to a PREVIOUS book open and must be ignored — the cross-book race guard. The
-// glue stamps each 'ready'/'relocated' with a per-open `gen`; ReaderShell tracks the
-// current open's gen (set from 'ready') and drops any relocated whose gen differs, so a
-// relocated from book A already in flight over QWebChannel can't mis-save into book B.
+// staleRelocate(eventGen, currentGen) → true when a book-scoped event belongs to a SUPERSEDED
+// book open and must be ignored — the cross-book race guard. The glue stamps every book-scoped
+// emit with a per-open `gen`: 'relocated', and (as of the hardening pass) 'ready', 'error',
+// 'searchResults', 'footnote'. ReaderShell ADOPTS currentGen from a fresh 'ready' and drops any
+// event whose gen is OLDER than the current open, so an event from book A still in flight over
+// QWebChannel can't land after we've switched to book B (mis-save into B, show A's error /
+// footnote / results over B).
+//
+// STRICTLY-OLDER (`<`), not merely different (`!==`): a 'ready' for a NEWER open (higher gen)
+// must be ADOPTED, not dropped — that IS the book switch. A 'relocated' never carries a higher
+// gen than currentGen (its own 'ready' set currentGen first, before init's first relocate), so
+// `<` and `!==` agree for it; using `<` is what lets the SAME gate also accept a newer 'ready'.
 // An event carrying no gen (undefined / non-finite — e.g. a pre-gen glue) is NEVER stale
-// (defensive: never suppress a real save just because the stamp is missing).
+// (defensive: never suppress a real event just because the stamp is missing).
 function staleRelocate(eventGen, currentGen) {
     if (!Number.isFinite(eventGen)) return false
-    return eventGen !== currentGen
+    return eventGen < currentGen
 }
 
 // railState(relocated, tocLength) → the progress-rail view model for Task 7's chrome.

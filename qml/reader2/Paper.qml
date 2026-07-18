@@ -64,7 +64,12 @@ Item {
         // paper_glue.js and emitted UP as semantic events — so the paper can own focus and
         // keys STILL work. forceActiveFocus() below makes keys live the instant a book opens.
         settings.localContentCanAccessFileUrls: true
-        settings.localContentCanAccessRemoteUrls: true
+        // SANDBOX (hardening): books are UNTRUSTED local content and never need the network —
+        // the dictionary runs in C++, and fonts + book bytes are all file://. Deny remote loads
+        // so a rigged book can't phone home / beacon. localContentCanAccessFileUrls stays TRUE
+        // (needed for @font-face + the file:// book bytes); self-contained EPUBs are unaffected,
+        // a book's remote images simply won't load (acceptable — offline reader).
+        settings.localContentCanAccessRemoteUrls: false
         webChannel: WebChannel { id: channel }
         url: Qt.resolvedUrl("../../resources/reader2/paper.html")
         onJavaScriptConsoleMessage: (lvl, msg, line, src) => { if (paper.readerDebug) console.log("[paper]", msg) }
