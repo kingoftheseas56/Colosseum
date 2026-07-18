@@ -1,5 +1,6 @@
 #include "engine/ComicsCatalog.h"
 #include <QFileInfo>
+#include <QHash>
 #include <QRegularExpression>
 #include <QSqlError>
 #include <QSqlQuery>
@@ -132,7 +133,34 @@ QVariantList ComicsCatalog::downloadsFor(int gcdId) const {
         m.insert(QStringLiteral("method"), q.value(5).toString());
         m.insert(QStringLiteral("fanMade"), q.value(6).toInt() != 0);
         m.insert(QStringLiteral("yearStart"), q.value(7).toInt());
+        m.insert(QStringLiteral("mirrors"), QVariantList());   // filled below
         out.append(m);
+    }
+    // mirror doors (spec 2026-07-18): one query for the whole series, grouped
+    // in-process. Missing download_mirror table (older db) -> exec fails ->
+    // every row keeps its empty list — graceful on stale catalogues.
+    QSqlQuery mq(m_db);
+    mq.prepare(QStringLiteral(
+        "select m.post_id, m.url, m.host, m.label from download_mirror m"
+        " join download d on d.post_id = m.post_id where d.series_id = :id"));
+    mq.bindValue(QStringLiteral(":id"), gcdId);
+    if (mq.exec()) {
+        QHash<int, QVariantList> bucket;
+        while (mq.next()) {
+            QVariantMap l;
+            l.insert(QStringLiteral("url"), mq.value(1).toString());
+            l.insert(QStringLiteral("host"), mq.value(2).toString());
+            l.insert(QStringLiteral("label"), mq.value(3).toString());
+            bucket[mq.value(0).toInt()].append(l);
+        }
+        for (QVariant& row : out) {
+            QVariantMap m = row.toMap();
+            const auto it = bucket.constFind(m.value(QStringLiteral("postId")).toInt());
+            if (it != bucket.constEnd()) {
+                m.insert(QStringLiteral("mirrors"), it.value());
+                row = m;
+            }
+        }
     }
     return out;
 }

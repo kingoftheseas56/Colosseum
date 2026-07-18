@@ -37,6 +37,9 @@ int main(int argc, char** argv) {
         q.exec("insert into series_stats values (6,100,'collection','2021-01-01')");
         // shelf() fixtures: fan_made row + a decade/publisher spread layered onto series 1-6
         q.exec("insert into download values (12,4,'Hulk Fan Omnibus','https://g/12/','2021-06-01','collection','fan',1,2021)");
+        q.exec("create table download_mirror(post_id integer, url text, host text, label text)");
+        q.exec("insert into download_mirror values (10,'https://datanodes.to/f/a','datanodes.to','MIRROR DOWNLOAD')");
+        q.exec("insert into download_mirror values (10,'https://1024terabox.com/s/b','1024terabox.com','TERABOX')");
         q.exec("insert into series values (7,'Spawn',2010,0,20,'Image','https://c/spawn.jpg','')");
         q.exec("insert into series_stats values (7,20,'single','2015-01-01')");
         // escape-pin fixture: literal-underscore title that an UNESCAPED prefix LIKE
@@ -73,6 +76,14 @@ int main(int argc, char** argv) {
     if (dls.size() != 2) return fail("downloads count");
     if (dls[0].toMap().value("postId").toInt() != 10) return fail("downloads date DESC (2022 first)");
     if (dls[1].toMap().value("kind").toString() != "collection") return fail("kind field");
+    // mirror doors (spec 2026-07-18): downloadsFor rows carry their harvested mirrors
+    const QVariantList m10 = dls[0].toMap().value("mirrors").toList();
+    if (m10.size() != 2) return fail("post 10 must carry 2 mirror doors");
+    if (m10[0].toMap().value("host").toString() != QStringLiteral("datanodes.to")
+        && m10[1].toMap().value("host").toString() != QStringLiteral("datanodes.to"))
+        return fail("mirror host missing");
+    if (!dls[1].toMap().value("mirrors").toList().isEmpty())
+        return fail("unharvested post must carry an EMPTY mirrors list");
     const QVariantList hits = cat.search("bat", 10);
     if (hits.size() != 3) return fail("search LIKE count (Batman x2 + Bat_an)");
     if (hits[0].toMap().value("gcdId").toInt() != 2) return fail("same class -> downloads DESC (1940 run, 5 dls, first)");
