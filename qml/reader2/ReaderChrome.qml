@@ -287,9 +287,9 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: bottomRail.top
         anchors.bottomMargin: 10
-        width: Math.max(hudRow.implicitWidth + 44, 380)
-        height: 64
-        radius: 20
+        width: Math.max(hudRow.implicitWidth + 52, 470)
+        height: 80
+        radius: 24
         color: Theme.bar
         border.color: Theme.barBorder
         border.width: 1
@@ -304,7 +304,7 @@ Item {
             id: hgb
             property string kind: ""
             property string label: ""
-            property int box: 21
+            property int box: 27
             signal clicked()
             width: box; height: box
             anchors.verticalCenter: parent.verticalCenter
@@ -325,21 +325,21 @@ Item {
             id: hudRow
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.top: parent.top
-            anchors.topMargin: 7
-            height: 30
-            spacing: 17
+            anchors.topMargin: 9
+            height: 38
+            spacing: 22
 
             HudGlyphButton { kind: "prevChapter"; onClicked: chrome.audioPrevChapterRequested() }
-            HudGlyphButton { kind: "seekBack"; label: "10"; box: 24
+            HudGlyphButton { kind: "seekBack"; label: "10"; box: 31
                              onClicked: chrome.audioSkipRequested(-10) }
 
             Rectangle {                           // play / pause — white circle, dark forged-line glyph
                 anchors.verticalCenter: parent.verticalCenter
-                width: 30; height: 30; radius: 15
+                width: 40; height: 40; radius: 20
                 color: Theme.ink
                 AudioGlyph {
                     anchors.centerIn: parent
-                    width: 22; height: 22
+                    width: 28; height: 28
                     // nudge the play triangle right for optical centering (family convention)
                     anchors.horizontalCenterOffset: chrome.audioPlaying ? 0 : 1
                     kind: chrome.audioPlaying ? "pause" : "play"
@@ -354,7 +354,7 @@ Item {
             HudGlyphButton { kind: "nextChapter"; onClicked: chrome.audioNextChapterRequested() }
 
             Item {                                // speed — gauge glyph + the current rate beside it
-                width: speedIconRow.implicitWidth; height: 24
+                width: speedIconRow.implicitWidth; height: 30
                 anchors.verticalCenter: parent.verticalCenter
                 Row {
                     id: speedIconRow
@@ -362,7 +362,7 @@ Item {
                     spacing: 5
                     AudioGlyph {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 19; height: 19
+                        width: 24; height: 24
                         kind: "speed"
                         ink: Theme.ink
                         opacity: spdMa.containsMouse ? 1.0 : 0.55
@@ -371,7 +371,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: chrome.audioSpeedLabel
                         color: spdMa.containsMouse ? Theme.ink : Theme.inkDim
-                        font.family: Theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                        font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
                     }
                 }
                 MouseArea { id: spdMa; anchors.fill: parent; anchors.margins: -7
@@ -389,10 +389,10 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            anchors.leftMargin: 18
-            anchors.rightMargin: 18
-            anchors.bottomMargin: 8
-            height: 16
+            anchors.leftMargin: 22
+            anchors.rightMargin: 22
+            anchors.bottomMargin: 10
+            height: 18
 
             Text {
                 id: posLabel
@@ -400,7 +400,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: chrome.audioPosLabel !== "" ? chrome.audioPosLabel : "0:00"
                 color: Theme.inkFaint
-                font.family: Theme.ui; font.pixelSize: 10
+                font.family: Theme.ui; font.pixelSize: 11
             }
             Text {
                 id: durLabel
@@ -408,7 +408,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: chrome.audioDurLabel !== "" ? chrome.audioDurLabel : "–:––"
                 color: Theme.inkFaint
-                font.family: Theme.ui; font.pixelSize: 10
+                font.family: Theme.ui; font.pixelSize: 11
             }
             Item {
                 id: scrubRail
