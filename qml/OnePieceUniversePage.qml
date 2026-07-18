@@ -181,14 +181,16 @@ Item {
                     width: Math.min(640, parent.width * 0.52)
                     spacing: 15
                     Text {
-                        text: "ONE PIECE  /  THE GREAT PIRATE ERA"
+                        text: "UNIVERSE  /  THE GREAT PIRATE ERA"
                         color: root.sunset
                         font.family: theme.ui
                         font.pixelSize: 10
                         font.letterSpacing: 3
                     }
+                    // the name carries the hero; the description below is the Wikipedia
+                    // lead (sourced copy law, Hemanth 2026-07-18 — no self-written synopsis)
                     Text {
-                        text: "One crew, one promise,\nand the whole sea between."
+                        text: root.uni.name || "One Piece"
                         color: theme.ink
                         font.family: theme.display
                         font.pixelSize: 52

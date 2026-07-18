@@ -123,7 +123,9 @@ Item {
                         font.letterSpacing: 3
                     }
                     Text {
-                        text: "Choose a world.\nThe connections can wait."
+                        // the name carries the hero; the description below is the Wikipedia
+                        // lead (sourced copy law, Hemanth 2026-07-18 — no self-written synopsis)
+                        text: root.uni.name || "Cosmere"
                         color: theme.ink
                         font.family: theme.display
                         font.pixelSize: 54
@@ -139,7 +141,7 @@ Item {
                         wrapMode: Text.WordWrap
                     }
                     Text {
-                        text: "Each story stands alone. Begin with the kind of journey you want."
+                        text: "Begin with the kind of journey you want."
                         color: theme.inkDimmer
                         font.family: theme.ui
                         font.pixelSize: 12
