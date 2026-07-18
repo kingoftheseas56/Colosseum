@@ -331,9 +331,9 @@ Item {
             anchors.top: parent.top
             anchors.topMargin: 9
             height: 38
-            spacing: 22
+            spacing: 18
 
-            HudGlyphButton { kind: "prevChapter"; onClicked: chrome.audioPrevChapterRequested() }
+            HudGlyphButton { kind: "prevChapter"; box: 33; onClicked: chrome.audioPrevChapterRequested() }
             HudGlyphButton { kind: "seekBack"; label: "10"; box: 31
                              onClicked: chrome.audioSkipRequested(-10) }
 
@@ -343,7 +343,7 @@ Item {
                 color: Theme.ink
                 AudioGlyph {
                     anchors.centerIn: parent
-                    width: 28; height: 28
+                    width: 40; height: 40
                     // nudge the play triangle right for optical centering (family convention)
                     anchors.horizontalCenterOffset: chrome.audioPlaying ? 0 : 1
                     kind: chrome.audioPlaying ? "pause" : "play"
@@ -355,7 +355,7 @@ Item {
 
             HudGlyphButton { kind: "seekForward"; label: "10"; box: 24
                              onClicked: chrome.audioSkipRequested(10) }
-            HudGlyphButton { kind: "nextChapter"; onClicked: chrome.audioNextChapterRequested() }
+            HudGlyphButton { kind: "nextChapter"; box: 33; onClicked: chrome.audioNextChapterRequested() }
 
             Item {                                // speed — gauge glyph + the current rate beside it
                 width: speedIconRow.implicitWidth; height: 30
@@ -366,7 +366,7 @@ Item {
                     spacing: 5
                     AudioGlyph {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 24; height: 24
+                        width: 27; height: 27
                         kind: "speed"
                         ink: Theme.ink
                         opacity: spdMa.containsMouse ? 1.0 : 0.55
@@ -383,7 +383,7 @@ Item {
                             onClicked: chrome.audioSpeedCycled() }
             }
 
-            HudGlyphButton { kind: "playlist"
+            HudGlyphButton { kind: "playlist"; box: 31
                              // the playlist LIVES in the left panel's Audio tab — opens it there
                              onClicked: chrome.openPanelTo("audio") }
         }
