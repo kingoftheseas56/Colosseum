@@ -84,6 +84,33 @@ int main(int argc, char** argv) {
         return fail("mirror host missing");
     if (!dls[1].toMap().value("mirrors").toList().isEmpty())
         return fail("unharvested post must carry an EMPTY mirrors list");
+    // graceful fallback (spec 2026-07-18): a db WITHOUT download_mirror must still
+    // return download rows, each with an EMPTY mirrors list — never throw/empty-out.
+    {
+        QTemporaryDir dir2;
+        const QString db2 = dir2.filePath("nomirror.db");
+        {
+            auto d = QSqlDatabase::addDatabase("QSQLITE", "nomirror");
+            d.setDatabaseName(db2);
+            d.open();
+            QSqlQuery q(d);
+            q.exec("create table series(gcd_id integer primary key, title text, year int, year_ended int, issue_count int, publisher text, cover text, synopsis text)");
+            q.exec("create table download(post_id integer primary key, series_id int, title text, link text, date text, kind text, method text, fan_made int, year_start int)");
+            q.exec("create table series_stats(series_id integer primary key, downloads int, kinds text, latest_post text)");
+            q.exec("insert into series values (1,'Saga',2012,0,72,'Image','','')");
+            q.exec("insert into download values (10,1,'Saga #1','l','2022-01-09','single','run_span',0,2022)");
+            d.close();
+        }
+        QSqlDatabase::removeDatabase("nomirror");
+        ComicsCatalog nomirror(db2);
+        const QVariantList dl = nomirror.downloadsFor(1);
+        if (dl.size() != 1) return fail("fallback: downloadsFor must still return rows without download_mirror");
+        const QVariantMap row0 = dl[0].toMap();
+        if (!row0.contains(QStringLiteral("mirrors")))
+            return fail("fallback: row must carry a mirrors key even when the table is absent");
+        if (!row0.value(QStringLiteral("mirrors")).toList().isEmpty())
+            return fail("fallback: row's mirrors list must be EMPTY when the table is absent");
+    }
     const QVariantList hits = cat.search("bat", 10);
     if (hits.size() != 3) return fail("search LIKE count (Batman x2 + Bat_an)");
     if (hits[0].toMap().value("gcdId").toInt() != 2) return fail("same class -> downloads DESC (1940 run, 5 dls, first)");
