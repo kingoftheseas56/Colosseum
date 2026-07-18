@@ -61,12 +61,20 @@ Item {
         runSearch()
     }
 
+    // full-bleed preview: an Image for searchable picks, the live scene for native ones
+    readonly property string previewUrl: root.selectedPick.image_url || root.inheritedImageUrl
     Image {
         anchors.fill: parent
-        source: root.selectedPick.image_url || root.inheritedImageUrl
+        source: WallpaperApi.isNativePick(root.previewUrl) ? "" : root.previewUrl
+        visible: !WallpaperApi.isNativePick(root.previewUrl)
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
+    }
+    Loader {
+        anchors.fill: parent
+        active: root.previewUrl === "native:arena-night"
+        source: active ? "wallpapers/ArenaNight.qml" : ""
     }
 
     Rectangle {
@@ -209,6 +217,63 @@ Item {
                 text: root.statusText
                 color: "#b8b2a8"
                 font.pixelSize: 12
+            }
+
+            // ---- Colosseum shelf: our own living wallpapers, apart from the searchable pool ----
+            Text {
+                text: "Colosseum"
+                color: "#d8d2c4"
+                font.family: theme.display
+                font.pixelSize: 16
+            }
+
+            Row {
+                spacing: 10
+
+                Repeater {
+                    model: WallpaperApi.nativePicks()
+                    delegate: Rectangle {
+                        id: nativeTile
+                        required property var modelData
+                        width: 144
+                        height: 92
+                        radius: 8
+                        color: "#07070a"
+                        border.width: root.selectedPick.source_id === nativeTile.modelData.source_id ? 2 : 1
+                        border.color: root.selectedPick.source_id === nativeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
+                        clip: true
+
+                        // the tile IS the wallpaper, live and miniature
+                        Loader {
+                            anchors.fill: parent
+                            source: nativeTile.modelData.image_url === "native:arena-night"
+                                    ? "wallpapers/ArenaNight.qml" : ""
+                        }
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 22
+                            color: Qt.rgba(0, 0, 0, 0.55)
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 8
+                                text: nativeTile.modelData.title
+                                color: "#e8e2d4"
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.selectedPick = nativeTile.modelData
+                        }
+                    }
+                }
             }
 
             GridView {

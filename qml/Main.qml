@@ -34,6 +34,14 @@ Window {
 
     property string currentSurface: "Home"
     property string wallpaperSource: "../assets/wallpaper/captured-motion.jpg"
+    // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
+    // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
+    // the one honest map — an unknown id falls back to the default still.
+    readonly property bool wallpaperIsNative: wallpaperSource.indexOf("native:") === 0
+    function nativeWallpaperFile(source) {
+        if (source === "native:arena-night") return "wallpapers/ArenaNight.qml"
+        return ""
+    }
 
     Settings {
         id: wallpaperSettings
@@ -1145,9 +1153,21 @@ Window {
         // `wall`, so the Image "just works" — and it pops against the chrome instead of reading as an app.
         Image {
             anchors.fill: parent
-            source: win.wallpaperSource
+            source: win.wallpaperIsNative ? "" : win.wallpaperSource
+            visible: !win.wallpaperIsNative
             fillMode: Image.PreserveAspectCrop
             cache: true
+        }
+        // Native living wallpaper (the arena et al.): a QML scene in the Image's place.
+        // Motion doctrine: it FREEZES whenever a reader/player owns the screen or the
+        // window is minimized — ambient motion only while the shell is being looked at.
+        Loader {
+            anchors.fill: parent
+            active: win.wallpaperIsNative && win.nativeWallpaperFile(win.wallpaperSource).length > 0
+            source: active ? win.nativeWallpaperFile(win.wallpaperSource) : ""
+            onLoaded: item.running = Qt.binding(function() {
+                return !win.immersiveSurfaceOpen && win.visibility !== Window.Minimized
+            })
         }
         // gentle global vignette so chrome + text read against the wallpaper, bright or dark
         Rectangle {

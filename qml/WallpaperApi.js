@@ -20,6 +20,29 @@ var WALLHAVEN = "https://wallhaven.cc/api/v1";
 var KONACHAN = "https://konachan.net";
 var PAGE_LIMIT = 24;   // both sources serve 24/page
 
+// ---- Colosseum-native living wallpapers (2026-07-18) ----
+// Designed in-house, drawn live by QML — separate from the searchable pool.
+// image_url carries the "native:" route Main resolves to a scene file.
+function nativePicks() {
+    return [{
+        source: "Colosseum",
+        source_id: "native:arena-night",
+        source_url: "",
+        image_url: "native:arena-night",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original",
+        query: "",
+        title: "The Arena at Night",
+        spec: "Living wallpaper - Colosseum native"
+    }];
+}
+
+function isNativePick(url) {
+    return String(url || "").indexOf("native:") === 0;
+}
+
 function defaultQueryFor(world) {
     if (world === "Tankoban")
         return "one piece";
