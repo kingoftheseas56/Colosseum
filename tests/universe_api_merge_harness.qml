@@ -43,12 +43,25 @@ QtObject {
             && Object.keys(UDB.configFor("No Such Universe")).length !== 0)
             throw new Error("unknown universe must yield an empty config")
 
-        // --- the collection: every live universe, ordered and on a pinned banner host ---
-        if (UDB.universes.length !== 21) throw new Error("expected 21 universes after Pokemon retirement, got " + UDB.universes.length)
+        // --- the shelf ruling (Hemanth 2026-07-18): only the custom-made pages stay live;
+        //     the rest are benched with every pin intact, returning one by one ---
+        if (UDB.universes.length !== 5) throw new Error("the shelf holds the 5 custom pages, got " + UDB.universes.length)
+        if (UDB.archive.length !== 16) throw new Error("the bench must hold the 16 template universes, got " + UDB.archive.length)
+        var shelf = UDB.universes.map(function(u) { return u.name })
+        var custom = ["One Piece", "Cosmere", "Marvel Cinematic Universe", "Dragon Ball", "Weekly Shonen Jump"]
+        for (var s = 0; s < custom.length; s++)
+            if (shelf.indexOf(custom[s]) === -1)
+                throw new Error(custom[s] + " must stand on the shelf")
         if (UDB.universes[1].name !== "Cosmere") throw new Error("Cosmere must be collection slot 2")
+        // benched curation still resolves — template harnesses and stored doors depend on it
+        var dcau = UDB.configFor("DC Animated Universe")
+        if (!dcau.eras || !dcau.archived) throw new Error("a benched universe must stay resolvable, flagged archived")
+        if (UDB.categoryFor("Star Wars") !== "galaxy") throw new Error("categoryFor must resolve the bench")
+        // quality holds for shelf AND bench: nothing is deleted, every pin stays whole
         var pinned = ["live.metahub.space", "s4.anilist.co", "upload.wikimedia.org", "image.tmdb.org"]
-        for (var i = 0; i < UDB.universes.length; i++) {
-            var u = UDB.universes[i]
+        var everyone = UDB.universes.concat(UDB.archive)
+        for (var i = 0; i < everyone.length; i++) {
+            var u = everyone[i]
             if (u.name.toLowerCase().indexOf("pok") === 0)
                 throw new Error("Pokemon must be retired from the universe collection")
             if (!u.banner || !u.blurb || !u.chips || !u.chips.length)

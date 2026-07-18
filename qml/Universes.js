@@ -324,6 +324,7 @@ var universes = [
           ] }
       ] },
     { name: "Harry Potter", c1: "#221c30", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Wizarding World — Rowling's seven novels, the eight films, and the Fantastic Beasts era beyond.",
       banner: "https://live.metahub.space/background/medium/tt1201607/img",
       // the canon, Wikipedia-checked 2026-07-12: exactly these, in this order — search is
@@ -349,6 +350,7 @@ var universes = [
       movieQueries: [ "Harry Potter", "Fantastic Beasts" ],
       chips: [ { t: "10 Books", ic: "books" }, { t: "11 Films", ic: "movies" }, { t: "1 Show", ic: "movies" } ] },
     { name: "Lord of the Rings", c1: "#1c2414", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Tolkien's Middle-earth — the novels, Jackson's films, and the age of Rings of Power.",
       banner: "https://live.metahub.space/background/medium/tt0167260/img",
       novels: [ "The Hobbit", "The Fellowship of the Ring", "The Two Towers",
@@ -367,6 +369,7 @@ var universes = [
       readQueries: [ "The Hobbit Tolkien" ],
       chips: [ { t: "5 Novels", ic: "books" }, { t: "9 Films", ic: "movies" }, { t: "1 Show", ic: "movies" } ] },
     { name: "A Song of Ice and Fire", c1: "#1f2429", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Martin's Westeros — the saga still being written, and the shows that carved it into legend.",
       banner: "https://live.metahub.space/background/medium/tt0944947/img",
       // saga 1-5 in reading order, then the companions (expansion 2026-07-13, Wikipedia-checked:
@@ -388,6 +391,7 @@ var universes = [
     //    tt0214341). Fan works (Abridged, Absalon) and the unofficial live-action "The Magic
     //    Begins" excluded — canon only. The SEVEN anime map to the seven Dragon Balls.
     { name: "Naruto", c1: "#2a3212", category: "anime",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Hidden Leaf's loudest ninja — Kishimoto's manga, the anime and Shippuden, and Boruto's generation.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30011-pkX1O0EFqvV7.jpg",
       // expansion 2026-07-13 (AniList-verified): Boruto NNG (AL 87178, finished) + Two Blue
@@ -399,6 +403,7 @@ var universes = [
     // ERAS template — THE TIMELINE: the Timmverse in in-universe chronology. Ids pinned
     // where research flagged impostors (Batman Beyond's 2015 web series; Batwoman ranks 8th).
     { name: "DC Animated Universe", c1: "#101622", category: "eras",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       eraKicker: "THE TIMELINE",
       blurb: "The Timmverse — one continuous animated world, from the noir rooftops of Gotham to the neon future of Neo-Gotham.",
       banner: "https://live.metahub.space/background/medium/tt0275137/img",
@@ -520,6 +525,7 @@ var universes = [
     // (researched): TAS needs its own query; films III/V/VI need numbered queries;
     // 'Into Darkness'/'Beyond' carry no colon while the TNG-era films do.
     { name: "Star Trek", c1: "#10141f", category: "eras",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       eraKicker: "THE FLEET",
       blurb: "The final frontier, charted end to end — every series and film from Kirk's five-year mission to the streaming age.",
       banner: "https://live.metahub.space/background/medium/tt0796366/img",
@@ -562,6 +568,7 @@ var universes = [
     // own catalog 2026-07-12 (modern shows don't CONTAIN "Star Wars" — Andor, The
     // Mandalorian — which is exactly why the name-relevance generic page starved empty).
     { name: "Star Wars", c1: "#14181c", category: "galaxy",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "A galaxy far, far away — the nine-episode Skywalker Saga, the standalone stories, and the age of The Mandalorian.",
       banner: "https://live.metahub.space/background/medium/tt0080684/img",
       trilogies: [
@@ -598,6 +605,7 @@ var universes = [
                        "tales of the underworld", "young jedi adventures" ],
       chips: [ { t: "11 Films", ic: "movies" }, { t: "17 Shows", ic: "movies" }, { t: "Novels", ic: "books" } ] },
     { name: "Dune", c1: "#3a2a18", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Frank Herbert's world, end to end — the novels, the films, the graphic novel.",
       banner: "https://live.metahub.space/background/medium/tt15239678/img",
       novels: [ "Dune", "Dune Messiah", "Children of Dune", "God Emperor of Dune",
@@ -619,6 +627,7 @@ var universes = [
     // ===== the 2026-07-12 second expansion (10 more, researched via parallel agents:
     // every Cinemeta name query-verified, every banner HEAD-checked 200 on pinned hosts) =====
     { name: "The Witcher", c1: "#26221c", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Geralt's path through a Continent of monsters — the saga, the Netflix shows, and the animated film, in one place.",
       banner: "https://live.metahub.space/background/medium/tt5180504/img",
       // + Crossroads of Ravens (English Sep 2025, Orbit — Geralt's-youth prequel, shelved
@@ -639,6 +648,7 @@ var universes = [
                 line: "Geralt in panels — the Dark Horse hunts." },
       chips: [ { t: "9 Novels", ic: "books" }, { t: "2 Shows", ic: "movies" }, { t: "3 Films", ic: "movies" } ] },
     { name: "Sherlock Holmes", c1: "#1f242c", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "The Baker Street canon — Doyle's nine books and the defining screen deductions, in one place.",
       banner: "https://live.metahub.space/background/medium/tt1475582/img",
       novels: [ "A Study in Scarlet", "The Sign of the Four", "The Adventures of Sherlock Holmes",
@@ -651,6 +661,7 @@ var universes = [
       seriesQueries: [ "sherlock", "elementary" ],
       chips: [ { t: "9 Books", ic: "books" }, { t: "2 Films", ic: "movies" }, { t: "3 Shows", ic: "movies" } ] },
     { name: "Jurassic Park", c1: "#1c2a20", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Crichton's islands of resurrected giants — the novels, all seven films, and the animated escapes, in one place.",
       banner: "https://live.metahub.space/background/medium/tt0107290/img",
       novels: [ "Jurassic Park", "The Lost World Michael Crichton" ],
@@ -662,6 +673,7 @@ var universes = [
       seriesQueries: [ "jurassic" ],
       chips: [ { t: "2 Novels", ic: "books" }, { t: "7 Films", ic: "movies" }, { t: "2 Shows", ic: "movies" } ] },
     { name: "Percy Jackson", c1: "#1a2430", category: "saga",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "A demigod's quests from Camp Half-Blood to Olympus — the five books, the films, and the series, in one place.",
       banner: "https://live.metahub.space/background/medium/tt12324366/img",
       // + the Senior Year novels (expansion 2026-07-13; "Wrath..." carries NO leading "The")
@@ -677,6 +689,7 @@ var universes = [
     // individually query-verified ("Goldfinger" carries no "James Bond" — every film has
     // its own search query).
     { name: "James Bond", c1: "#1a1a1e", category: "eras",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       eraKicker: "THE DOSSIER",
       blurb: "Sixty years of 007 — every Eon mission from Dr. No to No Time to Die, six Bonds deep, in one place.",
       banner: "https://live.metahub.space/background/medium/tt0058150/img",
@@ -722,6 +735,7 @@ var universes = [
     // original in search (Grave of the Fireflies has a 2024 remake shadow; also Castle in
     // the Sky, Only Yesterday, Ocean Waves, Whisper of the Heart).
     { name: "Studio Ghibli", c1: "#2a3328", category: "studio",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Hand-drawn worlds from Miyazaki, Takahata, and kin — every Ghibli feature, Nausicaä to The Boy and the Heron.",
       banner: "https://live.metahub.space/background/medium/tt0245429/img",
       filmography: [ "Nausicaä of the Valley of the Wind",
@@ -751,6 +765,7 @@ var universes = [
     // ERAS template — THE CANON: both shows are named "Avatar: The Last Airbender" in
     // Cinemeta (2005 animated vs 2024 live action) — the id-pins are load-bearing.
     { name: "Avatar: The Last Airbender", c1: "#16262c", category: "eras",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       eraKicker: "THE CANON",
       blurb: "One boy, four nations, a hundred-year war — the animated canon, Korra's age, and the live-action retelling.",
       banner: "https://live.metahub.space/background/medium/tt0417299/img",
@@ -782,6 +797,7 @@ var universes = [
       movieQueries: [ "the last airbender" ],
       chips: [ { t: "3 Shows", ic: "movies" }, { t: "2 Films", ic: "movies" }, { t: "6 Novels", ic: "books" }, { t: "Comics", ic: "comics" } ] },
     { name: "Attack on Titan", c1: "#2a2018", category: "anime",
+      archived: true,   // benched 2026-07-18 — returns when custom-made
       blurb: "Humanity's last walls and the titans beyond them — Isayama's manga, the landmark anime, and the compilation films.",
       banner: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/53390-6Uru5rrjh8zv.jpg",
       // expansion 2026-07-13 (AniList/Kitsu-verified): No Regrets (AL 85199) + Before the
@@ -806,6 +822,20 @@ function promoteUniverse(name, slot) {
 }
 promoteUniverse("Cosmere", 1);
 
+// ════════════════════════════════════════════════════════════════════════════════════════
+// THE SHELF RULING (Hemanth, 2026-07-18): only CUSTOM-MADE pages stay on the shelf.
+// "I will slowly custom make them and bring them back one by one." Everything riding a
+// shared template is benched — flagged `archived: true` above with EVERY pin intact
+// (curation is expensive; nothing is deleted). The bench is invisible to the carousel and
+// the Hall of Worlds; configFor/categoryFor still resolve benched entries so template
+// harnesses and any stored door keep working. To bring a universe back: build its custom
+// page, then delete its archived flag.
+// On the shelf now (5): One Piece · Cosmere · Marvel Cinematic Universe · Dragon Ball ·
+// Weekly Shonen Jump.
+// ════════════════════════════════════════════════════════════════════════════════════════
+var archive = universes.filter(function(u) { return u.archived === true; });
+universes = universes.filter(function(u) { return u.archived !== true; });
+
 // (the placeholder bench is empty — the 2026-07-12 commission promoted everything;
 //  future curations land here first if their page needs work before surfacing)
 var placeholders = [];
@@ -814,8 +844,9 @@ var placeholders = [];
 // Fandom-wiki phase template, Marvel-only for now); everything else → the generic
 // name/query-driven UniversePage.
 function categoryFor(name) {
-    for (var i = 0; i < universes.length; i++)
-        if (universes[i].name === name) return universes[i].category || "anime";
+    var all = universes.concat(archive);
+    for (var i = 0; i < all.length; i++)
+        if (all[i].name === name) return all[i].category || "anime";
     return "anime";
 }
 
@@ -823,7 +854,8 @@ function categoryFor(name) {
 // beside the carousel data — ONE curation point). Empty object when unknown.
 function configFor(name) {
     var q = String(name || "").toLowerCase();
-    for (var i = 0; i < universes.length; i++)
-        if (universes[i].name.toLowerCase() === q) return universes[i];
+    var all = universes.concat(archive);
+    for (var i = 0; i < all.length; i++)
+        if (all[i].name.toLowerCase() === q) return all[i];
     return {};
 }

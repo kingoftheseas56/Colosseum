@@ -32,11 +32,13 @@ Assert-Contains $api '.import "Universes.js" as UDB' "UniverseApi must import th
 Assert-Contains $api 'function mergeById(' "UniverseApi must carry the pure multi-query merge."
 Assert-Contains $api 'seriesQueries' "UniverseApi must honor curated series queries."
 
-# 3) shape: the curated universes Hemanth commissioned are present
+# 3) shape: the curated universes Hemanth commissioned are present — benched ones included
+#    (the shelf ruling 2026-07-18 keeps every curation in the file, flagged archived)
 $udb = Read-File "qml/Universes.js"
 foreach ($n in @('Harry Potter', 'Lord of the Rings', 'A Song of Ice and Fire', 'Dragon Ball',
                  'Naruto', 'DC Animated Universe', 'Weekly Shonen Jump', 'Star Trek',
-                 'Star Wars', 'Dune', 'function configFor(')) {
+                 'Star Wars', 'Dune', 'function configFor(',
+                 'THE SHELF RULING', 'archived: true')) {
     Assert-Contains $udb $n "Universes.js must carry: $n"
 }
 
