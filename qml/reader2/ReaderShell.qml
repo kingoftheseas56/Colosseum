@@ -547,7 +547,9 @@ FocusScope {
             } else if (name === "selectionCleared") {
                 // The underlying selection went away (clicked elsewhere, an arrow key turned
                 // the page out from under the menu). Dismiss the popover so it never floats
-                // over a stale/empty selection.
+                // over a stale/empty selection. Gen-gated too (re-review #3): a queued clear
+                // from the PREVIOUS book must not dismiss a menu the current book just opened.
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
                 if (shell.selMenuShown) shell.dismissSelectionMenu()
             } else if (name === "selection") {
                 if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // pre-ready / stale — no popover over the wrong book
