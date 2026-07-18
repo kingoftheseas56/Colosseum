@@ -70,17 +70,12 @@ Glass {
         width: 64; height: 2; radius: 1; color: theme.gold
     }
 
-    // ---- corner labels (Bookshelf idiom): what it is, and the lanes inside ----
+    // ---- corner label (Bookshelf idiom): what it is. The right-corner lane list
+    //      ("Movies · Shows · Anime") was cut — read cheap (Hemanth 2026-07-18). ----
     Text {
         anchors.left: parent.left; anchors.leftMargin: 46
         anchors.top: parent.top; anchors.topMargin: 36
         text: "Trending"; color: theme.inkDim
-        font.family: theme.display; font.italic: true; font.pixelSize: 22
-    }
-    Text {
-        anchors.right: parent.right; anchors.rightMargin: 46
-        anchors.top: parent.top; anchors.topMargin: 36
-        text: "Movies · Shows · Anime"; color: theme.inkDim
         font.family: theme.display; font.italic: true; font.pixelSize: 22
     }
 
