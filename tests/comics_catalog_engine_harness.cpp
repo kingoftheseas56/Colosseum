@@ -39,6 +39,10 @@ int main(int argc, char** argv) {
         q.exec("insert into download values (12,4,'Hulk Fan Omnibus','https://g/12/','2021-06-01','collection','fan',1,2021)");
         q.exec("insert into series values (7,'Spawn',2010,0,20,'Image','https://c/spawn.jpg','')");
         q.exec("insert into series_stats values (7,20,'single','2015-01-01')");
+        // escape-pin fixture: literal-underscore title that an UNESCAPED prefix LIKE
+        // would let 'Batman' wildcard past (see the bat_a assertion below)
+        q.exec("insert into series values (8,'Bat_an',2005,0,5,'Indie','','')");
+        q.exec("insert into series_stats values (8,1,'single','2005-01-01')");
 
         // curated catalog fixtures (locg_id-keyed)
         q.exec("create table curated_series(locg_id text primary key, rank int, title text, norm_title text, year int, slug text, publisher text, cover text, synopsis text)");
@@ -70,10 +74,17 @@ int main(int argc, char** argv) {
     if (dls[0].toMap().value("postId").toInt() != 10) return fail("downloads date DESC (2022 first)");
     if (dls[1].toMap().value("kind").toString() != "collection") return fail("kind field");
     const QVariantList hits = cat.search("bat", 10);
-    if (hits.size() != 2) return fail("search LIKE count");
+    if (hits.size() != 3) return fail("search LIKE count (Batman x2 + Bat_an)");
     if (hits[0].toMap().value("gcdId").toInt() != 2) return fail("same class -> downloads DESC (1940 run, 5 dls, first)");
     if (cat.search("saga", 10).size() != 1) return fail("search exact");
-    if (!cat.search("zz%_zz", 10).isEmpty()) return fail("LIKE metachars must be escaped");
+    if (!cat.search("zz%_zz", 10).isEmpty()) return fail("metachar query must not wildcard-match");
+    // prefix-tier escape is load-bearing: escaped, only the literal 'Bat_an' row is
+    // tier 1 for "bat_a"; unescaped, 'Batman' wildcards into tier 1 and wins on downloads.
+    // ("bat_an" itself can't discriminate — Bat_an is an EXACT match, tier 0 either way.)
+    const QVariantList metaPrefix = cat.search("bat_a", 10);
+    if (metaPrefix.size() != 3) return fail("bat_a tokens must match Batman runs + Bat_an");
+    if (metaPrefix[0].toMap().value("title").toString() != QStringLiteral("Bat_an"))
+        return fail("escaped prefix must rank literal 'Bat_an' first");
     const QVariantList rank = cat.search("hulk", 10);
     if (rank.size() != 3) return fail("hulk search should hit exactly 3");
     if (rank[0].toMap().value("gcdId").toInt() != 4) return fail("exact 'Hulk' must rank first despite fewest downloads");
