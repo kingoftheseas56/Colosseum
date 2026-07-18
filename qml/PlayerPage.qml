@@ -159,6 +159,8 @@ Item {
     property bool dvrPanelOpen: false
     property string currentDvrId: ""
     property bool pipMode: typeof WindowMode !== "undefined" && WindowMode.pipMode
+    readonly property bool shellWindowed:
+        typeof WindowMode !== "undefined" && WindowMode.shellWindowed
     // Harbor pause-on-minimize (pauseMinimized:true default): pause when the window is
     // minimized, resume on restore — but only ever undoing a pause we caused.
     property bool autoPausedInactive: false
@@ -696,6 +698,7 @@ Item {
 
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
 
     function normalizeStreamCandidates(infoHash, fileIdx, title, candidates) {
@@ -2920,6 +2923,12 @@ Item {
                         root.closeMenus()
                         root.minimizeRequested()
                     }
+                }
+                RoundButton {
+                    size: 34
+                    icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"
+                    tooltip: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
+                    onClicked: root.fullscreenRequested()
                 }
                 RoundButton {
                     size: 34
@@ -5436,6 +5445,15 @@ Item {
                 line(-0.30, 0.30, -0.12, 0.30)
                 line(0.30, 0.12, 0.30, 0.30)
                 line(0.30, 0.30, 0.12, 0.30)
+            } else if (kind === "fullscreenExit") {
+                line(-0.30, -0.12, -0.12, -0.12)
+                line(-0.12, -0.12, -0.12, -0.30)
+                line(0.30, -0.12, 0.12, -0.12)
+                line(0.12, -0.12, 0.12, -0.30)
+                line(-0.30, 0.12, -0.12, 0.12)
+                line(-0.12, 0.12, -0.12, 0.30)
+                line(0.30, 0.12, 0.12, 0.12)
+                line(0.12, 0.12, 0.12, 0.30)
             } else if (kind === "more") {
                 for (var di = -1; di <= 1; di++) {
                     ctx.beginPath()

@@ -1913,6 +1913,7 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(win.closePlayerSession)
         }
     }
