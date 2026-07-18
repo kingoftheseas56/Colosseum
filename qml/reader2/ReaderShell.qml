@@ -32,11 +32,14 @@ FocusScope {
     // standalone harness flips it on. Gates the [shell]/[paper] event tracing (never ships spam).
     property bool readerDebug: false
 
-    // ---- cross-book generation guard (Part B1; hardened in the Codex-fix batch) — the glue
-    // stamps every book-scoped event ('ready'/'relocated'/'error'/'searchResults'/'footnote')
-    // with a per-open `gen`. We ADOPT currentGen from a fresh (newer) 'ready' and DROP any event
-    // whose gen is OLDER than the current open (L.staleRelocate = strictly-older), so a late
-    // event from book A already in flight over QWebChannel can't land after we switched to B.
+    // ---- cross-book generation guard (Part B1; hardened twice) — the glue stamps every
+    // book-scoped event ('ready'/'relocated'/'error'/'searchResults'/'footnote') with a
+    // per-open `gen`. We ADOPT currentGen from a fresh (newer) 'ready' and DROP any event
+    // whose gen is OLDER than the current open (L.staleRelocate = strictly-older). That alone
+    // left the PRE-READY window open (gen still equals the old book's between openBook and the
+    // new 'ready'), so book-scoped events are additionally gated on bookReady
+    // (L.acceptBookEvent) and 'error' is routed through L.errorDisposition — a late event from
+    // book A in flight over QWebChannel can't land in ANY window after we switched to B.
     property int currentGen: -1
     // Has the CURRENT open reached 'ready'? Gates the failed-open surface (Part B3): an
     // 'error' BEFORE ready = the book won't open (show the surface); after ready it's an
@@ -516,7 +519,10 @@ FocusScope {
                 else if (chrome.anyPanelOpen) chrome.closeAnyPanel()   // left/right panel OR search sheet
                 else shell.goBack()                                    // flushes the pending save, then closes
             } else if (name === "footnote") {
-                if (L.staleRelocate(p.gen, shell.currentGen)) return   // note from a superseded open — drop (Part B1)
+                // Superseded open OR the pre-ready window (openBook fired, new 'ready' not yet
+                // adopted — currentGen still the OLD book's, so the gen check alone can't tell)
+                // → drop. (Codex re-review fix; see L.acceptBookEvent.)
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
                 // A footnote/endnote link was tapped (the glue extracted its text). Show the
                 // FootnoteCard near the anchor; the page does NOT navigate to the note.
                 shell.footnoteText = (p.html !== undefined && p.html !== null) ? String(p.html) : ""
@@ -524,6 +530,7 @@ FocusScope {
                 if (shell.footnoteText !== "") shell.footnoteShown = true
                 else if (shell.readerDebug) console.log("[shell] footnote had no extractable text — skipping card")
             } else if (name === "highlightTapped") {
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // pre-ready / stale — no popover over the wrong book
                 // An existing highlight was tapped (the glue guards against a selection-ending
                 // click also firing this). Open the SelectionMenu in "existing" mode at its
                 // rect: Delete (+ re-color dots). p.id is the annotation id; p.rect the anchor.
@@ -542,6 +549,7 @@ FocusScope {
                 // over a stale/empty selection.
                 if (shell.selMenuShown) shell.dismissSelectionMenu()
             } else if (name === "selection") {
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // pre-ready / stale — no popover over the wrong book
                 // text selected in the paper → stash it + open the SelectionMenu at its rect.
                 // A new selection while the menu is up simply re-stashes (the menu repositions).
                 shell.selText = (p.text !== undefined && p.text !== null) ? String(p.text) : ""
@@ -551,7 +559,7 @@ FocusScope {
                 shell.existingHlId = ""
                 shell.selMenuShown = (shell.selText !== "")
             } else if (name === "searchResults") {
-                if (L.staleRelocate(p.gen, shell.currentGen)) return   // results from a superseded open — drop (Part B1)
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return  // superseded open or pre-ready window — drop
                 // Hits from paper.search (the glue caps the payload at 300 + flags `capped`).
                 // Stash them for the SearchSheet; set searchLastQuery HERE (on arrival) so the
                 // sheet only shows "No results" once a search actually came back empty.
@@ -560,21 +568,30 @@ FocusScope {
                 shell.searchCapped = !!p.capped
                 shell.searchLastQuery = (p.query !== undefined && p.query !== null) ? String(p.query) : ""
             } else if (name === "error") {
-                if (L.staleRelocate(p.gen, shell.currentGen)) return   // error from a superseded open — drop (Part B1)
-                // Part B3: the glue failed. If the book never reached 'ready' it won't open —
-                // show the quiet failed-open surface with the message. If it WAS ready this is
-                // an operational error (a failed search/highlight); just trace it (readerDebug).
-                // A failed OPEN of the NEW book carries its (higher) gen, so it passes the gate
-                // above (not older than currentGen) and correctly shows the failed-open surface.
+                // Part B3, re-derived through L.errorDisposition (Codex re-review fix): a failed
+                // OPEN never reaches 'ready', so its error must surface while bookReady is false
+                // — but a stale error from the SUPERSEDED book in that same pre-ready window
+                // (gen == currentGen, since the new 'ready' hasn't adopted yet) must be dropped,
+                // not shown as the new book's failure. Gen order is the discriminator:
+                // newer gen = the new open failing ('open-fail'); current gen while ready = an
+                // operational error (failed search/highlight — trace); anything else = stale.
                 var emsg = (p.message !== undefined && p.message !== null) ? String(p.message) : ""
-                if (!shell.bookReady) {
+                var disp = L.errorDisposition(p.gen, shell.currentGen, shell.bookReady)
+                if (disp === "open-fail") {
+                    // Adopt the failed open's gen (when stamped): later stragglers from the
+                    // superseded book then gen-drop cleanly instead of leaning on bookReady.
+                    if (Number.isFinite(p.gen) && p.gen > shell.currentGen) shell.currentGen = p.gen
                     shell.openErrorText = emsg
                     shell.openErrorShown = true
-                } else if (shell.readerDebug) {
+                } else if (disp === "operational" && shell.readerDebug) {
                     console.log("[shell] operational error:", emsg)
-                }
+                }   // 'drop' → the superseded book's error; ignore
             } else if (name === "relocated" && shell.bookPath !== "") {
-                if (L.staleRelocate(p.gen, shell.currentGen)) return   // stale cross-book relocated → ignore (Part B1)
+                // Superseded open OR pre-ready window → ignore. The pre-ready half is the save
+                // that mattered most (Codex re-review): bookPath is already the NEW book's when
+                // openBook ran, so an old book's in-flight relocated accepted here would record
+                // ITS position under the new book's progress entry.
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
                 // --- chrome view-model (rail + top bar + Contents current row) ---
                 if (p.cfi !== undefined && p.cfi !== null) shell.lastCfi = String(p.cfi)
                 if (p.chapterTitle !== undefined) shell.chapterLabel = String(p.chapterTitle)

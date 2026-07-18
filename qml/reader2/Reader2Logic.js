@@ -87,6 +87,41 @@ function staleRelocate(eventGen, currentGen) {
     return eventGen < currentGen
 }
 
+// acceptBookEvent(eventGen, currentGen, bookReady) → may a book-scoped DISPLAY/SAVE event
+// ('relocated'/'footnote'/'searchResults'/'selection'/'highlightTapped') touch state?
+//
+// staleRelocate alone leaves ONE window open (Codex re-review): between openBook(B) and B's
+// 'ready', currentGen still holds A's gen — so a late event from A (gen == currentGen) passes
+// the strictly-older check and would save A's position under B's path / open A's popover over
+// B. bookReady=false marks exactly that window (openBook resets it; 'ready' sets it), so the
+// gate is: the current open has reached 'ready' AND the event is not from a superseded open.
+// Unstamped events (no finite gen) reduce to the bookReady check alone — still defensive
+// (never gen-dropped), but nothing may paint before the book on screen is the one it's for.
+function acceptBookEvent(eventGen, currentGen, bookReady) {
+    return !!bookReady && !staleRelocate(eventGen, currentGen)
+}
+
+// errorDisposition(eventGen, currentGen, bookReady) → 'open-fail' | 'operational' | 'drop'.
+//
+// 'error' cannot use acceptBookEvent: a failed OPEN never reaches 'ready', so its error must
+// surface precisely while bookReady is FALSE — yet a stale error from the superseded book in
+// that same window must not. The discriminator is the gen ORDER, not the window:
+//   • gen > currentGen  → 'open-fail': the NEW open failed before adopting its gen via 'ready'
+//     (a legit failed open always carries a gen newer than the last adopted one — 'ready'
+//     never ran for it). Caller should ADOPT this gen so later stragglers gen-drop cleanly.
+//   • gen == currentGen && bookReady → 'operational': the current, open book hit a non-fatal
+//     error (failed search/highlight) — trace, don't surface.
+//   • no finite gen → pre-gen/boot failure ('boot failed' carries no gen): keep the old
+//     behavior — surface pre-ready, trace when a book is up.
+//   • otherwise → 'drop': the superseded book's error (gen == currentGen inside the pre-ready
+//     window, or gen < currentGen any time) — never show A's failure over B.
+function errorDisposition(eventGen, currentGen, bookReady) {
+    if (!Number.isFinite(eventGen)) return bookReady ? "operational" : "open-fail"
+    if (eventGen > currentGen) return "open-fail"
+    if (eventGen === currentGen && bookReady) return "operational"
+    return "drop"
+}
+
 // railState(relocated, tocLength) → the progress-rail view model for Task 7's chrome.
 // Pure derivation from a relocated event; kept simple and side-effect-free.
 function railState(relocated, tocLength) {

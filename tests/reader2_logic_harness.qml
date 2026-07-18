@@ -70,6 +70,31 @@ QtObject {
             check(L.staleRelocate(1, 2) === true, "staleRelocate: book A event (gen 1) after switch to B (gen 2) -> drop")
             check(L.staleRelocate(2, 2) === false, "staleRelocate: current book B's own event (gen 2) -> keep")
 
+            // 3c. acceptBookEvent — the PRE-READY window gate (Codex re-review fix). Between
+            // openBook(B) and B's 'ready', currentGen still holds A's gen, so A's in-flight
+            // event passes staleRelocate alone (same gen). bookReady=false marks that window:
+            // NO book-scoped display/save event is acceptable until the new book's 'ready'.
+            check(L.acceptBookEvent(1, 1, true) === true,  "acceptBookEvent: current book, ready -> accept")
+            check(L.acceptBookEvent(1, 1, false) === false, "acceptBookEvent: THE RACE — A's event (gen==currentGen) after openBook(B), before B's ready -> drop")
+            check(L.acceptBookEvent(1, 2, true) === false, "acceptBookEvent: superseded gen after B's ready -> drop (gen guard)")
+            check(L.acceptBookEvent(undefined, 5, true) === true, "acceptBookEvent: unstamped event while ready -> accept (defensive)")
+            check(L.acceptBookEvent(undefined, 5, false) === false, "acceptBookEvent: unstamped event pre-ready -> drop (no book on screen)")
+
+            // 3d. errorDisposition — 'error' can't use the same gate: a failed OPEN never reaches
+            // 'ready', so its error must SURFACE while bookReady is false — but a stale error from
+            // the superseded book in that same window must NOT. The discriminator is gen:
+            //   gen > currentGen        -> 'open-fail'   (the new open failed; adopt its gen)
+            //   gen == currentGen+ready -> 'operational' (current book: failed search/highlight)
+            //   no finite gen           -> pre-ready 'open-fail' (boot failure), ready 'operational'
+            //   otherwise               -> 'drop'        (superseded book's error)
+            check(L.errorDisposition(2, 1, false) === "open-fail", "errorDisposition: B's failed open (gen 2 > currentGen 1) -> surface")
+            check(L.errorDisposition(1, -1, false) === "open-fail", "errorDisposition: first-ever open fails -> surface")
+            check(L.errorDisposition(1, 1, true) === "operational", "errorDisposition: current book op error (ready) -> trace")
+            check(L.errorDisposition(1, 1, false) === "drop", "errorDisposition: THE RACE — A's error after openBook(B), before B's ready -> drop")
+            check(L.errorDisposition(1, 2, true) === "drop", "errorDisposition: superseded error post-ready -> drop")
+            check(L.errorDisposition(undefined, 1, false) === "open-fail", "errorDisposition: unstamped pre-ready (boot failure) -> surface")
+            check(L.errorDisposition(undefined, 1, true) === "operational", "errorDisposition: unstamped while ready -> trace")
+
             // 4. railState — pure view model for Task 7's rail.
             var rail = L.railState({ percent: 42, pageInChapter: 3, pagesInChapter: 10 }, 5)
             check(rail.fillPct === 42, "railState: fillPct = percent")

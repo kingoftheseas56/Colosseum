@@ -39,10 +39,15 @@ Item {
     // OWNS focus/pointer/keyboard (old-reader model), so keys work without a click first.
     function focusPaper() { web.forceActiveFocus() }
 
-    // Register the native bridge under the name "bridge" (what bridge_boot.js reads
+    // Register the native PAPER GATE under the name "bridge" (what bridge_boot.js reads
     // as channel.objects.bridge). registerObject-by-name is required for a C++
     // context object — the QML-attached-id form can't carry one.
-    Component.onCompleted: channel.registerObject("bridge", Reader2Bridge)
+    // GATE, not the full bridge (least privilege — Codex re-review fix): QWebChannel
+    // exposes every invokable of whatever object is registered, so registering
+    // Reader2Bridge itself would hand the untrusted paper setAuthorizedBook (self-
+    // authorize any path, then filesRead it), all the store writes, and dictLookup.
+    // The gate carries exactly filesRead + paperEvent.
+    Component.onCompleted: channel.registerObject("bridge", Reader2Bridge.paperGate)
 
     Connections {
         target: Reader2Bridge

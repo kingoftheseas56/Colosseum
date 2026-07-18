@@ -32,6 +32,32 @@ static QString normalizeBookPath(const QString& raw)
 Reader2Bridge::Reader2Bridge(QObject* parent) : QObject(parent)
 {
     m_nam = new QNetworkAccessManager(this);
+    m_paperGate = new Reader2PaperGate(this);   // parented to the bridge; lives exactly as long
+}
+
+QObject* Reader2Bridge::paperGate() const
+{
+    return m_paperGate;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reader2PaperGate — the paper's whole surface (least privilege; see header).
+// Pure delegation: the gate owns no state and adds no behavior.
+// ─────────────────────────────────────────────────────────────────────────────
+
+Reader2PaperGate::Reader2PaperGate(Reader2Bridge* bridge)
+    : QObject(bridge), m_bridge(bridge)
+{
+}
+
+QString Reader2PaperGate::filesRead(const QString& filePath)
+{
+    return m_bridge->filesRead(filePath);
+}
+
+void Reader2PaperGate::paperEvent(const QString& name, const QString& json)
+{
+    m_bridge->paperEvent(name, json);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -162,7 +188,18 @@ void Reader2Bridge::dictLookup(const QString& word)
     // fire immediately with the cached IPv4; otherwise kick off a non-blocking lookup and send
     // from its callback. The IPv4 is cached process-wide so only the first lookup pays any DNS.
     if (m_wiktResolved) { sendDictRequest(word, query); return; }
-    QHostInfo::lookupHost(kWiktHost, this, [this, word, query](const QHostInfo& info) {
+    // DNS DEADLINE (Codex re-review fix): the HTTP timer in sendDictRequest only starts AFTER
+    // this callback fires — a stalled/wedged resolver would leave the card in 'loading' with no
+    // bound at all. Give the DNS phase the same 8s deadline: whichever of {deadline, callback}
+    // runs first owns the terminal emit (`done`); a late DNS result after the deadline still
+    // caches the IPv4 for the NEXT lookup but does not send this one (its failure already showed).
+    auto done = std::make_shared<bool>(false);
+    QTimer::singleShot(kDictTimeoutMs, this, [this, word, done] {
+        if (*done) return;
+        *done = true;
+        emit dictResult(word, QString(), false);
+    });
+    QHostInfo::lookupHost(kWiktHost, this, [this, word, query, done](const QHostInfo& info) {
         QString ipv4;
         for (const QHostAddress& a : info.addresses())
             if (a.protocol() == QAbstractSocket::IPv4Protocol) { ipv4 = a.toString(); break; }
@@ -171,6 +208,9 @@ void Reader2Bridge::dictLookup(const QString& word)
         // m_wiktResolved false so the NEXT lookup retries the resolve — otherwise one bad first
         // lookup would permanently strand every future lookup on the un-pinned ~21s IPv6 stall path.
         if (!ipv4.isEmpty()) m_wiktResolved = true;
+        if (*done) return;              // DNS beat the deadline? No — deadline already failed this
+                                        // lookup; the cache above still helps the next one.
+        *done = true;
         sendDictRequest(word, query);   // still sends THIS lookup (pinned if resolved, else plain host)
     });
 }

@@ -27,9 +27,14 @@
 let Overlayer = null   // assigned in boot() once overlayer.js resolves
 let FootnoteHandler = null  // the fork's footnote extractor class (footnotes.js), assigned in boot()
 let footnoteHandler = null  // one instance; its render/before-render listeners attach once
-let pendingFootnoteRect = null  // the tapped anchor's rect, captured at 'link' time (render is async)
-let pendingFootnoteGen = 0  // the open-gen at 'link' time — threaded into the async 'footnote' emit
-                            // so a note whose book was switched away mid-render is dropped as stale.
+// Footnote tap capture is TWO-SLOT STAGED (Codex re-review fix): `latest` is written on
+// every 'link' tap ({gen, rect}); `active` is copied FROM latest only when a render is
+// actually ADMITTED (before-render, host free). The async 'render' emits from `active`.
+// A single mutable slot would let a second tap's 'link' clobber the capture while the
+// FIRST tap's render is still in flight — its card would then carry the second tap's
+// rect/gen (mislabeled). With staging, whichever render was admitted owns its own capture.
+let latestFootnoteTap = null    // {gen, rect} of the most recent link tap (rect may be null)
+let activeFootnoteTap = null    // the capture belonging to the ADMITTED (in-flight) render
 
 // ---------------------------------------------------------------------------
 // event emit (UP)
@@ -157,7 +162,10 @@ const makeBook = async file => {
     } else if (isFBZ(file)) {
       const { makeFB2 } = await import('./vendor/foliate-anx/src/fb2.js')
       const { entries } = loader
-      const entry = entries.find(e => e.filename.endsWith('.fb2'))
+      // Case-insensitive inner lookup: an FBZ packed with `BOOK.FB2` (uppercase off some
+      // exporters) must still find its FictionBook entry — same rule as the outer
+      // extension checks above (ratified constraint: extension matching is case-blind).
+      const entry = entries.find(e => e.filename.toLowerCase().endsWith('.fb2'))
       const blob = await loader.loadBlob((entry ?? entries[0]).filename)
       book = await makeFB2(blob)
     } else {
@@ -378,6 +386,7 @@ const setupFootnoteHandler = () => {
     if (!view) return
     if (footnoteRenderPending) return          // a prior footnote is still rendering — drop this one
     footnoteRenderPending = true
+    activeFootnoteTap = latestFootnoteTap      // this render now OWNS its tap's capture (staged)
     try {
       footnoteHost().replaceChildren(view)
       const r = view.renderer
@@ -401,9 +410,12 @@ const setupFootnoteHandler = () => {
     } catch (err) { /* fall through to target */ }
     if (!text && target) { try { text = String(target.textContent || '').trim() } catch (e) {} }
     if (text.length > FOOTNOTE_TEXT_CAP) text = text.slice(0, FOOTNOTE_TEXT_CAP) + '…'
-    // gen-tagged with the open this note was tapped in (captured in the 'link' handler) so
-    // ReaderShell drops a footnote whose book was switched out from under the async render.
-    emit('footnote', { gen: pendingFootnoteGen, html: text, rect: pendingFootnoteRect })
+    // Emit from the ADMITTED render's own capture (activeFootnoteTap, staged at before-render)
+    // — gen-tagged with the open it was tapped in so ReaderShell drops a footnote whose book
+    // was switched out from under the async render; rect anchors the card to ITS tap, even if
+    // a later (dropped) tap has since overwritten `latest`.
+    const tap = activeFootnoteTap || {}
+    emit('footnote', { gen: tap.gen, html: text, rect: tap.rect ?? null })
     footnoteRenderPending = false   // host free again → the next footnote tap can render
     // Do NOT remove the throwaway view here: it still has a pending iframe 'load' handler
     // (paginator getDirection → getComputedStyle) that would throw on a null doc if we detach
@@ -613,18 +625,20 @@ const wireView = (view, gen) => {
   // which our render listener above turns into a 'footnote' event. For a NORMAL internal
   // link handle() returns undefined and does not preventDefault, so the view goToes as usual.
   view.addEventListener('link', e => {
-    // Capture the tapped anchor's rect + the current open-gen NOW — the render (and thus our
-    // emit) is async, so a book switch mid-render must be able to invalidate this footnote.
-    pendingFootnoteRect = null
-    pendingFootnoteGen = openGen
+    // Capture the tapped anchor's rect + the current open-gen NOW into the `latest` slot —
+    // the render (and thus our emit) is async, so a book switch mid-render must be able to
+    // invalidate this footnote. before-render stages latest→active on admission, so a tap
+    // whose render is DROPPED (host busy) can never relabel the in-flight render's emit.
+    let tapRect = null
     try {
       const a = e.detail && e.detail.a
       if (a && a.ownerDocument) {
         const rng = a.ownerDocument.createRange()
         rng.selectNode(a)
-        pendingFootnoteRect = clientRectOf(rng, a.ownerDocument)
+        tapRect = clientRectOf(rng, a.ownerDocument)
       }
     } catch (err) { /* rect stays null → the card clamps to frame center */ }
+    latestFootnoteTap = { gen: openGen, rect: tapRect }
     try {
       const p = footnoteHandler && footnoteHandler.handle(view.book, e)
       if (p && typeof p.catch === 'function')

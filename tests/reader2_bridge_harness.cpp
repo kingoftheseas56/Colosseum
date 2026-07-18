@@ -11,6 +11,8 @@
 #include <QCoreApplication>
 #include <QFile>
 #include <QJsonObject>
+#include <QMetaMethod>
+#include <QMetaObject>
 #include <QStandardPaths>
 #include <QString>
 #include <QTemporaryDir>
@@ -99,6 +101,44 @@ int main(int argc, char** argv)
     // Native separators normalize to the SAME key (keyFor does QDir::fromNativeSeparators).
     check(bridge.bookKey(QStringLiteral("C:\\x\\y.epub")) == bridge.bookKey(p1),
           "bookKey normalizes backslashes to forward slashes");
+
+    // (e) PAPER GATE surface contract (least privilege — Codex re-review fix). The gate is
+    //     the ONLY object Paper.qml registers on the paper's QWebChannel, and QWebChannel
+    //     exposes every method/property of a registered object — so the security property IS
+    //     the gate's metaobject surface. Enumerate it and assert the paper can reach exactly
+    //     filesRead + paperEvent: no setAuthorizedBook (self-authorization), no store
+    //     writes, no dictLookup, no properties. This test fails the moment anyone widens the
+    //     gate, before a rigged book ever meets it.
+    QObject* gateObj = bridge.paperGate();
+    check(gateObj != nullptr, "paperGate exists");
+    const QMetaObject* gm = gateObj->metaObject();
+    int exposed = 0;
+    bool sawFilesRead = false, sawPaperEvent = false, sawForbidden = false;
+    for (int i = gm->methodOffset(); i < gm->methodCount(); ++i) {   // own methods only (skip QObject's)
+        const QMetaMethod m = gm->method(i);
+        if (m.methodType() != QMetaMethod::Method && m.methodType() != QMetaMethod::Slot)
+            continue;                                                // signals aren't callable by the page
+        ++exposed;
+        const QByteArray name = m.name();
+        if (name == "filesRead") sawFilesRead = true;
+        else if (name == "paperEvent") sawPaperEvent = true;
+        else { sawForbidden = true; std::printf("FAIL gate exposes forbidden method: %s\n", name.constData()); ++fails; }
+    }
+    check(sawFilesRead, "gate exposes filesRead");
+    check(sawPaperEvent, "gate exposes paperEvent");
+    check(!sawForbidden && exposed == 2, "gate surface is EXACTLY {filesRead, paperEvent}");
+    check(gm->propertyCount() == gm->propertyOffset(), "gate declares no properties (nothing to leak)");
+    check(gm->indexOfMethod("setAuthorizedBook(QString)") < 0, "gate cannot self-authorize (no setAuthorizedBook)");
+
+    // (e2) the gate DELEGATES: same authorized book, same bytes; same refusal for others.
+    auto* gate = qobject_cast<Reader2PaperGate*>(gateObj);
+    check(gate != nullptr, "paperGate is a Reader2PaperGate");
+    check(gate->filesRead(path) == bridge.filesRead(path), "gate.filesRead == bridge.filesRead (authorized)");
+    check(gate->filesRead(other).isEmpty(), "gate.filesRead refuses non-authorized path");
+    signalCount = 0;
+    gate->paperEvent(QStringLiteral("ready"), QStringLiteral("{\"gen\":1}"));
+    check(signalCount == 1 && gotName == QStringLiteral("ready"),
+          "gate.paperEvent relays through the bridge's paperEventReceived");
 
     std::printf(fails ? "VERDICT: FAIL\n" : "VERDICT: PASS\n");
     return fails ? 1 : 0;
