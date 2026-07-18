@@ -18,7 +18,7 @@ import QtQuick
 Item {
     id: strip
 
-    // the shared AudiobookSession, injected by the host (BookReader binds audioSession)
+    // the shared AudiobookSession, injected by the host (the reader shell binds audioSession)
     property var session: null
     // the book this strip was summoned FOR (visibility is keyed to it — see header)
     property string boundPairKey: ""

@@ -45,6 +45,7 @@
 #include "engine/MangaTankobanService.h"
 #include "anime/AnimeOrderService.h"
 #include "reader/BookBridge.h"
+#include "reader2/Reader2Bridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
@@ -394,6 +395,15 @@ int main(int argc, char *argv[]) {
     // `BookBridge` (a JS shim maps it to window.electronAPI). Ported from TB2.
     auto *bookBridge = new BookBridge(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookBridge"), bookBridge);
+
+    // The FRESH reader's native seam (Task 16 swap): Biblio's reader layer is
+    // qml/reader2/ReaderShell over the vendored Anx foliate paper. QML sees the full
+    // bridge; the paper's QWebChannel gets ONLY its filesRead/paperEvent gate
+    // (Reader2Bridge.paperGate — least privilege). Shares BookStores files with
+    // BookBridge byte-identically, so old-reader progress/marks resume unchanged.
+    // BookBridge stays constructed above for the remaining callers (audiobook strip).
+    auto *reader2Bridge = new Reader2Bridge(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.

@@ -762,12 +762,15 @@ Window {
     }
     function closeBook() { bookLayer.active = false }
 
-    // ---- the reader: foliate EPUB reader over everything (download-fed, never a stream) ----
+    // ---- the reader: the FRESH reader (reader2 — native QML chrome over the vendored Anx
+    //      foliate paper) over everything (download-fed, never a stream). bookMeta stays on
+    //      the layer for the session/Continue records; the shell itself needs only the path
+    //      (it derives identity + resumes through Reader2Bridge/BookStores). ----
     function openBookReader(path, book) {
         if (!path) return
         bookReaderLayer.bookPath = path
         bookReaderLayer.bookMeta = book || ({})
-        if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.open(path, book || ({}))
+        if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.openBook(path)
         else bookReaderLayer.active = true
     }
     function closeBookReader() { bookReaderLayer.active = false }
@@ -985,14 +988,8 @@ Window {
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
         else win.closeSeries()
     }
-    function minimizeBookReader() {
-        var rec = Sessions.get(Sessions.activeId)
-        if (!(rec && rec.contentKind === "book")) {
-            if (!bookReaderLayer.bookPath) { win.closeBookReader(); return }
-            win.openBookSession(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
-        }
-        Sessions.switchTo("")
-    }
+    // (minimizeBookReader is gone with the swap — the fresh reader has no minimize
+    // affordance by design; Esc/Go-back closes through closed() → closeBookReaderSession.)
     function closeBookReaderSession() {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "book") win.closeSession(rec.id)
@@ -1155,6 +1152,13 @@ Window {
     FontLoader { source: "../assets/fonts/Inter-Medium.otf" }
     FontLoader { source: "../assets/fonts/Inter-SemiBold.otf" }
     FontLoader { source: "../assets/fonts/Inter-Bold.otf" }
+
+    // ---- reading serif: Literata statics for the FRESH reader's chrome (Appearance panel
+    // card + serif UI). STATICS for the same reason as Inter above — the variable TTF would
+    // register as "Literata Variable" and silently Tahoma-fall. The BOOK text gets Literata
+    // separately via @font-face injected into the paper page (paper_glue.js FONT_FACE_CSS). ----
+    FontLoader { source: "../assets/fonts/Literata-Regular.ttf" }
+    FontLoader { source: "../assets/fonts/Literata-Italic.ttf" }
 
     // =====================================================================
     // BACKDROP — the persistent wallpaper everything composites over.
@@ -1972,11 +1976,17 @@ Window {
         visible: active
         property string bookPath: ""
         property var bookMeta: ({})
-        source: "BookReader.qml"
+        // The FRESH reader (Task 16 swap): reader2/ReaderShell replaces the imported TB2
+        // foliate web-app. Contract mapping per the ratified plan: open(path, meta) →
+        // openBook(path) (meta stays on this layer for session records), closed() → the same
+        // session-aware close. The old reader's minimizeRequested affordance is gone by
+        // design — the shell's whole surface is the book; Esc/Go-back closes through
+        // closed(), and win.closeBookReaderSession still routes an active book session.
+        source: "reader2/ReaderShell.qml"
         onLoaded: {
-            item.open(bookReaderLayer.bookPath, bookReaderLayer.bookMeta)
+            item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
+            item.openBook(bookReaderLayer.bookPath)
             item.closed.connect(win.closeBookReaderSession)
-            item.minimizeRequested.connect(win.minimizeBookReader)
         }
     }
 
