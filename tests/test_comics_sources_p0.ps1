@@ -13,9 +13,13 @@ if (Test-Path (Join-Path $root "qml/XoxoGenrePage.qml")) { throw "STALE: XoxoGen
 if (Test-Path (Join-Path $root "qml/ComicSources.js")) { throw "STALE: ComicSources.js (registry of one, no consumer) must be deleted" }
 if (Test-Path (Join-Path $root "tests/fixtures/xoxo")) { throw "STALE: xoxo fixtures must be deleted" }
 $search = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
-Assert-Contains $search 'function searchLocg' "comics search fan-out must ride the LOCG catalogue lane"
-Assert-Contains $search 'GetComics"' "getcomics results carry their own group label"
-Assert-Contains $search 'data: { locg: true' "locg results must carry routing data"
+# Search rides the availability-first catalogue ONLY (spec 2026-07-18): the curated
+# shortlist lane, the live GetComics lane, and the parked LOCG lane are written over.
+Assert-Contains $search 'searchCatalogDb' "the catalogue is the comics search lane"
+Assert-Contains $search 'data: { gcd: true' "catalogue results must carry gcd routing data"
+Assert-Absent  $search 'searchWestern' "live GetComics search lane retired 2026-07-18"
+Assert-Absent  $search 'searchLocg' "parked LOCG lane deleted from the fan-out 2026-07-18 (LocgApi.js file stays parked)"
+Assert-Absent  $search 'ComicsApi' "search must not import the live GetComics api"
 $dl = Get-Content (Join-Path $root "native/engine/MangaDownloader.h") -Raw
 Assert-Absent $dl 'downloadPages' "preset-pages seam retired with xoxo (sole consumer)"
 Assert-Absent $dl 'presetPages' "preset-pages seam retired with xoxo (sole consumer)"

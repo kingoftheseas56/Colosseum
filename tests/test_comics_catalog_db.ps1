@@ -3,6 +3,9 @@ $root = Split-Path -Parent $PSScriptRoot
 function Assert-Contains($hay, $needle, $why) {
     if ($hay -notlike "*$needle*") { throw "MISSING: $needle -- $why" }
 }
+function Assert-Absent($hay, $needle, $why) {
+    if ($hay -like "*$needle*") { throw "STALE: $needle -- $why" }
+}
 # 1) the C++ harness IS the behavioral test — must be pre-built, run by exit code
 $exe = Join-Path $root "native/build-msvc/comics_catalog_engine_harness.exe"
 if (-not (Test-Path $exe)) { throw "harness not built - run native\build-target.bat comics_catalog_engine_harness" }
@@ -29,6 +32,8 @@ Assert-Contains $mq 'data.gcd) win.openGcdSeries' "search routing reaches the ru
 Assert-Contains $mq 'indexOf("gcd:")' "gcd: continue/resume lane"
 $ws = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
 Assert-Contains $ws 'searchCatalogDb' "catalogue search lane"
+Assert-Contains $ws 'engine.search(q, 30)' "comics search asks the seam for a real presence (30 rows, was 12)"
+Assert-Absent  $ws 'mergeTankobanResults' "legacy 4-lane merge retired 2026-07-18 - mergeSearchLanes is the survivor"
 # 4) shelf rows + gcd routing wiring (browse-landing arc)
 $tw = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
 Assert-Contains $tw 'ComicsCatalog.shelf' "world page computes catalogue shelf rows"
