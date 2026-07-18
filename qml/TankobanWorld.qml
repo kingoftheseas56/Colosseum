@@ -14,7 +14,6 @@ import QtQuick
 import "Catalog.js" as Catalog
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
-import "comics_db.gen.js" as ComicsDbData
 
 WorldPage {
     id: tanko
@@ -31,6 +30,9 @@ WorldPage {
     // via openComicSeries (Main wires comicSeriesRequested→openComicSeries). Falls back to the
     // curated westernRequested path when the sidecar isn't loaded.
     signal comicSeriesRequested(var d)
+    // Catalogue shelf rows (browse-landing, 2026-07-18): Most Stocked / publisher / decade /
+    // deep-shelf / fan-made tiles all carry a gcd id and open the run page directly.
+    signal gcdSeriesRequested(var d)
     signal comicCatalogRequested(var rows)
     signal comicGenreRequested(var payload)   // { genre, rows } → catalog page scoped to one shelf
 
@@ -41,6 +43,7 @@ WorldPage {
     property var comicCovers: []            // real covers → the mosaic's art pool
     property var comicRows: []              // populated when this lazy world is first created
     property var comicGenreBoxes: []        // our OWN DB's genre shelves (GCD+VerseDB metadata)
+    property var comicShelves: []           // catalogue shelf rows (browse-landing): [{label, rows}]
     // small palette so coverless genre tiles aren't all one flat color
     readonly property var _genrePalette: [
         ["#3f5a78","#16222e"], ["#78503f","#2e1c16"], ["#5a3f78","#241630"],
@@ -48,18 +51,46 @@ WorldPage {
         ["#3f6478","#16242e"], ["#785a3f","#2e2216"]
     ]
     Component.onCompleted: {
-        // The generated full catalog is deliberately imported here, behind Main's keep-alive
-        // world Loader. Root startup never parses or ingests this multi-megabyte object.
-        var catalogOk = ComicsDb.setData(ComicsDbData.data)
+        // The curated catalogue rides the ComicsCatalog engine now (P4 seam, 2026-07-18) —
+        // behind Main's keep-alive world Loader, same as the old gen.js import was. Root
+        // startup never touches this; the multi-megabyte gen.js parse is gone.
+        var catalogOk = ComicsDb.setEngine(typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null)
         tanko.comicRows = catalogOk ? ComicsDb.rankedSeries() : Catalog.topComics
-        if (catalogOk) console.log("ComicsDb: loaded " + tanko.comicRows.length + " series")
-        else console.warn("ComicsDb: ingest failed — using curated fallback")
+        if (catalogOk) console.log("ComicsDb: engine live, " + tanko.comicRows.length + " series")
+        else console.warn("ComicsDb: catalogue engine unavailable — using curated fallback")
         // Genre shelves from our own DB (GCD story-vote + VerseDB metadata, stamped
         // by the catalog pipeline) — every series added upstream sorts in automatically.
         tanko.comicGenreBoxes = catalogOk ? ComicsDb.genreShelves().map(function(b, i) {
             var pal = tanko._genrePalette[i % tanko._genrePalette.length];
             return { name: b.name, count: b.count, covers: b.covers, c1: pal[0], c2: pal[1] };
         }) : [];
+        // Catalogue shelf rows (browse-landing, ratified lineup): each row computes its
+        // model once from ComicsCatalog.shelf(kind, arg, 24); rows with no rows just don't
+        // render (Repeater below skips empty entries via a length check on the delegate).
+        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
+            var shelfSpecs = [
+                { label: "Most Stocked", kind: "stocked", arg: "" },
+                { label: "Marvel", kind: "publisher", arg: "Marvel" },
+                { label: "DC", kind: "publisher", arg: "DC" },
+                { label: "Image", kind: "publisher", arg: "Image" },
+                { label: "The 2020s", kind: "decade", arg: "2020" },
+                { label: "The 2010s", kind: "decade", arg: "2010" },
+                { label: "Deep Shelves", kind: "deep", arg: "" },
+                { label: "Fan-Made Shelf", kind: "fanmade", arg: "" }
+            ]
+            tanko.comicShelves = shelfSpecs.map(function(spec) {
+                var rows = ComicsCatalog.shelf(spec.kind, spec.arg, 24) || []
+                return {
+                    label: spec.label,
+                    rows: rows.map(function(r) {
+                        return { caption: r.title + (r.year ? " (" + r.year + ")" : ""),
+                                 cover: r.cover || "", gcdId: r.gcdId, title: r.title }
+                    })
+                }
+            }).filter(function(s) { return s.rows.length > 0 })
+        } else {
+            tanko.comicShelves = []
+        }
         GcApi.explore(function(boxes) {
             tanko.comicBoxes = (boxes || []).map(function(b, i) {
                 var pal = tanko._genrePalette[i % tanko._genrePalette.length];
@@ -116,6 +147,23 @@ WorldPage {
             else tanko.westernRequested(it.caption)
         }
         onExploreClicked: tanko.comicCatalogRequested(tanko.comicRows)
+    }
+
+    // Catalogue shelf rows (browse-landing, ratified lineup 2026-07-18): Most Stocked,
+    // publisher shelves, decade shelves, deep-shelf (10+ downloads), fan-made. Each row
+    // reuses the same Top-Comics tile pattern; tiles carry a gcd id and open the run page.
+    Repeater {
+        model: tanko.comicShelves
+        delegate: TrendingTop10 {
+            required property var modelData
+            title: modelData.label
+            items: modelData.rows
+            visible: modelData.rows.length > 0
+            onItemClicked: (i) => {
+                var it = modelData.rows[i]
+                if (it) tanko.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
+            }
+        }
     }
 
     GenreMosaic {

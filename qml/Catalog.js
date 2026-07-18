@@ -15,10 +15,10 @@ var COMIC_C1 = "#6a4a32", COMIC_C2 = "#241813";
 var THEATRE_C1 = "#33445d", THEATRE_C2 = "#0c1118";
 
 var featured = [
-    { title: "One Piece",   art: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg", blurb: "Luffy's run for the Grand Line — the manga that anchors the whole catalogue.", ghost: "M", c1: "#7a2f49", c2: "#1d121b" },
-    { title: "Saga",        art: "https://is1-ssl.mzstatic.com/image/thumb/Publication4/v4/23/03/9c/23039c5b-155e-0ae4-36b3-d3407b07420c/AUG120491.jpg/2000x2000bb.jpg", artKind: "poster", blurb: "Vaughan & Staples' sweeping space-opera comic — the flagship of the indie shelf.", ghost: "C", c1: "#7a4a2f", c2: "#241813" },
-    { title: "Berserk",     art: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30002-3TuoSMl20fUX.jpg", blurb: "Miura's dark-fantasy landmark — Top Rated on the manga charts.", ghost: "M", c1: "#5a2f3f", c2: "#180f14" },
-    { title: "Invincible",  art: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg/2000x2000bb.jpg", artKind: "poster", blurb: "Kirkman's superhero saga — Most Popular on the comics shelf.", ghost: "C", c1: "#5a3f2f", c2: "#1a120b" }
+    { title: "One Piece",   art: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg", blurb: "Rubber-bodied Monkey D. Luffy and his Straw Hat crew sail the seas hunting the legendary treasure that crowns the next King of the Pirates.", ghost: "M", c1: "#7a2f49", c2: "#1d121b" },
+    { title: "Saga",        art: "https://is1-ssl.mzstatic.com/image/thumb/Publication4/v4/23/03/9c/23039c5b-155e-0ae4-36b3-d3407b07420c/AUG120491.jpg/2000x2000bb.jpg", artKind: "poster", blurb: "Alana and Marko, lovers from opposite sides of a galactic war, flee both armies to raise their newborn daughter in hiding.", ghost: "C", c1: "#7a4a2f", c2: "#241813" },
+    { title: "Berserk",     art: "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30002-3TuoSMl20fUX.jpg", blurb: "Guts, a lone swordsman in a brutal dark-fantasy world, hunts the demons who damned his comrades — and the friend who betrayed them.", ghost: "M", c1: "#5a2f3f", c2: "#180f14" },
+    { title: "Invincible",  art: "https://is1-ssl.mzstatic.com/image/thumb/Publication124/v4/7c/73/8d/7c738d92-dea3-7901-7ef8-962db5966470/Invincible_Compendium01.jpg/2000x2000bb.jpg", artKind: "poster", blurb: "Mark Grayson inherits superpowers from his father, Earth's greatest hero — then learns the man is an alien sent to conquer the planet.", ghost: "C", c1: "#5a3f2f", c2: "#1a120b" }
 ];
 
 // (Continue is no longer a static list — it comes live from the Progress store, written

@@ -19,6 +19,11 @@ Item {
     property string tagSlug: ""            // GetComics tag slug — the series identity
     property int    tagId: 0               // WP tag id (0 = resolve from the slug)
     property string poster: ""             // iTunes series art (fetched here if empty)
+    // ---- baked mode (availability-first catalogue, spec 2026-07-17): the run-scoped
+    //      series page. Injected releases from ComicsCatalog skip live tag resolution;
+    //      everything else — sections, filter/sort, downloads, reader — is inherited.
+    property var bakedReleases: null       // null = live shelf; []+ = catalogue-fed
+    property int gcdId: 0                  // the GCD run id (baked mode identity)
     signal backRequested()
     signal minimizeRequested()
     signal closeRequested()
@@ -31,7 +36,9 @@ Item {
     property int totalReleases: 0          // GetComics' own count (> releases.length while loading / past cap)
     property bool loading: true
     property string errorMsg: ""
-    readonly property string seriesId: "gc:" + tagSlug   // the app-wide western series id
+    // Progress/reader key: live shelf = "gc:<tag>" (unchanged); baked mode = "gcd:<run>"
+    // ("gcd:…".indexOf("gc:") !== 0 — the continue router can't confuse the two).
+    readonly property string seriesId: bakedReleases !== null ? "gcd:" + gcdId : "gc:" + tagSlug
 
     // --- shelf navigation: filter + sort (big series run to hundreds of releases).
     // View-only — the reader's chapter list stays date-newest-first so its
@@ -83,7 +90,41 @@ Item {
     onTagSlugChanged: resolve()
     Component.onCompleted: if (tagSlug.length || seriesTitle.length) resolve()
 
+    onBakedReleasesChanged: {
+        if (bakedReleases === null) return               // switching back to live: resolve() owns it
+        releases = bakedReleases
+        totalReleases = releases.length
+        loading = false; errorMsg = ""
+        if (!poster.length && seriesTitle.length)
+            Api.posterFor(seriesTitle + " comic", function(art) { if (art && bakedReleases !== null) page.poster = art })
+        enrichBaked()
+    }
+    // one WP call (chunked) fills covers+sizes onto the baked rows; rows paint instantly
+    // from the catalogue, art fades in when the response lands. Generation-guarded —
+    // the page is reused across opens.
+    property int _bakedGen: 0
+    function enrichBaked() {
+        var gen = ++_bakedGen
+        var ids = []
+        for (var i = 0; i < releases.length; i++)
+            if (!releases[i].cover || !releases[i].sizeMB) ids.push(releases[i].id)
+        if (!ids.length) return
+        Api.postsById(ids, function(map) {
+            if (gen !== page._bakedGen || page.bakedReleases === null) return
+            var out = page.releases.slice()
+            for (var j = 0; j < out.length; j++) {
+                var e = map[out[j].id]
+                if (e) out[j] = Object.assign({}, out[j], {
+                    cover: out[j].cover || e.cover || "",
+                    sizeMB: out[j].sizeMB || e.sizeMB || 0,
+                    year: out[j].year || e.year || 0 })
+            }
+            page.releases = out
+        })
+    }
+
     function resolve() {
+        if (bakedReleases !== null) return   // catalogue-fed: nothing to resolve
         loading = true; errorMsg = ""; releases = []
         revealGuard.restart()
         if (!poster.length && seriesTitle.length)

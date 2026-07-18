@@ -3,6 +3,7 @@
 #include "MangaDownloader.h"
 #include "BookDownloader.h"
 #include "ComicDownloader.h"
+#include "MangaTankobanService.h"
 #include "../player/downloadstore.h"
 
 #include <QTimer>
@@ -15,8 +16,9 @@ QString seriesKeyForEpisodeShow(const QString &seriesTitle) {
 
 LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
                                ComicDownloader *comics, DownloadStore *videos,
-                               QObject *parent)
-    : QObject(parent), m_manga(manga), m_books(books), m_comics(comics), m_videos(videos) {
+                               MangaTankobanService *volumes, QObject *parent)
+    : QObject(parent), m_manga(manga), m_books(books), m_comics(comics), m_videos(videos),
+      m_volumes(volumes) {
     // Every backend mutation bumps the revision; progress signals are chatty
     // (per page / per chunk), so bumps coalesce through a 400 ms timer.
     auto *coalesce = new QTimer(this);
@@ -50,6 +52,12 @@ LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
     if (m_videos) {
         connect(m_videos, &DownloadStore::changed, this, arm);
         connect(m_videos, &DownloadStore::libraryChanged, this, arm);
+    }
+    if (m_volumes) {
+        connect(m_volumes, &MangaTankobanService::progress, this, arm);
+        connect(m_volumes, &MangaTankobanService::finished, this, arm);
+        connect(m_volumes, &MangaTankobanService::failed, this, arm);
+        connect(m_volumes, &MangaTankobanService::removed, this, arm);
     }
 }
 
@@ -89,6 +97,23 @@ QVariantList LocalDownloads::tankobanItems() const {
             e.insert(QStringLiteral("title"), e.value(QStringLiteral("label")).toString());
             e.insert(QStringLiteral("subtitle"),
                      QStringLiteral("%1 pages · western").arg(e.value(QStringLiteral("pages")).toInt()));
+            out.append(e);
+        }
+    }
+    // Tankoban volume mode: whole manga volumes ingested by MangaTankobanService.
+    // Same series bucket as the series' chapters ("manga:<seriesId>") so a series
+    // downloaded both ways stays ONE card.
+    if (m_volumes) {
+        const QVariantList vols = m_volumes->downloadedVolumes();
+        for (const QVariant &v : vols) {
+            QVariantMap e = v.toMap();
+            e.insert(QStringLiteral("world"), QStringLiteral("tankoban"));
+            e.insert(QStringLiteral("kind"), QStringLiteral("manga"));
+            e.insert(QStringLiteral("seriesKey"),
+                     QStringLiteral("manga:") + e.value(QStringLiteral("seriesId")).toString());
+            e.insert(QStringLiteral("title"), e.value(QStringLiteral("label")).toString());
+            e.insert(QStringLiteral("subtitle"),
+                     QStringLiteral("%1 pages · volume").arg(e.value(QStringLiteral("pages")).toInt()));
             out.append(e);
         }
     }
@@ -234,6 +259,27 @@ QVariantList LocalDownloads::activeJobs() const {
             });
         }
     }
+    if (m_volumes) {
+        const QVariantList jobs = m_volumes->activeVolumeJobs();
+        for (const QVariant &v : jobs) {
+            QVariantMap j = v.toMap();
+            const double done = j.value(QStringLiteral("done")).toDouble();
+            const double total = j.value(QStringLiteral("total")).toDouble();
+            out.append(QVariantMap{
+                {QStringLiteral("world"), QStringLiteral("tankoban")},
+                {QStringLiteral("id"), j.value(QStringLiteral("id"))},
+                {QStringLiteral("title"), QStringLiteral("%1 — %2")
+                    .arg(j.value(QStringLiteral("seriesTitle")).toString(),
+                         j.value(QStringLiteral("label")).toString())},
+                {QStringLiteral("state"), j.value(QStringLiteral("state"))},
+                {QStringLiteral("ratio"), total > 0 ? done / total : 0.0},
+                {QStringLiteral("detail"), total > 0
+                    ? QStringLiteral("%1 of %2 MB").arg(done / 1048576.0, 0, 'f', 0)
+                                                   .arg(total / 1048576.0, 0, 'f', 0)
+                    : QString()}
+            });
+        }
+    }
     if (m_comics) {
         const QVariantList jobs = m_comics->activeIssueJobs();
         for (const QVariant &v : jobs) {
@@ -354,6 +400,11 @@ QVariantMap LocalDownloads::totals() const {
 
 void LocalDownloads::cancel(const QString &world, const QString &id) {
     if (world == QStringLiteral("tankoban")) {
+        // Volume-mode ids own the "tankoban:" namespace (VolumeRecord.id).
+        if (m_volumes && id.startsWith(QStringLiteral("tankoban:"))) {
+            m_volumes->cancel(id);
+            return;
+        }
         if (m_manga && m_manga->statusOf(id).value(QStringLiteral("state")).toString()
                 != QStringLiteral("none")) {
             m_manga->cancelDownload(id);
@@ -375,6 +426,11 @@ void LocalDownloads::cancel(const QString &world, const QString &id) {
 
 void LocalDownloads::remove(const QString &world, const QString &id) {
     if (world == QStringLiteral("tankoban")) {
+        if (m_volumes && id.startsWith(QStringLiteral("tankoban:"))) {
+            m_volumes->remove(id);
+            bump();
+            return;
+        }
         if (m_manga && m_manga->isDownloaded(id)) {
             m_manga->deleteChapter(id);
             return;

@@ -97,6 +97,8 @@ add_executable(colosseum
     engine/ComicDownloader.h
     engine/ComicDlsParse.cpp
     engine/ComicDlsParse.h
+    engine/ComicsCatalog.cpp
+    engine/ComicsCatalog.h
     engine/LocalDownloads.cpp
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp
@@ -758,3 +760,10 @@ if(WIN32)
             "$<TARGET_FILE_DIR:colosseum>/sqldrivers/qsqlite.dll"
         VERBATIM)
 endif()
+
+add_executable(comics_catalog_engine_harness
+    ../tests/comics_catalog_engine_harness.cpp
+    engine/ComicsCatalog.cpp
+    engine/ComicsCatalog.h)
+target_include_directories(comics_catalog_engine_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)

@@ -25,3 +25,7 @@ Thumbs.db
 .DS_Store
 tests/xoxo_fixtures.gen.js
 artifacts/reader-bakeoff/
+
+# Comics catalogue SQLite db — pipeline-deployed by scripts/comics_brain/catalogue_build.py,
+# not shipped through git; app degrades gracefully when absent.
+data/

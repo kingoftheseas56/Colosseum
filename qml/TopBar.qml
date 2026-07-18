@@ -21,8 +21,16 @@ Item {
     signal searchClicked()
     signal settingsClicked()
     signal wallpaperClicked()
+    signal fullscreenClicked()
     signal minimizeClicked()
     signal powerClicked()
+
+    // Glyph state only — the toggle ACTION stays with the host (Main.qml drives
+    // WindowMode.toggleShellMode, the same authority as A5's F11 door). Reading
+    // the global context property here keeps both TopBar instances honest
+    // without threading state through two hosts.
+    readonly property bool shellWindowed:
+        typeof WindowMode !== "undefined" && WindowMode.shellWindowed
 
     implicitHeight: 56
 
@@ -150,6 +158,14 @@ Item {
         SysIcon { source: "../assets/icons/search.svg";   onClicked: bar.searchClicked() }
         SysIcon { source: "../assets/icons/settings.svg"; onClicked: bar.wallpaperClicked() }
         SysIcon { source: "../assets/icons/minimize.svg"; onClicked: bar.minimizeClicked() }
+        // Fullscreen toggle (Hemanth 2026-07-16, supersedes the old never-☐ topbar
+        // rule): glyph shows the ACTION — expand while windowed, contract while
+        // fullscreen. Drives the same shell flip as the F11 developer door.
+        SysIcon {
+            source: bar.shellWindowed ? "../assets/icons/fullscreen.svg"
+                                      : "../assets/icons/fullscreen-exit.svg"
+            onClicked: bar.fullscreenClicked()
+        }
         SysIcon { source: "../assets/icons/power.svg";    onClicked: bar.powerClicked() }
     }
 }

@@ -238,7 +238,8 @@ Item {
         }
         if (s > maxSeen) maxSeen = s
     }
-    onPageChanged: { bumpSeen(); panX = 0; panY = 0; recordProgressSoon() }
+    // new spread opens at its TOP (dblPanMaxY = 0 when it fits / not double — plain reset)
+    onPageChanged: { bumpSeen(); panX = 0; panY = dblPanMaxY(); _panTouched = false; recordProgressSoon() }
     Component.onDestruction: { recordProgress(); saveChapterRec() }   // flush BOTH debounced stores
 
     // --- modals + HUD popups ---
@@ -499,6 +500,7 @@ Item {
     property real _smoothY: 0                       // float accumulator for contentY
     readonly property real _drainFraction: 0.38     // TB2: 38% of backlog per 16ms
     readonly property real _maxBacklogPx: 6000      // a wheel flurry can't queue forever
+    property bool _drainFresh: false                // first tick after an idle start
     FrameAnimation {
         id: scrollDrain
         running: false
@@ -508,6 +510,11 @@ Item {
                 reader._smoothY = flick.contentY
             // frame-time-aware drain: same 38%-per-16.7ms feel on any refresh rate
             var frames = Math.min(3, Math.max(0.25, scrollDrain.frameTime * 60))
+            // cold-start fix (measured 2026-07-17, agents/wheel_latency_harness.qml): the first
+            // tick after idle reports a ~3ms frameTime → the 0.25 floor drained only 11% (~19px,
+            // sub-perceptual) and every fresh scroll felt like a dead beat before it moved. The
+            // first tick now always drains the full fraction — TB2's fixed-tick feel, restored.
+            if (reader._drainFresh) { frames = Math.max(1, frames); reader._drainFresh = false }
             var step = reader._pendingPx * (1 - Math.pow(1 - reader._drainFraction, frames))
             if (Math.abs(reader._pendingPx) <= 1) step = reader._pendingPx   // final settle
             var hmax = Math.max(0, flick.contentHeight - flick.height)
@@ -524,7 +531,7 @@ Item {
         }
     }
     function smoothScrollBy(dy) {
-        if (!scrollDrain.running) reader._smoothY = flick.contentY
+        if (!scrollDrain.running) { reader._smoothY = flick.contentY; reader._drainFresh = true }
         reader._pendingPx = Math.max(-reader._maxBacklogPx,
                             Math.min(reader._maxBacklogPx, reader._pendingPx + dy))
         var hmax = Math.max(0, flick.contentHeight - flick.height)
@@ -620,6 +627,15 @@ Item {
         panX = Math.max(-mx, Math.min(mx, panX))
         panY = Math.max(-my, Math.min(my, panY))
     }
+    // Vertical pan headroom of the current double spread (0 when it fits). +value = spread's
+    // TOP aligned to the viewport top — the reading start (TB2 scroll area and Max pan both
+    // open a tall spread at its top, not its middle).
+    function dblPanMaxY() {
+        if (!isDouble || dblRow.height <= 0) return 0
+        var s = zoomPct / 100
+        return Math.max(0, (dblRow.height * s - flick.height) / 2, flick.height * (s - 1) / 2)
+    }
+    property bool _panTouched: false   // user panned this spread — layout settle must not re-anchor
     Timer { id: zoomSave; interval: 500; onTriggered: reader.saveSeriesPrefs() }
     function zoomBy(d) {
         if (!paged) return
@@ -718,7 +734,7 @@ Item {
         if (e.key === Qt.Key_H) { toggleChrome(); e.accepted = true; return }
         // Ctrl+0 — reset zoom (paged)
         if (paged && e.key === Qt.Key_0 && (e.modifiers & Qt.ControlModifier)) {
-            zoomPct = 100; panX = 0; panY = 0; zoomSave.restart(); showToast("Zoom 100%")
+            zoomPct = 100; panX = 0; panY = dblPanMaxY(); _panTouched = false; zoomSave.restart(); showToast("Zoom 100%")
             e.accepted = true; return
         }
         // zoomed pan (paged): arrows pan the magnified page (TB2 behavior — ±80px / ⅙ width)
@@ -729,6 +745,14 @@ Item {
             case Qt.Key_Right: panX -= px; clampPan(); e.accepted = true; return
             case Qt.Key_Up:    panY += 80; clampPan(); e.accepted = true; return
             case Qt.Key_Down:  panY -= 80; clampPan(); e.accepted = true; return
+            }
+        }
+        // double page at 100%: Up/Down pan a spread taller than the screen (Max parity —
+        // vertical intent = pan, never a flip; Left/Right stay page turns)
+        else if (isDouble && dblPanMaxY() > 0) {
+            switch (e.key) {
+            case Qt.Key_Up:   _panTouched = true; panY += 80; clampPan(); e.accepted = true; return
+            case Qt.Key_Down: _panTouched = true; panY -= 80; clampPan(); e.accepted = true; return
             }
         }
 
@@ -798,15 +822,22 @@ Item {
             acceptedModifiers: Qt.ControlModifier
             onWheel: (e) => reader.zoomBy(e.angleDelta.y > 0 ? 20 : -20)
         }
-        // paged: plain wheel pans when magnified, else turns the page (accumulated so
-        // trackpad micro-deltas don't spam page turns)
+        // paged: plain wheel pans when magnified. In DOUBLE PAGE the wheel NEVER turns the
+        // page (Tankoban Max strict model, Hemanth 2026-07-17): a fit-width spread taller
+        // than the screen pans within itself, a spread that fits swallows the wheel — flips
+        // are keys / click zones only. (TB2 flips at the scroll boundary; Max never does;
+        // Hemanth picked Max.) Single-page keeps wheel page-turns (accumulated so trackpad
+        // micro-deltas don't spam turns).
         property real wheelAcc: 0
         WheelHandler {
             enabled: reader.paged && reader.max > 0
             acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             acceptedModifiers: Qt.NoModifier
             onWheel: (e) => {
-                if (reader.zoomPct > 100) { reader.panY += e.angleDelta.y * 0.8; reader.clampPan(); return }
+                if (reader.zoomPct > 100 || reader.isDouble) {
+                    reader._panTouched = true
+                    reader.panY += e.angleDelta.y * 0.8; reader.clampPan(); return
+                }
                 flick.wheelAcc += e.angleDelta.y
                 if (flick.wheelAcc <= -100)     { flick.wheelAcc = 0; reader.turnNext() }   // wheel page-turn = reading,
                 else if (flick.wheelAcc >= 100) { flick.wheelAcc = 0; reader.turnPrev() }   // HUD stays away (TB2)
@@ -941,6 +972,9 @@ Item {
                 id: dblRow
                 anchors.centerIn: parent
                 spacing: 0
+                // real page dims land after the async decode and can grow the spread —
+                // keep the untouched view anchored at the TOP through the settle
+                onHeightChanged: if (reader.isDouble && !reader._panTouched) reader.panY = reader.dblPanMaxY()
                 Repeater {
                     // honor the engine's physical `side`: in RTL the read-first page belongs on
                     // the RIGHT, but a Row lays the model out left→right — so flip pair order

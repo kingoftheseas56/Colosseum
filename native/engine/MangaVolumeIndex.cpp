@@ -182,6 +182,32 @@ QVariantList MangaVolumeIndex::localPages(const QString& volumeId) const
     return out;
 }
 
+QVariantList MangaVolumeIndex::downloadedVolumes() const
+{
+    QVariantList out;
+    for (auto it = m_index.constBegin(); it != m_index.constEnd(); ++it) {
+        const Entry& e = it.value();
+        const QDir dir(e.dir);
+        const QString first = e.files.isEmpty()
+            ? QString() : dir.absoluteFilePath(e.files.first());
+        const bool missing = first.isEmpty() || !QFileInfo::exists(first);
+        out.append(QVariantMap{
+            {QStringLiteral("id"), it.key()},
+            {QStringLiteral("seriesId"), e.seriesId},
+            {QStringLiteral("seriesTitle"), e.seriesTitle},
+            {QStringLiteral("label"), QStringLiteral("Vol. %1").arg(e.volumeNumber)},
+            {QStringLiteral("pages"), e.files.size()},
+            {QStringLiteral("bytes"), e.bytes},
+            {QStringLiteral("addedAt"), e.addedAt},
+            {QStringLiteral("missing"), missing},
+            // First page = the volume's own local cover; honest blank when gone.
+            {QStringLiteral("art"), missing
+                ? QString() : QUrl::fromLocalFile(first).toString()}
+        });
+    }
+    return out;
+}
+
 QVariantMap MangaVolumeIndex::statusOf(const QString& volumeId) const
 {
     const QString id = volumeId.trimmed();

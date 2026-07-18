@@ -17,6 +17,17 @@
 var _db = null;                 // parsed comics_db.json (null until load() succeeds)
 var _bySid = {};                // "<locg_id>" -> series record, for O(1) series lookup
 
+// _engine — the ComicsCatalog C++ context property, once handed over by ComicsDbLoader/
+// TankobanWorld (P4 seam, 2026-07-18). When set, every public fn below delegates to the
+// curated_* SQLite tables instead of the baked gen.js blob; setData()'s _db path stays as
+// the fixture/test lane and is untouched. Engine takes priority when both are present.
+var _engine = null;
+function setEngine(e) {
+    _engine = (e && e.curatedReady && e.curatedReady()) ? e : null;
+    _byTitle = null;
+    return _engine !== null;
+}
+
 var fetchFn = null;             // injected: function(url, cb(bodyOrNull)); default = XHR below
 var DEFAULT_SOURCE = "";        // Main.qml injects Qt.resolvedUrl("../resources/comics_db.json")
 
@@ -50,10 +61,10 @@ function _ingest(d) {
     return true;
 }
 
-// setData(obj) — the LOCAL path: the weekly build ships a comics_db.gen.js (a .pragma-library
-// wrapper) that Main.qml imports and hands here. No file read — QML's import system delivers the
-// data reliably (Qt's XHR CANNOT read local files at runtime; the app's own tests ship data as
-// generated .js for exactly this reason). This is the sidecar today; load(url) is the hosted path.
+// setData(obj) — the FIXTURE/TEST path: hand a parsed comics_db object straight in (the logic
+// harness ships an inline fixture through here). The shipped catalog rides the ComicsCatalog
+// SQLite engine via setEngine() instead (P4, 2026-07-18 — the baked gen.js wrapper retired);
+// load(url) stays as the hosted path for a future static-host move.
 function setData(obj) { _byTitle = null; return _ingest(obj); }
 
 // load(source, done(ok)) — the HOSTED path (later): fetch + parse a URL. Kept for when the DB moves
@@ -70,7 +81,7 @@ function load(source, done) {
     });
 }
 
-function ready() { return _db !== null; }
+function ready() { return _engine !== null || _db !== null; }
 
 // ── normalized-title lookup: routes any GetComics-era series open to OUR series
 //    view when the catalog carries it (Hemanth 2026-07-15: the DB view is THE
@@ -83,6 +94,11 @@ function _normTitle(s) {
     return s.replace(/^(the|a|an) /, "");
 }
 function seriesByTitle(title) {
+    if (_engine) {
+        var hit = _engine.curatedByNorm(_normTitle(title));
+        return (hit && hit.locgId !== undefined) ? { locgId: "locg:" + hit.locgId, title: hit.title,
+                       cover: hit.cover || "", publisher: hit.publisher || "" } : null;
+    }
     if (!_db) return null;
     if (!_byTitle) {
         _byTitle = {};
@@ -101,6 +117,17 @@ function seriesByTitle(title) {
 // The ranked shelf: [{rank, title, cover, locgId, publisher}] in rank order. `locgId` carries the
 // "locg:<id>" form the rest of the app (openComicSeries/LocgApi) already speaks.
 function rankedSeries() {
+    if (_engine) {
+        var rows = _engine.curatedRanked();
+        var eout = [];
+        for (var ri = 0; ri < rows.length; ri++) {
+            var r = rows[ri];
+            eout.push({ rank: r.rank, caption: r.title, title: r.title, cover: r.cover || "",
+                        locgId: "locg:" + r.locgId, publisher: r.publisher || "",
+                        year: r.year || 0, genres: r.genres ? r.genres.split(",") : [] });
+        }
+        return eout;
+    }
     if (!_db) return [];
     var out = [];
     for (var i = 0; i < _db.series.length; i++) {
@@ -120,6 +147,15 @@ function rankedSeries() {
 // shelf first, with a small cover pool for the box art. Series without genres
 // simply don't shelve (they stay reachable via rank rows + search).
 function genreShelves(maxCovers) {
+    if (_engine) {
+        var rows = _engine.curatedGenreShelves(maxCovers || 8);
+        var eout = [];
+        for (var ri = 0; ri < rows.length; ri++) {
+            var r = rows[ri];
+            eout.push({ name: r.name, count: r.count, covers: r.covers || [] });
+        }
+        return eout;
+    }
     if (!_db) return [];
     var caps = maxCovers || 8;
     var by = {};
@@ -141,6 +177,7 @@ function genreShelves(maxCovers) {
 
 // A series' collected editions, by "locg:<id>" or bare id. [] if unknown.
 function editions(locgId) {
+    if (_engine) return (series(locgId) || {}).editions || [];
     var id = String(locgId || "").replace(/^locg:/, "");
     var s = _bySid[id];
     return (s && s.editions) ? s.editions : [];
@@ -148,8 +185,49 @@ function editions(locgId) {
 
 // The full series record (title, publisher, cover, editions) or null.
 function series(locgId) {
+    if (_engine) {
+        var eid = String(locgId || "").replace(/^locg:/, "");
+        var m = _engine.curatedSeries(eid);
+        if (!m || m.locgId === undefined) return null;
+        var srcEds = m.editions || [];
+        var mappedEds = [];
+        for (var i = 0; i < srcEds.length; i++) {
+            var e = srcEds[i];
+            mappedEds.push({
+                title: e.title || "",
+                display_title: e.displayTitle || "",
+                format: e.format || "",
+                collects: e.collects || "",
+                isbn: e.isbn || "",
+                pages: e.pages || 0,
+                published: e.published || "",
+                locg_comic_id: e.chid || "",
+                cover: e.cover || "",
+                available: !!e.available,
+                getcomics_post: e.getcomicsPost || "",
+                creators: e.creators || "",
+                description: e.description || ""
+            });
+        }
+        return {
+            title: m.title || "", year: m.year || 0, slug: m.slug || "",
+            locg_id: m.locgId, publisher: m.publisher || "", cover: m.cover || "",
+            synopsis: m.synopsis || "", editions: mappedEds
+        };
+    }
     var id = String(locgId || "").replace(/^locg:/, "");
     return _bySid[id] || null;
+}
+
+// A series' "Also on GetComics" rail: GetComics posts the id-anchored attachment
+// (parser+attachment arc 2026-07-16) proved belong to this series but no edition
+// auto-wired — bundles, compendium packs, story-title posts. Availability was
+// verified at fold time. [] if none. (Distinct from the per-edition torrent
+// picker in ComicTorrentSourcesPage — this is series-level GetComics downloads.)
+function sources(locgId) {
+    if (_engine) return [];   // rail is dead post-teardown; not migrated to curated_*
+    var s = series(locgId);
+    return (s && s.sources) ? s.sources : [];
 }
 
 // The downloadable GetComics post URL for an edition, or null. The app re-parses the signed /dls/
@@ -161,6 +239,7 @@ function downloadPost(edition) {
 // Whether the series contains at least one edition with a real GetComics source.
 // This is intentionally derived from the same downloadPost() truth used by the ledger.
 function hasDownloadableEdition(locgId) {
+    if (_engine) return _engine.curatedHasDownloadable(String(locgId || "").replace(/^locg:/, ""));
     var rows = editions(locgId);
     for (var i = 0; i < rows.length; i++) {
         if (downloadPost(rows[i]) !== null) return true;
