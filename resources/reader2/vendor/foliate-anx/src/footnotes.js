@@ -48,7 +48,12 @@ const extractFootnote = (doc, anchor) => {
 
 export class FootnoteHandler extends EventTarget {
     detectFootnotes = true
-    #showFragment(book, { index, anchor }, href) {
+    // [Colosseum patch] `token`: an opaque per-request id the caller may place on the link
+    // event's detail (e.detail.token). It is threaded through to the 'before-render' and
+    // 'render' details unchanged, giving listeners per-REQUEST identity — href alone cannot
+    // distinguish two rapid taps on anchors sharing one note. Additive only: absent a token,
+    // behavior is byte-identical to upstream.
+    #showFragment(book, { index, anchor }, href, token) {
         const view = document.createElement('foliate-view')
         return new Promise((resolve, reject) => {
             view.addEventListener('load', e => {
@@ -67,7 +72,7 @@ export class FootnoteHandler extends EventTarget {
                         doc.body.replaceChildren()
                         doc.body.appendChild(frag)
                     }
-                    const detail = { view, href, type, hidden, target: el }
+                    const detail = { view, href, type, hidden, target: el, token } // [Colosseum patch] token
                     this.dispatchEvent(new CustomEvent('render', { detail }))
                     resolve()
                 } catch (e) {
@@ -75,24 +80,24 @@ export class FootnoteHandler extends EventTarget {
                 }
             })
             view.open(book)
-                .then(() => this.dispatchEvent(new CustomEvent('before-render', { detail: { view } })))
+                .then(() => this.dispatchEvent(new CustomEvent('before-render', { detail: { view, token } }))) // [Colosseum patch] token
                 .then(() => view.goTo(index))
                 .catch(reject)
         })
     }
     handle(book, e) {
-        const { a, href } = e.detail
+        const { a, href, token } = e.detail // [Colosseum patch] token
         const { yes, maybe } = isFootnoteReference(a)
         if (yes) {
             e.preventDefault()
             return Promise.resolve(book.resolveHref(href)).then(target =>
-                this.#showFragment(book, target, href))
+                this.#showFragment(book, target, href, token))
         }
         else if (this.detectFootnotes && maybe()) {
             e.preventDefault()
             return Promise.resolve(book.resolveHref(href)).then(({ index, anchor }) => {
                 const target = { index, anchor: doc => extractFootnote(doc, anchor) }
-                return this.#showFragment(book, target, href)
+                return this.#showFragment(book, target, href, token)
             })
         }
     }

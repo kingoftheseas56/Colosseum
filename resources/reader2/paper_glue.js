@@ -27,18 +27,17 @@
 let Overlayer = null   // assigned in boot() once overlayer.js resolves
 let FootnoteHandler = null  // the fork's footnote extractor class (footnotes.js), assigned in boot()
 let footnoteHandler = null  // one instance; its render/before-render listeners attach once
-// Footnote tap captures, per-href FIFO QUEUES (re-review #3 fix): the note HREF is carried by
-// BOTH ends of the async chain ('link' detail and 'render' detail), so it is the correlation
-// key — but a single entry per href let two rapid taps on anchors SHARING one href overwrite
-// each other. Each href now holds a queue: 'link' pushes {gen, rect}; 'render' shifts the
-// oldest. Cross-href correlation is exact; within one href, FIFO pairing is the best possible
-// (the taps reference the SAME note, and the map is cleared on every open, so all queued
-// entries carry the SAME gen — the only per-entry difference is the anchor rect). A zombie
+// Footnote tap captures, keyed by PER-REQUEST TOKEN (re-review #4 fix, Codex-recommended):
+// href alone couldn't distinguish two rapid taps on anchors sharing one note, and FIFO
+// pairing broke under out-of-order completion / rejection. The vendored footnotes.js now
+// carries an opaque `token` from the link event's detail through to the 'render' detail
+// ([Colosseum patch] — additive, upstream-identical without one), so every render consumes
+// EXACTLY its own tap's capture and a rejection deletes exactly its own token. A zombie
 // chain that never renders (admission-dropped: its unattached view's iframe never fires
-// 'load', so the vendor chain never reaches 'render') can leak its entry; the per-href cap
-// and the per-open clear bound that.
-const footnoteTaps = new Map()  // href → [{gen, rect}, ...] oldest-first (rect may be null)
-const FOOTNOTE_TAP_QUEUE_CAP = 4  // rapid-tap bound per note; leaked zombie entries fall off
+// 'load', so the vendor chain never reaches 'render') leaks one entry until the per-open
+// clear — bounded and inert (a token is never reused).
+const footnoteTaps = new Map()  // token → {gen, rect} (rect may be null)
+let footnoteTapSeq = 0          // token source — unique per tap for the page lifetime
 
 // ---------------------------------------------------------------------------
 // event emit (UP)
@@ -414,15 +413,15 @@ const setupFootnoteHandler = () => {
     } catch (err) { /* fall through to target */ }
     if (!text && target) { try { text = String(target.textContent || '').trim() } catch (e) {} }
     if (text.length > FOOTNOTE_TEXT_CAP) text = text.slice(0, FOOTNOTE_TEXT_CAP) + '…'
-    // Emit THIS note's own capture: shift the OLDEST queued tap for the render's href (FIFO —
-    // see footnoteTaps above). NO capture → NO emit: a render with no recorded tap is a
-    // superseded book's straggler (paperOpen clears the map on switch) — inventing a gen for
-    // it (e.g. the current openGen) would relabel the OLD book's note as the new book's and
-    // leak it past the shell's gate.
-    const href = e.detail?.href
-    const q = (href !== undefined) ? footnoteTaps.get(href) : undefined
-    const tap = (q && q.length) ? q.shift() : undefined
-    if (q && !q.length) footnoteTaps.delete(href)
+    // Emit THIS request's own capture: the render detail carries back the exact token our
+    // link handler stamped ([Colosseum patch] in vendor footnotes.js), so correlation is
+    // per-request — same-href taps, out-of-order completion, and rejections cannot mispair.
+    // NO capture → NO emit: a render with no recorded tap is a superseded book's straggler
+    // (paperOpen clears the map on switch) — inventing a gen for it would relabel the OLD
+    // book's note as the new book's and leak it past the shell's gate.
+    const token = e.detail?.token
+    const tap = (token !== undefined) ? footnoteTaps.get(token) : undefined
+    if (token !== undefined) footnoteTaps.delete(token)   // consumed (or stale — either way done)
     if (tap) emit('footnote', { gen: tap.gen, html: text, rect: tap.rect ?? null })
     footnoteRenderPending = false   // host free again → the next footnote tap can render
     // Do NOT remove the throwaway view here: it still has a pending iframe 'load' handler
@@ -635,10 +634,11 @@ const wireView = (view, gen) => {
   // which our render listener above turns into a 'footnote' event. For a NORMAL internal
   // link handle() returns undefined and does not preventDefault, so the view goToes as usual.
   view.addEventListener('link', e => {
-    // Record this tap's anchor rect + open-gen under its HREF (the render, which is async,
-    // carries the same href back — see the 'render' handler) so a book switch or a second
-    // tap mid-render can never relabel an in-flight note.
-    const tapHref = e.detail?.href
+    // Record this tap's anchor rect + open-gen under a fresh per-request TOKEN, and stamp the
+    // token onto the link detail — the patched vendor handler threads it through to the
+    // 'render' detail, so the async render consumes exactly THIS tap's capture (see
+    // footnoteTaps above). A book switch or a second tap mid-render can never relabel it.
+    const tapToken = ++footnoteTapSeq
     let tapRect = null
     try {
       const a = e.detail && e.detail.a
@@ -648,38 +648,27 @@ const wireView = (view, gen) => {
         tapRect = clientRectOf(rng, a.ownerDocument)
       }
     } catch (err) { /* rect stays null → the card clamps to frame center */ }
-    // Push onto this href's FIFO (gen: this view's captured open-gen). Every queued entry for
-    // an href belongs to the SAME open (map cleared per paperOpen), so same-gen always; the cap
-    // sheds the oldest under rapid tapping (and any zombie leftovers with them).
-    const removeOneTap = () => {   // undo OUR push when no render will ever consume it
-      if (tapHref === undefined) return
-      const tq = footnoteTaps.get(tapHref)
-      if (tq && tq.length) { tq.pop(); if (!tq.length) footnoteTaps.delete(tapHref) }
-    }
-    if (tapHref !== undefined) {
-      const tq = footnoteTaps.get(tapHref) || []
-      tq.push({ gen, rect: tapRect })
-      while (tq.length > FOOTNOTE_TAP_QUEUE_CAP) tq.shift()
-      footnoteTaps.set(tapHref, tq)
-    }
+    if (e.detail) e.detail.token = tapToken            // ride the vendor chain ([Colosseum patch])
+    footnoteTaps.set(tapToken, { gen, rect: tapRect }) // gen: this view's captured open-gen
     try {
       const p = footnoteHandler && footnoteHandler.handle(view.book, e)
       if (p && typeof p.catch === 'function') {
         // Clear the render-pending guard if the render fails (resolveHref/load reject),
-        // so a failed footnote can never wedge every later footnote shut.
+        // so a failed footnote can never wedge every later footnote shut. Deleting by OUR
+        // exact token can never evict another tap's capture.
         p.catch(err => {
           footnoteRenderPending = false
-          removeOneTap()   // no render coming for this tap
+          footnoteTaps.delete(tapToken)   // no render coming for this tap
           console.warn('[paper] footnote render failed', err)
         })
       } else {
         // handle() returned nothing → a NORMAL internal link (the view navigates): no render
         // will ever consume this entry, so drop it now instead of letting it linger.
-        removeOneTap()
+        footnoteTaps.delete(tapToken)
       }
     } catch (err) {
       footnoteRenderPending = false
-      removeOneTap()
+      footnoteTaps.delete(tapToken)
       console.warn('[paper] footnote handle threw', err)
     }
   })
