@@ -1,8 +1,8 @@
 # One Piece Universe Page — Road Poneglyph Chamber
 
-**Date:** 2026-07-18  
-**Status:** Approved direction — Hemanth granted full creative control  
-**Owner:** Agent 5 (Codex)  
+**Date:** 2026-07-18
+**Status:** Approved direction — Hemanth granted full creative control
+**Owner:** Agent 5 (Codex)
 **Target:** Replace `qml/OnePieceUniversePage.qml` completely while preserving its provider-pinned content and routing contracts.
 
 ## 1. Product intent
