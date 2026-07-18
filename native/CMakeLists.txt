@@ -767,3 +767,16 @@ add_executable(comics_catalog_engine_harness
     engine/ComicsCatalog.h)
 target_include_directories(comics_catalog_engine_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)
+
+# Live triage probe (2026-07-18): the audiobook delivery chain end-to-end —
+# real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.
+add_executable(audiobook_engine_probe
+    ../tests/audiobook_engine_probe.cpp
+    engine/AudiobookDownloader.cpp
+    engine/AudiobookDownloader.h
+    AudioPairingStore.h
+    player/streamserver.cpp
+    player/streamserver.h
+)
+target_include_directories(audiobook_engine_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(audiobook_engine_probe PRIVATE Qt6::Core Qt6::Network)

@@ -212,9 +212,24 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
 
     QNetworkReply *reply = m_nam->post(req, QByteArray("{}"));
     connect(reply, &QNetworkReply::finished, this, [this, reply, hash, fileIdx, fetch]() {
-        if (reply->error() != QNetworkReply::NoError)
-            qWarning("[stream] create warning: %s", qUtf8Printable(reply->errorString()));
+        const auto err = reply->error();
         reply->deleteLater();
+        // DEAD-ADOPT SELF-HEAL (2026-07-18): when the engine was ADOPTED (no child of ours,
+        // m_proc null) and the port now refuses connections, the external server died out
+        // from under us. The child path resets via its finished() handler, but adoption had
+        // NO reset — m_port stayed set forever and every later create/manifest hit a dead
+        // port (audiobook 'retry' failed deterministically). Reset, re-queue THIS request,
+        // and run the ensureStarted probe again — which now spawns our own runtime.
+        if (err == QNetworkReply::ConnectionRefusedError && !m_proc && m_port > 0) {
+            qWarning("[stream] adopted server on :%d is gone — resetting and relaunching", m_port);
+            m_port = -1;
+            Q_EMIT readyChanged();
+            m_pending.append({hash, fileIdx, fetch});
+            ensureStarted();
+            return;
+        }
+        if (err != QNetworkReply::NoError)
+            qWarning("[stream] create warning: %s", qUtf8Printable(reply->errorString()));
         const QString url = streamUrl(hash, fileIdx);
         if (url.isEmpty())
             Q_EMIT streamError(QStringLiteral("Stream engine not ready."));
