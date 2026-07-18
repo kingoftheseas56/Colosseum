@@ -22,7 +22,9 @@ Item {
     // default false so a shipped embedding never spams; the standalone harness flips it on.
     property bool readerDebug: false
 
-    function open(path, cfi) { run("window.paper.open(" + JSON.stringify(path) + "," + JSON.stringify(cfi || "") + ")") }
+    // gen: the QML-ISSUED per-open generation (ReaderShell.openAtResume) — the glue echoes it
+    // on every book-scoped emit so the shell can match events to the open it asked for.
+    function open(path, cfi, gen) { run("window.paper.open(" + JSON.stringify(path) + "," + JSON.stringify(cfi || "") + "," + JSON.stringify(gen) + ")") }
     function next() { run("window.paper.next()") }
     function prev() { run("window.paper.prev()") }
     function goTo(t) { run("window.paper.goTo(" + JSON.stringify(t) + ")") }

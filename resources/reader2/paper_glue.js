@@ -27,14 +27,14 @@
 let Overlayer = null   // assigned in boot() once overlayer.js resolves
 let FootnoteHandler = null  // the fork's footnote extractor class (footnotes.js), assigned in boot()
 let footnoteHandler = null  // one instance; its render/before-render listeners attach once
-// Footnote tap capture is TWO-SLOT STAGED (Codex re-review fix): `latest` is written on
-// every 'link' tap ({gen, rect}); `active` is copied FROM latest only when a render is
-// actually ADMITTED (before-render, host free). The async 'render' emits from `active`.
-// A single mutable slot would let a second tap's 'link' clobber the capture while the
-// FIRST tap's render is still in flight — its card would then carry the second tap's
-// rect/gen (mislabeled). With staging, whichever render was admitted owns its own capture.
-let latestFootnoteTap = null    // {gen, rect} of the most recent link tap (rect may be null)
-let activeFootnoteTap = null    // the capture belonging to the ADMITTED (in-flight) render
+// Footnote tap captures, KEYED BY HREF (re-review #2 fix): staging through shared slots still
+// raced, because 'before-render' fires only after the handler's async view.open() — a second
+// 'link' could land in that gap and clobber the slot before the first render was admitted. The
+// note HREF is carried by BOTH ends of the async chain ('link' detail and 'render' detail), so
+// it is the natural correlation key: 'link' records href → {gen, rect}; 'render' looks its own
+// href up and emits THAT capture. No ordering assumptions at all. Entries are deleted on
+// consume/normal-link/reject and the map is cleared per open, so it can't grow unbounded.
+const footnoteTaps = new Map()  // href → {gen, rect} (rect may be null)
 
 // ---------------------------------------------------------------------------
 // event emit (UP)
@@ -201,11 +201,12 @@ let currentView = null
 let flatToc = []                       // [{index,label,href}] flattened, DFS order
 const annotations = new Map()          // id -> { id, value:cfi, type, color }
 let readyEmitted = false               // gate: suppress 'relocated' until 'ready' has fired for THIS book
-// Per-open generation counter (cross-book stale-relocated guard). Bumped on every
-// paperOpen and stamped into every 'ready'/'relocated' as `gen`. A 'relocated' from
-// book A that was already in flight over QWebChannel when we switched to book B would
-// otherwise land after B's 'ready' and mis-save into B's progress; ReaderShell ignores
-// any relocated whose gen != the current open's gen. (See ReaderShell + L.staleRelocate.)
+// Per-open generation (cross-book stale-event guard). QML-ISSUED: ReaderShell passes the gen
+// it will wait for into every paperOpen and we echo it on every book-scoped emit ('ready'/
+// 'relocated'/'error'/'searchResults'/'footnote'/'selection'/'highlightTapped'); the bench
+// (no QML) falls back to self-incrementing. An event from book A already in flight over
+// QWebChannel when we switched to book B then carries A's gen and is dropped shell-side.
+// (See ReaderShell + L.acceptReady / L.acceptBookEvent.)
 let openGen = 0
 let footnoteRenderPending = false      // one throwaway footnote render host loads at a time (see setupFootnoteHandler)
 let sectionHasText = true              // is the CURRENT section real prose (vs a cover/full-image page)?
@@ -386,7 +387,6 @@ const setupFootnoteHandler = () => {
     if (!view) return
     if (footnoteRenderPending) return          // a prior footnote is still rendering — drop this one
     footnoteRenderPending = true
-    activeFootnoteTap = latestFootnoteTap      // this render now OWNS its tap's capture (staged)
     try {
       footnoteHost().replaceChildren(view)
       const r = view.renderer
@@ -410,12 +410,15 @@ const setupFootnoteHandler = () => {
     } catch (err) { /* fall through to target */ }
     if (!text && target) { try { text = String(target.textContent || '').trim() } catch (e) {} }
     if (text.length > FOOTNOTE_TEXT_CAP) text = text.slice(0, FOOTNOTE_TEXT_CAP) + '…'
-    // Emit from the ADMITTED render's own capture (activeFootnoteTap, staged at before-render)
-    // — gen-tagged with the open it was tapped in so ReaderShell drops a footnote whose book
-    // was switched out from under the async render; rect anchors the card to ITS tap, even if
-    // a later (dropped) tap has since overwritten `latest`.
-    const tap = activeFootnoteTap || {}
-    emit('footnote', { gen: tap.gen, html: text, rect: tap.rect ?? null })
+    // Emit THIS note's own capture: the render detail carries the note href, which is the key
+    // its 'link' handler recorded {gen, rect} under — no shared slot, no ordering assumption.
+    // NO capture → NO emit: a render with no recorded tap is a superseded book's straggler
+    // (paperOpen clears the map on switch) — inventing a gen for it (e.g. the current openGen)
+    // would relabel the OLD book's note as the new book's and leak it past the shell's gate.
+    const href = e.detail?.href
+    const tap = (href !== undefined) ? footnoteTaps.get(href) : undefined
+    if (href !== undefined) footnoteTaps.delete(href)   // consumed (or stale — either way done)
+    if (tap) emit('footnote', { gen: tap.gen, html: text, rect: tap.rect ?? null })
     footnoteRenderPending = false   // host free again → the next footnote tap can render
     // Do NOT remove the throwaway view here: it still has a pending iframe 'load' handler
     // (paginator getDirection → getComputedStyle) that would throw on a null doc if we detach
@@ -469,7 +472,7 @@ const ensureTopKeys = () => {
   document.addEventListener('keydown', handleKeydown)
 }
 
-const attachSelection = (view, doc, index) => {
+const attachSelection = (view, doc, index, gen) => {
   // In-page keyboard for THIS section's iframe (keys while the book text has focus) plus
   // the one-time top-document listener (keys before any click / when the page body has focus).
   ensureTopKeys()
@@ -485,13 +488,15 @@ const attachSelection = (view, doc, index) => {
     if (!text) {
       // Selection went away (clicked elsewhere, a key turned the page, etc.). Emit ONCE on
       // the non-empty -> empty edge so QML can dismiss the SelectionMenu popover.
-      if (hadSelection) { hadSelection = false; emit('selectionCleared', {}) }
+      if (hadSelection) { hadSelection = false; emit('selectionCleared', { gen }) }
       return
     }
     hadSelection = true
     let cfi = ''
     try { cfi = view.getCFI(index, range) } catch (e) { /* boundary ranges */ }
-    emit('selection', { text, cfi, rect: clientRectOf(range, doc) })
+    // gen-stamped (re-review #2): the selection timers (setTimeout/debounce) can outlive a book
+    // switch — the shell gen-drops a stale selection instead of opening a popover over book B.
+    emit('selection', { gen, text, cfi, rect: clientRectOf(range, doc) })
   }
   doc.addEventListener('pointerup', () => setTimeout(tryEmit, 0))
   let debounce
@@ -579,7 +584,7 @@ const wireView = (view, gen) => {
 
   view.addEventListener('load', e => {
     const { doc, index } = e.detail || {}
-    if (doc) attachSelection(view, doc, index)
+    if (doc) attachSelection(view, doc, index, gen)   // gen: this view's captured open-gen
     // Is this section real prose or a cover/full-image page? Cheap heuristic: how much
     // visible text the body carries. Covers/title-image pages have ~none; chapters have lots.
     // Reported on the next relocate so the reading ruler skips non-text pages.
@@ -616,7 +621,7 @@ const wireView = (view, gen) => {
     if (selText) return
     const found = [...annotations.values()].find(a => a.value === value)
     const rect = range ? clientRectOf(range, range.startContainer?.ownerDocument) : null
-    emit('highlightTapped', { id: found?.id ?? null, rect })
+    emit('highlightTapped', { gen, id: found?.id ?? null, rect })   // gen-stamped (re-review #2)
   })
 
   // Footnote/endnote link taps (TASK 9 R2). The view emits 'link' (cancelable) for every
@@ -625,10 +630,10 @@ const wireView = (view, gen) => {
   // which our render listener above turns into a 'footnote' event. For a NORMAL internal
   // link handle() returns undefined and does not preventDefault, so the view goToes as usual.
   view.addEventListener('link', e => {
-    // Capture the tapped anchor's rect + the current open-gen NOW into the `latest` slot —
-    // the render (and thus our emit) is async, so a book switch mid-render must be able to
-    // invalidate this footnote. before-render stages latest→active on admission, so a tap
-    // whose render is DROPPED (host busy) can never relabel the in-flight render's emit.
+    // Record this tap's anchor rect + open-gen under its HREF (the render, which is async,
+    // carries the same href back — see the 'render' handler) so a book switch or a second
+    // tap mid-render can never relabel an in-flight note.
+    const tapHref = e.detail?.href
     let tapRect = null
     try {
       const a = e.detail && e.detail.a
@@ -638,14 +643,27 @@ const wireView = (view, gen) => {
         tapRect = clientRectOf(rng, a.ownerDocument)
       }
     } catch (err) { /* rect stays null → the card clamps to frame center */ }
-    latestFootnoteTap = { gen: openGen, rect: tapRect }
+    if (tapHref !== undefined) footnoteTaps.set(tapHref, { gen, rect: tapRect })  // gen: this view's captured open-gen
     try {
       const p = footnoteHandler && footnoteHandler.handle(view.book, e)
-      if (p && typeof p.catch === 'function')
+      if (p && typeof p.catch === 'function') {
         // Clear the render-pending guard if the render fails (resolveHref/load reject),
         // so a failed footnote can never wedge every later footnote shut.
-        p.catch(err => { footnoteRenderPending = false; console.warn('[paper] footnote render failed', err) })
-    } catch (err) { footnoteRenderPending = false; console.warn('[paper] footnote handle threw', err) }
+        p.catch(err => {
+          footnoteRenderPending = false
+          if (tapHref !== undefined) footnoteTaps.delete(tapHref)   // no render coming for it
+          console.warn('[paper] footnote render failed', err)
+        })
+      } else if (tapHref !== undefined) {
+        // handle() returned nothing → a NORMAL internal link (the view navigates): no render
+        // will ever consume this entry, so drop it now instead of letting it linger.
+        footnoteTaps.delete(tapHref)
+      }
+    } catch (err) {
+      footnoteRenderPending = false
+      if (tapHref !== undefined) footnoteTaps.delete(tapHref)
+      console.warn('[paper] footnote handle threw', err)
+    }
   })
 }
 
@@ -662,10 +680,14 @@ const removeSupersededView = view => {
   if (currentView === view) currentView = null
 }
 
-const paperOpen = async (path, cfi) => {
+const paperOpen = async (path, cfi, gen) => {
   // annotations/flatToc/readyEmitted belong to the previous book — reset them (below, in try).
   readyEmitted = false
-  openGen++                       // new open → later events carry this gen (cross-book guard)
+  // The open's generation is QML-ISSUED (re-review #2): ReaderShell hands us the gen it will
+  // wait for and we ECHO it on every book-scoped emit — QML can then match 'ready' exactly to
+  // the open it asked for (no adoption). QML's counter is monotonic, so superseded() below
+  // keeps working. The +1 fallback covers the browser bench, which opens without a gen.
+  openGen = Number.isFinite(gen) ? gen : openGen + 1
   // Capture THIS open's gen in a local. The relocate listener + the ready emit below close
   // over `myGen`, NOT the live module `openGen` — so a stale relocate from a PREVIOUS book
   // (fired after a later open already bumped openGen) carries the OLD book's gen and is
@@ -674,6 +696,8 @@ const paperOpen = async (path, cfi) => {
   // catch's 'error' emit can gen-tag with `myGen` and superseded() can close over it.
   const myGen = openGen
   footnoteRenderPending = false   // a prior book's in-flight footnote render can't gate this one
+  footnoteTaps.clear()            // and its recorded taps can't label a straggler render (no
+                                  // entry → the render handler drops the emit entirely)
   // CANCEL-STALE-OPEN (the biggest fix): a newer paperOpen (book B) bumps openGen. After EVERY
   // await below we re-check superseded() — a slow open of book A (a big PDF) whose awaits
   // resolve AFTER B opened must NOT mount its view over B, emit a stale 'ready', or emit a
@@ -912,7 +936,7 @@ const boot = async () => {
   if (typeof window.closeFootNote !== 'function') window.closeFootNote = () => {}
 
   window.paper = {
-    open: (path, cfi) => paperOpen(path, cfi ?? ''),
+    open: (path, cfi, gen) => paperOpen(path, cfi ?? '', gen),
     next: paperNext,
     prev: paperPrev,
     goTo: paperGoTo,

@@ -2,6 +2,7 @@
 #include "../reader/BookStores.h"
 
 #include <QAbstractSocket>
+#include <QDeadlineTimer>
 #include <QDebug>
 #include <QDir>
 #include <QFile>
@@ -187,35 +188,42 @@ void Reader2Bridge::dictLookup(const QString& word)
     // bad network froze the whole app for seconds. If we've already resolved (or know it failed),
     // fire immediately with the cached IPv4; otherwise kick off a non-blocking lookup and send
     // from its callback. The IPv4 is cached process-wide so only the first lookup pays any DNS.
-    if (m_wiktResolved) { sendDictRequest(word, query); return; }
-    // DNS DEADLINE (Codex re-review fix): the HTTP timer in sendDictRequest only starts AFTER
-    // this callback fires — a stalled/wedged resolver would leave the card in 'loading' with no
-    // bound at all. Give the DNS phase the same 8s deadline: whichever of {deadline, callback}
-    // runs first owns the terminal emit (`done`); a late DNS result after the deadline still
-    // caches the IPv4 for the NEXT lookup but does not send this one (its failure already showed).
+    if (m_wiktResolved) { sendDictRequest(word, query, kDictTimeoutMs); return; }   // no DNS phase → full budget
+    // ONE OVERALL DEADLINE (re-review #2): the whole lookup — DNS phase AND the HTTP request it
+    // hands off to — must terminate within kDictTimeoutMs total, not 8s each (a slow-but-not-
+    // stalled resolver would otherwise stretch the card's 'loading' toward 16s). The deadline
+    // starts NOW; whichever of {deadline, DNS callback} runs first owns this lookup's next step
+    // (`done`), and the DNS callback passes only the REMAINING budget to sendDictRequest. A late
+    // DNS result after the deadline still caches the IPv4 for the NEXT lookup but does not send
+    // this one (its failure already showed).
+    auto deadline = QDeadlineTimer(kDictTimeoutMs);
     auto done = std::make_shared<bool>(false);
     QTimer::singleShot(kDictTimeoutMs, this, [this, word, done] {
         if (*done) return;
         *done = true;
         emit dictResult(word, QString(), false);
     });
-    QHostInfo::lookupHost(kWiktHost, this, [this, word, query, done](const QHostInfo& info) {
+    QHostInfo::lookupHost(kWiktHost, this, [this, word, query, done, deadline](const QHostInfo& info) {
         QString ipv4;
         for (const QHostAddress& a : info.addresses())
             if (a.protocol() == QAbstractSocket::IPv4Protocol) { ipv4 = a.toString(); break; }
-        m_wiktIpv4 = ipv4;          // "" if resolution failed → sendDictRequest falls back to the hostname
-        // Cache ONLY on success. If this first lookup's DNS transiently failed (ipv4 empty), leave
-        // m_wiktResolved false so the NEXT lookup retries the resolve — otherwise one bad first
-        // lookup would permanently strand every future lookup on the un-pinned ~21s IPv6 stall path.
-        if (!ipv4.isEmpty()) m_wiktResolved = true;
-        if (*done) return;              // DNS beat the deadline? No — deadline already failed this
-                                        // lookup; the cache above still helps the next one.
+        // Cache ON SUCCESS ONLY — and never clear (re-review #2 race): two lookups can be
+        // in flight before the first resolution lands; if a later FAILED callback blanked
+        // m_wiktIpv4 after an earlier success set m_wiktResolved, every future lookup would
+        // run resolved-but-unpinned — the ~21s IPv6 stall path, permanently. A transient
+        // failure leaves both fields alone (m_wiktResolved false → the next lookup retries).
+        if (!ipv4.isEmpty()) { m_wiktIpv4 = ipv4; m_wiktResolved = true; }
+        if (*done) return;              // deadline already failed this lookup; the cache above
+                                        // still helps the next one.
         *done = true;
-        sendDictRequest(word, query);   // still sends THIS lookup (pinned if resolved, else plain host)
+        // Hand the HTTP phase only what's LEFT of the overall budget (≥1ms so a photo-finish
+        // still sends and gets a fast, bounded failure instead of a zero timer).
+        const int remainingMs = static_cast<int>(qMax<qint64>(1, deadline.remainingTime()));
+        sendDictRequest(word, query, remainingMs);   // pinned if resolved, else plain host
     });
 }
 
-void Reader2Bridge::sendDictRequest(const QString& word, const QString& query)
+void Reader2Bridge::sendDictRequest(const QString& word, const QString& query, int timeoutMs)
 {
     QUrl url(QStringLiteral("https://") + kWiktHost
              + QStringLiteral("/api/rest_v1/page/definition/")
@@ -245,8 +253,9 @@ void Reader2Bridge::sendDictRequest(const QString& word, const QString& query)
     // (abort() synchronously fires finished). Whoever gets there first sets it; the others bail.
     auto done = std::make_shared<bool>(false);
 
-    // TIMEOUT — abort + emit a failed result after 8s so a wedged network never leaves the card
-    // stuck in 'loading'. The timer is parented to the reply, so it dies with it.
+    // TIMEOUT — abort + emit a failed result after `timeoutMs` (the full 8s from the resolved
+    // path, or the REMAINDER of the overall 8s deadline when DNS ran first) so a wedged network
+    // never leaves the card stuck in 'loading'. Parented to the reply, so it dies with it.
     QTimer* timer = new QTimer(rep);
     timer->setSingleShot(true);
     connect(timer, &QTimer::timeout, this, [this, rep, word, done] {
@@ -256,7 +265,7 @@ void Reader2Bridge::sendDictRequest(const QString& word, const QString& query)
         rep->deleteLater();
         emit dictResult(word, QString(), false);
     });
-    timer->start(kDictTimeoutMs);
+    timer->start(qMax(1, timeoutMs));
 
     // RESPONSE-SIZE CAP — abort if the body exceeds ~512 KB (a definition is tiny; an oversized
     // response is a misfire we won't buffer + JSON-parse onto the GUI thread).

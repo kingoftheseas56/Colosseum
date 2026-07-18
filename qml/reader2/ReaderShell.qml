@@ -32,14 +32,14 @@ FocusScope {
     // standalone harness flips it on. Gates the [shell]/[paper] event tracing (never ships spam).
     property bool readerDebug: false
 
-    // ---- cross-book generation guard (Part B1; hardened twice) — the glue stamps every
-    // book-scoped event ('ready'/'relocated'/'error'/'searchResults'/'footnote') with a
-    // per-open `gen`. We ADOPT currentGen from a fresh (newer) 'ready' and DROP any event
-    // whose gen is OLDER than the current open (L.staleRelocate = strictly-older). That alone
-    // left the PRE-READY window open (gen still equals the old book's between openBook and the
-    // new 'ready'), so book-scoped events are additionally gated on bookReady
-    // (L.acceptBookEvent) and 'error' is routed through L.errorDisposition — a late event from
-    // book A in flight over QWebChannel can't land in ANY window after we switched to B.
+    // ---- cross-book generation guard (Part B1; reworked in re-review #2) — QML ISSUES the
+    // per-open `gen`: openAtResume bumps currentGen and passes it into paper.open, and the glue
+    // echoes it on every book-scoped emit ('ready'/'relocated'/'error'/'searchResults'/
+    // 'footnote'/'selection'/'highlightTapped'). Gates: 'ready' is honored only on EXACT gen
+    // match (L.acceptReady — the old adopt-a-newer-ready rule let a queued superseded 'ready'
+    // re-arm bookReady mid-switch); display/save events need bookReady AND a non-stale gen
+    // (L.acceptBookEvent); 'error' routes through L.errorDisposition. A late event from book A
+    // in flight over QWebChannel can't land in ANY window after we switched to B.
     property int currentGen: -1
     // Has the CURRENT open reached 'ready'? Gates the failed-open surface (Part B3): an
     // 'error' BEFORE ready = the book won't open (show the surface); after ready it's an
@@ -477,12 +477,13 @@ FocusScope {
             if (shell.readerDebug) console.log("[shell]", name, JSON.stringify(p).slice(0, 160))
 
             if (name === "ready") {
-                // Cross-book guard (Part B1, hardened): a 'ready' from a SUPERSEDED open (older
-                // gen) that slipped through is dropped; a fresh one (newer gen, or the defensive
-                // no-gen case) is ADOPTED as the current generation. staleRelocate is strictly-
-                // older, so a newer 'ready' — the book switch — passes and becomes currentGen.
-                if (L.staleRelocate(p.gen, shell.currentGen)) return
-                shell.currentGen = Number.isFinite(p.gen) ? p.gen : shell.currentGen  // adopt this open's generation (Part B1)
+                // Cross-book guard (re-review #2 rework): the only 'ready' honored is the one
+                // stamped with the gen THIS shell issued in openAtResume (exact match — see
+                // L.acceptReady). The old adopt-a-newer-ready rule is dead: a queued 'ready'
+                // from a superseded slow open could carry a newer-than-adopted gen, get adopted,
+                // and re-arm bookReady mid-switch. No adoption happens here anymore — currentGen
+                // was set at issue time.
+                if (!L.acceptReady(p.gen, shell.currentGen)) return
                 shell.bookReady = true                            // opened OK → later 'error' is operational, not a failed open
                 shell.openErrorShown = false                      // clear any failed-open surface from a prior attempt
                 // book identity + toc arrive here (before the first relocate).
@@ -568,19 +569,13 @@ FocusScope {
                 shell.searchCapped = !!p.capped
                 shell.searchLastQuery = (p.query !== undefined && p.query !== null) ? String(p.query) : ""
             } else if (name === "error") {
-                // Part B3, re-derived through L.errorDisposition (Codex re-review fix): a failed
-                // OPEN never reaches 'ready', so its error must surface while bookReady is false
-                // — but a stale error from the SUPERSEDED book in that same pre-ready window
-                // (gen == currentGen, since the new 'ready' hasn't adopted yet) must be dropped,
-                // not shown as the new book's failure. Gen order is the discriminator:
-                // newer gen = the new open failing ('open-fail'); current gen while ready = an
-                // operational error (failed search/highlight — trace); anything else = stale.
+                // Part B3 through L.errorDisposition (v2, QML-issued gens): only the error of
+                // the open we ISSUED may act — pre-ready it's a failed open (surface), post-
+                // ready it's operational (trace). Any other stamped gen is a superseded open's
+                // error and drops; no adoption is needed since currentGen was set at issue time.
                 var emsg = (p.message !== undefined && p.message !== null) ? String(p.message) : ""
                 var disp = L.errorDisposition(p.gen, shell.currentGen, shell.bookReady)
                 if (disp === "open-fail") {
-                    // Adopt the failed open's gen (when stamped): later stragglers from the
-                    // superseded book then gen-drop cleanly instead of leaning on bookReady.
-                    if (Number.isFinite(p.gen) && p.gen > shell.currentGen) shell.currentGen = p.gen
                     shell.openErrorText = emsg
                     shell.openErrorShown = true
                 } else if (disp === "operational" && shell.readerDebug) {
@@ -884,10 +879,17 @@ FocusScope {
         var entry = Reader2Bridge.progressGet(shell.bookId)
         if (!entry || Object.keys(entry).length === 0)
             entry = Reader2Bridge.progressGet(path)       // raw-path fallback (old-reader parity)
+        // ISSUE this open's generation (re-review #2 rework): QML owns the counter and hands it
+        // to the glue, which echoes it on every book-scoped emit. From this line on, the only
+        // 'ready' this shell will honor is one stamped with exactly this gen — a queued 'ready'
+        // from a superseded slow open can never be adopted again. bookReady drops here too (not
+        // only in openBook) so the glue-reload path is equally gated.
+        shell.currentGen = Math.max(1, shell.currentGen + 1)
+        shell.bookReady = false
         // Authorize the paper to read ONLY this book (hardening) BEFORE handing it the path —
         // the untrusted paper can then pull this book's bytes and nothing else off disk.
         Reader2Bridge.setAuthorizedBook(path)
-        paper.open(path, L.resumeCfiOf(entry))
+        paper.open(path, L.resumeCfiOf(entry), shell.currentGen)
     }
 
     function openBook(path) {

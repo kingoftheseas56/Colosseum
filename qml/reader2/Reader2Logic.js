@@ -87,39 +87,49 @@ function staleRelocate(eventGen, currentGen) {
     return eventGen < currentGen
 }
 
+// GENERATION OWNERSHIP (re-review #2 rework): QML ISSUES the per-open gen — openAtResume bumps
+// currentGen and passes it into paper.open; the glue echoes it on every book-scoped emit. QML
+// therefore always knows which gen is "the open I asked for", and the old adopt-a-newer-'ready'
+// rule is DEAD (a queued intermediate 'ready' from a superseded slow open could be adopted and
+// re-arm bookReady mid-switch — the exact hole Codex found). The gates below all reduce to
+// "does this event carry the gen I issued":
+
 // acceptBookEvent(eventGen, currentGen, bookReady) → may a book-scoped DISPLAY/SAVE event
 // ('relocated'/'footnote'/'searchResults'/'selection'/'highlightTapped') touch state?
-//
-// staleRelocate alone leaves ONE window open (Codex re-review): between openBook(B) and B's
-// 'ready', currentGen still holds A's gen — so a late event from A (gen == currentGen) passes
-// the strictly-older check and would save A's position under B's path / open A's popover over
-// B. bookReady=false marks exactly that window (openBook resets it; 'ready' sets it), so the
-// gate is: the current open has reached 'ready' AND the event is not from a superseded open.
-// Unstamped events (no finite gen) reduce to the bookReady check alone — still defensive
-// (never gen-dropped), but nothing may paint before the book on screen is the one it's for.
+// Accept only when the current open has reached 'ready' AND the event's gen is not from a
+// superseded open. Unstamped events (no finite gen) reduce to the bookReady check alone —
+// defensive (never gen-dropped), but nothing may paint before the book on screen is the one
+// it's for.
 function acceptBookEvent(eventGen, currentGen, bookReady) {
     return !!bookReady && !staleRelocate(eventGen, currentGen)
+}
+
+// acceptReady(eventGen, currentGen) → is this 'ready' the one the CURRENT open is waiting for?
+// EXACT-MATCH, not newest-wins: currentGen is the gen QML issued for the open it asked for, so
+// the only acceptable stamped 'ready' is that exact gen — an older one is a superseded open's
+// queued 'ready' (drop; adopting it would re-arm bookReady mid-switch), and a newer one was
+// never issued (defect — never adopt). An unstamped 'ready' (pre-gen glue / bench) is accepted
+// defensively: never suppress the only signal that a book opened.
+function acceptReady(eventGen, currentGen) {
+    if (!Number.isFinite(eventGen)) return true
+    return eventGen === currentGen
 }
 
 // errorDisposition(eventGen, currentGen, bookReady) → 'open-fail' | 'operational' | 'drop'.
 //
 // 'error' cannot use acceptBookEvent: a failed OPEN never reaches 'ready', so its error must
-// surface precisely while bookReady is FALSE — yet a stale error from the superseded book in
-// that same window must not. The discriminator is the gen ORDER, not the window:
-//   • gen > currentGen  → 'open-fail': the NEW open failed before adopting its gen via 'ready'
-//     (a legit failed open always carries a gen newer than the last adopted one — 'ready'
-//     never ran for it). Caller should ADOPT this gen so later stragglers gen-drop cleanly.
-//   • gen == currentGen && bookReady → 'operational': the current, open book hit a non-fatal
-//     error (failed search/highlight) — trace, don't surface.
-//   • no finite gen → pre-gen/boot failure ('boot failed' carries no gen): keep the old
-//     behavior — surface pre-ready, trace when a book is up.
-//   • otherwise → 'drop': the superseded book's error (gen == currentGen inside the pre-ready
-//     window, or gen < currentGen any time) — never show A's failure over B.
+// surface precisely while bookReady is FALSE — but only the error of the open we ISSUED.
+// currentGen is set at issue time (openAtResume), so:
+//   • gen !== currentGen → 'drop': a superseded open's error (or a gen QML never issued) —
+//     never show book A's failure over book B, in any window.
+//   • gen === currentGen → this open: 'open-fail' before its 'ready' (show the failed-open
+//     surface), 'operational' after (failed search/highlight — trace, don't surface).
+//   • no finite gen → pre-gen/boot failure ('boot failed' carries no gen): surface pre-ready,
+//     trace when a book is up.
 function errorDisposition(eventGen, currentGen, bookReady) {
     if (!Number.isFinite(eventGen)) return bookReady ? "operational" : "open-fail"
-    if (eventGen > currentGen) return "open-fail"
-    if (eventGen === currentGen && bookReady) return "operational"
-    return "drop"
+    if (eventGen !== currentGen) return "drop"
+    return bookReady ? "operational" : "open-fail"
 }
 
 // railState(relocated, tocLength) → the progress-rail view model for Task 7's chrome.

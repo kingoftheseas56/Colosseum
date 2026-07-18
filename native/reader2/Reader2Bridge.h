@@ -76,11 +76,12 @@ signals:
     void dictResult(const QString& word, const QString& json, bool ok);
 private:
     // Fire the actual Wiktionary GET for `word` (URL term = `query`), with the IPv4 pin,
-    // an 8s timeout, and a ~512 KB response cap. Called either directly (host already
-    // resolved) or from the async DNS callback in dictLookup. Emits dictResult in every
-    // terminal path (ok / error / timeout / too-big). `word` is the emit key (matches the
-    // QML dictWord); `query` is the possibly-trimmed lookup term put in the URL.
-    void sendDictRequest(const QString& word, const QString& query);
+    // a `timeoutMs` timeout, and a ~512 KB response cap. Called either directly (host already
+    // resolved — full 8s budget) or from the async DNS callback in dictLookup (the REMAINING
+    // budget of the one overall 8s deadline, so DNS+HTTP never exceed 8s total). Emits
+    // dictResult in every terminal path (ok / error / timeout / too-big). `word` is the emit
+    // key (matches the QML dictWord); `query` is the possibly-trimmed lookup term in the URL.
+    void sendDictRequest(const QString& word, const QString& query, int timeoutMs);
 
     QNetworkAccessManager* m_nam;
     // The one book filesRead is allowed to serve (normalized/canonical). Empty = nothing
