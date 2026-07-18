@@ -50,6 +50,7 @@
 #include "player/downloadstore.h"
 #include "player/livestore.h"
 #include "player/mpvitem.h"
+#include "player/seekthumbnailer.h"
 #include "player/powerstore.h"
 #include "player/roomstore.h"
 #include "player/streamserver.h"
@@ -262,6 +263,7 @@ int main(int argc, char *argv[]) {
 
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
+    qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);

@@ -768,7 +768,7 @@ QString MpvItem::gifOutputDirectory() const
     return QDir(base).filePath(QStringLiteral("Colosseum"));
 }
 
-QString MpvItem::findFfmpeg() const
+QString MpvItem::findFfmpeg()
 {
     const QString exe = QStringLiteral("ffmpeg.exe");
     const QString appPath = QCoreApplication::applicationDirPath();

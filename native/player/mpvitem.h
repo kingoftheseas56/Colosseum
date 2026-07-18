@@ -170,8 +170,12 @@ private:
     QString sanitizeCapturePart(const QString &value) const;
     void gifCaptureFrame();
     QString gifOutputDirectory() const;
-    QString findFfmpeg() const;
     void cleanGifTemp();
+
+public:
+    static QString findFfmpeg();   // shared with SeekThumbnailer (exe dir -> tools/ -> PATH)
+
+private:
 
     double m_position{0.0};
     QString m_formattedPosition;

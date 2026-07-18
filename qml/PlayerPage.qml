@@ -2457,10 +2457,34 @@ Item {
 
     Rectangle { anchors.fill: parent; z: -1; color: "#000000" }
 
+    // F9 seek thumbnails: hover state + the extraction seam (C++ owns ffmpeg/cache).
+    property string hoverThumbUrl: ""
+    property real hoverThumbBucket: -1
+    function thumbBucketOf(t) { return Math.floor(Math.max(0, t) / 5) * 5 }
+    function requestSeekThumb() {
+        if (mpv.duration > 0 && !root.seeking && mpv.currentUrl.toString().length > 0)
+            seekThumbs.request(mpv.currentUrl, root.seekPreview)
+    }
+    SeekThumbnailer {
+        id: seekThumbs
+        onThumbReady: function(bucketSec, imageUrl) {
+            // Only paint the frame the cursor is still over; stale emits are re-served
+            // from cache the instant that bucket is hovered again.
+            if (bucketSec === root.thumbBucketOf(root.seekPreview)) {
+                root.hoverThumbBucket = bucketSec
+                root.hoverThumbUrl = imageUrl
+            }
+        }
+    }
     MpvItem {
         id: mpv
         anchors.fill: parent
         z: 0
+        onCurrentUrlChanged: {
+            seekThumbs.reset()          // new file = new frames; stale thumbs must not survive
+            root.hoverThumbUrl = ""
+            root.hoverThumbBucket = -1
+        }
         onFileStarted: {
             root.starting = true
             root.statusMsg = "Buffering..."
@@ -4011,18 +4035,36 @@ Item {
                         visible: mpv.duration > 0
                     }
                     Rectangle {
+                        // F9: timestamp-only until the frame for this bucket lands (that IS
+                        // the loading state — no spinner), then the card grows the thumbnail.
+                        readonly property bool hasThumb: root.hoverThumbUrl !== ""
+                                                         && root.hoverThumbBucket === root.thumbBucketOf(root.seekPreview)
                         visible: seekBar.hovered && !root.seeking && mpv.duration > 0
                         x: root.clamp(seekHover.mouseX - width / 2, 0, parent.width - width)
-                        y: -30
-                        width: previewText.implicitWidth + 16
-                        height: 28
+                        y: -(height + 2)
+                        width: hasThumb ? 216 : previewText.implicitWidth + 16
+                        height: hasThumb ? previewThumb.height + 36 : 28
                         radius: 7
                         color: Qt.rgba(0, 0, 0, 0.86)
                         border.width: 1
                         border.color: Qt.rgba(1, 1, 1, 0.10)
+                        Image {
+                            id: previewThumb
+                            anchors.top: parent.top
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.topMargin: 8
+                            width: 200
+                            height: Math.round(width * (sourceSize.height > 0 ? sourceSize.height / sourceSize.width : 9 / 16))
+                            visible: parent.hasThumb
+                            source: parent.hasThumb ? root.hoverThumbUrl : ""
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                        }
                         Text {
                             id: previewText
-                            anchors.centerIn: parent
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: parent.hasThumb ? 7 : (parent.height - implicitHeight) / 2
                             text: root.fmtTime(root.seekPreview)
                             color: theme.ink
                             font.family: theme.hud; font.features: ({ "tnum": 1 })
@@ -4036,7 +4078,7 @@ Item {
                         hoverEnabled: true
                         enabled: mpv.duration > 0
                         cursorShape: Qt.PointingHandCursor
-                        onEntered: { seekBar.hovered = true; root.wakeChrome() }
+                        onEntered: { seekBar.hovered = true; root.wakeChrome(); root.requestSeekThumb() }
                         onExited: {
                             seekBar.hovered = false
                             if (!root.seeking)
@@ -4045,6 +4087,7 @@ Item {
                         onPositionChanged: {
                             root.seekPreview = root.previewAt(mouseX, width)
                             root.wakeChrome()
+                            root.requestSeekThumb()
                         }
                         onPressed: {
                             root.seeking = true

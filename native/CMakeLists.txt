@@ -121,6 +121,8 @@ add_executable(colosseum
     player/livestore.h
     player/mpvitem.cpp
     player/mpvitem.h
+    player/seekthumbnailer.cpp
+    player/seekthumbnailer.h
     player/mpvproperties.h
     player/powerstore.cpp
     player/powerstore.h
