@@ -26,7 +26,9 @@
 
 #pragma once
 
+#include <QMap>
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QVariantList>
 
@@ -36,6 +38,15 @@ class QNetworkAccessManager;
 class QNetworkReply;
 
 namespace tankoban::manga::mangadex {
+
+// PHANTOM-VOLUME FOLD (2026-07-18, the Berserk finding) — exposed for the harness.
+// MangaDex files alternate-edition covers under decimal volume keys ("1.1" = a
+// variant cover OF volume 1, not a volume). A decimal key survives as a real
+// volume only when the chapter aggregate lists it (chapterAnchored); every other
+// decimal cover folds into floor(key): its tile disappears, and its cover is
+// donated to the base volume iff the base has none.
+void foldPhantomCoverVolumes(QMap<double, QString>& covers,
+                             const QSet<double>& chapterAnchored);
 
 class MangaDexCatalogClient : public QObject
 {

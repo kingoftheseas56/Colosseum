@@ -232,8 +232,36 @@ void MangaDexCatalogClient::stepAggregate(PendingFetchPtr pending)
     });
 }
 
+// See the header note: phantom decimal cover keys fold into their base volume;
+// a decimal survives only when the chapter aggregate anchors it. (Berserk: 58 of
+// 101 keys were variant-cover phantoms; systemic across ~half the sampled
+// catalogue, probe 2026-07-18. The aggregate was clean in every probe.)
+void foldPhantomCoverVolumes(QMap<double, QString>& covers,
+                             const QSet<double>& chapterAnchored)
+{
+    QMap<double, QString> donations;
+    for (auto it = covers.begin(); it != covers.end();) {
+        const double vol = it.key();
+        const bool integral = (vol == std::floor(vol));
+        if (integral || chapterAnchored.contains(vol)) { ++it; continue; }
+        const double base = std::floor(vol);
+        if (!donations.contains(base))
+            donations.insert(base, it.value());   // lowest variant donates (map is ascending)
+        it = covers.erase(it);
+    }
+    for (auto it = donations.cbegin(); it != donations.cend(); ++it) {
+        if (!covers.contains(it.key()))
+            covers.insert(it.key(), it.value());
+    }
+}
+
 void MangaDexCatalogClient::finish(PendingFetchPtr pending)
 {
+    QSet<double> anchored;
+    for (auto it = pending->ranges.cbegin(); it != pending->ranges.cend(); ++it)
+        anchored.insert(it.key());
+    foldPhantomCoverVolumes(pending->covers, anchored);
+
     // Union of cover volumes and range-only volumes, ascending (QMap keeps order).
     QMap<double, bool> all;
     for (auto it = pending->covers.cbegin(); it != pending->covers.cend(); ++it)
