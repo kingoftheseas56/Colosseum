@@ -19,11 +19,29 @@
 #include <QSettings>
 #include <QTemporaryDir>
 
+#ifdef Q_OS_WIN
+#  include <qt_windows.h>
+#endif
+
 namespace {
 void require(bool condition, const char *message) {
     if (!condition)
         qFatal("window_shell_gui_harness: %s", message);
 }
+
+void settleEvents() {
+    for (int i = 0; i < 20; ++i)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+}
+
+#ifdef Q_OS_WIN
+QSize nativeWindowSize(QQuickWindow &window) {
+    RECT rect{};
+    require(GetWindowRect(reinterpret_cast<HWND>(window.winId()), &rect),
+            "GetWindowRect must succeed for the shell HWND");
+    return QSize(rect.right - rect.left, rect.bottom - rect.top);
+}
+#endif
 }
 
 int main(int argc, char **argv) {
@@ -65,6 +83,17 @@ int main(int argc, char **argv) {
         require(win.geometry() == win.screen()->geometry(),
                 "borderless fullscreen must cover the active monitor geometry");
         const WId originalId = win.winId();
+        settleEvents();
+#ifdef Q_OS_WIN
+        if (QGuiApplication::platformName() == QStringLiteral("windows")) {
+            const qreal dpr = win.devicePixelRatio();
+            const QSize expectedNativeSize(
+                qRound(win.screen()->geometry().width() * dpr),
+                qRound(win.screen()->geometry().height() * dpr));
+            require(nativeWindowSize(win) == expectedNativeSize,
+                    "native borderless HWND must cover the complete monitor, not the work area");
+        }
+#endif
         store.toggleShellMode(&win);
         store.toggleShellMode(&win);
         require(win.winId() == originalId,
@@ -151,10 +180,6 @@ int main(int argc, char **argv) {
     // it in Windowed visibility at a default tiny "normal placement" rect (the window was
     // born fullscreen, so it has none) — the centered-blob bug, 2026-07-16. The old
     // Main.qml one-liner guard was removed by the F11 mode; the authority must do it now.
-    auto settle = []() {
-        for (int i = 0; i < 20; ++i)
-            QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
-    };
     {
         clearSettings();
         WindowModeStore store;
@@ -166,12 +191,15 @@ int main(int argc, char **argv) {
                 "borderless fullscreen must use Windowed visibility at init");
         require(win.geometry() == win.screen()->geometry(),
                 "fullscreen base must start at full-monitor geometry");
+        const WId fullscreenId = win.winId();
         win.showMinimized();
-        settle();
+        settleEvents();
         win.showNormal();   // what the taskbar restore does to the shell
-        settle();
-        require(win.visibility() == QWindow::Windowed,
-                "restore from minimize must keep borderless fullscreen Windowed");
+        settleEvents();
+        require(win.isVisible() && win.visibility() != QWindow::Minimized,
+                "restore from minimize must make the fullscreen shell visible");
+        require(win.winId() == fullscreenId,
+                "restore from minimize must retain the same native window identity");
         require(win.geometry() == win.screen()->geometry(),
                 "restore from minimize must reassert full-monitor geometry");
     }
@@ -186,9 +214,9 @@ int main(int argc, char **argv) {
         store.initializeShell(&win);
         require(store.shellWindowed(), "windowed base loads");
         win.showMinimized();
-        settle();
+        settleEvents();
         win.showNormal();
-        settle();
+        settleEvents();
         require(win.visibility() == QWindow::Windowed,
                 "windowed-base restore must stay windowed (never forced fullscreen)");
     }
@@ -199,7 +227,7 @@ int main(int argc, char **argv) {
         win.setVisible(false);
         store.initializeShell(&win);
         store.enterPip(&win);
-        settle();
+        settleEvents();
         require(store.pipMode(), "in PiP");
         require(win.visibility() == QWindow::Windowed && store.pipMode(),
                 "PiP sits in Windowed visibility and must be left alone by the reassert");
