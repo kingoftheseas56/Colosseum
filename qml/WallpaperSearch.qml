@@ -16,17 +16,44 @@ Item {
     property var selectedPick: ({})
     property var results: []
     property string statusText: ""
+    // Axis 1+2 (2026-07-18): paged multi-source search. One opaque state from
+    // WallpaperApi carries every source's cursor; Load more appends pages.
+    property var searchState: null
+    property string sorting: "relevance"     // "relevance" | "top" | "random"
+    property bool loading: false
+    readonly property bool canLoadMore: !loading && searchState !== null
+                                        && WallpaperApi.hasMore(searchState)
 
     signal closeRequested()
     signal applyRequested(string scope, string world, var pick)
 
     function runSearch() {
-        statusText = "Searching Wallhaven..."
+        statusText = "Searching..."
         results = []
-        WallpaperApi.search(searchField.text, function(rows, err) {
-            results = rows
-            statusText = err || (rows.length + " wallpapers")
+        searchState = WallpaperApi.freshState(searchField.text, sorting)
+        fetchMore()
+    }
+
+    function fetchMore() {
+        if (loading || !searchState)
+            return
+        loading = true
+        var state = searchState
+        WallpaperApi.fetchPage(state, function(rows, st, err) {
+            if (state !== root.searchState) { root.loading = false; return }   // a newer search superseded this reply
+            root.results = root.results.concat(rows)
+            root.loading = false
+            root.statusText = err || (root.results.length + " wallpapers"
+                                      + (WallpaperApi.hasMore(st) ? " · more available" : ""))
         })
+    }
+
+    function setSorting(mode) {
+        // Random re-rolls on every press (fresh seed) — that's its point.
+        if (sorting === mode && mode !== "random")
+            return
+        sorting = mode
+        runSearch()
     }
 
     Component.onCompleted: {
@@ -137,6 +164,46 @@ Item {
                 }
             }
 
+            // sort pills: Relevance / Top / Random (Random re-rolls on every press)
+            Row {
+                spacing: 8
+
+                Repeater {
+                    model: [ { "label": "Relevance", "mode": "relevance" },
+                             { "label": "Top", "mode": "top" },
+                             { "label": "Random", "mode": "random" } ]
+                    delegate: Rectangle {
+                        id: sortPill
+                        required property var modelData
+                        width: sortLabel.implicitWidth + 26
+                        height: 30
+                        radius: 999
+                        color: root.sorting === sortPill.modelData.mode ? "#c9a44a"
+                             : sortMa.containsMouse ? Qt.rgba(255, 255, 255, 0.16)
+                             : Qt.rgba(255, 255, 255, 0.08)
+                        border.width: root.sorting === sortPill.modelData.mode ? 0 : 1
+                        border.color: Qt.rgba(255, 255, 255, 0.14)
+
+                        Text {
+                            id: sortLabel
+                            anchors.centerIn: parent
+                            text: sortPill.modelData.label
+                            color: root.sorting === sortPill.modelData.mode ? "#15110a" : "#e8e4dc"
+                            font.pixelSize: 12
+                            font.weight: root.sorting === sortPill.modelData.mode ? Font.DemiBold : Font.Normal
+                        }
+
+                        MouseArea {
+                            id: sortMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.setSorting(sortPill.modelData.mode)
+                        }
+                    }
+                }
+            }
+
             Text {
                 Layout.fillWidth: true
                 text: root.statusText
@@ -174,10 +241,62 @@ Item {
                         cache: true
                     }
 
+                    // source badge — the grid mixes pools now; the chip says whose art it is
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.bottom: parent.bottom
+                        anchors.margins: 5
+                        width: badgeText.implicitWidth + 10
+                        height: 16
+                        radius: 8
+                        color: Qt.rgba(0, 0, 0, 0.62)
+
+                        Text {
+                            id: badgeText
+                            anchors.centerIn: parent
+                            text: resultTile.modelData.source
+                            color: "#d8d4cc"
+                            font.pixelSize: 9
+                        }
+                    }
+
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.selectedPick = resultTile.modelData
+                    }
+                }
+
+                // Load more — appends the next page from every source still serving
+                footer: Item {
+                    width: grid.width
+                    height: root.canLoadMore || root.loading ? 56 : 0
+
+                    Rectangle {
+                        anchors.centerIn: parent
+                        visible: root.canLoadMore || root.loading
+                        width: 148
+                        height: 36
+                        radius: 999
+                        color: root.loading ? Qt.rgba(255, 255, 255, 0.08)
+                             : moreMa.containsMouse ? "#d6b357" : "#c9a44a"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.loading ? "Loading..." : "Load more"
+                            color: root.loading ? "#b8b2a8" : "#15110a"
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                        }
+
+                        MouseArea {
+                            id: moreMa
+                            anchors.fill: parent
+                            enabled: root.canLoadMore
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.fetchMore()
+                        }
                     }
                 }
             }
