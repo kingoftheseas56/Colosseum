@@ -1,7 +1,7 @@
 # Weekly Shonen Jump Universe Page: The Editorial Archive
 
 **Date:** 2026-07-16  
-**Status:** Approved concept, awaiting written-spec review  
+**Status:** IMPLEMENTED 2026-07-18 — Agent 5 (Claude), Hemanth free-reign commission. Deviations recorded at foot.  
 **Target:** Replace the current `MagazineUniversePage.qml` presentation for Weekly Shonen Jump while preserving Colosseum's provider-ID law and MAL magazine registry.
 
 ## 1. Product intent
@@ -275,3 +275,29 @@ The page is complete when:
 - Every manga entry opens the manga-series page.
 - Offline and partial states remain coherent and honest.
 - The result feels bespoke to Weekly Shonen Jump and unmistakably part of Colosseum.
+
+---
+
+## 12. Implementation record (2026-07-18, Agent 5 (Claude))
+
+Shipped as a full rewrite of `MagazineUniversePage.qml` + `MagazineApi.js`, with the WSJ
+entry in `Universes.js` extended (sourced `heroLine`, verified print `milestones`, sourced
+`eraNotes`, curated `fallbackEras`). Gates: `tests/magazine_registry_harness.qml` (pure
+logic — era boundaries, dedup, sorts), `tests/magazine_page_load_harness.qml` (page born
+offline stands whole and honest), `tests/test_magazine_universe_p0.ps1` (shape contract,
+including a hard ban on the word "circulation" across the lane).
+
+Deliberate deviations from §3:
+
+1. **Per-era local search cut.** One search lives in the Complete Registry index with
+   per-volume filter pills — the per-era field duplicated that machinery (reduction reflex).
+2. **Era grids collapse to 18 with an "open the full volume" expander** instead of
+   unbounded inline grids — first-paint discipline; the full era is one click away.
+3. **Archive throttle is page-driven** (QML Timer, 460 ms + one silent 2.6 s retry per
+   page before surfacing RESUME FILING) — pacing is a UI concern, the JS lane stays pure.
+4. The four era spines live in the masthead as specced; their hover reveal renders in a
+   shared strip under the shelf rather than per-spine popovers.
+
+Verification note: Jikan was fully unreachable throughout the build session (connection
+timeout), so the live filing walk awaits the feed's return — the offline and partial
+states specced in §8 are exactly what shipped, and are what the harnesses prove.

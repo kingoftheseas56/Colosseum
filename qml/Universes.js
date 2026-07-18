@@ -432,13 +432,59 @@ var universes = [
                       "batman beyond return of the joker", "batman mystery of the batwoman" ],
       chips: [ { t: "8 Shows", ic: "movies" }, { t: "4 Films", ic: "movies" }, { t: "Comics", ic: "comics" } ] },
     // the MAGAZINE template: Jump publishes MANGA — no anime/film queries at all
-    // (Hemanth 2026-07-12). The readQueries are the ranked lineup, one flagship each.
+    // (Hemanth 2026-07-12 ruling). Second form 2026-07-18 (A5 free-reign commission): THE
+    // EDITORIAL ARCHIVE — the page represents the magazine as a sixty-year institution
+    // (spec: docs/superpowers/specs/2026-07-16-weekly-shonen-jump-editorial-archive-design.md).
     { name: "Weekly Shonen Jump", c1: "#3a1414", category: "magazine",
       blurb: "Shueisha's arena since 1968 — the magazine where One Piece, Naruto, Bleach and Dragon Ball fought for the reader's vote.",
       banner: "https://upload.wikimedia.org/wikipedia/en/0/02/Jump-Cover-1.jpg",
       // MAL's serialization registry pin (myanimelist.net/manga/magazine/83) — Jikan rides it;
-      // the registry drives In This Issue / the all-time vote / the Back Issues era shelves
+      // the registry drives The Current Desk / the Hall of Champions / the four archive volumes
       malMagazineId: 83,
+      // sourced hero copy (spec §9 — the approved line, not an AI franchise blurb)
+      heroLine: "The world's most popular manga factory.",
+      heroLineSource: "Wikipedia — Weekly Shōnen Jump",
+      // verified PRINT history (Wikipedia, checked 2026-07-18) — always presented as print
+      // milestones, never mixed with MAL member counts (the honesty law, spec §2)
+      milestones: [
+          { year: "1968", fact: "launches July 11 at 105,000 copies" },
+          { year: "1995", fact: "peaks at 6.53 million copies a week" },
+          { year: "2026", fact: "still above a million copies weekly" } ],
+      // per-volume sourced historical notes for the archive's left pages (Wikipedia, 2026-07-18)
+      eraNotes: {
+          founding: "Launched July 11, 1968, with a first print of 105,000 copies — Shueisha's late entry into the weekly arena.",
+          golden:   "The golden age: 6.53 million copies a week at the 1995 peak, the best-selling manga magazine ever printed.",
+          bigthree: "One Piece sets sail in 1997; with Naruto and Bleach it carries Jump through its global era.",
+          newgen:   "The survey never stops — a new generation enters the ranking, and the magazine still clears a million copies a week." },
+      // era fallback flagships — the four volumes stand on these whenever Jikan is
+      // unreachable (spec §8): facts only (title · byline · real Jump start year, MAL-checked
+      // 2026-07-18 where the registry listed them), no covers, no member claims.
+      fallbackEras: {
+          founding: [ { t: "KochiKame",                       a: "Osamu Akimoto",      y: 1976 },
+                      { t: "Ring ni Kakero",                  a: "Masami Kurumada",    y: 1977 },
+                      { t: "Cobra",                           a: "Buichi Terasawa",    y: 1978 },
+                      { t: "Kinnikuman",                      a: "Yudetamago",         y: 1979 } ],
+          golden:   [ { t: "Dragon Ball",                     a: "Akira Toriyama",     y: 1984 },
+                      { t: "Saint Seiya",                     a: "Masami Kurumada",    y: 1986 },
+                      { t: "JoJo's Bizarre Adventure",        a: "Hirohiko Araki",     y: 1986 },
+                      { t: "Slam Dunk",                       a: "Takehiko Inoue",     y: 1990 },
+                      { t: "Yu Yu Hakusho",                   a: "Yoshihiro Togashi",  y: 1990 },
+                      { t: "Rurouni Kenshin",                 a: "Nobuhiro Watsuki",   y: 1994 } ],
+          bigthree: [ { t: "One Piece",                       a: "Eiichiro Oda",       y: 1997 },
+                      { t: "Hunter x Hunter",                 a: "Yoshihiro Togashi",  y: 1998 },
+                      { t: "Naruto",                          a: "Masashi Kishimoto",  y: 1999 },
+                      { t: "Bleach",                          a: "Tite Kubo",          y: 2001 },
+                      { t: "Death Note",                      a: "Ohba & Obata",       y: 2003 },
+                      { t: "Gintama",                         a: "Hideaki Sorachi",    y: 2003 },
+                      { t: "Haikyu!!",                        a: "Haruichi Furudate",  y: 2012 },
+                      { t: "My Hero Academia",                a: "Kohei Horikoshi",    y: 2014 } ],
+          newgen:   [ { t: "Demon Slayer: Kimetsu no Yaiba",  a: "Koyoharu Gotouge",   y: 2016 },
+                      { t: "The Promised Neverland",          a: "Shirai & Demizu",    y: 2016 },
+                      { t: "Dr. Stone",                       a: "Inagaki & Boichi",   y: 2017 },
+                      { t: "Jujutsu Kaisen",                  a: "Gege Akutami",       y: 2018 },
+                      { t: "Sakamoto Days",                   a: "Yuto Suzuki",        y: 2020 },
+                      { t: "Blue Box",                        a: "Kouji Miura",        y: 2021 },
+                      { t: "Kagurabachi",                     a: "Takeru Hokazono",    y: 2023 } ] },
       readQueries: [ "One Piece", "Naruto", "Bleach", "Dragon Ball", "Hunter x Hunter",
                      "My Hero Academia", "Jujutsu Kaisen", "Demon Slayer: Kimetsu no Yaiba",
                      "Chainsaw Man", "Death Note" ],
