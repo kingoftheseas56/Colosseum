@@ -4213,6 +4213,18 @@ Item {
                         tooltip: root.downloadTooltip()
                         onClicked: root.handleDownloadAction()
                     }
+
+                    FillMenuButton {
+                        id: fillMenu
+                        // Main HUD icon (Hemanth 2026-07-18), LEFT cluster: the right side
+                        // is ~700px of text chips and collided (his screenshot); the left
+                        // has the free room and its budget absorbs one more 48px button
+                        // under the snug threshold. Folds to the overflow at snug, like
+                        // stream/download beside it. (Harbor ships this control hidden by
+                        // default in bottom-right — no precedent worth colliding for.)
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !root.barSnug || fillMenu.panelOpen
+                    }
                 }
 
                 Row {
@@ -4345,17 +4357,6 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !root.barTiny || speedMenu.panelOpen
                     }
-
-                    FillMenuButton {
-                        id: fillMenu
-                        // Promoted to a main HUD icon (Hemanth 2026-07-18). Folds at the
-                        // SNUG tier — the width budget (utilitySpace doctrine above) was
-                        // tuned with this button folded, so it only rides the bar in the
-                        // roomy band (fullscreen = always, per fullscreen-only doctrine).
-                        anchors.verticalCenter: parent.verticalCenter
-                        visible: !root.barSnug || fillMenu.panelOpen
-                    }
-
 
                     // Narrow player folds hidden controls (audio/speed/picture/volume) here
                     // instead of deleting them (parity spec slice 3, 2026-07-06).
