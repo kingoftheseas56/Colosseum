@@ -1,10 +1,6 @@
 $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
-$qmlExe = "C:\Qt\6.11.1\msvc2022_64\bin\qml.exe"
-if (!(Test-Path -LiteralPath $qmlExe)) {
-    throw "qml.exe not found at $qmlExe"
-}
 
 function Read-RepoFile([string]$relativePath) {
     return Get-Content -Raw -LiteralPath (Join-Path $root $relativePath)
@@ -46,11 +42,9 @@ Assert-NotContains $ledger 'downloadIssueTorrent' `
 Assert-Contains $ledger 'ed.modelData.display_title || ed.modelData.title' `
     "Ledger rows and download labels must prefer the exact-ISBN canonical edition name."
 
-$env:QT_FORCE_STDERR_LOGGING = "1"
-$harness = Join-Path $PSScriptRoot "comics_catalog_logic_harness.qml"
-$output = cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-String
-if ($LASTEXITCODE -ne 0 -or $output -notlike "*COMICS_CATALOG_OK*") {
-    throw "Comics catalog logic harness failed (exit $LASTEXITCODE):`n$output"
-}
+# The JS logic harness (comics_catalog_logic_harness.qml) retired 2026-07-18 with the
+# pre-reboot Top-Comics ranked wall and its catalog-model JS. The catalogue engine's own
+# ranked/genre/downloadable logic is covered C++-side by comics_catalog_engine_harness.cpp;
+# what remains here are the retirement + setEngine + ledger-availability static contracts.
 
 Write-Host "comics catalog v1: OK"

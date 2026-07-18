@@ -1,8 +1,9 @@
 // Genre shelves for comics (2026-07-15): ComicsDb summarizes the catalog's
-// `genres` field into mosaic shelves, and the catalog page filters by one.
+// `genres` field into mosaic shelves (the JS face of the ComicsCatalog
+// curatedGenreShelves seam). The old Top-Comics catalog page that filtered by
+// one shelf was torn down 2026-07-18; this probe keeps the shelf-summary check.
 import QtQuick
 import "../qml/ComicsDb.js" as ComicsDb
-import "../qml/ComicCatalogModel.js" as CatalogModel
 
 Item {
     Component.onCompleted: {
@@ -33,16 +34,6 @@ Item {
                 throw new Error("Fantasy(2) should lead, got " + shelves[0].name + "(" + shelves[0].count + ")")
             if (shelves[0].covers.indexOf("c2") < 0 || shelves[0].covers.indexOf("c4") < 0)
                 throw new Error("shelf covers missing")
-
-            // catalog filter: genre narrows, combines with query
-            var prepared = CatalogModel.prepare(rows, function() { return false })
-            var fantasy = CatalogModel.filter(prepared, "", false, "Fantasy")
-            if (fantasy.length !== 2) throw new Error("genre filter expected 2, got " + fantasy.length)
-            var fantasyQ = CatalogModel.filter(prepared, "fab", false, "Fantasy")
-            if (fantasyQ.length !== 1 || fantasyQ[0].title !== "Fables")
-                throw new Error("genre+query filter broken")
-            var noGenre = CatalogModel.filter(prepared, "", false, "")
-            if (noGenre.length !== 5) throw new Error("empty genre must not filter")
 
             console.log("COMIC_GENRE_SHELVES_OK")
             Qt.exit(0)

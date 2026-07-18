@@ -223,7 +223,6 @@ Window {
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (comicSeriesLayer.active) win.closeComicSeries()
-        else if (comicCatalogLayer.active) win.closeComicCatalog()
         else if (westernLayer.active) win.closeWestern()
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
@@ -531,18 +530,6 @@ Window {
         } else comicSeriesLayer.active = true
     }
     function closeComicSeries() { comicSeriesLayer.active = false }
-
-    // ---- complete ranked comics catalog: opened from Top Comics Explore and kept alive
-    //      underneath ComicSeriesPage so Back returns to the same wall state. ----
-    function openComicCatalog(rows, genre) {
-        comicCatalogLayer.rows = rows || []
-        comicCatalogLayer.genre = genre || ""
-        if (comicCatalogLayer.active && comicCatalogLayer.item) {
-            comicCatalogLayer.item.rows = comicCatalogLayer.rows
-            comicCatalogLayer.item.genre = comicCatalogLayer.genre
-        } else comicCatalogLayer.active = true
-    }
-    function closeComicCatalog() { comicCatalogLayer.active = false }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -1475,12 +1462,6 @@ Window {
                     if (comicSeriesSignal) comicSeriesSignal.connect(win.openComicSeries)
                     var gcdSignal = item["gcdSeriesRequested"]
                     if (gcdSignal) gcdSignal.connect(win.openGcdSeries)
-                    var comicCatalogSignal = item["comicCatalogRequested"]
-                    if (comicCatalogSignal) comicCatalogSignal.connect(win.openComicCatalog)
-                    var comicGenreSignal = item["comicGenreRequested"]
-                    if (comicGenreSignal) comicGenreSignal.connect(function(payload) {
-                        win.openComicCatalog((payload || {}).rows, (payload || {}).genre)
-                    })
                     var locgPubSignal = item["locgPublisherRequested"]
                     if (locgPubSignal) locgPubSignal.connect(win.openLocgPublisher)
                     var comicBoardSignal = item["comicArchiveBoardRequested"]
@@ -1776,8 +1757,6 @@ Window {
         }
     }
 
-    // ---- complete Top Comics catalog wall. z 49 keeps it above TankobanWorld but below
-    //      ComicSeriesPage (z 50), preserving filters and scroll while a series is open. ----
     // On-demand comics-catalog ingest (see comicsDbHit) — never active at startup.
     Loader {
         id: comicsDbLoader
@@ -1794,27 +1773,6 @@ Window {
         active: false
         visible: active
         source: "BakeoffStripHost.qml"
-    }
-
-    Loader {
-        id: comicCatalogLayer
-        anchors.fill: parent
-        z: 49
-        active: false
-        visible: active
-        property var rows: []
-        property string genre: ""
-        source: "ComicCatalogPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.rows = comicCatalogLayer.rows
-            item.genre = comicCatalogLayer.genre
-            item.backRequested.connect(win.closeComicCatalog)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            item.searchClicked.connect(win.openSearch)
-            item.seriesRequested.connect(win.openComicSeries)
-        }
     }
 
     // ---- Continue see-all layer: the whole resume backlog, scoped per door (home/world).
