@@ -1,0 +1,199 @@
+"""build_mal_db.py — bake the Kaggle MyAnimeList dump into data/mal_catalog.db.
+
+The genre-page revival (Hemanth, 2026-07-18): Jikan's /anime?genres= and
+/manga?genres= filter endpoints 504 chronically, so genre browsing now reads a
+LOCAL catalog baked from the weekly-updated public dump
+(kaggle: andreuvallhernndez/myanimelist). kagglehub downloads it ANONYMOUSLY —
+no account, no token — so the standing keyless law holds even at build time.
+Same doctrine as the GCD comics spine and the Goodreads dump: dumps in, one
+SQLite artifact out, the app reads only the artifact (data/*.db is gitignored).
+
+Rows are stored JIKAN-SHAPED where it matters (type/status strings match what
+api.jikan.moe returns) so the QML card mappers consume them unchanged.
+
+Usage:  python scripts/anime_brain/build_mal_db.py
+Output: data/mal_catalog.db  (tables: anime, manga, tag, tag_count, meta)
+"""
+from __future__ import annotations
+
+import ast
+import csv
+import io
+import json
+import os
+import sqlite3
+import sys
+import zipfile
+from datetime import datetime, timezone
+
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DB_PATH = os.path.join(REPO, "data", "mal_catalog.db")
+DATASET = "andreuvallhernndez/myanimelist"
+
+# keep the browsable slice lean: pages show 24 cards; nothing below this many
+# members ever surfaces on a ranked genre page. Counts are computed BEFORE the
+# slice, so the hero's "N titles" line stays the true catalog total.
+KEEP_TOP_BY_MEMBERS = 20000
+SYNOPSIS_CAP = 320
+
+ANIME_TYPE = {"tv": "TV", "movie": "Movie", "ova": "OVA", "ona": "ONA",
+              "special": "Special", "music": "Music", "tv_special": "TV Special",
+              "cm": "CM", "pv": "PV"}
+ANIME_STATUS = {"finished_airing": "Finished Airing",
+                "currently_airing": "Currently Airing",
+                "not_yet_aired": "Not yet aired"}
+MANGA_TYPE = {"manga": "Manga", "light_novel": "Light Novel", "one_shot": "One-shot",
+              "novel": "Novel", "manhwa": "Manhwa", "manhua": "Manhua",
+              "doujinshi": "Doujinshi"}
+MANGA_STATUS = {"currently_publishing": "Publishing", "finished": "Finished",
+                "on_hiatus": "On Hiatus", "discontinued": "Discontinued",
+                "not_yet_published": "Not yet published"}
+
+
+def fetch_csv(name: str):
+    import kagglehub
+    path = kagglehub.dataset_download(DATASET, path=name)
+    # kagglehub serves single files zip-wrapped under the csv's own name
+    with open(path, "rb") as f:
+        magic = f.read(2)
+    if magic == b"PK":
+        z = zipfile.ZipFile(path)
+        return io.TextIOWrapper(z.open(name), encoding="utf-8", errors="replace", newline="")
+    return open(path, encoding="utf-8", errors="replace", newline="")
+
+
+def listify(raw: str):
+    """Dump list columns are python-repr strings: "['Action', 'Drama']"."""
+    s = (raw or "").strip()
+    if not s or s == "[]":
+        return []
+    try:
+        v = ast.literal_eval(s)
+        return [str(x).strip() for x in v if str(x).strip()] if isinstance(v, list) else []
+    except (ValueError, SyntaxError):
+        return []
+
+
+def num(raw, cast=float):
+    try:
+        v = cast(float(raw))
+        return v
+    except (TypeError, ValueError):
+        return None
+
+
+def year_of(row, *cols):
+    for c in cols:
+        s = (row.get(c) or "").strip()
+        if len(s) >= 4 and s[:4].isdigit():
+            return int(s[:4])
+    return None
+
+
+def clean_synopsis(raw: str) -> str:
+    s = " ".join((raw or "").split())
+    s = s.replace("[Written by MAL Rewrite]", "").strip()
+    return s[:SYNOPSIS_CAP]
+
+
+def load_rows(fname, medium):
+    out = []
+    with fetch_csv(fname) as f:
+        for row in csv.DictReader(f):
+            if (row.get("sfw") or "").strip().lower() != "true":
+                continue
+            if medium == "anime" and (row.get("approved") or "").strip().lower() == "false":
+                continue
+            mal_id = num(row.get(medium + "_id"), int)
+            title = (row.get("title") or "").strip()
+            if not mal_id or not title:
+                continue
+            tags = listify(row.get("genres")) + listify(row.get("themes")) \
+                 + listify(row.get("demographics"))
+            out.append({
+                "mal_id": int(mal_id),
+                "title": title,
+                "title_english": (row.get("title_english") or "").strip(),
+                "type": (ANIME_TYPE if medium == "anime" else MANGA_TYPE)
+                        .get((row.get("type") or "").strip().lower(),
+                             (row.get("type") or "").strip()),
+                "score": num(row.get("score")),
+                "scored_by": int(num(row.get("scored_by"), int) or 0),
+                "members": int(num(row.get("members"), int) or 0),
+                "status": (ANIME_STATUS if medium == "anime" else MANGA_STATUS)
+                          .get((row.get("status") or "").strip().lower(),
+                               (row.get("status") or "").strip()),
+                "episodes": int(num(row.get("episodes"), int) or 0),
+                "volumes": int(num(row.get("volumes"), int) or 0),
+                "chapters": int(num(row.get("chapters"), int) or 0),
+                "year": year_of(row, "start_year", "start_date", "real_start_date"),
+                "cover": (row.get("main_picture") or "").strip(),
+                "synopsis": clean_synopsis(row.get("synopsis")),
+                "credits": json.dumps(
+                    listify(row.get("studios" if medium == "anime" else "authors"))[:3]),
+                "tags": tags,
+            })
+    return out
+
+
+def bake():
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    tmp = DB_PATH + ".building"
+    if os.path.exists(tmp):
+        os.remove(tmp)
+    db = sqlite3.connect(tmp)
+    db.executescript("""
+        CREATE TABLE anime (mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT,
+            type TEXT, score REAL, scored_by INTEGER, members INTEGER, status TEXT,
+            episodes INTEGER, year INTEGER, cover TEXT, synopsis TEXT,
+            credits TEXT, tags TEXT);
+        CREATE TABLE manga (mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT,
+            type TEXT, score REAL, scored_by INTEGER, members INTEGER, status TEXT,
+            volumes INTEGER, chapters INTEGER, year INTEGER, cover TEXT, synopsis TEXT,
+            credits TEXT, tags TEXT);
+        CREATE TABLE tag (medium TEXT, tag TEXT, mal_id INTEGER);
+        CREATE TABLE tag_count (medium TEXT, tag TEXT, total INTEGER,
+            PRIMARY KEY (medium, tag));
+        CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+    """)
+
+    for medium, fname in (("anime", "anime.csv"), ("manga", "manga.csv")):
+        rows = load_rows(fname, medium)
+        # true totals per tag BEFORE the browsable slice
+        totals = {}
+        for r in rows:
+            for t in r["tags"]:
+                totals[t] = totals.get(t, 0) + 1
+        db.executemany("INSERT INTO tag_count VALUES (?,?,?)",
+                       [(medium, t, n) for t, n in totals.items()])
+
+        rows.sort(key=lambda r: r["members"], reverse=True)
+        kept = rows[:KEEP_TOP_BY_MEMBERS]
+        for r in kept:
+            cols = ["mal_id", "title", "title_english", "type", "score", "scored_by",
+                    "members", "status"]
+            cols += ["episodes"] if medium == "anime" else ["volumes", "chapters"]
+            cols += ["year", "cover", "synopsis", "credits"]
+            db.execute(
+                f"INSERT INTO {medium} ({','.join(cols)}, tags) VALUES "
+                f"({','.join('?' * len(cols))}, ?)",
+                [r[c] for c in cols] + [json.dumps(r["tags"])])
+            db.executemany("INSERT INTO tag VALUES (?,?,?)",
+                           [(medium, t, r["mal_id"]) for t in r["tags"]])
+        print(f"{medium}: {len(rows)} sfw rows -> kept top {len(kept)} by members, "
+              f"{len(totals)} tags")
+
+    db.execute("CREATE INDEX idx_tag ON tag (medium, tag, mal_id)")
+    db.execute("INSERT INTO meta VALUES ('baked_at', ?)",
+               (datetime.now(timezone.utc).isoformat(),))
+    db.execute("INSERT INTO meta VALUES ('dataset', ?)", (DATASET,))
+    db.commit()
+    db.close()
+    if os.path.exists(DB_PATH):
+        os.remove(DB_PATH)
+    os.rename(tmp, DB_PATH)
+    print("baked:", DB_PATH, f"({os.path.getsize(DB_PATH) / 1048576:.1f} MB)")
+
+
+if __name__ == "__main__":
+    sys.exit(bake())

@@ -214,6 +214,21 @@ function cinemetaToCard(kind, meta, i) {
 function loadGenre(kind, name, sort, push) {
     function fail() { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); }
     if (kind === "anime") {
+        // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
+        // instantly, offline, in Jikan's own row shape — animeToCard consumes it
+        // unchanged. Missing/empty catalog falls through to the live ladder below.
+        if (typeof MalCatalog !== "undefined" && MalCatalog.ready()) {
+            var baked = MalCatalog.genreEntries("anime", name,
+                                                sort === "score" ? "score" : "members", 24);
+            if (baked && baked.length) {
+                var bakedCards = baked.map(animeToCard);
+                var bakedMontage = bakedCards.slice(0, 7).map(function(c) { return c.cover; })
+                                             .filter(function(u) { return u; });
+                push({ count: MalCatalog.genreCount("anime", name) || bakedCards.length,
+                       desc: descFor(name), cards: bakedCards, montage: bakedMontage });
+                return;
+            }
+        }
         ensureAnimeGenres(function() {
             var g = animeGenreEntry(name);
             // No genre id (Jikan /genres/anime down, or a name Jikan doesn't list)

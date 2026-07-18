@@ -99,6 +99,8 @@ add_executable(colosseum
     engine/ComicDlsParse.h
     engine/ComicsCatalog.cpp
     engine/ComicsCatalog.h
+    engine/MalCatalog.cpp
+    engine/MalCatalog.h
     engine/LocalDownloads.cpp
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp

@@ -40,6 +40,7 @@
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/ComicsCatalog.h"
+#include "engine/MalCatalog.h"
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
@@ -450,6 +451,11 @@ int main(int argc, char *argv[]) {
     // is pipeline-deployed to data/ (cwd = repo root), dormant when absent.
     auto *comicsCatalog = new ComicsCatalog(QStringLiteral("data/comics_catalog.db"), &app);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicsCatalog"), comicsCatalog);
+
+    // Baked MyAnimeList catalog (genre-page revival 2026-07-18): same doctrine —
+    // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
+    auto *malCatalog = new MalCatalog(QStringLiteral("data/mal_catalog.db"), &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);

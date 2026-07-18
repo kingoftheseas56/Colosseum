@@ -164,6 +164,21 @@ function kitsuGenre(name, sort, push) {
 // Jikan first; ANY failure or empty answer drops to the Kitsu rung — the page never blanks
 // unless both wells are dry.
 function loadGenre(name, sort, push) {
+    // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
+    // instantly, offline, in Jikan's own row shape — toCard consumes it
+    // unchanged. Missing/empty catalog falls through to the live ladder below.
+    if (typeof MalCatalog !== "undefined" && MalCatalog.ready()) {
+        var baked = MalCatalog.genreEntries("manga", name,
+                                            sort === "score" ? "score" : "members", 24);
+        if (baked && baked.length) {
+            var bakedCards = baked.map(toCard);
+            var bakedMontage = bakedCards.slice(0, 7).map(function(c) { return c.cover; })
+                                         .filter(function(u) { return u; });
+            push({ count: MalCatalog.genreCount("manga", name) || bakedCards.length,
+                   desc: descFor(name), cards: bakedCards, montage: bakedMontage });
+            return;
+        }
+    }
     var id = idFor(name);
     if (!id) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
     var order = (sort === "score") ? "score&sort=desc" : "popularity&sort=asc";   // popularity asc = MAL "by members"
