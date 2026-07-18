@@ -311,25 +311,6 @@ Item {
                 }
             }
 
-            Row {
-                Layout.alignment: Qt.AlignVCenter
-                spacing: 12
-                opacity: bar.open ? 0.78 : 0
-                enabled: bar.open
-
-                Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-
-                Repeater {
-                    model: ["wifi", "bluetooth", "battery"]
-                    delegate: Image {
-                        required property string modelData
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 18; height: 18
-                        source: "../assets/icons/" + modelData + ".svg"
-                        fillMode: Image.PreserveAspectFit
-                    }
-                }
-            }
         }
     }
 
