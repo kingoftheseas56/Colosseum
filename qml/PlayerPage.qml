@@ -4,7 +4,6 @@ pragma ComponentBehavior: Bound
 // Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI.
 import QtQuick
 import QtQuick.Window
-import QtQuick.Effects
 import QtCore
 import Colosseum.Player
 import "Subtitles.js" as Subtitles
@@ -144,6 +143,14 @@ Item {
     property int upNextCountdownSec: 10
     property int upNextRemainingSec: 0
     property bool overflowOpen: false
+    property point contextMenuPos: Qt.point(0, 0)
+    function openContextMenu(p) {
+        var wasOpen = root.overflowOpen
+        root.closeMenus()
+        root.contextMenuPos = p
+        root.overflowOpen = !wasOpen
+        root.wakeChrome()
+    }
     // Destructive-path guard: closing while media is actively playing asks once
     // (spec 2026-07-06 slice 5 — minimize stays instant, paused/idle close is instant too).
     property bool closeConfirmOpen: false
@@ -2702,14 +2709,20 @@ Item {
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         // Cursor vanishes WITH the HUD (Hemanth 2026-07-09: no sore-thumb arrow floating
         // mid-screen after the bar fades). Mirrors the chrome's own visibility expression
         // (controlsShown && !starting) so they hide/show as one. Any pointer motion fires
         // wakeChrome → controlsShown true → the arrow is back instantly.
         cursorShape: (root.controlsShown && !root.starting) ? Qt.ArrowCursor : Qt.BlankCursor
         onPositionChanged: root.wakeChrome()
-        onClicked: {
+        onClicked: function(mouse) {
+            // Right-click = More controls at the cursor (native-player convention,
+            // Hemanth 2026-07-18) — the ⋯ button it replaces is gone from the bar.
+            if (mouse.button === Qt.RightButton) {
+                root.openContextMenu(mapToItem(chrome, mouse.x, mouse.y))
+                return
+            }
             // A click that only dismisses an open menu must NOT also toggle play/pause.
             if (root.anyMenuOpen) {
                 root.closeMenus()
@@ -3073,30 +3086,15 @@ Item {
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
 
-            // Native chrome: rise above the ⋯ button (right-aligned Plasma-tray style),
-            // clamped to the window; the tail points down at the button wherever it sits.
-            property real tailX: width - 30
+            // Context menu (2026-07-18): opens at the right-click cursor, clamped to the
+            // window like every OS menu — the ⋯ button (and its tail) is gone from the bar.
             onVisibleChanged: if (visible) {
-                var p = overflowButton.mapToItem(chrome, 0, 0)
-                var desiredX = p.x + overflowButton.width - width
-                var clampedX = root.clamp(desiredX, 10, chrome.width - width - 10)
-                x = clampedX
-                y = p.y - height - 12
-                tailX = root.clamp(p.x + overflowButton.width / 2 - clampedX, 14, width - 14)
+                x = root.clamp(root.contextMenuPos.x, 10, chrome.width - width - 10)
+                y = root.clamp(root.contextMenuPos.y, 10, chrome.height - height - 10)
             }
 
             // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
-            Rectangle {
-                // appletTail — pointer at the ⋯ button.
-                width: 8; height: 8
-                rotation: 45
-                x: overflowPanel.tailX - width / 2
-                anchors.verticalCenter: parent.bottom
-                color: parent.color
-                border.width: 1
-                border.color: Qt.rgba(1, 1, 1, 0.14)
-            }
 
             Column {
                 id: overflowColumn
@@ -4358,22 +4356,8 @@ Item {
                         visible: !root.barTiny || speedMenu.panelOpen
                     }
 
-                    // Narrow player folds hidden controls (audio/speed/picture/volume) here
-                    // instead of deleting them (parity spec slice 3, 2026-07-06).
-                    RoundButton {
-                        id: overflowButton
-                        visible: true   // the four real tools always live here
-                        size: 48
-                        icon: "more"
-                        tooltip: "More controls"
-                        active: root.overflowOpen
-                        onClicked: {
-                            var wasOpen = root.overflowOpen
-                            root.closeMenus()
-                            root.overflowOpen = !wasOpen
-                            root.wakeChrome()
-                        }
-                    }
+                    // More-controls (and the narrow-bar folds) live on the video's
+                    // RIGHT-CLICK menu now (Hemanth 2026-07-18) — no ⋯ button on the bar.
 
                     // Window verbs (minimize · close) moved to the titlebar (native chrome
                     // spec 2026-07-08) — one home for them, like every OS. See id: titleBarVerbs.
@@ -4507,7 +4491,6 @@ Item {
         id: rb
         property int size: 48
         property string icon: ""
-        property string svgIcon: ""   // when set, an SVG asset replaces the canvas glyph
         property string label: ""
         property string tooltip: ""
         property bool hero: false
@@ -4528,27 +4511,10 @@ Item {
         }
         IconGlyph {
             anchors.fill: parent
-            visible: rb.svgIcon === ""
             kind: rb.icon
             label: rb.label
             hero: rb.hero
             ink: rb.active ? theme.gold : theme.ink
-        }
-        Image {
-            id: svgGlyph
-            anchors.centerIn: parent
-            width: Math.round(rb.size * 0.46)
-            height: width
-            visible: false           // painted via the tint effect below
-            source: rb.svgIcon
-            sourceSize: Qt.size(width * 2, height * 2)   // crisp on hidpi
-        }
-        MultiEffect {
-            anchors.fill: svgGlyph
-            source: svgGlyph
-            visible: rb.svgIcon !== ""
-            colorization: 1
-            colorizationColor: rb.active ? theme.gold : theme.ink
         }
         MouseArea {
             id: press
@@ -5110,7 +5076,7 @@ Item {
         RoundButton {
             anchors.fill: parent
             size: 48
-            svgIcon: Qt.resolvedUrl("../assets/icons/aspect-ratio.svg")
+            icon: "fit"
             active: fm.panelOpen || root.fillModeIndex !== 0
             tooltip: "Aspect ratio"
             onClicked: {
