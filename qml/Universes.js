@@ -116,7 +116,6 @@ var universes = [
     // names are impostor minefields — Loki/Hawkeye/Echo/What If all collide; Ms. Marvel
     // and She-Hulk sit on ADJACENT ids). X-Men '97 carries no phase (Marvel assigns none).
     { name: "Marvel Cinematic Universe", c1: "#1a2436", category: "cinematic",
-      archived: true,   // benched 2026-07-18 (Hemanth: waits for a proper free-reign rebuild)
       // Wikipedia lead, fetched 2026-07-18 (verbatim) — sourced copy, never self-written
       blurb: "The Marvel Cinematic Universe (MCU) is an American media franchise and shared universe centered on a series of superhero films produced by Marvel Studios. The films are based on characters from American comic books published by Marvel Comics.",
       blurbSource: "Wikipedia — Marvel Cinematic Universe",
@@ -842,9 +841,9 @@ promoteUniverse("Cosmere", 1);
 // the Hall of Worlds; configFor/categoryFor still resolve benched entries so template
 // harnesses and any stored door keep working. To bring a universe back: build its custom
 // page, then delete its archived flag.
-// On the shelf now (4): One Piece · Cosmere · Dragon Ball · Weekly Shonen Jump.
-// (Marvel joined the bench 2026-07-18 — its cinematic page predates the free-reign bar
-// and waits for a proper custom rebuild.)
+// On the shelf now (5): One Piece · Cosmere · Marvel Cinematic Universe · Dragon Ball ·
+// Weekly Shonen Jump. (Marvel counts as custom — Hemanth's ratification 2026-07-18; its
+// phase panels dropped their box-office descriptions the same day.)
 // ════════════════════════════════════════════════════════════════════════════════════════
 var archive = universes.filter(function(u) { return u.archived === true; });
 universes = universes.filter(function(u) { return u.archived !== true; });

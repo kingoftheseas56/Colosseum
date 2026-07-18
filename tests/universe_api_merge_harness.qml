@@ -45,12 +45,10 @@ QtObject {
 
         // --- the shelf ruling (Hemanth 2026-07-18): only the custom-made pages stay live;
         //     the rest are benched with every pin intact, returning one by one ---
-        if (UDB.universes.length !== 4) throw new Error("the shelf holds the 4 custom pages, got " + UDB.universes.length)
-        if (UDB.archive.length !== 17) throw new Error("the bench must hold 17 universes (Marvel joined 2026-07-18), got " + UDB.archive.length)
+        if (UDB.universes.length !== 5) throw new Error("the shelf holds the 5 custom pages, got " + UDB.universes.length)
+        if (UDB.archive.length !== 16) throw new Error("the bench must hold the 16 template universes, got " + UDB.archive.length)
         var shelf = UDB.universes.map(function(u) { return u.name })
-        if (shelf.indexOf("Marvel Cinematic Universe") !== -1)
-            throw new Error("Marvel waits on the bench for its free-reign rebuild")
-        var custom = ["One Piece", "Cosmere", "Dragon Ball", "Weekly Shonen Jump"]
+        var custom = ["One Piece", "Cosmere", "Marvel Cinematic Universe", "Dragon Ball", "Weekly Shonen Jump"]
         for (var s = 0; s < custom.length; s++)
             if (shelf.indexOf(custom[s]) === -1)
                 throw new Error(custom[s] + " must stand on the shelf")

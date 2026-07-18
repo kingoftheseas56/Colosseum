@@ -331,12 +331,8 @@ Item {
                        font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 3; font.bold: true }
                 Text { text: cp.phase ? cp.phase.saga : ""; color: theme.ink
                        font.family: theme.display; font.pixelSize: 24 }
-                Text {
-                    text: cp.phase ? cp.phase.description : ""
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.4
-                    Layout.fillWidth: true; Layout.topMargin: 4
-                    wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
-                }
+                // no phase description — the box-office prose was cut (Hemanth 2026-07-18);
+                // the posters carry the phase, the panel stays capstone + road only
                 Item { Layout.preferredHeight: 12 }   // breathing room before the road row
                 Text { text: "THE ROAD"; color: theme.inkDimmer; font.family: theme.ui
                        font.pixelSize: 10; font.letterSpacing: 2; Layout.bottomMargin: 2 }
