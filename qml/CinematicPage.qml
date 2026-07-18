@@ -340,7 +340,11 @@ Item {
                 Item { Layout.preferredHeight: 12 }   // breathing room before the road row
                 Text { text: "THE ROAD"; color: theme.inkDimmer; font.family: theme.ui
                        font.pixelSize: 10; font.letterSpacing: 2; Layout.bottomMargin: 2 }
-                Row {
+                // a Flow, not a Row — Phase 3 carries ten road films and a single line ran
+                // off the right edge of the screen (Hemanth 2026-07-18). Wrapping keeps every
+                // poster visible; the panel already grows to fit its body.
+                Flow {
+                    Layout.fillWidth: true
                     spacing: 14
                     Repeater {
                         model: cp.roadFilms
