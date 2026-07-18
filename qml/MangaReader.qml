@@ -25,8 +25,11 @@ Item {
     property var    chapters: []              // ALL chapters (newest-first) — for the modal + crossing
     property string chapterId: ""             // incoming open target (from the series view)
     property string chapterLabel: ""          // incoming fallback label
+    readonly property bool shellWindowed:
+        typeof WindowMode !== "undefined" && WindowMode.shellWindowed
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
 
     // --- western switch: the SAME reader, fed by the Comics store (GetComics
@@ -1471,6 +1474,16 @@ Item {
                 opacity: miMa.containsMouse ? 1 : 0.7
                 MouseArea { id: miMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: reader.minimizeRequested() } }
+            Image {
+                source: reader.shellWindowed ? "../assets/icons/fullscreen.svg"
+                                             : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 18; sourceSize.height: 18
+                width: 18; height: 18; fillMode: Image.PreserveAspectFit
+                anchors.verticalCenter: parent.verticalCenter
+                opacity: fsMa.containsMouse ? 1 : 0.7
+                MouseArea { id: fsMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    onClicked: reader.fullscreenRequested() }
+            }
             Image { source: "../assets/icons/power.svg"; sourceSize.width: 18; sourceSize.height: 18
                 width: 18; height: 18; fillMode: Image.PreserveAspectFit; anchors.verticalCenter: parent.verticalCenter
                 opacity: poMa.containsMouse ? 1 : 0.7

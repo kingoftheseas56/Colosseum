@@ -71,4 +71,29 @@ if ($main -notmatch 'item\.minimized\.connect\(win\.minimizeBookReader\)[\s\S]{0
     throw 'bookReaderLayer does not route fullscreen through Main'
 }
 
-Write-Host 'test_fullscreen_controls_p0: shell + player + book contract PASS'
+$mangaReader = Get-Content (Join-Path $root 'qml/MangaReader.qml') -Raw
+if ($mangaReader -notmatch 'signal fullscreenRequested\(\)') {
+    throw 'MangaReader lost fullscreenRequested()'
+}
+if ($mangaReader -notmatch 'reader\.shellWindowed\s*\?\s*"\.\./assets/icons/fullscreen\.svg"[\s\S]{0,100}"\.\./assets/icons/fullscreen-exit\.svg"') {
+    throw 'MangaReader does not swap the house fullscreen action icon'
+}
+if ($mangaReader -notmatch 'onClicked:\s*reader\.fullscreenRequested\(\)') {
+    throw 'MangaReader fullscreen button does not emit the semantic request'
+}
+foreach ($hostName in @('MangaSeries.qml', 'ComicSeries.qml', 'ComicSeriesPage.qml')) {
+    $hostText = Get-Content (Join-Path $root "qml/$hostName") -Raw
+    if ($hostText -notmatch 'signal readerFullscreenRequested\(\)') {
+        throw "$hostName lost readerFullscreenRequested()"
+    }
+    if ($hostText -notmatch 'onFullscreenRequested:\s*page\.readerFullscreenRequested\(\)') {
+        throw "$hostName does not forward MangaReader fullscreen"
+    }
+}
+$comicMainLinks = [regex]::Matches(
+    $main, 'item\.readerFullscreenRequested\.connect\(win\.toggleFullscreenShell\)').Count
+if ($comicMainLinks -ne 3) {
+    throw "Main must connect all three comic-reader hosts (found $comicMainLinks)"
+}
+
+Write-Host 'test_fullscreen_controls_p0: all fullscreen control contracts PASS'

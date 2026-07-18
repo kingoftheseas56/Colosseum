@@ -1714,6 +1714,7 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
+            item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
         }
     }
@@ -1746,6 +1747,7 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
+            item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
         }
     }
@@ -1771,6 +1773,7 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
+            item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
             item.locgMeta = comicSeriesLayer.locgMeta
             item.locgId = comicSeriesLayer.locgSid       // set LAST — triggers attach()

@@ -22,6 +22,7 @@ Item {
     // the READER's own chrome, distinct from this page's topbar: minimize = the comic session
     // drops to the Colosseum taskbar; close = the session is closed (Windows-window vocabulary).
     signal readerMinimizeRequested()
+    signal readerFullscreenRequested()
     signal readerCloseRequested()
 
     // --- resolved state ---
@@ -911,6 +912,7 @@ Item {
         onBackRequested: { page.openChapterId = ""; page.openChapterLabel = ""; page.openEntryKind = "manga" }
         onSourceRequested: (entryId) => page._handleVolumeSource(entryId)
         onMinimizeRequested: page.readerMinimizeRequested()
+        onFullscreenRequested: page.readerFullscreenRequested()
         onCloseRequested: page.readerCloseRequested()
     }
 

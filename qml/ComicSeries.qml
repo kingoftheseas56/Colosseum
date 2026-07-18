@@ -29,6 +29,7 @@ Item {
     signal closeRequested()
     // reader chrome verbs (Windows-window vocabulary, same as MangaSeries)
     signal readerMinimizeRequested()
+    signal readerFullscreenRequested()
     signal readerCloseRequested()
 
     // --- resolved state ---
@@ -731,6 +732,7 @@ Item {
         chapterLabel: page.openChapterLabel
         onBackRequested: { page.openChapterId = ""; page.openChapterLabel = "" }
         onMinimizeRequested: page.readerMinimizeRequested()
+        onFullscreenRequested: page.readerFullscreenRequested()
         onCloseRequested: page.readerCloseRequested()
     }
 }
