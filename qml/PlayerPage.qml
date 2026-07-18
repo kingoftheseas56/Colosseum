@@ -4,6 +4,7 @@ pragma ComponentBehavior: Bound
 // Streaming remains behind the Stream.play -> streamReady seam; this file only owns player UI.
 import QtQuick
 import QtQuick.Window
+import QtQuick.Effects
 import QtCore
 import Colosseum.Player
 import "Subtitles.js" as Subtitles
@@ -3128,7 +3129,7 @@ Item {
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
                         { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
                         { "label": "Speed", "kind": "speed", "when": root.barTiny },
-                        { "label": "Picture", "kind": "fill", "when": true }
+                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug }
                     ]
                     delegate: Rectangle {
                         required property var modelData
@@ -4347,7 +4348,12 @@ Item {
 
                     FillMenuButton {
                         id: fillMenu
-                        visible: fillMenu.panelOpen
+                        // Promoted to a main HUD icon (Hemanth 2026-07-18). Folds at the
+                        // SNUG tier — the width budget (utilitySpace doctrine above) was
+                        // tuned with this button folded, so it only rides the bar in the
+                        // roomy band (fullscreen = always, per fullscreen-only doctrine).
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: !root.barSnug || fillMenu.panelOpen
                     }
 
 
@@ -4500,6 +4506,7 @@ Item {
         id: rb
         property int size: 48
         property string icon: ""
+        property string svgIcon: ""   // when set, an SVG asset replaces the canvas glyph
         property string label: ""
         property string tooltip: ""
         property bool hero: false
@@ -4520,10 +4527,27 @@ Item {
         }
         IconGlyph {
             anchors.fill: parent
+            visible: rb.svgIcon === ""
             kind: rb.icon
             label: rb.label
             hero: rb.hero
             ink: rb.active ? theme.gold : theme.ink
+        }
+        Image {
+            id: svgGlyph
+            anchors.centerIn: parent
+            width: Math.round(rb.size * 0.46)
+            height: width
+            visible: false           // painted via the tint effect below
+            source: rb.svgIcon
+            sourceSize: Qt.size(width * 2, height * 2)   // crisp on hidpi
+        }
+        MultiEffect {
+            anchors.fill: svgGlyph
+            source: svgGlyph
+            visible: rb.svgIcon !== ""
+            colorization: 1
+            colorizationColor: rb.active ? theme.gold : theme.ink
         }
         MouseArea {
             id: press
@@ -5085,9 +5109,9 @@ Item {
         RoundButton {
             anchors.fill: parent
             size: 48
-            icon: "fit"
+            svgIcon: Qt.resolvedUrl("../assets/icons/aspect-ratio.svg")
             active: fm.panelOpen || root.fillModeIndex !== 0
-            tooltip: "Video fill"
+            tooltip: "Aspect ratio"
             onClicked: {
                 var wasOpen = fm.panelOpen
                 root.closeMenus()
