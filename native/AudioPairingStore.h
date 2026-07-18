@@ -33,9 +33,14 @@ class AudioPairingStore : public QObject {
     Q_OBJECT
     Q_PROPERTY(int revision READ revision NOTIFY changed)
 public:
+    // DEFAULT-constructed QSettings on purpose (2026-07-18 fix): it resolves through the
+    // application identity (org/app names main.cpp sets to Brotherhood/Colosseum — same
+    // hive as before in prod). The old hardcoded names meant TEST processes wrote the
+    // USER'S live registry hive no matter what identity they set — the autoattach harness
+    // wiped every real book↔audiobook pairing on each suite run. A test that sets its own
+    // org/app names now gets its own disposable hive automatically.
     explicit AudioPairingStore(QObject *parent = nullptr)
-        : QObject(parent),
-          m_settings(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum")) {
+        : QObject(parent) {
         load();
     }
 

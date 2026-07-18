@@ -71,12 +71,22 @@ int main(int argc, char** argv)
     QCoreApplication app(argc, argv);
     QStandardPaths::setTestModeEnabled(true);
 
+    // TEST-SCOPED QSettings identity (2026-07-18 fix): QStandardPaths test mode redirects
+    // FILE paths only — QSettings still resolves to the REAL registry hive of whatever
+    // org/app names are set. This harness previously wiped Brotherhood/Colosseum's live
+    // `audiobook/pairings` on EVERY run — silently destroying the user's real book↔audiobook
+    // attachments (root cause of the dead Audio tab, 2026-07-18). Distinct names give
+    // AudioPairingStore (default-constructed QSettings) its own disposable hive.
+    app.setOrganizationName(QStringLiteral("BrotherhoodTest"));
+    app.setApplicationName(QStringLiteral("ColosseumAutoattachHarness"));
+
     // Deterministic across repeated runs (the "verify the committed artifact" rerun
     // depends on this): wipe the sandboxed audiobook dir + the pairing QSettings this
     // harness writes, so a prior run's persisted pairing never leaks into this one.
+    // (Test hive ONLY — never the live Brotherhood/Colosseum registry.)
     QDir(audiobooksBaseDir()).removeRecursively();
     {
-        QSettings s(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));
+        QSettings s(QStringLiteral("BrotherhoodTest"), QStringLiteral("ColosseumAutoattachHarness"));
         s.remove(QStringLiteral("audiobook/pairings"));
         s.sync();
     }

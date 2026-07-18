@@ -770,8 +770,10 @@ Window {
         if (!path) return
         bookReaderLayer.bookPath = path
         bookReaderLayer.bookMeta = book || ({})
-        if (bookReaderLayer.active && bookReaderLayer.item) bookReaderLayer.item.openBook(path)
-        else bookReaderLayer.active = true
+        if (bookReaderLayer.active && bookReaderLayer.item) {
+            bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta   // fresh catalog identity per book
+            bookReaderLayer.item.openBook(path)
+        } else bookReaderLayer.active = true
     }
     function closeBookReader() { bookReaderLayer.active = false }
 
@@ -1985,6 +1987,7 @@ Window {
         source: "reader2/ReaderShell.qml"
         onLoaded: {
             item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
+            item.bookMeta = bookReaderLayer.bookMeta   // catalog identity → the pairing self-heal
             item.openBook(bookReaderLayer.bookPath)
             item.closed.connect(win.closeBookReaderSession)
         }

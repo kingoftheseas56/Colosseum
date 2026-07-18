@@ -15,6 +15,7 @@
 // [Agent 2 (Claude), biblio]
 import QtQuick
 import "Reader2Logic.js" as L
+import "../BiblioApi.js" as B    // pairKey(title, author) — the ONE derivation Biblio keys audiobooks by
 
 FocusScope {
     id: shell
@@ -894,12 +895,44 @@ FocusScope {
         paper.open(path, L.resumeCfiOf(entry), shell.currentGen)
     }
 
+    // Catalog metadata for the open book ({title, author, pairKey?…}), injected by the host
+    // (Main.qml's bookReaderLayer). Only the pairing SELF-HEAL below reads it — the shell's
+    // own display identity still comes from the paper's 'ready' metadata. Optional: the
+    // standalone harness injects nothing and the heal simply no-ops.
+    property var bookMeta: ({})
+
+    // PAIRING SELF-HEAL (2026-07-18): the book page's auto-attach passes the reader's bookId
+    // at DOWNLOAD time — if the epub's local path wasn't resolved at that exact moment, the
+    // attach silently never happened, and the Audio tab stayed dead even with the audiobook
+    // fully on disk (the reported miss). The reader knows its own bookId and can derive the
+    // SAME title|author pairKey Biblio keys audiobooks by — so on every open: pairing absent
+    // + a downloaded audiobook matching this book's pairKey → write the missing pairing right
+    // here. Timing-proof; revision-driven bindings light the Audio tab immediately.
+    function healAudioPairing() {
+        if (typeof AudioPairing === "undefined" || typeof Audiobooks === "undefined") return
+        if (shell.bookId === "") return
+        var existing = AudioPairing.getPairing(shell.bookId)
+        if (existing && existing.pairKey) return         // already attached — nothing to heal
+        var meta = shell.bookMeta || ({})
+        var pk = (meta.pairKey !== undefined && meta.pairKey !== null && String(meta.pairKey) !== "")
+               ? String(meta.pairKey)
+               : B.pairKey(meta.title || "", meta.author || "")
+        if (pk === "" || pk === "|") return              // no usable identity → nothing to match by
+        if (!Audiobooks.isDownloaded(pk)) return         // no audiobook on disk for this book
+        AudioPairing.savePairing(shell.bookId, {
+            "pairKey": pk,
+            "dirPath": Audiobooks.localAudiobook(pk)
+        })
+        if (shell.readerDebug) console.log("[shell] healed audio pairing:", shell.bookId, "→", pk)
+    }
+
     function openBook(path) {
         shell.flushProgressSave()          // don't lose the previous book's last position (Part B4)
         shell.bookReady = false            // the new book hasn't reached 'ready' yet (Part B3 gate)
         shell.openErrorShown = false       // drop any prior failed-open surface
         shell.openErrorText = ""
         bookPath = path
+        shell.healAudioPairing()           // repair a missed auto-attach before the panel binds
         if (paper.glueUp) shell.openAtResume(path)
     }
 }
