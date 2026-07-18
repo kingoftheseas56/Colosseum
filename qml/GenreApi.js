@@ -163,18 +163,21 @@ function kitsuGenre(name, sort, push) {
 // load a genre page. sort: "readers" (default) | "score". push gets one payload object.
 // Jikan first; ANY failure or empty answer drops to the Kitsu rung — the page never blanks
 // unless both wells are dry.
-function loadGenre(name, sort, push) {
+// `catalog` is the MalCatalog context object, PASSED IN from the page — this file
+// is a `.pragma library` and cannot see context properties by name (the 2026-07-18
+// bug: the baked catalog never rendered because `MalCatalog` was undefined here).
+function loadGenre(name, sort, push, catalog) {
     // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
     // instantly, offline, in Jikan's own row shape — toCard consumes it
     // unchanged. Missing/empty catalog falls through to the live ladder below.
-    if (typeof MalCatalog !== "undefined" && MalCatalog.ready()) {
-        var baked = MalCatalog.genreEntries("manga", name,
-                                            sort === "score" ? "score" : "members", 24);
+    if (catalog && catalog.ready()) {
+        var baked = catalog.genreEntries("manga", name,
+                                         sort === "score" ? "score" : "members", 24);
         if (baked && baked.length) {
             var bakedCards = baked.map(toCard);
             var bakedMontage = bakedCards.slice(0, 7).map(function(c) { return c.cover; })
                                          .filter(function(u) { return u; });
-            push({ count: MalCatalog.genreCount("manga", name) || bakedCards.length,
+            push({ count: catalog.genreCount("manga", name) || bakedCards.length,
                    desc: descFor(name), cards: bakedCards, montage: bakedMontage });
             return;
         }

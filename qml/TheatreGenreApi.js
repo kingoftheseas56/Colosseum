@@ -211,20 +211,23 @@ function cinemetaToCard(kind, meta, i) {
 }
 
 // load a genre page. kind: "movie" | "series" | "anime". sort: "readers" (watchers) | "score".
-function loadGenre(kind, name, sort, push) {
+// `catalog` is the MalCatalog context object, PASSED IN from the page — this file
+// is a `.pragma library` and cannot see context properties by name (the 2026-07-18
+// bug: the baked catalog never rendered because `MalCatalog` was undefined here).
+function loadGenre(kind, name, sort, push, catalog) {
     function fail() { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); }
     if (kind === "anime") {
         // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
         // instantly, offline, in Jikan's own row shape — animeToCard consumes it
         // unchanged. Missing/empty catalog falls through to the live ladder below.
-        if (typeof MalCatalog !== "undefined" && MalCatalog.ready()) {
-            var baked = MalCatalog.genreEntries("anime", name,
-                                                sort === "score" ? "score" : "members", 24);
+        if (catalog && catalog.ready()) {
+            var baked = catalog.genreEntries("anime", name,
+                                             sort === "score" ? "score" : "members", 24);
             if (baked && baked.length) {
                 var bakedCards = baked.map(animeToCard);
                 var bakedMontage = bakedCards.slice(0, 7).map(function(c) { return c.cover; })
                                              .filter(function(u) { return u; });
-                push({ count: MalCatalog.genreCount("anime", name) || bakedCards.length,
+                push({ count: catalog.genreCount("anime", name) || bakedCards.length,
                        desc: descFor(name), cards: bakedCards, montage: bakedMontage });
                 return;
             }

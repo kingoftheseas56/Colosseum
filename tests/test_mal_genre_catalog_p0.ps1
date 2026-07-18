@@ -11,13 +11,28 @@ if ($main -notmatch 'MalCatalog.*data/mal_catalog\.db') { throw 'MalCatalog not 
 $cmake = Get-Content (Join-Path $root 'native/CMakeLists.txt') -Raw
 if ($cmake -notmatch 'engine/MalCatalog\.cpp') { throw 'MalCatalog.cpp not in the app target' }
 
-# both lanes go catalog-first...
+# Both lanes go catalog-first via a PASSED-IN catalog param, never a bare global.
+# A .pragma library script cannot see context properties: a MalCatalog global is
+# always undefined there (the 2026-07-18 "still on AniList" bug). The page passes it in.
 foreach ($f in @('qml/TheatreGenreApi.js', 'qml/GenreApi.js')) {
     $src = Get-Content (Join-Path $root $f) -Raw
-    if ($src -notmatch 'MalCatalog[\s\S]{0,40}ready\(\)') { throw "$f lost the baked-catalog-first path" }
-    if ($src -notmatch 'genreEntries\(') { throw "$f no longer queries the baked catalog" }
-    # ...and the LIVE ladder must survive beneath (a fresh machine has no db)
+    if ($src -notmatch 'function loadGenre\(.*catalog') {
+        throw "$f loadGenre must take a catalog param (pragma-library cannot see the global)"
+    }
+    if ($src -match 'MalCatalog\.ready' -or $src -match 'MalCatalog\.genreEntries') {
+        throw "$f references the MalCatalog global directly; use the passed-in catalog"
+    }
+    if ($src -notmatch 'catalog\.ready\(\)') { throw "$f lost the passed-in catalog-first guard" }
+    if ($src -notmatch 'catalog\.genreEntries\(') { throw "$f no longer queries the passed-in catalog" }
     if ($src -notmatch 'api\.jikan\.moe') { throw "$f lost its live Jikan fallback" }
+}
+
+# The PAGES must actually hand MalCatalog down (they have context access; the libs do not).
+foreach ($pg in @('qml/TheatreGenrePage.qml', 'qml/GenrePage.qml')) {
+    $src = Get-Content (Join-Path $root $pg) -Raw
+    if ($src -notmatch 'MalCatalog') {
+        throw "$pg must pass MalCatalog into loadGenre, or the baked catalog never renders"
+    }
 }
 $tga = Get-Content (Join-Path $root 'qml/TheatreGenreApi.js') -Raw
 if ($tga -notmatch 'graphql\.anilist\.co') { throw 'TheatreGenreApi lost the AniList rung' }

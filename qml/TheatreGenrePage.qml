@@ -33,10 +33,12 @@ Item {
 
     function reload() {
         root.loading = true
+        // MalCatalog passed IN: the API is a .pragma library and can't see context
+        // properties — the page has context access, so it hands the object down.
         Api.loadGenre(root.mediaKind, root.genreName, root.sortMode, function(p) {
             if (p) root.genreData = p
             root.loading = false
-        })
+        }, typeof MalCatalog !== "undefined" ? MalCatalog : null)
     }
     Component.onCompleted: reload()
     onGenreNameChanged: reload()
