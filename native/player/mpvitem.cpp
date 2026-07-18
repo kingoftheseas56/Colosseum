@@ -768,6 +768,17 @@ QString MpvItem::gifOutputDirectory() const
     return QDir(base).filePath(QStringLiteral("Colosseum"));
 }
 
+void MpvItem::setGlslShaders(const QStringList &paths)
+{
+    // mpv's path-list separator is ';' on Windows, ':' elsewhere.
+#ifdef Q_OS_WIN
+    const QChar sep = QLatin1Char(';');
+#else
+    const QChar sep = QLatin1Char(':');
+#endif
+    setProperty(QStringLiteral("glsl-shaders"), paths.join(sep));
+}
+
 QString MpvItem::findFfmpeg()
 {
     const QString exe = QStringLiteral("ffmpeg.exe");

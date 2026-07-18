@@ -121,6 +121,9 @@ public:
                                  const QString &lang = QString(), bool select = true);
     Q_INVOKABLE void setSubOption(const QString &key, const QVariant &value);
     Q_INVOKABLE QVariant mpvProperty(const QString &name);
+    // F10 Anime4K: absolute .glsl paths, empty list = upscaling off. Dedicated seam on
+    // purpose — QML gets no generic mpv property poke.
+    Q_INVOKABLE void setGlslShaders(const QStringList &paths);
     Q_INVOKABLE QString captureFrame(const QString &title = QString(), const QString &subtitle = QString());
     Q_INVOKABLE void revealCaptureFolder(const QString &path = QString());
     Q_INVOKABLE bool startGifRecording();
