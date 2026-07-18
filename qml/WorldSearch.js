@@ -2,12 +2,8 @@
 // shape the generic SearchSurface renders: { cover, title, subtitle, data }. `data` is what the host
 // routes to the world's detail (manga → a title string for MangaSeries; theatre → the Cinemeta meta).
 //   • Theatre → Cinemeta (the Theatre world's own source)
-//   • Tankoban → AniList GraphQL (manga) + GetComics tags (western comics)
-// Both verified reachable 2026-06-27; GetComics WP REST proven 2026-07-04.
+//   • Tankoban → AniList GraphQL (manga) + the local SQLite catalogue (comics)
 .pragma library
-.import "ComicsApi.js" as ComicsApi
-.import "ComicsDb.js" as ComicsDb
-.import "LocgApi.js" as Locg
 
 function reqJson(url, done) {
     var xhr = new XMLHttpRequest();
@@ -69,37 +65,6 @@ function scoreTitle(query, title) {
     if (t.indexOf(q) === 0) return 300;
     if ((" " + t + " ").indexOf(" " + q + " ") >= 0) return 200;
     if (t.indexOf(q) >= 0) return 100;
-    return 0;
-}
-// ── Catalog-lane scoring: the phrase tiers above are too strict for our own DB.
-// Users type more words than a run's short title ("justice league unlimited" vs
-// our "Justice League"), which zeroed every catalog row and left GetComics alone
-// in the results (screenshot bug 2026-07-15). Phrase tiers still win; below them
-// a token tier: subset either direction beats plain overlap, more shared words =
-// closer name. Catalog lane only — Theatre keeps the strict scorer. ──
-var CATALOG_STOP = { the: 1, a: 1, an: 1, of: 1, and: 1, vol: 1, volume: 1 };
-function catalogTokens(s) {
-    var raw = normTitle(s).split(" ");
-    var out = [];
-    for (var i = 0; i < raw.length; i++)
-        if (raw[i] && !CATALOG_STOP[raw[i]]) out.push(raw[i]);
-    return out;
-}
-function scoreCatalogTitle(query, title) {
-    var phrase = scoreTitle(query, title);
-    if (phrase > 0) return phrase;
-    var q = catalogTokens(query), t = catalogTokens(title);
-    if (!q.length || !t.length) return 0;
-    // unique-token sets: "Justice League: No Justice" must not count "justice"
-    // twice and fake a full match for "justice league unlimited"
-    var qset = {}, tset = {}, qn = 0, tn = 0, shared = 0, w;
-    for (var i = 0; i < q.length; i++) if (!qset[q[i]]) { qset[q[i]] = 1; qn += 1; }
-    for (var j = 0; j < t.length; j++) if (!tset[t[j]]) { tset[t[j]] = 1; tn += 1; }
-    for (w in tset) if (qset[w]) shared += 1;
-    if (shared === tn || shared === qn)                // one name inside the other
-        return 60 + Math.min(30, shared * 10);
-    if (shared >= 2)                                   // same family ("Justice League of America")
-        return 40 + Math.min(15, shared * 5);
     return 0;
 }
 function pickTopMatch(query, all) {
@@ -194,164 +159,53 @@ function searchManga(query, done) {
     xhr.send(JSON.stringify({ query: gql, variables: { s: query.trim() } }));
 }
 
-// ── Tankoban: manga (AniList) + western comics (GetComics tags), one surface.
-// Western cards carry data.western so the host routes them to the GetComics
-// shelf (ComicSeries) instead of the WeebCentral series page. ──
-function searchWestern(query, done) {
-    ComicsApi.searchSeries(query, function(tags) {
-        if (!tags || tags.length === 0) { done([]); return; }
-        var out = tags.map(function(t) {
-            return {
-                cover: "",                       // iTunes poster filled in below
-                title: t.title,
-                subtitle: t.count + (t.count === 1 ? " release" : " releases"),
-                meta: "GetComics   ·   " + t.count + " releases",
-                synopsis: "",
-                backdrop: "",
-                group: "Comics · GetComics",
-                data: { western: true, tag: t.tag, tagId: t.tagId, title: t.title }
-            };
-        });
-        var pending = out.length;
-        out.forEach(function(item) {
-            ComicsApi.posterFor(item.title + " comic", function(art) {
-                item.cover = art;
-                pending -= 1;
-                if (pending === 0) done(out);
-            });
-        });
-    });
-}
-
-// Offline GCD catalog lane. ComicsDb rides the ComicsCatalog SQLite engine (handed over when
-// the lazy Tankoban world or ComicsDbLoader activates), so importing the singleton here is free.
-function searchCatalog(query) {
-    if (!query || query.trim().length < 2 || !ComicsDb.ready()) return [];
-    var rows = ComicsDb.rankedSeries();
-    var matches = [];
-    for (var i = 0; i < rows.length; ++i) {
-        var row = rows[i];
-        var relevance = scoreCatalogTitle(query, row.title);
-        if (relevance <= 0) continue;
-        matches.push({
-            cover: row.cover || "",
-            // CARD title carries the run year — the catalog legitimately holds several
-            // runs of one name (Justice League 2011/2016/2018) and bare titles rendered
-            // them as identical cards (screenshot bug 2026-07-16). data.title below stays
-            // PURE for routing + dedup.
-            title: row.year ? row.title + " (" + row.year + ")" : row.title,
-            subtitle: row.publisher || "Comic series",
-            meta: "Comics   ·   " + (row.publisher || "Collected editions"),
-            synopsis: "",
-            backdrop: "",
-            group: "Comics",
-            rank: row.rank || i,
-            _catalogScore: relevance,
-            data: {
-                locg: true,
-                id: row.locgId,
-                title: row.title,
-                cover: row.cover || "",
-                locgMeta: { publisher: row.publisher || "" }
-            }
-        });
-    }
-    matches.sort(function(a, b) {
-        return b._catalogScore - a._catalogScore || a.rank - b.rank;
-    });
-    return matches.slice(0, 48);
-}
-
-// The availability-first catalogue lane (spec 2026-07-17): run-scoped results from
-// the SQLite seam. `engine` is the ComicsCatalog context property, passed in from
-// QML — a .pragma library can't see context properties itself.
+// The comics lane (spec 2026-07-18): the availability-first SQLite catalogue is the
+// ONLY comics source in search. C++ owns matching + ranking (word-based, phrase
+// tiers, downloads DESC); this mapping just dresses rows for the surface.
+// `engine` is the ComicsCatalog context property, passed in from QML — a .pragma
+// library can't see context properties itself.
 function searchCatalogDb(query, engine) {
     if (!engine || !engine.ready()) return [];
     var q = String(query || "").trim();
     if (q.length < 2) return [];
-    var hits = engine.search(q, 12), out = [];
+    var hits = engine.search(q, 30), out = [];
     for (var i = 0; i < hits.length; i++) {
         var h = hits[i];
-        out.push({ cover: h.cover || "", title: h.title,
+        out.push({ cover: h.cover || "",
+                   // CARD title wears the run year — the catalogue legitimately holds
+                   // several runs of one name (Justice League 2011/2016/2018) and bare
+                   // titles rendered identical cards (screenshot bug 2026-07-16).
+                   // data.title below stays PURE for routing.
+                   title: h.year ? h.title + " (" + h.year + ")" : h.title,
                    subtitle: h.publisher || "",
                    meta: (h.year ? String(h.year) : "")
                          + (h.downloads ? "   ·   " + h.downloads + " downloads" : ""),
-                   synopsis: "", backdrop: "", group: "Comics · Catalogue",
+                   synopsis: "", backdrop: "", group: "Comics",
                    data: { gcd: true, gcdId: h.gcdId, title: h.title, cover: h.cover || "" } });
     }
     return out;
 }
 
-function mergeTankobanResults(query, manga, locg, western, catalogDb) {
-    manga = manga || [];
-    locg = locg || [];
-    western = western || [];
-    catalogDb = catalogDb || [];
-    var localTitles = {};
-    // dedup on the PURE title (data.title) — the card title now wears a "(year)" run
-    // suffix, which must not let a carried series' GetComics row slip past the filter
-    locg.forEach(function(row) { localTitles[normTitle((row.data && row.data.title) || row.title)] = true; });
-    // the curated (locg) lane is richer — editions + synopsis — so it wins over a bare
-    // catalogDb row for the same run; catalogDb in turn wins over the live western shelf.
-    catalogDb = catalogDb.filter(function(row) {
-        return !localTitles[normTitle((row.data && row.data.title) || row.title)];
-    });
-    var catalogTitles = {};
-    catalogDb.forEach(function(row) { catalogTitles[normTitle((row.data && row.data.title) || row.title)] = true; });
-    western = western.filter(function(row) {
-        var nt = normTitle((row.data && row.data.title) || row.title);
-        return !localTitles[nt] && !catalogTitles[nt];
-    });
+// Rank each lane by its own order, concat, promote the best title match to Top
+// Match (same normalized scorer as Theatre). No dedup: manga and comics never
+// carry the same identity, and same-name catalogue runs are distinct on purpose.
+function mergeSearchLanes(query, manga, catalogDb) {
     var rank = function(lane) {
         lane.forEach(function(row, index) {
             if (row.rank === undefined) row.rank = index;
         });
         return lane;
     };
-    return pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(catalogDb)).concat(rank(western)));
-}
-
-// ── LOCG catalogue search lane — PARKED 2026-07-12 (Hemanth: GetComics = brain AND
-//    content; the archive tags drive the pages). Kept in-tree, no caller in the
-//    fan-out below — revive when an RCO/Batcave-class source restores the split. ──
-function searchLocg(query, done) {
-    Locg.searchSeries(query, function(items, meta) {
-        if (meta && meta.blocked) {
-            done([{
-                cover: "", title: "Comics catalogue unreachable — showing nothing rather than garbage",
-                subtitle: "", meta: "LOCG   ·   offline", synopsis: "", backdrop: "",
-                group: "Comics", data: { notice: true }
-            }]);
-            return;
-        }
-        done((items || []).map(function(s) {
-            return {
-                cover: s.cover,
-                title: s.title,
-                subtitle: s.publisher || "Comic series",
-                meta: "Comics   ·   " + (s.publisher || "Series"),
-                synopsis: "", backdrop: "",
-                group: "Comics",
-                data: { locg: true, id: s.id, title: s.title, cover: s.cover,
-                        locgMeta: { publisher: s.publisher, startYear: s.startYear } }
-            };
-        }));
-    });
+    return pickTopMatch(query, rank(manga || []).concat(rank(catalogDb || [])));
 }
 
 function searchTankoban(query, done, catalogEngine) {
     if (!query || query.trim().length < 2) { done([]); return; }
-    var manga = null, locg = searchCatalog(query), western = null;
+    // Comics answer synchronously from the local catalogue; only manga is async.
     var catalogDb = searchCatalogDb(query, catalogEngine);
-    function finish() {
-        if (manga === null || western === null) return;
-        // Top Match = most title-relevant hit across ALL lanes, via the shared scorer
-        // (normalized, word-boundary-aware, per-lane rank tiebreak — same rule as Theatre).
-        // Each lane degrades to [] on its own failure — peer independence is free.
-        done(mergeTankobanResults(query, manga, locg, western, catalogDb));
-    }
-    searchManga(query, function(items) { manga = items || []; finish(); });
-    searchWestern(query, function(items) { western = items || []; finish(); });
+    searchManga(query, function(manga) {
+        done(mergeSearchLanes(query, manga || [], catalogDb));
+    });
 }
 
 function searchFor(mode, query, done, catalogEngine) {

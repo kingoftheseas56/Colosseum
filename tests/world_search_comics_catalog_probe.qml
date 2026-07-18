@@ -1,118 +1,69 @@
 import QtQuick
 import "../qml/WorldSearch.js" as WorldSearch
-import "../qml/ComicsDb.js" as ComicsDb
 
+// WorldSearch comics-lane probe (spec 2026-07-18): the catalogue SQLite engine is
+// the ONLY comics lane. C++ owns matching/ranking (engine harness proves that);
+// this probe proves the JS mapping + merge: year-decorated cards, pure routing
+// title, gcd routing data, 30-row ask, engine-absent degrade, manga merge.
 Item {
     Component.onCompleted: {
         try {
-            var rows = []
-            for (var i = 1; i <= 688; ++i) {
-                rows.push({
-                    rank: i,
-                    title: i === 2 ? "The Walking Dead"
-                         : i === 3 ? "Justice League"
-                         : i === 4 ? "Justice League Dark"
-                         : i === 5 ? "Nickelodeon Avatar: The Last Airbender - The Promise"
-                         // run-siblings: the SAME title as i===3, different runs (the GCD
-                         // catalog legitimately carries JL 2011/2016/2018 as separate series)
-                         : i === 6 ? "Justice League"
-                         : i === 7 ? "Justice League"
-                         : "Catalog Comic " + i,
-                    // years drive run disambiguation on the card; i===3 stays yearless to
-                    // prove undated rows render undecorated
-                    year: i === 6 ? 2016 : i === 7 ? 2018 : undefined,
-                    locg_id: String(100000 + i),
-                    publisher: i === 2 ? "Image Comics" : "Test Press",
-                    cover: "cover-" + i,
-                    editions: []
-                })
+            var askedLimit = -1
+            var fakeEngine = {
+                ready: function() { return true },
+                search: function(q, limit) {
+                    askedLimit = limit
+                    return [
+                        { gcdId: 3, title: "Justice League", year: 0,    publisher: "DC", cover: "c3", downloads: 9 },
+                        { gcdId: 6, title: "Justice League", year: 2016, publisher: "DC", cover: "c6", downloads: 5 },
+                        { gcdId: 7, title: "Justice League", year: 2018, publisher: "DC", cover: "",   downloads: 2 }
+                    ]
+                }
             }
-            if (!ComicsDb.setData({ series: rows })) throw new Error("catalog ingest failed")
 
-            var all = ComicsDb.rankedSeries()
-            if (all.length !== 688) throw new Error("expected 688 loaded rows")
+            var hits = WorldSearch.searchCatalogDb("justice league", fakeEngine)
+            if (askedLimit !== 30) throw new Error("catalogue lane must ask for 30 rows, asked " + askedLimit)
+            if (hits.length !== 3) throw new Error("expected 3 run cards, got " + hits.length)
 
-            var hits = WorldSearch.searchCatalog("walking dead")
-            if (hits.length !== 1) throw new Error("expected one local title hit")
-            if (!hits[0].data.locg || hits[0].data.id !== "locg:100002")
-                throw new Error("local hit does not route through LOCG identity")
-
-            var merged = WorldSearch.mergeTankobanResults("walking dead", [], hits, [{
-                title: "The Walking Dead",
-                group: "Comics · GetComics",
-                data: { western: true }
-            }])
-            var count = 0
-            for (var j = 0; j < merged.length; ++j)
-                if (String(merged[j].title).toLowerCase() === "the walking dead") count += 1
-            if (count !== 1) throw new Error("local/GetComics duplicate survived")
-            if (!merged[0].data.locg) throw new Error("local catalog identity did not win dedupe")
-
-            // Screenshot bug 2026-07-15: a query LONGER than the catalog title
-            // ("justice league unlimited" vs our "Justice League") zeroed the whole
-            // catalog lane, leaving GetComics alone in the results. Token-subset
-            // queries must still surface our own DB rows.
-            var jlu = WorldSearch.searchCatalog("justice league unlimited")
-            if (jlu.length < 2) throw new Error("longer-than-title query dropped catalog rows")
-            if (String(jlu[0].title).indexOf("Justice League") !== 0)
-                throw new Error("closest catalog run should lead, got " + jlu[0].title)
-
-            // Run disambiguation (screenshot bug 2026-07-16): three JL runs rendered as
-            // three identical "Justice League" cards. Same-title runs must carry their
-            // year on the CARD ("Justice League (2018)"), stay distinct from each other,
-            // and keep the PURE title in data.title for routing/dedup.
-            var jlCards = jlu.filter(function(r) { return r.data.title === "Justice League" })
-            if (jlCards.length !== 3) throw new Error("expected 3 JL run cards, got " + jlCards.length)
+            // Run disambiguation (screenshot bug 2026-07-16, must not regress): same-title
+            // runs carry their year on the CARD, stay distinct, keep data.title PURE.
             var seen = {}
-            for (var d = 0; d < jlCards.length; ++d) {
-                var disp = String(jlCards[d].title)
-                if (seen[disp]) throw new Error("run cards not distinct: " + disp + " repeats")
-                seen[disp] = true
+            for (var i = 0; i < hits.length; ++i) {
+                var h = hits[i]
+                if (!h.data || h.data.gcd !== true) throw new Error("card missing gcd routing data")
+                if (h.data.title !== "Justice League") throw new Error("data.title must stay pure, got " + h.data.title)
+                if (seen[h.title]) throw new Error("run cards not distinct: " + h.title + " repeats")
+                seen[h.title] = true
             }
             if (!seen["Justice League (2016)"] || !seen["Justice League (2018)"])
                 throw new Error("dated runs missing year suffix: " + Object.keys(seen).join(" | "))
-            if (!seen["Justice League"])
-                throw new Error("yearless run must render undecorated")
+            if (!seen["Justice League"]) throw new Error("yearless run must render undecorated")
+            if (hits[1].data.gcdId !== 6) throw new Error("engine order must be preserved (C++ ranks)")
 
-            // ...and the reverse: query tokens inside a longer catalog title.
-            var promise = WorldSearch.searchCatalog("avatar promise")
-            if (promise.length !== 1 || promise[0].title.indexOf("Promise") < 0)
-                throw new Error("token-subset query missed the longer catalog title")
+            // Degrades: no engine / engine not ready / short query -> [] (manga lane lives on).
+            if (WorldSearch.searchCatalogDb("justice league", null).length !== 0)
+                throw new Error("null engine must yield empty")
+            if (WorldSearch.searchCatalogDb("justice league", { ready: function() { return false } }).length !== 0)
+                throw new Error("not-ready engine must yield empty")
+            if (WorldSearch.searchCatalogDb("j", fakeEngine).length !== 0)
+                throw new Error("sub-2-char query must yield empty")
 
-            // Junk guard: stopword-only overlap must not match.
-            var junk = WorldSearch.searchCatalog("the of and")
-            if (junk.length !== 0) throw new Error("stopword-only query matched catalog rows")
+            // Legacy lanes are GONE — written over, not parked (spec 2026-07-18).
+            if (typeof WorldSearch.searchCatalog === "function") throw new Error("curated searchCatalog must be deleted")
+            if (typeof WorldSearch.searchWestern === "function") throw new Error("live searchWestern must be deleted")
+            if (typeof WorldSearch.searchLocg === "function") throw new Error("parked searchLocg must be deleted")
+            if (typeof WorldSearch.mergeTankobanResults === "function") throw new Error("mergeTankobanResults must be deleted")
 
-            // Grouping: with the catalog lane alive, our DB rows must sit ABOVE the
-            // GetComics rows in the merged order (GetComics = bottom shelf).
-            var merged2 = WorldSearch.mergeTankobanResults("justice league unlimited", [], jlu, [{
-                title: "Justice League Unlimited",
-                group: "Comics · GetComics",
-                data: { western: true }
-            }, {
-                // we CARRY Justice League (3 runs) — the GetComics shelf row must dedupe
-                // away even though the catalog cards now wear "(year)" suffixes
-                title: "Justice League",
-                group: "Comics · GetComics",
-                data: { western: true }
-            }])
-            for (var w = 0; w < merged2.length; ++w)
-                if (merged2[w].data && merged2[w].data.western
-                        && String(merged2[w].title) === "Justice League")
-                    throw new Error("carried-title GetComics row survived year-decorated dedupe")
-            var firstCatalog = -1, firstWestern = -1
-            for (var k = 0; k < merged2.length; ++k) {
-                if (merged2[k].data && merged2[k].data.locg && firstCatalog < 0) firstCatalog = k
-                if (merged2[k].data && merged2[k].data.western && firstWestern < 0) firstWestern = k
-            }
-            if (firstCatalog < 0) throw new Error("catalog rows missing from merge")
-            // The exact-titled GetComics hit may win Top Match (slot 0) — honest, we
-            // don't carry JLU — but the catalog block must not sit wholly below the
-            // western lane.
-            if (firstWestern >= 0 && firstCatalog > 1)
-                throw new Error("catalog rows sank below the GetComics shelf")
+            // Merge: an exact-titled catalogue hit must win Top Match over manga rows.
+            var mangaLane = [
+                { title: "Some Manga", group: "Manga", data: { title: "Some Manga" } },
+                { title: "Justice Beach", group: "Manga", data: { title: "Justice Beach" } }
+            ]
+            var merged = WorldSearch.mergeSearchLanes("justice league", mangaLane, hits)
+            if (merged.length !== 5) throw new Error("merge must keep every row, got " + merged.length)
+            if (!merged[0].data.gcd) throw new Error("exact catalogue hit must win Top Match")
 
-            console.log("WORLD_SEARCH_COMICS_OK", all.length)
+            console.log("WORLD_SEARCH_COMICS_OK")
             Qt.exit(0)
         } catch (error) {
             console.error("WORLD_SEARCH_COMICS_FAIL", error)

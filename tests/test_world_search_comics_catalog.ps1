@@ -6,7 +6,7 @@ if (!(Test-Path -LiteralPath $qmlExe)) { throw "qml.exe not found at $qmlExe" }
 $env:QT_FORCE_STDERR_LOGGING = "1"
 $harness = Join-Path $PSScriptRoot "world_search_comics_catalog_probe.qml"
 $output = cmd /c "`"$qmlExe`" -platform offscreen `"$harness`" 2>&1" | Out-String
-if ($LASTEXITCODE -ne 0 -or $output -notlike "*WORLD_SEARCH_COMICS_OK 688*") {
+if ($LASTEXITCODE -ne 0 -or $output -notlike "*WORLD_SEARCH_COMICS_OK*") {
     throw "WorldSearch comics catalog probe failed (exit $LASTEXITCODE):`n$output"
 }
 
