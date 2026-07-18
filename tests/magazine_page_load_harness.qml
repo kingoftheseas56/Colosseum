@@ -37,10 +37,18 @@ Item {
         check(!!db && db.fromYear === 1984 && db.toYear === 1995,
               "Dragon Ball must ride its verified 1984–1995 run")
 
+        // the current lineup is curated — Wikipedia membership + AniList art, no network
+        check(p.runningNow.length === 22, "the weekly lineup must carry Wikipedia's 22 series, got " + p.runningNow.length)
+        var lineupCovered = p.runningNow.filter(function(e) { return e.cover.indexOf("s4.anilist.co") !== -1 })
+        check(lineupCovered.length === p.runningNow.length, "every lineup entry must carry a verified AniList cover")
+        var sinced = p.runningNow.filter(function(e) { return e.since.length > 0 })
+        check(sinced.length === p.runningNow.length, "every lineup entry must carry its premiere month")
+        var op2 = p.runningNow.filter(function(e) { return e.title === "One Piece" })[0]
+        check(!!op2 && op2.publishing, "One Piece anchors the lineup")
+
         // offline honesty: nothing live, nothing claimed
         check(p.summary === null, "no summary may exist before Jikan answers")
         check(p.champions.length === 0, "no ranking may exist offline")
-        check(p.runningNow.length === 0, "no publishing lineup may be invented offline")
         check(p.registryTotal === 0, "no registry total may be invented offline")
         check(p.archive.length === 0, "no registry entries may be invented offline")
         check(p.ixItems.length === 0, "the registry wall stays empty offline")

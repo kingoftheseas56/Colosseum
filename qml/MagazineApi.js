@@ -72,6 +72,17 @@ function mapFlagship(f) {
     };
 }
 
+// a curated current-lineup entry (Wikipedia membership + AniList pin, Universes.js shape)
+// → the page entry shape. `since` keeps Wikipedia's premiere month for the tile line.
+function mapLineup(e) {
+    return {
+        malId: 0, anilistId: e.al || 0,
+        title: e.t || "", author: e.a || "", cover: e.cover || "",
+        fromYear: e.y || 0, toYear: 0, publishing: true,
+        since: e.since || "", members: 0, score: 0, chapters: 0
+    };
+}
+
 // ── THE RUN CHART ─────────────────────────────────────────────────────────────────────
 // buildRuns(list, maxN, nowYear) — the serialization strokes, packed into lanes. Takes
 // the top maxN by MAL members (dated entries only), orders them by real start year, and
@@ -141,41 +152,32 @@ function fmtMembers(n) {
 }
 
 // ── FAST LANE ─────────────────────────────────────────────────────────────────────────
-// loadSummary(magazineId, done) — top 100 by MAL members (4 pages) + the currently-
-// publishing registry (2 pages), emitted ONCE: { total, all, publishing }. done(null)
-// only when NOTHING landed (feed down) — partial pages still serve.
+// loadSummary(magazineId, done) — top 100 by MAL members (4 pages), emitted ONCE:
+// { total, all }. The current lineup does NOT ride this lane — its membership is
+// Wikipedia's current-series table, curated in Universes.js (Hemanth 2026-07-18).
+// done(null) only when NOTHING landed (feed down) — partial pages still serve.
 function loadSummary(magazineId, done) {
     if (_summaryCache[magazineId]) { done(_summaryCache[magazineId]); return; }
 
     var base = JIKAN + "/manga?magazines=" + magazineId + "&order_by=members&sort=desc&limit=25";
-    var all = [], publishing = [], total = 0;
+    var all = [], total = 0;
 
     function finish() {
-        if (!all.length && !publishing.length) { done(null); return; }
-        var summary = { total: total, all: all, publishing: publishing };
+        if (!all.length) { done(null); return; }
+        var summary = { total: total, all: all };
         _summaryCache[magazineId] = summary;
         done(summary);
     }
 
-    function walkPublishing(pageNo) {
-        if (pageNo > 2) { finish(); return; }
-        requestJson(base + "&status=publishing&page=" + pageNo, function(j) {
-            if (!j || !j.data) { finish(); return; }
-            publishing = publishing.concat(j.data.map(mapEntry));
-            if (j.pagination && j.pagination.has_next_page) walkPublishing(pageNo + 1);
-            else finish();
-        });
-    }
-
     function walkAll(pageNo) {
-        if (pageNo > 4) { walkPublishing(1); return; }
+        if (pageNo > 4) { finish(); return; }
         requestJson(base + "&page=" + pageNo, function(j) {
-            if (!j || !j.data) { walkPublishing(1); return; }
+            if (!j || !j.data) { finish(); return; }
             all = all.concat(j.data.map(mapEntry));
             if (j.pagination && j.pagination.items && j.pagination.items.total)
                 total = j.pagination.items.total;
             if (j.pagination && j.pagination.has_next_page) walkAll(pageNo + 1);
-            else walkPublishing(1);
+            else finish();
         });
     }
 

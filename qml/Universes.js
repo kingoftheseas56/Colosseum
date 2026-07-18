@@ -483,6 +483,35 @@ var universes = [
           { t: "Sakamoto Days",                      a: "Yuto Suzuki",       al: 125828, from: 2020, to: 0, publishing: true, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx125828-p78Z8SflkfmO.jpg" },
           { t: "Blue Box",                           a: "Kouji Miura",       al: 132182, from: 2021, to: 2026, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx132182-maXh2QzYPrqR.jpg" },
           { t: "Kagurabachi",                        a: "Takeru Hokazono",   al: 169355, from: 2023, to: 0, publishing: true, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx169355-5pqzh1Wb4NOQ.png" } ],
+      // THE CURRENT LINEUP — the manga in serialization RIGHT NOW. Membership comes from
+      // Wikipedia's current-series table (checked 2026-07-18) — no network needed, no MAL
+      // lag; AniList supplies id + cover, each pin live-verified with the start year matched
+      // against Wikipedia's premiere date. Burn the Witch rides the 2020 season entry
+      // (116827), not the 2018 pilot one-shot; RuriDragon rides the 2022 serial (150440),
+      // not the 2020 one-shot — both impostors caught at verification.
+      currentLineup: [
+          { t: "One Piece",                 a: "Eiichiro Oda",          since: "July 1997",      y: 1997, al: 30013,  cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+          { t: "Hunter x Hunter",           a: "Yoshihiro Togashi",     since: "March 1998",     y: 1998, al: 30026,  cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30026-uCvXMudMzmwI.jpg" },
+          { t: "Burn the Witch",            a: "Tite Kubo",             since: "August 2020",    y: 2020, al: 116827, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx116827-dborNlGJ9K8G.png" },
+          { t: "Me & Roboco",               a: "Shuhei Miyazaki",       since: "July 2020",      y: 2020, al: 119499, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx119499-bO0ef8QxQozs.png" },
+          { t: "Sakamoto Days",             a: "Yuto Suzuki",           since: "November 2020",  y: 2020, al: 125828, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx125828-p78Z8SflkfmO.jpg" },
+          { t: "Witch Watch",               a: "Kenta Shinohara",       since: "February 2021",  y: 2021, al: 128896, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx128896-VJfCBLFkm4Lb.jpg" },
+          { t: "Akane-banashi",             a: "Suenaga & Moue",        since: "February 2022",  y: 2022, al: 144866, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx144866-ummLIg6x419I.jpg" },
+          { t: "RuriDragon",                a: "Masaoki Shindo",        since: "June 2022",      y: 2022, al: 150440, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx150440-QdBFoMh4YHsK.jpg" },
+          { t: "Nue's Exorcist",            a: "Kota Kawae",            since: "May 2023",       y: 2023, al: 163497, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx163497-HNrC3KDTVxW5.jpg" },
+          { t: "Kagurabachi",               a: "Takeru Hokazono",       since: "September 2023", y: 2023, al: 169355, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx169355-5pqzh1Wb4NOQ.png" },
+          { t: "Ultimate Exorcist Kiyoshi", a: "Shoichi Usui",          since: "June 2024",      y: 2024, al: 178509, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx178509-Iyc0m68gQv8U.png" },
+          { t: "Ichi the Witch",            a: "Nishi & Usazaki",       since: "September 2024", y: 2024, al: 180752, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx180752-13CVO310XiEs.jpg" },
+          { t: "Shinobi Undercover",        a: "Takegushi & Mitarashi", since: "September 2024", y: 2024, al: 180881, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx180881-2NqZaTxr69jc.jpg" },
+          { t: "Someone Hertz",             a: "Ei Yamano",             since: "September 2025", y: 2025, al: 198817, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx198817-6WrNkObMtjkN.jpg" },
+          { t: "Under Doctor",              a: "Kyo Tanimoto",          since: "January 2026",   y: 2026, al: 206835, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx206835-PWOgOewxlpUi.jpg" },
+          { t: "Kinato's Magic",            a: "Kento Amemiya",         since: "February 2026",  y: 2026, al: 207142, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx207142-T7DIOPtJLk50.jpg" },
+          { t: "Class 2-B Hero Destroyerz", a: "Hideaki Sorachi",       since: "April 2026",     y: 2026, al: 210041, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx210041-KBPe9Ez3iBHI.jpg" },
+          { t: "Roku's House of Oddities",  a: "Atsushi Nakamura",      since: "April 2026",     y: 2026, al: 210422, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx210422-k89sP63t4eYv.png" },
+          { t: "Drawn to the Fire",         a: "Masayoshi Satosho",     since: "April 2026",     y: 2026, al: 210838, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx210838-q2ytgCW6cYQB.png" },
+          { t: "Animal Signal",             a: "Haruhara & Tsutsui",    since: "June 2026",      y: 2026, al: 213019, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx213019-Bw406cjOq5GP.jpg" },
+          { t: "Hal Formula",               a: "Kento Terasaka",        since: "June 2026",      y: 2026, al: 213229, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx213229-09asKdNf3Z3e.png" },
+          { t: "Cannon Master",             a: "Reiya Machida",         since: "June 2026",      y: 2026, al: 213403, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx213403-fNxRdRYoPtEc.jpg" } ],
       readQueries: [ "One Piece", "Naruto", "Bleach", "Dragon Ball", "Hunter x Hunter",
                      "My Hero Academia", "Jujutsu Kaisen", "Demon Slayer: Kimetsu no Yaiba",
                      "Chainsaw Man", "Death Note" ],

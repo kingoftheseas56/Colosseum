@@ -28,7 +28,8 @@ foreach ($n in @('signal seriesRequested(string title)', 'import QtQuick.Control
                  'import "MagazineApi.js" as Mag',
                  'THE LONG RUN', 'RUNNING NOW', 'MOST COLLECTED', 'EVERY SERIES',
                  'MAL members', 'Mag.buildRuns', 'Mag.loadSummary', 'Mag.fetchArchivePage',
-                 'Mag.mergeDedup', 'Mag.mapFlagship', 'root.flagships',
+                 'Mag.mergeDedup', 'Mag.mapFlagship', 'Mag.mapLineup', 'root.flagships',
+                 'currentLineup',
                  'activeFocusOnTab: true', 'Keys.onReturnPressed')) {
     Assert-Contains $mp $n "MagazineUniversePage must carry: $n"
 }
@@ -49,7 +50,7 @@ $mag = Read-File "qml/MagazineApi.js"
 foreach ($n in @('function loadSummary(', 'function fetchArchivePage(', 'function hasPage(',
                  'function buildRuns(', 'function sortBy(', 'function decadeOf(',
                  'function mergeDedup(', 'function mapEntry(', 'function mapFlagship(',
-                 'magazines=', 'order_by=members', 'status=publishing')) {
+                 'function mapLineup(', 'magazines=', 'order_by=members')) {
     Assert-Contains $mag $n "MagazineApi must carry: $n"
 }
 Assert-Lacks $mag 'circulation' "The registry lane must never speak of circulation."
@@ -58,6 +59,9 @@ $udb = Read-File "qml/Universes.js"
 Assert-Contains $udb 'category: "magazine"' "Weekly Shonen Jump must ride the magazine template."
 Assert-Contains $udb 'malMagazineId: 83' "Jump must pin its MAL magazine registry id."
 Assert-Contains $udb 'flagships:' "Jump must curate the AniList-pinned flagships."
+Assert-Contains $udb 'currentLineup:' "Jump must curate the Wikipedia current-series lineup."
+Assert-Contains $udb 'al: 150440' "RuriDragon must ride the 2022 serial pin, not the one-shot."
+Assert-Contains $udb 'al: 116827' "Burn the Witch must ride the 2020 season pin, not the pilot."
 Assert-Contains $udb 'al: 30013' "One Piece must ride its verified AniList pin."
 Assert-Contains $udb 's4.anilist.co' "Flagship covers must ride the pinned AniList CDN."
 Assert-Contains $udb 'milestones:' "Jump must carry its verified print milestones."

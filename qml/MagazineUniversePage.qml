@@ -42,15 +42,18 @@ Item {
     readonly property color strokeInk: "#8a8478"
 
     property var uni: ({ name: "", blurb: "", banner: "", milestones: [], flagships: [],
-                         readQueries: [] })
+                         currentLineup: [], readQueries: [] })
     readonly property int magId: uni.malMagazineId || 0
     readonly property int nowYear: new Date().getFullYear()
     readonly property var flagships: (uni.flagships || []).map(Mag.mapFlagship)
 
-    // ── FAST lane: hero total, chart strokes, Running Now, Most Collected ──
+    // the current lineup is CURATED, not fetched — membership from Wikipedia's
+    // current-series table, art from the verified AniList pins (Hemanth 2026-07-18)
+    readonly property var runningNow: (uni.currentLineup || []).map(Mag.mapLineup)
+
+    // ── FAST lane: hero total, chart strokes, Most Collected ──
     property var summary: null
     readonly property var champions: summary ? summary.all.slice(0, 10) : []
-    readonly property var runningNow: summary ? summary.publishing : []
     readonly property int registryTotal: summary ? summary.total : 0
 
     // the chart rides the live registry when it answers, the verified flagships when not
@@ -432,9 +435,7 @@ Item {
                            font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 4; font.bold: true }
                     Text { text: "In serialization"; color: theme.ink
                            font.family: theme.display; font.pixelSize: 28 }
-                    Text { text: root.runningNow.length > 0
-                                 ? root.runningNow.length + " series currently running, per MyAnimeList"
-                                 : "MyAnimeList's registry isn't responding right now"
+                    Text { text: root.runningNow.length + " series in the weekly lineup"
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
                 }
             }
@@ -788,7 +789,10 @@ Item {
                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
             }
             Text {
-                text: (nt.entry.fromYear > 0 ? "since " + nt.entry.fromYear : "")
+                width: parent.width
+                elide: Text.ElideRight
+                text: (nt.entry.since ? "since " + nt.entry.since
+                                      : (nt.entry.fromYear > 0 ? "since " + nt.entry.fromYear : ""))
                       + (nt.entry.author ? "  ·  " + nt.entry.author : "")
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
             }
