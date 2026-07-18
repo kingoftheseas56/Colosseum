@@ -59,6 +59,11 @@ MpvItem::MpvItem(QQuickItem *parent)
     setProperty(QStringLiteral("osc"), QStringLiteral("no"));
     setProperty(QStringLiteral("osd-level"), QStringLiteral("0"));
     setProperty(QStringLiteral("volume-max"), QStringLiteral("600"));
+    // Loudness normalization (Hemanth 2026-07-18): movie/anime mixes keep huge headroom, so
+    // "100%" (unity) feels quiet next to players that amplify. dynaudnorm lifts quiet passages
+    // toward a consistent loudness live, without loudnorm's internal 192kHz resample; the UI
+    // volume bar stays a plain 0..100 with 100 = normalized loudness.
+    setProperty(QStringLiteral("af"), QStringLiteral("dynaudnorm=g=5:f=250:r=0.9:p=0.5"));
     setProperty(QStringLiteral("embeddedfonts"), QStringLiteral("yes"));
     setProperty(QStringLiteral("sub-font-provider"), QStringLiteral("auto"));
     setProperty(QStringLiteral("hwdec"), QStringLiteral("auto-safe"));
