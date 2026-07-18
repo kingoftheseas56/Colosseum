@@ -1420,11 +1420,29 @@ Item {
                 root.autoPausedInactive = true
                 mpv.pause = true
             }
-        } else if (root.autoPausedInactive) {
-            root.autoPausedInactive = false
-            if (mpv.pause)
-                mpv.pause = false
+        } else {
+            root.healAudio()   // heal even if the pause was his, not ours
+            if (root.autoPausedInactive) {
+                root.autoPausedInactive = false
+                if (mpv.pause)
+                    mpv.pause = false
+            }
         }
+    }
+
+    // Windows can kill our idle audio stream while parked (see audio-stream-silence in
+    // mpvitem.cpp); if that still slips through, resuming plays video with NO sound and no
+    // way back short of an app restart. Rebuilding the audio chain (drop track, re-pick the
+    // same one) forces a fresh device connection. Cheap (~100ms, same track, paused), so run
+    // it on every un-minimize rather than trying to detect a dead device mpv won't report.
+    function healAudio() {
+        if (!root.fileReady)
+            return
+        var aid = mpv.audioTrack
+        if (!aid || aid === "no")
+            return
+        mpv.command(["set", "aid", "no"])
+        mpv.command(["set", "aid", aid])
     }
 
     function downloadTooltip() {
@@ -1861,6 +1879,7 @@ Item {
     }
     function resumeFromMinimize() {
         root.wakeChrome()
+        root.healAudio()   // same dead-AO guard as the taskbar-restore path
         if (root.autoPausedInactive) {
             root.autoPausedInactive = false
             if (mpv.pause)

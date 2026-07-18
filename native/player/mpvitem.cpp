@@ -68,6 +68,11 @@ MpvItem::MpvItem(QQuickItem *parent)
     // limits peaks. loudnorm does exactly that (EBU R128 live mode): I=-14 LUFS = hot streaming
     // target, TP=-1.5 true-peak ceiling. Costs its internal 192kHz resample; accepted trade.
     setProperty(QStringLiteral("af"), QStringLiteral("loudnorm=I=-14:TP=-1.5:LRA=11"));
+    // Paused+minimized is our normal parked state (pause-on-minimize), and Windows reclaims
+    // idle WASAPI streams (device switch / power-save / another player grabbing the device) —
+    // the session then resumes into a dead AO with no sound until app restart (Hemanth,
+    // long-standing). Feeding silence while paused keeps the stream alive and unreclaimed.
+    setProperty(QStringLiteral("audio-stream-silence"), QStringLiteral("yes"));
     setProperty(QStringLiteral("embeddedfonts"), QStringLiteral("yes"));
     setProperty(QStringLiteral("sub-font-provider"), QStringLiteral("auto"));
     setProperty(QStringLiteral("hwdec"), QStringLiteral("auto-safe"));
