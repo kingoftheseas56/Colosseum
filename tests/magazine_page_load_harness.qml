@@ -1,9 +1,8 @@
-// Headless load + offline-truth harness for MagazineUniversePage (the Editorial Archive) —
-// catches the Loader-loaded page's QML errors, then asserts the page BORN OFFLINE stands
-// whole and honest: the four volumes present in fixed order (empty, never vanished), the
-// curated era fallbacks and sourced notes reachable, the champions fallback riding the
-// curated queries, the manga-only verb surface, and nothing invented (no counts, no index).
-// Verdict = exit code.
+// Headless load + offline-truth harness for MagazineUniversePage (THE LONG RUN) — catches
+// the Loader-loaded page's QML errors, then asserts the page BORN OFFLINE stands whole and
+// honest: the run chart drawn from the verified AniList flagship pins, the roster riding
+// the same pins, the manga-only verb surface, and nothing invented (no ranks, no totals,
+// no registry entries). Verdict = exit code.
 import QtQuick
 
 Item {
@@ -20,39 +19,41 @@ Item {
         check(p.uni && p.uni.malMagazineId === 83, "the page must pin MAL magazine 83")
         check(p.magId === 83, "magId must ride the pin")
 
-        // the four volumes stand before ANY network answer — empty, in the approved order
-        check(p.eras.length === 4, "all four volumes must stand offline, got " + p.eras.length)
-        check(p.eras[0].era === "The Founding Years" && p.eras[1].era === "The Golden Age"
-              && p.eras[2].era === "The Big Three Era" && p.eras[3].era === "The New Generation",
-              "the volumes must keep the approved fixed order")
-        check(p.eras[0].items.length === 0, "an offline volume holds nothing — never invented entries")
+        // the verified flagship pins carry the offline page
+        check(p.flagships.length >= 24, "the curated flagships must be present, got " + p.flagships.length)
+        var covered = p.flagships.filter(function(f) { return f.cover.indexOf("s4.anilist.co") === 0
+                                                              || f.cover.indexOf("https://s4.anilist.co") === 0 })
+        check(covered.length === p.flagships.length, "every flagship must carry a baked AniList cover")
+        var pinned = p.flagships.filter(function(f) { return f.anilistId > 0 })
+        check(pinned.length === p.flagships.length, "every flagship must carry its AniList id pin")
 
-        // the curated fallback carries the offline page
-        check(p.fallbackFor("founding").length >= 3, "founding fallback flagships must be curated")
-        check(p.fallbackFor("golden").length >= 4, "golden fallback flagships must be curated")
-        check(p.fallbackFor("bigthree").length >= 6, "big-three fallback flagships must be curated")
-        check(p.fallbackFor("newgen").length >= 5, "new-generation fallback flagships must be curated")
-        check(p.eraNoteFor("founding").length > 0, "each volume must carry its sourced note")
-        check(p.eraNoteFor("newgen").length > 0, "each volume must carry its sourced note (newgen)")
-        check((p.uni.heroLine || "").length > 0, "the sourced hero line must be present")
-        check((p.uni.milestones || []).length === 3, "the print record must carry its three milestones")
+        // the run chart is drawn before ANY network answer, from the pins alone
+        check(p.chartRuns.runs.length >= 24, "the chart must draw the flagship runs offline")
+        check(p.chartRuns.lanes >= 2, "the runs must pack into lanes")
+        var op = p.chartRuns.runs.filter(function(r) { return r.title === "One Piece" })[0]
+        check(!!op && op.publishing && op.endFor === p.nowYear,
+              "One Piece must run to the chart's right edge")
+        var db = p.chartRuns.runs.filter(function(r) { return r.title === "Dragon Ball" })[0]
+        check(!!db && db.fromYear === 1984 && db.toYear === 1995,
+              "Dragon Ball must ride its verified 1984–1995 run")
 
         // offline honesty: nothing live, nothing claimed
         check(p.summary === null, "no summary may exist before Jikan answers")
-        check(p.champions.length === 0, "no champions may be ranked offline")
+        check(p.champions.length === 0, "no ranking may exist offline")
+        check(p.runningNow.length === 0, "no publishing lineup may be invented offline")
         check(p.registryTotal === 0, "no registry total may be invented offline")
-        check(p.archive.length === 0, "no archive entries may be invented offline")
-        check(p.ixItems.length === 0, "the registry index stays empty offline")
-        check((p.uni.readQueries || []).length === 10, "the curated ten stand in for the champions offline")
+        check(p.archive.length === 0, "no registry entries may be invented offline")
+        check(p.ixItems.length === 0, "the registry wall stays empty offline")
+        check((p.uni.milestones || []).length === 3, "the print milestones must be present")
 
         // verbs: manga only
         check(typeof p.seriesRequested !== "undefined", "the page must own the manga door")
         check(typeof p.watchRequested === "undefined", "the magazine has no watch verb")
 
         // spanLine speaks print truthfully
-        check(p.spanLine({ fromYear: 1997, publishing: true }) === "since 1997", "spanLine publishing")
+        check(p.spanLine({ fromYear: 1997, publishing: true }) === "1997–", "spanLine publishing")
         check(p.spanLine({ fromYear: 1984, toYear: 1995, publishing: false }) === "1984–1995", "spanLine finished")
-        check(p.spanLine({ fromYear: 0 }) === "serialized in Jump", "spanLine undated")
+        check(p.spanLine({ fromYear: 0 }) === "", "spanLine undated stays silent")
 
         console.log(ok ? "PASS" : "FAIL")
         Qt.exit(ok ? 0 : 1)

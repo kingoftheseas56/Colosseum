@@ -1,20 +1,19 @@
-// MagazineUniversePage — THE EDITORIAL ARCHIVE. Weekly Shonen Jump is not a list of famous
-// manga and not a simulation of this week's issue: it is a sixty-year editorial institution,
-// so the page is drawn as its archive room. The visitor enters past the masthead — a deep
-// Jump-red wall where the FIRST ISSUE hangs framed and four monumental bound volumes stand
-// on a shelf (the signature; each spine opens an era) — then works the CURRENT DESK (the
-// live serialization registry), passes the HALL OF CHAMPIONS (most collected on MAL), and
-// reads the four ARCHIVE VOLUMES themselves: open ivory paper spreads on the dark room, ink
-// on paper — the one aesthetic risk, spent where a print institution earns it. The COMPLETE
-// REGISTRY closes the room: every title MAL has ever filed under the magazine, searchable.
-// (A5, 2026-07-18 free-reign commission; spec: docs/superpowers/specs/
-// 2026-07-16-weekly-shonen-jump-editorial-archive-design.md.)
+// MagazineUniversePage — THE LONG RUN. Weekly Shonen Jump is velocity: a magazine that has
+// shipped every Monday since July 1968, printed loud on cheap paper. The page speaks that
+// language — night ink, bright print-red, halftone dots, a speedline burst behind a tilted
+// press-block lockup — and its signature is the run chart: the magazine's whole history,
+// 1968 to today, with every landmark series drawn as an ink stroke across its real
+// serialization years. Publishing runs fire off the right edge with an arrowhead. Hover a
+// stroke to read its line; click to open the manga. Below: Running Now (the live
+// publishing registry), Most Collected (MAL's member ranking), and Every Series (the full
+// searchable registry, filed progressively).
+// (A5, 2026-07-18 — fresh design on Hemanth's order; the prior archive concept is dead.)
 //
-// Data honesty (spec §2): the canonical gate is MAL magazine id 83 via Jikan's exact
-// registry — live data IS the canon. `members` is ALWAYS labeled a MAL member/library
-// count, never print numbers; print history (105k launch, the 6.53M 1995 peak) is sourced
-// from Wikipedia and kept visually separate as THE PRINT RECORD. Offline, the page stands
-// whole on the curated fallback in Universes.js and invents nothing — no counts, no ranks.
+// Data: MAL magazine id 83 via Jikan is the registry spine — the only database with a
+// serialization axis. AniList carries the art: the curated flagships in Universes.js are
+// AniList id-pinned with baked covers and AniList's own dates, so the chart and roster
+// stand whole when Jikan is down. MAL members are always labeled MAL members. Nothing is
+// invented offline: no ranks, no totals, no dates beyond the verified pins.
 // Every entry routes into A1's MangaSeries by title (the manga lane's own door).
 import QtQuick
 import QtQuick.Controls
@@ -32,84 +31,78 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
     signal searchClicked()
-    signal seriesRequested(string title)    // any filed entry → MangaSeries
+    signal seriesRequested(string title)    // any entry → MangaSeries
 
     Theme { id: theme }
 
-    // The archive's inks — aged Jump red, ink black, ivory stock, the editor's red pencil.
-    readonly property color jumpRed:    "#8e1418"
-    readonly property color jumpRedDeep:"#3d080b"
-    readonly property color inkWall:    "#0e0b0c"
-    readonly property color paper:      "#ece2cc"
-    readonly property color paperEdge:  "#cfc1a2"
-    readonly property color paperInk:   "#241a12"
-    readonly property color paperFaint: "#6b5b45"
-    readonly property color redPencil:  "#c0392b"
+    // the press inks — night black, print red, newsprint gray
+    readonly property color inkNight:  "#0b0a0c"
+    readonly property color jumpRed:   "#d2232a"
+    readonly property color newsprint: "#b9b3a6"
+    readonly property color strokeInk: "#8a8478"
 
-    property var uni: ({ name: "", blurb: "", banner: "", heroLine: "", milestones: [],
-                         eraNotes: ({}), fallbackEras: ({}), readQueries: [] })
+    property var uni: ({ name: "", blurb: "", banner: "", milestones: [], flagships: [],
+                         readQueries: [] })
     readonly property int magId: uni.malMagazineId || 0
+    readonly property int nowYear: new Date().getFullYear()
+    readonly property var flagships: (uni.flagships || []).map(Mag.mapFlagship)
 
-    // ── the FAST lane: hero total, Current Desk, Hall of Champions ──
+    // ── FAST lane: hero total, chart strokes, Running Now, Most Collected ──
     property var summary: null
     readonly property var champions: summary ? summary.all.slice(0, 10) : []
-    readonly property var currentDesk: summary ? summary.publishing : []
+    readonly property var runningNow: summary ? summary.publishing : []
     readonly property int registryTotal: summary ? summary.total : 0
 
-    // ── the ARCHIVE lane: the page drives the walk, one registry page per tick ──
-    //    (Jikan allows ~3/sec — the Timer is the throttle; cached pages skip the wait)
-    property var archive: []            // every filed entry, id-deduped
-    property int archTotal: 0           // MAL's own registry total (live only)
+    // the chart rides the live registry when it answers, the verified flagships when not
+    readonly property var chartRuns: Mag.buildRuns(summary ? summary.all : flagships, 28, nowYear)
+
+    // ── ARCHIVE lane: the full registry, one page per tick, resumable ──
+    property var archive: []
+    property int archTotal: 0
     property int archNext: 1
-    property int archLast: 0
     property bool archWalking: false
     property bool archComplete: false
     property bool archFailed: false
-    property bool archRetried: false    // one silent retry per page, then surface honestly
+    property bool archRetried: false
 
-    // the four volumes — fixed order, always present; archive first, summary as the seed
-    readonly property var eraSource: archive.length ? archive : (summary ? summary.all : [])
-    readonly property var eras: Mag.bucketByEra(eraSource)
-    readonly property var undated: Mag.undatedOf(archive)
-
-    // hero: which spine the hand is on (−1 = none) — feeds the shelf's reveal strip
-    property int hoveredSpine: -1
-
-    // complete-registry index state
+    // registry wall state
     property string ixQuery: ""
-    property string ixEra: "all"
+    property string ixSort: "members"      // members | year | alpha
+    property string ixDecade: "all"
     readonly property var ixItems: {
-        var out = Mag.alphaSort(root.archive)
-        if (root.ixEra !== "all") {
-            if (root.ixEra === "undated")
-                out = out.filter(function(m) { return !m.fromYear })
-            else {
-                var def = null
-                for (var i = 0; i < Mag.ERAS.length; i++)
-                    if (Mag.ERAS[i].key === root.ixEra) def = Mag.ERAS[i]
-                if (def) out = out.filter(function(m) {
-                    return m.fromYear >= def.from && m.fromYear <= def.to })
-            }
-        }
+        var out = root.archive
+        if (root.ixDecade !== "all")
+            out = out.filter(function(m) {
+                return root.ixDecade === "undated" ? !m.fromYear
+                                                   : Mag.decadeOf(m.fromYear) === root.ixDecade })
         var q = root.ixQuery.trim().toLowerCase()
         if (q.length) out = out.filter(function(m) {
             return m.title.toLowerCase().indexOf(q) !== -1 })
+        return Mag.sortBy(out, root.ixSort)
+    }
+    readonly property var ixDecades: {
+        var seen = ({}), out = []
+        for (var i = 0; i < root.archive.length; i++) {
+            var d = Mag.decadeOf(root.archive[i].fromYear)
+            if (d.length && !seen[d]) { seen[d] = true; out.push(d) }
+        }
+        out.sort()
         return out
     }
 
     function reload() {
         if (!root.universeName.length) return      // never load a default universe
-        pump.stop(); pumpRetry.stop()              // a reload orphans any pending walk tick
+        pump.stop(); pumpRetry.stop()
         root.uni = UDB.configFor(root.universeName)
         root.summary = null
         root.archive = []
-        root.archTotal = 0; root.archNext = 1; root.archLast = 0
+        root.archTotal = 0; root.archNext = 1
         root.archWalking = false; root.archComplete = false
         root.archFailed = false; root.archRetried = false
         if (root.magId > 0)
             Mag.loadSummary(root.magId, function(s) {
                 if (s) root.summary = s
-                root.startArchive()                // walk regardless — resume covers a bad day
+                root.startArchive()
             })
     }
     Component.onCompleted: { reload(); reveal.start() }
@@ -123,7 +116,6 @@ Item {
         root.pumpArchive()
     }
     function pumpArchive() {
-        // cached pages continue immediately; live pages wait out the throttle
         if (Mag.hasPage(root.magId, root.archNext)) root.fetchArchivePage()
         else pump.restart()
     }
@@ -132,46 +124,33 @@ Item {
     function fetchArchivePage() {
         var wanted = root.archNext
         Mag.fetchArchivePage(root.magId, wanted, function(res) {
-            if (wanted !== root.archNext || !root.archWalking) return   // a reload superseded us
+            if (wanted !== root.archNext || !root.archWalking) return
             if (!res) {
                 if (!root.archRetried) { root.archRetried = true; pumpRetry.restart(); return }
                 root.archWalking = false
-                root.archFailed = true             // honest stop — everything received stands
+                root.archFailed = true
                 return
             }
             root.archRetried = false
             root.archive = Mag.mergeDedup(root.archive, res.entries)
             if (res.total > 0) root.archTotal = res.total
-            if (res.lastPage > 0) root.archLast = res.lastPage
             if (res.hasNext) { root.archNext += 1; root.pumpArchive() }
             else { root.archWalking = false; root.archComplete = true }
         })
     }
 
-    function fallbackFor(key) {
-        return (root.uni.fallbackEras && root.uni.fallbackEras[key]) || []
-    }
-    function eraNoteFor(key) {
-        return (root.uni.eraNotes && root.uni.eraNotes[key]) || ""
-    }
     function spanLine(e) {
-        if (!e.fromYear) return "serialized in Jump"
-        return e.publishing ? "since " + e.fromYear
-                            : e.fromYear + "–" + (e.toYear || "")
+        if (!e.fromYear) return ""
+        return e.publishing ? e.fromYear + "–" : e.fromYear + "–" + (e.toYear || "")
     }
-    function scrollToVolume(i) {
-        var it = volRep.itemAt(i)
-        if (!it) return
-        scrollAnim.stop()
-        scrollAnim.from = page.contentY
-        scrollAnim.to = Math.max(0, Math.min(volumesCol.y + it.y - 14,
-                                             page.contentHeight - page.height))
-        scrollAnim.start()
+    function runLine(r) {
+        var s = r.title + "  ·  " + r.fromYear + "–" + (r.publishing ? "" : (r.toYear || ""))
+        if (r.author) s += "  ·  " + r.author
+        if (r.members > 0) s += "  ·  " + Mag.fmtMembers(r.members) + " MAL members"
+        return s
     }
-    NumberAnimation { id: scrollAnim; target: page; property: "contentY"
-                      duration: 560; easing.type: Easing.InOutCubic }
 
-    // ---- the archive room's wall: ink black with the faintest red memory ----
+    // ---- the wall: night ink, nothing else ----
     Item {
         anchors.fill: parent
         ShaderEffectSource {
@@ -181,13 +160,13 @@ Item {
             hideSource: false
             visible: root.backdrop !== null
         }
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.055, 0.043, 0.047, 0.94) }
+        Rectangle { anchors.fill: parent; color: Qt.rgba(0.043, 0.039, 0.047, 0.96) }
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {
-                GradientStop { position: 0.0; color: "#1c0709" }
-                GradientStop { position: 0.34; color: root.inkWall }
-                GradientStop { position: 1.0; color: "#0a0809" }
+                GradientStop { position: 0.0; color: "#141013" }
+                GradientStop { position: 0.4; color: root.inkNight }
+                GradientStop { position: 1.0; color: "#080709" }
             }
         }
     }
@@ -208,318 +187,332 @@ Item {
             opacity: 0
             spacing: 0
 
-            // ═══════════ THE MASTHEAD — the archive entrance ═══════════
+            // ═══════════ THE PRESS — the hero ═══════════
             Item {
                 id: hero
                 width: parent.width
-                height: Math.max(600, root.height * 0.82)
+                height: Math.max(500, root.height * 0.72)
                 clip: true
 
-                // the red wall, aged toward the floor
-                Rectangle {
+                // the speedline burst — drawn rays converging behind the lockup
+                Canvas {
                     anchors.fill: parent
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: root.jumpRed }
-                        GradientStop { position: 0.55; color: "#5a0d10" }
-                        GradientStop { position: 1.0; color: root.jumpRedDeep }
-                    }
-                }
-                // wall sheen — a diagonal light falling from the high left
-                Rectangle {
-                    anchors.fill: parent
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0.05) }
-                        GradientStop { position: 0.5; color: "transparent" }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.22) }
-                    }
-                }
-                // the floor line the shelf stands on
-                Rectangle {
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    height: 84
-                    gradient: Gradient {
-                        GradientStop { position: 0.0; color: "transparent" }
-                        GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.5) }
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.reset()
+                        var cx = width * 0.60, cy = height * 0.40
+                        var maxR = Math.max(width, height)
+                        for (var i = 0; i < 96; i++) {
+                            var a = (i / 96) * Math.PI * 2 + 0.13
+                            var jitter = ((i * 37) % 11) / 11
+                            var r0 = 150 + jitter * 90
+                            var red = (i % 9 === 0)
+                            ctx.strokeStyle = red ? Qt.rgba(0.82, 0.14, 0.16, 0.20)
+                                                  : Qt.rgba(1, 1, 1, 0.035 + jitter * 0.05)
+                            ctx.lineWidth = red ? 2 : 1
+                            ctx.beginPath()
+                            ctx.moveTo(cx + Math.cos(a) * r0, cy + Math.sin(a) * r0)
+                            ctx.lineTo(cx + Math.cos(a) * maxR, cy + Math.sin(a) * maxR)
+                            ctx.stroke()
+                        }
+                        // halftone field, upper right, thinning toward the text
+                        ctx.fillStyle = Qt.rgba(1, 1, 1, 0.05)
+                        for (var gx = Math.round(width * 0.55); gx < width; gx += 16)
+                            for (var gy = 20; gy < height * 0.9; gy += 16) {
+                                var t = (gx - width * 0.55) / (width * 0.45)
+                                ctx.beginPath()
+                                ctx.arc(gx + ((gy / 16) % 2) * 8, gy, 0.8 + t * 1.4, 0, Math.PI * 2)
+                                ctx.fill()
+                            }
                     }
                 }
 
-                // ── left: the masthead lockup ──
+                // the lockup — a press block, set at a tilt
                 Column {
-                    id: heroCopy
-                    anchors.left: parent.left
-                    anchors.leftMargin: theme.margin
+                    x: theme.margin
                     anchors.verticalCenter: parent.verticalCenter
-                    anchors.verticalCenterOffset: -14
-                    width: Math.min(620, parent.width * 0.46)
-                    spacing: 15
+                    anchors.verticalCenterOffset: -8
+                    spacing: 14
+                    rotation: -2
                     Text {
-                        text: "UNIVERSE  ·  THE MAGAZINE  ·  SHUEISHA, SINCE JULY 11, 1968"
-                        color: theme.gold
+                        text: "UNIVERSE  ·  SHUEISHA  ·  TOKYO  ·  EVERY MONDAY"
+                        color: root.newsprint
                         font.family: theme.ui; font.pixelSize: 11
                         font.letterSpacing: 4; font.bold: true
                     }
                     Text {
-                        text: root.uni.name || "Weekly Shonen Jump"
-                        color: theme.ink
-                        font.family: theme.display; font.pixelSize: 54
-                        lineHeight: 0.95
+                        text: "WEEKLY"
+                        color: Qt.rgba(0.97, 0.97, 0.96, 0.55)
+                        font.family: theme.ui; font.pixelSize: 17
+                        font.letterSpacing: 22; font.bold: true
                     }
-                    // the sourced hero line — Wikipedia's own characterization, not our blurb
-                    Text {
-                        visible: (root.uni.heroLine || "").length > 0
-                        text: "“" + root.uni.heroLine + "”"
-                        color: Qt.rgba(0.97, 0.93, 0.86, 0.92)
-                        font.family: theme.display; font.italic: true; font.pixelSize: 21
-                    }
-                    Text {
-                        width: parent.width
-                        text: root.uni.blurb || ""
-                        color: Qt.rgba(0.97, 0.95, 0.93, 0.78)
-                        font.family: theme.ui; font.pixelSize: 14
-                        lineHeight: 1.45; wrapMode: Text.WordWrap
-                        maximumLineCount: 3; elide: Text.ElideRight
-                    }
-                    Item { width: 1; height: 6 }
-                    // THE PRINT RECORD — verified print history, kept apart from MAL numbers
-                    Column {
-                        spacing: 8
-                        visible: (root.uni.milestones || []).length > 0
-                        Text { text: "THE PRINT RECORD"
-                               color: Qt.rgba(0.94, 0.77, 0.29, 0.75)
-                               font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 3 }
-                        Row {
-                            spacing: 26
-                            Repeater {
-                                model: root.uni.milestones || []
-                                delegate: Column {
-                                    required property var modelData
-                                    spacing: 2
-                                    Text { text: modelData.year; color: theme.gold
-                                           font.family: theme.display; font.italic: true
-                                           font.pixelSize: 22 }
-                                    Text { width: 150; text: modelData.fact
-                                           color: Qt.rgba(0.97, 0.95, 0.93, 0.62)
-                                           font.family: theme.ui; font.pixelSize: 11
-                                           lineHeight: 1.25; wrapMode: Text.WordWrap }
-                                }
-                            }
+                    Row {
+                        spacing: 20
+                        Text {
+                            text: "SHONEN"
+                            color: theme.ink
+                            font.family: theme.display; font.pixelSize: 84
+                            lineHeight: 0.9
+                        }
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: jumpT.implicitWidth + 40; height: jumpT.implicitHeight + 8
+                            color: root.jumpRed
+                            rotation: 1.6
+                            Text { id: jumpT; anchors.centerIn: parent
+                                   text: "JUMP"; color: theme.ink
+                                   font.family: theme.display; font.pixelSize: 84 }
                         }
                     }
-                    // the live registry line — appears only once MAL answers, never invented
+                    Text {
+                        text: "友情 · 努力 · 勝利      friendship · effort · victory"
+                        color: root.newsprint
+                        font.family: theme.ui; font.pixelSize: 14; font.letterSpacing: 2
+                    }
+                    Item { width: 1; height: 2 }
+                    Text {
+                        width: Math.min(760, hero.width - theme.margin * 2)
+                        text: {
+                            var ms = root.uni.milestones || []
+                            var parts = []
+                            for (var i = 0; i < ms.length; i++) parts.push(ms[i].year + " " + ms[i].fact)
+                            return parts.join("   ·   ")
+                        }
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 12
+                        wrapMode: Text.WordWrap
+                    }
                     Text {
                         visible: root.registryTotal > 0
-                        text: root.registryTotal + " titles in MAL's serialization registry"
-                        color: Qt.rgba(0.94, 0.77, 0.29, 0.85)
+                        text: root.registryTotal + " series in MyAnimeList's Weekly Shonen Jump registry"
+                        color: theme.gold
                         font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
                     }
                 }
 
-                // ── right: the first issue, framed — and the four bound volumes ──
-                Row {
-                    id: shelfRow
-                    anchors.right: parent.right
-                    anchors.rightMargin: theme.margin + 8
-                    anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 148
-                    spacing: 30
-
-                    // the framed archival object (never the page's throne)
-                    Item {
-                        width: 178; height: 268
-                        anchors.bottom: parent.bottom
-                        Rectangle {                       // the frame
-                            anchors.fill: parent
-                            color: "#221410"
-                            border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
-                            Rectangle {                   // the ivory matte
-                                anchors.fill: parent; anchors.margins: 9
-                                color: "#e8dfc8"
-                                Image {
-                                    anchors.fill: parent; anchors.margins: 8
-                                    source: root.uni.banner || ""
-                                    asynchronous: true; cache: true
-                                    fillMode: Image.PreserveAspectCrop
-                                    opacity: status === Image.Ready ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 300 } }
-                                }
-                            }
-                        }
-                        Rectangle {                       // the brass plate
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            anchors.top: parent.bottom; anchors.topMargin: 8
-                            width: plateT.implicitWidth + 18; height: plateT.implicitHeight + 8
-                            radius: 2; color: "#2a1c10"
-                            border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.5)
-                            Text { id: plateT; anchors.centerIn: parent
-                                   text: "ISSUE No. 1  ·  JULY 1968"
-                                   color: theme.gold; font.family: theme.ui
-                                   font.pixelSize: 9; font.letterSpacing: 2 }
-                        }
-                    }
-
-                    // THE FOUR VOLUMES — the signature: bound spines, one era each
-                    Row {
-                        anchors.bottom: parent.bottom
-                        spacing: 12
-                        Repeater {
-                            model: root.eras
-                            delegate: ArchiveSpine {
-                                required property var modelData
-                                required property int index
-                                bucket: modelData
-                                ord: index
-                            }
-                        }
-                    }
-                }
-                // the shelf they stand on
+                // the press rule — hard red edge at the fold
                 Rectangle {
-                    anchors.right: parent.right; anchors.rightMargin: theme.margin
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 142
-                    width: shelfRow.width + 26; height: 5
-                    color: "#1c0f08"
-                    border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.28)
-                }
-                // the reveal strip — the hovered spine speaks here
-                Item {
-                    anchors.right: parent.right; anchors.rightMargin: theme.margin
-                    anchors.bottom: parent.bottom; anchors.bottomMargin: 78
-                    width: shelfRow.width + 26; height: 56
-                    Column {
-                        anchors.right: parent.right
-                        spacing: 4
-                        opacity: root.hoveredSpine >= 0 ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 160 } }
-                        Text {
-                            anchors.right: parent.right
-                            text: root.hoveredSpine >= 0
-                                  ? "VOLUME " + root.eras[root.hoveredSpine].volume + "  ·  "
-                                    + root.eras[root.hoveredSpine].era.toUpperCase() + "  ·  "
-                                    + root.eras[root.hoveredSpine].span
-                                  : ""
-                            color: theme.gold
-                            font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2
-                        }
-                        Text {
-                            anchors.right: parent.right
-                            text: {
-                                if (root.hoveredSpine < 0) return ""
-                                var b = root.eras[root.hoveredSpine]
-                                var names = b.items.length
-                                    ? b.items.slice(0, 3).map(function(m) { return m.title })
-                                    : root.fallbackFor(b.key).slice(0, 3).map(function(f) { return f.t })
-                                return names.length ? names.join("  ·  ") : "the volume is still being filed"
-                            }
-                            color: Qt.rgba(0.97, 0.95, 0.93, 0.7)
-                            font.family: theme.ui; font.pixelSize: 12
-                        }
-                        Text {
-                            anchors.right: parent.right
-                            text: root.hoveredSpine >= 0 ? "OPEN THE VOLUME  →" : ""
-                            color: Qt.rgba(0.94, 0.77, 0.29, 0.7)
-                            font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2
-                        }
-                    }
+                    anchors.left: parent.left; anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    height: 3; color: root.jumpRed
                 }
             }
 
-            // ═══════════ THE CURRENT DESK — the live serialization registry ═══════════
+            // ═══════════ THE LONG RUN — the serialization chart ═══════════
             Item {
-                width: parent.width; height: 118
+                width: parent.width; height: 108
                 Column {
                     x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                    Text { text: "THE CURRENT DESK"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: "On the editor's desk"; color: theme.ink
+                    Text { text: "THE LONG RUN"; color: root.jumpRed
+                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 4; font.bold: true }
+                    Text { text: "1968 → today"; color: theme.ink
                            font.family: theme.display; font.pixelSize: 30 }
-                    Text { text: root.currentDesk.length > 0
-                                 ? root.currentDesk.length + " manga in MAL's current serialization registry — the running lineup, not the literal contents of this week's printed issue"
-                                 : "Current registry unavailable — the desk stands empty rather than invented"
+                    Text { text: "Landmark serializations, drawn to scale. An arrowhead means the run is still going — click any stroke to read."
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                }
+            }
+            Item {
+                id: chart
+                x: theme.margin
+                width: parent.width - theme.margin * 2
+                height: root.chartRuns.lanes * 30 + 58
+                property int hot: -1
+                onHotChanged: chartCanvas.requestPaint()
+
+                readonly property int y0: 1966
+                function xFor(year) {
+                    return (year - chart.y0) / (root.nowYear + 1 - chart.y0) * chart.width
+                }
+
+                Canvas {
+                    id: chartCanvas
+                    anchors.fill: parent
+                    onWidthChanged: requestPaint()
+                    onHeightChanged: requestPaint()
+                    Connections {
+                        target: root
+                        function onChartRunsChanged() { chartCanvas.requestPaint() }
+                    }
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        ctx.reset()
+                        var runs = root.chartRuns.runs
+                        var bottom = height - 30
+                        // decade grid
+                        ctx.textAlign = "left"
+                        for (var y = 1970; y <= root.nowYear; y += 10) {
+                            var gx = chart.xFor(y)
+                            ctx.strokeStyle = Qt.rgba(1, 1, 1, 0.07)
+                            ctx.lineWidth = 1
+                            ctx.beginPath(); ctx.moveTo(gx, 0); ctx.lineTo(gx, bottom); ctx.stroke()
+                            ctx.fillStyle = Qt.rgba(0.73, 0.70, 0.65, 0.55)
+                            ctx.font = "10px 'Segoe UI'"
+                            ctx.fillText(String(y), gx + 4, height - 14)
+                        }
+                        // the strokes
+                        for (var i = 0; i < runs.length; i++) {
+                            var r = runs[i]
+                            var hot = (chart.hot === i)
+                            var x1 = chart.xFor(r.fromYear)
+                            var x2 = chart.xFor(r.publishing ? root.nowYear + 1 : (r.toYear || r.fromYear) + 1)
+                            var w = Math.max(10, x2 - x1)
+                            var ty = 8 + r.lane * 30
+                            // label — elided to its run's reach so lanes stay readable
+                            ctx.font = (hot ? "bold " : "") + "11px 'Segoe UI'"
+                            ctx.fillStyle = hot ? Qt.rgba(0.97, 0.97, 0.96, 1)
+                                                : Qt.rgba(0.97, 0.97, 0.96, 0.72)
+                            var label = r.title
+                            var maxW = Math.max(w + 46, 60)
+                            while (label.length > 4 && ctx.measureText(label).width > maxW)
+                                label = label.substring(0, label.length - 2)
+                            if (label !== r.title) label += "…"
+                            ctx.fillText(label, x1 + 1, ty + 8)
+                            // stroke bar
+                            ctx.fillStyle = hot ? root.jumpRed
+                                                : (r.publishing ? Qt.rgba(0.85, 0.82, 0.76, 0.92)
+                                                                : Qt.rgba(0.54, 0.52, 0.47, 0.9))
+                            ctx.fillRect(x1, ty + 12, w - (r.publishing ? 8 : 0), hot ? 9 : 7)
+                            if (r.publishing) {          // the arrowhead — still running
+                                ctx.beginPath()
+                                ctx.moveTo(x1 + w - 9, ty + 8)
+                                ctx.lineTo(x1 + w + 2, ty + 15.5)
+                                ctx.lineTo(x1 + w - 9, ty + 23)
+                                ctx.closePath()
+                                ctx.fill()
+                            }
+                        }
+                    }
+                }
+                // hit zones ride the same geometry as the drawn strokes
+                Repeater {
+                    model: root.chartRuns.runs
+                    delegate: Item {
+                        id: hit
+                        required property var modelData
+                        required property int index
+                        x: chart.xFor(modelData.fromYear)
+                        y: 8 + modelData.lane * 30
+                        width: Math.max(26, chart.xFor(modelData.publishing ? root.nowYear + 1
+                                                                            : (modelData.toYear || modelData.fromYear) + 1) - x)
+                        height: 26
+                        activeFocusOnTab: true
+                        MouseArea {
+                            anchors.fill: parent
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onEntered: chart.hot = hit.index
+                            onExited: if (chart.hot === hit.index) chart.hot = -1
+                            onClicked: root.seriesRequested(hit.modelData.title)
+                        }
+                        onActiveFocusChanged: if (activeFocus) chart.hot = hit.index
+                        Keys.onReturnPressed: root.seriesRequested(hit.modelData.title)
+                        Keys.onEnterPressed: root.seriesRequested(hit.modelData.title)
+                        Keys.onSpacePressed: root.seriesRequested(hit.modelData.title)
+                    }
+                }
+            }
+            Item {
+                width: parent.width; height: 34
+                Text {
+                    x: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: chart.hot >= 0 ? root.runLine(root.chartRuns.runs[chart.hot]) : ""
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 13
+                }
+            }
+
+            // ═══════════ RUNNING NOW — the live publishing registry ═══════════
+            Item {
+                width: parent.width; height: 104
+                Column {
+                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                    Text { text: "RUNNING NOW"; color: root.jumpRed
+                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 4; font.bold: true }
+                    Text { text: "In serialization"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 28 }
+                    Text { text: root.runningNow.length > 0
+                                 ? root.runningNow.length + " series currently running, per MyAnimeList"
+                                 : "MyAnimeList's registry isn't responding right now"
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
                 }
             }
             Flickable {
-                width: parent.width; height: 314
-                visible: root.currentDesk.length > 0
-                contentWidth: deskRow.implicitWidth + theme.margin * 2
+                width: parent.width; height: 296
+                visible: root.runningNow.length > 0
+                contentWidth: nowRow.implicitWidth + theme.margin * 2
                 contentHeight: height
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
                 boundsBehavior: Flickable.StopAtBounds
                 Row {
-                    id: deskRow
+                    id: nowRow
                     x: theme.margin
-                    spacing: 20
+                    spacing: 18
                     Repeater {
-                        model: root.currentDesk
-                        delegate: DeskSlip {
+                        model: root.runningNow
+                        delegate: NowTile {
                             required property var modelData
-                            required property int index
                             entry: modelData
-                            ord: index
                         }
                     }
                 }
             }
 
-            // ═══════════ THE HALL OF CHAMPIONS — most collected on MAL ═══════════
+            // ═══════════ MOST COLLECTED — MAL's member ranking ═══════════
             Column {
                 x: theme.margin; width: parent.width - theme.margin * 2
-                topPadding: 44
+                topPadding: 40
                 spacing: 18
                 Column {
                     spacing: 6
-                    Text { text: "THE HALL OF CHAMPIONS"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: root.champions.length > 0 ? "Most collected on MAL" : "The flagships"
+                    Text { text: "MOST COLLECTED"; color: root.jumpRed
+                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 4; font.bold: true }
+                    Text { text: root.champions.length > 0 ? "The top ten, by MAL members" : "The flagships"
                            color: theme.ink
-                           font.family: theme.display; font.pixelSize: 30 }
+                           font.family: theme.display; font.pixelSize: 28 }
                     Text { text: root.champions.length > 0
-                                 ? "cultural reach, not print sales — every number is a MyAnimeList library count"
-                                 : "registry unreachable — the curated lineup stands in, unranked"
+                                 ? "MyAnimeList library counts — not sales"
+                                 : "the curated lineup, 1976 to today"
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
                 }
                 Column {
                     width: parent.width
                     spacing: 10
                     Repeater {
-                        model: root.champions.length > 0
-                               ? root.champions
-                               : (root.uni.readQueries || []).map(function(t) { return { title: t } })
+                        model: root.champions.length > 0 ? root.champions : root.flagships
                         delegate: Rectangle {
-                            id: champ
+                            id: rankRow
                             required property var modelData
                             required property int index
                             readonly property bool live: root.champions.length > 0
-                            width: parent.width; height: 92
+                            width: parent.width; height: 88
                             radius: 12
-                            color: champMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.045)
+                            color: rankMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.045)
                             border.width: 1
-                            border.color: champMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.6)
-                                                                : Qt.rgba(0.97, 0.97, 0.96, 0.08)
+                            border.color: rankMa.containsMouse ? Qt.rgba(0.82, 0.14, 0.16, 0.7)
+                                                               : Qt.rgba(0.97, 0.97, 0.96, 0.08)
                             Behavior on color { ColorAnimation { duration: 140 } }
                             Row {
-                                anchors.left: parent.left; anchors.leftMargin: 26
+                                anchors.left: parent.left; anchors.leftMargin: 24
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 24
+                                spacing: 22
                                 Text {
-                                    width: 62
-                                    visible: champ.live
-                                    text: (champ.index + 1 < 10 ? "0" : "") + (champ.index + 1)
-                                    color: champ.index === 0 ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.45)
-                                    font.family: theme.display; font.italic: true; font.pixelSize: 42
+                                    visible: rankRow.live
+                                    width: 58
+                                    text: (rankRow.index + 1 < 10 ? "0" : "") + (rankRow.index + 1)
+                                    color: rankRow.index === 0 ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.45)
+                                    font.family: theme.display; font.italic: true; font.pixelSize: 40
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Rectangle {
-                                    visible: champ.live
-                                    width: 50; height: 72; radius: 4; clip: true
+                                    width: 48; height: 68; radius: 4; clip: true
                                     anchors.verticalCenter: parent.verticalCenter
-                                    color: "#2a1a14"
+                                    color: "#1c191b"
                                     Image {
                                         anchors.fill: parent
-                                        source: champ.modelData.cover || ""
+                                        source: rankRow.modelData.cover || ""
                                         asynchronous: true; cache: true
                                         fillMode: Image.PreserveAspectCrop
                                         opacity: status === Image.Ready ? 1 : 0
@@ -529,122 +522,86 @@ Item {
                                 Column {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 5
-                                    Text { text: champ.modelData.title
-                                           color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
-                                    Text { visible: champ.live
-                                           text: root.spanLine(champ.modelData)
-                                                 + (champ.modelData.chapters ? "  ·  " + champ.modelData.chapters + " chapters" : "")
-                                                 + (champ.modelData.author ? "  ·  " + champ.modelData.author : "")
+                                    Text { text: rankRow.modelData.title
+                                           color: theme.ink; font.family: theme.display; font.pixelSize: 19 }
+                                    Text { text: {
+                                               var bits = []
+                                               var span = root.spanLine(rankRow.modelData)
+                                               if (span.length) bits.push(span)
+                                               if (rankRow.modelData.chapters) bits.push(rankRow.modelData.chapters + " chapters")
+                                               if (rankRow.modelData.author) bits.push(rankRow.modelData.author)
+                                               return bits.join("  ·  ")
+                                           }
                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                                 }
                             }
                             Row {
-                                anchors.right: parent.right; anchors.rightMargin: 26
+                                anchors.right: parent.right; anchors.rightMargin: 24
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 18
                                 Text {
-                                    visible: champ.live && champ.modelData.members > 0
-                                    text: Mag.fmtMembers(champ.modelData.members) + " MAL members"
+                                    visible: rankRow.live && rankRow.modelData.members > 0
+                                    text: Mag.fmtMembers(rankRow.modelData.members) + " MAL members"
                                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Row {
                                     spacing: 8
                                     anchors.verticalCenter: parent.verticalCenter
-                                    opacity: champMa.containsMouse ? 1 : 0.55
+                                    opacity: rankMa.containsMouse ? 1 : 0.55
                                     Behavior on opacity { NumberAnimation { duration: 140 } }
                                     Text { text: "Read"; color: theme.ink
                                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
-                                    Text { text: "→"; color: theme.gold; font.pixelSize: 15 }
+                                    Text { text: "→"; color: root.jumpRed; font.pixelSize: 15 }
                                 }
                             }
                             MouseArea {
-                                id: champMa
+                                id: rankMa
                                 anchors.fill: parent
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: root.seriesRequested(champ.modelData.title)
+                                onClicked: root.seriesRequested(rankRow.modelData.title)
                             }
                         }
                     }
                 }
             }
 
-            // ═══════════ THE FOUR ARCHIVE VOLUMES — the reading rooms ═══════════
-            Item {
-                width: parent.width; height: 128
-                Column {
-                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
-                    Text { text: "THE ARCHIVE"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: "Four volumes, one institution"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 30 }
-                    Text {
-                        text: {
-                            var base = "every manga is filed under the era its Jump run began"
-                            if (root.archWalking)
-                                return base + "  —  filing the registry now: " + root.archive.length
-                                       + (root.archTotal > 0 ? " of " + root.archTotal : "") + " titles"
-                            if (root.archComplete) return base + "  —  " + root.archive.length + " titles filed"
-                            return base
-                        }
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    }
-                }
-            }
-            Column {
-                id: volumesCol
-                width: parent.width
-                spacing: 46
-                Repeater {
-                    id: volRep
-                    model: root.eras
-                    delegate: ArchiveVolume {
-                        required property var modelData
-                        required property int index
-                        bucket: modelData
-                        ord: index
-                        width: contentColumn.width
-                    }
-                }
-            }
-
-            // ═══════════ THE COMPLETE REGISTRY — every title ever filed ═══════════
+            // ═══════════ EVERY SERIES — the full registry ═══════════
             Column {
                 x: theme.margin; width: parent.width - theme.margin * 2
-                topPadding: 54
-                spacing: 18
+                topPadding: 48
+                spacing: 16
                 Column {
                     spacing: 6
-                    Text { text: "THE COMPLETE REGISTRY"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
-                    Text { text: "Every title ever filed"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 30 }
+                    Text { text: "EVERY SERIES"; color: root.jumpRed
+                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 4; font.bold: true }
+                    Text { text: "The full registry"; color: theme.ink
+                           font.family: theme.display; font.pixelSize: 28 }
                     Row {
                         spacing: 14
                         Text {
                             text: {
-                                if (root.archComplete)
-                                    return "the complete MAL registry — " + root.archive.length + " titles, alphabetical"
+                                if (root.archComplete) return root.archive.length + " series, 1968 to today"
                                 if (root.archWalking)
-                                    return "filing — " + root.archive.length
-                                           + (root.archTotal > 0 ? " of " + root.archTotal : "") + " titles so far"
+                                    return "loading — " + root.archive.length
+                                           + (root.archTotal > 0 ? " of " + root.archTotal : "") + " so far"
                                 if (root.archFailed && root.archive.length > 0)
-                                    return "archive partially filed — " + root.archive.length + " titles received"
-                                if (root.archFailed) return "the registry is unreachable — nothing filed, nothing invented"
+                                    return root.archive.length + " received — the rest returns with MyAnimeList"
+                                if (root.archFailed) return "MyAnimeList's registry isn't responding right now"
                                 return ""
                             }
-                            color: root.archFailed ? root.redPencil : theme.inkDimmer
+                            color: root.archFailed ? root.newsprint : theme.inkDimmer
                             font.family: theme.ui; font.pixelSize: 12
                             anchors.verticalCenter: parent.verticalCenter
                         }
                         Rectangle {
                             visible: root.archFailed
                             radius: 6; height: 28; width: resumeT.implicitWidth + 26
-                            color: resumeMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.2) : "transparent"
-                            border.width: 1; border.color: Qt.rgba(0.94, 0.77, 0.29, 0.6)
+                            color: resumeMa.containsMouse ? Qt.rgba(0.82, 0.14, 0.16, 0.25) : "transparent"
+                            border.width: 1; border.color: Qt.rgba(0.82, 0.14, 0.16, 0.7)
                             anchors.verticalCenter: parent.verticalCenter
                             Text { id: resumeT; anchors.centerIn: parent
-                                   text: "RESUME FILING"; color: theme.gold
+                                   text: "RETRY"; color: theme.ink
                                    font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2 }
                             MouseArea { id: resumeMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
@@ -653,7 +610,6 @@ Item {
                     }
                 }
 
-                // the index tools — a search slip and the era tabs
                 Row {
                     spacing: 12
                     visible: root.archive.length > 0
@@ -661,7 +617,7 @@ Item {
                         width: 300; height: 38; radius: 10
                         color: Qt.rgba(1, 1, 1, 0.06)
                         border.width: 1
-                        border.color: ixInput.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.16)
+                        border.color: ixInput.activeFocus ? root.jumpRed : Qt.rgba(1, 1, 1, 0.16)
                         TextInput {
                             id: ixInput
                             anchors.fill: parent
@@ -669,7 +625,7 @@ Item {
                             verticalAlignment: TextInput.AlignVCenter
                             color: theme.ink
                             font.family: theme.ui; font.pixelSize: 13
-                            selectionColor: Qt.rgba(0.94, 0.77, 0.29, 0.45)
+                            selectionColor: Qt.rgba(0.82, 0.14, 0.16, 0.5)
                             clip: true
                             onTextChanged: root.ixQuery = text
                         }
@@ -677,7 +633,7 @@ Item {
                             anchors.left: parent.left; anchors.leftMargin: 14
                             anchors.verticalCenter: parent.verticalCenter
                             visible: !ixInput.text.length && !ixInput.activeFocus
-                            text: "Search the registry"
+                            text: "Search"
                             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                         }
                     }
@@ -685,30 +641,34 @@ Item {
                         spacing: 8
                         anchors.verticalCenter: parent.verticalCenter
                         Repeater {
+                            model: [ { m: "members", label: "MOST COLLECTED" },
+                                     { m: "year",    label: "NEWEST" },
+                                     { m: "alpha",   label: "A–Z" } ]
+                            delegate: FilterPill {
+                                required property var modelData
+                                label: modelData.label
+                                on: root.ixSort === modelData.m
+                                onPicked: root.ixSort = modelData.m
+                            }
+                        }
+                    }
+                    Rectangle { width: 1; height: 26; color: Qt.rgba(1, 1, 1, 0.14)
+                                anchors.verticalCenter: parent.verticalCenter }
+                    Row {
+                        spacing: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        Repeater {
                             model: {
                                 var pills = [ { key: "all", label: "ALL" } ]
-                                for (var i = 0; i < root.eras.length; i++)
-                                    pills.push({ key: root.eras[i].key, label: "VOL " + root.eras[i].volume })
-                                if (root.undated.length > 0) pills.push({ key: "undated", label: "UNDATED" })
+                                for (var i = 0; i < root.ixDecades.length; i++)
+                                    pills.push({ key: root.ixDecades[i], label: root.ixDecades[i].toUpperCase() })
                                 return pills
                             }
-                            delegate: Rectangle {
-                                id: pill
+                            delegate: FilterPill {
                                 required property var modelData
-                                readonly property bool on: root.ixEra === modelData.key
-                                radius: 6; height: 28
-                                width: pillT.implicitWidth + 22
-                                color: pill.on ? Qt.rgba(0.94, 0.77, 0.29, 0.18)
-                                               : (pillMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
-                                border.width: 1
-                                border.color: pill.on ? theme.gold : Qt.rgba(1, 1, 1, 0.16)
-                                Text { id: pillT; anchors.centerIn: parent
-                                       text: pill.modelData.label
-                                       color: pill.on ? theme.gold : theme.inkDim
-                                       font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2 }
-                                MouseArea { id: pillMa; anchors.fill: parent; hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: root.ixEra = pill.modelData.key }
+                                label: modelData.label
+                                on: root.ixDecade === modelData.key
+                                onPicked: root.ixDecade = modelData.key
                             }
                         }
                     }
@@ -716,7 +676,7 @@ Item {
 
                 Text {
                     visible: root.archive.length > 0 && root.ixItems.length === 0
-                    text: "nothing in the registry matches — clear the search or switch volumes"
+                    text: "No matches"
                     color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                 }
                 Flow {
@@ -732,7 +692,7 @@ Item {
                             width: chipRow.implicitWidth + 22
                             color: chipMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.04)
                             border.width: 1
-                            border.color: chipMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.55)
+                            border.color: chipMa.containsMouse ? Qt.rgba(0.82, 0.14, 0.16, 0.65)
                                                                : Qt.rgba(1, 1, 1, 0.10)
                             Behavior on color { ColorAnimation { duration: 120 } }
                             Row {
@@ -791,426 +751,25 @@ Item {
         }
     }
 
-    // ═══ ArchiveSpine — one bound volume standing on the masthead shelf ═══
-    component ArchiveSpine: FocusScope {
-        id: spine
-        property var bucket: ({})
-        property int ord: 0
-        readonly property bool hot: spineMa.containsMouse || spine.activeFocus
-        width: 66
-        height: [252, 282, 264, 292][spine.ord % 4]
-        anchors.bottom: parent.bottom
-        activeFocusOnTab: true
-
-        Rectangle {
-            id: cloth
-            anchors.fill: parent
-            anchors.topMargin: spine.hot ? -10 : 0      // pulled up out of the shelf
-            radius: 3
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.0; color: spine.hot ? "#6b1216" : "#520e12" }
-                GradientStop { position: 0.14; color: spine.hot ? "#872024" : "#6b171b" }
-                GradientStop { position: 0.86; color: spine.hot ? "#5c1013" : "#480c0f" }
-                GradientStop { position: 1.0; color: "#2e0708" }
-            }
-            border.width: spine.activeFocus ? 2 : 1
-            border.color: spine.activeFocus ? theme.gold : Qt.rgba(0, 0, 0, 0.5)
-            Behavior on anchors.topMargin { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-
-            // gold stamped bands, top and foot
-            Rectangle { x: 7; y: 14; width: parent.width - 14; height: 2
-                        color: Qt.rgba(0.94, 0.77, 0.29, spine.hot ? 0.95 : 0.6) }
-            Rectangle { x: 7; y: 20; width: parent.width - 14; height: 1
-                        color: Qt.rgba(0.94, 0.77, 0.29, spine.hot ? 0.7 : 0.4) }
-            Rectangle { x: 7; y: parent.height - 22; width: parent.width - 14; height: 2
-                        color: Qt.rgba(0.94, 0.77, 0.29, spine.hot ? 0.95 : 0.6) }
-
-            // the volume numeral, stamped across the head
-            Text {
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: 30
-                text: spine.bucket.volume || ""
-                color: spine.hot ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.8)
-                font.family: theme.display; font.pixelSize: 21
-            }
-
-            // the era name, running down the spine
-            Text {
-                anchors.centerIn: parent
-                anchors.verticalCenterOffset: 16
-                rotation: 90
-                width: parent.height - 108
-                text: (spine.bucket.era || "").toUpperCase()
-                color: spine.hot ? Qt.rgba(0.97, 0.93, 0.86, 0.95) : Qt.rgba(0.97, 0.93, 0.86, 0.62)
-                font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3
-                horizontalAlignment: Text.AlignHCenter
-                elide: Text.ElideRight
-            }
-
-            // the filed count — a small archive label near the foot, live only
-            Rectangle {
-                visible: spine.bucket.items && spine.bucket.items.length > 0
-                anchors.horizontalCenter: parent.horizontalCenter
-                y: parent.height - 46
-                width: countT.implicitWidth + 10; height: countT.implicitHeight + 4
-                radius: 2; color: "#e8dfc8"
-                Text { id: countT; anchors.centerIn: parent
-                       text: (spine.bucket.items ? spine.bucket.items.length : 0)
-                       color: root.paperInk; font.family: theme.ui
-                       font.pixelSize: 9; font.weight: Font.DemiBold }
-            }
-        }
-        MouseArea {
-            id: spineMa
-            anchors.fill: parent
-            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onEntered: root.hoveredSpine = spine.ord
-            onExited: if (root.hoveredSpine === spine.ord) root.hoveredSpine = -1
-            onClicked: root.scrollToVolume(spine.ord)
-        }
-        onActiveFocusChanged: if (activeFocus) root.hoveredSpine = spine.ord
-        Keys.onReturnPressed: root.scrollToVolume(spine.ord)
-        Keys.onEnterPressed: root.scrollToVolume(spine.ord)
-        Keys.onSpacePressed: root.scrollToVolume(spine.ord)
-    }
-
-    // ═══ DeskSlip — one running manga as a manuscript slip on the editor's desk ═══
-    component DeskSlip: FocusScope {
-        id: slip
+    // ═══ NowTile — one running series ═══
+    component NowTile: FocusScope {
+        id: nt
         property var entry: ({})
-        property int ord: 0
-        readonly property bool hot: slipMa.containsMouse || slip.activeFocus
-        width: 168; height: 300
-        activeFocusOnTab: true
-
-        Rectangle {
-            anchors.fill: parent
-            anchors.topMargin: slip.hot ? 0 : 8
-            radius: 3
-            rotation: slip.hot ? 0 : (slip.ord % 2 === 0 ? -1.1 : 1.2)
-            color: "#f0e8d4"
-            border.width: slip.activeFocus ? 2 : 1
-            border.color: slip.activeFocus ? theme.gold : "#b8a988"
-            Behavior on anchors.topMargin { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-            Behavior on rotation { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-
-            Column {
-                anchors.left: parent.left; anchors.right: parent.right
-                anchors.top: parent.top; anchors.margins: 11
-                spacing: 8
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 140; height: 198
-                    color: "#ddd2b6"
-                    border.width: 1; border.color: Qt.rgba(0.42, 0.32, 0.16, 0.5)
-                    Image {
-                        anchors.fill: parent; anchors.margins: 3
-                        source: slip.entry.cover || ""
-                        asynchronous: true; cache: true
-                        fillMode: Image.PreserveAspectCrop
-                        opacity: status === Image.Ready ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 220 } }
-                    }
-                }
-                Text {
-                    width: parent.width
-                    text: slip.entry.title || ""
-                    color: root.paperInk
-                    font.family: theme.display; font.pixelSize: 14
-                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                }
-                Text {
-                    text: (slip.entry.fromYear > 0 ? "since " + slip.entry.fromYear : "")
-                          + (slip.entry.members > 0
-                                ? "  ·  " + Mag.fmtMembers(slip.entry.members) + " MAL members" : "")
-                    color: root.paperFaint
-                    font.family: theme.ui; font.pixelSize: 10
-                }
-            }
-            // the red RUNNING stamp — the editor's mark that the serialization lives
-            Rectangle {
-                anchors.right: parent.right; anchors.rightMargin: -6
-                anchors.top: parent.top; anchors.topMargin: 10
-                rotation: 8
-                width: stampT.implicitWidth + 14; height: stampT.implicitHeight + 8
-                color: "transparent"
-                border.width: 2; border.color: Qt.rgba(0.75, 0.22, 0.17, 0.8)
-                radius: 3
-                Text { id: stampT; anchors.centerIn: parent
-                       text: "RUNNING"
-                       color: Qt.rgba(0.75, 0.22, 0.17, 0.9)
-                       font.family: theme.ui; font.pixelSize: 9
-                       font.letterSpacing: 2; font.bold: true }
-            }
-        }
-        MouseArea {
-            id: slipMa
-            anchors.fill: parent
-            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: root.seriesRequested(slip.entry.title)
-        }
-        Keys.onReturnPressed: root.seriesRequested(slip.entry.title)
-        Keys.onEnterPressed: root.seriesRequested(slip.entry.title)
-        Keys.onSpacePressed: root.seriesRequested(slip.entry.title)
-    }
-
-    // ═══ ArchiveVolume — one era as an open bound volume: ivory spread, ink on paper ═══
-    component ArchiveVolume: Item {
-        id: vol
-        property var bucket: ({})
-        property int ord: 0
-        property string sortMode: "members"     // "members" | "year"
-        property bool open: false               // the full-grid expander
-        readonly property var fallback: root.fallbackFor(vol.bucket.key || "")
-        readonly property bool live: (vol.bucket.items || []).length > 0
-        readonly property var sorted: vol.live ? Mag.sortEra(vol.bucket.items, vol.sortMode) : []
-        readonly property var shown: vol.open ? vol.sorted : vol.sorted.slice(0, 18)
-        readonly property var anchorEntry: vol.live ? vol.bucket.items[0] : null
-        implicitHeight: spread.height + 26
-        height: implicitHeight                  // Column positions by height, not implicit
-
-        // the closed stack beneath — page block edges
-        Rectangle { x: spread.x + 7; y: spread.y + 8; width: spread.width; height: spread.height
-                    radius: 3; color: root.paperEdge }
-        Rectangle { x: spread.x + 3; y: spread.y + 4; width: spread.width; height: spread.height
-                    radius: 3; color: "#ddd1b2" }
-
-        Rectangle {
-            id: spread
-            x: theme.margin
-            width: vol.width - theme.margin * 2
-            height: Math.max(leftPage.implicitHeight, rightPage.implicitHeight) + 72
-            radius: 3
-            color: root.paper
-
-            // the gutter — the fold between the two pages
-            Rectangle {
-                anchors.horizontalCenter: parent.horizontalCenter
-                anchors.horizontalCenterOffset: -spread.width * 0.16
-                width: 52; height: parent.height
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-                    GradientStop { position: 0.0; color: "transparent" }
-                    GradientStop { position: 0.5; color: Qt.rgba(0.25, 0.18, 0.1, 0.16) }
-                    GradientStop { position: 1.0; color: "transparent" }
-                }
-            }
-
-            // ── LEFT PAGE — the era's card ──
-            Column {
-                id: leftPage
-                x: 40; y: 36
-                width: spread.width * 0.34 - 66
-                spacing: 13
-                Row {
-                    spacing: 10
-                    Text { text: "VOLUME " + (vol.bucket.volume || "")
-                           color: root.redPencil
-                           font.family: theme.ui; font.pixelSize: 11
-                           font.letterSpacing: 4; font.bold: true }
-                    Text { text: vol.bucket.span || ""
-                           color: root.paperFaint
-                           font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2
-                           anchors.verticalCenter: parent.verticalCenter }
-                }
-                Text {
-                    width: parent.width
-                    text: vol.bucket.era || ""
-                    color: root.paperInk
-                    font.family: theme.display; font.pixelSize: 34
-                    lineHeight: 1.0
-                    wrapMode: Text.WordWrap
-                }
-                // the editor's red underline
-                Rectangle { width: 64; height: 3; color: root.redPencil }
-                Text {
-                    visible: vol.live
-                    text: vol.bucket.items.length + " titles filed"
-                          + (root.archWalking ? "  ·  still filing" : "")
-                    color: root.paperFaint
-                    font.family: theme.ui; font.pixelSize: 12
-                }
-                Text {
-                    width: parent.width
-                    visible: root.eraNoteFor(vol.bucket.key || "").length > 0
-                    text: root.eraNoteFor(vol.bucket.key || "")
-                    color: Qt.rgba(0.25, 0.19, 0.12, 0.85)
-                    font.family: theme.display; font.italic: true; font.pixelSize: 15
-                    lineHeight: 1.35; wrapMode: Text.WordWrap
-                }
-                Item { width: 1; height: 4 }
-                // the era's anchor — its most collected entry, live only
-                Column {
-                    visible: !!vol.anchorEntry
-                    spacing: 8
-                    Text { text: "THE ERA'S MOST COLLECTED"
-                           color: root.paperFaint
-                           font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 3 }
-                    Rectangle {
-                        width: 150; height: 214
-                        color: "#ddd2b6"
-                        border.width: anchorMa.containsMouse ? 2 : 1
-                        border.color: anchorMa.containsMouse ? root.redPencil
-                                                             : Qt.rgba(0.42, 0.32, 0.16, 0.5)
-                        Image {
-                            anchors.fill: parent; anchors.margins: 4
-                            source: (vol.anchorEntry && vol.anchorEntry.cover) || ""
-                            asynchronous: true; cache: true
-                            fillMode: Image.PreserveAspectCrop
-                            opacity: status === Image.Ready ? 1 : 0
-                            Behavior on opacity { NumberAnimation { duration: 220 } }
-                        }
-                        MouseArea { id: anchorMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: if (vol.anchorEntry) root.seriesRequested(vol.anchorEntry.title) }
-                    }
-                    Text { width: leftPage.width
-                           text: vol.anchorEntry
-                                 ? vol.anchorEntry.title
-                                   + (vol.anchorEntry.members > 0
-                                        ? "  ·  " + Mag.fmtMembers(vol.anchorEntry.members) + " MAL members" : "")
-                                 : ""
-                           color: root.paperInk
-                           font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                           wrapMode: Text.WordWrap }
-                }
-            }
-
-            // ── RIGHT PAGE — the era's titles ──
-            Column {
-                id: rightPage
-                x: spread.width * 0.34 + 24
-                y: 36
-                width: spread.width - x - 40
-                spacing: 16
-
-                // the page header: the sort switch (live) or the fallback note
-                Row {
-                    spacing: 10
-                    visible: vol.live
-                    Repeater {
-                        model: [ { m: "members", label: "MOST COLLECTED" },
-                                 { m: "year",    label: "CHRONOLOGICAL" } ]
-                        delegate: Rectangle {
-                            id: sortPill
-                            required property var modelData
-                            readonly property bool on: vol.sortMode === modelData.m
-                            radius: 4; height: 26
-                            width: sortT.implicitWidth + 22
-                            color: sortPill.on ? root.paperInk : "transparent"
-                            border.width: 1
-                            border.color: sortPill.on ? root.paperInk : Qt.rgba(0.25, 0.19, 0.12, 0.4)
-                            Text { id: sortT; anchors.centerIn: parent
-                                   text: sortPill.modelData.label
-                                   color: sortPill.on ? root.paper : root.paperFaint
-                                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
-                            MouseArea { anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: vol.sortMode = sortPill.modelData.m }
-                        }
-                    }
-                }
-                Text {
-                    visible: !vol.live
-                    width: parent.width
-                    text: "The archive can't reach MAL's registry right now — the era's curated flagships hold the page."
-                    color: root.paperFaint
-                    font.family: theme.ui; font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                }
-
-                // live: the cover grid
-                Flow {
-                    width: parent.width
-                    spacing: 16
-                    visible: vol.live
-                    Repeater {
-                        model: vol.shown
-                        delegate: PaperTile {
-                            required property var modelData
-                            entry: modelData
-                        }
-                    }
-                }
-                // the expander — open the full volume
-                Rectangle {
-                    visible: vol.live && vol.sorted.length > 18
-                    width: parent.width; height: 40
-                    radius: 4
-                    color: expMa.containsMouse ? Qt.rgba(0.25, 0.19, 0.12, 0.1) : "transparent"
-                    border.width: 1; border.color: Qt.rgba(0.25, 0.19, 0.12, 0.35)
-                    Text {
-                        anchors.centerIn: parent
-                        text: vol.open ? "CLOSE THE VOLUME"
-                                       : "OPEN THE FULL VOLUME  —  ALL " + vol.sorted.length + " TITLES"
-                        color: root.paperInk
-                        font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3
-                    }
-                    MouseArea { id: expMa; anchors.fill: parent; hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: vol.open = !vol.open }
-                }
-
-                // fallback: the printed flagship slips
-                Column {
-                    width: parent.width
-                    spacing: 0
-                    visible: !vol.live
-                    Repeater {
-                        model: vol.fallback
-                        delegate: Item {
-                            id: fbRow
-                            required property var modelData
-                            width: parent.width; height: 46
-                            Rectangle { anchors.bottom: parent.bottom; width: parent.width
-                                        height: 1; color: Qt.rgba(0.25, 0.19, 0.12, 0.25) }
-                            // the red pencil tick
-                            Text { text: "✓"; color: root.redPencil
-                                   font.pixelSize: 13
-                                   anchors.verticalCenter: parent.verticalCenter }
-                            Text {
-                                x: 26
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: fbRow.modelData.t
-                                color: fbMa.containsMouse ? root.redPencil : root.paperInk
-                                font.family: theme.display; font.pixelSize: 17
-                                Behavior on color { ColorAnimation { duration: 120 } }
-                            }
-                            Text {
-                                anchors.right: parent.right
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: fbRow.modelData.a + "  ·  " + fbRow.modelData.y
-                                color: root.paperFaint
-                                font.family: theme.ui; font.pixelSize: 12
-                            }
-                            MouseArea { id: fbMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.seriesRequested(fbRow.modelData.t) }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // ═══ PaperTile — one filed manga printed on the volume's right page ═══
-    component PaperTile: FocusScope {
-        id: pt
-        property var entry: ({})
-        readonly property bool hot: ptMa.containsMouse || pt.activeFocus
-        width: 108; height: 202
+        readonly property bool hot: ntMa.containsMouse || nt.activeFocus
+        width: 150; height: 288
         activeFocusOnTab: true
         Rectangle {
-            width: parent.width; height: 152
-            y: pt.hot ? -3 : 0
-            color: "#ddd2b6"
-            border.width: pt.hot ? 2 : 1
-            border.color: pt.hot ? root.redPencil : Qt.rgba(0.42, 0.32, 0.16, 0.5)
-            Behavior on y { NumberAnimation { duration: 130; easing.type: Easing.OutCubic } }
+            width: parent.width; height: 212
+            y: nt.hot ? -4 : 0
+            radius: 8; clip: true
+            color: "#1c191b"
+            border.width: 1
+            border.color: nt.hot ? Qt.rgba(0.82, 0.14, 0.16, 0.85) : Qt.rgba(0.97, 0.97, 0.96, 0.12)
+            Behavior on y { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
             Image {
-                anchors.fill: parent; anchors.margins: 3
-                source: pt.entry.cover || ""
+                anchors.fill: parent
+                source: nt.entry.cover || ""
                 asynchronous: true; cache: true
                 fillMode: Image.PreserveAspectCrop
                 opacity: status === Image.Ready ? 1 : 0
@@ -1220,28 +779,49 @@ Item {
         Column {
             anchors.left: parent.left; anchors.right: parent.right
             anchors.bottom: parent.bottom
-            spacing: 1
+            spacing: 2
             Text {
                 width: parent.width
-                text: pt.entry.title || ""
-                color: root.paperInk
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                text: nt.entry.title || ""
+                color: theme.ink; font.family: theme.ui
+                font.pixelSize: 13; font.weight: Font.DemiBold
                 wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
             }
             Text {
-                text: root.spanLine(pt.entry)
-                color: root.redPencil
-                font.family: theme.ui; font.pixelSize: 9
+                text: (nt.entry.fromYear > 0 ? "since " + nt.entry.fromYear : "")
+                      + (nt.entry.author ? "  ·  " + nt.entry.author : "")
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
             }
         }
         MouseArea {
-            id: ptMa
+            id: ntMa
             anchors.fill: parent
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-            onClicked: root.seriesRequested(pt.entry.title)
+            onClicked: root.seriesRequested(nt.entry.title)
         }
-        Keys.onReturnPressed: root.seriesRequested(pt.entry.title)
-        Keys.onEnterPressed: root.seriesRequested(pt.entry.title)
-        Keys.onSpacePressed: root.seriesRequested(pt.entry.title)
+        Keys.onReturnPressed: root.seriesRequested(nt.entry.title)
+        Keys.onEnterPressed: root.seriesRequested(nt.entry.title)
+        Keys.onSpacePressed: root.seriesRequested(nt.entry.title)
+    }
+
+    // ═══ FilterPill — one registry-wall filter ═══
+    component FilterPill: Rectangle {
+        id: fp
+        property string label: ""
+        property bool on: false
+        signal picked()
+        radius: 6; height: 28
+        width: fpT.implicitWidth + 22
+        color: fp.on ? Qt.rgba(0.82, 0.14, 0.16, 0.22)
+                     : (fpMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent")
+        border.width: 1
+        border.color: fp.on ? root.jumpRed : Qt.rgba(1, 1, 1, 0.16)
+        Text { id: fpT; anchors.centerIn: parent
+               text: fp.label
+               color: fp.on ? theme.ink : theme.inkDim
+               font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2 }
+        MouseArea { id: fpMa; anchors.fill: parent; hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: fp.picked() }
     }
 }

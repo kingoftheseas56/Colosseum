@@ -1,14 +1,14 @@
 $ErrorActionPreference = "Stop"
 
-# Magazine universe contract — THE EDITORIAL ARCHIVE form (A5, 2026-07-18 free-reign
-# commission; spec: docs/superpowers/specs/2026-07-16-weekly-shonen-jump-editorial-archive-
-# design.md). Weekly Shonen Jump publishes MANGA — the page carries no watch machinery.
-# The page represents the ARCHIVE, not this week's issue: masthead with the four bound era
-# volumes, The Current Desk (live serialization registry, honestly labeled), the Hall of
-# Champions (most collected on MAL — member counts, NEVER "circulation"), the four archive
-# volumes on ivory paper, and the progressive complete registry index with honest
-# partial/offline states. Shape contract only — behavior lives in the headless harness
-# (magazine_registry_harness.qml).
+# Magazine universe contract — THE LONG RUN form (A5, 2026-07-18, fresh design on Hemanth's
+# order; the prior archive concept is dead). Weekly Shonen Jump publishes MANGA — the page
+# carries no watch machinery. The page speaks print velocity: the press-block hero, the run
+# chart (serializations drawn to scale from real years), Running Now (the live publishing
+# registry), Most Collected (MAL members, NEVER "circulation"), and Every Series (the full
+# registry wall, filed progressively with honest partial states). MAL magazine 83 is the
+# registry spine; AniList carries the art via verified flagship id-pins in Universes.js.
+# Shape contract only — behavior lives in magazine_registry_harness.qml and
+# magazine_page_load_harness.qml.
 
 $root = Split-Path -Parent $PSScriptRoot
 function Read-File($rel) {
@@ -26,45 +26,42 @@ function Assert-Lacks($text, $needle, $message) {
 $mp = Read-File "qml/MagazineUniversePage.qml"
 foreach ($n in @('signal seriesRequested(string title)', 'import QtQuick.Controls',
                  'import "MagazineApi.js" as Mag',
-                 'THE CURRENT DESK', 'THE HALL OF CHAMPIONS', 'THE ARCHIVE', 'THE COMPLETE REGISTRY',
-                 'THE PRINT RECORD', 'Most collected on MAL', 'MAL members',
-                 'Mag.loadSummary', 'Mag.fetchArchivePage', 'Mag.bucketByEra', 'Mag.mergeDedup',
-                 'RESUME FILING', 'fallbackFor', 'scrollToVolume',
+                 'THE LONG RUN', 'RUNNING NOW', 'MOST COLLECTED', 'EVERY SERIES',
+                 'MAL members', 'Mag.buildRuns', 'Mag.loadSummary', 'Mag.fetchArchivePage',
+                 'Mag.mergeDedup', 'Mag.mapFlagship', 'root.flagships',
                  'activeFocusOnTab: true', 'Keys.onReturnPressed')) {
     Assert-Contains $mp $n "MagazineUniversePage must carry: $n"
 }
 Assert-Lacks $mp 'watchRequested' "The magazine has no watch verb (manga only, ratified)."
 Assert-Lacks $mp 'Cinemeta' "The magazine touches no watch source."
 Assert-Lacks $mp 'movieQueries' "The magazine fires no film queries."
-# THE HONESTY LAW (spec 2): MAL members are library counts — the word "circulation" is
-# banned from the whole lane so the mislabel can never return.
+# THE HONESTY LAW: MAL members are library counts — the word "circulation" is banned from
+# the whole lane so the mislabel can never return.
 Assert-Lacks $mp 'circulation' "MAL members must never be labeled circulation."
-# offline honesty: the desk never invents, the champions fall back unranked
-Assert-Contains $mp 'Current registry unavailable' "The desk must state its offline truth."
-Assert-Contains $mp 'the curated lineup stands in' "Champions must fall back to curation, unranked."
+# the dead concept stays dead
+Assert-Lacks $mp 'Editorial Archive' "The archive concept is retired."
+Assert-Lacks $mp 'ArchiveVolume' "The archive-volume machinery is retired."
+Assert-Lacks $mp 'Current Desk' "The desk metaphor is retired."
+# offline honesty: short factual notices, no invention
+Assert-Contains $mp "isn't responding right now" "Offline states must say the factual truth."
 
 $mag = Read-File "qml/MagazineApi.js"
 foreach ($n in @('function loadSummary(', 'function fetchArchivePage(', 'function hasPage(',
-                 'function bucketByEra(', 'function undatedOf(', 'function sortEra(',
-                 'function alphaSort(', 'function mergeDedup(', 'function mapEntry(',
-                 'magazines=', 'order_by=members', 'status=publishing',
-                 'The Founding Years', 'The Golden Age', 'The Big Three Era', 'The New Generation')) {
+                 'function buildRuns(', 'function sortBy(', 'function decadeOf(',
+                 'function mergeDedup(', 'function mapEntry(', 'function mapFlagship(',
+                 'magazines=', 'order_by=members', 'status=publishing')) {
     Assert-Contains $mag $n "MagazineApi must carry: $n"
 }
 Assert-Lacks $mag 'circulation' "The registry lane must never speak of circulation."
-# the approved era boundaries, exact (spec 1)
-foreach ($n in @('from: 1968, to: 1979', 'from: 1980, to: 1996',
-                 'from: 1997, to: 2014', 'from: 2015, to: 9999')) {
-    Assert-Contains $mag $n "The archive must keep the approved era boundary: $n"
-}
 
 $udb = Read-File "qml/Universes.js"
 Assert-Contains $udb 'category: "magazine"' "Weekly Shonen Jump must ride the magazine template."
 Assert-Contains $udb 'malMagazineId: 83' "Jump must pin its MAL magazine registry id."
-Assert-Contains $udb 'fallbackEras:' "Jump must curate era fallback flagships for the offline volumes."
-Assert-Contains $udb 'heroLine:' "Jump must carry its sourced hero line."
-Assert-Contains $udb 'eraNotes:' "Jump must carry sourced per-volume historical notes."
+Assert-Contains $udb 'flagships:' "Jump must curate the AniList-pinned flagships."
+Assert-Contains $udb 'al: 30013' "One Piece must ride its verified AniList pin."
+Assert-Contains $udb 's4.anilist.co' "Flagship covers must ride the pinned AniList CDN."
 Assert-Contains $udb 'milestones:' "Jump must carry its verified print milestones."
+Assert-Lacks $udb 'fallbackEras' "The era-fallback machinery is retired with the archive."
 
 $main = Read-File "qml/Main.qml"
 Assert-Contains $main 'MagazineUniversePage.qml' "Main must route magazine universes to the magazine template."

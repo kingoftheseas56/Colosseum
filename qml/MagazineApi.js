@@ -1,36 +1,27 @@
-// MagazineApi — the magazine registry lane, second form: THE EDITORIAL ARCHIVE (A5,
-// 2026-07-18, Hemanth free-reign commission; spec: docs/superpowers/specs/
-// 2026-07-16-weekly-shonen-jump-editorial-archive-design.md). MAL is the ONLY database
-// with a serialization axis; Jikan is its keyless door (no-login law). The registry call
-// (/manga?magazines=<id>) is MAL's own serialization LIST, not a fuzzy search — exact by
-// magazine id, so live data IS the canon here (no impostor risk, no curation needed).
+// MagazineApi — the magazine registry lane, third form: THE LONG RUN (A5, 2026-07-18,
+// fresh design on Hemanth's order — the archive/era machinery is gone). MAL is the ONLY
+// database with a serialization axis; Jikan is its keyless door (no-login law). The
+// registry call (/manga?magazines=<id>) is MAL's own serialization LIST, not a fuzzy
+// search — exact by magazine id, so live data IS the canon. AniList cannot replace this
+// lane (it has no magazine axis at all) — it carries the ART instead: the curated
+// flagships in Universes.js ride verified AniList id-pins with baked covers.
 //
-// Two lanes (spec §7):
+// Two lanes:
 //   FAST lane    — loadSummary: top 100 by MAL members + the current publishing registry.
-//                  Feeds the hero total, The Current Desk, and the Hall of Champions.
+//                  Feeds the hero total, the run chart's live strokes, Running Now, and
+//                  Most Collected.
 //   ARCHIVE lane — fetchArchivePage: ONE registry page per call. The PAGE drives the walk
 //                  with its own Timer (Jikan allows ~3/sec — pacing is a UI concern, the
 //                  library stays pure fetch+map). Per-page session cache makes a re-walk
-//                  after navigation instant, and a failed walk RESUMES from the failed
-//                  page without duplicating anything (mergeDedup is id-keyed).
+//                  instant; a failed walk RESUMES from the failed page (mergeDedup is
+//                  id-keyed, so resume can never duplicate).
 //
-// HONESTY LAW (spec §2): `members` is a MyAnimeList member/library count, NEVER print
-// numbers — no caller may label it anything print-shaped. Nothing here invents totals,
-// eras, or entries: a failed fetch returns null and whatever already landed stands.
+// HONESTY LAW: `members` is a MyAnimeList member/library count — no caller may label it
+// anything print-shaped. Nothing here invents totals, dates, or entries: a failed fetch
+// returns null and whatever already landed stands.
 .pragma library
 
 var JIKAN = "https://api.jikan.moe/v4";
-
-// The four archive volumes (spec §1 — approved era boundaries, exact and inclusive).
-// A manga belongs to the era in which its Jump serialization BEGAN; long runners stay
-// in their starting era. bucketByEra always returns all four, in this fixed order —
-// an era with nothing filed yet is an empty volume, never a vanished one.
-var ERAS = [
-    { key: "founding", volume: "I",   era: "The Founding Years",  from: 1968, to: 1979, span: "1968–1979" },
-    { key: "golden",   volume: "II",  era: "The Golden Age",      from: 1980, to: 1996, span: "1980–1996" },
-    { key: "bigthree", volume: "III", era: "The Big Three Era",   from: 1997, to: 2014, span: "1997–2014" },
-    { key: "newgen",   volume: "IV",  era: "The New Generation",  from: 2015, to: 9999, span: "2015–present" }
-];
 
 var _summaryCache = {};   // magazineId -> { total, all, publishing }
 var _pageCache = {};      // "magazineId:page" -> { entries, hasNext, lastPage, total }
@@ -70,36 +61,61 @@ function mapEntry(m) {
     };
 }
 
-// registry → the four volumes, fixed order, each members-ranked inside. Undated entries
-// (no recorded start year) belong to no volume — undatedOf() carries them to the index.
-function bucketByEra(list) {
-    return ERAS.map(function(e) {
-        return { key: e.key, volume: e.volume, era: e.era, span: e.span,
-                 items: list.filter(function(m) { return m.fromYear >= e.from && m.fromYear <= e.to; })
-                            .sort(function(a, b) { return b.members - a.members; }) };
+// a curated flagship (Universes.js shape) → the same entry shape the live registry uses,
+// so the run chart and the offline roster ride one code path
+function mapFlagship(f) {
+    return {
+        malId: 0, anilistId: f.al || 0,
+        title: f.t || "", author: f.a || "", cover: f.cover || "",
+        fromYear: f.from || 0, toYear: f.to || 0,
+        publishing: !!f.publishing, members: 0, score: 0, chapters: 0
+    };
+}
+
+// ── THE RUN CHART ─────────────────────────────────────────────────────────────────────
+// buildRuns(list, maxN, nowYear) — the serialization strokes, packed into lanes. Takes
+// the top maxN by MAL members (dated entries only), orders them by real start year, and
+// greedily assigns each to the first lane whose previous run ended 2+ years earlier (the
+// gap keeps stroke labels from colliding). A publishing run's right edge is nowYear.
+// Pure and order-deterministic — headless-tested.
+function buildRuns(list, maxN, nowYear) {
+    var cands = list.filter(function(m) { return m.fromYear > 0; })
+                    .sort(function(a, b) { return b.members - a.members; })
+                    .slice(0, maxN)
+                    .sort(function(a, b) { return (a.fromYear - b.fromYear)
+                                               || String(a.title).localeCompare(String(b.title)); });
+    var laneEnds = [];
+    var runs = cands.map(function(m) {
+        var end = m.publishing ? nowYear : (m.toYear || m.fromYear);
+        var lane = -1;
+        for (var i = 0; i < laneEnds.length; i++)
+            if (laneEnds[i] + 2 <= m.fromYear) { lane = i; break; }
+        if (lane < 0) { lane = laneEnds.length; laneEnds.push(0); }
+        laneEnds[lane] = end;
+        return { title: m.title, author: m.author || "", fromYear: m.fromYear,
+                 toYear: m.toYear || 0, endFor: end, publishing: !!m.publishing,
+                 members: m.members || 0, cover: m.cover || "", lane: lane };
     });
+    return { runs: runs, lanes: laneEnds.length };
 }
 
-function undatedOf(list) {
-    return list.filter(function(m) { return !m.fromYear; });
-}
-
-// a volume's sort switch (spec §3.4): "members" = most collected, "year" = chronological
-function sortEra(items, mode) {
+// the registry wall's sort switch
+function sortBy(items, mode) {
     var out = items.slice();
-    if (mode === "year")
-        out.sort(function(a, b) { return (a.fromYear - b.fromYear)
+    if (mode === "alpha")
+        out.sort(function(a, b) { return String(a.title).localeCompare(String(b.title)); });
+    else if (mode === "year")
+        out.sort(function(a, b) { return (b.fromYear - a.fromYear)
                                       || String(a.title).localeCompare(String(b.title)); });
     else
         out.sort(function(a, b) { return b.members - a.members; });
     return out;
 }
 
-// the complete registry index — alphabetical, always a copy
-function alphaSort(list) {
-    return list.slice().sort(function(a, b) {
-        return String(a.title).localeCompare(String(b.title));
-    });
+// "1984" → "1980s" (the registry wall's decade filter; 0 = undated)
+function decadeOf(year) {
+    if (!year || year <= 0) return "";
+    return (Math.floor(year / 10) * 10) + "s";
 }
 
 // merge an archive batch into the accumulated registry, id-keyed — resuming a failed

@@ -432,59 +432,57 @@ var universes = [
                       "batman beyond return of the joker", "batman mystery of the batwoman" ],
       chips: [ { t: "8 Shows", ic: "movies" }, { t: "4 Films", ic: "movies" }, { t: "Comics", ic: "comics" } ] },
     // the MAGAZINE template: Jump publishes MANGA — no anime/film queries at all
-    // (Hemanth 2026-07-12 ruling). Second form 2026-07-18 (A5 free-reign commission): THE
-    // EDITORIAL ARCHIVE — the page represents the magazine as a sixty-year institution
-    // (spec: docs/superpowers/specs/2026-07-16-weekly-shonen-jump-editorial-archive-design.md).
+    // (Hemanth 2026-07-12 ruling). Third form 2026-07-18 (A5, fresh design on Hemanth's order —
+    // the mock-lineage archive concept is DEAD): THE LONG RUN — the magazine as velocity, its
+    // history drawn as to-scale serialization strokes. MAL magazine 83 stays the registry spine
+    // (the ONLY database with a serialization axis); AniList carries the ART — every flagship
+    // below is id-pinned and was live-verified against AniList GraphQL on 2026-07-18, with the
+    // baked dates taken from AniList's own records, never from memory. Two impostors caught at
+    // verification and handled: the bare "Kinnikuman" search lands the 2001 sequel (dropped),
+    // and JoJo's pin is Part 1 — so it enters as Phantom Blood with Part 1's real 1986–87 run.
     { name: "Weekly Shonen Jump", c1: "#3a1414", category: "magazine",
       blurb: "Shueisha's arena since 1968 — the magazine where One Piece, Naruto, Bleach and Dragon Ball fought for the reader's vote.",
       banner: "https://upload.wikimedia.org/wikipedia/en/0/02/Jump-Cover-1.jpg",
-      // MAL's serialization registry pin (myanimelist.net/manga/magazine/83) — Jikan rides it;
-      // the registry drives The Current Desk / the Hall of Champions / the four archive volumes
+      // MAL's serialization registry pin (myanimelist.net/manga/magazine/83) — Jikan rides it
       malMagazineId: 83,
-      // sourced hero copy (spec §9 — the approved line, not an AI franchise blurb)
-      heroLine: "The world's most popular manga factory.",
-      heroLineSource: "Wikipedia — Weekly Shōnen Jump",
-      // verified PRINT history (Wikipedia, checked 2026-07-18) — always presented as print
-      // milestones, never mixed with MAL member counts (the honesty law, spec §2)
+      // verified PRINT history (Wikipedia, checked 2026-07-18) — print facts stay separate
+      // from MAL member counts, always
       milestones: [
           { year: "1968", fact: "launches July 11 at 105,000 copies" },
           { year: "1995", fact: "peaks at 6.53 million copies a week" },
           { year: "2026", fact: "still above a million copies weekly" } ],
-      // per-volume sourced historical notes for the archive's left pages (Wikipedia, 2026-07-18)
-      eraNotes: {
-          founding: "Launched July 11, 1968, with a first print of 105,000 copies — Shueisha's late entry into the weekly arena.",
-          golden:   "The golden age: 6.53 million copies a week at the 1995 peak, the best-selling manga magazine ever printed.",
-          bigthree: "One Piece sets sail in 1997; with Naruto and Bleach it carries Jump through its global era.",
-          newgen:   "The survey never stops — a new generation enters the ranking, and the magazine still clears a million copies a week." },
-      // era fallback flagships — the four volumes stand on these whenever Jikan is
-      // unreachable (spec §8): facts only (title · byline · real Jump start year, MAL-checked
-      // 2026-07-18 where the registry listed them), no covers, no member claims.
-      fallbackEras: {
-          founding: [ { t: "KochiKame",                       a: "Osamu Akimoto",      y: 1976 },
-                      { t: "Ring ni Kakero",                  a: "Masami Kurumada",    y: 1977 },
-                      { t: "Cobra",                           a: "Buichi Terasawa",    y: 1978 },
-                      { t: "Kinnikuman",                      a: "Yudetamago",         y: 1979 } ],
-          golden:   [ { t: "Dragon Ball",                     a: "Akira Toriyama",     y: 1984 },
-                      { t: "Saint Seiya",                     a: "Masami Kurumada",    y: 1986 },
-                      { t: "JoJo's Bizarre Adventure",        a: "Hirohiko Araki",     y: 1986 },
-                      { t: "Slam Dunk",                       a: "Takehiko Inoue",     y: 1990 },
-                      { t: "Yu Yu Hakusho",                   a: "Yoshihiro Togashi",  y: 1990 },
-                      { t: "Rurouni Kenshin",                 a: "Nobuhiro Watsuki",   y: 1994 } ],
-          bigthree: [ { t: "One Piece",                       a: "Eiichiro Oda",       y: 1997 },
-                      { t: "Hunter x Hunter",                 a: "Yoshihiro Togashi",  y: 1998 },
-                      { t: "Naruto",                          a: "Masashi Kishimoto",  y: 1999 },
-                      { t: "Bleach",                          a: "Tite Kubo",          y: 2001 },
-                      { t: "Death Note",                      a: "Ohba & Obata",       y: 2003 },
-                      { t: "Gintama",                         a: "Hideaki Sorachi",    y: 2003 },
-                      { t: "Haikyu!!",                        a: "Haruichi Furudate",  y: 2012 },
-                      { t: "My Hero Academia",                a: "Kohei Horikoshi",    y: 2014 } ],
-          newgen:   [ { t: "Demon Slayer: Kimetsu no Yaiba",  a: "Koyoharu Gotouge",   y: 2016 },
-                      { t: "The Promised Neverland",          a: "Shirai & Demizu",    y: 2016 },
-                      { t: "Dr. Stone",                       a: "Inagaki & Boichi",   y: 2017 },
-                      { t: "Jujutsu Kaisen",                  a: "Gege Akutami",       y: 2018 },
-                      { t: "Sakamoto Days",                   a: "Yuto Suzuki",        y: 2020 },
-                      { t: "Blue Box",                        a: "Kouji Miura",        y: 2021 },
-                      { t: "Kagurabachi",                     a: "Takeru Hokazono",    y: 2023 } ] },
+      // THE FLAGSHIPS — the curated landmark serializations. Feed the run chart and every
+      // offline state. AniList id-pinned (al) with baked covers (s4.anilist.co, IPv4-pinned
+      // host); from/to/publishing are AniList's own dates as returned at verification.
+      flagships: [
+          { t: "KochiKame",                          a: "Osamu Akimoto",     al: 30733,  from: 1976, to: 2021, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30733-QmyPwBhjbgyX.jpg" },
+          { t: "Ring ni Kakero",                     a: "Masami Kurumada",   al: 44231,  from: 1977, to: 1981, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b44231-AOphgOiTzTEL.jpg" },
+          { t: "Dr. Slump",                          a: "Akira Toriyama",    al: 30796,  from: 1980, to: 1984, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30796-PFF4n7Y2spz9.png" },
+          { t: "Captain Tsubasa",                    a: "Yoichi Takahashi",  al: 31789,  from: 1981, to: 1988, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx31789-qiNlHJDMJncz.png" },
+          { t: "Fist of the North Star",             a: "Buronson & Hara",   al: 31149,  from: 1983, to: 1988, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx31149-TOwqxOlY1Zs0.jpg" },
+          { t: "Dragon Ball",                        a: "Akira Toriyama",    al: 30042,  from: 1984, to: 1995, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30042-4SetGiEbGc9x.jpg" },
+          { t: "Saint Seiya",                        a: "Masami Kurumada",   al: 31045,  from: 1985, to: 1990, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx31045-YUcWBMk7RpeK.png" },
+          { t: "JoJo — Phantom Blood",               a: "Hirohiko Araki",    al: 31517,  from: 1986, to: 1987, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx31517-Y3pL6OTH74Iq.png" },
+          { t: "Slam Dunk",                          a: "Takehiko Inoue",    al: 30051,  from: 1990, to: 1996, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30051-5KJyPlO7z5F4.png" },
+          { t: "Yu Yu Hakusho",                      a: "Yoshihiro Togashi", al: 30053,  from: 1990, to: 1994, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30053-wCR6xyGzeUYo.png" },
+          { t: "Rurouni Kenshin",                    a: "Nobuhiro Watsuki",  al: 30022,  from: 1994, to: 1999, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30022-jxTlViun1o10.jpg" },
+          { t: "One Piece",                          a: "Eiichiro Oda",      al: 30013,  from: 1997, to: 0, publishing: true, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30013-BeslEMqiPhlk.jpg" },
+          { t: "Hunter x Hunter",                    a: "Yoshihiro Togashi", al: 30026,  from: 1998, to: 0, publishing: true, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30026-uCvXMudMzmwI.jpg" },
+          { t: "Naruto",                             a: "Masashi Kishimoto", al: 30011,  from: 1999, to: 2014, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/nx30011-9yUF1dXWgDOx.jpg" },
+          { t: "Bleach",                             a: "Tite Kubo",         al: 30012,  from: 2001, to: 2016, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30012-1epmVfTSv2rr.png" },
+          { t: "Eyeshield 21",                       a: "Inagaki & Murata",  al: 30043,  from: 2002, to: 2009, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30043-b2SqUjwSzfIH.png" },
+          { t: "Death Note",                         a: "Ohba & Obata",      al: 30021,  from: 2003, to: 2006, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx30021-FE6kmrfpuKyb.jpg" },
+          { t: "Bakuman",                            a: "Ohba & Obata",      al: 39711,  from: 2008, to: 2012, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx39711-tjPWXT1AW321.jpg" },
+          { t: "Haikyu!!",                           a: "Haruichi Furudate", al: 65243,  from: 2012, to: 2020, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx65243-mR4MnJFmfaOF.png" },
+          { t: "Assassination Classroom",            a: "Yusei Matsui",      al: 69883,  from: 2012, to: 2016, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx69883-zDt4DUXkQS5N.png" },
+          { t: "My Hero Academia",                   a: "Kohei Horikoshi",   al: 85486,  from: 2014, to: 2024, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx85486-INqnYx8gL3eX.jpg" },
+          { t: "Demon Slayer: Kimetsu no Yaiba",     a: "Koyoharu Gotouge",  al: 87216,  from: 2016, to: 2020, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx87216-c9bSNVD10UuD.png" },
+          { t: "The Promised Neverland",             a: "Shirai & Demizu",   al: 87423,  from: 2016, to: 2020, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx87423-gPNtu8QbGped.jpg" },
+          { t: "Dr. Stone",                          a: "Inagaki & Boichi",  al: 98416,  from: 2017, to: 2024, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/b98416-L44f4idEGMAX.jpg" },
+          { t: "Jujutsu Kaisen",                     a: "Gege Akutami",      al: 101517, from: 2018, to: 2024, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx101517-H3TdM3g5ZUe9.jpg" },
+          { t: "Sakamoto Days",                      a: "Yuto Suzuki",       al: 125828, from: 2020, to: 0, publishing: true, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx125828-p78Z8SflkfmO.jpg" },
+          { t: "Blue Box",                           a: "Kouji Miura",       al: 132182, from: 2021, to: 2026, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx132182-maXh2QzYPrqR.jpg" },
+          { t: "Kagurabachi",                        a: "Takeru Hokazono",   al: 169355, from: 2023, to: 0, publishing: true, cover: "https://s4.anilist.co/file/anilistcdn/media/manga/cover/medium/bx169355-5pqzh1Wb4NOQ.png" } ],
       readQueries: [ "One Piece", "Naruto", "Bleach", "Dragon Ball", "Hunter x Hunter",
                      "My Hero Academia", "Jujutsu Kaisen", "Demon Slayer: Kimetsu no Yaiba",
                      "Chainsaw Man", "Death Note" ],

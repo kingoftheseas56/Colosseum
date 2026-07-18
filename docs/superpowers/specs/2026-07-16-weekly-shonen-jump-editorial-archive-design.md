@@ -1,7 +1,7 @@
 # Weekly Shonen Jump Universe Page: The Editorial Archive
 
 **Date:** 2026-07-16  
-**Status:** IMPLEMENTED 2026-07-18 — Agent 5 (Claude), Hemanth free-reign commission. Deviations recorded at foot.  
+**Status:** RETIRED 2026-07-18 — implemented that morning, then Hemanth ordered the mock-lineage concept dropped entirely ("forget about the previous page… a completely new universe page"). Superseded the same day by THE LONG RUN (fresh design, no shared vocabulary; see the 2026-07-18 commit on `MagazineUniversePage.qml`). Kept as record only.  
 **Target:** Replace the current `MagazineUniversePage.qml` presentation for Weekly Shonen Jump while preserving Colosseum's provider-ID law and MAL magazine registry.
 
 ## 1. Product intent

@@ -1,10 +1,9 @@
-// Headless harness for MagazineApi's pure registry logic — the Editorial Archive form:
-// mapEntry (Jikan record → page entry, English title + printed byline), bucketByEra (the
-// four APPROVED era volumes, fixed order, exact inclusive boundaries, members-ranked
-// inside, empty volumes SURVIVE), undatedOf, sortEra (the volume sort switch), mergeDedup
-// (resume can never duplicate), alphaSort, fmtMembers. Importing MagazineApi also proves
-// the .pragma library parses. Verdict rides the exit code (try/catch → Qt.exit; a bare
-// throw HANGS qml.exe — house lesson).
+// Headless harness for MagazineApi's pure registry logic — the LONG RUN form: mapEntry
+// (Jikan record → page entry, English title + printed byline), mapFlagship (curated
+// AniList pin → the same shape), buildRuns (the serialization chart: members cut, lane
+// packing, publishing runs reach nowYear), sortBy, decadeOf, mergeDedup (resume can never
+// duplicate), fmtMembers. Importing MagazineApi also proves the .pragma library parses.
+// Verdict rides the exit code (try/catch → Qt.exit; a bare throw HANGS qml.exe).
 import QtQuick
 import "../qml/MagazineApi.js" as Mag
 
@@ -30,48 +29,56 @@ QtObject {
                                     title_english: "Demon Slayer: Kimetsu no Yaiba" })
         if (romaji.title !== "Demon Slayer: Kimetsu no Yaiba")
             throw new Error("English title must win over romaji (the manga lane speaks English)")
-        var bare = Mag.mapEntry({ mal_id: 2, title: "Hunter x Hunter", title_english: null })
-        if (bare.title !== "Hunter x Hunter") throw new Error("romaji must stand when English is null")
 
-        // --- bucketByEra: the four approved volumes, fixed order, EXACT boundaries ---
+        // --- mapFlagship: a curated AniList pin rides the same entry shape ---
+        var f = Mag.mapFlagship({ t: "Dragon Ball", a: "Akira Toriyama", al: 30042,
+                                  from: 1984, to: 1995, cover: "c.jpg" })
+        if (f.title !== "Dragon Ball" || f.fromYear !== 1984 || f.toYear !== 1995)
+            throw new Error("mapFlagship must carry the verified dates")
+        if (f.anilistId !== 30042) throw new Error("mapFlagship must carry the AniList pin")
+        if (f.publishing) throw new Error("a finished flagship is not publishing")
+
+        // --- buildRuns: the chart's strokes — members cut, then lane packing ---
         var list = [
-            { malId: 1, title: "Kochikame",   fromYear: 1976, members: 30000 },
-            { malId: 2, title: "Dragon Ball", fromYear: 1984, members: 900000 },
-            { malId: 3, title: "Slam Dunk",   fromYear: 1990, members: 500000 },
-            { malId: 4, title: "Edge-1996",   fromYear: 1996, members: 10 },
-            { malId: 5, title: "One Piece",   fromYear: 1997, members: 2100000 },
-            { malId: 6, title: "MHA",         fromYear: 2014, members: 1200000 },
-            { malId: 7, title: "Demon Slayer",fromYear: 2016, members: 1500000 },
-            { malId: 8, title: "Undated",     fromYear: 0,    members: 5 }
+            { title: "One Piece",   fromYear: 1997, toYear: 0,    publishing: true,  members: 700000 },
+            { title: "Dragon Ball", fromYear: 1984, toYear: 1995, publishing: false, members: 180000 },
+            { title: "Naruto",      fromYear: 1999, toYear: 2014, publishing: false, members: 440000 },
+            { title: "Slam Dunk",   fromYear: 1990, toYear: 1996, publishing: false, members: 200000 },
+            { title: "Undated",     fromYear: 0,    toYear: 0,    publishing: false, members: 999999 },
+            { title: "Tiny",        fromYear: 2005, toYear: 2006, publishing: false, members: 10 }
         ]
-        var vols = Mag.bucketByEra(list)
-        if (vols.length !== 4) throw new Error("ALL four volumes must stand, got " + vols.length)
-        if (vols[0].era !== "The Founding Years" || vols[1].era !== "The Golden Age"
-            || vols[2].era !== "The Big Three Era" || vols[3].era !== "The New Generation")
-            throw new Error("volumes must keep the approved fixed order")
-        if (vols[0].items.length !== 1 || vols[0].items[0].title !== "Kochikame")
-            throw new Error("a 1976 start belongs to the Founding Years")
-        if (vols[1].items.length !== 3) throw new Error("1980–1996 must hold DB/SD/Edge-1996, got " + vols[1].items.length)
-        if (vols[1].items[vols[1].items.length - 1].title !== "Edge-1996")
-            throw new Error("1996 is the Golden Age's INCLUSIVE upper edge")
-        if (vols[2].items[0].title !== "One Piece") throw new Error("1997 opens the Big Three Era")
-        if (vols[2].items.indexOf(vols[2].items.filter(function(m){ return m.title === "MHA" })[0]) < 0)
-            throw new Error("a 2014 start still belongs to the Big Three Era")
-        if (vols[3].items.length !== 1 || vols[3].items[0].title !== "Demon Slayer")
-            throw new Error("2015+ starts belong to the New Generation")
-        if (vols[1].items[0].title !== "Dragon Ball") throw new Error("volumes rank by MAL members inside")
-        var undated = Mag.undatedOf(list)
-        if (undated.length !== 1 || undated[0].title !== "Undated")
-            throw new Error("undated entries belong to no volume — the index carries them")
+        var built = Mag.buildRuns(list, 4, 2026)
+        if (built.runs.length !== 4) throw new Error("buildRuns must cap at maxN dated runs, got " + built.runs.length)
+        var titles = built.runs.map(function(r) { return r.title })
+        if (titles.indexOf("Undated") !== -1) throw new Error("an undated run cannot be drawn")
+        if (titles.indexOf("Tiny") !== -1) throw new Error("the members cut must drop the smallest run")
+        if (built.runs[0].title !== "Dragon Ball") throw new Error("runs must order by start year")
+        var op = built.runs.filter(function(r) { return r.title === "One Piece" })[0]
+        if (op.endFor !== 2026) throw new Error("a publishing run must reach nowYear")
+        // lane packing: Dragon Ball ends 1995, One Piece starts 1997 — exactly the 2-year
+        // gap, so One Piece reuses Dragon Ball's lane; Slam Dunk (1990) overlaps Dragon
+        // Ball and must take its own
+        var db = built.runs[0]
+        if (db.lane !== op.lane) throw new Error("a freed lane must be reused (gap >= 2y)")
+        var sd = built.runs.filter(function(r) { return r.title === "Slam Dunk" })[0]
+        if (sd.lane === db.lane) throw new Error("overlapping runs cannot share a lane")
+        var naruto = built.runs.filter(function(r) { return r.title === "Naruto" })[0]
+        if (naruto.lane !== sd.lane) throw new Error("Naruto (1999) must reuse Slam Dunk's lane (ended 1996)")
+        if (built.lanes !== 2) throw new Error("this packing needs exactly 2 lanes, got " + built.lanes)
 
-        // --- sortEra: the volume's sort switch — never mutates the source ---
-        var golden = vols[1].items
-        var chrono = Mag.sortEra(golden, "year")
-        if (chrono[0].title !== "Dragon Ball" || chrono[2].title !== "Edge-1996")
-            throw new Error("chronological sort must ride the real start years")
-        if (golden[0].title !== "Dragon Ball") throw new Error("sortEra must not mutate the volume")
-        var byMembers = Mag.sortEra(chrono, "members")
-        if (byMembers[0].title !== "Dragon Ball") throw new Error("members sort must rank by MAL members")
+        // --- sortBy: the registry wall's three orders — never mutates the source ---
+        var wall = [ { title: "Naruto", fromYear: 1999, members: 440000 },
+                     { title: "Akane-banashi", fromYear: 2022, members: 40000 },
+                     { title: "Bleach", fromYear: 2001, members: 429000 } ]
+        if (Mag.sortBy(wall, "alpha")[0].title !== "Akane-banashi") throw new Error("alpha sort")
+        if (Mag.sortBy(wall, "year")[0].title !== "Akane-banashi") throw new Error("newest sort")
+        if (Mag.sortBy(wall, "members")[0].title !== "Naruto") throw new Error("members sort")
+        if (wall[0].title !== "Naruto") throw new Error("sortBy must not mutate the source")
+
+        // --- decadeOf: the decade filter's key ---
+        if (Mag.decadeOf(1984) !== "1980s") throw new Error("decadeOf 1984")
+        if (Mag.decadeOf(2026) !== "2020s") throw new Error("decadeOf 2026")
+        if (Mag.decadeOf(0) !== "") throw new Error("undated has no decade")
 
         // --- mergeDedup: resuming a failed walk can never duplicate an entry ---
         var acc = [ { malId: 5, title: "One Piece" }, { malId: 6, title: "MHA" } ]
@@ -79,11 +86,6 @@ QtObject {
         if (merged.length !== 3) throw new Error("mergeDedup must file only new ids, got " + merged.length)
         if (merged === acc) throw new Error("mergeDedup must return a NEW array (bindings refresh)")
         if (acc.length !== 2) throw new Error("mergeDedup must not mutate the accumulator")
-
-        // --- alphaSort: the complete registry index ---
-        var alpha = Mag.alphaSort([ { title: "Naruto" }, { title: "Bleach" }, { title: "Akane-banashi" } ])
-        if (alpha[0].title !== "Akane-banashi" || alpha[2].title !== "Naruto")
-            throw new Error("alphaSort must order the index alphabetically")
 
         // --- fmtMembers: readable MAL member counts, never invented ---
         if (Mag.fmtMembers(2143567) !== "2.1M") throw new Error("fmtMembers M: " + Mag.fmtMembers(2143567))
