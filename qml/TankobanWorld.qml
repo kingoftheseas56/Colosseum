@@ -188,6 +188,7 @@ WorldPage {
         // DB-driven (2026-07-13): RCO-ranked series from the weekly comics_db.json sidecar; each
         // tile carries its LOCG id and opens the series directly. Falls back to the curated list
         // if the generated catalog did not ingest when this lazy world was created.
+        navigable: false          // the Explore wall retired 2026-07-18 — no See-all target
         items: tanko.comicRows.slice(0, 10)
         onItemClicked: (i) => {
             var topComics = tanko.comicRows.slice(0, 10)
@@ -206,6 +207,7 @@ WorldPage {
         delegate: TrendingTop10 {
             required property var modelData
             title: modelData.label
+            navigable: false          // shelf rows have no explore target either
             items: modelData.rows
             visible: modelData.rows.length > 0
             onItemClicked: (i) => {

@@ -13,6 +13,7 @@ Column {
 
     property string title: "Top 10 This Week"
     property var items: []            // [{ caption, cover, c1, c2 }]
+    property bool navigable: true     // false → hide the Explore affordance (rows with no explore target)
     signal itemClicked(int index)
     signal exploreClicked()
 
@@ -64,6 +65,7 @@ Column {
         width: parent.width
         title: top10.title
         moreLabel: "Explore"
+        navigable: top10.navigable
         onMoreClicked: top10.exploreClicked()
     }
 
