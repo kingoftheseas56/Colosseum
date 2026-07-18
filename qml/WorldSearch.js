@@ -223,8 +223,8 @@ function searchWestern(query, done) {
     });
 }
 
-// Offline GCD catalog lane. ComicsDb is populated only when the lazy Tankoban world is
-// instantiated, so importing the singleton here does not pull comics_db.gen.js onto app startup.
+// Offline GCD catalog lane. ComicsDb rides the ComicsCatalog SQLite engine (handed over when
+// the lazy Tankoban world or ComicsDbLoader activates), so importing the singleton here is free.
 function searchCatalog(query) {
     if (!query || query.trim().length < 2 || !ComicsDb.ready()) return [];
     var rows = ComicsDb.rankedSeries();

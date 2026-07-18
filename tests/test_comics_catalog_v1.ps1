@@ -21,15 +21,22 @@ function Assert-NotContains([string]$text, [string]$needle, [string]$message) {
 $main = Read-RepoFile "qml/Main.qml"
 $world = Read-RepoFile "qml/TankobanWorld.qml"
 $ledger = Read-RepoFile "qml/ComicDbLedger.qml"
+$loader = Read-RepoFile "qml/ComicsDbLoader.qml"
 
-Assert-NotContains $main 'import "comics_db.gen.js" as ComicsDbData' `
-    "Main.qml must not parse the generated catalog at root startup."
-Assert-NotContains $main 'ComicsDb.setData(ComicsDbData.data)' `
-    "Main.qml must not ingest the catalog at root startup."
-Assert-Contains $world 'import "comics_db.gen.js" as ComicsDbData' `
-    "TankobanWorld.qml must own the lazy generated-catalog import."
-Assert-Contains $world 'ComicsDb.setData(ComicsDbData.data)' `
-    "TankobanWorld.qml must ingest the catalog when its Loader creates the world."
+# P4 (2026-07-18): the curated catalog moved into comics_catalog.db, read through the
+# ComicsCatalog engine — comics_db.gen.js is RETIRED. The old "world owns the lazy gen.js
+# import" needles consciously flip: nothing may import the generated file anymore, and both
+# ingest points (world bootstrap + shell-side loader) must ride ComicsDb.setEngine instead.
+Assert-NotContains $main 'comics_db.gen.js' `
+    "Main.qml must not touch the retired generated catalog."
+Assert-NotContains $world 'comics_db.gen.js' `
+    "TankobanWorld.qml must not import the retired generated catalog."
+Assert-NotContains $loader 'comics_db.gen.js' `
+    "ComicsDbLoader.qml must not import the retired generated catalog."
+Assert-Contains $world 'ComicsDb.setEngine' `
+    "TankobanWorld.qml must hand the catalogue engine to ComicsDb when its Loader creates the world."
+Assert-Contains $loader 'ComicsDb.setEngine' `
+    "ComicsDbLoader.qml must hand the catalogue engine to ComicsDb for shell-side routing."
 Assert-Contains $ledger 'property bool   hasSource: !!ed.modelData.available && postUrl.length > 0' `
     "Ledger availability must require a verified GetComics post."
 Assert-Contains $ledger 'if (typeof Comics === "undefined" || !chId.length || !canAcquire) return' `

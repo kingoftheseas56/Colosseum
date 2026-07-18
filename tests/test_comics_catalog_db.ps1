@@ -29,4 +29,16 @@ Assert-Contains $mq 'data.gcd) win.openGcdSeries' "search routing reaches the ru
 Assert-Contains $mq 'indexOf("gcd:")' "gcd: continue/resume lane"
 $ws = Get-Content (Join-Path $root "qml/WorldSearch.js") -Raw
 Assert-Contains $ws 'searchCatalogDb' "catalogue search lane"
+# 4) shelf rows + gcd routing wiring (browse-landing arc)
+$tw = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
+Assert-Contains $tw 'ComicsCatalog.shelf' "world page computes catalogue shelf rows"
+Assert-Contains $tw 'gcdSeriesRequested' "shelf tiles route to the run page"
+# 5) deployed-db data-scale floor (moved here from the retired gen.js logic harness, P4
+#    Task 4: the >=1100-row check was a DATA check, not a logic check — it belongs against
+#    the shipped SQLite, not a QML fixture)
+Push-Location $root
+try {
+    python -c "import sqlite3;db=sqlite3.connect(r'data/comics_catalog.db');n=db.execute('select count(*) from curated_series').fetchone()[0];assert n>=1000, n;print('curated floor OK:',n)"
+    if ($LASTEXITCODE -ne 0) { throw "curated_series data floor failed (exit $LASTEXITCODE)" }
+} finally { Pop-Location }
 Write-Host "comics catalog db contract OK"

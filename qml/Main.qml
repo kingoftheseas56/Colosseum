@@ -1480,6 +1480,8 @@ Window {
                     if (westernExploreSignal) westernExploreSignal.connect(win.openComicArchive)
                     var comicSeriesSignal = item["comicSeriesRequested"]
                     if (comicSeriesSignal) comicSeriesSignal.connect(win.openComicSeries)
+                    var gcdSignal = item["gcdSeriesRequested"]
+                    if (gcdSignal) gcdSignal.connect(win.openGcdSeries)
                     var comicCatalogSignal = item["comicCatalogRequested"]
                     if (comicCatalogSignal) comicCatalogSignal.connect(win.openComicCatalog)
                     var comicGenreSignal = item["comicGenreRequested"]
