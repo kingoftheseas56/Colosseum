@@ -63,9 +63,11 @@ MpvItem::MpvItem(QQuickItem *parent)
     // "100%" (unity) feels quiet next to players that amplify. dynaudnorm lifts quiet passages
     // toward a consistent loudness live, without loudnorm's internal 192kHz resample; the UI
     // volume bar stays a plain 0..100 with 100 = normalized loudness.
-    // Gain must adapt over ~15s (f*g ms), not ~1s — fast windows audibly pump between dialogue
-    // and action (Hemanth heard it 2026-07-18); RMS targeting (r=) compresses too hard, peak-only.
-    setProperty(QStringLiteral("af"), QStringLiteral("dynaudnorm=f=500:g=31:p=0.95"));
+    // dynaudnorm rev 1/2 fell short (2026-07-18): peak-normalizing stops at the first transient,
+    // so low-RMS movie mixes stayed quiet next to PotPlayer, which raises AVERAGE loudness and
+    // limits peaks. loudnorm does exactly that (EBU R128 live mode): I=-14 LUFS = hot streaming
+    // target, TP=-1.5 true-peak ceiling. Costs its internal 192kHz resample; accepted trade.
+    setProperty(QStringLiteral("af"), QStringLiteral("loudnorm=I=-14:TP=-1.5:LRA=11"));
     setProperty(QStringLiteral("embeddedfonts"), QStringLiteral("yes"));
     setProperty(QStringLiteral("sub-font-provider"), QStringLiteral("auto"));
     setProperty(QStringLiteral("hwdec"), QStringLiteral("auto-safe"));
