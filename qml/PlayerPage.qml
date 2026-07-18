@@ -2502,12 +2502,11 @@ Item {
     SeekThumbnailer {
         id: seekThumbs
         onThumbReady: function(bucketSec, imageUrl) {
-            // Only paint the frame the cursor is still over; stale emits are re-served
-            // from cache the instant that bucket is hovered again.
-            if (bucketSec === root.thumbBucketOf(root.seekPreview)) {
-                root.hoverThumbBucket = bucketSec
-                root.hoverThumbUrl = imageUrl
-            }
+            // Always keep the newest frame (ThumbFast rule): a slightly-behind picture
+            // held steady beats a card that blinks empty between buckets. Rejecting
+            // off-bucket arrivals here is what made the first cut flicker (2026-07-18).
+            root.hoverThumbBucket = bucketSec
+            root.hoverThumbUrl = imageUrl
         }
     }
     MpvItem {
@@ -4069,10 +4068,10 @@ Item {
                         visible: mpv.duration > 0
                     }
                     Rectangle {
-                        // F9: timestamp-only until the frame for this bucket lands (that IS
-                        // the loading state — no spinner), then the card grows the thumbnail.
+                        // F9: timestamp-only until the FIRST frame lands, then the card stays
+                        // grown and the picture swaps in place as frames arrive — never
+                        // collapsing between buckets (that collapse read as "shaky").
                         readonly property bool hasThumb: root.hoverThumbUrl !== ""
-                                                         && root.hoverThumbBucket === root.thumbBucketOf(root.seekPreview)
                         visible: seekBar.hovered && !root.seeking && mpv.duration > 0
                         x: root.clamp(seekHover.mouseX - width / 2, 0, parent.width - width)
                         y: -(height + 2)
