@@ -1,7 +1,7 @@
 // Colosseum — HOME (v1, on the proven spine)
 // Fullscreen-exclusive frameless OS surface: persistent wallpaper + frosted-glass chrome.
-//   Top bar (clock·pills·system) → Universe hero → unified Continue row → per-medium trending rows.
-// Mock data only (no Universe data engine yet). Glass = proven material (see Glass.qml).
+//   Top bar -> universal Continue -> per-medium widgets.
+// Glass = proven material (see Glass.qml).
 // Run:  C:/Qt/6.11.1/mingw_64/bin/qml.exe qml/Main.qml      (Esc / Ctrl+Q to quit)
 
 import QtQuick
@@ -10,9 +10,6 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import QtCore
 import "Catalog.js" as Catalog
-import "Universes.js" as Universes
-import "UniverseApi.js" as UniverseApi
-import "McuApi.js" as Mcu
 import "TheatreApi.js" as TheatreApi
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
@@ -240,8 +237,6 @@ Window {
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
         else if (genreIndexLayer.active) win.closeGenreIndex()
-        else if (universeLayer.active) win.closeUniverse()
-        else if (universeHallLayer.active) win.closeUniverseHall()
         else if (worldStack.current !== "") win.closeWorld()
         else Qt.quit()
     } }
@@ -296,48 +291,6 @@ Window {
         refreshWallpaper()
         topbar.visible = true
         page.visible = true
-    }
-
-    // ---- universe page: a cross-medium destination over the wallpaper, from the home hero ----
-    //      The shell picks the right TEMPLATE by the universe's category (anime vs cinematic);
-    //      the Loader reloads onto that source, so Marvel opens the CinematicPage, One Piece the
-    //      anime UniversePage. ----
-    function universeSourceFor(category) {
-        return category === "cinematic" ? "CinematicPage.qml"
-             : category === "onepiece"  ? "OnePieceUniversePage.qml"   // One Piece — the Grand Line voyage
-             : category === "dragonball" ? "DragonBallUniversePage.qml" // Dragon Ball — the seven-star saga
-             : category === "cosmere"   ? "CosmereUniversePage.qml"  // Cosmere — newcomer portals + planetary atlas
-             : category === "saga"      ? "SagaUniversePage.qml"      // book-first IPs (HP/LOTR/ASOIAF/Dune/Witcher/Sherlock/…)
-             : category === "magazine"  ? "MagazineUniversePage.qml"  // Weekly Shonen Jump — manga only
-             : category === "galaxy"    ? "GalaxyUniversePage.qml"    // Star Wars — trilogy triptych
-             : category === "eras"      ? "EraUniversePage.qml"       // Bond/Trek/DCAU/Avatar — epoch columns
-             : category === "studio"    ? "StudioUniversePage.qml"    // Ghibli — the filmography wall
-             : "UniversePage.qml"
-    }
-    function openUniverse(name) {
-        universeLayer.universeName = name
-        universeLayer.universeSource = win.universeSourceFor(Universes.categoryFor(name))
-        if (universeLayer.item) universeLayer.item.universeName = name
-        universeLayer.active = true
-        topbar.visible = false
-        page.visible = false
-    }
-    // the Hall of Worlds — the universe collection's see-all (z below universeLayer, so
-    // entering a world paints OVER the hall and back returns to it)
-    function openUniverseHall() {
-        universeHallLayer.active = true
-        topbar.visible = false
-        page.visible = false
-    }
-    function closeUniverseHall() {
-        universeHallLayer.active = false
-        // only restore the home chrome if no world took over above us
-        if (!universeLayer.active) { topbar.visible = true; page.visible = true }
-    }
-    function closeUniverse() {
-        universeLayer.active = false
-        // if the Hall of Worlds sits beneath, back lands there — not on home
-        if (!universeHallLayer.active) { topbar.visible = true; page.visible = true }
     }
 
     function openGenre(name) {
@@ -1244,127 +1197,6 @@ Window {
             topPadding: 10
             spacing: 30
 
-            // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
-            //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
-            //      how it was initially"). What STAYS ratified-out from the redesign round:
-            //      NO dots, NO tabs, NO timer bar, NO media-count chips. A pure carousel —
-            //      auto-turns (6.5s) + native swipe. Spec trail: haven docs/superpowers/specs/
-            //      2026-07-12-colosseum-universe-exhibit-hero-design.md (+ this final rev).
-            Glass {
-                id: hero
-                backdrop: wall
-                track: page.contentY
-                width: parent.width; height: 340; radius: 20
-                tint: 0.06
-
-                SwipeView {
-                    id: heroView
-                    anchors.fill: parent
-                    clip: true
-                    Repeater {
-                        model: Universes.universes
-                        delegate: Item {
-                            id: slide
-                            required property var modelData
-
-                            // banner key-art full-bleed; the IP color stands in while it loads,
-                            // then the left-weighted scrim keeps the words legible (proven look)
-                            Rectangle {
-                                anchors.fill: parent; radius: hero.radius; clip: true
-                                color: slide.modelData.c1 ? slide.modelData.c1 : "#1a1410"
-                                Image {
-                                    anchors.fill: parent
-                                    source: slide.modelData.banner
-                                    asynchronous: true; cache: true
-                                    fillMode: Image.PreserveAspectCrop
-                                    opacity: status === Image.Ready ? 1 : 0
-                                    Behavior on opacity { NumberAnimation { duration: 300 } }
-                                }
-                                Rectangle {
-                                    anchors.fill: parent
-                                    gradient: Gradient {
-                                        orientation: Gradient.Horizontal
-                                        GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.86) }
-                                        GradientStop { position: 0.52; color: Qt.rgba(0,0,0,0.42) }
-                                        GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.06) }
-                                    }
-                                }
-                            }
-
-                            // content over the scrim (chips row retired — ratified 2026-07-12)
-                            Column {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
-                                spacing: 12
-                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
-                                Text {
-                                    text: slide.modelData.blurb
-                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; width: 500; wrapMode: Text.WordWrap
-                                }
-                                Row {
-                                    spacing: 12; topPadding: 6
-                                    Rectangle {
-                                        radius: 12; height: 46; width: exploreRow.implicitWidth + 44
-                                        gradient: Gradient {
-                                            GradientStop { position: 0; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
-                                            GradientStop { position: 1; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
-                                        }
-                                        border.width: 1
-                                        border.color: exMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
-                                        Behavior on border.color { ColorAnimation { duration: 160 } }
-                                        Row {
-                                            id: exploreRow; anchors.centerIn: parent; spacing: 10
-                                            Text { text: "Explore the universe"; color: theme.ink
-                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                                anchors.verticalCenter: parent.verticalCenter }
-                                            Text { text: "→"; color: theme.gold; font.pixelSize: 16
-                                                anchors.verticalCenter: parent.verticalCenter
-                                                transform: Translate { x: exMa.containsMouse ? 3 : 0 } }
-                                        }
-                                        MouseArea {
-                                            id: exMa; anchors.fill: parent
-                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: win.openUniverse(Universes.universes[heroView.currentIndex].name)
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // gentle auto-advance through the collection (not visualized — ratified)
-                Timer {
-                    interval: 6500; running: true; repeat: true
-                    onTriggered: heroView.currentIndex = (heroView.currentIndex + 1) % Universes.universes.length
-                }
-
-                // the door to the Hall of Worlds — quiet, top-right, gold on hover
-                Item {
-                    z: 5
-                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
-                    width: hallRow.implicitWidth + 8; height: 28
-                    Row {
-                        id: hallRow
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        spacing: 7
-                        Text { text: Universes.universes.length + " worlds"
-                               color: hallMa.containsMouse ? theme.gold : theme.inkDim
-                               font.family: theme.display; font.pixelSize: 16
-                               Behavior on color { ColorAnimation { duration: 120 } } }
-                        Text { text: "›"
-                               color: hallMa.containsMouse ? theme.gold : theme.inkDimmer
-                               font.family: theme.display; font.pixelSize: 19
-                               anchors.verticalCenter: parent.verticalCenter }
-                    }
-                    MouseArea {
-                        id: hallMa; anchors.fill: parent
-                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                        onClicked: win.openUniverseHall()
-                    }
-                }
-            }
-
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
             //      Real resume data from the Progress store; hidden entirely until there's
             //      something to resume. (Naming Progress.revision keeps the binding live.)
@@ -1519,50 +1351,6 @@ Window {
                     item.powerClicked.connect(function() { Qt.quit() })
                 }
             }
-        }
-    }
-
-    // ---- universe page layer: opened from the home hero "Explore the universe". Its source is the
-    //      per-category template (anime UniversePage / cinematic CinematicPage), chosen in
-    //      openUniverse(). Signal sets differ per template, so each optional connect is guarded. ----
-    // ---- the Hall of Worlds: the universe collection's see-all. z BELOW universeLayer so
-    //      a spine's world opens over the hall; closing it falls back here. ----
-    Loader {
-        id: universeHallLayer
-        anchors.fill: parent
-        z: 38
-        active: false
-        visible: active
-        source: "UniverseHallPage.qml"
-        onLoaded: {
-            item.backdrop = wall
-            item.backRequested.connect(win.closeUniverseHall)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            item.exploreRequested.connect(win.openUniverse)
-        }
-    }
-
-    Loader {
-        id: universeLayer
-        anchors.fill: parent
-        z: 40
-        active: false
-        visible: active
-        property string universeName: ""
-        property string universeSource: "UniversePage.qml"
-        source: universeSource
-        onLoaded: {
-            item.backdrop = wall
-            item.universeName = universeLayer.universeName
-            item.backRequested.connect(win.closeUniverse)
-            item.minimizeRequested.connect(win.minimizeShell)
-            item.closeRequested.connect(function() { Qt.quit() })
-            if (item.searchClicked) item.searchClicked.connect(win.openSearch)
-            if (item.seriesRequested) item.seriesRequested.connect(win.openSeries)   // anime template only
-            if (item.watchRequested) item.watchRequested.connect(win.openTheatreSeries)
-            if (item.bookRequested) item.bookRequested.connect(win.openBook)          // saga template: novels → Biblio
-            if (item.comicsArchiveRequested) item.comicsArchiveRequested.connect(win.openComicArchive)  // eras: COMICS column → GC archive index
         }
     }
 
@@ -2015,29 +1803,6 @@ Window {
     }
 
     // ---- Biblio series detail layer: opened from a SERIES card (above search, below the book detail) ----
-    // ---- universe art warmer: once the shell is up, quietly pull the BUILT universes' art into the
-    //      disk cache so opening "Explore" shows it INSTANTLY (the app's download-once-then-instant
-    //      model). Idle work — runs after boot, off the critical path; hidden Images do the warming.
-    //      Bounded to the two built exemplars (One Piece anime, Marvel cinematic). ----
-    Item {
-        id: universeWarmer
-        property var opUrls: []
-        property var mcuUrls: []
-        property var warmUrls: opUrls.concat(mcuUrls)
-        function warm() {
-            UniverseApi.loadUniverse("One Piece", function(u) { universeWarmer.opUrls = UniverseApi.imageUrls(u) })
-            Mcu.loadMcu(function(d) { universeWarmer.mcuUrls = Mcu.imageUrls(d) })
-        }
-        Repeater {
-            model: universeWarmer.warmUrls
-            delegate: Image {
-                required property string modelData
-                source: modelData
-                asynchronous: true; cache: true; visible: false
-            }
-        }
-    }
-
     // ---- session switch glue: capture the outgoing surface, tear it down, build + restore the next ----
     Connections {
         target: Sessions
@@ -2181,7 +1946,7 @@ Window {
         id: boot
         anchors.fill: parent
         z: 1000
-        onFinished: { bootFade.start(); universeWarmer.warm() }
+        onFinished: bootFade.start()
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }

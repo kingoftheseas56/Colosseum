@@ -67,8 +67,11 @@ Assert-Contains $pp 'tooltip: "Minimize' "Player top-left tooltip must say Minim
 Assert-Contains $pp 'kind === "minimizeToBar"' "Player Canvas must paint the minimizeToBar glyph."
 Assert-Contains $pp 'root.minimizeRequested()' "Player top-left control must emit minimizeRequested."
 
-# --- EPUB reader shares the canonical chevron geometry ---
-$html = Read-File "resources/book_reader/ebook_reader.html"
-Assert-Contains $html 'M14.5 5.5 L8 12 L14.5 18.5' "EPUB toolbar must use the canonical chevron path."
+# --- fresh EPUB reader keeps a visible vector back action ---
+$readerTop = Read-File "qml/reader2/TopBar.qml"
+$readerBack = Read-File "assets/icons/reader2/back.svg"
+Assert-Contains $readerTop '../../assets/icons/reader2/back.svg' "Fresh reader top bar must use its vector back icon."
+Assert-Contains $readerTop 'onClicked: root.backRequested()' "Fresh reader back icon must emit backRequested()."
+Assert-Contains $readerBack 'points="12 19 5 12 12 5"' "Fresh reader back SVG must retain its left chevron geometry."
 
 Write-Host "Back-action unification contract checks passed."
