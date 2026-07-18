@@ -60,6 +60,16 @@ Item {
         return false
     }
 
+    // Session tiles are ICON CIRCLES now (Hemanth 2026-07-18, his three SVGs):
+    // the icon says which surface lives there — no world names on the bar.
+    function sessionIcon(group) {
+        var app = String(group.appType || "")
+        if (app === "tankoban") return "../assets/icons/comic-book.svg"
+        if (app === "biblio") return "../assets/icons/book-library.svg"
+        if (app === "theatre") return "../assets/icons/projector-theatre.svg"
+        return group.icon || ""
+    }
+
     Rectangle {
         id: dock
         x: bar.leftEdge
@@ -214,6 +224,10 @@ Item {
 
                 Repeater {
                     model: bar.groups
+                    // Windows-taskbar circles (Hemanth 2026-07-18): one icon circle per
+                    // surface — comic book / book library / projector — no world names.
+                    // Gold ring = the active session lives here; count chip = a stack
+                    // (click fans out, the fan rows still carry full titles + close).
                     delegate: Rectangle {
                         id: tile
                         required property var modelData
@@ -221,37 +235,38 @@ Item {
                         property bool isActive: bar.groupHasActive(modelData)
                         property bool multi: (modelData.sessions || []).length > 1
 
-                        width: tileRow.implicitWidth + 26 + (tile.multi ? 0 : 22)
+                        width: 46
                         height: 46
-                        radius: 13
+                        radius: 23
                         color: tileHover.hovered || tile.isActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
-                        border.width: tile.isActive ? 1 : 0
-                        border.color: Qt.rgba(0.94, 0.77, 0.29, 0.85)
+                        border.width: tile.isActive ? 1.5 : 1
+                        border.color: tile.isActive ? Qt.rgba(0.94, 0.77, 0.29, 0.85)
+                                                    : Qt.rgba(1, 1, 1, 0.10)
 
-                        Row {
-                            id: tileRow
-                            // left-anchored, NOT centerIn: single tiles widen +22 to reserve the
-                            // close-X band, and centering split that reserve across both sides —
-                            // content drifted right and the label overlapped the X (Hemanth:
-                            // "very unsymmetric", 2026-07-12). Left margin 13 = half the base
-                            // padding, so multi tiles (no X) render exactly as before.
-                            anchors.left: parent.left
-                            anchors.leftMargin: 13
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 9
+                        Image {
+                            anchors.centerIn: parent
+                            width: 24; height: 24
+                            sourceSize.width: 48; sourceSize.height: 48
+                            source: bar.sessionIcon(tile.modelData)
+                            fillMode: Image.PreserveAspectFit
+                            opacity: tileHover.hovered || tile.isActive ? 1 : 0.8
+                        }
 
-                            Image {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: 20; height: 20
-                                source: modelData.icon
-                                fillMode: Image.PreserveAspectFit
-                            }
-
+                        // stack count — the circle can't say "(3)" in words anymore
+                        Rectangle {
+                            visible: tile.multi
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            width: 16; height: 16; radius: 8
+                            color: Qt.rgba(0.10, 0.10, 0.13, 0.95)
+                            border.width: 1
+                            border.color: Qt.rgba(1, 1, 1, 0.22)
                             Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: modelData.title + (tile.multi ? "  (" + modelData.sessions.length + ")" : "")
+                                anchors.centerIn: parent
+                                text: (tile.modelData.sessions || []).length
                                 color: "#f1f1f4"
-                                font.pixelSize: 13
+                                font.pixelSize: 9
+                                font.weight: Font.DemiBold
                             }
                         }
 
@@ -273,27 +288,35 @@ Item {
 
                         HoverHandler { id: tileHover }
 
-                        // Chrome-style close — single-session tiles only (multi tiles
-                        // fan out; the fan rows carry their own close). Reserved
-                        // right-edge box, glyph painted on hover, click closes (not
-                        // switches) because this sits above tileMa in its corner.
+                        // Chrome-style close — single-session circles only (a stack fans
+                        // out; the fan rows carry their own close). Rides the circle's
+                        // top-right shoulder, painted on hover; click closes, not
+                        // switches, because it sits above tileMa in its corner.
                         Item {
                             id: tileClose
                             visible: !tile.multi
                             anchors.right: parent.right
-                            anchors.rightMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
+                            anchors.rightMargin: -3
+                            anchors.top: parent.top
+                            anchors.topMargin: -3
                             width: 18; height: 18
                             opacity: tileHover.hovered ? 1 : 0
                             Behavior on opacity { NumberAnimation { duration: 120 } }
 
                             Rectangle {
-                                width: 11; height: 1.4; radius: 1; anchors.centerIn: parent
+                                anchors.fill: parent
+                                radius: 9
+                                color: Qt.rgba(0.10, 0.10, 0.13, 0.95)
+                                border.width: 1
+                                border.color: Qt.rgba(1, 1, 1, 0.22)
+                            }
+                            Rectangle {
+                                width: 8; height: 1.4; radius: 1; anchors.centerIn: parent
                                 rotation: 45
                                 color: tileCloseMa.containsMouse ? "#efc15a" : "#9a9aa4"
                             }
                             Rectangle {
-                                width: 11; height: 1.4; radius: 1; anchors.centerIn: parent
+                                width: 8; height: 1.4; radius: 1; anchors.centerIn: parent
                                 rotation: -45
                                 color: tileCloseMa.containsMouse ? "#efc15a" : "#9a9aa4"
                             }

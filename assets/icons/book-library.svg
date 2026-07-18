@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Book library</title>
+  <g fill="none" stroke="#f1f1f4" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 52h46"/>
+    <rect x="11" y="15" width="9" height="33" rx="1.5"/>
+    <rect x="22" y="11" width="10" height="37" rx="1.5"/>
+    <rect x="34" y="18" width="8" height="30" rx="1.5"/>
+    <path d="M45 14l8-2 7 32-8 2z"/>
+    <path d="M14 22h3"/>
+    <path d="M25 19h4"/>
+    <path d="M37 25h2"/>
+  </g>
+</svg>
