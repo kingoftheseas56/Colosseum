@@ -12,8 +12,7 @@ if (!(Test-Path $qmlExe)) {
 
 $env:QT_FORCE_STDERR_LOGGING = "1"
 
-foreach ($h in @("universe_saga_load_harness.qml", "universe_galaxy_load_harness.qml",
-                 "universe_cinematic_load_harness.qml")) {
+foreach ($h in @("universe_saga_load_harness.qml", "universe_galaxy_load_harness.qml")) {
     $harness = Join-Path $PSScriptRoot $h
     $out = cmd /c "`"$qmlExe`" `"$harness`" 2>&1" | Out-String
     if ($out -notlike "*LOADER READY*") {
@@ -21,4 +20,4 @@ foreach ($h in @("universe_saga_load_harness.qml", "universe_galaxy_load_harness
     }
 }
 
-Write-Host "universe saga + galaxy + cinematic page loads: OK"
+Write-Host "universe saga + galaxy page loads: OK"

@@ -39,7 +39,7 @@ $migrated = @(
     "qml/TopBar.qml", "qml/SearchSurface.qml", "qml/BiblioSearch.qml",
     "qml/GenrePage.qml", "qml/GenreIndex.qml", "qml/TheatreGenrePage.qml",
     "qml/TheatreGenreIndex.qml", "qml/BiblioGenrePage.qml", "qml/BiblioGenreIndex.qml",
-    "qml/UniversePage.qml", "qml/CinematicPage.qml", "qml/ExtensionsPage.qml",
+    "qml/UniversePage.qml", "qml/ExtensionsPage.qml",
     "qml/MangaReader.qml"
 )
 foreach ($f in $migrated) {
