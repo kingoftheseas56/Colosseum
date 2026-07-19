@@ -55,3 +55,31 @@ function entryForBook(rec, pairKey) {
 function titleKey(title) {
     return String(title || "").toLowerCase().replace(/\s+/g, " ").trim()
 }
+
+// Fill missing covers on Collection entries from a list of Progress entries (opened
+// books carry a real cover there), matched by normalized title. Pure + reactive-friendly:
+// callers pass Collection.items(world) and Progress.recent(kind). Returns a NEW array.
+function withProgressCovers(entries, progressEntries) {
+    var coverByTitle = {}
+    for (var i = 0; i < (progressEntries || []).length; i++) {
+        var p = progressEntries[i]
+        if (p && p.cover) coverByTitle[titleKey(p.title)] = p.cover
+    }
+    var out = []
+    for (var j = 0; j < (entries || []).length; j++) {
+        var e = entries[j]
+        if (e && (!e.cover || e.cover === "")) {
+            var c = coverByTitle[titleKey(e.title)]
+            if (c) {
+                var e2 = {}
+                for (var k in e) e2[k] = e[k]
+                e2.cover = c
+                e2.art = c
+                out.push(e2)
+                continue
+            }
+        }
+        out.push(e)
+    }
+    return out
+}

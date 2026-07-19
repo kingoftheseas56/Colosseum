@@ -8,6 +8,7 @@
 import QtQuick
 import "Catalog.js" as Catalog
 import "BiblioApi.js" as BiblioApi
+import "CollectionBackfill.js" as CollectionBackfill
 
 WorldPage {
     id: biblio
@@ -54,7 +55,8 @@ WorldPage {
     ContinueRow {
         title: "Your Collection"
         showSeeAll: false
-        items: (Collection.revision, Collection.items("biblio"))
+        items: (Collection.revision, Progress.revision,
+                CollectionBackfill.withProgressCovers(Collection.items("biblio"), Progress.recent("book", 200)))
         forgetHandler: function(e) { Collection.remove("biblio", String(e.id)) }
         onDetailRequested: function(item) { biblio.collectionOpenRequested(item) }
         onResumeRequested: function(item) { biblio.collectionOpenRequested(item) }

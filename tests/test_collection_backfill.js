@@ -2,7 +2,7 @@ const fs = require("fs"), path = require("path")
 const src = fs.readFileSync(path.join(__dirname, "..", "qml", "CollectionBackfill.js"), "utf8")
     .replace(/^\.pragma library\s*/m, "").replace(/^\.import .*$/gm, "")
 const lib = {}
-new Function("exports", src + "\nexports.seriesBaseId=seriesBaseId;exports.entryForTheatreSeries=entryForTheatreSeries;exports.entryForTankobanSeries=entryForTankobanSeries;exports.entryForBook=entryForBook;exports.titleKey=titleKey;")(lib)
+new Function("exports", src + "\nexports.seriesBaseId=seriesBaseId;exports.entryForTheatreSeries=entryForTheatreSeries;exports.entryForTankobanSeries=entryForTankobanSeries;exports.entryForBook=entryForBook;exports.titleKey=titleKey;exports.withProgressCovers=withProgressCovers;")(lib)
 function assert(c, m) { if (!c) { console.error("FAIL: " + m); process.exit(1) } }
 
 assert(lib.seriesBaseId("tt123:1:5") === "tt123", "strip tt episode")
@@ -25,4 +25,13 @@ assert(bk.id === "joe country|mick herron" && bk.type === "book" && bk.payload.b
 assert(lib.entryForTheatreSeries(null) === null && lib.entryForTankobanSeries({kind:"manga",title:""}) === null && lib.entryForBook(null, "x") === null, "null/empty safe")
 assert(lib.titleKey("  The   Hobbit ") === "the hobbit", "titleKey normalizes")
 assert(lib.titleKey("Joe Country") === lib.titleKey("joe country"), "titleKey case-insensitive")
+
+var enriched = lib.withProgressCovers(
+    [{ id: "joe country|", title: "Joe Country", cover: "" },
+     { id: "hp|", title: "Harry Potter", cover: "" },
+     { id: "keep|", title: "Kept", cover: "http://have.jpg" }],
+    [{ title: "joe country", cover: "http://jc.jpg" }])
+assert(enriched[0].cover === "http://jc.jpg", "fills missing cover from progress by title")
+assert(enriched[1].cover === "", "no progress match -> stays blank")
+assert(enriched[2].cover === "http://have.jpg", "existing cover preserved")
 console.log("CollectionBackfill contract passed.")
