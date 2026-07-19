@@ -249,6 +249,12 @@ Item {
         return currentId() + ":" + episodeSeason(v) + ":" + episodeNumber(v);
     }
 
+    // The hero Watch target for a series: the first visible episode of the default
+    // season (the Continue row owns resume; this is the front door). Null-safe.
+    function heroEpisode() {
+        return (mediaType === "series" && episodes && episodes.length) ? episodes[0] : null
+    }
+
     function sourceBackdrop() {
         return banner.length ? banner : cover;
     }
@@ -672,7 +678,7 @@ Item {
                         spacing: 12
                         topPadding: 8
                         Rectangle {
-                            visible: page.mediaType !== "series"
+                            visible: page.mediaType !== "series" || page.heroEpisode() !== null
                             width: watchRow.implicitWidth + 40
                             height: 42
                             radius: 11
@@ -688,7 +694,9 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Text {
-                                    text: "Watch"
+                                    text: page.mediaType === "series" && page.heroEpisode()
+                                        ? "Watch  S" + page.episodeSeason(page.heroEpisode()) + " · E" + page.episodeDisplayNumber(page.heroEpisode())
+                                        : "Watch"
                                     color: "#1a1306"
                                     font.family: theme.ui
                                     font.pixelSize: 14
@@ -702,12 +710,26 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onEntered: parent.opacity = 0.92
                                 onExited: parent.opacity = 1.0
-                                onClicked: sources.show("movie", page.currentId(), page.title, {
-                                                            "title": page.title,
-                                                            "year": page.year,
-                                                            "metaLine": page.sourceMetaLine(),
-                                                            "backdrop": page.sourceBackdrop()
-                                                        })
+                                onClicked: {
+                                    if (page.mediaType === "series") {
+                                        var ep = page.heroEpisode()
+                                        if (!ep) return
+                                        sources.show("series", page.episodeStreamId(ep),
+                                                     page.title + " - S" + page.episodeSeason(ep) + "E" + page.episodeNumber(ep),
+                                                     Object.assign({
+                                                         "title": page.title,
+                                                         "metaLine": page.episodeSourceLine(ep),
+                                                         "backdrop": page.sourceBackdrop()
+                                                     }, page.adjacentEpisodeContext(ep)))
+                                    } else {
+                                        sources.show("movie", page.currentId(), page.title, {
+                                            "title": page.title,
+                                            "year": page.year,
+                                            "metaLine": page.sourceMetaLine(),
+                                            "backdrop": page.sourceBackdrop()
+                                        })
+                                    }
+                                }
                             }
                         }
                         LibraryButton {

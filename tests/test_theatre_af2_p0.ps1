@@ -11,4 +11,6 @@ Assert-Contains $ts 'meta.cast || []' "resolve() captures cast names"
 # The episode list is LAW — these needles must survive every AF2 task.
 Assert-Contains $ts 'id: episodesSection' "episode section intact"
 Assert-Contains $ts 'sources.show("series", page.episodeStreamId(ep.modelData)' "episode-row playback intact"
+Assert-Contains $ts 'function heroEpisode()' "series Watch has a target"
+Assert-Contains $ts 'page.episodeStreamId(ep)' "series Watch reuses the episode-row pipeline"
 Write-Host "test_theatre_af2_p0 PASSED"
