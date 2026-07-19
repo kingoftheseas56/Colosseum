@@ -295,6 +295,13 @@ add_executable(progress_store_harness
 target_include_directories(progress_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(progress_store_harness PRIVATE Qt6::Core)
 
+add_executable(collection_store_harness
+    ../tests/collection_store_harness.cpp
+    CollectionStore.h
+)
+target_include_directories(collection_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(collection_store_harness PRIVATE Qt6::Core)
+
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
     engine/ComicDlsParse.cpp
