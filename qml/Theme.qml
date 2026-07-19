@@ -16,16 +16,8 @@ QtObject {
 
     // glass material constants
     readonly property color edge: Qt.rgba(1, 1, 1, 0.18)
-    readonly property color edgeSoft: Qt.rgba(1, 1, 1, 0.09)
     readonly property color glassTint: Qt.rgba(1, 1, 1, 0.10)
     readonly property color glassHi: Qt.rgba(1, 1, 1, 0.14)
-    readonly property color glassSheet: Qt.rgba(14 / 255, 16 / 255, 22 / 255, 0.42)   // the AF2 Home board sheet
-
-    // per-world identity tint — a FAINT cue only (a dot, a section tag); never a surface
-    // fill. Gold stays the only real accent. (AF2 Home redesign, 2026-07-19.)
-    readonly property color tintTheatre: "#7aa2ff"
-    readonly property color tintTankoban: "#f0a24a"
-    readonly property color tintBiblio: "#9d8cff"
 
     // type
     readonly property string ui: "Segoe UI"
@@ -39,10 +31,4 @@ QtObject {
 
     // layout
     readonly property int margin: 54
-
-    // AF2 cadence (Includes_Constants.xml, scaled from the skin's 1080 grid to our canvas)
-    readonly property int homePad: 64          // view_pad=80 -> page gutter
-    readonly property int rowH: 300            // view_row=510 -> landscape rail height rhythm
-    // sans display face for the AF2 Home headers/hero (Figtree, OFL — AF2 ships it, Switzer-adjacent)
-    readonly property string displaySans: "Figtree"
 }

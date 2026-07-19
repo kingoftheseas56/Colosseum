@@ -1194,14 +1194,6 @@ Window {
     FontLoader { source: "../assets/fonts/Fraunces-Regular.ttf" }
     FontLoader { source: "../assets/fonts/Fraunces-Italic.ttf" }
 
-    // ---- AF2 Home display sans (theme.displaySans = "Figtree", OFL). STATICS ON PURPOSE:
-    // same trap as Inter/Switzer below — a variable TTF registers as "Figtree Variable"
-    // and asking for "Figtree" silently falls to Tahoma. Statics register as plain "Figtree". ----
-    FontLoader { source: "../assets/fonts/Figtree-Regular.ttf" }
-    FontLoader { source: "../assets/fonts/Figtree-SemiBold.ttf" }
-    FontLoader { source: "../assets/fonts/Figtree-Bold.ttf" }
-    FontLoader { source: "../assets/fonts/Figtree-ExtraBold.ttf" }
-
     // ---- player HUD face: Switzer (Harbor-parity), bundled weights (theme.hud) ----
     FontLoader { source: "../assets/fonts/Switzer-Regular.otf" }
     FontLoader { source: "../assets/fonts/Switzer-Medium.otf" }
@@ -1303,55 +1295,6 @@ Window {
         controller: WindowMode
     }
 
-    // =====================================================================
-    // AF2 HOME — a receding featured hero over a glass board of cross-world rails.
-    // Ruling 2026-07-19 (Hemanth): the shell TopBar above stays as Home's top menu
-    // AND window controls; the receding hero + rising board are the AF2 move. The
-    // separate glass worlds bar was dropped (controls kept). Spec + approved mock:
-    // docs/superpowers/specs/2026-07-19-colosseum-home-af2-redesign-design.md.
-    // =====================================================================
-
-    // reduced-motion gate — a stepped 0/1 crossfade instead of parallax when set.
-    // (matches prefers.*reduced|reducedMotion|Accessibility — wire to an OS setting later.)
-    property bool reducedMotion: false
-
-    // homeRecede: 0..1 as the board scrolls up; drives the hero's lift + fade.
-    readonly property real homeRecede: win.reducedMotion
-        ? (page.contentY > page.height * 0.4 ? 1 : 0)
-        : Math.min(1, page.contentY / (page.height * 0.8))
-
-    // the featured hero pick — the most-recently-touched title across all worlds.
-    readonly property var homeHero: (Progress.revision,
-        (Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })[0]) || null)
-    readonly property url heroLogoUrl: {
-        if (!win.homeHero) return ""
-        var id = String(win.homeHero.id || "")
-        return (win.homeHero.kind === "video" && id.indexOf("tt") === 0)
-             ? ("https://live.metahub.space/logo/medium/" + id + "/img") : ""
-    }
-
-    HomeSpotlight {
-        id: homeHeroView
-        z: 5
-        x: theme.margin + 8
-        y: 150
-        width: Math.min(600, win.width - theme.margin * 2)
-        visible: worldStack.current === "" && page.visible
-        recede: win.homeRecede
-        eyebrow: win.homeHero ? "Continue" : "Featured"
-        title: win.homeHero ? (win.homeHero.title || win.homeHero.caption || "")
-                            : (Catalog.theatreFeatured.length ? Catalog.theatreFeatured[0].title : "Colosseum")
-        logoUrl: win.heroLogoUrl
-        factLine: win.homeHero ? (win.homeHero.sub || "")
-                              : (Catalog.theatreFeatured.length ? Catalog.theatreFeatured[0].blurb : "")
-        primaryLabel: win.homeHero ? "Resume" : "Explore"
-        resumeFraction: win.homeHero ? (win.homeHero.progress || 0) : 0
-        resumeLabel: win.homeHero ? "Resume where you left off" : ""
-        onPrimaryRequested: { if (win.homeHero) win.resumeContinue(win.homeHero); else win.openWorld("Theatre") }
-        onSecondaryRequested: { if (win.homeHero) win.detailContinue(win.homeHero) }
-        onDetailsRequested: { if (win.homeHero) win.detailContinue(win.homeHero); else win.openWorld("Theatre") }
-    }
-
     // ---- pinned top bar is above; everything below SCROLLS (vertical wheel/drag) ----
     Flickable {
         id: page
@@ -1360,7 +1303,7 @@ Window {
         y: 96
         height: win.height - 96
         contentWidth: width
-        contentHeight: homeCol.implicitHeight + 40
+        contentHeight: contentCol.implicitHeight + 40
         clip: true
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
@@ -1370,17 +1313,13 @@ Window {
         ScrollGlide { flick: page }
 
         Column {
-            id: homeCol
+            id: contentCol
             x: theme.margin
             width: win.width - theme.margin * 2
             topPadding: 10
             spacing: 30
 
-            // clearance so the fixed receding hero overlay owns the top of the page; the
-            // familiar Home board (Continue + the three world widgets) sits below it.
-            Item { width: 1; height: homeHeroView.height + 60 }
-
-            // ---- CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
+            // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
             //      Real resume data from the Progress store; hidden entirely until there's
             //      something to resume. (Naming Progress.revision keeps the binding live.)
             Column {
@@ -1390,12 +1329,14 @@ Window {
                 // watched episodes sink below unfinished entries (both halves keep recency order)
                 property var contItems: (Progress.revision, (function() {
                     // 'audiobook' records persist ONLY as resume positions for the reader's
-                    // read-along (audio progress rides the BOOK). Never surface them as tiles.
+                    // read-along (Hemanth 2026-07-18: audio progress rides the BOOK — the
+                    // book's own tile represents both). Never surface them as tiles.
                     var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
                     return a.filter(function(e) { return e.watched !== true })
                             .concat(a.filter(function(e) { return e.watched === true }))
                 })())
                 visible: contItems.length > 0
+                // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
                 WidgetHeader {
                     width: parent.width; title: "Continue"
                     moreLabel: "See all"
@@ -1428,8 +1369,9 @@ Window {
                 }
             }
 
-            // ---- MODE-INTRO WIDGETS — the boards that introduce each world (restored 2026-07-19
-            //      on Hemanth's call; the AF2 rails board was pulled). ----
+            // ---- 4. MODE-INTRO WIDGETS — the board that introduces each app AND shows what's inside.
+            //      First prototype: Tankoban as a BOOKSHELF (manga covers standing on a shelf ledge).
+            //      The other modes get their own widget forms next; this is the shape to react to.
             Bookshelf {
                 backdrop: wall
                 track: page.contentY
@@ -1440,6 +1382,8 @@ Window {
                 onBookClicked: win.openWorld("Tankoban")
             }
 
+            // Theatre = the film-strip, Biblio = the reading desk (mock-reviewed 2026-07-04;
+            // both self-load their data, so the board wiring stays declarative).
             TheatreStrip {
                 backdrop: wall
                 track: page.contentY
