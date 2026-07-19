@@ -19,6 +19,7 @@ Assert-Contains    $player 'id: playerBottomScrim'      "Bottom edge readability
 Assert-Contains    $player 'text: "NOW PLAYING"'        "The top-left group must carry the NOW PLAYING micro-label."
 Assert-Contains    $player 'id: bottomFullscreenButton' "The single fullscreen control must live in the bottom transport group."
 Assert-NotContains $player 'id: topFullscreenButton'    "There must be no second (top) fullscreen control."
-Assert-Contains    $player 'height: 3'                  "The timeline track must be 3 px at rest."
+Assert-Contains    $player 'root.seeking ? 5 : 3'       "The timeline track must be 3 px at rest (5 px on hover/scrub)."
+Assert-Contains    $player 'root.seekSettling ? 14 : 11' "The timeline thumb must be 11 px at rest."
 
 Write-Host "Native chrome contract checks passed."

@@ -2860,63 +2860,86 @@ Item {
         visible: opacity > 0.01
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
-        // Native chrome (spec 2026-07-08): a real titlebar — the player is a window in
-        // Colosseum's OS. Title + episode/source meta on the left (Fraunces, house ink),
-        // window verbs on the right where every OS keeps them. Mirrors the bottom panel.
-        Rectangle {
-            id: titleBar
+        // Harbor-parity top overlay (approved 2026-07-19): no fused bar. A restrained
+        // transparent->black scrim carries edge readability; free-floating groups sit over it.
+        // Left: circular back + NOW PLAYING micro-label, title, episode/metadata. Right:
+        // minimize + close only. Fullscreen lives ONCE, in the bottom transport group.
+        Item {
+            id: playerTopScrim
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 44
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.78)
-            Rectangle {
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                height: 1
-                color: Qt.rgba(1, 1, 1, 0.14)
-            }
+            height: 112
             transform: Translate {
                 y: root.controlsShown && !root.starting ? 0 : -8
                 Behavior on y { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             }
+            Rectangle {
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.60) }
+                    GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
+                }
+            }
 
             Row {
                 anchors.left: parent.left
-                anchors.leftMargin: tight ? 14 : 20
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 10
-                Text {
+                anchors.leftMargin: tight ? 16 : 28
+                anchors.top: parent.top
+                anchors.topMargin: tight ? 12 : 18
+                spacing: 14
+                RoundButton {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.mediaTitle || mpv.mediaTitle
-                    color: theme.ink
-                    font.family: theme.display
-                    font.pixelSize: tight ? 15 : 17
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                    width: Math.min(implicitWidth, chrome.width * 0.5)
+                    size: 38
+                    icon: "back"
+                    tooltip: "Back"
+                    onClicked: {
+                        root.closeMenus()
+                        root.backRequested()
+                    }
                 }
-                Text {
+                Column {
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.mediaSubtitle
-                    visible: text.length > 0 && !tight
-                    color: theme.inkDim
-                    font.family: theme.hud
-                    font.pixelSize: 12
-                    elide: Text.ElideRight
-                    width: Math.min(implicitWidth, chrome.width * 0.3)
+                    spacing: 2
+                    Text {
+                        text: "NOW PLAYING"
+                        visible: !tight
+                        color: theme.inkDimmer
+                        font.family: theme.hud
+                        font.pixelSize: 10
+                        font.weight: Font.DemiBold
+                        font.letterSpacing: 2
+                    }
+                    Text {
+                        text: root.mediaTitle || mpv.mediaTitle
+                        color: theme.ink
+                        font.family: theme.hud
+                        font.pixelSize: tight ? 16 : 19
+                        font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                        width: Math.min(implicitWidth, chrome.width * 0.5)
+                    }
+                    Text {
+                        text: root.mediaSubtitle
+                        visible: text.length > 0 && !tight
+                        color: theme.inkDim
+                        font.family: theme.hud
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                        width: Math.min(implicitWidth, chrome.width * 0.4)
+                    }
                 }
             }
 
             Row {
                 id: titleBarVerbs
                 anchors.right: parent.right
-                anchors.rightMargin: tight ? 10 : 14
-                anchors.verticalCenter: parent.verticalCenter
-                spacing: 4
+                anchors.rightMargin: tight ? 12 : 20
+                anchors.top: parent.top
+                anchors.topMargin: tight ? 10 : 16
+                spacing: 6
                 RoundButton {
-                    size: 34
+                    size: 38
                     icon: "minimizeToBar"
                     tooltip: "Minimize — paused in the taskbar, resumes with no reload"
                     onClicked: {
@@ -2925,13 +2948,7 @@ Item {
                     }
                 }
                 RoundButton {
-                    size: 34
-                    icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"
-                    tooltip: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
-                    onClicked: root.fullscreenRequested()
-                }
-                RoundButton {
-                    size: 34
+                    size: 38
                     icon: "cancel"
                     tooltip: "Close"
                     onClicked: {
@@ -3958,16 +3975,19 @@ Item {
             anchors.bottomMargin: 0
             height: tight ? 116 : 126
             radius: 0
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.78)
+            color: "transparent"
             border.width: 0
 
+            // Harbor-parity bottom overlay: a restrained transparent->black scrim (bottom darkest)
+            // instead of the old fused glass panel + hairline. Gold stays timeline/focus only.
             Rectangle {
-                id: panelHairline
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                height: 1
-                color: Qt.rgba(1, 1, 1, 0.14)
+                id: playerBottomScrim
+                anchors.fill: parent
+                gradient: Gradient {
+                    GradientStop { position: 0.0;  color: Qt.rgba(0, 0, 0, 0.0) }
+                    GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.45) }
+                    GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.85) }
+                }
             }
 
             transform: Translate {
@@ -4007,7 +4027,7 @@ Item {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                        height: seekBar.hovered || root.seeking ? 8 : 6
+                        height: seekBar.hovered || root.seeking ? 5 : 3
                         radius: height / 2
                         color: Qt.rgba(1, 1, 1, 0.16)
                     }
@@ -4017,7 +4037,7 @@ Item {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         width: mpv.duration > 0 && isFinite(mpv.cacheTime) ? parent.width * root.clamp(mpv.cacheTime / mpv.duration, 0, 1) : 0
-                        height: seekBar.hovered || root.seeking ? 8 : 6
+                        height: seekBar.hovered || root.seeking ? 5 : 3
                         radius: height / 2
                         color: Qt.rgba(1, 1, 1, 0.30)
                         visible: width > 2
@@ -4026,7 +4046,7 @@ Item {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width * root.seekFraction()
-                        height: seekBar.hovered || root.seeking ? 8 : 6
+                        height: seekBar.hovered || root.seeking ? 5 : 3
                         radius: height / 2
                         color: theme.gold
                     }
@@ -4037,7 +4057,7 @@ Item {
                             x: seekBar.width * root.clamp(modelData.startSec / mpv.duration, 0, 1)
                             width: Math.max(2, seekBar.width * root.clamp((modelData.endSec - modelData.startSec) / mpv.duration, 0, 1))
                             anchors.verticalCenter: parent.verticalCenter
-                            height: seekBar.hovered || root.seeking ? 8 : 6
+                            height: seekBar.hovered || root.seeking ? 5 : 3
                             radius: 2
                             color: Qt.rgba(1, 1, 1, 0.34)
                         }
@@ -4052,7 +4072,7 @@ Item {
                             x: seekBar.width * root.clamp((modelData.startSec || 0) / mpv.duration, 0, 1) - width / 2
                             anchors.verticalCenter: parent.verticalCenter
                             width: 2
-                            height: seekBar.hovered || root.seeking ? 12 : 9
+                            height: seekBar.hovered || root.seeking ? 8 : 5
                             radius: 1
                             color: Qt.rgba(1, 1, 1, 0.55)
                         }
@@ -4060,7 +4080,7 @@ Item {
                     Rectangle {
                         x: parent.width * root.seekFraction() - width / 2
                         anchors.verticalCenter: parent.verticalCenter
-                        width: root.seeking || root.seekSettling ? 20 : 16
+                        width: root.seeking || root.seekSettling ? 14 : 11
                         height: width
                         radius: width / 2
                         color: theme.gold
@@ -4237,30 +4257,30 @@ Item {
                 Row {
                     id: transportRow
                     anchors.centerIn: parent
-                    spacing: compact ? 6 : 8
+                    spacing: 8
                     RoundButton {
                         visible: root.hasAdjacentEpisode("prev")
-                        size: tight ? 44 : 50
+                        size: tight ? 38 : 40
                         icon: "prevEpisode"
                         tooltip: "Previous episode"
                         onClicked: root.goToAdjacentEpisode("prev")
                     }
                     RoundButton {
-                        size: tight ? 48 : 56
+                        size: tight ? 38 : 40
                         icon: "seekBack"
                         label: root.seekBackSeconds
                         tooltip: "Back " + root.seekBackSeconds + "s"
                         onClicked: root.seekStep(-root.seekBackSeconds)
                     }
                     RoundButton {
-                        size: tight ? 54 : 64
+                        size: tight ? 46 : 48
                         icon: mpv.pause ? "play" : "pause"
                         hero: true
                         tooltip: mpv.pause ? "Play" : "Pause"
                         onClicked: root.togglePlayPause()
                     }
                     RoundButton {
-                        size: tight ? 48 : 56
+                        size: tight ? 38 : 40
                         icon: "seekForward"
                         label: root.seekForwardSeconds
                         tooltip: "Forward " + root.seekForwardSeconds + "s"
@@ -4268,7 +4288,7 @@ Item {
                     }
                     RoundButton {
                         visible: root.hasAdjacentEpisode("next")
-                        size: tight ? 44 : 50
+                        size: tight ? 38 : 40
                         icon: "nextEpisode"
                         tooltip: "Next episode"
                         onClicked: root.goToAdjacentEpisode("next")
@@ -4363,6 +4383,17 @@ Item {
                         id: speedMenu
                         anchors.verticalCenter: parent.verticalCenter
                         visible: !root.barTiny || speedMenu.panelOpen
+                    }
+
+                    // Fullscreen — relocated here from the top window group so it exists ONCE,
+                    // in the bottom-right transport (approved 2026-07-19). Keeps the F11 toggle.
+                    RoundButton {
+                        id: bottomFullscreenButton
+                        anchors.verticalCenter: parent.verticalCenter
+                        size: 40
+                        icon: root.shellWindowed ? "fullscreen" : "fullscreenExit"
+                        tooltip: root.shellWindowed ? "Enter fullscreen (F11)" : "Exit fullscreen (F11)"
+                        onClicked: root.fullscreenRequested()
                     }
 
                     // More-controls (and the narrow-bar folds) live on the video's
@@ -4512,10 +4543,12 @@ Item {
         Rectangle {
             anchors.fill: parent
             radius: width / 2
-            color: rb.hero ? (press.containsMouse ? Qt.rgba(1, 1, 1, 0.22) : Qt.rgba(1, 1, 1, 0.13))
+            // hero (play/pause) = solid white circle with a dark glyph, per the approved mock;
+            // everything else stays a translucent white hover chip. Gold is timeline/focus only.
+            color: rb.hero ? (press.containsMouse ? "#ffffff" : Qt.rgba(1, 1, 1, 0.92))
                            : rb.active ? Qt.rgba(1, 1, 1, 0.16)
                            : press.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
-            border.width: rb.hero || rb.active ? 1 : 0
+            border.width: rb.active ? 1 : 0
             border.color: Qt.rgba(1, 1, 1, 0.12)
         }
         // Lucide glyphs: seek kinds get the composed rotate+numeral, everything else one SVG glyph.
@@ -4523,7 +4556,7 @@ Item {
             anchors.fill: parent
             visible: rb.icon !== "seekBack" && rb.icon !== "seekForward"
             kind: rb.icon
-            ink: rb.active ? theme.gold : theme.ink
+            ink: rb.hero ? "#101014" : (rb.active ? theme.gold : theme.ink)
             accessibleName: rb.tooltip
         }
         PlayerSeekIcon {
@@ -4531,7 +4564,7 @@ Item {
             visible: rb.icon === "seekBack" || rb.icon === "seekForward"
             forward: rb.icon === "seekForward"
             seconds: (rb.label && rb.label.length) ? parseInt(rb.label) : 10
-            ink: rb.active ? theme.gold : theme.ink
+            ink: rb.hero ? "#101014" : (rb.active ? theme.gold : theme.ink)
             hudFamily: theme.hud
         }
         MouseArea {
