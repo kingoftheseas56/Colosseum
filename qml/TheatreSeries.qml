@@ -477,7 +477,10 @@ Item {
             if (bg) banner = bg;
             var po = TheatreApi.normalizeArtUrl(meta.poster || "");
             if (po) cover = po;
-            logo = TheatreApi.normalizeArtUrl(meta.logo || "");   // per-show loader logo (may be "")
+            // per-show loader logo (stylized title art). Cinemeta often omits meta.logo, so fall
+            // back to the metahub logo endpoint keyed by the imdb id — the same source Stremio uses.
+            logo = TheatreApi.normalizeArtUrl(meta.logo
+                || (meta.id ? "https://live.metahub.space/logo/medium/" + meta.id + "/img" : ""));
             year = meta.year ? String(meta.year) : (meta.releaseInfo || "");
             if (meta.genres && meta.genres.length) genresLine = meta.genres.slice(0, 3).join(" - ");
             rating = meta.imdbRating || "";

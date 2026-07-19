@@ -1,14 +1,15 @@
 import QtQuick
 import QtQuick.Effects
 
-// Harbor/Stremio-style per-show startup loader. Full-bleed episode art (blurred, dimmed, saturated)
-// under a three-stop black gradient; a centered show logo OR title; an uppercase episode line; a
-// status line; and a thin INDETERMINATE bar. Colosseum exposes no trustworthy torrent readiness
-// figure, so this NEVER shows a fabricated number — the bar just sweeps.
+// Stremio-style per-show startup loader. Reference = Stremio's Player (stremio-web): a FULL-BLEED
+// backdrop shown CLEARLY (not blurred; only subtle top/bottom gradients) with the show's CINEMETA
+// LOGO — the stylized title art — centered as the hero. Text is only a fallback when no logo loads.
+// Beneath: the episode line, a status line, and a thin INDETERMINATE bar. Colosseum exposes no
+// trustworthy torrent readiness figure, so the bar only sweeps — it NEVER shows a fabricated number.
 //
-// Owned/fed by PlayerPage: `active` gates the whole thing; PlayerPage flips it off on the truthful
-// first-frame advance (or when the resume-choice prompt must take over). Art decode + blur run ONLY
-// while active, so nothing keeps decoding once the loader is hidden.
+// Owned/fed by PlayerPage: `active` gates everything; PlayerPage flips it off on the truthful
+// first-frame advance (or when the resume-choice prompt takes over). Art decode runs ONLY while
+// active. Harbor shows the same logo with no backdrop; we keep Stremio's backdrop.
 Item {
     id: root
 
@@ -29,58 +30,50 @@ Item {
     opacity: active ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 300; easing.type: Easing.OutCubic } }
 
-    // Base black — never a transparent gap before the art decodes or when there is no art.
-    Rectangle { anchors.fill: parent; color: "#05070b" }
+    // Base black — never a transparent gap before art decodes or when there is no backdrop.
+    Rectangle { anchors.fill: parent; color: "#000000" }
 
-    // Full-bleed episode/backdrop art: async + cached, bounded source size, decoded ONLY while
-    // active. Blurred/dimmed/desaturated so text stays legible; best-effort (missing art = black).
+    // Full-bleed backdrop, shown CLEARLY (Stremio shows meta.background sharp, not blurred).
     Image {
-        id: art
+        id: backdrop
         anchors.fill: parent
         source: root.active ? root.backdropUrl : ""
         fillMode: Image.PreserveAspectCrop
         asynchronous: true
         cache: true
-        visible: false
+        visible: root.active && status === Image.Ready
+        opacity: 0.9
         sourceSize.width: Math.min(1920, Math.max(2, Math.round(root.width)))
         sourceSize.height: Math.min(1080, Math.max(2, Math.round(root.height)))
     }
-    MultiEffect {
-        anchors.fill: art
-        source: art
-        visible: root.active && art.status === Image.Ready
-        blurEnabled: root.active
-        blur: 1.0
-        blurMax: 40
-        saturation: 0.4
-        brightness: -0.10
-        opacity: 0.55
-    }
-
-    // Three-stop black gradient: legible text, bottom darkest (approximates Harbor's overlay).
+    // A gentle overall darken so the (usually light) logo always reads over the backdrop.
+    Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.28) }
+    // Subtle top + bottom gradients (Stremio's 0.35), clear through the middle.
     Rectangle {
         anchors.fill: parent
         gradient: Gradient {
-            GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.65) }
-            GradientStop { position: 0.5; color: Qt.rgba(0, 0, 0, 0.55) }
-            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.85) }
+            GradientStop { position: 0.0;  color: Qt.rgba(0, 0, 0, 0.55) }
+            GradientStop { position: 0.30; color: Qt.rgba(0, 0, 0, 0.0) }
+            GradientStop { position: 0.72; color: Qt.rgba(0, 0, 0, 0.0) }
+            GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.60) }
         }
     }
 
-    // Center identity: the show LOGO dominates when present (Stremio/Harbor), else a big title.
-    // Both breathe with a slow pulse; the episode line sits beneath in uppercase tracking.
+    // HERO: the Cinemeta logo (stylized title art), centered and prominent. Fallback = the title.
+    // Both breathe with a slow pulse (Stremio/Harbor's loader pulse).
     Column {
         id: identity
-        anchors.centerIn: parent
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.verticalCenter: parent.verticalCenter
+        anchors.verticalCenterOffset: Math.round(-root.height * 0.05)
         width: parent.width * 0.72
-        spacing: 20
+        spacing: 18
 
-        // slow breathing pulse (Harbor's animate-loader-pulse)
         SequentialAnimation on opacity {
             running: root.active
             loops: Animation.Infinite
-            NumberAnimation { from: 1.0; to: 0.78; duration: 1400; easing.type: Easing.InOutSine }
-            NumberAnimation { from: 0.78; to: 1.0; duration: 1400; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 1.0; to: 0.82; duration: 1500; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.82; to: 1.0; duration: 1500; easing.type: Easing.InOutSine }
         }
 
         Image {
@@ -91,10 +84,18 @@ Item {
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             cache: true
-            // Prominent, like Stremio: up to ~160 px tall and 72% of frame width.
-            height: Math.round(Math.min(160, root.height * 0.22))
+            // Prominent, like Stremio/Harbor: up to ~30% of frame height, 72% width.
+            height: Math.round(Math.min(220, root.height * 0.30))
             width: Math.min(implicitWidth, identity.width)
-            sourceSize.height: 320
+            sourceSize.height: 440
+            // Soft shadow so a light logo reads on any backdrop.
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: Qt.rgba(0, 0, 0, 0.7)
+                shadowBlur: 0.9
+                shadowVerticalOffset: 10
+            }
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
@@ -106,6 +107,8 @@ Item {
             font.pixelSize: Math.max(34, Math.min(64, root.width * 0.036))
             font.weight: Font.DemiBold
             lineHeight: 1.0
+            style: Text.Raised
+            styleColor: Qt.rgba(0, 0, 0, 0.55)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             maximumLineCount: 3
@@ -115,7 +118,7 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.episodeLine.length > 0
             text: root.episodeLine.toUpperCase()
-            color: "#d8d8dd"
+            color: "#e2e2e6"
             font.family: root.hudFamily
             font.pixelSize: 13
             font.weight: Font.DemiBold
@@ -128,18 +131,19 @@ Item {
     Column {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: Math.round(root.height * 0.12)
+        anchors.bottomMargin: Math.round(root.height * 0.11)
         spacing: 14
         width: Math.min(root.width * 0.40, 440)
 
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.errored ? (root.errorText.length > 0) : (root.statusText.length > 0)
-            text: root.errored ? root.errorText : root.statusText
-            color: root.errored ? "#e6b8b0" : "#9a99a5"
+            text: root.errored ? root.errorText : root.statusText.toUpperCase()
+            color: root.errored ? "#e6b8b0" : "#c8c8ce"
             font.family: root.hudFamily
-            font.pixelSize: 13
-            font.letterSpacing: 1
+            font.pixelSize: 12
+            font.weight: Font.DemiBold
+            font.letterSpacing: 3
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             width: parent.width

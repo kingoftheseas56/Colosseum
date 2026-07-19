@@ -27,10 +27,10 @@ Assert-Contains $ls 'signal cancelRequested()' "PlayerLoadingScreen must expose 
 Assert-Contains $ls '!logo.visible && root.title.length > 0' "Title must show only when the logo is absent (logo preferred)."
 Assert-Contains $ls 'toUpperCase()' "The episode line must be uppercased."
 
-# --- art decode + blur run ONLY while active (no work once hidden) ---
-Assert-Contains $ls 'source: root.active ? root.backdropUrl : ""' "Backdrop must decode only while active."
-Assert-Contains $ls 'blurEnabled: root.active' "Blur must be enabled only while active."
-Assert-Contains $ls '300' "The loader must use a 300 ms opacity transition."
+# --- art decodes ONLY while active; Stremio shows the backdrop CLEAR (not blurred) ---
+Assert-Contains    $ls 'source: root.active ? root.backdropUrl : ""' "Backdrop must decode only while active."
+Assert-NotContains $ls 'blurEnabled'                                 "The Stremio backdrop must be shown clear, not blurred."
+Assert-Contains    $ls '300' "The loader must use a 300 ms opacity transition."
 
 # --- INDETERMINATE bar: a sweeping segment, and ABSOLUTELY no fabricated readiness numbers ---
 Assert-Contains    $ls 'loops: Animation.Infinite' "The bar must sweep continuously (indeterminate)."
