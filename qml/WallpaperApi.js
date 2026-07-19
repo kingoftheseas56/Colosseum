@@ -36,11 +36,33 @@ function nativePicks() {
         query: "",
         title: "The Arena at Night",
         spec: "Living wallpaper - Colosseum native"
+    }, {
+        source: "Colosseum",
+        source_id: "native:gilded-rain",
+        source_url: "",
+        image_url: "native:gilded-rain",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original",
+        query: "",
+        title: "Gilded Rain",
+        spec: "Living wallpaper - Colosseum native"
     }];
 }
 
 function isNativePick(url) {
     return String(url || "").indexOf("native:") === 0;
+}
+
+// The ONE map from a "native:" route to its live QML scene file. Every surface that
+// draws a native wallpaper — the runtime shell (Main), the picker preview, the picker
+// tiles — resolves through here, so a new living wallpaper is added in exactly one place.
+// (Main mirrors this in nativeWallpaperFile(); keep the two in sync when adding a scene.)
+function nativeSceneFor(url) {
+    if (url === "native:arena-night") return "wallpapers/ArenaNight.qml";
+    if (url === "native:gilded-rain") return "wallpapers/GildedRain.qml";
+    return "";
 }
 
 function defaultQueryFor(world) {

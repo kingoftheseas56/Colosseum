@@ -37,8 +37,10 @@ Window {
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
     // the one honest map — an unknown id falls back to the default still.
     readonly property bool wallpaperIsNative: wallpaperSource.indexOf("native:") === 0
+    // Mirrors WallpaperApi.nativeSceneFor — keep the two in sync when adding a scene.
     function nativeWallpaperFile(source) {
         if (source === "native:arena-night") return "wallpapers/ArenaNight.qml"
+        if (source === "native:gilded-rain") return "wallpapers/GildedRain.qml"
         return ""
     }
 

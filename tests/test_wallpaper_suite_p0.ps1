@@ -36,13 +36,26 @@ if ($main -notmatch 'immersiveSurfaceOpen[\s\S]{0,80}win\.visibility !== Window\
 if ($api -notmatch 'native:arena-night') { throw 'WallpaperApi lost the arena from nativePicks' }
 if ($ui -notmatch '"Colosseum"') { throw 'the picker lost its Colosseum shelf' }
 
-# 5. the arena scene actually instantiates (offscreen, 4s, then killed).
-$p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root 'qml/wallpapers/ArenaNight.qml')) `
-        -PassThru -RedirectStandardError (Join-Path $env:TEMP 'arena_err.txt') -WindowStyle Hidden
-Start-Sleep -Seconds 4
-if ($p.HasExited -and $p.ExitCode -ne 0) { throw "ArenaNight failed to instantiate (exit $($p.ExitCode))" }
-if (!$p.HasExited) { Stop-Process -Id $p.Id -Force }
-$errTxt = Get-Content (Join-Path $env:TEMP 'arena_err.txt') -Raw -ErrorAction SilentlyContinue
-if ($errTxt -match 'error') { throw "ArenaNight instantiation errors: $errTxt" }
+# 4b. Gilded Rain (2026-07-19): second native living wallpaper, same gates as the arena.
+$rain = Get-Content (Join-Path $root 'qml/wallpapers/GildedRain.qml') -Raw
+if ($rain -notmatch 'property bool running') { throw 'GildedRain lost its running gate - it could never freeze' }
+if ($rain -match 'Canvas\s*\{') { throw 'GildedRain must stay scene-graph work, never per-frame Canvas painting' }
+if ($api -notmatch 'native:gilded-rain') { throw 'WallpaperApi lost gilded-rain from nativePicks' }
+# every native route must resolve to a scene through the one shared map (no more hardcoding).
+if ($api -notmatch 'function nativeSceneFor') { throw 'WallpaperApi lost the single nativeSceneFor scene map' }
+if ($api -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'nativeSceneFor does not route gilded-rain to its scene' }
+if ($main -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'Main runtime map does not route gilded-rain to its scene' }
 
-Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena)'
+# 5. both native scenes actually instantiate (offscreen, 4s each, then killed).
+foreach ($scene in @('ArenaNight', 'GildedRain')) {
+    $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
+    $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
+            -PassThru -RedirectStandardError $errFile -WindowStyle Hidden
+    Start-Sleep -Seconds 4
+    if ($p.HasExited -and $p.ExitCode -ne 0) { throw "$scene failed to instantiate (exit $($p.ExitCode))" }
+    if (!$p.HasExited) { Stop-Process -Id $p.Id -Force }
+    $errTxt = Get-Content $errFile -Raw -ErrorAction SilentlyContinue
+    if ($errTxt -match 'error') { throw "$scene instantiation errors: $errTxt" }
+}
+
+Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena + gilded rain)'

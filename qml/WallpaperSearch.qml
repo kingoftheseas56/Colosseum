@@ -73,8 +73,8 @@ Item {
     }
     Loader {
         anchors.fill: parent
-        active: root.previewUrl === "native:arena-night"
-        source: active ? "wallpapers/ArenaNight.qml" : ""
+        active: WallpaperApi.isNativePick(root.previewUrl)
+        source: active ? WallpaperApi.nativeSceneFor(root.previewUrl) : ""
     }
 
     Rectangle {
@@ -246,8 +246,7 @@ Item {
                         // the tile IS the wallpaper, live and miniature
                         Loader {
                             anchors.fill: parent
-                            source: nativeTile.modelData.image_url === "native:arena-night"
-                                    ? "wallpapers/ArenaNight.qml" : ""
+                            source: WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url)
                         }
 
                         Rectangle {
