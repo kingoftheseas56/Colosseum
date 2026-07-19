@@ -19,6 +19,8 @@ import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
 import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
+import "BiblioApi.js" as BiblioApi
+import "CollectionBackfill.js" as CollectionBackfill
 
 Window {
     id: win
@@ -93,6 +95,40 @@ Window {
         wallpaperSettings.biblioPick = raw
         wallpaperSettings.theatrePick = raw
         refreshWallpaper()
+    }
+
+    // One-time migration: everything already downloaded becomes a Collection entry
+    // (grouped to the series). Guarded by a hidden "_meta" marker so it runs once —
+    // manual removals then stick. New downloads collect live via the detail pages.
+    function runCollectionBackfill() {
+        if (typeof Collection === "undefined" || typeof LocalDownloads === "undefined") return
+        if (Collection.has("_meta", "backfill_v1")) return
+        var ths = LocalDownloads.series("theatre") || []
+        for (var i = 0; i < ths.length; i++) {
+            var te = CollectionBackfill.entryForTheatreSeries(ths[i], LocalDownloads.items("theatre", ths[i].key))
+            if (te && !Collection.has("theatre", String(te.id))) Collection.add("theatre", te)
+        }
+        var tks = LocalDownloads.series("tankoban") || []
+        for (var j = 0; j < tks.length; j++) {
+            var ke = CollectionBackfill.entryForTankobanSeries(tks[j])
+            if (ke && !Collection.has("tankoban", String(ke.id))) Collection.add("tankoban", ke)
+        }
+        if (typeof Books !== "undefined") {
+            var bks = Books.downloadedBooks() || []
+            for (var k = 0; k < bks.length; k++) {
+                var pk = BiblioApi.pairKey(bks[k].title || "", bks[k].author || "")
+                var be = CollectionBackfill.entryForBook(bks[k], pk)
+                if (be && !Collection.has("biblio", String(be.id))) Collection.add("biblio", be)
+            }
+        }
+        if (typeof Audiobooks !== "undefined") {
+            var abs = Audiobooks.downloadedAudiobooks() || []
+            for (var m = 0; m < abs.length; m++) {
+                var ae = CollectionBackfill.entryForBook(abs[m], abs[m].id)
+                if (ae && !Collection.has("biblio", String(ae.id))) Collection.add("biblio", ae)
+            }
+        }
+        Collection.add("_meta", { "id": "backfill_v1", "type": "flag", "title": "", "cover": "" })
     }
 
     Component.onCompleted: {
@@ -199,6 +235,7 @@ Window {
                                     String(rows[i].infoHash).substring(0, 24))
                 })
         }
+        win.runCollectionBackfill()
     }
 
     // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)
