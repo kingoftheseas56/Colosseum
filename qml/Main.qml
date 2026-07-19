@@ -1320,33 +1320,6 @@ Window {
         ? (page.contentY > page.height * 0.4 ? 1 : 0)
         : Math.min(1, page.contentY / (page.height * 0.8))
 
-    function worldTagForKind(k) {
-        return k === "video" ? "Theatre" : (k === "book" ? "Biblio" : "Tankoban")
-    }
-
-    // Continue — the cross-world Progress store, world-tagged, newest first (watched sink).
-    readonly property var homeContinue: (Progress.revision, (function() {
-        var raw = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
-        var ordered = raw.filter(function(e) { return e.watched !== true })
-                         .concat(raw.filter(function(e) { return e.watched === true }))
-        return ordered.map(function(e) {
-            return { "art": e.cover || "", "tag": win.worldTagForKind(e.kind),
-                     "title": e.title || e.caption || "", "sub": e.sub || "",
-                     "progress": e.progress || 0, "entry": e }
-        })
-    })())
-
-    // per-world rails — each world's existing discovery source, read-only (no new pipeline).
-    readonly property var homeTheatre: Catalog.theatreFeatured.map(function(x) {
-        return { "art": x.art, "title": x.title, "sub": "" }
-    })
-    readonly property var homeManga: Catalog.topManga.map(function(x) {
-        return { "art": x.cover, "title": x.caption, "sub": "" }
-    })
-    readonly property var homeBiblio: Catalog.biblioTop.map(function(x) {
-        return { "jacketTitle": x.caption, "jacketColor": x.c1, "title": x.caption, "sub": "" }
-    })
-
     // the featured hero pick — the most-recently-touched title across all worlds.
     readonly property var homeHero: (Progress.revision,
         (Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })[0]) || null)
@@ -1398,70 +1371,91 @@ Window {
 
         Column {
             id: homeCol
-            width: page.width          // full width; each rail gutters via theme.homePad
+            x: theme.margin
+            width: win.width - theme.margin * 2
+            topPadding: 10
+            spacing: 30
 
-            // spacer — the featured hero + living wallpaper own the first ~viewport; the
-            // glass board rises from below it on scroll (AF2's receding front door).
-            Item { width: 1; height: Math.round(page.height * 0.82) }
+            // clearance so the fixed receding hero overlay owns the top of the page; the
+            // familiar Home board (Continue + the three world widgets) sits below it.
+            Item { width: 1; height: homeHeroView.height + 60 }
 
-            // ---- the glass board: a frosted sheet that rises over the persistent wallpaper.
-            //      Translucent (art reads through — never flat black); a hard live backdrop
-            //      blur is the known scroll-blur problem (Glass.qml), deferred past v1. ----
-            Rectangle {
-                id: homeBoard
+            // ---- CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
+            //      Real resume data from the Progress store; hidden entirely until there's
+            //      something to resume. (Naming Progress.revision keeps the binding live.)
+            Column {
+                id: contCol
                 width: parent.width
-                height: boardCol.implicitHeight
-                gradient: Gradient {
-                    orientation: Gradient.Vertical
-                    GradientStop { position: 0.0;  color: "transparent" }
-                    GradientStop { position: 0.09; color: theme.glassSheet }
-                    GradientStop { position: 1.0;  color: theme.glassSheet }
+                spacing: 14
+                // watched episodes sink below unfinished entries (both halves keep recency order)
+                property var contItems: (Progress.revision, (function() {
+                    // 'audiobook' records persist ONLY as resume positions for the reader's
+                    // read-along (audio progress rides the BOOK). Never surface them as tiles.
+                    var a = Progress.recent("", 12).filter(function(e) { return e.kind !== "audiobook" })
+                    return a.filter(function(e) { return e.watched !== true })
+                            .concat(a.filter(function(e) { return e.watched === true }))
+                })())
+                visible: contItems.length > 0
+                WidgetHeader {
+                    width: parent.width; title: "Continue"
+                    moreLabel: "See all"
+                    onMoreClicked: win.openContinueSeeAll("home")
                 }
-                // top edge highlight (AF2 border-top)
-                Rectangle {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                    height: 1; color: theme.edgeSoft
-                }
-
-                Column {
-                    id: boardCol
-                    width: parent.width
-                    topPadding: 34; bottomPadding: 130; spacing: 10
-
-                    // Continue — spans all three worlds (world-tagged), from the Progress store.
-                    HomeRail {
-                        width: parent.width
-                        railTitle: "Continue"; cardShape: "landscape"
-                        model: win.homeContinue
-                        onSeeAll: win.openContinueSeeAll("home")
-                        onCardActivated: function(i) {
-                            var m = win.homeContinue[i]
-                            if (m && m.entry) win.resumeContinue(m.entry)
+                Flickable {
+                    id: contFlick
+                    width: parent.width; height: 148
+                    contentWidth: contRow.width; contentHeight: height
+                    clip: true
+                    flickableDirection: Flickable.HorizontalFlick
+                    boundsBehavior: Flickable.StopAtBounds
+                    Row {
+                        id: contRow
+                        spacing: 18
+                        Repeater {
+                            model: contCol.contItems
+                            delegate: ContinueTile {
+                                required property var modelData
+                                variant: "home"
+                                entry: modelData
+                                backdrop: wall
+                                track: page.contentY + contFlick.contentX
+                                onResumeRequested: win.resumeContinue(modelData)
+                                onDetailRequested: win.detailContinue(modelData)
+                                onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
+                            }
                         }
-                    }
-                    HomeRail {
-                        width: parent.width
-                        worldTag: "Theatre"; railTitle: "Featured this week"; cardShape: "landscape"
-                        model: win.homeTheatre
-                        onSeeAll: win.openWorld("Theatre")
-                        onCardActivated: function(i) { win.openWorld("Theatre") }
-                    }
-                    HomeRail {
-                        width: parent.width
-                        worldTag: "Tankoban"; railTitle: "New volumes"; cardShape: "portrait"
-                        model: win.homeManga
-                        onSeeAll: win.openWorld("Tankoban")
-                        onCardActivated: function(i) { win.openWorld("Tankoban") }
-                    }
-                    HomeRail {
-                        width: parent.width
-                        worldTag: "Biblio"; railTitle: "On your shelf"; cardShape: "jacket"
-                        model: win.homeBiblio
-                        onSeeAll: win.openWorld("Biblio")
-                        onCardActivated: function(i) { win.openWorld("Biblio") }
                     }
                 }
             }
+
+            // ---- MODE-INTRO WIDGETS — the boards that introduce each world (restored 2026-07-19
+            //      on Hemanth's call; the AF2 rails board was pulled). ----
+            Bookshelf {
+                backdrop: wall
+                track: page.contentY
+                width: parent.width
+                mangaBooks: Catalog.topManga
+                comicsBooks: Catalog.topComics
+                onClicked: win.openWorld("Tankoban")
+                onBookClicked: win.openWorld("Tankoban")
+            }
+
+            TheatreStrip {
+                backdrop: wall
+                track: page.contentY
+                width: parent.width
+                onClicked: win.openWorld("Theatre")
+            }
+
+            ReadingDesk {
+                backdrop: wall
+                track: page.contentY
+                width: parent.width
+                onClicked: win.openWorld("Biblio")
+                onGenrePicked: (name) => { win.openWorld("Biblio"); win.openBiblioGenre(name) }
+            }
+
+            Item { width: 1; height: 16 }   // bottom breathing room
         }
     }
 

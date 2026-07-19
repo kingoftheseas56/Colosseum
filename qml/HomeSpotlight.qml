@@ -129,20 +129,35 @@ Item {
             topPadding: 28
             spacing: 11
 
-            // primary — white, gold-free (gold is reserved for progress)
+            // primary — white pill, gold-free (gold is reserved for progress). Symmetric
+            // padding; the play glyph is colorized DARK (the source svg is white and would
+            // vanish on the white pill — that was the "lopsided pill" bug).
             Rectangle {
                 height: 46; radius: 12
-                width: primRow.implicitWidth + 48
+                width: primRow.implicitWidth + 44
                 color: primMa.containsMouse ? Qt.rgba(1, 1, 1, 0.92) : theme.ink
                 Behavior on color { ColorAnimation { duration: 130 } }
                 Row {
                     id: primRow
                     anchors.centerIn: parent
-                    spacing: 9
-                    Image {
+                    spacing: 10
+                    Item {
+                        width: 16; height: 16
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 18; height: 18; source: "../assets/icons/play.svg"
-                        sourceSize.width: 36; sourceSize.height: 36
+                        Image {
+                            id: primPlaySrc
+                            anchors.fill: parent
+                            source: "../assets/icons/play.svg"
+                            fillMode: Image.PreserveAspectFit
+                            sourceSize.width: 32; sourceSize.height: 32
+                            visible: false
+                        }
+                        MultiEffect {
+                            anchors.fill: parent
+                            source: primPlaySrc
+                            colorization: 1.0
+                            colorizationColor: "#0c0d12"
+                        }
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
