@@ -156,6 +156,38 @@ Window {
         Collection.add("_meta", { "id": "backfill_v3", "type": "flag", "title": "", "cover": "" })
     }
 
+    // Fill covers for backfilled books that have no local cover anywhere. Books with a
+    // Progress cover are filled reactively by the Biblio Collection row; this handles the
+    // rest by fetching the cover from Apple Books by title and baking it into the entry.
+    // Runs each startup but only touches cover-less entries, so it converges.
+    function enrichBiblioCovers() {
+        if (typeof Collection === "undefined" || typeof BiblioApi === "undefined") return
+        var entries = Collection.items("biblio") || []
+        if (!entries.length) return
+        var progCovered = {}
+        if (typeof Progress !== "undefined") {
+            var prog = Progress.recent("book", 200) || []
+            for (var i = 0; i < prog.length; i++)
+                if (prog[i].cover) progCovered[CollectionBackfill.titleKey(prog[i].title)] = true
+        }
+        for (var j = 0; j < entries.length; j++) {
+            var e = entries[j]
+            if (e.cover && e.cover !== "") continue                              // already has a cover
+            if (progCovered[CollectionBackfill.titleKey(e.title)]) continue      // Progress fills it (render-time)
+            if (!e.title) continue
+            ;(function(entry) {
+                BiblioApi.lookupBook(entry.title, function(book) {
+                    if (!book || !book.cover) return
+                    var e2 = {}
+                    for (var k in entry) e2[k] = entry[k]
+                    e2.cover = book.cover
+                    e2.art = book.cover
+                    Collection.add("biblio", e2)   // upsert same id, now with a cover
+                })
+            })(e)
+        }
+    }
+
     Component.onCompleted: {
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
@@ -261,6 +293,7 @@ Window {
                 })
         }
         win.runCollectionBackfill()
+        win.enrichBiblioCovers()
     }
 
     // locg:<id> → "<gc-tag-slug>|<gc-tagId>", persisted forever (survives restarts)

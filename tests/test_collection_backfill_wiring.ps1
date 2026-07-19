@@ -14,4 +14,7 @@ Assert-Contains $m 'CollectionBackfill.entryForTheatreSeries' "driver uses the m
 Assert-Contains $bf "function titleKey" "backfill has title dedup helper"
 Assert-Contains $m 'backfill_v3' "run-once marker bumped to v3"
 Assert-Contains $m "authoredTitles" "backfill cleans authorless duplicate books"
+Assert-Contains $m "function enrichBiblioCovers" "biblio cover enrichment exists"
+Assert-Contains $m "BiblioApi.lookupBook" "cover enrichment fetches from Apple by title"
+Assert-Contains $m "win.enrichBiblioCovers()" "cover enrichment runs at startup"
 Write-Host "test_collection_backfill_wiring PASSED"
