@@ -736,10 +736,11 @@ Item {
                                 id: watchRow
                                 anchors.centerIn: parent
                                 spacing: 9
-                                Text {
-                                    text: ">"
-                                    color: "#1a1306"
-                                    font.pixelSize: 13
+                                PlayerIcon {
+                                    kind: "play"
+                                    ink: "#1a1306"
+                                    width: 16; height: 16
+                                    iconSize: 14
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Text {
