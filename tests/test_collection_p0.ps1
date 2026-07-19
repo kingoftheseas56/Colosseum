@@ -19,6 +19,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: collection_store_harness red"; exit
 $libBtn = Read-File "qml/LibraryButton.qml"
 Assert-Contains $libBtn 'Collection.has(world, String(entry.id))' "LibraryButton reads live saved state"
 Assert-Contains $libBtn 'Collection.revision' "LibraryButton names revision for reactivity"
+Assert-Contains $libBtn 'Theme { id: theme }' "LibraryButton declares its own Theme (not a singleton here)"
 $crow = Read-File "qml/ContinueRow.qml"
 Assert-Contains $crow 'forgetHandler' "ContinueRow grew the forgetHandler seam"
 Assert-Contains $crow 'Progress.forget(modelData.kind, modelData.id)' "default Progress wiring survives"

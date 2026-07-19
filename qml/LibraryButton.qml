@@ -18,6 +18,10 @@ Rectangle {
     border.width: 1
     border.color: theme.edge
 
+    // Theme is not a singleton in this codebase — every reusable component instantiates
+    // its own (a parent's `theme` id doesn't cross into a separately-loaded component file).
+    Theme { id: theme }
+
     Row {
         id: libRow
         anchors.centerIn: parent
