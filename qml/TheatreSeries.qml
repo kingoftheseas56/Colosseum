@@ -27,7 +27,8 @@ Item {
     property string runtime: ""
     property string synopsis: ""
     property var factRows: []
-    property var castNames: []
+    property var castPeople: []
+    property string animeDoor: ""
     // Keyless anime ordering (spec 2026-07-15) sits between the raw provider list
     // and the episode UI. sourceVideos is the untouched provider array; animeOrder
     // is the native resolver's annotation; videos/episodes derive from it and fall
@@ -438,6 +439,7 @@ Item {
         var id = currentId();
         if (!id) { loading = false; errorMsg = "No id for this title."; return; }
         revealGuard.restart();
+        page.animeDoor = String((itemData && itemData.id) || "")
         TheatreApi.loadMeta(mediaType, id, function(meta) {
             if (!meta) {
                 errorMsg = "Couldn't load details.";
@@ -457,7 +459,18 @@ Item {
             runtime = meta.runtime || "";
             synopsis = meta.description || "";
             page.factRows = TheatreFacts.factRows(meta, null)
-            page.castNames = meta.cast || []
+            var doorForCast = page.animeDoor
+            TheatreApi.loadAnimeCast(doorForCast, function(anime) {
+                if (page.animeDoor !== doorForCast) return   // stale response, page moved on
+                if (anime) {
+                    page.castPeople = anime.cast
+                    page.factRows = TheatreFacts.factRows(meta, anime)   // Studio + Source rows join
+                } else {
+                    page.castPeople = (meta.cast || []).map(function(n) {
+                        return { "name": n, "role": "", "image": "" }
+                    })
+                }
+            })
             sourceVideos = meta.videos || [];
             page.rebuildAnimeOrder();
             page.onMetaLoaded();
@@ -1506,6 +1519,12 @@ Item {
                 }
             }
         }
+            }
+
+            CastRow {
+                x: theme.margin
+                width: parent.width - 2 * theme.margin
+                people: page.castPeople
             }
 
             Text {
