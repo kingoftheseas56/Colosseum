@@ -5,153 +5,170 @@
 <h1 align="center">Colosseum</h1>
 
 <p align="center">
-  <strong>A native media shell for manga and comics, books and audiobooks, movies, shows, and anime.</strong>
+  <strong>A native desktop media shell for manga and comics, books and audiobooks, movies, shows, and anime.</strong>
 </p>
 
 <p align="center">
-  Qt 6 · QML · C++ · mpv · Foliate · Tankorent/libtorrent · Stremio-compatible extensions
+  Qt 6 · QML · C++ · Qt WebEngine · mpv · libtorrent · Stremio-compatible extensions
 </p>
 
 > [!IMPORTANT]
-> Colosseum is an active, fast-moving development build. Windows with Qt 6.11.1 and MSVC 2022 is the current tested path. It is not yet a polished, portable, one-command release build.
+> Colosseum is an active, fast-moving development build. Windows with Qt 6.11.1 and MSVC 2022 is the current tested path. It is not yet a polished, portable, one-command release.
 
 ## What Colosseum is
 
-Colosseum is a fullscreen desktop media environment built around three connected worlds:
+Colosseum is a fullscreen-first desktop media environment built around three connected worlds:
 
 - **Tankoban** for manga and western comics
 - **Biblio** for ebooks and audiobooks
 - **Theatre** for movies, shows, and anime
 
-It is not three unrelated applications behind a launcher. The worlds share one home, one visual language, one Continue system, persistent search history, one local-download surface, and an OS-like session taskbar. A manga chapter or volume, an ebook, an audiobook, and a film can remain open as separate sessions and be switched, minimized, resumed, or closed from the same shell.
+The worlds share one shell rather than living as three unrelated applications. Continue, search history, local downloads, wallpapers, open sessions, and the taskbar cross the world boundaries while each medium keeps its own reader, player, metadata rules, and acquisition policy.
 
-The interface is written in Qt Quick/QML. Native C++ objects provide the player, readers, download engines, Tankorent services, TTS bridge, persistent stores, extension registry, local-library models, and system-facing services.
+The interface is written in Qt Quick/QML. Native C++ objects own durable state, files, torrent transport, readers, playback, WebEngine bridges, downloads, system integration, and the services that should not live in declarative UI.
 
 ## Current state at a glance
 
 | Area | Current state |
 |---|---|
-| Home shell | Implemented: per-world wallpaper, 21-universe carousel, Hall of Worlds, mixed Continue row with See All, world-entry boards, top bar, taskbar, and a shared interactive scrollbar |
-| Tankoban | Implemented: chapter reading plus per-series Tankoban Mode for complete-volume acquisition and reading; a lazy offline catalog of 688 western-comic series and 5,469 collected editions; GetComics and user-selected torrent acquisition; archive extraction; and one shared reader |
-| Biblio | Implemented: Apple Books discovery, native multi-indexer book-torrent search, libtorrent-backed single-file delivery, LibGen editions, one-copy-per-book replacement, AudioBookBay matching, ebook reader, audiobook player, read-along pairing, and live Edge TTS |
-| Theatre | Implemented: Movies, Shows, Anime, detail pages, stream selection, mpv playback, subtitles, sessions, video downloads, and a Jikan-to-Kitsu anime fallback lane |
-| Search | Implemented per world with durable native search history; Tankoban search includes manga, the shipped comics catalog, and GetComics tags; Home-wide cross-world search is not yet built |
-| Extensions | Implemented for Theatre: install, preview, enable, order, remove, and browse the community catalog |
-| Downloads | Implemented for manga chapters, comics, LibGen ebooks, and video through one cross-world vault; Tankoban volumes, torrent ebooks, and audiobook files currently remain in their owning stores |
-| Sessions | Implemented for books, audiobooks, manga chapters, Tankoban volumes, western comics, and video |
-| Universe pages | 21 live entries, including bespoke One Piece, Dragon Ball, Marvel, Cosmere, Star Wars, Weekly Shonen Jump, Studio Ghibli, saga, and era surfaces |
+| Home shell | Implemented: universal Continue, Tankoban bookshelf, Theatre strip, Biblio reading desk, persistent wallpapers, living QML wallpapers, top bar, taskbar, and shared scrolling |
+| Tankoban | Implemented as separate **Manga** and **Comics** tabs with shared chrome |
+| Manga | Chapter reading, local downloads, per-series Tankoban Mode, volume torrent acquisition, complete-chapter fallback packing, and one shared manga/comics reader |
+| Western comics | Read-only SQLite catalog, catalog-run and curated-series pages, GetComics acquisition, alternate torrent sources, archive ingestion, and shared-reader delivery |
+| Biblio | Apple Books discovery, torrent and LibGen ebook acquisition, AudioBookBay matching, the fresh Reader2 ebook reader, and audiobook read-along inside the reader |
+| Theatre | Movies, Shows, Anime, detail pages, extension-backed sources and subtitles, mpv playback, local video downloads, seek previews, and keyless absolute anime ordering |
+| Search | Implemented per world with durable native history; Home-wide cross-world search is not yet built |
+| Genre discovery | Local baked MAL catalog for manga/anime when present, with the live provider ladder retained as fallback |
+| Extensions | Theatre addon store supports discovery, preview, install, enable, ordering, and removal |
+| Downloads | Unified vault for manga chapters, Tankoban volumes, comics, LibGen ebooks, and video; native-torrent ebooks and audiobook files remain world-owned |
+| Sessions | Implemented for books, manga/comics, and video; audiobook playback is an engine inside the book reader, not a separate taskbar app |
+| Windowing | Fullscreen-first with a persistent frameless developer-windowed mode, shell-wide F11 switching, native minimize, and protected fullscreen transitions |
+| Universe pages | The bespoke universe collection is currently archived and absent from Home until it can return as a complete custom-made set |
 | Vinyl | Visible as a coming-soon world, not implemented |
-| Platforms | Windows-first development build; other platforms are not currently packaged or verified |
+| Platforms | Windows-first development build; other platforms are not packaged or verified |
 
 ## Recent development snapshot
 
-The newest commits change the shape of the native acquisition architecture:
+The current tree has moved well beyond the previous README:
 
-- **Tankorent is now a shared acquisition spine rather than a book-only lane.** One native `TorrentEngine` and libtorrent session sit below medium-specific search, ranking, file-selection, persistence, and ingestion layers for ebooks, collected comics, and manga volumes.
-- **Tankoban Mode is live.** A per-series switch replaces the chapter shelf with a canonical volume library. Nyaa supplies ranked volume candidates, the user chooses a source, the engine fetches only the required archive, and the existing MangaReader opens the published local volume.
-- **Manga volume downloads are restart-safe and volume-keyed.** A durable request ledger records intent, metadata resolution, selected file indices, and progress. Several requested volumes can share one torrent while their file priorities are unioned safely.
-- **WeebCentral can build a local volume when a torrent is not used.** The fallback is offered only when the chapter-to-volume map is complete. Volume packing is serialized, published atomically, and never labels a partial volume as ready.
-- **Collected comics now have alternate torrent sources.** Every edition can open a manual, edition-aware source browser. Results are ranked by ISBN, canonical title, collected issue range, archive evidence, and then live health. Weak matches remain visible but require confirmation.
-- **Comic source browsing is separate from acquisition.** Browsing creates no download job, partial indexer failures do not erase successful results, ambiguous packs open a second archive picker, and dismissing an uncommitted acquisition removes its temporary torrent state.
-- **The shipped comics catalog now participates in Tankoban search and Explore.** Offline GCD-derived series results are merged with AniList manga and live GetComics tags without forcing the catalog into root startup.
-- **The ebook reader gained audiobook read-along.** A downloaded audiobook can be paired to book chapters automatically or manually. Opening the paired book restores the listening position paused, and chapter changes can reposition the audio while preserving play/pause state.
-- **One Piece and Dragon Ball now have bespoke universe pages.** One Piece is mapped as a Grand Line voyage; Dragon Ball uses a Seven-Star Saga surface. Both are built from pinned, verified media identities rather than loose title searches.
+- **Biblio now opens the fresh Reader2.** The imported legacy book-reader application was retired. The replacement uses native QML chrome over a constrained WebEngine paper and preserves the existing progress, bookmark, annotation, and settings stores.
+- **The book reader is also the audiobook surface.** The standalone audiobook player was removed. One app-wide `AudiobookSession` survives behind the reader's Audio tab and transport pill, including chapter lists, speed, seeking, read-along following, and pairing.
+- **Tankoban is explicitly split into Manga and Comics.** The two media share the world header but keep separate shelves, discovery routes, and data loading.
+- **Comics moved to a native SQLite seam.** `ComicsCatalog` reads `data/comics_catalog.db` in read-only mode for catalog search, series runs, curated editions, download rows, and mirrors. It stays dormant when the artifact is absent.
+- **Manga and anime genre pages gained a local catalog brain.** `MalCatalog` reads a pipeline-built `data/mal_catalog.db` and returns the shapes the existing pages already understand. Jikan, AniList, and Kitsu remain fallback lanes.
+- **Anime can use canonical absolute playback order.** `AnimeOrderService` reconciles provider IDs with public community mappings, offers Absolute or Seasons views only when the mapping is complete, and builds cross-season queues without rewriting source IDs.
+- **The player gained seek thumbnails and chapter marks.** An ffmpeg-backed thumbnailer caches five-second buckets and serves nearby frames while a new hover frame is loading.
+- **Continue is now series-aware.** Episodes from one show collapse into one tile, and removing that tile forgets the whole show group instead of allowing a sibling episode to reappear.
+- **Per-world Next Up rows use the same real session doors as Continue.** Theatre plays through the video-session path; Tankoban reads through the shared comic-session path.
+- **The shell gained a real window-mode authority.** Fullscreen and frameless windowed modes persist, readers and players use the same transition verb, and living wallpapers freeze when an immersive surface owns the screen.
+- **The five bespoke universe pages were archived together.** One Piece, Dragon Ball, the MCU, Cosmere, and Weekly Shonen Jump remain preserved under `archive/`, but their Home entry points and live routes are intentionally absent.
 
 ## The three worlds
 
 ### Tankoban
 
-Tankoban treats manga and western comics as related forms of sequential art while preserving their different structures, identities, and acquisition rules.
+Tankoban treats manga and western comics as related forms of sequential art without flattening their identities or publication structures. The world now has dedicated **Manga** and **Comics** tabs beneath one shared top surface.
 
 #### Manga
 
-The chapter path combines several focused sources:
+The chapter-first path combines focused sources:
 
-- **WeebCentral** for search, series resolution, chapters, and page lists
-- **AniList** for high-quality art and metadata
-- **Kitsu** as the art, metadata, and outage fallback
+- **WeebCentral** for search, series resolution, chapters, page lists, and chapter downloads
+- **AniList** for primary art and metadata
+- **Kitsu** as an art, metadata, and outage fallback
 - **MangaDex** for canonical volume structure, tankōbon covers, and known chapter ranges
-- **Jikan** for genre discovery, with Kitsu stepping in when Jikan is unavailable or empty
+- **MalCatalog** for local genre discovery when `data/mal_catalog.db` is deployed
+- **Jikan**, AniList, and Kitsu as the live genre fallback ladder
 
-The standard manga detail page keeps the chapter-first experience. Chapters are grouped under real volume covers where the source can establish the relationship, with a flat fallback when ranges are incomplete.
+The standard series page remains chapter-first. Chapters are grouped under real volume covers where the source relationship can be established, with an honest flat fallback when ranges are incomplete.
 
 ##### Tankoban Mode
 
-Tankoban Mode is a persistent per-series alternative to chapter-first reading. It turns the series page into a complete-volume library without replacing or disabling the classic chapter path.
-
-The native `MangaTankobanService`, exposed to QML as `TankobanVolumes`, composes the volume workflow:
+Tankoban Mode is a persistent per-series alternative to chapter-first reading. It presents canonical volume records and uses the native `MangaTankobanService`, exposed to QML as `TankobanVolumes`, to compose the lifecycle:
 
 1. MangaDex volume records and WeebCentral chapters are normalized into stable series and volume identities.
-2. A best-effort synopsis pass uses Open Library first and Apple Books second. Ambiguous matches are rejected rather than attached to the wrong volume.
-3. `MangaNyaaSource` searches Nyaa's literature category with trusted-uploader data and volume-aware query variants.
-4. Chapter packs, raw releases, blocked uploaders, weak series matches, wrong-volume results, and missing hashes are rejected.
-5. The user chooses a ranked source. Tankoban Mode does not silently auto-pick.
-6. `MangaVolumeTorrentDownloader` adds the magnet paused, waits for metadata, selects the exact CBZ/CBR/CB7/CBT file, unions priorities for shared packs, and starts only the required files.
-7. `MangaVolumeArchiveIngestor` extracts without recompression, validates local images, natural-sorts pages, and atomically publishes the result to the durable volume index.
-8. MangaReader opens the local volume through the same reader used by chapters and western comics.
+2. Open Library and Apple Books provide best-effort volume synopsis enrichment.
+3. `MangaNyaaSource` searches Nyaa's literature lane with volume-aware queries and uploader trust rules.
+4. The user chooses a ranked source. The app does not silently select one.
+5. `MangaVolumeTorrentDownloader` fetches metadata, selects only the required archive, and safely unions file priorities when several requested volumes share a pack.
+6. `MangaVolumeArchiveIngestor` validates images, natural-sorts pages, and atomically publishes the local volume.
+7. The same MangaReader used by chapters and western comics opens the result.
 
-The volume request ledger survives restarts. It records volume intent separately from the torrent's info hash, so two requested volumes inside one pack remain two user-facing jobs while sharing one engine transfer. Reader progress uses the `tankoban` namespace, preventing a volume resume record from overwriting chapter progress for the same series.
+A durable request ledger separates the user's volume intent from a torrent's info hash, so several volumes can share transport without collapsing into one user-facing job.
 
-A quieter **Build from chapters** card remains available when WeebCentral has a complete chapter map for the volume. A partial map is shown honestly as unavailable. Packing is serialized so two volume builds cannot race through one uncorrelated scraper response.
+When torrent acquisition is not used, **Build from chapters** is available only if WeebCentral exposes a complete chapter-to-volume map. A partial volume is never labeled ready.
 
 #### Western comics
 
-Western comics separate **catalog identity** from **live discovery and acquisition**.
+Western comics separate catalog identity from availability.
 
-The catalog brain is a generated offline artifact:
+The primary catalog seam is `ComicsCatalog`, a native read-only SQLite service over `data/comics_catalog.db`. Depending on the deployed artifact, it can provide:
 
-- It contains **688 ranked series** and **5,469 collected editions**.
-- RCO popularity supplies the ranked series set.
-- GCD supplies the structured series and edition records.
-- Editions remain visible even when no source is available.
-- The multi-megabyte catalog is imported only when Tankoban is first instantiated.
-- `ComicsDb.js` indexes the data and drives Top in Tankoban, Explore, search, series pages, and the collected-edition ledger.
+- GCD-backed series runs and exact-title resolution
+- all-words title search ranked by exactness, availability, and year
+- curated series and collected-edition records
+- GetComics download rows and stored mirror doors
+- run-specific `gcd:` identities for Continue and session restoration
 
-GetComics remains a first-class live source:
+An exact title redirects to a catalog run only when the match is unambiguous. Same-name runs remain separate rather than being guessed together.
 
-- Tankoban search includes GetComics comic tags alongside the offline catalog and AniList manga.
-- Explore Comics uses GetComics publisher and franchise taxonomy.
-- A verified catalog match can reopen its stable GetComics post, resolve a fresh signed mirror, download the archive, extract local pages, and hand them to MangaReader.
-- Blocked or mirrorless posts land in an honest terminal state instead of an unwinnable retry loop.
+**GetComics** remains a live content and acquisition lane. A verified release can resolve a current mirror, download its archive, extract pages, and publish them through the same comic index and reader identity used by torrent acquisition.
 
-Collected editions also expose **Find alternate sources** through Tankorent:
+Collected editions can also open **Find alternate sources** through Tankorent:
 
-- `ComicTorrentQueryPlanner` builds automatic edition-aware queries from series title, edition title, ISBN, and collected issue range. The user can replace them with a manual query.
-- `TankorentSearchService` fans those queries across the configured public indexers.
-- `ComicTorrentRanker` grades every canonical hash by identity evidence before considering seed counts. Duplicate hashes preserve the strongest title/ISBN/range evidence while merging the best observed swarm health.
-- Strong and possible matches are selectable; weak matches require explicit confirmation.
-- If torrent metadata contains several plausible comic archives, the user chooses the exact CBR/CBZ/CB7/CBT file in a second picker.
-- The chosen archive flows through the same `ComicDownloader` local-ingestion boundary as GetComics, so reader identity, Continue state, deletion, and local pages remain source-independent.
+- edition-aware query planning uses title, format, ISBN, and collected issue coverage
+- results are deduplicated by canonical info hash
+- identity evidence is considered before swarm health
+- uploader trust and archive coverage are evaluated
+- ambiguous packs require an explicit archive choice
+- restart-safe request state keeps acquisition intent separate from transport
+- selected archives converge through the same `ComicDownloader` ingestion boundary
 
-The historical League of Comic Geeks adapter and its fixtures remain in-tree for research and compatibility work. They do not drive the active catalog. XOXO has been removed from the live provider path.
+Weak or ambiguous rows stay visible for transparency, but they require explicit user choice.
 
 ### Biblio
 
-Biblio separates identity, discovery, editions, delivery, listening, and reading:
+Biblio separates identity, editions, delivery, reading, and listening:
 
-- **Apple Books RSS and Search APIs** provide charts, search, covers, authors, genres, ratings, descriptions, and book/audiobook identity.
-- **BookTorrents** uses Tankorent's federated search service over Pirate Bay API, ExtTorrents, and Torrents-CSV.
-- **LibGen** remains a separate editions and ebook-delivery lane beneath the torrent shelf.
-- **AudioBookBay** supplies audiobook release candidates paired to the book identity.
-- **BookDownloader** saves a selected LibGen edition into Colosseum's local book store.
-- **BookTorrentDownloader** uses the shared native `TorrentEngine`, selects one supported ebook file, deprioritizes everything else, and records the completed copy under its info hash.
-- **AudiobookDownloader** continues to use the local Stremio stream-server boundary and stores files under a durable book/audiobook pairing key.
-- Downloaded books open in the embedded **Foliate-derived reader** through Qt WebEngine and QWebChannel.
-- Downloaded audiobooks open in a dedicated **AudiobookPlayer** over the shared mpv backend.
+- **Apple Books** supplies book and audiobook discovery, charts, covers, authors, genres, descriptions, ratings, and identity.
+- **BookTorrents** searches Pirate Bay API, ExtTorrents, and Torrents-CSV through the shared native Tankorent search service.
+- **LibGen** remains a separate ebook-edition and delivery lane.
+- **AudioBookBay** supplies audiobook release candidates paired to book identity.
+- **BookDownloader** publishes selected LibGen files into the local book store.
+- **BookTorrentDownloader** asks the shared native torrent engine for one supported ebook file and deprioritizes unrelated pack files.
+- **AudiobookDownloader** uses the bundled Stremio stream-server boundary and stores audio files under the book/audiobook pairing key.
 
-The torrent shelf appears above LibGen editions on the book detail page. Results are category-scoped where an indexer supports it, filtered against audiobook and video classifications, deduplicated, ranked by conservative whole-token identity matching, and then ordered by live seeders.
+Biblio treats local ownership as one book-level state across LibGen and torrent delivery. Starting another ebook download replaces the existing local copy instead of accumulating duplicate editions.
 
-Only formats the reader actually renders count as ebook candidates:
+#### Reader2
 
-1. EPUB
-2. MOBI or FB2
-3. PDF
+The current ebook reader is `qml/reader2/ReaderShell.qml`, backed by `Reader2Bridge` and `BookStores`.
 
-The preference is TTS-aware. Reflowable EPUB, MOBI, and FB2 beat fixed-layout PDF. AZW3 and DjVu are excluded. LibGen editions are cascaded to the best available renderable tier.
+It uses native QML for the reader shell and chrome while a tightly scoped Qt WebEngine page renders the book through the vendored Anx foliate-js fork. The paper receives only a limited files-and-events bridge rather than the complete native object surface.
 
-Biblio treats local ownership as one book-level state across both delivery lanes. A downloaded LibGen edition or torrent copy shows **Ready to read**. Starting another download clears the existing copy first, preventing duplicate editions from accumulating.
+Reader2 includes:
 
-The reader's Audio tab can pair a downloaded audiobook to the book table of contents. Mapping can be one-to-one or manual. Opening a paired book summons the docked audiobook strip at the exact saved position, paused; moving into another mapped chapter follows the audiobook without changing its current play/pause state. Multi-file chapter sets map fully. A single-file M4B currently exposes one mapping unit.
+- exact resume using the pre-existing progress keys and stores
+- contents navigation with current, read, and unread state
+- bookmarks
+- highlights, colors, notes, recoloring, and deletion
+- in-book search
+- selection copy and dictionary lookup
+- footnote cards
+- theme, typeface, size, line-height, margin, alignment, and reading-ruler controls
+- keyboard and edge navigation
+- minimizable book sessions
+- read-along audiobook pairing and transport
+
+The swap preserves old positions and marks by using the same path fingerprint and store files rather than introducing a migration-only identity.
+
+#### Audiobook read-along
+
+There is one app-wide `AudiobookSession`, but no standalone audiobook page or taskbar session.
+
+The reader can auto-attach a downloaded audiobook, expose its files or embedded chapters, play or pause, skip, seek, change speed, and map reading chapters to audio chapters. **Follow my reading** can move the audio to the chapter matching the current page while preserving play/pause state.
+
+A book's Continue tile represents both reading and attached listening. Standalone audiobook progress records are intentionally filtered from Home.
 
 ### Theatre
 
@@ -164,136 +181,118 @@ Theatre has three tabs:
 House catalogs come from:
 
 - **Cinemeta** for movie and series identity, metadata, posters, backdrops, and episode lists
-- **Jikan** as the first source for anime discovery
-- **Anime Kitsu** for anime metadata, ID resolution, and fallback airing rows when Jikan fails or is empty
-- Installed **Stremio-protocol extensions** for additional catalogs, metadata, streams, and subtitles
+- **Jikan** for live anime discovery
+- **Anime Kitsu** for anime metadata, identity bridging, and fallback rows
+- **MalCatalog** for baked local anime genre pages when the SQLite artifact is present
+- installed **Stremio-protocol extensions** for additional catalogs, metadata, streams, and subtitles
 
-Each tab renders its own rows and genre directory. Installed catalog extensions can append shelves without replacing the built-in identity path.
+A title opens a Theatre detail page. Movies expose sources; shows expose seasons and episodes. Playback can use a torrent-backed stream, a direct extension URL, or a completed local download.
 
-A title opens a Theatre detail page, where movies expose sources and shows expose seasons and episodes. Playback can come from a torrent-backed stream, a direct extension stream, or a completed local download.
+Theatre torrent streaming remains behind the bundled Stremio stream-server. It is deliberately separate from Tankorent's complete-file acquisition engine.
 
-Theatre torrent streaming remains behind the bundled Stremio stream-server. It is intentionally separate from Tankorent's native file-acquisition engine.
+#### Absolute anime order
 
-## Search
+`AnimeOrderService` is a progressive enhancement for anime with awkward provider season layouts.
 
-Search remains scoped to the active world rather than flattening three different catalogs into one index.
+It downloads and caches two public mapping datasets at runtime, joins them by provider IDs rather than title text, and maps provider season/episode values to canonical absolute numbers. When the mapping is complete, the UI can switch between **Absolute** and **Seasons**, show honest Special labels, and build a cross-season playback queue. If the data is missing, stale, incomplete, or offline, Theatre keeps the provider's original order.
 
-- **Tankoban** merges AniList manga, the loaded offline GCD comics catalog, and live GetComics comic tags. Catalog duplicates suppress lower-value tag duplicates while preserving live GetComics-only results.
-- **Biblio** searches Apple Books books and audiobooks in separate lanes.
-- **Theatre** searches Cinemeta movies and series together.
-- Recent queries are stored by a native, world-scoped `SearchHistoryStore`, so they persist when a QML Loader is recreated and across application restarts.
-- Search surfaces include a top match, grouped results, recent-query removal, and genre or surprise discovery where the world supports it.
+See [`THIRD_PARTY_DATA.md`](THIRD_PARTY_DATA.md) for the cache, refresh, source, field, and attribution boundaries.
 
-The Home search button does not yet open a true cross-world search surface.
+## Home and the session shell
 
-## Home and universe navigation
+Home currently leads with one mixed **Continue** row, followed by medium-specific entry boards:
 
-The Home surface currently includes:
+- Tankoban bookshelf
+- Theatre film strip
+- Biblio reading desk
 
-- A persistent wallpaper system with separate picks for Home, Tankoban, Biblio, and Theatre
-- A 21-entry curated universe carousel
-- A **Hall of Worlds** see-all surface using the vertical Ledger Stack layout
-- A single Continue row mixing books, audiobooks, manga chapters, manga volumes, comics, movies, and episodes by recency
-- A full Continue See All surface
-- Tankoban, Theatre, and Biblio world-entry boards
-- A shared top bar for world switching and system actions
-- One app-wide `HouseScrollBar` for standard vertical pages
+Continue mixes books, manga chapters, Tankoban volumes, comics, movies, and show episodes by recency. Show episodes are grouped into one tile per series. The full backlog is available through **See all**.
 
-Every universe in `Universes.js` is live in both the carousel and Hall of Worlds. Curation is governed by **[the Universe Page Law](docs/UNIVERSE_PAGE_LAW.md)**: entries use pinned, live-verified provider identities; upcoming work enters only with a real metadata identity; loose name search never qualifies as canon.
+The native `SessionStore` tracks open books, manga/comic readers, and video surfaces. The taskbar switches, minimizes, restores, and closes those sessions. Warm video sessions can remain loaded while hidden; books and comic readers reconstruct from durable state.
 
-| Template | Live universes |
-|---|---|
-| Grand Line voyage | One Piece |
-| Seven-Star saga | Dragon Ball |
-| Generic anime/read-watch | Naruto, Attack on Titan |
-| Cinematic | Marvel Cinematic Universe |
-| Saga | Harry Potter, Lord of the Rings, A Song of Ice and Fire, Dune, The Witcher, Sherlock Holmes, Jurassic Park, Percy Jackson |
-| Eras/timeline | DC Animated Universe, Star Trek, James Bond, Avatar: The Last Airbender |
-| Magazine | Weekly Shonen Jump |
-| Galaxy | Star Wars |
-| Studio | Studio Ghibli |
-| Cognitive atlas | Cosmere |
+Audiobook playback is not a separate session kind. It is a shared engine controlled by the open book reader.
 
-The templates are authored surfaces, not recolored grids:
+### Wallpapers and window mode
 
-- **One Piece** charts eleven canon sagas as waypoints along the Grand Line, with pinned anime, adaptations, films, and manga doors.
-- **Dragon Ball** renders seven verified anime as the seven Dragon Balls and organizes 25 films and eight manga around the same pinned saga.
-- **Marvel Cinematic Universe** uses phase panels plus Marvel Studios series and Special Presentations.
-- **Saga** pages curate novels, films, shows, and optional comics doors around a book-first identity.
-- **Weekly Shonen Jump** reads Jikan's magazine registry into current serialization, all-time circulation, and back-issue eras.
-- **Star Wars** uses a trilogy triptych plus standalone, live-action, animated, and comics rails.
-- **Eras** pages organize franchises into chronological or continuity groups and can carry books, comics, and metadata-confirmed `UPCOMING` plates.
-- **Studio Ghibli** uses a numbered chronological filmography wall.
-- **Cosmere** uses a newcomer-first Cognitive Atlas followed by eight ordered shelves. All 26 book and story slots resolve through Apple Books and open Biblio.
+Each world can keep its own wallpaper selection. A wallpaper may be a still image or a native QML scene such as `ArenaNight.qml`.
 
-## The session shell
+Living wallpapers receive a `running` gate and freeze when:
 
-Colosseum behaves more like a small media OS than a conventional stack of pages.
+- a reader or player owns the screen
+- the application is minimized
 
-The native `SessionStore` tracks every open media session, its world, content kind, reopen target, and saved-state blob. Only the active immersive surface needs to be instantiated. When the user switches away, Colosseum captures the state and reconstructs the surface at the same position when reopened.
+The native `WindowModeStore` owns startup and transition state. Colosseum starts fullscreen by default, remembers the frameless developer-windowed mode when used, and exposes one shell-wide F11 transition across Home, worlds, readers, overlays, and playback. A transition shield covers the full-monitor geometry change so the first frame does not flash or tear.
 
-The auto-hiding taskbar provides one-click switching, fan-out menus for several sessions in one world, individual closing, direct entry to Downloads and Extensions, and a live badge for active downloads.
-
-Video sessions can remain warm while minimized. Audiobooks preserve their selected file or chapter and position. Chapter reads and Tankoban volume reads restore through distinct reader/session identities.
-
-## Players
+## Players and readers
 
 ### Theatre player
 
-The Theatre player is a fullscreen QML surface over **MpvQt/libmpv**. Torrent transport stays behind a separate local Stremio stream-server boundary, so the player consumes a normal playable URL rather than owning torrent logic.
+The Theatre player is a fullscreen QML surface over **MpvQt/libmpv**. Torrent transport stays behind the local Stremio stream-server, so the player consumes a playable URL rather than owning torrent logic.
 
-The player includes torrent-backed, direct-URL, and local-file playback; Continue progress and resume; warm minimize; audio/subtitle track selection; online and external subtitles; preferred language memory; track delays; playback speed; fill mode; seeking; volume; fullscreen and PiP state; skip segments; source failover; episode queues; Up Next countdowns; keyboard help; A-B loop; sleep timer; statistics; frame capture/GIF tooling; and a drawing overlay.
+The player includes:
 
-Casting, live channels/DVR, and local watch rooms have state models but remain experimental compared with core local and on-demand playback.
+- torrent-backed, direct-URL, and local-file playback
+- Continue progress and resume
+- warm minimize
+- audio and subtitle track selection
+- online and external subtitles
+- preferred-language memory and track delays
+- playback speed, fill, aspect, seek, volume, fullscreen, and PiP controls
+- skip segments and episode queues
+- source failover
+- Up Next countdowns
+- keyboard help, A-B loop, sleep timer, statistics, capture, GIF, and drawing tools
+- ffmpeg-backed seek thumbnails with five-second caching
+- chapter markers on the seek rail
+- loudness normalization for quiet film and television mixes
 
-### Audiobook player
+Seek thumbnails degrade to timestamp-only tooltips when ffmpeg cannot be found.
 
-The Biblio audiobook player uses the same mpv foundation without rendering video. It provides cover-led audio chrome, file or embedded-chapter navigation, transport controls, speed, sleep timer, automatic multi-file advance, Continue progress, and session capture/restore.
-
-Cold restoration waits for mpv's file-loaded event before seeking. The reader's docked read-along strip is a remote over the same shared audiobook session, not a second player.
-
-## Readers
+Casting, live channels/DVR, and local watch-room models remain experimental compared with core local and on-demand playback.
 
 ### Manga and comics reader
 
-Manga chapters, Tankoban volumes, and western comic editions use the same download-fed reader. The caller supplies the local page store and entry kind; the reading surface does not care whether pages came from WeebCentral, Nyaa, GetComics, or an alternate comic torrent.
+Manga chapters, Tankoban volumes, and western comic editions use the same download-fed reader. The caller supplies local pages and an entry kind; the reading surface does not care whether they came from WeebCentral, Nyaa, GetComics, or a selected comic torrent.
 
-Reading modes include long strip, single page, double page, MangaPlus-style paired pages, left-to-right and right-to-left direction, width/height fitting, 100 to 260 percent paged zoom with pan, optional wide-page splitting, and windowed strip loading with neighbor prefetch.
+Reading modes include long strip, single page, double page, MangaPlus-style pairing, left-to-right and right-to-left direction, width or height fitting, paged zoom and pan, optional wide-page splitting, and windowed strip loading with neighboring-page prefetch.
 
-The reader supports chapter/page grids, thumbnails, jumping, chapter or volume crossing, bookmarks, replay/checkpoint tools, per-series preferences, persisted spread-pair knowledge, scrub navigation, auto-hiding chrome, and exact resume restoration. Crossing into a missing Tankoban volume opens its source chooser instead of pretending unreadable pages exist.
+The reader supports chapter and page grids, thumbnails, jumping, crossing into adjacent chapters or volumes, bookmarks, per-series preferences, spread-pair knowledge, scrub navigation, auto-hiding chrome, fullscreen/windowed switching, and exact resume restoration.
 
 ### Ebook reader
 
-The book reader embeds the Foliate-derived web reader in `QWebEngineView`. A native `BookBridge` exposes local file access, persistent state, Edge TTS, and audiobook pairing through QWebChannel.
+Reader2 is native chrome over a constrained WebEngine paper, not a standalone imported web application. `Reader2Bridge` exposes file reads and persistent stores to QML while the paper receives a least-privilege event gate.
 
-The bridge persists reading position, settings, bookmarks, annotations, display names, built-in or custom theme state, and read-along mappings. Binary files cross as base64 before being decoded by the EPUB, PDF, TXT, or Foliate engine. Missing legacy paths can be re-rooted into the current application-data directory.
+The reader and its audio controls share one session model, so reading and listening do not create competing players.
 
-The table of contents marks read, current, and unread chapters along one continuous spine. Twelve built-in themes are joined by a user-defined **Custom** page-and-ink theme.
+## Search
 
-Progress is mirrored into Continue. Edge TTS handles voices, synthesis, streaming lifecycle, cancellation, warmup, and boundary metadata through Qt WebSockets. TTS and the paired audiobook strip are mutually exclusive at the ear: opening one pauses the other rather than creating overlapping speech.
+Search remains scoped to the active world:
+
+- **Tankoban** merges manga, the deployed comics catalog, and GetComics discovery lanes.
+- **Biblio** searches Apple Books books and audiobooks in separate groups.
+- **Theatre** searches Cinemeta movies and series together.
+- recent queries are stored by native `SearchHistoryStore` and survive QML Loader recreation and application restarts.
+
+Home-wide cross-world search is not yet implemented.
 
 ## Downloads
 
-The Downloads page is a cross-world local vault with two concepts:
+The Downloads page is a cross-world local vault with:
 
-1. **Now arriving** for active and queued manga chapter, comic, LibGen ebook, and video jobs
-2. **Settled local media** organized by world, series, season where applicable, and item
+1. **Now arriving** for active and queued jobs supported by `LocalDownloads`
+2. **Settled local media** grouped by world, series, season where applicable, and item
 
-A native `LocalDownloads` read model normalizes those backends into one QML shape while routing actions back to the owning engine.
+The unified view currently normalizes manga chapters, Tankoban volumes, western comics, LibGen ebooks, and Theatre video. It routes open, retry, pause, cancel, and delete actions back to the owning backend.
 
-Western comic editions can arrive through either a verified GetComics post or a user-selected Tankorent source. Both routes publish into the same comic index and reader identity.
-
-The Theatre download engine provides a persistent bounded queue with lazy source resolution, pause/resume, retry, cancellation, partial-file continuation, speed/ETA reporting, season grouping, and a durable downloaded-video index.
-
-Tankoban volumes, torrent-sourced ebooks, and audiobook downloads have their own durable stores and active-job models. They are opened from their owning world and are not yet normalized into `LocalDownloads`.
+Native-torrent ebooks and audiobook files keep their own durable stores and are opened through their owning worlds.
 
 ## Extensions
 
-The Extensions page manages Stremio-compatible addons. It supports curated discovery, community-catalog browsing, search and sorting, manifest preview, install from normal or `stremio://` links, enable/disable, priority ordering, removal of non-core extensions, addon logos, and atomic persistence.
+The Extensions page manages Stremio-compatible addons. It supports curated discovery, community-catalog browsing, manifest preview, install from normal or `stremio://` links, enable/disable, priority ordering, logos, and removal of non-core extensions.
 
-First run seeds Cinemeta core, Torrentio, Anime Kitsu, and OpenSubtitles v3. Enabled stream extensions are asked in registry order. Adult manifests are rejected by the native registry rather than hidden only in the UI.
+First run seeds the house Theatre providers. Enabled stream and subtitle extensions are asked in registry order. Adult manifests are rejected by the native registry rather than hidden only at the UI layer.
 
-The store currently affects Theatre. Tankoban and Biblio have designed extension states but do not yet consume extension resources.
+The extension store currently affects Theatre. Tankoban and Biblio do not yet consume extension resources.
 
 ## Source map
 
@@ -301,48 +300,47 @@ The store currently affects Theatre. Tankoban and Biblio have designed extension
 |---|---|
 | Manga search, chapters, pages | WeebCentral |
 | Manga art and metadata | AniList, with Kitsu fallback |
-| Manga genre discovery | Jikan, with Kitsu fallback |
+| Manga genre discovery | Local `MalCatalog` first when deployed; Jikan, AniList, and Kitsu fallback |
 | Manga volume identity and covers | MangaDex plus the canonical Tankoban volume model |
-| Manga volume torrent discovery | Nyaa literature RSS through `MangaNyaaSource`, with embedded uploader trust data |
-| Manga volume fallback | WeebCentral chapter packing, only for complete chapter maps |
-| Manga volume transport and storage | `MangaVolumeTorrentDownloader`, shared `TorrentEngine`/libtorrent, atomic `MangaVolumeIndex` |
-| Western comics structured catalog | Generated offline GCD-derived catalog, ranked from RCO popularity |
-| Western comics live search and taxonomy | GetComics tags, archives, and release posts |
-| Western comics alternate search | `TankorentSearchService` plus edition-aware query planning and ranking |
-| Western comic delivery | Verified GetComics posts or a user-selected torrent, converging through `ComicDownloader` archive ingestion |
-| Parked western-comics research adapter | League of Comic Geeks remains in-tree but is not the active catalog |
-| Book and audiobook discovery/metadata | Apple Books |
-| Federated book-torrent search | Pirate Bay API, ExtTorrents, Torrents-CSV through `BookTorrents` and `TankorentSearchService` |
-| Torrent ebook selection and delivery | `BookTorrentRanker`, `BookTorrentFilePicker`, shared `TorrentEngine`/libtorrent, `BookTorrentDownloader` |
-| Ebook editions and alternate delivery | LibGen through `BookDownloader` |
+| Manga volume torrent discovery | Nyaa literature RSS through `MangaNyaaSource` |
+| Manga volume fallback | WeebCentral chapter packing, only for complete maps |
+| Manga volume transport | shared `TorrentEngine`/libtorrent plus atomic `MangaVolumeIndex` |
+| Western comics catalog | pipeline-built read-only `data/comics_catalog.db` through `ComicsCatalog` |
+| Western comics live discovery and archives | GetComics |
+| Western comics alternate search | `TankorentSearchService` plus edition-aware ranking and file selection |
+| Western comic delivery | GetComics or selected torrent, converging through `ComicDownloader` |
+| Book and audiobook discovery | Apple Books |
+| Federated book/comic torrent search | Pirate Bay API, ExtTorrents, and Torrents-CSV |
+| Ebook editions and alternate delivery | LibGen |
 | Audiobook release discovery | AudioBookBay |
-| Audiobook delivery | Bundled Stremio stream-server plus `AudiobookDownloader` |
-| Ebook rendering and read-along | Foliate-derived reader, native BookBridge, AudioPairingStore |
-| Ebook read-aloud | Native Edge TTS bridge over Qt WebSockets |
-| Movie and show identity/catalogs | Cinemeta |
-| Anime discovery | Jikan first, Anime Kitsu fallback for the airing lane |
-| Anime metadata/ID bridge | Anime Kitsu |
+| Audiobook delivery | bundled Stremio stream-server plus `AudiobookDownloader` |
+| Ebook rendering | Reader2 native QML chrome over the vendored Anx foliate-js paper |
+| Ebook and audiobook read-along | `AudiobookSession` and `AudioPairingStore` |
+| Movie and show catalogs | Cinemeta |
+| Anime live discovery and metadata | Jikan and Anime Kitsu |
+| Anime genre discovery | local `MalCatalog` first when deployed, live provider fallback |
+| Anime episode ordering | `AnimeOrderService` with runtime-cached public ID mappings |
 | Stream discovery | Torrentio and installed Stremio extensions |
 | Subtitles | OpenSubtitles v3 and installed subtitle extensions |
-| Theatre torrent transport | Bundled Stremio `stream-server` runtime |
-| Native file-acquisition transport | libtorrent-rasterbar through Colosseum's shared `TorrentEngine` |
-| Video and audiobook rendering | MpvQt/libmpv |
-| Universe assembly | Pinned configs backed by Cinemeta, AniList, Kitsu, Apple Books, the comics catalog, GetComics, and Jikan registry data |
+| Theatre torrent transport | bundled Stremio `stream-server` runtime |
+| Native complete-file transport | libtorrent-rasterbar through the shared `TorrentEngine` |
+| Video rendering | MpvQt/libmpv |
+| Seek previews | ffmpeg through `SeekThumbnailer` |
 
 > [!NOTE]
-> Colosseum is a client and does not host media. External APIs, websites, addons, indexers, and scrapers are independent services and can change or disappear. Use sources and content only where you have the right to access them.
+> Colosseum is a client and does not host media. External APIs, websites, addons, indexers, datasets, and scrapers are independent services and can change or disappear. Use sources and content only where you have the right to access them.
 
 ## Tankorent architecture
 
-Tankorent is the native file-acquisition architecture. It is deliberately separate from Theatre's Stremio streaming runtime.
+Tankorent is the native complete-file acquisition architecture. It remains separate from Theatre's Stremio streaming runtime.
 
 ```mermaid
 flowchart TB
-    QML[Qt Quick / QML surfaces] --> Facades[Medium-specific QObjects]
+    QML[Qt Quick / QML surfaces] --> Facades[Medium-specific native facades]
 
     Facades --> Books[BookTorrents]
-    Facades --> Comics[Comics / ComicTorrents]
-    Facades --> Volumes[TankobanVolumes / MangaTankobanService]
+    Facades --> Comics[Comic acquisition]
+    Facades --> Volumes[TankobanVolumes]
 
     Books --> Search[TankorentSearchService]
     Comics --> Search
@@ -351,100 +349,95 @@ flowchart TB
     Search --> PB[Pirate Bay API]
     Search --> EXT[ExtTorrents]
     Search --> CSV[Torrents-CSV]
-    Nyaa --> NYAA[Nyaa literature RSS]
 
     Books --> BookPolicy[Book ranker + ebook file picker]
-    Comics --> ComicPolicy[Edition query planner + identity ranker + archive picker]
+    Comics --> ComicPolicy[Edition identity + coverage + archive selection]
     Volumes --> MangaPolicy[Trust filter + volume file picker + request ledger]
 
     BookPolicy --> Engine[Shared TorrentEngine / libtorrent]
     ComicPolicy --> Engine
     MangaPolicy --> Engine
 
-    Engine --> BookPublish[BookTorrentDownloader index]
+    Engine --> BookPublish[BookTorrentDownloader]
     Engine --> ComicPublish[Comic archive ingestion]
     Engine --> MangaPublish[Atomic MangaVolumeIndex]
 
-    ComicPublish --> Reader[MangaReader]
-    MangaPublish --> Reader
-    BookPublish --> BookReader[BookReader]
+    BookPublish --> Reader2[Reader2]
+    ComicPublish --> MangaReader[MangaReader]
+    MangaPublish --> MangaReader
 ```
 
-The shared layer owns the libtorrent session, torrent repository, resume state, metadata, priorities, transfer progress, cancellation, and debug logging. It is not exposed as a raw QML singleton.
+The shared layer owns the libtorrent session, torrent repository, resume state, metadata, priorities, transfer progress, cancellation, and debug logging. QML receives medium-shaped operations rather than raw torrent primitives.
 
 Policy remains medium-specific:
 
-- **Books** accept one renderable ebook and discard unrelated pack files.
-- **Collected comics** keep source browsing manual, rank by edition identity, and require a concrete archive choice when metadata is ambiguous.
-- **Manga volumes** use Nyaa-specific trust and coverage rules, persist volume intents separately from info hashes, and can union several requested volumes inside one torrent.
-- **Theatre and audiobooks** continue to use the Stremio stream-server because they are streaming problems, not complete-file acquisition problems.
+- **Books** select one renderable ebook and discard unrelated pack files.
+- **Collected comics** rank by edition identity and coverage, preserve source browsing as a separate step, and require a concrete archive choice when necessary.
+- **Manga volumes** use Nyaa-specific trust and coverage rules and can union several requested volumes inside one pack.
+- **Theatre and audiobooks** continue to use the Stremio stream-server because they are streaming and staged-media problems rather than complete-file library acquisition.
 
 ## Application architecture
 
 ```mermaid
 flowchart TB
-    UI[Qt Quick / QML surfaces] --> Shell[Main.qml shell and session glue]
-    Shell --> Native[Native C++ QObject services]
-    Shell --> Providers[QML/JavaScript provider adapters]
+    UI[Qt Quick / QML] --> Shell[Main.qml shell and session glue]
+    Shell --> Native[Native C++ services]
+    Shell --> Providers[QML / JavaScript provider adapters]
 
     Native --> Stores[Progress, SearchHistory, Sessions, Downloads, Extensions]
-    Native --> BookBridge[BookBridge + Edge TTS + audiobook pairing]
-    Native --> Player[MpvQt / libmpv]
+    Native --> Catalogs[ComicsCatalog + MalCatalog]
+    Native --> Reader[Reader2Bridge + BookStores]
+    Native --> Player[MpvQt / libmpv + SeekThumbnailer]
     Native --> StreamServer[Local Stremio stream-server]
-    Native --> Tankorent[Shared Tankorent / libtorrent acquisition spine]
+    Native --> Tankorent[Shared libtorrent acquisition]
+    Native --> AnimeOrder[AnimeOrderService]
+    Native --> WindowMode[WindowModeStore]
 
     Providers --> Manga[Manga providers]
-    Providers --> ComicsCatalog[Generated GCD comics catalog]
-    Providers --> GetComics[GetComics search, taxonomy and posts]
-    Providers --> Books[Apple Books + LibGen]
-    Providers --> Audiobooks[Apple Books + AudioBookBay]
+    Providers --> Comics[GetComics]
+    Providers --> Books[Apple Books + LibGen + AudioBookBay]
     Providers --> Theatre[Cinemeta + Jikan + Kitsu + addons]
-    Providers --> Universes[Pinned universe configs]
 
-    Tankorent --> BookAcq[Book acquisition]
-    Tankorent --> ComicAcq[Comic alternate acquisition]
-    Tankorent --> VolumeAcq[Manga volume acquisition]
-
+    Catalogs --> UI
+    Reader --> UI
+    AnimeOrder --> UI
+    WindowMode --> UI
     StreamServer --> Player
-    StreamServer --> AudiobookDownloader[AudiobookDownloader]
-
-    GetComics --> ComicAcq
-    ComicsCatalog --> ComicLedger[Collected-edition ledger]
-    ComicLedger --> ComicAcq
-
-    BookAcq --> BookReader[BookReader]
-    ComicAcq --> MangaReader[MangaReader]
-    VolumeAcq --> MangaReader
-    BookBridge --> BookReader
+    Tankorent --> Reader
 ```
 
 ### Native services exposed to QML
 
-The launcher exposes focused objects including `Manga`, `Downloads`, `TankobanVolumes`, `Books`, `BookTorrents`, `Audiobooks`, `Comics`, `Stream`, `Download`, `LocalDownloads`, `Extensions`, `Progress`, `SearchHistory`, `Sessions`, `BookBridge`, `Cast`, `Live`, `Room`, `WindowMode`, `Power`, and `Clipboard`.
+The launcher exposes focused objects including `Manga`, `Downloads`, `TankobanVolumes`, `Books`, `BookTorrents`, `Audiobooks`, `Comics`, `ComicsCatalog`, `MalCatalog`, `Stream`, `Download`, `LocalDownloads`, `Extensions`, `Progress`, `SearchHistory`, `Sessions`, `Reader2Bridge`, `BookBridge`, `AudioPairing`, `AnimeOrder`, `WindowMode`, `Cast`, `Live`, `Room`, `Power`, and `Clipboard`.
 
-`TankorentSearchService` and the shared `TorrentEngine` sit behind those facades. QML receives medium-shaped operations and state rather than raw torrent primitives.
+`TankorentSearchService` and the shared `TorrentEngine` remain behind medium-specific facades.
 
-The launcher installs a shared disk-backed network cache and browser-style user-agent fallback for QML requests. Hosts that stall on the current development network's broken IPv6 route are resolved and pinned to IPv4. Live indexer searches use a separate uncached network manager so seed counts are not frozen by catalog or image caching.
+The launcher installs a disk-backed network cache and browser-style user-agent fallback for QML requests. Hosts that stall on the current development network's broken IPv6 route are resolved and pinned to IPv4. Live indexer searches use an uncached network manager so seed counts are not frozen by image or catalog caching.
 
 ## Repository layout
 
 ```text
 Colosseum/
-├── qml/                    QML surfaces, components, provider adapters and shell logic
-│   └── comics_db.gen.js    Generated lazy western-comics catalog
-├── native/                 C++ launcher, engines, stores, player, reader and TTS bridges
-│   ├── engine/             Acquisition publication, indexes, readers, stores and service facades
-│   ├── player/             mpv integration, Stremio stream server, video queue and player services
-│   ├── reader/             Foliate QWebChannel bridge
-│   ├── torrent/            Tankorent search, rankers, file pickers, ledgers and medium downloaders
-│   │   └── engine/         Shared libtorrent session, repository and debug-log core
+├── qml/                    Shell, worlds, media surfaces, components and provider adapters
+│   ├── reader2/            Fresh ebook reader chrome and QML state
+│   └── wallpapers/         Native living wallpaper scenes
+├── native/                 C++ launcher and native services
+│   ├── anime/              Keyless anime identity and absolute-order service
+│   ├── engine/             Downloaders, catalogs, indexes and publication services
+│   ├── player/             mpv, stream-server, seek previews and window-mode services
+│   ├── reader/             Shared book stores and compatibility bridge
+│   ├── reader2/            Reader2 least-privilege bridge
+│   ├── torrent/            Tankorent search, rankers, ledgers, pickers and downloaders
+│   │   └── engine/         Shared libtorrent session and repository
 │   └── tts/                Native Edge TTS client and worker
 ├── resources/
-│   ├── book_reader/        Embedded Foliate-derived ebook reader
-│   └── comics_db.json      Source-form western-comics catalog artifact
+│   └── reader2/            WebEngine paper, glue and vendored reading engine
+├── data/                   Pipeline-deployed SQLite catalog artifacts, dormant when absent
+├── scripts/                Catalog bake and maintenance pipelines
 ├── assets/                 Icons, addon logos, fonts and wallpaper assets
-├── docs/                   Architecture laws, implementation plans and design records
-├── tests/                  Contract tests, live-source fixtures and smoke/self-test harnesses
+├── archive/                Retired implementations and preserved universe pages
+├── docs/                   Architecture laws, specifications and design records
+├── tests/                  Contract, harness, source and smoke tests
 └── dev.bat                 Current Windows QML live-reload loop
 ```
 
@@ -452,15 +445,16 @@ Colosseum/
 
 ### Requirements
 
-- Windows 10/11
+- Windows 10 or 11
 - Visual Studio 2022 C++ Build Tools
 - CMake 3.16 or newer
 - Ninja
-- Qt 6.11.1 MSVC 2022 64-bit with Quick, QML, Network, GUI, SQL, WebEngineQuick, WebChannel, and WebSockets
-- A Windows build of MpvQt
+- Qt 6.11.1 MSVC 2022 64-bit with Quick, QML, Network, GUI, SQL, Concurrent, WebEngineQuick, WebChannel, and WebSockets
+- a Windows build of MpvQt
 - libmpv headers, import library, and runtime DLL
 - libtorrent-rasterbar with Boost and OpenSSL
-- The bundled Stremio stream-server runtime used by Theatre and audiobook delivery
+- the bundled Stremio stream-server runtime used by Theatre and audiobook delivery
+- ffmpeg for seek thumbnails, GIF encoding, and other capture tooling; playback still works when it is absent
 
 The checked-in CMake file first tries package-configured libtorrent, Boost, and OpenSSL targets. Its current Windows fallback paths are:
 
@@ -492,13 +486,13 @@ Run the live QML development loop with:
 dev.bat
 ```
 
-`dev.bat` launches `native/build-msvc/colosseum.exe qml/Main.qml`, enables QML live reload, and disables the QML disk cache so saved edits are not masked by stale compiled components.
+`dev.bat` launches `native/build-msvc/colosseum.exe qml/Main.qml`, enables QML live reload, and disables the QML disk cache so saved edits are not hidden by stale compiled components.
 
 An argument-free development launch self-locates the repository and attempts a safe `git pull --ff-only` before loading the live QML tree. Offline, dirty, timed-out, or diverged repositories boot as-is. Native changes still require a rebuild.
 
 ## Useful development harnesses
 
-| Variable | Purpose |
+| Variable or target | Purpose |
 |---|---|
 | `COLOSSEUM_DEV=1` | Enable QML/JS live reload |
 | `COLOSSEUM_OPEN_WORLD=Theatre` | Boot directly into a world |
@@ -511,41 +505,47 @@ An argument-free development launch self-locates the repository and attempts a s
 | `COLOSSEUM_DL_SELFTEST=...` | Exercise manga chapter/page downloads |
 | `COLOSSEUM_BOOK_DLTEST=...` | Exercise LibGen ebook downloads |
 | `COLOSSEUM_COMIC_DLTEST=...` | Exercise verified GetComics archive downloads |
-| `COLOSSEUM_ABB_DLTEST=<pairKey>\|<infoHash>` | Exercise audiobook manifest and download handling |
+| `COLOSSEUM_ABB_DLTEST=<pairKey>\|<infoHash>` | Exercise audiobook manifest and delivery handling |
 | `COLOSSEUM_TORRENT_SEARCHTEST=<query>` | Run the federated Tankorent indexers |
-| `COLOSSEUM_TORRENT_DLTEST=<infoHash>\|<title>` | Exercise ebook metadata resolution, file priorities, and native download |
-| `COLOSSEUM_TANKOBAN_DLTEST=<magnet-or-infohash>\|<seriesId>\|<seriesTitle>\|<volumeNumber>` | Exercise Tankoban volume transfer, ingestion, and local index publication |
+| `COLOSSEUM_TORRENT_DLTEST=<infoHash>\|<title>` | Exercise native ebook selection and download |
+| `COLOSSEUM_TANKOBAN_DLTEST=<magnet-or-infohash>\|<seriesId>\|<seriesTitle>\|<volumeNumber>` | Exercise volume transfer, ingestion, and publication |
+| `COLOSSEUM_APPDATA_TAG=<tag>` | Isolate AppData-backed stores for a test run |
+| `reader2_harness` | Boot the fresh reader independently of the main shell |
 
-The repository also contains focused PowerShell, QML, Node, and C++ checks for the comics catalog contract, full catalog search/explore, comic alternate-source planning/ranking/picking/cancellation, shared libtorrent behavior, book classification and file selection, Tankoban canonical identity, Nyaa trust filtering, volume file picking, restart-safe ledgers, atomic volume ingestion, WeebCentral fallback completeness, shared-reader volume crossing, read-along mapping, search history, sessions, bespoke universe pages, and player failure handling.
+The repository also contains focused C++, QML, PowerShell, and JavaScript checks for Reader2 stores and bridge isolation, audiobook auto-attach, comics catalog behavior, comic source planning and ingestion, shared libtorrent behavior, manga volume identity and ledgers, anime ordering, search history, sessions, window transitions, and player failure handling.
 
 ## Known boundaries
 
-- Home-wide search has not yet been built. Search is currently scoped to the active world.
+- Home-wide cross-world search is not implemented.
+- Manual **Your Collection** or watchlist storage is not implemented yet. Existing `+ Library` affordances should not be treated as a working library.
+- The bespoke universe collection is archived and currently absent from Home.
 - Vinyl is a non-interactive coming-soon entry.
-- All 21 registered universes are live, but their rails still depend on external source availability and the quality of pinned metadata mappings.
 - Theatre extensions are live; Tankoban and Biblio extension consumption is future work.
-- The western-comics catalog is a generated snapshot, not a universal live bibliography. It requires periodic rebuilding and enrichment as source data changes.
-- GetComics and alternate torrent acquisition are availability lanes, not identity authorities. A missing or ambiguous source remains unavailable until the user makes a defensible choice.
-- Comic torrent browsing keeps weak rows visible for transparency. Weak matches require confirmation, and ambiguous archive packs require a second explicit file choice.
-- Tankoban Mode depends on trustworthy Nyaa metadata or a complete WeebCentral chapter map. Some canonical volumes will remain visible without an acquirable source.
-- Tankoban volumes, torrent ebooks, and audiobook downloads are not yet represented in the unified `LocalDownloads` vault.
-- Biblio intentionally stores one readable copy per book. Starting another download replaces the previous LibGen or torrent copy.
-- Torrent names, categories, manifests, and uploader claims remain untrusted external input even when ranking and filtering are conservative.
-- Read-along mapping treats a single-file M4B as one unit; multi-file chapter sets expose their files individually.
+- `data/comics_catalog.db` and `data/mal_catalog.db` are pipeline-deployed artifacts. Their native lanes stay dormant when the files are absent.
+- The comics catalog is a snapshot, not a universal live bibliography, and needs periodic rebuilding and enrichment.
+- GetComics and torrent sources are availability lanes, not identity authorities.
+- Weak comic matches require confirmation; ambiguous packs require a second explicit file choice.
+- Tankoban Mode depends on trustworthy Nyaa metadata or a complete WeebCentral chapter map.
+- Native-torrent ebooks and audiobook downloads are not yet normalized into the unified `LocalDownloads` vault.
+- Biblio stores one readable ebook copy per book. Starting another delivery replaces the previous local copy.
+- There is no standalone audiobook player or audiobook taskbar session. Listening is intentionally embedded in Reader2.
+- Anime absolute order is progressive enhancement. Provider order remains the fallback when mappings are incomplete.
+- Seek thumbnails require ffmpeg; the player falls back to time-only hover labels without it.
 - Casting, live TV/DVR, and networked watch rooms are less mature than core playback.
-- The build assumes developer-supplied Qt, MpvQt, libmpv, libtorrent, Boost, OpenSSL, and the stream-server runtime.
-- Scraper-backed sources and public indexers are inherently more fragile than stable public APIs.
-- `Main.qml` still carries a large amount of shell coordination and is an obvious future service-boundary refactor target.
+- The build assumes developer-supplied Qt, MpvQt, libmpv, libtorrent, Boost, OpenSSL, ffmpeg, and the stream-server runtime.
+- Scraper-backed sources and public indexers are more fragile than stable public APIs.
+- `Main.qml` still carries substantial shell coordination and remains an obvious future service-boundary refactor target.
 
 ## Design principles
 
 - **Each medium gets the surface it needs.** A book detail page should not be a recolored movie page.
-- **Share transport, not policy.** Tankorent centralizes session and transfer mechanics while books, comics, and manga keep their own identity and file-selection laws.
-- **Separate discovery from acquisition.** Looking at source results must not create a download job.
-- **Separate discovery from local ownership.** Remote sources identify or deliver media; Colosseum's readers and players resume durable local/session state.
-- **Match conservatively.** A missing or ambiguous source stays unavailable instead of quietly opening the wrong title.
-- **Download-fed reading.** Manga, comics, ebooks, and audiobooks are persisted locally before their dedicated reader or player opens them.
-- **One identity, many surfaces.** Continue, Downloads, Search History, Universes, and Sessions connect the worlds without erasing their differences.
-- **Native engines behind declarative UI.** QML owns presentation; C++ owns durable state, files, processes, TTS, transport, and native integration.
-- **Progressive honesty.** A slow or blocked source should show partial data, a cooldown, a fallback, or a real empty state rather than fabricated content.
-- **The shell is part of the product.** Wallpapers, sessions, taskbar behavior, scrolling, and cross-medium universes are product surfaces, not ornamental wrappers around three catalogs.
+- **Share transport, not policy.** Tankorent centralizes transfer mechanics while books, comics, and manga keep their own identity and selection laws.
+- **Separate browsing from acquisition.** Looking at source results must not create a download job.
+- **Separate remote availability from local ownership.** Providers identify or deliver media; Colosseum owns durable reader, player, and session state.
+- **Match conservatively.** Missing or ambiguous sources stay unavailable instead of quietly opening the wrong work.
+- **Download-fed reading.** Manga, comics, and ebooks are persisted locally before their dedicated reader opens them.
+- **One identity, many surfaces.** Continue, Downloads, Search History, and Sessions connect the worlds without erasing their differences.
+- **Native engines behind declarative UI.** QML owns presentation; C++ owns durable state, files, processes, transport, and native integration.
+- **Compositions, not foreign pipelines.** External interfaces can inspire layout, but Colosseum keeps its own identity, metadata, and transport boundaries.
+- **Progressive honesty.** A slow, blocked, absent, or incomplete source shows a real fallback or empty state rather than fabricated content.
+- **The shell is part of the product.** Wallpapers, taskbar behavior, window mode, scrolling, and session switching are product surfaces, not decoration.
