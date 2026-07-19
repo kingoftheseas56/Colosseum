@@ -288,6 +288,13 @@ add_executable(reader2_harness
 target_include_directories(reader2_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(reader2_harness PRIVATE Qt6::Quick Qt6::Qml Qt6::Network Qt6::WebEngineQuick Qt6::WebChannel MpvQt::MpvQt)
 
+add_executable(progress_store_harness
+    ../tests/progress_store_harness.cpp
+    ProgressStore.h
+)
+target_include_directories(progress_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(progress_store_harness PRIVATE Qt6::Core)
+
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
     engine/ComicDlsParse.cpp

@@ -10,7 +10,8 @@
 // QML side (the only contract):
 //   Progress.record({ id, kind, caption, title, sub, cover, c1, c2, progress, resume })
 //   Progress.recent(kind, limit)   // kind "" = all (the unified home row); newest first
-//   Progress.forget(kind, id)
+//   Progress.forget(kind, id)   // drops the whole Continue tile: for a series, every
+//                               //   episode of that show, not just the id passed in
 //   Progress.revision              // bump on every change — name it in a binding to make
 //                                  //   recent()-based bindings re-evaluate reactively.
 
@@ -18,6 +19,7 @@
 #include <QSettings>
 #include <QHash>
 #include <QString>
+#include <QStringList>
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
@@ -34,6 +36,15 @@ public:
     explicit ProgressStore(QObject *parent = nullptr)
         : QObject(parent),
           m_settings(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum")) {
+        load();
+    }
+
+    // Test/diagnostic constructor: back the store with an explicit INI file instead of
+    // the app's registry scope, so harnesses stay hermetic and never touch the user's
+    // real Continue data. Mirrors SearchHistoryStore's path constructor.
+    explicit ProgressStore(const QString &iniPath, QObject *parent = nullptr)
+        : QObject(parent),
+          m_settings(iniPath, QSettings::IniFormat) {
         load();
     }
 
@@ -86,14 +97,59 @@ public:
             return a.toMap().value(QStringLiteral("updatedAt")).toLongLong()
                  > b.toMap().value(QStringLiteral("updatedAt")).toLongLong();
         });
+
+        QHash<QString, int> grouped;
+        QVariantList deduped;
+        for (const QVariant &entry : out) {
+            const QVariantMap rec = entry.toMap();
+            const QString group = continueGroupKey(rec);
+            if (!grouped.contains(group)) {
+                grouped.insert(group, deduped.size());
+                deduped.append(entry);
+                continue;
+            }
+
+            const int index = grouped.value(group);
+            if (shouldPreferContinueCandidate(deduped.at(index).toMap(), rec))
+                deduped[index] = entry;
+        }
+        std::sort(deduped.begin(), deduped.end(), [](const QVariant &a, const QVariant &b) {
+            return a.toMap().value(QStringLiteral("updatedAt")).toLongLong()
+                 > b.toMap().value(QStringLiteral("updatedAt")).toLongLong();
+        });
+        out = deduped;
+
         if (limit > 0 && out.size() > limit)
             out = out.mid(0, limit);
         return out;
     }
 
-    // Explicit removal — e.g. a future "remove from Continue" affordance.
+    // Explicit removal — the "remove from Continue" affordance (the ✕ on a tile).
+    // A Continue tile is one row PER GROUP: recent() collapses every episode of a series
+    // into a single tile (see continueGroupKey). So forgetting a tile must drop the WHOLE
+    // group — every episode of that series — not just the one episode the tile happened to
+    // display. Removing a single episode would leave its siblings behind, and the next
+    // recent() would re-surface an earlier one, so the show reappears. For movies and manga
+    // the group IS the entry itself, so this stays a one-for-one removal.
     Q_INVOKABLE void forget(const QString &kind, const QString &id) {
-        if (m_map.remove(mapKey(kind, id))) { save(); bump(); }
+        if (kind.isEmpty() || id.isEmpty())
+            return;
+        QVariantMap probe;
+        probe.insert(QStringLiteral("kind"), kind);
+        probe.insert(QStringLiteral("id"), id);
+        const QString targetGroup = continueGroupKey(probe);
+
+        QStringList doomed;
+        for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it) {
+            if (continueGroupKey(it.value().toMap()) == targetGroup)
+                doomed.append(it.key());
+        }
+        if (doomed.isEmpty())
+            return;
+        for (const QString &key : doomed)
+            m_map.remove(key);
+        save();
+        bump();
     }
 
     Q_INVOKABLE QVariantMap get(const QString &kind, const QString &id) const {
@@ -123,6 +179,28 @@ signals:
 private:
     static QString mapKey(const QString &kind, const QString &id) {
         return kind + QStringLiteral("\x1f") + id;   // unit-separator: safe joiner
+    }
+    static QString seriesRootId(const QString &id) {
+        if (id.count(QLatin1Char(':')) < 2)
+            return id;
+        const QStringList parts = id.split(QLatin1Char(':'));
+        if (id.startsWith(QStringLiteral("tt")))
+            return parts.value(0);
+        return parts.value(0) + QLatin1Char(':') + parts.value(1);
+    }
+    static QString continueGroupKey(const QVariantMap &rec) {
+        const QString kind = rec.value(QStringLiteral("kind")).toString();
+        const QString id = rec.value(QStringLiteral("id")).toString();
+        const QString groupId = kind == QStringLiteral("video") ? seriesRootId(id) : id;
+        return mapKey(kind, groupId);
+    }
+    static bool shouldPreferContinueCandidate(const QVariantMap &current, const QVariantMap &candidate) {
+        const bool currentWatched = current.value(QStringLiteral("watched")).toBool();
+        const bool candidateWatched = candidate.value(QStringLiteral("watched")).toBool();
+        if (currentWatched != candidateWatched)
+            return !candidateWatched;
+        return candidate.value(QStringLiteral("updatedAt")).toLongLong()
+             > current.value(QStringLiteral("updatedAt")).toLongLong();
     }
     void bump() { ++m_revision; emit changed(); }
 
