@@ -33,7 +33,8 @@ class CollectionStore : public QObject {
     Q_PROPERTY(int revision READ revision NOTIFY changed)
 public:
     explicit CollectionStore(QObject *parent = nullptr)
-        : QObject(parent) {
+        : QObject(parent),
+          m_settings(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum")) {
         load();
     }
 
@@ -47,6 +48,9 @@ public:
 
     int revision() const { return m_revision; }
 
+    // Callers must include `type` on every entry (enforced at the QML call sites,
+    // Tasks 4+): the universe-tile law — a tile without type opens a series as a
+    // movie and dies. The store persists whatever it's given.
     Q_INVOKABLE void add(const QString &world, const QVariantMap &entry) {
         const QString id = entry.value(QStringLiteral("id")).toString();
         if (world.isEmpty() || id.isEmpty())
@@ -92,6 +96,7 @@ private:
     void bump() { ++m_revision; emit changed(); }
 
     void load() {
+        m_map.clear();
         const QByteArray raw = m_settings.value(QStringLiteral("collection/entries")).toByteArray();
         if (raw.isEmpty())
             return;

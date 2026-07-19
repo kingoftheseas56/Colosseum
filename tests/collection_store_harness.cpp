@@ -48,7 +48,12 @@ void runSuite()
     const int rev0 = store.revision();
     store.add(QStringLiteral("theatre"), entry("tt0388629", "series", "One Piece", 1000));
     store.add(QStringLiteral("theatre"), entry("tt1234567", "movie", "Some Movie", 2000));
-    store.add(QStringLiteral("tankoban"), entry("Berserk", "manga", "Berserk", 1500));
+    QVariantMap berserk = entry("Berserk", "manga", "Berserk", 1500);
+    QVariantMap berserkPayload;
+    berserkPayload.insert(QStringLiteral("tag"), QStringLiteral("berserk-slug"));
+    berserkPayload.insert(QStringLiteral("tagId"), 42);
+    berserk.insert(QStringLiteral("payload"), berserkPayload);
+    store.add(QStringLiteral("tankoban"), berserk);
     store.add(QStringLiteral("biblio"), entry("pk:joe-country", "book", "Joe Country", 1600));
     require(store.revision() > rev0, "revision bumps on add");
 
@@ -85,6 +90,15 @@ void runSuite()
     require(reloaded.items(QStringLiteral("theatre")).size() == 1, "entries persist across reload");
     require(reloaded.has(QStringLiteral("tankoban"), QStringLiteral("Berserk")), "manga title-key persists");
     require(!reloaded.has(QStringLiteral("theatre"), QStringLiteral("tt1234567")), "removal persists");
+
+    // The nested payload map (the reopen snapshot) must survive the JSON round-trip.
+    const QVariantList tankoAfter = reloaded.items(QStringLiteral("tankoban"));
+    require(tankoAfter.size() == 1, "manga entry persisted");
+    const QVariantMap reloadedPayload = tankoAfter.at(0).toMap().value(QStringLiteral("payload")).toMap();
+    require(reloadedPayload.value(QStringLiteral("tag")).toString() == QStringLiteral("berserk-slug"),
+            "nested payload string survives reload");
+    require(reloadedPayload.value(QStringLiteral("tagId")).toInt() == 42,
+            "nested payload int survives reload");
 }
 
 } // namespace
