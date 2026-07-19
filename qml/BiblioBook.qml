@@ -158,7 +158,8 @@ Item {
         // OceanofPDF, when it lands) open the page to grab the file until native fetch arrives.
         if (ed.md5 && typeof Books !== 'undefined')
             Books.downloadBook(ed.md5, detail.dlName(ed),
-                               (detail.book && detail.book.title) ? detail.book.title : "", 0)
+                               (detail.book && detail.book.title) ? detail.book.title : "", 0,
+                               (detail.book && detail.book.author) ? detail.book.author : "")
         else if (ed.url)
             Qt.openUrlExternally(ed.url)
     }

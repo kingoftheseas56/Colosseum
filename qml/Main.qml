@@ -102,7 +102,7 @@ Window {
     // manual removals then stick. New downloads collect live via the detail pages.
     function runCollectionBackfill() {
         if (typeof Collection === "undefined" || typeof LocalDownloads === "undefined") return
-        if (Collection.has("_meta", "backfill_v1")) return
+        if (Collection.has("_meta", "backfill_v2")) return
         var ths = LocalDownloads.series("theatre") || []
         for (var i = 0; i < ths.length; i++) {
             var te = CollectionBackfill.entryForTheatreSeries(ths[i], LocalDownloads.items("theatre", ths[i].key))
@@ -113,22 +113,30 @@ Window {
             var ke = CollectionBackfill.entryForTankobanSeries(tks[j])
             if (ke && !Collection.has("tankoban", String(ke.id))) Collection.add("tankoban", ke)
         }
+        // Biblio: dedup by BOTH exact id and normalized title, so a book already
+        // saved as "title|author" isn't re-added as an authorless "title|" tile.
+        var biblioTitles = {}
+        var existingBiblio = Collection.items("biblio") || []
+        for (var b0 = 0; b0 < existingBiblio.length; b0++)
+            biblioTitles[CollectionBackfill.titleKey(existingBiblio[b0].title)] = true
+        function addBook(entry) {
+            if (!entry || !entry.id) return
+            var tk = CollectionBackfill.titleKey(entry.title)
+            if (Collection.has("biblio", String(entry.id)) || biblioTitles[tk]) return
+            Collection.add("biblio", entry)
+            biblioTitles[tk] = true
+        }
         if (typeof Books !== "undefined") {
             var bks = Books.downloadedBooks() || []
-            for (var k = 0; k < bks.length; k++) {
-                var pk = BiblioApi.pairKey(bks[k].title || "", bks[k].author || "")
-                var be = CollectionBackfill.entryForBook(bks[k], pk)
-                if (be && !Collection.has("biblio", String(be.id))) Collection.add("biblio", be)
-            }
+            for (var k = 0; k < bks.length; k++)
+                addBook(CollectionBackfill.entryForBook(bks[k], BiblioApi.pairKey(bks[k].title || "", bks[k].author || "")))
         }
         if (typeof Audiobooks !== "undefined") {
             var abs = Audiobooks.downloadedAudiobooks() || []
-            for (var m = 0; m < abs.length; m++) {
-                var ae = CollectionBackfill.entryForBook(abs[m], abs[m].id)
-                if (ae && !Collection.has("biblio", String(ae.id))) Collection.add("biblio", ae)
-            }
+            for (var m = 0; m < abs.length; m++)
+                addBook(CollectionBackfill.entryForBook(abs[m], abs[m].id))
         }
-        Collection.add("_meta", { "id": "backfill_v1", "type": "flag", "title": "", "cover": "" })
+        Collection.add("_meta", { "id": "backfill_v2", "type": "flag", "title": "", "cover": "" })
     }
 
     Component.onCompleted: {

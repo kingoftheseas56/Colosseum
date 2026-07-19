@@ -49,3 +49,9 @@ function entryForBook(rec, pairKey) {
              "title": rec.title || "", "cover": "",
              "payload": { "book": { "title": rec.title || "", "author": rec.author || "" } } }
 }
+
+// Normalized title key for cross-id dedup (a book saved as "title|author" and a
+// backfill record's "title|" must not both land as separate tiles).
+function titleKey(title) {
+    return String(title || "").toLowerCase().replace(/\s+/g, " ").trim()
+}

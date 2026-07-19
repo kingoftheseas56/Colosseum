@@ -11,4 +11,6 @@ Assert-Contains $m "function runCollectionBackfill(" "Main has the backfill driv
 Assert-Contains $m "runCollectionBackfill()" "backfill is called at startup"
 Assert-Contains $m 'Collection.add("_meta"' "backfill sets the run-once marker"
 Assert-Contains $m 'CollectionBackfill.entryForTheatreSeries' "driver uses the mapper"
+Assert-Contains $bf "function titleKey" "backfill has title dedup helper"
+Assert-Contains $m 'backfill_v2' "run-once marker bumped to v2"
 Write-Host "test_collection_backfill_wiring PASSED"

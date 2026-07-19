@@ -2,7 +2,7 @@ const fs = require("fs"), path = require("path")
 const src = fs.readFileSync(path.join(__dirname, "..", "qml", "CollectionBackfill.js"), "utf8")
     .replace(/^\.pragma library\s*/m, "").replace(/^\.import .*$/gm, "")
 const lib = {}
-new Function("exports", src + "\nexports.seriesBaseId=seriesBaseId;exports.entryForTheatreSeries=entryForTheatreSeries;exports.entryForTankobanSeries=entryForTankobanSeries;exports.entryForBook=entryForBook;")(lib)
+new Function("exports", src + "\nexports.seriesBaseId=seriesBaseId;exports.entryForTheatreSeries=entryForTheatreSeries;exports.entryForTankobanSeries=entryForTankobanSeries;exports.entryForBook=entryForBook;exports.titleKey=titleKey;")(lib)
 function assert(c, m) { if (!c) { console.error("FAIL: " + m); process.exit(1) } }
 
 assert(lib.seriesBaseId("tt123:1:5") === "tt123", "strip tt episode")
@@ -23,4 +23,6 @@ assert(cm.id === "gc:batman-slug" && cm.type === "comic", "comic -> prefixed ser
 var bk = lib.entryForBook({ title: "Joe Country", author: "Mick Herron" }, "joe country|mick herron")
 assert(bk.id === "joe country|mick herron" && bk.type === "book" && bk.payload.book.author === "Mick Herron", "book -> pairKey id + payload")
 assert(lib.entryForTheatreSeries(null) === null && lib.entryForTankobanSeries({kind:"manga",title:""}) === null && lib.entryForBook(null, "x") === null, "null/empty safe")
+assert(lib.titleKey("  The   Hobbit ") === "the hobbit", "titleKey normalizes")
+assert(lib.titleKey("Joe Country") === lib.titleKey("joe country"), "titleKey case-insensitive")
 console.log("CollectionBackfill contract passed.")
