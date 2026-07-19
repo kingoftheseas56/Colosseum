@@ -474,9 +474,13 @@ Item {
                 }
             })
             var mltGenre = (meta.genres && meta.genres.length) ? meta.genres[0] : ""
+            var doorForMlt = page.animeDoor
             TheatreApi.moreLikeThis(page.mediaType, page.animeDoor, page.resolvedId, mltGenre,
                                     (typeof MalCatalog !== "undefined") ? MalCatalog : null,
-                                    function(cards) { page.moreLikeCards = cards || [] })
+                                    function(cards) {
+                                        if (page.animeDoor !== doorForMlt) return   // stale: a sibling tap moved the page on
+                                        page.moreLikeCards = cards || []
+                                    })
             sourceVideos = meta.videos || [];
             page.rebuildAnimeOrder();
             page.onMetaLoaded();
