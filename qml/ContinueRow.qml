@@ -14,6 +14,10 @@ Column {
     signal detailRequested(var item)    // anywhere else → the series / detail view
     signal seeAllRequested()            // header "See all ›" → the scoped see-all page
 
+    // Optional: rows not backed by Progress (e.g. Your Collection) supply their own
+    // remove. Default preserves the Progress.forget wiring untouched.
+    property var forgetHandler: null
+
     // unfinished first (both halves keep their recency order), watched sink to the back
     readonly property var ordered: items.filter(function(e) { return e.watched !== true })
                                         .concat(items.filter(function(e) { return e.watched === true }))
@@ -49,7 +53,9 @@ Column {
                     entry: modelData
                     onResumeRequested: cont.resumeRequested(modelData)
                     onDetailRequested: cont.detailRequested(modelData)
-                    onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
+                    onRemoveRequested: cont.forgetHandler
+                        ? cont.forgetHandler(modelData)
+                        : Progress.forget(modelData.kind, modelData.id)
                 }
             }
         }

@@ -16,4 +16,14 @@ if (-not (Test-Path $harness)) { Write-Host "FAIL: build collection_store_harnes
 & $harness | Out-Null
 if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: collection_store_harness red"; exit 1 }
 
+$libBtn = Read-File "qml/LibraryButton.qml"
+Assert-Contains $libBtn 'Collection.has(world, String(entry.id))' "LibraryButton reads live saved state"
+Assert-Contains $libBtn 'Collection.revision' "LibraryButton names revision for reactivity"
+$crow = Read-File "qml/ContinueRow.qml"
+Assert-Contains $crow 'forgetHandler' "ContinueRow grew the forgetHandler seam"
+Assert-Contains $crow 'Progress.forget(modelData.kind, modelData.id)' "default Progress wiring survives"
+$mainQml = Read-File "qml/Main.qml"
+Assert-Contains $mainQml 'function openCollectionEntry(' "Main.qml routes collection clicks"
+Assert-Contains $mainQml 'collectionOpenRequested.connect(win.openCollectionEntry)' "world loaders connect the signal"
+
 Write-Host "test_collection_p0 PASSED"

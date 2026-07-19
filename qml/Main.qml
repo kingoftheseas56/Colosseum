@@ -831,6 +831,31 @@ Window {
         }
     }
 
+    // A Collection tile always opens the DETAIL surface (saved is a bookmark, not a
+    // promise it's downloaded/started). Routes by world + saved snapshot; the gc:/gcd:/
+    // locg: prefixes pick the comics lane; manga reopens BY TITLE.
+    function openCollectionEntry(e) {
+        if (!e || !e.world) return
+        var id = String(e.id || "")
+        if (e.world === "theatre") {
+            win.openTheatreSeries({ "id": id, "type": e.type || "series", "title": e.title || "",
+                                    "cover": e.cover || "", "art": (e.payload && e.payload.art) || "" })
+        } else if (e.world === "biblio") {
+            win.openBook((e.payload && e.payload.book) || e)
+        } else if (e.world === "tankoban") {
+            if (e.type === "manga") { win.openSeries(e.title || id); return }
+            if (id.indexOf("locg:") === 0) {
+                win.openComicSeries({ "id": id, "title": e.title || "", "cover": e.cover || "",
+                                      "locgMeta": (e.payload && e.payload.locgMeta) || null })
+            } else if (id.indexOf("gcd:") === 0) {
+                win.openGcdSeries({ "gcdId": parseInt(id.substring(4)), "title": e.title || "", "cover": e.cover || "" })
+            } else {
+                win.openWestern({ "title": e.title || "", "tag": (e.payload && e.payload.tag) || "",
+                                  "tagId": (e.payload && e.payload.tagId) || 0, "cover": e.cover || "" })
+            }
+        }
+    }
+
     // ===== OS-shell session engine (Approach 2: only the active surface is instantiated) =====
     // The UI opens content by registering a SESSION; Sessions.activeChanged then drives the
     // capture -> teardown -> build -> restore switch. contentKind picks the surface.
@@ -1324,6 +1349,7 @@ Window {
                     if (biblioGenreIndexSignal) biblioGenreIndexSignal.connect(win.openBiblioGenreIndex)
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
+                    if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
                     if (item.continueSeeAllRequested) item.continueSeeAllRequested.connect(function() {
                         win.openContinueSeeAll(mode === "Theatre" ? "video"
                                              : mode === "Biblio"  ? "book" : "tankoban")
