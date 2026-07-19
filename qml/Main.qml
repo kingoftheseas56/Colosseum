@@ -1715,6 +1715,7 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.playRequested.connect(win.openMovieSession)
+            item.openItemRequested.connect(win.openTheatreSeries)
         }
     }
 

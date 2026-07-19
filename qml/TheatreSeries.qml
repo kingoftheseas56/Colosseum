@@ -16,6 +16,7 @@ Item {
     signal minimizeRequested()
     signal closeRequested()
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
+    signal openItemRequested(var item)
 
     property string title: ""
     property string mediaType: "movie"
@@ -28,6 +29,7 @@ Item {
     property string synopsis: ""
     property var factRows: []
     property var castPeople: []
+    property var moreLikeCards: []
     property string animeDoor: ""
     // Keyless anime ordering (spec 2026-07-15) sits between the raw provider list
     // and the episode UI. sourceVideos is the untouched provider array; animeOrder
@@ -471,6 +473,10 @@ Item {
                     })
                 }
             })
+            var mltGenre = (meta.genres && meta.genres.length) ? meta.genres[0] : ""
+            TheatreApi.moreLikeThis(page.mediaType, page.animeDoor, page.resolvedId, mltGenre,
+                                    (typeof MalCatalog !== "undefined") ? MalCatalog : null,
+                                    function(cards) { page.moreLikeCards = cards || [] })
             sourceVideos = meta.videos || [];
             page.rebuildAnimeOrder();
             page.onMetaLoaded();
@@ -1525,6 +1531,13 @@ Item {
                 x: theme.margin
                 width: parent.width - 2 * theme.margin
                 people: page.castPeople
+            }
+
+            MoreLikeThisRow {
+                x: theme.margin
+                width: parent.width - 2 * theme.margin
+                cards: page.moreLikeCards
+                onOpenRequested: function(item) { page.openItemRequested(item) }
             }
 
             Text {

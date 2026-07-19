@@ -607,3 +607,39 @@ function loadAnimeCast(requestedId, done) {
                "source": src ? src.charAt(0).toUpperCase() + src.slice(1) : "" })
     })
 }
+
+// ---- AF2 More Like This --------------------------------------------------
+// Same-genre from OUR catalogs, never a recommendations API. Live-action →
+// Cinemeta catalog; anime → the baked MAL DB (malCatalog is PASSED IN by the
+// page — .pragma libraries can't see context properties). Excludes self.
+// done([{id, type, title, cover}]) — at most 12.
+function moreLikeThis(mediaType, requestedId, resolvedId, firstGenre, malCatalog, done) {
+    if (!firstGenre) { done([]); return }
+    var selfIds = {}
+    selfIds[String(requestedId || "")] = true
+    selfIds[String(resolvedId || "")] = true
+    if (animeIdFor(requestedId) || String(requestedId || "").match(/^(kitsu|anidb):/)) {
+        if (!malCatalog || !malCatalog.ready()) { done([]); return }
+        var rows = malCatalog.genreEntries("anime", firstGenre, "members", 13) || []
+        var out = []
+        for (var i = 0; i < rows.length && out.length < 12; i++) {
+            var r = rows[i]
+            var rid = "mal:" + r.mal_id
+            if (selfIds[rid]) continue
+            out.push({ "id": rid, "type": "series",
+                       "title": r.title_english || r.title || "",
+                       "cover": (r.images && r.images.jpg && r.images.jpg.large_image_url) || "" })
+        }
+        done(out)
+        return
+    }
+    catalogFetch(mediaType, firstGenre, 13, function(cards) {
+        var out = []
+        for (var i = 0; i < (cards || []).length && out.length < 12; i++) {
+            var c = cards[i]
+            if (selfIds[String(c.id)]) continue
+            out.push({ "id": c.id, "type": c.type, "title": c.title || c.caption || "", "cover": c.cover || "" })
+        }
+        done(out)
+    })
+}
