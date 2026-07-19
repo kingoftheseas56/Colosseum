@@ -65,7 +65,6 @@ The current tree has moved well beyond the previous README:
 - **Anime can use canonical absolute playback order.** `AnimeOrderService` reconciles provider IDs with public community mappings, offers Absolute or Seasons views only when the mapping is complete, and builds cross-season queues without rewriting source IDs.
 - **Continue is series-aware.** Episodes from one show collapse into one tile, and removing that tile forgets the whole show group instead of allowing a sibling episode to reappear.
 - **The shell has two native living wallpapers.** `ArenaNight.qml` and `GildedRain.qml` are asset-free Qt Quick scenes with a shared running gate, so they freeze while immersive media owns the screen or the app is minimized.
-- **Release upload has a repeatable door.** `scripts/publish_app_release.py` creates or reuses a tagged GitHub release and replaces an existing ZIP asset with the same name instead of duplicating it.
 - **The five bespoke universe pages remain archived together.** One Piece, Dragon Ball, the MCU, Cosmere, and Weekly Shonen Jump are preserved under `archive/`, but their Home entry points and live routes are intentionally absent.
 
 ## The three worlds
@@ -471,7 +470,7 @@ Colosseum/
 ├── resources/
 │   └── reader2/            WebEngine paper, glue and vendored reading engine
 ├── data/                   Pipeline-deployed SQLite catalog artifacts, dormant when absent
-├── scripts/                Catalog, maintenance, packaging and release-publishing tools
+├── scripts/                Catalog bake and maintenance pipelines
 ├── assets/                 Icons, addon logos, fonts and wallpaper assets
 ├── archive/                Retired implementations and preserved universe pages
 ├── docs/                   Architecture laws, specifications and design records
@@ -528,18 +527,6 @@ dev.bat
 
 An argument-free development launch self-locates the repository and attempts a safe `git pull --ff-only` before loading the live QML tree. Offline, dirty, timed-out, or diverged repositories boot as-is. Native changes still require a rebuild.
 
-### Publishing a packaged build
-
-The release publisher uploads an already-built ZIP. It does not compile or package the application itself.
-
-```bat
-python scripts/publish_app_release.py v0.1.0 path\to\Colosseum-v0.1.0.zip ^
-  --title "Colosseum 0.1.0" ^
-  --notes "Development build"
-```
-
-The script creates or reuses the tag's GitHub release. Re-running it with an asset of the same filename replaces the previous upload.
-
 ## Useful development harnesses
 
 | Variable or target | Purpose |
@@ -588,7 +575,6 @@ The repository also contains focused C++, QML, PowerShell, and JavaScript checks
 - Seek thumbnails require ffmpeg; the player falls back to time-only hover labels without it.
 - Casting, live TV/DVR, and networked watch rooms are less mature than core playback.
 - The build assumes developer-supplied Qt, MpvQt, libmpv, libtorrent, Boost, OpenSSL, ffmpeg, and the stream-server runtime.
-- The release publisher expects a packaged ZIP and working GitHub credentials; it is not a packaging pipeline.
 - Scraper-backed sources and public indexers are more fragile than stable public APIs.
 - `Main.qml` still carries substantial shell coordination and remains an obvious future service-boundary refactor target.
 
