@@ -57,6 +57,13 @@ Item {
         if (resolvedId.length) return resolvedId;
         return (itemData && itemData.id) ? itemData.id : "";
     }
+    // The Collection snapshot. itemData.id preserved over resolvedId: anime ids
+    // (mal:/kitsu:) pivot to tt… after the kitsu→imdb hop — save the door we entered by.
+    function collectionEntry() {
+        return { "id": String((itemData && itemData.id) ? itemData.id : resolvedId),
+                 "type": mediaType, "title": title, "cover": cover,
+                 "payload": { "art": banner } }
+    }
     // Canonical annotations win when present (sourceSeason/sourceEpisode from the
     // native resolver); raw provider rows fall back to season/episode so non-anime
     // and unmapped titles behave exactly as before.
@@ -656,8 +663,8 @@ Item {
                     Row {
                         spacing: 12
                         topPadding: 8
-                        visible: page.mediaType !== "series"
                         Rectangle {
+                            visible: page.mediaType !== "series"
                             width: watchRow.implicitWidth + 40
                             height: 42
                             radius: 11
@@ -694,6 +701,10 @@ Item {
                                                             "backdrop": page.sourceBackdrop()
                                                         })
                             }
+                        }
+                        LibraryButton {
+                            world: "theatre"
+                            entry: page.collectionEntry()
                         }
                     }
                 }

@@ -26,4 +26,8 @@ $mainQml = Read-File "qml/Main.qml"
 Assert-Contains $mainQml 'function openCollectionEntry(' "Main.qml routes collection clicks"
 Assert-Contains $mainQml 'collectionOpenRequested.connect(win.openCollectionEntry)' "world loaders connect the signal"
 
+$ts = Read-File "qml/TheatreSeries.qml"
+Assert-Contains $ts 'function collectionEntry()' "TheatreSeries snapshots its identity"
+Assert-Contains $ts 'LibraryButton {' "TheatreSeries carries the button"
+
 Write-Host "test_collection_p0 PASSED"
