@@ -17,8 +17,10 @@ function Assert-NotContains($text, $needle, $message) {
 # --- ONE honest minimize: beside Close, nothing else ---
 Assert-Contains $player 'icon: "minimizeToBar"' `
     "The session minimize (minimizeToBar) must exist."
-Assert-Contains $player 'kind === "minimizeToBar"' `
-    "IconGlyph must draw the 'minimizeToBar' glyph."
+# The glyph now renders through the Lucide PlayerIcon component (Canvas IconGlyph retired 2026-07-19).
+$playerIcon = Get-Content (Join-Path $root "qml/PlayerIcon.qml") -Raw
+Assert-Contains $playerIcon 'case "minimizeToBar":' `
+    "PlayerIcon must map the minimizeToBar kind to a Lucide glyph (renderer moved off the Canvas IconGlyph)."
 Assert-Contains $player 'Minimize — paused in the taskbar, resumes with no reload' `
     "Minimize tooltip must be honest: paused but kept warm, no reload on return."
 $minCalls = [regex]::Matches($player, 'root\.minimizeRequested\(\)').Count
