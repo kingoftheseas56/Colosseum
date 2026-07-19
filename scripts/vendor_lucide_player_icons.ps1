@@ -15,9 +15,15 @@ $pkg     = "lucide-static@0.460.0"
 $version = "0.460.0"
 
 $icons = @(
+  # transport + window
   'arrow-left','rotate-ccw','rotate-cw','skip-back','skip-forward','play','pause',
-  'maximize','minimize','minus','x','volume-2','volume-x','audio-lines','captions',
-  'gallery-horizontal-end','scan','circle-alert'
+  'maximize','minimize','minus','x','volume-2','volume-x',
+  # toolbar actions (semantic audit 2026-07-19): switch-source, download states, picture,
+  # episodes, audio(=languages), subtitles(=captions; Lucide has no 'subtitles'), speed
+  'replace','download','circle-check','triangle-alert','sliders-horizontal',
+  'list-video','languages','captions','gauge',
+  # fallback for any unmapped kind
+  'circle-alert'
 )
 
 $tmp = Join-Path ([System.IO.Path]::GetTempPath()) ("lucide_vendor_" + [System.Guid]::NewGuid().ToString("N"))
@@ -41,6 +47,8 @@ try {
     $srcIcons = Join-Path $tmp "package/icons"
 
     New-Item -ItemType Directory -Force -Path $outDir | Out-Null
+    # Prune any previously-vendored SVGs so the set always matches $icons exactly (no stale glyphs).
+    Get-ChildItem -Path $outDir -Filter *.svg -ErrorAction SilentlyContinue | Remove-Item -Force
     foreach ($name in $icons) {
         $src = Join-Path $srcIcons "$name.svg"
         if (-not (Test-Path $src)) { throw "icon '$name' is not in $pkg (package/icons)." }

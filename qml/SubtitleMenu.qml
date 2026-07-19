@@ -8,7 +8,7 @@ import "SubtitleGroups.js" as SubtitleGroups
 Item {
     id: menu
     width: faceChip.width
-    height: 30
+    height: faceChip.height
 
     property bool panelOpen: false
     property var tracks: []
@@ -189,43 +189,37 @@ Item {
 
     Theme { id: theme }
 
-    // Chip face (native chrome spec 2026-07-08) — mirrors PlayerPage.PanelChip, duplicated
-    // because inline components don't cross files. Label + live value (lang / OFF) in gold.
+    // Icon face (semantic audit 2026-07-19): the subtitles control is the Lucide `captions` glyph
+    // (Lucide 0.460 has no 'subtitles') with a small gold ACTIVE DOT when subtitles are on. No text.
     Item {
         id: faceChip
-        width: faceRow.implicitWidth + 20
-        height: 30
+        width: 40
+        height: 40
         Rectangle {
             anchors.fill: parent
-            radius: height / 2
-            color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
-                 : launchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.07)
-            border.width: 1
-            border.color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
-                                         : Qt.rgba(1, 1, 1, 0.13)
+            radius: width / 2
+            color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.16)
+                 : launchMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+            border.width: (menu.panelOpen || menu.active) ? 1 : 0
+            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
         }
-        Row {
-            id: faceRow
-            anchors.centerIn: parent
-            spacing: 5
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: menu.title.toUpperCase()
-                color: menu.panelOpen || menu.active ? theme.gold : theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.5
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: menu.chipValue
-                visible: menu.chipValue.length > 0
-                color: theme.gold
-                font.family: theme.ui
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
+        PlayerIcon {
+            anchors.fill: parent
+            kind: "subtitle"
+            ink: (menu.panelOpen || menu.active) ? theme.gold : theme.inkDim
+            accessibleName: menu.title
+        }
+        // active dot — subtitles are ON
+        Rectangle {
+            visible: menu.active && !menu.panelOpen
+            width: 6
+            height: 6
+            radius: 3
+            color: theme.gold
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.rightMargin: 7
+            anchors.topMargin: 7
         }
         MouseArea {
             id: launchMouse

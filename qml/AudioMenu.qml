@@ -5,7 +5,7 @@ import QtQuick
 Item {
     id: menu
     width: faceChip.width
-    height: 30
+    height: faceChip.height
 
     property bool panelOpen: false
     property var tracks: []
@@ -68,43 +68,25 @@ Item {
 
     Theme { id: theme }
 
-    // Chip face (native chrome spec 2026-07-08) — mirrors PlayerPage.PanelChip, duplicated
-    // because inline components don't cross files. Label + live value in gold.
+    // Icon face (semantic audit 2026-07-19): the audio-track control is the Lucide `languages`
+    // glyph — no text pill, no live value on the face. Gold when the panel is open.
     Item {
         id: faceChip
-        width: faceRow.implicitWidth + 20
-        height: 30
+        width: 40
+        height: 40
         Rectangle {
             anchors.fill: parent
-            radius: height / 2
-            color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
-                 : launchMouse.containsMouse && menu.many ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.07)
-            border.width: 1
-            border.color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
-                                         : Qt.rgba(1, 1, 1, 0.13)
+            radius: width / 2
+            color: menu.panelOpen ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.16)
+                 : (launchMouse.containsMouse && menu.many) ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+            border.width: menu.panelOpen ? 1 : 0
+            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
         }
-        Row {
-            id: faceRow
-            anchors.centerIn: parent
-            spacing: 5
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: menu.title.toUpperCase()
-                color: menu.panelOpen ? theme.gold : (menu.many ? theme.inkDim : Qt.rgba(1, 1, 1, 0.30))
-                font.family: theme.ui
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.5
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: menu.chipValue
-                visible: menu.chipValue.length > 0
-                color: theme.gold
-                font.family: theme.ui
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
+        PlayerIcon {
+            anchors.fill: parent
+            kind: "audio"
+            ink: menu.panelOpen ? theme.gold : (menu.many ? theme.ink : Qt.rgba(1, 1, 1, 0.35))
+            accessibleName: menu.title
         }
         MouseArea {
             id: launchMouse

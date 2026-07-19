@@ -52,8 +52,8 @@ Assert-Contains $drawer "swallow" `
     "Drawer body must swallow clicks (panel doctrine)."
 Assert-Contains $drawer "Couldn't load other seasons" `
     "Season fetch failure must be honest, with a retry."
-Assert-Contains $player 'label: "EPISODES"' `
-    "The panel must carry the episodes chip."
+Assert-Contains $player 'icon: "episodes"' `
+    "The panel must carry the episodes control (now the list-video icon button, semantic audit 2026-07-19)."
 Assert-Contains $player 'kind === "browser"' `
     "IconGlyph must draw the browser glyph."
 Assert-Contains $player "BrowserDrawer {" `

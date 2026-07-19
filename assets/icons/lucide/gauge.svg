@@ -1,6 +1,6 @@
 <!-- @license lucide-static v0.460.0 - ISC -->
 <svg
-  class="lucide lucide-audio-lines"
+  class="lucide lucide-gauge"
   xmlns="http://www.w3.org/2000/svg"
   width="24"
   height="24"
@@ -11,11 +11,7 @@
   stroke-linecap="round"
   stroke-linejoin="round"
 >
-  <path d="M2 10v3" />
-  <path d="M6 6v11" />
-  <path d="M10 3v18" />
-  <path d="M14 8v7" />
-  <path d="M18 5v13" />
-  <path d="M22 10v3" />
+  <path d="m12 14 4-4" />
+  <path d="M3.34 19a10 10 0 1 1 17.32 0" />
 </svg>
 

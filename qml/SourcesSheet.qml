@@ -113,12 +113,13 @@ Item {
 
     function chipText(q) { return q === "all" ? "All" : q; }
 
-    // the one inline meta line: seeders, size, source group
+    // the one inline meta line: seeders, size, source group — PLAIN metadata, no emoji-as-icon
+    // (semantic audit 2026-07-19). Words label the values instead of pictographs.
     function metaText(m) {
         var p = [];
-        if (m.seeders >= 0) p.push("\u{1F464} " + m.seeders);
-        if (m.size) p.push("\u{1F4BE} " + m.size);
-        if (m.sourceName && m.sourceName !== "P2P") p.push("⚙ " + m.sourceName);
+        if (m.seeders >= 0) p.push(m.seeders + " seeders");
+        if (m.size) p.push(m.size);
+        if (m.sourceName && m.sourceName !== "P2P") p.push(m.sourceName);
         return p.join("   ·   ");
     }
 

@@ -34,10 +34,18 @@ Item {
         case "cancel":         return "x"
         case "volume":         return "volume-2"
         case "mute":           return "volume-x"
-        case "audio":          return "audio-lines"
-        case "subtitle":       return "captions"
-        case "stream":         return "gallery-horizontal-end"
-        case "fit":            return "scan"
+        // toolbar actions (semantic audit 2026-07-19): each maps to its true meaning, and the
+        // download states + episodes/speed that used to fall through to circle-alert are covered.
+        case "stream":         return "replace"            // switch source
+        case "download":       return "download"           // download (idle)
+        case "check":          return "circle-check"       // download complete
+        case "warning":        return "triangle-alert"     // download error
+        case "fit":            return "sliders-horizontal"  // picture / aspect
+        case "browser":
+        case "episodes":       return "list-video"         // episodes browser
+        case "audio":          return "languages"          // audio track
+        case "subtitle":       return "captions"           // Lucide 0.460 has no 'subtitles'
+        case "speed":          return "gauge"              // playback speed
         default:
             console.warn("PlayerIcon: unmapped kind '" + k + "' -> circle-alert")
             return "circle-alert"

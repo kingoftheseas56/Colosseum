@@ -4288,11 +4288,12 @@ Item {
                     // retry/stream/download moved to leftUtilityRow (2026-07-08) — the
                     // right side is the chip cluster's alone.
 
-                    PanelChip {
+                    RoundButton {
                         visible: root.mediaId.indexOf("iptv:") !== 0 && !root.barTiny
                         anchors.verticalCenter: parent.verticalCenter
-                        label: "EPISODES"
-                        open: root.browserOpen
+                        size: 40
+                        icon: "episodes"
+                        active: root.browserOpen
                         tooltip: "Episodes & sources (E)"
                         onClicked: {
                             var wasOpen = root.browserOpen
@@ -4453,62 +4454,6 @@ Item {
             hoverEnabled: true
             cursorShape: Qt.PointingHandCursor
             onClicked: rab.clicked()
-        }
-    }
-
-    // PanelChip — the panel's labeled control pill (native chrome spec 2026-07-08).
-    // label reads what it is, value reads its LIVE state in gold. Replaces anonymous
-    // 48px icons for the controls Hemanth named must-visible: speed, audio, subs, episodes.
-    component PanelChip: Item {
-        id: pc
-        property string label: ""
-        property string value: ""
-        property bool open: false
-        property string tooltip: ""
-        signal clicked()
-        width: chipRowContent.implicitWidth + 20
-        height: 30
-
-        Rectangle {
-            anchors.fill: parent
-            radius: height / 2
-            color: pc.open ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
-                 : chipMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.07)
-            border.width: 1
-            border.color: pc.open ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
-                                  : Qt.rgba(1, 1, 1, 0.13)
-        }
-        Row {
-            id: chipRowContent
-            anchors.centerIn: parent
-            spacing: 5
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: pc.label
-                visible: pc.label.length > 0
-                color: pc.open ? theme.gold : theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-                font.letterSpacing: 0.5
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: pc.value
-                visible: pc.value.length > 0
-                color: theme.gold
-                font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: 11
-                font.weight: Font.DemiBold
-            }
-        }
-        MouseArea {
-            id: chipMa
-            anchors.fill: parent
-            hoverEnabled: true
-            cursorShape: Qt.PointingHandCursor
-            onEntered: root.wakeChrome()
-            onClicked: pc.clicked()
         }
     }
 
@@ -4833,19 +4778,42 @@ Item {
     component SpeedMenuButton: Item {
         id: sm
         property bool panelOpen: false
-        width: 118
-        height: 30
-        PanelChip {
+        property bool nonDefault: Math.abs(mpv.speed - 1) > 0.001
+        width: 40
+        height: 40
+        RoundButton {
             anchors.fill: parent
-            label: "SPEED"
-            value: (Math.round(mpv.speed * 100) / 100) + "×"
-            open: sm.panelOpen
+            size: 40
+            icon: "speed"
+            active: sm.panelOpen || sm.nonDefault
             tooltip: "Speed & sleep"
             onClicked: {
                 var wasOpen = sm.panelOpen
                 root.closeMenus()
                 sm.panelOpen = !wasOpen
                 root.wakeChrome()
+            }
+        }
+        // Playback-speed VALUE shown ONLY when non-default (semantic audit) — small gold badge.
+        Rectangle {
+            visible: sm.nonDefault
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: 1
+            anchors.bottomMargin: 3
+            width: spdVal.implicitWidth + 6
+            height: 13
+            radius: 6.5
+            color: theme.gold
+            Text {
+                id: spdVal
+                anchors.centerIn: parent
+                text: (Math.round(mpv.speed * 100) / 100) + "×"
+                color: "#101014"
+                font.family: theme.hud
+                font.features: ({ "tnum": 1 })
+                font.pixelSize: 8
+                font.weight: Font.DemiBold
             }
         }
         Text {
