@@ -60,4 +60,9 @@ Assert-Contains (Read-File "qml/ComicSeries.qml") 'Collection.add("tankoban", pa
 Assert-Contains (Read-File "qml/ComicSeriesPage.qml") 'Collection.add("tankoban", page.collectionEntry())' "ComicSeriesPage download auto-collects"
 Assert-Contains (Read-File "qml/BiblioBook.qml") 'Collection.add("biblio", detail.collectionEntry())' "Biblio download auto-collects"
 
+$ledger = Read-File "qml/ComicDbLedger.qml"
+Assert-Contains $ledger 'LibraryButton {' "ComicDbLedger has a + Library button"
+Assert-Contains $ledger 'Collection.add("tankoban", ledger.libraryEntry)' "ComicDbLedger download auto-collects"
+Assert-Contains (Read-File "qml/ComicSeriesPage.qml") 'libraryEntry: page.collectionEntry()' "ComicSeriesPage feeds the ledger its entry"
+
 Write-Host "test_collection_p0 PASSED"

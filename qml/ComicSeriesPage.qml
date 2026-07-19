@@ -241,6 +241,7 @@ Item {
                 dbSeries: page.dbSeries
                 seriesTitle: page.seriesTitle
                 gcTag: "gc:" + page.gcTag
+                libraryEntry: page.collectionEntry()
                 onReadRequested: (chId, label) => { page.openChapterId = chId; page.openChapterLabel = label }
                 onAlternateSourcesRequested: (edition, chId) => torrentSources.show({
                     issueId: chId,

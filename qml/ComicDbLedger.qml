@@ -21,6 +21,7 @@ Item {
     property string seriesTitle: ""
     property string gcTag: ""                    // download namespace: "gc:<tag>"
     property real   contentWidth: width
+    property var libraryEntry: null   // Collection snapshot passed by the host page (+ Library / download-collect)
 
     signal readRequested(string chId, string label)
     // A user opened the alternate-sources picker for an idle, undownloaded edition.
@@ -141,6 +142,11 @@ Item {
                     text: heroSynopsis; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                     wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                     lineHeight: 1.35; topPadding: 5 }
+                LibraryButton {
+                    world: "tankoban"
+                    visible: !!ledger.libraryEntry
+                    entry: ledger.libraryEntry
+                }
             }
         }
         Rectangle { width: parent.width; height: 1; color: theme.edge }
@@ -202,6 +208,7 @@ Item {
                             var editionTitle = String(ed.modelData.display_title || ed.modelData.title || "")
                             Comics.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
                                                  editionTitle, 0)
+                            if (ledger.libraryEntry) Collection.add("tankoban", ledger.libraryEntry)
                         }
                         Component.onCompleted: refreshDl()
                         Connections {
