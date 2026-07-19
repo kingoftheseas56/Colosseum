@@ -102,7 +102,7 @@ Window {
     // manual removals then stick. New downloads collect live via the detail pages.
     function runCollectionBackfill() {
         if (typeof Collection === "undefined" || typeof LocalDownloads === "undefined") return
-        if (Collection.has("_meta", "backfill_v2")) return
+        if (Collection.has("_meta", "backfill_v3")) return
         var ths = LocalDownloads.series("theatre") || []
         for (var i = 0; i < ths.length; i++) {
             var te = CollectionBackfill.entryForTheatreSeries(ths[i], LocalDownloads.items("theatre", ths[i].key))
@@ -112,6 +112,23 @@ Window {
         for (var j = 0; j < tks.length; j++) {
             var ke = CollectionBackfill.entryForTankobanSeries(tks[j])
             if (ke && !Collection.has("tankoban", String(ke.id))) Collection.add("tankoban", ke)
+        }
+        // One-time cleanup: an earlier backfill (pre title-dedup) could add the same
+        // book twice — an authorless "title|" entry AND a proper authored "title|author"
+        // entry (ebook + audiobook of the same title). Drop the authorless one when an
+        // authored entry with the same title exists (the authored id matches a live save).
+        var cleanupBiblio = Collection.items("biblio") || []
+        var authoredTitles = {}
+        for (var cc = 0; cc < cleanupBiblio.length; cc++) {
+            var ce = cleanupBiblio[cc]
+            var caut = (ce.payload && ce.payload.book && ce.payload.book.author) ? ce.payload.book.author : ""
+            if (caut) authoredTitles[CollectionBackfill.titleKey(ce.title)] = true
+        }
+        for (var cd = 0; cd < cleanupBiblio.length; cd++) {
+            var de = cleanupBiblio[cd]
+            var daut = (de.payload && de.payload.book && de.payload.book.author) ? de.payload.book.author : ""
+            if (!daut && authoredTitles[CollectionBackfill.titleKey(de.title)])
+                Collection.remove("biblio", String(de.id))
         }
         // Biblio: dedup by BOTH exact id and normalized title, so a book already
         // saved as "title|author" isn't re-added as an authorless "title|" tile.
@@ -136,7 +153,7 @@ Window {
             for (var m = 0; m < abs.length; m++)
                 addBook(CollectionBackfill.entryForBook(abs[m], abs[m].id))
         }
-        Collection.add("_meta", { "id": "backfill_v2", "type": "flag", "title": "", "cover": "" })
+        Collection.add("_meta", { "id": "backfill_v3", "type": "flag", "title": "", "cover": "" })
     }
 
     Component.onCompleted: {
