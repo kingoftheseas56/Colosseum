@@ -6,6 +6,7 @@ import QtQuick
 import QtQuick.Controls
 import "TheatreApi.js" as TheatreApi
 import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
+import "TheatreFacts.js" as TheatreFacts
 
 Item {
     id: page
@@ -25,6 +26,8 @@ Item {
     property string rating: ""
     property string runtime: ""
     property string synopsis: ""
+    property var factRows: []
+    property var castNames: []
     // Keyless anime ordering (spec 2026-07-15) sits between the raw provider list
     // and the episode UI. sourceVideos is the untouched provider array; animeOrder
     // is the native resolver's annotation; videos/episodes derive from it and fall
@@ -447,6 +450,8 @@ Item {
             rating = meta.imdbRating || "";
             runtime = meta.runtime || "";
             synopsis = meta.description || "";
+            page.factRows = TheatreFacts.factRows(meta, null)
+            page.castNames = meta.cast || []
             sourceVideos = meta.videos || [];
             page.rebuildAnimeOrder();
             page.onMetaLoaded();
@@ -713,18 +718,37 @@ Item {
                 }
             }
 
-            Text {
-                visible: page.synopsis.length > 0
+            Row {
                 x: theme.margin
-                width: Math.min(880, parent.width - 2 * theme.margin)
-                text: page.synopsis
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 15
-                lineHeight: 1.5
-                wrapMode: Text.WordWrap
-                topPadding: 22
-                bottomPadding: 6
+                spacing: 56
+                Text {
+                    visible: page.synopsis.length > 0
+                    width: 580
+                    text: page.synopsis
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 15
+                    lineHeight: 1.5
+                    wrapMode: Text.WordWrap
+                    topPadding: 22
+                    bottomPadding: 6
+                }
+                Column {
+                    spacing: 10
+                    visible: page.factRows.length > 0
+                    Repeater {
+                        model: page.factRows
+                        Row {
+                            id: factRow
+                            required property var modelData
+                            spacing: 18
+                            Text { text: factRow.modelData.k; color: theme.inkDim; width: 90
+                                   font.family: theme.ui; font.pixelSize: 13 }
+                            Text { text: factRow.modelData.v; color: theme.ink
+                                   font.family: theme.ui; font.pixelSize: 13 }
+                        }
+                    }
+                }
             }
 
             Item {
