@@ -10,21 +10,28 @@ function Assert-Matches($text, $pattern, $message) {
     if ($text -notmatch $pattern) { throw $message }
 }
 
-# Clean loading screen (Hemanth 2026-07-08): while a stream is LOADING (starting), the
-# control chrome must step aside so the centered spinner+status doesn't stack on top of
-# the centered transport buttons ("the vomit"). The chrome's own visibility gates on
-# !root.starting; the loading overlay stays. Error state keeps the chrome (retry lives
-# in the control bar), so the gate is `starting`, not `starting || errored`.
+# While a stream is LOADING (starting), the transport chrome steps aside so the full-bleed
+# per-show cinematic loader owns the screen; the loader exits on truthful first-frame advance
+# (or when the resume-choice prompt must become interactive), never on a fake percentage.
+# docs/superpowers/specs/2026-07-19-colosseum-harbor-player-polish-design.md
 Assert-Contains $player "root.controlsShown && !root.starting" `
-    "Chrome must hide while a stream is loading (starting) so the loading overlay owns the screen."
-Assert-Contains $player 'text: root.loadingStatusText()' `
-    "Loading card must show a stable status line such as Starting stream... beneath the title."
+    "Chrome must hide while a stream is loading (starting) so the loader owns the screen."
+Assert-Contains $player 'root.loadingStatusText()' `
+    "The loader must show a stable status line (Preparing stream / Buffering)."
 Assert-Contains $player 'function finishStartingIfPlaybackAdvanced()' `
-    "PlayerPage must clear the loading title card when playback position advances, not only on file-loaded."
+    "PlayerPage must clear the loading state when playback position advances, not only on file-loaded."
 Assert-Contains $player 'onPositionChanged: root.finishStartingIfPlaybackAdvanced()' `
-    "mpv position advance must dismiss the loading card once audio/video playback has actually begun."
-Assert-Matches $player 'id:\s*loadingFrameBlanker[\s\S]*z:\s*3[\s\S]*visible:\s*root\.starting\s*\|\|\s*root\.errored' `
-    "PlayerPage must cover the stale mpv frame with a loading/error blanker above the video surface."
+    "mpv position advance must dismiss the loader once playback has actually begun."
+
+# The per-show cinematic loader (Task 5) replaces the old title-card blanker.
+Assert-Contains $player 'PlayerLoadingScreen {' `
+    "The per-show cinematic loader component must front the loading state."
+Assert-Matches  $player 'active:\s*\(root\.starting\s*&&\s*!root\.resumeChoiceOpen\)\s*\|\|\s*root\.errored' `
+    "The loader stays up for starting/errored but yields when the resume-choice prompt must become interactive."
+Assert-Contains $player 'root.mediaLogo' `
+    "The loader must be fed the per-show identity (logo/still) threaded through playTorrent."
+
+# Guard: the loader must never suppress the buffering/starting line while a stream is still opening.
 if ($player -like '*visible: text.length > 0 && (root.errored || root.statusMsg !== "Buffering...")*') {
     throw "Loading card must not suppress the buffering/starting line while a stream is still opening."
 }

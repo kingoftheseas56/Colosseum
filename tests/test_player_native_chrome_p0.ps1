@@ -10,53 +10,15 @@ function Assert-NotContains($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
 
-# --- Task 1: the fused Plasma panel (native chrome spec 2026-07-08) ---
-Assert-Contains $player "color: Qt.rgba(0.04, 0.05, 0.07, 0.78)" `
-    "The panel must wear the house glass film (taskbar family)."
-Assert-Contains $player "id: panelHairline" `
-    "The fused panel needs its top hairline."
-Assert-NotContains $player "GradientStop { position: 0.38; color: Qt.rgba(0, 0, 0, 0.28) }" `
-    "The Harbor bottom gradient scrim must be gone."
-Assert-Contains $player "id: panelBreath" `
-    "The panel must breathe (slide) with chrome visibility."
-
-# --- Task 2: the glass titlebar ---
-Assert-Contains $player "id: titleBar" `
-    "A fused glass titlebar must exist."
-Assert-NotContains $player "GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.68) }" `
-    "The Harbor top gradient scrim must be gone."
-Assert-Contains $player 'id: titleBarVerbs' `
-    "Window verbs (minimize/close) must live in the titlebar."
-
-# The panel row must NOT carry window verbs anymore (they moved to the titlebar).
-$controlsBlock = $player.Substring($player.IndexOf("id: transportRow"))
-$controlsBlock = $controlsBlock.Substring(0, [Math]::Min(9000, $controlsBlock.Length))
-Assert-NotContains $controlsBlock 'icon: "minimizeToBar"' `
-    "The panel must not carry the minimize verb (titlebar owns it)."
-
-# --- Task 3: live-value chips ---
-Assert-Contains $player "component PanelChip" `
-    "The chip component must exist."
-Assert-Contains $player 'audioChipValue' `
-    "Menus must surface their live value into the chip face."
-Assert-Contains $player 'label: "EPISODES"' `
-    "Episodes must be a labeled chip, not an anonymous icon."
-$audio = Get-Content (Join-Path $root "qml/AudioMenu.qml") -Raw
-Assert-Contains $audio "property string chipValue" `
-    "AudioMenu's face must be a value chip."
-$subs = Get-Content (Join-Path $root "qml/SubtitleMenu.qml") -Raw
-Assert-Contains $subs "property string chipValue" `
-    "SubtitleMenu's face must be a value chip."
-
-# --- Task 4: anchored applets ---
-Assert-Contains $player "appletTail" `
-    "Applet popovers must carry the pointer tail."
-Assert-Contains $player "color: Qt.rgba(0.04, 0.05, 0.07, 0.94)" `
-    "Popovers must wear the house popover surface."
-
-# --- Task 5: the keepers wear the same cloth ---
-$drawer = Get-Content (Join-Path $root "qml/BrowserDrawer.qml") -Raw
-Assert-Contains $drawer "Qt.rgba(0.04, 0.05, 0.07, 0.94)" `
-    "The episodes drawer must wear the house popover surface."
+# Harbor-parity chrome (approved 2026-07-19): restrained top/bottom black scrims instead of the
+# old fused Plasma glass panel; a NOW PLAYING micro-label; a single fullscreen control living in
+# the bottom transport group (relocated out of the top window group); a thin 3 px timeline.
+# docs/superpowers/specs/2026-07-19-colosseum-harbor-player-polish-design.md
+Assert-Contains    $player 'id: playerTopScrim'         "Top edge readability must come from a restrained scrim gradient, not a fused bar."
+Assert-Contains    $player 'id: playerBottomScrim'      "Bottom edge readability must come from a restrained scrim gradient, not a fused panel."
+Assert-Contains    $player 'text: "NOW PLAYING"'        "The top-left group must carry the NOW PLAYING micro-label."
+Assert-Contains    $player 'id: bottomFullscreenButton' "The single fullscreen control must live in the bottom transport group."
+Assert-NotContains $player 'id: topFullscreenButton'    "There must be no second (top) fullscreen control."
+Assert-Contains    $player 'height: 3'                  "The timeline track must be 3 px at rest."
 
 Write-Host "Native chrome contract checks passed."
