@@ -163,6 +163,7 @@ WorldPage {
 
     ContinueRow {
         title: "Your Collection"
+        showSeeAll: false
         items: (Collection.revision, Collection.items("theatre"))
         forgetHandler: function(e) { Collection.remove("theatre", String(e.id)) }
         onDetailRequested: function(item) { theatre.collectionOpenRequested(item) }

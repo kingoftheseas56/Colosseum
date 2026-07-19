@@ -34,4 +34,9 @@ $tw = Read-File "qml/TheatreWorld.qml"
 Assert-Contains $tw 'Collection.items("theatre")' "Theatre world carries the Collection row"
 Assert-Contains $tw 'signal collectionOpenRequested' "Theatre world bubbles collection clicks"
 
+$crow2 = Read-File "qml/ContinueRow.qml"
+Assert-Contains $crow2 'property bool showSeeAll' "ContinueRow can hide the see-all chevron"
+Assert-Contains $crow2 'navigable: cont.showSeeAll' "chevron honors showSeeAll"
+Assert-Contains $tw 'showSeeAll: false' "Theatre Collection row hides the dead chevron"
+
 Write-Host "test_collection_p0 PASSED"

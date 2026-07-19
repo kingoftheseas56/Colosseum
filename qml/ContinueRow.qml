@@ -18,6 +18,9 @@ Column {
     // remove. Default preserves the Progress.forget wiring untouched.
     property var forgetHandler: null
 
+    // Rows without a see-all destination (Your Collection) hide the header chevron.
+    property bool showSeeAll: true
+
     // unfinished first (both halves keep their recency order), watched sink to the back
     readonly property var ordered: items.filter(function(e) { return e.watched !== true })
                                         .concat(items.filter(function(e) { return e.watched === true }))
@@ -32,6 +35,7 @@ Column {
     WidgetHeader {
         width: parent.width; title: cont.title
         moreLabel: "See all"
+        navigable: cont.showSeeAll
         onMoreClicked: cont.seeAllRequested()
     }
 
