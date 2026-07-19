@@ -22,6 +22,7 @@ Item {
     property string mediaType: "movie"
     property string banner: ""
     property string cover: ""
+    property string logo: ""      // show logo (transparent art) for the player's startup loader
     property string year: ""
     property string genresLine: ""
     property string rating: ""
@@ -275,6 +276,22 @@ Item {
         return epTitle.length ? (label + " - " + epTitle) : label;
     }
 
+    // "S1 · E03 · Name" for the player's startup loader — omits unknown parts, never null/undefined.
+    function loadingEpisodeLine(v) {
+        if (!v) return "";
+        var parts = [];
+        var s = episodeSeason(v);
+        var e = episodeNumber(v);
+        if (s !== undefined && s !== null && String(s).length) parts.push("S" + s);
+        if (e !== undefined && e !== null && String(e).length) {
+            var en = String(e);
+            parts.push("E" + (en.length < 2 ? "0" + en : en));
+        }
+        var nm = v.title || v.name || "";
+        if (nm.length) parts.push(nm);
+        return parts.join(" · ");
+    }
+
     function episodePlaybackTarget(v) {
         if (!v)
             return null;
@@ -313,6 +330,11 @@ Item {
             "year": page.year,
             "episodeQueue": queue,
             "episodeIndex": idx,
+            // Per-show startup-loader identity (Task 4a) — merged into every episode context.
+            "logo": page.logo,
+            "episodeStill": TheatreApi.normalizeArtUrl((v && v.thumbnail) || ""),
+            "loaderBackdrop": page.banner,
+            "episodeLine": page.loadingEpisodeLine(v),
             "adjacentEpisodes": {
                 "prev": idx > 0 ? Object.assign({}, queue[idx - 1],
                                                 { "context": { "year": page.year, "episodeQueue": queue, "episodeIndex": idx - 1 } }) : null,
@@ -455,6 +477,7 @@ Item {
             if (bg) banner = bg;
             var po = TheatreApi.normalizeArtUrl(meta.poster || "");
             if (po) cover = po;
+            logo = TheatreApi.normalizeArtUrl(meta.logo || "");   // per-show loader logo (may be "")
             year = meta.year ? String(meta.year) : (meta.releaseInfo || "");
             if (meta.genres && meta.genres.length) genresLine = meta.genres.slice(0, 3).join(" - ");
             rating = meta.imdbRating || "";
