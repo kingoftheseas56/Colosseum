@@ -1192,6 +1192,14 @@ Window {
     FontLoader { source: "../assets/fonts/Fraunces-Regular.ttf" }
     FontLoader { source: "../assets/fonts/Fraunces-Italic.ttf" }
 
+    // ---- AF2 Home display sans (theme.displaySans = "Figtree", OFL). STATICS ON PURPOSE:
+    // same trap as Inter/Switzer below — a variable TTF registers as "Figtree Variable"
+    // and asking for "Figtree" silently falls to Tahoma. Statics register as plain "Figtree". ----
+    FontLoader { source: "../assets/fonts/Figtree-Regular.ttf" }
+    FontLoader { source: "../assets/fonts/Figtree-SemiBold.ttf" }
+    FontLoader { source: "../assets/fonts/Figtree-Bold.ttf" }
+    FontLoader { source: "../assets/fonts/Figtree-ExtraBold.ttf" }
+
     // ---- player HUD face: Switzer (Harbor-parity), bundled weights (theme.hud) ----
     FontLoader { source: "../assets/fonts/Switzer-Regular.otf" }
     FontLoader { source: "../assets/fonts/Switzer-Medium.otf" }
