@@ -12,6 +12,17 @@ Column {
     signal seriesRequested(string title)
     signal genreRequested(string name)
     signal genreIndexRequested()
+    // Bubbles a tap on a Your Collection tile up to the world (manga-filtered).
+    signal collectionOpenRequested(var entry)
+
+    ContinueRow {
+        title: "Your Collection"
+        showSeeAll: false
+        items: (Collection.revision, Collection.items("tankoban").filter(function(e) { return e.type === "manga" }))
+        forgetHandler: function(e) { Collection.remove("tankoban", String(e.id)) }
+        onDetailRequested: function(item) { collectionOpenRequested(item) }
+        onResumeRequested: function(item) { collectionOpenRequested(item) }
+    }
 
     TrendingTop10 {
         title: "Top in Tankoban — Manga"

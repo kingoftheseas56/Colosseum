@@ -49,4 +49,8 @@ foreach ($f in @("qml/MangaSeries.qml", "qml/ComicSeries.qml", "qml/ComicSeriesP
     Assert-Contains (Read-File $f) 'world: "tankoban"' "$f carries the button"
 }
 
+Assert-Contains (Read-File "qml/TankobanMangaTab.qml") 'e.type === "manga"' "Manga tab filters its Collection"
+Assert-Contains (Read-File "qml/TankobanComicsTab.qml") 'e.type === "comic"' "Comics tab filters its Collection"
+Assert-Contains (Read-File "qml/TankobanWorld.qml") 'collectionOpenRequested.connect(tanko.collectionOpenRequested)' "tab clicks bubble to the world"
+
 Write-Host "test_collection_p0 PASSED"

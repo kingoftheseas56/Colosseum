@@ -20,6 +20,9 @@ WorldPage {
     id: tanko
     medium: "Tankoban"
 
+    // Bubbles a tap on a Your Collection tile (from either tab) up to Main's openCollectionEntry door.
+    signal collectionOpenRequested(var entry)
+
     // Next Up (spec 2026-07-18, Jellyfin library inheritance): resume INTO the next
     // chapter/volume through the same session door Continue uses (openComicSession).
     signal nextUpReadRequested(string title, string seriesId, string unitId, string entryKind)
@@ -198,6 +201,7 @@ WorldPage {
         height: item ? item.implicitHeight : 0
         source: tanko.activeTab === "comics" ? "TankobanComicsTab.qml" : "TankobanMangaTab.qml"
         onLoaded: {
+            if (item.collectionOpenRequested) item.collectionOpenRequested.connect(tanko.collectionOpenRequested)
             if (tanko.activeTab === "comics") {
                 item.comicRows   = Qt.binding(function() { return tanko.comicRows })
                 item.comicShelves = Qt.binding(function() { return tanko.comicShelves })
