@@ -61,6 +61,10 @@ Item {
     // --- continue/resume identity (set by openPlayer; fed to the Progress store) ---
     property string mediaId: ""           // stable id (Cinemeta ttXXXX if known, else infoHash)
     property string mediaArt: ""          // poster url, for the Continue card cover
+    // --- per-show startup-loader identity (Task 4); missing values degrade to poster/subtitle ---
+    property string mediaLogo: ""         // show logo (transparent art) centered on the loader
+    property string mediaLoadingArt: ""   // episode still / show backdrop behind the loader
+    property string mediaLoadingLine: ""  // "S1 · E03 · Name" line on the loader
     property string mediaResumeHash: ""   // resume payload: re-open this torrent...
     property int    mediaResumeFileIdx: 0 //   ...at this file index
     property string mediaLocalPath: ""    // downloaded-file playback: resume by path, not torrent
@@ -1053,6 +1057,12 @@ Item {
         root.currentStreamIndex = root.findStreamIndex(infoHash, fileIdx)
         root.adjacentEpisodes = root.resolveAdjacentContext(playbackContext)
         root.updateMediaSubtitle()
+        // Per-show loader identity (Task 4): logo + episode still/line feed PlayerLoadingScreen.
+        // The producer (TheatreSeries) adds logo/episodeStill/loaderBackdrop/episodeLine to the
+        // context; local files and metadata-less contexts fall back to poster/subtitle here.
+        root.mediaLogo        = (playbackContext || ({})).logo || ""
+        root.mediaLoadingArt  = (playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl || ""
+        root.mediaLoadingLine = (playbackContext || ({})).episodeLine || root.mediaSubtitle || ""
         // Online subtitles for this exact title/episode (Harbor-style).
         root.subStreamType = subType || ""
         root.subStreamId = subId || ""
@@ -2583,12 +2593,27 @@ Item {
         onCoreSeekingChanged: if (!mpv.coreSeeking) { root.seekTargetSec = -1; seekSettleGuard.stop() }
     }
 
-    Rectangle {
-        id: loadingFrameBlanker
+    // Per-show cinematic loader (Task 5): replaces the old black blanker + title card. Covers the
+    // stale mpv frame while starting/errored and exits on the truthful first-frame advance. It
+    // yields (active:false) when the resume-choice prompt must become interactive, but `starting`
+    // is retained until the choice leads to playback. Fed by the loader identity from playTorrent.
+    PlayerLoadingScreen {
+        id: playerLoadingScreen
         anchors.fill: parent
-        z: 3
-        color: "#000000"
-        visible: root.starting || root.errored
+        z: 4
+        active: (root.starting && !root.resumeChoiceOpen) || root.errored
+        errored: root.errored
+        title: root.mediaTitle || mpv.mediaTitle
+        episodeLine: root.mediaLoadingLine
+        logoUrl: root.mediaLogo
+        backdropUrl: root.mediaLoadingArt
+        statusText: root.loadingStatusText()
+        errorText: root.loadingStatusText()
+        hudFamily: theme.hud
+        onCancelRequested: {
+            root.closeMenus()
+            root.backRequested()
+        }
     }
 
     SubStyleBar {
@@ -2792,56 +2817,8 @@ Item {
     // ring + percentage removed 2026-07-09 — "just let the title indicate buffering").
     // While a stream loads the show introduces itself: title big in the house serif +
     // the titlebar's meta line. The card's mere presence (video not yet playing) IS the
-    // buffering indicator — no spinner, no readout. A status line appears ONLY for states
-    // the title can't convey: errors (red) and special transitions (Switching/
-    // Reconnecting...). Plain buffering shows the title alone.
-    Column {
-        anchors.left: parent.left
-        anchors.leftMargin: Math.max(48, root.width * 0.06)
-        anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(root.width * 0.62, 720)
-        spacing: 0
-        visible: root.starting || root.errored
-        z: 4
-
-        Text {
-            width: parent.width
-            text: root.mediaTitle || mpv.mediaTitle
-            visible: text.length > 0
-            color: theme.ink
-            font.family: theme.display
-            font.pixelSize: Math.max(30, Math.min(52, root.width * 0.034))
-            font.weight: Font.DemiBold
-            lineHeight: 1.06
-            wrapMode: Text.WordWrap
-            maximumLineCount: 3
-            elide: Text.ElideRight
-        }
-        Item { width: 1; height: 14; visible: root.mediaSubtitle.length > 0 }
-        Text {
-            width: parent.width
-            text: root.mediaSubtitle
-            visible: text.length > 0
-            color: theme.inkDim
-            font.family: theme.hud
-            font.pixelSize: 14
-            font.letterSpacing: 0.6
-            elide: Text.ElideRight
-        }
-        Item { width: 1; height: 26; visible: statusLine.visible }
-        Text {
-            id: statusLine
-            width: Math.min(root.width - 120, 520)
-            // Keep a stable loading line under the title until playback actually advances.
-            visible: text.length > 0
-            text: root.loadingStatusText()
-            color: root.errored ? "#e6a3a3" : theme.inkDim
-            font.family: theme.hud
-            font.pixelSize: 14
-            font.weight: Font.DemiBold
-            wrapMode: Text.WordWrap
-        }
-    }
+    // The old title-card + status Column was folded into PlayerLoadingScreen (Task 5) — the loader
+    // now owns the title/logo, episode line, status text, and the indeterminate bar.
 
     Rectangle {
         id: chrome
