@@ -1060,10 +1060,15 @@ Item {
         // Per-show loader identity (Task 4): logo + episode still/line feed PlayerLoadingScreen.
         // The producer (TheatreSeries) adds logo/episodeStill/loaderBackdrop/episodeLine to the
         // context; local files and metadata-less contexts fall back to poster/subtitle here.
-        root.mediaLogo        = (playbackContext || ({})).logo || ""
+        // Logo: prefer the context's, else DERIVE the metahub logo from the imdb id already present
+        // in the art URL. Many open paths (universe Watch, continue, etc.) pass an EMPTY context, so
+        // deriving here is what makes the Stremio logo appear everywhere, not only from the series page.
+        var _ttMatch = String(posterUrl || "").match(/\/(tt\d+)\//)
+        var _ttId = _ttMatch ? _ttMatch[1] : ""
+        root.mediaLogo        = (playbackContext || ({})).logo
+            || (_ttId ? "https://live.metahub.space/logo/medium/" + _ttId + "/img" : "")
         root.mediaLoadingArt  = (playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl || ""
         // Loader subline = the CLEAN episode line only (never the torrent source/quality string).
-        // Empty for movies/local files, which then show just the logo or title, Stremio-style.
         root.mediaLoadingLine = (playbackContext || ({})).episodeLine || ""
         // Online subtitles for this exact title/episode (Harbor-style).
         root.subStreamType = subType || ""

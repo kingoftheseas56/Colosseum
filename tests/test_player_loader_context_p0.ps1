@@ -24,6 +24,8 @@ Assert-Contains $series 'TheatreApi.normalizeArtUrl' "Loader art must be normali
 
 # --- consumer: PlayerPage.playTorrent copies all four values with fallbacks ---
 Assert-Contains $player 'root.mediaLogo        = (playbackContext || ({})).logo'            "playTorrent must copy the show logo."
+# Empty-context open paths (universe Watch, continue) still get a logo, derived from the imdb id.
+Assert-Contains $player 'https://live.metahub.space/logo/medium/'                            "Logo must derive from the metahub endpoint when the context omits it."
 Assert-Contains $player '(playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl' "Loader art must fall back episodeStill -> loaderBackdrop -> poster."
 # The loader subline is the CLEAN episode line only — never the torrent source/quality string.
 Assert-Contains $player 'root.mediaLoadingLine = (playbackContext || ({})).episodeLine || ""'  "Loader line must be the clean episode line only (no source cruft)."
