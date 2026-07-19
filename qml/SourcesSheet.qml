@@ -34,9 +34,14 @@ Item {
     property int gen: 0
     property string qualityFilter: "all"
     property var visibleRows: filteredRows()
-    // "play" (default — every pre-existing caller) or "download": in download mode
-    // choosing a row queues that exact torrent instead of playing (spec 2026-07-11).
+    // "play" (default — every pre-existing caller), "download" (choosing a row
+    // queues that exact torrent instead of playing, spec 2026-07-11), or "season"
+    // (2026-07-19): the season checkout's picker — only FULL-SEASON torrents are
+    // listed, the pick pins the whole season to that one torrent. When the ask
+    // finishes with zero packs the sheet bows out via seasonNoPacks and the page
+    // falls back to the per-episode auto path.
     property string mode: "play"
+    property int pickSeason: 0   // the season the "season" ask is for (context.season)
     // Play-mode per-row download (2026-07-19): the ↓ beside the copy queues THIS
     // title pinned to THAT torrent. One download per title: the store is idempotent
     // by id, so after one pick (this visit or an earlier one) a second row's pick
@@ -55,8 +60,10 @@ Item {
 
     // a source row was chosen → play it (handled up at Main, which opens the player)
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
-    // download mode's row action: the full chosen row (infoHash/fileIdx/url/…)
+    // download/season mode's row action: the full chosen row (infoHash/fileIdx/url/…)
     signal downloadRequested(var row)
+    // season mode only: the ask came back with no full-season torrent
+    signal seasonNoPacks()
 
     visible: sheet.open || sheet.opacity > 0.01
     opacity: sheet.open ? 1 : 0
@@ -65,7 +72,8 @@ Item {
     Theme { id: theme }
 
     function show(type, id, lbl, context, pickMode) {
-        sheet.mode = (pickMode === "download") ? "download" : "play";
+        sheet.mode = (pickMode === "download" || pickMode === "season") ? pickMode : "play";
+        sheet.pickSeason = (context && context.season !== undefined) ? Number(context.season) : 0;
         sheet.subType = type ? type : "";
         sheet.subId = id ? id : "";
         sheet.label = lbl ? lbl : "";
@@ -90,7 +98,7 @@ Item {
         sheet.askedNames = exts.map(function(e) {
             return (e.manifest && e.manifest.name) || e.id;
         });
-        if (!exts.length) { sheet.loading = false; return; }
+        if (!exts.length) { sheet.loading = false; seasonSettle(); return; }
 
         AddonClient.loadStreams(exts, type, id,
             function(partialRows) {                 // one extension answered, more out
@@ -102,7 +110,18 @@ Item {
                 sheet.rows = allRows;
                 sheet.loading = false;
                 timeout.stop();
+                seasonSettle();
             });
+    }
+
+    // season mode, ask over, zero full-season torrents → hand the page the
+    // auto-pick fallback and get out of the way
+    function seasonSettle() {
+        if (sheet.mode !== "season" || sheet.loading || !sheet.open) return;
+        if (baseRows().length === 0) {
+            sheet.seasonNoPacks();
+            sheet.hide();
+        }
     }
 
     function hide() {
@@ -111,19 +130,31 @@ Item {
         timeout.stop();
     }
 
-    function filteredRows() {
-        if (sheet.qualityFilter === "all") return sheet.rows;
+    // the mode's row universe: season mode sees only full-season torrents,
+    // everything else sees the raw answer. Quality pills filter on top of this.
+    function baseRows() {
+        if (sheet.mode !== "season") return sheet.rows;
         var out = [];
         for (var i = 0; i < sheet.rows.length; ++i)
-            if (sheet.rows[i].quality === sheet.qualityFilter) out.push(sheet.rows[i]);
+            if (AddonClient.isSeasonPack(sheet.rows[i], sheet.pickSeason)) out.push(sheet.rows[i]);
+        return out;
+    }
+
+    function filteredRows() {
+        var base = baseRows();
+        if (sheet.qualityFilter === "all") return base;
+        var out = [];
+        for (var i = 0; i < base.length; ++i)
+            if (base[i].quality === sheet.qualityFilter) out.push(base[i]);
         return out;
     }
 
     function countFor(q) {
-        if (q === "all") return sheet.rows.length;
+        var base = baseRows();
+        if (q === "all") return base.length;
         var n = 0;
-        for (var i = 0; i < sheet.rows.length; ++i)
-            if (sheet.rows[i].quality === q) ++n;
+        for (var i = 0; i < base.length; ++i)
+            if (base[i].quality === q) ++n;
         return n;
     }
 
@@ -144,7 +175,7 @@ Item {
         interval: 22000
         repeat: false
         // partial answers in hand at the bell = a result, not an error
-        onTriggered: if (sheet.loading) { sheet.loading = false; sheet.timedOut = sheet.rows.length === 0 }
+        onTriggered: if (sheet.loading) { sheet.loading = false; sheet.timedOut = sheet.rows.length === 0; sheet.seasonSettle() }
     }
 
     // ===================== base: float over the wallpaper, not a flat void =====================
@@ -200,9 +231,11 @@ Item {
         anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
         spacing: 12
         Text {
-            visible: sheet.mode === "download" || sheet.metaLine.length > 0
+            visible: sheet.mode !== "play" || sheet.metaLine.length > 0
             width: parent.width
-            text: (sheet.mode === "download" ? "DOWNLOAD — PICK A SOURCE" +
+            text: (sheet.mode === "season" ? "DOWNLOAD SEASON — FULL-SEASON TORRENTS" +
+                       (sheet.metaLine.length ? "  ·  " + sheet.metaLine : "")
+                     : sheet.mode === "download" ? "DOWNLOAD — PICK A SOURCE" +
                        (sheet.metaLine.length ? "  ·  " + sheet.metaLine : "")
                      : sheet.metaLine).toUpperCase()
             color: theme.gold; font.family: theme.ui; font.pixelSize: 12
@@ -448,17 +481,17 @@ Item {
                     scale: rowMa.containsMouse ? 1.05 : 1.0
                     Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                     Text { anchors.centerIn: parent
-                        anchors.horizontalCenterOffset: sheet.mode === "download" ? 0 : 2
-                        text: sheet.mode === "download" ? "↓" : "▶"
+                        anchors.horizontalCenterOffset: sheet.mode === "play" ? 2 : 0
+                        text: sheet.mode === "play" ? "▶" : "↓"
                         color: "#1a1306"; font.pixelSize: 18
-                        font.weight: sheet.mode === "download" ? Font.DemiBold : Font.Normal }
+                        font.weight: sheet.mode === "play" ? Font.Normal : Font.DemiBold }
                 }
 
                 MouseArea {
                     id: rowMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (sheet.mode === "download") {
+                        if (sheet.mode !== "play") {   // download & season: the pick IS the download
                             sheet.downloadRequested(row.modelData)
                             sheet.hide()
                         } else {

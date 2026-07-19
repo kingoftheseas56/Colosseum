@@ -204,6 +204,39 @@ function parseStream(s, addonName, addonPriority) {
     };
 }
 
+// ------------------------------------------------------------ season packs
+
+// Season-pack test (season checkout picker, 2026-07-19). A row answers an
+// EPISODE ask, so a pack is a torrent whose NAME doesn't pin that single
+// episode but does claim the season — or a complete/batch/episode-range run.
+// The filename hint (the file inside the torrent) is ignored on purpose: packs
+// carry the episode's file, the torrent name is the truth about the container.
+// A false positive degrades gracefully — the resolver falls back to rank-best
+// for any episode the picked torrent doesn't actually carry.
+function isSeasonPack(row, season) {
+    if (row.streamKind !== "Torrent") return false;   // a direct url is one file
+    var name = String(row.release || "").toLowerCase();
+    if (!name.length) return false;
+    // an episode RANGE reads as a run, not one episode: S01E01-E26, (001-1071).
+    // Two forms because \b can't sit inside "s01e01-e26" (all word chars): the
+    // e-anchored form rides mid-token, the bare-number form needs boundaries.
+    var eRange = /e\d{1,4}\s*[-~]\s*e?\d{1,4}\b/.test(name)
+              || /\b\d{1,4}\s*[-~]\s*\d{1,4}\b/.test(name);
+    // a single-episode pin: S01E05 / 1x05
+    var sxe = /s\d{1,2}\s*[._\- ]?e\d{1,4}/.test(name) || /\b\d{1,2}x\d{2,4}\b/.test(name);
+    if (sxe && !eRange) return false;
+    // anime single-file style: "EP0001", "Ep. 12", " - 1071 " with no season claim
+    if (/\bep\.?\s*\d{1,4}\b/.test(name) && !eRange) return false;
+    var s = Number(season) || 0;
+    if (s > 0) {
+        var padded = (s < 10 ? "0" : "") + s;
+        if (new RegExp("\\bs" + padded + "\\b").test(name)) return true;       // bare S01
+        if (new RegExp("season\\s*" + s + "\\b").test(name)) return true;      // Season 1
+    }
+    if (/complete|batch|integrale|full\s*season|all\s*episodes/.test(name)) return true;
+    return eRange;
+}
+
 // ------------------------------------------------------------ aggregation
 
 function _rowKey(r) {

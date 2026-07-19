@@ -53,6 +53,7 @@ Item {
     property var seasonQueued: ({})   // season -> queued this visit
     property var pendingDownloadEpisode: null   // episode awaiting a source pick in the sheet
     property var sheetEpisode: null   // episode the PLAY-mode sheet is open for (per-row ↓ download)
+    property bool pendingSeasonPick: false   // season checkout's picker is open in the sheet
     property bool seasonMenuOpen: false
     property string episodeJumpDraft: ""
     property bool loading: true
@@ -171,16 +172,29 @@ Item {
         return activeSeason === 0 ? "Specials" : "Season " + activeSeason;
     }
 
-    function queueSeasonDownload() {
+    // Season checkout (torrent-pick rework 2026-07-19): `pick` (optional) is the
+    // FULL-SEASON torrent Hemanth chose in the sheet — every episode job pins that
+    // infoHash with fileIdx -1 ("find my file inside it at resolve time"); an
+    // episode the pack doesn't carry falls back to rank-best on its own. No pick
+    // (the no-packs fallback) = the original per-episode auto path. Episodes
+    // enqueue in ascending order and the store promotes one at a time, FIFO — the
+    // season always downloads sequentially.
+    function queueSeasonDownload(pick) {
         if (typeof Download === "undefined")
             return;
+        var pinHash = "";
+        if (pick) {
+            var h = String(pick.infoHash || "");
+            if (h.length && h.indexOf("url:") !== 0)
+                pinHash = h;
+        }
         var reqs = [];
         for (var i = 0; i < episodes.length; i++) {
             var v = episodes[i];
             var sid = episodeStreamId(v);
             if (Download.hasVideo(sid))
                 continue;   // already on disk
-            reqs.push({
+            var req = {
                 "id": sid,
                 "kind": "episode",
                 "title": page.title + " - S" + episodeSeason(v) + "E" + episodeNumber(v),
@@ -189,7 +203,12 @@ Item {
                 "season": episodeSeason(v),
                 "episode": episodeNumber(v),
                 "art": page.cover
-            });
+            };
+            if (pinHash.length) {
+                req["infoHash"] = pinHash;
+                req["fileIdx"] = -1;   // hash-only pin: resolver matches the episode's file
+            }
+            reqs.push(req);
         }
         if (reqs.length) {
             Download.enqueueBatch(reqs);
@@ -198,6 +217,34 @@ Item {
         var q = seasonQueued;
         q[activeSeason] = true;
         seasonQueued = q;
+    }
+
+    // "Download <season>" now fronts the sheet as a FULL-SEASON torrent picker
+    // (season mode). The first not-yet-downloaded episode carries the ask — packs
+    // ride every episode's stream list. Zero packs → onSeasonNoPacks → auto path.
+    function openSeasonPicker() {
+        if (typeof Download === "undefined")
+            return;
+        var target = null;
+        for (var i = 0; i < episodes.length; i++) {
+            if (!Download.hasVideo(episodeStreamId(episodes[i]))) { target = episodes[i]; break; }
+        }
+        if (!target) {   // whole season already on disk — just mark it
+            var q = seasonQueued;
+            q[activeSeason] = true;
+            seasonQueued = q;
+            return;
+        }
+        page.pendingSeasonPick = true
+        sources.show("series", episodeStreamId(target),
+                     page.title + " - " + seasonLabel(),
+                     Object.assign({
+                         "title": page.title,
+                         "metaLine": seasonLabel(),
+                         "backdrop": sourceBackdrop(),
+                         "season": activeSeason
+                     }, adjacentEpisodeContext(target)),
+                     "season")
     }
 
     // Single-episode download (parity spec 2026-07-06 F4; torrent-choice spec
@@ -1118,7 +1165,7 @@ Item {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 enabled: !page.seasonQueued[page.activeSeason]
-                                onClicked: page.queueSeasonDownload()
+                                onClicked: page.openSeasonPicker()
                             }
                         }
 
@@ -1654,7 +1701,11 @@ Item {
         backdrop: page.backdrop
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
         onDownloadRequested: (row) => {
-            if (page.pendingDownloadEpisode) {
+            if (page.pendingSeasonPick) {
+                // season-mode pick: the chosen FULL-SEASON torrent pins the checkout
+                page.queueSeasonDownload(row)
+                page.pendingSeasonPick = false
+            } else if (page.pendingDownloadEpisode) {
                 // download-mode pick (episode ↓ opened the sheet as a picker)
                 page.queueEpisodeDownload(page.pendingDownloadEpisode, row)
                 page.pendingDownloadEpisode = null
@@ -1664,6 +1715,19 @@ Item {
             } else if (page.mediaType === "movie") {
                 page.queueMovieDownload(row)
             }
+        }
+        // no full-season torrent in the answer → the original auto path (rank-best
+        // per episode), and the button flips to "queued" exactly as before
+        onSeasonNoPacks: {
+            if (page.pendingSeasonPick)
+                page.queueSeasonDownload(null)
+            page.pendingSeasonPick = false
+        }
+        // Backing out of a picker un-arms it — a stale pick marker must never
+        // route a later play-mode sheet's row into the wrong queue action.
+        onOpenChanged: if (!sources.open) {
+            page.pendingSeasonPick = false
+            page.pendingDownloadEpisode = null
         }
     }
 }

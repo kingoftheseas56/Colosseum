@@ -31,6 +31,15 @@ MustContain "qml/SourcesSheet.qml" 'id: dlBtn'                          "per-row
 MustContain "qml/TheatreSeries.qml" 'sheetEpisode'                      "play-mode sheet remembers its episode for the per-row pick"
 MustContain "qml/TheatreSeries.qml" 'function queueMovieDownload(pick)' "movie sheets honor the per-row pick too"
 
+# Season checkout picker (2026-07-19): full-season torrents only, auto fallback
+MustContain "qml/AddonClient.js" 'function isSeasonPack(row, season)'   "pure pack test - behavior covered by season_pack_harness.qml"
+MustContain "qml/SourcesSheet.qml" 'signal seasonNoPacks()'             "zero packs hands the page the auto fallback"
+MustContain "qml/SourcesSheet.qml" 'function baseRows()'                "season mode narrows the row universe to packs"
+MustContain "qml/TheatreSeries.qml" 'function openSeasonPicker()'       "the season button fronts the picker, not a blind queue"
+MustContain "qml/TheatreSeries.qml" 'onSeasonNoPacks'                   "no packs -> original per-episode auto path"
+MustContain "qml/TheatreSeries.qml" '"fileIdx"] = -1'                   "season pick pins hash-only, file resolves per episode"
+MustContain "qml/Main.qml" 'pin.fileIdx >= 0'                           "resolver forks exact pin vs hash-only pin"
+
 # Main: pinned jobs skip the source search
 MustContain "qml/Main.qml" 'pinnedPickFor'                             "resolver looks up the job's pin"
 

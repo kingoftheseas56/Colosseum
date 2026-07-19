@@ -653,7 +653,9 @@ Window {
     // torrent-choice pin (spec 2026-07-11): a hand-picked job carries infoHash/fileIdx
     // in its request; jobs() exposes them. Pinned -> prefetch exactly that torrent, no
     // source search, and Retry retries the SAME pick (the choice is durable — never
-    // silently swapped). Unpinned (season checkout, old queued jobs) -> rank-best below.
+    // silently swapped). fileIdx -1 = hash-only pin (season-pack checkout 2026-07-19):
+    // the torrent is chosen, the episode's file inside it resolves via the source
+    // search below. Unpinned (auto fallback, old queued jobs) -> rank-best below.
     function pinnedPickFor(id) {
         var js = Download.jobs()
         for (var i = 0; i < js.length; i++) {
@@ -666,7 +668,7 @@ Window {
     }
     function resolveDownloadJob(id, streamId, mediaType) {
         var pin = pinnedPickFor(id)
-        if (pin) {
+        if (pin && pin.fileIdx >= 0) {
             var pkey = pin.infoHash.toLowerCase() + ":" + pin.fileIdx
             win.pendingFeeds[pkey] = id
             Stream.prefetch(pin.infoHash, pin.fileIdx)
@@ -678,6 +680,18 @@ Window {
                 return
             }
             var best = rows[0]
+            // hash-only pin (fileIdx -1, the season-pack checkout 2026-07-19): the
+            // torrent was hand-picked, the file inside it wasn't known at queue time.
+            // Prefer THIS episode's row from the picked torrent; the pack not
+            // carrying this episode -> the rank-best fallback above stands.
+            if (pin) {
+                for (var p = 0; p < rows.length; p++) {
+                    if (String(rows[p].infoHash || "").toLowerCase() === pin.infoHash.toLowerCase()) {
+                        best = rows[p]
+                        break
+                    }
+                }
+            }
             // prefetch (NOT play): the url arrives via onFetchReady once the engine
             // is genuinely up. The old synchronous streamUrl() read raced a cold
             // engine and fed "" — the job then sat "resolving" forever (the
