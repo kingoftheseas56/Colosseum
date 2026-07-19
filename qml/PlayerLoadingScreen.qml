@@ -67,11 +67,21 @@ Item {
         }
     }
 
-    // Center identity: logo when it has arrived, else the title in the HUD face.
+    // Center identity: the show LOGO dominates when present (Stremio/Harbor), else a big title.
+    // Both breathe with a slow pulse; the episode line sits beneath in uppercase tracking.
     Column {
+        id: identity
         anchors.centerIn: parent
         width: parent.width * 0.72
-        spacing: 16
+        spacing: 20
+
+        // slow breathing pulse (Harbor's animate-loader-pulse)
+        SequentialAnimation on opacity {
+            running: root.active
+            loops: Animation.Infinite
+            NumberAnimation { from: 1.0; to: 0.78; duration: 1400; easing.type: Easing.InOutSine }
+            NumberAnimation { from: 0.78; to: 1.0; duration: 1400; easing.type: Easing.InOutSine }
+        }
 
         Image {
             id: logo
@@ -81,20 +91,21 @@ Item {
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             cache: true
-            height: 44
-            width: Math.min(implicitWidth, parent.width)
-            sourceSize.height: 88
+            // Prominent, like Stremio: up to ~160 px tall and 72% of frame width.
+            height: Math.round(Math.min(160, root.height * 0.22))
+            width: Math.min(implicitWidth, identity.width)
+            sourceSize.height: 320
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: !logo.visible && root.title.length > 0
-            width: root.width * 0.72
+            width: identity.width
             text: root.title
-            color: "#f7f7f5"
+            color: "#ffffff"
             font.family: root.hudFamily
-            font.pixelSize: Math.max(30, Math.min(60, root.width * 0.034))
+            font.pixelSize: Math.max(34, Math.min(64, root.width * 0.036))
             font.weight: Font.DemiBold
-            lineHeight: 1.05
+            lineHeight: 1.0
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
             maximumLineCount: 3
@@ -104,11 +115,11 @@ Item {
             anchors.horizontalCenter: parent.horizontalCenter
             visible: root.episodeLine.length > 0
             text: root.episodeLine.toUpperCase()
-            color: "#c9c8d0"
+            color: "#d8d8dd"
             font.family: root.hudFamily
             font.pixelSize: 13
             font.weight: Font.DemiBold
-            font.letterSpacing: 3
+            font.letterSpacing: 4
             horizontalAlignment: Text.AlignHCenter
         }
     }

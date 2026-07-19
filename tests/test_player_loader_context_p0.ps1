@@ -25,6 +25,7 @@ Assert-Contains $series 'TheatreApi.normalizeArtUrl' "Loader art must be normali
 # --- consumer: PlayerPage.playTorrent copies all four values with fallbacks ---
 Assert-Contains $player 'root.mediaLogo        = (playbackContext || ({})).logo'            "playTorrent must copy the show logo."
 Assert-Contains $player '(playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl' "Loader art must fall back episodeStill -> loaderBackdrop -> poster."
-Assert-Contains $player '(playbackContext || ({})).episodeLine || root.mediaSubtitle'       "Loader line must fall back to the media subtitle."
+# The loader subline is the CLEAN episode line only — never the torrent source/quality string.
+Assert-Contains $player 'root.mediaLoadingLine = (playbackContext || ({})).episodeLine || ""'  "Loader line must be the clean episode line only (no source cruft)."
 
 Write-Host "Player loader-context contract checks passed."

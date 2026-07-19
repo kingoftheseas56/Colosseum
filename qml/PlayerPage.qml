@@ -1062,7 +1062,9 @@ Item {
         // context; local files and metadata-less contexts fall back to poster/subtitle here.
         root.mediaLogo        = (playbackContext || ({})).logo || ""
         root.mediaLoadingArt  = (playbackContext || ({})).episodeStill || (playbackContext || ({})).loaderBackdrop || posterUrl || ""
-        root.mediaLoadingLine = (playbackContext || ({})).episodeLine || root.mediaSubtitle || ""
+        // Loader subline = the CLEAN episode line only (never the torrent source/quality string).
+        // Empty for movies/local files, which then show just the logo or title, Stremio-style.
+        root.mediaLoadingLine = (playbackContext || ({})).episodeLine || ""
         // Online subtitles for this exact title/episode (Harbor-style).
         root.subStreamType = subType || ""
         root.subStreamId = subId || ""
@@ -2603,7 +2605,8 @@ Item {
         z: 4
         active: (root.starting && !root.resumeChoiceOpen) || root.errored
         errored: root.errored
-        title: root.mediaTitle || mpv.mediaTitle
+        // Clean show name for the loader — strip a trailing " - S3E4" so the episode line owns S/E.
+        title: (root.mediaTitle || mpv.mediaTitle || "").replace(/\s+[-–—]\s+S\d+\s*E\d+.*$/i, "")
         episodeLine: root.mediaLoadingLine
         logoUrl: root.mediaLogo
         backdropUrl: root.mediaLoadingArt
