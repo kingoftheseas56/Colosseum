@@ -6,7 +6,7 @@
   height="24"
   viewBox="0 0 24 24"
   fill="none"
-  stroke="currentColor"
+  stroke="#ffffff"
   stroke-width="2"
   stroke-linecap="round"
   stroke-linejoin="round"
@@ -15,3 +15,4 @@
   <path d="M16 9a5 5 0 0 1 0 6" />
   <path d="M19.364 18.364a9 9 0 0 0 0-12.728" />
 </svg>
+

@@ -4,3 +4,4 @@ tarball:   https://registry.npmjs.org/lucide-static/-/lucide-static-0.460.0.tgz
 integrity: sha512-X6pIdg7jVxv7YQ/uR241hwhNiztcAfmj181TbcX7HCxxk/3mGaRtAc6b2ftUvQBufbJE6ehgyzO2uVsa604tWg==
 icons:     arrow-left, rotate-ccw, rotate-cw, skip-back, skip-forward, play, pause, maximize, minimize, minus, x, volume-2, volume-x, audio-lines, captions, gallery-horizontal-end, scan, circle-alert
 note:      Vendored via scripts/vendor_lucide_player_icons.ps1 - do NOT hand-edit these SVGs.
+transform: stroke currentColor -> #ffffff so MultiEffect colorization tints at full brightness.

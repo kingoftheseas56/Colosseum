@@ -44,7 +44,12 @@ try {
     foreach ($name in $icons) {
         $src = Join-Path $srcIcons "$name.svg"
         if (-not (Test-Path $src)) { throw "icon '$name' is not in $pkg (package/icons)." }
-        Copy-Item $src (Join-Path $outDir "$name.svg") -Force
+        # Recolor stroke to explicit WHITE. Lucide ships black line art (stroke="currentColor",
+        # which Qt renders black). Our QML tints via MultiEffect colorization, whose result is
+        # modulated by SOURCE luminance -> a black source colorizes to black (invisible on the dark
+        # player). A white source colorizes to the exact ink (white / gold / dark) at full brightness.
+        (Get-Content $src -Raw).Replace('currentColor', '#ffffff') |
+            Set-Content -Path (Join-Path $outDir "$name.svg") -Encoding ascii
     }
     Copy-Item (Join-Path $tmp "package/LICENSE") (Join-Path $outDir "LICENSE") -Force
 
@@ -55,6 +60,7 @@ tarball:   $tarball
 integrity: $integrity
 icons:     $($icons -join ', ')
 note:      Vendored via scripts/vendor_lucide_player_icons.ps1 - do NOT hand-edit these SVGs.
+transform: stroke currentColor -> #ffffff so MultiEffect colorization tints at full brightness.
 "@ | Set-Content -Path (Join-Path $outDir "SOURCE.txt") -Encoding ascii
 
     Write-Host "Vendored $($icons.Count) Lucide icons + LICENSE into $outDir"
