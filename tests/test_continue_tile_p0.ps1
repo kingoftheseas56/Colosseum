@@ -28,12 +28,13 @@ Assert-Contains $ct 'kind === "manga"' "AniList fallback must be manga-gated."
 Assert-Lacks $ct 'kind === "manga" || kind === "comic"' "Comics must NOT be searched on AniList as manga (audit fix)."
 Assert-Contains $ct 'Remove from Continue' "Remove control must announce itself."
 
-# --- Home migrated, inline card dead ---
+# --- Home migrated to the AF2 glass board (2026-07-19): the Home Continue row is now an
+#     AF2 HomeRail fed by the Progress store. The world ContinueRows below still use
+#     ContinueTile (its "home"/"world" variants live on in the component, asserted above). ---
 $main = Read-File "qml/Main.qml"
 Assert-Lacks $main 'component ContinueCard' "Main.qml must not keep the inline ContinueCard (ContinueTile owns it)."
-Assert-Contains $main 'variant: "home"' "Home Continue row must use the ContinueTile home variant."
-Assert-Contains $main 'onRemoveRequested: Progress.forget' "Home tiles must wire remove to Progress.forget."
-Assert-Contains $main 'e.watched !== true' "Home row must sink watched entries below unfinished."
+Assert-Contains $main 'railTitle: "Continue"' "Home Continue must be an AF2 HomeRail."
+Assert-Contains $main 'e.watched !== true' "Home Continue must sink watched entries below unfinished."
 
 # --- world row migrated, metadata in-tile, honest header ---
 $cr = Read-File "qml/ContinueRow.qml"

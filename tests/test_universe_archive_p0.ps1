@@ -45,17 +45,17 @@ foreach ($page in $pages) {
     if ($main.Contains($page)) { throw "Main still references archived page $page" }
 }
 
-$continueAt = $main.IndexOf('id: contCol')
-$firstWidgetAt = $main.IndexOf('Bookshelf {')
-if ($continueAt -lt 0 -or $firstWidgetAt -lt 0 -or $continueAt -gt $firstWidgetAt) {
+# AF2 Home redesign (2026-07-19): Continue is now the first HomeRail on the glass board,
+# ahead of the world rails; its seam moved from the ContinueTile home variant to HomeRail.
+$continueAt = $main.IndexOf('railTitle: "Continue"')
+$firstWorldRail = $main.IndexOf('worldTag: "Theatre"')
+if ($continueAt -lt 0 -or $firstWorldRail -lt 0 -or $continueAt -gt $firstWorldRail) {
     throw 'universal Continue must be the first logical Home section'
 }
 foreach ($needle in @(
     'Progress.recent("", 12)',
-    'onMoreClicked: win.openContinueSeeAll("home")',
-    'onResumeRequested: win.resumeContinue(modelData)',
-    'onDetailRequested: win.detailContinue(modelData)',
-    'onRemoveRequested: Progress.forget(modelData.kind, modelData.id)'
+    'onSeeAll: win.openContinueSeeAll("home")',
+    'win.resumeContinue(m.entry)'
 )) {
     if (-not $main.Contains($needle)) { throw "Continue seam changed or disappeared: $needle" }
 }
