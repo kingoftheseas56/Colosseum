@@ -77,6 +77,7 @@ add_executable(colosseum
     ClipboardHelper.h
     MangaEngine.h
     ProgressStore.h
+    CollectionStore.h
     SearchHistoryStore.h
     SessionStore.h
     AudioPairingStore.h
