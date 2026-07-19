@@ -184,6 +184,12 @@ Item {
     }
     Timer { id: revealGuard; interval: 12000; repeat: false; onTriggered: page.loading = false }
 
+    function collectionEntry() {
+        return { "id": page.seriesId, "type": "comic",
+                 "title": page.seriesTitle, "cover": page.poster,
+                 "payload": ({ "tag": page.tagSlug, "tagId": page.tagId }) }
+    }
+
     function fmtMB(mb) {
         if (!mb) return ""
         return mb >= 1024 ? (mb / 1024).toFixed(1) + " GB" : mb + " MB"
@@ -336,9 +342,7 @@ Item {
 
                         LibraryButton {
                             world: "tankoban"
-                            entry: ({ "id": page.seriesId, "type": "comic",
-                                      "title": page.seriesTitle, "cover": page.poster,
-                                      "payload": ({ "tag": page.tagSlug, "tagId": page.tagId }) })
+                            entry: page.collectionEntry()
                         }
                     }
                 }
@@ -505,6 +509,7 @@ Item {
                                             Comics.downloadIssue(row.relId, row.modelData.url, page.seriesId,
                                                                  page.seriesTitle, row.modelData.name,
                                                                  (row.modelData.sizeMB || 0) * 1024 * 1024)
+                                            Collection.add("tankoban", page.collectionEntry())
                                         }
                                         // download-fed: tap reads what's on disk, else downloads it
                                         function primary() {

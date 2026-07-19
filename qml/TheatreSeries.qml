@@ -183,8 +183,10 @@ Item {
                 "art": page.cover
             });
         }
-        if (reqs.length)
+        if (reqs.length) {
             Download.enqueueBatch(reqs);
+            Collection.add("theatre", page.collectionEntry())
+        }
         var q = seasonQueued;
         q[activeSeason] = true;
         seasonQueued = q;
@@ -224,6 +226,7 @@ Item {
             }
         }
         Download.enqueueBatch([req]);
+        Collection.add("theatre", page.collectionEntry())
     }
 
     // ids currently sitting in the download queue (any state) — recomputed on every queue

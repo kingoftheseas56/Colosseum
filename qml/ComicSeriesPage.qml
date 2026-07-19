@@ -151,6 +151,12 @@ Item {
         })
     }
 
+    function collectionEntry() {
+        return { "id": page.locgId, "type": "comic",
+                 "title": page.seriesTitle, "cover": page.cover,
+                 "payload": ({ "locgMeta": page.locgMeta }) }
+    }
+
     // metadata line: status · released · N issues (empties omitted)
     function metaLine() {
         var m = page.locgMeta || ({})
@@ -324,9 +330,7 @@ Item {
 
                     LibraryButton {
                         world: "tankoban"
-                        entry: ({ "id": page.locgId, "type": "comic",
-                                  "title": page.seriesTitle, "cover": page.cover,
-                                  "payload": ({ "locgMeta": page.locgMeta }) })
+                        entry: page.collectionEntry()
                     }
                 }
             }
@@ -406,6 +410,7 @@ Item {
                                 Comics.downloadIssue(row.chId, row.modelData.postUrl, "gc:" + page.gcTag,
                                                      page.seriesTitle, String(row.modelData.label || ""),
                                                      (row.modelData.sizeMB || 0) * 1024 * 1024)
+                                Collection.add("tankoban", page.collectionEntry())
                             }
                             function primary() {
                                 if (row.gcUnmatched) return           // honest dim — no fake verb
@@ -571,6 +576,7 @@ Item {
                                     Comics.downloadIssue(crow.chId, crow.modelData.url, "gc:" + page.gcTag,
                                                          page.seriesTitle, String(crow.modelData.name || ""),
                                                          (crow.modelData.sizeMB || 0) * 1024 * 1024)
+                                    Collection.add("tankoban", page.collectionEntry())
                                 }
                             }
                             function refreshDl() {

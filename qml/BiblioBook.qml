@@ -145,8 +145,14 @@ Item {
             for (var j = 0; j < detail.torrents.length; j++)
                 if (BookTorrents.isDownloaded(detail.torrents[j].infoHash)) BookTorrents.deleteDownload(detail.torrents[j].infoHash)
     }
+    function collectionEntry() {
+        return { "id": detail.pairKey, "type": "book",
+                 "title": detail.book.title || "", "cover": detail.book.cover || "",
+                 "payload": ({ "book": detail.book }) }
+    }
     function startDownload(ed) {
         if (!ed) return
+        Collection.add("biblio", detail.collectionEntry())
         detail.clearExistingCopies()   // replace, don't accumulate
         // LibGen rows carry an md5 the native engine pulls in-app; page-URL sources (e.g.
         // OceanofPDF, when it lands) open the page to grab the file until native fetch arrives.
@@ -326,9 +332,7 @@ Item {
                         height: 50
                         radius: 13
                         world: "biblio"
-                        entry: ({ "id": detail.pairKey, "type": "book",
-                                  "title": detail.book.title || "", "cover": detail.book.cover || "",
-                                  "payload": { "book": detail.book } })
+                        entry: detail.collectionEntry()
                     }
                     // (The standalone Listen button is retired — Hemanth 2026-07-18: the reader IS
                     // the audiobook player. A downloaded audiobook auto-attaches; Read opens the
@@ -481,6 +485,7 @@ Item {
                                         if (torRow.dlState !== "downloading" && torRow.dlState !== "resolving") {
                                             detail.clearExistingCopies()   // replace any previous copy of this book
                                             BookTorrents.download(torRow.modelData.infoHash, detail.book.title, detail.book.author || "")
+                                            Collection.add("biblio", detail.collectionEntry())
                                         }
                                     }
                                 }
@@ -718,6 +723,7 @@ Item {
                                                 ? Reader2Bridge.bookKey(detail.localPath) : ""
                                             Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash,
                                                 detail.book.title || "", detail.book.author || "", bookId)
+                                            Collection.add("biblio", detail.collectionEntry())
                                         })
                                     }
                                 }

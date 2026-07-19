@@ -53,4 +53,11 @@ Assert-Contains (Read-File "qml/TankobanMangaTab.qml") 'e.type === "manga"' "Man
 Assert-Contains (Read-File "qml/TankobanComicsTab.qml") 'e.type === "comic"' "Comics tab filters its Collection"
 Assert-Contains (Read-File "qml/TankobanWorld.qml") 'collectionOpenRequested.connect(tanko.collectionOpenRequested)' "tab clicks bubble to the world"
 
+# Download == collect: every world's download path also adds to Collection.
+Assert-Contains $ts 'Collection.add("theatre", page.collectionEntry())' "Theatre download auto-collects"
+Assert-Contains (Read-File "qml/MangaSeries.qml") 'Collection.add("tankoban", page.collectionEntry())' "Manga download auto-collects"
+Assert-Contains (Read-File "qml/ComicSeries.qml") 'Collection.add("tankoban", page.collectionEntry())' "ComicSeries download auto-collects"
+Assert-Contains (Read-File "qml/ComicSeriesPage.qml") 'Collection.add("tankoban", page.collectionEntry())' "ComicSeriesPage download auto-collects"
+Assert-Contains (Read-File "qml/BiblioBook.qml") 'Collection.add("biblio", detail.collectionEntry())' "Biblio download auto-collects"
+
 Write-Host "test_collection_p0 PASSED"

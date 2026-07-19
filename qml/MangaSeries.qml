@@ -172,6 +172,11 @@ Item {
     property var visibleChapters: loading ? []
         : (volGroups.options.length ? (volGroups.byKey[shownVol] || []) : chaptersModel)
 
+    function collectionEntry() {
+        return { "id": page.seriesTitle, "type": "manga",
+                 "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
+    }
+
     function volRange(volNum) {
         for (var i = 0; i < volumes.length; i++)
             if (String(volumes[i].number) === volNum)
@@ -447,8 +452,7 @@ Item {
 
                         LibraryButton {
                             world: "tankoban"
-                            entry: ({ "id": page.seriesTitle, "type": "manga",
-                                      "title": page.seriesTitle, "cover": page.cover, "payload": ({}) })
+                            entry: page.collectionEntry()
                         }
                     }
                 }
@@ -667,6 +671,7 @@ Item {
                                                           ? chs[i].name : ("Chapter " + (chs[i].number || ""))
                                                 Downloads.downloadChapter(id, page.seriesId, page.seriesTitle, lbl)
                                             }
+                                            Collection.add("tankoban", page.collectionEntry())
                                         } }
                                 }
                             }
@@ -722,6 +727,7 @@ Item {
                                     if (typeof Downloads === "undefined" || !row.chId.length) return
                                     row.dlState = "queued"
                                     Downloads.downloadChapter(row.chId, page.seriesId, page.seriesTitle, row.chLabel())
+                                    Collection.add("tankoban", page.collectionEntry())
                                 }
                                 // download-fed: tap reads a downloaded chapter, else downloads it (the reader only opens what's on disk)
                                 function primary() {
