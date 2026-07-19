@@ -24,6 +24,13 @@ MustContain "qml/TheatreSeries.qml" 'function queueEpisodeDownload(v, pick)' "pi
 MustContain "native/player/downloadstore.cpp" '"infoHash"'             "jobs() whitelist exposes the pinned hash"
 MustContain "native/player/downloadstore.cpp" '"fileIdx"'              "jobs() whitelist exposes the pinned file index"
 
+# Play-mode per-row download (2026-07-19): the button beside the copy pins THIS torrent
+MustContain "qml/SourcesSheet.qml" 'property bool titleQueued'          "one download per title - every row ticks once queued"
+MustContain "qml/SourcesSheet.qml" 'refreshTitleQueued'                 "tick pre-set from the store when the sheet opens"
+MustContain "qml/SourcesSheet.qml" 'id: dlBtn'                          "per-row download button beside the copy"
+MustContain "qml/TheatreSeries.qml" 'sheetEpisode'                      "play-mode sheet remembers its episode for the per-row pick"
+MustContain "qml/TheatreSeries.qml" 'function queueMovieDownload(pick)' "movie sheets honor the per-row pick too"
+
 # Main: pinned jobs skip the source search
 MustContain "qml/Main.qml" 'pinnedPickFor'                             "resolver looks up the job's pin"
 

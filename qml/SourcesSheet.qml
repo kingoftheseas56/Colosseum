@@ -37,6 +37,21 @@ Item {
     // "play" (default — every pre-existing caller) or "download": in download mode
     // choosing a row queues that exact torrent instead of playing (spec 2026-07-11).
     property string mode: "play"
+    // Play-mode per-row download (2026-07-19): the ↓ beside the copy queues THIS
+    // title pinned to THAT torrent. One download per title: the store is idempotent
+    // by id, so after one pick (this visit or an earlier one) a second row's pick
+    // would be silently ignored — every row's button shows the tick instead of
+    // offering a choice that can't be honored.
+    property bool titleQueued: false
+
+    function refreshTitleQueued() {
+        if (typeof Download === "undefined" || !sheet.subId.length) { sheet.titleQueued = false; return }
+        if (Download.hasVideo(sheet.subId)) { sheet.titleQueued = true; return }
+        var js = Download.jobs()
+        for (var i = 0; i < js.length; i++)
+            if (js[i].id === sheet.subId) { sheet.titleQueued = true; return }
+        sheet.titleQueued = false
+    }
 
     // a source row was chosen → play it (handled up at Main, which opens the player)
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
@@ -61,6 +76,7 @@ Item {
         sheet.rows = [];
         sheet.qualityFilter = "all";
         sheet.timedOut = false;
+        sheet.refreshTitleQueued();
         sheet.loading = true;
         sheet.open = true;
         sheet.gen += 1;
@@ -362,7 +378,8 @@ Item {
                 // copy column — every element, clean hierarchy
                 Column {
                     anchors.left: logo.right; anchors.leftMargin: 24
-                    anchors.right: copyBtn.left; anchors.rightMargin: 20
+                    anchors.right: dlBtn.visible ? dlBtn.left : copyBtn.left
+                    anchors.rightMargin: 20
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 7
 
@@ -483,6 +500,36 @@ Item {
                     }
                 }
                 Timer { id: copyTickTimer; interval: 1200; onTriggered: row.copiedTick = false }
+
+                // download — the row's third verb (2026-07-19), beside the copy: queue
+                // THIS title for download pinned to THIS torrent. Play-mode only (in
+                // download mode the whole row already IS the download pick). Stays on
+                // the sheet; the tick is per-TITLE, not per-row — see titleQueued above.
+                Rectangle {
+                    id: dlBtn
+                    visible: sheet.mode === "play" && typeof Download !== "undefined"
+                    anchors.right: copyBtn.left; anchors.rightMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 40; height: 40; radius: 20
+                    color: dlMa.containsMouse && !sheet.titleQueued ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent
+                        text: sheet.titleQueued ? "✓" : "↓"   // ✓ on its way / ↓ download this torrent
+                        color: sheet.titleQueued ? theme.gold : (dlMa.containsMouse ? theme.ink : theme.inkDim)
+                        font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        id: dlMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: sheet.titleQueued ? Qt.ArrowCursor : Qt.PointingHandCursor
+                        onClicked: {
+                            if (sheet.titleQueued)
+                                return
+                            sheet.downloadRequested(row.modelData)
+                            sheet.titleQueued = true
+                        }
+                    }
+                }
             }
         }
 

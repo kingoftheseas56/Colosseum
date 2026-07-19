@@ -52,6 +52,7 @@ Item {
     property bool episodeJumpOpen: false
     property var seasonQueued: ({})   // season -> queued this visit
     property var pendingDownloadEpisode: null   // episode awaiting a source pick in the sheet
+    property var sheetEpisode: null   // episode the PLAY-mode sheet is open for (per-row ↓ download)
     property bool seasonMenuOpen: false
     property string episodeJumpDraft: ""
     property bool loading: true
@@ -221,17 +222,43 @@ Item {
             "episode": episodeNumber(v),
             "art": page.cover
         };
-        if (pick) {
-            var h = String(pick.infoHash || "");
-            var direct = pick.url ? String(pick.url)
-                       : (h.indexOf("url:") === 0 ? h.substring(4) : "");
-            if (direct.length)
-                req["url"] = direct;            // straight to startHttp, no resolve
-            else if (h.length) {
-                req["infoHash"] = h;            // pinned: resolver prefetches exactly this
-                req["fileIdx"] = Number(pick.fileIdx || 0);
-            }
+        applyPick(req, pick);
+        Download.enqueueBatch([req]);
+        Collection.add("theatre", page.collectionEntry())
+    }
+
+    // Pin a hand-picked SourcesSheet row onto a download request: a direct/url row
+    // goes straight to startHttp (no resolve), a torrent row pins infoHash/fileIdx
+    // so the resolver prefetches exactly that torrent. No pick -> rank-best auto path.
+    function applyPick(req, pick) {
+        if (!pick)
+            return;
+        var h = String(pick.infoHash || "");
+        var direct = pick.url ? String(pick.url)
+                   : (h.indexOf("url:") === 0 ? h.substring(4) : "");
+        if (direct.length)
+            req["url"] = direct;
+        else if (h.length) {
+            req["infoHash"] = h;
+            req["fileIdx"] = Number(pick.fileIdx || 0);
         }
+    }
+
+    // Movie flavour of the per-row sheet download (2026-07-19): same pinned request,
+    // no season/episode fields — the store's groupKey falls through to the plain id.
+    function queueMovieDownload(pick) {
+        if (typeof Download === "undefined")
+            return;
+        var sid = currentId();
+        if (Download.hasVideo(sid))
+            return;   // already on disk
+        var req = {
+            "id": sid,
+            "kind": "movie",
+            "title": page.title,
+            "art": page.cover
+        };
+        applyPick(req, pick);
         Download.enqueueBatch([req]);
         Collection.add("theatre", page.collectionEntry())
     }
@@ -764,6 +791,7 @@ Item {
                                     if (page.mediaType === "series") {
                                         var ep = page.heroEpisode()
                                         if (!ep) return
+                                        page.sheetEpisode = ep
                                         sources.show("series", page.episodeStreamId(ep),
                                                      page.title + " - S" + page.episodeSeason(ep) + "E" + page.episodeNumber(ep),
                                                      Object.assign({
@@ -772,6 +800,7 @@ Item {
                                                          "backdrop": page.sourceBackdrop()
                                                      }, page.adjacentEpisodeContext(ep)))
                                     } else {
+                                        page.sheetEpisode = null
                                         sources.show("movie", page.currentId(), page.title, {
                                             "title": page.title,
                                             "year": page.year,
@@ -1492,12 +1521,15 @@ Item {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: sources.show("series", page.episodeStreamId(ep.modelData),
-                                                        page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), Object.assign({
-                                                            "title": page.title,
-                                                            "metaLine": page.episodeSourceLine(ep.modelData),
-                                                            "backdrop": page.sourceBackdrop()
-                                                        }, page.adjacentEpisodeContext(ep.modelData)))
+                                onClicked: {
+                                    page.sheetEpisode = ep.modelData
+                                    sources.show("series", page.episodeStreamId(ep.modelData),
+                                                 page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), Object.assign({
+                                                     "title": page.title,
+                                                     "metaLine": page.episodeSourceLine(ep.modelData),
+                                                     "backdrop": page.sourceBackdrop()
+                                                 }, page.adjacentEpisodeContext(ep.modelData)))
+                                }
                             }
                             // Per-episode download (parity spec F4). Declared AFTER epMa so it
                             // stacks above the row's open-sources click. Three states: on disk
@@ -1622,9 +1654,16 @@ Item {
         backdrop: page.backdrop
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
         onDownloadRequested: (row) => {
-            if (page.pendingDownloadEpisode)
+            if (page.pendingDownloadEpisode) {
+                // download-mode pick (episode ↓ opened the sheet as a picker)
                 page.queueEpisodeDownload(page.pendingDownloadEpisode, row)
-            page.pendingDownloadEpisode = null
+                page.pendingDownloadEpisode = null
+            } else if (page.mediaType === "series" && page.sheetEpisode) {
+                // play-mode per-row ↓: this episode, pinned to the clicked torrent
+                page.queueEpisodeDownload(page.sheetEpisode, row)
+            } else if (page.mediaType === "movie") {
+                page.queueMovieDownload(row)
+            }
         }
     }
 }
