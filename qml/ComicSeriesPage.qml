@@ -321,6 +321,13 @@ Item {
                         text: page.errorMsg
                         color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 14
                     }
+
+                    LibraryButton {
+                        world: "tankoban"
+                        entry: ({ "id": page.locgId, "type": "comic",
+                                  "title": page.seriesTitle, "cover": page.cover,
+                                  "payload": ({ "locgMeta": page.locgMeta }) })
+                    }
                 }
             }
 

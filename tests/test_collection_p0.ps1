@@ -45,4 +45,8 @@ Assert-Contains $bb 'world: "biblio"' "BiblioBook button is live"
 $bw = Read-File "qml/BiblioWorld.qml"
 Assert-Contains $bw 'Collection.items("biblio")' "Biblio world carries the Collection row"
 
+foreach ($f in @("qml/MangaSeries.qml", "qml/ComicSeries.qml", "qml/ComicSeriesPage.qml")) {
+    Assert-Contains (Read-File $f) 'world: "tankoban"' "$f carries the button"
+}
+
 Write-Host "test_collection_p0 PASSED"

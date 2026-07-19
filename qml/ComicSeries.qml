@@ -333,6 +333,13 @@ Item {
                             Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                                 anchors.verticalCenter: parent.verticalCenter }
                         }
+
+                        LibraryButton {
+                            world: "tankoban"
+                            entry: ({ "id": page.seriesId, "type": "comic",
+                                      "title": page.seriesTitle, "cover": page.poster,
+                                      "payload": ({ "tag": page.tagSlug, "tagId": page.tagId }) })
+                        }
                     }
                 }
             }

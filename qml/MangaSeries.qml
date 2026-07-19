@@ -444,6 +444,12 @@ Item {
                                 }
                             }
                         }
+
+                        LibraryButton {
+                            world: "tankoban"
+                            entry: ({ "id": page.seriesTitle, "type": "manga",
+                                      "title": page.seriesTitle, "cover": page.cover, "payload": ({}) })
+                        }
                     }
                 }
             }
