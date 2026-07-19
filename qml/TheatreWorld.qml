@@ -17,6 +17,8 @@ WorldPage {
     signal theatreItemRequested(var item)
     signal theatreGenreRequested(string kind, string name)
     signal theatreGenreIndexRequested(string kind)
+    // Bubbles a tap on a Your Collection tile up to Main's openCollectionEntry door.
+    signal collectionOpenRequested(var entry)
     // Next Up direct play — the exact TheatreSeries.playRequested shape, wired in Main
     // to the same openMovieSession door (spec 2026-07-18, Jellyfin library inheritance).
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
@@ -157,6 +159,14 @@ WorldPage {
         onResumeRequested: (item) => theatre.continueResumeRequested(item)
         onDetailRequested: (item) => theatre.continueDetailRequested(item)
         onSeeAllRequested: theatre.continueSeeAllRequested()
+    }
+
+    ContinueRow {
+        title: "Your Collection"
+        items: (Collection.revision, Collection.items("theatre"))
+        forgetHandler: function(e) { Collection.remove("theatre", String(e.id)) }
+        onDetailRequested: function(item) { theatre.collectionOpenRequested(item) }
+        onResumeRequested: function(item) { theatre.collectionOpenRequested(item) }
     }
 
     TheatreTabBar {

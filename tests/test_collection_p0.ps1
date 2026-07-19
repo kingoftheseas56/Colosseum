@@ -30,4 +30,8 @@ $ts = Read-File "qml/TheatreSeries.qml"
 Assert-Contains $ts 'function collectionEntry()' "TheatreSeries snapshots its identity"
 Assert-Contains $ts 'LibraryButton {' "TheatreSeries carries the button"
 
+$tw = Read-File "qml/TheatreWorld.qml"
+Assert-Contains $tw 'Collection.items("theatre")' "Theatre world carries the Collection row"
+Assert-Contains $tw 'signal collectionOpenRequested' "Theatre world bubbles collection clicks"
+
 Write-Host "test_collection_p0 PASSED"
