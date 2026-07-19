@@ -32,6 +32,7 @@
 #include "ClipboardHelper.h"
 #include "MangaEngine.h"
 #include "ProgressStore.h"
+#include "CollectionStore.h"
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
@@ -624,6 +625,11 @@ int main(int argc, char *argv[]) {
     // QSettings-backed, so it survives a restart.
     auto *progress = new ProgressStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Progress"), progress);
+
+    // Your Collection shelf exposed to QML as `Collection`: what the user CHOSE to
+    // save via the + Library toggle, distinct from Progress's auto-tracked history.
+    auto *collection = new CollectionStore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("Collection"), collection);
 
     // Read-along pairings: which audiobook is linked to which book + chapter map.
     // The reader's Audio tab writes it; opening a book reads it to auto-summon the
