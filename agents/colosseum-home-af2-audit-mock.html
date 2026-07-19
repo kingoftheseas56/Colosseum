@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colosseum Home — AF2 audit mock v2 (glass + 3 worlds)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --base:#05060a;
+    --ink:#ededed;
+    --ink70:rgba(237,237,237,.72);
+    --ink50:rgba(237,237,237,.5);
+    --ink30:rgba(237,237,237,.3);
+    --ink12:rgba(237,237,237,.12);
+    --gold:#f0c44a;
+    /* glass is the constant material */
+    --glass:rgba(255,255,255,.055);
+    --glassHi:rgba(255,255,255,.11);
+    --glassSheet:rgba(14,16,22,.42);
+    --edge:rgba(255,255,255,.16);
+    --edgeSoft:rgba(255,255,255,.09);
+    --pad:64px;
+    --disp:"Figtree",system-ui,sans-serif;
+    --body:"Inter",system-ui,sans-serif;
+    /* per-world accent — a faint tint, gold stays the only real accent */
+    --theatre:#7aa2ff; --tankoban:#f0a24a; --biblio:#9d8cff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{background:var(--base);color:var(--ink);font-family:var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  .stage{position:relative;min-height:300vh}
+
+  /* ---- living wallpaper: persists behind EVERYTHING so glass has something to frost ---- */
+  .sky{position:fixed;inset:0;z-index:0;overflow:hidden}
+  .sky img{width:100%;height:100%;object-fit:cover;object-position:50% 18%;transform:scale(1.08)}
+  .sky::after{content:"";position:absolute;inset:0;background:
+    linear-gradient(180deg, rgba(5,6,10,.28) 0%, rgba(5,6,10,0) 30%, rgba(5,6,10,.15) 55%, rgba(5,6,10,.55) 78%, rgba(5,6,10,.82) 100%),
+    linear-gradient(90deg, rgba(5,6,10,.7) 0%, rgba(5,6,10,.2) 46%, rgba(5,6,10,0) 72%);}
+
+  /* ---- glass top bar: the worlds. frosted, recedes on scroll ---- */
+  .topbar{position:fixed;top:16px;left:var(--pad);right:var(--pad);z-index:40;
+    display:flex;align-items:center;gap:24px;height:60px;padding:0 12px 0 22px;border-radius:16px;
+    background:var(--glass);border:1px solid var(--edgeSoft);
+    backdrop-filter:blur(26px) saturate(1.3);-webkit-backdrop-filter:blur(26px) saturate(1.3);
+    box-shadow:0 12px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08);
+    transition:opacity .35s, transform .35s}
+  .brand{font-family:var(--disp);font-weight:800;letter-spacing:.16em;font-size:12px;color:var(--ink70);text-transform:uppercase}
+  .brand b{color:var(--gold)}
+  .worlds{display:flex;gap:6px;margin-left:6px}
+  .world{font-family:var(--disp);font-weight:600;font-size:13.5px;color:var(--ink50);
+    padding:8px 15px;border-radius:999px;border:1px solid transparent;cursor:pointer;transition:.2s;display:flex;gap:8px;align-items:center}
+  .world .d{width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.0}
+  .world:hover{color:var(--ink);background:var(--glass)}
+  .world.on{color:#0c0d12;background:var(--ink);font-weight:700}
+  .right{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .icobtn{width:38px;height:38px;border-radius:999px;display:grid;place-items:center;
+    background:var(--glass);border:1px solid var(--edgeSoft);color:var(--ink70);cursor:pointer;transition:.2s}
+  .icobtn:hover{color:var(--ink);background:var(--glassHi)}
+  .icobtn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+  /* ---- spotlight (signature): featured hero, recedes ---- */
+  .spotlight{position:fixed;left:var(--pad);top:200px;z-index:20;max-width:600px;will-change:transform,opacity}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;font-family:var(--disp);font-weight:700;font-size:11px;
+    letter-spacing:.3em;text-transform:uppercase;color:var(--ink70);margin-bottom:22px}
+  .eyebrow .pip{width:6px;height:6px;border-radius:50%;background:var(--tankoban);box-shadow:0 0 12px var(--tankoban)}
+  .eyebrow .pip.two{background:var(--theatre);box-shadow:0 0 12px var(--theatre);margin-left:-4px}
+  .logo{height:128px;max-width:540px;object-fit:contain;object-position:left;filter:drop-shadow(0 22px 50px rgba(0,0,0,.75))}
+  .logofallback{font-family:var(--disp);font-weight:800;font-size:74px;line-height:.94;letter-spacing:-.02em;display:none}
+  .factline{display:flex;align-items:center;gap:13px;color:var(--ink70);font-size:14px;font-weight:500;margin:24px 0 0}
+  .factline .dot{width:3px;height:3px;border-radius:50%;background:var(--ink30)}
+  .factline .rated{border:1px solid var(--edge);border-radius:5px;padding:1px 7px;font-size:12px;color:var(--ink)}
+  .blurb{color:var(--ink70);font-size:14.5px;line-height:1.55;max-width:500px;margin:16px 0 28px}
+  .actions{display:flex;align-items:center;gap:11px}
+  .btn{font-family:var(--disp);font-weight:700;font-size:14.5px;border-radius:12px;padding:13px 24px;
+    display:inline-flex;align-items:center;gap:9px;cursor:pointer;border:1px solid transparent;transition:.18s}
+  .btn svg{width:18px;height:18px;fill:currentColor}
+  .btn.play{background:var(--ink);color:#0c0d12}
+  .btn.play:hover{transform:translateY(-1px);box-shadow:0 14px 34px rgba(0,0,0,.55)}
+  .btn.ghost{background:var(--glass);border-color:var(--edge);color:var(--ink);font-weight:600;
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)}
+  .btn.ghost:hover{background:var(--glassHi)}
+  .resume{margin-top:20px;display:flex;align-items:center;gap:12px;color:var(--ink50);font-size:13px}
+  .resume .track{width:200px;height:3px;border-radius:2px;background:var(--ink12);overflow:hidden}
+  .resume .track i{display:block;height:100%;width:34%;background:var(--gold)}
+  .cue{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:20;color:var(--ink50);
+    font-size:11px;letter-spacing:.26em;text-transform:uppercase;font-family:var(--disp);font-weight:600;
+    display:flex;flex-direction:column;align-items:center;gap:7px;animation:bob 2.4s ease-in-out infinite}
+  .cue svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2}
+  @keyframes bob{0%,100%{transform:translateX(-50%)}50%{transform:translateX(-50%) translateY(5px)}}
+
+  /* ---- the widget board: a FROSTED GLASS SHEET that rises over the living wallpaper ---- */
+  .board{position:relative;z-index:30;margin-top:98vh;
+    background:linear-gradient(180deg, rgba(5,6,10,0) 0%, var(--glassSheet) 9%, var(--glassSheet) 100%);
+    backdrop-filter:blur(34px) saturate(1.25);-webkit-backdrop-filter:blur(34px) saturate(1.25);
+    border-top:1px solid var(--edgeSoft);box-shadow:0 -30px 80px rgba(0,0,0,.4);
+    padding:34px 0 130px}
+  .rail{padding:22px 0 6px}
+  .railhead{display:flex;align-items:baseline;gap:13px;padding:0 var(--pad);margin-bottom:15px}
+  .railhead .tag{font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:800;font-family:var(--disp)}
+  .railhead .tag.t{color:var(--theatre)} .railhead .tag.k{color:var(--tankoban)} .railhead .tag.b{color:var(--biblio)}
+  .railhead h2{font-family:var(--disp);font-weight:700;font-size:18px;letter-spacing:-.01em}
+  .railhead .see{margin-left:auto;padding-right:var(--pad);font-size:12px;color:var(--ink50);cursor:pointer;font-weight:600}
+  .railhead .see:hover{color:var(--gold)}
+  .track2{display:flex;gap:15px;overflow-x:auto;padding:4px var(--pad) 8px;scrollbar-width:none}
+  .track2::-webkit-scrollbar{display:none}
+  .card{flex:0 0 auto;cursor:pointer;transition:transform .22s}
+  .card:hover{transform:translateY(-5px)}
+  /* glass card: art in a frosted, edge-lit frame */
+  .thumb{border-radius:13px;overflow:hidden;position:relative;background:var(--glass);
+    border:1px solid var(--edgeSoft);box-shadow:0 10px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.06)}
+  .card:hover .thumb{border-color:var(--edge)}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .wtag{position:absolute;top:8px;left:8px;font-family:var(--disp);font-weight:700;font-size:9.5px;
+    letter-spacing:.14em;text-transform:uppercase;color:var(--ink);padding:3px 8px;border-radius:999px;
+    background:rgba(6,7,12,.55);border:1px solid var(--edgeSoft);backdrop-filter:blur(8px)}
+  .thumb .pg{position:absolute;left:0;right:0;bottom:0;height:3px;background:rgba(0,0,0,.55)}
+  .thumb .pg i{display:block;height:100%;background:var(--gold)}
+  .card .t{margin-top:10px;font-family:var(--disp);font-weight:600;font-size:13.5px}
+  .card .s{margin-top:2px;font-size:11.5px;color:var(--ink50)}
+  .land .thumb{width:296px;height:167px}.land .card,.land .t,.land .s{width:296px}
+  .port .thumb{width:146px;height:216px}.port .card,.port .t,.port .s{width:146px}
+  /* typographic book jacket for Biblio (no free cover CDN in our lanes) */
+  .jacket{width:146px;height:216px;display:flex;flex-direction:column;justify-content:flex-end;padding:14px;
+    border-radius:13px;border:1px solid var(--edgeSoft);position:relative;overflow:hidden}
+  .jacket .jt{font-family:var(--disp);font-weight:800;font-size:17px;line-height:1.05;letter-spacing:-.01em}
+  .jacket .ja{margin-top:6px;font-size:10.5px;color:rgba(255,255,255,.6);text-transform:uppercase;letter-spacing:.12em}
+  .jacket::before{content:"";position:absolute;top:14px;left:14px;width:22px;height:2px;background:rgba(255,255,255,.6)}
+
+  .note{max-width:820px;margin:16px auto 0;padding:22px var(--pad);color:var(--ink50);font-size:12.5px;line-height:1.75;
+    border-top:1px solid var(--ink12);text-align:center}
+  .note b{color:var(--ink70)}
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="sky" id="sky">
+    <img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/21-wf37VakJmZqs.jpg" alt=""
+         onerror="this.style.display='none';document.getElementById('sky').style.background='radial-gradient(120% 90% at 68% 16%, #2a3a63, #171226 55%, #05060a)'">
+  </div>
+
+  <div class="topbar" id="topbar">
+    <div class="brand">C<b>O</b>LOSSEUM</div>
+    <div class="worlds">
+      <div class="world on">Home</div>
+      <div class="world">Tankoban</div>
+      <div class="world">Theatre</div>
+      <div class="world">Biblio</div>
+    </div>
+    <div class="right">
+      <div class="icobtn" title="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg></div>
+      <div class="icobtn" title="Wallpaper"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L5 18"/></svg></div>
+    </div>
+  </div>
+
+  <div class="spotlight" id="spot">
+    <div class="eyebrow"><span class="pip"></span><span class="pip two"></span>Featured · across your worlds</div>
+    <img class="logo" id="hlogo" src="https://live.metahub.space/logo/medium/tt0388629/img" alt="One Piece"
+         onerror="this.style.display='none';document.getElementById('hfall').style.display='block'">
+    <div class="logofallback" id="hfall">One Piece</div>
+    <div class="factline"><span class="rated">TV-14</span><span class="dot"></span><span>Manga &amp; Anime</span><span class="dot"></span><span>Action · Adventure</span><span class="dot"></span><span>1080p · Vol. 108</span></div>
+    <p class="blurb">Read the chapter, then watch it animated — One Piece lives in Tankoban and Theatre at once. Pick up where you left off in either.</p>
+    <div class="actions">
+      <div class="btn play"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>Watch S21 · E1122</div>
+      <div class="btn ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 19.5V6a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2"/></svg>Read Vol. 108</div>
+      <div class="btn ghost">Details</div>
+    </div>
+    <div class="resume"><span>Resume episode · 14:12 left</span><span class="track"><i></i></span></div>
+  </div>
+
+  <div class="cue" id="cue"><span>Your worlds rise</span><svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></div>
+
+  <div class="board">
+
+    <!-- Continue — one row, all three worlds, each tagged -->
+    <section class="rail">
+      <div class="railhead"><h2>Continue</h2><span class="see">See all</span></div>
+      <div class="track2 land">
+        <div class="card"><div class="thumb"><span class="wtag">Theatre</span><img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/21-wf37VakJmZqs.jpg"><div class="pg"><i style="width:62%"></i></div></div><div class="t">One Piece</div><div class="s">S21 · E1121 · Egghead</div></div>
+        <div class="card"><div class="thumb"><span class="wtag">Tankoban</span><img src="https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg"><div class="pg"><i style="width:44%"></i></div></div><div class="t">One Piece</div><div class="s">Vol. 108 · Ch. 1089</div></div>
+        <div class="card"><div class="thumb" style="background:linear-gradient(135deg,#2b2350,#0e0b1f)"><span class="wtag">Biblio</span><div style="padding:22px;height:100%;display:flex;flex-direction:column;justify-content:flex-end"><div style="font-family:var(--disp);font-weight:800;font-size:20px">Dune</div><div style="font-size:11px;color:var(--ink50);margin-top:4px;text-transform:uppercase;letter-spacing:.1em">Frank Herbert</div></div><div class="pg"><i style="width:28%"></i></div></div><div class="t">Dune</div><div class="s">Ch. 24 of 48</div></div>
+        <div class="card"><div class="thumb"><span class="wtag">Theatre</span><img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/16498-8jpFCPcSmzUX.jpg"><div class="pg"><i style="width:81%"></i></div></div><div class="t">Attack on Titan</div><div class="s">Final · E28</div></div>
+      </div>
+    </section>
+
+    <!-- Theatre -->
+    <section class="rail">
+      <div class="railhead"><span class="tag t">Theatre</span><h2>Featured this week</h2><span class="see">See all</span></div>
+      <div class="track2 land">
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/101922-YfZhKBUDDS6L.jpg"></div><div class="t">Demon Slayer</div><div class="s">Action · 2024</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/9253-3Xp7EAcNzUpP.jpg"></div><div class="t">Steins;Gate</div><div class="s">Sci-Fi · 2011</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/11061-jN6b41SJ6khu.jpg"></div><div class="t">Hunter × Hunter</div><div class="s">Adventure · 2011</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/anime/banner/1535-4r88a1tsCtos.jpg"></div><div class="t">Death Note</div><div class="s">Thriller · 2006</div></div>
+      </div>
+    </section>
+
+    <!-- Tankoban -->
+    <section class="rail">
+      <div class="railhead"><span class="tag k">Tankoban</span><h2>New volumes</h2><span class="see">See all</span></div>
+      <div class="track2 port">
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30013-BeslEMqiPhlk.jpg"></div><div class="t">One Piece</div><div class="s">Vol. 108</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx87216-c9bSNVD10UuD.jpg"></div><div class="t">Chainsaw Man</div><div class="s">Vol. 17</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx105778-9Gut1WQBmDo7.jpg"></div><div class="t">Jujutsu Kaisen</div><div class="s">Vol. 26</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx30656-Nd1UF8xnQ0J9.jpg"></div><div class="t">Vagabond</div><div class="s">Vol. 37</div></div>
+        <div class="card"><div class="thumb"><img src="https://s4.anilist.co/file/anilistcdn/media/manga/cover/large/bx105398-XLscTfa1spu6.jpg"></div><div class="t">Kaiju No. 8</div><div class="s">Vol. 12</div></div>
+      </div>
+    </section>
+
+    <!-- Biblio -->
+    <section class="rail">
+      <div class="railhead"><span class="tag b">Biblio</span><h2>On your shelf</h2><span class="see">See all</span></div>
+      <div class="track2 port">
+        <div class="card"><div class="jacket" style="background:linear-gradient(150deg,#3a2b1a,#120d07)"><div class="jt">Dune</div><div class="ja">Frank Herbert</div></div><div class="t">Dune</div><div class="s">Reading · 50%</div></div>
+        <div class="card"><div class="jacket" style="background:linear-gradient(150deg,#1a2f3a,#070f14)"><div class="jt">Project Hail Mary</div><div class="ja">Andy Weir</div></div><div class="t">Project Hail Mary</div><div class="s">New</div></div>
+        <div class="card"><div class="jacket" style="background:linear-gradient(150deg,#3a1a2b,#140710)"><div class="jt">The Name of the Wind</div><div class="ja">Patrick Rothfuss</div></div><div class="t">Name of the Wind</div><div class="s">Reading · 12%</div></div>
+        <div class="card"><div class="jacket" style="background:linear-gradient(150deg,#25203a,#0a0814)"><div class="jt">Mistborn</div><div class="ja">Brandon Sanderson</div></div><div class="t">Mistborn</div><div class="s">New</div></div>
+        <div class="card"><div class="jacket" style="background:linear-gradient(150deg,#2b331a,#0e1207)"><div class="jt">The Way of Kings</div><div class="ja">Brandon Sanderson</div></div><div class="t">Way of Kings</div><div class="s">Finished</div></div>
+      </div>
+    </section>
+
+    <div class="note">Reference audit mock — steals AF2's <b>grammar</b> only (receding fanart spotlight, <b>view_row</b> rail
+      cadence, a menu that gets out of the way) in Colosseum's language: <b>frosted glass over a living wallpaper</b>,
+      white ink-ramp, gold on progress + the primary action only. Home now mixes <b>all three worlds</b> — Continue spans
+      them, then a rail each. Art from our own lanes (AniList / metahub); books get a typographic jacket (no cover CDN in our lanes).</div>
+  </div>
+</div>
+
+<script>
+  const spot=document.getElementById('spot'), sky=document.getElementById('sky'),
+        bar=document.getElementById('topbar'), cue=document.getElementById('cue'), skyImg=sky.querySelector('img');
+  function onScroll(){
+    const y=window.scrollY, vh=window.innerHeight, p=Math.min(1,y/(vh*0.8));
+    spot.style.transform='translateY('+(-p*170)+'px)';
+    spot.style.opacity=(1-Math.min(1,p*1.35)).toFixed(3);
+    if(skyImg) skyImg.style.transform='scale('+(1.08+p*0.05)+') translateY('+(p*34)+'px)';
+    bar.style.opacity=(1-Math.min(1,p*1.15)).toFixed(3);
+    bar.style.transform='translateY('+(-p*10)+'px)';
+    cue.style.opacity=(1-Math.min(1,p*2)).toFixed(3);
+  }
+  document.addEventListener('scroll',onScroll,{passive:true}); onScroll();
+</script>
+</body>
+</html>
