@@ -22,13 +22,12 @@ QtObject {
     // type
     readonly property string ui: "Segoe UI"
     readonly property string display: "Fraunces"   // editorial serif — bundled at assets/fonts, loaded in Main.qml
-    // player HUD face: Switzer (Harbor-parity), a crafted sans that replaces the generic system
-    // font inside the video player. Bundled at assets/fonts, loaded in Main.qml. Flip this to
-    // "Inter" (statics genuinely bundled as of 2026-07-08 — this comment used to lie) and the
-    // whole HUD follows. Bundle STATICS only: a variable TTF registers as "<Name> Variable", so
-    // the plain family name silently falls back to Tahoma (probe-proven; QML never errors on an
-    // unknown family — the gate is tests/test_hud_font_registration_p0.ps1).
-    readonly property string hud: "Inter"
+    // player HUD face: Segoe UI — Harbor's EFFECTIVE Windows face. Harbor declares Switzer/Inter
+    // but ships neither, so its system-ui resolves to Segoe UI on Windows; matching that is the
+    // parity target Hemanth approved (2026-07-19 Harbor player polish). A system font: always
+    // present, no bundling, and no "<Name> Variable" registration trap. The whole player HUD
+    // follows this token. Registration gate: tests/test_hud_font_registration_p0.ps1.
+    readonly property string hud: "Segoe UI"
 
     // layout
     readonly property int margin: 54
