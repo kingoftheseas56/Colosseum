@@ -37,6 +37,7 @@ Item {
     signal searchClicked()
     signal settingsClicked()
     signal wallpaperClicked()
+    signal fullscreenClicked()               // topbar fullscreen toggle → host flips the shell (same door as F11)
     signal minimizeClicked()
     signal powerClicked()
 
@@ -57,6 +58,7 @@ Item {
         onSearchClicked: world.searchClicked()
         onSettingsClicked: world.settingsClicked()
         onWallpaperClicked: world.wallpaperClicked()
+        onFullscreenClicked: world.fullscreenClicked()
         onMinimizeClicked: world.minimizeClicked()
         onPowerClicked: world.powerClicked()
     }

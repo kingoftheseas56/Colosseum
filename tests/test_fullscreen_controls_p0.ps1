@@ -28,8 +28,11 @@ $player = Get-Content (Join-Path $root 'qml/PlayerPage.qml') -Raw
 if ($player -notmatch 'signal fullscreenRequested\(\)') {
     throw 'PlayerPage lost fullscreenRequested()'
 }
-if ($player -notmatch 'kind === "fullscreenExit"') {
-    throw 'PlayerPage has no hand-drawn restore glyph'
+# (Restore glyph moved: PlayerPage's hand-drawn Canvas path became a Lucide icon in
+#  PlayerIcon.qml with A4's 45c3955 — assert the mapping there, not the old Canvas kind.)
+$playerIcon = Get-Content (Join-Path $root 'qml/PlayerIcon.qml') -Raw
+if ($playerIcon -notmatch 'case "fullscreenExit":') {
+    throw 'PlayerIcon has no fullscreenExit mapping (restore glyph lost)'
 }
 if ($player -notmatch 'icon:\s*root\.shellWindowed\s*\?\s*"fullscreen"\s*:\s*"fullscreenExit"') {
     throw 'player titlebar does not show the available fullscreen action'
@@ -94,6 +97,23 @@ $comicMainLinks = [regex]::Matches(
     $main, 'item\.readerFullscreenRequested\.connect\(win\.toggleFullscreenShell\)').Count
 if ($comicMainLinks -ne 3) {
     throw "Main must connect all three comic-reader hosts (found $comicMainLinks)"
+}
+
+# World pages share ONE TopBar with home; the world shell must forward its fullscreen
+# click and Main must connect it (the 2026-07-19 works-once bug: WorldPage swallowed the
+# signal, so the icon was dead on every world page while home worked).
+$worldPage = Get-Content (Join-Path $root 'qml/WorldPage.qml') -Raw
+if ($worldPage -notmatch 'signal fullscreenClicked\(\)') {
+    throw 'WorldPage lost fullscreenClicked()'
+}
+if ($worldPage -notmatch 'onFullscreenClicked:\s*world\.fullscreenClicked\(\)') {
+    throw 'WorldPage does not forward the TopBar fullscreen click'
+}
+if ($main -notmatch 'item\.fullscreenClicked\.connect\(win\.toggleFullscreenShell\)') {
+    throw 'Main does not route the world-page fullscreen click through the shell toggle'
+}
+if ($main -notmatch 'onFullscreenClicked:\s*win\.toggleFullscreenShell\(\)') {
+    throw 'home TopBar fullscreen click does not route through the shell toggle'
 }
 
 Write-Host 'test_fullscreen_controls_p0: all fullscreen control contracts PASS'
