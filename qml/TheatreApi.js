@@ -551,3 +551,59 @@ function imageUrlsFromRows(rows) {
     }
     return urls;
 }
+
+// ---- AF2 cast lane -------------------------------------------------------
+// Anime cast comes from AniList (face art + VAs); everything else uses the
+// name-only `cast` field already in the Cinemeta meta. The discriminator is
+// the ORIGINAL requested id (anime ids pivot to tt… after the kitsu→imdb hop).
+
+function postJson(url, body, done) {
+    var xhr = new XMLHttpRequest()
+    xhr.open("POST", url)
+    xhr.setRequestHeader("Content-Type", "application/json")
+    xhr.timeout = 9000
+    xhr.onreadystatechange = function() {
+        if (xhr.readyState !== XMLHttpRequest.DONE) return
+        if (xhr.status < 200 || xhr.status >= 300) { done(null); return }
+        try { done(JSON.parse(xhr.responseText)) } catch (e) { done(null) }
+    }
+    xhr.ontimeout = function() { done(null) }
+    xhr.onerror = function() { done(null) }
+    xhr.send(JSON.stringify(body))
+}
+
+function animeIdFor(requestedId) {
+    var m = String(requestedId || "").match(/^(mal|anilist):(\d+)$/)
+    return m ? { "site": m[1], "id": parseInt(m[2]) } : null
+}
+
+// done({cast: [{name, role, image}], studio, source}) — or done(null) to fall
+// back to Cinemeta names. `name` = the voice actor (mock anatomy), `role` = the
+// character; image = character art.
+function loadAnimeCast(requestedId, done) {
+    var ref = animeIdFor(requestedId)
+    if (!ref) { done(null); return }
+    var filter = ref.site === "mal" ? ("idMal:" + ref.id) : ("id:" + ref.id)
+    var q = "query{Media(" + filter + ",type:ANIME){source(version:3)"
+        + " studios(isMain:true){nodes{name}}"
+        + " characters(sort:ROLE,perPage:12){edges{node{name{full} image{large}}"
+        + " voiceActors(language:JAPANESE){name{full}}}}}}"
+    postJson("https://graphql.anilist.co", { "query": q }, function(json) {
+        var media = json && json.data && json.data.Media
+        if (!media) { done(null); return }
+        var cast = []
+        var edges = (media.characters && media.characters.edges) || []
+        for (var i = 0; i < edges.length; i++) {
+            var ch = edges[i].node || {}
+            var va = (edges[i].voiceActors && edges[i].voiceActors[0]) || null
+            cast.push({ "name": va && va.name ? va.name.full : (ch.name ? ch.name.full : ""),
+                        "role": ch.name ? ch.name.full : "",
+                        "image": ch.image ? (ch.image.large || "") : "" })
+        }
+        var studios = (media.studios && media.studios.nodes) || []
+        var src = media.source ? String(media.source).replace(/_/g, " ").toLowerCase() : ""
+        done({ "cast": cast,
+               "studio": studios.length ? studios[0].name : "",
+               "source": src ? src.charAt(0).toUpperCase() + src.slice(1) : "" })
+    })
+}
