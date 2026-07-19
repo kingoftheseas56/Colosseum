@@ -18,6 +18,7 @@ WorldPage {
     property var genreRows: Catalog.biblioGenres
     signal biblioGenreRequested(string genreName)
     signal biblioGenreIndexRequested()
+    signal collectionOpenRequested(var entry)
 
     // Live override: swap in Apple's fresh chart once it lands; keep the static fallback on failure.
     Component.onCompleted: BiblioApi.loadBiblio(function(rows) {
@@ -48,6 +49,15 @@ WorldPage {
         onResumeRequested: (item) => biblio.continueResumeRequested(item)
         onDetailRequested: (item) => biblio.continueDetailRequested(item)
         onSeeAllRequested: biblio.continueSeeAllRequested()
+    }
+
+    ContinueRow {
+        title: "Your Collection"
+        showSeeAll: false
+        items: (Collection.revision, Collection.items("biblio"))
+        forgetHandler: function(e) { Collection.remove("biblio", String(e.id)) }
+        onDetailRequested: function(item) { biblio.collectionOpenRequested(item) }
+        onResumeRequested: function(item) { biblio.collectionOpenRequested(item) }
     }
 
     TrendingTop10 {

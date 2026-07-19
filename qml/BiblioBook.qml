@@ -321,15 +321,14 @@ Item {
                             }
                         }
                     }
-                    Rectangle {
-                        width: parent.width; height: 50; radius: 13
-                        color: libMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
-                        border.width: 1; border.color: theme.edge
-                        Text {
-                            anchors.centerIn: parent; text: "+ Library"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
-                        }
-                        MouseArea { id: libMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor }
+                    LibraryButton {
+                        width: parent.width
+                        height: 50
+                        radius: 13
+                        world: "biblio"
+                        entry: ({ "id": detail.pairKey, "type": "book",
+                                  "title": detail.book.title || "", "cover": detail.book.cover || "",
+                                  "payload": { "book": detail.book } })
                     }
                     // (The standalone Listen button is retired — Hemanth 2026-07-18: the reader IS
                     // the audiobook player. A downloaded audiobook auto-attaches; Read opens the

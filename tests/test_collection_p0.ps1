@@ -39,4 +39,9 @@ Assert-Contains $crow2 'property bool showSeeAll' "ContinueRow can hide the see-
 Assert-Contains $crow2 'navigable: cont.showSeeAll' "chevron honors showSeeAll"
 Assert-Contains $tw 'showSeeAll: false' "Theatre Collection row hides the dead chevron"
 
+$bb = Read-File "qml/BiblioBook.qml"
+Assert-Contains $bb 'world: "biblio"' "BiblioBook button is live"
+$bw = Read-File "qml/BiblioWorld.qml"
+Assert-Contains $bw 'Collection.items("biblio")' "Biblio world carries the Collection row"
+
 Write-Host "test_collection_p0 PASSED"
