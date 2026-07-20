@@ -37,6 +37,7 @@ Item {
     readonly property real curLine: (appearance && Number.isFinite(appearance.lineHeight)) ? appearance.lineHeight : 1.6
     readonly property int curMargin: (appearance && Number.isFinite(appearance.marginPx)) ? appearance.marginPx : 72
     readonly property bool curJustify: appearance ? (appearance.justify === undefined ? true : !!appearance.justify) : true
+    readonly property bool curScrolled: appearance ? appearance.flow === "scrolled" : false
     readonly property bool curRulerOn: appearance ? !!appearance.rulerOn : false
     readonly property int curBand: (appearance && Number.isFinite(appearance.rulerHeightPx)) ? appearance.rulerHeightPx : 92
     readonly property int curDim: (appearance && Number.isFinite(appearance.rulerDimPct)) ? appearance.rulerDimPct : 42
@@ -234,6 +235,31 @@ Item {
                             leftLabel: "Justified"; rightLabel: "Ragged"
                             leftActive: panel.curJustify
                             onPicked: (left) => panel.changed("justify", left)
+                        }
+                    }
+                    // Reading flow (2026-07-20, Hemanth: "there is no vertical scroll reading") —
+                    // Pages = the paginator's column flips; Scroll = one continuous vertical run.
+                    Item {
+                        width: parent.width
+                        height: 34
+                        Text {
+                            id: flowCaption
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 78
+                            text: "Flow"
+                            color: Theme.inkFaint
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                        }
+                        Segment {
+                            anchors.left: flowCaption.right
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftLabel: "Pages"; rightLabel: "Scroll"
+                            leftActive: !panel.curScrolled
+                            onPicked: (left) => panel.changed("flow", left ? "paginated" : "scrolled")
                         }
                     }
                 }

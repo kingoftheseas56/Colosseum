@@ -224,6 +224,7 @@ let appearance = {
   lineHeight: 1.5,
   marginPx: 48,
   justify: false,
+  flow: 'paginated', // 'paginated' | 'scrolled' (2026-07-20 — vertical-scroll reading)
 }
 
 // ---------------------------------------------------------------------------
@@ -305,10 +306,38 @@ const buildCss = (bg, fg) => {
     ${FONT_FACE_CSS}
     html { color: ${fg} !important; background-color: transparent !important; font-size: ${size}px !important; }
     body { background: none !important; padding: 0; }
+    /* READABLE MEASURE (2026-07-20, the Wool full-bleed finding): with max-column-count 1
+       the paginator sizes its one column to the whole viewport and ignores max-inline-size,
+       so an unconstrained body renders 1700px+ lines — and justify across a line that long
+       shreds word spacing. Centered max-width column is the OLD reader's ratified pattern
+       (engine_foliate.js: body auto margins + max-width). 960px matches its default. */
+    body { max-width: 960px !important; margin-left: auto !important; margin-right: auto !important;
+           box-sizing: border-box !important; }
     p, li, blockquote, dd, div, font { color: ${fg} !important; line-height: ${lh} !important; text-align: ${align}; }
     a, a:link { color: #a76034 !important; }
     ${fontCss}
   `
+}
+
+// ---------------------------------------------------------------------------
+// spacer-paragraph collapse (2026-07-20 — the Wool Omnibus finding). Sloppy Calibre
+// conversions separate EVERY real paragraph with a whitespace-only shim (<p>&nbsp;</p>,
+// styled height:1em by book CSS we deliberately discard) — rendered, each shim costs a
+// full line box and the page turns skeletal. Rule: if a meaningful share of a section's
+// paragraphs are whitespace-only, they're conversion shims — hide them (display:none
+// keeps the DOM intact, so CFIs/annotations/search stay valid). A normal book's rare
+// blank paragraph (scene break) stays: it never crosses the share threshold.
+// ---------------------------------------------------------------------------
+const collapseSpacerParagraphs = doc => {
+  try {
+    const ps = doc.body ? Array.from(doc.body.querySelectorAll('p')) : []
+    if (ps.length < 8) return                        // tiny sections: not enough signal
+    const isShim = el => !el.querySelector('img, svg, image') &&
+                         String(el.textContent || '').replace(/[\s   ]/g, '') === ''
+    const shims = ps.filter(isShim)
+    if (shims.length < ps.length * 0.25) return      // scene-break territory — leave the book alone
+    for (const s of shims) s.style.setProperty('display', 'none', 'important')
+  } catch (e) { console.warn('[paper] spacer collapse skipped', e) }
 }
 
 const applyAppearance = () => {
@@ -329,7 +358,7 @@ const applyAppearance = () => {
     r.setAttribute('background-color', bg)
     return
   }
-  r.setAttribute('flow', 'paginated')
+  r.setAttribute('flow', appearance.flow === 'scrolled' ? 'scrolled' : 'paginated')
   r.setAttribute('background-color', bg)
   r.setAttribute('top-margin', `${appearance.marginPx ?? 48}px`)
   r.setAttribute('bottom-margin', `${appearance.marginPx ?? 48}px`)
@@ -589,6 +618,7 @@ const wireView = (view, gen) => {
   view.addEventListener('load', e => {
     const { doc, index } = e.detail || {}
     if (doc) attachSelection(view, doc, index, gen)   // gen: this view's captured open-gen
+    if (doc) collapseSpacerParagraphs(doc)            // Calibre &nbsp;-shim cleanup (2026-07-20)
     // Is this section real prose or a cover/full-image page? Cheap heuristic: how much
     // visible text the body carries. Covers/title-image pages have ~none; chapters have lots.
     // Reported on the next relocate so the reading ruler skips non-text pages.

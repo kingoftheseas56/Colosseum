@@ -463,7 +463,8 @@ function clamp_(v, lo, hi) {
 function appearanceDefaults() {
     return {
         theme: "night", font: "literata", sizePx: 18, lineHeight: 1.6, marginPx: 72,
-        justify: true, rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40
+        justify: true, flow: "paginated",
+        rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40
     }
 }
 
@@ -506,7 +507,10 @@ function appearanceToPaper(settings) {
         sizePx: clamp_(s.sizePx, 12, 26),
         lineHeight: clamp_(s.lineHeight, 1.2, 2.2),
         marginPx: clamp_(s.marginPx, 24, 160),
-        justify: !!s.justify
+        justify: !!s.justify,
+        // flow: 'scrolled' is the ONLY non-default; junk or a legacy stored appearance
+        // (no flow key) normalizes to 'paginated' so the paper never sees a bad value.
+        flow: s.flow === "scrolled" ? "scrolled" : "paginated"
     }
 }
 

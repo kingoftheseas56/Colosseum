@@ -332,6 +332,13 @@ QtObject {
             var pHi = L.appearanceToPaper({ theme: "night", font: "book", sizePx: 99, lineHeight: 9, marginPx: 999 })
             check(pHi.sizePx === 26 && pHi.lineHeight === 2.2 && pHi.marginPx === 160, "appearanceToPaper: clamps to the ceilings")
 
+            // flow (2026-07-20): 'scrolled' passes through; anything else — including the
+            // legacy stored appearance with NO flow key — normalizes to 'paginated'.
+            check(L.appearanceDefaults().flow === "paginated", "flow: default is paginated")
+            check(L.appearanceToPaper({ theme: "night", flow: "scrolled" }).flow === "scrolled", "flow: scrolled passes through")
+            check(L.appearanceToPaper({ theme: "night" }).flow === "paginated", "flow: missing key -> paginated")
+            check(L.appearanceToPaper({ theme: "night", flow: "banana" }).flow === "paginated", "flow: junk -> paginated")
+
             // mergeAppearance: patches ONE key, keeps the rest (pure new object).
             var mBase = L.appearanceDefaults()
             var mNext = L.mergeAppearance(mBase, { theme: "paper" })
