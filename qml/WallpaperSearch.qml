@@ -276,8 +276,12 @@ Item {
             }
 
             // ---- OS Desktops shelf: the real shipped wallpapers of Windows, macOS
-            //      and Linux (2026-07-20). Plain image picks — remote thumb, remote
-            //      full on apply — so they ride the same path as a Wallhaven pick. ----
+            //      and Linux (2026-07-20). A single horizontal strip — the panel is
+            //      only ~3 tiles wide, so a wrapping grid of 10 would stack four rows
+            //      deep and shove the results off-screen; the strip stays one row tall
+            //      and the rest scroll sideways (wheel/drag), a real wallpaper carousel.
+            //      Plain image picks — remote thumb, remote full on apply — same path
+            //      as a Wallhaven pick. ----
             Text {
                 text: "OS Desktops"
                 color: "#d8d2c4"
@@ -285,56 +289,71 @@ Item {
                 font.pixelSize: 16
             }
 
-            Flow {
+            ListView {
+                id: osStrip
                 Layout.fillWidth: true
+                Layout.preferredHeight: 92
+                orientation: ListView.Horizontal
                 spacing: 10
+                clip: true
+                model: WallpaperApi.osPicks()
+                boundsBehavior: Flickable.StopAtBounds
 
-                Repeater {
-                    model: WallpaperApi.osPicks()
-                    delegate: Rectangle {
-                        id: osTile
-                        required property var modelData
-                        width: 144
-                        height: 92
-                        radius: 8
-                        color: "#07070a"
-                        border.width: root.selectedPick.source_id === osTile.modelData.source_id ? 2 : 1
-                        border.color: root.selectedPick.source_id === osTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
-                        clip: true
+                // a horizontal list ignores the vertical wheel by default — map it to
+                // sideways travel so the mouse wheel scrolls the strip.
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: (ev) => {
+                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
+                        osStrip.contentX = Math.max(0, Math.min(
+                            Math.max(0, osStrip.contentWidth - osStrip.width),
+                            osStrip.contentX - d))
+                    }
+                }
 
-                        Image {
-                            anchors.fill: parent
-                            source: osTile.modelData.thumb_url
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
-                        }
+                delegate: Rectangle {
+                    id: osTile
+                    required property var modelData
+                    width: 144
+                    height: 92
+                    radius: 8
+                    color: "#07070a"
+                    border.width: root.selectedPick.source_id === osTile.modelData.source_id ? 2 : 1
+                    border.color: root.selectedPick.source_id === osTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
+                    clip: true
 
-                        Rectangle {
+                    Image {
+                        anchors.fill: parent
+                        source: osTile.modelData.thumb_url
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: true
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 22
+                        color: Qt.rgba(0, 0, 0, 0.55)
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
+                            anchors.leftMargin: 8
                             anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 22
-                            color: Qt.rgba(0, 0, 0, 0.55)
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                anchors.right: parent.right
-                                anchors.rightMargin: 8
-                                text: osTile.modelData.title
-                                color: "#e8e2d4"
-                                font.pixelSize: 10
-                                elide: Text.ElideRight
-                            }
+                            anchors.rightMargin: 8
+                            text: osTile.modelData.title
+                            color: "#e8e2d4"
+                            font.pixelSize: 10
+                            elide: Text.ElideRight
                         }
+                    }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.selectedPick = osTile.modelData
-                        }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.selectedPick = osTile.modelData
                     }
                 }
             }
