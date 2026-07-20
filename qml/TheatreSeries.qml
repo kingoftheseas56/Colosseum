@@ -799,14 +799,38 @@ Item {
                             color: theme.inkDimmer
                             anchors.verticalCenter: parent.verticalCenter
                         }
-                        Text {
+                        Row {
+                            id: imdbRatingBadge
                             visible: page.rating.length
-                            text: "* " + page.rating
-                            color: theme.gold
-                            font.family: theme.ui
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
+                            height: 20
+                            spacing: 7
                             anchors.verticalCenter: parent.verticalCenter
+                            Rectangle {
+                                id: imdbPlaque
+                                width: 34
+                                height: 18
+                                radius: 3
+                                color: "#F5C518"
+                                anchors.verticalCenter: parent.verticalCenter
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "IMDb"
+                                    color: "#111111"
+                                    font.family: theme.ui
+                                    font.pixelSize: 10
+                                    font.weight: Font.Black
+                                    font.letterSpacing: -0.45
+                                }
+                            }
+                            Text {
+                                id: imdbRatingValue
+                                text: page.rating
+                                color: theme.ink
+                                font.family: theme.ui
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
                         Text {
                             visible: page.runtime.length
