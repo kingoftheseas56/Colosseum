@@ -22,8 +22,8 @@ Assert-Contains $qml 'ScrollBar\.vertical:\s*HouseScrollBar\s*\{' `
     'TheatreSeries episode list must expose a vertical scrollbar.'
 Assert-NotContains $qml '(?m)^\s*Repeater\s*\{\s*\r?\n\s*model:\s*page\.episodes\b' `
     'TheatreSeries must not render all episodes through a Repeater.'
-Assert-Contains $qml 'function\s+defaultSeason\(\)\s*\{[\s\S]*seasons\[seasons\.length - 1\]' `
-    'TheatreSeries should default multi-season shows to the newest season.'
+Assert-Contains $qml 'function\s+defaultSeason\(\)\s*\{[\s\S]*for \(var i = 0; i < seasons\.length; i\+\+\)' `
+    'TheatreSeries should default a fresh multi-season show to the FIRST numbered season (Hemanth 2026-07-20).'
 Assert-Contains $qml 'source:\s*ep\.modelData\.thumbnail\s*\?\s*ep\.modelData\.thumbnail\s*:\s*page\.sourceBackdrop\(\)' `
     'TheatreSeries episode thumbnails should fall back to series art.'
 Assert-NotContains $qml 'property\s+string\s+episodeLayout' `

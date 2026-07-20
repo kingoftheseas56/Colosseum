@@ -155,11 +155,13 @@ Item {
             if (seasonExists(resumeSeason))
                 return resumeSeason;
         }
-        // Fresh show: land on the latest NUMBERED season, never on Specials.
-        for (var i = seasons.length - 1; i >= 0; i--)
+        // Fresh show: land on the FIRST numbered season, never on Specials (Hemanth
+        // 2026-07-20). Seasons are numbered-ascending with Specials (0) pinned last,
+        // so the earliest numbered season is the first entry that is > 0.
+        for (var i = 0; i < seasons.length; i++)
             if (seasons[i] > 0)
                 return seasons[i];
-        return seasons[seasons.length - 1];
+        return seasons[0];
     }
 
     function seasonExists(season) {
