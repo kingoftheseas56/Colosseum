@@ -17,11 +17,13 @@ if ($ui -notmatch '"Load more"') { throw 'WallpaperSearch lost the Load more but
 if ($ui -notmatch '"Random"') { throw 'WallpaperSearch lost the sort pills' }
 if ($ui -notmatch 'freshState') { throw 'WallpaperSearch must build a paged search state' }
 
-# 3. the API stays keyless and two-source with the SFW gates pinned.
+# 3. the API stays keyless and Wallhaven-only with the SFW gate pinned.
 $api = Get-Content (Join-Path $root 'qml/WallpaperApi.js') -Raw
 if ($api -notmatch 'purity=100') { throw 'Wallhaven SFW purity gate lost' }
-if ($api -notmatch 'rating:s') { throw 'Konachan SFW rating gate lost' }
 if ($api -match 'api_key|apikey|token=') { throw 'a keyed source crept into the keyless wallpaper lane' }
+# Konachan was removed 2026-07-20 (cheap-looking art) — assert no live wiring crept back
+# (the historical note in the header keeps the word; the endpoint/functions must not return).
+if ($api -match 'konachan\.net|mapKonachan|searchKonachan|konachanTags') { throw 'Konachan wiring crept back into the wallpaper lane — Wallhaven is the only source' }
 
 # 4. native living wallpapers (the arena, 2026-07-18): scene exists, freezes, and routes.
 $arena = Get-Content (Join-Path $root 'qml/wallpapers/ArenaNight.qml') -Raw

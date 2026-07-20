@@ -16,8 +16,8 @@ Item {
     property var selectedPick: ({})
     property var results: []
     property string statusText: ""
-    // Axis 1+2 (2026-07-18): paged multi-source search. One opaque state from
-    // WallpaperApi carries every source's cursor; Load more appends pages.
+    // Axis 1+2 (2026-07-18; Konachan dropped 2026-07-20): paged Wallhaven search.
+    // One opaque state from WallpaperApi carries the cursor; Load more appends pages.
     property var searchState: null
     property string sorting: "relevance"     // "relevance" | "top" | "random"
     property bool loading: false
@@ -305,7 +305,7 @@ Item {
                         cache: true
                     }
 
-                    // source badge — the grid mixes pools now; the chip says whose art it is
+                    // source badge — the chip says whose art it is (Wallhaven, or the Colosseum shelf)
                     Rectangle {
                         anchors.left: parent.left
                         anchors.bottom: parent.bottom
@@ -331,7 +331,7 @@ Item {
                     }
                 }
 
-                // Load more — appends the next page from every source still serving
+                // Load more — appends Wallhaven's next page
                 footer: Item {
                     width: grid.width
                     height: root.canLoadMore || root.loading ? 56 : 0

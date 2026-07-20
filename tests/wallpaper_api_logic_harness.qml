@@ -1,7 +1,7 @@
-// Headless harness for the wallpaper-search pure logic (Axis 1+2, 2026-07-18):
-// the width gate, board-tag mapping, source mapping, interleave, and the paged
-// search-state lifecycle. Verdict rides the EXIT CODE — Qt.exit(0) pass — an
-// uncaught onCompleted throw HANGS qml.exe.
+// Headless harness for the wallpaper-search pure logic (Axis 1+2, 2026-07-18;
+// Konachan dropped 2026-07-20): the width gate, aspect labels, Wallhaven source
+// mapping, and the paged single-source search-state lifecycle. Verdict rides the
+// EXIT CODE — Qt.exit(0) pass — an uncaught onCompleted throw HANGS qml.exe.
 import QtQuick
 import "../qml/WallpaperApi.js" as W
 
@@ -29,38 +29,28 @@ QtObject {
         if (W.aspectLabel(1920, 1200) !== "16:10") throw new Error("16:10 label")
         if (W.aspectLabel(3440, 1440) !== "21:9") throw new Error("21:9 label")
 
-        // --- Konachan tag mapping: title -> ONE underscored tag, SFW pinned, sort tags ---
-        var tags = W.konachanTags("One Piece", "relevance")
-        if (tags.indexOf("one_piece") !== 0 || tags.indexOf("rating:s") < 0)
-            throw new Error("board tags must underscore the title and pin rating:s, got '" + tags + "'")
-        if (W.konachanTags("x", "top").indexOf("order:score") < 0)
-            throw new Error("top sorting must ride order:score")
-        if (W.konachanTags("x", "random").indexOf("order:random") < 0)
-            throw new Error("random sorting must ride order:random")
-
-        // --- Konachan mapping: protocol-relative urls normalized, identity prefixed ---
-        var k = W.mapKonachan({ "id": 7, "width": 2560, "height": 1440,
-                                "file_url": "//konachan.net/image/x.jpg",
-                                "preview_url": "https://konachan.net/data/preview/x.jpg" }, "q")
-        if (k.image_url !== "https://konachan.net/image/x.jpg")
-            throw new Error("protocol-relative file_url must normalize")
-        if (k.source !== "Konachan" || k.source_id !== "konachan-7")
-            throw new Error("Konachan identity must be prefixed (never collides with Wallhaven ids)")
-
-        // --- interleave mixes pools instead of stacking ---
-        var mixed = W.interleave(["a1", "a2", "a3"], ["b1"])
-        if (mixed.join(",") !== "a1,b1,a2,a3")
-            throw new Error("interleave must alternate then drain, got " + mixed.join(","))
+        // --- Wallhaven mapping: identity + spec carry the source ---
+        var wh = W.mapWallhaven({ "id": "abc123", "url": "https://wallhaven.cc/w/abc123",
+                                  "path": "https://w.wallhaven.cc/full/ab/x.jpg",
+                                  "dimension_x": 2560, "dimension_y": 1440,
+                                  "resolution": "2560x1440",
+                                  "thumbs": { "large": "https://th.wallhaven.cc/lg/ab/x.jpg" } }, "q")
+        if (wh.source !== "Wallhaven" || wh.source_id !== "abc123")
+            throw new Error("Wallhaven identity must carry the raw id")
+        if (wh.image_url !== "https://w.wallhaven.cc/full/ab/x.jpg")
+            throw new Error("Wallhaven image_url must be the full path")
 
         // --- state lifecycle: fresh state has more; exhausted state has none ---
         var st = W.freshState("  ", "nonsense")
         if (st.query !== "landscape" || st.sorting !== "relevance")
             throw new Error("freshState must default empty query + unknown sorting")
+        if (st.koDone !== undefined || st.koPage !== undefined)
+            throw new Error("freshState must not carry Konachan cursors after the 2026-07-20 removal")
         if (!W.hasMore(st))
             throw new Error("a fresh state must report more available")
-        st.whLastPage = 2; st.whPage = 3; st.koDone = true
+        st.whLastPage = 2; st.whPage = 3
         if (W.hasMore(st))
-            throw new Error("both lanes exhausted must report no more")
+            throw new Error("wallhaven exhausted must report no more")
         st.whPage = 2
         if (!W.hasMore(st))
             throw new Error("wallhaven pages remaining must report more")

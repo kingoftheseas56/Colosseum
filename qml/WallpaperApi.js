@@ -1,24 +1,21 @@
 // WallpaperApi.js - zero-auth wallpaper search for Colosseum.
 // Small-scope contract: SFW, wide still wallpapers only.
 //
-// Sources (both keyless, per standing sourcing law):
-//   Wallhaven - the base pool. Paginated (24/page server-side); relevance /
-//               toplist / random sorting; random rides the API's seed so
-//               load-more never repeats a page.
-//   Konachan  - the anime board (konachan.net = the SFW mirror), rating:s
-//               forced. Titles are board tags ("one piece" -> "one_piece"),
-//               so series-shaped queries - this app's main shape - map clean.
-// (Reddit's wallpaper subs were probed 2026-07-18 and are 403-blocked from
-// this network at the HTTP layer, browser UA included - not a source here.)
+// Source (keyless, per standing sourcing law):
+//   Wallhaven - the single searchable pool. Paginated (24/page server-side);
+//               relevance / toplist / random sorting; random rides the API's
+//               seed so load-more never repeats a page.
+// (Konachan was dropped 2026-07-20 — the anime board returned cheap-looking
+// art; Wallhaven is the one source now. Reddit's wallpaper subs were probed
+// 2026-07-18 and are 403-blocked from this network — not a source here.)
 //
 // The QML owns ONE opaque search state from freshState(); fetchPage() pulls
-// the current page from every source still serving, advances the state, and
-// hands back merged rows. hasMore() drives the Load More affordance.
+// the current page from Wallhaven, advances the state, and hands back the
+// rows. hasMore() drives the Load More affordance.
 .pragma library
 
 var WALLHAVEN = "https://wallhaven.cc/api/v1";
-var KONACHAN = "https://konachan.net";
-var PAGE_LIMIT = 24;   // both sources serve 24/page
+var PAGE_LIMIT = 24;   // Wallhaven serves 24/page
 
 // ---- Colosseum-native living wallpapers (2026-07-18) ----
 // Designed in-house, drawn live by QML — separate from the searchable pool.
@@ -145,35 +142,6 @@ function mapWallhaven(item, query) {
     };
 }
 
-// Konachan file/preview urls are absolute today but were protocol-relative
-// historically - normalize both shapes.
-function _absUrl(u) {
-    var s = String(u || "");
-    if (s.indexOf("//") === 0)
-        return "https:" + s;
-    return s;
-}
-
-function mapKonachan(post, query) {
-    var w = Number(post.width || 0);
-    var h = Number(post.height || 0);
-
-    return {
-        source: "Konachan",
-        source_id: "konachan-" + post.id,
-        source_url: KONACHAN + "/post/show/" + post.id,
-        image_url: _absUrl(post.file_url),
-        thumb_url: _absUrl(post.preview_url || post.file_url),
-        w: w,
-        h: h,
-        aspect: aspectLabel(w, h),
-        attribution: "Konachan / original uploader",
-        query: query,
-        title: "Konachan " + post.id,
-        spec: w + "x" + h + " - Still - Konachan"
-    };
-}
-
 // ---- per-source fetches ----
 
 function searchWallhaven(query, sorting, page, seed, done) {
@@ -205,37 +173,6 @@ function searchWallhaven(query, sorting, page, seed, done) {
     });
 }
 
-// Board tags: a multi-word series title is ONE underscored tag ("one piece" ->
-// "one_piece") - the dominant query shape here. rating:s pins the SFW gate on
-// top of the SFW mirror; width filter narrows server-side.
-function konachanTags(query, sorting) {
-    var tags = [String(query || "").trim().toLowerCase().replace(/\s+/g, "_"),
-                "rating:s", "width:>=1920"];
-    if (sorting === "top")
-        tags.push("order:score");
-    else if (sorting === "random")
-        tags.push("order:random");
-    return tags.join(" ");
-}
-
-function searchKonachan(query, sorting, page, done) {
-    var url = KONACHAN + "/post.json?tags=" + encodeURIComponent(konachanTags(query, sorting))
-            + "&limit=" + PAGE_LIMIT + "&page=" + Math.max(1, page);
-    requestJson(url, "Konachan", function(json, error) {
-        if (!json || !json.length) {
-            done([], true, error);      // empty page = this lane is done
-            return;
-        }
-        var out = [];
-        for (var i = 0; i < json.length; i++) {
-            var p = json[i];
-            if (isWideEnough(Number(p.width || 0), Number(p.height || 0)))
-                out.push(mapKonachan(p, query));
-        }
-        done(out, json.length < PAGE_LIMIT, "");
-    });
-}
-
 // ---- the one search the QML drives ----
 
 function freshState(query, sorting) {
@@ -245,79 +182,34 @@ function freshState(query, sorting) {
     return {
         query: q,
         sorting: sorting === "top" || sorting === "random" ? sorting : "relevance",
-        whPage: 1, whLastPage: -1, whSeed: "",   // -1 = unknown until the first reply
-        koPage: 1, koDone: false
+        whPage: 1, whLastPage: -1, whSeed: ""    // -1 = unknown until the first reply
     };
 }
 
 function hasMore(state) {
     if (!state)
         return false;
-    var whMore = state.whLastPage < 0 || state.whPage <= state.whLastPage;
-    return whMore || !state.koDone;
+    return state.whLastPage < 0 || state.whPage <= state.whLastPage;
 }
 
-// Interleave so the grid mixes flavors instead of stacking one source first.
-function interleave(a, b) {
-    var out = [];
-    var n = Math.max(a.length, b.length);
-    for (var i = 0; i < n; i++) {
-        if (i < a.length) out.push(a[i]);
-        if (i < b.length) out.push(b[i]);
-    }
-    return out;
-}
-
-// Fetch the CURRENT page of every source still serving, advance the state,
-// return merged rows. Errors only surface when BOTH sources come back empty-
-// handed - one healthy source carries the grid.
+// Fetch the CURRENT page from Wallhaven, advance the state, return the rows.
 function fetchPage(state, done) {
-    var whWanted = state.whLastPage < 0 || state.whPage <= state.whLastPage;
-    var koWanted = !state.koDone;
-    var pendingCount = (whWanted ? 1 : 0) + (koWanted ? 1 : 0);
-    if (pendingCount === 0) {
+    if (!(state.whLastPage < 0 || state.whPage <= state.whLastPage)) {
         done([], state, "");
         return;
     }
 
-    var whRows = [], koRows = [], errors = [];
-
-    function finishOne() {
-        pendingCount -= 1;
-        if (pendingCount > 0)
+    searchWallhaven(state.query, state.sorting, state.whPage, state.whSeed, function(rows, meta, err) {
+        if (err) {
+            state.whLastPage = 0;              // don't hammer a failing source on Load more
+            done([], state, rows.length ? "" : err);
             return;
-        var rows = interleave(whRows, koRows);
-        var error = (!rows.length && errors.length) ? errors.join(" · ") : "";
-        done(rows, state, error);
-    }
-
-    if (whWanted) {
-        searchWallhaven(state.query, state.sorting, state.whPage, state.whSeed, function(rows, meta, err) {
-            whRows = rows;
-            if (err) {
-                errors.push(err);
-                state.whLastPage = 0;          // don't hammer a failing source on Load more
-            } else {
-                state.whLastPage = meta.lastPage;
-                state.whSeed = meta.seed || state.whSeed;
-                state.whPage += 1;
-            }
-            finishOne();
-        });
-    }
-    if (koWanted) {
-        searchKonachan(state.query, state.sorting, state.koPage, function(rows, lastPage, err) {
-            koRows = rows;
-            if (err) {
-                errors.push(err);
-                state.koDone = true;
-            } else {
-                state.koDone = lastPage;
-                state.koPage += 1;
-            }
-            finishOne();
-        });
-    }
+        }
+        state.whLastPage = meta.lastPage;
+        state.whSeed = meta.seed || state.whSeed;
+        state.whPage += 1;
+        done(rows, state, "");
+    });
 }
 
 // (kept for callers that only ever wanted one shot of results)
