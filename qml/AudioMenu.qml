@@ -253,7 +253,7 @@ Item {
                     text: String(row.modelData.tag || "").toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 9.5
+                    font.pixelSize: 10
                     font.letterSpacing: 1.5
                 }
                 Text {

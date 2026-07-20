@@ -1860,6 +1860,9 @@ Item {
         function onPauseChanged() { root.updateEndsAt() }
         function onSpeedChanged() { root.updateEndsAt() }
         function onDurationChanged() { root.updateEndsAt() }
+        // Chapter crossing rides here (not the direct onPositionChanged handler, which is
+        // the loader-dismiss contract) so both fire independently every position tick.
+        function onPositionChanged() { root.chapterCrossWatch() }
     }
 
 
@@ -2835,7 +2838,7 @@ Item {
             root.syncPowerInhibit()
             root.detectStubStream()
         }
-        onPositionChanged: { root.finishStartingIfPlaybackAdvanced(); root.chapterCrossWatch() }
+        onPositionChanged: root.finishStartingIfPlaybackAdvanced()
         onGifSaved: function(path) {
             root.gifState = "idle"
             root.gifElapsedSec = 0
@@ -4197,7 +4200,7 @@ Item {
                     text: root.pauseFactsLine()
                     visible: text.length > 0
                     color: theme.inkDim
-                    font.family: theme.hud; font.pixelSize: 12.5; font.features: ({ "tnum": 1 })
+                    font.family: theme.hud; font.pixelSize: 12; font.features: ({ "tnum": 1 })
                     elide: Text.ElideRight
                 }
                 Text {
@@ -4205,7 +4208,7 @@ Item {
                     text: root.pauseQualityLine()
                     visible: text.length > 0
                     color: theme.inkDimmer
-                    font.family: theme.hud; font.pixelSize: 10.5; font.letterSpacing: 2
+                    font.family: theme.hud; font.pixelSize: 11; font.letterSpacing: 2
                     font.features: ({ "tnum": 1 })
                     elide: Text.ElideRight
                 }
@@ -4215,7 +4218,7 @@ Item {
                     visible: text.length > 0
                     topPadding: 4
                     color: theme.inkDim
-                    font.family: theme.hud; font.pixelSize: 12.5
+                    font.family: theme.hud; font.pixelSize: 12
                     lineHeight: 1.35
                     wrapMode: Text.WordWrap
                     maximumLineCount: 3
@@ -4304,7 +4307,7 @@ Item {
                     text: root.endsAtClock.length > 0 ? "ENDS  " + root.endsAtClock : ""
                     visible: root.endsAtClock.length > 0
                     color: theme.inkDim
-                    font.family: theme.hud; font.pixelSize: 11.5; font.letterSpacing: 1.5
+                    font.family: theme.hud; font.pixelSize: 12; font.letterSpacing: 1.5
                     font.features: ({ "tnum": 1 })
                     style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
                 }
