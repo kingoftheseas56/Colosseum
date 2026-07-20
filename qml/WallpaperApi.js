@@ -57,8 +57,8 @@ function nativePicks() {
         aspect: "any",
         attribution: "Colosseum original",
         query: "",
-        title: "Captured Motion - Sunset",
-        spec: "QML wallpaper - Colosseum native"
+        title: "Captured Motion - Aurelia",
+        spec: "Still folded-glass QML wallpaper - Colosseum native"
     }, {
         source: "Colosseum",
         source_id: "native:ribbon-dusk",
@@ -69,8 +69,8 @@ function nativePicks() {
         aspect: "any",
         attribution: "Colosseum original",
         query: "",
-        title: "Captured Motion - Dusk",
-        spec: "QML wallpaper - Colosseum native"
+        title: "Captured Motion - Prism Fold",
+        spec: "Still folded-glass QML wallpaper - Colosseum native"
     }, {
         source: "Colosseum",
         source_id: "native:ribbon-ember",
@@ -81,8 +81,8 @@ function nativePicks() {
         aspect: "any",
         attribution: "Colosseum original",
         query: "",
-        title: "Captured Motion - Ember",
-        spec: "QML wallpaper - Colosseum native"
+        title: "Captured Motion - Ember Glass",
+        spec: "Still folded-glass QML wallpaper - Colosseum native"
     }];
 }
 

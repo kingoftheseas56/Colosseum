@@ -76,10 +76,19 @@ if ($ribbon -notmatch 'property int variant') { throw 'RibbonMotion lost its var
 if ($ribbon -notmatch 'property bool running') { throw 'RibbonMotion lost its running gate (shelf-contract parity)' }
 if ($ribbon -match 'Canvas\s*\{') { throw 'RibbonMotion must stay scene-graph work, never per-frame Canvas painting' }
 if ($ribbon -notmatch 'import QtQuick.Shapes') { throw 'RibbonMotion must be built from Qt Quick Shapes' }
+if ($ribbon -match 'function ribbonOutline') { throw 'RibbonMotion regressed to the old parallel tapered-swoosh construction' }
+foreach ($layerContract in @('compositionSets', 'faceLayers', 'shadowLayers', 'glassEdges')) {
+    if ($ribbon -notmatch [regex]::Escape($layerContract)) {
+        throw "RibbonMotion lost its folded-sheet depth layer: $layerContract"
+    }
+}
 foreach ($rv in @('ribbon-sunset', 'ribbon-dusk', 'ribbon-ember')) {
     if ($api -notmatch [regex]::Escape("native:$rv")) { throw "nativePicks lost the $rv wallpaper" }
     if ($api -notmatch ([regex]::Escape("native:$rv") + '[\s\S]{0,80}Ribbon')) { throw "nativeSceneFor does not route $rv to its scene" }
     if ($main -notmatch ([regex]::Escape("native:$rv") + '[\s\S]{0,80}Ribbon')) { throw "Main runtime map does not route $rv to its scene" }
+}
+foreach ($title in @('Captured Motion - Aurelia', 'Captured Motion - Prism Fold', 'Captured Motion - Ember Glass')) {
+    if ($api -notmatch [regex]::Escape($title)) { throw "nativePicks lost the premium scene title: $title" }
 }
 
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
