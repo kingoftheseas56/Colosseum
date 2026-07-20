@@ -120,6 +120,7 @@ public:
     Q_INVOKABLE void addSubtitle(const QString &url, const QString &title = QString(),
                                  const QString &lang = QString(), bool select = true);
     Q_INVOKABLE void setSubOption(const QString &key, const QVariant &value);
+    Q_INVOKABLE void setAudioNormalization(const QString &mode);   // "off" | "light" | "full"
     Q_INVOKABLE QVariant mpvProperty(const QString &name);
     Q_INVOKABLE QString captureFrame(const QString &title = QString(), const QString &subtitle = QString());
     Q_INVOKABLE void revealCaptureFolder(const QString &path = QString());

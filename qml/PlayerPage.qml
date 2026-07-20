@@ -39,6 +39,10 @@ Item {
         property bool forcedSubsWhenNativeAudio: false
         property bool subtitlesOffByDefault: false
         property string trackPrefsJson: "{}"
+        // Loudness normalization (2026-07-20 audit): "off" = smooth (default), "light" =
+        // cheap dynaudnorm, "full" = EBU R128 loudnorm. Default off after loudnorm was
+        // proven the primary stutter cause on weak hardware.
+        property string loudnessMode: "off"
     }
 
     // --- skip segments (Feature 4): chapter- and AniSkip-derived intro/recap/credits ranges ---
@@ -49,6 +53,21 @@ Item {
     property bool autoSkipIntro: playerSettings.autoSkipIntro
     property bool autoSkipRecap: playerSettings.autoSkipRecap
     property bool autoSkipCredits: playerSettings.autoSkipCredits
+
+    // Loudness normalization — a live global mpv audio filter, applied on change + at load.
+    property string loudnessMode: playerSettings.loudnessMode
+    onLoudnessModeChanged: mpv.setAudioNormalization(root.loudnessMode)
+    function loudnessLabel() {
+        return root.loudnessMode === "full" ? "Full (EBU R128)"
+             : root.loudnessMode === "light" ? "Light"
+             : "Smooth"
+    }
+    function cycleLoudness() {
+        // Smooth -> Light -> Full -> Smooth. Persists (player.ini) and applies live.
+        playerSettings.loudnessMode = root.loudnessMode === "off" ? "light"
+                                    : root.loudnessMode === "light" ? "full"
+                                    : "off"
+    }
     property string dismissedSkipKey: ""
     property string autoSkippedKey: ""
     property int skipLoadGeneration: 0
@@ -2609,6 +2628,7 @@ Item {
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
+        mpv.setAudioNormalization(root.loudnessMode)   // apply the persisted mode at startup
     }
     Component.onDestruction: if (typeof Power !== "undefined") Power.release()
     onVisibleChanged: {
@@ -3413,6 +3433,7 @@ Item {
                         { "label": "Screenshot", "kind": "screenshot", "when": true },
                         { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": true },
                         { "label": "Playback stats", "kind": "stats", "when": true },
+                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": true },
                         { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
@@ -3445,6 +3466,9 @@ Item {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 var kind = modelData.kind
+                                // Loudness cycles in place (menu stays open) so you can see
+                                // the mode change and hear it apply live.
+                                if (kind === "loudness") { root.cycleLoudness(); root.wakeChrome(); return }
                                 root.closeMenus()
                                 if (kind === "audio") audioMenu.panelOpen = true
                                 else if (kind === "speed") speedMenu.panelOpen = true

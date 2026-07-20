@@ -59,15 +59,11 @@ MpvItem::MpvItem(QQuickItem *parent)
     setProperty(QStringLiteral("osc"), QStringLiteral("no"));
     setProperty(QStringLiteral("osd-level"), QStringLiteral("0"));
     setProperty(QStringLiteral("volume-max"), QStringLiteral("600"));
-    // Loudness normalization (Hemanth 2026-07-18): movie/anime mixes keep huge headroom, so
-    // "100%" (unity) feels quiet next to players that amplify. dynaudnorm lifts quiet passages
-    // toward a consistent loudness live, without loudnorm's internal 192kHz resample; the UI
-    // volume bar stays a plain 0..100 with 100 = normalized loudness.
-    // dynaudnorm rev 1/2 fell short (2026-07-18): peak-normalizing stops at the first transient,
-    // so low-RMS movie mixes stayed quiet next to PotPlayer, which raises AVERAGE loudness and
-    // limits peaks. loudnorm does exactly that (EBU R128 live mode): I=-14 LUFS = hot streaming
-    // target, TP=-1.5 true-peak ceiling. Costs its internal 192kHz resample; accepted trade.
-    setProperty(QStringLiteral("af"), QStringLiteral("loudnorm=I=-14:TP=-1.5:LRA=11"));
+    // Loudness normalization is now a user choice applied via setAudioNormalization(), and
+    // DEFAULTS OFF (smooth). The 2026-07-20 stutter audit proved always-on dynamic loudnorm
+    // was the primary cause of dropped frames on weak hardware: it upsamples to 192kHz for
+    // true-peak detection at ~65x the audio CPU. QML re-applies the persisted mode on load.
+    // (docs/superpowers/specs/2026-07-20-colosseum-playback-stutter-audit.md)
     // Paused+minimized is our normal parked state (pause-on-minimize), and Windows reclaims
     // idle WASAPI streams (device switch / power-save / another player grabbing the device) —
     // the session then resumes into a dead AO with no sound until app restart (Hemanth,
@@ -320,6 +316,23 @@ void MpvItem::setSubOption(const QString &key, const QVariant &value)
         return;
     }
     setProperty(name, value);
+}
+
+// Loudness normalization mode (2026-07-20 audit). "off" = smooth default (no filter);
+// "light" = dynaudnorm, a cheap adaptive normalizer with no 192kHz upsample; "full" =
+// EBU R128 loudnorm, best consistency but the CPU cost that stutters weak hardware.
+// `af` is a live global mpv option, so this applies to the currently-playing file too.
+void MpvItem::setAudioNormalization(const QString &mode)
+{
+    QString af;
+    if (mode == QStringLiteral("full")) {
+        af = QStringLiteral("loudnorm=I=-14:TP=-1.5:LRA=11");
+    } else if (mode == QStringLiteral("light")) {
+        // Louder-than-default so quiet dialogue lifts: max gain 15x + light compression.
+        af = QStringLiteral("dynaudnorm=m=15:s=9");
+    }
+    // "off" / anything else -> empty -> no audio filter.
+    setProperty(QStringLiteral("af"), af);
 }
 
 QVariant MpvItem::mpvProperty(const QString &name)
