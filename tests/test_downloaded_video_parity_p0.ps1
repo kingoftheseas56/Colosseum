@@ -67,6 +67,20 @@ Assert-Contains $style 'onClicked: {} }' `
 Assert-Contains $main 'if (r.localPath && String(r.localPath).length)' `
     "resumeContinue must branch to the local file BEFORE the infoHash stream path."
 
+# --- F3b: Previous/Next and Up Next prefer a completed local episode ---
+Assert-Contains $player 'function downloadedEpisodeTarget(ep)' `
+    "PlayerPage must resolve a completed download for an adjacent episode."
+Assert-Contains $player 'var localTarget = root.downloadedEpisodeTarget(ep)' `
+    "jumpToEpisode must check the completed-download registry before stream resolution."
+Assert-Contains $player 'root.playLocalFile(localTarget)' `
+    "Adjacent navigation must open the completed local episode when available."
+Assert-Contains $player 'var localCtx = t.playbackContext || ({})' `
+    "Local episode playback must accept the target episode queue context."
+Assert-Contains $player 'root.playbackQueue = localCtx.episodeQueue' `
+    "Local episode playback must preserve the season queue."
+Assert-Contains $player 'root.adjacentEpisodes = root.resolveAdjacentContext(localCtx)' `
+    "Local episode playback must preserve Previous/Next after switching to disk."
+
 # --- F4: per-episode download is back (signature gained the torrent-choice pick,
 #         spec 2026-07-11 — the ↓ routes through the source picker now) ---
 Assert-Contains $series 'function queueEpisodeDownload(v, pick)' `

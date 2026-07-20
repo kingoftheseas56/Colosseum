@@ -1283,6 +1283,29 @@ Item {
                            which === "next" ? "next episode." : "previous episode.")
     }
 
+    function downloadedEpisodeTarget(ep) {
+        if (!ep || !ep.id || typeof Download === "undefined")
+            return null
+        var rows = Download.downloadedVideos() || []
+        for (var i = 0; i < rows.length; ++i) {
+            var row = rows[i] || ({})
+            if (String(row.id || "") !== String(ep.id) || row.missing === true
+                    || !row.path || !String(row.path).length)
+                continue
+            return {
+                "localPath": String(row.path),
+                "id": String(ep.id),
+                "title": ep.title || row.title || "Episode",
+                "art": ep.backdrop || row.art || root.mediaArt || "",
+                "year": (ep.context || ({})).year || root.mediaYear || "",
+                "kind": "episode",
+                "position": 0,
+                "playbackContext": ep.context || ({})
+            }
+        }
+        return null
+    }
+
     // Feature 8: the Next-Episode pipeline, generalized to ANY episode target
     // ({id, title, type, backdrop, context}) — the drawer's episode taps land here.
     function jumpToEpisode(ep, startLabel, failLabel) {
@@ -1292,6 +1315,11 @@ Item {
         root.adjacentResolveGen += 1
         var myGen = root.adjacentResolveGen
         root.recordProgress()
+        var localTarget = root.downloadedEpisodeTarget(ep)
+        if (localTarget) {
+            root.playLocalFile(localTarget)
+            return
+        }
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1786,6 +1814,7 @@ Item {
     // kind ("episode"|"movie"), position }.
     function playLocalFile(target) {
         var t = target || ({})
+        var localCtx = t.playbackContext || ({})
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -1796,15 +1825,16 @@ Item {
         root.stubCheckedKey = ""
         root.streamCandidates = []
         root.currentStreamIndex = -1
-        root.adjacentEpisodes = ({})
+        root.adjacentEpisodes = root.resolveAdjacentContext(localCtx)
         root.mediaTitle = t.title || ""
         root.mediaTransport = "Downloaded"
         root.mediaYear = String(t.year || "")
         root.mediaArt = t.art || ""
         root.mediaLocalPath = String(t.localPath || "")
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
-        root.playbackQueue = []
-        root.playbackQueueIndex = -1
+        root.playbackQueue = localCtx.episodeQueue || []
+        root.playbackQueueIndex = localCtx.episodeIndex !== undefined
+                                  ? Number(localCtx.episodeIndex) : -1
         root.playbackQueueOrderingMode = ""
         root.updateMediaSubtitle()
         root.mediaResumeHash = ""
