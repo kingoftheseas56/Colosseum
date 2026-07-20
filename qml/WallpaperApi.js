@@ -62,38 +62,15 @@ function nativeSceneFor(url) {
     return "";
 }
 
-// The backdrop the app boots to (assets/wallpaper/captured-motion.jpg), offered
-// back as a pick (2026-07-20). It shipped as the hardcoded default and was
-// unreachable once you picked anything else. Turns out it IS an OS wallpaper: the
-// official Windows 11 "Captured Motion" theme by Six N. Five for Microsoft, 4K
-// 3840x2400 — which is why it reads as a desktop shell. A plain bundled image on
-// the same relative path Main resolves for the boot wallpaper.
-function houseDefaultPick() {
-    return {
-        source: "Captured Motion",
-        source_id: "colosseum-motion",   // stable id (kept; predates the Win11 identification)
-        source_url: "",
-        image_url: "../assets/wallpaper/captured-motion.jpg",
-        thumb_url: "../assets/wallpaper/captured-motion.jpg",
-        w: 3840, h: 2400,
-        aspect: "16:10",
-        attribution: "Windows 11 'Captured Motion' (img25) - Six N. Five / Microsoft",
-        query: "",
-        title: "Captured Motion 1",
-        spec: "Windows 11 'Captured Motion' - 3840x2400 (the app default)"
-    };
-}
-
-// ---- Captured Motion shelf (2026-07-20) ----
-// The one wallpaper the app boots to (houseDefaultPick, bundled) turned out to be
-// img25 of Windows 11's "Captured Motion" theme by Six N. Five — dark, abstract,
-// warm iridescent ribbons, which is exactly the desktop-shell look Hemanth wanted.
-// So the shelf is that theme and nothing else (the earlier literal Windows/macOS/
-// Linux defaults were pulled 2026-07-20 — none fit). The other three of the four
-// (img24/26/27) come from a stable archive repo over the jsDelivr CDN, and both
-// the full image and the grid thumbnail ride the keyless wsrv.nl proxy over that
-// origin — a 4K source lands as a crisp capped jpeg and a ~40 KB thumb, no repo
-// bloat, the same remote-pick path Wallhaven uses. (c) Six N. Five / Microsoft.
+// ---- KDE Plasma wallpapers shelf (2026-07-20) ----
+// Real OS-desktop wallpapers with a free license: KDE Plasma's own default set
+// (github.com/KDE/plasma-workspace-wallpapers), each CC-BY-SA-4.0 or LGPLv3 — both
+// permit redistribution with credit. The artist rides each pick (shown on the
+// tile) and the licence is recorded in THIRD_PARTY_NOTICES.md. Same zero-bloat
+// path as any remote pick: the full image + the grid thumbnail both ride the
+// keyless wsrv.nl proxy over a jsDelivr CDN origin, so a 5K source lands as a
+// crisp capped jpeg and a ~40 KB thumb with nothing committed to the repo.
+// (This replaced the Captured Motion shelf — those were Microsoft-copyrighted.)
 
 // encodeURIComponent leaves ()! literal; the CDN is happy either way, but we
 // pin parens too so the emitted URL is byte-stable across encoders.
@@ -109,32 +86,47 @@ function _wsrv(originNoScheme, width) {
          + "&w=" + width + "&output=jpg&q=82";
 }
 
-function _cdnPick(id, repo, branch, path, title, spec) {
+// one KDE wallpaper -> a pick. `file` is the folder's largest landscape image
+// under contents/images/. artist + license carried for on-tile credit + notices.
+function _kdePick(folder, file, title, artist, license) {
+    var path = folder + "/contents/images/" + file;
     var encPath = path.split("/").map(_encSeg).join("/");
-    var origin = "cdn.jsdelivr.net/gh/" + repo + "@" + branch + "/" + encPath;
+    var origin = "cdn.jsdelivr.net/gh/KDE/plasma-workspace-wallpapers@master/" + encPath;
     return {
-        source: "Captured Motion",
-        source_id: id,
-        source_url: "https://github.com/" + repo,
+        source: "KDE Plasma",
+        source_id: "kde-" + folder.toLowerCase(),
+        source_url: "https://github.com/KDE/plasma-workspace-wallpapers/tree/master/" + folder,
         image_url: _wsrv(origin, 3840),   // applied wallpaper, capped at a crisp 4K
         thumb_url: _wsrv(origin, 600),    // grid thumbnail
-        w: 3840, h: 2400,
-        aspect: "16:10",
-        attribution: title + " - Six N. Five / Microsoft",
+        w: 0, h: 0,
+        aspect: "wide",
+        artist: artist,
+        license: license,
+        attribution: title + " by " + artist + " (" + license + ") - KDE Plasma",
         query: "",
         title: title,
-        spec: spec
+        spec: title + " - " + artist + " - " + license
     };
 }
 
-// The other three of Windows 11's four Captured Motion wallpapers (the fourth,
-// img25, is houseDefaultPick — bundled, the boot backdrop). Theme B == Captured
-// Motion at 21H2. All three origins verified 200 image/jpeg 2026-07-20.
-function capturedMotionPicks() {
+// The curated KDE Plasma set (13). All origins verified 200 image/jpeg
+// 2026-07-20; the ultrawide 32:9 ones (Nuvole, Coast) were left out so nothing
+// crops badly on a normal screen.
+function kdePicks() {
     return [
-        _cdnPick("cm-img24", "viridivn/windows11wallpapers", "master", "ThemeB/img24.jpg", "Captured Motion 2", "Windows 11 'Captured Motion' - 3840x2400"),
-        _cdnPick("cm-img26", "viridivn/windows11wallpapers", "master", "ThemeB/img26.jpg", "Captured Motion 3", "Windows 11 'Captured Motion' - 3840x2400"),
-        _cdnPick("cm-img27", "viridivn/windows11wallpapers", "master", "ThemeB/img27.jpg", "Captured Motion 4", "Windows 11 'Captured Motion' - 3840x2400")
+        _kdePick("Cascade", "3840x2160.png", "Cascade", "Ken Vermette", "LGPLv3"),
+        _kdePick("Flow", "5120x2880.jpg", "Flow", "Sandra Smukaste", "CC-BY-SA-4.0"),
+        _kdePick("Kay", "5120x2880.png", "Kay", "ruvkr", "CC-BY-SA-4.0"),
+        _kdePick("Shell", "5120x2880.jpg", "Shell", "Lucas Andrade", "CC-BY-SA-4.0"),
+        _kdePick("Volna", "5120x2880.jpg", "Volna", "Nikita Babin", "CC-BY-SA-4.0"),
+        _kdePick("Nexus", "5120x2880.png", "Nexus", "Krystian Zajdel", "CC-BY-SA-4.0"),
+        _kdePick("Opal", "3840x2160.png", "Opal", "Ken Vermette", "LGPLv3"),
+        _kdePick("ColdRipple", "2560x1600.jpg", "Cold Ripple", "Risto Saukonpää", "LGPLv3"),
+        _kdePick("Elarun", "2560x1600.png", "Elarun", "Nuno Pinheiro", "LGPLv3"),
+        _kdePick("IceCold", "5120x2880.png", "Ice Cold", "Santiago Cézar", "CC-BY-SA-4.0"),
+        _kdePick("PastelHills", "3200x2000.jpg", "Pastel Hills", "Lionel", "LGPLv3"),
+        _kdePick("Honeywave", "5120x2880.jpg", "Honeywave", "Ken Vermette", "CC-BY-SA-4.0"),
+        _kdePick("Kokkini", "3840x2160.png", "Kokkini", "Ken Vermette", "LGPLv3")
     ];
 }
 

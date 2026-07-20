@@ -40,37 +40,33 @@ QtObject {
         if (wh.image_url !== "https://w.wallhaven.cc/full/ab/x.jpg")
             throw new Error("Wallhaven image_url must be the full path")
 
-        // --- Captured Motion shelf (2026-07-20): the three remote siblings of the
-        //     bundled boot wallpaper (img25). Windows 11 theme, proxied jsDelivr. ---
-        var cm = W.capturedMotionPicks()
-        if (cm.length !== 3)
-            throw new Error("Captured Motion adds the theme's other three (img25 is the bundled lead), got " + cm.length)
+        // --- KDE Plasma shelf (2026-07-20): free-licence OS-desktop wallpapers,
+        //     each with an artist for credit, proxied jsDelivr over wsrv.nl. ---
+        var kde = W.kdePicks()
+        if (kde.length < 8)
+            throw new Error("kdePicks must carry a real KDE shelf, got " + kde.length)
         var ids = ({})
-        for (var ci = 0; ci < cm.length; ci++) {
-            var p = cm[ci]
+        for (var ki = 0; ki < kde.length; ki++) {
+            var p = kde[ki]
+            if (p.source_id.indexOf("kde-") !== 0)
+                throw new Error("KDE pick ids must be prefixed kde-, got " + p.source_id)
             if (ids[p.source_id])
-                throw new Error("Captured Motion pick ids must be unique, dup " + p.source_id)
+                throw new Error("KDE pick ids must be unique, dup " + p.source_id)
             ids[p.source_id] = true
+            if (!p.artist || !p.license)
+                throw new Error("every KDE pick must carry artist + license, missing on " + p.source_id)
             if (p.image_url.indexOf("https://") !== 0 || p.thumb_url.indexOf("https://") !== 0)
-                throw new Error("Captured Motion siblings are remote (full + thumb), got " + p.image_url)
+                throw new Error("KDE picks are remote (full + thumb), got " + p.image_url)
             if (W.isNativePick(p.image_url))
-                throw new Error("Captured Motion picks are plain images, never native: routes")
+                throw new Error("KDE picks are plain images, never native: routes")
             if (p.image_url === p.thumb_url)
                 throw new Error("full 4K and small thumb must differ, " + p.source_id)
             if (p.thumb_url.indexOf("wsrv.nl") < 0 || p.thumb_url.indexOf("jsdelivr.net") < 0)
-                throw new Error("Captured Motion picks must proxy a jsDelivr origin through wsrv.nl")
+                throw new Error("KDE picks must proxy a jsDelivr origin through wsrv.nl")
         }
-
-        // --- house default (2026-07-20): the app's own boot backdrop, offered as a pick ---
-        var hd = W.houseDefaultPick()
-        if (hd.source_id !== "colosseum-motion")
-            throw new Error("house default must have a stable id")
-        if (W.isNativePick(hd.image_url))
-            throw new Error("house default is a static image, not a native: route")
-        if (hd.image_url.indexOf("captured-motion") < 0 || hd.image_url.indexOf("assets/wallpaper") < 0)
-            throw new Error("house default must point at the bundled boot wallpaper, got " + hd.image_url)
-        if (hd.image_url !== hd.thumb_url)
-            throw new Error("house default thumb and full are the one bundled image")
+        // Captured Motion functions were removed 2026-07-20 (Microsoft-copyrighted).
+        if (typeof W.capturedMotionPicks !== "undefined" || typeof W.houseDefaultPick !== "undefined")
+            throw new Error("Captured Motion picker functions must be gone")
 
         // --- state lifecycle: fresh state has more; exhausted state has none ---
         var st = W.freshState("  ", "nonsense")

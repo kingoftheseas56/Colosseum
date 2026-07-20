@@ -295,27 +295,26 @@ Item {
                 }
             }
 
-            // ---- Captured Motion shelf: Windows 11's "Captured Motion" theme, the
-            //      dark abstract set the app boots to (2026-07-20). A single horizontal
-            //      strip so it stays one row tall and scrolls sideways (wheel/drag).
-            //      The bundled boot image leads; the other three are remote picks —
-            //      remote thumb, remote full on apply — same path as a Wallhaven pick. ----
+            // ---- KDE Plasma shelf: real OS-desktop wallpapers under a free licence
+            //      (CC-BY-SA-4.0 / LGPLv3), from KDE/plasma-workspace-wallpapers. A
+            //      horizontal strip, one row tall, scrolls sideways (wheel/drag). Each
+            //      tile carries its artist for credit; remote thumb + remote full on
+            //      apply, the same path as a Wallhaven pick. ----
             Text {
-                text: "Captured Motion"
+                text: "KDE Plasma"
                 color: "#d8d2c4"
                 font.family: theme.display
                 font.pixelSize: 16
             }
 
             ListView {
-                id: osStrip
+                id: kdeStrip
                 Layout.fillWidth: true
                 Layout.preferredHeight: 92
                 orientation: ListView.Horizontal
                 spacing: 10
                 clip: true
-                // the bundled boot wallpaper leads, then the theme's other three
-                model: [WallpaperApi.houseDefaultPick()].concat(WallpaperApi.capturedMotionPicks())
+                model: WallpaperApi.kdePicks()
                 boundsBehavior: Flickable.StopAtBounds
 
                 // a horizontal list ignores the vertical wheel by default — map it to
@@ -324,55 +323,68 @@ Item {
                     acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                     onWheel: (ev) => {
                         var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
-                        osStrip.contentX = Math.max(0, Math.min(
-                            Math.max(0, osStrip.contentWidth - osStrip.width),
-                            osStrip.contentX - d))
+                        kdeStrip.contentX = Math.max(0, Math.min(
+                            Math.max(0, kdeStrip.contentWidth - kdeStrip.width),
+                            kdeStrip.contentX - d))
                     }
                 }
 
                 delegate: Rectangle {
-                    id: osTile
+                    id: kdeTile
                     required property var modelData
                     width: 144
                     height: 92
                     radius: 8
                     color: "#07070a"
-                    border.width: root.selectedPick.source_id === osTile.modelData.source_id ? 2 : 1
-                    border.color: root.selectedPick.source_id === osTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
+                    border.width: root.selectedPick.source_id === kdeTile.modelData.source_id ? 2 : 1
+                    border.color: root.selectedPick.source_id === kdeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
                     clip: true
 
                     Image {
                         anchors.fill: parent
-                        source: osTile.modelData.thumb_url
+                        source: kdeTile.modelData.thumb_url
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         cache: true
                     }
 
+                    // title + artist credit
                     Rectangle {
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.bottom: parent.bottom
-                        height: 22
-                        color: Qt.rgba(0, 0, 0, 0.55)
+                        height: 32
+                        color: Qt.rgba(0, 0, 0, 0.6)
 
-                        Text {
+                        Column {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
                             anchors.leftMargin: 8
                             anchors.right: parent.right
                             anchors.rightMargin: 8
-                            text: osTile.modelData.title
-                            color: "#e8e2d4"
-                            font.pixelSize: 10
-                            elide: Text.ElideRight
+                            spacing: 1
+
+                            Text {
+                                width: parent.width
+                                text: kdeTile.modelData.title
+                                color: "#e8e2d4"
+                                font.pixelSize: 10
+                                elide: Text.ElideRight
+                            }
+                            Text {
+                                width: parent.width
+                                text: kdeTile.modelData.artist
+                                color: "#9a958c"
+                                font.pixelSize: 8
+                                elide: Text.ElideRight
+                            }
                         }
                     }
 
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.selectedPick = osTile.modelData
+                        onClicked: root.selectedPick = kdeTile.modelData
                     }
                 }
             }

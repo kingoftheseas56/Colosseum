@@ -21,6 +21,37 @@ This file is a practical inventory, not legal advice and not yet a complete bina
 | Legacy `stremio-runtime.exe` + `server.js` pair | A separate external runtime and not covered by Colosseum's MIT License. Trace the exact files to their upstream release and license before redistributing them; do not assume that the Addon SDK's MIT license applies to the streaming runtime. |
 | External APIs, addons, indexers, scrapers, catalogs, and media | Independent services and content. They are not part of the MIT-licensed Colosseum source and are not relicensed by this repository. |
 
+## KDE Plasma wallpapers (picker "KDE Plasma" shelf)
+
+These wallpapers ship with KDE Plasma and are used here unmodified, streamed from the
+upstream repository at display time (resized via the wsrv.nl proxy over the jsDelivr CDN);
+none are committed to this repository. Source: <https://github.com/KDE/plasma-workspace-wallpapers>.
+
+Each is licensed **Creative Commons Attribution-ShareAlike 4.0 (CC-BY-SA-4.0)** or the
+**GNU Lesser General Public License v3 (LGPLv3)**, as noted. Full licence texts:
+- CC-BY-SA-4.0: <https://creativecommons.org/licenses/by-sa/4.0/>
+- LGPL-3.0: <https://www.gnu.org/licenses/lgpl-3.0.html>
+
+| Wallpaper | Artist | Licence | Modified |
+|---|---|---|---|
+| Cascade | Ken Vermette | LGPLv3 | No |
+| Flow | Sandra Smukaste | CC-BY-SA-4.0 | No |
+| Kay | ruvkr | CC-BY-SA-4.0 | No |
+| Shell | Lucas Andrade | CC-BY-SA-4.0 | No |
+| Volna | Nikita Babin | CC-BY-SA-4.0 | No |
+| Nexus | Krystian Zajdel | CC-BY-SA-4.0 | No |
+| Opal | Ken Vermette | LGPLv3 | No |
+| Cold Ripple | Risto Saukonpää | LGPLv3 | No |
+| Elarun | Nuno Pinheiro | LGPLv3 | No |
+| Ice Cold | Santiago Cézar | CC-BY-SA-4.0 | No |
+| Pastel Hills | Lionel | LGPLv3 | No |
+| Honeywave | Ken Vermette | CC-BY-SA-4.0 | No |
+| Kokkini | Ken Vermette | LGPLv3 | No |
+
+"Modified: No" means Colosseum applies these as artwork without altering the images. If a
+wallpaper is ever adapted, its adaptation must remain under the same licence (the ShareAlike
+term applies to the image, not to Colosseum's own code).
+
 ## Windows release gate
 
 Before publishing an installer or portable package:

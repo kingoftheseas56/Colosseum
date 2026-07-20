@@ -38,26 +38,22 @@ if ($main -notmatch 'immersiveSurfaceOpen[\s\S]{0,80}win\.visibility !== Window\
 if ($api -notmatch 'native:arena-night') { throw 'WallpaperApi lost the arena from nativePicks' }
 if ($ui -notmatch '"Colosseum"') { throw 'the picker lost its Colosseum shelf' }
 
-# 4a2. the app's own boot backdrop is a pickable tile (2026-07-20): the abstract
-# render it ships with, offered back in the Colosseum shelf as a static image.
-if ($api -notmatch 'function houseDefaultPick') { throw 'WallpaperApi lost the house default pick (the boot wallpaper)' }
-if ($api -notmatch 'captured-motion') { throw 'house default must point at the bundled boot wallpaper' }
-if (!(Test-Path (Join-Path $root 'assets/wallpaper/captured-motion.jpg'))) { throw 'the bundled boot wallpaper is missing' }
-if ($ui -notmatch 'houseDefaultPick\(\)') { throw 'the Colosseum shelf must lead with the house default' }
-
-# 4c. Captured Motion shelf (2026-07-20): Windows 11's Captured Motion theme, the
-# dark abstract set the app boots to. The three remote siblings ride jsDelivr
-# through the keyless wsrv.nl proxy (no repo bloat, no api key). The earlier
-# literal Windows/macOS/Linux defaults were pulled - none fit - so guard they stay out.
-if ($api -notmatch 'function capturedMotionPicks') { throw 'WallpaperApi lost the Captured Motion shelf' }
-if ($api -notmatch 'wsrv\.nl') { throw 'Captured Motion picks must proxy through wsrv.nl' }
-if ($api -notmatch 'cdn\.jsdelivr\.net') { throw 'Captured Motion picks must originate from the jsDelivr CDN' }
-if ($ui -notmatch '"Captured Motion"') { throw 'the picker lost its Captured Motion shelf' }
-if ($ui -notmatch 'WallpaperApi\.capturedMotionPicks\(\)') { throw 'the shelf must render capturedMotionPicks()' }
+# 4c. KDE Plasma shelf (2026-07-20): real OS-desktop wallpapers under a free
+# licence (CC-BY-SA-4.0 / LGPLv3), remote via jsDelivr through the keyless wsrv.nl
+# proxy (no repo bloat, no api key). Each pick carries its artist for on-tile credit.
+if ($api -notmatch 'function kdePicks') { throw 'WallpaperApi lost the KDE Plasma shelf' }
+if ($api -notmatch 'plasma-workspace-wallpapers') { throw 'KDE picks must originate from the KDE wallpapers repo' }
+if ($api -notmatch 'wsrv\.nl') { throw 'KDE picks must proxy through wsrv.nl' }
+if ($api -notmatch 'cdn\.jsdelivr\.net') { throw 'KDE picks must originate from the jsDelivr CDN' }
+if ($api -notmatch 'artist:') { throw 'KDE picks must carry an artist for credit' }
+if ($ui -notmatch '"KDE Plasma"') { throw 'the picker lost its KDE Plasma shelf' }
+if ($ui -notmatch 'WallpaperApi\.kdePicks\(\)') { throw 'the shelf must render kdePicks()' }
+if ($ui -notmatch 'kdeTile\.modelData\.artist') { throw 'the KDE tile must show the artist' }
+# THIRD_PARTY_NOTICES records the licences/attribution.
+if (!(Test-Path (Join-Path $root 'THIRD_PARTY_NOTICES.md'))) { throw 'THIRD_PARTY_NOTICES.md (KDE attribution) is missing' }
+# Captured Motion was pulled 2026-07-20 (Microsoft-copyrighted) - guard it stays out of the picker API/UI.
+if ($api -match 'function houseDefaultPick|function capturedMotionPicks') { throw 'a Captured Motion picker function crept back' }
 if ($api -match 'function osPicks') { throw 'the old OS-defaults shelf (osPicks) must be gone' }
-foreach ($gone in @('macOS-Wallpapers', 'Distro-wallpapers', 'Bloom')) {
-    if ($api -match [regex]::Escape($gone)) { throw "a pulled OS-default source ($gone) crept back - Hemanth wanted only Captured Motion" }
-}
 
 # 4b. Gilded Rain (2026-07-19): second native living wallpaper, same gates as the arena.
 $rain = Get-Content (Join-Path $root 'qml/wallpapers/GildedRain.qml') -Raw
@@ -70,9 +66,9 @@ if ($api -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'nat
 if ($main -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'Main runtime map does not route gilded-rain to its scene' }
 
 # 4d. The QML-drawn Captured Motion recreations (RibbonMotion + variants) were
-# pulled 2026-07-20 — both the Claude and Codex passes fell short of the real
-# thing. Guard that none of the ribbon wiring or scene files creep back; the
-# real Captured Motion IMAGE shelf (houseDefaultPick + capturedMotionPicks) stays.
+# pulled 2026-07-20 - both the Claude and Codex passes fell short of the real
+# thing (and the real Captured Motion image shelf was pulled too, Microsoft-
+# copyrighted). Guard that none of the ribbon wiring or scene files creep back.
 foreach ($rv in @('ribbon-sunset', 'ribbon-dusk', 'ribbon-ember', 'RibbonMotion', 'RibbonSunset', 'RibbonDusk', 'RibbonEmber')) {
     if ($api -match [regex]::Escape($rv)) { throw "the pulled QML ribbon wallpaper ($rv) crept back into WallpaperApi" }
     if ($main -match [regex]::Escape($rv)) { throw "the pulled QML ribbon wallpaper ($rv) crept back into Main" }
