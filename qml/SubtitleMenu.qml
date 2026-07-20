@@ -93,6 +93,14 @@ Item {
     }
 
     function rowMeta(track) {
+        // Tier 2 rich rows (2026-07-20): builder pre-computes `tech` (codec · embedded/
+        // external, or "provider · fetched" for online). Salient state moves to the
+        // right-aligned tag; this line stays the source facts.
+        if (track.tech && String(track.tech).length) {
+            var lead = (track.lang && String(track.lang).trim() !== "")
+                       ? String(track.lang).toUpperCase() + " · " : "";
+            return lead + String(track.tech);
+        }
         var parts = [];
         if (track.lang && String(track.lang).trim() !== "")
             parts.push(String(track.lang).toUpperCase());
@@ -836,13 +844,26 @@ Item {
         Text {
             x: 36
             y: 8
-            width: parent.width - 48
+            width: parent.width - 48 - (subRowTag.visible ? subRowTag.width + 10 : 0)
             text: menu.rowLabel(row.track)
             color: theme.ink
             font.family: theme.hud
             font.pixelSize: 12
             font.weight: Font.DemiBold
             elide: Text.ElideRight
+        }
+        // Tier 2: one salient tag (SDH / Default / Forced), right-aligned lettering.
+        Text {
+            id: subRowTag
+            anchors.right: parent.right
+            anchors.rightMargin: 14
+            y: 9
+            visible: !!(row.track.tag && String(row.track.tag).length)
+            text: String(row.track.tag || "").toUpperCase()
+            color: theme.inkDimmer
+            font.family: theme.hud
+            font.pixelSize: 9
+            font.letterSpacing: 1.5
         }
         Text {
             x: 36

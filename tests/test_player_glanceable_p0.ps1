@@ -34,4 +34,16 @@ Assert-Contains $player 'function pauseQualityLine' "Pause card must build its q
 $facts = [regex]::Match($player, 'function pauseFactsLine\(\)[\s\S]*?\n    \}').Value
 if ($facts -match 'imdbRating|\.rating|Rating|star') { throw "Pause facts line must NOT include a rating (Hemanth veto 2026-07-20)." }
 
+# ── Task 4: rich track rows ──
+Assert-Contains $player 'function trackTech' "Player must build a track tech line (codec/channels/bitrate)."
+Assert-Contains $player 'function trackTag' "Player must build a track tag (Default/Forced/SDH)."
+Assert-Contains $player 'demux-channel-count' "Channels must read mpv's demux-channel-count."
+Assert-Contains $player 'demux-bitrate' "Bitrate must read mpv's demux-bitrate."
+Assert-Contains $player '"tech": root.trackTech(track, true)' "Audio rows must carry the tech line."
+$audioMenu = Get-Content (Join-Path $root "qml/AudioMenu.qml") -Raw
+Assert-Contains $audioMenu 'id: rowTag' "AudioMenu must render the right-aligned tag."
+Assert-Contains $audioMenu 'track.tech' "AudioMenu meta must prefer the pre-computed tech."
+$subMenu = Get-Content (Join-Path $root "qml/SubtitleMenu.qml") -Raw
+Assert-Contains $subMenu 'id: subRowTag' "SubtitleMenu must render the right-aligned tag."
+
 Write-Host "PASS: glanceable-truth contracts hold."

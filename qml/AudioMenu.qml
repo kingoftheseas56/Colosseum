@@ -42,6 +42,11 @@ Item {
     }
 
     function rowMeta(track) {
+        // Tier 2 rich rows (2026-07-20): the builder pre-computes `tech` (codec · channels ·
+        // bitrate for audio; codec · embedded/external for subs) reading mpv's dashed keys.
+        // Fall back to the old inline derivation for any row without it.
+        if (track.tech && String(track.tech).length)
+            return String(track.tech);
         var parts = [];
         if (track.codec && String(track.codec).trim() !== "")
             parts.push(String(track.codec).toUpperCase());
@@ -229,13 +234,27 @@ Item {
                 Text {
                     x: 68
                     y: 8
-                    width: parent.width - 82
+                    width: parent.width - 82 - (rowTag.visible ? rowTag.width + 10 : 0)
                     text: menu.rowLabel(row.modelData)
                     color: theme.ink
                     font.family: theme.hud
                     font.pixelSize: 14
                     font.weight: row.selected ? Font.DemiBold : Font.Medium
                     elide: Text.ElideRight
+                }
+                // Tier 2: one salient tag (Default / Original omitted / SDH / Forced),
+                // right-aligned, letterspaced dimmer — lettering, not a chip.
+                Text {
+                    id: rowTag
+                    anchors.right: parent.right
+                    anchors.rightMargin: 16
+                    y: 10
+                    visible: !!(row.modelData.tag && String(row.modelData.tag).length)
+                    text: String(row.modelData.tag || "").toUpperCase()
+                    color: theme.inkDimmer
+                    font.family: theme.hud
+                    font.pixelSize: 9.5
+                    font.letterSpacing: 1.5
                 }
                 Text {
                     x: 68

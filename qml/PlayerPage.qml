@@ -361,7 +361,10 @@ Item {
             "default": !!track.default,
             "url": track.url || "",
             "title": title,
-            "selected": !!track.selected
+            "selected": !!track.selected,
+            "tech": root.trackTech(track, false),
+            "tag": /sdh|hearing|\bhi\b/i.test(hiProbe) ? "SDH"
+                 : (!!track.default ? "Default" : (!!track.forced ? "Forced" : ""))
         }
     }
 
@@ -378,7 +381,9 @@ Item {
             "default": !!subtitle.default,
             "url": subtitle.url || "",
             "downloads": subtitle.downloads || 0,
-            "title": subtitle.title || subtitle.langName || "OpenSubtitles"
+            "title": subtitle.title || subtitle.langName || "OpenSubtitles",
+            "tech": (subtitle.provider || "OpenSubtitles") + " · fetched",
+            "tag": !!subtitle.hearingImpaired ? "SDH" : ""
         }
     }
 
@@ -390,8 +395,48 @@ Item {
             "codec": track.codec || "",
             "channels": track.channels || "",
             "default": !!track.default,
-            "selected": !!track.selected
+            "selected": !!track.selected,
+            // Tier 2 rich rows (2026-07-20): what this track actually carries.
+            "tech": root.trackTech(track, true),
+            "tag": root.trackTag(track)
         }
+    }
+
+    // Shared track-row formatters (Tier 2). mpv passes raw fields through tracksForType,
+    // so channel-count/bitrate live under dashed keys reached by bracket access.
+    function trackCodecLabel(track) {
+        var c = String(track.codec || "").split(" ")[0]
+        return c.length ? c.toUpperCase() : ""
+    }
+    function trackChannels(track) {
+        var n = Number(track["demux-channel-count"] || track.channels || 0)
+        return n > 0 ? root.channelLabel(n) : ""
+    }
+    function trackBitrate(track) {
+        var b = Number(track["demux-bitrate"] || 0)
+        return b > 0 ? Math.round(b / 1000) + " kbps" : ""
+    }
+    // Audio: codec · channels · bitrate. Subtitle: codec · embedded/external.
+    function trackTech(track, isAudio) {
+        var parts = []
+        var codec = root.trackCodecLabel(track)
+        if (codec.length) parts.push(codec)
+        if (isAudio) {
+            var ch = root.trackChannels(track); if (ch.length) parts.push(ch)
+            var br = root.trackBitrate(track); if (br.length) parts.push(br)
+        } else {
+            parts.push(track.external ? "external" : "embedded")
+        }
+        return parts.join(" · ")
+    }
+    // One salient tag: SDH > Default > Forced (Original omitted — not reliably knowable).
+    function trackTag(track) {
+        var hi = track.hearingImpaired
+        if (hi === undefined) hi = !!track["hearing-impaired"]
+        if (hi) return "SDH"
+        if (track.default) return "Default"
+        if (track.forced) return "Forced"
+        return ""
     }
 
     function parseSubtitleMeta() {
