@@ -90,8 +90,21 @@ if ($api -notmatch '"Aurora Flow"') { throw 'nativePicks lost the Aurora Flow ti
 $notices = Get-Content (Join-Path $root 'THIRD_PARTY_NOTICES.md') -Raw
 if ($notices -notmatch 'AuroraFlow') { throw 'THIRD_PARTY_NOTICES.md must record the AuroraFlow port provenance' }
 
+# 4f. Still QML mesh-gradient wallpapers (2026-07-20): our own designs, Qt Quick
+# Shapes, NO animation. These are the "normal QML wallpapers" - static by contract.
+$mesh = Get-Content (Join-Path $root 'qml/wallpapers/MeshGradient.qml') -Raw
+if ($mesh -notmatch 'property int variant') { throw 'MeshGradient lost its variant selector' }
+if ($mesh -match 'Canvas\s*\{') { throw 'MeshGradient must stay scene-graph work, never per-frame Canvas painting' }
+if ($mesh -notmatch 'import QtQuick.Shapes') { throw 'MeshGradient must be built from Qt Quick Shapes' }
+if ($mesh -match 'SequentialAnimation|NumberAnimation|ColorAnimation') { throw 'MeshGradient must stay STILL (no animation) - it is a normal QML wallpaper' }
+foreach ($mv in @('mesh-twilight', 'mesh-ember', 'mesh-mint')) {
+    if ($api -notmatch [regex]::Escape("native:$mv")) { throw "nativePicks lost the $mv wallpaper" }
+    if ($api -notmatch ([regex]::Escape("native:$mv") + '[\s\S]{0,80}Mesh')) { throw "nativeSceneFor does not route $mv to its scene" }
+    if ($main -notmatch ([regex]::Escape("native:$mv") + '[\s\S]{0,80}Mesh')) { throw "Main runtime map does not route $mv to its scene" }
+}
+
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow')) {
+foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden

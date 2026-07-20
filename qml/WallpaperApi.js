@@ -59,6 +59,44 @@ function nativePicks() {
         query: "",
         title: "Aurora Flow",
         spec: "Living gradient - ported from KDE Plasma (QML)"
+    }, {
+        // Still QML mesh gradients (2026-07-20) — our own designs, drawn from Qt
+        // Quick Shapes, no animation, no bitmap.
+        source: "Colosseum",
+        source_id: "native:mesh-twilight",
+        source_url: "",
+        image_url: "native:mesh-twilight",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original",
+        query: "",
+        title: "Twilight",
+        spec: "Still mesh gradient - Colosseum QML"
+    }, {
+        source: "Colosseum",
+        source_id: "native:mesh-ember",
+        source_url: "",
+        image_url: "native:mesh-ember",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original",
+        query: "",
+        title: "Ember",
+        spec: "Still mesh gradient - Colosseum QML"
+    }, {
+        source: "Colosseum",
+        source_id: "native:mesh-mint",
+        source_url: "",
+        image_url: "native:mesh-mint",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original",
+        query: "",
+        title: "Mint",
+        spec: "Still mesh gradient - Colosseum QML"
     }];
 }
 
@@ -74,6 +112,9 @@ function nativeSceneFor(url) {
     if (url === "native:arena-night") return "wallpapers/ArenaNight.qml";
     if (url === "native:gilded-rain") return "wallpapers/GildedRain.qml";
     if (url === "native:aurora-flow") return "wallpapers/AuroraFlow.qml";
+    if (url === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml";
+    if (url === "native:mesh-ember") return "wallpapers/MeshEmber.qml";
+    if (url === "native:mesh-mint") return "wallpapers/MeshMint.qml";
     return "";
 }
 
