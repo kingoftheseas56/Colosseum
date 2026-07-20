@@ -795,6 +795,31 @@ Window {
             win.openSeriesAt(item.seriesTitle, item.seriesId, item.id)
         }
     }
+    // Play-while-arriving (2026-07-20): a LIVE theatre job can be watched now — the
+    // player streams the same resolved url the download is pulling. Progress shares
+    // the video id, so the landed copy resumes where the live watch left off.
+    function routeArrivingPlay(job) {
+        if (!job || !String(job.url || "").length) return
+        win.closeDownloadsPage()
+        var prog = Progress.get("video", job.id || "")
+        var pos = (prog && prog.resume && Number(prog.resume.position || 0) > 0)
+                  ? Number(prog.resume.position) : 0
+        Sessions.openOrSwitch({
+            "appType": "theatre", "contentKind": "movie", "title": job.title || "Video",
+            "target": { "showKey": EpisodeBrowser.seriesRootId(job.id || ""),
+                        "streamUrl": job.url, "id": job.id || "", "title": job.title || "",
+                        "art": job.art || "", "kind": job.kind || "", "position": pos }
+        })
+    }
+    // Landed-restore guard: an Arriving session restored after the download finished
+    // (app restart) must not chase a dead url when the file is already on disk.
+    function downloadedVideoPath(id) {
+        if (!id || typeof Download === "undefined") return ""
+        var vids = Download.downloadedVideos() || []
+        for (var i = 0; i < vids.length; i++)
+            if (vids[i].id === id) return String(vids[i].path || "")
+        return ""
+    }
     function routeDownloadWorld(worldKey) {
         win.closeDownloadsPage()
         var medium = worldKey === "tankoban" ? "Tankoban"
@@ -1101,7 +1126,17 @@ Window {
             } else {
                 if (t.localPath && String(t.localPath).length)
                     playerLayer.item.playLocalFile(t)   // downloaded file: stream-grade identity
-                else
+                else if (t.streamUrl && String(t.streamUrl).length) {
+                    // arriving download: watch the same url live; if it landed since
+                    // (restart restore), prefer the local copy over a dead url.
+                    var landed = win.downloadedVideoPath(t.id || "")
+                    if (landed.length) {
+                        t.localPath = landed
+                        playerLayer.item.playLocalFile(t)
+                    } else {
+                        playerLayer.item.playRemoteUrl(t)
+                    }
+                } else
                     playerLayer.item.playTorrent(t.infoHash, t.fileIdx || 0, t.title, t.backdrop, t.subType, t.subId,
                                                  t.streamCandidates || [], t.playbackContext || ({}))
                 // Continue-Watching first-open resume: a fresh open has NO savedState, so the saved
@@ -1979,6 +2014,7 @@ Window {
             item.searchClicked.connect(win.openSearch)
             item.openRequested.connect(win.routeDownloadItem)
             item.openWorldRequested.connect(win.routeDownloadWorld)
+            item.playArrivingRequested.connect(win.routeArrivingPlay)
         }
     }
 

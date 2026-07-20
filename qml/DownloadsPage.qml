@@ -18,6 +18,7 @@ Item {
     signal searchClicked()
     signal openRequested(var item)           // completed row → host routes by world/kind
     signal openWorldRequested(string world)  // empty-lane CTA → host opens that world
+    signal playArrivingRequested(var job)    // live theatre job → host streams the same url
 
     Theme { id: theme }
 
@@ -533,6 +534,21 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         spacing: 20
                                         Text {
+                                            // play-while-arriving (2026-07-20): a LIVE job can be
+                                            // watched now — only once it's actually downloading
+                                            // with a resolved url (never queued/resolving).
+                                            visible: grp.modelData.single
+                                                     && grp.modelData.world === "theatre"
+                                                     && grp.modelData.rows[0].state === "downloading"
+                                                     && String(grp.modelData.rows[0].url || "").length > 0
+                                            text: "Play"
+                                            color: hPlayMa.containsMouse ? "#ffd968" : theme.gold
+                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            MouseArea { id: hPlayMa; anchors.fill: parent; hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: root.playArrivingRequested(grp.modelData.rows[0]) }
+                                        }
+                                        Text {
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].state === "failed"
                                             text: "Retry"
@@ -693,6 +709,19 @@ Item {
                                                 visible: epRow.modelData.state === "done"
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
+                                            }
+                                            Text {
+                                                // play-while-arriving (2026-07-20): same gate as the
+                                                // single card — downloading + resolved url only.
+                                                visible: epRow.modelData.world === "theatre"
+                                                         && epRow.modelData.state === "downloading"
+                                                         && String(epRow.modelData.url || "").length > 0
+                                                text: "Play"
+                                                color: rPlayMa.containsMouse ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                MouseArea { id: rPlayMa; anchors.fill: parent; hoverEnabled: true
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            onClicked: root.playArrivingRequested(epRow.modelData) }
                                             }
                                             Text {
                                                 visible: epRow.modelData.world === "theatre"
