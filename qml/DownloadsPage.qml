@@ -49,6 +49,21 @@ Item {
     property var abDone: []            // downloadedAudiobooks() snapshot: {id,title,author,bytes,addedAt,missing,fileCount}
     function abRefresh() {
         abDone = (typeof Audiobooks !== "undefined") ? Audiobooks.downloadedAudiobooks() : [];
+        // SEED the live map from the engine's own job list — a job started BEFORE this
+        // page existed emitted its signals into the void (the 2026-07-20 invisible-
+        // download gap). Ground truth comes from the engine; signals keep it live after.
+        // Failed entries are signal-only stickies (the engine drops failed jobs), so
+        // carry them over — they'd vanish on every refresh otherwise.
+        var m = {};
+        for (var k in abActive)
+            if (abActive[k] && abActive[k].state === "failed") m[k] = abActive[k];
+        if (typeof Audiobooks !== "undefined" && Audiobooks.activeDownloads) {
+            var act = Audiobooks.activeDownloads() || [];
+            for (var i = 0; i < act.length; i++)
+                m[act[i].id] = { state: act[i].state,
+                                 pct: act[i].total > 0 ? act[i].received / act[i].total : 0 };
+        }
+        abActive = m;
     }
     function abTitleOf(key) {          // pairKey → display title (its lowercased "title|author" front half)
         var p = String(key || "").split("|");
@@ -1036,6 +1051,7 @@ Item {
                                     }
                                     Text {
                                         text: abJobRow.st.state === "resolving" ? "resolving…"
+                                            : abJobRow.st.state === "queued" ? "queued"
                                             : abJobRow.st.state === "failed" ? "failed — retry from the book's page"
                                             : ("downloading — " + Math.round((abJobRow.st.pct || 0) * 100) + "%")
                                         color: abJobRow.st.state === "failed" ? theme.inkDimmer : theme.gold

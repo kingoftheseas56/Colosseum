@@ -201,6 +201,27 @@ QVariantMap AudiobookDownloader::statusOf(const QString& pairKey) const
     return s;
 }
 
+QVariantList AudiobookDownloader::activeDownloads() const
+{
+    QVariantList out;
+    const auto describe = [](const Job* j, const QString& state) {
+        return QVariantMap{
+            {QStringLiteral("id"),       j->pairKey},
+            {QStringLiteral("title"),    j->title},
+            {QStringLiteral("author"),   j->author},
+            {QStringLiteral("state"),    state},
+            {QStringLiteral("received"), static_cast<double>(j->doneBytes + j->fileReceived)},
+            {QStringLiteral("total"),    static_cast<double>(j->totalBytes)},
+        };
+    };
+    if (m_active)
+        out.append(describe(m_active, m_active->files.isEmpty() ? QStringLiteral("resolving")
+                                                                : QStringLiteral("downloading")));
+    for (const Job* q : m_queue)
+        out.append(describe(q, QStringLiteral("queued")));
+    return out;
+}
+
 QVariantList AudiobookDownloader::downloadedAudiobooks() const
 {
     QVariantList out;

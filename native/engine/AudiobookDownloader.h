@@ -75,6 +75,12 @@ public:
     // { state:"none"|"resolving"|"downloading"|"done", received, total }.
     Q_INVOKABLE QVariantMap statusOf(const QString& pairKey) const;
     Q_INVOKABLE QVariantList downloadedAudiobooks() const;
+    // In-flight jobs (active + queued): [{id,title,author,state,received,total}] — the
+    // Downloads page SEEDS its live map from this on open. Signals alone can't backfill
+    // a job that started before the page existed (the 2026-07-20 invisible-download gap:
+    // resolving() fired once at click time, then a cold engine moved no bytes for 60s+,
+    // so a freshly opened Downloads page showed nothing while the download ran).
+    Q_INVOKABLE QVariantList activeDownloads() const;
     Q_INVOKABLE void cancelDownload(const QString& pairKey);
     Q_INVOKABLE void deleteAudiobook(const QString& pairKey);
 
