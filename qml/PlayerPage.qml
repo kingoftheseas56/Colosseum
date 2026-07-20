@@ -186,11 +186,6 @@ Item {
     property int sleepEndEpisodesRemaining: 0
     property bool statsOverlayOpen: false
     property var playbackStats: ({})
-    property bool drawMode: false
-    property var drawStrokes: []
-    property string drawColor: "#f4b23c"
-    property string activeDrawStrokeId: ""
-    property int drawStrokeLifetimeMs: 9500
 
     // Combined subtitle list: embedded/loaded mpv tracks + online subs not yet loaded.
     readonly property var subRows: {
@@ -1762,14 +1757,6 @@ Item {
         onTriggered: root.refreshPlaybackStats()
     }
 
-    Timer {
-        id: drawGcTimer
-        interval: 2000
-        repeat: true
-        running: root.drawStrokes.length > 0
-        onTriggered: root.pruneDrawStrokes()
-    }
-
 
     function playUrl(url, title) {
         root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
@@ -2335,74 +2322,6 @@ Item {
         if (label === "Volume")
             return Math.round(mpv.volume) + "%" + (mpv.mute ? " / muted" : "")
         return "--"
-    }
-    function normalizedDrawPoint(mouseX, mouseY) {
-        return {
-            "x": root.clamp(mouseX / Math.max(1, drawInputArea.width), 0, 1),
-            "y": root.clamp(mouseY / Math.max(1, drawInputArea.height), 0, 1)
-        }
-    }
-    function startDrawStroke(mouseX, mouseY) {
-        var p = root.normalizedDrawPoint(mouseX, mouseY)
-        root.activeDrawStrokeId = "local-" + Date.now()
-        var rows = root.drawStrokes.slice()
-        rows.push({
-            "id": root.activeDrawStrokeId,
-            "color": root.drawColor,
-            "bornAt": Date.now(),
-            "points": [p]
-        })
-        root.drawStrokes = rows
-        drawCanvas.requestPaint()
-    }
-    function addDrawPoint(mouseX, mouseY) {
-        if (!root.activeDrawStrokeId.length)
-            return
-        var p = root.normalizedDrawPoint(mouseX, mouseY)
-        var rows = root.drawStrokes.slice()
-        for (var i = rows.length - 1; i >= 0; i--) {
-            if (rows[i].id === root.activeDrawStrokeId) {
-                var pts = rows[i].points ? rows[i].points.slice() : []
-                if (pts.length) {
-                    var last = pts[pts.length - 1]
-                    var dx = p.x - last.x
-                    var dy = p.y - last.y
-                    if (dx * dx + dy * dy < 0.004 * 0.004)
-                        return
-                }
-                pts.push(p)
-                rows[i] = Object.assign({}, rows[i], { "points": pts })
-                root.drawStrokes = rows
-                drawCanvas.requestPaint()
-                return
-            }
-        }
-    }
-    function endDrawStroke(mouseX, mouseY) {
-        if (root.activeDrawStrokeId.length)
-            root.addDrawPoint(mouseX, mouseY)
-        root.activeDrawStrokeId = ""
-        root.pruneDrawStrokes()
-    }
-    function pruneDrawStrokes() {
-        var now = Date.now()
-        var rows = []
-        for (var i = 0; i < root.drawStrokes.length; i++) {
-            var s = root.drawStrokes[i]
-            if (now - Number(s.bornAt || 0) < root.drawStrokeLifetimeMs)
-                rows.push(s)
-        }
-        if (rows.length !== root.drawStrokes.length) {
-            root.drawStrokes = rows
-            drawCanvas.requestPaint()
-        }
-    }
-    function toggleDrawMode() {
-        root.drawMode = !root.drawMode
-        if (!root.drawMode)
-            root.activeDrawStrokeId = ""
-        root.closeMenus()
-        root.wakeChrome()
     }
     function togglePlayPause() {
         if (!root.starting && !root.errored)
@@ -3232,7 +3151,6 @@ Item {
                         { "label": "Screenshot", "kind": "screenshot", "when": true },
                         { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": true },
                         { "label": "Playback stats", "kind": "stats", "when": true },
-                        { "label": "Draw", "kind": "draw", "when": true },
                         { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
                         { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
@@ -3281,7 +3199,6 @@ Item {
                                     root.statsOverlayOpen = !root.statsOverlayOpen
                                     if (root.statsOverlayOpen) root.refreshPlaybackStats()
                                 }
-                                else if (kind === "draw") root.toggleDrawMode()
                                 else if (kind === "liveGuide") {
                                     if (!root.liveGuideOpen) root.openLiveGuide(); else root.liveGuideOpen = false
                                 }
@@ -3662,49 +3579,6 @@ Item {
                     }
                 }
             }
-        }
-
-        Canvas {
-            id: drawCanvas
-            visible: root.drawStrokes.length > 0 || root.drawMode
-            anchors.fill: parent
-            z: 17
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                ctx.lineCap = "round"
-                ctx.lineJoin = "round"
-                ctx.lineWidth = 4
-                ctx.shadowColor = "rgba(0, 0, 0, 0.55)"
-                ctx.shadowBlur = 4
-                for (var i = 0; i < root.drawStrokes.length; i++) {
-                    var stroke = root.drawStrokes[i]
-                    var pts = stroke.points || []
-                    if (pts.length < 2)
-                        continue
-                    ctx.beginPath()
-                    ctx.strokeStyle = stroke.color || root.drawColor
-                    ctx.moveTo(pts[0].x * width, pts[0].y * height)
-                    for (var p = 1; p < pts.length; p++)
-                        ctx.lineTo(pts[p].x * width, pts[p].y * height)
-                    ctx.stroke()
-                }
-            }
-        }
-
-        MouseArea {
-            id: drawInputArea
-            visible: root.drawMode
-            enabled: root.drawMode
-            anchors.fill: parent
-            z: 20
-            hoverEnabled: true
-            preventStealing: true
-            cursorShape: Qt.CrossCursor
-            onPressed: root.startDrawStroke(mouseX, mouseY)
-            onPositionChanged: root.addDrawPoint(mouseX, mouseY)
-            onReleased: root.endDrawStroke(mouseX, mouseY)
-            onCanceled: root.endDrawStroke(mouseX, mouseY)
         }
 
         Rectangle {
