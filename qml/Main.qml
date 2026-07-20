@@ -41,6 +41,7 @@ Window {
     function nativeWallpaperFile(source) {
         if (source === "native:arena-night") return "wallpapers/ArenaNight.qml"
         if (source === "native:gilded-rain") return "wallpapers/GildedRain.qml"
+        if (source === "native:aurora-flow") return "wallpapers/AuroraFlow.qml"
         return ""
     }
 
@@ -2122,6 +2123,9 @@ Window {
             item.targetWorld = wallpaperLayer.targetWorld
             item.inheritedImageUrl = win.wallpaperSource
             item.closeRequested.connect(win.closeWallpaperSearch)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.quitRequested.connect(function() { Qt.quit() })
             item.applyRequested.connect(function(scope, world, pick) {
                 if (scope === "all") win.setWallpaperEverywhere(pick)
                 else win.setWallpaperPick(world, pick)

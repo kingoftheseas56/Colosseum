@@ -77,8 +77,21 @@ foreach ($rf in @('RibbonMotion', 'RibbonSunset', 'RibbonDusk', 'RibbonEmber')) 
     if (Test-Path (Join-Path $root "qml/wallpapers/$rf.qml")) { throw "the pulled QML ribbon scene file ($rf.qml) is still on disk" }
 }
 
+# 4e. AuroraFlow (2026-07-20): a living gradient wallpaper ported from a real KDE
+# Plasma QML wallpaper plugin (LGPL-2.1), KDE deps stripped. Scene-graph, freeze-gated.
+$aurora = Get-Content (Join-Path $root 'qml/wallpapers/AuroraFlow.qml') -Raw
+if ($aurora -notmatch 'property bool running') { throw 'AuroraFlow lost its running gate - it could never freeze' }
+if ($aurora -match 'Canvas\s*\{') { throw 'AuroraFlow must stay scene-graph work, never per-frame Canvas painting' }
+if ($aurora -notmatch 'import QtQuick.Shapes') { throw 'AuroraFlow must be built from Qt Quick Shapes' }
+if ($api -notmatch 'native:aurora-flow[\s\S]{0,80}AuroraFlow\.qml') { throw 'nativeSceneFor does not route aurora-flow to its scene' }
+if ($main -notmatch 'native:aurora-flow[\s\S]{0,80}AuroraFlow\.qml') { throw 'Main runtime map does not route aurora-flow to its scene' }
+if ($api -notmatch '"Aurora Flow"') { throw 'nativePicks lost the Aurora Flow tile' }
+# the ported scene's provenance/licence must be recorded.
+$notices = Get-Content (Join-Path $root 'THIRD_PARTY_NOTICES.md') -Raw
+if ($notices -notmatch 'AuroraFlow') { throw 'THIRD_PARTY_NOTICES.md must record the AuroraFlow port provenance' }
+
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain')) {
+foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden

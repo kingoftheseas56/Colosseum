@@ -52,6 +52,16 @@ Each is licensed **Creative Commons Attribution-ShareAlike 4.0 (CC-BY-SA-4.0)** 
 wallpaper is ever adapted, its adaptation must remain under the same licence (the ShareAlike
 term applies to the image, not to Colosseum's own code).
 
+## Ported QML wallpaper scenes (Colosseum → "Colosseum" shelf)
+
+| Scene | Ported from | Upstream licence |
+|---|---|---|
+| AuroraFlow (`qml/wallpapers/AuroraFlow.qml`) | VicenteMcMahon/kde-plasma-gradient-wallpaper (<https://github.com/VicenteMcMahon/kde-plasma-gradient-wallpaper>) | LGPL-2.1-or-later |
+
+These are QML wallpaper scenes adapted from KDE Plasma wallpaper plugins for a plain Qt6
+build (KDE-specific APIs removed). As adaptations of LGPL-2.1 source, the adapted scene
+files carry that licence; a per-file SPDX header records the provenance.
+
 ## Windows release gate
 
 Before publishing an installer or portable package:

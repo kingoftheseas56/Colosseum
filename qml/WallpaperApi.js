@@ -45,6 +45,20 @@ function nativePicks() {
         query: "",
         title: "Gilded Rain",
         spec: "Living wallpaper - Colosseum native"
+    }, {
+        // Ported from a real KDE Plasma QML wallpaper plugin (2026-07-20), LGPL-2.1;
+        // KDE deps stripped for our Qt6 build. See THIRD_PARTY_NOTICES.md.
+        source: "Colosseum",
+        source_id: "native:aurora-flow",
+        source_url: "https://github.com/VicenteMcMahon/kde-plasma-gradient-wallpaper",
+        image_url: "native:aurora-flow",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Ported from KDE Plasma gradient wallpaper (LGPL-2.1)",
+        query: "",
+        title: "Aurora Flow",
+        spec: "Living gradient - ported from KDE Plasma (QML)"
     }];
 }
 
@@ -59,6 +73,7 @@ function isNativePick(url) {
 function nativeSceneFor(url) {
     if (url === "native:arena-night") return "wallpapers/ArenaNight.qml";
     if (url === "native:gilded-rain") return "wallpapers/GildedRain.qml";
+    if (url === "native:aurora-flow") return "wallpapers/AuroraFlow.qml";
     return "";
 }
 
