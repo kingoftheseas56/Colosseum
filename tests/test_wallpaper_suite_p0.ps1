@@ -69,8 +69,21 @@ if ($api -notmatch 'function nativeSceneFor') { throw 'WallpaperApi lost the sin
 if ($api -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'nativeSceneFor does not route gilded-rain to its scene' }
 if ($main -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'Main runtime map does not route gilded-rain to its scene' }
 
-# 5. both native scenes actually instantiate (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain')) {
+# 4d. Captured Motion, drawn by us (2026-07-20): still QML wallpapers (Qt Quick
+# Shapes, no bitmap/shader/animation) in the Windows 11 Captured Motion spirit.
+$ribbon = Get-Content (Join-Path $root 'qml/wallpapers/RibbonMotion.qml') -Raw
+if ($ribbon -notmatch 'property int variant') { throw 'RibbonMotion lost its variant selector' }
+if ($ribbon -notmatch 'property bool running') { throw 'RibbonMotion lost its running gate (shelf-contract parity)' }
+if ($ribbon -match 'Canvas\s*\{') { throw 'RibbonMotion must stay scene-graph work, never per-frame Canvas painting' }
+if ($ribbon -notmatch 'import QtQuick.Shapes') { throw 'RibbonMotion must be built from Qt Quick Shapes' }
+foreach ($rv in @('ribbon-sunset', 'ribbon-dusk', 'ribbon-ember')) {
+    if ($api -notmatch [regex]::Escape("native:$rv")) { throw "nativePicks lost the $rv wallpaper" }
+    if ($api -notmatch ([regex]::Escape("native:$rv") + '[\s\S]{0,80}Ribbon')) { throw "nativeSceneFor does not route $rv to its scene" }
+    if ($main -notmatch ([regex]::Escape("native:$rv") + '[\s\S]{0,80}Ribbon')) { throw "Main runtime map does not route $rv to its scene" }
+}
+
+# 5. every native scene actually instantiates (offscreen, 4s each, then killed).
+foreach ($scene in @('ArenaNight', 'GildedRain', 'RibbonMotion', 'RibbonSunset', 'RibbonDusk', 'RibbonEmber')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden
@@ -81,4 +94,4 @@ foreach ($scene in @('ArenaNight', 'GildedRain')) {
     if ($errTxt -match 'error') { throw "$scene instantiation errors: $errTxt" }
 }
 
-Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena + gilded rain)'
+Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena + gilded rain + captured-motion ribbons)'

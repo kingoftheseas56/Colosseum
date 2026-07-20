@@ -219,7 +219,11 @@ Item {
                 font.pixelSize: 12
             }
 
-            // ---- Colosseum shelf: our own living wallpapers, apart from the searchable pool ----
+            // ---- Colosseum shelf: our own QML wallpapers (the living scenes plus the
+            //      still Captured-Motion ribbons), apart from the searchable pool. A
+            //      horizontal strip — the shelf grew past three tiles, so it scrolls
+            //      sideways rather than overflowing the panel. Each tile IS the
+            //      wallpaper, live and miniature. ----
             Text {
                 text: "Colosseum"
                 color: "#d8d2c4"
@@ -227,50 +231,66 @@ Item {
                 font.pixelSize: 16
             }
 
-            Row {
+            ListView {
+                id: nativeStrip
+                Layout.fillWidth: true
+                Layout.preferredHeight: 92
+                orientation: ListView.Horizontal
                 spacing: 10
+                clip: true
+                model: WallpaperApi.nativePicks()
+                boundsBehavior: Flickable.StopAtBounds
 
-                Repeater {
-                    model: WallpaperApi.nativePicks()
-                    delegate: Rectangle {
-                        id: nativeTile
-                        required property var modelData
-                        width: 144
-                        height: 92
-                        radius: 8
-                        color: "#07070a"
-                        border.width: root.selectedPick.source_id === nativeTile.modelData.source_id ? 2 : 1
-                        border.color: root.selectedPick.source_id === nativeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
-                        clip: true
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: (ev) => {
+                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
+                        nativeStrip.contentX = Math.max(0, Math.min(
+                            Math.max(0, nativeStrip.contentWidth - nativeStrip.width),
+                            nativeStrip.contentX - d))
+                    }
+                }
 
-                        // the tile IS the wallpaper, live and miniature
-                        Loader {
-                            anchors.fill: parent
-                            source: WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url)
-                        }
+                delegate: Rectangle {
+                    id: nativeTile
+                    required property var modelData
+                    width: 144
+                    height: 92
+                    radius: 8
+                    color: "#07070a"
+                    border.width: root.selectedPick.source_id === nativeTile.modelData.source_id ? 2 : 1
+                    border.color: root.selectedPick.source_id === nativeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
+                    clip: true
 
-                        Rectangle {
+                    Loader {
+                        anchors.fill: parent
+                        source: WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url)
+                    }
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: 22
+                        color: Qt.rgba(0, 0, 0, 0.55)
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
                             anchors.left: parent.left
+                            anchors.leftMargin: 8
                             anchors.right: parent.right
-                            anchors.bottom: parent.bottom
-                            height: 22
-                            color: Qt.rgba(0, 0, 0, 0.55)
-
-                            Text {
-                                anchors.verticalCenter: parent.verticalCenter
-                                anchors.left: parent.left
-                                anchors.leftMargin: 8
-                                text: nativeTile.modelData.title
-                                color: "#e8e2d4"
-                                font.pixelSize: 10
-                            }
+                            anchors.rightMargin: 8
+                            text: nativeTile.modelData.title
+                            color: "#e8e2d4"
+                            font.pixelSize: 10
+                            elide: Text.ElideRight
                         }
+                    }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.selectedPick = nativeTile.modelData
-                        }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.selectedPick = nativeTile.modelData
                     }
                 }
             }
