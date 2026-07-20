@@ -191,6 +191,7 @@ Item {
     // The state line only SPEAKS when there is something to say — silent in plain play.
     property bool showRemaining: false                  // right clock: total <-> remaining
     property string endsAtClock: ""                     // "11:42 PM" — recomputed, not bound to churn
+    property string nowClock: ""                         // live wall clock so "Ends" has an anchor
     property string chapterTransient: ""                // set on chapter crossing (Task 2), auto-clears
     // ── Pause info card (Tier 2): on pause, the player tells you what you're watching. ──
     property bool pauseCardShown: false                 // driven by the ~900ms settle timer
@@ -213,9 +214,17 @@ Item {
         if (root.chapterTransient.length) return root.chapterTransient
         return ""
     }
-    // "Ends 11:42 PM" — now + (remaining / speed). Recomputed on a 1s tick + on the
-    // events that move the finish line, never bound to position (that churns every frame).
+    // Format a Date as a 12-hour wall clock ("6:59 PM").
+    function fmtWallClock(date) {
+        var h = date.getHours(), m = date.getMinutes()
+        var ap = h >= 12 ? "PM" : "AM"
+        var h12 = h % 12; if (h12 === 0) h12 = 12
+        return h12 + ":" + (m < 10 ? "0" : "") + m + " " + ap
+    }
+    // The live clock ("6:00 PM now") + "Ends 6:59 PM" (now + remaining/speed). Recomputed on
+    // a 1s tick + on the events that move the finish line, never bound to position churn.
     function updateEndsAt() {
+        root.nowClock = root.fmtWallClock(new Date(Date.now()))
         if (!(mpv.duration > 0) || root.starting || root.errored || root.mediaLocalPath.indexOf("iptv:") === 0
                 || root.mediaId.indexOf("iptv:") === 0) {
             root.endsAtClock = ""
@@ -223,11 +232,7 @@ Item {
         }
         var rate = (mpv.speed && mpv.speed > 0.05) ? mpv.speed : 1
         var remainingSec = Math.max(0, (mpv.duration - mpv.position) / rate)
-        var end = new Date(Date.now() + remainingSec * 1000)
-        var h = end.getHours(), m = end.getMinutes()
-        var ap = h >= 12 ? "PM" : "AM"
-        var h12 = h % 12; if (h12 === 0) h12 = 12
-        root.endsAtClock = h12 + ":" + (m < 10 ? "0" : "") + m + " " + ap
+        root.endsAtClock = root.fmtWallClock(new Date(Date.now() + remainingSec * 1000))
     }
 
     // Combined subtitle list: embedded/loaded mpv tracks + online subs not yet loaded.
@@ -1851,7 +1856,7 @@ Item {
         id: endsAtTick
         interval: 1000
         repeat: true
-        running: root.visible && root.fileReady && mpv.duration > 0
+        running: root.visible && root.fileReady
         triggeredOnStart: true
         onTriggered: root.updateEndsAt()
     }
@@ -2701,19 +2706,28 @@ Item {
         if (root.endsAtClock.length) parts.push("ends " + root.endsAtClock)
         return parts.join("  ·  ")
     }
+    // mpvProperty can return an unavailable/error-wrapped QVariant that stringifies to
+    // "QVariant(ErrorReturn, ...)" — never let that leak into the UI. Clean to "" instead.
+    function mpvClean(key) {
+        var v = mpv.mpvProperty(key)
+        if (v === undefined || v === null) return ""
+        var s = String(v)
+        if (!s.length || s.indexOf("QVariant") >= 0 || s.indexOf("ErrorReturn") >= 0) return ""
+        return s
+    }
     // The quality line — resolution · video codec · audio codec · channels · HDR, all
-    // from mpv, inline lettering (no chips — transparent tablets read cheap).
+    // from mpv (sanitized), inline lettering (no chips — transparent tablets read cheap).
     function pauseQualityLine() {
         var out = []
-        var h = Number(mpv.mpvProperty("height") || 0)
+        var h = Number(root.mpvClean("height"))
         if (h > 0) out.push(h + "p")
-        var vc = String(mpv.mpvProperty("video-codec") || "").split(" ")[0]
+        var vc = root.mpvClean("video-codec").split(" ")[0]
         if (vc.length) out.push(vc.toUpperCase())
-        var ac = String(mpv.mpvProperty("audio-codec") || "").split(" ")[0]
+        var ac = root.mpvClean("audio-codec").split(" ")[0]
         if (ac.length) out.push(ac.toUpperCase())
-        var ch = Number(mpv.mpvProperty("audio-params/channel-count") || 0)
+        var ch = Number(root.mpvClean("audio-params/channel-count"))
         if (ch > 0) out.push(root.channelLabel(ch))
-        var transfer = String(mpv.mpvProperty("video-params/transfer") || "").toLowerCase()
+        var transfer = root.mpvClean("video-params/transfer").toLowerCase()
         if (transfer.indexOf("pq") >= 0 || transfer.indexOf("smpte2084") >= 0) out.push("HDR")
         else if (transfer.indexOf("hlg") >= 0) out.push("HLG")
         return out.join("  ·  ")
@@ -3169,6 +3183,21 @@ Item {
                         width: Math.min(implicitWidth, chrome.width * 0.4)
                     }
                 }
+            }
+
+            // Live wall clock (2026-07-20, Hemanth: "Ends" needs a now to anchor to). Sits
+            // left of the window verbs; the one place the player tells you the actual time.
+            Text {
+                id: nowClockLabel
+                anchors.right: titleBarVerbs.left
+                anchors.rightMargin: tight ? 14 : 20
+                anchors.verticalCenter: titleBarVerbs.verticalCenter
+                visible: !tight && root.nowClock.length > 0
+                text: root.nowClock
+                color: theme.inkDim
+                font.family: theme.hud; font.pixelSize: 13; font.letterSpacing: 0.5
+                font.features: ({ "tnum": 1 })
+                style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
             }
 
             Row {

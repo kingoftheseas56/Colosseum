@@ -46,4 +46,15 @@ Assert-Contains $audioMenu 'track.tech' "AudioMenu meta must prefer the pre-comp
 $subMenu = Get-Content (Join-Path $root "qml/SubtitleMenu.qml") -Raw
 Assert-Contains $subMenu 'id: subRowTag' "SubtitleMenu must render the right-aligned tag."
 
+# ── Eyes-on fixes (2026-07-20): sanitized quality line + live wall clock ──
+Assert-Contains $player 'function mpvClean' "mpvProperty reads must be sanitized (no QVariant/ErrorReturn leak)."
+Assert-Contains $player 'ErrorReturn' "Sanitizer must reject error-wrapped QVariant strings."
+Assert-Contains $player 'property string nowClock' "Player must hold a live wall clock."
+Assert-Contains $player 'id: nowClockLabel' "The wall clock must render in the chrome."
+Assert-Contains $player 'root.mpvClean("video-codec")' "Quality line must read codecs through the sanitizer."
+# The mpv allowlist must permit channels + HDR transfer for the quality line.
+$mpvcpp = Get-Content (Join-Path $root "native/player/mpvitem.cpp") -Raw
+Assert-Contains $mpvcpp 'audio-params/channel-count' "mpv allowlist must permit channel-count."
+Assert-Contains $mpvcpp 'video-params/transfer' "mpv allowlist must permit the HDR transfer."
+
 Write-Host "PASS: glanceable-truth contracts hold."

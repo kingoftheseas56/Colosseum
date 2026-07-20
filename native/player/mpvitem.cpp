@@ -337,6 +337,9 @@ QVariant MpvItem::mpvProperty(const QString &name)
         QStringLiteral("cache-buffering-state"),
         QStringLiteral("width"),
         QStringLiteral("height"),
+        // Pause info card quality line (2026-07-20): channels + HDR transfer.
+        QStringLiteral("audio-params/channel-count"),
+        QStringLiteral("video-params/transfer"),
     };
     const QString key = name.trimmed();
     if (!allowedStatsProperties.contains(key))
