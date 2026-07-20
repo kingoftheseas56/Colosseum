@@ -1,0 +1,22 @@
+# Glanceable truth (Tier 1+2, Hemanth-approved mock 2026-07-20): the player STATES
+# what it knows — state line, ends-at clock, remaining flip, chapter names, pause
+# info card (NO rating — his veto), rich track rows. Grows per task.
+# Plan: docs/superpowers/plans/2026-07-20-colosseum-player-glanceable-truth.md
+
+$ErrorActionPreference = "Stop"
+
+$root   = Split-Path -Parent $PSScriptRoot
+$player = Get-Content (Join-Path $root "qml/PlayerPage.qml") -Raw
+
+# Literal substring check (needles carry [] and {} — never -like here).
+function Assert-Contains($text, $needle, $message) { if (-not $text.Contains($needle)) { throw $message } }
+
+# ── Task 1: state line + ends-at + remaining flip ──
+Assert-Contains $player 'readonly property string stateLineText' "Player must resolve one state line."
+Assert-Contains $player 'property string endsAtClock' "Player must hold the ends-at wall clock."
+Assert-Contains $player 'function updateEndsAt' "Ends-at must be computed (speed-aware), not bound to position churn."
+Assert-Contains $player 'property bool showRemaining' "Right clock must be flippable to remaining."
+Assert-Contains $player 'onClicked: root.showRemaining = !root.showRemaining' "Clicking the duration must flip it."
+Assert-Contains $player 'cache-buffering-state' "Buffering state must surface a live percent."
+
+Write-Host "PASS: glanceable-truth contracts hold."

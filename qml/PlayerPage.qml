@@ -187,6 +187,44 @@ Item {
     property bool statsOverlayOpen: false
     property var playbackStats: ({})
 
+    // ── Glanceable truth (Tier 1, 2026-07-20): the player states what it knows. ──
+    // The state line only SPEAKS when there is something to say — silent in plain play.
+    property bool showRemaining: false                  // right clock: total <-> remaining
+    property string endsAtClock: ""                     // "11:42 PM" — recomputed, not bound to churn
+    property string chapterTransient: ""                // set on chapter crossing (Task 2), auto-clears
+    readonly property string stateLineText: {
+        if (root.starting || root.errored) return ""
+        // buffering: cache-buffering-state drops below 100 while the stream refills
+        var buf = mpv.mpvProperty("cache-buffering-state")
+        if (!mpv.pause && buf !== undefined && buf !== "" && Number(buf) < 100 && Number(buf) >= 0)
+            return "Buffering " + Number(buf).toFixed(0) + "%"
+        if (mpv.pause) return "Paused"
+        if (root.seeking) {
+            var d = root.seekPreview - mpv.position
+            var sign = d >= 0 ? "+" : "-"
+            return "Seek " + sign + root.fmtTime(Math.abs(d)) + " · " + root.fmtTime(root.seekPreview)
+        }
+        if (mpv.speed && Math.abs(mpv.speed - 1) > 0.01) return root.round2(mpv.speed) + "×"
+        if (root.chapterTransient.length) return root.chapterTransient
+        return ""
+    }
+    // "Ends 11:42 PM" — now + (remaining / speed). Recomputed on a 1s tick + on the
+    // events that move the finish line, never bound to position (that churns every frame).
+    function updateEndsAt() {
+        if (!(mpv.duration > 0) || root.starting || root.errored || root.mediaLocalPath.indexOf("iptv:") === 0
+                || root.mediaId.indexOf("iptv:") === 0) {
+            root.endsAtClock = ""
+            return
+        }
+        var rate = (mpv.speed && mpv.speed > 0.05) ? mpv.speed : 1
+        var remainingSec = Math.max(0, (mpv.duration - mpv.position) / rate)
+        var end = new Date(Date.now() + remainingSec * 1000)
+        var h = end.getHours(), m = end.getMinutes()
+        var ap = h >= 12 ? "PM" : "AM"
+        var h12 = h % 12; if (h12 === 0) h12 = 12
+        root.endsAtClock = h12 + ":" + (m < 10 ? "0" : "") + m + " " + ap
+    }
+
     // Combined subtitle list: embedded/loaded mpv tracks + online subs not yet loaded.
     readonly property var subRows: {
         var dep = root.subModelRev            // re-eval after an add
@@ -1755,6 +1793,23 @@ Item {
         repeat: true
         running: root.statsOverlayOpen
         onTriggered: root.refreshPlaybackStats()
+    }
+
+    // Ends-at ticker: keeps "Ends 11:42 PM" honest as time passes and on any pause/speed
+    // change. Cheap 1Hz; only runs while a real duration is known and playing.
+    Timer {
+        id: endsAtTick
+        interval: 1000
+        repeat: true
+        running: root.visible && root.fileReady && mpv.duration > 0
+        triggeredOnStart: true
+        onTriggered: root.updateEndsAt()
+    }
+    Connections {
+        target: mpv
+        function onPauseChanged() { root.updateEndsAt() }
+        function onSpeedChanged() { root.updateEndsAt() }
+        function onDurationChanged() { root.updateEndsAt() }
     }
 
 
@@ -3958,6 +4013,43 @@ Item {
                 Behavior on y { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
             }
 
+            // Glanceable state row (Tier 1, 2026-07-20): rides just above the timeline,
+            // over the video (the dock doesn't clip — same escape hatch the popovers use).
+            // Left = the player's state (only when it has something to say); right = the
+            // wall-clock finish time. Fades with the chrome; silent in plain playback.
+            Item {
+                id: stateRow
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: seekRow.top
+                anchors.bottomMargin: 3
+                anchors.leftMargin: tight ? 16 : 20
+                anchors.rightMargin: tight ? 16 : 20
+                height: 22
+                visible: root.stateLineText.length > 0 || root.endsAtClock.length > 0
+                Text {
+                    id: stateLineLabel
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.stateLineText
+                    visible: text.length > 0
+                    color: theme.ink
+                    font.family: theme.hud; font.pixelSize: 14; font.weight: Font.DemiBold
+                    font.features: ({ "tnum": 1 })
+                    style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
+                }
+                Text {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.endsAtClock.length > 0 ? "ENDS  " + root.endsAtClock : ""
+                    visible: root.endsAtClock.length > 0
+                    color: theme.inkDim
+                    font.family: theme.hud; font.pixelSize: 11.5; font.letterSpacing: 1.5
+                    font.features: ({ "tnum": 1 })
+                    style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
+                }
+            }
+
             Row {
                 id: seekRow
                 anchors.left: parent.left
@@ -4138,14 +4230,28 @@ Item {
                 }
 
                 Text {
+                    id: durationLabel
                     width: tight ? 0 : 58
                     visible: !tight
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.fmtTime(mpv.duration)
-                    color: theme.inkDim
+                    // Click to flip total <-> remaining (Tier 1, 2026-07-20). Remaining is
+                    // speed-aware wall time to the end from the current position.
+                    text: root.showRemaining
+                          ? "-" + root.fmtTime(Math.max(0, (mpv.duration - root.displayPosition())
+                                / ((mpv.speed && mpv.speed > 0.05) ? mpv.speed : 1)))
+                          : root.fmtTime(mpv.duration)
+                    color: durationMa.containsMouse ? theme.ink : theme.inkDim
                     font.family: theme.hud; font.features: ({ "tnum": 1 })
                     font.pixelSize: 13
                     horizontalAlignment: Text.AlignRight
+                    MouseArea {
+                        id: durationMa
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.showRemaining = !root.showRemaining
+                    }
                 }
             }
 
