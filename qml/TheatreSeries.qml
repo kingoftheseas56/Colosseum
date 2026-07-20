@@ -14,6 +14,7 @@ Item {
     property var itemData: ({})
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
     signal openItemRequested(var item)
@@ -660,6 +661,27 @@ Item {
             height: 22
             Image {
                 anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg"
+                        : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: fsMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: fsMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: page.fullscreenRequested()
+            }
+        }
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22
@@ -721,6 +743,10 @@ Item {
                     anchors.rightMargin: theme.margin
                     anchors.bottomMargin: 30
                     spacing: 12
+                    // Hemanth eyes-on 2026-07-20: scrolling slid this hero text under the
+                    // fixed Back/chrome band ("2006Back" mash) — fade it as it climbs; it
+                    // is fully gone before it can reach the chrome.
+                    opacity: Math.max(0, 1 - flick.contentY / 220)
                     Text {
                         text: page.mediaType === "series" ? "Series - Theatre" : "Movie - Theatre"
                         color: theme.gold
