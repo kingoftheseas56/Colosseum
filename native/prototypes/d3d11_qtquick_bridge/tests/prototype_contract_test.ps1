@@ -62,6 +62,7 @@ Require-Text $bridgeSource 'ID3D11VideoProcessorInputView' 'Gate B must create a
 Require-Text $bridgeSource 'ID3D11VideoProcessorOutputView' 'Gate B must create a video-processor output view'
 Require-Text $bridgeSource 'VideoProcessorBlt' 'Gate B must convert NV12/P010 on the GPU'
 Require-Text $bridgeSource 'VideoProcessorSetStreamColorSpace' 'Gate B must set input color metadata explicitly'
+Require-Text $bridgeSource 'AVCOL_SPC_UNSPECIFIED' 'untagged HD video must receive an explicit color-matrix fallback'
 Reject-Text $bridgeSource 'sws_scale|UpdateSubresource\(' 'Gate B must not upload CPU video frames'
 
 Write-Output 'prototype_contract_test: PASS'

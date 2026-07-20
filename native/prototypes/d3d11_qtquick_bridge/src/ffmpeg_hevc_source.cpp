@@ -161,10 +161,11 @@ bool FfmpegHevcSource::run(const QString &filePath, const std::atomic_bool &stop
             if (const auto slot = m_bridge->claimProducerSlot()) {
                 QString error;
                 ++sequence;
+                const bool bt709 = frame->colorspace == AVCOL_SPC_BT709 ||
+                    (frame->colorspace == AVCOL_SPC_UNSPECIFIED && frame->height >= 720);
                 if (!m_bridge->convertVideoFrame(*slot, texture, arraySlice, sequence,
                                                   frame->width, frame->height, desc.Format,
-                                                  framesPerSecond,
-                                                  frame->colorspace == AVCOL_SPC_BT709,
+                                                  framesPerSecond, bt709,
                                                   frame->color_range == AVCOL_RANGE_JPEG, error))
                     return fail(error);
                 wakeConsumer();

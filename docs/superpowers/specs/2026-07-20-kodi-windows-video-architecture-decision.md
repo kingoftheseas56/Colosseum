@@ -101,6 +101,11 @@ shutdown while the pipeline drained; they did not accumulate during playback. Ad
 matched the Intel UHD 620, shared fences remained active, hardware format was `d3d11va`, input was
 P010, and no software fallback occurred.
 
+`ffprobe` reports this file as limited-range but leaves its color matrix, primaries and transfer
+unspecified. The bridge therefore uses explicit metadata when present and the conventional BT.709
+matrix fallback for untagged HD frames; otherwise an untagged 1080p source would incorrectly take
+the SD matrix.
+
 A separate five-minute run left behind other windows measured 7,163 decoded, 7,153 published,
 6,990 presented, 9 slot drops and 52 late frames. At the 91-second checkpoint of the foreground
 control, the corresponding counts were 2,181 decoded, 2,180 published and 2,179 presented with no
