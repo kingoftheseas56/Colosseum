@@ -5,8 +5,8 @@
 # it; the 3 pages that had NO window buttons at all (Continue See-all, Search,
 # Biblio search) gain the full cluster; Main.qml routes every page's toggle into
 # win.toggleFullscreenShell (the same shell flip as F11 / the Home TopBar).
-# WallpaperSearch is exempt BY DESIGN: it is a modal picker (its X dismisses via
-# closeWallpaperSearch), not a page — it never carries window chrome.
+# WallpaperSearch carries the cluster too (Hemanth 2026-07-20: it covers the shell top
+# bar, so it must). Its power button emits quitRequested (closeRequested = the panel "x").
 
 $ErrorActionPreference = "Stop"
 
@@ -41,10 +41,21 @@ foreach ($p in @("ContinueSeeAllPage", "SearchSurface", "BiblioSearch")) {
     Assert-Contains $qml '.closeRequested()' "$p must emit closeRequested from its button."
 }
 
+# WallpaperSearch is a full-bleed overlay that covers the shell top bar, so it carries its
+# own cluster: minimize + fullscreen-toggle + power (power = quitRequested, since its "x"
+# already means closeRequested = back to the world).
+$wp = Get-Content (Join-Path $root "qml/WallpaperSearch.qml") -Raw
+Assert-Contains $wp 'signal fullscreenRequested()' "WallpaperSearch must declare fullscreenRequested."
+Assert-Contains $wp 'signal minimizeRequested()' "WallpaperSearch must declare minimizeRequested."
+Assert-Contains $wp 'signal quitRequested()' "WallpaperSearch power button must quit the app."
+Assert-Contains $wp 'minimize.svg' "WallpaperSearch must draw the minimize button."
+Assert-Contains $wp 'power.svg' "WallpaperSearch must draw the power button."
+Assert-Contains $wp 'root.fullscreenRequested()' "WallpaperSearch must emit the fullscreen toggle."
+
 # Host: every page loader routes the toggle into the one shell flip.
 $main = Get-Content (Join-Path $root "qml/Main.qml") -Raw
 $connects = ([regex]::Matches($main, [regex]::Escape('fullscreenRequested.connect(win.toggleFullscreenShell)'))).Count
-if ($connects -lt 21) { throw "Main.qml must connect fullscreenRequested on all page loaders (found $connects, need >= 21: 19 pages + player + reader)." }
+if ($connects -lt 22) { throw "Main.qml must connect fullscreenRequested on all page loaders (found $connects, need >= 22: 19 pages + player + reader + wallpaper)." }
 
 # The dead rule must not survive as a code comment steering future chrome.
 $bib = Get-Content (Join-Path $root "qml/BiblioBook.qml") -Raw

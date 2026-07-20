@@ -24,8 +24,14 @@ Item {
     readonly property bool canLoadMore: !loading && searchState !== null
                                         && WallpaperApi.hasMore(searchState)
 
-    signal closeRequested()
+    signal closeRequested()                  // the panel "x" — closes the picker, back to the world
     signal applyRequested(string scope, string world, var pick)
+    // Window chrome (2026-07-20): this overlay covers the shell top bar, so it carries its
+    // own minimize · fullscreen-toggle · power like every other page. closeRequested stays
+    // the picker's back; quitRequested is the app-quit power button.
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
 
     function runSearch() {
         statusText = "Searching..."
@@ -80,6 +86,67 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: Qt.rgba(0, 0, 0, 0.34)
+    }
+
+    // Window chrome cluster — minimize · fullscreen-toggle · power. Top-right, over the
+    // empty preview area (the search panel is on the left), matching every other page.
+    Row {
+        z: 50
+        anchors.right: parent.right
+        anchors.rightMargin: 40
+        anchors.top: parent.top
+        anchors.topMargin: 34
+        spacing: 20
+        Item {
+            width: 22; height: 22
+            Image {
+                anchors.fill: parent
+                source: "../assets/icons/minimize.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: wpMinMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: wpMinMa
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.minimizeRequested()
+            }
+        }
+        Item {
+            width: 22; height: 22
+            Image {
+                anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg"
+                        : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: wpFsMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: wpFsMa
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.fullscreenRequested()
+            }
+        }
+        Item {
+            width: 22; height: 22
+            Image {
+                anchors.fill: parent
+                source: "../assets/icons/power.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: wpPowMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: wpPowMa
+                anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.quitRequested()
+            }
+        }
     }
 
     Glass {
