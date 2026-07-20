@@ -38,6 +38,13 @@ if ($main -notmatch 'immersiveSurfaceOpen[\s\S]{0,80}win\.visibility !== Window\
 if ($api -notmatch 'native:arena-night') { throw 'WallpaperApi lost the arena from nativePicks' }
 if ($ui -notmatch '"Colosseum"') { throw 'the picker lost its Colosseum shelf' }
 
+# 4a2. the app's own boot backdrop is a pickable tile (2026-07-20): the abstract
+# render it ships with, offered back in the Colosseum shelf as a static image.
+if ($api -notmatch 'function houseDefaultPick') { throw 'WallpaperApi lost the house default pick (the boot wallpaper)' }
+if ($api -notmatch 'captured-motion') { throw 'house default must point at the bundled boot wallpaper' }
+if (!(Test-Path (Join-Path $root 'assets/wallpaper/captured-motion.jpg'))) { throw 'the bundled boot wallpaper is missing' }
+if ($ui -notmatch 'houseDefaultPick\(\)') { throw 'the Colosseum shelf must lead with the house default' }
+
 # 4c. OS Desktops shelf (2026-07-20): real Windows/macOS/Linux wallpapers, remote
 # via jsDelivr through the keyless wsrv.nl proxy (no repo bloat, no api key).
 if ($api -notmatch 'function osPicks') { throw 'WallpaperApi lost the OS Desktops shelf (osPicks)' }

@@ -62,6 +62,28 @@ function nativeSceneFor(url) {
     return "";
 }
 
+// The Colosseum's own default backdrop (2026-07-20) — the abstract 4K render the
+// app shipped with and boots to (assets/wallpaper/captured-motion.jpg). It reads
+// as a desktop shell (dark, abstract, lets the glass UI breathe), so it was the
+// original "OS-like" wallpaper all along; it lived only as the hardcoded default,
+// unreachable once you picked anything else. Offered back here as a real pick. A
+// plain bundled image — same relative path Main resolves for the boot wallpaper.
+function houseDefaultPick() {
+    return {
+        source: "Colosseum",
+        source_id: "colosseum-motion",
+        source_url: "",
+        image_url: "../assets/wallpaper/captured-motion.jpg",
+        thumb_url: "../assets/wallpaper/captured-motion.jpg",
+        w: 3840, h: 2400,
+        aspect: "16:10",
+        attribution: "Colosseum",
+        query: "",
+        title: "Colosseum",
+        spec: "3840x2400 - the app's default desktop"
+    };
+}
+
 // ---- OS default desktops (2026-07-20) ----
 // Colosseum dresses up as an OS, so its picker offers the desktops people know:
 // the real shipped wallpapers of Windows, macOS and Linux (Wallhaven carries no

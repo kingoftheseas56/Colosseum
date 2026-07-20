@@ -219,7 +219,10 @@ Item {
                 font.pixelSize: 12
             }
 
-            // ---- Colosseum shelf: our own living wallpapers, apart from the searchable pool ----
+            // ---- Colosseum shelf: our own wallpapers, apart from the searchable
+            //      pool. Led by the house default (the abstract render the app boots
+            //      to — a static image), then the living wallpapers. A native tile is
+            //      its scene live and miniature; a static tile shows its image. ----
             Text {
                 text: "Colosseum"
                 color: "#d8d2c4"
@@ -231,10 +234,11 @@ Item {
                 spacing: 10
 
                 Repeater {
-                    model: WallpaperApi.nativePicks()
+                    model: [WallpaperApi.houseDefaultPick()].concat(WallpaperApi.nativePicks())
                     delegate: Rectangle {
                         id: nativeTile
                         required property var modelData
+                        readonly property bool isNative: WallpaperApi.isNativePick(nativeTile.modelData.image_url)
                         width: 144
                         height: 92
                         radius: 8
@@ -243,10 +247,20 @@ Item {
                         border.color: root.selectedPick.source_id === nativeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
                         clip: true
 
-                        // the tile IS the wallpaper, live and miniature
+                        // native pick: the tile IS the wallpaper, live and miniature
                         Loader {
                             anchors.fill: parent
-                            source: WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url)
+                            active: nativeTile.isNative
+                            source: nativeTile.isNative ? WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url) : ""
+                        }
+                        // static pick (the house default): its still image
+                        Image {
+                            anchors.fill: parent
+                            visible: !nativeTile.isNative
+                            source: nativeTile.isNative ? "" : nativeTile.modelData.thumb_url
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: true
                         }
 
                         Rectangle {

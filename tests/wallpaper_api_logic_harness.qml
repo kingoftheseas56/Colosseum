@@ -66,6 +66,17 @@ QtObject {
         if (!ubuntu || ubuntu.thumb_url.indexOf("wsrv.nl") < 0 || ubuntu.thumb_url.indexOf("jsdelivr.net") < 0)
             throw new Error("OS picks must proxy a jsDelivr origin through wsrv.nl")
 
+        // --- house default (2026-07-20): the app's own boot backdrop, offered as a pick ---
+        var hd = W.houseDefaultPick()
+        if (hd.source_id !== "colosseum-motion")
+            throw new Error("house default must have a stable id")
+        if (W.isNativePick(hd.image_url))
+            throw new Error("house default is a static image, not a native: route")
+        if (hd.image_url.indexOf("captured-motion") < 0 || hd.image_url.indexOf("assets/wallpaper") < 0)
+            throw new Error("house default must point at the bundled boot wallpaper, got " + hd.image_url)
+        if (hd.image_url !== hd.thumb_url)
+            throw new Error("house default thumb and full are the one bundled image")
+
         // --- state lifecycle: fresh state has more; exhausted state has none ---
         var st = W.freshState("  ", "nonsense")
         if (st.query !== "landscape" || st.sorting !== "relevance")
