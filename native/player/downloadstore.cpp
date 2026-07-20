@@ -429,6 +429,9 @@ QVariantList DownloadStore::jobs() const {
             // to skip the source search; empty when the job wasn't hand-picked.
             {QStringLiteral("infoHash"), j.request.value(QStringLiteral("infoHash"))},
             {QStringLiteral("fileIdx"), j.request.value(QStringLiteral("fileIdx"))},
+            // play-while-arriving (2026-07-20): the resolved source url, "" until
+            // resolved — the Downloads page offers Play only when this is non-empty.
+            {QStringLiteral("url"), j.url},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
             {QStringLiteral("ratio"), j.ratio},

@@ -336,6 +336,10 @@ QVariantList LocalDownloads::activeJobs() const {
                 {QStringLiteral("seriesTitle"), j.value(QStringLiteral("seriesTitle"))},
                 {QStringLiteral("season"), j.value(QStringLiteral("season"))},
                 {QStringLiteral("episode"), j.value(QStringLiteral("episode"))},
+                // play-while-arriving (2026-07-20): url + art ride to the page so a
+                // live row can open the player on the same source it's pulling.
+                {QStringLiteral("art"), j.value(QStringLiteral("art"))},
+                {QStringLiteral("url"), j.value(QStringLiteral("url"))},
                 {QStringLiteral("state"), j.value(QStringLiteral("state"))},
                 {QStringLiteral("error"), j.value(QStringLiteral("error"))},
                 {QStringLiteral("canRetry"), j.value(QStringLiteral("state")).toString()
