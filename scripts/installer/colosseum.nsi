@@ -27,7 +27,10 @@ Name "Colosseum ${VERSION}"
 OutFile "${OUTFILE}"
 Unicode true
 RequestExecutionLevel user
-InstallDir "$LOCALAPPDATA\Colosseum"
+; Programs\Colosseum, NOT $LOCALAPPDATA\Colosseum — that exact folder is the app's own
+; Qt data dir (cover cache lives there); installing into it mixes payload with user data
+; and the uninstaller would wipe the cache. Found the hard way testing 0.1.
+InstallDir "$LOCALAPPDATA\Programs\Colosseum"
 SetCompressor /SOLID lzma
 
 !define MUI_WELCOMEPAGE_TITLE "Colosseum ${VERSION}"
