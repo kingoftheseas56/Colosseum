@@ -310,9 +310,12 @@ const buildCss = (bg, fg) => {
        the paginator sizes its one column to the whole viewport and ignores max-inline-size,
        so an unconstrained body renders 1700px+ lines — and justify across a line that long
        shreds word spacing. Centered max-width column is the OLD reader's ratified pattern
-       (engine_foliate.js: body auto margins + max-width). 960px matches its default. */
-    body { max-width: 960px !important; margin-left: auto !important; margin-right: auto !important;
-           box-sizing: border-box !important; }
+       (engine_foliate.js: body auto margins + max-width). 960px matches its default.
+       PAGE MODE ONLY — in scrolled flow Hemanth's call (same day) is edge-to-edge prose,
+       so the clamp drops and the gap padding alone frames the run. */
+    ${appearance.flow === 'scrolled' ? '' : `body { max-width: 960px !important;
+           margin-left: auto !important; margin-right: auto !important;
+           box-sizing: border-box !important; }`}
     p, li, blockquote, dd, div, font { color: ${fg} !important; line-height: ${lh} !important; text-align: ${align}; }
     a, a:link { color: #a76034 !important; }
     ${fontCss}
