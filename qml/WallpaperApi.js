@@ -97,6 +97,20 @@ function nativePicks() {
         query: "",
         title: "Mint",
         spec: "Still mesh gradient - Colosseum QML"
+    }, {
+        // Still geometric QML wallpaper (2026-07-20) — Opal-spirit: triangular
+        // lattice + a warm sweeping glow band. Our own design, no animation.
+        source: "Colosseum",
+        source_id: "native:facet",
+        source_url: "",
+        image_url: "native:facet",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original",
+        query: "",
+        title: "Facet",
+        spec: "Still geometric lattice - Colosseum QML"
     }];
 }
 
@@ -115,6 +129,7 @@ function nativeSceneFor(url) {
     if (url === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml";
     if (url === "native:mesh-ember") return "wallpapers/MeshEmber.qml";
     if (url === "native:mesh-mint") return "wallpapers/MeshMint.qml";
+    if (url === "native:facet") return "wallpapers/Facet.qml";
     return "";
 }
 

@@ -103,8 +103,18 @@ foreach ($mv in @('mesh-twilight', 'mesh-ember', 'mesh-mint')) {
     if ($main -notmatch ([regex]::Escape("native:$mv") + '[\s\S]{0,80}Mesh')) { throw "Main runtime map does not route $mv to its scene" }
 }
 
+# 4g. Facet (2026-07-20): a still geometric QML wallpaper (Opal-spirit triangular
+# lattice + sweeping glow band). Our own design, Qt Quick Shapes, NO animation.
+$facet = Get-Content (Join-Path $root 'qml/wallpapers/Facet.qml') -Raw
+if ($facet -match 'Canvas\s*\{') { throw 'Facet must stay scene-graph work, never per-frame Canvas painting' }
+if ($facet -notmatch 'import QtQuick.Shapes') { throw 'Facet must be built from Qt Quick Shapes' }
+if ($facet -match 'SequentialAnimation|NumberAnimation|ColorAnimation') { throw 'Facet must stay STILL (no animation)' }
+if ($api -notmatch 'native:facet[\s\S]{0,80}Facet\.qml') { throw 'nativeSceneFor does not route facet to its scene' }
+if ($main -notmatch 'native:facet[\s\S]{0,80}Facet\.qml') { throw 'Main runtime map does not route facet to its scene' }
+if ($api -notmatch '"Facet"') { throw 'nativePicks lost the Facet tile' }
+
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint')) {
+foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'Facet')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden

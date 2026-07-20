@@ -45,6 +45,7 @@ Window {
         if (source === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml"
         if (source === "native:mesh-ember") return "wallpapers/MeshEmber.qml"
         if (source === "native:mesh-mint") return "wallpapers/MeshMint.qml"
+        if (source === "native:facet") return "wallpapers/Facet.qml"
         return ""
     }
 
