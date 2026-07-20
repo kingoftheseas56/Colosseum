@@ -48,11 +48,11 @@ Item {
     property var seasons: []
     property int activeSeason: 0
     property var episodes: AnimeEpisodePresentation.visibleEpisodes(animeOrder, effectiveEpisodeOrder, activeSeason)
-    property string episodeLayout: "list"
     property bool episodeJumpOpen: false
+    property color watchedInk: "#76b8aa"
     property var seasonQueued: ({})   // season -> queued this visit
     property var pendingDownloadEpisode: null   // episode awaiting a source pick in the sheet
-    property var sheetEpisode: null   // episode the PLAY-mode sheet is open for (per-row ↓ download)
+    property var sheetEpisode: null   // episode the PLAY-mode sheet is open for (per-row download)
     property bool pendingSeasonPick: false   // season checkout's picker is open in the sheet
     property bool seasonMenuOpen: false
     property string episodeJumpDraft: ""
@@ -1115,19 +1115,44 @@ Item {
                         }
                     }
 
-                    Row {
+                    Item {
+                        id: episodeLedgerHeader
                         x: theme.margin
                         width: parent.width - 2 * theme.margin
-                        height: 54
-                        spacing: 12
+                        height: 86
 
-                        Text {
-                            text: page.episodes.length + " Episodes"
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
+                        Column {
+                            anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
+                            spacing: 7
+                            Text {
+                                text: page.seasonLabel()
+                                color: theme.ink
+                                font.family: theme.display
+                                font.pixelSize: 25
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                text: {
+                                    var watchedCount = 0
+                                    var progressCount = 0
+                                    for (var i = 0; i < page.episodes.length; ++i) {
+                                        if (page.episodeWatched(page.episodes[i]))
+                                            watchedCount++
+                                        else if (page.episodeProgressRatio(page.episodes[i]) > 0.01)
+                                            progressCount++
+                                    }
+                                    var parts = [page.episodes.length + " episodes"]
+                                    if (watchedCount > 0) parts.push(watchedCount + " watched")
+                                    if (progressCount > 0) parts.push(progressCount + " in progress")
+                                    if (page.nextUpDisplayNumber() > 0) parts.push("next E" + page.nextUpDisplayNumber())
+                                    return parts.join("  /  ")
+                                }
+                                color: theme.inkDimmer
+                                font.family: theme.ui
+                                font.pixelSize: 12
+                                font.letterSpacing: 0.3
+                            }
                         }
 
                         // Season checkout: queue every not-yet-downloaded episode of the
@@ -1135,29 +1160,40 @@ Item {
                         // Hidden in Absolute view — there "episodes" is the whole run, so a
                         // "Download <season>" button would flood the queue under a wrong label.
                         Rectangle {
+                            id: seasonDownloadAction
+                            border.color: theme.edge
                             // the ACTION wears the glass tablet...
                             visible: typeof Download !== "undefined" && page.episodes.length > 0
                                      && page.effectiveEpisodeOrder !== "absolute"
+                            anchors.right: jumpHost.visible ? jumpHost.left : parent.right
+                            anchors.rightMargin: jumpHost.visible ? 10 : 0
                             anchors.verticalCenter: parent.verticalCenter
-                            width: dlSeasonT.implicitWidth + 32
-                            height: 30
-                            radius: 15
+                            width: 176
+                            height: 40
+                            radius: 9
                             color: dlSeasonMa.containsMouse && !page.seasonQueued[page.activeSeason]
                                    ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
                             border.width: 1
-                            border.color: page.seasonQueued[page.activeSeason]
-                                          ? theme.edge : Qt.rgba(0.94, 0.77, 0.29, 0.45)
-                            Text {
-                                id: dlSeasonT
+                            Row {
                                 anchors.centerIn: parent
-                                text: page.seasonQueued[page.activeSeason]
-                                      ? (page.seasonLabel() + " queued")
-                                      : "Download " + page.seasonLabel()
-                                color: page.seasonQueued[page.activeSeason] ? theme.inkDim
-                                     : (dlSeasonMa.containsMouse ? "#ffd968" : theme.gold)
-                                font.family: theme.ui
-                                font.pixelSize: 12
-                                font.weight: Font.DemiBold
+                                spacing: 9
+                                PlayerIcon {
+                                    width: 16
+                                    height: 16
+                                    kind: page.seasonQueued[page.activeSeason] ? "check" : "download"
+                                    ink: page.seasonQueued[page.activeSeason] ? page.watchedInk : theme.inkDim
+                                }
+                                Text {
+                                    id: dlSeasonT
+                                    text: page.seasonQueued[page.activeSeason]
+                                          ? "Season queued"
+                                          : "Download season"
+                                    color: page.seasonQueued[page.activeSeason] ? theme.inkDim
+                                         : (dlSeasonMa.containsMouse ? theme.ink : theme.inkDim)
+                                    font.family: theme.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                }
                             }
                             MouseArea {
                                 id: dlSeasonMa
@@ -1169,66 +1205,11 @@ Item {
                             }
                         }
 
-                        Text {
-                            // ...the STATUS reads as a quiet tag, not a second button
-                            visible: page.nextUpDisplayNumber() > 0
-                            text: "NEXT \u00b7 E" + page.nextUpDisplayNumber()
-                            color: theme.inkDimmer
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                            font.letterSpacing: 1.2
-                            font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-
-                        Item { width: Math.max(0, parent.width - 408); height: 1 }
-
-                        Rectangle {
-                            width: 74
-                            height: 34
-                            radius: 17
-                            color: Qt.rgba(1, 1, 1, 0.07)
-                            border.width: 1
-                            border.color: theme.edge
-                            anchors.verticalCenter: parent.verticalCenter
-                            Row {
-                                anchors.centerIn: parent
-                                spacing: 3
-                                Repeater {
-                                    model: ["list", "strip"]
-                                    delegate: Rectangle {
-                                        id: layoutBtn
-                                        required property string modelData
-                                        width: 31
-                                        height: 28
-                                        radius: 14
-                                        color: page.episodeLayout === modelData ? theme.ink : "transparent"
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: layoutBtn.modelData === "list" ? "\u2630" : "\u25ad"
-                                            color: page.episodeLayout === layoutBtn.modelData ? "#111111" : theme.inkDim
-                                            font.family: theme.ui
-                                            font.pixelSize: layoutBtn.modelData === "list" ? 15 : 17
-                                            font.weight: Font.DemiBold
-                                        }
-                                        MouseArea {
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: {
-                                                page.episodeLayout = layoutBtn.modelData
-                                                episodeList.positionViewAtBeginning()
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
                         Item {
                             id: jumpHost
                             width: 102
-                            height: 34
+                            height: 40
+                            anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             visible: page.episodes.length >= 12
                             Rectangle {
@@ -1239,7 +1220,7 @@ Item {
                                 border.color: page.episodeJumpOpen ? theme.gold : theme.edge
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "#  Jump"
+                                    text: "Go to episode"
                                     color: page.episodeJumpOpen ? theme.gold : theme.inkDim
                                     font.family: theme.ui
                                     font.pixelSize: 12
@@ -1375,22 +1356,33 @@ Item {
 
                     }
 
+                    Item {
+                        id: episodeLedgerColumns
+                        x: theme.margin
+                        width: parent.width - 2 * theme.margin
+                        height: 30
+                        Text { x: 12; anchors.verticalCenter: parent.verticalCenter; text: "EPISODE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3; font.weight: Font.DemiBold }
+                        Text { x: 276; anchors.verticalCenter: parent.verticalCenter; text: "STORY"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3; font.weight: Font.DemiBold }
+                        Text { anchors.right: parent.right; anchors.rightMargin: 118; anchors.verticalCenter: parent.verticalCenter; text: "STATUS"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.3; font.weight: Font.DemiBold }
+                        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: theme.edge }
+                    }
+
                     ListView {
                         id: episodeList
                         width: parent.width
-                        height: page.episodeLayout === "strip"
-                                ? 210
-                                : Math.min(page.episodes.length * (rowHeight + spacing),
-                                           Math.max(360, page.height - 210))
+                        height: Math.min(page.episodes.length * compactRowHeight
+                                         + (page.nextUpEpisodeId().length ? nextRowHeight - compactRowHeight : 0),
+                                         Math.max(360, page.height - 210))
                         clip: true
                         model: page.episodes
-                        orientation: page.episodeLayout === "strip" ? ListView.Horizontal : ListView.Vertical
+                        orientation: ListView.Vertical
                         boundsBehavior: Flickable.StopAtBounds
-                        flickableDirection: page.episodeLayout === "strip" ? Flickable.HorizontalFlick : Flickable.VerticalFlick
+                        flickableDirection: Flickable.VerticalFlick
                         reuseItems: true
-                        cacheBuffer: rowHeight * 6
-                        spacing: page.episodeLayout === "strip" ? 0 : 8
-                        property int rowHeight: 121
+                        cacheBuffer: compactRowHeight * 6
+                        spacing: 0
+                        property int compactRowHeight: 104
+                        property int nextRowHeight: 148
 
                         onModelChanged: positionViewAtBeginning()
 
@@ -1399,29 +1391,82 @@ Item {
                         delegate: Item {
                             id: ep
                             required property var modelData
-                            property bool strip: page.episodeLayout === "strip"
                             property real progressRatio: page.episodeProgressRatio(modelData)
                             property bool watched: page.episodeWatched(modelData)
                             property bool nextUp: page.nextUpEpisodeId() === page.episodeStreamId(modelData)
-                            width: strip ? 246 : ListView.view.width
-                            height: strip ? 190 : episodeList.rowHeight
+                            property bool narrow: ListView.view.width < 980
+                            property bool tiny: ListView.view.width < 760
+                            width: ListView.view.width
+                            height: ep.nextUp ? episodeList.nextRowHeight : episodeList.compactRowHeight
+                            function openForPlay() {
+                                page.sheetEpisode = ep.modelData
+                                sources.show("series", page.episodeStreamId(ep.modelData),
+                                             page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), Object.assign({
+                                                 "title": page.title,
+                                                 "metaLine": page.episodeSourceLine(ep.modelData),
+                                                 "backdrop": page.sourceBackdrop()
+                                             }, page.adjacentEpisodeContext(ep.modelData)))
+                            }
                             Rectangle {
                                 anchors.fill: parent
-                                anchors.leftMargin: ep.strip ? 0 : theme.margin - 10
-                                anchors.rightMargin: ep.strip ? 0 : theme.margin - 10
-                                color: ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.06)
-                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.055) : "transparent")
-                                border.width: ep.strip ? 1 : 0
-                                border.color: ep.nextUp ? theme.gold : theme.edge
-                                radius: ep.strip ? 10 : 14
+                                anchors.leftMargin: theme.margin
+                                anchors.rightMargin: theme.margin
+                                color: ep.nextUp ? Qt.rgba(0.94, 0.77, 0.29, 0.035)
+                                      : (epMa.containsMouse ? Qt.rgba(1, 1, 1, 0.035) : "transparent")
+                                radius: 0
+                            }
+                            Rectangle {
+                                id: nextUpRail
+                                x: theme.margin
+                                width: 2
+                                height: parent.height
+                                visible: ep.nextUp
+                                color: theme.gold
+                            }
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.leftMargin: theme.margin
+                                anchors.right: parent.right
+                                anchors.rightMargin: theme.margin
+                                anchors.bottom: parent.bottom
+                                height: 1
+                                color: theme.edge
+                            }
+                            Item {
+                                id: episodeNumberRail
+                                x: theme.margin + 2
+                                width: ep.tiny ? 52 : 70
+                                height: parent.height
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 2
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: page.episodeDisplayNumber(ep.modelData)
+                                        color: ep.nextUp ? theme.gold : theme.ink
+                                        font.family: theme.display
+                                        font.pixelSize: ep.nextUp ? 25 : 21
+                                        font.weight: Font.DemiBold
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: page.episodeIsSpecial(ep.modelData) ? "SPECIAL" : "S" + page.episodeSeason(ep.modelData)
+                                        color: theme.inkDimmer
+                                        font.family: theme.ui
+                                        font.pixelSize: 9
+                                        font.letterSpacing: 1.1
+                                        font.weight: Font.DemiBold
+                                    }
+                                }
+                                Rectangle { anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 1; height: parent.height - 28; color: theme.edge }
                             }
                             Rectangle {
                                 id: thumb
-                                x: ep.strip ? 10 : theme.margin
-                                y: ep.strip ? 10 : (parent.height - height) / 2
-                                width: ep.strip ? parent.width - 20 : 176
-                                height: ep.strip ? 118 : 99
-                                radius: ep.strip ? 8 : 10
+                                x: episodeNumberRail.x + episodeNumberRail.width + 16
+                                y: (parent.height - height) / 2
+                                width: ep.tiny ? 122 : (ep.narrow ? 142 : 172)
+                                height: ep.tiny ? 69 : (ep.narrow ? 80 : 96)
+                                radius: 7
                                 clip: true
                                 color: "#15171f"
                                 Image {
@@ -1440,42 +1485,6 @@ Item {
                                     font.family: theme.display
                                     font.pixelSize: 22
                                 }
-                                Rectangle {   // episode-number badge (Electron device)
-                                    anchors.left: parent.left
-                                    anchors.top: parent.top
-                                    anchors.margins: 7
-                                    width: numT.implicitWidth + 10
-                                    height: 22
-                                    radius: 6
-                                    color: Qt.rgba(0, 0, 0, 0.7)
-                                    Text {
-                                        id: numT
-                                        anchors.centerIn: parent
-                                        text: page.episodeDisplayNumber(ep.modelData)
-                                        color: theme.ink
-                                        font.family: theme.ui
-                                        font.pixelSize: 12
-                                        font.weight: Font.Bold
-                                    }
-                                }
-                                Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    anchors.margins: 7
-                                    width: 24
-                                    height: 24
-                                    radius: 12
-                                    visible: ep.watched
-                                    color: theme.gold
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "\u2713"
-                                        color: "#14110a"
-                                        font.family: theme.ui
-                                        font.pixelSize: 13
-                                        font.weight: Font.DemiBold
-                                    }
-                                }
                                 Rectangle {
                                     anchors.left: parent.left
                                     anchors.right: parent.right
@@ -1491,22 +1500,20 @@ Item {
                                 }
                             }
                             Column {
-                                anchors.left: ep.strip ? parent.left : thumb.right
-                                anchors.leftMargin: ep.strip ? 12 : 18
-                                anchors.verticalCenter: ep.strip ? undefined : parent.verticalCenter
-                                anchors.right: parent.right
-                                anchors.rightMargin: ep.strip ? 12 : theme.margin
-                                y: ep.strip ? 134 : 0
-                                spacing: 5
+                                anchors.left: thumb.right
+                                anchors.leftMargin: 18
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: rowStatus.visible ? rowStatus.left : rowActions.left
+                                anchors.rightMargin: 20
+                                spacing: ep.nextUp ? 8 : 5
                                 Text {
                                     width: parent.width
-                                    text: "E" + page.episodeDisplayNumber(ep.modelData) + " - "
-                                          + ((ep.modelData.name && ep.modelData.name.length) ? ep.modelData.name
-                                             : (ep.modelData.title && ep.modelData.title.length ? ep.modelData.title
-                                                : "Episode " + page.episodeDisplayNumber(ep.modelData)))
+                                    text: (ep.modelData.name && ep.modelData.name.length) ? ep.modelData.name
+                                              : (ep.modelData.title && ep.modelData.title.length ? ep.modelData.title
+                                                 : "Episode " + page.episodeDisplayNumber(ep.modelData))
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 15
+                                    font.pixelSize: ep.nextUp ? 17 : 15
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -1551,7 +1558,7 @@ Item {
                                     font.weight: Font.DemiBold
                                 }
                                 Text {
-                                    visible: !ep.strip && !!(ep.modelData.overview || ep.modelData.description)
+                                    visible: !!(ep.modelData.overview || ep.modelData.description)
                                     width: parent.width
                                     text: ep.modelData.overview || ep.modelData.description || ""
                                     color: theme.inkDimmer
@@ -1559,28 +1566,78 @@ Item {
                                     font.pixelSize: 13
                                     lineHeight: 1.35
                                     wrapMode: Text.WordWrap
-                                    maximumLineCount: 2
+                                    maximumLineCount: ep.nextUp ? 2 : 1
                                     elide: Text.ElideRight
                                 }
+                            }
+                            Row {
+                                id: rowStatus
+                                visible: !ep.narrow
+                                anchors.right: rowActions.left
+                                anchors.rightMargin: 28
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 8
+                                PlayerIcon {
+                                    visible: ep.watched
+                                    width: 15
+                                    height: 15
+                                    kind: "check"
+                                    ink: page.watchedInk
+                                }
+                                Text {
+                                    text: ep.nextUp ? "NEXT UP"
+                                          : ep.watched ? "WATCHED"
+                                          : ep.progressRatio > 0.01 ? Math.round(ep.progressRatio * 100) + "% WATCHED"
+                                          : ep.modelData.released ? "AVAILABLE" : "UPCOMING"
+                                    color: ep.nextUp ? theme.gold : (ep.watched ? page.watchedInk : theme.inkDimmer)
+                                    font.family: theme.ui
+                                    font.pixelSize: 10
+                                    font.letterSpacing: 1.1
+                                    font.weight: Font.DemiBold
+                                }
+                            }
+                            Item {
+                                id: rowActions
+                                anchors.right: parent.right
+                                anchors.rightMargin: theme.margin + 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 84
+                                height: 38
                             }
                             MouseArea {
                                 id: epMa
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    page.sheetEpisode = ep.modelData
-                                    sources.show("series", page.episodeStreamId(ep.modelData),
-                                                 page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), Object.assign({
-                                                     "title": page.title,
-                                                     "metaLine": page.episodeSourceLine(ep.modelData),
-                                                     "backdrop": page.sourceBackdrop()
-                                                 }, page.adjacentEpisodeContext(ep.modelData)))
+                                onClicked: ep.openForPlay()
+                            }
+                            Rectangle {
+                                x: rowActions.x
+                                y: rowActions.y
+                                width: 38
+                                height: 38
+                                radius: 19
+                                color: playMa.containsMouse ? theme.ink : Qt.rgba(1, 1, 1, 0.07)
+                                border.width: 1
+                                border.color: ep.nextUp ? theme.gold : theme.edge
+                                PlayerIcon {
+                                    anchors.centerIn: parent
+                                    width: 17
+                                    height: 17
+                                    kind: "play"
+                                    ink: playMa.containsMouse ? "#111111" : (ep.nextUp ? theme.gold : theme.ink)
+                                }
+                                MouseArea {
+                                    id: playMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: ep.openForPlay()
                                 }
                             }
                             // Per-episode download (parity spec F4). Declared AFTER epMa so it
                             // stacks above the row's open-sources click. Three states: on disk
-                            // (inert ✓), queued (inert ↓ dim), ready to queue (↓).
+                            // (inert check), queued (inert download dim), ready to queue.
                             Rectangle {
                                 id: epDl
                                 property string sid: page.episodeStreamId(ep.modelData)
@@ -1588,45 +1645,40 @@ Item {
                                     ? (Download.queueRevision, Download.hasVideo(sid)) : false
                                 property bool inQueue: page.queuedDownloadIds[sid] === true
                                 visible: typeof Download !== "undefined"
-                                x: thumb.x + thumb.width - width - 7
-                                y: thumb.y + thumb.height - height - 7
-                                width: 30
-                                height: 30
-                                radius: 15
-                                color: Qt.rgba(0, 0, 0, 0.7)
+                                x: rowActions.x + 46
+                                y: rowActions.y
+                                width: 38
+                                height: 38
+                                radius: 19
+                                color: epDlMa.containsMouse && !epDl.onDisk && !epDl.inQueue
+                                       ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.05)
                                 border.width: 1
-                                border.color: epDl.onDisk ? theme.gold
-                                             : (epDlMa.containsMouse && !epDl.inQueue) ? theme.gold : theme.edge
-                                Text {
+                                border.color: epDl.onDisk ? page.watchedInk : theme.edge
+                                PlayerIcon {
                                     anchors.centerIn: parent
-                                    text: epDl.onDisk ? "✓" : "↓"
-                                    color: epDl.onDisk ? theme.gold
-                                          : epDl.inQueue ? theme.inkDimmer
-                                          : (epDlMa.containsMouse ? theme.gold : theme.inkDim)
-                                    font.family: theme.ui
-                                    font.pixelSize: 14
-                                    font.weight: Font.DemiBold
+                                    width: 16
+                                    height: 16
+                                    kind: epDl.onDisk ? "check" : "download"
+                                    ink: epDl.onDisk ? page.watchedInk
+                                         : epDl.inQueue ? theme.inkDimmer
+                                         : (epDlMa.containsMouse ? theme.ink : theme.inkDim)
                                 }
                                 MouseArea {
                                     id: epDlMa
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: (epDl.onDisk || epDl.inQueue) ? Qt.ArrowCursor : Qt.PointingHandCursor
-                                    // torrent-choice spec 2026-07-11: the ↓ opens the source
+                                    // torrent-choice spec 2026-07-11: the download action opens the source
                                     // picker in download mode; the chosen row lands back in
                                     // onDownloadRequested below and pins the request.
                                     onClicked: {
                                         if (epDl.onDisk || epDl.inQueue)
                                             return
                                         page.pendingDownloadEpisode = ep.modelData
-                                        sources.show("series", page.episodeStreamId(ep.modelData),
-                                                     page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData),
-                                                     Object.assign({
-                                                         "title": page.title,
-                                                         "metaLine": page.episodeSourceLine(ep.modelData),
-                                                         "backdrop": page.sourceBackdrop()
-                                                     }, page.adjacentEpisodeContext(ep.modelData)),
-                                                     "download")
+                                        var sid = page.episodeStreamId(ep.modelData)
+                                        var label = page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData)
+                                        var context = Object.assign({ "title": page.title, "metaLine": page.episodeSourceLine(ep.modelData), "backdrop": page.sourceBackdrop() }, page.adjacentEpisodeContext(ep.modelData))
+                                        sources.show("series", sid, label, context, "download")
                                     }
                         }
                     }
@@ -1706,11 +1758,11 @@ Item {
                 page.queueSeasonDownload(row)
                 page.pendingSeasonPick = false
             } else if (page.pendingDownloadEpisode) {
-                // download-mode pick (episode ↓ opened the sheet as a picker)
+                // download-mode pick (episode action opened the sheet as a picker)
                 page.queueEpisodeDownload(page.pendingDownloadEpisode, row)
                 page.pendingDownloadEpisode = null
             } else if (page.mediaType === "series" && page.sheetEpisode) {
-                // play-mode per-row ↓: this episode, pinned to the clicked torrent
+                // play-mode per-row download: this episode, pinned to the clicked torrent
                 page.queueEpisodeDownload(page.sheetEpisode, row)
             } else if (page.mediaType === "movie") {
                 page.queueMovieDownload(row)

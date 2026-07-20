@@ -26,10 +26,12 @@ Assert-Contains $qml 'function\s+defaultSeason\(\)\s*\{[\s\S]*seasons\[seasons\.
     'TheatreSeries should default multi-season shows to the newest season.'
 Assert-Contains $qml 'source:\s*ep\.modelData\.thumbnail\s*\?\s*ep\.modelData\.thumbnail\s*:\s*page\.sourceBackdrop\(\)' `
     'TheatreSeries episode thumbnails should fall back to series art.'
-Assert-Contains $qml 'property\s+string\s+episodeLayout:\s*"list"' `
-    'TheatreSeries should expose a list/strip episode layout state.'
-Assert-Contains $qml 'orientation:\s*page\.episodeLayout\s*===\s*"strip"\s*\?\s*ListView\.Horizontal\s*:\s*ListView\.Vertical' `
-    'TheatreSeries episode ListView should toggle between list and strip orientations.'
+Assert-NotContains $qml 'property\s+string\s+episodeLayout' `
+    'TheatreSeries should use one stable balanced-ledger layout.'
+Assert-Contains $qml 'orientation:\s*ListView\.Vertical' `
+    'TheatreSeries episode ledger must remain a virtualized vertical list.'
+Assert-Contains $qml 'height:\s*ep\.nextUp\s*\?\s*episodeList\.nextRowHeight\s*:\s*episodeList\.compactRowHeight' `
+    'TheatreSeries should expand next-up in chronological position.'
 Assert-Contains $qml 'function\s+jumpToEpisodeNumber\(number\)' `
     'TheatreSeries should provide a direct episode jumper.'
 Assert-Contains $qml 'positionViewAtIndex\(index,\s*ListView\.Beginning\)' `
