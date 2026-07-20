@@ -118,6 +118,10 @@ Item {
             anchors.baseline: titleText.baseline
             text: root.author
             visible: root.author !== ""
+            // elide is INERT without an explicit width — unconstrained, a squeezed block
+            // let the author overflow at natural width into the right cluster (the same
+            // 2026-07-20 double-print). Clamp to the room the block actually has.
+            width: Math.min(implicitWidth, Math.max(0, titleBlock.width - titleText.width - 10))
             elide: Text.ElideRight
             color: Theme.inkFaint
             font.family: Theme.ui
@@ -137,6 +141,12 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: root.chapterLabel
             visible: root.chapterLabel !== ""
+            // CAP (2026-07-20, the Wool 'Prologue 2110: Beneath the hills of…' finding):
+            // uncapped, a long chapter name grows the right cluster until the centered
+            // title block crushes to its 80px floor and the two print over each other.
+            // The chapter is secondary context — it elides; the book's identity doesn't.
+            width: Math.min(implicitWidth, 300)
+            elide: Text.ElideRight
             color: Theme.inkDim
             font.family: Theme.ui
             font.pixelSize: 13
