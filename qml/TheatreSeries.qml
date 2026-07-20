@@ -1695,6 +1695,14 @@ Item {
                 people: page.castPeople
             }
 
+            Item {
+                // Hemanth eyes-on 2026-07-20: breathing room between CAST and
+                // MORE LIKE THIS (pageCol runs spacing: 0 — every gap is explicit).
+                width: parent.width
+                height: 44
+                visible: (page.castPeople || []).length > 0 && (page.moreLikeCards || []).length > 0
+            }
+
             MoreLikeThisRow {
                 x: theme.margin
                 width: parent.width - 2 * theme.margin
