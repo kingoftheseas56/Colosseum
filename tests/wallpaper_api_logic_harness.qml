@@ -40,31 +40,26 @@ QtObject {
         if (wh.image_url !== "https://w.wallhaven.cc/full/ab/x.jpg")
             throw new Error("Wallhaven image_url must be the full path")
 
-        // --- OS Desktops shelf (2026-07-20): fixed curated picks, remote image+thumb ---
-        var os = W.osPicks()
-        if (os.length < 6)
-            throw new Error("osPicks must carry a real OS-desktop shelf, got " + os.length)
+        // --- Captured Motion shelf (2026-07-20): the three remote siblings of the
+        //     bundled boot wallpaper (img25). Windows 11 theme, proxied jsDelivr. ---
+        var cm = W.capturedMotionPicks()
+        if (cm.length !== 3)
+            throw new Error("Captured Motion adds the theme's other three (img25 is the bundled lead), got " + cm.length)
         var ids = ({})
-        for (var oi = 0; oi < os.length; oi++) {
-            var p = os[oi]
-            if (p.source_id.indexOf("os-") !== 0)
-                throw new Error("OS pick ids must be prefixed os- (never collide with Wallhaven), got " + p.source_id)
+        for (var ci = 0; ci < cm.length; ci++) {
+            var p = cm[ci]
             if (ids[p.source_id])
-                throw new Error("OS pick ids must be unique, dup " + p.source_id)
+                throw new Error("Captured Motion pick ids must be unique, dup " + p.source_id)
             ids[p.source_id] = true
             if (p.image_url.indexOf("https://") !== 0 || p.thumb_url.indexOf("https://") !== 0)
-                throw new Error("OS picks are remote (full + thumb), got " + p.image_url)
+                throw new Error("Captured Motion siblings are remote (full + thumb), got " + p.image_url)
             if (W.isNativePick(p.image_url))
-                throw new Error("OS picks are plain images, never native: routes")
+                throw new Error("Captured Motion picks are plain images, never native: routes")
             if (p.image_url === p.thumb_url)
-                throw new Error("OS full and thumb must differ (full 4K, thumb small), " + p.source_id)
+                throw new Error("full 4K and small thumb must differ, " + p.source_id)
+            if (p.thumb_url.indexOf("wsrv.nl") < 0 || p.thumb_url.indexOf("jsdelivr.net") < 0)
+                throw new Error("Captured Motion picks must proxy a jsDelivr origin through wsrv.nl")
         }
-        // the Ubuntu pick's spaces+parens must survive encoding as a proxied jsDelivr origin
-        var ubuntu = null
-        for (var ui = 0; ui < os.length; ui++)
-            if (os[ui].source_id === "os-ubuntu-jammy-light") ubuntu = os[ui]
-        if (!ubuntu || ubuntu.thumb_url.indexOf("wsrv.nl") < 0 || ubuntu.thumb_url.indexOf("jsdelivr.net") < 0)
-            throw new Error("OS picks must proxy a jsDelivr origin through wsrv.nl")
 
         // --- house default (2026-07-20): the app's own boot backdrop, offered as a pick ---
         var hd = W.houseDefaultPick()

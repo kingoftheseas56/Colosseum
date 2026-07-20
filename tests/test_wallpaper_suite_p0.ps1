@@ -21,9 +21,9 @@ if ($ui -notmatch 'freshState') { throw 'WallpaperSearch must build a paged sear
 $api = Get-Content (Join-Path $root 'qml/WallpaperApi.js') -Raw
 if ($api -notmatch 'purity=100') { throw 'Wallhaven SFW purity gate lost' }
 if ($api -match 'api_key|apikey|token=') { throw 'a keyed source crept into the keyless wallpaper lane' }
-# Konachan was removed 2026-07-20 (cheap-looking art) — assert no live wiring crept back
+# Konachan was removed 2026-07-20 (cheap-looking art) - assert no live wiring crept back
 # (the historical note in the header keeps the word; the endpoint/functions must not return).
-if ($api -match 'konachan\.net|mapKonachan|searchKonachan|konachanTags') { throw 'Konachan wiring crept back into the wallpaper lane — Wallhaven is the only source' }
+if ($api -match 'konachan\.net|mapKonachan|searchKonachan|konachanTags') { throw 'Konachan wiring crept back into the wallpaper lane - Wallhaven is the only source' }
 
 # 4. native living wallpapers (the arena, 2026-07-18): scene exists, freezes, and routes.
 $arena = Get-Content (Join-Path $root 'qml/wallpapers/ArenaNight.qml') -Raw
@@ -45,16 +45,18 @@ if ($api -notmatch 'captured-motion') { throw 'house default must point at the b
 if (!(Test-Path (Join-Path $root 'assets/wallpaper/captured-motion.jpg'))) { throw 'the bundled boot wallpaper is missing' }
 if ($ui -notmatch 'houseDefaultPick\(\)') { throw 'the Colosseum shelf must lead with the house default' }
 
-# 4c. OS Desktops shelf (2026-07-20): real Windows/macOS/Linux wallpapers, remote
-# via jsDelivr through the keyless wsrv.nl proxy (no repo bloat, no api key).
-if ($api -notmatch 'function osPicks') { throw 'WallpaperApi lost the OS Desktops shelf (osPicks)' }
-if ($api -notmatch 'wsrv\.nl') { throw 'OS picks must proxy through wsrv.nl' }
-if ($api -notmatch 'cdn\.jsdelivr\.net') { throw 'OS picks must originate from the jsDelivr CDN' }
-if ($ui -notmatch '"OS Desktops"') { throw 'the picker lost its OS Desktops shelf' }
-if ($ui -notmatch 'WallpaperApi\.osPicks\(\)') { throw 'the OS shelf must render osPicks()' }
-# the shelf must span all three OS families (guards against a partial revert)
-foreach ($os in @('windows11wallpapers', 'macOS-Wallpapers', 'Distro-wallpapers')) {
-    if ($api -notmatch [regex]::Escape($os)) { throw "OS shelf lost its $os source" }
+# 4c. Captured Motion shelf (2026-07-20): Windows 11's Captured Motion theme, the
+# dark abstract set the app boots to. The three remote siblings ride jsDelivr
+# through the keyless wsrv.nl proxy (no repo bloat, no api key). The earlier
+# literal Windows/macOS/Linux defaults were pulled - none fit - so guard they stay out.
+if ($api -notmatch 'function capturedMotionPicks') { throw 'WallpaperApi lost the Captured Motion shelf' }
+if ($api -notmatch 'wsrv\.nl') { throw 'Captured Motion picks must proxy through wsrv.nl' }
+if ($api -notmatch 'cdn\.jsdelivr\.net') { throw 'Captured Motion picks must originate from the jsDelivr CDN' }
+if ($ui -notmatch '"Captured Motion"') { throw 'the picker lost its Captured Motion shelf' }
+if ($ui -notmatch 'WallpaperApi\.capturedMotionPicks\(\)') { throw 'the shelf must render capturedMotionPicks()' }
+if ($api -match 'function osPicks') { throw 'the old OS-defaults shelf (osPicks) must be gone' }
+foreach ($gone in @('macOS-Wallpapers', 'Distro-wallpapers', 'Bloom')) {
+    if ($api -match [regex]::Escape($gone)) { throw "a pulled OS-default source ($gone) crept back - Hemanth wanted only Captured Motion" }
 }
 
 # 4b. Gilded Rain (2026-07-19): second native living wallpaper, same gates as the arena.

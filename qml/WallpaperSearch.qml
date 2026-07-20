@@ -219,10 +219,7 @@ Item {
                 font.pixelSize: 12
             }
 
-            // ---- Colosseum shelf: our own wallpapers, apart from the searchable
-            //      pool. Led by the house default (the abstract render the app boots
-            //      to — a static image), then the living wallpapers. A native tile is
-            //      its scene live and miniature; a static tile shows its image. ----
+            // ---- Colosseum shelf: our own living wallpapers, apart from the searchable pool ----
             Text {
                 text: "Colosseum"
                 color: "#d8d2c4"
@@ -234,11 +231,10 @@ Item {
                 spacing: 10
 
                 Repeater {
-                    model: [WallpaperApi.houseDefaultPick()].concat(WallpaperApi.nativePicks())
+                    model: WallpaperApi.nativePicks()
                     delegate: Rectangle {
                         id: nativeTile
                         required property var modelData
-                        readonly property bool isNative: WallpaperApi.isNativePick(nativeTile.modelData.image_url)
                         width: 144
                         height: 92
                         radius: 8
@@ -247,20 +243,10 @@ Item {
                         border.color: root.selectedPick.source_id === nativeTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
                         clip: true
 
-                        // native pick: the tile IS the wallpaper, live and miniature
+                        // the tile IS the wallpaper, live and miniature
                         Loader {
                             anchors.fill: parent
-                            active: nativeTile.isNative
-                            source: nativeTile.isNative ? WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url) : ""
-                        }
-                        // static pick (the house default): its still image
-                        Image {
-                            anchors.fill: parent
-                            visible: !nativeTile.isNative
-                            source: nativeTile.isNative ? "" : nativeTile.modelData.thumb_url
-                            fillMode: Image.PreserveAspectCrop
-                            asynchronous: true
-                            cache: true
+                            source: WallpaperApi.nativeSceneFor(nativeTile.modelData.image_url)
                         }
 
                         Rectangle {
@@ -289,15 +275,13 @@ Item {
                 }
             }
 
-            // ---- OS Desktops shelf: the real shipped wallpapers of Windows, macOS
-            //      and Linux (2026-07-20). A single horizontal strip — the panel is
-            //      only ~3 tiles wide, so a wrapping grid of 10 would stack four rows
-            //      deep and shove the results off-screen; the strip stays one row tall
-            //      and the rest scroll sideways (wheel/drag), a real wallpaper carousel.
-            //      Plain image picks — remote thumb, remote full on apply — same path
-            //      as a Wallhaven pick. ----
+            // ---- Captured Motion shelf: Windows 11's "Captured Motion" theme, the
+            //      dark abstract set the app boots to (2026-07-20). A single horizontal
+            //      strip so it stays one row tall and scrolls sideways (wheel/drag).
+            //      The bundled boot image leads; the other three are remote picks —
+            //      remote thumb, remote full on apply — same path as a Wallhaven pick. ----
             Text {
-                text: "OS Desktops"
+                text: "Captured Motion"
                 color: "#d8d2c4"
                 font.family: theme.display
                 font.pixelSize: 16
@@ -310,7 +294,8 @@ Item {
                 orientation: ListView.Horizontal
                 spacing: 10
                 clip: true
-                model: WallpaperApi.osPicks()
+                // the bundled boot wallpaper leads, then the theme's other three
+                model: [WallpaperApi.houseDefaultPick()].concat(WallpaperApi.capturedMotionPicks())
                 boundsBehavior: Flickable.StopAtBounds
 
                 // a horizontal list ignores the vertical wheel by default — map it to

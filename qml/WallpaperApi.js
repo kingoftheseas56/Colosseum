@@ -62,37 +62,38 @@ function nativeSceneFor(url) {
     return "";
 }
 
-// The Colosseum's own default backdrop (2026-07-20) — the abstract 4K render the
-// app shipped with and boots to (assets/wallpaper/captured-motion.jpg). It reads
-// as a desktop shell (dark, abstract, lets the glass UI breathe), so it was the
-// original "OS-like" wallpaper all along; it lived only as the hardcoded default,
-// unreachable once you picked anything else. Offered back here as a real pick. A
-// plain bundled image — same relative path Main resolves for the boot wallpaper.
+// The backdrop the app boots to (assets/wallpaper/captured-motion.jpg), offered
+// back as a pick (2026-07-20). It shipped as the hardcoded default and was
+// unreachable once you picked anything else. Turns out it IS an OS wallpaper: the
+// official Windows 11 "Captured Motion" theme by Six N. Five for Microsoft, 4K
+// 3840x2400 — which is why it reads as a desktop shell. A plain bundled image on
+// the same relative path Main resolves for the boot wallpaper.
 function houseDefaultPick() {
     return {
-        source: "Colosseum",
-        source_id: "colosseum-motion",
+        source: "Captured Motion",
+        source_id: "colosseum-motion",   // stable id (kept; predates the Win11 identification)
         source_url: "",
         image_url: "../assets/wallpaper/captured-motion.jpg",
         thumb_url: "../assets/wallpaper/captured-motion.jpg",
         w: 3840, h: 2400,
         aspect: "16:10",
-        attribution: "Colosseum",
+        attribution: "Windows 11 'Captured Motion' (img25) - Six N. Five / Microsoft",
         query: "",
-        title: "Colosseum",
-        spec: "3840x2400 - the app's default desktop"
+        title: "Captured Motion 1",
+        spec: "Windows 11 'Captured Motion' - 3840x2400 (the app default)"
     };
 }
 
-// ---- OS default desktops (2026-07-20) ----
-// Colosseum dresses up as an OS, so its picker offers the desktops people know:
-// the real shipped wallpapers of Windows, macOS and Linux (Wallhaven carries no
-// OS defaults). Curated + pinned — every origin is a stable public archive repo
-// served over the jsDelivr CDN, and BOTH the full image and the grid thumbnail
-// ride the keyless wsrv.nl image proxy over that origin: a 17 MB macOS source
-// lands as a crisp ~1 MB 4K wallpaper and a ~20 KB thumb, so nothing bloats the
-// repo and the grid stays instant — the same remote-pick path Wallhaven uses.
-// Images are (c) their respective OS vendors; personal use.
+// ---- Captured Motion shelf (2026-07-20) ----
+// The one wallpaper the app boots to (houseDefaultPick, bundled) turned out to be
+// img25 of Windows 11's "Captured Motion" theme by Six N. Five — dark, abstract,
+// warm iridescent ribbons, which is exactly the desktop-shell look Hemanth wanted.
+// So the shelf is that theme and nothing else (the earlier literal Windows/macOS/
+// Linux defaults were pulled 2026-07-20 — none fit). The other three of the four
+// (img24/26/27) come from a stable archive repo over the jsDelivr CDN, and both
+// the full image and the grid thumbnail ride the keyless wsrv.nl proxy over that
+// origin — a 4K source lands as a crisp capped jpeg and a ~40 KB thumb, no repo
+// bloat, the same remote-pick path Wallhaven uses. (c) Six N. Five / Microsoft.
 
 // encodeURIComponent leaves ()! literal; the CDN is happy either way, but we
 // pin parens too so the emitted URL is byte-stable across encoders.
@@ -108,38 +109,32 @@ function _wsrv(originNoScheme, width) {
          + "&w=" + width + "&output=jpg&q=82";
 }
 
-function _osPick(id, repo, branch, path, title, spec) {
+function _cdnPick(id, repo, branch, path, title, spec) {
     var encPath = path.split("/").map(_encSeg).join("/");
     var origin = "cdn.jsdelivr.net/gh/" + repo + "@" + branch + "/" + encPath;
     return {
-        source: "OS",
-        source_id: "os-" + id,
+        source: "Captured Motion",
+        source_id: id,
         source_url: "https://github.com/" + repo,
         image_url: _wsrv(origin, 3840),   // applied wallpaper, capped at a crisp 4K
         thumb_url: _wsrv(origin, 600),    // grid thumbnail
-        w: 0, h: 0,
-        aspect: "wide",
-        attribution: title + " - (c) its OS vendor, personal use",
+        w: 3840, h: 2400,
+        aspect: "16:10",
+        attribution: title + " - Six N. Five / Microsoft",
         query: "",
         title: title,
         spec: spec
     };
 }
 
-// The fixed OS-desktops shelf. All ten origins verified 200 image/jpeg
-// 2026-07-20; the thumbnails render through the same proxy.
-function osPicks() {
+// The other three of Windows 11's four Captured Motion wallpapers (the fourth,
+// img25, is houseDefaultPick — bundled, the boot backdrop). Theme B == Captured
+// Motion at 21H2. All three origins verified 200 image/jpeg 2026-07-20.
+function capturedMotionPicks() {
     return [
-        _osPick("win11-bloom-light", "viridivn/windows11wallpapers", "master", "Windows/img0.jpg", "Windows 11 - Bloom", "Windows 11 default (light)"),
-        _osPick("win11-bloom-dark", "viridivn/windows11wallpapers", "master", "Windows/img19.jpg", "Windows 11 - Bloom Dark", "Windows 11 default (dark)"),
-        _osPick("macos-bigsur", "LAYTAT/macOS-Wallpapers", "main", "11-0-Day.jpg", "macOS Big Sur", "macOS 11 default"),
-        _osPick("macos-monterey", "LAYTAT/macOS-Wallpapers", "main", "12-Light.jpg", "macOS Monterey", "macOS 12 default"),
-        _osPick("macos-ventura", "LAYTAT/macOS-Wallpapers", "main", "13-Ventura-Light.jpg", "macOS Ventura", "macOS 13 default"),
-        _osPick("macos-sonoma", "LAYTAT/macOS-Wallpapers", "main", "14-Sonoma-Light.jpg", "macOS Sonoma", "macOS 14 default"),
-        _osPick("macos-mojave-day", "foxt/macOS-Wallpapers", "master", "Mojave Day.jpg", "macOS Mojave - Day", "macOS 10.14 default"),
-        _osPick("macos-mojave-night", "foxt/macOS-Wallpapers", "master", "Mojave Night.jpg", "macOS Mojave - Night", "macOS 10.14 default (night)"),
-        _osPick("ubuntu-jammy-light", "LinuxKits/Distro-wallpapers", "main", "Ubuntu/Ubuntu 22.04 LTS (Jammy Jellyfish)/jj_light_by_Hiking93.jpg", "Ubuntu - Jammy", "Ubuntu 22.04 default (light)"),
-        _osPick("ubuntu-jammy-dark", "LinuxKits/Distro-wallpapers", "main", "Ubuntu/Ubuntu 22.04 LTS (Jammy Jellyfish)/jj_dark_by_Hiking93.jpg", "Ubuntu - Jammy Dark", "Ubuntu 22.04 default (dark)")
+        _cdnPick("cm-img24", "viridivn/windows11wallpapers", "master", "ThemeB/img24.jpg", "Captured Motion 2", "Windows 11 'Captured Motion' - 3840x2400"),
+        _cdnPick("cm-img26", "viridivn/windows11wallpapers", "master", "ThemeB/img26.jpg", "Captured Motion 3", "Windows 11 'Captured Motion' - 3840x2400"),
+        _cdnPick("cm-img27", "viridivn/windows11wallpapers", "master", "ThemeB/img27.jpg", "Captured Motion 4", "Windows 11 'Captured Motion' - 3840x2400")
     ];
 }
 
