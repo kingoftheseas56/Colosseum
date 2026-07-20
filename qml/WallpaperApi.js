@@ -111,6 +111,20 @@ function nativePicks() {
         query: "",
         title: "Facet",
         spec: "Still geometric lattice - Colosseum QML"
+    }, {
+        // Slow-morphing low-poly — our first shader wallpaper (2026-07-20). An
+        // original GLSL fragment shader run through a ShaderEffect; freeze-gated.
+        source: "Colosseum",
+        source_id: "native:lowpoly",
+        source_url: "",
+        image_url: "native:lowpoly",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original (GLSL shader)",
+        query: "",
+        title: "Low Poly",
+        spec: "Slow-morphing low-poly - Colosseum shader (QML)"
     }];
 }
 
@@ -130,6 +144,7 @@ function nativeSceneFor(url) {
     if (url === "native:mesh-ember") return "wallpapers/MeshEmber.qml";
     if (url === "native:mesh-mint") return "wallpapers/MeshMint.qml";
     if (url === "native:facet") return "wallpapers/Facet.qml";
+    if (url === "native:lowpoly") return "wallpapers/LowPoly.qml";
     return "";
 }
 

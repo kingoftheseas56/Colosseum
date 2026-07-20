@@ -113,8 +113,22 @@ if ($api -notmatch 'native:facet[\s\S]{0,80}Facet\.qml') { throw 'nativeSceneFor
 if ($main -notmatch 'native:facet[\s\S]{0,80}Facet\.qml') { throw 'Main runtime map does not route facet to its scene' }
 if ($api -notmatch '"Facet"') { throw 'nativePicks lost the Facet tile' }
 
+# 4h. LowPoly (2026-07-20): our first shader wallpaper - an ORIGINAL GLSL fragment
+# shader run through a ShaderEffect (slow-morphing low-poly). Freeze-gated.
+$lp = Get-Content (Join-Path $root 'qml/wallpapers/LowPoly.qml') -Raw
+if ($lp -notmatch 'property bool running') { throw 'LowPoly lost its running gate - it could never freeze' }
+if ($lp -notmatch 'ShaderEffect') { throw 'LowPoly must render through a ShaderEffect' }
+if ($lp -notmatch 'FrameAnimation') { throw 'LowPoly must drive iTime from a freeze-gated FrameAnimation clock' }
+if ($lp -notmatch 'lowpoly\.frag\.qsb') { throw 'LowPoly must reference the compiled shader' }
+# the compiled shader + its GLSL source must be committed (QML loads the .qsb at runtime).
+if (!(Test-Path (Join-Path $root 'qml/wallpapers/shaders/lowpoly.frag.qsb'))) { throw 'the compiled shader (lowpoly.frag.qsb) is missing' }
+if (!(Test-Path (Join-Path $root 'qml/wallpapers/shaders/lowpoly.frag'))) { throw 'the shader source (lowpoly.frag) is missing' }
+if ($api -notmatch 'native:lowpoly[\s\S]{0,80}LowPoly\.qml') { throw 'nativeSceneFor does not route lowpoly to its scene' }
+if ($main -notmatch 'native:lowpoly[\s\S]{0,80}LowPoly\.qml') { throw 'Main runtime map does not route lowpoly to its scene' }
+if ($api -notmatch '"Low Poly"') { throw 'nativePicks lost the Low Poly tile' }
+
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'Facet')) {
+foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'Facet', 'LowPoly')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden
