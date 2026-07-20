@@ -1,12 +1,23 @@
 #include "frame_producer.h"
 
 #include "shared_bridge.h"
+#include "ffmpeg_hevc_source.h"
 
 #include <chrono>
 
 FrameProducer::FrameProducer(SharedBridge *bridge)
     : m_bridge(bridge)
 {
+}
+
+void FrameProducer::startHevc(const QString &filePath, std::function<void()> wakeConsumer)
+{
+    stop();
+    m_stop = false;
+    m_thread = std::thread([this, filePath, wakeConsumer = std::move(wakeConsumer)] {
+        FfmpegHevcSource source(m_bridge);
+        source.run(filePath, m_stop, wakeConsumer);
+    });
 }
 
 FrameProducer::~FrameProducer()

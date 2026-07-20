@@ -4,6 +4,7 @@
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QMetaObject>
+#include <QtCore/QStringList>
 #include <QtQuick/QQuickWindow>
 #include <QtQuick/QSGSimpleTextureNode>
 #include <QtQuick/QSGTexture>
@@ -65,12 +66,16 @@ QSGNode *VideoBridgeItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData 
     }
     if (!m_started) {
         m_started = true;
-        m_producer.startSynthetic(24.0, [this] {
+        const auto wakeConsumer = [this] {
             QMetaObject::invokeMethod(this, [this] {
                 update();
                 emit statusChanged();
             }, Qt::QueuedConnection);
-        });
+        };
+        if (m_source == QStringLiteral("hevc"))
+            m_producer.startHevc(m_file, wakeConsumer);
+        else
+            m_producer.startSynthetic(24.0, wakeConsumer);
     }
 
     if (const auto selection = m_bridge.acquireLatestForConsumer()) {
@@ -79,6 +84,8 @@ QSGNode *VideoBridgeItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData 
             m_pendingRetire = selection->retiringSlot;
             m_bridge.notePresented();
         }
+    } else if (node->texture()) {
+        m_bridge.noteRepeated();
     }
     return node;
 }
@@ -96,12 +103,27 @@ QString VideoBridgeItem::statusText() const
     if (!m_error.isEmpty())
         return QStringLiteral("FAILED: %1").arg(m_error);
     const auto s = m_bridge.snapshot();
-    return QStringLiteral("Qt: %1\nQt adapter: %2\nProducer: %3\nAdapter match: %4   Shared fences: %5\nGenerated: %6   Presented: %7\nProducer starved: %8   Device errors: %9\nProducer fence: %10   Consumer fence: %11\nCPU frame transfers: %12")
-        .arg(s.graphicsApi, s.qtAdapter, s.producerAdapter,
-             s.adapterMatch ? QStringLiteral("yes") : QStringLiteral("no"),
-             s.sharedFences ? QStringLiteral("yes") : QStringLiteral("no"))
-        .arg(s.generated).arg(s.presented).arg(s.producerStarved).arg(s.deviceErrors)
-        .arg(s.producerFence).arg(s.consumerFence).arg(s.cpuTransfers);
+    QStringList lines{
+        QStringLiteral("Source: %1   Codec: %2   HW: %3").arg(s.source, s.codec, s.hardwareFormat),
+        QStringLiteral("Input: %1   Size: %2").arg(s.inputFormat, s.sourceSize),
+        QStringLiteral("Qt: %1").arg(s.graphicsApi),
+        QStringLiteral("Qt adapter: %1").arg(s.qtAdapter),
+        QStringLiteral("Producer: %1").arg(s.producerAdapter),
+        QStringLiteral("Adapter match: %1   Shared fences: %2")
+            .arg(s.adapterMatch ? QStringLiteral("yes") : QStringLiteral("no"),
+                 s.sharedFences ? QStringLiteral("yes") : QStringLiteral("no")),
+        QStringLiteral("Decoded: %1   Converted: %2   Presented: %3")
+            .arg(s.decoded).arg(s.converted).arg(s.presented),
+        QStringLiteral("Repeated: %1   Dropped: %2   Late: %3")
+            .arg(s.repeated).arg(s.dropped).arg(s.late),
+        QStringLiteral("Device errors: %1").arg(s.deviceErrors),
+        QStringLiteral("Producer fence: %1   Consumer fence: %2")
+            .arg(s.producerFence).arg(s.consumerFence),
+        QStringLiteral("CPU frame transfers: %1").arg(s.cpuTransfers)
+    };
+    if (!s.sourceError.isEmpty())
+        lines << QStringLiteral("FAILED: %1").arg(s.sourceError);
+    return lines.join(QLatin1Char('\n'));
 }
 
 bool VideoBridgeItem::writeReport(const QString &path) const
@@ -121,6 +143,19 @@ bool VideoBridgeItem::writeReport(const QString &path) const
         {QStringLiteral("producerFence"), static_cast<qint64>(s.producerFence)},
         {QStringLiteral("consumerFence"), static_cast<qint64>(s.consumerFence)},
         {QStringLiteral("error"), m_error}
+        ,{QStringLiteral("source"), s.source}
+        ,{QStringLiteral("codec"), s.codec}
+        ,{QStringLiteral("hardwareFormat"), s.hardwareFormat}
+        ,{QStringLiteral("inputFormat"), s.inputFormat}
+        ,{QStringLiteral("sourceSize"), s.sourceSize}
+        ,{QStringLiteral("sourceError"), s.sourceError}
+        ,{QStringLiteral("decoded"), static_cast<qint64>(s.decoded)}
+        ,{QStringLiteral("converted"), static_cast<qint64>(s.converted)}
+        ,{QStringLiteral("dropped"), static_cast<qint64>(s.dropped)}
+        ,{QStringLiteral("late"), static_cast<qint64>(s.late)}
+        ,{QStringLiteral("repeated"), static_cast<qint64>(s.repeated)}
+        ,{QStringLiteral("published"), static_cast<qint64>(s.generated)}
+        ,{QStringLiteral("softwareFallback"), s.softwareFallback}
     };
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))

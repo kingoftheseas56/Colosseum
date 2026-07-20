@@ -15,6 +15,8 @@ class VideoBridgeItem : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(QString statusText READ statusText NOTIFY statusChanged)
+    Q_PROPERTY(QString source MEMBER m_source)
+    Q_PROPERTY(QString file MEMBER m_file)
     QML_ELEMENT
 
 public:
@@ -42,4 +44,6 @@ private:
     QString m_error;
     bool m_initialized = false;
     bool m_started = false;
+    QString m_source = QStringLiteral("synthetic");
+    QString m_file;
 };

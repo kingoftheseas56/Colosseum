@@ -3,6 +3,7 @@
 #include <atomic>
 #include <functional>
 #include <thread>
+#include <QString>
 
 class SharedBridge;
 
@@ -13,6 +14,7 @@ public:
     ~FrameProducer();
 
     void startSynthetic(double framesPerSecond, std::function<void()> wakeConsumer);
+    void startHevc(const QString &filePath, std::function<void()> wakeConsumer);
     void stop();
 
 private:

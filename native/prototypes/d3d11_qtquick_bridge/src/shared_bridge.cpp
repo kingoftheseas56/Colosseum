@@ -236,6 +236,151 @@ bool SharedBridge::fillSynthetic(std::size_t slot, std::uint64_t sequence, doubl
     return true;
 }
 
+bool SharedBridge::ensureVideoProcessor(int width, int height, DXGI_FORMAT inputFormat,
+                                        double framesPerSecond, QString &error)
+{
+    if (m_videoProcessor && width == m_videoWidth && height == m_videoHeight &&
+        inputFormat == m_videoInputFormat)
+        return true;
+
+    m_videoOutputs = {};
+    m_videoProcessor.Reset();
+    m_videoEnumerator.Reset();
+    if (!m_videoDevice && FAILED(m_producerDevice.As(&m_videoDevice))) {
+        error = QStringLiteral("Producer device has no ID3D11VideoDevice");
+        return false;
+    }
+    if (!m_videoContext && FAILED(m_producerContext.As(&m_videoContext))) {
+        error = QStringLiteral("Producer context has no ID3D11VideoContext");
+        return false;
+    }
+
+    D3D11_VIDEO_PROCESSOR_CONTENT_DESC content{};
+    content.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
+    content.InputWidth = static_cast<UINT>(width);
+    content.InputHeight = static_cast<UINT>(height);
+    content.OutputWidth = Width;
+    content.OutputHeight = Height;
+    content.Usage = D3D11_VIDEO_USAGE_PLAYBACK_NORMAL;
+    const UINT rate = static_cast<UINT>(std::max(1.0, std::round(framesPerSecond * 1000.0)));
+    content.InputFrameRate = {rate, 1000};
+    content.OutputFrameRate = content.InputFrameRate;
+
+    HRESULT hr = m_videoDevice->CreateVideoProcessorEnumerator(&content, &m_videoEnumerator);
+    if (FAILED(hr)) {
+        error = QStringLiteral("CreateVideoProcessorEnumerator failed: %1").arg(hrText(hr));
+        return false;
+    }
+    UINT flags = 0;
+    if (FAILED(m_videoEnumerator->CheckVideoProcessorFormat(inputFormat, &flags)) ||
+        !(flags & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_INPUT)) {
+        error = QStringLiteral("Video processor rejects decoder input format %1").arg(inputFormat);
+        return false;
+    }
+    if (FAILED(m_videoEnumerator->CheckVideoProcessorFormat(DXGI_FORMAT_R8G8B8A8_UNORM, &flags)) ||
+        !(flags & D3D11_VIDEO_PROCESSOR_FORMAT_SUPPORT_OUTPUT)) {
+        error = QStringLiteral("Video processor cannot output Qt-compatible RGBA8");
+        return false;
+    }
+    hr = m_videoDevice->CreateVideoProcessor(m_videoEnumerator.Get(), 0, &m_videoProcessor);
+    if (FAILED(hr)) {
+        error = QStringLiteral("CreateVideoProcessor failed: %1").arg(hrText(hr));
+        return false;
+    }
+    for (std::size_t i = 0; i < m_slots.size(); ++i) {
+        D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC outputDesc{};
+        outputDesc.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+        outputDesc.Texture2D.MipSlice = 0;
+        hr = m_videoDevice->CreateVideoProcessorOutputView(m_slots[i].producerTexture.Get(),
+                                                           m_videoEnumerator.Get(), &outputDesc,
+                                                           &m_videoOutputs[i]);
+        if (FAILED(hr)) {
+            error = QStringLiteral("CreateVideoProcessorOutputView failed: %1").arg(hrText(hr));
+            return false;
+        }
+    }
+    m_videoWidth = width;
+    m_videoHeight = height;
+    m_videoInputFormat = inputFormat;
+    return true;
+}
+
+bool SharedBridge::convertVideoFrame(std::size_t slot, ID3D11Texture2D *input, UINT arraySlice,
+                                     std::uint64_t sequence, int width, int height,
+                                     DXGI_FORMAT inputFormat, double framesPerSecond,
+                                     bool bt709, bool fullRange, QString &error)
+{
+    if (!m_initialized || !input || slot >= m_slots.size() ||
+        !ensureVideoProcessor(width, height, inputFormat, framesPerSecond, error))
+        return false;
+
+    D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC inputDesc{};
+    inputDesc.FourCC = 0;
+    inputDesc.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+    inputDesc.Texture2D.MipSlice = 0;
+    inputDesc.Texture2D.ArraySlice = arraySlice;
+    ComPtr<ID3D11VideoProcessorInputView> inputView;
+    HRESULT hr = m_videoDevice->CreateVideoProcessorInputView(input, m_videoEnumerator.Get(),
+                                                               &inputDesc, &inputView);
+    if (FAILED(hr)) {
+        error = QStringLiteral("CreateVideoProcessorInputView failed: %1").arg(hrText(hr));
+        return false;
+    }
+
+    const RECT sourceRect{0, 0, width, height};
+    const RECT targetRect{0, 0, Width, Height};
+    m_videoContext->VideoProcessorSetStreamSourceRect(m_videoProcessor.Get(), 0, TRUE, &sourceRect);
+    m_videoContext->VideoProcessorSetStreamDestRect(m_videoProcessor.Get(), 0, TRUE, &targetRect);
+    m_videoContext->VideoProcessorSetOutputTargetRect(m_videoProcessor.Get(), TRUE, &targetRect);
+    D3D11_VIDEO_PROCESSOR_COLOR_SPACE inputColor{};
+    inputColor.YCbCr_Matrix = bt709 ? 1 : 0;
+    inputColor.Nominal_Range = fullRange ? 2 : 1;
+    D3D11_VIDEO_PROCESSOR_COLOR_SPACE outputColor{};
+    outputColor.RGB_Range = 0;
+    outputColor.Nominal_Range = 2;
+    m_videoContext->VideoProcessorSetStreamColorSpace(m_videoProcessor.Get(), 0, &inputColor);
+    m_videoContext->VideoProcessorSetOutputColorSpace(m_videoProcessor.Get(), &outputColor);
+    D3D11_VIDEO_PROCESSOR_STREAM stream{};
+    stream.Enable = TRUE;
+    stream.pInputSurface = inputView.Get();
+    hr = m_videoContext->VideoProcessorBlt(m_videoProcessor.Get(), m_videoOutputs[slot].Get(),
+                                           0, 1, &stream);
+    if (FAILED(hr)) {
+        error = QStringLiteral("VideoProcessorBlt failed: %1").arg(hrText(hr));
+        return false;
+    }
+    hr = m_producerContext4->Signal(m_producerFence.Get(), sequence);
+    if (FAILED(hr) || !m_ring.publishProduced(slot, sequence)) {
+        error = QStringLiteral("Publishing converted frame failed: %1").arg(hrText(hr));
+        ++m_deviceErrors;
+        return false;
+    }
+    m_producerFenceValue = sequence;
+    ++m_generated;
+    ++m_converted;
+    return true;
+}
+
+void SharedBridge::setSourceInfo(const QString &source, const QString &codec,
+                                 const QString &hardwareFormat, const QString &inputFormat,
+                                 int width, int height, bool softwareFallback)
+{
+    std::scoped_lock lock(m_statusMutex);
+    m_source = source;
+    m_codec = codec;
+    m_hardwareFormat = hardwareFormat;
+    m_inputFormat = inputFormat;
+    m_sourceSize = width > 0 && height > 0
+        ? QStringLiteral("%1x%2").arg(width).arg(height) : QString();
+    m_softwareFallback = softwareFallback;
+}
+
+void SharedBridge::setSourceError(const QString &error)
+{
+    std::scoped_lock lock(m_statusMutex);
+    m_sourceError = error;
+}
+
 std::optional<SlotRing::ConsumerSelection> SharedBridge::acquireLatestForConsumer()
 {
     return m_ring.acquireLatestForConsumer();
@@ -281,6 +426,21 @@ SharedBridge::Snapshot SharedBridge::snapshot() const
     result.deviceErrors = m_deviceErrors.load();
     result.producerFence = m_producerFenceValue.load();
     result.consumerFence = m_consumerFenceValue.load();
+    result.decoded = m_decoded.load();
+    result.converted = m_converted.load();
+    result.dropped = m_dropped.load();
+    result.late = m_late.load();
+    result.repeated = m_repeated.load();
+    {
+        std::scoped_lock lock(m_statusMutex);
+        result.source = m_source;
+        result.codec = m_codec;
+        result.hardwareFormat = m_hardwareFormat;
+        result.inputFormat = m_inputFormat;
+        result.sourceSize = m_sourceSize;
+        result.sourceError = m_sourceError;
+        result.softwareFallback = m_softwareFallback;
+    }
     return result;
 }
 
@@ -298,6 +458,11 @@ void SharedBridge::shutdown()
     m_consumerDevice5.Reset();
     m_consumerDevice.Reset();
     m_producerContext4.Reset();
+    m_videoOutputs = {};
+    m_videoProcessor.Reset();
+    m_videoEnumerator.Reset();
+    m_videoContext.Reset();
+    m_videoDevice.Reset();
     m_producerContext1.Reset();
     m_producerContext.Reset();
     m_producerDevice5.Reset();

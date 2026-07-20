@@ -8,6 +8,8 @@ $bridgeFiles = @(
     'src\shared_bridge.cpp',
     'src\frame_producer.h',
     'src\frame_producer.cpp',
+    'src\ffmpeg_hevc_source.h',
+    'src\ffmpeg_hevc_source.cpp',
     'src\video_bridge_item.h',
     'src\video_bridge_item.cpp',
     'src\main.cpp'
@@ -54,5 +56,12 @@ Reject-Text $bridgeSource 'CopyResource\(' 'Stage 1 must render directly into it
 Reject-Text $bridgeSource 'D3D11_RESOURCE_MISC_SHARED_NTHANDLE|D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX' 'legacy shared textures plus fences must not inherit an unowned keyed mutex'
 Reject-Text $bridgeSource 'DXGI_FORMAT_B8G8R8A8_UNORM' 'Qt native texture wrapper has no BGRA format parameter'
 Require-Text $qml 'sequence:\s*"F11"' 'Gate A must provide a repeatable fullscreen toggle'
+Require-Text $bridgeSource 'AV_HWDEVICE_TYPE_D3D11VA' 'Gate B must construct a D3D11VA hardware context'
+Require-Text $bridgeSource 'AV_PIX_FMT_D3D11' 'Gate B must require D3D11 decoder frames'
+Require-Text $bridgeSource 'ID3D11VideoProcessorInputView' 'Gate B must create a video-processor input view'
+Require-Text $bridgeSource 'ID3D11VideoProcessorOutputView' 'Gate B must create a video-processor output view'
+Require-Text $bridgeSource 'VideoProcessorBlt' 'Gate B must convert NV12/P010 on the GPU'
+Require-Text $bridgeSource 'VideoProcessorSetStreamColorSpace' 'Gate B must set input color metadata explicitly'
+Reject-Text $bridgeSource 'sws_scale|UpdateSubresource\(' 'Gate B must not upload CPU video frames'
 
 Write-Output 'prototype_contract_test: PASS'

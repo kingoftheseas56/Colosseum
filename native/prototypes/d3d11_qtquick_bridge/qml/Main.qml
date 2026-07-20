@@ -20,6 +20,8 @@ Window {
         id: bridgeItem
         objectName: "bridgeItem"
         anchors.fill: parent
+        source: bridgeSource
+        file: bridgeFile
     }
 
     Rectangle {

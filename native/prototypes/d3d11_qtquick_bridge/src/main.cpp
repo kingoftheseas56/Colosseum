@@ -1,9 +1,11 @@
 #include "video_bridge_item.h"
 
 #include <QtCore/QCommandLineParser>
+#include <QtCore/QFileInfo>
 #include <QtCore/QTimer>
 #include <QtGui/QGuiApplication>
 #include <QtQml/QQmlApplicationEngine>
+#include <QtQml/QQmlContext>
 #include <QtQuick/QQuickWindow>
 #include <QtQuick/QSGRendererInterface>
 
@@ -15,18 +17,29 @@ int main(int argc, char **argv)
 
     QCommandLineParser parser;
     parser.addHelpOption();
-    parser.addOption({QStringLiteral("source"), QStringLiteral("Frame source (synthetic only in Gate A)"),
+    parser.addOption({QStringLiteral("source"), QStringLiteral("Frame source: synthetic or hevc"),
                       QStringLiteral("source"), QStringLiteral("synthetic")});
+    parser.addOption({QStringLiteral("file"), QStringLiteral("Media file for --source hevc"),
+                      QStringLiteral("path")});
     parser.addOption({QStringLiteral("duration"), QStringLiteral("Automatic run duration in seconds"),
                       QStringLiteral("seconds"), QStringLiteral("0")});
     parser.addOption({QStringLiteral("report"), QStringLiteral("Write JSON report on exit"),
                       QStringLiteral("path")});
     parser.process(app);
-    if (parser.value(QStringLiteral("source")) != QStringLiteral("synthetic"))
-        qFatal("Gate A accepts only --source synthetic");
+    const QString source = parser.value(QStringLiteral("source"));
+    if (source != QStringLiteral("synthetic") && source != QStringLiteral("hevc"))
+        qFatal("--source must be synthetic or hevc");
+    if (source == QStringLiteral("hevc") && parser.value(QStringLiteral("file")).isEmpty())
+        qFatal("--source hevc requires --file");
+    if (source == QStringLiteral("hevc") &&
+        !QFileInfo::exists(parser.value(QStringLiteral("file"))))
+        qFatal("--file does not exist");
 
     qmlRegisterType<VideoBridgeItem>("Colosseum.Bridge", 1, 0, "VideoBridgeItem");
     QQmlApplicationEngine engine;
+    engine.rootContext()->setContextProperty(QStringLiteral("bridgeSource"), source);
+    engine.rootContext()->setContextProperty(QStringLiteral("bridgeFile"),
+                                              parser.value(QStringLiteral("file")));
     engine.load(QUrl(QStringLiteral("qrc:/qml/Main.qml")));
     if (engine.rootObjects().isEmpty())
         return 2;
