@@ -166,3 +166,50 @@ A real adoption decision must first prove:
 - FFmpeg/Kodi-derived licensing boundaries.
 
 Until those gates exist, the prototype is evidence, not production architecture.
+
+## Definition of Done review
+
+**Reviewer:** [Agent 4 (Codex), review] — self-review through the Brotherhood review discipline;
+this is not an independent producer-versus-reviewer gate.
+
+### Gate A
+
+- **MET — D3D11 and adapter identity:** reports identify Qt and producer as Intel UHD Graphics 620
+  with matching adapter identity and active shared fences.
+- **MET — composited visual:** the moving GPU pattern was observed below live translucent QML.
+- **MET — 60-second stability:** 1,437 generated / 1,435 presented, zero device errors and no
+  deadlock or corrupt frame.
+- **MET — window transitions:** resize, windowed and fullscreen rendering were exercised.
+- **MET — synchronization/no CPU transfer:** both fence counters advanced and `cpuTransfers=0`.
+
+### Gate B
+
+- **MET — ordering:** real media work began only after Gate A passed.
+- **MET — hardware decode:** the real file reports HEVC, `d3d11va`, P010, 1920x1080.
+- **MET — GPU conversion:** source and contract test require `VideoProcessorBlt`; no transfer or
+  software-upload API is present.
+- **MET — five-minute visual run:** 7,188 decoded / 7,187 published / 7,185 presented fullscreen,
+  with zero dropped, late, device-error and CPU-transfer counters.
+- **MET — timing telemetry:** PTS pacing and decoded/converted/published/presented/repeated/late/
+  dropped counters are implemented and recorded.
+- **MET — architectural comparison:** this document compares Kodi, production Colosseum and the
+  prior Tankoban sidecar without claiming production readiness.
+
+### Deliverables and scope
+
+- **MET — isolated prototype:** all executable source is under
+  `native/prototypes/d3d11_qtquick_bridge/`; no production player target or QML was modified.
+- **MET — reproducibility:** the adjacent README contains proven configure, build, deploy, test and
+  run commands plus counter definitions and limitations.
+- **MET — decision:** this ADR ranks the choices, records both controls, and names the next smallest
+  step and the audio-normalization A/B.
+- **MET — anti-scope:** no audio, subtitle, seek, streaming, HDR, OpenGL, child-window, CPU-transfer
+  or software-decode path was added; Kodi code was not copied.
+
+Review edge: the verification plan requested deleting the original untracked build directory, but
+the command safety layer refused recursive deletion after path verification. Verification instead
+used a never-before-existing out-of-tree directory under `%TEMP%`, which is stronger evidence that
+the committed source configures and builds independently and leaves the Git worktree clean.
+
+**APPROVE — every written architecture gate and deliverable is met; the branch is suitable for
+handoff as an isolated experiment, not for production-player integration.**
