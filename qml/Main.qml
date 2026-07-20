@@ -41,9 +41,6 @@ Window {
     function nativeWallpaperFile(source) {
         if (source === "native:arena-night") return "wallpapers/ArenaNight.qml"
         if (source === "native:gilded-rain") return "wallpapers/GildedRain.qml"
-        if (source === "native:ribbon-sunset") return "wallpapers/RibbonSunset.qml"
-        if (source === "native:ribbon-dusk") return "wallpapers/RibbonDusk.qml"
-        if (source === "native:ribbon-ember") return "wallpapers/RibbonEmber.qml"
         return ""
     }
 

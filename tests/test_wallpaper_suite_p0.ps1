@@ -69,30 +69,20 @@ if ($api -notmatch 'function nativeSceneFor') { throw 'WallpaperApi lost the sin
 if ($api -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'nativeSceneFor does not route gilded-rain to its scene' }
 if ($main -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'Main runtime map does not route gilded-rain to its scene' }
 
-# 4d. Captured Motion, drawn by us (2026-07-20): still QML wallpapers (Qt Quick
-# Shapes, no bitmap/shader/animation) in the Windows 11 Captured Motion spirit.
-$ribbon = Get-Content (Join-Path $root 'qml/wallpapers/RibbonMotion.qml') -Raw
-if ($ribbon -notmatch 'property int variant') { throw 'RibbonMotion lost its variant selector' }
-if ($ribbon -notmatch 'property bool running') { throw 'RibbonMotion lost its running gate (shelf-contract parity)' }
-if ($ribbon -match 'Canvas\s*\{') { throw 'RibbonMotion must stay scene-graph work, never per-frame Canvas painting' }
-if ($ribbon -notmatch 'import QtQuick.Shapes') { throw 'RibbonMotion must be built from Qt Quick Shapes' }
-if ($ribbon -match 'function ribbonOutline') { throw 'RibbonMotion regressed to the old parallel tapered-swoosh construction' }
-foreach ($layerContract in @('compositionSets', 'faceLayers', 'shadowLayers', 'glassEdges')) {
-    if ($ribbon -notmatch [regex]::Escape($layerContract)) {
-        throw "RibbonMotion lost its folded-sheet depth layer: $layerContract"
-    }
+# 4d. The QML-drawn Captured Motion recreations (RibbonMotion + variants) were
+# pulled 2026-07-20 — both the Claude and Codex passes fell short of the real
+# thing. Guard that none of the ribbon wiring or scene files creep back; the
+# real Captured Motion IMAGE shelf (houseDefaultPick + capturedMotionPicks) stays.
+foreach ($rv in @('ribbon-sunset', 'ribbon-dusk', 'ribbon-ember', 'RibbonMotion', 'RibbonSunset', 'RibbonDusk', 'RibbonEmber')) {
+    if ($api -match [regex]::Escape($rv)) { throw "the pulled QML ribbon wallpaper ($rv) crept back into WallpaperApi" }
+    if ($main -match [regex]::Escape($rv)) { throw "the pulled QML ribbon wallpaper ($rv) crept back into Main" }
 }
-foreach ($rv in @('ribbon-sunset', 'ribbon-dusk', 'ribbon-ember')) {
-    if ($api -notmatch [regex]::Escape("native:$rv")) { throw "nativePicks lost the $rv wallpaper" }
-    if ($api -notmatch ([regex]::Escape("native:$rv") + '[\s\S]{0,80}Ribbon')) { throw "nativeSceneFor does not route $rv to its scene" }
-    if ($main -notmatch ([regex]::Escape("native:$rv") + '[\s\S]{0,80}Ribbon')) { throw "Main runtime map does not route $rv to its scene" }
-}
-foreach ($title in @('Captured Motion - Aurelia', 'Captured Motion - Prism Fold', 'Captured Motion - Ember Glass')) {
-    if ($api -notmatch [regex]::Escape($title)) { throw "nativePicks lost the premium scene title: $title" }
+foreach ($rf in @('RibbonMotion', 'RibbonSunset', 'RibbonDusk', 'RibbonEmber')) {
+    if (Test-Path (Join-Path $root "qml/wallpapers/$rf.qml")) { throw "the pulled QML ribbon scene file ($rf.qml) is still on disk" }
 }
 
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain', 'RibbonMotion', 'RibbonSunset', 'RibbonDusk', 'RibbonEmber')) {
+foreach ($scene in @('ArenaNight', 'GildedRain')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden
@@ -103,4 +93,4 @@ foreach ($scene in @('ArenaNight', 'GildedRain', 'RibbonMotion', 'RibbonSunset',
     if ($errTxt -match 'error') { throw "$scene instantiation errors: $errTxt" }
 }
 
-Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena + gilded rain + captured-motion ribbons)'
+Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena + gilded rain; QML ribbon recreations removed)'

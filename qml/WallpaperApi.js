@@ -45,44 +45,6 @@ function nativePicks() {
         query: "",
         title: "Gilded Rain",
         spec: "Living wallpaper - Colosseum native"
-    }, {
-        // Captured Motion, drawn by us (2026-07-20) — a still QML scene in the
-        // Windows 11 "Captured Motion" spirit, no bitmap, no copyrighted asset.
-        source: "Colosseum",
-        source_id: "native:ribbon-sunset",
-        source_url: "",
-        image_url: "native:ribbon-sunset",
-        thumb_url: "",
-        w: 0, h: 0,
-        aspect: "any",
-        attribution: "Colosseum original",
-        query: "",
-        title: "Captured Motion - Aurelia",
-        spec: "Still folded-glass QML wallpaper - Colosseum native"
-    }, {
-        source: "Colosseum",
-        source_id: "native:ribbon-dusk",
-        source_url: "",
-        image_url: "native:ribbon-dusk",
-        thumb_url: "",
-        w: 0, h: 0,
-        aspect: "any",
-        attribution: "Colosseum original",
-        query: "",
-        title: "Captured Motion - Prism Fold",
-        spec: "Still folded-glass QML wallpaper - Colosseum native"
-    }, {
-        source: "Colosseum",
-        source_id: "native:ribbon-ember",
-        source_url: "",
-        image_url: "native:ribbon-ember",
-        thumb_url: "",
-        w: 0, h: 0,
-        aspect: "any",
-        attribution: "Colosseum original",
-        query: "",
-        title: "Captured Motion - Ember Glass",
-        spec: "Still folded-glass QML wallpaper - Colosseum native"
     }];
 }
 
@@ -97,9 +59,6 @@ function isNativePick(url) {
 function nativeSceneFor(url) {
     if (url === "native:arena-night") return "wallpapers/ArenaNight.qml";
     if (url === "native:gilded-rain") return "wallpapers/GildedRain.qml";
-    if (url === "native:ribbon-sunset") return "wallpapers/RibbonSunset.qml";
-    if (url === "native:ribbon-dusk") return "wallpapers/RibbonDusk.qml";
-    if (url === "native:ribbon-ember") return "wallpapers/RibbonEmber.qml";
     return "";
 }
 
