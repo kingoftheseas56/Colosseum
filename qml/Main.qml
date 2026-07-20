@@ -2051,22 +2051,26 @@ Window {
     //      every job already finished by then (no stale pop for nothing). ----
     property int lastActiveDownloads: 0
     property bool pendingDownloadReveal: false
+    // ONE number for the badge AND the pop: every live download, whichever engine owns
+    // it. Audiobooks ride their own engine (not LocalDownloads) — folding its activeCount
+    // in here is what makes an audiobook download "behave the same way as any other
+    // download" (Hemanth 2026-07-20: taskbar pops, gold chip counts it).
+    readonly property int totalActiveDownloads:
+        ((typeof LocalDownloads !== "undefined")
+            ? (LocalDownloads.revision, Number(LocalDownloads.totals.active || 0)) : 0)
+        + ((typeof Audiobooks !== "undefined") ? Audiobooks.activeCount : 0)
     onImmersiveSurfaceOpenChanged: {
         if (!immersiveSurfaceOpen && pendingDownloadReveal) {
             pendingDownloadReveal = false
             if (lastActiveDownloads > 0) taskbar.reveal()
         }
     }
-    Connections {
-        target: typeof LocalDownloads !== "undefined" ? LocalDownloads : null
-        function onChanged() {
-            var n = Number(LocalDownloads.totals.active || 0)
-            var grew = n > win.lastActiveDownloads
-            win.lastActiveDownloads = n
-            if (!grew) return
-            if (win.immersiveSurfaceOpen) { win.pendingDownloadReveal = true; return }
-            taskbar.reveal()
-        }
+    onTotalActiveDownloadsChanged: {
+        var grew = totalActiveDownloads > lastActiveDownloads
+        lastActiveDownloads = totalActiveDownloads
+        if (!grew) return
+        if (immersiveSurfaceOpen) { pendingDownloadReveal = true; return }
+        taskbar.reveal()
     }
 
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
@@ -2079,8 +2083,7 @@ Window {
         onSwitchRequested: (id) => Sessions.switchTo(id)
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
-        downloadsBadge: (typeof LocalDownloads !== "undefined")
-                        ? (LocalDownloads.revision, LocalDownloads.totals.active || 0) : 0
+        downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
         onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
         extensionsActive: extensionsLayer.active

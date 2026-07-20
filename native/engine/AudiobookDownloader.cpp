@@ -285,8 +285,9 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
 
     emit resolving(pairKey);
 
-    if (m_active) { m_queue.append(job); return; }
+    if (m_active) { m_queue.append(job); emit activeCountChanged(); return; }
     m_active = job;
+    emit activeCountChanged();
     // prefetch starts/adopts the engine + registers the torrent. We then race two paths
     // to learn the engine base: its fetchReady signal (fast when warm) and pollEngine
     // (robust when cold — fetchReady can be lost if the engine's /create POST hangs).
@@ -529,6 +530,7 @@ void AudiobookDownloader::finalizeJob(Job* job)
 
     delete m_active; m_active = nullptr;
     promoteQueue();
+    emit activeCountChanged();
 }
 
 // Write the read-along pairing under the reader's bookId — the SAME key Task 13's
@@ -559,6 +561,7 @@ void AudiobookDownloader::failJob(Job* job, const QString& reason)
         m_queue.removeAll(job);
         delete job;
     }
+    emit activeCountChanged();
 }
 
 void AudiobookDownloader::promoteQueue()
@@ -595,6 +598,7 @@ void AudiobookDownloader::cancelDownload(const QString& pairKey)
             Job* j = m_queue.takeAt(i);
             emit failed(pairKey, QStringLiteral("cancelled by user (queued)"));
             delete j;
+            emit activeCountChanged();
             return;
         }
     }

@@ -40,6 +40,10 @@ class AudioPairingStore;
 
 class AudiobookDownloader : public QObject {
     Q_OBJECT
+    // Live job count (active + queued). The shell folds this into LocalDownloads'
+    // count so an audiobook download pops the SAME taskbar badge as any other
+    // download (Hemanth 2026-07-20: "behave the same way as any other download").
+    Q_PROPERTY(int activeCount READ activeCount NOTIFY activeCountChanged)
 public:
     // nam is the shared uncached NAM (audiobook bytes must not hit the image cache).
     // stream is the app's StreamServer (torrent→localhost HTTP); not owned.
@@ -81,6 +85,7 @@ public:
     // resolving() fired once at click time, then a cold engine moved no bytes for 60s+,
     // so a freshly opened Downloads page showed nothing while the download ran).
     Q_INVOKABLE QVariantList activeDownloads() const;
+    int activeCount() const { return (m_active ? 1 : 0) + m_queue.size(); }
     Q_INVOKABLE void cancelDownload(const QString& pairKey);
     Q_INVOKABLE void deleteAudiobook(const QString& pairKey);
 
@@ -89,6 +94,7 @@ public:
     void selfTest(const QString& pairKey, const QString& infoHash);
 
 signals:
+    void activeCountChanged();
     void resolving(const QString& pairKey);
     void progress(const QString& pairKey, double received, double total);  // aggregate across files
     void finished(const QString& pairKey, const QString& dirPath);
