@@ -88,6 +88,28 @@ Canvas {
             // reader-only, family rules: a gauge — open arc over the top + a needle
             circleArc(0.30, 150, 390, false)
             line(0, 0.10, 0.17, -0.13)
+        } else if (kind === "volume" || kind === "mute") {
+            // reader-only, family rules: outlined speaker wedge; waves when live, cross when muted
+            ctx.beginPath()
+            ctx.moveTo(cx - 0.28 * s, cy - 0.09 * s)
+            ctx.lineTo(cx - 0.15 * s, cy - 0.09 * s)
+            ctx.lineTo(cx - 0.02 * s, cy - 0.21 * s)
+            ctx.lineTo(cx - 0.02 * s, cy + 0.21 * s)
+            ctx.lineTo(cx - 0.15 * s, cy + 0.09 * s)
+            ctx.lineTo(cx - 0.28 * s, cy + 0.09 * s)
+            ctx.closePath()
+            ctx.stroke()
+            if (kind === "volume") {
+                ctx.beginPath()
+                ctx.arc(cx + 0.03 * s, cy, 0.12 * s, -50 * Math.PI / 180, 50 * Math.PI / 180, false)
+                ctx.stroke()
+                ctx.beginPath()
+                ctx.arc(cx + 0.03 * s, cy, 0.23 * s, -50 * Math.PI / 180, 50 * Math.PI / 180, false)
+                ctx.stroke()
+            } else {
+                line(0.09, -0.09, 0.27, 0.09)
+                line(0.27, -0.09, 0.09, 0.09)
+            }
         } else if (kind === "playlist") {
             // reader-only, family rules: three list strokes + an outlined play wedge
             line(-0.28, -0.20, 0.10, -0.20)

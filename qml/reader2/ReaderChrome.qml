@@ -51,6 +51,8 @@ Item {
     property int audioCurrentIndex: -1        // playing row (-1 = not live)
     property string audioPosLabel: ""         // scrub-rail flanks: elapsed / total
     property string audioDurLabel: ""
+    property real audioVolume: 1.0            // 0..1 fraction of the mpv 0..100 (shell converts)
+    property bool audioMuted: false
 
     // ---- left-panel state (owned here; the panel is a pure view over these) ----
     property bool panelOpen: false
@@ -97,6 +99,8 @@ Item {
     signal audioPrevChapterRequested()        // pill ⏮ / ⏭ — chapter transport
     signal audioNextChapterRequested()
     signal audioChapterPicked(int index)      // Audio-tab playlist row → play that chapter/file
+    signal audioVolumeRequested(real fraction) // pill volume rail: 0..1
+    signal audioMuteToggled()
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
     // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
@@ -353,7 +357,9 @@ Item {
                             onClicked: chrome.audioPlayToggled() }
             }
 
-            HudGlyphButton { kind: "seekForward"; label: "10"; box: 24
+            HudGlyphButton { kind: "seekForward"; label: "10"; box: 31
+                             // box MUST equal seekBack's — the pair is one drawing mirrored, so
+                             // unequal boxes = visibly unequal icons (Hemanth's 2026-07-20 catch)
                              onClicked: chrome.audioSkipRequested(10) }
             HudGlyphButton { kind: "nextChapter"; box: 33; onClicked: chrome.audioNextChapterRequested() }
 
@@ -386,6 +392,62 @@ Item {
             HudGlyphButton { kind: "playlist"; box: 31
                              // the playlist LIVES in the left panel's Audio tab — opens it there
                              onClicked: chrome.openPanelTo("audio") }
+
+            Item {                                // volume — mute glyph + compact gold rail
+                // (Hemanth 2026-07-20: "there needs to be a volume control".) The video
+                // player's VolumeControl pattern at pill scale: glyph toggles mute, the
+                // rail drags 0..1. Appended AFTER the ratified 7 slots — a utility, not
+                // transport, mirroring the player's utility-cluster placement.
+                width: volRow.implicitWidth; height: 30
+                anchors.verticalCenter: parent.verticalCenter
+                Row {
+                    id: volRow
+                    spacing: 8
+                    anchors.verticalCenter: parent.verticalCenter
+                    HudGlyphButton {
+                        kind: (chrome.audioMuted || chrome.audioVolume <= 0) ? "mute" : "volume"
+                        box: 29
+                        onClicked: chrome.audioMuteToggled()
+                    }
+                    Item {
+                        id: volRail
+                        width: 58; height: 30
+                        anchors.verticalCenter: parent.verticalCenter
+                        Rectangle {               // track
+                            anchors.left: parent.left; anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            height: volMa.containsMouse || volMa.pressed ? 5 : 3
+                            radius: height / 2
+                            color: Theme.track
+                        }
+                        Rectangle {               // fill
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume)))
+                            height: volMa.containsMouse || volMa.pressed ? 5 : 3
+                            radius: height / 2
+                            color: Theme.gold
+                        }
+                        Rectangle {               // knob — hover/drag only (rail manners)
+                            visible: volMa.containsMouse || volMa.pressed
+                            x: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume))) - width / 2
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 11; height: 11; radius: 5.5
+                            color: Theme.gold
+                        }
+                        MouseArea {
+                            id: volMa
+                            anchors.fill: parent
+                            anchors.topMargin: -6; anchors.bottomMargin: -6
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            function apply() { chrome.audioVolumeRequested(Math.max(0, Math.min(1, mouseX / Math.max(1, volRail.width)))) }
+                            onPressed: apply()
+                            onPositionChanged: if (pressed) apply()
+                        }
+                    }
+                }
+            }
         }
 
         // ---- the SCRUB RAIL (TB2/Max parity): elapsed · draggable timeline · total ----

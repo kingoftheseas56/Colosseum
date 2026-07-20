@@ -469,6 +469,19 @@ FocusScope {
         if (shell.audioSessionLive && shell.audioSession.duration > 0)
             shell.audioSession.seekTo(shell.audioSession.duration * Math.max(0, Math.min(1, f)))
     }
+    // volume rides the session's mpv (0..100 linear, player-house rule); the chrome speaks 0..1.
+    // Dragging the rail above zero also unmutes — the player's "volume > 0 clears mute" manner.
+    readonly property real audioVolume: shell.audioSessionLive
+        ? Math.max(0, Math.min(1, shell.audioSession.volume / 100)) : 1
+    readonly property bool audioMuted: shell.audioSessionLive ? !!shell.audioSession.mute : false
+    function audioSetVolume(f) {
+        if (!shell.audioSessionLive) return
+        shell.audioSession.volume = Math.round(Math.max(0, Math.min(1, f)) * 100)
+        if (shell.audioSession.volume > 0) shell.audioSession.mute = false
+    }
+    function audioToggleMute() {
+        if (shell.audioSessionLive) shell.audioSession.mute = !shell.audioSession.mute
+    }
     // Relative skip (±seconds) from the HUD transport pill.
     function audioSkip(sec) {
         if (shell.audioSessionLive)
@@ -764,6 +777,8 @@ FocusScope {
         audioCurrentIndex: shell.audioCurrentIndex
         audioPosLabel: shell.audioPosLabel
         audioDurLabel: shell.audioDurLabel
+        audioVolume: shell.audioVolume
+        audioMuted: shell.audioMuted
 
         // appearance panel data (Task 10)
         appearance: shell.appearance
@@ -816,6 +831,8 @@ FocusScope {
         onAudioPrevChapterRequested: shell.audioPrevChapter()
         onAudioNextChapterRequested: shell.audioNextChapter()
         onAudioChapterPicked: (i) => shell.audioPlayAt(i)
+        onAudioVolumeRequested: (f) => shell.audioSetVolume(f)
+        onAudioMuteToggled: shell.audioToggleMute()
 
         // The bookmark icon = "bookmark THIS page" (per the mock). Write the SAME shape the
         // old reader's reader_bookmarks.js uses (locator{cfi,href,fraction} + label + snippet)

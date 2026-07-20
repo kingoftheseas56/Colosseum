@@ -412,6 +412,17 @@ Item {
             chrome.followToggled.connect(function (on) { chromeFollow = on ? 1 : 0 })
             chrome.followToggled(false); check(chromeFollow === 0, "ReaderChrome re-emits followToggled")
 
+            // Volume surface (2026-07-20): data down (fraction + mute), intent up (both signals).
+            chrome.audioVolume = 0.4
+            chrome.audioMuted = true
+            check(Math.abs(chrome.audioVolume - 0.4) < 1e-9 && chrome.audioMuted === true,
+                  "ReaderChrome exposes the volume inputs")
+            var lastVol = -1, muteFired = 0
+            chrome.audioVolumeRequested.connect(function (f) { lastVol = f })
+            chrome.audioMuteToggled.connect(function () { muteFired++ })
+            chrome.audioVolumeRequested(0.7); check(Math.abs(lastVol - 0.7) < 1e-9, "audioVolumeRequested carries the fraction")
+            chrome.audioMuteToggled(); check(muteFired === 1, "audioMuteToggled fires")
+
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

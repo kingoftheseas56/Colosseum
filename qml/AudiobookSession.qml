@@ -33,6 +33,8 @@ Item {
     property alias duration: mpv.duration
     property alias paused: mpv.pause
     property alias speed: mpv.speed
+    property alias volume: mpv.volume      // 0..100 linear (player-house rule, Hemanth 2026-07-09)
+    property alias mute: mpv.mute
 
     // resume precision rides the load: a seek issued before the file is open NO-OPS
     // (PlayerPage's pendingSeekSec lesson) — park it here, apply in onFileLoaded.
