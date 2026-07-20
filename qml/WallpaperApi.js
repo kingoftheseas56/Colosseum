@@ -62,6 +62,65 @@ function nativeSceneFor(url) {
     return "";
 }
 
+// ---- OS default desktops (2026-07-20) ----
+// Colosseum dresses up as an OS, so its picker offers the desktops people know:
+// the real shipped wallpapers of Windows, macOS and Linux (Wallhaven carries no
+// OS defaults). Curated + pinned — every origin is a stable public archive repo
+// served over the jsDelivr CDN, and BOTH the full image and the grid thumbnail
+// ride the keyless wsrv.nl image proxy over that origin: a 17 MB macOS source
+// lands as a crisp ~1 MB 4K wallpaper and a ~20 KB thumb, so nothing bloats the
+// repo and the grid stays instant — the same remote-pick path Wallhaven uses.
+// Images are (c) their respective OS vendors; personal use.
+
+// encodeURIComponent leaves ()! literal; the CDN is happy either way, but we
+// pin parens too so the emitted URL is byte-stable across encoders.
+function _encSeg(seg) {
+    return encodeURIComponent(seg).replace(/\(/g, "%28").replace(/\)/g, "%29");
+}
+
+// wsrv.nl fetches `url` (the percent-encoded jsDelivr origin, no scheme),
+// resizes to `width`, and re-encodes as jpeg. The origin is percent-encoded
+// again for the query string — wsrv decodes it once before fetching.
+function _wsrv(originNoScheme, width) {
+    return "https://wsrv.nl/?url=" + encodeURIComponent(originNoScheme)
+         + "&w=" + width + "&output=jpg&q=82";
+}
+
+function _osPick(id, repo, branch, path, title, spec) {
+    var encPath = path.split("/").map(_encSeg).join("/");
+    var origin = "cdn.jsdelivr.net/gh/" + repo + "@" + branch + "/" + encPath;
+    return {
+        source: "OS",
+        source_id: "os-" + id,
+        source_url: "https://github.com/" + repo,
+        image_url: _wsrv(origin, 3840),   // applied wallpaper, capped at a crisp 4K
+        thumb_url: _wsrv(origin, 600),    // grid thumbnail
+        w: 0, h: 0,
+        aspect: "wide",
+        attribution: title + " - (c) its OS vendor, personal use",
+        query: "",
+        title: title,
+        spec: spec
+    };
+}
+
+// The fixed OS-desktops shelf. All ten origins verified 200 image/jpeg
+// 2026-07-20; the thumbnails render through the same proxy.
+function osPicks() {
+    return [
+        _osPick("win11-bloom-light", "viridivn/windows11wallpapers", "master", "Windows/img0.jpg", "Windows 11 - Bloom", "Windows 11 default (light)"),
+        _osPick("win11-bloom-dark", "viridivn/windows11wallpapers", "master", "Windows/img19.jpg", "Windows 11 - Bloom Dark", "Windows 11 default (dark)"),
+        _osPick("macos-bigsur", "LAYTAT/macOS-Wallpapers", "main", "11-0-Day.jpg", "macOS Big Sur", "macOS 11 default"),
+        _osPick("macos-monterey", "LAYTAT/macOS-Wallpapers", "main", "12-Light.jpg", "macOS Monterey", "macOS 12 default"),
+        _osPick("macos-ventura", "LAYTAT/macOS-Wallpapers", "main", "13-Ventura-Light.jpg", "macOS Ventura", "macOS 13 default"),
+        _osPick("macos-sonoma", "LAYTAT/macOS-Wallpapers", "main", "14-Sonoma-Light.jpg", "macOS Sonoma", "macOS 14 default"),
+        _osPick("macos-mojave-day", "foxt/macOS-Wallpapers", "master", "Mojave Day.jpg", "macOS Mojave - Day", "macOS 10.14 default"),
+        _osPick("macos-mojave-night", "foxt/macOS-Wallpapers", "master", "Mojave Night.jpg", "macOS Mojave - Night", "macOS 10.14 default (night)"),
+        _osPick("ubuntu-jammy-light", "LinuxKits/Distro-wallpapers", "main", "Ubuntu/Ubuntu 22.04 LTS (Jammy Jellyfish)/jj_light_by_Hiking93.jpg", "Ubuntu - Jammy", "Ubuntu 22.04 default (light)"),
+        _osPick("ubuntu-jammy-dark", "LinuxKits/Distro-wallpapers", "main", "Ubuntu/Ubuntu 22.04 LTS (Jammy Jellyfish)/jj_dark_by_Hiking93.jpg", "Ubuntu - Jammy Dark", "Ubuntu 22.04 default (dark)")
+    ];
+}
+
 function defaultQueryFor(world) {
     if (world === "Tankoban")
         return "one piece";

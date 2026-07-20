@@ -275,6 +275,70 @@ Item {
                 }
             }
 
+            // ---- OS Desktops shelf: the real shipped wallpapers of Windows, macOS
+            //      and Linux (2026-07-20). Plain image picks — remote thumb, remote
+            //      full on apply — so they ride the same path as a Wallhaven pick. ----
+            Text {
+                text: "OS Desktops"
+                color: "#d8d2c4"
+                font.family: theme.display
+                font.pixelSize: 16
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: 10
+
+                Repeater {
+                    model: WallpaperApi.osPicks()
+                    delegate: Rectangle {
+                        id: osTile
+                        required property var modelData
+                        width: 144
+                        height: 92
+                        radius: 8
+                        color: "#07070a"
+                        border.width: root.selectedPick.source_id === osTile.modelData.source_id ? 2 : 1
+                        border.color: root.selectedPick.source_id === osTile.modelData.source_id ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.14)
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            source: osTile.modelData.thumb_url
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                            cache: true
+                        }
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            height: 22
+                            color: Qt.rgba(0, 0, 0, 0.55)
+
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.left: parent.left
+                                anchors.leftMargin: 8
+                                anchors.right: parent.right
+                                anchors.rightMargin: 8
+                                text: osTile.modelData.title
+                                color: "#e8e2d4"
+                                font.pixelSize: 10
+                                elide: Text.ElideRight
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.selectedPick = osTile.modelData
+                        }
+                    }
+                }
+            }
+
             GridView {
                 id: grid
                 Layout.fillWidth: true

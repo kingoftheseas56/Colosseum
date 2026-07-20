@@ -40,6 +40,32 @@ QtObject {
         if (wh.image_url !== "https://w.wallhaven.cc/full/ab/x.jpg")
             throw new Error("Wallhaven image_url must be the full path")
 
+        // --- OS Desktops shelf (2026-07-20): fixed curated picks, remote image+thumb ---
+        var os = W.osPicks()
+        if (os.length < 6)
+            throw new Error("osPicks must carry a real OS-desktop shelf, got " + os.length)
+        var ids = ({})
+        for (var oi = 0; oi < os.length; oi++) {
+            var p = os[oi]
+            if (p.source_id.indexOf("os-") !== 0)
+                throw new Error("OS pick ids must be prefixed os- (never collide with Wallhaven), got " + p.source_id)
+            if (ids[p.source_id])
+                throw new Error("OS pick ids must be unique, dup " + p.source_id)
+            ids[p.source_id] = true
+            if (p.image_url.indexOf("https://") !== 0 || p.thumb_url.indexOf("https://") !== 0)
+                throw new Error("OS picks are remote (full + thumb), got " + p.image_url)
+            if (W.isNativePick(p.image_url))
+                throw new Error("OS picks are plain images, never native: routes")
+            if (p.image_url === p.thumb_url)
+                throw new Error("OS full and thumb must differ (full 4K, thumb small), " + p.source_id)
+        }
+        // the Ubuntu pick's spaces+parens must survive encoding as a proxied jsDelivr origin
+        var ubuntu = null
+        for (var ui = 0; ui < os.length; ui++)
+            if (os[ui].source_id === "os-ubuntu-jammy-light") ubuntu = os[ui]
+        if (!ubuntu || ubuntu.thumb_url.indexOf("wsrv.nl") < 0 || ubuntu.thumb_url.indexOf("jsdelivr.net") < 0)
+            throw new Error("OS picks must proxy a jsDelivr origin through wsrv.nl")
+
         // --- state lifecycle: fresh state has more; exhausted state has none ---
         var st = W.freshState("  ", "nonsense")
         if (st.query !== "landscape" || st.sorting !== "relevance")

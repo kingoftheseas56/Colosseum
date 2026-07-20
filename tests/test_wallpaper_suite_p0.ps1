@@ -38,6 +38,18 @@ if ($main -notmatch 'immersiveSurfaceOpen[\s\S]{0,80}win\.visibility !== Window\
 if ($api -notmatch 'native:arena-night') { throw 'WallpaperApi lost the arena from nativePicks' }
 if ($ui -notmatch '"Colosseum"') { throw 'the picker lost its Colosseum shelf' }
 
+# 4c. OS Desktops shelf (2026-07-20): real Windows/macOS/Linux wallpapers, remote
+# via jsDelivr through the keyless wsrv.nl proxy (no repo bloat, no api key).
+if ($api -notmatch 'function osPicks') { throw 'WallpaperApi lost the OS Desktops shelf (osPicks)' }
+if ($api -notmatch 'wsrv\.nl') { throw 'OS picks must proxy through wsrv.nl' }
+if ($api -notmatch 'cdn\.jsdelivr\.net') { throw 'OS picks must originate from the jsDelivr CDN' }
+if ($ui -notmatch '"OS Desktops"') { throw 'the picker lost its OS Desktops shelf' }
+if ($ui -notmatch 'WallpaperApi\.osPicks\(\)') { throw 'the OS shelf must render osPicks()' }
+# the shelf must span all three OS families (guards against a partial revert)
+foreach ($os in @('windows11wallpapers', 'macOS-Wallpapers', 'Distro-wallpapers')) {
+    if ($api -notmatch [regex]::Escape($os)) { throw "OS shelf lost its $os source" }
+}
+
 # 4b. Gilded Rain (2026-07-19): second native living wallpaper, same gates as the arena.
 $rain = Get-Content (Join-Path $root 'qml/wallpapers/GildedRain.qml') -Raw
 if ($rain -notmatch 'property bool running') { throw 'GildedRain lost its running gate - it could never freeze' }
