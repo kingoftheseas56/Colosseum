@@ -4019,13 +4019,16 @@ Item {
                     Rectangle {
                         // cacheTime is an ABSOLUTE cache-end timestamp (not a fraction);
                         // 0.0 when the stream doesn't report it -> width 0 -> no fill, by design.
+                        // Local (downloaded) playback: hidden entirely — the strip is a streaming
+                        // affordance, and mpv's forced 60s disk read-ahead would paint phantom
+                        // "buffering" over a file that is fully on disk (Hemanth eyes-on 2026-07-20).
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         width: mpv.duration > 0 && isFinite(mpv.cacheTime) ? parent.width * root.clamp(mpv.cacheTime / mpv.duration, 0, 1) : 0
                         height: seekBar.hovered || root.seeking ? 5 : 3
                         radius: height / 2
                         color: Qt.rgba(1, 1, 1, 0.30)
-                        visible: width > 2
+                        visible: width > 2 && root.mediaLocalPath.length === 0
                     }
                     Rectangle {
                         anchors.left: parent.left
