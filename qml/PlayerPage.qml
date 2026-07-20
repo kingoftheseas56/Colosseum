@@ -2113,6 +2113,8 @@ Item {
         root.dismissedSkipKey = ""
         root.autoSkippedKey = ""
         root.skipLoadGeneration += 1
+        root.lastChapterIdx = -1          // fresh media: no stale chapter to "cross" from
+        root.chapterTransient = ""
     }
 
     function currentSkipSegment() {
@@ -2567,16 +2569,51 @@ Item {
     property real hoverThumbBucket: -1
     function thumbBucketOf(t) { return Math.floor(Math.max(0, t) / 5) * 5 }
     function chapterTitleAt(t) {
-        var best = ""
+        var r = root.chapterAtFraction(t)
+        return r.idx >= 0 ? r.title : ""
+    }
+    // The chapter covering time t: {idx (0-based, -1 if none), count, title, startSec}.
+    function chapterAtFraction(t) {
         var list = mpv.chapters || []
+        var idx = -1
         for (var i = 0; i < list.length; i++) {
-            var c = list[i]
-            if ((c.startSec || 0) <= t)
-                best = c.title || ""
-            else
-                break
+            if ((list[i].startSec || 0) <= t) idx = i
+            else break
         }
-        return best
+        return {
+            "idx": idx,
+            "count": list.length,
+            "title": idx >= 0 ? (list[idx].title || "") : "",
+            "startSec": idx >= 0 ? (list[idx].startSec || 0) : 0
+        }
+    }
+    // "Chapter 3 · Judicial" for the seek-hover tag (numbered, per the approved mock).
+    function chapterHoverLabel(t) {
+        var r = root.chapterAtFraction(t)
+        if (r.idx < 0 || r.count < 2) return ""
+        var name = r.title.length ? (" · " + r.title) : ""
+        return "Chapter " + (r.idx + 1) + name
+    }
+    // Crossing watch: when the played-through chapter changes during play, the state
+    // line briefly speaks it ("Chapter 3 of 5 — Judicial"), then clears after 4s.
+    property int lastChapterIdx: -1
+    function chapterCrossWatch() {
+        if (root.starting || root.errored || root.seeking) return
+        var r = root.chapterAtFraction(mpv.position)
+        if (r.idx === root.lastChapterIdx) return
+        var prev = root.lastChapterIdx
+        root.lastChapterIdx = r.idx
+        // Announce only real, named, non-first crossings while actually playing.
+        if (prev >= 0 && r.idx > 0 && r.count > 1 && (r.startSec || 0) > 1 && !mpv.pause) {
+            var name = r.title.length ? (" — " + r.title) : ""
+            root.chapterTransient = "Chapter " + (r.idx + 1) + " of " + r.count + name
+            chapterTransientClear.restart()
+        }
+    }
+    Timer {
+        id: chapterTransientClear
+        interval: 4000
+        onTriggered: root.chapterTransient = ""
     }
     function requestSeekThumb() {
         if (mpv.duration > 0 && !root.seeking && mpv.currentUrl.toString().length > 0)
@@ -2660,7 +2697,7 @@ Item {
             root.syncPowerInhibit()
             root.detectStubStream()
         }
-        onPositionChanged: root.finishStartingIfPlaybackAdvanced()
+        onPositionChanged: { root.finishStartingIfPlaybackAdvanced(); root.chapterCrossWatch() }
         onGifSaved: function(path) {
             root.gifState = "idle"
             root.gifElapsedSec = 0
@@ -4150,7 +4187,7 @@ Item {
                         // grown and the picture swaps in place as frames arrive — never
                         // collapsing between buckets (that collapse read as "shaky").
                         readonly property bool hasThumb: root.hoverThumbUrl !== ""
-                        readonly property string chapterTitle: root.chapterTitleAt(root.seekPreview)
+                        readonly property string chapterTitle: root.chapterHoverLabel(root.seekPreview)
                         readonly property bool hasChapter: chapterTitle !== ""
                         visible: seekBar.hovered && !root.seeking && mpv.duration > 0
                         x: root.clamp(seekHover.mouseX - width / 2, 0, parent.width - width)

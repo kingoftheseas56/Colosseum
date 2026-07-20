@@ -19,4 +19,9 @@ Assert-Contains $player 'property bool showRemaining' "Right clock must be flipp
 Assert-Contains $player 'onClicked: root.showRemaining = !root.showRemaining' "Clicking the duration must flip it."
 Assert-Contains $player 'cache-buffering-state' "Buffering state must surface a live percent."
 
+# ── Task 2: chapter names (hover tag + crossing transient) ──
+Assert-Contains $player 'function chapterAtFraction' "Player must resolve the chapter under a seek fraction."
+Assert-Contains $player 'function chapterCrossWatch' "Player must watch chapter crossings to speak them."
+Assert-Contains $player 'root.chapterTransient =' "Crossing a chapter must set the transient state line."
+
 Write-Host "PASS: glanceable-truth contracts hold."
