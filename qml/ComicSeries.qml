@@ -26,6 +26,7 @@ Item {
     property int gcdId: 0                  // the GCD run id (baked mode identity)
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
     // reader chrome verbs (Windows-window vocabulary, same as MangaSeries)
     signal readerMinimizeRequested()
@@ -236,6 +237,27 @@ Item {
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                 onClicked: page.minimizeRequested() }
+        }
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg"
+                        : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: fsMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: fsMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: page.fullscreenRequested()
+            }
         }
         Item {
             width: 22; height: 22

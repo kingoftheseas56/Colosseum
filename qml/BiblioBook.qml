@@ -26,6 +26,7 @@ Item {
 
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
     signal readRequested(string path, var book)   // a downloaded edition is on disk, ready for the reader
     // (listenRequested retired 2026-07-18 — the reader is the one audiobook surface)
@@ -220,7 +221,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             Repeater {
-                model: [ { g: "—", a: "min" }, { g: "⏻", a: "pow" } ]   // fullscreen-only: no maximize
+                model: [ { g: "—", a: "min" }, { g: "⛶", a: "fs" }, { g: "⏻", a: "pow" } ]   // min · fullscreen · power (fullscreen rule removed 2026-07-20)
                 delegate: Rectangle {
                     required property var modelData
                     width: 30; height: 30; radius: 8
@@ -230,6 +231,7 @@ Item {
                         id: sysMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: {
                             if (modelData.a === "min") detail.minimizeRequested()
+                            else if (modelData.a === "fs") detail.fullscreenRequested()
                             else if (modelData.a === "pow") detail.closeRequested()
                         }
                     }

@@ -15,6 +15,7 @@ Item {
     property Item backdrop: null
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
     signal searchClicked()
 
@@ -948,6 +949,9 @@ Item {
             Text { text: "—"; color: mMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true
                                cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
+            Text { text: "⛶"; color: fMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
+                   MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true
+                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
             Text { text: "⏻"; color: pMa.containsMouse ? theme.ink : theme.inkDim; font.pixelSize: 17
                    MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
                                cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }

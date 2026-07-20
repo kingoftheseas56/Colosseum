@@ -1539,6 +1539,7 @@ Window {
             item.genreName = genreLayer.genreName
             item.backRequested.connect(win.closeGenre)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.seriesRequested.connect(win.openSeries)
@@ -1559,6 +1560,7 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.closeGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(win.openGenre)
@@ -1578,6 +1580,7 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.closeBiblioGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(win.openBiblioGenre)
@@ -1597,6 +1600,7 @@ Window {
             item.genreName = biblioGenreLayer.genreName
             item.backRequested.connect(win.closeBiblioGenre)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.bookRequested.connect(win.openBook)
@@ -1621,6 +1625,7 @@ Window {
             item.genreName = theatreGenreLayer.genreName
             item.backRequested.connect(win.closeTheatreGenre)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.itemRequested.connect(win.openTheatreSeries)
@@ -1643,6 +1648,7 @@ Window {
             item.mediaKind = theatreGenreIndexLayer.mediaKind
             item.backRequested.connect(win.closeTheatreGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.genrePicked.connect(function(name) {
@@ -1671,6 +1677,7 @@ Window {
             if (seriesLayer.resumeVolumeId) item.resumeTankobanVolume(seriesLayer.resumeVolumeId)
             item.backRequested.connect(win.closeSeries)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
@@ -1705,6 +1712,7 @@ Window {
             }
             item.backRequested.connect(win.closeWestern)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
@@ -1731,6 +1739,7 @@ Window {
             item.cover = comicSeriesLayer.cover
             item.backRequested.connect(win.closeComicSeries)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
@@ -1774,6 +1783,7 @@ Window {
             item.scope = continueSeeAllLayer.scope
             item.backRequested.connect(win.closeContinueSeeAll)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.resumeRequested.connect(win.resumeContinue)     // same sinks the rows use
@@ -1796,6 +1806,7 @@ Window {
             item.box = locgPublisherLayer.box
             item.backRequested.connect(win.closeLocgPublisher)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.seriesRequested.connect(win.openComicSeries)   // tile → LOCG series list (over this grid)
         }
@@ -1813,6 +1824,7 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.closeComicArchiveBoard)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.boxRequested.connect(win.openComicArchive)    // box → existing archive index
         }
@@ -1839,6 +1851,7 @@ Window {
             item.tagId = comicIndexLayer.tagId          // set LAST — assigning it triggers resolve()
             item.backRequested.connect(win.closeComicArchive)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.westernPicked.connect(win.openWestern)
             item.allReleasesRequested.connect(win.openWestern)
@@ -1859,6 +1872,7 @@ Window {
             item.itemData = theatreSeriesLayer.pendingItem
             item.backRequested.connect(win.closeTheatreSeries)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.playRequested.connect(win.openMovieSession)
             item.openItemRequested.connect(win.openTheatreSeries)
@@ -1896,6 +1910,7 @@ Window {
             item.book = bookLayer.book
             item.backRequested.connect(win.closeBook)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.readRequested.connect(win.openBookSession)
             // (listenRequested retired — the reader carries audiobook playback now)
@@ -1953,6 +1968,7 @@ Window {
             item.backRequested.connect(win.closeWorldSearch)
             item.itemRequested.connect(win.routeWorldSearchItem)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
         }
     }
@@ -1971,6 +1987,7 @@ Window {
             item.homeRequested.connect(function() { win.closeSearch(); win.closeWorld() })
             item.bookRequested.connect(win.openBook)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
         }
     }
@@ -2010,6 +2027,7 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
             item.openRequested.connect(win.routeDownloadItem)
@@ -2038,6 +2056,7 @@ Window {
             item.backdrop = wall
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.searchClicked.connect(win.openSearch)
         }

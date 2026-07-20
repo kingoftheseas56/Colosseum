@@ -26,6 +26,7 @@ Item {
     signal backRequested()
     signal itemRequested(var data)
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
@@ -529,4 +530,73 @@ Item {
     }
 
     ScrollGlide { flick: scroll }
+
+    // window chrome (fullscreen rule removed 2026-07-20): the canonical
+    // minimize · fullscreen-toggle · power cluster every page carries.
+    Row {
+        z: 30
+        anchors.right: parent.right
+        anchors.rightMargin: theme.margin
+        y: 34
+        spacing: 20
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
+                source: "../assets/icons/minimize.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: chromeMinMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: chromeMinMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: surf.minimizeRequested()
+            }
+        }
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg"
+                        : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: fsMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: fsMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: surf.fullscreenRequested()
+            }
+        }
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
+                source: "../assets/icons/power.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: chromePowMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: chromePowMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: surf.closeRequested()
+            }
+        }
+    }
 }

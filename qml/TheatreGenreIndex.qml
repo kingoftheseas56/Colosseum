@@ -16,6 +16,7 @@ Item {
     property string mediaKind: "movie"           // "movie" | "series" | "anime"
     signal backRequested()
     signal minimizeRequested()
+    signal fullscreenRequested()
     signal closeRequested()
     signal searchClicked()
     signal genrePicked(string name)              // a tile → host opens GenrePage(name)
@@ -214,6 +215,8 @@ Item {
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() } }
             Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() } }
+            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() } }
             Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() } }
         }
