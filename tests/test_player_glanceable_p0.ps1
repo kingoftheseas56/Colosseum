@@ -24,4 +24,14 @@ Assert-Contains $player 'function chapterAtFraction' "Player must resolve the ch
 Assert-Contains $player 'function chapterCrossWatch' "Player must watch chapter crossings to speak them."
 Assert-Contains $player 'root.chapterTransient =' "Crossing a chapter must set the transient state line."
 
+# ── Task 3: pause info card (NO rating — Hemanth veto) ──
+Assert-Contains $player 'id: pauseCard' "Player must have the pause info card."
+Assert-Contains $player 'property bool pauseCardShown' "Pause card must be gated by its settle state."
+Assert-Contains $player 'function hydratePauseCard' "Pause card plot must be lazily hydrated."
+Assert-Contains $player 'function pauseFactsLine' "Pause card must build its facts line."
+Assert-Contains $player 'function pauseQualityLine' "Pause card must build its quality line."
+# The facts line must NOT surface any rating field (imdbRating/rating/star).
+$facts = [regex]::Match($player, 'function pauseFactsLine\(\)[\s\S]*?\n    \}').Value
+if ($facts -match 'imdbRating|\.rating|Rating|star') { throw "Pause facts line must NOT include a rating (Hemanth veto 2026-07-20)." }
+
 Write-Host "PASS: glanceable-truth contracts hold."

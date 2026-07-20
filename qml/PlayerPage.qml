@@ -192,6 +192,11 @@ Item {
     property bool showRemaining: false                  // right clock: total <-> remaining
     property string endsAtClock: ""                     // "11:42 PM" — recomputed, not bound to churn
     property string chapterTransient: ""                // set on chapter crossing (Task 2), auto-clears
+    // ── Pause info card (Tier 2): on pause, the player tells you what you're watching. ──
+    property bool pauseCardShown: false                 // driven by the ~900ms settle timer
+    property string mediaPlot: ""                        // lazily hydrated on first pause
+    property string mediaEpisodeName: ""                // episode title, hydrated when absent
+    property string pauseHydratedId: ""                 // guards one hydrate per media
     readonly property string stateLineText: {
         if (root.starting || root.errored) return ""
         // buffering: cache-buffering-state drops below 100 while the stream refills
@@ -2115,6 +2120,10 @@ Item {
         root.skipLoadGeneration += 1
         root.lastChapterIdx = -1          // fresh media: no stale chapter to "cross" from
         root.chapterTransient = ""
+        root.pauseHydratedId = ""         // fresh media: re-hydrate the pause card on next pause
+        root.mediaPlot = ""
+        root.mediaEpisodeName = ""
+        root.pauseCardShown = false
     }
 
     function currentSkipSegment() {
@@ -2614,6 +2623,90 @@ Item {
         id: chapterTransientClear
         interval: 4000
         onTriggered: root.chapterTransient = ""
+    }
+
+    // ── Pause info card machinery (Tier 2) ──
+    readonly property bool pauseCardEligible:
+        mpv.pause && !root.starting && !root.errored && !root.seeking && !root.anyMenuOpen && root.fileReady
+    onPauseCardEligibleChanged: {
+        if (root.pauseCardEligible) { root.hydratePauseCard(); pauseCardDelay.restart() }
+        else { pauseCardDelay.stop(); root.pauseCardShown = false }
+    }
+    Timer {
+        id: pauseCardDelay
+        interval: 900
+        onTriggered: if (root.pauseCardEligible) root.pauseCardShown = true
+    }
+    // The facts line — episode/season, name, year, runtime, ends clock. NO rating
+    // (Hemanth veto 2026-07-20: "I don't want to see the imdb rating of that episode").
+    function pauseFactsLine() {
+        var parts = []
+        // S/E + episode name: prefer the producer's loader line, else derive.
+        if (root.mediaLoadingLine.length) parts.push(root.mediaLoadingLine)
+        else {
+            var m = String(root.mediaId || "").match(/^tt\d+:(\d+):(\d+)$/)
+            if (m) parts.push("S" + m[1] + " E" + m[2])
+            if (root.mediaEpisodeName.length) parts.push(root.mediaEpisodeName)
+        }
+        if (root.mediaYear.length) parts.push(root.mediaYear)
+        if (mpv.duration > 0) parts.push(Math.round(mpv.duration / 60) + " min")
+        if (root.endsAtClock.length) parts.push("ends " + root.endsAtClock)
+        return parts.join("  ·  ")
+    }
+    // The quality line — resolution · video codec · audio codec · channels · HDR, all
+    // from mpv, inline lettering (no chips — transparent tablets read cheap).
+    function pauseQualityLine() {
+        var out = []
+        var h = Number(mpv.mpvProperty("height") || 0)
+        if (h > 0) out.push(h + "p")
+        var vc = String(mpv.mpvProperty("video-codec") || "").split(" ")[0]
+        if (vc.length) out.push(vc.toUpperCase())
+        var ac = String(mpv.mpvProperty("audio-codec") || "").split(" ")[0]
+        if (ac.length) out.push(ac.toUpperCase())
+        var ch = Number(mpv.mpvProperty("audio-params/channel-count") || 0)
+        if (ch > 0) out.push(root.channelLabel(ch))
+        var transfer = String(mpv.mpvProperty("video-params/transfer") || "").toLowerCase()
+        if (transfer.indexOf("pq") >= 0 || transfer.indexOf("smpte2084") >= 0) out.push("HDR")
+        else if (transfer.indexOf("hlg") >= 0) out.push("HLG")
+        return out.join("  ·  ")
+    }
+    function channelLabel(n) {
+        if (n >= 8) return "7.1"
+        if (n >= 6) return "5.1"
+        if (n >= 3) return (n - 1) + ".1"
+        if (n === 2) return "2.0"
+        return "1.0"
+    }
+    // Lazy plot/episode-name hydration — one call per media, generation-guarded so a
+    // late callback for a since-switched source is dropped.
+    function hydratePauseCard() {
+        var id = String(root.mediaId || "")
+        if (!id.length || root.pauseHydratedId === id) return
+        root.pauseHydratedId = id
+        if (typeof TheatreApi === "undefined") return
+        var epMatch = id.match(/^(tt\d+):(\d+):(\d+)$/)
+        if (epMatch) {
+            var seriesId = epMatch[1], seasonN = Number(epMatch[2]), epN = Number(epMatch[3])
+            TheatreApi.loadMeta("series", seriesId, function(meta) {
+                if (root.pauseHydratedId !== id) return       // media switched under us
+                var vids = (meta && meta.videos) ? meta.videos : []
+                for (var i = 0; i < vids.length; i++) {
+                    var v = vids[i]
+                    if (Number(v.season) === seasonN && Number(v.episode) === epN) {
+                        root.mediaPlot = String(v.overview || v.description || "")
+                        if (!root.mediaEpisodeName.length)
+                            root.mediaEpisodeName = String(v.title || v.name || "")
+                        return
+                    }
+                }
+                if (!root.mediaPlot.length) root.mediaPlot = String(meta && meta.description || "")
+            })
+        } else if (id.indexOf("tt") === 0) {
+            TheatreApi.loadMeta("movie", id, function(meta) {
+                if (root.pauseHydratedId !== id) return
+                root.mediaPlot = String(meta && meta.description || "")
+            })
+        }
     }
     function requestSeekThumb() {
         if (mpv.duration > 0 && !root.seeking && mpv.currentUrl.toString().length > 0)
@@ -3997,6 +4090,91 @@ Item {
                             onClicked: root.confirmUpNext()
                         }
                     }
+                }
+            }
+        }
+
+        // ── Pause info card (Tier 2, 2026-07-20): on pause, the player tells you what
+        //    you're watching. Glass card, lower-left, above the dock. No buttons — it is
+        //    information, not a menu. NO episode rating (Hemanth veto). ──
+        Rectangle {
+            id: pauseCard
+            anchors.left: parent.left
+            anchors.bottom: parent.bottom
+            anchors.leftMargin: root.barTiny ? 28 : 40
+            anchors.bottomMargin: (root.tight ? 116 : 126) + 26
+            width: Math.min(root.width - 80, 520)
+            height: pauseCardCol.implicitHeight + 40
+            radius: 12
+            color: Qt.rgba(0.04, 0.04, 0.05, 0.72)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.09)
+            visible: opacity > 0.01
+            opacity: root.pauseCardShown ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+            transform: Translate {
+                y: root.pauseCardShown ? 0 : 10
+                Behavior on y { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+            }
+
+            Column {
+                id: pauseCardCol
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 26
+                anchors.rightMargin: 26
+                spacing: 9
+
+                // Show wordmark: the fetched logo art when we have it, else the title
+                // in letterspaced caps (same fallback the loader uses).
+                Image {
+                    id: pauseCardLogo
+                    visible: root.mediaLogo.length > 0 && status === Image.Ready
+                    source: root.mediaLogo
+                    fillMode: Image.PreserveAspectFit
+                    height: 46
+                    width: Math.min(implicitWidth, parent.width)
+                    asynchronous: true
+                }
+                Text {
+                    visible: !pauseCardLogo.visible
+                    width: parent.width
+                    text: root.mediaTitle
+                    color: theme.ink
+                    font.family: theme.hud; font.pixelSize: 26; font.weight: Font.DemiBold
+                    font.capitalization: Font.AllUppercase; font.letterSpacing: 4
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    width: parent.width
+                    text: root.pauseFactsLine()
+                    visible: text.length > 0
+                    color: theme.inkDim
+                    font.family: theme.hud; font.pixelSize: 12.5; font.features: ({ "tnum": 1 })
+                    elide: Text.ElideRight
+                }
+                Text {
+                    width: parent.width
+                    text: root.pauseQualityLine()
+                    visible: text.length > 0
+                    color: theme.inkDimmer
+                    font.family: theme.hud; font.pixelSize: 10.5; font.letterSpacing: 2
+                    font.features: ({ "tnum": 1 })
+                    elide: Text.ElideRight
+                }
+                Text {
+                    width: parent.width
+                    text: root.mediaPlot
+                    visible: text.length > 0
+                    topPadding: 4
+                    color: theme.inkDim
+                    font.family: theme.hud; font.pixelSize: 12.5
+                    lineHeight: 1.35
+                    wrapMode: Text.WordWrap
+                    maximumLineCount: 3
+                    elide: Text.ElideRight
                 }
             }
         }
