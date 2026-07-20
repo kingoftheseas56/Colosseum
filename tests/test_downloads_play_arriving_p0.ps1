@@ -20,4 +20,16 @@ Assert-Contains $store '{QStringLiteral("url"), j.url}' "DownloadStore::jobs() m
 Assert-Contains $local '{QStringLiteral("url"), j.value(QStringLiteral("url"))}' "LocalDownloads theatre jobs must pass the url through."
 Assert-Contains $local '{QStringLiteral("art"), j.value(QStringLiteral("art"))}' "LocalDownloads theatre jobs must pass the art through."
 
+$player = Get-Content (Join-Path $root "qml/PlayerPage.qml") -Raw
+
+# The player grows a direct-url lane: transport "Arriving", no localPath, same
+# stream-grade identity (subtitles by id, progress by id) as playLocalFile.
+Assert-Contains $player 'function playRemoteUrl(target)' "PlayerPage must have the playRemoteUrl lane."
+Assert-Contains $player 'root.mediaTransport = "Arriving"' "Arriving sessions must be labeled Arriving (subtitle line tail)."
+Assert-Contains $player 'mpv.loadFile(root.currentPlaybackUrl)' "playRemoteUrl must load the url it was handed."
+
+# Direct-url sessions have no candidate ladder: one reconnect, then an honest fail
+# (retryCurrentStream() early-returns with no candidates -> would loop as a no-op).
+Assert-Contains $player 'The stream dropped. The download keeps going' "Failure ladder needs the honest direct-url branch."
+
 Write-Host "PASS: read-model exposes url + art for arriving theatre jobs."

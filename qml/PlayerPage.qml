@@ -1226,6 +1226,29 @@ Item {
             root.wakeChrome()
             return
         }
+        if (!root.streamCandidates.length && !root.mediaResumeHash.length
+                && root.currentPlaybackUrl.length) {
+            // Direct-url (Arriving) session: no candidate ladder to walk —
+            // retryCurrentStream() would early-return forever. One reconnect
+            // against the same url, then fail honestly; the download itself
+            // is a separate connection and keeps going either way.
+            if (root.streamRetryCount < 1) {
+                root.streamRetryCount += 1
+                root.errored = false
+                root.starting = true
+                root.fileReady = false
+                root.statusMsg = "Reconnecting stream..."
+                root.resetRecoveryWatch()
+                streamWatchdog.restart()
+                mpv.loadFile(root.currentPlaybackUrl)
+                return
+            }
+            root.errored = true
+            root.starting = false
+            root.statusMsg = "The stream dropped. The download keeps going — play it from Downloads once it lands."
+            root.wakeChrome()
+            return
+        }
         if (root.streamRetryCount < 1) {
             root.retryCurrentStream()
             return
@@ -1803,6 +1826,56 @@ Item {
         root.forceActiveFocus()
         root.resetRecoveryWatch()
         mpv.loadFile(root.mediaLocalPath)
+        root.maybeHydrateContext()
+    }
+
+    // Play-while-arriving (2026-07-20): watch a LIVE download now — mpv streams the
+    // same resolved url DownloadStore is pulling (server holds the complete file, so
+    // seeking is free); the download keeps its own connection. Identity is stream-
+    // grade like playLocalFile: subtitles + progress key off the video id, so the
+    // landed copy resumes where this live watch leaves off.
+    function playRemoteUrl(target) {
+        var t = target || ({})
+        root.clearAbLoop()
+        root.cancelSleepTimer()
+        root.resetSkipSegments()
+        root.resetTrackAutomation()
+        root.cancelUpNext()
+        root.autoPausedInactive = false
+        root.deadStreamKeys = ({})
+        root.stubCheckedKey = ""
+        root.streamCandidates = []
+        root.currentStreamIndex = -1
+        root.adjacentEpisodes = ({})
+        root.mediaTitle = t.title || ""
+        root.mediaTransport = "Arriving"
+        root.mediaYear = String(t.year || "")
+        root.mediaArt = t.art || ""
+        root.mediaLocalPath = ""
+        root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("arriving:" + String(t.streamUrl || ""))
+        root.playbackQueue = []
+        root.playbackQueueIndex = -1
+        root.playbackQueueOrderingMode = ""
+        root.updateMediaSubtitle()
+        root.mediaResumeHash = ""
+        root.mediaResumeFileIdx = 0
+        root.currentPlaybackUrl = String(t.streamUrl || "")
+        root.subStreamType = t.kind === "episode" ? "series" : "movie"
+        root.subStreamId = (t.id && String(t.id).length) ? String(t.id) : ""
+        root.fetchSubtitles()
+        root.pendingSeekSec = Number(t.position || 0) > 0 ? Number(t.position) : -1
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.resumePromptConsumed = false
+        root.errored = false
+        root.starting = true
+        root.fileReady = false
+        root.statusMsg = "Opening..."
+        root.closeMenus()
+        root.wakeChrome()
+        root.forceActiveFocus()
+        root.resetRecoveryWatch()
+        mpv.loadFile(root.currentPlaybackUrl)
         root.maybeHydrateContext()
     }
 
