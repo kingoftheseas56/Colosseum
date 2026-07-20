@@ -2,7 +2,8 @@
 
 **Date:** 2026-07-20  
 **Owner:** [Agent 4 (Codex), player]  
-**Decision:** retain mpvqt for production; preserve the proven D3D11 bridge as a contingency, not a replacement player
+**Decision (amended 2026-07-21):** pursue a staged, feature-flagged native Windows backend; keep
+mpvqt as the shipped default and fallback until the native path passes the full player contract
 
 ## Executive decision
 
@@ -17,6 +18,12 @@ Wire file as D3D11 P010, a D3D11 video processor can convert it into a shared RG
 Quick can import and composite that texture with ordinary QML without a CPU frame transfer. This
 removes uncertainty from a future architecture choice, but it does not prove a complete player's
 audio/video clock, seeking, subtitles, HDR, device recovery, or maintainability.
+
+The 2026-07-21 efficiency gate changes the disposition of the prototype, not the shipped-player
+decision. On the target laptop, the native path averaged 87.4% lower per-process GPU busy and
+89.3% lower measured process CPU than production mpvqt across an ABBA repeat. That clears
+Hemanth's 25-30% bar by a wide margin, so the native backend should now advance as a staged arc.
+mpvqt remains production until native earns feature parity and cross-hardware confidence.
 
 ## What Kodi actually contributes
 
@@ -124,9 +131,9 @@ surface; Qt Quick then composites that surface with the scene.
 | Rank | Option | Decision | Why | Risk / effort |
 |---:|---|---|---|---|
 | 1 | Keep mpvqt with normalization off by default | Adopt | Fixes the measured incident and preserves mature audio, subtitles, seeking, streaming, HDR and controls | Low / already shipped |
-| 2 | Keep this D3D11 bridge as a measured contingency | Preserve, do not integrate | The difficult Qt/D3D interoperability is proven on target hardware | Low now; no runtime impact |
+| 2 | Build a feature-flagged native Windows player from this bridge | Adopt as a staged arc | The bridge is proven and the efficiency gate below clears the fixed bar by more than 3x | Very high |
 | 3 | Add better production playback instrumentation | Next | Establishes whether residual drops correlate with normalization mode, QML work, or thermal state | Low-medium |
-| 4 | Build a feature-flagged native Windows player | Conditional only | Could remove `d3d11va-copy` and OpenGL/FBO overhead, but recreates a full media player's timing and feature surface | Very high |
+| 4 | Preserve mpvqt as the Windows fallback during the arc | Adopt | Avoids trading efficiency for regressions while audio, subtitles, seek, streaming and device recovery are rebuilt | Low ongoing |
 | 5 | Replace mpvqt immediately | Reject | No remaining evidence of architectural necessity after the loudnorm fix | Very high |
 
 ## Required next experiment: normalization versus dropped frames
@@ -147,13 +154,12 @@ happening, and is the light mode cheap enough on the i5-8365U?**
 
 Do not infer the answer from Gate B: Gate B has no audio decoder, audio clock, or normalization.
 
-## Trigger for revisiting a native player
+## Native arc entry and guardrails
 
-Reopen the native path only if controlled production measurements still show material sustained
-drops with normalization off (or if a future requirement cannot be met through libmpv). The next
-smallest production step would then be a build-flagged Windows-only spike that reuses the proven
-ring while adding an audio master clock and seek/flush contract. It should not begin with UI polish
-or wholesale mpv removal.
+The efficiency benchmark below clears the trigger for a staged native path even though loudness
+normalization already fixed the original user-visible stutter. The next smallest production step
+is a build-flagged Windows-only backend that reuses the proven ring while adding an audio master
+clock and seek/flush contract. It must not begin with UI polish or wholesale mpv removal.
 
 A real adoption decision must first prove:
 
@@ -166,6 +172,111 @@ A real adoption decision must first prove:
 - FFmpeg/Kodi-derived licensing boundaries.
 
 Until those gates exist, the prototype is evidence, not production architecture.
+
+## Efficiency gate: native D3D11 versus production mpvqt (2026-07-21)
+
+### Decision bar and verdict
+
+Hemanth's fixed bar was to pursue the native arc only if it reduced steady-state GPU busy and/or
+CPU by at least 25-30%, or demonstrated a clear package-power/thermal win. A single-digit
+improvement meant shelving the arc permanently.
+
+**Verdict: GO - pursue the staged native-backend arc.** Across two passes per contender, native
+reduced per-process GPU busy by **87.4%** and measured process CPU by **89.3%**. It therefore clears
+the decision bar without relying on memory, power, temperature, or the expected Copy-engine
+signal. This is permission to build the backend behind a feature flag, not permission to remove
+mpvqt before feature parity.
+
+### Locked setup
+
+- Machine: Intel i5-8365U (4 cores / 8 logical processors), Intel UHD Graphics 620 driver
+  `31.0.101.2135`, Windows 11, 1920x1080 at 59 Hz, High performance power plan.
+- Media: `The Wire - S4E13 - Final Grades - 20260720_211141.mp4`, HEVC Main 10,
+  1920x1080, 24000/1001 fps, SHA-256
+  `694F819864DD3DF9B9ABCDE2FF152E820F5E6C259E80D63673422F6FEBF594EC`.
+- Source tree: commit `59d7dac84c0e8c4389508118e803406b3bf2a8f6`.
+- Native executable: fresh out-of-tree rebuild, SHA-256
+  `6A154FB934A7916BCB239293E997AD5E669740B76708AE09BA1FA9B665EED78E`.
+- Production executable: fresh worktree rebuild, SHA-256
+  `C5FF2F5F2CBCD37507404D814EB571D6C0A52BF7082D3404CB8E906E89281CEF`.
+- Production configuration observed in the player: fullscreen, local file, cache 100%,
+  `hwdec-current=d3d11va-copy`, Loudness `Smooth` (no normalization filter). Player diagnostics
+  were hidden during sampling.
+- Order: native 1, production 1, production 2, native 2 (ABBA), with at least 90 seconds of
+  no-playback cooldown between contenders. Each run started the episode from the beginning,
+  discarded at least 30 seconds of warm-up, then retained 120 one-second steady-state samples.
+- Raw pass telemetry and prototype reports are retained under
+  `C:\Users\Suprabha\AppData\Local\Temp\colosseum-efficiency-20260721\`.
+
+### Results
+
+GPU percentages come from per-PID `GPU Engine` counters. `GPU busy` is the busiest summed engine
+class in each sample (the Task Manager definition of total GPU utilization), then averaged; 3D was
+the busiest class in every pass. CPU is process processor time divided by eight logical
+processors. Values below are arithmetic means of the two pass summaries; parenthesized values are
+the range of the two pass means.
+
+| Metric | Native D3D11 | Production mpvqt | Native delta | Decision weight |
+|---|---:|---:|---:|---|
+| GPU busy, mean | 6.45% (6.11-6.79) | 51.36% (51.00-51.72) | **87.4% lower** | Primary; clears bar |
+| GPU busy, mean P95 | 7.16% | 54.35% | 86.8% lower | Primary; repeat is stable |
+| GPU 3D, mean | 6.45% | 51.36% | **87.4% lower** | Primary render-path signal |
+| GPU Copy, mean / P95 | 0.00% / 0.00% | 0.00% / 0.00% | no observed delta | Hypothesis killed by this instrument |
+| GPU Video Decode, mean | 4.60% | 5.01% | 8.3% lower | Similar decoder cost |
+| GPU Video Processing, mean | 4.34% | 0.00% | native adds this engine | Expected `VideoProcessorBlt` conversion |
+| CPU, mean | 1.25% (1.03-1.47) | 11.67% (11.63-11.71) | **89.3% lower** | Clears bar, but upper-bound caveat applies |
+| CPU, mean P95 | 2.31% | 13.56% | 83.0% lower | Secondary |
+| Working set, mean | 264 MB | 1,193 MB | 77.9% lower | Context only; not a pipeline estimate |
+| Private bytes, mean / mean P95 | 278 / 278 MB | 1,128 / 1,156 MB | 75.4% lower by mean | Context only; upper bound |
+| CPU-zone temperature, mean | 77.35 C | 75.85 C | native 1.5 C higher | No thermal win established |
+| Actual CPU frequency, mean | 2,219 MHz | 2,063 MHz | native 7.6% higher | Context; same throttle flags |
+| Package power | unavailable | unavailable | - | No power claim |
+| Present pacing fallback | 0 dropped / 0 late in both native reports | mpv `frame-drop-count` 143 / 135 at pass-end inspection | favors native, not cross-instrument latency | PresentMon unavailable |
+
+Per-pass means, retained to expose thermal/order variance:
+
+| Pass | GPU busy | GPU Copy | CPU | Working set | CPU zone | Actual frequency |
+|---|---:|---:|---:|---:|---:|---:|
+| Native 1 | 6.79% | 0.00% | 1.03% | 273.5 MB | 77.85 C | 2,218 MHz |
+| Production 1 | 51.00% | 0.00% | 11.63% | 1,205.3 MB | 75.85 C | 2,061 MHz |
+| Production 2 | 51.72% | 0.00% | 11.71% | 1,180.5 MB | 75.85 C | 2,065 MHz |
+| Native 2 | 6.11% | 0.00% | 1.47% | 254.6 MB | 76.85 C | 2,220 MHz |
+
+Production's two CPU and GPU means differ by less than 1.5% relative; native GPU differs by 10.5%.
+Native CPU differs by 35% relative, but the absolute spread is only 0.44 percentage points
+(1.03-1.47%) at the sampler's low end. Both native CPU passes independently clear the fixed bar
+by more than 87%, so averaging does not hide a pass-order reversal or a threshold-edge result.
+
+Both native reports retained `d3d11va`, P010 input, matching Intel adapters, shared fences and zero
+CPU transfers, device errors, software fallbacks, dropped frames, or late frames. Native pass 1
+ended at 5,185 decoded / 5,181 presented with one repeat; native pass 2 ended at 5,696 decoded /
+5,692 presented with two repeats. The small decoded/presented tail difference is pipeline drain at
+manual close, not accumulating loss.
+
+### What the benchmark proves - and what it does not
+
+1. **The efficiency win is in 3D/composition, not a separately visible Copy queue.** The expected
+   smoking gun did not appear: Windows reported 0% Copy for both contenders. `d3d11va-copy` can
+   move data through driver paths that are accounted to 3D or are not exposed as a dedicated Copy
+   engine on this UHD 620. The Copy hypothesis is therefore killed for this counter set; the
+   reproduced 51% versus 6% 3D delta is the evidence that supports the decision.
+2. **CPU and memory are deliberately not treated as pure pipeline savings.** Production includes
+   audio decode/output, demux, subtitles, the full QML player and application services; the
+   video-only native process does not. The 89.3% CPU and 77.9% working-set deltas are upper bounds
+   on what an integrated native player could save. The GPU result is fairer, though production also
+   paints subtitles that the prototype omits.
+3. **No package-power or thermal win is claimed.** PresentMon 2.3.0 was installed but could not
+   create a privileged per-process ETW capture from this non-elevated session. No HWiNFO or Intel
+   package-power source was installed, and `Power Meter(_Total)` returned invalid/zero data. The
+   ACPI CPU-zone sensor was coarse and actually averaged 1.5 C warmer for native; throttle state
+   was unchanged (`Performance Limit Flags=2`, `% Performance Limit=83`) in all passes.
+4. **Present latency is not measured.** Because PresentMon was unavailable, native's internal
+   counters and mpv's frame-drop counter are operational corroboration, not a common latency
+   instrument. They strengthen the result but are not used to calculate the 87.4% decision metric.
+5. **The result gates an arc, not a replacement.** A native player must still pay for audio clock,
+   subtitles, seeking, streaming, HDR/color, device recovery and diagnostics. Re-run this same
+   efficiency suite after each major feature tranche; if integration erodes the advantage below
+   the fixed 25-30% bar, stop the arc and retain mpvqt.
 
 ## Definition of Done review
 
@@ -211,5 +322,22 @@ the command safety layer refused recursive deletion after path verification. Ver
 used a never-before-existing out-of-tree directory under `%TEMP%`, which is stronger evidence that
 the committed source configures and builds independently and leaves the Git worktree clean.
 
-**APPROVE — every written architecture gate and deliverable is met; the branch is suitable for
-handoff as an isolated experiment, not for production-player integration.**
+### Efficiency amendment review
+
+- **MET - committed artifacts:** source SHA, executable hashes and media hash were rechecked after
+  the runs; the prototype and production committed trees rebuild without work pending.
+- **MET - balanced capture:** four pass files each contain 120 valid samples in ABBA order, with
+  fullscreen start-from-beginning playback, warm-up and cooldown controls documented.
+- **MET - calculations:** raw pass means reproduce the reported 87.437887% GPU reduction; CPU,
+  memory, engine, frequency, temperature and throttle values are retained per pass.
+- **MET - fairness:** the document labels production CPU/memory as upper bounds, gives GPU 3D the
+  primary decision weight, and kills rather than invents the absent Copy-engine signal.
+- **PARTIAL - common pacing and package power:** PresentMon could not open a privileged ETW
+  capture, package watts were unavailable, and the ACPI temperature counter was coarse. These
+  fields are marked unavailable and are not used to reach the verdict.
+- **MET - fixed decision:** the one-line `GO` is evaluated against Hemanth's 25-30% bar and keeps
+  mpvqt as fallback until the feature contract is rebuilt and the efficiency win revalidated.
+- **MET - scope:** only this decision document changed; production player source is untouched.
+
+**APPROVE - the original prototype gates and the efficiency amendment meet their written decision
+requirements; begin the staged feature-flagged arc, but do not replace mpvqt yet.**
