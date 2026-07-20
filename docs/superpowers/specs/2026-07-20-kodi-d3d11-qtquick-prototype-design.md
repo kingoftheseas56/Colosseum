@@ -21,9 +21,9 @@ or alter the production `colosseum.exe` target.
 3. Synchronize producer and consumer explicitly with shared D3D11 fences.
 4. Import consumer-side `ID3D11Texture2D` objects through Qt 6.11's public
    `QNativeInterface::QSGD3D11Texture::fromNative()` API.
-5. Prove the bridge with GPU-generated BGRA frames before adding FFmpeg.
+5. Prove the bridge with GPU-generated RGBA frames before adding FFmpeg.
 6. If the bridge passes, decode the completed Colosseum S4E13 HEVC file with FFmpeg D3D11VA,
-   convert NV12/P010 through the D3D11 video processor into the same shared BGRA ring, and present
+   convert NV12/P010 through the D3D11 video processor into the same shared RGBA ring, and present
    video at source PTS. Audio is deliberately out of scope.
 
 ## Architecture
@@ -44,7 +44,7 @@ graph and never manipulated from QML.
 ### Stage 1 producer
 
 The producer creates a D3D11 device with BGRA and video support on Qt's adapter. It owns three
-shareable BGRA render-target textures. A worker thread generates a moving diagnostic pattern using
+shareable RGBA render-target textures. A worker thread generates a moving diagnostic pattern using
 GPU clears, signals the producer fence, and publishes the ready slot plus sequence number. It never
 reuses the currently displayed slot and waits for the consumer fence before reusing a released one.
 
@@ -53,7 +53,7 @@ reuses the currently displayed slot and waits for the consumer fence before reus
 The second stage reuses the ring and synchronization unchanged. FFmpeg demuxes and decodes only the
 video stream with a D3D11VA hardware context backed by the producer device. Each decoded
 `AV_PIX_FMT_D3D11` frame supplies a decoder texture and array slice. A D3D11 video processor reads
-the NV12/P010 input view, applies the source color-space metadata, and writes BGRA into a free shared
+the NV12/P010 input view, applies the source color-space metadata, and writes RGBA into a free shared
 slot. The worker publishes frames according to their PTS using a monotonic clock.
 
 The test file is:
@@ -68,12 +68,11 @@ The QML overlay and log report:
 - producer adapter identity and whether shared fences are active;
 - source codec, pixel format, dimensions and frame rate;
 - decoded, converted, published, presented, repeated and late/dropped frame counts;
-- latest PTS and measured presentation rate;
 - whether any CPU frame transfer occurred.
 
 The counters distinguish decode/convert failures from presentation misses. A statement of
 "zero-copy" is forbidden: the intended path avoids GPU-to-CPU transfer but includes a D3D11 video
-processor pass from the decoder surface into a shareable BGRA presentation texture.
+processor pass from the decoder surface into a shareable RGBA presentation texture.
 
 ## Failure handling
 
@@ -84,7 +83,7 @@ The prototype fails loudly and stops the affected stage when:
 - D3D11.4 shared fences are unavailable;
 - a texture or fence handle cannot be opened on the consumer device;
 - FFmpeg does not return D3D11 frames;
-- the video processor cannot accept the decoded input format or produce BGRA.
+- the video processor cannot accept the decoded input format or produce RGBA.
 
 It does not silently fall back to software decode, CPU upload, mpv, OpenGL, or a child window,
 because any such fallback would invalidate the experiment.
@@ -121,4 +120,4 @@ because any such fallback would invalidate the experiment.
 - No production player integration.
 - No audio, subtitles, seeking, streaming, HDR output or full player controls.
 - No Kodi source copying; Kodi is GPL-2.0 and is used only as an architectural reference.
-- No claim that BGRA presentation is the final HDR/color-management architecture.
+- No claim that RGBA presentation is the final HDR/color-management architecture.
