@@ -1,6 +1,7 @@
 #include "DemuxSession.h"
 
 #include "player2/video/D3D11VideoPipeline.h"
+#include "player2/audio/AudioPipeline.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -123,6 +124,11 @@ void DemuxSession::cancel()
 void DemuxSession::setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept
 {
     m_videoPipeline.store(pipeline, std::memory_order_release);
+}
+
+void DemuxSession::setAudioPipeline(AudioPipeline *pipeline) noexcept
+{
+    m_audioPipeline.store(pipeline, std::memory_order_release);
 }
 
 void DemuxSession::joinWorker()
@@ -255,6 +261,54 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             framesPerSecond = av_q2d(guessedRate);
     }
 
+    AudioPipeline *audioPipeline = m_audioPipeline.load(std::memory_order_acquire);
+    int audioStreamIndex = -1;
+    AVStream *audioStream = nullptr;
+    std::unique_ptr<AVCodecContext, CodecCloser> audioDecoder;
+    std::unique_ptr<AVFrame, FrameCloser> audioFrame;
+    if (audioPipeline) {
+        const AVCodec *audioCodec = nullptr;
+        audioStreamIndex = av_find_best_stream(format.get(), AVMEDIA_TYPE_AUDIO, -1, -1,
+                                               &audioCodec, 0);
+        if (audioStreamIndex >= 0 && audioCodec) {
+            audioStream = format->streams[audioStreamIndex];
+            audioDecoder.reset(avcodec_alloc_context3(audioCodec));
+            QString audioError;
+            if (!audioDecoder) {
+                postEnded(generation, DemuxEndReason::Failed,
+                          Player2Error{Player2ErrorCode::DecodeFailed,
+                                       QStringLiteral("Could not allocate an audio decoder"), false});
+                m_running.store(false, std::memory_order_release);
+                return;
+            }
+            if ((result = avcodec_parameters_to_context(audioDecoder.get(),
+                                                        audioStream->codecpar)) < 0 ||
+                (result = avcodec_open2(audioDecoder.get(), audioCodec, nullptr)) < 0) {
+                postEnded(generation, DemuxEndReason::Failed,
+                          Player2Error{Player2ErrorCode::DecodeFailed,
+                                       QStringLiteral("Audio decoder setup failed: %1")
+                                           .arg(avError(result)), false});
+                m_running.store(false, std::memory_order_release);
+                return;
+            }
+            if (!audioPipeline->open(AudioFormat{48'000, 2}, &audioError)) {
+                postEnded(generation, DemuxEndReason::Failed,
+                          Player2Error{Player2ErrorCode::AudioDeviceLost, audioError, true});
+                m_running.store(false, std::memory_order_release);
+                return;
+            }
+            audioFrame.reset(av_frame_alloc());
+            if (!audioFrame) {
+                postEnded(generation, DemuxEndReason::Failed,
+                          Player2Error{Player2ErrorCode::DecodeFailed,
+                                       QStringLiteral("Could not allocate an audio decode frame"),
+                                       false});
+                m_running.store(false, std::memory_order_release);
+                return;
+            }
+        }
+    }
+
     using Clock = std::chrono::steady_clock;
     Clock::time_point wallStart{};
     qint64 firstPtsUs = 0;
@@ -302,6 +356,31 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         return true;
     };
 
+    auto receiveAudioFrames = [&]() -> bool {
+        while (!m_cancelled.load(std::memory_order_acquire)) {
+            const int receiveResult = avcodec_receive_frame(audioDecoder.get(), audioFrame.get());
+            if (receiveResult == AVERROR(EAGAIN) || receiveResult == AVERROR_EOF)
+                return true;
+            if (receiveResult < 0) {
+                decodeFailure = QStringLiteral("Audio decode failed: %1").arg(avError(receiveResult));
+                return false;
+            }
+            qint64 ptsUs = 0;
+            if (audioFrame->best_effort_timestamp != AV_NOPTS_VALUE) {
+                ptsUs = av_rescale_q(audioFrame->best_effort_timestamp, audioStream->time_base,
+                                     AVRational{1, 1'000'000});
+            }
+            QString audioError;
+            if (!audioPipeline->submitDecodedFrame(audioFrame.get(), ptsUs, generation,
+                                                   &audioError)) {
+                decodeFailure = audioError;
+                return false;
+            }
+            av_frame_unref(audioFrame.get());
+        }
+        return true;
+    };
+
     std::unique_ptr<AVPacket, PacketCloser> packet(av_packet_alloc());
     bool decodeFailed = false;
     while (!m_cancelled.load(std::memory_order_acquire) &&
@@ -326,6 +405,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 break;
             }
         }
+        if (audioDecoder && packet->stream_index == audioStreamIndex) {
+            const int sendResult = avcodec_send_packet(audioDecoder.get(), packet.get());
+            if (sendResult < 0 || !receiveAudioFrames()) {
+                if (decodeFailure.isEmpty())
+                    decodeFailure = QStringLiteral("Audio packet submission failed: %1")
+                                        .arg(avError(sendResult));
+                decodeFailed = true;
+                av_packet_unref(packet.get());
+                break;
+            }
+        }
         av_packet_unref(packet.get());
     }
 
@@ -333,6 +423,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         result == AVERROR_EOF) {
         avcodec_send_packet(decoder.get(), nullptr);
         decodeFailed = !receiveVideoFrames();
+    }
+    if (!decodeFailed && audioDecoder && !m_cancelled.load(std::memory_order_acquire) &&
+        result == AVERROR_EOF) {
+        avcodec_send_packet(audioDecoder.get(), nullptr);
+        decodeFailed = !receiveAudioFrames();
+        if (!decodeFailed) {
+            QString audioError;
+            decodeFailed = !audioPipeline->drain(generation, &audioError);
+            if (decodeFailed)
+                decodeFailure = audioError;
+        }
     }
 
     const bool cancelled = m_cancelled.load(std::memory_order_acquire);

@@ -36,9 +36,13 @@ int main(int argc, char *argv[])
     const QCommandLineOption fileOption(QStringLiteral("file"),
                                          QStringLiteral("Open a local media file"),
                                          QStringLiteral("path"));
+    const QCommandLineOption soakOption(QStringLiteral("soak-seconds"),
+                                         QStringLiteral("Minimum report-mode playback duration"),
+                                         QStringLiteral("seconds"), QStringLiteral("0"));
     parser.addOption(scenarioOption);
     parser.addOption(reportOption);
     parser.addOption(fileOption);
+    parser.addOption(soakOption);
     parser.process(application);
     if (parser.isSet(scenarioOption) == parser.isSet(fileOption)) {
         std::cerr << "choose exactly one of --scenario synthetic or --file PATH\n";
@@ -47,6 +51,7 @@ int main(int argc, char *argv[])
 
     HarnessHostServices host;
     host.setReportPath(parser.value(reportOption));
+    host.setMinimumRunSeconds(parser.value(soakOption).toInt());
     qmlRegisterType<Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
 
     QQmlApplicationEngine engine;

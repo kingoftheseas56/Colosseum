@@ -12,6 +12,8 @@
 #include <QtCore/QSaveFile>
 #include <QtCore/QStandardPaths>
 
+#include <algorithm>
+
 namespace Colosseum::Player2 {
 
 HarnessHostServices::HarnessHostServices(QObject *parent)
@@ -82,6 +84,10 @@ double HarnessHostServices::duration() const { return m_session.duration(); }
 int HarnessHostServices::trackCount() const { return m_session.tracks().size(); }
 
 void HarnessHostServices::setReportPath(const QString &path) { m_reportPath = path; }
+void HarnessHostServices::setMinimumRunSeconds(int seconds)
+{
+    m_minimumRunSeconds = std::max(0, seconds);
+}
 
 bool HarnessHostServices::startScenario(const QString &scenario, QString *error)
 {
@@ -91,6 +97,7 @@ bool HarnessHostServices::startScenario(const QString &scenario, QString *error)
         return false;
     }
     m_started = true;
+    m_runTimer.start();
     appendEvent(QStringLiteral("scenario-started"), scenario);
     m_frameTimer.start();
     if (!m_reportPath.isEmpty())
@@ -107,10 +114,11 @@ bool HarnessHostServices::startFile(const QString &path, QString *error)
     }
     m_filePath = QFileInfo(path).absoluteFilePath();
     m_started = true;
+    m_runTimer.start();
     appendEvent(QStringLiteral("file-started"), QFileInfo(path).fileName());
     m_frameTimer.start();
     if (!m_reportPath.isEmpty())
-        m_watchdog.start(20'000);
+        m_watchdog.start((m_minimumRunSeconds + 30) * 1'000);
     emit metricsChanged();
     return true;
 }
@@ -135,6 +143,8 @@ void HarnessHostServices::produceFrame()
     if (!m_started || m_finished || !m_item)
         return;
     refreshMetrics();
+    m_maxAudioQueueMs = std::max(m_maxAudioQueueMs, m_session.audioQueueMs());
+    m_sawAudioClock = m_sawAudioClock || m_session.audioClock().valid;
     if (!m_metrics.adapterMatch) {
         m_item->update();
         return;
@@ -168,8 +178,18 @@ void HarnessHostServices::produceFrame()
     }
     if (!m_reportPath.isEmpty()) {
         const quint64 target = !m_filePath.isEmpty() && m_session.duration() < 10.0 ? 30 : 320;
-        if ((!m_filePath.isEmpty() && m_metrics.presented >= target && m_sawPlaying &&
-             m_session.duration() > 0.0 && !m_session.tracks().isEmpty()) ||
+        bool hasAudioTrack = false;
+        for (const QVariant &trackValue : m_session.tracks()) {
+            if (trackValue.toMap().value(QStringLiteral("type")).toString() == QStringLiteral("audio")) {
+                hasAudioTrack = true;
+                break;
+            }
+        }
+        const bool audioReady = !hasAudioTrack || m_sawAudioClock;
+        const bool minimumRunMet = m_minimumRunSeconds == 0 ||
+            (m_runTimer.isValid() && m_runTimer.elapsed() >= m_minimumRunSeconds * 1'000);
+        if ((!m_filePath.isEmpty() && minimumRunMet && m_metrics.presented >= target && m_sawPlaying &&
+             m_session.duration() > 0.0 && !m_session.tracks().isEmpty() && audioReady) ||
             (m_filePath.isEmpty() && m_metrics.presented >= target)) {
             finish(true, m_filePath.isEmpty() ? QStringLiteral("Synthetic D3D11 gate passed")
                                               : QStringLiteral("Local file gate passed"), 0);
@@ -195,6 +215,10 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
     if (!m_filePath.isEmpty()) {
         m_reportDuration = m_session.duration();
         m_reportTrackCount = m_session.tracks().size();
+        m_reportAudioDevice = m_session.audioDevice();
+        m_reportAudioFormat = m_session.audioFormat();
+        m_finalAudioQueueMs = m_session.audioQueueMs();
+        m_reportAudioUnderruns = m_session.audioUnderruns();
         for (const QVariant &trackValue : m_session.tracks()) {
             const QVariantMap track = trackValue.toMap();
             if (track.value(QStringLiteral("type")).toString() == QStringLiteral("video")) {
@@ -240,6 +264,13 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         ,{QStringLiteral("trackCount"), m_reportTrackCount}
         ,{QStringLiteral("videoCodec"), m_reportVideoCodec}
         ,{QStringLiteral("inputFormat"), m_metrics.inputFormat}
+        ,{QStringLiteral("audioDevice"), m_reportAudioDevice}
+        ,{QStringLiteral("audioFormat"), m_reportAudioFormat}
+        ,{QStringLiteral("audioClockValid"), m_sawAudioClock}
+        ,{QStringLiteral("audioUnderruns"), static_cast<qint64>(m_reportAudioUnderruns)}
+        ,{QStringLiteral("maxAudioQueueMs"), m_maxAudioQueueMs}
+        ,{QStringLiteral("finalAudioQueueMs"), m_finalAudioQueueMs}
+        ,{QStringLiteral("elapsedSeconds"), m_runTimer.isValid() ? m_runTimer.elapsed() / 1000.0 : 0.0}
         ,{QStringLiteral("finalState"), sessionState()}
     };
     const QFileInfo reportInfo(m_reportPath);

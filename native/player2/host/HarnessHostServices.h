@@ -5,6 +5,7 @@
 #include "player2/video/D3D11VideoPipeline.h"
 
 #include <QtCore/QObject>
+#include <QtCore/QElapsedTimer>
 #include <QtCore/QPointer>
 #include <QtCore/QString>
 #include <QtCore/QTimer>
@@ -50,6 +51,7 @@ public:
     int trackCount() const;
 
     void setReportPath(const QString &path);
+    void setMinimumRunSeconds(int seconds);
     bool startScenario(const QString &scenario, QString *error);
     bool startFile(const QString &path, QString *error);
     Q_INVOKABLE void attachVideoItem(QObject *item);
@@ -80,6 +82,14 @@ private:
     double m_reportDuration = 0.0;
     int m_reportTrackCount = 0;
     QString m_reportVideoCodec;
+    QString m_reportAudioDevice;
+    QString m_reportAudioFormat;
+    double m_maxAudioQueueMs = 0.0;
+    double m_finalAudioQueueMs = 0.0;
+    quint64 m_reportAudioUnderruns = 0;
+    bool m_sawAudioClock = false;
+    int m_minimumRunSeconds = 0;
+    QElapsedTimer m_runTimer;
     bool m_fileOpened = false;
     bool m_sawPlaying = false;
     bool m_started = false;

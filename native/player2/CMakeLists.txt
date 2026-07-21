@@ -7,7 +7,7 @@ if(NOT EXISTS "${FFMPEG_ROOT}/include/libavformat/avformat.h")
     message(FATAL_ERROR "Player 2 FFmpeg headers are missing under ${FFMPEG_ROOT}/include")
 endif()
 
-set(_player2_ffmpeg_libraries avformat avcodec avutil)
+set(_player2_ffmpeg_libraries avformat avcodec avutil swresample)
 foreach(_library IN LISTS _player2_ffmpeg_libraries)
     if(NOT EXISTS "${FFMPEG_ROOT}/lib/${_library}.lib")
         message(FATAL_ERROR "Player 2 FFmpeg import library is missing: ${FFMPEG_ROOT}/lib/${_library}.lib")
@@ -30,6 +30,10 @@ int Colosseum::Player2::buildMarker() noexcept
 }
 ]=])
 add_library(player2_core STATIC
+    audio/AudioPipeline.cpp
+    audio/AudioPipeline.h
+    audio/WASAPIAudioSink.cpp
+    audio/WASAPIAudioSink.h
     core/Player2BuildMarker.h
     core/Player2Types.cpp
     core/Player2Types.h
@@ -66,6 +70,8 @@ target_link_libraries(player2_core
     player2_ffmpeg
     d3d11
     dxgi
+    ole32
+    uuid
 )
 
 add_executable(player2_harness
@@ -133,6 +139,19 @@ add_test(NAME player2_demux_session_test
 add_executable(player2_video_fixture_test
     "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_video_fixture_test.cpp"
 )
+
+add_executable(player2_audio_pipeline_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_audio_pipeline_test.cpp"
+)
+target_link_libraries(player2_audio_pipeline_test PRIVATE
+    player2_core
+    player2_ffmpeg
+    Qt6::Core
+)
+set_target_properties(player2_audio_pipeline_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_audio_pipeline_test COMMAND player2_audio_pipeline_test)
 target_link_libraries(player2_video_fixture_test PRIVATE
     player2_core
     player2_ffmpeg
@@ -149,4 +168,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
     player2_demux_session_test
+    player2_audio_pipeline_test
 )

@@ -14,6 +14,7 @@
 namespace Colosseum::Player2 {
 
 class D3D11VideoPipeline;
+class AudioPipeline;
 
 enum class DemuxEndReason
 {
@@ -59,6 +60,7 @@ public:
     void open(const PlaybackRequest &request, quint64 generation);
     void cancel();
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
+    void setAudioPipeline(AudioPipeline *pipeline) noexcept;
     bool running() const noexcept;
 
 signals:
@@ -78,6 +80,7 @@ private:
     std::atomic_bool m_running{false};
     std::atomic<quint64> m_activeGeneration{0};
     std::atomic<D3D11VideoPipeline *> m_videoPipeline{nullptr};
+    std::atomic<AudioPipeline *> m_audioPipeline{nullptr};
     std::mutex m_workerMutex;
     std::thread m_worker;
 };
