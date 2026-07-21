@@ -30,7 +30,7 @@ int Colosseum::Player2::buildMarker() noexcept
 }
 ]=])
 file(GENERATE OUTPUT "${_player2_generated_dir}/player2_harness_main.cpp" CONTENT [=[
-#include "core/Player2BuildMarker.h"
+#include "player2/core/Player2BuildMarker.h"
 
 #include <QtGui/QGuiApplication>
 
@@ -43,9 +43,17 @@ int main(int argc, char *argv[])
 
 add_library(player2_core STATIC
     core/Player2BuildMarker.h
+    core/Player2Types.cpp
+    core/Player2Types.h
+    core/Player2StateMachine.cpp
+    core/Player2StateMachine.h
+    host/Player2HostServices.h
     "${_player2_generated_dir}/Player2BuildMarker.cpp"
 )
-target_include_directories(player2_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(player2_core
+    PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/.."
+    PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
+)
 target_link_libraries(player2_core PRIVATE
     Qt6::Core
     Qt6::Gui
@@ -60,4 +68,15 @@ add_executable(player2_harness
 )
 target_link_libraries(player2_harness PRIVATE player2_core Qt6::Gui)
 
-add_custom_target(player2_unit_tests DEPENDS player2_core)
+add_executable(player2_state_machine_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_state_machine_test.cpp"
+)
+target_link_libraries(player2_state_machine_test PRIVATE player2_core Qt6::Test)
+set_target_properties(player2_state_machine_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
+enable_testing()
+add_test(NAME player2_state_machine_test COMMAND player2_state_machine_test)
+
+add_custom_target(player2_unit_tests DEPENDS player2_state_machine_test)
