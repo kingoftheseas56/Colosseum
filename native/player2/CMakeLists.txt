@@ -35,6 +35,11 @@ add_library(player2_core STATIC
     core/Player2Types.h
     core/Player2StateMachine.cpp
     core/Player2StateMachine.h
+    core/PlaybackGeneration.h
+    core/DemuxSession.cpp
+    core/DemuxSession.h
+    core/Player2Session.cpp
+    core/Player2Session.h
     host/Player2HostServices.h
     host/HarnessHostServices.cpp
     host/HarnessHostServices.h
@@ -99,6 +104,32 @@ set_target_properties(player2_texture_ring_test PROPERTIES
 )
 add_test(NAME player2_texture_ring_test COMMAND player2_texture_ring_test)
 
+set(_player2_fixture_dir "${CMAKE_BINARY_DIR}/player2-fixtures")
+set(_player2_fixture_script
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/fixtures/make_media_fixtures.ps1")
+set(_player2_fixture_manifest
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/fixtures/manifest.json")
+add_custom_command(
+    OUTPUT "${_player2_fixture_dir}/.complete"
+    COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${_player2_fixture_script}"
+            -OutputDirectory "${_player2_fixture_dir}"
+    DEPENDS "${_player2_fixture_script}" "${_player2_fixture_manifest}"
+    VERBATIM
+)
+add_custom_target(player2_media_fixtures DEPENDS "${_player2_fixture_dir}/.complete")
+
+add_executable(player2_demux_session_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_demux_session_test.cpp"
+)
+target_link_libraries(player2_demux_session_test PRIVATE player2_core Qt6::Core)
+add_dependencies(player2_demux_session_test player2_media_fixtures)
+set_target_properties(player2_demux_session_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_demux_session_test
+    COMMAND player2_demux_session_test "${_player2_fixture_dir}"
+)
+
 add_executable(player2_video_fixture_test
     "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_video_fixture_test.cpp"
 )
@@ -117,4 +148,5 @@ set_target_properties(player2_video_fixture_test PROPERTIES
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
+    player2_demux_session_test
 )

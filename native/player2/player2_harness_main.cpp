@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
-        QStringLiteral("Player 2 lab: --scenario synthetic [--report PATH]"));
+        QStringLiteral("Player 2 lab: --scenario synthetic | --file PATH [--report PATH]"));
     parser.addHelpOption();
     const QCommandLineOption scenarioOption(QStringLiteral("scenario"),
                                              QStringLiteral("Lab scenario to run"),
@@ -33,11 +33,15 @@ int main(int argc, char *argv[])
     const QCommandLineOption reportOption(QStringLiteral("report"),
                                            QStringLiteral("Write deterministic JSON and exit"),
                                            QStringLiteral("path"));
+    const QCommandLineOption fileOption(QStringLiteral("file"),
+                                         QStringLiteral("Open a local media file"),
+                                         QStringLiteral("path"));
     parser.addOption(scenarioOption);
     parser.addOption(reportOption);
+    parser.addOption(fileOption);
     parser.process(application);
-    if (!parser.isSet(scenarioOption)) {
-        std::cerr << "missing required --scenario synthetic\n";
+    if (parser.isSet(scenarioOption) == parser.isSet(fileOption)) {
+        std::cerr << "choose exactly one of --scenario synthetic or --file PATH\n";
         return 2;
     }
 
@@ -55,7 +59,10 @@ int main(int argc, char *argv[])
         return 4;
 
     QString error;
-    if (!host.startScenario(parser.value(scenarioOption), &error)) {
+    const bool started = parser.isSet(fileOption)
+        ? host.startFile(parser.value(fileOption), &error)
+        : host.startScenario(parser.value(scenarioOption), &error);
+    if (!started) {
         std::cerr << error.toStdString() << '\n';
         return 2;
     }

@@ -142,6 +142,9 @@ Window {
 
                 MetricRow { label: "Source"; value: HarnessHost.source }
                 MetricRow { label: "Decode path"; value: HarnessHost.decodePath }
+                MetricRow { label: "Session"; value: HarnessHost.sessionState }
+                MetricRow { label: "Duration"; value: HarnessHost.duration.toFixed(2) + " s" }
+                MetricRow { label: "Tracks"; value: String(HarnessHost.trackCount) }
                 MetricRow { label: "Generated"; value: String(HarnessHost.generated) }
                 MetricRow { label: "Presented"; value: String(HarnessHost.presented) }
                 MetricRow { label: "Dropped"; value: String(HarnessHost.dropped) }

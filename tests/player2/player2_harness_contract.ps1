@@ -36,6 +36,7 @@ Require-Text $main 'setOrganizationName\(QStringLiteral\("Colosseum"\)\)' 'lab o
 Require-Text $main 'setApplicationName\(QStringLiteral\("Player2Lab"\)\)' 'lab application identity must be isolated'
 Require-Text $main '--scenario' 'synthetic scenario parsing is required'
 Require-Text $main '--report' 'deterministic report output is required'
+Require-Text $main '--file' 'local file parsing is required'
 Require-Text $hostSource 'events\.jsonl' 'host events must use an isolated JSONL ledger'
 Require-Text $hostSource 'cpuTransfers' 'report must expose the no-CPU-transfer counter'
 Require-Text $hostSource 'deviceErrors' 'report must expose D3D device errors'
