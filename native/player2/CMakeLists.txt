@@ -42,6 +42,10 @@ add_library(player2_core STATIC
     core/PlaybackGeneration.h
     core/DemuxSession.cpp
     core/DemuxSession.h
+    core/FrameScheduler.cpp
+    core/FrameScheduler.h
+    core/PlaybackClock.cpp
+    core/PlaybackClock.h
     core/Player2Session.cpp
     core/Player2Session.h
     host/Player2HostServices.h
@@ -152,6 +156,15 @@ set_target_properties(player2_audio_pipeline_test PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 add_test(NAME player2_audio_pipeline_test COMMAND player2_audio_pipeline_test)
+
+add_executable(player2_clock_scheduler_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_clock_scheduler_test.cpp"
+)
+target_link_libraries(player2_clock_scheduler_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_clock_scheduler_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_clock_scheduler_test COMMAND player2_clock_scheduler_test)
 target_link_libraries(player2_video_fixture_test PRIVATE
     player2_core
     player2_ffmpeg
@@ -169,4 +182,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_texture_ring_test
     player2_demux_session_test
     player2_audio_pipeline_test
+    player2_clock_scheduler_test
 )

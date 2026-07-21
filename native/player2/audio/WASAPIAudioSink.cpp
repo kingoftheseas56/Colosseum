@@ -83,9 +83,11 @@ int AudioBufferQueue::read(float *destination, int requestedFrames, int channels
             entry.offsetFrames * channels;
         std::memcpy(destination + copied * channels, source,
                     count * channels * sizeof(float));
-        m_lastReadMediaPositionUs = entry.buffer.ptsUs +
-            static_cast<qint64>((entry.offsetFrames * 1'000'000.0) /
-                                entry.buffer.format.sampleRate);
+        if (copied == 0) {
+            m_lastReadMediaPositionUs = entry.buffer.ptsUs +
+                static_cast<qint64>((entry.offsetFrames * 1'000'000.0) /
+                                    entry.buffer.format.sampleRate);
+        }
         entry.offsetFrames += count;
         copied += count;
         m_depthFrames -= count;
@@ -345,7 +347,10 @@ public:
                 const bool endpointClockAdvanced =
                     SUCCEEDED(audioClock->GetPosition(&devicePosition, &deviceQpc100ns)) &&
                     devicePosition > 0 && deviceQpc100ns > 0;
-                m_clockMediaUs.store(m_queue->lastReadMediaPositionUs(), std::memory_order_release);
+                const qint64 paddingUs = static_cast<qint64>(
+                    static_cast<long double>(padding) * 1'000'000.0L / m_format.sampleRate);
+                m_clockMediaUs.store(std::max<qint64>(0,
+                    m_queue->lastReadMediaPositionUs() - paddingUs), std::memory_order_release);
                 m_clockQpc.store(queryPerformanceCounter(), std::memory_order_release);
                 m_clockValid.store(endpointClockAdvanced, std::memory_order_release);
             }

@@ -9,6 +9,7 @@
 #include <atomic>
 #include <mutex>
 #include <optional>
+#include <vector>
 
 #include <d3d11_4.h>
 #include <dxgi1_2.h>
@@ -39,6 +40,8 @@ public:
         quint64 submitted = 0;
         quint64 presented = 0;
         quint64 producerStarved = 0;
+        quint64 scheduledLateDrops = 0;
+        qint64 lastAvErrorUs = 0;
         quint64 cpuTransfers = 0;
         quint64 deviceErrors = 0;
         QString hardwareFormat;
@@ -63,6 +66,8 @@ public:
     ID3D11Texture2D *consumerTexture(std::size_t slot) const;
     QSize textureSize() const;
     void noteDecoded();
+    void noteSchedulingDecision(qint64 timingErrorUs, bool dropped);
+    qint64 schedulingP95AbsoluteErrorUs() const;
     void notePresented();
     Diagnostics diagnostics() const;
     void shutdown();
@@ -122,6 +127,10 @@ private:
     std::atomic<quint64> m_decoded{0};
     std::atomic<quint64> m_submitted{0};
     std::atomic<quint64> m_presented{0};
+    std::atomic<quint64> m_scheduledLateDrops{0};
+    std::atomic<qint64> m_lastAvErrorUs{0};
+    mutable std::mutex m_timingMutex;
+    std::vector<qint64> m_schedulingAbsoluteErrorsUs;
     std::atomic<quint64> m_deviceErrors{0};
     std::atomic<quint64> m_consumerFenceValue{0};
 };

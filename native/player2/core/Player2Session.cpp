@@ -12,6 +12,7 @@ Player2Session::Player2Session(QObject *parent)
     : QObject(parent), m_audioPipeline(&m_audioSink)
 {
     m_demux.setAudioPipeline(&m_audioPipeline);
+    m_demux.setTiming(&m_playbackClock, &m_frameScheduler);
     connect(&m_demux, &DemuxSession::opened, this,
             [this](quint64 generation, const DemuxMetadata &metadata) {
         if (!m_generation.accepts(generation))
@@ -98,6 +99,8 @@ void Player2Session::open(const PlaybackRequest &request)
     if (m_videoPipeline)
         m_videoPipeline->flush(next);
     m_audioPipeline.flush(next);
+    m_playbackClock.invalidate();
+    m_frameScheduler.reset();
     emit generationChanged();
     if (!transition(Player2State::Opening))
         return;
@@ -109,6 +112,8 @@ void Player2Session::close()
     const quint64 next = m_generation.advance();
     emit generationChanged();
     m_audioPipeline.flush(next);
+    m_playbackClock.invalidate();
+    m_frameScheduler.reset();
     m_demux.cancel();
     if (m_videoPipeline)
         m_videoPipeline->flush(next);

@@ -10,6 +10,7 @@
 #include <QtCore/QString>
 #include <QtCore/QTimer>
 
+
 namespace Colosseum::Player2 {
 
 class Player2VideoItem;
@@ -88,6 +89,7 @@ private:
     double m_finalAudioQueueMs = 0.0;
     quint64 m_reportAudioUnderruns = 0;
     bool m_sawAudioClock = false;
+    double m_reportAvP95Ms = 0.0;
     int m_minimumRunSeconds = 0;
     QElapsedTimer m_runTimer;
     bool m_fileOpened = false;

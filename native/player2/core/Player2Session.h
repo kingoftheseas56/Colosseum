@@ -3,6 +3,8 @@
 #include "DemuxSession.h"
 #include "PlaybackGeneration.h"
 #include "Player2StateMachine.h"
+#include "FrameScheduler.h"
+#include "PlaybackClock.h"
 #include "player2/audio/AudioPipeline.h"
 #include "player2/audio/WASAPIAudioSink.h"
 
@@ -74,6 +76,8 @@ private:
     Player2StateMachine m_state;
     WASAPIAudioSink m_audioSink;
     AudioPipeline m_audioPipeline;
+    PlaybackClock m_playbackClock;
+    FrameScheduler m_frameScheduler;
     DemuxSession m_demux;
     D3D11VideoPipeline *m_videoPipeline = nullptr;
     double m_position = 0.0;

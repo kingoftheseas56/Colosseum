@@ -13,6 +13,7 @@
 #include <QtCore/QStandardPaths>
 
 #include <algorithm>
+#include <cstdlib>
 
 namespace Colosseum::Player2 {
 
@@ -219,6 +220,7 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
         m_reportAudioFormat = m_session.audioFormat();
         m_finalAudioQueueMs = m_session.audioQueueMs();
         m_reportAudioUnderruns = m_session.audioUnderruns();
+        m_reportAvP95Ms = m_pipeline.schedulingP95AbsoluteErrorUs() / 1000.0;
         for (const QVariant &trackValue : m_session.tracks()) {
             const QVariantMap track = trackValue.toMap();
             if (track.value(QStringLiteral("type")).toString() == QStringLiteral("video")) {
@@ -256,6 +258,8 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         {QStringLiteral("generated"), static_cast<qint64>(m_metrics.submitted)},
         {QStringLiteral("presented"), static_cast<qint64>(m_metrics.presented)},
         {QStringLiteral("dropped"), static_cast<qint64>(m_metrics.producerStarved)},
+        {QStringLiteral("scheduledLateDrops"), static_cast<qint64>(m_metrics.scheduledLateDrops)},
+        {QStringLiteral("avP95Ms"), m_reportAvP95Ms},
         {QStringLiteral("late"), 0},
         {QStringLiteral("cpuTransfers"), static_cast<qint64>(m_metrics.cpuTransfers)},
         {QStringLiteral("deviceErrors"), static_cast<qint64>(m_metrics.deviceErrors)}

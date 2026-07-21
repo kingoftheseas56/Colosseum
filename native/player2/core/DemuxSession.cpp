@@ -2,6 +2,8 @@
 
 #include "player2/video/D3D11VideoPipeline.h"
 #include "player2/audio/AudioPipeline.h"
+#include "FrameScheduler.h"
+#include "PlaybackClock.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -16,6 +18,14 @@ extern "C" {
 #include <algorithm>
 #include <chrono>
 #include <memory>
+#include <windows.h>
+
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 
 namespace Colosseum::Player2 {
 namespace {
@@ -83,6 +93,13 @@ AVPixelFormat selectD3d11Format(AVCodecContext *, const AVPixelFormat *formats)
     return AV_PIX_FMT_NONE;
 }
 
+qint64 qpcNow()
+{
+    LARGE_INTEGER value{};
+    QueryPerformanceCounter(&value);
+    return value.QuadPart;
+}
+
 } // namespace
 
 DemuxSession::DemuxSession(QObject *parent)
@@ -129,6 +146,12 @@ void DemuxSession::setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept
 void DemuxSession::setAudioPipeline(AudioPipeline *pipeline) noexcept
 {
     m_audioPipeline.store(pipeline, std::memory_order_release);
+}
+
+void DemuxSession::setTiming(PlaybackClock *clock, FrameScheduler *scheduler) noexcept
+{
+    m_playbackClock.store(clock, std::memory_order_release);
+    m_frameScheduler.store(scheduler, std::memory_order_release);
 }
 
 void DemuxSession::joinWorker()
@@ -309,10 +332,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         }
     }
 
-    using Clock = std::chrono::steady_clock;
-    Clock::time_point wallStart{};
-    qint64 firstPtsUs = 0;
-    bool haveFirstPts = false;
+    PlaybackClock *playbackClock = m_playbackClock.load(std::memory_order_acquire);
+    FrameScheduler *frameScheduler = m_frameScheduler.load(std::memory_order_acquire);
+    bool audioMasterActive = false;
     quint64 videoSequence = 0;
     QString decodeFailure;
     auto receiveVideoFrames = [&]() -> bool {
@@ -336,14 +358,48 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 ptsUs = av_rescale_q(frame->best_effort_timestamp, videoStream->time_base,
                                      AVRational{1, 1'000'000});
             }
-            if (!haveFirstPts) {
-                firstPtsUs = ptsUs;
-                wallStart = Clock::now();
-                haveFirstPts = true;
+            if (playbackClock && frameScheduler) {
+                qint64 now = qpcNow();
+                const AudioClockSnapshot audio = audioPipeline ? audioPipeline->clock()
+                                                                : AudioClockSnapshot{};
+                if (audio.valid) {
+                    const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
+                        static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
+                        playbackClock->qpcFrequency());
+                    if (!audioMasterActive) {
+                        playbackClock->reset(audioNow, now);
+                        audioMasterActive = true;
+                    } else {
+                        playbackClock->correctToward(audioNow, now, 5'000);
+                    }
+                } else if (!playbackClock->valid()) {
+                    playbackClock->reset(ptsUs, now);
+                }
+
+                const FrameScheduleDecision decision = frameScheduler->choose(
+                    playbackClock->positionAt(now), now,
+                    std::vector<FrameCandidate>{{videoSequence + 1, ptsUs}});
+                if (decision.action == FrameScheduleAction::WaitUntilQpc) {
+                    while (!m_cancelled.load(std::memory_order_acquire)) {
+                        now = qpcNow();
+                        if (now >= decision.deadlineQpc)
+                            break;
+                        const qint64 remainingUs = static_cast<qint64>(
+                            static_cast<long double>(decision.deadlineQpc - now) *
+                            1'000'000.0L / playbackClock->qpcFrequency());
+                        std::this_thread::sleep_for(std::chrono::microseconds(
+                            std::clamp<qint64>(remainingUs, 100, 5'000)));
+                    }
+                } else if (decision.action == FrameScheduleAction::DropLate) {
+                    pipeline->noteSchedulingDecision(decision.timingErrorUs, true);
+                    ++videoSequence;
+                    av_frame_unref(frame.get());
+                    continue;
+                }
+                now = qpcNow();
+                pipeline->noteSchedulingDecision(
+                    ptsUs - playbackClock->positionAt(now), false);
             }
-            const auto target = wallStart + std::chrono::microseconds(
-                std::max<qint64>(0, ptsUs - firstPtsUs));
-            std::this_thread::sleep_until(target);
             QString submitError;
             const VideoFrameToken token{generation, ++videoSequence, ptsUs};
             if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&

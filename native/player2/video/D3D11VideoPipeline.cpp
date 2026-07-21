@@ -9,6 +9,7 @@ extern "C" {
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <cstdlib>
 
 using Microsoft::WRL::ComPtr;
 
@@ -480,7 +481,14 @@ void D3D11VideoPipeline::retirePresentedFrame(quint64 consumerFenceValue)
     m_ring.markConsumerFenceComplete(consumerFenceValue);
 }
 
-void D3D11VideoPipeline::flush(quint64 nextGeneration) { m_ring.flush(nextGeneration); }
+void D3D11VideoPipeline::flush(quint64 nextGeneration)
+{
+    m_ring.flush(nextGeneration);
+    m_scheduledLateDrops.store(0, std::memory_order_release);
+    m_lastAvErrorUs.store(0, std::memory_order_release);
+    std::scoped_lock lock(m_timingMutex);
+    m_schedulingAbsoluteErrorsUs.clear();
+}
 ID3D11Texture2D *D3D11VideoPipeline::consumerTexture(std::size_t slot) const
 {
     return slot < m_slots.size() ? m_slots[slot].consumerTexture.Get() : nullptr;
@@ -490,6 +498,28 @@ QSize D3D11VideoPipeline::textureSize() const
     return QSize(static_cast<int>(OutputWidth), static_cast<int>(OutputHeight));
 }
 void D3D11VideoPipeline::noteDecoded() { ++m_decoded; }
+void D3D11VideoPipeline::noteSchedulingDecision(qint64 timingErrorUs, bool dropped)
+{
+    m_lastAvErrorUs.store(timingErrorUs, std::memory_order_relaxed);
+    {
+        std::scoped_lock lock(m_timingMutex);
+        m_schedulingAbsoluteErrorsUs.push_back(std::llabs(timingErrorUs));
+    }
+    if (dropped)
+        ++m_scheduledLateDrops;
+}
+qint64 D3D11VideoPipeline::schedulingP95AbsoluteErrorUs() const
+{
+    std::vector<qint64> samples;
+    {
+        std::scoped_lock lock(m_timingMutex);
+        samples = m_schedulingAbsoluteErrorsUs;
+    }
+    if (samples.empty())
+        return 0;
+    std::sort(samples.begin(), samples.end());
+    return samples[static_cast<std::size_t>((samples.size() - 1) * 0.95)];
+}
 void D3D11VideoPipeline::notePresented() { ++m_presented; }
 
 D3D11VideoPipeline::Diagnostics D3D11VideoPipeline::diagnostics() const
@@ -497,7 +527,9 @@ D3D11VideoPipeline::Diagnostics D3D11VideoPipeline::diagnostics() const
     std::scoped_lock lock(m_mutex);
     return Diagnostics{m_qtAdapter, m_producerAdapter, m_adapterMatch, m_sharedFences,
                        m_decoded.load(), m_submitted.load(), m_presented.load(),
-                       m_ring.producerStarvationCount(), 0, m_deviceErrors.load(),
+                       m_ring.producerStarvationCount(), m_scheduledLateDrops.load(),
+                       m_lastAvErrorUs.load(), 0,
+                       m_deviceErrors.load(),
                        m_hardwareFormat, m_inputFormat, m_error};
 }
 
