@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-21
 
-**Status:** Product design approved; written specification awaiting Hemanth's review
+**Status:** Approved by Hemanth
 
 **Owner:** Agent 1 (Tankoban / comic and manga reader)
 
