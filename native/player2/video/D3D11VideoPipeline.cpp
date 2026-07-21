@@ -7,6 +7,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
 
 using Microsoft::WRL::ComPtr;
@@ -105,6 +106,13 @@ bool D3D11VideoPipeline::createSharedTextures(QString *error)
                                                             &slot.producerTexture);
         if (FAILED(result)) {
             *error = QStringLiteral("Shared texture creation failed: %1").arg(hrText(result));
+            return false;
+        }
+        result = m_producerDevice->CreateRenderTargetView(slot.producerTexture.Get(), nullptr,
+                                                           &slot.producerTarget);
+        if (FAILED(result)) {
+            *error = QStringLiteral("Shared render target creation failed: %1")
+                         .arg(hrText(result));
             return false;
         }
         ComPtr<IDXGIResource> resource;
@@ -383,6 +391,47 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
         std::scoped_lock lock(m_mutex);
         m_hardwareFormat = QStringLiteral("d3d11va");
         m_inputFormat = formatName(inputDescriptor.Format);
+    }
+    ++m_submitted;
+    return true;
+}
+
+bool D3D11VideoPipeline::submitSyntheticFrame(VideoFrameToken token, double phase,
+                                               QString *error)
+{
+    QString localError;
+    if (!error)
+        error = &localError;
+    error->clear();
+    if (!m_initialized) {
+        *error = QStringLiteral("Video pipeline is not initialized");
+        return false;
+    }
+    if (m_consumerFenceOnProducer)
+        m_ring.markConsumerFenceComplete(m_consumerFenceOnProducer->GetCompletedValue());
+    const auto slot = m_ring.claimForProducer();
+    if (!slot)
+        return false;
+
+    const float color[] = {
+        static_cast<float>(0.025 + 0.018 * (1.0 + std::sin(phase))),
+        static_cast<float>(0.075 + 0.040 * (1.0 + std::sin(phase + 2.1))),
+        static_cast<float>(0.130 + 0.055 * (1.0 + std::sin(phase + 4.2))),
+        1.0f
+    };
+    m_producerContext->ClearRenderTargetView(m_slots[*slot].producerTarget.Get(), color);
+    HRESULT result = m_producerContext4->Signal(m_producerFence.Get(), token.sequence);
+    if (FAILED(result) || !m_ring.publishProduced(*slot, token)) {
+        m_ring.cancelProducer(*slot);
+        *error = QStringLiteral("Synthetic frame publication failed: %1").arg(hrText(result));
+        setError(*error);
+        ++m_deviceErrors;
+        return false;
+    }
+    {
+        std::scoped_lock lock(m_mutex);
+        m_hardwareFormat = QStringLiteral("D3D11 synthetic");
+        m_inputFormat = QStringLiteral("RGBA8");
     }
     ++m_submitted;
     return true;

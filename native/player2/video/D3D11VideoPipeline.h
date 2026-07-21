@@ -52,6 +52,7 @@ public:
     bool initialize(ID3D11Device *qtDevice, QString *error);
     AVBufferRef *createDecoderDeviceContext(QString *error) const;
     bool submitDecodedFrame(AVFrame *frame, VideoFrameToken token, QString *error);
+    bool submitSyntheticFrame(VideoFrameToken token, double phase, QString *error);
     std::optional<VideoFrameToken> acquireLatestForPresentation(quint64 generation);
     void retirePresentedFrame(quint64 consumerFenceValue);
     void flush(quint64 nextGeneration);
@@ -70,6 +71,7 @@ private:
     struct TextureSlot
     {
         Microsoft::WRL::ComPtr<ID3D11Texture2D> producerTexture;
+        Microsoft::WRL::ComPtr<ID3D11RenderTargetView> producerTarget;
         Microsoft::WRL::ComPtr<ID3D11Texture2D> consumerTexture;
         Microsoft::WRL::ComPtr<ID3D11VideoProcessorOutputView> outputView;
     };

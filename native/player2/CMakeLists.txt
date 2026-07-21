@@ -29,18 +29,6 @@ int Colosseum::Player2::buildMarker() noexcept
     return BuildContractVersion;
 }
 ]=])
-file(GENERATE OUTPUT "${_player2_generated_dir}/player2_harness_main.cpp" CONTENT [=[
-#include "player2/core/Player2BuildMarker.h"
-
-#include <QtGui/QGuiApplication>
-
-int main(int argc, char *argv[])
-{
-    QGuiApplication application(argc, argv);
-    return Colosseum::Player2::buildMarker() == Colosseum::Player2::BuildContractVersion ? 0 : 1;
-}
-]=])
-
 add_library(player2_core STATIC
     core/Player2BuildMarker.h
     core/Player2Types.cpp
@@ -48,6 +36,8 @@ add_library(player2_core STATIC
     core/Player2StateMachine.cpp
     core/Player2StateMachine.h
     host/Player2HostServices.h
+    host/HarnessHostServices.cpp
+    host/HarnessHostServices.h
     video/D3D11TextureRing.cpp
     video/D3D11TextureRing.h
     video/D3D11VideoPipeline.cpp
@@ -74,9 +64,20 @@ target_link_libraries(player2_core
 )
 
 add_executable(player2_harness
-    "${_player2_generated_dir}/player2_harness_main.cpp"
+    player2_harness_main.cpp
 )
-target_link_libraries(player2_harness PRIVATE player2_core Qt6::Gui)
+target_link_libraries(player2_harness PRIVATE player2_core Qt6::Gui Qt6::Qml Qt6::Quick)
+set_target_properties(player2_harness PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+qt_add_resources(player2_harness player2_harness_qml
+    PREFIX "/player2"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2"
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/Harness.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/Theme.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/qmldir"
+)
 
 add_executable(player2_state_machine_test
     "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_state_machine_test.cpp"

@@ -1,0 +1,3 @@
+module Player2Harness
+singleton Theme 1.0 Theme.qml
+Harness 1.0 Harness.qml

@@ -15,7 +15,7 @@ namespace Colosseum::Player2 {
 
 class D3D11VideoPipeline;
 
-class Player2VideoItem final : public QQuickItem
+class Player2VideoItem : public QQuickItem
 {
     Q_OBJECT
     Q_PROPERTY(QObject *session READ session WRITE setSession NOTIFY sessionChanged)
