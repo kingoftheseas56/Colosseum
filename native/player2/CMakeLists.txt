@@ -48,19 +48,29 @@ add_library(player2_core STATIC
     core/Player2StateMachine.cpp
     core/Player2StateMachine.h
     host/Player2HostServices.h
+    video/D3D11TextureRing.cpp
+    video/D3D11TextureRing.h
+    video/D3D11VideoPipeline.cpp
+    video/D3D11VideoPipeline.h
+    video/Player2VideoItem.cpp
+    video/Player2VideoItem.h
     "${_player2_generated_dir}/Player2BuildMarker.cpp"
 )
 target_include_directories(player2_core
     PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/.."
     PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}"
 )
-target_link_libraries(player2_core PRIVATE
+target_link_libraries(player2_core
+  PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::Quick
+  PRIVATE
     Qt6::Qml
     Qt6::Network
     player2_ffmpeg
+    d3d11
+    dxgi
 )
 
 add_executable(player2_harness
@@ -79,4 +89,31 @@ set_target_properties(player2_state_machine_test PROPERTIES
 enable_testing()
 add_test(NAME player2_state_machine_test COMMAND player2_state_machine_test)
 
-add_custom_target(player2_unit_tests DEPENDS player2_state_machine_test)
+add_executable(player2_texture_ring_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_texture_ring_test.cpp"
+)
+target_link_libraries(player2_texture_ring_test PRIVATE player2_core)
+set_target_properties(player2_texture_ring_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_texture_ring_test COMMAND player2_texture_ring_test)
+
+add_executable(player2_video_fixture_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_video_fixture_test.cpp"
+)
+target_link_libraries(player2_video_fixture_test PRIVATE
+    player2_core
+    player2_ffmpeg
+    Qt6::Gui
+    Qt6::Quick
+    d3d11
+    dxgi
+)
+set_target_properties(player2_video_fixture_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+
+add_custom_target(player2_unit_tests DEPENDS
+    player2_state_machine_test
+    player2_texture_ring_test
+)
