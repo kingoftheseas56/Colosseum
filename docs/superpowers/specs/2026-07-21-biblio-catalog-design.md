@@ -8,7 +8,7 @@
 
 Biblio should feel as varied and accessible as Theatre and Tankoban without turning discovery into a reflection of whichever acquisition source happens to answer first.
 
-The catalog is therefore independent of acquisition. A book remains discoverable because it belongs in the catalog, not because a current source reports an available file. Tankorent remains downstream and begins only after the user selects a work and asks to acquire it.
+The catalog is independent of acquisition. A book remains discoverable because it belongs in the catalog, not because a current source reports an available file. Tankorent remains downstream and begins only after the user selects a work and asks to acquire it.
 
 The target experience is a broad English-language library with:
 
@@ -26,7 +26,7 @@ The target experience is a broad English-language library with:
 
 Biblio is permanently English-only.
 
-English translations of works originally written in other languages are valid catalog entries. Translation metadata is first-class and should preserve:
+English translations of works originally written in other languages are valid catalog entries. Translation metadata is first-class and preserves:
 
 - translator;
 - original language;
@@ -48,15 +48,15 @@ The flow is:
 3. display in search, charts, genres, series, authors, and recommendations;
 4. Tankorent acquisition after explicit user intent.
 
-### 2.3 Broad discovery with availability-aware action, not availability-aware ranking
+### 2.3 Complete discovery, acquisition after selection
 
-Discovery pages may show the complete catalog. Search and actionable surfaces can make acquisition easy after a work is selected, but availability never determines whether a work is eligible to appear or how prominently it ranks.
+Every valid catalogued work is eligible for search, genres, charts, author pages, series pages, and recommendations. Acquisition is an action on a selected work, never an eligibility gate or ranking input.
 
 ### 2.4 Stable public rankings and separate personalization
 
 Public charts and genre rankings are identical for every user. Personalized shelves are visibly separate and derive from the reader's own activity.
 
-Personalization may create shelves such as:
+Personalization can create shelves such as:
 
 - Because You Read;
 - Continue This Author;
@@ -69,7 +69,7 @@ It must not alter Trending, Popular in This Genre, All-Time Essentials, New and 
 
 ### 3.1 Local catalog brain
 
-Biblio receives a pipeline-built SQLite catalog, provisionally named `data/biblio_catalog.db`.
+Biblio receives a pipeline-built SQLite catalog at `data/biblio_catalog.db`.
 
 The local catalog owns durable identity and structure:
 
@@ -85,30 +85,30 @@ The local catalog owns durable identity and structure:
 - recommendation relationships;
 - provenance for merged metadata.
 
-The application should remain fully useful when live services are unavailable.
+The application remains useful when all live services are unavailable.
 
 ### 3.2 Native service boundary
 
 A native `BiblioCatalog` service exposes normalized, medium-shaped operations to QML. QML does not merge raw provider responses or implement identity policy.
 
-The service should expose operations equivalent to:
+The service exposes operations for:
 
-- search works, authors, and series;
-- fetch a canonical work;
-- fetch an author page;
-- fetch a series page;
-- fetch a genre page;
-- apply facet filters;
-- fetch public charts;
-- fetch related works with recommendation reasons;
-- fetch edition and translation relationships;
-- report catalog version, build date, freshness, and degraded state.
+- searching works, authors, and series;
+- fetching a canonical work;
+- fetching an author page;
+- fetching a series page;
+- fetching a genre page;
+- applying facet filters;
+- fetching public charts;
+- fetching related works with recommendation reasons;
+- fetching edition and translation relationships;
+- reporting catalog version, build date, freshness, and degraded state.
 
-A separate `BiblioRecommendations` service may own user-specific shelves. It consumes catalog relationships plus reading, collection, author, and series activity, but it cannot modify public chart results.
+A separate `BiblioRecommendations` service owns user-specific shelves. It consumes catalog relationships plus reading, collection, author, and series activity, but it cannot modify public chart results.
 
 ### 3.3 Live enrichment
 
-Live providers supply freshness, not identity authority. They may enrich:
+Live providers supply freshness, not identity authority. They can enrich:
 
 - recent releases;
 - changing popularity evidence;
@@ -121,7 +121,7 @@ Live failure must not block first paint or prevent local search and browsing.
 
 ### 3.4 Acquisition boundary
 
-Tankorent remains downstream from the catalog. A canonical work page may expose a clear acquisition action, but source discovery and file selection begin only after explicit user intent.
+Tankorent remains downstream from the catalog. A canonical work page exposes a clear acquisition action, but source discovery and file selection begin only after explicit user intent.
 
 Catalog services do not consume availability, swarm, or source-health signals for ranking.
 
@@ -131,7 +131,7 @@ Catalog services do not consume availability, swarm, or source-health signals fo
 
 The primary user-facing identity is a canonical `Work`, not an ISBN, storefront record, or delivery result.
 
-A work may own:
+A work owns:
 
 - title and subtitle;
 - author and contributor relationships;
@@ -165,7 +165,7 @@ Audiobooks that faithfully represent the same text remain editions of the canoni
 
 ### 4.3 Translation lineage
 
-English translations are valid user-facing records. Translation metadata should preserve:
+English translations are valid user-facing records. Translation metadata preserves:
 
 - translator identity;
 - source language;
@@ -187,11 +187,11 @@ Series support:
 - omnibuses covering several positions;
 - unresolved order without invented numbering.
 
-The existing Goodreads-derived series index remains useful as evidence, but title joins must not become the permanent identity foundation.
+The existing Goodreads-derived series index remains useful as evidence, but title joins do not become the permanent identity foundation.
 
 ### 4.5 Authors
 
-Authors are first-class catalog entities, not string filters. The model should support:
+Authors are first-class catalog entities, not string filters. The model supports:
 
 - primary and secondary contributors;
 - collaborations;
@@ -202,7 +202,7 @@ Authors are first-class catalog entities, not string filters. The model should s
 
 ### 4.6 Genres and facets
 
-Biblio uses a deliberately small, stable top-level genre tree, likely 15 to 25 roots. Genre navigation must remain understandable and durable.
+The initial taxonomy contains exactly 20 stable top-level genre roots. Changes to those roots require an explicit taxonomy migration rather than ad hoc provider-driven additions.
 
 Richer discovery is powered by facets such as:
 
@@ -219,7 +219,7 @@ Richer discovery is powered by facets such as:
 - awards;
 - subject domains.
 
-Facet combinations may create contextual shelves and search filters without turning the main navigation into an unbounded taxonomy.
+Facet combinations can create contextual shelves and search filters without turning the main navigation into an unbounded taxonomy.
 
 ## 5. Ranking and Charts
 
@@ -233,7 +233,7 @@ Biblio provides distinct public chart systems:
 - **New and Notable:** recent English releases and noteworthy new English translations;
 - **Critically Acclaimed:** awards, reviews, and long-term critical standing.
 
-One universal Top 10 is explicitly rejected because it mixes incompatible notions of popularity and quality.
+One universal Top 10 is rejected because it mixes incompatible notions of popularity and quality.
 
 ### 5.2 Hybrid chart computation
 
@@ -257,7 +257,7 @@ This makes rankings reproducible and inspectable.
 
 ### 5.3 Ranking exclusions
 
-The following must not influence catalog ranking:
+The following do not influence catalog ranking:
 
 - current source availability;
 - torrent seed counts;
@@ -267,7 +267,7 @@ The following must not influence catalog ranking:
 
 ### 5.4 Recommendation reasons
 
-Personal and related-work recommendations should carry explicit reasons such as:
+Personal and related-work recommendations carry explicit reasons such as:
 
 - same author;
 - next in series;
@@ -277,7 +277,7 @@ Personal and related-work recommendations should carry explicit reasons such as:
 - similar critical reception;
 - similar audience reception.
 
-The UI should be able to explain why a work appears.
+The UI can explain why a work appears.
 
 ## 6. Ingestion and Refresh
 
@@ -308,17 +308,19 @@ Title-only matching is a weak signal and must not silently merge ambiguous works
 
 ### 6.3 Field-specific provenance
 
-Every merged field preserves provenance. Biblio should know which source supplied a cover, description, genre, award, publication date, series position, or translation claim.
+Every merged field preserves provenance. Biblio knows which source supplied a cover, description, genre, award, publication date, series position, or translation claim.
 
-Conflicts are resolved by field-specific policies rather than one global provider order. An awards source may outrank a storefront for awards, while a publisher feed may outrank a community dataset for release dates.
+Conflicts are resolved by field-specific policies rather than one global provider order. An awards source can outrank a storefront for awards, while a publisher feed can outrank a community dataset for release dates.
 
-### 6.4 Refresh cadences
+### 6.4 Refresh cadence
 
-The pipeline uses three cadences:
+The pipeline uses three explicit cadences:
 
-1. **Slow catalog rebuilds** for works, authors, series, taxonomy, historical awards, and recommendation edges.
-2. **Daily or weekly enrichment** for recent releases, covers, descriptions, and corrections.
-3. **Frequent chart ingestion** for trending and bestseller signals.
+1. **Monthly structural rebuild:** works, authors, series, taxonomy, historical awards, provenance, and recommendation edges.
+2. **Daily enrichment:** recent releases, covers, descriptions, publication corrections, and metadata gaps.
+3. **Every six hours:** chart evidence ingestion and deterministic recalculation of public chart families.
+
+The slower chart families remain stable through their weighting and time windows, not through an irregular refresh schedule.
 
 ### 6.5 Atomic publication
 
@@ -374,7 +376,7 @@ Search queries the local catalog first and groups results into:
 - authors;
 - series.
 
-Ranking favours exact title and author matches, followed by canonical popularity and semantic relevance. Edition-level results appear only for materially distinct texts.
+Ranking favours exact title and author matches, followed by canonical popularity and semantic relevance. Edition-level results appear only for materially distinct texts. Source availability is not a search-ranking signal.
 
 ### 7.3 Work page
 
@@ -476,11 +478,14 @@ A candidate catalog is rejected when it contains:
 - works without a resolvable title or author relationship;
 - circular series relationships;
 - impossible publication dates;
-- duplicate canonical identities above the accepted threshold;
+- two work rows that the resolver or checked-in overrides mark as the same canonical identity;
+- collisions on authority identifiers declared unique by the schema;
 - chart entries pointing to missing works;
 - unsupported genre or facet values;
 - materially different texts collapsed without evidence;
 - broken foreign keys or schema-version mismatches.
+
+Unresolved duplicate suspects remain separate, are excluded from automatic cross-linking, and appear in the health report for review. They do not silently merge and do not block publication unless a deterministic identity rule marks them as the same work.
 
 ## 10. Testing Strategy
 
@@ -544,7 +549,7 @@ Smoke tests cover:
 
 ### 10.5 Golden trouble dataset
 
-A compact golden dataset must include intentionally difficult records:
+A compact golden dataset includes intentionally difficult records:
 
 - reused titles;
 - multiple authors with the same name;
@@ -560,10 +565,10 @@ A compact golden dataset must include intentionally difficult records:
 
 ## 11. Performance Requirements
 
-- Local search and shelf queries should feel immediate.
+- Local search and shelf queries must feel immediate.
 - Database startup and validation must not block the shell.
 - Live enrichment must never delay first paint.
-- Genre and chart pages must render from the local catalog before optional enrichment completes.
+- Genre and chart pages render from the local catalog before optional enrichment completes.
 - Expensive ranking and identity resolution belong in the pipeline or native service, not QML delegates.
 
 ## 12. Scope Boundaries
@@ -580,9 +585,9 @@ This design does not implement:
 
 ## 13. Recommended Delivery Sequence
 
-A later implementation plan should decompose the work into independently testable stages:
+The implementation plan must decompose the work into independently testable stages:
 
-1. catalog schema and golden dataset;
+1. catalog schema, 20-root taxonomy, and golden dataset;
 2. ingestion staging, identity resolution, provenance, and overrides;
 3. local SQLite build and validation pipeline;
 4. native `BiblioCatalog` service and query contracts;
