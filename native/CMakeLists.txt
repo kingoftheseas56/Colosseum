@@ -809,3 +809,8 @@ add_executable(audiobook_engine_probe
 )
 target_include_directories(audiobook_engine_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(audiobook_engine_probe PRIVATE Qt6::Core Qt6::Network)
+
+option(COLOSSEUM_BUILD_PLAYER2 "Build the isolated Player 2 laboratory" OFF)
+if(COLOSSEUM_BUILD_PLAYER2)
+    add_subdirectory(player2)
+endif()
