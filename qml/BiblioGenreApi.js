@@ -23,16 +23,16 @@ var GENRE_IDS = {
 };
 
 var GENRE_DESC = {
-    "Fiction & Literature": "The broad country of made lives. Fiction and literature follow people through desire, damage, wit, and consequence - the ordinary world made strange by attention.",
-    "Mysteries & Thrillers": "A secret, a threat, and the pressure of time. Mysteries and thrillers turn pages by withholding the truth, then tightening every room around it.",
-    "Sci-Fi & Fantasy": "The impossible with rules. Science fiction and fantasy build other orders - future, magical, alien, or mythic - then ask what humans become inside them.",
-    "Romance": "Two people moving toward each other, and everything that says they cannot. Romance lives in longing, friction, trust, and the courage to choose feeling.",
-    "Biographies & Memoirs": "A life looked at directly. Biography and memoir turn memory, evidence, and voice into a portrait - the person, the era, and the cost of becoming.",
-    "History": "The past as a living argument. History follows power, accident, invention, and witness - not just what happened, but why it still presses on us.",
-    "Young Adult": "Stories at the edge of becoming. Young adult fiction carries first stakes at full volume - identity, loyalty, danger, love, and the future arriving fast.",
-    "Comics & Graphic Novels": "Sequential art in book form. Comics and graphic novels make image and text move together - panels, rhythm, silence, and impact on the turn.",
-    "Humor": "Built around the release of a laugh. Humor sharpens absurdity, embarrassment, and social truth until the joke becomes the cleanest way to say it.",
-    "Travel & Adventure": "Motion with consequence. Travel and adventure leave the familiar behind - across maps, cultures, dangers, and the self that changes on the road."
+    "Fiction & Literature": "Stories where character runs deeper than plot. Fiction and literature trade in the interior weight of ordinary lives - the slow press of memory, the friction between what is said and what is meant. These books earn their pace by refusing to look away from what other genres skim past.",
+    "Mysteries & Thrillers": "A puzzle and a pulse. Mysteries bait the mind with a hidden truth; thrillers grip the body with escalating danger. Both begin with something broken - a crime, a lie, a disappearance - and make the reader a second investigator, sifting evidence alongside the detective until the room shrinks to one answer.",
+    "Sci-Fi & Fantasy": "Reality with a lever pushed. Science fiction tests what might be true if technology or time took one more step; fantasy builds worlds from myth and magic that never were but feel whole. Both genres measure humanity against unfamiliar orders - the alien, the ancient, the yet-to-be.",
+    "Romance": "The architecture of falling. Romance novels build toward a promise kept - an emotionally just finish - but earn it through friction: the wrong person in the right light, a wall two people chip at from opposite sides. At its centre is the radical act of trusting another person with the self you barely trust alone.",
+    "Biographies & Memoirs": "A single life held up to the light. Biographies build from the outside in - documents, witnesses, the grain of an era - while memoirs speak from inside the skin, narrowing focus to a season or a wound. Together they ask the same unanswerable question: how does one life add up to something that means?",
+    "History": "What happened and why it still moves. History reconstructs the dead from what they left behind - letters, ledgers, ruins, silence - then argues with itself about cause and meaning. Every generation questions the archive anew and gets different answers, because the present is always the hidden co-author of the past.",
+    "Young Adult": "The loud years. Young adult fiction puts a teenage mind at the centre of the frame and refuses to patronize it - first love, first danger, first betrayal arrive at full voltage because they are happening for the first time. The door between childhood and the rest of the world swings one way only, and these books live in its hinge.",
+    "Comics & Graphic Novels": "Stories told in panels - a medium where time lives in the space between frames. A graphic novel is a self-contained work of sequential art: image and text share every decision about pacing, silence, and revelation. What a page shows in one glance might take a prose novel three chapters to arrive at, and what it hides between panels belongs to the reader alone.",
+    "Humor": "The release valve and the scalpel. Comic writing turns awkwardness, pain, and the unspoken into shared recognition - a sudden exhale that means you are not alone in what you noticed. The best humor does not dodge gravity; it slips under its guard faster than sincerity can, and lands the truth while you are still laughing.",
+    "Travel & Adventure": "A departure that changes the departee. Travel and adventure writing charts the space between leaving and arriving - the foreign street, the wrong turn, the stranger whose kindness rearranges your sense of scale. The outer journey is never the whole story; every mile outward is also a mile inward, measured in the self that comes back different."
 };
 
 var SIBLINGS = [
