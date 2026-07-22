@@ -2,6 +2,7 @@
 
 #include "player2/video/D3D11VideoPipeline.h"
 
+#include <QtCore/QMetaEnum>
 #include <QtCore/QVariantMap>
 
 #include <algorithm>
@@ -16,7 +17,11 @@
 namespace Colosseum::Player2 {
 
 Player2Session::Player2Session(QObject *parent)
-    : QObject(parent), m_audioPipeline(&m_audioSink)
+    : QObject(parent), m_audioPipeline(&m_audioSink),
+      // No wall-clock backoff: recovery runs synchronously on the GUI-thread error seam, so it must
+      // never sleep the UI. The bounded attempts still hold; a settle-delay + worker thread is a
+      // documented hardening follow-on.
+      m_recovery(RecoveryPolicy{2, [](int) { return 0; }})
 {
     m_demux.setAudioPipeline(&m_audioPipeline);
     m_demux.setTiming(&m_playbackClock, &m_frameScheduler);
@@ -66,8 +71,13 @@ Player2Session::Player2Session(QObject *parent)
         if (reason == DemuxEndReason::EndOfFile)
             transition(Player2State::Ended);
         else if (reason == DemuxEndReason::Failed) {
-            transition(Player2State::Error);
-            emit errorOccurred(error);
+            if (error.recoverable && (error.code == Player2ErrorCode::DeviceLost ||
+                                      error.code == Player2ErrorCode::AudioDeviceLost))
+                attemptDeviceRecovery(error);
+            else {
+                transition(Player2State::Error);
+                emit errorOccurred(error);
+            }
         }
         emit demuxEnded(reason);
     });
@@ -128,6 +138,7 @@ Player2Session::Player2Session(QObject *parent)
 
 Player2Session::~Player2Session()
 {
+    m_shuttingDown.store(true, std::memory_order_release); // abort any recovery in flight
     m_generation.advance();
     m_demux.cancel();
 }
@@ -193,6 +204,7 @@ void Player2Session::open(const PlaybackRequest &request)
 {
     if (m_state.state() != Player2State::Idle)
         close();
+    m_lastRequest = request; // remembered so recovery can reopen the same media at the saved position
     resetMediaProperties();
     const quint64 next = m_generation.advance();
     if (m_videoPipeline)
@@ -417,6 +429,104 @@ void Player2Session::resetMediaProperties()
         m_chapters.clear();
         emit chaptersChanged();
     }
+}
+
+void Player2Session::attemptDeviceRecovery(const Player2Error &error)
+{
+    if (!transition(Player2State::Recovering))
+        return;
+    const DeviceLostReason reason = error.code == Player2ErrorCode::AudioDeviceLost
+        ? DeviceLostReason::AudioEndpointLost : DeviceLostReason::VideoDeviceRemoved;
+    const RecoveryOutcome outcome = m_recovery.recover(reason, *this, m_shuttingDown);
+    m_recoveryAttempts = outcome.attempts;
+    if (outcome.recovered)
+        return; // reopenAtSavedPosition re-armed the demux; state flows via the new opened signal
+    transition(Player2State::Error);
+    emit errorOccurred(Player2Error{outcome.terminalCode, outcome.message, false});
+}
+
+bool Player2Session::rebuildDevice(DeviceLostReason reason, QString *error)
+{
+    // In the isolated lab the D3D11 render device and the audio endpoint are owned by the host
+    // (the Qt scene graph / the sink's default-endpoint lifecycle), so the engine cannot rebuild
+    // them here yet. Report failure so the coordinator returns a typed terminal error rather than a
+    // faked recovery. Wiring a real rebuild is a documented integration-time follow-on; the recovery
+    // logic itself is proven by the injectable-target tests.
+    if (error)
+        *error = QStringLiteral("%1 rebuild requires the host device lifecycle")
+                     .arg(deviceLostReasonName(reason));
+    return false;
+}
+
+bool Player2Session::reopenAtSavedPosition(QString *error)
+{
+    if (m_shuttingDown.load(std::memory_order_acquire) || m_lastRequest.source.isEmpty()) {
+        if (error)
+            *error = QStringLiteral("no media to reopen");
+        return false;
+    }
+    PlaybackRequest request = m_lastRequest;
+    request.resumeSeconds = m_position;
+    // Arm a new generation exactly as open() does: without flushing the pipeline/clock/scheduler to
+    // `next` the ring keeps the old generation and rejects every recovered frame (frozen video).
+    const quint64 next = m_generation.advance();
+    if (m_videoPipeline)
+        m_videoPipeline->flush(next);
+    m_audioPipeline.flush(next);
+    m_playbackClock.invalidate();
+    m_frameScheduler.reset();
+    emit generationChanged();
+    if (!transition(Player2State::Opening)) {
+        if (error)
+            *error = QStringLiteral("could not re-enter Opening for recovery");
+        return false;
+    }
+    m_demux.open(request, next);
+    return true;
+}
+
+PlaybackDiagnostics Player2Session::diagnosticsSnapshot() const
+{
+    PlaybackDiagnostics snapshot;
+    snapshot.state = QString::fromLatin1(
+        QMetaEnum::fromType<Player2State>().valueToKey(static_cast<int>(m_state.state())));
+    snapshot.position = m_position;
+    snapshot.duration = m_duration;
+    for (const QVariant &entry : m_tracks) {
+        const QVariantMap track = entry.toMap();
+        if (track.value(QStringLiteral("type")).toString() == QStringLiteral("video")) {
+            snapshot.videoCodec = track.value(QStringLiteral("codec")).toString();
+            break;
+        }
+    }
+    snapshot.deviceLostReason = deviceLostReasonName(DeviceLostReason::None);
+    if (m_videoPipeline) {
+        const D3D11VideoPipeline::Diagnostics video = m_videoPipeline->diagnostics();
+        snapshot.hardwareFormat = video.hardwareFormat;
+        snapshot.inputFormat = video.inputFormat;
+        snapshot.colorConversion = video.colorConversion;
+        snapshot.adapter = video.qtAdapter;
+        snapshot.adapterMatch = video.adapterMatch;
+        snapshot.decoded = video.decoded;
+        snapshot.submitted = video.submitted;
+        snapshot.presented = video.presented;
+        snapshot.dropped = video.producerStarved;
+        snapshot.scheduledLateDrops = video.scheduledLateDrops;
+        snapshot.cpuTransfers = video.cpuTransfers;
+        snapshot.deviceErrors = video.deviceErrors;
+        snapshot.avErrorMs = video.lastAvErrorUs / 1000.0;
+        snapshot.avP95Ms = m_videoPipeline->schedulingP95AbsoluteErrorUs() / 1000.0;
+        snapshot.videoDeviceLost = video.deviceLost;
+        if (video.deviceLost)
+            snapshot.deviceLostReason = deviceLostReasonName(m_videoPipeline->deviceLostReason());
+    }
+    snapshot.audioDevice = audioDevice();
+    snapshot.audioFormat = audioFormat();
+    snapshot.audioQueueMs = audioQueueMs();
+    snapshot.audioUnderruns = audioUnderruns();
+    snapshot.normalizationLatencyMs = normalizationLatencyMs();
+    snapshot.recoveryAttempts = m_recoveryAttempts;
+    return snapshot;
 }
 
 } // namespace Colosseum::Player2

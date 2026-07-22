@@ -966,11 +966,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         postEnded(gen, DemuxEndReason::Cancelled,
                   Player2Error{Player2ErrorCode::Cancelled, QStringLiteral("Demux cancelled"), true});
     } else if (decodeFailed) {
+        // A GPU device-removed surfaces here as a decode failure; report it as a typed, recoverable
+        // DeviceLost so the session's recovery coordinator can act, not a generic decode error.
+        const bool deviceLost = pipeline && pipeline->deviceLost();
         postEnded(gen, DemuxEndReason::Failed,
-                  Player2Error{Player2ErrorCode::DecodeFailed,
-                               decodeFailure.isEmpty()
-                                   ? QStringLiteral("Demux read failed") : decodeFailure,
-                               false});
+                  Player2Error{deviceLost ? Player2ErrorCode::DeviceLost
+                                          : Player2ErrorCode::DecodeFailed,
+                               deviceLost ? QStringLiteral("Video device lost")
+                                          : (decodeFailure.isEmpty()
+                                                 ? QStringLiteral("Demux read failed")
+                                                 : decodeFailure),
+                               deviceLost});
     }
     // A normal end of file was already published inside the loop before parking.
     m_running.store(false, std::memory_order_release);

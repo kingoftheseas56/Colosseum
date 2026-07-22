@@ -54,15 +54,21 @@ add_library(player2_core STATIC
     core/SubtitlePipeline.h
     core/Player2Session.cpp
     core/Player2Session.h
+    diagnostics/PlaybackDiagnostics.cpp
+    diagnostics/PlaybackDiagnostics.h
     network/HttpMediaSource.cpp
     network/HttpMediaSource.h
     network/QtHttpTransport.cpp
     network/QtHttpTransport.h
+    platform/windows/DeviceRecovery.cpp
+    platform/windows/DeviceRecovery.h
     host/Player2HostServices.h
     host/HarnessHostServices.cpp
     host/HarnessHostServices.h
     video/D3D11TextureRing.cpp
     video/D3D11TextureRing.h
+    video/ColorHdrPolicy.cpp
+    video/ColorHdrPolicy.h
     video/D3D11VideoPipeline.cpp
     video/D3D11VideoPipeline.h
     video/Player2VideoItem.cpp
@@ -238,6 +244,15 @@ set_target_properties(player2_http_media_test PROPERTIES
 )
 add_test(NAME player2_http_media_test COMMAND player2_http_media_test)
 
+add_executable(player2_device_recovery_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_device_recovery_test.cpp"
+)
+target_link_libraries(player2_device_recovery_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_device_recovery_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_device_recovery_test COMMAND player2_device_recovery_test)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -249,4 +264,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_track_policy_test
     player2_subtitle_timing_test
     player2_http_media_test
+    player2_device_recovery_test
 )

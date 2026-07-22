@@ -1,6 +1,7 @@
 #pragma once
 
 #include "D3D11TextureRing.h"
+#include "player2/platform/windows/DeviceRecovery.h"
 
 #include <QtCore/QSize>
 #include <QtCore/QString>
@@ -46,6 +47,8 @@ public:
         quint64 deviceErrors = 0;
         QString hardwareFormat;
         QString inputFormat;
+        QString colorConversion;
+        bool deviceLost = false;
         QString error;
     };
 
@@ -70,6 +73,10 @@ public:
     qint64 schedulingP95AbsoluteErrorUs() const;
     void notePresented();
     Diagnostics diagnostics() const;
+    // True once a GPU call failed with DXGI_ERROR_DEVICE_REMOVED / _RESET. The session's recovery
+    // coordinator (not the pipeline) decides whether to rebuild; the pipeline only reports the fact.
+    bool deviceLost() const noexcept;
+    DeviceLostReason deviceLostReason() const noexcept;
     void shutdown();
 
 private:
@@ -90,6 +97,7 @@ private:
     bool createSharedFences(QString *error);
     bool ensureVideoProcessor(int width, int height, DXGI_FORMAT format, QString *error);
     void setError(const QString &error);
+    void noteHresult(long hr); // flag a device-removed / device-reset HRESULT as a device-lost fact
 
     mutable std::mutex m_mutex;
     D3D11TextureRing m_ring{1};
@@ -123,6 +131,7 @@ private:
     QString m_producerAdapter;
     QString m_hardwareFormat;
     QString m_inputFormat;
+    QString m_colorConversion;
     QString m_error;
     std::atomic<quint64> m_decoded{0};
     std::atomic<quint64> m_submitted{0};
@@ -133,6 +142,11 @@ private:
     std::vector<qint64> m_schedulingAbsoluteErrorsUs;
     std::atomic<quint64> m_deviceErrors{0};
     std::atomic<quint64> m_consumerFenceValue{0};
+    // Persistent, monotonic across reopen — a fence value must never move backward, but the per-media
+    // token.sequence restarts at 1 each open, so the producer fence uses this instead.
+    std::atomic<quint64> m_producerFenceValue{0};
+    std::atomic_bool m_deviceLost{false};
+    std::atomic<DeviceLostReason> m_deviceLostReason{DeviceLostReason::None};
 };
 
 } // namespace Colosseum::Player2

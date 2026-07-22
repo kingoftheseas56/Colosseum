@@ -7,15 +7,21 @@
 #include "PlaybackClock.h"
 #include "player2/audio/AudioPipeline.h"
 #include "player2/audio/WASAPIAudioSink.h"
+#include "player2/diagnostics/PlaybackDiagnostics.h"
+#include "player2/platform/windows/DeviceRecovery.h"
 
 #include <QtCore/QObject>
 #include <QtCore/QVariantList>
+
+#include <atomic>
 
 namespace Colosseum::Player2 {
 
 class D3D11VideoPipeline;
 
-class Player2Session final : public QObject
+// Player2Session is also the recovery target: it owns the pipeline/sink/demux, so it is the one
+// place that may rebuild a lost device and reopen the current media. The coordinator drives it.
+class Player2Session final : public QObject, public IRecoverableTarget
 {
     Q_OBJECT
     Q_PROPERTY(Player2State state READ state NOTIFY stateChanged)
@@ -68,6 +74,12 @@ public:
     double videoZoom() const noexcept;
     AudioClockSnapshot audioClock() const;
     quint64 audioUnderruns() const;
+    // A typed, stable diagnostics snapshot aggregating video, audio, colour, state and recovery.
+    PlaybackDiagnostics diagnosticsSnapshot() const;
+
+    // IRecoverableTarget — driven only by the recovery coordinator, never called directly.
+    bool rebuildDevice(DeviceLostReason reason, QString *error) override;
+    bool reopenAtSavedPosition(QString *error) override;
 
 public slots:
     void open(const PlaybackRequest &request);
@@ -114,6 +126,7 @@ private:
     bool transition(Player2State state);
     void resetMediaProperties();
     bool hasActiveMedia() const noexcept;
+    void attemptDeviceRecovery(const Player2Error &error);
 
     PlaybackGeneration m_generation;
     Player2StateMachine m_state;
@@ -123,6 +136,10 @@ private:
     FrameScheduler m_frameScheduler;
     DemuxSession m_demux;
     D3D11VideoPipeline *m_videoPipeline = nullptr;
+    DeviceRecoveryCoordinator m_recovery;
+    PlaybackRequest m_lastRequest;
+    std::atomic_bool m_shuttingDown{false};
+    int m_recoveryAttempts = 0;
     double m_position = 0.0;
     double m_duration = 0.0;
     QVariantList m_tracks;

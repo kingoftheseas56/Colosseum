@@ -1,5 +1,7 @@
 #include "D3D11VideoPipeline.h"
 
+#include "ColorHdrPolicy.h"
+
 extern "C" {
 #include <libavutil/frame.h>
 #include <libavutil/hwcontext.h>
@@ -178,6 +180,10 @@ bool D3D11VideoPipeline::initialize(ID3D11Device *qtDevice, QString *error)
         error = &localError;
     if (m_initialized)
         return true;
+    // A fresh device starts healthy: clear any device-lost latch from a prior (now torn-down) device
+    // so a stale flag can never mislabel a later ordinary decode failure as a device loss.
+    m_deviceLost.store(false, std::memory_order_release);
+    m_deviceLostReason.store(DeviceLostReason::None, std::memory_order_release);
     if (!qtDevice) {
         *error = QStringLiteral("Qt returned a null D3D11 device");
         setError(*error);
@@ -364,12 +370,15 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
     m_videoContext->VideoProcessorSetStreamSourceRect(m_videoProcessor.Get(), 0, TRUE, &source);
     m_videoContext->VideoProcessorSetStreamDestRect(m_videoProcessor.Get(), 0, TRUE, &target);
     m_videoContext->VideoProcessorSetOutputTargetRect(m_videoProcessor.Get(), TRUE, &target);
+    // Colour/HDR decision (matrix, range, untagged-HD fallback, HDR->SDR tone-map) is a pure policy.
+    const ColorConversion conversion = resolveColorConversion(
+        frame->colorspace, frame->color_range, frame->height, frame->color_trc,
+        frame->color_primaries, 8);
     D3D11_VIDEO_PROCESSOR_COLOR_SPACE inputColor{};
-    const bool bt709 = frame->colorspace == AVCOL_SPC_BT709 ||
-        (frame->colorspace == AVCOL_SPC_UNSPECIFIED && frame->height >= 720);
-    inputColor.YCbCr_Matrix = bt709 ? 1 : 0;
-    inputColor.Nominal_Range = frame->color_range == AVCOL_RANGE_JPEG ? 2 : 1;
+    inputColor.YCbCr_Matrix = conversion.inputYCbCrMatrix();
+    inputColor.Nominal_Range = conversion.inputNominalRange();
     D3D11_VIDEO_PROCESSOR_COLOR_SPACE outputColor{};
+    outputColor.RGB_Range = 0; // full-range RGB output (preserves the frozen prototype's setting)
     outputColor.Nominal_Range = 2;
     m_videoContext->VideoProcessorSetStreamColorSpace(m_videoProcessor.Get(), 0, &inputColor);
     m_videoContext->VideoProcessorSetOutputColorSpace(m_videoProcessor.Get(), &outputColor);
@@ -379,12 +388,16 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
     result = m_videoContext->VideoProcessorBlt(m_videoProcessor.Get(),
                                                m_slots[*slotIndex].outputView.Get(), 0, 1,
                                                &stream);
+    // Stamp the frame with the persistent producer fence value (monotonic across reopen); the
+    // per-media token.sequence restarts each open and would signal the fence backward.
+    token.sequence = ++m_producerFenceValue;
     if (FAILED(result) ||
         FAILED(result = m_producerContext4->Signal(m_producerFence.Get(), token.sequence)) ||
         !m_ring.publishProduced(*slotIndex, token)) {
         *error = QStringLiteral("GPU frame publication failed: %1").arg(hrText(result));
         setError(*error);
         m_ring.cancelProducer(*slotIndex);
+        noteHresult(result);
         ++m_deviceErrors;
         return false;
     }
@@ -392,6 +405,7 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
         std::scoped_lock lock(m_mutex);
         m_hardwareFormat = QStringLiteral("d3d11va");
         m_inputFormat = formatName(inputDescriptor.Format);
+        m_colorConversion = conversion.describe();
     }
     ++m_submitted;
     return true;
@@ -421,11 +435,13 @@ bool D3D11VideoPipeline::submitSyntheticFrame(VideoFrameToken token, double phas
         1.0f
     };
     m_producerContext->ClearRenderTargetView(m_slots[*slot].producerTarget.Get(), color);
+    token.sequence = ++m_producerFenceValue; // persistent fence value; see submitDecodedFrame
     HRESULT result = m_producerContext4->Signal(m_producerFence.Get(), token.sequence);
     if (FAILED(result) || !m_ring.publishProduced(*slot, token)) {
         m_ring.cancelProducer(*slot);
         *error = QStringLiteral("Synthetic frame publication failed: %1").arg(hrText(result));
         setError(*error);
+        noteHresult(result);
         ++m_deviceErrors;
         return false;
     }
@@ -530,7 +546,29 @@ D3D11VideoPipeline::Diagnostics D3D11VideoPipeline::diagnostics() const
                        m_ring.producerStarvationCount(), m_scheduledLateDrops.load(),
                        m_lastAvErrorUs.load(), 0,
                        m_deviceErrors.load(),
-                       m_hardwareFormat, m_inputFormat, m_error};
+                       m_hardwareFormat, m_inputFormat, m_colorConversion,
+                       m_deviceLost.load(), m_error};
+}
+
+void D3D11VideoPipeline::noteHresult(long hr)
+{
+    bool removed = hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET;
+    if (!removed && m_producerDevice)
+        removed = FAILED(m_producerDevice->GetDeviceRemovedReason());
+    if (removed) {
+        m_deviceLostReason.store(DeviceLostReason::VideoDeviceRemoved, std::memory_order_release);
+        m_deviceLost.store(true, std::memory_order_release);
+    }
+}
+
+bool D3D11VideoPipeline::deviceLost() const noexcept
+{
+    return m_deviceLost.load(std::memory_order_acquire);
+}
+
+DeviceLostReason D3D11VideoPipeline::deviceLostReason() const noexcept
+{
+    return m_deviceLostReason.load(std::memory_order_acquire);
 }
 
 void D3D11VideoPipeline::shutdown()
@@ -553,6 +591,8 @@ void D3D11VideoPipeline::shutdown()
     m_producerContext.Reset();
     m_producerDevice5.Reset();
     m_producerDevice.Reset();
+    m_deviceLost.store(false, std::memory_order_release);
+    m_deviceLostReason.store(DeviceLostReason::None, std::memory_order_release);
     m_initialized = false;
 }
 
