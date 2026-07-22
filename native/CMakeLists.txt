@@ -81,6 +81,10 @@ add_executable(colosseum
     SearchHistoryStore.h
     SessionStore.h
     AudioPairingStore.h
+    work/BackgroundWorkCoordinator.cpp
+    work/BackgroundWorkCoordinator.h
+    work/BackgroundActivityRegistry.cpp
+    work/BackgroundActivityRegistry.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h
@@ -234,6 +238,13 @@ add_executable(background_work_coordinator_harness
     work/BackgroundWorkCoordinator.h)
 target_include_directories(background_work_coordinator_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(background_work_coordinator_harness PRIVATE Qt6::Core)
+
+add_executable(background_activity_registry_harness
+    ../tests/background_activity_registry_harness.cpp
+    work/BackgroundActivityRegistry.cpp
+    work/BackgroundActivityRegistry.h)
+target_include_directories(background_activity_registry_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(background_activity_registry_harness PRIVATE Qt6::Core)
 
 add_executable(reader2_stores_harness
     ../tests/reader2_stores_harness.cpp

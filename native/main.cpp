@@ -36,6 +36,8 @@
 #include "SearchHistoryStore.h"
 #include "SessionStore.h"
 #include "AudioPairingStore.h"
+#include "work/BackgroundActivityRegistry.h"
+#include "work/BackgroundWorkCoordinator.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
@@ -604,6 +606,16 @@ int main(int argc, char *argv[]) {
     // Live TV / DVR player state exposed to QML as `Live`.
     auto *live = new LiveStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Live"), live);
+
+    // Shared background-work spine: ONE coordinator (one worker) for every
+    // offline-analysis domain — guided comics, audiobook alignment. Services
+    // receive it by injection so heavy inference never runs two-wide on
+    // laptop-class hardware. The registry is the unified activity surface.
+    auto *backgroundWork = new work::BackgroundWorkCoordinator(1, &app);
+    Q_UNUSED(backgroundWork); // consumed by guided/alignment services as they land
+    auto *backgroundActivity = new work::BackgroundActivityRegistry(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
+                                             backgroundActivity);
 
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the
