@@ -2,6 +2,27 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **GROUNDWORK APPLIED (2026-07-22, Agent 0 — see `2026-07-22-background-work-spine-groundwork.md`):**
+> The shared spine this plan assumed now EXISTS on master. Before executing, apply these deltas:
+> - **Task 1:** the ONNX dependency half is DONE — `native/cmake/OnnxRuntime.cmake` and the fetch
+>   script exist (fetch script lives at `scripts/native/fetch_onnxruntime.ps1`, NOT `scripts/guided/`).
+>   Configure ONNX-linking targets with `-DCOLOSSEUM_ENABLE_ONNX=ON`. Task 1 shrinks to
+>   `GuidedTypes.h/.cpp` + its harness only.
+> - **Task 2:** DONE ENTIRELY — `work::BackgroundWorkCoordinator` is live in `native/work/` with a
+>   green harness. Do not recreate it; consume it. Semantics addition: no job is dequeued while
+>   pressure is `Suspended`.
+> - **Task 6:** do NOT create `native/guided/ModelManifest.h/.cpp`. Use `models::ModelManifest`
+>   from `native/models/` (generic core + `extra` for detector fields). Its error codes already
+>   emit `model_missing` / `model_checksum_failed`.
+> - **Task 7:** do NOT construct a private coordinator in `main.cpp`. One app-owned
+>   `work::BackgroundWorkCoordinator *backgroundWork` already exists there (one worker, shared
+>   with audiobook alignment) — inject THAT into `PanelAnalysisService`.
+> - **DownloadsPage (Task 10 / file-structure entry):** the unified activity row already exists.
+>   Do not edit `qml/DownloadsPage.qml`. Publish job state into the `BackgroundActivity` context
+>   property (`work::BackgroundActivityRegistry`: `publish/remove` + `pauseRequested/resumeRequested`
+>   signals) and your row appears. Required keys: title, stage, progress, paused, canPause.
+> - **Priority convention** (shared): current=100, next=90.., previous=80, remainder=10.
+
 **Goal:** Add an offline Guided Reader Style that keeps comic/manga pages intact while Panel Step and Auto Read move a smooth, deterministic camera through safely detected panels.
 
 **Architecture:** A small bundled ONNX detector emits panel/text rectangles; pure C++ planning turns them into one immutable normalized path with conservative whole-page fallback. A resumable native analysis service persists page-incremental results, while a separate native camera controller drives focused QML presentation and leaves `MangaReader.qml` responsible only for reader integration.
