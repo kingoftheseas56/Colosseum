@@ -246,6 +246,13 @@ add_executable(background_activity_registry_harness
 target_include_directories(background_activity_registry_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(background_activity_registry_harness PRIVATE Qt6::Core)
 
+add_executable(model_manifest_harness
+    ../tests/model_manifest_harness.cpp
+    models/ModelManifest.cpp
+    models/ModelManifest.h)
+target_include_directories(model_manifest_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(model_manifest_harness PRIVATE Qt6::Core)
+
 add_executable(reader2_stores_harness
     ../tests/reader2_stores_harness.cpp
     reader/BookStores.cpp
