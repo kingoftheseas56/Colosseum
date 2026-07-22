@@ -4,6 +4,7 @@
 #include "player2/audio/AudioPipeline.h"
 #include "FrameScheduler.h"
 #include "PlaybackClock.h"
+#include "SubtitlePipeline.h"
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -109,6 +110,7 @@ DemuxSession::DemuxSession(QObject *parent)
     qRegisterMetaType<DemuxStreamInfo>();
     qRegisterMetaType<DemuxMetadata>();
     qRegisterMetaType<DemuxPacketInfo>();
+    qRegisterMetaType<SubtitleCue>();
 }
 
 DemuxSession::~DemuxSession()
@@ -187,6 +189,16 @@ void DemuxSession::requestSelectAudioTrack(int streamIndex, quint64 generation)
     command.type = CommandType::SelectAudioTrack;
     command.streamIndex = streamIndex;
     command.generation = generation;
+    enqueueCommand(command);
+}
+
+void DemuxSession::requestSelectSubtitleTrack(int streamIndex)
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::SelectSubtitleTrack;
+    command.streamIndex = streamIndex;
     enqueueCommand(command);
 }
 
@@ -436,6 +448,8 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     quint64 videoSequence = 0;
     qint64 lastMasterPtsUs = 0;
     bool audioIsMaster = audioDecoder != nullptr;
+    SubtitlePipeline subtitlePipeline;
+    int subtitleStreamIndex = -1;
     bool decodingToTarget = false;
     bool videoLandingPresented = false;
     qint64 seekTargetUs = 0;
@@ -474,6 +488,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             audioPipeline->flush(newGeneration);
             audioPipeline->flushFilters(); // drop stale normalization-buffered audio (worker thread)
         }
+        subtitlePipeline.flush(); // drop any decoder-buffered cue state across the seek
         if (pipeline)
             pipeline->flush(newGeneration);
         if (playbackClock)
@@ -528,6 +543,22 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         postAudioTrackChanged(newGeneration, streamIndex);
     };
 
+    // Turn a subtitle stream on/off. -1 disables. Audio/video are untouched, so this keeps the
+    // current generation (advancing it would desync the un-flushed audio queue). Cues are tagged
+    // with the current generation and dropped by the next real seek.
+    auto applySubtitleTrack = [&](int streamIndex) {
+        subtitlePipeline.close();
+        subtitleStreamIndex = -1;
+        if (streamIndex >= 0 && streamIndex < static_cast<int>(format->nb_streams) &&
+            format->streams[streamIndex]->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
+            QString subtitleError;
+            if (subtitlePipeline.open(format->streams[streamIndex]->codecpar,
+                                      format->streams[streamIndex]->time_base, &subtitleError))
+                subtitleStreamIndex = streamIndex;
+        }
+        postSubtitleTrackChanged(gen, subtitleStreamIndex);
+    };
+
     auto processCommands = [&]() {
         std::deque<Command> pending;
         {
@@ -548,6 +579,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             }
             case CommandType::SelectAudioTrack:
                 applyAudioTrack(command.streamIndex, command.generation);
+                break;
+            case CommandType::SelectSubtitleTrack:
+                applySubtitleTrack(command.streamIndex);
                 break;
             case CommandType::Normalization:
                 if (audioPipeline)
@@ -823,6 +857,16 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 }
             }
         }
+        if (subtitleStreamIndex >= 0 && packet->stream_index == subtitleStreamIndex &&
+            !decodingToTarget) {
+            std::vector<SubtitleCue> cues;
+            QString subtitleError;
+            if (subtitlePipeline.decode(packet.get(), gen, subtitleStreamIndex, &cues,
+                                        &subtitleError)) {
+                for (SubtitleCue &cue : cues)
+                    postSubtitleCue(gen, std::move(cue));
+            }
+        }
         av_packet_unref(packet.get());
     }
 
@@ -886,6 +930,22 @@ void DemuxSession::postAudioNormalizationChanged(quint64 generation, int mode)
     QMetaObject::invokeMethod(this, [this, generation, mode] {
         if (m_activeGeneration.load(std::memory_order_acquire) == generation)
             emit audioNormalizationChanged(generation, mode);
+    }, Qt::QueuedConnection);
+}
+
+void DemuxSession::postSubtitleTrackChanged(quint64 generation, int streamIndex)
+{
+    QMetaObject::invokeMethod(this, [this, generation, streamIndex] {
+        if (m_activeGeneration.load(std::memory_order_acquire) == generation)
+            emit subtitleTrackChanged(generation, streamIndex);
+    }, Qt::QueuedConnection);
+}
+
+void DemuxSession::postSubtitleCue(quint64 generation, SubtitleCue cue)
+{
+    QMetaObject::invokeMethod(this, [this, generation, cue = std::move(cue)] {
+        if (m_activeGeneration.load(std::memory_order_acquire) == generation)
+            emit subtitleCue(generation, cue);
     }, Qt::QueuedConnection);
 }
 

@@ -35,6 +35,11 @@ class Player2Session final : public QObject
                WRITE setNormalizationMode NOTIFY normalizationModeChanged)
     Q_PROPERTY(double normalizationLatencyMs READ normalizationLatencyMs
                NOTIFY audioDiagnosticsChanged)
+    Q_PROPERTY(double subDelay READ subDelay WRITE setSubDelay NOTIFY subDelayChanged)
+    Q_PROPERTY(double audioDelay READ audioDelay WRITE setAudioDelay NOTIFY audioDelayChanged)
+    Q_PROPERTY(QString videoAspect READ videoAspect WRITE setVideoAspect NOTIFY videoFillChanged)
+    Q_PROPERTY(double panscan READ panscan WRITE setPanscan NOTIFY videoFillChanged)
+    Q_PROPERTY(double videoZoom READ videoZoom WRITE setVideoZoom NOTIFY videoFillChanged)
 
 public:
     explicit Player2Session(QObject *parent = nullptr);
@@ -56,6 +61,11 @@ public:
     bool muted() const noexcept;
     NormalizationMode normalizationMode() const noexcept;
     double normalizationLatencyMs() const;
+    double subDelay() const noexcept;
+    double audioDelay() const noexcept;
+    QString videoAspect() const;
+    double panscan() const noexcept;
+    double videoZoom() const noexcept;
     AudioClockSnapshot audioClock() const;
     quint64 audioUnderruns() const;
 
@@ -68,7 +78,13 @@ public slots:
     void seekRelative(double seconds);
     void frameStep(int frames);
     void selectAudioTrack(const QString &trackId);
+    void selectSubtitleTrack(const QString &trackId);
     void setNormalizationMode(NormalizationMode mode);
+    void setSubDelay(double seconds);
+    void setAudioDelay(double seconds);
+    void setVideoAspect(const QString &aspect);
+    void setPanscan(double value);
+    void setVideoZoom(double value);
     void setVolume(float linear);
     void setMuted(bool muted);
 
@@ -84,10 +100,15 @@ signals:
     void packetAccepted(quint64 generation, const DemuxPacketInfo &packet);
     void seekCompleted(quint64 generation, double actualSeconds);
     void audioTrackChanged(quint64 generation, int streamIndex);
+    void subtitleTrackChanged(quint64 generation, int streamIndex);
+    void subtitleCue(quint64 generation, const SubtitleCue &cue);
     void audioDiagnosticsChanged();
     void volumeChanged();
     void mutedChanged();
     void normalizationModeChanged();
+    void subDelayChanged();
+    void audioDelayChanged();
+    void videoFillChanged();
 
 private:
     bool transition(Player2State state);
@@ -108,6 +129,11 @@ private:
     QVariantList m_chapters;
     Player2State m_postSeekState = Player2State::Playing;
     NormalizationMode m_normalizationMode = NormalizationMode::Smooth;
+    double m_subDelay = 0.0;
+    double m_audioDelay = 0.0;
+    QString m_videoAspect;
+    double m_panscan = 0.0;
+    double m_videoZoom = 0.0;
     float m_volume = 1.0f;
     bool m_muted = false;
 };

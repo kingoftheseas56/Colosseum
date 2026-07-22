@@ -50,6 +50,8 @@ add_library(player2_core STATIC
     core/PlaybackClock.h
     core/TrackPolicy.cpp
     core/TrackPolicy.h
+    core/SubtitlePipeline.cpp
+    core/SubtitlePipeline.h
     core/Player2Session.cpp
     core/Player2Session.h
     host/Player2HostServices.h
@@ -211,6 +213,18 @@ set_target_properties(player2_track_policy_test PROPERTIES
 )
 add_test(NAME player2_track_policy_test COMMAND player2_track_policy_test)
 
+add_executable(player2_subtitle_timing_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_subtitle_timing_test.cpp"
+)
+target_link_libraries(player2_subtitle_timing_test PRIVATE player2_core player2_ffmpeg Qt6::Core)
+add_dependencies(player2_subtitle_timing_test player2_media_fixtures)
+set_target_properties(player2_subtitle_timing_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_subtitle_timing_test
+    COMMAND player2_subtitle_timing_test "${_player2_fixture_dir}"
+)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -220,4 +234,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_seek_generation_test
     player2_audio_normalizer_test
     player2_track_policy_test
+    player2_subtitle_timing_test
 )

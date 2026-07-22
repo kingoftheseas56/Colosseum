@@ -93,6 +93,23 @@ Player2Session::Player2Session(QObject *parent)
             return;
         emit audioDiagnosticsChanged(); // latency may have changed with the mode
     });
+    connect(&m_demux, &DemuxSession::subtitleTrackChanged, this,
+            [this](quint64 generation, int streamIndex) {
+        if (!m_generation.accepts(generation))
+            return;
+        emit subtitleTrackChanged(generation, streamIndex);
+    });
+    connect(&m_demux, &DemuxSession::subtitleCue, this,
+            [this](quint64 generation, const SubtitleCue &cue) {
+        if (!m_generation.accepts(generation))
+            return;
+        // Apply the user's subtitle delay as a timing shift (mpv sub-delay parity).
+        SubtitleCue shifted = cue;
+        const qint64 shiftUs = static_cast<qint64>(m_subDelay * 1'000'000.0);
+        shifted.startUs += shiftUs;
+        shifted.endUs += shiftUs;
+        emit subtitleCue(generation, shifted);
+    });
 }
 
 Player2Session::~Player2Session()
@@ -144,6 +161,11 @@ double Player2Session::normalizationLatencyMs() const
 {
     return m_audioPipeline.normalizationLatencyUs() / 1000.0;
 }
+double Player2Session::subDelay() const noexcept { return m_subDelay; }
+double Player2Session::audioDelay() const noexcept { return m_audioDelay; }
+QString Player2Session::videoAspect() const { return m_videoAspect; }
+double Player2Session::panscan() const noexcept { return m_panscan; }
+double Player2Session::videoZoom() const noexcept { return m_videoZoom; }
 AudioClockSnapshot Player2Session::audioClock() const { return m_audioPipeline.clock(); }
 quint64 Player2Session::audioUnderruns() const { return m_audioPipeline.underrunCount(); }
 
@@ -262,6 +284,62 @@ void Player2Session::selectAudioTrack(const QString &trackId)
     const quint64 next = m_generation.advance();
     emit generationChanged();
     m_demux.requestSelectAudioTrack(streamIndex, next);
+}
+
+void Player2Session::selectSubtitleTrack(const QString &trackId)
+{
+    if (!hasActiveMedia())
+        return;
+    // Empty / "-1" / "off" disables subtitles; otherwise it is a stream index.
+    int streamIndex = -1;
+    if (!trackId.isEmpty() && trackId != QStringLiteral("off")) {
+        bool ok = false;
+        const int parsed = trackId.toInt(&ok);
+        if (ok)
+            streamIndex = parsed;
+    }
+    // Subtitles do not flush A/V, so no generation advance — the worker keeps the current epoch.
+    m_demux.requestSelectSubtitleTrack(streamIndex);
+}
+
+void Player2Session::setSubDelay(double seconds)
+{
+    if (qFuzzyCompare(m_subDelay, seconds))
+        return;
+    m_subDelay = seconds;
+    emit subDelayChanged();
+}
+
+void Player2Session::setAudioDelay(double seconds)
+{
+    if (qFuzzyCompare(m_audioDelay, seconds))
+        return;
+    m_audioDelay = seconds;
+    emit audioDelayChanged();
+}
+
+void Player2Session::setVideoAspect(const QString &aspect)
+{
+    if (m_videoAspect == aspect)
+        return;
+    m_videoAspect = aspect;
+    emit videoFillChanged();
+}
+
+void Player2Session::setPanscan(double value)
+{
+    if (qFuzzyCompare(m_panscan, value))
+        return;
+    m_panscan = value;
+    emit videoFillChanged();
+}
+
+void Player2Session::setVideoZoom(double value)
+{
+    if (qFuzzyCompare(m_videoZoom, value))
+        return;
+    m_videoZoom = value;
+    emit videoFillChanged();
 }
 
 void Player2Session::setNormalizationMode(NormalizationMode mode)

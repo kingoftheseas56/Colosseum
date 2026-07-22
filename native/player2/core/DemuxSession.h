@@ -96,6 +96,7 @@ public:
     void requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying);
     void requestFrameStep(int frames, quint64 generation);
     void requestSelectAudioTrack(int streamIndex, quint64 generation);
+    void requestSelectSubtitleTrack(int streamIndex); // does not flush A/V, so keeps the generation
     void requestNormalizationMode(int mode);
     void requestPause();
     void requestResume();
@@ -110,10 +111,14 @@ signals:
     void ended(quint64 generation, DemuxEndReason reason, const Player2Error &error);
     void seekCompleted(quint64 generation, double actualSeconds);
     void audioTrackChanged(quint64 generation, int streamIndex);
+    void subtitleTrackChanged(quint64 generation, int streamIndex);
+    void subtitleCue(quint64 generation, const SubtitleCue &cue);
     void audioNormalizationChanged(quint64 generation, int mode);
 
 private:
-    enum class CommandType { Seek, FrameStep, SelectAudioTrack, Normalization, Pause, Resume };
+    enum class CommandType {
+        Seek, FrameStep, SelectAudioTrack, SelectSubtitleTrack, Normalization, Pause, Resume
+    };
     struct Command
     {
         CommandType type = CommandType::Pause;
@@ -134,6 +139,8 @@ private:
     void postEnded(quint64 generation, DemuxEndReason reason, Player2Error error);
     void postSeekCompleted(quint64 generation, double actualSeconds);
     void postAudioTrackChanged(quint64 generation, int streamIndex);
+    void postSubtitleTrackChanged(quint64 generation, int streamIndex);
+    void postSubtitleCue(quint64 generation, SubtitleCue cue);
     void postAudioNormalizationChanged(quint64 generation, int mode);
 
     std::atomic_bool m_cancelled{false};
@@ -158,3 +165,4 @@ Q_DECLARE_METATYPE(Colosseum::Player2::DemuxEndReason)
 Q_DECLARE_METATYPE(Colosseum::Player2::DemuxStreamInfo)
 Q_DECLARE_METATYPE(Colosseum::Player2::DemuxMetadata)
 Q_DECLARE_METATYPE(Colosseum::Player2::DemuxPacketInfo)
+Q_DECLARE_METATYPE(Colosseum::Player2::SubtitleCue)
