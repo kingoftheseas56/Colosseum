@@ -20,8 +20,7 @@
 
 namespace guided {
 
-// How a canvas's effective guided path is chosen when a user overrides the machine.
-enum class OverrideKind { None, WholePage, DetectedPanels };
+// OverrideKind now lives in GuidedTypes.h (shared with the planner).
 
 // A guided-reader job: one comic entry queued for panel detection + planning.
 struct JobSpec {

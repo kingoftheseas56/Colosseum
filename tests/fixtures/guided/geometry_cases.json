@@ -1,0 +1,8 @@
+{
+  "cases": [
+    {"name":"ltr_grid","direction":"ltr","panels":[[.05,.05,.4,.4,.95],[.55,.05,.4,.4,.94],[.05,.55,.4,.4,.93],[.55,.55,.4,.4,.92]],"order":[0,1,2,3]},
+    {"name":"rtl_grid","direction":"rtl","panels":[[.05,.05,.4,.4,.95],[.55,.05,.4,.4,.94],[.05,.55,.4,.4,.93],[.55,.55,.4,.4,.92]],"order":[1,0,3,2]},
+    {"name":"duplicate","direction":"ltr","panels":[[.1,.1,.8,.8,.95],[.11,.11,.79,.79,.70]],"order":[0]},
+    {"name":"ambiguous_overlap","direction":"ltr","panels":[[.1,.1,.7,.7,.51],[.2,.2,.7,.7,.50]],"fallback":"layout_ambiguous"}
+  ]
+}

@@ -26,6 +26,10 @@ enum class FallbackCode { None, NoPanels, LayoutAmbiguous, SpreadUncertain,
                           ImageDecodeFailed, ModelMissing, ModelChecksumFailed,
                           InferenceFailed, StoreFailed };
 
+// How a canvas's effective guided path is chosen when a user overrides the machine.
+// Shared by the planner's rebuild() and the store's per-canvas override column.
+enum class OverrideKind { None, WholePage, DetectedPanels };
+
 struct NormalizedPoint { double x = 0; double y = 0; };
 
 // All geometry is normalized to the combined canvas: [0,1] in both axes.
