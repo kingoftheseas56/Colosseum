@@ -1,0 +1,8 @@
+# Development-only export toolchain for the guided panel detector (Task 6).
+# NEVER shipped or linked with Colosseum — this converts the upstream PyTorch
+# weights to the bundled ONNX once, on a dev machine. ultralytics' AGPL tooling
+# stays out of the installed app; only the exported Apache-2.0 ONNX ships.
+ultralytics==8.4.102
+onnx==1.21.0
+onnxslim==0.1.82
+huggingface-hub==0.34.4
