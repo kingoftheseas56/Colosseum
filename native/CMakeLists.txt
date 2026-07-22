@@ -862,3 +862,14 @@ add_executable(panel_map_store_harness
     guided/GuidedTypes.cpp guided/GuidedTypes.h)
 target_include_directories(panel_map_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(panel_map_store_harness PRIVATE Qt6::Core Qt6::Sql)
+
+# ── Audiobook↔EPUB read-along alignment (Agent 2, plan 2026-07-22) ────────────
+# Durable SQLite store of sentence/word cues per book↔audiobook pair. Qt Core+Sql
+# only (no whisper/ONNX at this layer). New Agent-2 alignment targets append below.
+add_executable(alignment_store_harness
+    ../tests/alignment_store_harness.cpp
+    alignment/AlignmentStore.cpp
+    alignment/AlignmentStore.h
+    alignment/AlignmentTypes.h)
+target_include_directories(alignment_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(alignment_store_harness PRIVATE Qt6::Core Qt6::Sql)
