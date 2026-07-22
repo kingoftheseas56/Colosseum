@@ -5,6 +5,7 @@
 
 #include <QtCore/QString>
 
+#include <atomic>
 #include <vector>
 
 struct AVFilterGraph;
@@ -51,8 +52,10 @@ private:
     AVFilterContext *m_source = nullptr;
     AVFilterContext *m_sink = nullptr;
     AVFrame *m_frame = nullptr;
-    qint64 m_pushedSamples = 0;
-    qint64 m_pulledSamples = 0;
+    // Written by the decode thread, read by the GUI via reportedLatencyUs(); atomic to avoid a
+    // data race on the diagnostic.
+    std::atomic<qint64> m_pushedSamples{0};
+    std::atomic<qint64> m_pulledSamples{0};
 };
 
 } // namespace Colosseum::Player2

@@ -100,6 +100,9 @@ public:
     void requestNormalizationMode(int mode);
     void requestPause();
     void requestResume();
+    // Live A/V offset (mpv audio-delay parity): shifts the audio buffer pts reported to the master
+    // clock, so video is scheduled against the offset. Positive delays audio relative to video.
+    void setAudioDelay(qint64 delayUs) noexcept;
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
     void setAudioPipeline(AudioPipeline *pipeline) noexcept;
     void setTiming(PlaybackClock *clock, FrameScheduler *scheduler) noexcept;
@@ -147,6 +150,7 @@ private:
     std::atomic_bool m_running{false};
     std::atomic_bool m_commandPending{false};
     std::atomic_bool m_paused{false};
+    std::atomic<qint64> m_audioDelayUs{0};
     std::atomic<quint64> m_activeGeneration{0};
     std::atomic<D3D11VideoPipeline *> m_videoPipeline{nullptr};
     std::atomic<AudioPipeline *> m_audioPipeline{nullptr};

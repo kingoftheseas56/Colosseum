@@ -230,6 +230,11 @@ void DemuxSession::requestResume()
     enqueueCommand(command);
 }
 
+void DemuxSession::setAudioDelay(qint64 delayUs) noexcept
+{
+    m_audioDelayUs.store(delayUs, std::memory_order_release);
+}
+
 void DemuxSession::setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept
 {
     m_videoPipeline.store(pipeline, std::memory_order_release);
@@ -540,7 +545,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             }
         }
         audioMasterActive = false;
-        postAudioTrackChanged(newGeneration, streamIndex);
+        // Report the track actually decoding now: if the requested decoder failed to open,
+        // audioStreamIndex still points at the previous track that keeps playing.
+        postAudioTrackChanged(newGeneration, audioStreamIndex);
     };
 
     // Turn a subtitle stream on/off. -1 disables. Audio/video are untouched, so this keeps the
@@ -749,7 +756,11 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             }
             if (!m_paused.load(std::memory_order_acquire) && !decodingToTarget) {
                 QString audioError;
-                if (!audioPipeline->submitDecodedFrame(audioFrame.get(), ptsUs, gen, &audioError)) {
+                // The pts reported to the master clock carries the A/V offset; the true position
+                // (lastMasterPtsUs, seek landing) stays unshifted.
+                const qint64 clockPtsUs = ptsUs + m_audioDelayUs.load(std::memory_order_acquire);
+                if (!audioPipeline->submitDecodedFrame(audioFrame.get(), clockPtsUs, gen,
+                                                       &audioError)) {
                     if (m_commandPending.load(std::memory_order_acquire) ||
                         gen != m_activeGeneration.load(std::memory_order_acquire)) {
                         av_frame_unref(audioFrame.get());

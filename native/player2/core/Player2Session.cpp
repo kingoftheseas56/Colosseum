@@ -315,6 +315,7 @@ void Player2Session::setAudioDelay(double seconds)
     if (qFuzzyCompare(m_audioDelay, seconds))
         return;
     m_audioDelay = seconds;
+    m_demux.setAudioDelay(static_cast<qint64>(seconds * 1'000'000.0));
     emit audioDelayChanged();
 }
 

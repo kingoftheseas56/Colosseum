@@ -20,8 +20,9 @@ QString avError(int code)
     return QString::fromUtf8(text);
 }
 
-// ASS dialogue lines are "Layer,Start,End,Style,Name,ML,MR,MV,Effect,Text". Take the text after the
-// 9th comma and strip {\...} override blocks, matching what a viewer actually reads.
+// FFmpeg's decoded ASS event (rect->ass) is "ReadOrder,Layer,Style,Name,MarginL,MarginR,MarginV,
+// Effect,Text" — NOT the .ass file's "Dialogue: Layer,Start,End,..." form. So the readable text is
+// after the 8th comma; then strip {\...} override blocks.
 QString plainFromAss(const char *ass)
 {
     if (!ass)
