@@ -21,6 +21,7 @@
 - Double-click seeks; single-click and drag keep existing Reader2 behavior.
 - Scrub hover/drag previews only. Release performs exactly one committed audio seek and one EPUB navigation.
 - Existing dirty files belong to other work. Before every commit, stage and commit only the paths named by that task.
+- `native/main.cpp` and `native/CMakeLists.txt` are shared multi-agent collision files — Agent 1's guided arc and Agent 4's Player 2 edit them concurrently. For any task touching them: `git pull` first, grep-verify the current contents, ADD ONLY your new lines (never rewrite a neighbor's block), commit those two files by explicit pathspec, and push immediately — never sit on uncommitted edits to them. On any conflict, stop and hand it to Agent 0 to referee rather than force-resolving.
 
 ## Existing Foundations — Reuse, Do Not Rebuild
 
@@ -56,7 +57,7 @@
 - Modify `qml/reader2/ReaderShell.qml`: bind the native service/controller to the live `AudiobookSession` and route all committed seeks.
 - Modify `qml/reader2/ReaderChrome.qml`: scrub-preview contract and Return to narration.
 - Modify `qml/reader2/LeftPanel.qml`: Text Sync state/details and read-along mode/style controls.
-- Modify `qml/BackgroundActivitySection.qml`: no new model; verify alignment rows render through the existing registry contract.
+- `qml/BackgroundActivitySection.qml` (Agent 0's spine component — DO NOT edit): alignment rows appear by publishing into the `BackgroundActivity` registry; verify rendering read-only in the harness.
 
 ### Pairing, application wiring, build, and packaging
 
@@ -380,7 +381,6 @@ git commit -m "feat: integrate aligned audiobook reading in Reader2"
 **Files:**
 - Modify: `qml/reader2/LeftPanel.qml`
 - Modify: `qml/reader2/ReaderChrome.qml`
-- Modify: `qml/BackgroundActivitySection.qml`
 - Create: `tests/alignment_activity_harness.qml`
 - Create: `tests/test_alignment_activity.ps1`
 
@@ -402,6 +402,8 @@ Expected: missing Text Sync controls.
 
 Reader2 calls service methods; the global row calls registry pause/resume, already connected to the same service. Do not duplicate stage/progress state in QML. A failed chapter remains playable as ordinary audio and never shows aligned controls for its gaps.
 
+Do NOT edit `qml/BackgroundActivitySection.qml` — that shared spine component (Agent 0's) already renders any registry row; publishing your job state into `BackgroundActivity` is the whole contract. `tests/alignment_activity_harness.qml` feeds a fake registry an alignment row and verifies it renders through the existing component read-only, and Step 4 re-runs `tests/test_background_activity.ps1` as a non-regression check.
+
 - [ ] **Step 4: Run the harness**
 
 Run: `powershell -NoProfile -File tests/test_alignment_activity.ps1; powershell -NoProfile -File tests/test_background_activity.ps1`
@@ -411,7 +413,7 @@ Expected: both PASS.
 - [ ] **Step 5: Commit the slice**
 
 ```powershell
-git add qml/reader2/LeftPanel.qml qml/reader2/ReaderChrome.qml qml/BackgroundActivitySection.qml tests/alignment_activity_harness.qml tests/test_alignment_activity.ps1
+git add qml/reader2/LeftPanel.qml qml/reader2/ReaderChrome.qml tests/alignment_activity_harness.qml tests/test_alignment_activity.ps1
 git commit -m "feat: surface audiobook text-sync activity"
 ```
 
