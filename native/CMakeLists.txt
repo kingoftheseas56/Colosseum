@@ -889,3 +889,18 @@ add_executable(panel_planner_camera_harness
     guided/GuidedTypes.cpp guided/GuidedTypes.h)
 target_include_directories(panel_planner_camera_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(panel_planner_camera_harness PRIVATE Qt6::Core)
+
+# EPUB canonical text index (Agent 2). Vendored miniz opens the container; the walk
+# and canonical fold mirror resources/reader2/alignment_text.js byte-for-byte. Qt Core.
+# miniz.c is C — the project declares only CXX/RC, so enable C for the vendored reader.
+enable_language(C)
+add_executable(epub_text_indexer_harness
+    ../tests/epub_text_indexer_harness.cpp
+    alignment/EpubTextIndexer.cpp
+    alignment/EpubTextIndexer.h
+    alignment/AlignmentTypes.h
+    third_party/miniz/miniz.c)
+target_include_directories(epub_text_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(epub_text_indexer_harness PRIVATE
+    ALIGNMENT_CANONICAL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/canonical")
+target_link_libraries(epub_text_indexer_harness PRIVATE Qt6::Core)
