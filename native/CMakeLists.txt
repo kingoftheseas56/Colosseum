@@ -855,3 +855,10 @@ add_executable(guided_types_harness
     guided/GuidedTypes.cpp guided/GuidedTypes.h)
 target_include_directories(guided_types_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(guided_types_harness PRIVATE Qt6::Core)
+
+add_executable(panel_map_store_harness
+    ../tests/panel_map_store_harness.cpp
+    guided/PanelMapStore.cpp guided/PanelMapStore.h
+    guided/GuidedTypes.cpp guided/GuidedTypes.h)
+target_include_directories(panel_map_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(panel_map_store_harness PRIVATE Qt6::Core Qt6::Sql)
