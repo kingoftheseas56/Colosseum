@@ -238,6 +238,44 @@ target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine 
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
 
+# ── Guided panel detector (ONNX Runtime) — dormant by default ─────────────────
+# Only when COLOSSEUM_ENABLE_ONNX=ON: compile the real detector + the guided
+# analysis domain into the app and light up the GuidedAnalysis service (main.cpp
+# guards its own construction on the same macro). The default build ships the
+# whole-page Guided shell with zero ONNX dependency, so siblings are untouched.
+if(COLOSSEUM_ENABLE_ONNX)
+    target_sources(colosseum PRIVATE
+        guided/PanelDetector.h
+        guided/PanelDetectorOnnx.cpp guided/PanelDetectorOnnx.h
+        guided/PanelPlanner.cpp guided/PanelPlanner.h
+        guided/PanelMapStore.cpp guided/PanelMapStore.h
+        guided/PanelAnalysisService.cpp guided/PanelAnalysisService.h
+        models/ModelManifest.cpp models/ModelManifest.h)
+    target_link_libraries(colosseum PRIVATE onnxruntime::onnxruntime)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_ONNX)
+    # ship onnxruntime.dll beside the exe so the app can load it
+    add_custom_command(TARGET colosseum POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
+            "$<TARGET_FILE_DIR:colosseum>"
+        VERBATIM)
+
+    add_executable(panel_detector_harness
+        ../tests/panel_detector_harness.cpp
+        guided/PanelDetectorOnnx.cpp guided/PanelDetectorOnnx.h
+        guided/GuidedTypes.cpp guided/GuidedTypes.h
+        models/ModelManifest.cpp models/ModelManifest.h
+        work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h)
+    target_include_directories(panel_detector_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(panel_detector_harness PRIVATE Qt6::Core Qt6::Gui onnxruntime::onnxruntime)
+    target_compile_definitions(panel_detector_harness PRIVATE COLOSSEUM_ENABLE_ONNX)
+    add_custom_command(TARGET panel_detector_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
+            "$<TARGET_FILE_DIR:panel_detector_harness>"
+        VERBATIM)
+endif()
+
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp
     SearchHistoryStore.h

@@ -39,6 +39,12 @@
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
 #include "guided/GuidedCameraController.h"
+#ifdef COLOSSEUM_ENABLE_ONNX
+#include "guided/PanelAnalysisService.h"
+#include "guided/PanelDetectorOnnx.h"
+#include "guided/PanelMapStore.h"
+#include "guided/PanelPlanner.h"
+#endif
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
@@ -619,6 +625,38 @@ int main(int argc, char *argv[]) {
     auto *backgroundActivity = new work::BackgroundActivityRegistry(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
+
+#ifdef COLOSSEUM_ENABLE_ONNX
+    // Guided panel analysis (real detected panels). Shares the ONE background worker
+    // with audiobook alignment. The detector validates the bundled model and fails
+    // closed if it is missing/tampered — Guided then simply stays whole-page. Only
+    // present in the ONNX build; the default build ships the whole-page Guided shell.
+    {
+        const QString appDir = QCoreApplication::applicationDirPath();
+        const QStringList modelDirs = {
+            qEnvironmentVariable("COLOSSEUM_GUIDED_MODEL_DIR"),
+            appDir + QStringLiteral("/resources/models/guided"),
+            appDir + QStringLiteral("/../resources/models/guided"),
+            appDir + QStringLiteral("/../../resources/models/guided"),
+            appDir + QStringLiteral("/../../../resources/models/guided")
+        };
+        QString guidedManifest;
+        for (const QString& d : modelDirs) {
+            if (!d.isEmpty() && QFileInfo::exists(d + QStringLiteral("/manifest.json"))) {
+                guidedManifest = d + QStringLiteral("/manifest.json");
+                break;
+            }
+        }
+        const QString guidedDir =
+            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/guided");
+        QDir().mkpath(guidedDir);
+        auto *guidedStore = new guided::PanelMapStore(guidedDir + QStringLiteral("/panel-maps.sqlite"));
+        auto *guidedDetector = new guided::PanelDetectorOnnx(guidedManifest);
+        auto *guidedAnalysis = new guided::PanelAnalysisService(
+            backgroundWork, guidedDetector, new guided::PanelPlanner, guidedStore, &app);
+        engine.rootContext()->setContextProperty(QStringLiteral("GuidedAnalysis"), guidedAnalysis);
+    }
+#endif
 
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the
