@@ -848,3 +848,10 @@ option(COLOSSEUM_BUILD_PLAYER2 "Build the isolated Player 2 laboratory" OFF)
 if(COLOSSEUM_BUILD_PLAYER2)
     add_subdirectory(player2)
 endif()
+
+# --- Guided comic reader (Agent 1) : panel-aware guided reader harnesses ---
+add_executable(guided_types_harness
+    ../tests/guided_types_harness.cpp
+    guided/GuidedTypes.cpp guided/GuidedTypes.h)
+target_include_directories(guided_types_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(guided_types_harness PRIVATE Qt6::Core)
