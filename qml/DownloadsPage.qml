@@ -775,6 +775,18 @@ Item {
                 }
             }
 
+            // ============ BACKGROUND ACTIVITY ============
+            // Unified rows for offline-analysis jobs (guided comic panel
+            // detection, audiobook text sync). Publishes via the BackgroundActivity
+            // context property; vanishes entirely when nothing is running. The
+            // typeof guard keeps DownloadsPage load-harnesses happy without the
+            // context property alive.
+            BackgroundActivitySection {
+                width: col.width
+                topPadding: 40
+                registry: (typeof BackgroundActivity !== "undefined") ? BackgroundActivity : null
+            }
+
             // ============ WORLD SHELVES ============
             Repeater {
                 model: root.worlds
