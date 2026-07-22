@@ -22,6 +22,9 @@ class Player2Session final : public QObject
     Q_PROPERTY(double position READ position NOTIFY positionChanged)
     Q_PROPERTY(double duration READ duration NOTIFY durationChanged)
     Q_PROPERTY(QVariantList tracks READ tracks NOTIFY tracksChanged)
+    Q_PROPERTY(QVariantList audioTracks READ audioTracks NOTIFY tracksChanged)
+    Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY tracksChanged)
+    Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
     Q_PROPERTY(quint64 generation READ generation NOTIFY generationChanged)
     Q_PROPERTY(QString audioDevice READ audioDevice NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(QString audioFormat READ audioFormat NOTIFY audioDiagnosticsChanged)
@@ -41,6 +44,9 @@ public:
     double position() const noexcept;
     double duration() const noexcept;
     QVariantList tracks() const;
+    QVariantList audioTracks() const;
+    QVariantList subtitleTracks() const;
+    QVariantList chapters() const;
     quint64 generation() const noexcept;
     void setVideoPipeline(D3D11VideoPipeline *pipeline);
     QString audioDevice() const;
@@ -71,6 +77,7 @@ signals:
     void positionChanged();
     void durationChanged();
     void tracksChanged();
+    void chaptersChanged();
     void generationChanged();
     void errorOccurred(const Player2Error &error);
     void demuxEnded(DemuxEndReason reason);
@@ -98,6 +105,7 @@ private:
     double m_position = 0.0;
     double m_duration = 0.0;
     QVariantList m_tracks;
+    QVariantList m_chapters;
     Player2State m_postSeekState = Player2State::Playing;
     NormalizationMode m_normalizationMode = NormalizationMode::Smooth;
     float m_volume = 1.0f;

@@ -34,6 +34,16 @@ struct DemuxStreamInfo
     QString codec;
     QString language;
     QString title;
+    bool isDefault = false;
+    bool isForced = false;
+};
+
+struct DemuxChapter
+{
+    int index = -1;
+    qint64 startUs = 0;
+    qint64 endUs = 0;
+    QString title;
 };
 
 struct DemuxMetadata
@@ -41,7 +51,25 @@ struct DemuxMetadata
     qint64 durationUs = 0;
     int chapterCount = 0;
     QList<DemuxStreamInfo> streams;
+    QList<DemuxChapter> chapters;
     QVariantMap tags;
+};
+
+// A timed subtitle product. Text cues carry styled/plain text; bitmap cues (PGS/DVD) carry the
+// region rectangle and RGBA image bytes. Both carry the generation so stale cues never render.
+struct SubtitleCue
+{
+    quint64 generation = 0;
+    int streamIndex = -1;
+    qint64 startUs = 0;
+    qint64 endUs = 0;
+    QString text;      // text subtitles (plain, ASS dialogue stripped to text)
+    bool bitmap = false;
+    int x = 0;
+    int y = 0;
+    int width = 0;
+    int height = 0;
+    QByteArray rgba;   // bitmap cues only, tightly packed width*height*4
 };
 
 struct DemuxPacketInfo

@@ -306,11 +306,25 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         metadata.tags.insert(QString::fromUtf8(tag->key), QString::fromUtf8(tag->value));
     for (unsigned int i = 0; i < format->nb_streams; ++i) {
         AVStream *stream = format->streams[i];
-        metadata.streams.append(DemuxStreamInfo{
-            static_cast<int>(i), mediaTypeName(stream->codecpar->codec_type),
-            QString::fromUtf8(avcodec_get_name(stream->codecpar->codec_id)),
-            dictionaryValue(stream->metadata, "language"),
-            dictionaryValue(stream->metadata, "title")});
+        DemuxStreamInfo info;
+        info.index = static_cast<int>(i);
+        info.type = mediaTypeName(stream->codecpar->codec_type);
+        info.codec = QString::fromUtf8(avcodec_get_name(stream->codecpar->codec_id));
+        info.language = dictionaryValue(stream->metadata, "language");
+        info.title = dictionaryValue(stream->metadata, "title");
+        info.isDefault = (stream->disposition & AV_DISPOSITION_DEFAULT) != 0;
+        info.isForced = (stream->disposition & AV_DISPOSITION_FORCED) != 0;
+        metadata.streams.append(info);
+    }
+    // Typed, immutable chapter rows (parity with the current player's mpv.chapters).
+    for (unsigned int i = 0; i < format->nb_chapters; ++i) {
+        const AVChapter *chapter = format->chapters[i];
+        DemuxChapter row;
+        row.index = static_cast<int>(i);
+        row.startUs = av_rescale_q(chapter->start, chapter->time_base, AVRational{1, 1'000'000});
+        row.endUs = av_rescale_q(chapter->end, chapter->time_base, AVRational{1, 1'000'000});
+        row.title = dictionaryValue(chapter->metadata, "title");
+        metadata.chapters.append(row);
     }
     postOpened(generation, metadata);
 

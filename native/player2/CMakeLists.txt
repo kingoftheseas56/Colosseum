@@ -48,6 +48,8 @@ add_library(player2_core STATIC
     core/FrameScheduler.h
     core/PlaybackClock.cpp
     core/PlaybackClock.h
+    core/TrackPolicy.cpp
+    core/TrackPolicy.h
     core/Player2Session.cpp
     core/Player2Session.h
     host/Player2HostServices.h
@@ -200,6 +202,15 @@ set_target_properties(player2_audio_normalizer_test PROPERTIES
 )
 add_test(NAME player2_audio_normalizer_test COMMAND player2_audio_normalizer_test)
 
+add_executable(player2_track_policy_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_track_policy_test.cpp"
+)
+target_link_libraries(player2_track_policy_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_track_policy_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_track_policy_test COMMAND player2_track_policy_test)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -208,4 +219,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_clock_scheduler_test
     player2_seek_generation_test
     player2_audio_normalizer_test
+    player2_track_policy_test
 )

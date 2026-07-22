@@ -32,9 +32,19 @@ Player2Session::Player2Session(QObject *parent)
                                         {QStringLiteral("type"), stream.type},
                                         {QStringLiteral("codec"), stream.codec},
                                         {QStringLiteral("language"), stream.language},
-                                        {QStringLiteral("title"), stream.title}});
+                                        {QStringLiteral("title"), stream.title},
+                                        {QStringLiteral("default"), stream.isDefault},
+                                        {QStringLiteral("forced"), stream.isForced}});
+        }
+        m_chapters.clear();
+        for (const DemuxChapter &chapter : metadata.chapters) {
+            m_chapters.append(QVariantMap{{QStringLiteral("index"), chapter.index},
+                                          {QStringLiteral("start"), chapter.startUs / 1'000'000.0},
+                                          {QStringLiteral("end"), chapter.endUs / 1'000'000.0},
+                                          {QStringLiteral("title"), chapter.title}});
         }
         emit tracksChanged();
+        emit chaptersChanged();
         transition(Player2State::Playing);
     });
     connect(&m_demux, &DemuxSession::packetObserved, this,
@@ -95,6 +105,25 @@ Player2State Player2Session::state() const noexcept { return m_state.state(); }
 double Player2Session::position() const noexcept { return m_position; }
 double Player2Session::duration() const noexcept { return m_duration; }
 QVariantList Player2Session::tracks() const { return m_tracks; }
+QVariantList Player2Session::chapters() const { return m_chapters; }
+QVariantList Player2Session::audioTracks() const
+{
+    QVariantList out;
+    for (const QVariant &entry : m_tracks) {
+        if (entry.toMap().value(QStringLiteral("type")).toString() == QStringLiteral("audio"))
+            out.append(entry);
+    }
+    return out;
+}
+QVariantList Player2Session::subtitleTracks() const
+{
+    QVariantList out;
+    for (const QVariant &entry : m_tracks) {
+        if (entry.toMap().value(QStringLiteral("type")).toString() == QStringLiteral("subtitle"))
+            out.append(entry);
+    }
+    return out;
+}
 quint64 Player2Session::generation() const noexcept { return m_generation.current(); }
 QString Player2Session::audioDevice() const { return m_audioPipeline.deviceName(); }
 QString Player2Session::audioFormat() const
@@ -290,6 +319,10 @@ void Player2Session::resetMediaProperties()
     if (!m_tracks.isEmpty()) {
         m_tracks.clear();
         emit tracksChanged();
+    }
+    if (!m_chapters.isEmpty()) {
+        m_chapters.clear();
+        emit chaptersChanged();
     }
 }
 
