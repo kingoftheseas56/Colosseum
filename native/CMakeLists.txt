@@ -94,6 +94,10 @@ add_executable(colosseum
     work/BackgroundWorkCoordinator.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
+    guided/GuidedCameraController.cpp
+    guided/GuidedCameraController.h
+    guided/GuidedTypes.cpp
+    guided/GuidedTypes.h
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h

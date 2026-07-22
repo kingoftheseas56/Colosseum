@@ -38,6 +38,7 @@
 #include "AudioPairingStore.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
+#include "guided/GuidedCameraController.h"
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
@@ -268,6 +269,8 @@ int main(int argc, char *argv[]) {
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+    // Guided (panel-aware) reader camera, reached from QML as `import Colosseum.Guided`.
+    qmlRegisterType<guided::GuidedCameraController>("Colosseum.Guided", 1, 0, "GuidedCameraController");
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
