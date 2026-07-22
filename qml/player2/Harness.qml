@@ -94,6 +94,7 @@ Window {
                 anchors.bottom: parent.bottom
                 anchors.margins: 16
                 spacing: 4
+                visible: !shellToggle.checked
                 Repeater {
                     model: 32
                     Rectangle {
@@ -104,6 +105,45 @@ Window {
                         color: index <= (HarnessHost.presented % 32) ? Theme.signal : Theme.hairline
                         opacity: index <= (HarnessHost.presented % 32) ? 0.9 : 0.45
                     }
+                }
+            }
+
+            // Parity chrome overlay — the Player 2 shell driven by the live session (Task 13).
+            Player2Shell {
+                id: playerShell
+                anchors.fill: parent
+                anchors.margins: 1
+                visible: shellToggle.checked
+                session: videoSurface.session
+                hostServices: HarnessHost
+            }
+
+            // Lab toggle between the raw frame-rail instrument and the parity chrome.
+            Rectangle {
+                id: shellToggle
+                property bool checked: true
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 18
+                width: toggleLabel.width + 24
+                height: 30
+                radius: 2
+                color: "#cc07111d"
+                border.color: checked ? "#f0c44a" : Theme.hairline
+                z: 10
+                Text {
+                    id: toggleLabel
+                    anchors.centerIn: parent
+                    text: shellToggle.checked ? "CHROME" : "INSTRUMENT"
+                    color: shellToggle.checked ? "#f0c44a" : Theme.muted
+                    font.family: Theme.dataFont
+                    font.pixelSize: 11
+                    font.letterSpacing: 1.4
+                }
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: shellToggle.checked = !shellToggle.checked
                 }
             }
         }

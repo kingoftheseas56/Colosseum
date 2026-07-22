@@ -108,6 +108,23 @@ qt_add_resources(player2_harness player2_harness_qml
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/Harness.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/Theme.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/qmldir"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/Player2Shell.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Icon.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SeekBar.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/TransportBar.qml"
+)
+
+set(_player2_shell_icons play pause volume-2 volume-x rotate-ccw rotate-cw maximize minimize
+    circle-alert skip-back skip-forward languages captions gauge)
+set(_player2_shell_icon_files "")
+foreach(_icon IN LISTS _player2_shell_icons)
+    list(APPEND _player2_shell_icon_files
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/icons/lucide/${_icon}.svg")
+endforeach()
+qt_add_resources(player2_harness player2_shell_icons
+    PREFIX "/player2/icons"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/../../assets/icons/lucide"
+    FILES ${_player2_shell_icon_files}
 )
 
 add_executable(player2_state_machine_test
