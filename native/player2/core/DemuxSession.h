@@ -8,6 +8,8 @@
 #include <QtCore/QVariantMap>
 
 #include <atomic>
+#include <condition_variable>
+#include <deque>
 #include <mutex>
 #include <thread>
 
@@ -61,6 +63,13 @@ public:
 
     void open(const PlaybackRequest &request, quint64 generation);
     void cancel();
+    // Transport commands. Each carries the already-advanced single generation; the worker performs
+    // the flush/seek/track swap as its next action, so the generation barrier stays authoritative.
+    void requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying);
+    void requestFrameStep(int frames, quint64 generation);
+    void requestSelectAudioTrack(int streamIndex, quint64 generation);
+    void requestPause();
+    void requestResume();
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
     void setAudioPipeline(AudioPipeline *pipeline) noexcept;
     void setTiming(PlaybackClock *clock, FrameScheduler *scheduler) noexcept;
@@ -70,22 +79,43 @@ signals:
     void opened(quint64 generation, const DemuxMetadata &metadata);
     void packetObserved(quint64 generation, const DemuxPacketInfo &packet);
     void ended(quint64 generation, DemuxEndReason reason, const Player2Error &error);
+    void seekCompleted(quint64 generation, double actualSeconds);
+    void audioTrackChanged(quint64 generation, int streamIndex);
 
 private:
+    enum class CommandType { Seek, FrameStep, SelectAudioTrack, Pause, Resume };
+    struct Command
+    {
+        CommandType type = CommandType::Pause;
+        qint64 targetUs = 0;
+        int frames = 0;
+        int streamIndex = -1;
+        quint64 generation = 0;
+        bool resumePlaying = true;
+    };
+
     static int interrupt(void *opaque);
     void run(PlaybackRequest request, quint64 generation);
     void joinWorker();
+    void enqueueCommand(const Command &command);
     void postOpened(quint64 generation, DemuxMetadata metadata);
     void postPacket(quint64 generation, DemuxPacketInfo packet);
     void postEnded(quint64 generation, DemuxEndReason reason, Player2Error error);
+    void postSeekCompleted(quint64 generation, double actualSeconds);
+    void postAudioTrackChanged(quint64 generation, int streamIndex);
 
     std::atomic_bool m_cancelled{false};
     std::atomic_bool m_running{false};
+    std::atomic_bool m_commandPending{false};
+    std::atomic_bool m_paused{false};
     std::atomic<quint64> m_activeGeneration{0};
     std::atomic<D3D11VideoPipeline *> m_videoPipeline{nullptr};
     std::atomic<AudioPipeline *> m_audioPipeline{nullptr};
     std::atomic<PlaybackClock *> m_playbackClock{nullptr};
     std::atomic<FrameScheduler *> m_frameScheduler{nullptr};
+    std::mutex m_commandMutex;
+    std::condition_variable m_commandCv;
+    std::deque<Command> m_commands;
     std::mutex m_workerMutex;
     std::thread m_worker;
 };

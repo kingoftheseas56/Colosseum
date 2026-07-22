@@ -6,6 +6,13 @@
 
 #include <algorithm>
 
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace Colosseum::Player2 {
 
 Player2Session::Player2Session(QObject *parent)
@@ -53,6 +60,22 @@ Player2Session::Player2Session(QObject *parent)
             emit errorOccurred(error);
         }
         emit demuxEnded(reason);
+    });
+    connect(&m_demux, &DemuxSession::seekCompleted, this,
+            [this](quint64 generation, double actualSeconds) {
+        if (!m_generation.accepts(generation))
+            return;
+        // A seek is the one path allowed to move position backward.
+        m_position = actualSeconds;
+        emit positionChanged();
+        transition(m_postSeekState);
+        emit seekCompleted(generation, actualSeconds);
+    });
+    connect(&m_demux, &DemuxSession::audioTrackChanged, this,
+            [this](quint64 generation, int streamIndex) {
+        if (!m_generation.accepts(generation))
+            return;
+        emit audioTrackChanged(generation, streamIndex);
     });
 }
 
@@ -121,8 +144,82 @@ void Player2Session::close()
     transition(Player2State::Idle);
 }
 
-void Player2Session::play() { transition(Player2State::Playing); }
-void Player2Session::pause() { transition(Player2State::Paused); }
+void Player2Session::play()
+{
+    const bool wasPaused = m_state.state() == Player2State::Paused;
+    if (!transition(Player2State::Playing))
+        return;
+    if (wasPaused)
+        m_demux.requestResume();
+}
+
+void Player2Session::pause()
+{
+    if (m_state.state() != Player2State::Playing && m_state.state() != Player2State::Buffering)
+        return;
+    if (!transition(Player2State::Paused))
+        return;
+    m_demux.requestPause();
+}
+
+bool Player2Session::hasActiveMedia() const noexcept
+{
+    switch (m_state.state()) {
+    case Player2State::Playing:
+    case Player2State::Paused:
+    case Player2State::Buffering:
+    case Player2State::Seeking:
+    case Player2State::Ended:
+        return true;
+    default:
+        return false;
+    }
+}
+
+void Player2Session::seekExact(double seconds)
+{
+    if (!hasActiveMedia())
+        return;
+    m_postSeekState = m_state.state() == Player2State::Paused ? Player2State::Paused
+                                                              : Player2State::Playing;
+    if (!transition(Player2State::Seeking))
+        return;
+    const quint64 next = m_generation.advance();
+    emit generationChanged();
+    const qint64 targetUs = static_cast<qint64>(std::max(0.0, seconds) * 1'000'000.0);
+    m_demux.requestSeek(targetUs, next, m_postSeekState == Player2State::Playing);
+}
+
+void Player2Session::seekRelative(double seconds)
+{
+    seekExact(m_position + seconds);
+}
+
+void Player2Session::frameStep(int frames)
+{
+    if (!hasActiveMedia())
+        return;
+    // A frame step always resolves to a paused view of the target frame.
+    m_postSeekState = Player2State::Paused;
+    if (!transition(Player2State::Seeking))
+        return;
+    const quint64 next = m_generation.advance();
+    emit generationChanged();
+    m_demux.requestFrameStep(frames, next);
+}
+
+void Player2Session::selectAudioTrack(const QString &trackId)
+{
+    if (!hasActiveMedia())
+        return;
+    bool ok = false;
+    const int streamIndex = trackId.toInt(&ok);
+    if (!ok)
+        return;
+    const quint64 next = m_generation.advance();
+    emit generationChanged();
+    m_demux.requestSelectAudioTrack(streamIndex, next);
+}
 
 void Player2Session::setVolume(float linear)
 {

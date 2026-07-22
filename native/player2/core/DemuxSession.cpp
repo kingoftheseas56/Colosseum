@@ -125,6 +125,12 @@ int DemuxSession::interrupt(void *opaque)
 void DemuxSession::open(const PlaybackRequest &request, quint64 generation)
 {
     cancel();
+    {
+        std::scoped_lock lock(m_commandMutex);
+        m_commands.clear();
+    }
+    m_commandPending.store(false, std::memory_order_release);
+    m_paused.store(false, std::memory_order_release);
     m_activeGeneration.store(generation, std::memory_order_release);
     m_cancelled.store(false, std::memory_order_release);
     m_running.store(true, std::memory_order_release);
@@ -135,7 +141,71 @@ void DemuxSession::open(const PlaybackRequest &request, quint64 generation)
 void DemuxSession::cancel()
 {
     m_cancelled.store(true, std::memory_order_release);
+    m_commandCv.notify_all();
     joinWorker();
+}
+
+void DemuxSession::enqueueCommand(const Command &command)
+{
+    {
+        std::scoped_lock lock(m_commandMutex);
+        m_commands.push_back(command);
+    }
+    m_commandPending.store(true, std::memory_order_release);
+    m_commandCv.notify_all();
+}
+
+void DemuxSession::requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying)
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::Seek;
+    command.targetUs = targetUs;
+    command.generation = generation;
+    command.resumePlaying = resumePlaying;
+    enqueueCommand(command);
+}
+
+void DemuxSession::requestFrameStep(int frames, quint64 generation)
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::FrameStep;
+    command.frames = frames;
+    command.generation = generation;
+    command.resumePlaying = false;
+    enqueueCommand(command);
+}
+
+void DemuxSession::requestSelectAudioTrack(int streamIndex, quint64 generation)
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::SelectAudioTrack;
+    command.streamIndex = streamIndex;
+    command.generation = generation;
+    enqueueCommand(command);
+}
+
+void DemuxSession::requestPause()
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::Pause;
+    enqueueCommand(command);
+}
+
+void DemuxSession::requestResume()
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::Resume;
+    enqueueCommand(command);
 }
 
 void DemuxSession::setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept
@@ -334,9 +404,142 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
     PlaybackClock *playbackClock = m_playbackClock.load(std::memory_order_acquire);
     FrameScheduler *frameScheduler = m_frameScheduler.load(std::memory_order_acquire);
+
+    // Mutable transport state owned by this worker. `gen` is the single generation the worker tags
+    // every product with; a seek/track command advances it, so no component keeps a private epoch.
+    quint64 gen = generation;
     bool audioMasterActive = false;
     quint64 videoSequence = 0;
+    qint64 lastMasterPtsUs = 0;
+    bool audioIsMaster = audioDecoder != nullptr;
+    bool decodingToTarget = false;
+    bool videoLandingPresented = false;
+    qint64 seekTargetUs = 0;
+    bool seekResumePlaying = true;
+    bool eofReached = false;
     QString decodeFailure;
+
+    // Publishes seek/frame-step completion, restores the requested play/pause state and re-arms the
+    // clock at the landed position. Called once per reposition, from whichever stream is master.
+    auto landSeek = [&](qint64 ptsUs) {
+        decodingToTarget = false;
+        lastMasterPtsUs = ptsUs;
+        const bool pausing = !seekResumePlaying;
+        m_paused.store(pausing, std::memory_order_release);
+        if (audioPipeline)
+            audioPipeline->setPaused(pausing);
+        if (playbackClock) {
+            playbackClock->reset(ptsUs, qpcNow());
+            if (pausing)
+                playbackClock->pause(qpcNow());
+        }
+        audioMasterActive = false;
+        postSeekCompleted(gen, ptsUs / 1'000'000.0);
+    };
+
+    // Mandatory seek order: adopt the new generation, flush every active pipeline, flush the codecs,
+    // seek the container, then decode to the target frame before presenting.
+    auto applySeek = [&](qint64 targetUs, quint64 newGeneration, bool resumePlaying) {
+        gen = newGeneration;
+        m_activeGeneration.store(newGeneration, std::memory_order_release);
+        if (decoder)
+            avcodec_flush_buffers(decoder.get());
+        if (audioDecoder)
+            avcodec_flush_buffers(audioDecoder.get());
+        if (audioPipeline)
+            audioPipeline->flush(newGeneration);
+        if (pipeline)
+            pipeline->flush(newGeneration);
+        if (playbackClock)
+            playbackClock->invalidate();
+        if (frameScheduler)
+            frameScheduler->reset();
+        audioMasterActive = false;
+        qint64 clamped = std::max<qint64>(0, targetUs);
+        if (metadata.durationUs > 0)
+            clamped = std::min(clamped, metadata.durationUs);
+        av_seek_frame(format.get(), -1, clamped, AVSEEK_FLAG_BACKWARD);
+        seekTargetUs = clamped;
+        seekResumePlaying = resumePlaying;
+        decodingToTarget = true;
+        videoLandingPresented = false;
+        eofReached = false;
+        // Scan to the target with the endpoint running; landSeek applies the final pause state.
+        m_paused.store(false, std::memory_order_release);
+        if (audioPipeline)
+            audioPipeline->setPaused(false);
+    };
+
+    // Swap the decoded audio stream in place. Flush old audio, adopt the new generation, and let the
+    // master clock re-establish; video is untouched so playback does not hitch.
+    auto applyAudioTrack = [&](int streamIndex, quint64 newGeneration) {
+        gen = newGeneration;
+        m_activeGeneration.store(newGeneration, std::memory_order_release);
+        if (audioPipeline)
+            audioPipeline->flush(newGeneration);
+        if (streamIndex >= 0 && streamIndex < static_cast<int>(format->nb_streams) &&
+            format->streams[streamIndex]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
+            const AVCodec *codec =
+                avcodec_find_decoder(format->streams[streamIndex]->codecpar->codec_id);
+            if (codec) {
+                AVCodecContext *context = avcodec_alloc_context3(codec);
+                if (context &&
+                    avcodec_parameters_to_context(
+                        context, format->streams[streamIndex]->codecpar) >= 0 &&
+                    avcodec_open2(context, codec, nullptr) >= 0) {
+                    audioDecoder.reset(context);
+                    audioStream = format->streams[streamIndex];
+                    audioStreamIndex = streamIndex;
+                    audioIsMaster = true;
+                } else {
+                    avcodec_free_context(&context);
+                }
+            }
+        }
+        audioMasterActive = false;
+        postAudioTrackChanged(newGeneration, streamIndex);
+    };
+
+    auto processCommands = [&]() {
+        std::deque<Command> pending;
+        {
+            std::scoped_lock lock(m_commandMutex);
+            pending.swap(m_commands);
+        }
+        for (const Command &command : pending) {
+            switch (command.type) {
+            case CommandType::Seek:
+                applySeek(command.targetUs, command.generation, command.resumePlaying);
+                break;
+            case CommandType::FrameStep: {
+                const double fps = framesPerSecond > 0.0 ? framesPerSecond : 24.0;
+                const qint64 frameUs = static_cast<qint64>(1'000'000.0 / fps);
+                applySeek(lastMasterPtsUs + static_cast<qint64>(command.frames) * frameUs,
+                          command.generation, false);
+                break;
+            }
+            case CommandType::SelectAudioTrack:
+                applyAudioTrack(command.streamIndex, command.generation);
+                break;
+            case CommandType::Pause:
+                m_paused.store(true, std::memory_order_release);
+                if (audioPipeline)
+                    audioPipeline->setPaused(true);
+                if (playbackClock)
+                    playbackClock->pause(qpcNow());
+                break;
+            case CommandType::Resume:
+                m_paused.store(false, std::memory_order_release);
+                if (audioPipeline)
+                    audioPipeline->setPaused(false);
+                if (playbackClock)
+                    playbackClock->resume(qpcNow());
+                audioMasterActive = false;
+                break;
+            }
+        }
+    };
+
     auto receiveVideoFrames = [&]() -> bool {
         while (!m_cancelled.load(std::memory_order_acquire)) {
             const int receiveResult = avcodec_receive_frame(decoder.get(), frame.get());
@@ -357,6 +560,31 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             if (frame->best_effort_timestamp != AV_NOPTS_VALUE) {
                 ptsUs = av_rescale_q(frame->best_effort_timestamp, videoStream->time_base,
                                      AVRational{1, 1'000'000});
+            }
+            if (decodingToTarget) {
+                // Skip everything before the target; present only the first landing frame so the
+                // destination shows, then hold until the master stream lands.
+                if (ptsUs + 1'000 < seekTargetUs || videoLandingPresented) {
+                    ++videoSequence;
+                    av_frame_unref(frame.get());
+                    continue;
+                }
+                QString submitError;
+                const VideoFrameToken token{gen, ++videoSequence, ptsUs};
+                if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&
+                    !submitError.isEmpty()) {
+                    if (m_commandPending.load(std::memory_order_acquire)) {
+                        av_frame_unref(frame.get());
+                        return true;
+                    }
+                    decodeFailure = submitError;
+                    return false;
+                }
+                av_frame_unref(frame.get());
+                videoLandingPresented = true;
+                if (!audioIsMaster)
+                    landSeek(ptsUs);
+                continue;
             }
             if (playbackClock && frameScheduler) {
                 qint64 now = qpcNow();
@@ -381,6 +609,8 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                     std::vector<FrameCandidate>{{videoSequence + 1, ptsUs}});
                 if (decision.action == FrameScheduleAction::WaitUntilQpc) {
                     while (!m_cancelled.load(std::memory_order_acquire)) {
+                        if (m_commandPending.load(std::memory_order_acquire))
+                            break; // a transport command is waiting; stop pacing and process it
                         now = qpcNow();
                         if (now >= decision.deadlineQpc)
                             break;
@@ -389,6 +619,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                             1'000'000.0L / playbackClock->qpcFrequency());
                         std::this_thread::sleep_for(std::chrono::microseconds(
                             std::clamp<qint64>(remainingUs, 100, 5'000)));
+                    }
+                    if (m_commandPending.load(std::memory_order_acquire)) {
+                        av_frame_unref(frame.get());
+                        return true; // abandon this frame; the command loop will flush anyway
                     }
                 } else if (decision.action == FrameScheduleAction::DropLate) {
                     pipeline->noteSchedulingDecision(decision.timingErrorUs, true);
@@ -401,12 +635,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                     ptsUs - playbackClock->positionAt(now), false);
             }
             QString submitError;
-            const VideoFrameToken token{generation, ++videoSequence, ptsUs};
+            const VideoFrameToken token{gen, ++videoSequence, ptsUs};
             if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&
                 !submitError.isEmpty()) {
+                if (m_commandPending.load(std::memory_order_acquire)) {
+                    av_frame_unref(frame.get());
+                    return true;
+                }
                 decodeFailure = submitError;
                 return false;
             }
+            if (!audioIsMaster)
+                lastMasterPtsUs = ptsUs;
             av_frame_unref(frame.get());
         }
         return true;
@@ -426,11 +666,26 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 ptsUs = av_rescale_q(audioFrame->best_effort_timestamp, audioStream->time_base,
                                      AVRational{1, 1'000'000});
             }
-            QString audioError;
-            if (!audioPipeline->submitDecodedFrame(audioFrame.get(), ptsUs, generation,
-                                                   &audioError)) {
-                decodeFailure = audioError;
-                return false;
+            if (decodingToTarget && audioIsMaster) {
+                if (ptsUs + 1'000 < seekTargetUs) {
+                    av_frame_unref(audioFrame.get()); // discard audio before the target
+                    continue;
+                }
+                landSeek(ptsUs); // audio is master: this frame is the landing point
+            }
+            if (!m_paused.load(std::memory_order_acquire) && !decodingToTarget) {
+                QString audioError;
+                if (!audioPipeline->submitDecodedFrame(audioFrame.get(), ptsUs, gen, &audioError)) {
+                    if (m_commandPending.load(std::memory_order_acquire) ||
+                        gen != m_activeGeneration.load(std::memory_order_acquire)) {
+                        av_frame_unref(audioFrame.get());
+                        return true; // benign: a flush/seek is in flight
+                    }
+                    decodeFailure = audioError;
+                    return false;
+                }
+                if (audioIsMaster)
+                    lastMasterPtsUs = ptsUs;
             }
             av_frame_unref(audioFrame.get());
         }
@@ -439,73 +694,110 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
     std::unique_ptr<AVPacket, PacketCloser> packet(av_packet_alloc());
     bool decodeFailed = false;
-    while (!m_cancelled.load(std::memory_order_acquire) &&
-           (result = av_read_frame(format.get(), packet.get())) >= 0) {
+    result = 0;
+    while (!m_cancelled.load(std::memory_order_acquire)) {
+        if (m_commandPending.exchange(false, std::memory_order_acq_rel))
+            processCommands();
+        if (m_cancelled.load(std::memory_order_acquire))
+            break;
+
+        // Paused (and not scanning to a seek target) or parked at EOF: sleep until a command.
+        if ((m_paused.load(std::memory_order_acquire) && !decodingToTarget) ||
+            (eofReached && !decodingToTarget)) {
+            std::unique_lock lock(m_commandMutex);
+            m_commandCv.wait(lock, [this] {
+                return m_commandPending.load(std::memory_order_acquire) ||
+                       m_cancelled.load(std::memory_order_acquire) || !m_commands.empty();
+            });
+            continue;
+        }
+
+        result = av_read_frame(format.get(), packet.get());
+        if (result < 0) {
+            if (result == AVERROR_EOF) {
+                if (decoder) {
+                    avcodec_send_packet(decoder.get(), nullptr);
+                    receiveVideoFrames();
+                }
+                if (audioDecoder) {
+                    avcodec_send_packet(audioDecoder.get(), nullptr);
+                    receiveAudioFrames();
+                    if (audioPipeline) {
+                        QString audioError;
+                        audioPipeline->drain(gen, &audioError);
+                    }
+                }
+                if (decodingToTarget)
+                    landSeek(seekTargetUs); // sought past the end: land at the requested edge
+                postEnded(gen, DemuxEndReason::EndOfFile,
+                          Player2Error{Player2ErrorCode::None, QString(), false});
+                eofReached = true;
+                continue;
+            }
+            decodeFailure = QStringLiteral("Demux read failed: %1").arg(avError(result));
+            decodeFailed = true;
+            break;
+        }
+
         AVStream *stream = format->streams[packet->stream_index];
         const auto toUs = [stream](qint64 value) {
             return value == AV_NOPTS_VALUE ? qint64{0}
                                            : av_rescale_q(value, stream->time_base,
                                                           AVRational{1, 1'000'000});
         };
-        postPacket(generation, DemuxPacketInfo{packet->stream_index, toUs(packet->pts),
-                                               toUs(packet->duration), packet->size,
-                                               (packet->flags & AV_PKT_FLAG_KEY) != 0});
+        postPacket(gen, DemuxPacketInfo{packet->stream_index, toUs(packet->pts),
+                                        toUs(packet->duration), packet->size,
+                                        (packet->flags & AV_PKT_FLAG_KEY) != 0});
+
+        // No decoder is producing frames (e.g. video-only with no attached pipeline): land the seek
+        // on the first packet at or past the target so completion is still observable.
+        if (decodingToTarget && !audioIsMaster && !decoder) {
+            const qint64 packetUs = toUs(packet->pts);
+            if (packetUs + 1'000 >= seekTargetUs)
+                landSeek(packetUs);
+        }
+
         if (decoder && packet->stream_index == videoStreamIndex) {
             const int sendResult = avcodec_send_packet(decoder.get(), packet.get());
             if (sendResult < 0 || !receiveVideoFrames()) {
-                if (decodeFailure.isEmpty())
-                    decodeFailure = QStringLiteral("Video packet submission failed: %1")
-                                        .arg(avError(sendResult));
-                decodeFailed = true;
-                av_packet_unref(packet.get());
-                break;
+                if (!m_commandPending.load(std::memory_order_acquire)) {
+                    if (decodeFailure.isEmpty())
+                        decodeFailure = QStringLiteral("Video packet submission failed: %1")
+                                            .arg(avError(sendResult));
+                    decodeFailed = true;
+                    av_packet_unref(packet.get());
+                    break;
+                }
             }
         }
         if (audioDecoder && packet->stream_index == audioStreamIndex) {
             const int sendResult = avcodec_send_packet(audioDecoder.get(), packet.get());
             if (sendResult < 0 || !receiveAudioFrames()) {
-                if (decodeFailure.isEmpty())
-                    decodeFailure = QStringLiteral("Audio packet submission failed: %1")
-                                        .arg(avError(sendResult));
-                decodeFailed = true;
-                av_packet_unref(packet.get());
-                break;
+                if (!m_commandPending.load(std::memory_order_acquire)) {
+                    if (decodeFailure.isEmpty())
+                        decodeFailure = QStringLiteral("Audio packet submission failed: %1")
+                                            .arg(avError(sendResult));
+                    decodeFailed = true;
+                    av_packet_unref(packet.get());
+                    break;
+                }
             }
         }
         av_packet_unref(packet.get());
     }
 
-    if (!decodeFailed && decoder && !m_cancelled.load(std::memory_order_acquire) &&
-        result == AVERROR_EOF) {
-        avcodec_send_packet(decoder.get(), nullptr);
-        decodeFailed = !receiveVideoFrames();
-    }
-    if (!decodeFailed && audioDecoder && !m_cancelled.load(std::memory_order_acquire) &&
-        result == AVERROR_EOF) {
-        avcodec_send_packet(audioDecoder.get(), nullptr);
-        decodeFailed = !receiveAudioFrames();
-        if (!decodeFailed) {
-            QString audioError;
-            decodeFailed = !audioPipeline->drain(generation, &audioError);
-            if (decodeFailed)
-                decodeFailure = audioError;
-        }
-    }
-
     const bool cancelled = m_cancelled.load(std::memory_order_acquire);
-    const bool eof = result == AVERROR_EOF;
-    const DemuxEndReason reason = cancelled ? DemuxEndReason::Cancelled
-                                            : (!decodeFailed && eof ? DemuxEndReason::EndOfFile
-                                                   : DemuxEndReason::Failed);
-    const Player2Error error = reason == DemuxEndReason::Failed
-        ? Player2Error{Player2ErrorCode::DecodeFailed,
-                       decodeFailure.isEmpty()
-                           ? QStringLiteral("Demux read failed: %1").arg(avError(result))
-                           : decodeFailure, false}
-        : Player2Error{reason == DemuxEndReason::Cancelled ? Player2ErrorCode::Cancelled
-                                                           : Player2ErrorCode::None,
-                       cancelled ? QStringLiteral("Demux cancelled") : QString(), cancelled};
-    postEnded(generation, reason, error);
+    if (cancelled) {
+        postEnded(gen, DemuxEndReason::Cancelled,
+                  Player2Error{Player2ErrorCode::Cancelled, QStringLiteral("Demux cancelled"), true});
+    } else if (decodeFailed) {
+        postEnded(gen, DemuxEndReason::Failed,
+                  Player2Error{Player2ErrorCode::DecodeFailed,
+                               decodeFailure.isEmpty()
+                                   ? QStringLiteral("Demux read failed") : decodeFailure,
+                               false});
+    }
+    // A normal end of file was already published inside the loop before parking.
     m_running.store(false, std::memory_order_release);
 }
 
@@ -530,6 +822,22 @@ void DemuxSession::postEnded(quint64 generation, DemuxEndReason reason, Player2E
     QMetaObject::invokeMethod(this, [this, generation, reason, error = std::move(error)] {
         if (m_activeGeneration.load(std::memory_order_acquire) == generation)
             emit ended(generation, reason, error);
+    }, Qt::QueuedConnection);
+}
+
+void DemuxSession::postSeekCompleted(quint64 generation, double actualSeconds)
+{
+    QMetaObject::invokeMethod(this, [this, generation, actualSeconds] {
+        if (m_activeGeneration.load(std::memory_order_acquire) == generation)
+            emit seekCompleted(generation, actualSeconds);
+    }, Qt::QueuedConnection);
+}
+
+void DemuxSession::postAudioTrackChanged(quint64 generation, int streamIndex)
+{
+    QMetaObject::invokeMethod(this, [this, generation, streamIndex] {
+        if (m_activeGeneration.load(std::memory_order_acquire) == generation)
+            emit audioTrackChanged(generation, streamIndex);
     }, Qt::QueuedConnection);
 }
 

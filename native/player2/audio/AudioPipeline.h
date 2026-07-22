@@ -20,6 +20,7 @@ public:
     bool submitDecodedFrame(AVFrame *frame, qint64 ptsUs, quint64 generation, QString *error);
     bool drain(quint64 generation, QString *error);
     void flush(quint64 generation);
+    void setPaused(bool paused);
     void setVolume(float linear);
     void setMuted(bool muted);
 

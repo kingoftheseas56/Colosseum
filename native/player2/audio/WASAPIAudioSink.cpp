@@ -181,6 +181,14 @@ public:
                 *error = QStringLiteral("Could not create WASAPI shutdown event");
             return false;
         }
+        m_controlEvent = CreateEventW(nullptr, FALSE, FALSE, nullptr);
+        if (!m_controlEvent) {
+            CloseHandle(m_shutdownEvent);
+            m_shutdownEvent = nullptr;
+            if (error)
+                *error = QStringLiteral("Could not create WASAPI control event");
+            return false;
+        }
         {
             std::scoped_lock lock(m_initMutex);
             m_initDone = false;
@@ -218,6 +226,11 @@ public:
             CloseHandle(m_shutdownEvent);
             m_shutdownEvent = nullptr;
         }
+        if (m_controlEvent) {
+            CloseHandle(m_controlEvent);
+            m_controlEvent = nullptr;
+        }
+        m_paused.store(false, std::memory_order_release);
         m_open.store(false, std::memory_order_release);
         m_clockValid.store(false, std::memory_order_release);
     }
@@ -320,13 +333,29 @@ public:
         m_open.store(true, std::memory_order_release);
         finishInitialization(true);
 
-        HANDLE handles[] = {m_shutdownEvent, audioEvent};
+        HANDLE handles[] = {m_shutdownEvent, audioEvent, m_controlEvent};
+        bool audioStopped = false;
         while (!m_stop.load(std::memory_order_acquire)) {
-            const DWORD waitResult = WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+            const DWORD waitResult = WaitForMultipleObjects(3, handles, FALSE, INFINITE);
             if (waitResult == WAIT_OBJECT_0)
                 break;
-            if (waitResult != WAIT_OBJECT_0 + 1)
-                break;
+
+            // Real transport pause: stop the endpoint (freezes playback, retains the queue) and
+            // resume it on unpause. The audio clock is only valid while the endpoint renders.
+            const bool wantPaused = m_paused.load(std::memory_order_acquire);
+            if (wantPaused && !audioStopped) {
+                client->Stop();
+                audioStopped = true;
+                m_clockValid.store(false, std::memory_order_release);
+                continue;
+            }
+            if (!wantPaused && audioStopped) {
+                client->Start();
+                audioStopped = false;
+                continue;
+            }
+            if (audioStopped || waitResult != WAIT_OBJECT_0 + 1)
+                continue;
 
             volume->SetMasterVolume(std::clamp(m_volume.load(std::memory_order_acquire), 0.0f, 1.0f), nullptr);
             volume->SetMute(m_muted.load(std::memory_order_acquire) ? TRUE : FALSE, nullptr);
@@ -365,8 +394,10 @@ public:
     std::unique_ptr<AudioBufferQueue> m_queue;
     std::thread m_worker;
     HANDLE m_shutdownEvent = nullptr;
+    HANDLE m_controlEvent = nullptr;
     std::atomic_bool m_stop{false};
     std::atomic_bool m_open{false};
+    std::atomic_bool m_paused{false};
     std::atomic<float> m_volume{1.0f};
     std::atomic_bool m_muted{false};
     std::atomic<quint64> m_generation{0};
@@ -421,6 +452,13 @@ void WASAPIAudioSink::flush(quint64 generation)
     if (m_impl->m_queue)
         m_impl->m_queue->flush(generation);
     m_impl->m_clockValid.store(false, std::memory_order_release);
+}
+
+void WASAPIAudioSink::setPaused(bool paused)
+{
+    m_impl->m_paused.store(paused, std::memory_order_release);
+    if (m_impl->m_controlEvent)
+        SetEvent(m_impl->m_controlEvent);
 }
 
 void WASAPIAudioSink::setVolume(float linear)

@@ -52,6 +52,10 @@ public slots:
     void close();
     void play();
     void pause();
+    void seekExact(double seconds);
+    void seekRelative(double seconds);
+    void frameStep(int frames);
+    void selectAudioTrack(const QString &trackId);
     void setVolume(float linear);
     void setMuted(bool muted);
 
@@ -64,6 +68,8 @@ signals:
     void errorOccurred(const Player2Error &error);
     void demuxEnded(DemuxEndReason reason);
     void packetAccepted(quint64 generation, const DemuxPacketInfo &packet);
+    void seekCompleted(quint64 generation, double actualSeconds);
+    void audioTrackChanged(quint64 generation, int streamIndex);
     void audioDiagnosticsChanged();
     void volumeChanged();
     void mutedChanged();
@@ -71,6 +77,7 @@ signals:
 private:
     bool transition(Player2State state);
     void resetMediaProperties();
+    bool hasActiveMedia() const noexcept;
 
     PlaybackGeneration m_generation;
     Player2StateMachine m_state;
@@ -83,6 +90,7 @@ private:
     double m_position = 0.0;
     double m_duration = 0.0;
     QVariantList m_tracks;
+    Player2State m_postSeekState = Player2State::Playing;
     float m_volume = 1.0f;
     bool m_muted = false;
 };

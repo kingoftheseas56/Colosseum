@@ -40,6 +40,8 @@ public:
     virtual int write(const AudioBuffer &buffer, quint64 generation, QString *error) = 0;
     virtual AudioClockSnapshot clock() const = 0;
     virtual void flush(quint64 generation) = 0;
+    // Real transport pause: suspend/resume the endpoint. Default no-op keeps fake sinks simple.
+    virtual void setPaused(bool paused) { Q_UNUSED(paused); }
     virtual void setVolume(float linear) = 0;
     virtual void setMuted(bool muted) = 0;
     virtual int queueDepthFrames() const = 0;
@@ -88,6 +90,7 @@ public:
     int write(const AudioBuffer &buffer, quint64 generation, QString *error) override;
     AudioClockSnapshot clock() const override;
     void flush(quint64 generation) override;
+    void setPaused(bool paused) override;
     void setVolume(float linear) override;
     void setMuted(bool muted) override;
     int queueDepthFrames() const override;

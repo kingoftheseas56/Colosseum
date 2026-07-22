@@ -131,12 +131,15 @@ bool AudioPipeline::drain(quint64 generation, QString *error)
 
 void AudioPipeline::flush(quint64 generation)
 {
-    resetConverter();
+    // Only the thread-safe sink queue is flushed here. The SwrContext is owned exclusively by the
+    // decode thread (swr_convert); freeing it here would race that thread — flush() is also called
+    // from the GUI thread on open/close. The converter is reset on format change and destruction.
     m_nextPtsUs = 0;
     if (m_sink)
         m_sink->flush(generation);
 }
 
+void AudioPipeline::setPaused(bool paused) { if (m_sink) m_sink->setPaused(paused); }
 void AudioPipeline::setVolume(float linear) { if (m_sink) m_sink->setVolume(linear); }
 void AudioPipeline::setMuted(bool muted) { if (m_sink) m_sink->setMuted(muted); }
 AudioFormat AudioPipeline::outputFormat() const noexcept { return m_outputFormat; }
