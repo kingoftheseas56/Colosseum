@@ -56,6 +56,7 @@ public:
     void setNormalizationMode(NormalizationMode mode);
     bool startScenario(const QString &scenario, QString *error);
     bool startFile(const QString &path, QString *error);
+    bool startUrl(const QString &url, const QString &headersJsonPath, bool live, QString *error);
     Q_INVOKABLE void attachVideoItem(QObject *item);
     void requestAdjacentEpisode(const QString &mediaId, int direction) override;
     void requestAlternateSources(const QString &mediaId) override;
@@ -76,9 +77,14 @@ private:
     QPointer<Player2VideoItem> m_item;
     QTimer m_frameTimer;
     QTimer m_watchdog;
+    bool hasMedia() const { return !m_filePath.isEmpty() || !m_url.isEmpty(); }
+
     D3D11VideoPipeline::Diagnostics m_metrics;
     QString m_reportPath;
     QString m_filePath;
+    QString m_url;
+    RequestHeaders m_headers;
+    bool m_live = false;
     QString m_status = QStringLiteral("Waiting for D3D11 scene graph");
     quint64 m_sequence = 0;
     double m_reportDuration = 0.0;

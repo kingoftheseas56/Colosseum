@@ -2,6 +2,7 @@
 
 #include "player2/video/D3D11VideoPipeline.h"
 #include "player2/audio/AudioPipeline.h"
+#include "player2/network/QtHttpTransport.h"
 #include "FrameScheduler.h"
 #include "PlaybackClock.h"
 #include "SubtitlePipeline.h"
@@ -9,8 +10,10 @@
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
+#include <libavformat/avio.h>
 #include <libavutil/dict.h>
 #include <libavutil/error.h>
+#include <libavutil/mem.h>
 #include <libavutil/pixdesc.h>
 }
 
@@ -124,6 +127,24 @@ int DemuxSession::interrupt(void *opaque)
     return session && session->m_cancelled.load(std::memory_order_acquire) ? 1 : 0;
 }
 
+int DemuxSession::avioRead(void *opaque, uint8_t *buffer, int size)
+{
+    auto *source = static_cast<HttpMediaSource *>(opaque);
+    const int read = source->read(reinterpret_cast<char *>(buffer), size);
+    if (read > 0)
+        return read;
+    if (read == 0)
+        return AVERROR_EOF;
+    return AVERROR_EXIT; // cancelled or a terminal network failure
+}
+
+int64_t DemuxSession::avioSeek(void *opaque, int64_t offset, int whence)
+{
+    auto *source = static_cast<HttpMediaSource *>(opaque);
+    const qint64 result = source->seek(offset, static_cast<int>(whence));
+    return result < 0 ? qint64{AVERROR(EINVAL)} : result;
+}
+
 void DemuxSession::open(const PlaybackRequest &request, quint64 generation)
 {
     cancel();
@@ -144,6 +165,15 @@ void DemuxSession::cancel()
 {
     m_cancelled.store(true, std::memory_order_release);
     m_commandCv.notify_all();
+    // Unblock a blocked AVIO read so the worker can observe the cancel and exit; the shared_ptr copy
+    // keeps the source alive across this call even as the worker tears it down.
+    std::shared_ptr<HttpMediaSource> source;
+    {
+        std::scoped_lock lock(m_httpMutex);
+        source = m_httpSource;
+    }
+    if (source)
+        source->cancel();
     joinWorker();
 }
 
@@ -287,9 +317,59 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         return;
     }
     rawFormat->interrupt_callback = AVIOInterruptCB{&DemuxSession::interrupt, this};
+
+    // Streamed HTTP(S) sources route through our own transport (HttpMediaSource) so WE own buffering
+    // truth, ranged seeks, reconnect and header redaction, surfaced to FFmpeg via a custom AVIO.
+    std::shared_ptr<HttpMediaSource> httpSource;
+    AVIOContext *avio = nullptr;
+    const bool useHttpSource =
+        !request.source.isLocalFile() && HttpMediaSource::isHttpUrl(request.source);
+    if (useHttpSource) {
+        httpSource = std::make_shared<HttpMediaSource>(std::make_unique<QtHttpTransport>(), request);
+        httpSource->setStateCallback([this](NetworkState state) { postNetworkState(state); });
+        QString openError;
+        if (!httpSource->open(&openError)) {
+            avformat_free_context(rawFormat);
+            postEnded(generation, DemuxEndReason::Failed,
+                      Player2Error{Player2ErrorCode::NetworkFailed,
+                                   QStringLiteral("Could not open stream: %1").arg(openError), true});
+            m_running.store(false, std::memory_order_release);
+            return;
+        }
+        {
+            std::scoped_lock lock(m_httpMutex);
+            m_httpSource = httpSource;
+        }
+        constexpr int kAvioBufferSize = 64 * 1024;
+        auto *buffer = static_cast<unsigned char *>(av_malloc(kAvioBufferSize));
+        avio = avio_alloc_context(buffer, kAvioBufferSize, 0, httpSource.get(),
+                                  &DemuxSession::avioRead, nullptr,
+                                  httpSource->capabilities().seekable ? &DemuxSession::avioSeek
+                                                                      : nullptr);
+        rawFormat->pb = avio;
+        rawFormat->flags |= AVFMT_FLAG_CUSTOM_IO;
+    }
+    // Free the custom AVIO and release the streaming source on every exit path. It is declared before
+    // `format` so it tears down AFTER avformat_close_input, and after the shared source it references.
+    struct HttpTeardown
+    {
+        DemuxSession *self;
+        AVIOContext **avio;
+        ~HttpTeardown()
+        {
+            if (*avio) {
+                av_freep(&(*avio)->buffer);
+                avio_context_free(avio);
+            }
+            std::scoped_lock lock(self->m_httpMutex);
+            self->m_httpSource.reset();
+        }
+    } httpTeardown{this, &avio};
+
     const QByteArray location = request.source.isLocalFile()
         ? request.source.toLocalFile().toUtf8() : request.source.toString().toUtf8();
-    int result = avformat_open_input(&rawFormat, location.constData(), nullptr, nullptr);
+    int result = avformat_open_input(&rawFormat, useHttpSource ? nullptr : location.constData(),
+                                     nullptr, nullptr);
     std::unique_ptr<AVFormatContext, FormatCloser> format(rawFormat);
     if (result < 0) {
         const bool cancelled = m_cancelled.load(std::memory_order_acquire);
@@ -941,6 +1021,16 @@ void DemuxSession::postAudioNormalizationChanged(quint64 generation, int mode)
     QMetaObject::invokeMethod(this, [this, generation, mode] {
         if (m_activeGeneration.load(std::memory_order_acquire) == generation)
             emit audioNormalizationChanged(generation, mode);
+    }, Qt::QueuedConnection);
+}
+
+void DemuxSession::postNetworkState(NetworkState state)
+{
+    const quint64 generation = m_activeGeneration.load(std::memory_order_acquire);
+    const int value = static_cast<int>(state);
+    QMetaObject::invokeMethod(this, [this, generation, value] {
+        if (m_activeGeneration.load(std::memory_order_acquire) == generation)
+            emit networkStateChanged(generation, value);
     }, Qt::QueuedConnection);
 }
 

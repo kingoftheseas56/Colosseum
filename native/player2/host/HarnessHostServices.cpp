@@ -8,7 +8,9 @@
 #include <QtCore/QFile>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <QtCore/QJsonParseError>
 #include <QtCore/QMetaEnum>
+#include <QtCore/QUrl>
 #include <QtCore/QSaveFile>
 #include <QtCore/QStandardPaths>
 
@@ -61,6 +63,8 @@ void HarnessHostServices::reportProgress(const QString &mediaId, double position
 QString HarnessHostServices::adapter() const { return m_metrics.qtAdapter; }
 QString HarnessHostServices::source() const
 {
+    if (!m_url.isEmpty())
+        return m_url;
     return m_filePath.isEmpty() ? QStringLiteral("Synthetic D3D11 frames")
                                 : QFileInfo(m_filePath).fileName();
 }
@@ -133,6 +137,45 @@ bool HarnessHostServices::startFile(const QString &path, QString *error)
     return true;
 }
 
+bool HarnessHostServices::startUrl(const QString &url, const QString &headersJsonPath, bool live,
+                                   QString *error)
+{
+    const QUrl parsed(url);
+    if (!parsed.isValid() || parsed.scheme().isEmpty()) {
+        if (error)
+            *error = QStringLiteral("Invalid stream URL: %1").arg(url);
+        return false;
+    }
+    if (!headersJsonPath.isEmpty()) {
+        QFile file(headersJsonPath);
+        if (!file.open(QIODevice::ReadOnly)) {
+            if (error)
+                *error = QStringLiteral("Could not read headers JSON: %1").arg(headersJsonPath);
+            return false;
+        }
+        QJsonParseError parseError;
+        const QJsonDocument document = QJsonDocument::fromJson(file.readAll(), &parseError);
+        if (parseError.error != QJsonParseError::NoError || !document.isObject()) {
+            if (error)
+                *error = QStringLiteral("Headers JSON must be an object of string values");
+            return false;
+        }
+        const QJsonObject object = document.object();
+        for (auto it = object.constBegin(); it != object.constEnd(); ++it)
+            m_headers.insert(it.key().toUtf8(), it.value().toString().toUtf8());
+    }
+    m_url = url;
+    m_live = live;
+    m_started = true;
+    m_runTimer.start();
+    appendEvent(QStringLiteral("url-started"), parsed.host());
+    m_frameTimer.start();
+    if (!m_reportPath.isEmpty())
+        m_watchdog.start((m_minimumRunSeconds + 40) * 1'000);
+    emit metricsChanged();
+    return true;
+}
+
 void HarnessHostServices::attachVideoItem(QObject *object)
 {
     auto *item = qobject_cast<Player2VideoItem *>(object);
@@ -160,12 +203,23 @@ void HarnessHostServices::produceFrame()
         return;
     }
 
-    if (!m_filePath.isEmpty()) {
+    if (hasMedia()) {
         if (!m_fileOpened) {
             m_fileOpened = true;
-            m_session.open(PlaybackRequest{QUrl::fromLocalFile(m_filePath),
-                                           QFileInfo(m_filePath).baseName(),
-                                           QFileInfo(m_filePath).completeBaseName()});
+            if (!m_url.isEmpty()) {
+                PlaybackRequest request;
+                request.source = QUrl(m_url);
+                request.mediaId = QStringLiteral("stream");
+                request.title = QStringLiteral("stream");
+                request.headers = m_headers;
+                request.stream = true;
+                request.live = m_live;
+                m_session.open(request);
+            } else {
+                m_session.open(PlaybackRequest{QUrl::fromLocalFile(m_filePath),
+                                               QFileInfo(m_filePath).baseName(),
+                                               QFileInfo(m_filePath).completeBaseName()});
+            }
         }
         m_item->update();
     } else {
@@ -187,7 +241,7 @@ void HarnessHostServices::produceFrame()
         return;
     }
     if (!m_reportPath.isEmpty()) {
-        const quint64 target = !m_filePath.isEmpty() && m_session.duration() < 10.0 ? 30 : 320;
+        const quint64 target = hasMedia() && m_session.duration() < 10.0 ? 30 : 320;
         bool hasAudioTrack = false;
         for (const QVariant &trackValue : m_session.tracks()) {
             if (trackValue.toMap().value(QStringLiteral("type")).toString() == QStringLiteral("audio")) {
@@ -198,11 +252,14 @@ void HarnessHostServices::produceFrame()
         const bool audioReady = !hasAudioTrack || m_sawAudioClock;
         const bool minimumRunMet = m_minimumRunSeconds == 0 ||
             (m_runTimer.isValid() && m_runTimer.elapsed() >= m_minimumRunSeconds * 1'000);
-        if ((!m_filePath.isEmpty() && minimumRunMet && m_metrics.presented >= target && m_sawPlaying &&
-             m_session.duration() > 0.0 && !m_session.tracks().isEmpty() && audioReady) ||
-            (m_filePath.isEmpty() && m_metrics.presented >= target)) {
-            finish(true, m_filePath.isEmpty() ? QStringLiteral("Synthetic D3D11 gate passed")
-                                              : QStringLiteral("Local file gate passed"), 0);
+        // A streamed source may report an unknown duration (live/no-length), so it is not required.
+        const bool durationReady = !m_url.isEmpty() || m_session.duration() > 0.0;
+        if ((hasMedia() && minimumRunMet && m_metrics.presented >= target && m_sawPlaying &&
+             durationReady && !m_session.tracks().isEmpty() && audioReady) ||
+            (!hasMedia() && m_metrics.presented >= target)) {
+            finish(true, !hasMedia() ? QStringLiteral("Synthetic D3D11 gate passed")
+                                     : (m_url.isEmpty() ? QStringLiteral("Local file gate passed")
+                                                        : QStringLiteral("Stream gate passed")), 0);
         }
     }
 }
@@ -222,7 +279,7 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
     m_finished = true;
     m_frameTimer.stop();
     m_watchdog.stop();
-    if (!m_filePath.isEmpty()) {
+    if (hasMedia()) {
         m_reportDuration = m_session.duration();
         m_reportTrackCount = m_session.tracks().size();
         m_reportAudioDevice = m_session.audioDevice();
@@ -255,8 +312,9 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
 bool HarnessHostServices::writeReport(bool passed, const QString &message) const
 {
     const QJsonObject report{
-        {QStringLiteral("scenario"), m_filePath.isEmpty() ? QStringLiteral("synthetic")
-                                                          : QStringLiteral("file")},
+        {QStringLiteral("scenario"), !hasMedia() ? QStringLiteral("synthetic")
+                                    : (m_url.isEmpty() ? QStringLiteral("file")
+                                                       : QStringLiteral("stream"))},
         {QStringLiteral("passed"), passed},
         {QStringLiteral("message"), message},
         {QStringLiteral("source"), source()},

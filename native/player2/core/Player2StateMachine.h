@@ -6,6 +6,14 @@
 
 namespace Colosseum::Player2
 {
+enum class NetworkState; // defined in player2/network/HttpMediaSource.h
+
+// Pure mapping from a streaming transport event to the player state it should drive, given the
+// current player state. Returns no value when the event should not change the player state (e.g. a
+// Streaming heartbeat while already Playing). Buffering pauses playback; Recovering surfaces a
+// reconnect; Streaming resumes; Failed is a terminal network error.
+std::optional<Player2State> networkStateTarget(Player2State current, NetworkState network);
+
 struct StateTransitionResult
 {
     bool accepted = false;

@@ -1,9 +1,42 @@
 #include "Player2StateMachine.h"
 
+#include "player2/network/HttpMediaSource.h"
+
 #include <QtCore/QStringLiteral>
 
 namespace Colosseum::Player2
 {
+std::optional<Player2State> networkStateTarget(Player2State current, NetworkState network)
+{
+    switch (network) {
+    case NetworkState::Buffering:
+        // A read-ahead underrun pauses playback, but never overrides a user pause or an active seek.
+        if (current == Player2State::Playing)
+            return Player2State::Buffering;
+        return std::nullopt;
+    case NetworkState::Streaming:
+        // The cushion recovered: resume from a network-induced Buffering or Recovering only.
+        if (current == Player2State::Buffering || current == Player2State::Recovering)
+            return Player2State::Playing;
+        return std::nullopt;
+    case NetworkState::Recovering:
+        if (current == Player2State::Opening || current == Player2State::Playing ||
+            current == Player2State::Buffering || current == Player2State::Paused ||
+            current == Player2State::Seeking)
+            return Player2State::Recovering;
+        return std::nullopt;
+    case NetworkState::Failed:
+        if (current != Player2State::Idle)
+            return Player2State::Error;
+        return std::nullopt;
+    case NetworkState::Idle:
+    case NetworkState::Connecting:
+    case NetworkState::Ended:
+        return std::nullopt;
+    }
+    return std::nullopt;
+}
+
 Player2StateMachine::Player2StateMachine(Player2State initialState) noexcept
     : m_state(initialState)
 {

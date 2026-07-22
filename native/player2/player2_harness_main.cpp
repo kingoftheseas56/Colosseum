@@ -24,8 +24,8 @@ int main(int argc, char *argv[])
     QCoreApplication::setApplicationName(QStringLiteral("Player2Lab"));
 
     QCommandLineParser parser;
-    parser.setApplicationDescription(
-        QStringLiteral("Player 2 lab: --scenario synthetic | --file PATH [--report PATH]"));
+    parser.setApplicationDescription(QStringLiteral(
+        "Player 2 lab: --scenario synthetic | --file PATH | --url URL [--report PATH]"));
     parser.addHelpOption();
     const QCommandLineOption scenarioOption(QStringLiteral("scenario"),
                                              QStringLiteral("Lab scenario to run"),
@@ -36,6 +36,14 @@ int main(int argc, char *argv[])
     const QCommandLineOption fileOption(QStringLiteral("file"),
                                          QStringLiteral("Open a local media file"),
                                          QStringLiteral("path"));
+    const QCommandLineOption urlOption(QStringLiteral("url"),
+                                        QStringLiteral("Open an HTTP(S) stream URL"),
+                                        QStringLiteral("url"));
+    const QCommandLineOption headersOption(QStringLiteral("headers-json"),
+                                            QStringLiteral("JSON object of request headers"),
+                                            QStringLiteral("path"));
+    const QCommandLineOption liveOption(QStringLiteral("live"),
+                                         QStringLiteral("Treat the stream as live"));
     const QCommandLineOption soakOption(QStringLiteral("soak-seconds"),
                                          QStringLiteral("Minimum report-mode playback duration"),
                                          QStringLiteral("seconds"), QStringLiteral("0"));
@@ -46,11 +54,16 @@ int main(int argc, char *argv[])
     parser.addOption(scenarioOption);
     parser.addOption(reportOption);
     parser.addOption(fileOption);
+    parser.addOption(urlOption);
+    parser.addOption(headersOption);
+    parser.addOption(liveOption);
     parser.addOption(soakOption);
     parser.addOption(normalizationOption);
     parser.process(application);
-    if (parser.isSet(scenarioOption) == parser.isSet(fileOption)) {
-        std::cerr << "choose exactly one of --scenario synthetic or --file PATH\n";
+    const int sourceCount = (parser.isSet(scenarioOption) ? 1 : 0) +
+        (parser.isSet(fileOption) ? 1 : 0) + (parser.isSet(urlOption) ? 1 : 0);
+    if (sourceCount != 1) {
+        std::cerr << "choose exactly one of --scenario synthetic, --file PATH or --url URL\n";
         return 2;
     }
 
@@ -76,9 +89,14 @@ int main(int argc, char *argv[])
         return 4;
 
     QString error;
-    const bool started = parser.isSet(fileOption)
-        ? host.startFile(parser.value(fileOption), &error)
-        : host.startScenario(parser.value(scenarioOption), &error);
+    bool started = false;
+    if (parser.isSet(urlOption))
+        started = host.startUrl(parser.value(urlOption), parser.value(headersOption),
+                                parser.isSet(liveOption), &error);
+    else if (parser.isSet(fileOption))
+        started = host.startFile(parser.value(fileOption), &error);
+    else
+        started = host.startScenario(parser.value(scenarioOption), &error);
     if (!started) {
         std::cerr << error.toStdString() << '\n';
         return 2;

@@ -1,0 +1,514 @@
+// Hermetic tests for HttpMediaSource. A scripted in-process transport stands in for the network so
+// the whole suite runs deterministically with no internet dependency. Each case proves one piece of
+// the task contract: capabilities, ranged seek, honest Buffering/Recovering/Ended/Failed state,
+// bounded reconnect and prompt cancellation.
+
+#include "player2/network/HttpMediaSource.h"
+
+#include <QtCore/QByteArray>
+#include <QtCore/QUrl>
+
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <cstring>
+#include <iostream>
+#include <mutex>
+#include <stdexcept>
+#include <string>
+#include <thread>
+#include <vector>
+
+using namespace Colosseum::Player2;
+
+namespace {
+
+void require(bool condition, const std::string &message)
+{
+    if (!condition)
+        throw std::runtime_error(message);
+}
+
+QByteArray countedBody(int size)
+{
+    QByteArray body;
+    body.resize(size);
+    for (int i = 0; i < size; ++i)
+        body[i] = static_cast<char>(i & 0xFF);
+    return body;
+}
+
+// Records every NetworkState the source publishes, in order, so tests can assert honest sequences.
+class StateLog
+{
+public:
+    void record(NetworkState state)
+    {
+        std::scoped_lock lock(m_mutex);
+        m_states.push_back(state);
+    }
+    std::vector<NetworkState> snapshot() const
+    {
+        std::scoped_lock lock(m_mutex);
+        return m_states;
+    }
+    bool saw(NetworkState state) const
+    {
+        std::scoped_lock lock(m_mutex);
+        for (NetworkState value : m_states)
+            if (value == state)
+                return true;
+        return false;
+    }
+    // True if `first` appears before `second` at least once.
+    bool sawInOrder(NetworkState first, NetworkState second) const
+    {
+        std::scoped_lock lock(m_mutex);
+        bool sawFirst = false;
+        for (NetworkState value : m_states) {
+            if (value == first)
+                sawFirst = true;
+            else if (value == second && sawFirst)
+                return true;
+        }
+        return false;
+    }
+
+private:
+    mutable std::mutex m_mutex;
+    std::vector<NetworkState> m_states;
+};
+
+// A deterministic transport. It serves bytes from an in-memory resource and can be told to reject
+// ranges, hide its length, disconnect after N bytes, stall until released, or block until cancelled.
+class ScriptedTransport final : public IHttpTransport
+{
+public:
+    QByteArray resource;
+    bool totalKnown = true;    // advertise Content-Length / Content-Range total
+    bool acceptRanges = true;  // advertise Accept-Ranges: bytes
+    bool honorRange = true;    // actually serve from the requested offset
+    int chunkSize = 64 * 1024; // bytes returned per read()
+
+    // Fault injection. disconnectAfterBytes < 0 disables. When alwaysDisconnect is set, every
+    // connection disconnects after disconnectAfterBytes; otherwise only the first connection does.
+    int disconnectAfterBytes = -1;
+    bool alwaysDisconnect = false;
+
+    // When stallAfterBytes >= 0, read() blocks once it has served that many bytes on a connection,
+    // until releaseStall() is called. Used to force a read-ahead underrun.
+    int stallAfterBytes = -1;
+
+    bool blockForever = false; // read() blocks until cancel() (cancellation test)
+
+    int startCount() const { return m_startCount.load(); }
+
+    void releaseStall()
+    {
+        {
+            std::scoped_lock lock(m_mutex);
+            m_stallReleased = true;
+        }
+        m_cv.notify_all();
+    }
+
+    bool start(const QUrl &, const RequestHeaders &, qint64 byteOffset, HttpResponse *response,
+               QString *error) override
+    {
+        std::scoped_lock lock(m_mutex);
+        // A new connection rearms the transport: a real client is reusable after a per-operation
+        // cancel(); only HttpMediaSource's own flag is the permanent shutdown.
+        m_cancelled = false;
+        ++m_startCount;
+        m_served = 0;
+        m_connectionHadDisconnect = false;
+        const qint64 effectiveOffset = honorRange ? byteOffset : 0;
+        m_serveOffset = effectiveOffset;
+        response->statusCode = (honorRange && byteOffset > 0) ? 206 : 200;
+        response->partial = honorRange && byteOffset > 0;
+        response->acceptRanges = acceptRanges;
+        response->rangeStart = effectiveOffset;
+        response->totalBytes = totalKnown ? static_cast<qint64>(resource.size()) : -1;
+        return true;
+    }
+
+    int read(char *dst, int maxLen) override
+    {
+        std::unique_lock lock(m_mutex);
+        if (blockForever) {
+            m_cv.wait(lock, [this] { return m_cancelled; });
+            return -1; // interrupted
+        }
+        if (stallAfterBytes >= 0 && m_served >= stallAfterBytes && !m_stallReleased) {
+            m_cv.wait(lock, [this] { return m_stallReleased || m_cancelled; });
+        }
+        if (m_cancelled)
+            return -1;
+        const bool disconnectThisConnection = alwaysDisconnect || m_startCount == 1;
+        if (disconnectAfterBytes >= 0 && disconnectThisConnection && !m_connectionHadDisconnect &&
+            m_served >= disconnectAfterBytes) {
+            m_connectionHadDisconnect = true;
+            return -1; // mid-stream failure the source should try to recover
+        }
+        if (m_serveOffset >= resource.size())
+            return 0; // clean EOF
+        const int available = static_cast<int>(resource.size() - m_serveOffset);
+        const int count = std::min({maxLen, chunkSize, available});
+        std::memcpy(dst, resource.constData() + m_serveOffset, static_cast<size_t>(count));
+        m_serveOffset += count;
+        m_served += count;
+        return count;
+    }
+
+    void close() override {}
+
+    void cancel() override
+    {
+        {
+            std::scoped_lock lock(m_mutex);
+            m_cancelled = true;
+        }
+        m_cv.notify_all();
+    }
+
+private:
+    std::mutex m_mutex;
+    std::condition_variable m_cv;
+    std::atomic<int> m_startCount{0};
+    qint64 m_serveOffset = 0;
+    int m_served = 0;
+    bool m_connectionHadDisconnect = false;
+    bool m_stallReleased = false;
+    bool m_cancelled = false;
+};
+
+HttpSourcePolicy fastPolicy()
+{
+    HttpSourcePolicy policy;
+    policy.highWaterBytes = 256 * 1024;
+    policy.lowWaterBytes = 4 * 1024;
+    policy.resumeBytes = 1; // any byte resumes; keeps the buffering test crisp
+    policy.maxReconnectAttempts = 3;
+    policy.reconnectDelayMs = [](int) { return 0; }; // no real delay in tests
+    return policy;
+}
+
+PlaybackRequest streamRequest(bool live = false)
+{
+    PlaybackRequest request;
+    request.source = QUrl(QStringLiteral("http://localhost/media.bin"));
+    request.stream = true;
+    request.live = live;
+    return request;
+}
+
+// Drain the source on a background thread (the demux/AVIO role) into `out`, until EOF or error.
+QByteArray drainAll(HttpMediaSource &source, int *terminalCode = nullptr)
+{
+    QByteArray out;
+    char buffer[32 * 1024];
+    for (;;) {
+        const int n = source.read(buffer, sizeof(buffer));
+        if (n > 0) {
+            out.append(buffer, n);
+            continue;
+        }
+        if (terminalCode)
+            *terminalCode = n;
+        break; // 0 = EOF, <0 = error/cancel
+    }
+    return out;
+}
+
+// -----------------------------------------------------------------------------------------------
+
+void testRangeSuccessAndSeek()
+{
+    const QByteArray body = countedBody(400 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    ScriptedTransport *raw = transport.get();
+    (void)raw;
+
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    QString error;
+    require(source.open(&error), "range-success open failed: " + error.toStdString());
+
+    const SourceCapabilities caps = source.capabilities();
+    require(caps.rangeSupported, "range server should report rangeSupported");
+    require(caps.seekable, "range server should be seekable");
+    require(caps.knownDuration, "known length should report knownDuration");
+    require(!caps.live, "a seekable known-length source is not live");
+    require(caps.totalBytes == body.size(), "totalBytes should equal the resource size");
+
+    const QByteArray whole = drainAll(source);
+    require(whole == body, "sequential read did not return the exact body");
+
+    // Seek to the middle and read the tail; the bytes must match the resource from that offset.
+    const qint64 target = 128 * 1024;
+    const qint64 landed = source.seek(target, SEEK_SET);
+    require(landed == target, "seek did not land at the requested offset");
+    const QByteArray tail = drainAll(source);
+    require(tail == body.mid(static_cast<int>(target)), "post-seek read did not match the tail");
+
+    // AVSEEK_SIZE returns the known total.
+    require(source.seek(0, 0x10000 /*AVSEEK_SIZE*/) == body.size(), "AVSEEK_SIZE should give size");
+}
+
+void testRangeRejectionMakesUnseekable()
+{
+    const QByteArray body = countedBody(200 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->acceptRanges = false;
+    transport->honorRange = false;
+    transport->totalKnown = true;
+
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    QString error;
+    require(source.open(&error), "no-range open failed: " + error.toStdString());
+
+    const SourceCapabilities caps = source.capabilities();
+    require(!caps.rangeSupported, "server without ranges must report rangeSupported=false");
+    require(!caps.seekable, "server without ranges must be unseekable");
+
+    const QByteArray whole = drainAll(source);
+    require(whole == body, "no-range read did not return the exact body");
+
+    require(source.seek(1024, SEEK_SET) < 0, "seek on an unseekable source must fail");
+}
+
+void testSlowChunksReportBuffering()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->stallAfterBytes = 64 * 1024; // serve one chunk, then stall until released
+    ScriptedTransport *raw = transport.get();
+
+    StateLog log;
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "slow-chunk open failed: " + error.toStdString());
+
+    std::atomic<bool> done{false};
+    QByteArray out;
+    std::thread consumer([&] {
+        out = drainAll(source);
+        done = true;
+    });
+
+    // Give the consumer time to drain the first chunk and starve on the stall.
+    for (int i = 0; i < 200 && !log.saw(NetworkState::Buffering); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    require(log.saw(NetworkState::Buffering), "an underrun must report Buffering");
+
+    raw->releaseStall();
+    consumer.join();
+
+    require(out == body, "slow-chunk read did not return the exact body");
+    require(log.sawInOrder(NetworkState::Buffering, NetworkState::Streaming),
+            "the source must recover from Buffering back to Streaming");
+    require(log.saw(NetworkState::Ended), "a fully drained body must report Ended");
+}
+
+void testDisconnectThenReconnect()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->disconnectAfterBytes = 128 * 1024; // first connection dies after 128 KiB
+    transport->alwaysDisconnect = false;          // reconnection succeeds
+
+    StateLog log;
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "reconnect open failed: " + error.toStdString());
+
+    const QByteArray whole = drainAll(source);
+    require(whole == body, "reconnected read must reassemble the exact body");
+    require(log.saw(NetworkState::Recovering), "a mid-stream disconnect must report Recovering");
+    require(source.reconnectCount() == 1, "exactly one reconnect should have occurred");
+    require(log.sawInOrder(NetworkState::Recovering, NetworkState::Streaming),
+            "the source must return to Streaming after recovery");
+}
+
+void testReconnectExhaustionFails()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->disconnectAfterBytes = 64 * 1024;
+    transport->alwaysDisconnect = true; // every connection dies -> attempts exhaust
+
+    StateLog log;
+    HttpSourcePolicy policy = fastPolicy();
+    policy.maxReconnectAttempts = 2;
+    HttpMediaSource source(std::move(transport), streamRequest(), policy);
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "exhaustion open failed: " + error.toStdString());
+
+    int terminal = 0;
+    drainAll(source, &terminal);
+    require(terminal < 0, "an exhausted reconnect must return a terminal error to the demuxer");
+    require(log.saw(NetworkState::Failed), "exhausted reconnect must report Failed");
+    require(source.reconnectCount() == 2, "reconnect attempts should be bounded to the policy");
+}
+
+void testUnknownLengthIsLive()
+{
+    const QByteArray body = countedBody(100 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->totalKnown = false;   // no Content-Length
+    transport->acceptRanges = false; // and no ranges
+    transport->honorRange = false;
+
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    QString error;
+    require(source.open(&error), "unknown-length open failed: " + error.toStdString());
+
+    const SourceCapabilities caps = source.capabilities();
+    require(!caps.knownDuration, "no Content-Length must report knownDuration=false");
+    require(!caps.seekable, "an unknown-length no-range source is unseekable");
+    require(caps.live, "an unknown-length unseekable source is live");
+    require(source.seek(0, 0x10000 /*AVSEEK_SIZE*/) < 0, "AVSEEK_SIZE on unknown size must fail");
+
+    const QByteArray whole = drainAll(source);
+    require(whole == body, "unknown-length read did not return the exact body");
+}
+
+void testSeekToEndParksWithoutOutOfRangeRequest()
+{
+    // Regression: seeking to/past EOF (FFmpeg probes mkv this way) must not issue a Range that a
+    // real server answers with 416; the source parks at EOF and read() returns a clean 0.
+    const QByteArray body = countedBody(200 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    ScriptedTransport *raw = transport.get();
+
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    QString error;
+    require(source.open(&error), "seek-end open failed: " + error.toStdString());
+
+    const int startsBefore = raw->startCount();
+    require(source.seek(body.size(), SEEK_SET) == body.size(), "seek to EOF should land at size");
+    int terminal = 1;
+    const QByteArray afterEof = drainAll(source, &terminal);
+    require(afterEof.isEmpty(), "reading at EOF must return nothing");
+    require(terminal == 0, "seek to EOF must report a clean EOF, not an error");
+    require(source.state() != NetworkState::Failed, "seek to EOF must not fail the source");
+    require(raw->startCount() == startsBefore, "seek to EOF must not open a new connection");
+
+    // A normal seek back into range still works afterwards.
+    require(source.seek(1024, SEEK_SET) == 1024, "seek back into range should succeed");
+    require(drainAll(source) == body.mid(1024), "post-EOF seek read must match the tail");
+}
+
+void testReconnectFromWrongOffsetFails()
+{
+    // Regression: if a reconnect does not resume from the requested byte (server ignored the range),
+    // resuming would splice misaligned bytes; the source must fail cleanly instead.
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->acceptRanges = false;
+    transport->honorRange = false;             // reconnect will serve from byte 0, not the resume point
+    transport->disconnectAfterBytes = 64 * 1024;
+    transport->alwaysDisconnect = false;
+
+    StateLog log;
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "wrong-offset open failed: " + error.toStdString());
+
+    int terminal = 0;
+    drainAll(source, &terminal);
+    require(terminal < 0, "a misaligned reconnect must return a terminal error");
+    require(log.saw(NetworkState::Failed), "a misaligned reconnect must report Failed");
+    require(source.reconnectCount() == 1, "the source should stop after the misaligned reconnect");
+}
+
+void testCancelDuringActiveReadNeverHangs()
+{
+    // Regression for the lost-wakeup race: cancel arriving anywhere around read()'s underrun wait
+    // (not just after a guaranteed 50 ms block) must always return promptly. A regression hangs the
+    // consumer join, which the harness timeout catches.
+    for (int iteration = 0; iteration < 200; ++iteration) {
+        auto transport = std::make_unique<ScriptedTransport>();
+        transport->resource = countedBody(256 * 1024);
+        transport->blockForever = true; // never delivers, so read() must block then wake on cancel
+        HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+        QString error;
+        require(source.open(&error), "stress open failed: " + error.toStdString());
+
+        std::atomic<int> terminal{1};
+        std::thread consumer([&] {
+            char buffer[4096];
+            terminal = source.read(buffer, sizeof(buffer));
+        });
+        source.cancel(); // no sleep: race the reader's path into wait()
+        consumer.join();
+        require(terminal < 0, "a cancelled read must return a negative terminal code");
+    }
+}
+
+void testCancellationIsPrompt()
+{
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = countedBody(1024 * 1024);
+    transport->blockForever = true; // the transport never delivers
+
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    QString error;
+    require(source.open(&error), "cancellation open failed: " + error.toStdString());
+
+    std::atomic<int> terminal{123};
+    std::atomic<bool> finished{false};
+    const auto begin = std::chrono::steady_clock::now();
+    std::thread consumer([&] {
+        char buffer[4096];
+        terminal = source.read(buffer, sizeof(buffer)); // blocks: no data will ever arrive
+        finished = true;
+    });
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    source.cancel();
+    consumer.join();
+    const auto elapsed = std::chrono::steady_clock::now() - begin;
+
+    require(finished, "read did not return after cancel");
+    require(terminal < 0, "a cancelled read must return a negative terminal code");
+    require(elapsed < std::chrono::seconds(2), "cancellation must return within two seconds");
+}
+
+} // namespace
+
+int main()
+{
+    try {
+        testRangeSuccessAndSeek();
+        testRangeRejectionMakesUnseekable();
+        testSlowChunksReportBuffering();
+        testDisconnectThenReconnect();
+        testReconnectExhaustionFails();
+        testUnknownLengthIsLive();
+        testSeekToEndParksWithoutOutOfRangeRequest();
+        testReconnectFromWrongOffsetFails();
+        testCancelDuringActiveReadNeverHangs();
+        testCancellationIsPrompt();
+    } catch (const std::exception &error) {
+        std::cerr << "player2_http_media_test: FAIL " << error.what() << '\n';
+        return 1;
+    }
+    std::cout << "player2_http_media_test: PASS\n";
+    return 0;
+}

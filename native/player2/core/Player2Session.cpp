@@ -110,6 +110,20 @@ Player2Session::Player2Session(QObject *parent)
         shifted.endUs += shiftUs;
         emit subtitleCue(generation, shifted);
     });
+    connect(&m_demux, &DemuxSession::networkStateChanged, this,
+            [this](quint64 generation, int stateValue) {
+        if (!m_generation.accepts(generation))
+            return;
+        const NetworkState network = static_cast<NetworkState>(stateValue);
+        const std::optional<Player2State> target =
+            networkStateTarget(m_state.state(), network);
+        if (!target)
+            return;
+        transition(*target);
+        if (network == NetworkState::Failed)
+            emit errorOccurred(Player2Error{Player2ErrorCode::NetworkFailed,
+                                            QStringLiteral("Network stream failed"), true});
+    });
 }
 
 Player2Session::~Player2Session()

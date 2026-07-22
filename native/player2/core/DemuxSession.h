@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Player2Types.h"
+#include "player2/network/HttpMediaSource.h"
 
 #include <QtCore/QList>
 #include <QtCore/QObject>
@@ -9,7 +10,9 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <cstdint>
 #include <deque>
+#include <memory>
 #include <mutex>
 #include <thread>
 
@@ -117,6 +120,9 @@ signals:
     void subtitleTrackChanged(quint64 generation, int streamIndex);
     void subtitleCue(quint64 generation, const SubtitleCue &cue);
     void audioNormalizationChanged(quint64 generation, int mode);
+    // Honest network transport state for streamed sources, as a NetworkState value cast to int
+    // (int keeps the queued cross-thread signal free of metatype registration).
+    void networkStateChanged(quint64 generation, int state);
 
 private:
     enum class CommandType {
@@ -134,6 +140,9 @@ private:
     };
 
     static int interrupt(void *opaque);
+    // Custom AVIO callbacks routing FFmpeg's byte reads/seeks through an HttpMediaSource.
+    static int avioRead(void *opaque, uint8_t *buffer, int size);
+    static int64_t avioSeek(void *opaque, int64_t offset, int whence);
     void run(PlaybackRequest request, quint64 generation);
     void joinWorker();
     void enqueueCommand(const Command &command);
@@ -145,6 +154,7 @@ private:
     void postSubtitleTrackChanged(quint64 generation, int streamIndex);
     void postSubtitleCue(quint64 generation, SubtitleCue cue);
     void postAudioNormalizationChanged(quint64 generation, int mode);
+    void postNetworkState(NetworkState state);
 
     std::atomic_bool m_cancelled{false};
     std::atomic_bool m_running{false};
@@ -161,6 +171,10 @@ private:
     std::deque<Command> m_commands;
     std::mutex m_workerMutex;
     std::thread m_worker;
+    // Active streaming source (null for local files). Held as a shared_ptr so cancel() can unblock a
+    // blocked AVIO read from the GUI thread while the worker still owns the object.
+    std::mutex m_httpMutex;
+    std::shared_ptr<HttpMediaSource> m_httpSource;
 };
 
 } // namespace Colosseum::Player2

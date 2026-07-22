@@ -1,6 +1,7 @@
 #include "player2/core/Player2StateMachine.h"
 #include "player2/core/Player2Types.h"
 #include "player2/host/Player2HostServices.h"
+#include "player2/network/HttpMediaSource.h"
 
 #include <QtCore/QMetaType>
 #include <QtTest/QTest>
@@ -199,6 +200,35 @@ private slots:
         QVERIFY(accepted(Player2State::Seeking, Player2State::Playing));
         QVERIFY(accepted(Player2State::Opening, Player2State::Error));
         QVERIFY(!accepted(Player2State::Idle, Player2State::Playing));
+    }
+
+    void mapsNetworkStateToHonestPlayerTransitions()
+    {
+        // Buffering pauses only active playback, never a user pause or a seek in flight.
+        QCOMPARE(networkStateTarget(Player2State::Playing, NetworkState::Buffering),
+                 std::optional<Player2State>(Player2State::Buffering));
+        QCOMPARE(networkStateTarget(Player2State::Paused, NetworkState::Buffering), std::optional<Player2State>());
+        QCOMPARE(networkStateTarget(Player2State::Seeking, NetworkState::Buffering), std::optional<Player2State>());
+
+        // Streaming resumes only from a network-induced Buffering or Recovering.
+        QCOMPARE(networkStateTarget(Player2State::Buffering, NetworkState::Streaming),
+                 std::optional<Player2State>(Player2State::Playing));
+        QCOMPARE(networkStateTarget(Player2State::Recovering, NetworkState::Streaming),
+                 std::optional<Player2State>(Player2State::Playing));
+        QCOMPARE(networkStateTarget(Player2State::Playing, NetworkState::Streaming), std::optional<Player2State>());
+
+        // Recovering surfaces a reconnect from any live-media state, including the initial open.
+        QCOMPARE(networkStateTarget(Player2State::Opening, NetworkState::Recovering),
+                 std::optional<Player2State>(Player2State::Recovering));
+        QCOMPARE(networkStateTarget(Player2State::Playing, NetworkState::Recovering),
+                 std::optional<Player2State>(Player2State::Recovering));
+        QCOMPARE(networkStateTarget(Player2State::Idle, NetworkState::Recovering), std::optional<Player2State>());
+
+        // Failed is terminal for any non-idle session; a heartbeat never changes the state.
+        QCOMPARE(networkStateTarget(Player2State::Playing, NetworkState::Failed),
+                 std::optional<Player2State>(Player2State::Error));
+        QCOMPARE(networkStateTarget(Player2State::Idle, NetworkState::Failed), std::optional<Player2State>());
+        QCOMPARE(networkStateTarget(Player2State::Opening, NetworkState::Connecting), std::optional<Player2State>());
     }
 };
 
