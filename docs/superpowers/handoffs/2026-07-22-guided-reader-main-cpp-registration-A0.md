@@ -16,14 +16,20 @@ conservative fallback path); Step B adds real panel detection and needs your Tas
 
 ## Step A — register the camera controller (cheap, unblocks eyes-on, do this first)
 
-`GuidedCameraController` + `GuidedTypes` already compile into the app target (Tasks 1 & 8). Only two
-lines:
+`GuidedCameraController` + `GuidedTypes` are currently only in the *harness* targets, NOT the
+`colosseum` app target — so Step A is three small changes:
 
-1. Include, near the other guided/player includes at the top of `native/main.cpp`:
+1. Add the two sources to the `colosseum` target in `native/CMakeLists.txt` (they pull in only
+   Qt Core/Gui/Quick, already linked):
+   ```cmake
+   guided/GuidedCameraController.cpp guided/GuidedCameraController.h
+   guided/GuidedTypes.cpp guided/GuidedTypes.h
+   ```
+2. Include, near the other guided/player includes at the top of `native/main.cpp`:
    ```cpp
    #include "guided/GuidedCameraController.h"
    ```
-2. Register the QML type, beside the existing `qmlRegisterType` cluster (currently ~lines 269–270,
+3. Register the QML type, beside the existing `qmlRegisterType` cluster (currently ~lines 269–270,
    the `Colosseum.Player` registrations), BEFORE `engine.load(...)`:
    ```cpp
    qmlRegisterType<guided::GuidedCameraController>("Colosseum.Guided", 1, 0, "GuidedCameraController");
