@@ -918,3 +918,15 @@ add_executable(panel_analysis_service_harness
     work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h)
 target_include_directories(panel_analysis_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(panel_analysis_service_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Sql)
+
+# ── Panel Step / Auto Read state machine (Agent 1): the GuidedCameraController
+#    that drives both manual Panel Step and timed Auto Read over ONE serialized
+#    GuidedPath, with Auto Read deadlines on an injected clock (FakeGuidedClock in
+#    the harness). QRectF/QPointF/QVariantMap/QJson/QTimer are all QtCore, and no
+#    qmlRegisterType is used here — so Qt6::Core alone links (Gui/Qml unneeded). ──
+add_executable(guided_camera_controller_harness
+    ../tests/guided_camera_controller_harness.cpp
+    guided/GuidedCameraController.cpp guided/GuidedCameraController.h
+    guided/GuidedTypes.cpp guided/GuidedTypes.h)
+target_include_directories(guided_camera_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(guided_camera_controller_harness PRIVATE Qt6::Core)
