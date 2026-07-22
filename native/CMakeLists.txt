@@ -904,3 +904,17 @@ target_include_directories(epub_text_indexer_harness PRIVATE ${CMAKE_CURRENT_SOU
 target_compile_definitions(epub_text_indexer_harness PRIVATE
     ALIGNMENT_CANONICAL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/canonical")
 target_link_libraries(epub_text_indexer_harness PRIVATE Qt6::Core)
+
+# ── Panel analysis service (Agent 1): QML facade + background orchestration over
+#    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
+#    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
+add_executable(panel_analysis_service_harness
+    ../tests/panel_analysis_service_harness.cpp
+    guided/PanelAnalysisService.cpp guided/PanelAnalysisService.h
+    guided/PanelDetector.h
+    guided/PanelMapStore.cpp guided/PanelMapStore.h
+    guided/PanelPlanner.cpp guided/PanelPlanner.h
+    guided/GuidedTypes.cpp guided/GuidedTypes.h
+    work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h)
+target_include_directories(panel_analysis_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(panel_analysis_service_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Sql)

@@ -5,13 +5,19 @@
 // the two readers (Panel Step, Auto Read): jobs, per-canvas detections, the
 // machine-generated GuidedPath, and the user's whole-page/detected-panel overrides.
 //
-// One store owns one SQLite file over a uniquely-named QSqlDatabase connection.
-// Paths are stored as the schema-gated compact JSON blob (serializePath); nothing
-// here re-implements GuidedPath comparison — callers diff via serializePath.
+// One store owns one SQLite file. A QSqlDatabase connection may only be touched on
+// the thread that opened it, but this store is read from the main thread (lookups)
+// and written from a background worker thread (publishCanvas). So each (instance,
+// thread) pair lazily gets its OWN connection to the same file — SQLite handles the
+// cross-connection locking. Paths are stored as the schema-gated compact JSON blob
+// (serializePath); nothing here re-implements GuidedPath comparison — callers diff
+// via serializePath.
 #pragma once
 
 #include "guided/GuidedTypes.h"
 
+#include <QHash>
+#include <QMutex>
 #include <QSqlDatabase>
 #include <QString>
 #include <QVector>
@@ -88,12 +94,18 @@ public:
     JobSummary jobSummary(const QString& jobId) const;
 
 private:
-    bool ensureSchema();
-    QString resolveJobId(const QString& entryId) const;   // most-recently-created job for an entry, or empty
+    // Lazily returns THIS thread's connection to the db file (opening + running
+    // ensureSchema exactly once per connection), cached in m_connNames. Invalid
+    // QSqlDatabase on failure. Const so const methods (lookup/…) can obtain it.
+    QSqlDatabase db() const;
+    bool ensureSchema(const QSqlDatabase& conn) const;                    // once per connection
+    QString resolveJobId(const QSqlDatabase& conn,
+                         const QString& entryId) const;   // most-recently-created job for an entry, or empty
 
     QString m_dbPath;
-    QString m_conn;
-    QSqlDatabase m_db;
+    QString m_connBase;                                   // unique base; per-thread suffix appended
+    mutable QMutex m_connMutex;                           // guards m_connNames
+    mutable QHash<Qt::HANDLE, QString> m_connNames;       // thread -> its connection name
 };
 
 } // namespace guided

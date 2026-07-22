@@ -3,9 +3,11 @@
 
 #include <QAtomicInteger>
 #include <QDateTime>
+#include <QMutexLocker>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QStringList>
+#include <QThread>
 #include <QVariant>
 
 #include <algorithm>
@@ -48,24 +50,70 @@ double maxConfidence(const QVector<Detection>& dets) {
 // --- lifecycle ---------------------------------------------------------------
 
 PanelMapStore::PanelMapStore(const QString& dbPath) : m_dbPath(dbPath) {
-    // A unique connection name per instance so multiple stores/threads never clash.
+    // A unique connection base per instance so multiple stores never clash; each
+    // thread that touches this store appends its own suffix in db().
     static QAtomicInteger<quint64> counter(0);
-    m_conn = QStringLiteral("panel_map_store_%1_%2")
-                 .arg(reinterpret_cast<quintptr>(this))
-                 .arg(counter.fetchAndAddOrdered(1));
+    m_connBase = QStringLiteral("panel_map_store_%1_%2")
+                     .arg(reinterpret_cast<quintptr>(this))
+                     .arg(counter.fetchAndAddOrdered(1));
 }
 
 PanelMapStore::~PanelMapStore() {
-    if (m_db.isOpen()) m_db.close();
-    m_db = QSqlDatabase();                       // drop the handle before removing the connection
-    QSqlDatabase::removeDatabase(m_conn);
+    // Close + remove EVERY connection opened by this store, on any thread. Safe to
+    // call cross-thread here only because the store outlives every thread that used
+    // it (the owner drains/joins its workers before destroying the store).
+    QMutexLocker lock(&m_connMutex);
+    for (auto it = m_connNames.constBegin(); it != m_connNames.constEnd(); ++it) {
+        const QString name = it.value();
+        {
+            QSqlDatabase c = QSqlDatabase::database(name, /*open=*/false);
+            if (c.isOpen()) c.close();
+        }                                             // drop the handle before removing
+        QSqlDatabase::removeDatabase(name);
+    }
+    m_connNames.clear();
+}
+
+// Per-(instance,thread) connection to the same file. addDatabase/removeDatabase are
+// internally thread-safe in Qt; m_connNames is guarded by m_connMutex.
+QSqlDatabase PanelMapStore::db() const {
+    const Qt::HANDLE tid = QThread::currentThreadId();
+    QMutexLocker lock(&m_connMutex);
+
+    auto it = m_connNames.constFind(tid);
+    if (it != m_connNames.constEnd())
+        return QSqlDatabase::database(it.value());    // cached, already open + schema-ready
+
+    const QString name = QStringLiteral("%1_%2")
+                             .arg(m_connBase)
+                             .arg(reinterpret_cast<quintptr>(tid));
+    QSqlDatabase conn = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), name);
+    conn.setDatabaseName(m_dbPath);
+    if (!conn.open()) {
+        conn = QSqlDatabase();                        // drop before removing
+        QSqlDatabase::removeDatabase(name);
+        return QSqlDatabase();
+    }
+    // Enforce PKs/uniqueness so a mid-transaction violation actually fails
+    // (atomicity). busy_timeout lets a lookup wait out a concurrent writer on
+    // another connection instead of failing with SQLITE_BUSY.
+    QSqlQuery(conn).exec(QStringLiteral("PRAGMA foreign_keys = ON"));
+    QSqlQuery(conn).exec(QStringLiteral("PRAGMA busy_timeout = 5000"));
+    if (!ensureSchema(conn)) {
+        conn.close();
+        conn = QSqlDatabase();
+        QSqlDatabase::removeDatabase(name);
+        return QSqlDatabase();
+    }
+    m_connNames.insert(tid, name);
+    return conn;
 }
 
 // --- schema ------------------------------------------------------------------
 
-bool PanelMapStore::ensureSchema() {
+bool PanelMapStore::ensureSchema(const QSqlDatabase& conn) const {
     // Schema v1. IF NOT EXISTS keeps open() idempotent (the contract) without
-    // altering the table shapes.
+    // altering the table shapes. Run once per connection.
     static const char* const kDdl[] = {
         "CREATE TABLE IF NOT EXISTS guided_jobs("
         "  job_id TEXT PRIMARY KEY, entry_identity TEXT NOT NULL, entry_fingerprint TEXT NOT NULL,"
@@ -88,7 +136,7 @@ bool PanelMapStore::ensureSchema() {
         "  canvas_id INTEGER PRIMARY KEY, serialized_json BLOB NOT NULL, published_at INTEGER NOT NULL)",
         "CREATE INDEX IF NOT EXISTS guided_canvas_fingerprint_idx ON guided_canvases(fingerprint)",
     };
-    QSqlQuery q(m_db);
+    QSqlQuery q(conn);
     for (const char* ddl : kDdl) {
         if (!q.exec(QString::fromLatin1(ddl))) return false;
     }
@@ -97,23 +145,18 @@ bool PanelMapStore::ensureSchema() {
 }
 
 bool PanelMapStore::open() {
-    if (m_db.isOpen()) return ensureSchema();       // idempotent second call
-    if (!m_db.isValid()) {
-        m_db = QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"), m_conn);
-        m_db.setDatabaseName(m_dbPath);
-    }
-    if (!m_db.open()) return false;
-    // Enforce PKs/uniqueness so a mid-transaction violation actually fails (atomicity).
-    QSqlQuery(m_db).exec(QStringLiteral("PRAGMA foreign_keys = ON"));
-    return ensureSchema();
+    // Validates/creates the schema on the CALLER's thread; idempotent (db() caches
+    // and reuses the connection on a second call from the same thread).
+    return db().isOpen();
 }
 
 // --- jobs --------------------------------------------------------------------
 
 bool PanelMapStore::beginJob(const JobSpec& job) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return false;
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
-    QSqlQuery q(m_db);
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral(
         "INSERT INTO guided_jobs"
         " (job_id, entry_identity, entry_fingerprint, direction, model_version, planner_version,"
@@ -137,8 +180,8 @@ bool PanelMapStore::beginJob(const JobSpec& job) {
     return q.exec();
 }
 
-QString PanelMapStore::resolveJobId(const QString& entryId) const {
-    QSqlQuery q(m_db);
+QString PanelMapStore::resolveJobId(const QSqlDatabase& conn, const QString& entryId) const {
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral(
         "SELECT job_id FROM guided_jobs WHERE entry_identity = :e"
         " ORDER BY created_at DESC, rowid DESC LIMIT 1"));
@@ -152,23 +195,24 @@ QString PanelMapStore::resolveJobId(const QString& entryId) const {
 bool PanelMapStore::publishCanvas(const CanvasSpec& canvas,
                                   const QVector<Detection>& detections,
                                   const GuidedPath& path) {
-    if (!m_db.isOpen()) return false;
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return false;
 
     // Resolve the owning job first; a canvas with no job is never (even partially)
     // written.
-    const QString jobId = resolveJobId(canvas.entryId);
+    const QString jobId = resolveJobId(conn, canvas.entryId);
     if (jobId.isEmpty()) return false;
 
-    if (!m_db.transaction()) return false;
+    if (!conn.transaction()) return false;
     const qint64 now = QDateTime::currentMSecsSinceEpoch();
 
-    auto rollback = [this]() -> bool { m_db.rollback(); return false; };
+    auto rollback = [&conn]() -> bool { conn.rollback(); return false; };
 
     // 1) Upsert the canvas row (Ready). ON CONFLICT preserves override_kind — it is
     //    deliberately absent from the DO UPDATE set so a user override survives a
     //    re-publish.
     {
-        QSqlQuery q(m_db);
+        QSqlQuery q(conn);
         q.prepare(QStringLiteral(
             "INSERT INTO guided_canvases"
             " (job_id, canvas_index, page_indices, canvas_kind, fingerprint, width, height,"
@@ -198,7 +242,7 @@ bool PanelMapStore::publishCanvas(const CanvasSpec& canvas,
     // 2) Resolve the canvas_id for the (job, index) we just wrote.
     qint64 canvasId = -1;
     {
-        QSqlQuery q(m_db);
+        QSqlQuery q(conn);
         q.prepare(QStringLiteral(
             "SELECT canvas_id FROM guided_canvases WHERE job_id=:job AND canvas_index=:idx"));
         q.bindValue(QStringLiteral(":job"), jobId);
@@ -209,13 +253,13 @@ bool PanelMapStore::publishCanvas(const CanvasSpec& canvas,
 
     // 3) Replace generated detections for this canvas.
     {
-        QSqlQuery q(m_db);
+        QSqlQuery q(conn);
         q.prepare(QStringLiteral("DELETE FROM guided_detections WHERE canvas_id = :c"));
         q.bindValue(QStringLiteral(":c"), canvasId);
         if (!q.exec()) return rollback();
     }
     for (const Detection& d : detections) {
-        QSqlQuery q(m_db);
+        QSqlQuery q(conn);
         q.prepare(QStringLiteral(
             "INSERT INTO guided_detections"
             " (canvas_id, detection_id, kind, x, y, w, h, confidence, accepted)"
@@ -234,7 +278,7 @@ bool PanelMapStore::publishCanvas(const CanvasSpec& canvas,
 
     // 4) Upsert the serialized path blob.
     {
-        QSqlQuery q(m_db);
+        QSqlQuery q(conn);
         q.prepare(QStringLiteral(
             "INSERT INTO guided_paths (canvas_id, serialized_json, published_at)"
             " VALUES (:c,:j,:t)"
@@ -246,7 +290,7 @@ bool PanelMapStore::publishCanvas(const CanvasSpec& canvas,
         if (!q.exec()) return rollback();
     }
 
-    if (!m_db.commit()) return rollback();
+    if (!conn.commit()) return rollback();
     return true;
 }
 
@@ -254,12 +298,13 @@ bool PanelMapStore::publishCanvas(const CanvasSpec& canvas,
 
 LookupResult PanelMapStore::lookup(const CacheKey& key) const {
     LookupResult res;
-    if (!m_db.isOpen()) return res;
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return res;
 
     // Match by fingerprint + version (model/planner) + reading direction (from the
     // owning job). Version/direction gating is what makes a mismatched request a
     // clean cache miss.
-    QSqlQuery q(m_db);
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral(
         "SELECT c.canvas_id, c.stage, c.override_kind, p.serialized_json"
         " FROM guided_canvases c"
@@ -310,9 +355,10 @@ LookupResult PanelMapStore::lookup(const CacheKey& key) const {
 
 QVector<Detection> PanelMapStore::rawDetections(const CacheKey& key) const {
     QVector<Detection> out;
-    if (!m_db.isOpen()) return out;
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return out;
     // Detections are direction-independent: matched by fingerprint alone.
-    QSqlQuery q(m_db);
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral(
         "SELECT d.detection_id, d.kind, d.x, d.y, d.w, d.h, d.confidence"
         " FROM guided_detections d"
@@ -336,8 +382,9 @@ QVector<Detection> PanelMapStore::rawDetections(const CacheKey& key) const {
 // --- overrides ---------------------------------------------------------------
 
 bool PanelMapStore::setOverride(const QString& fingerprint, OverrideKind kind) {
-    if (!m_db.isOpen()) return false;
-    QSqlQuery q(m_db);
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return false;
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral("UPDATE guided_canvases SET override_kind = :k WHERE fingerprint = :fp"));
     q.bindValue(QStringLiteral(":k"), static_cast<int>(kind));
     q.bindValue(QStringLiteral(":fp"), fingerprint);
@@ -345,8 +392,9 @@ bool PanelMapStore::setOverride(const QString& fingerprint, OverrideKind kind) {
 }
 
 OverrideKind PanelMapStore::overrideFor(const QString& fingerprint) const {
-    if (!m_db.isOpen()) return OverrideKind::None;
-    QSqlQuery q(m_db);
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return OverrideKind::None;
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral(
         "SELECT override_kind FROM guided_canvases WHERE fingerprint = :fp LIMIT 1"));
     q.bindValue(QStringLiteral(":fp"), fingerprint);
@@ -357,28 +405,29 @@ OverrideKind PanelMapStore::overrideFor(const QString& fingerprint) const {
 // --- retry -------------------------------------------------------------------
 
 void PanelMapStore::retryCanvas(const QString& fingerprint) {
-    if (!m_db.isOpen()) return;
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return;
 
     QVector<qint64> canvasIds;
     {
-        QSqlQuery q(m_db);
+        QSqlQuery q(conn);
         q.prepare(QStringLiteral("SELECT canvas_id FROM guided_canvases WHERE fingerprint = :fp"));
         q.bindValue(QStringLiteral(":fp"), fingerprint);
         if (!q.exec()) return;
         while (q.next()) canvasIds.append(q.value(0).toLongLong());
     }
     for (qint64 cid : canvasIds) {
-        QSqlQuery dp(m_db);
+        QSqlQuery dp(conn);
         dp.prepare(QStringLiteral("DELETE FROM guided_paths WHERE canvas_id = :c"));
         dp.bindValue(QStringLiteral(":c"), cid);
         dp.exec();
-        QSqlQuery dd(m_db);
+        QSqlQuery dd(conn);
         dd.prepare(QStringLiteral("DELETE FROM guided_detections WHERE canvas_id = :c"));
         dd.bindValue(QStringLiteral(":c"), cid);
         dd.exec();
     }
     // Reset only the generated state; override_kind (and version columns) are kept.
-    QSqlQuery us(m_db);
+    QSqlQuery us(conn);
     us.prepare(QStringLiteral(
         "UPDATE guided_canvases SET stage = :s, confidence = 0, fallback_code = ''"
         " WHERE fingerprint = :fp"));
@@ -390,8 +439,9 @@ void PanelMapStore::retryCanvas(const QString& fingerprint) {
 // --- checkpoint / summary ----------------------------------------------------
 
 bool PanelMapStore::saveCheckpoint(const QString& jobId, int priorityCanvas) {
-    if (!m_db.isOpen()) return false;
-    QSqlQuery q(m_db);
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return false;
+    QSqlQuery q(conn);
     q.prepare(QStringLiteral(
         "UPDATE guided_jobs SET priority_canvas = :p, updated_at = :t WHERE job_id = :j"));
     q.bindValue(QStringLiteral(":p"), priorityCanvas);
@@ -404,9 +454,10 @@ bool PanelMapStore::saveCheckpoint(const QString& jobId, int priorityCanvas) {
 JobSummary PanelMapStore::jobSummary(const QString& jobId) const {
     JobSummary sum;
     sum.jobId = jobId;
-    if (!m_db.isOpen()) return sum;
+    QSqlDatabase conn = db();
+    if (!conn.isOpen()) return sum;
 
-    QSqlQuery j(m_db);
+    QSqlQuery j(conn);
     j.prepare(QStringLiteral(
         "SELECT state, paused, priority_canvas FROM guided_jobs WHERE job_id = :j"));
     j.bindValue(QStringLiteral(":j"), jobId);
@@ -416,7 +467,7 @@ JobSummary PanelMapStore::jobSummary(const QString& jobId) const {
         sum.priorityCanvas = j.value(2).toInt();
     }
 
-    QSqlQuery c(m_db);
+    QSqlQuery c(conn);
     c.prepare(QStringLiteral(
         "SELECT COUNT(*),"
         "       COALESCE(SUM(CASE WHEN stage = :ready THEN 1 ELSE 0 END), 0)"
