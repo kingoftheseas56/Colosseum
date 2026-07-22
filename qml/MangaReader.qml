@@ -15,6 +15,7 @@
 import QtQuick
 import QtCore
 import "ReaderEngine.js" as Engine
+import "guided"   // GuidedViewport / GuidedControls (pure QML; the native controller loads via a Loader)
 
 Item {
     id: reader
@@ -79,6 +80,8 @@ Item {
         property int    side_padding: 0            // strip: px each side (0/40/80/120/160)
         property string image_quality: "smooth"    // smooth | fast
         property int    dim: 0                     // 0 off · 1 soft · 2 strong (night reading)
+        // Guided Reader (5th style): the ordinary style to restore when you leave Guided.
+        property string guided_previous_style: "long_strip"
     }
     readonly property bool smoothQ: prefs.image_quality !== "fast"
     // --- per-series overrides (TB2 behavior: settings are remembered per series; the globals
@@ -142,6 +145,9 @@ Item {
                                 : (dirOv.length ? dirOv : prefs.reading_direction) === "right_left"
     readonly property bool isDouble: style === "double_page" || style === "double_page_v2"
     readonly property bool paged: style === "single_page" || isDouble
+    // Guided is its OWN surface — neither paged nor long_strip. It must NOT fall through the
+    // paged/strip input guards (wheel/pan/turn); every guided gesture is routed explicitly.
+    readonly property bool guided: style === "guided"
 
     // --- which chapter we're actually reading (the modal / crossing can change it) ---
     property string curChapterId: ""
@@ -289,6 +295,15 @@ Item {
             if (style === "long_strip") {
                 haltScrollAt(0)
                 stripRestore.restart()
+            }
+            // saved style is Guided: rebuild the canvas model + open analysis now that
+            // pagesModel is populated (the controller still restores Auto Read paused).
+            if (style === "guided") {
+                enterGuided()
+                // resume across a chapter crossing only if Auto Read was carrying us —
+                // deferred so it survives the controller's pause-at-boundary
+                if (pendingGuidedContinue) Qt.callLater(resumeGuidedAuto)
+                pendingGuidedContinue = false
             }
             return
         }
@@ -474,12 +489,16 @@ Item {
         else if (page > 1) page = page - 1
         else goPrevChapter(true)
     }
-    // HUD prev/next: paged turns a page; long_strip jumps chapters
-    function prevAction() { paged ? turnPrev() : goPrevChapter(false) }
-    function nextAction() { paged ? turnNext() : goNextChapter() }
+    // HUD prev/next: guided steps a canvas; paged turns a page; long_strip jumps chapters
+    function prevAction() { guided ? guidedRetreatCanvas() : (paged ? turnPrev() : goPrevChapter(false)) }
+    function nextAction() { guided ? guidedAdvanceCanvas() : (paged ? turnNext() : goNextChapter()) }
 
     function setStyle(s) {
         if (s === style) return
+        // Guided is a mode switch, not a page relayout: entering builds the guided canvas
+        // model + opens analysis; leaving closes analysis and restores the ordinary surface.
+        if (reader.guided && s !== "guided" && guidedService) guidedService.closeEntry(curChapterId)
+        if (s === "guided") { enterGuided(); return }
         var keep = page
         styleOv = s; prefs.reading_style = s; saveSeriesPrefs()
         panX = 0; panY = 0
@@ -492,6 +511,139 @@ Item {
             page = keep
             stripRestore.restart()
         }
+    }
+
+    // ===================== Guided Reader (fifth style) =====================
+    // Guided keeps the page intact and moves a camera through detected panels. The heavy
+    // lifting is native (analysis service + camera controller); MangaReader only builds the
+    // canvas model, drives enter/exit, and routes reading gestures into interruption. The
+    // controller is loaded through guidedCameraLoader so the reader still opens where the
+    // native Colosseum.Guided type isn't registered yet — Guided just degrades to a static
+    // whole-page view. Interruption reason codes are the native InterruptionReason enum
+    // (0 Wheel · 1 Drag · 2 Pinch · 3 Scrub · 4 Navigation), passed as ints to avoid needing
+    // the module import here.
+    property var guidedService: typeof GuidedAnalysis !== "undefined" ? GuidedAnalysis : null
+    property string preGuidedStyle: ""
+    property var guidedCanvases: []
+    property int guidedCanvasIndex: 0
+    property bool pendingGuidedContinue: false   // resume across a locally-ready chapter crossing
+    // The native camera controller, loaded lazily + defensively (see guidedCameraLoader
+    // below). Null where Colosseum.Guided isn't registered — every use is guarded.
+    readonly property var guidedCamera: guidedCameraLoader.item
+
+    // One canvas per read unit: a confirmed two-page pair is ONE wide spread canvas, a single
+    // page is one canvas. Files are in physical (left→right) order for the spread; reading
+    // order is preserved so progress + resume land on the right page.
+    function buildGuidedCanvases() {
+        var result = [], anchor = 0, maxN = reader.max
+        while (anchor < maxN) {
+            var p = Engine.getTwoPagePair(anchor, ctx())
+            var readOrder = [p.anchorIndex]
+            if (p.partnerIndex !== null && p.partnerIndex !== undefined) readOrder.push(p.partnerIndex)
+            var physicalOrder = readOrder.slice(0)
+            if (physicalOrder.length === 2 && rtl) physicalOrder.reverse()
+            var files = [], widths = [], heights = []
+            for (var i = 0; i < physicalOrder.length; ++i) {
+                var idx = physicalOrder[i]
+                var d = reader.dims[idx] || { w: 800, h: 1200 }
+                files.push(reader.pagesModel[idx].url); widths.push(d.w); heights.push(d.h)
+            }
+            result.push({ canvasIndex: result.length, pageIndices: physicalOrder,
+                          readingPageIndices: readOrder, localFiles: files, files: files,
+                          kind: readOrder.length === 2 ? "spread" : "single",
+                          sourceWidths: widths, sourceHeights: heights })
+            anchor = readOrder[readOrder.length - 1] + 1
+        }
+        return result
+    }
+    function canvasIndexContainingPage(pageIndex) {
+        for (var i = 0; i < guidedCanvases.length; ++i)
+            if (guidedCanvases[i].readingPageIndices.indexOf(pageIndex) >= 0) return i
+        return 0
+    }
+    function firstPageOfCanvas(ci) {
+        var c = guidedCanvases[ci]
+        return (c && c.readingPageIndices.length) ? c.readingPageIndices[0] : 0
+    }
+    // A conservative whole-page overview path — what the camera shows for a canvas the
+    // service hasn't panelled, or when no analysis service is wired yet. Same serialized
+    // shape the native planner emits, so Panel Step / Auto Read consume it unchanged.
+    function wholePagePath() {
+        return { schema: 1, canvasFingerprint: "", modelVersion: "", plannerVersion: "guided-v1",
+                 outcome: "fallback", reason: "no_panels",
+                 steps: [ { kind: "overview", sourcePanelId: -1,
+                            camera: { x: 0, y: 0, w: 1, h: 1 },
+                            holdSecondsAt1x: 0.8, transitionSecondsAt1x: 0.35, plannerConfidence: 1.0 } ] }
+    }
+    function guidedPathFor(ci) {
+        if (guidedService) {
+            var p = guidedService.pathForCanvas(curChapterId, ci)
+            if (p && p.steps && p.steps.length) return p
+        }
+        return wholePagePath()
+    }
+    function activateGuidedCanvas(ci, preferredStep) {
+        if (ci < 0 || ci >= guidedCanvases.length) return
+        guidedCanvasIndex = ci
+        page = firstPageOfCanvas(ci) + 1
+        if (guidedService) guidedService.setVisibleCanvas(curChapterId, ci)
+        if (guidedCamera) guidedCamera.setPath(guidedPathFor(ci), preferredStep || 0)
+    }
+    function enterGuided() {
+        preGuidedStyle = (style === "guided") ? (prefs.guided_previous_style || "long_strip") : style
+        prefs.guided_previous_style = preGuidedStyle
+        var keepPage = page
+        styleOv = "guided"; prefs.reading_style = "guided"; saveSeriesPrefs()
+        panX = 0; panY = 0
+        guidedCanvases = buildGuidedCanvases()
+        guidedCanvasIndex = canvasIndexContainingPage(keepPage - 1)
+        if (guidedService) guidedService.openEntry(curChapterId, guidedCanvases, rtl)
+        activateGuidedCanvas(guidedCanvasIndex)
+    }
+    function exitGuided() { setStyle(preGuidedStyle.length && preGuidedStyle !== "guided" ? preGuidedStyle : "long_strip") }
+    // A reading gesture that leaves the guided flow (wheel/drag/pinch/scrub/jump) freezes
+    // Auto Read and offers Resume — the camera never animates on under the user.
+    function interruptGuided(reason) {
+        if (guided && guidedCamera) guidedCamera.interrupt(reason, guidedViewport.viewportCenterNormalized())
+    }
+    // Panel Step — one step forward/back through the serialized path (stays in the flow;
+    // the controller crosses canvases at the ends via requestNext/PreviousCanvas). With NO
+    // controller (native module not registered yet) it degrades to whole-canvas paging so
+    // Guided is still a usable reader, not a frozen page.
+    function guidedAdvanceStep() { if (guidedCamera) guidedCamera.advance(); else guidedAdvanceCanvas() }
+    function guidedRetreatStep() { if (guidedCamera) guidedCamera.retreat(); else guidedRetreatCanvas() }
+    // Resume Auto Read on a NEW canvas — deferred so it lands AFTER the controller's own
+    // pause-at-boundary (onHoldDeadline emits requestNextCanvas then pauses); otherwise the
+    // pause would immediately cancel the resume and Auto Read would stall at each page end.
+    function resumeGuidedAuto() { if (reader.guided && guidedCamera) guidedCamera.startAutoRead() }
+    // Canvas-level nav (HUD ‹/›, side bars): step to the next/previous canvas, crossing into
+    // a locally-ready chapter at its boundary and stopping (never streaming) at acquisition.
+    function guidedAdvanceCanvas() {
+        var wasAuto = guidedCamera ? guidedCamera.autoRead : false
+        if (guidedCanvasIndex + 1 < guidedCanvases.length) {
+            activateGuidedCanvas(guidedCanvasIndex + 1)
+            if (wasAuto) Qt.callLater(resumeGuidedAuto)   // keep Auto Read flowing onto the new canvas
+            return
+        }
+        if (guidedCamera) guidedCamera.pauseAutoRead()
+        // caught up at the newest chapter → the same "all caught up" end card as the other styles
+        if (!hasNewer) { if (chapters.length && curIndex === 0) atEnd = true; return }
+        if (entryReady(String(chapters[curIndex - 1].id))) {
+            pendingGuidedContinue = wasAuto   // carry Auto Read across only if it was running
+            goNextChapter(); return
+        }
+        showToast("Next chapter isn't available offline")
+    }
+    function guidedRetreatCanvas() {
+        if (guidedCanvasIndex > 0) {
+            var target = guidedCanvasIndex - 1
+            var path = guidedPathFor(target)
+            activateGuidedCanvas(target, (path.steps && path.steps.length) ? path.steps.length - 1 : 0)
+            return
+        }
+        if (guidedCamera) guidedCamera.pauseAutoRead()
+        // land at the previous chapter's LAST canvas (via pendingAtLast in load()/enterGuided)
+        if (hasOlder && entryReady(String(chapters[curIndex + 1].id))) goPrevChapter(true)
     }
 
     // Smooth long-strip scrolling (wheel + click + edge bars) — Tankoban 2's
@@ -566,6 +718,13 @@ Item {
     }
     function jumpToPage(p, instant) {
         p = Math.max(1, Math.min(max, Math.round(p)))
+        if (reader.guided) {
+            // a page jump (scrub / thumbnail / bookmark) leaves the guided flow: interrupt,
+            // then land on the canvas holding that page at its whole-page overview.
+            interruptGuided(4)   // InterruptionReason.Navigation
+            activateGuidedCanvas(canvasIndexContainingPage(p - 1))
+            return
+        }
         if (style === "long_strip") {
             var hmax = Math.max(0, flick.contentHeight - flick.height)
             var it = stripRep.itemAt(p - 1)
@@ -720,7 +879,8 @@ Item {
         case Qt.Key_B: toggleBookmark(); e.accepted = true; return
         case Qt.Key_T: showThumbs = true; e.accepted = true; return
         case Qt.Key_Z:   // instant replay — a beat back
-            style === "long_strip" ? smoothScrollBy(-flick.height * 0.3) : turnPrev()
+            reader.guided ? guidedRetreatStep()
+                          : (style === "long_strip" ? smoothScrollBy(-flick.height * 0.3) : turnPrev())
             e.accepted = true; return
         case Qt.Key_S:
             if (!(e.modifiers & Qt.ControlModifier)) { recordProgress(); showToast("Checkpoint saved"); e.accepted = true; return }
@@ -773,6 +933,21 @@ Item {
             case Qt.Key_PageUp:   reader.smoothScrollBy(-screen);  e.accepted = true; break
             case Qt.Key_Home:     reader.smoothScrollTo(0);        e.accepted = true; break
             case Qt.Key_End:      reader.smoothScrollTo(hmax);     e.accepted = true; break
+            }
+            return
+        }
+
+        // guided — arrows are Panel Step (stay in the flow); Space toggles Auto Read;
+        // Home/End are jumps (leave the flow) to the first / last canvas.
+        if (reader.guided) {
+            switch (e.key) {
+            case Qt.Key_Left:  reader.guidedRetreatStep();  e.accepted = true; break
+            case Qt.Key_Right: reader.guidedAdvanceStep();   e.accepted = true; break
+            case Qt.Key_Space:
+                if (guidedCamera) { guidedCamera.autoRead ? guidedCamera.pauseAutoRead() : guidedCamera.startAutoRead() }
+                e.accepted = true; break
+            case Qt.Key_Home:  reader.interruptGuided(4); reader.activateGuidedCanvas(0); e.accepted = true; break
+            case Qt.Key_End:   reader.interruptGuided(4); reader.activateGuidedCanvas(reader.guidedCanvases.length - 1); e.accepted = true; break
             }
             return
         }
@@ -1017,6 +1192,39 @@ Item {
         }
     }
 
+    // ── Guided Reader surface (fifth style): the native camera controller (loaded through a
+    // Loader so the reader survives where Colosseum.Guided isn't registered) and the intact-
+    // canvas viewport. The transport bar mounts below, near the chrome. ──
+    Loader {
+        id: guidedCameraLoader
+        active: reader.guided
+        source: "guided/GuidedCameraHost.qml"
+        // when the controller finally exists, hand it the current canvas's path
+        onLoaded: if (reader.guided) reader.activateGuidedCanvas(reader.guidedCanvasIndex)
+    }
+    Connections {
+        target: reader.guidedCamera
+        ignoreUnknownSignals: true
+        function onRequestNextCanvas() { reader.guidedAdvanceCanvas() }
+        function onRequestPreviousCanvas() { reader.guidedRetreatCanvas() }
+    }
+    GuidedViewport {
+        id: guidedViewport
+        visible: reader.guided && reader.max > 0
+        anchors.fill: parent
+        z: 5
+        canvas: reader.guidedCanvases[reader.guidedCanvasIndex] || ({ files: [] })
+        // fall back to the whole canvas whenever the controller has no valid framing yet
+        // (no path set, or no controller at all) — never divide the viewport by a zero rect
+        cameraRect: {
+            var c = reader.guidedCamera ? reader.guidedCamera.cameraRect : null
+            return (c && c.width > 0 && c.height > 0) ? c : Qt.rect(0, 0, 1, 1)
+        }
+        transitionMs: reader.guidedCamera ? reader.guidedCamera.transitionMs : 350
+        stopAnimationGeneration: reader.guidedCamera ? reader.guidedCamera.stopAnimationGeneration : 0
+        onManualInterrupted: (reason, center) => { if (reader.guidedCamera) reader.guidedCamera.interrupt(reason, center) }
+    }
+
     // dim overlay — night-reading veil over the page surface (never over the HUD, z20+)
     Rectangle {
         anchors.fill: parent; z: 10
@@ -1051,6 +1259,12 @@ Item {
             var third = width / 3
             if (m.x >= third && m.x <= width - third) { reader.toggleChrome(); return }
             reader.pokeChrome()
+            if (reader.guided) {
+                // left/right thirds are Panel Step back/forward (path order already encodes RTL)
+                if (m.x < third) reader.guidedRetreatStep()
+                else reader.guidedAdvanceStep()
+                return
+            }
             if (reader.style === "long_strip") {
                 if (m.x < third) reader.smoothScrollBy(-flick.height * 0.82)
                 else reader.smoothScrollBy(flick.height * 0.82)
@@ -1247,6 +1461,7 @@ Item {
         MouseArea {
             id: navMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: {
+                if (reader.guided) { parent.isLeft ? reader.guidedRetreatStep() : reader.guidedAdvanceStep(); return }
                 if (reader.style === "long_strip") reader.smoothScrollBy(parent.isLeft ? -flick.height * 0.82 : flick.height * 0.82)
                 else (parent.isLeft ? (reader.rtl ? reader.turnNext : reader.turnPrev)
                                     : (reader.rtl ? reader.turnPrev : reader.turnNext))()
@@ -1345,6 +1560,24 @@ Item {
         }
     }
 
+    // Guided transport (Panel Step / Auto Read / speed / status / Exit) — above the scrub
+    // lane, following the same chrome auto-hide as the rest of the reader.
+    GuidedControls {
+        id: guidedControls
+        visible: reader.guided && reader.max > 0
+        z: 22
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: 44
+        opacity: reader.chromeShown ? 1 : 0
+        enabled: reader.chromeShown
+        Behavior on opacity { NumberAnimation { duration: 180 } }
+        controller: reader.guidedCamera
+        analysis: reader.guidedService ? reader.guidedService.jobSummary(reader.curChapterId) : ({})
+        resumeOnly: reader.guidedCamera ? reader.guidedCamera.interrupted : false
+        onExitRequested: reader.exitGuided()
+    }
+
     // transient toast (zoom feedback)
     Rectangle {
         visible: reader.toast.length > 0
@@ -1434,11 +1667,11 @@ Item {
             // direction toggle (locked LTR in MangaPlus)
             Rectangle { anchors.verticalCenter: parent.verticalCenter; radius: 8; height: 28; width: dt.implicitWidth + 18
                 color: dMa.containsMouse ? theme.glassHi : theme.glassTint; border.width: 1; border.color: theme.edge
-                opacity: reader.style === "double_page_v2" ? 0.5 : 1
+                opacity: (reader.style === "double_page_v2" || reader.guided) ? 0.5 : 1
                 Text { id: dt; anchors.centerIn: parent; text: reader.rtl ? "RTL" : "LTR"
                     color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
                 MouseArea { id: dMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    enabled: reader.style !== "double_page_v2"
+                    enabled: reader.style !== "double_page_v2" && !reader.guided
                     onClicked: reader.setDirection(reader.rtl ? "left_right" : "right_left") } }
 
             // change-pairing (double modes)
@@ -1498,6 +1731,7 @@ Item {
         if (s === "single_page") return "Single"
         if (s === "double_page") return "Double"
         if (s === "double_page_v2") return "MangaPlus"
+        if (s === "guided") return "Guided"
         return "Mode"
     }
 
@@ -1510,7 +1744,8 @@ Item {
         Column { id: modeCol; width: parent.width; y: 6
             Repeater {
                 model: [{v:"long_strip",t:"Long Strip"},{v:"single_page",t:"Single Page"},
-                        {v:"double_page",t:"Double Page"},{v:"double_page_v2",t:"Double Page (MangaPlus)"}]
+                        {v:"double_page",t:"Double Page"},{v:"double_page_v2",t:"Double Page (MangaPlus)"},
+                        {v:"guided",t:"Guided"}]
                 delegate: Rectangle {
                     required property var modelData
                     width: parent.width; height: 36; color: mi.containsMouse ? theme.glassHi : "transparent"
