@@ -28,6 +28,10 @@ class Player2Session final : public QObject
     Q_PROPERTY(double audioQueueMs READ audioQueueMs NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(float volume READ volume WRITE setVolume NOTIFY volumeChanged)
     Q_PROPERTY(bool muted READ muted WRITE setMuted NOTIFY mutedChanged)
+    Q_PROPERTY(NormalizationMode normalizationMode READ normalizationMode
+               WRITE setNormalizationMode NOTIFY normalizationModeChanged)
+    Q_PROPERTY(double normalizationLatencyMs READ normalizationLatencyMs
+               NOTIFY audioDiagnosticsChanged)
 
 public:
     explicit Player2Session(QObject *parent = nullptr);
@@ -44,6 +48,8 @@ public:
     double audioQueueMs() const;
     float volume() const noexcept;
     bool muted() const noexcept;
+    NormalizationMode normalizationMode() const noexcept;
+    double normalizationLatencyMs() const;
     AudioClockSnapshot audioClock() const;
     quint64 audioUnderruns() const;
 
@@ -56,6 +62,7 @@ public slots:
     void seekRelative(double seconds);
     void frameStep(int frames);
     void selectAudioTrack(const QString &trackId);
+    void setNormalizationMode(NormalizationMode mode);
     void setVolume(float linear);
     void setMuted(bool muted);
 
@@ -73,6 +80,7 @@ signals:
     void audioDiagnosticsChanged();
     void volumeChanged();
     void mutedChanged();
+    void normalizationModeChanged();
 
 private:
     bool transition(Player2State state);
@@ -91,6 +99,7 @@ private:
     double m_duration = 0.0;
     QVariantList m_tracks;
     Player2State m_postSeekState = Player2State::Playing;
+    NormalizationMode m_normalizationMode = NormalizationMode::Smooth;
     float m_volume = 1.0f;
     bool m_muted = false;
 };

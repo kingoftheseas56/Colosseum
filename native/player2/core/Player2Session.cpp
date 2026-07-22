@@ -77,6 +77,12 @@ Player2Session::Player2Session(QObject *parent)
             return;
         emit audioTrackChanged(generation, streamIndex);
     });
+    connect(&m_demux, &DemuxSession::audioNormalizationChanged, this,
+            [this](quint64 generation, int) {
+        if (!m_generation.accepts(generation))
+            return;
+        emit audioDiagnosticsChanged(); // latency may have changed with the mode
+    });
 }
 
 Player2Session::~Player2Session()
@@ -104,6 +110,11 @@ double Player2Session::audioQueueMs() const
 }
 float Player2Session::volume() const noexcept { return m_volume; }
 bool Player2Session::muted() const noexcept { return m_muted; }
+NormalizationMode Player2Session::normalizationMode() const noexcept { return m_normalizationMode; }
+double Player2Session::normalizationLatencyMs() const
+{
+    return m_audioPipeline.normalizationLatencyUs() / 1000.0;
+}
 AudioClockSnapshot Player2Session::audioClock() const { return m_audioPipeline.clock(); }
 quint64 Player2Session::audioUnderruns() const { return m_audioPipeline.underrunCount(); }
 
@@ -128,6 +139,9 @@ void Player2Session::open(const PlaybackRequest &request)
     if (!transition(Player2State::Opening))
         return;
     m_demux.open(request, next);
+    // Carry the chosen loudness mode into the new session (default Smooth needs no command).
+    if (m_normalizationMode != NormalizationMode::Smooth)
+        m_demux.requestNormalizationMode(static_cast<int>(m_normalizationMode));
 }
 
 void Player2Session::close()
@@ -219,6 +233,16 @@ void Player2Session::selectAudioTrack(const QString &trackId)
     const quint64 next = m_generation.advance();
     emit generationChanged();
     m_demux.requestSelectAudioTrack(streamIndex, next);
+}
+
+void Player2Session::setNormalizationMode(NormalizationMode mode)
+{
+    if (m_normalizationMode == mode)
+        return;
+    m_normalizationMode = mode;
+    emit normalizationModeChanged();
+    // The filter graph is worker-owned; the change is applied live through the command channel.
+    m_demux.requestNormalizationMode(static_cast<int>(mode));
 }
 
 void Player2Session::setVolume(float linear)

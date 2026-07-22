@@ -53,6 +53,7 @@ public:
 
     void setReportPath(const QString &path);
     void setMinimumRunSeconds(int seconds);
+    void setNormalizationMode(NormalizationMode mode);
     bool startScenario(const QString &scenario, QString *error);
     bool startFile(const QString &path, QString *error);
     Q_INVOKABLE void attachVideoItem(QObject *item);
@@ -87,6 +88,8 @@ private:
     QString m_reportAudioFormat;
     double m_maxAudioQueueMs = 0.0;
     double m_finalAudioQueueMs = 0.0;
+    QString m_reportNormalization = QStringLiteral("Smooth");
+    double m_reportNormalizationLatencyMs = 0.0;
     quint64 m_reportAudioUnderruns = 0;
     bool m_sawAudioClock = false;
     double m_reportAvP95Ms = 0.0;

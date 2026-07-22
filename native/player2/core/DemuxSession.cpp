@@ -190,6 +190,16 @@ void DemuxSession::requestSelectAudioTrack(int streamIndex, quint64 generation)
     enqueueCommand(command);
 }
 
+void DemuxSession::requestNormalizationMode(int mode)
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::Normalization;
+    command.normalizationMode = mode;
+    enqueueCommand(command);
+}
+
 void DemuxSession::requestPause()
 {
     if (!running())
@@ -446,8 +456,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             avcodec_flush_buffers(decoder.get());
         if (audioDecoder)
             avcodec_flush_buffers(audioDecoder.get());
-        if (audioPipeline)
+        if (audioPipeline) {
             audioPipeline->flush(newGeneration);
+            audioPipeline->flushFilters(); // drop stale normalization-buffered audio (worker thread)
+        }
         if (pipeline)
             pipeline->flush(newGeneration);
         if (playbackClock)
@@ -475,8 +487,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     auto applyAudioTrack = [&](int streamIndex, quint64 newGeneration) {
         gen = newGeneration;
         m_activeGeneration.store(newGeneration, std::memory_order_release);
-        if (audioPipeline)
+        if (audioPipeline) {
             audioPipeline->flush(newGeneration);
+            audioPipeline->flushFilters();
+        }
         if (streamIndex >= 0 && streamIndex < static_cast<int>(format->nb_streams) &&
             format->streams[streamIndex]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
             const AVCodec *codec =
@@ -520,6 +534,12 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             }
             case CommandType::SelectAudioTrack:
                 applyAudioTrack(command.streamIndex, command.generation);
+                break;
+            case CommandType::Normalization:
+                if (audioPipeline)
+                    audioPipeline->configureNormalization(
+                        static_cast<NormalizationMode>(command.normalizationMode));
+                postAudioNormalizationChanged(gen, command.normalizationMode);
                 break;
             case CommandType::Pause:
                 m_paused.store(true, std::memory_order_release);
@@ -595,7 +615,13 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                         static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
                         playbackClock->qpcFrequency());
                     if (!audioMasterActive) {
-                        playbackClock->reset(audioNow, now);
+                        // First audio lock. If the clock was already QPC-seeded (video ran ahead
+                        // during audio/normalization warmup), converge toward audio instead of
+                        // snapping backward, which would spike A/V error for many frames.
+                        if (playbackClock->valid())
+                            playbackClock->correctToward(audioNow, now, 20'000);
+                        else
+                            playbackClock->reset(audioNow, now);
                         audioMasterActive = true;
                     } else {
                         playbackClock->correctToward(audioNow, now, 5'000);
@@ -838,6 +864,14 @@ void DemuxSession::postAudioTrackChanged(quint64 generation, int streamIndex)
     QMetaObject::invokeMethod(this, [this, generation, streamIndex] {
         if (m_activeGeneration.load(std::memory_order_acquire) == generation)
             emit audioTrackChanged(generation, streamIndex);
+    }, Qt::QueuedConnection);
+}
+
+void DemuxSession::postAudioNormalizationChanged(quint64 generation, int mode)
+{
+    QMetaObject::invokeMethod(this, [this, generation, mode] {
+        if (m_activeGeneration.load(std::memory_order_acquire) == generation)
+            emit audioNormalizationChanged(generation, mode);
     }, Qt::QueuedConnection);
 }
 

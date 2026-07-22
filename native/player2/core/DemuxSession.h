@@ -68,6 +68,7 @@ public:
     void requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying);
     void requestFrameStep(int frames, quint64 generation);
     void requestSelectAudioTrack(int streamIndex, quint64 generation);
+    void requestNormalizationMode(int mode);
     void requestPause();
     void requestResume();
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
@@ -81,15 +82,17 @@ signals:
     void ended(quint64 generation, DemuxEndReason reason, const Player2Error &error);
     void seekCompleted(quint64 generation, double actualSeconds);
     void audioTrackChanged(quint64 generation, int streamIndex);
+    void audioNormalizationChanged(quint64 generation, int mode);
 
 private:
-    enum class CommandType { Seek, FrameStep, SelectAudioTrack, Pause, Resume };
+    enum class CommandType { Seek, FrameStep, SelectAudioTrack, Normalization, Pause, Resume };
     struct Command
     {
         CommandType type = CommandType::Pause;
         qint64 targetUs = 0;
         int frames = 0;
         int streamIndex = -1;
+        int normalizationMode = 0;
         quint64 generation = 0;
         bool resumePlaying = true;
     };
@@ -103,6 +106,7 @@ private:
     void postEnded(quint64 generation, DemuxEndReason reason, Player2Error error);
     void postSeekCompleted(quint64 generation, double actualSeconds);
     void postAudioTrackChanged(quint64 generation, int streamIndex);
+    void postAudioNormalizationChanged(quint64 generation, int mode);
 
     std::atomic_bool m_cancelled{false};
     std::atomic_bool m_running{false};

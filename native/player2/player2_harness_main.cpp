@@ -39,10 +39,15 @@ int main(int argc, char *argv[])
     const QCommandLineOption soakOption(QStringLiteral("soak-seconds"),
                                          QStringLiteral("Minimum report-mode playback duration"),
                                          QStringLiteral("seconds"), QStringLiteral("0"));
+    const QCommandLineOption normalizationOption(
+        QStringLiteral("normalization"),
+        QStringLiteral("Loudness mode: smooth | light | full"),
+        QStringLiteral("mode"), QStringLiteral("smooth"));
     parser.addOption(scenarioOption);
     parser.addOption(reportOption);
     parser.addOption(fileOption);
     parser.addOption(soakOption);
+    parser.addOption(normalizationOption);
     parser.process(application);
     if (parser.isSet(scenarioOption) == parser.isSet(fileOption)) {
         std::cerr << "choose exactly one of --scenario synthetic or --file PATH\n";
@@ -52,6 +57,13 @@ int main(int argc, char *argv[])
     HarnessHostServices host;
     host.setReportPath(parser.value(reportOption));
     host.setMinimumRunSeconds(parser.value(soakOption).toInt());
+    const QString normalization = parser.value(normalizationOption).toLower();
+    if (normalization == QStringLiteral("light"))
+        host.setNormalizationMode(NormalizationMode::Light);
+    else if (normalization == QStringLiteral("full"))
+        host.setNormalizationMode(NormalizationMode::Full);
+    else
+        host.setNormalizationMode(NormalizationMode::Smooth);
     qmlRegisterType<Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
 
     QQmlApplicationEngine engine;

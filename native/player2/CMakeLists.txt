@@ -7,7 +7,7 @@ if(NOT EXISTS "${FFMPEG_ROOT}/include/libavformat/avformat.h")
     message(FATAL_ERROR "Player 2 FFmpeg headers are missing under ${FFMPEG_ROOT}/include")
 endif()
 
-set(_player2_ffmpeg_libraries avformat avcodec avutil swresample)
+set(_player2_ffmpeg_libraries avformat avcodec avutil swresample avfilter)
 foreach(_library IN LISTS _player2_ffmpeg_libraries)
     if(NOT EXISTS "${FFMPEG_ROOT}/lib/${_library}.lib")
         message(FATAL_ERROR "Player 2 FFmpeg import library is missing: ${FFMPEG_ROOT}/lib/${_library}.lib")
@@ -30,6 +30,8 @@ int Colosseum::Player2::buildMarker() noexcept
 }
 ]=])
 add_library(player2_core STATIC
+    audio/AudioNormalizer.cpp
+    audio/AudioNormalizer.h
     audio/AudioPipeline.cpp
     audio/AudioPipeline.h
     audio/WASAPIAudioSink.cpp
@@ -189,6 +191,15 @@ add_test(NAME player2_seek_generation_test
     COMMAND player2_seek_generation_test "${_player2_fixture_dir}"
 )
 
+add_executable(player2_audio_normalizer_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_audio_normalizer_test.cpp"
+)
+target_link_libraries(player2_audio_normalizer_test PRIVATE player2_core player2_ffmpeg Qt6::Core)
+set_target_properties(player2_audio_normalizer_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_audio_normalizer_test COMMAND player2_audio_normalizer_test)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -196,4 +207,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_audio_pipeline_test
     player2_clock_scheduler_test
     player2_seek_generation_test
+    player2_audio_normalizer_test
 )

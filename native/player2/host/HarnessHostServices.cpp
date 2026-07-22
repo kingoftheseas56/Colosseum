@@ -90,6 +90,15 @@ void HarnessHostServices::setMinimumRunSeconds(int seconds)
     m_minimumRunSeconds = std::max(0, seconds);
 }
 
+void HarnessHostServices::setNormalizationMode(NormalizationMode mode)
+{
+    // Set before the file opens so the session carries the mode into the new playback session.
+    m_session.setNormalizationMode(mode);
+    m_reportNormalization =
+        QString::fromLatin1(QMetaEnum::fromType<NormalizationMode>().valueToKey(
+            static_cast<int>(mode)));
+}
+
 bool HarnessHostServices::startScenario(const QString &scenario, QString *error)
 {
     if (scenario != QStringLiteral("synthetic")) {
@@ -221,6 +230,7 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
         m_finalAudioQueueMs = m_session.audioQueueMs();
         m_reportAudioUnderruns = m_session.audioUnderruns();
         m_reportAvP95Ms = m_pipeline.schedulingP95AbsoluteErrorUs() / 1000.0;
+        m_reportNormalizationLatencyMs = m_session.normalizationLatencyMs();
         for (const QVariant &trackValue : m_session.tracks()) {
             const QVariantMap track = trackValue.toMap();
             if (track.value(QStringLiteral("type")).toString() == QStringLiteral("video")) {
@@ -276,6 +286,8 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         ,{QStringLiteral("finalAudioQueueMs"), m_finalAudioQueueMs}
         ,{QStringLiteral("elapsedSeconds"), m_runTimer.isValid() ? m_runTimer.elapsed() / 1000.0 : 0.0}
         ,{QStringLiteral("finalState"), sessionState()}
+        ,{QStringLiteral("normalization"), m_reportNormalization}
+        ,{QStringLiteral("normalizationLatencyMs"), m_reportNormalizationLatencyMs}
     };
     const QFileInfo reportInfo(m_reportPath);
     QDir().mkpath(reportInfo.absolutePath());

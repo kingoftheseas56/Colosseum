@@ -9,6 +9,7 @@ extern "C" {
 }
 
 #include <algorithm>
+#include <vector>
 
 namespace Colosseum::Player2 {
 namespace {
@@ -39,8 +40,34 @@ bool AudioPipeline::open(const AudioFormat &format, QString *error)
     if (!m_sink->open(format, error))
         return false;
     m_outputFormat = format;
+    // Fresh normalization graph for this session's endpoint format (worker thread).
+    m_normalizer.configure(format, m_mode, nullptr);
     m_open = true;
     return true;
+}
+
+void AudioPipeline::configureNormalization(NormalizationMode mode)
+{
+    m_mode = mode;
+    if (m_open)
+        m_normalizer.configure(m_outputFormat, mode, nullptr);
+}
+
+void AudioPipeline::flushFilters()
+{
+    m_normalizer.flush();
+}
+
+NormalizationMode AudioPipeline::normalizationMode() const noexcept { return m_mode; }
+qint64 AudioPipeline::normalizationLatencyUs() const noexcept
+{
+    return m_normalizer.reportedLatencyUs();
+}
+
+bool AudioPipeline::writeNormalized(const AudioBuffer &buffer, quint64 generation, QString *error)
+{
+    const int written = m_sink->write(buffer, generation, error);
+    return written == buffer.frameCount;
 }
 
 bool AudioPipeline::ensureConverter(const AVFrame *frame, QString *error)
@@ -104,8 +131,16 @@ bool AudioPipeline::writeConverted(uint8_t **input, int inputFrames, qint64 ptsU
     output.bytes.resize(converted * m_outputFormat.channels * sizeof(float));
     m_nextPtsUs = output.ptsUs +
         static_cast<qint64>((converted * 1'000'000.0) / m_outputFormat.sampleRate);
-    const int written = m_sink->write(output, generation, error);
-    return written == converted;
+    // Route through the typed normalization stage. Smooth passes the buffer straight through; Light
+    // and Full may emit zero or more buffers (filter latency), each written to the endpoint in order.
+    std::vector<AudioBuffer> normalized;
+    if (!m_normalizer.process(output, &normalized, error))
+        return false;
+    for (const AudioBuffer &buffer : normalized) {
+        if (!writeNormalized(buffer, generation, error))
+            return false;
+    }
+    return true;
 }
 
 bool AudioPipeline::submitDecodedFrame(AVFrame *frame, qint64 ptsUs, quint64 generation,
@@ -125,6 +160,14 @@ bool AudioPipeline::drain(quint64 generation, QString *error)
             return false;
         if (m_lastConvertedFrames == 0)
             break;
+    }
+    // Flush audio buffered inside the normalization filter (loudnorm/dynaudnorm lookahead).
+    std::vector<AudioBuffer> tail;
+    if (!m_normalizer.drain(&tail, error))
+        return false;
+    for (const AudioBuffer &buffer : tail) {
+        if (!writeNormalized(buffer, generation, error))
+            return false;
     }
     return true;
 }
