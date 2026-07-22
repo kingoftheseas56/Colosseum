@@ -29,6 +29,15 @@ set(Libmpv_INCLUDE_DIRS "${LIBMPV_PREFIX}/include" CACHE PATH "" FORCE)
 set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/${_LIBMPV_IMPLIB}" CACHE FILEPATH "" FORCE)
 find_package(MpvQt REQUIRED)
 
+# --- shared offline-ML seam: ONNX Runtime (guided comics + audiobook alignment) ---
+# Dormant by default so a fresh clone builds without the ~300 MB runtime staged.
+# Arcs that link it configure with -DCOLOSSEUM_ENABLE_ONNX=ON after running
+# scripts/native/fetch_onnxruntime.ps1 once per machine.
+option(COLOSSEUM_ENABLE_ONNX "Enable targets that link ONNX Runtime" OFF)
+if(COLOSSEUM_ENABLE_ONNX)
+    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/OnnxRuntime.cmake)
+endif()
+
 # ── libtorrent-rasterbar (tankorent engine core) ─────────────────────────────
 # Ported from TB2 CMakeLists.txt (TANKORENT_DOWNLOAD_FLOW_FIX lineage):
 # find_package CONFIG first, hardcoded C:/tools fallback second. Wrapped in an
