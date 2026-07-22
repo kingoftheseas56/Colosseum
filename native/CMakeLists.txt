@@ -882,3 +882,10 @@ target_include_directories(panel_planner_order_harness PRIVATE ${CMAKE_CURRENT_S
 target_compile_definitions(panel_planner_order_harness PRIVATE
     GUIDED_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/guided")
 target_link_libraries(panel_planner_order_harness PRIVATE Qt6::Core)
+
+add_executable(panel_planner_camera_harness
+    ../tests/panel_planner_camera_harness.cpp
+    guided/PanelPlanner.cpp guided/PanelPlanner.h
+    guided/GuidedTypes.cpp guided/GuidedTypes.h)
+target_include_directories(panel_planner_camera_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(panel_planner_camera_harness PRIVATE Qt6::Core)
