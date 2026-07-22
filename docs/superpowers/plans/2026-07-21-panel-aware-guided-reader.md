@@ -17,7 +17,7 @@
 > - **Task 7:** do NOT construct a private coordinator in `main.cpp`. One app-owned
 >   `work::BackgroundWorkCoordinator *backgroundWork` already exists there (one worker, shared
 >   with audiobook alignment) — inject THAT into `PanelAnalysisService`.
-> - **DownloadsPage (Task 10 / file-structure entry):** the unified activity row already exists.
+> - **DownloadsPage (Task 11):** the unified activity row already exists.
 >   Do not edit `qml/DownloadsPage.qml`. Publish job state into the `BackgroundActivity` context
 >   property (`work::BackgroundActivityRegistry`: `publish/remove` + `pauseRequested/resumeRequested`
 >   signals) and your row appears. Required keys: title, stage, progress, paused, canPause.
@@ -93,6 +93,13 @@ Dependency provenance is frozen against the [official ONNX Runtime releases](htt
 ---
 
 ### Task 1: Pin ONNX Runtime and establish the typed Guided boundary
+
+> ⚠ **PARTIALLY SUPERSEDED (groundwork 2026-07-22).** The ONNX dependency half is DONE:
+> `native/cmake/OnnxRuntime.cmake` + the fetch script already exist on master — fetch script is at
+> **`scripts/native/fetch_onnxruntime.ps1`** (NOT `scripts/guided/`), and it is gated behind
+> `-DCOLOSSEUM_ENABLE_ONNX=ON`. SKIP Step 4 (ONNX bootstrap + imported target) and drop
+> `OnnxRuntime.cmake`/the fetch script from Step 6's `git add`. This task now delivers ONLY
+> `GuidedTypes.h/.cpp` + `guided_types_harness` (Steps 1-3, 5, and a trimmed Step 6).
 
 **Ownership:** Agent 0 (shared build/dependency seam)
 
@@ -249,6 +256,13 @@ git commit -m "feat(guided): establish typed native foundation"
 ```
 
 ### Task 2: Add the generic resumable background-work coordinator
+
+> ✅ **DONE — SKIP THIS ENTIRE TASK (groundwork 2026-07-22).** `work::BackgroundWorkCoordinator`
+> is already live on master in `native/work/` with a green `background_work_coordinator_harness`
+> (commit `158ffc0`). Do NOT recreate it. CONSUME it: `#include "work/BackgroundWorkCoordinator.h"`,
+> submit one work unit per canvas, `WorkContext::checkpoint()` at safe boundaries, `shouldYield()`
+> in tight loops. Added semantic vs the text below: no job is dequeued while pressure is `Suspended`.
+> This task produces zero new commits.
 
 **Ownership:** Agent 0 (shared architecture)
 
@@ -602,6 +616,14 @@ git commit -m "feat(guided): frame panels with guided-v1 timing"
 
 ### Task 6: Export, validate, and run the bundled detector
 
+> ⚠ **PARTIALLY SUPERSEDED (groundwork 2026-07-22).** Do NOT create `native/guided/ModelManifest.h/.cpp`.
+> A generic `models::ModelManifest` already exists on master (`native/models/ModelManifest.h`, commit
+> `8f5bcc0`) with SHA-256 validation and the stable codes `model_missing` / `model_checksum_failed`.
+> USE IT: parse the guided `manifest.json` with `models::ModelManifest::load()`, call `validateChecksum()`
+> before creating the `Ort::Session`, and read detector-specific fields (input shape, classes, threshold)
+> from `manifest.extra`. Everything else in this task (PanelDetector, PanelDetectorOnnx, export script,
+> model resources, harness) stands. Drop `native/guided/ModelManifest*` from Step 6's `git add`.
+
 **Ownership:** Agent 0 for dependency/build; Agent 1 for detector semantics
 
 **Files:**
@@ -725,6 +747,14 @@ git commit -m "feat(guided): bundle offline panel detector"
 ```
 
 ### Task 7: Orchestrate automatic page-first analysis
+
+> ⚠ **SUPERSEDED WIRING (groundwork 2026-07-22).** Do NOT `new work::BackgroundWorkCoordinator` in
+> `main.cpp` (Step 5). One app-owned instance already exists there — `work::BackgroundWorkCoordinator
+> *backgroundWork` (see the `Live` registration block). INJECT that shared instance into
+> `PanelAnalysisService` so guided analysis and audiobook alignment share one background worker.
+> Also: `guided::ModelManifest::defaultBundle()` in the Step 5 snippet becomes a `models::ModelManifest`
+> load (see Task 6 note). The service itself, the page-first priority (current=100/next=90/prev=80/rest=10),
+> and its harness are still yours to build.
 
 **Ownership:** Agent 1
 
@@ -1230,6 +1260,15 @@ git commit -m "feat(reader): add Guided panel step and auto read"
 
 ### Task 11: Surface the same job in Reader and global activity
 
+> ⚠ **PARTIALLY SUPERSEDED (groundwork 2026-07-22).** The global-activity half is DONE and the
+> `DownloadsPage.qml` coordination is NO LONGER NEEDED. Do NOT edit `qml/DownloadsPage.qml` — the
+> unified `BackgroundActivitySection` row already renders there (commit `34f59bd`). Instead, from
+> `PanelAnalysisService`, publish presentation-shaped state into the `BackgroundActivity` context
+> property (`work::BackgroundActivityRegistry::publish/remove`; keys: title, stage, progress, paused,
+> canPause) and listen on its `pauseRequested`/`resumeRequested` signals. The **Reader-side** guided
+> activity surface (`qml/guided/*`) is still yours to build. Drop `qml/DownloadsPage.qml` from Step 2
+> and from the Step's `git add`; the Agent 5 coordination note no longer applies.
+
 **Ownership:** Agent 1 for reader UI; Agent 5 coordination required for `DownloadsPage.qml`
 
 **Files:**
@@ -1298,6 +1337,12 @@ git commit -m "feat(guided): expose visible background analysis status"
 ```
 
 ### Task 12: Bundle the runtime, model, manifest, and notices in every installer
+
+> ⚠ **MANIFEST TYPE SUPERSEDED (groundwork 2026-07-22).** Any reference to `native/guided/ModelManifest.cpp`
+> here is now `models::ModelManifest` (`native/models/ModelManifest.h`). If a bundle-location search
+> (`defaultBundle()`) is needed, add it as a small guided-side helper that returns the manifest path,
+> then load via `models::ModelManifest::load()` — do not re-add a ModelManifest class. Bundling the ONNX
+> runtime DLL, the model, the manifest JSON, and the license notices is still real work and stays here.
 
 **Ownership:** Agent 0 (release/build)
 
