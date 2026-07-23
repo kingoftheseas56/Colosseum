@@ -251,7 +251,20 @@ if(COLOSSEUM_ENABLE_ONNX)
         guided/PanelPlanner.cpp guided/PanelPlanner.h
         guided/PanelMapStore.cpp guided/PanelMapStore.h
         guided/PanelAnalysisService.cpp guided/PanelAnalysisService.h
-        models/ModelManifest.cpp models/ModelManifest.h)
+        models/ModelManifest.cpp models/ModelManifest.h
+        # Audiobook↔EPUB read-along domain (Agent 2, Tasks 3–12). miniz, the work
+        # spine, ModelManifest and Qt6::Sql are already linked into colosseum above.
+        alignment/AlignmentPipeline.cpp alignment/AlignmentPipeline.h
+        alignment/AudioTextAlignmentService.cpp alignment/AudioTextAlignmentService.h
+        alignment/AlignmentStore.cpp alignment/AlignmentStore.h
+        alignment/AlignmentTypes.h
+        alignment/AudiobookAnalysisDecoder.cpp alignment/AudiobookAnalysisDecoder.h
+        alignment/CoarseTranscriber.cpp alignment/CoarseTranscriber.h
+        alignment/CoarseTypes.h
+        alignment/EpubSequenceMatcher.cpp alignment/EpubSequenceMatcher.h
+        alignment/EpubTextIndexer.cpp alignment/EpubTextIndexer.h
+        alignment/EnglishForcedAligner.cpp alignment/EnglishForcedAligner.h
+        alignment/ReadAlongController.cpp alignment/ReadAlongController.h)
     target_link_libraries(colosseum PRIVATE onnxruntime::onnxruntime)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_ONNX)
     # ship onnxruntime.dll beside the exe so the app can load it

@@ -970,6 +970,7 @@ FocusScope {
 
         // read-along Text Sync data (Task 6) — all inert while dormant (readAlongAvailable false)
         readAlongAvailable: shell.readAlongAvailable
+        bookId: shell.bookId                       // resolves the Sync-status card to this book (Task 7)
         readAlongMode: shell.readAlongMode
         readAlongWordScale: shell.readAlongWordScale
         readAlongPreviewActive: shell.readAlongPreviewActive

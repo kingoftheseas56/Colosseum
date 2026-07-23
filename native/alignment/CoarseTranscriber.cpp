@@ -146,92 +146,103 @@ QList<CoarseSegment> CoarseTranscriber::transcribe(const PcmWindow &window,
     if (!ctx.checkpoint())
         return {};
 
-    // ── Stage the window as a temp 16 kHz mono s16 WAV whisper-cli can read ──────
-    QTemporaryDir tmp;
-    if (!tmp.isValid())
-        return {};
-    const QString wavPath = QDir(tmp.path()).filePath(QStringLiteral("in.wav"));
-    const QString outBase = QDir(tmp.path()).filePath(QStringLiteral("out"));
-    const QString jsonPath = outBase + QStringLiteral(".json");
-    if (!writeMono16kS16Wav(wavPath, window.samples))
-        return {};
+    // ── Bounded-window transcription ─────────────────────────────────────────────
+    // whisper enters a self-reinforcing "the the the" repetition loop when handed a
+    // whole multi-minute chapter in one pass — a hallucinated span feeds forward as
+    // decode context and never recovers (proven on real audiobook chapters). A bounded
+    // ~60 s sub-window ALWAYS transcribes cleanly, so split the chapter into 60 s chunks,
+    // transcribe each, and shift each chunk's segment offsets back onto the chapter
+    // timeline. Unique-shingle matching tolerates the rare word that straddles a boundary.
+    // Beam-2 decode is the measured accuracy/speed sweet spot (default beam-5 over-explores
+    // and stalls; greedy under-explores and loops).
+    constexpr int kChunkSamples = 60 * 16000;   // 60 s @ 16 kHz mono
+    const int totalSamples = window.samples.size();
 
-    // ── Run the bundled CPU whisper-cli (one pass, bounded + yielding) ───────────
-    const QStringList args = {
-        QStringLiteral("-m"),  m_modelPath,
-        QStringLiteral("-f"),  wavPath,
-        QStringLiteral("-l"),  QStringLiteral("en"),
-        QStringLiteral("-oj"),
-        QStringLiteral("-of"), outBase,
-        QStringLiteral("-nt"),
+    // Run whisper on one sample span; segments carry chunk-relative ms offsets. On a hard
+    // engine failure sets *engineFailed; an empty result (silent span) is not a failure.
+    auto transcribeChunk = [&](const QVector<float> &chunk, bool *engineFailed) -> QList<CoarseSegment> {
+        *engineFailed = false;
+        QTemporaryDir tmp;
+        if (!tmp.isValid()) { *engineFailed = true; return {}; }
+        const QString wavPath  = QDir(tmp.path()).filePath(QStringLiteral("in.wav"));
+        const QString outBase  = QDir(tmp.path()).filePath(QStringLiteral("out"));
+        const QString jsonPath = outBase + QStringLiteral(".json");
+        if (!writeMono16kS16Wav(wavPath, chunk)) { *engineFailed = true; return {}; }
+
+        const QStringList args = {
+            QStringLiteral("-m"),  m_modelPath,
+            QStringLiteral("-f"),  wavPath,
+            QStringLiteral("-l"),  QStringLiteral("en"),
+            QStringLiteral("-bs"), QStringLiteral("2"),
+            QStringLiteral("-bo"), QStringLiteral("2"),
+            QStringLiteral("-oj"),
+            QStringLiteral("-of"), outBase,
+            QStringLiteral("-nt"),
+        };
+
+        QProcess proc;
+        proc.setProcessChannelMode(QProcess::SeparateChannels);
+        proc.start(resolveWhisper(), args, QIODevice::ReadOnly);
+        if (!proc.waitForStarted(kStartTimeoutMs)) { *engineFailed = true; return {}; }
+
+        // Wall scales with the sub-window (~5 s budget per 1 s of audio, over the floor).
+        const qint64 chunkSec = static_cast<qint64>(chunk.size()) / 16000;
+        const qint64 maxRunMs = qMax<qint64>(kMaxRunMs, chunkSec * 5000);
+        QElapsedTimer wall;
+        wall.start();
+        for (;;) {
+            if (proc.waitForFinished(kPollMs))
+                break;
+            if (proc.state() == QProcess::NotRunning)
+                break;
+            if (!ctx.checkpoint()) { proc.kill(); proc.waitForFinished(kKillWaitMs); *engineFailed = true; return {}; }
+            if (wall.elapsed() > maxRunMs) { proc.kill(); proc.waitForFinished(kKillWaitMs); *engineFailed = true; return {}; }
+        }
+        if (proc.exitStatus() != QProcess::NormalExit || proc.exitCode() != 0) { *engineFailed = true; return {}; }
+
+        QFile jf(jsonPath);
+        if (!jf.open(QIODevice::ReadOnly))
+            return {}; // no JSON (silent span) — zero segments, not a failure
+        const QByteArray raw = jf.readAll();
+        jf.close();
+        QJsonParseError pe{};
+        const QJsonDocument doc = QJsonDocument::fromJson(raw, &pe);
+        if (pe.error != QJsonParseError::NoError || !doc.isObject())
+            return {};
+        const QJsonArray transcription =
+            doc.object().value(QStringLiteral("transcription")).toArray();
+        QList<CoarseSegment> segs;
+        segs.reserve(transcription.size());
+        for (const QJsonValue &v : transcription) {
+            const QJsonObject seg = v.toObject();
+            const QJsonObject offsets = seg.value(QStringLiteral("offsets")).toObject();
+            CoarseSegment out;
+            out.startMs = static_cast<qint64>(offsets.value(QStringLiteral("from")).toDouble());
+            out.endMs   = static_cast<qint64>(offsets.value(QStringLiteral("to")).toDouble());
+            out.text    = seg.value(QStringLiteral("text")).toString().trimmed();
+            out.confidence = 1.0;
+            if (out.text.isEmpty())
+                continue;
+            segs.append(out);
+        }
+        return segs;
     };
 
-    QProcess proc;
-    proc.setProcessChannelMode(QProcess::SeparateChannels);
-    proc.start(resolveWhisper(), args, QIODevice::ReadOnly);
-    if (!proc.waitForStarted(kStartTimeoutMs))
-        return {}; // engine could not start — not a model problem
-
-    QElapsedTimer wall;
-    wall.start();
-    for (;;) {
-        if (proc.waitForFinished(kPollMs))
-            break; // finished (normal or crashed) within this poll
-        if (proc.state() == QProcess::NotRunning)
-            break;
-        if (!ctx.checkpoint()) { // cancel arrived during the run
-            proc.kill();
-            proc.waitForFinished(kKillWaitMs);
-            return {};
-        }
-        if (wall.elapsed() > kMaxRunMs) { // hard wall — never hang
-            proc.kill();
-            proc.waitForFinished(kKillWaitMs);
-            return {};
-        }
-    }
-
-    const bool failedExit = proc.exitStatus() != QProcess::NormalExit
-                            || proc.exitCode() != 0;
-    if (failedExit)
-        return {}; // engine failure — *failure stays None (not a model problem)
-
-    // A cancel that landed after a fast finish still discards the (stale) result.
-    if (!ctx.checkpoint())
-        return {};
-
-    // ── Parse whisper's JSON: transcription[] with ms offsets + text ─────────────
-    QFile jf(jsonPath);
-    if (!jf.open(QIODevice::ReadOnly))
-        return {}; // no JSON (e.g. silent window) — zero segments, not a failure
-    const QByteArray raw = jf.readAll();
-    jf.close();
-
-    QJsonParseError pe{};
-    const QJsonDocument doc = QJsonDocument::fromJson(raw, &pe);
-    if (pe.error != QJsonParseError::NoError || !doc.isObject())
-        return {};
-
-    const QJsonArray transcription =
-        doc.object().value(QStringLiteral("transcription")).toArray();
-
     QList<CoarseSegment> segments;
-    segments.reserve(transcription.size());
-    for (const QJsonValue &v : transcription) {
-        const QJsonObject seg = v.toObject();
-        const QJsonObject offsets = seg.value(QStringLiteral("offsets")).toObject();
-
-        CoarseSegment out;
-        // offsets.from / offsets.to are already in milliseconds.
-        out.startMs = static_cast<qint64>(offsets.value(QStringLiteral("from")).toDouble());
-        out.endMs   = static_cast<qint64>(offsets.value(QStringLiteral("to")).toDouble());
-        out.text    = seg.value(QStringLiteral("text")).toString().trimmed();
-        // whisper emits no per-segment confidence — coarse evidence carries a fixed 1.0.
-        out.confidence = 1.0;
-
-        if (out.text.isEmpty())
-            continue; // a blank/silent span is not matching evidence
-        segments.append(out);
+    for (int off = 0; off < totalSamples; off += kChunkSamples) {
+        if (!ctx.checkpoint())
+            return {}; // cancel between chunks
+        const int count = qMin(kChunkSamples, totalSamples - off);
+        const qint64 chunkStartMs = static_cast<qint64>(off) / 16; // off / 16000 * 1000
+        bool engineFailed = false;
+        const QList<CoarseSegment> segs = transcribeChunk(window.samples.mid(off, count), &engineFailed);
+        if (engineFailed)
+            return {}; // hard engine failure — abandon the chapter (not a model problem)
+        for (CoarseSegment s : segs) {
+            s.startMs += chunkStartMs;
+            s.endMs   += chunkStartMs;
+            segments.append(s);
+        }
     }
 
     return segments;

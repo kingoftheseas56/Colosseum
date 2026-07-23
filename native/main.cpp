@@ -46,6 +46,10 @@
 #include "guided/PanelDetectorOnnx.h"
 #include "guided/PanelMapStore.h"
 #include "guided/PanelPlanner.h"
+#include "alignment/AlignmentStore.h"
+#include "alignment/AlignmentPipeline.h"
+#include "alignment/AudioTextAlignmentService.h"
+#include "alignment/ReadAlongController.h"
 #endif
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
@@ -201,6 +205,14 @@ protected:
         if (m_pinnedHosts.contains(host)) {
             r.setRawHeader("Host", host.toUtf8());
             r.setPeerVerifyName(host);
+            // HTTP/2 MUST stay OFF while we pin by rewriting the URL to the IPv4
+            // literal below: h2's :authority then becomes the IP, and metahub's h2
+            // server rejects it — "HTTP/2 protocol error" on every poster, forcing a
+            // failed-h2→h1 retry that's SLOWER than clean h1 (empirically confirmed,
+            // 2026-07-23). We can't drop the pin either: metahub HAS live IPv6, so an
+            // unpinned host hits the 21s IPv6 black-hole stall. The real Stremio-parity
+            // fix (connect-to-IPv4 while keeping the hostname for h2's authority) needs
+            // a true DNS-pin layer Qt doesn't natively expose — tracked as a follow-up.
             r.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
             const QString ipv4 = m_ipv4ByHost.value(host);
@@ -827,6 +839,56 @@ int main(int argc, char *argv[]) {
     // book's page, the downloader writes the pairing under the reader's bookId itself —
     // no pairing UI. Same store instance QML/BookBridge use, so the Audio tab reads it.
     audiobooks->setPairing(audioPairing);
+
+#ifdef COLOSSEUM_ENABLE_ONNX
+    // Audiobook↔EPUB read-along (Tasks 3–12). Registering these two props flips
+    // ReaderShell.readAlongAvailable true → the word-level engine goes live (the coarse
+    // whisper transcribe + wav2vec2 CTC forced-align pipeline runs per chapter on the
+    // shared background worker; the controller drives the page-follows-audio highlight).
+    // Fails closed exactly like guided: if the two model files aren't found, we skip
+    // registration and read-along stays dormant (chapter-level sync only).
+    {
+        const QString appDir = QCoreApplication::applicationDirPath();
+        const QStringList alignDirs = {
+            qEnvironmentVariable("COLOSSEUM_ALIGNMENT_MODEL_DIR"),
+            appDir + QStringLiteral("/models/alignment"),
+            appDir + QStringLiteral("/resources/models/alignment"),
+            appDir + QStringLiteral("/../resources/models/alignment"),
+            appDir + QStringLiteral("/../../resources/models/alignment"),
+            appDir + QStringLiteral("/../../../resources/models/alignment")
+        };
+        QString alignBase;
+        for (const QString& d : alignDirs) {
+            if (!d.isEmpty()
+                && QFileInfo::exists(d + QStringLiteral("/coarse/ggml-base.en.bin"))
+                && QFileInfo::exists(d + QStringLiteral("/forced/wav2vec2_base_960h.onnx"))) {
+                alignBase = d;
+                break;
+            }
+        }
+        if (!alignBase.isEmpty()) {
+            const QString alignDir =
+                QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+                + QStringLiteral("/alignment");
+            QDir().mkpath(alignDir);
+            const QString dbPath = alignDir + QStringLiteral("/readalong.db");
+            auto *readStore = new alignment::AlignmentStore(dbPath);
+            auto *pipeline  = new alignment::AlignmentPipeline(
+                alignBase + QStringLiteral("/coarse/ggml-base.en.bin"),
+                alignBase + QStringLiteral("/forced/wav2vec2_base_960h.onnx"));
+            auto *alignSvc  = new alignment::AudioTextAlignmentService(
+                backgroundWork, backgroundActivity, readStore, dbPath, audioPairing,
+                [audiobooks](const QString& pairKey){ return audiobooks->localFiles(pairKey); },
+                pipeline->makeProcessor(), &app);
+            auto *readAlong = new alignment::ReadAlongController(readStore, &app);
+            engine.rootContext()->setContextProperty(QStringLiteral("AudioTextAlignment"), alignSvc);
+            engine.rootContext()->setContextProperty(QStringLiteral("ReadAlong"), readAlong);
+            // NOTE (demo build): the shared coordinator ideally drains before alignSvc
+            // (handoff STEP 3); parented to &app here like guided, so process teardown
+            // order applies. Production hardening: explicit drain on aboutToQuit.
+        }
+    }
+#endif
 
     // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
     // is recreated, so remote provider success is irrelevant to whether intent is remembered.
