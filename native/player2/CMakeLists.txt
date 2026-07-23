@@ -44,6 +44,8 @@ add_library(player2_core STATIC
     core/PlaybackGeneration.h
     core/DemuxSession.cpp
     core/DemuxSession.h
+    core/PacketQueue.cpp
+    core/PacketQueue.h
     core/FrameScheduler.cpp
     core/FrameScheduler.h
     core/PlaybackClock.cpp
@@ -274,6 +276,15 @@ set_target_properties(player2_device_recovery_test PROPERTIES
 )
 add_test(NAME player2_device_recovery_test COMMAND player2_device_recovery_test)
 
+add_executable(player2_packet_queue_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_packet_queue_test.cpp"
+)
+target_link_libraries(player2_packet_queue_test PRIVATE player2_core player2_ffmpeg Qt6::Core)
+set_target_properties(player2_packet_queue_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_packet_queue_test COMMAND player2_packet_queue_test)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -286,4 +297,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_subtitle_timing_test
     player2_http_media_test
     player2_device_recovery_test
+    player2_packet_queue_test
 )
