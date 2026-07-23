@@ -4,6 +4,7 @@
 #include "player2/audio/AudioPipeline.h"
 #include "player2/network/QtHttpTransport.h"
 #include "FrameScheduler.h"
+#include "PacketQueue.h"
 #include "PlaybackClock.h"
 #include "SubtitlePipeline.h"
 
@@ -425,51 +426,27 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     }
     postOpened(generation, metadata);
 
+    // Video is DISCOVERED here (it needs the format context) but DECODED on its own thread. The
+    // demux thread must never pace — pacing is exactly what starved the audio read-ahead — so the
+    // video decoder, its D3D11 pipeline and the frame scheduler live entirely on a dedicated thread
+    // fed a bounded queue of video packets. Audio is decoded inline below (it races ahead unpaced,
+    // filling loudnorm's lookahead and the sink cushion — the cure).
     D3D11VideoPipeline *pipeline = m_videoPipeline.load(std::memory_order_acquire);
     int videoStreamIndex = -1;
     AVStream *videoStream = nullptr;
-    std::unique_ptr<AVBufferRef, BufferCloser> hardware;
-    std::unique_ptr<AVCodecContext, CodecCloser> decoder;
-    std::unique_ptr<AVFrame, FrameCloser> frame;
+    const AVCodec *videoCodec = nullptr;
     double framesPerSecond = 24.0;
     if (pipeline) {
-        const AVCodec *codec = nullptr;
         videoStreamIndex = av_find_best_stream(format.get(), AVMEDIA_TYPE_VIDEO, -1, -1,
-                                               &codec, 0);
-        if (videoStreamIndex < 0 || !codec) {
+                                               &videoCodec, 0);
+        if (videoStreamIndex < 0 || !videoCodec) {
             postEnded(generation, DemuxEndReason::Failed,
                       Player2Error{Player2ErrorCode::DecodeFailed,
                                    QStringLiteral("No decodable video stream"), false});
             m_running.store(false, std::memory_order_release);
             return;
         }
-        QString hardwareError;
-        hardware.reset(pipeline->createDecoderDeviceContext(&hardwareError));
-        decoder.reset(avcodec_alloc_context3(codec));
         videoStream = format->streams[videoStreamIndex];
-        if (!hardware || !decoder ||
-            (result = avcodec_parameters_to_context(decoder.get(), videoStream->codecpar)) < 0) {
-            postEnded(generation, DemuxEndReason::Failed,
-                      Player2Error{Player2ErrorCode::DecodeFailed,
-                                   hardwareError.isEmpty()
-                                       ? QStringLiteral("Video decoder setup failed: %1")
-                                             .arg(avError(result))
-                                       : hardwareError,
-                                   false});
-            m_running.store(false, std::memory_order_release);
-            return;
-        }
-        decoder->hw_device_ctx = av_buffer_ref(hardware.get());
-        decoder->get_format = selectD3d11Format;
-        if ((result = avcodec_open2(decoder.get(), codec, nullptr)) < 0) {
-            postEnded(generation, DemuxEndReason::Failed,
-                      Player2Error{Player2ErrorCode::DecodeFailed,
-                                   QStringLiteral("Hardware decoder open failed: %1")
-                                       .arg(avError(result)), false});
-            m_running.store(false, std::memory_order_release);
-            return;
-        }
-        frame.reset(av_frame_alloc());
         const AVRational guessedRate = av_guess_frame_rate(format.get(), videoStream, nullptr);
         if (guessedRate.num > 0 && guessedRate.den > 0)
             framesPerSecond = av_q2d(guessedRate);
@@ -529,28 +506,273 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     PlaybackClock *playbackClock = m_playbackClock.load(std::memory_order_acquire);
     FrameScheduler *frameScheduler = m_frameScheduler.load(std::memory_order_acquire);
 
-    // Mutable transport state owned by this worker. `gen` is the single generation the worker tags
-    // every product with; a seek/track command advances it, so no component keeps a private epoch.
+    // Read by BOTH threads (the video thread consults it for clock mastering) and flipped by an
+    // audio-track add, so it must be atomic. Fixed in practice: true whenever the file has audio.
+    std::atomic<bool> audioIsMaster{audioDecoder != nullptr};
+    const bool videoPresent = pipeline && videoStreamIndex >= 0;
+
+    // ---- State shared between the demux thread (below) and the video decode thread ----
+    // The single `gen` barrier still rules: it rides each queued packet, so the video thread adopts
+    // it for tagging. A SEEK additionally bumps seekEpoch — that, not a bare generation change, is
+    // what tells the video thread to flush its decoder + pipeline + scheduler and discard to the
+    // target. So a plain generation bump from an audio/subtitle track swap never hitches video.
+    std::atomic<quint64> seekEpoch{0};
+    std::atomic<qint64> seekTargetUs{0};
+    std::atomic<bool> seekResumePlaying{true};
+    std::atomic<bool> decodingToTarget{false};
+    std::atomic<qint64> lastMasterPtsUs{0};
+    std::atomic<bool> audioMasterResync{false};
+    std::atomic<bool> videoThreadFailed{false};
+    std::atomic<bool> videoReachedEnd{false};
+    QString videoFailureMessage; // published before videoThreadFailed is set (release/acquire)
+
+    // Bounded video read-ahead: ~2 s of packets, with byte and count safety caps.
+    PacketQueue videoQueue(PacketQueue::Bounds{2'000'000, 48 * 1024 * 1024, 600});
+
+    // The video decode thread: builds its own hardware decoder, then pops packets and paces frames
+    // against the master clock. Joined at the end of run() — its captured references outlive it.
+    std::thread videoThread;
+    if (videoPresent) {
+        videoThread = std::thread([&] {
+            QString hardwareError;
+            std::unique_ptr<AVBufferRef, BufferCloser> hardware(
+                pipeline->createDecoderDeviceContext(&hardwareError));
+            std::unique_ptr<AVCodecContext, CodecCloser> decoder(avcodec_alloc_context3(videoCodec));
+            int rc = 0;
+            if (!hardware || !decoder ||
+                (rc = avcodec_parameters_to_context(decoder.get(), videoStream->codecpar)) < 0) {
+                videoFailureMessage = hardwareError.isEmpty()
+                    ? QStringLiteral("Video decoder setup failed: %1").arg(avError(rc))
+                    : hardwareError;
+                videoThreadFailed.store(true, std::memory_order_release);
+                videoQueue.cancel();
+                return;
+            }
+            decoder->hw_device_ctx = av_buffer_ref(hardware.get());
+            decoder->get_format = selectD3d11Format;
+            if ((rc = avcodec_open2(decoder.get(), videoCodec, nullptr)) < 0) {
+                videoFailureMessage =
+                    QStringLiteral("Hardware decoder open failed: %1").arg(avError(rc));
+                videoThreadFailed.store(true, std::memory_order_release);
+                videoQueue.cancel();
+                return;
+            }
+            std::unique_ptr<AVFrame, FrameCloser> frame(av_frame_alloc());
+            const AVRational videoTimeBase = videoStream->time_base;
+
+            quint64 gen = generation;
+            quint64 lastSeekEpoch = seekEpoch.load(std::memory_order_acquire);
+            quint64 videoSequence = 0;
+            bool discarding = false;
+            bool landingPresented = false;
+            bool audioMasterActive = false;
+            bool failed = false;
+
+            // Drain and present every frame the decoder can emit for the packet just fed. Returns
+            // false only on a real, non-benign decode failure.
+            auto drainDecodedFrames = [&]() -> bool {
+                while (!m_cancelled.load(std::memory_order_acquire)) {
+                    const int r = avcodec_receive_frame(decoder.get(), frame.get());
+                    if (r == AVERROR(EAGAIN) || r == AVERROR_EOF)
+                        return true;
+                    if (r < 0) {
+                        videoFailureMessage =
+                            QStringLiteral("Video decode failed: %1").arg(avError(r));
+                        return false;
+                    }
+                    if (frame->format != AV_PIX_FMT_D3D11) {
+                        videoFailureMessage =
+                            QStringLiteral("Hardware decoder returned %1 instead of D3D11")
+                                .arg(QString::fromLatin1(av_get_pix_fmt_name(
+                                    static_cast<AVPixelFormat>(frame->format))));
+                        return false;
+                    }
+                    pipeline->noteDecoded();
+                    qint64 ptsUs =
+                        static_cast<qint64>((videoSequence * 1'000'000.0) / framesPerSecond);
+                    if (frame->best_effort_timestamp != AV_NOPTS_VALUE) {
+                        ptsUs = av_rescale_q(frame->best_effort_timestamp, videoTimeBase,
+                                             AVRational{1, 1'000'000});
+                    }
+
+                    if (discarding) {
+                        // Skip everything before the target; present only the first landing frame,
+                        // then hold until the master (audio, if present) lands.
+                        const qint64 target = seekTargetUs.load(std::memory_order_acquire);
+                        if (ptsUs + 1'000 < target || landingPresented) {
+                            ++videoSequence;
+                            av_frame_unref(frame.get());
+                            continue;
+                        }
+                        QString submitError;
+                        const VideoFrameToken token{gen, ++videoSequence, ptsUs};
+                        if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&
+                            !submitError.isEmpty()) {
+                            av_frame_unref(frame.get());
+                            return true; // benign: a newer generation will re-drive presentation
+                        }
+                        av_frame_unref(frame.get());
+                        landingPresented = true;
+                        if (!audioIsMaster) {
+                            // Video-only: this frame is the landing point. Reset the clock, restore
+                            // the requested pause state, publish completion.
+                            decodingToTarget.store(false, std::memory_order_release);
+                            lastMasterPtsUs.store(ptsUs, std::memory_order_release);
+                            const bool pausing = !seekResumePlaying.load(std::memory_order_acquire);
+                            m_paused.store(pausing, std::memory_order_release);
+                            if (playbackClock) {
+                                playbackClock->reset(ptsUs, qpcNow());
+                                if (pausing)
+                                    playbackClock->pause(qpcNow());
+                            }
+                            audioMasterActive = false;
+                            postSeekCompleted(gen, ptsUs / 1'000'000.0);
+                        }
+                        discarding = false;
+                        continue;
+                    }
+
+                    if (playbackClock && frameScheduler) {
+                        qint64 now = qpcNow();
+                        if (audioMasterResync.exchange(false, std::memory_order_acq_rel))
+                            audioMasterActive = false;
+                        const AudioClockSnapshot audio = (audioIsMaster && audioPipeline)
+                            ? audioPipeline->clock() : AudioClockSnapshot{};
+                        if (audio.valid) {
+                            const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
+                                static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
+                                playbackClock->qpcFrequency());
+                            if (!audioMasterActive) {
+                                // First audio lock. If the clock was already QPC-seeded (video ran
+                                // ahead during audio/normalization warmup), converge toward audio
+                                // instead of snapping backward, which would spike A/V error.
+                                if (playbackClock->valid())
+                                    playbackClock->correctToward(audioNow, now, 20'000);
+                                else
+                                    playbackClock->reset(audioNow, now);
+                                audioMasterActive = true;
+                            } else {
+                                playbackClock->correctToward(audioNow, now, 5'000);
+                            }
+                        } else if (!playbackClock->valid()) {
+                            playbackClock->reset(ptsUs, now);
+                        }
+
+                        const FrameScheduleDecision decision = frameScheduler->choose(
+                            playbackClock->positionAt(now), now,
+                            std::vector<FrameCandidate>{{videoSequence + 1, ptsUs}});
+                        if (decision.action == FrameScheduleAction::WaitUntilQpc) {
+                            while (!m_cancelled.load(std::memory_order_acquire)) {
+                                if (seekEpoch.load(std::memory_order_acquire) != lastSeekEpoch)
+                                    break; // a seek is in flight; stop pacing and abandon this frame
+                                now = qpcNow();
+                                if (now >= decision.deadlineQpc)
+                                    break;
+                                const qint64 remainingUs = static_cast<qint64>(
+                                    static_cast<long double>(decision.deadlineQpc - now) *
+                                    1'000'000.0L / playbackClock->qpcFrequency());
+                                std::this_thread::sleep_for(std::chrono::microseconds(
+                                    std::clamp<qint64>(remainingUs, 100, 5'000)));
+                            }
+                            if (seekEpoch.load(std::memory_order_acquire) != lastSeekEpoch) {
+                                av_frame_unref(frame.get());
+                                return true; // abandon; the seek path will re-drive presentation
+                            }
+                        } else if (decision.action == FrameScheduleAction::DropLate) {
+                            pipeline->noteSchedulingDecision(decision.timingErrorUs, true);
+                            ++videoSequence;
+                            av_frame_unref(frame.get());
+                            continue;
+                        }
+                        now = qpcNow();
+                        pipeline->noteSchedulingDecision(ptsUs - playbackClock->positionAt(now),
+                                                         false);
+                    }
+                    QString submitError;
+                    const VideoFrameToken token{gen, ++videoSequence, ptsUs};
+                    if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&
+                        !submitError.isEmpty()) {
+                        av_frame_unref(frame.get());
+                        return true; // benign stale/flush
+                    }
+                    if (!audioIsMaster)
+                        lastMasterPtsUs.store(ptsUs, std::memory_order_release);
+                    av_frame_unref(frame.get());
+                }
+                return true;
+            };
+
+            std::unique_ptr<AVPacket, PacketCloser> pkt(av_packet_alloc());
+            while (!m_cancelled.load(std::memory_order_acquire) && !failed) {
+                quint64 pktGen = gen;
+                const PacketQueue::PopResult pop = videoQueue.pop(pkt.get(), &pktGen);
+                if (pop == PacketQueue::PopResult::Cancelled)
+                    break;
+                if (pop == PacketQueue::PopResult::EndOfStream) {
+                    // Flush the decoder tail, present what remains, then mark the video end so the
+                    // demux thread publishes EndOfFile only once video has actually drained.
+                    avcodec_send_packet(decoder.get(), nullptr);
+                    drainDecodedFrames();
+                    avcodec_flush_buffers(decoder.get());
+                    videoReachedEnd.store(true, std::memory_order_release);
+                    m_commandCv.notify_all(); // nudge the demux thread if it is awaiting the tail
+                    continue; // keep waiting: a later seek flushes+refills, or cancel exits
+                }
+
+                videoReachedEnd.store(false, std::memory_order_release);
+                const quint64 currentSeekEpoch = seekEpoch.load(std::memory_order_acquire);
+                if (currentSeekEpoch != lastSeekEpoch) {
+                    lastSeekEpoch = currentSeekEpoch;
+                    avcodec_flush_buffers(decoder.get());
+                    if (pipeline)
+                        pipeline->flush(pktGen);
+                    if (frameScheduler)
+                        frameScheduler->reset();
+                    discarding = decodingToTarget.load(std::memory_order_acquire);
+                    landingPresented = false;
+                    audioMasterActive = false;
+                }
+                gen = pktGen; // adopt the generation (covers both seeks and plain track changes)
+
+                const int sr = avcodec_send_packet(decoder.get(), pkt.get());
+                av_packet_unref(pkt.get());
+                if (sr < 0) {
+                    // A stale packet right after a flush can be rejected; tolerate unless it is a hard
+                    // failure with no seek in flight.
+                    if (seekEpoch.load(std::memory_order_acquire) == lastSeekEpoch &&
+                        sr != AVERROR(EAGAIN) && sr != AVERROR_INVALIDDATA) {
+                        videoFailureMessage =
+                            QStringLiteral("Video packet submission failed: %1").arg(avError(sr));
+                        failed = true;
+                    }
+                    continue;
+                }
+                if (!drainDecodedFrames())
+                    failed = true;
+            }
+            if (failed)
+                videoThreadFailed.store(true, std::memory_order_release);
+            // On ANY exit (cancel, teardown, or failure) cancel the queue so a demux thread blocked
+            // in push() unblocks — otherwise the teardown join would deadlock once we stop draining.
+            videoQueue.cancel();
+        });
+    }
+
+    // Mutable transport state owned by the DEMUX thread. `gen` is the single generation it tags every
+    // product with; a seek/track command advances it (and, for seeks, bumps seekEpoch above).
     quint64 gen = generation;
-    bool audioMasterActive = false;
-    quint64 videoSequence = 0;
-    qint64 lastMasterPtsUs = 0;
-    bool audioIsMaster = audioDecoder != nullptr;
     SubtitlePipeline subtitlePipeline;
     int subtitleStreamIndex = -1;
-    bool decodingToTarget = false;
-    bool videoLandingPresented = false;
-    qint64 seekTargetUs = 0;
-    bool seekResumePlaying = true;
     bool eofReached = false;
+    bool eofSignaled = false;
     QString decodeFailure;
 
     // Publishes seek/frame-step completion, restores the requested play/pause state and re-arms the
     // clock at the landed position. Called once per reposition, from whichever stream is master.
     auto landSeek = [&](qint64 ptsUs) {
-        decodingToTarget = false;
-        lastMasterPtsUs = ptsUs;
-        const bool pausing = !seekResumePlaying;
+        decodingToTarget.store(false, std::memory_order_release);
+        lastMasterPtsUs.store(ptsUs, std::memory_order_release);
+        const bool pausing = !seekResumePlaying.load(std::memory_order_acquire);
         m_paused.store(pausing, std::memory_order_release);
         if (audioPipeline)
             audioPipeline->setPaused(pausing);
@@ -559,7 +781,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             if (pausing)
                 playbackClock->pause(qpcNow());
         }
-        audioMasterActive = false;
+        audioMasterResync.store(true, std::memory_order_release); // video re-locks to the new clock
         postSeekCompleted(gen, ptsUs / 1'000'000.0);
     };
 
@@ -568,31 +790,31 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     auto applySeek = [&](qint64 targetUs, quint64 newGeneration, bool resumePlaying) {
         gen = newGeneration;
         m_activeGeneration.store(newGeneration, std::memory_order_release);
-        if (decoder)
-            avcodec_flush_buffers(decoder.get());
         if (audioDecoder)
             avcodec_flush_buffers(audioDecoder.get());
         if (audioPipeline) {
             audioPipeline->flush(newGeneration);
-            audioPipeline->flushFilters(); // drop stale normalization-buffered audio (worker thread)
+            audioPipeline->flushFilters(); // drop stale normalization-buffered audio (this thread)
         }
         subtitlePipeline.flush(); // drop any decoder-buffered cue state across the seek
-        if (pipeline)
-            pipeline->flush(newGeneration);
         if (playbackClock)
             playbackClock->invalidate();
-        if (frameScheduler)
-            frameScheduler->reset();
-        audioMasterActive = false;
         qint64 clamped = std::max<qint64>(0, targetUs);
         if (metadata.durationUs > 0)
             clamped = std::min(clamped, metadata.durationUs);
+        // Publish the target BEFORE bumping seekEpoch/flushing the queue, so the video thread sees a
+        // consistent target the moment it observes the seek. The video thread flushes its own
+        // decoder/pipeline/scheduler and discards to the target on the seekEpoch bump.
+        seekTargetUs.store(clamped, std::memory_order_release);
+        seekResumePlaying.store(resumePlaying, std::memory_order_release);
+        decodingToTarget.store(true, std::memory_order_release);
+        audioMasterResync.store(true, std::memory_order_release);
+        videoReachedEnd.store(false, std::memory_order_release);
+        seekEpoch.fetch_add(1, std::memory_order_acq_rel); // tell the video thread a seek happened
+        videoQueue.flush();                                // drop stale video packets in flight
         av_seek_frame(format.get(), -1, clamped, AVSEEK_FLAG_BACKWARD);
-        seekTargetUs = clamped;
-        seekResumePlaying = resumePlaying;
-        decodingToTarget = true;
-        videoLandingPresented = false;
         eofReached = false;
+        eofSignaled = false;
         // Scan to the target with the endpoint running; landSeek applies the final pause state.
         m_paused.store(false, std::memory_order_release);
         if (audioPipeline)
@@ -627,7 +849,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 }
             }
         }
-        audioMasterActive = false;
+        audioMasterResync.store(true, std::memory_order_release); // video re-locks after the swap
         // Report the track actually decoding now: if the requested decoder failed to open,
         // audioStreamIndex still points at the previous track that keeps playing.
         postAudioTrackChanged(newGeneration, audioStreamIndex);
@@ -692,128 +914,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                     audioPipeline->setPaused(false);
                 if (playbackClock)
                     playbackClock->resume(qpcNow());
-                audioMasterActive = false;
+                audioMasterResync.store(true, std::memory_order_release);
                 break;
             }
         }
-    };
-
-    auto receiveVideoFrames = [&]() -> bool {
-        while (!m_cancelled.load(std::memory_order_acquire)) {
-            const int receiveResult = avcodec_receive_frame(decoder.get(), frame.get());
-            if (receiveResult == AVERROR(EAGAIN) || receiveResult == AVERROR_EOF)
-                return true;
-            if (receiveResult < 0) {
-                decodeFailure = QStringLiteral("Video decode failed: %1").arg(avError(receiveResult));
-                return false;
-            }
-            if (frame->format != AV_PIX_FMT_D3D11) {
-                decodeFailure = QStringLiteral("Hardware decoder returned %1 instead of D3D11")
-                    .arg(QString::fromLatin1(av_get_pix_fmt_name(
-                        static_cast<AVPixelFormat>(frame->format))));
-                return false;
-            }
-            pipeline->noteDecoded();
-            qint64 ptsUs = static_cast<qint64>((videoSequence * 1'000'000.0) / framesPerSecond);
-            if (frame->best_effort_timestamp != AV_NOPTS_VALUE) {
-                ptsUs = av_rescale_q(frame->best_effort_timestamp, videoStream->time_base,
-                                     AVRational{1, 1'000'000});
-            }
-            if (decodingToTarget) {
-                // Skip everything before the target; present only the first landing frame so the
-                // destination shows, then hold until the master stream lands.
-                if (ptsUs + 1'000 < seekTargetUs || videoLandingPresented) {
-                    ++videoSequence;
-                    av_frame_unref(frame.get());
-                    continue;
-                }
-                QString submitError;
-                const VideoFrameToken token{gen, ++videoSequence, ptsUs};
-                if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&
-                    !submitError.isEmpty()) {
-                    if (m_commandPending.load(std::memory_order_acquire)) {
-                        av_frame_unref(frame.get());
-                        return true;
-                    }
-                    decodeFailure = submitError;
-                    return false;
-                }
-                av_frame_unref(frame.get());
-                videoLandingPresented = true;
-                if (!audioIsMaster)
-                    landSeek(ptsUs);
-                continue;
-            }
-            if (playbackClock && frameScheduler) {
-                qint64 now = qpcNow();
-                const AudioClockSnapshot audio = audioPipeline ? audioPipeline->clock()
-                                                                : AudioClockSnapshot{};
-                if (audio.valid) {
-                    const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
-                        static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
-                        playbackClock->qpcFrequency());
-                    if (!audioMasterActive) {
-                        // First audio lock. If the clock was already QPC-seeded (video ran ahead
-                        // during audio/normalization warmup), converge toward audio instead of
-                        // snapping backward, which would spike A/V error for many frames.
-                        if (playbackClock->valid())
-                            playbackClock->correctToward(audioNow, now, 20'000);
-                        else
-                            playbackClock->reset(audioNow, now);
-                        audioMasterActive = true;
-                    } else {
-                        playbackClock->correctToward(audioNow, now, 5'000);
-                    }
-                } else if (!playbackClock->valid()) {
-                    playbackClock->reset(ptsUs, now);
-                }
-
-                const FrameScheduleDecision decision = frameScheduler->choose(
-                    playbackClock->positionAt(now), now,
-                    std::vector<FrameCandidate>{{videoSequence + 1, ptsUs}});
-                if (decision.action == FrameScheduleAction::WaitUntilQpc) {
-                    while (!m_cancelled.load(std::memory_order_acquire)) {
-                        if (m_commandPending.load(std::memory_order_acquire))
-                            break; // a transport command is waiting; stop pacing and process it
-                        now = qpcNow();
-                        if (now >= decision.deadlineQpc)
-                            break;
-                        const qint64 remainingUs = static_cast<qint64>(
-                            static_cast<long double>(decision.deadlineQpc - now) *
-                            1'000'000.0L / playbackClock->qpcFrequency());
-                        std::this_thread::sleep_for(std::chrono::microseconds(
-                            std::clamp<qint64>(remainingUs, 100, 5'000)));
-                    }
-                    if (m_commandPending.load(std::memory_order_acquire)) {
-                        av_frame_unref(frame.get());
-                        return true; // abandon this frame; the command loop will flush anyway
-                    }
-                } else if (decision.action == FrameScheduleAction::DropLate) {
-                    pipeline->noteSchedulingDecision(decision.timingErrorUs, true);
-                    ++videoSequence;
-                    av_frame_unref(frame.get());
-                    continue;
-                }
-                now = qpcNow();
-                pipeline->noteSchedulingDecision(
-                    ptsUs - playbackClock->positionAt(now), false);
-            }
-            QString submitError;
-            const VideoFrameToken token{gen, ++videoSequence, ptsUs};
-            if (!pipeline->submitDecodedFrame(frame.get(), token, &submitError) &&
-                !submitError.isEmpty()) {
-                if (m_commandPending.load(std::memory_order_acquire)) {
-                    av_frame_unref(frame.get());
-                    return true;
-                }
-                decodeFailure = submitError;
-                return false;
-            }
-            if (!audioIsMaster)
-                lastMasterPtsUs = ptsUs;
-            av_frame_unref(frame.get());
-        }
-        return true;
     };
 
     auto receiveAudioFrames = [&]() -> bool {
@@ -869,9 +973,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         if (m_cancelled.load(std::memory_order_acquire))
             break;
 
-        // Paused (and not scanning to a seek target) or parked at EOF: sleep until a command.
-        if ((m_paused.load(std::memory_order_acquire) && !decodingToTarget) ||
-            (eofReached && !decodingToTarget)) {
+        // The video thread failed (decoder setup or a hard decode error) — surface it and stop.
+        if (videoThreadFailed.load(std::memory_order_acquire)) {
+            if (decodeFailure.isEmpty())
+                decodeFailure = videoFailureMessage;
+            decodeFailed = true;
+            break;
+        }
+
+        // Paused (and not scanning to a seek target) or fully ended: sleep until a command.
+        if ((m_paused.load(std::memory_order_acquire) &&
+             !decodingToTarget.load(std::memory_order_acquire)) ||
+            (eofReached && !decodingToTarget.load(std::memory_order_acquire))) {
             std::unique_lock lock(m_commandMutex);
             m_commandCv.wait(lock, [this] {
                 return m_commandPending.load(std::memory_order_acquire) ||
@@ -880,13 +993,30 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             continue;
         }
 
+        // End of file was reached; audio has drained and the video queue was closed. Publish
+        // EndOfFile only once the video thread has actually drained its tail (up to ~2 s buffered),
+        // so the UI is never told "done" while video is still presenting.
+        if (eofSignaled && !eofReached) {
+            if (!videoPresent || videoReachedEnd.load(std::memory_order_acquire)) {
+                postEnded(gen, DemuxEndReason::EndOfFile,
+                          Player2Error{Player2ErrorCode::None, QString(), false});
+                eofReached = true;
+            } else {
+                std::unique_lock lock(m_commandMutex);
+                m_commandCv.wait_for(lock, std::chrono::milliseconds(20), [this] {
+                    return m_commandPending.load(std::memory_order_acquire) ||
+                           m_cancelled.load(std::memory_order_acquire) || !m_commands.empty();
+                });
+            }
+            continue;
+        }
+
         result = av_read_frame(format.get(), packet.get());
         if (result < 0) {
             if (result == AVERROR_EOF) {
-                if (decoder) {
-                    avcodec_send_packet(decoder.get(), nullptr);
-                    receiveVideoFrames();
-                }
+                // Flush the audio decoder + normalization tail (drains loudnorm's lookahead), close
+                // the video queue, land at the edge if audio was scanning. EndOfFile is published by
+                // the eofSignaled branch above, once the video tail has drained.
                 if (audioDecoder) {
                     avcodec_send_packet(audioDecoder.get(), nullptr);
                     receiveAudioFrames();
@@ -895,11 +1025,11 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                         audioPipeline->drain(gen, &audioError);
                     }
                 }
-                if (decodingToTarget)
-                    landSeek(seekTargetUs); // sought past the end: land at the requested edge
-                postEnded(gen, DemuxEndReason::EndOfFile,
-                          Player2Error{Player2ErrorCode::None, QString(), false});
-                eofReached = true;
+                if (decodingToTarget.load(std::memory_order_acquire) && audioIsMaster)
+                    landSeek(seekTargetUs.load(std::memory_order_acquire));
+                if (videoPresent)
+                    videoQueue.setEndOfStream();
+                eofSignaled = true;
                 continue;
             }
             decodeFailure = QStringLiteral("Demux read failed: %1").arg(avError(result));
@@ -907,38 +1037,38 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             break;
         }
 
-        AVStream *stream = format->streams[packet->stream_index];
+        const int streamIndex = packet->stream_index;
+        AVStream *stream = format->streams[streamIndex];
         const auto toUs = [stream](qint64 value) {
             return value == AV_NOPTS_VALUE ? qint64{0}
                                            : av_rescale_q(value, stream->time_base,
                                                           AVRational{1, 1'000'000});
         };
-        postPacket(gen, DemuxPacketInfo{packet->stream_index, toUs(packet->pts),
+        postPacket(gen, DemuxPacketInfo{streamIndex, toUs(packet->pts),
                                         toUs(packet->duration), packet->size,
                                         (packet->flags & AV_PKT_FLAG_KEY) != 0});
 
-        // No decoder is producing frames (e.g. video-only with no attached pipeline): land the seek
-        // on the first packet at or past the target so completion is still observable.
-        if (decodingToTarget && !audioIsMaster && !decoder) {
+        // No stream is producing frames to land on (no audio master and no video pipeline): land the
+        // seek on the first packet at or past the target so completion is still observable.
+        if (decodingToTarget.load(std::memory_order_acquire) && !audioIsMaster && !videoPresent) {
             const qint64 packetUs = toUs(packet->pts);
-            if (packetUs + 1'000 >= seekTargetUs)
+            if (packetUs + 1'000 >= seekTargetUs.load(std::memory_order_acquire))
                 landSeek(packetUs);
         }
 
-        if (decoder && packet->stream_index == videoStreamIndex) {
-            const int sendResult = avcodec_send_packet(decoder.get(), packet.get());
-            if (sendResult < 0 || !receiveVideoFrames()) {
-                if (!m_commandPending.load(std::memory_order_acquire)) {
-                    if (decodeFailure.isEmpty())
-                        decodeFailure = QStringLiteral("Video packet submission failed: %1")
-                                            .arg(avError(sendResult));
-                    decodeFailed = true;
-                    av_packet_unref(packet.get());
-                    break;
-                }
+        // Route the packet by stream. `streamIndex` is captured above because a video push moves out
+        // of the packet (blanking stream_index); else-if keeps exactly one branch consuming it.
+        if (videoPresent && streamIndex == videoStreamIndex) {
+            // Hand off to the video thread (moves out of the packet; blocks while ~2 s ahead). A
+            // false return means the queue was cancelled — the video thread died — so surface it.
+            if (!videoQueue.push(packet.get(), toUs(packet->pts), gen)) {
+                if (decodeFailure.isEmpty())
+                    decodeFailure = videoFailureMessage;
+                decodeFailed = true;
+                av_packet_unref(packet.get());
+                break;
             }
-        }
-        if (audioDecoder && packet->stream_index == audioStreamIndex) {
+        } else if (audioDecoder && streamIndex == audioStreamIndex) {
             const int sendResult = avcodec_send_packet(audioDecoder.get(), packet.get());
             if (sendResult < 0 || !receiveAudioFrames()) {
                 if (!m_commandPending.load(std::memory_order_acquire)) {
@@ -950,9 +1080,8 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                     break;
                 }
             }
-        }
-        if (subtitleStreamIndex >= 0 && packet->stream_index == subtitleStreamIndex &&
-            !decodingToTarget) {
+        } else if (subtitleStreamIndex >= 0 && streamIndex == subtitleStreamIndex &&
+                   !decodingToTarget.load(std::memory_order_acquire)) {
             std::vector<SubtitleCue> cues;
             QString subtitleError;
             if (subtitlePipeline.decode(packet.get(), gen, subtitleStreamIndex, &cues,
@@ -962,6 +1091,16 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             }
         }
         av_packet_unref(packet.get());
+    }
+
+    // Tear down the video thread: unblock any queue wait, then join before the codecs are released.
+    videoQueue.cancel();
+    if (videoThread.joinable())
+        videoThread.join();
+    if (!decodeFailed && videoThreadFailed.load(std::memory_order_acquire)) {
+        decodeFailed = true;
+        if (decodeFailure.isEmpty())
+            decodeFailure = videoFailureMessage;
     }
 
     const bool cancelled = m_cancelled.load(std::memory_order_acquire);
