@@ -962,6 +962,18 @@ add_executable(alignment_service_harness
 target_include_directories(alignment_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(alignment_service_harness PRIVATE Qt6::Core Qt6::Sql)
 
+# Read-along controller (Agent 2). GUI-thread QObject state machine over the store:
+# turns cueAtTime lookups into paint cues (with the confidence-gap clear rules) and
+# converges every committed seek (scrub release, keyboard skip, chapter jump,
+# double-click, programmatic seek) onto ONE audioSeekRequested. QObject -> AUTOMOC.
+add_executable(read_along_controller_harness
+    ../tests/read_along_controller_harness.cpp
+    alignment/ReadAlongController.cpp alignment/ReadAlongController.h
+    alignment/AlignmentStore.cpp alignment/AlignmentStore.h
+    alignment/AlignmentTypes.h)
+target_include_directories(read_along_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(read_along_controller_harness PRIVATE Qt6::Core Qt6::Sql)
+
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
 #    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
 #    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
