@@ -115,6 +115,78 @@ function sortRows(rows, mode) {
     return out;
 }
 
+// ── buildRows — the one live snapshot the page renders ──
+// Joins Collection entries with Progress (collapsed recent representatives), the manual
+// watched mark (markFn), cached payload stamps (libNewCount/libAiring/libYear/libNotif),
+// and the downloaded id set. Input-pure: the QML call site fetches everything and passes
+// it in; the downloaded ids are derived there (CollectionBackfill mapping), never here.
+//   progressList = Progress.recent("video", 0)   (one representative per series group)
+//   markFn(id)   = Progress.watchedMark           (-1|0|1)
+//   downloadedIds = array of Collection ids with >=1 episode on disk
+function buildRows(entries, progressList, markFn, downloadedIds, nowMs) {
+    entries = entries || [];
+    progressList = progressList || [];
+    var dl = _asSet(downloadedIds);
+    var rows = [];
+    for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        if (!e || !e.id) continue;
+        var isSeries = (e.type === "series");
+        var payload = e.payload || {};
+        var pm = _matchProgress(String(e.id), progressList);
+        var rawProgress = pm ? Number(pm.progress || 0) : 0;
+        if (isNaN(rawProgress)) rawProgress = 0;
+        var lastWatchedAt = pm ? Number(pm.updatedAt || 0) : 0;
+        if (!lastWatchedAt) lastWatchedAt = Number(e.addedAt || 0);
+        var mark = markFn ? markFn(e.id) : 0;
+        // Ongoing series never auto-complete on episode %: feed the state calc an in-band
+        // value so a caught-up show still reads "in progress" — raw progress stays for the bar.
+        var stateProgress = (isSeries && rawProgress >= 0.90) ? 0.5 : rawProgress;
+        var state = watchState(e, { progress: stateProgress, mark: mark, isSeries: isSeries });
+        var notifOff = (payload.libNotif === false);
+        var newCount = notifOff ? 0 : Math.max(0, Number(payload.libNewCount || 0));
+        if (isNaN(newCount)) newCount = 0;
+        rows.push({
+            entry: e,
+            state: state,
+            progress: rawProgress,
+            newCount: Math.min(newCount, 99),
+            airing: String(payload.libAiring || ""),
+            downloaded: dl[String(e.id)] === true,
+            lastWatchedAt: lastWatchedAt,
+            year: _year(payload),
+            isSeries: isSeries
+        });
+    }
+    return rows;
+}
+
+function _asSet(ids) {
+    var s = {};
+    ids = ids || [];
+    for (var i = 0; i < ids.length; i++) s[String(ids[i])] = true;
+    return s;
+}
+
+// A progress entry belongs to a Collection entry when its id equals the entry id (movie)
+// or is that id followed by ":" (any episode of the series). The ":" boundary is robust to
+// both id schemes in the tree (seriesRootId / seriesBaseId) and never cross-matches tt1/tt11.
+function _matchProgress(entryId, progressList) {
+    for (var i = 0; i < progressList.length; i++) {
+        var p = progressList[i];
+        var pid = String((p && p.id) || "");
+        if (pid === entryId || pid.indexOf(entryId + ":") === 0) return p;
+    }
+    return null;
+}
+
+function _year(payload) {
+    var y = Number(payload.libYear || payload.year);
+    if (!isNaN(y) && y > 0) return y;
+    var m = String(payload.releaseInfo || "").match(/\d{4}/);
+    return m ? Number(m[0]) : 0;
+}
+
 // ledgerCounts — the shelf ledger's six live numbers. "newEpisodes" counts SERIES that
 // have new episodes (rows with newCount>0), matching the newEpisodes filter — not the sum.
 function ledgerCounts(rows) {

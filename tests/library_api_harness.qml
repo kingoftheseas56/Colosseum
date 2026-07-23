@@ -120,6 +120,39 @@ Item {
             // sortRows must not mutate the input order
             ok(rows[0].entry.id === "op", "sortRows returns a copy (no mutation)");
 
+            // ── buildRows join ──
+            function ent(id, title, type, payload, addedAt) {
+                return { id: id, title: title, type: type, cover: "", payload: payload, world: "theatre", addedAt: addedAt };
+            }
+            var e1 = ent("tt1", "Show One", "series", { libNewCount: 3, libAiring: "ongoing", libYear: 2020 }, 1000);
+            var e2 = ent("tt2", "Show Two", "series", { libNewCount: 5, libAiring: "ended", libNotif: false, libYear: 2004 }, 900);
+            var e3 = ent("tt3", "Film Three", "movie", {}, 800);
+            var e4 = ent("tt4", "Fresh Series", "series", {}, 700);
+            var e5 = ent("tt5", "Caught Up Show", "series", { libAiring: "ongoing" }, 600);
+            var bentries = [e1, e2, e3, e4, e5];
+            var plist = [
+                { id: "tt1:2:9", progress: 0.5, updatedAt: 5000, watched: false },
+                { id: "tt3", progress: 0.95, updatedAt: 4000 },
+                { id: "tt5:1:12", progress: 0.95, updatedAt: 6000, watched: true }
+            ];
+            var mark0 = function (id) { return 0; };
+            var brows = Api.buildRows(bentries, plist, mark0, ["tt1"], now);
+
+            // join correctness: series in progress, movie auto-watched, stamps + downloaded joined
+            ok(brows[0].state === "progress" && brows[0].progress === 0.5 && brows[0].lastWatchedAt === 5000
+               && brows[0].downloaded === true && brows[0].newCount === 3 && brows[0].airing === "ongoing"
+               && brows[0].year === 2020 && brows[0].isSeries === true, "buildRows join series");
+            ok(brows[2].state === "watched" && brows[2].isSeries === false, "buildRows movie auto-watched via matched progress");
+            // notif-off suppression: libNotif===false forces newCount to 0 despite libNewCount:5
+            ok(brows[1].newCount === 0 && brows[1].airing === "ended" && brows[1].state === "unwatched"
+               && brows[1].lastWatchedAt === 900, "buildRows notif-off suppresses newCount + addedAt fallback");
+            // stamp fallback: fresh series, no stamps and no progress → zeros/empties
+            ok(brows[3].newCount === 0 && brows[3].airing === "" && brows[3].state === "unwatched"
+               && brows[3].downloaded === false, "buildRows stamp fallback when no live meta yet");
+            // series clamp: caught-up ongoing show keeps RAW progress for the bar but reads "in progress"
+            ok(brows[4].progress === 0.95 && brows[4].state === "progress" && brows[4].lastWatchedAt === 6000,
+               "buildRows series clamp: raw bar progress, in-progress state");
+
             if (fails.length) console.log("FAILS:\n  " + fails.join("\n  "));
             else console.log("library_api_harness: ALL PASS");
             Qt.exit(fails.length);
