@@ -1036,6 +1036,52 @@ target_compile_definitions(coarse_transcriber_harness PRIVATE
     COARSE_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/models/alignment/coarse")
 target_link_libraries(coarse_transcriber_harness PRIVATE Qt6::Core)
 
+# ── English forced aligner (Agent 2) — ONNX Runtime, dormant by default ───────
+# Only when COLOSSEUM_ENABLE_ONNX=ON: the precise per-word/per-sentence CTC forced
+# aligner (wav2vec2 on ONNX Runtime). Guarded exactly like the guided detector so the
+# default ONNX-OFF build never tries to link a nonexistent onnxruntime target. The
+# harness is a PARITY test: it decodes the real speech.wav via the real decoder, aligns
+# the known passage, and asserts agreement (onset median<=250ms / p95<=600ms) with the
+# committed numpy oracle (tests/fixtures/alignment/ground_truth.json). It prepends a
+# known ffmpeg dir to PATH (ALIGNMENT_FFMPEG_DIR) so the decoder self-decodes.
+if(COLOSSEUM_ENABLE_ONNX)
+    set(_ALIGN_FFMPEG_DIR "")
+    foreach(_cand
+        "C:/tools/ffmpeg-master-latest-win64-gpl-shared/bin"
+        "${CMAKE_CURRENT_SOURCE_DIR}/build-msvc/tools")
+        if(EXISTS "${_cand}/ffmpeg.exe")
+            set(_ALIGN_FFMPEG_DIR "${_cand}")
+            break()
+        endif()
+    endforeach()
+
+    add_executable(english_forced_aligner_harness
+        ../tests/english_forced_aligner_harness.cpp
+        alignment/EnglishForcedAligner.cpp
+        alignment/EnglishForcedAligner.h
+        alignment/AudiobookAnalysisDecoder.cpp
+        alignment/AudiobookAnalysisDecoder.h
+        alignment/AlignmentTypes.h
+        models/ModelManifest.cpp
+        models/ModelManifest.h
+        work/BackgroundWorkCoordinator.cpp
+        work/BackgroundWorkCoordinator.h)
+    target_include_directories(english_forced_aligner_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(english_forced_aligner_harness PRIVATE
+        COLOSSEUM_ENABLE_ONNX
+        ALIGNMENT_AUDIO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/audio"
+        FORCED_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/models/alignment/forced"
+        ALIGNMENT_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment"
+        ALIGNMENT_FFMPEG_DIR="${_ALIGN_FFMPEG_DIR}")
+    target_link_libraries(english_forced_aligner_harness PRIVATE
+        Qt6::Core onnxruntime::onnxruntime)
+    add_custom_command(TARGET english_forced_aligner_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
+            "$<TARGET_FILE_DIR:english_forced_aligner_harness>"
+        VERBATIM)
+endif()
+
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
 #    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
 #    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──

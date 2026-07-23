@@ -1,3 +1,9 @@
 agents/dataset-probes/*.json.gz filter=lfs diff=lfs merge=lfs -text
 tools/biblio_series.db filter=lfs diff=lfs merge=lfs -text
 resources/models/guided/*.onnx filter=lfs diff=lfs merge=lfs -text
+# Alignment models: the wav2vec2 CTC graph, its external-weights sidecar, and the
+# whisper ggml binary are large — track them with Git LFS so they never land as plain
+# blobs. (Task 13 performs the actual LFS push; these attributes just claim the files.)
+resources/models/alignment/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+resources/models/alignment/**/*.onnx.data filter=lfs diff=lfs merge=lfs -text
+resources/models/alignment/**/*.bin filter=lfs diff=lfs merge=lfs -text

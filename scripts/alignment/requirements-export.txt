@@ -1,0 +1,11 @@
+# Dev-only deps for the one-time wav2vec2 ONNX export (export_wav2vec2_onnx.py) and
+# the parity-oracle generator (gen_ground_truth.py). Colosseum never installs or runs
+# Python at runtime — these are the exact versions used to produce the committed model
+# artifact + the committed ground_truth.json oracle. Pinned so a re-export/re-oracle is
+# reproducible.
+torch==2.10.0
+transformers==5.3.0
+onnx==1.22.0
+onnxscript==0.7.1
+onnxruntime==1.24.3
+numpy==2.4.3
