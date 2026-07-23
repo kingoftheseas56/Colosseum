@@ -77,6 +77,35 @@ Item {
                   addonName: "Gone" });
             ok(pinMiss.missing === true && pinMiss.addonName === "Gone", "pin missing");
 
+            // Cinemeta seed fallback: a CORE Cinemeta row with NO catalogs gets the
+            // two synthetic "Popular" catalogs (movie+series) so Discover isn't empty.
+            var cinemetaBare = { id: "com.linvo.cinemeta", enabled: true, core: true,
+                transportUrl: "https://v3-cinemeta.strem.io/manifest.json",
+                manifest: { name: "Cinemeta" } };   // NO catalogs (mirrors the seed)
+            var bare = [cinemetaBare];
+            var bt = Api.typesFor(bare);
+            ok(bt.length === 2 && bt[0] === "movie" && bt[1] === "series",
+               "cinemeta fallback types: " + JSON.stringify(bt));
+            var bcats = Api.catalogsFor(bare, "movie");
+            ok(bcats.length === 1 && bcats[0].title === "Popular"
+               && bcats[0].addonName === "Cinemeta" && bcats[0].catalogId === "top",
+               "cinemeta fallback movie catalog: " + JSON.stringify(bcats.map(function(c){return c.catalogId})));
+            var bext = Api.extrasFor(bcats[0]);
+            ok(bext.length === 1 && bext[0].name === "genre" && bext[0].options.length === 19,
+               "cinemeta fallback genres (19): " + (bext.length ? bext[0].options.length : -1));
+            ok(Api.urlFor(bcats[0], { genre: "Sci-Fi" }, 0) ===
+               "https://v3-cinemeta.strem.io/catalog/movie/top/genre=Sci-Fi.json",
+               "cinemeta fallback url builds");
+            // fallback does NOT fire when the core Cinemeta row ALREADY has catalogs
+            // (the `cinemeta` fixture above carries a 2-genre movie catalog — must stay 2)
+            var realCin = Api.extrasFor(Api.catalogsFor([cinemeta], "movie")[0]);
+            ok(realCin.length === 1 && realCin[0].options.length === 2,
+               "no fallback when core has catalogs: " + (realCin.length ? realCin[0].options.length : -1));
+            // fallback does NOT fire for a NON-core catalog-less addon
+            var bareNonCore = { id: "faux", enabled: true, core: false,
+                transportUrl: "https://faux.example/manifest.json", manifest: { name: "Faux" } };
+            ok(Api.catalogsFor([bareNonCore], "movie").length === 0, "no fallback for non-core bare");
+
             if (fails.length) console.log("FAILS:\n  " + fails.join("\n  "));
             else console.log("discover_api_harness: ALL PASS");
             Qt.exit(fails.length);
