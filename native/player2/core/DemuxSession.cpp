@@ -3,10 +3,13 @@
 #include "player2/video/D3D11VideoPipeline.h"
 #include "player2/audio/AudioPipeline.h"
 #include "player2/network/QtHttpTransport.h"
+#include "AudioWorker.h"
 #include "FrameScheduler.h"
 #include "PacketQueue.h"
 #include "PlaybackClock.h"
 #include "SubtitlePipeline.h"
+
+#include <functional>
 
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -166,6 +169,12 @@ void DemuxSession::cancel()
 {
     m_cancelled.store(true, std::memory_order_release);
     m_commandCv.notify_all();
+    {
+        // Unblock a demux blocked pushing into a full audio queue so it observes the cancel and exits.
+        std::scoped_lock queueLock(m_audioQueueMutex);
+        if (m_audioQueueForInterrupt)
+            m_audioQueueForInterrupt->interrupt();
+    }
     // NOTE: do NOT flush the audio sink here. cancel() is also called at the top of open() as
     // pre-run cleanup, and flushing would stamp the sink with the previous generation right before
     // the new run's first write, which the sink then rejects ("Audio generation rejected"). The
@@ -190,6 +199,10 @@ void DemuxSession::enqueueCommand(const Command &command)
     }
     m_commandPending.store(true, std::memory_order_release);
     m_commandCv.notify_all();
+    // Wake a demux blocked pushing into a full audio queue so it breaks out and services this command.
+    std::scoped_lock queueLock(m_audioQueueMutex);
+    if (m_audioQueueForInterrupt)
+        m_audioQueueForInterrupt->interrupt();
 }
 
 void DemuxSession::requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying)
@@ -459,60 +472,38 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     AudioPipeline *audioPipeline = m_audioPipeline.load(std::memory_order_acquire);
     int audioStreamIndex = -1;
     AVStream *audioStream = nullptr;
-    std::unique_ptr<AVCodecContext, CodecCloser> audioDecoder;
-    std::unique_ptr<AVFrame, FrameCloser> audioFrame;
+    const AVCodecParameters *audioCodecpar = nullptr;
     if (audioPipeline) {
         const AVCodec *audioCodec = nullptr;
         audioStreamIndex = av_find_best_stream(format.get(), AVMEDIA_TYPE_AUDIO, -1, -1,
                                                &audioCodec, 0);
         if (audioStreamIndex >= 0 && audioCodec) {
             audioStream = format->streams[audioStreamIndex];
-            audioDecoder.reset(avcodec_alloc_context3(audioCodec));
-            QString audioError;
-            if (!audioDecoder) {
-                postEnded(generation, DemuxEndReason::Failed,
-                          Player2Error{Player2ErrorCode::DecodeFailed,
-                                       QStringLiteral("Could not allocate an audio decoder"), false});
-                m_running.store(false, std::memory_order_release);
-                return;
-            }
-            if ((result = avcodec_parameters_to_context(audioDecoder.get(),
-                                                        audioStream->codecpar)) < 0 ||
-                (result = avcodec_open2(audioDecoder.get(), audioCodec, nullptr)) < 0) {
-                postEnded(generation, DemuxEndReason::Failed,
-                          Player2Error{Player2ErrorCode::DecodeFailed,
-                                       QStringLiteral("Audio decoder setup failed: %1")
-                                           .arg(avError(result)), false});
-                m_running.store(false, std::memory_order_release);
-                return;
-            }
-            if (!audioPipeline->open(AudioFormat{48'000, 2}, &audioError)) {
-                postEnded(generation, DemuxEndReason::Failed,
-                          Player2Error{Player2ErrorCode::AudioDeviceLost, audioError, true});
-                m_running.store(false, std::memory_order_release);
-                return;
-            }
-            audioFrame.reset(av_frame_alloc());
-            if (!audioFrame) {
-                postEnded(generation, DemuxEndReason::Failed,
-                          Player2Error{Player2ErrorCode::DecodeFailed,
-                                       QStringLiteral("Could not allocate an audio decode frame"),
-                                       false});
-                m_running.store(false, std::memory_order_release);
-                return;
-            }
-            // Announce the audio track auto-selected at open so the UI marks the active track
-            // (av_find_best_stream picks it silently; nothing else would tell the shell).
-            postAudioTrackChanged(generation, audioStreamIndex);
+            audioCodecpar = audioStream->codecpar;
+        } else {
+            audioStreamIndex = -1;
         }
     }
+    const bool hasAudio = audioStream != nullptr;
+
+    // The audio decode WORKER (the third thread) owns the audio decoder, frame, and every mutable
+    // pipeline decode op end-to-end. The demux only PUSHES packets into this queue; blocking on the
+    // small queue (pushInterruptible) paces the demux to real-time audio, so video can drop without
+    // starving audio and the demux command loop is never trapped. Created below — after landSeek is
+    // defined, since the worker's Host reports the seek landing through it.
+    // Sizing is NOT the video-stutter fix (measured): 1.5 s → decode ~6 fps, avDrift ~+40 ms mean;
+    // 4 s → decode ~0.3 fps, avDrift ~+2534 ms mean. Enlarging the read-ahead pushed video FURTHER
+    // ahead of the audio clock — so video runs systematically ahead (a clock-mastering regression),
+    // not packet starvation. 2 s is a neutral middle pending that clock fix (handed to Codex).
+    PacketQueue audioQueue(PacketQueue::Bounds{2'000'000, 48 * 1024 * 1024, 768, /*dropOldest*/ false});
+    std::unique_ptr<AudioWorker> audioWorker;
 
     PlaybackClock *playbackClock = m_playbackClock.load(std::memory_order_acquire);
     FrameScheduler *frameScheduler = m_frameScheduler.load(std::memory_order_acquire);
 
     // Read by BOTH threads (the video thread consults it for clock mastering) and flipped by an
     // audio-track add, so it must be atomic. Fixed in practice: true whenever the file has audio.
-    std::atomic<bool> audioIsMaster{audioDecoder != nullptr};
+    std::atomic<bool> audioIsMaster{hasAudio};
     const bool videoPresent = pipeline && videoStreamIndex >= 0;
 
     // ---- State shared between the demux thread (below) and the video decode thread ----
@@ -894,12 +885,11 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     auto applySeek = [&](qint64 targetUs, quint64 newGeneration, bool resumePlaying) {
         gen = newGeneration;
         m_activeGeneration.store(newGeneration, std::memory_order_release);
-        if (audioDecoder)
-            avcodec_flush_buffers(audioDecoder.get());
-        if (audioPipeline) {
-            audioPipeline->flush(newGeneration);
-            audioPipeline->flushFilters(); // drop stale normalization-buffered audio (this thread)
-        }
+        if (hasAudio)
+            audioQueue.flush(); // drop stale audio packets; the worker flushes its OWN decoder +
+                                // filters when it next sees the new generation (it owns the decode).
+        if (audioPipeline)
+            audioPipeline->flush(newGeneration); // flush the sink (generation-gated)
         subtitlePipeline.flush(); // drop any decoder-buffered cue state across the seek
         if (playbackClock)
             playbackClock->invalidate();
@@ -931,34 +921,23 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     auto applyAudioTrack = [&](int streamIndex, quint64 newGeneration) {
         gen = newGeneration;
         m_activeGeneration.store(newGeneration, std::memory_order_release);
-        if (audioPipeline) {
-            audioPipeline->flush(newGeneration);
-            audioPipeline->flushFilters();
-        }
-        if (streamIndex >= 0 && streamIndex < static_cast<int>(format->nb_streams) &&
+        if (audioPipeline)
+            audioPipeline->flush(newGeneration); // sink flush; the worker flushes its filters on the new gen
+        // The audio worker owns the decoder: post it a reconfigure for the new codec (it rebuilds the
+        // decoder itself at the generation boundary) and repoint routing at the new stream. The demux
+        // never touches the decoder. Requires a worker (a video-only file has none, so the swap no-ops).
+        if (audioWorker && streamIndex >= 0 && streamIndex < static_cast<int>(format->nb_streams) &&
             format->streams[streamIndex]->codecpar->codec_type == AVMEDIA_TYPE_AUDIO) {
-            const AVCodec *codec =
-                avcodec_find_decoder(format->streams[streamIndex]->codecpar->codec_id);
-            if (codec) {
-                AVCodecContext *context = avcodec_alloc_context3(codec);
-                if (context &&
-                    avcodec_parameters_to_context(
-                        context, format->streams[streamIndex]->codecpar) >= 0 &&
-                    avcodec_open2(context, codec, nullptr) >= 0) {
-                    audioDecoder.reset(context);
-                    audioStream = format->streams[streamIndex];
-                    audioStreamIndex = streamIndex;
-                    audioIsMaster = true;
-                } else {
-                    avcodec_free_context(&context);
-                }
-            }
+            audioStream = format->streams[streamIndex];
+            audioStreamIndex = streamIndex;
+            audioIsMaster = true;
+            audioWorker->reconfigure(audioStream->codecpar, audioStream->time_base, newGeneration);
+            audioQueue.flush(); // drop stale packets so the worker adopts the new codec on the new gen
         }
         audioMasterResync.store(true, std::memory_order_release); // video re-locks after the swap
         audioPathEpoch.fetch_add(1, std::memory_order_acq_rel);   // re-arm the readiness barrier: the
         // new track must refill loudnorm before it is audible, so video holds until it is.
-        // Report the track actually decoding now: if the requested decoder failed to open,
-        // audioStreamIndex still points at the previous track that keeps playing.
+        // Report the track actually decoding now.
         postAudioTrackChanged(newGeneration, audioStreamIndex);
     };
 
@@ -1003,7 +982,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 applySubtitleTrack(command.streamIndex);
                 break;
             case CommandType::Normalization:
-                if (audioPipeline)
+                // The worker owns the normalizer; post the mode so it applies on its own thread.
+                if (audioWorker)
+                    audioWorker->setNormalizationMode(command.normalizationMode);
+                else if (audioPipeline)
                     audioPipeline->configureNormalization(
                         static_cast<NormalizationMode>(command.normalizationMode));
                 postAudioNormalizationChanged(gen, command.normalizationMode);
@@ -1027,50 +1009,70 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         }
     };
 
-    auto receiveAudioFrames = [&]() -> bool {
-        while (!m_cancelled.load(std::memory_order_acquire)) {
-            const int receiveResult = avcodec_receive_frame(audioDecoder.get(), audioFrame.get());
-            if (receiveResult == AVERROR(EAGAIN) || receiveResult == AVERROR_EOF)
-                return true;
-            if (receiveResult < 0) {
-                decodeFailure = QStringLiteral("Audio decode failed: %1").arg(avError(receiveResult));
-                return false;
-            }
-            qint64 ptsUs = 0;
-            if (audioFrame->best_effort_timestamp != AV_NOPTS_VALUE) {
-                ptsUs = av_rescale_q(audioFrame->best_effort_timestamp, audioStream->time_base,
-                                     AVRational{1, 1'000'000});
-            }
-            if (decodingToTarget && audioIsMaster) {
-                if (ptsUs + 1'000 < seekTargetUs) {
-                    av_frame_unref(audioFrame.get()); // discard audio before the target
-                    continue;
-                }
-                landSeek(ptsUs); // audio is master: this frame is the landing point
-            }
-            if (!m_paused.load(std::memory_order_acquire) && !decodingToTarget) {
-                QString audioError;
-                // The pts reported to the master clock carries the A/V offset; the true position
-                // (lastMasterPtsUs, seek landing) stays unshifted.
-                const qint64 clockPtsUs = ptsUs + m_audioDelayUs.load(std::memory_order_acquire);
-                if (!audioPipeline->submitDecodedFrame(audioFrame.get(), clockPtsUs, gen,
-                                                       &audioError)) {
-                    if (m_cancelled.load(std::memory_order_acquire) ||
-                        m_commandPending.load(std::memory_order_acquire) ||
-                        gen != m_activeGeneration.load(std::memory_order_acquire)) {
-                        av_frame_unref(audioFrame.get());
-                        return true; // benign: cancel, or a flush/seek, is in flight
-                    }
-                    decodeFailure = audioError;
-                    return false;
-                }
-                if (audioIsMaster)
-                    lastMasterPtsUs = ptsUs;
-            }
-            av_frame_unref(audioFrame.get());
+    // Adapts the demux's shared playback state to the audio worker's narrow, thread-safe seam. Holds
+    // POINTERS to the atomics (never reaches into private members), and forwards the seek landing
+    // through landSeek — the exact couplings the old inline audio decode had, now across a thread.
+    struct RunAudioHost final : AudioWorker::Host {
+        std::atomic<bool> *pCancelled = nullptr;
+        std::atomic<bool> *pPaused = nullptr;
+        std::atomic<bool> *pCommandPending = nullptr;
+        std::atomic<qint64> *pAudioDelayUs = nullptr;
+        std::atomic<bool> *pDecodingToTarget = nullptr;
+        std::atomic<qint64> *pSeekTargetUs = nullptr;
+        std::atomic<bool> *pAudioIsMaster = nullptr;
+        std::atomic<qint64> *pLastMasterPtsUs = nullptr;
+        std::function<void(qint64)> seekLanded;
+        bool cancelled() const override { return pCancelled->load(std::memory_order_acquire); }
+        bool paused() const override { return pPaused->load(std::memory_order_acquire); }
+        bool commandPending() const override { return pCommandPending->load(std::memory_order_acquire); }
+        qint64 audioDelayUs() const override { return pAudioDelayUs->load(std::memory_order_acquire); }
+        bool audioIsMaster() const override { return pAudioIsMaster->load(std::memory_order_acquire); }
+        bool decodingToTarget() const override { return pDecodingToTarget->load(std::memory_order_acquire); }
+        qint64 seekTargetUs() const override { return pSeekTargetUs->load(std::memory_order_acquire); }
+        void onAudioPositionAdvanced(qint64 ptsUs) override
+        {
+            pLastMasterPtsUs->store(ptsUs, std::memory_order_release);
         }
-        return true;
+        void onSeekLanded(qint64 ptsUs) override { if (seekLanded) seekLanded(ptsUs); }
     };
+
+    // Start the audio worker now that landSeek exists (its Host reports the seek landing through it).
+    // The worker is explicitly stopped at the cleanup below, so its thread is joined before any of
+    // these locals (audioHost included) are destroyed.
+    RunAudioHost audioHost;
+    if (hasAudio) {
+        audioHost.pCancelled = &m_cancelled;
+        audioHost.pPaused = &m_paused;
+        audioHost.pCommandPending = &m_commandPending;
+        audioHost.pAudioDelayUs = &m_audioDelayUs;
+        audioHost.pDecodingToTarget = &decodingToTarget;
+        audioHost.pSeekTargetUs = &seekTargetUs;
+        audioHost.pAudioIsMaster = &audioIsMaster;
+        audioHost.pLastMasterPtsUs = &lastMasterPtsUs;
+        audioHost.seekLanded = landSeek;
+        audioWorker = std::make_unique<AudioWorker>(audioPipeline, audioCodecpar,
+                                                    audioStream->time_base, &audioQueue, &audioHost,
+                                                    generation);
+        {
+            std::scoped_lock queueLock(m_audioQueueMutex);
+            m_audioQueueForInterrupt = &audioQueue; // cancel()/enqueueCommand() can now wake a blocked push
+        }
+        QString audioStartError;
+        if (!audioWorker->start(&audioStartError)) {
+            {
+                std::scoped_lock queueLock(m_audioQueueMutex);
+                m_audioQueueForInterrupt = nullptr;
+            }
+            videoQueue.cancel(); // the video thread is already spawned; tear it down before returning
+            if (videoThread.joinable())
+                videoThread.join();
+            postEnded(generation, DemuxEndReason::Failed,
+                      Player2Error{Player2ErrorCode::DecodeFailed, audioStartError, false});
+            m_running.store(false, std::memory_order_release);
+            return;
+        }
+        postAudioTrackChanged(generation, audioStreamIndex);
+    }
 
     std::unique_ptr<AVPacket, PacketCloser> packet(av_packet_alloc());
     bool decodeFailed = false;
@@ -1105,7 +1107,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         // EndOfFile only once the video thread has actually drained its tail (up to ~2 s buffered),
         // so the UI is never told "done" while video is still presenting.
         if (eofSignaled && !eofReached) {
-            if (!videoPresent || videoReachedEnd.load(std::memory_order_acquire)) {
+            const bool videoDrained = !videoPresent || videoReachedEnd.load(std::memory_order_acquire);
+            const bool audioDrained = !hasAudio || (audioWorker && audioWorker->reachedEnd());
+            if (videoDrained && audioDrained) {
                 postEnded(gen, DemuxEndReason::EndOfFile,
                           Player2Error{Player2ErrorCode::None, QString(), false});
                 eofReached = true;
@@ -1122,19 +1126,12 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         result = av_read_frame(format.get(), packet.get());
         if (result < 0) {
             if (result == AVERROR_EOF) {
-                // Flush the audio decoder + normalization tail (drains loudnorm's lookahead), close
-                // the video queue, land at the edge if audio was scanning. EndOfFile is published by
-                // the eofSignaled branch above, once the video tail has drained.
-                if (audioDecoder) {
-                    avcodec_send_packet(audioDecoder.get(), nullptr);
-                    receiveAudioFrames();
-                    if (audioPipeline) {
-                        QString audioError;
-                        audioPipeline->drain(gen, &audioError);
-                    }
-                }
-                if (decodingToTarget.load(std::memory_order_acquire) && audioIsMaster)
-                    landSeek(seekTargetUs.load(std::memory_order_acquire));
+                // Signal end-of-stream to both workers; each drains its OWN tail (audio: decoder +
+                // loudnorm lookahead to the sink, then lands at the edge if it was scanning; video:
+                // its presentation queue). EndOfFile is published by the eofSignaled branch above,
+                // once BOTH tails have drained.
+                if (hasAudio)
+                    audioQueue.setEndOfStream();
                 if (videoPresent)
                     videoQueue.setEndOfStream();
                 eofSignaled = true;
@@ -1180,17 +1177,29 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 av_packet_unref(packet.get());
                 break;
             }
-        } else if (audioDecoder && streamIndex == audioStreamIndex) {
-            const int sendResult = avcodec_send_packet(audioDecoder.get(), packet.get());
-            if (sendResult < 0 || !receiveAudioFrames()) {
-                if (!m_commandPending.load(std::memory_order_acquire)) {
-                    if (decodeFailure.isEmpty())
-                        decodeFailure = QStringLiteral("Audio packet submission failed: %1")
-                                            .arg(avError(sendResult));
-                    decodeFailed = true;
-                    av_packet_unref(packet.get());
-                    break;
-                }
+        } else if (hasAudio && streamIndex == audioStreamIndex) {
+            // Hand off to the audio worker. Blocking here paces the demux to real-time audio, but a
+            // command interrupts a blocked push so the demux command loop is never trapped. On an
+            // interrupt: service commands and retry the SAME packet — UNLESS a seek/track-switch moved
+            // the generation, in which case this packet is stale and is dropped (the read resumes
+            // fresh after the container seek).
+            PacketQueue::Admit admit = audioQueue.pushInterruptible(packet.get(), toUs(packet->pts), gen);
+            while (admit == PacketQueue::Admit::Interrupted) {
+                const quint64 genBefore = gen;
+                if (m_commandPending.exchange(false, std::memory_order_acq_rel))
+                    processCommands();
+                if (m_cancelled.load(std::memory_order_acquire) || gen != genBefore)
+                    break; // cancelled, or a seek changed the generation → drop this stale packet
+                admit = audioQueue.pushInterruptible(packet.get(), toUs(packet->pts), gen);
+            }
+            if (admit == PacketQueue::Admit::Cancelled &&
+                !m_cancelled.load(std::memory_order_acquire)) {
+                // The audio worker cancelled the queue (a hard decode failure) — surface and stop.
+                if (decodeFailure.isEmpty() && audioWorker && audioWorker->failed())
+                    decodeFailure = audioWorker->failureMessage();
+                decodeFailed = true;
+                av_packet_unref(packet.get());
+                break;
             }
         } else if (subtitleStreamIndex >= 0 && streamIndex == subtitleStreamIndex &&
                    !decodingToTarget.load(std::memory_order_acquire)) {
@@ -1213,6 +1222,22 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         decodeFailed = true;
         if (decodeFailure.isEmpty())
             decodeFailure = videoFailureMessage;
+    }
+
+    // Tear down the audio worker: stop() cancels its queue (unblocking its pop) and joins its thread
+    // BEFORE any run-local it references (audioHost, the atomics, audioQueue) is destroyed. Then clear
+    // the off-thread interrupt handle so a late cancel()/command can't touch the dying audioQueue.
+    if (audioWorker) {
+        audioWorker->stop();
+        if (!decodeFailed && audioWorker->failed()) {
+            decodeFailed = true;
+            if (decodeFailure.isEmpty())
+                decodeFailure = audioWorker->failureMessage();
+        }
+    }
+    {
+        std::scoped_lock queueLock(m_audioQueueMutex);
+        m_audioQueueForInterrupt = nullptr;
     }
 
     const bool cancelled = m_cancelled.load(std::memory_order_acquire);

@@ -22,6 +22,7 @@ class D3D11VideoPipeline;
 class AudioPipeline;
 class FrameScheduler;
 class PlaybackClock;
+class PacketQueue;
 
 enum class DemuxEndReason
 {
@@ -175,6 +176,12 @@ private:
     // blocked AVIO read from the GUI thread while the worker still owns the object.
     std::mutex m_httpMutex;
     std::shared_ptr<HttpMediaSource> m_httpSource;
+    // The run-local audio packet queue, exposed so cancel()/enqueueCommand() (called off the demux
+    // thread) can interrupt a demux BLOCKED pushing into a full audio queue — otherwise a Pause/Seek/
+    // Cancel arriving while the queue is full (e.g. audio worker back-pressured on a paused sink) would
+    // never be serviced. Null except while a run owns the queue.
+    std::mutex m_audioQueueMutex;
+    PacketQueue *m_audioQueueForInterrupt = nullptr;
 };
 
 } // namespace Colosseum::Player2
