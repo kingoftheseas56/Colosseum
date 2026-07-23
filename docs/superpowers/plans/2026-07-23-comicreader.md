@@ -138,7 +138,7 @@ enum class CouplingPhase { Normal, Shifted };
 
 struct PageMeta {
     int index = -1; QString localPath; QSize sourceSize; bool decoded = false;
-    bool detectedSpread = false;           // sourceSize.w/h >= 1.08 or w > h; index 0 never
+    bool detectedSpread = false;           // sourceSize.w/h >= 1.08 or w > h (all indices incl. 0)
     std::optional<bool> spreadOverride;    // manual override beats detection
     PageError error = PageError::None;
 };
@@ -146,8 +146,9 @@ struct PairUnit {
     int rightIndex = -1; int leftIndex = -1;   // -1 = absent
     bool spread = false; bool coverAlone = false;
 };
-// Cover (index 0) rides alone. A spread is one full-width unit consuming one parity slot.
-// phase Shifted adds +1 to parity. Never pair across a spread. Deterministic, pure.
+// Cover (index 0) rides alone UNLESS page 0 is itself a confirmed spread (then it's a spread unit).
+// A spread is one full-width unit consuming one parity slot. phase Shifted adds +1 to parity.
+// A forced single (partner is a spread / out of range) does NOT consume a slot. Deterministic, pure.
 QVector<PairUnit> buildUnits(const QVector<PageMeta>& pages, CouplingPhase phase);
 int unitForPage(const QVector<PairUnit>& units, int pageIndex);   // clamped position
 bool isSpread(const PageMeta& m);                                  // override > detection; 0 never
@@ -155,19 +156,29 @@ bool isSpread(const PageMeta& m);                                  // override >
 ```
 
 - [ ] **Step 1: Write fixtures first** in `comicreader_pairing_harness.cpp` (plain `main()`, house
-  `CHECK(cond, label)` macro, prints `COMICREADER_PAIRING_OK`):
+  `CHECK(cond, label)` macro, prints `COMICREADER_PAIRING_OK`). **The pairing ORACLE is the proven
+  lineage — TB2 `buildTwoPagePairs` (`~/Desktop/Tankoban 2/src/ui/readers/ComicReader.h:203-283`)
+  and QTGroundWork `_build_canonical_pairing_units_for_phase`, verified 2026-07-23 to agree exactly.
+  A forced single does NOT consume a compensating parity slot; only spreads increment extraSlots.
+  Derive every expectation by running that algorithm, never by intuition.** Fixtures:
   - 5 normal pages → `[cover 0][1+2][3+4]`
-  - spread at 2 → `[cover 0][single 1][spread 2][3+4]`
+  - spread at 2 → `[cover 0][single 1][spread 2][single 3][single 4]` (parity shift after the spread
+    leaves 3 and 4 unpaired — lineage-true; the nudge/auto-coupling are the fix for misalignment)
+  - spread at 1 (5 pages) → derive from the algorithm and assert exactly
   - spread at 0 → `[spread 0][1+2]` (spread beats cover-alone when page 0 IS a confirmed spread)
-  - override page 3 forced-spread (portrait) → 3 is a full-width unit
-  - override landscape page forced-normal → participates in ordinary pairing
-  - phase Shifted → `[cover 0][single 1][2+3]…`
+  - override page 3 forced-spread (5 pages, others portrait) → `[cover 0][1+2][spread 3][single 4]`
+  - override landscape page forced-normal → participates in ordinary pairing (isSpread false)
+  - phase Shifted (6 normal pages) → `[cover 0][single 1][2+3][4+5]`
   - `unitForPage` returns the containing unit for every page in every fixture
 - [ ] **Step 2: Build to confirm failure.** `native\build-msvc.bat comicreader_pairing_harness` —
   expected: link failure (functions absent).
-- [ ] **Step 3: Implement** `buildUnits` (port the parity-slot walk: cover unit, then for each
-  idx: spread → own unit + extraSlots++; else parity = (idx + extraSlots + nudge) % 2 pairs
-  idx with idx+1 when idx+1 exists and isn't a spread; else unpaired single).
+- [ ] **Step 3: Implement** `buildUnits` (port TB2's exact walk, chapterOrigin fixed at 0 — we open
+  one entry at a time and never stitch chapters into a single page list, so `isChapterStart` is out
+  of scope): cover unit first (coverAlone unless page 0 is a confirmed spread → spread unit); then
+  for each idx: spread → own unit + `extraSlots++`; else `parity = (idx + extraSlots + nudge) % 2`
+  where `nudge = phase==Shifted?1:0` — `parity==1` pairs idx with idx+1 when idx+1 exists and isn't
+  a spread, otherwise unpaired single; `parity==0` is an unpaired single. A forced single never
+  adjusts extraSlots.
 - [ ] **Step 4: Run green.** `native\build-msvc\comicreader_pairing_harness.exe` →
   `COMICREADER_PAIRING_OK`.
 - [ ] **Step 5: Commit** `-- native/comicreader/ComicReaderTypes.* native/comicreader/ComicReaderPairing.* tests/comicreader_pairing_harness.cpp native/CMakeLists.txt`
