@@ -148,6 +148,8 @@ public:
             return;
         for (const QString &key : doomed)
             m_map.remove(key);
+        m_settings.remove(QStringLiteral("video/watchedMark/")
+                          + seriesRootId(id));
         save();
         bump();
     }
@@ -169,6 +171,29 @@ public:
         if (m_settings.value(key, -1).toInt() == season)
             return;
         m_settings.setValue(key, season);
+        m_settings.sync();
+        bump();
+    }
+
+    // ---- manual watched override (Library stage 2, spec §4.3) ----
+    // Tri-state per series-root (or movie id): 1 = marked watched, -1 = marked
+    // UNwatched (manual always wins over auto), 0 = no mark (auto rules apply).
+    // Persisted beside lastSeason as plain settings keys; forget() clears it so
+    // "remove from Continue" never leaves a ghost mark.
+    Q_INVOKABLE int watchedMark(const QString &id) const {
+        if (id.isEmpty()) return 0;
+        return m_settings.value(QStringLiteral("video/watchedMark/") + seriesRootId(id), 0).toInt();
+    }
+    Q_INVOKABLE void setWatchedMark(const QString &id, bool watched) {
+        if (id.isEmpty()) return;
+        m_settings.setValue(QStringLiteral("video/watchedMark/") + seriesRootId(id),
+                            watched ? 1 : -1);
+        m_settings.sync();
+        bump();
+    }
+    Q_INVOKABLE void clearWatchedMark(const QString &id) {
+        if (id.isEmpty()) return;
+        m_settings.remove(QStringLiteral("video/watchedMark/") + seriesRootId(id));
         m_settings.sync();
         bump();
     }

@@ -373,6 +373,13 @@ add_executable(progress_store_harness
 target_include_directories(progress_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(progress_store_harness PRIVATE Qt6::Core)
 
+add_executable(progress_watched_override_harness
+    ../tests/progress_watched_override_harness.cpp
+    ProgressStore.h
+)
+target_include_directories(progress_watched_override_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(progress_watched_override_harness PRIVATE Qt6::Core)
+
 add_executable(collection_store_harness
     ../tests/collection_store_harness.cpp
     CollectionStore.h
