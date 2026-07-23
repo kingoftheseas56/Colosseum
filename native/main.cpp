@@ -27,6 +27,7 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QThread>
 #include <QTimer>
 
 #include "ClipboardHelper.h"
@@ -148,11 +149,20 @@ private:
     QHash<QString, QString> m_ipv4ByHost;
 };
 
+// Resolve a host's IPv4, retrying briefly on a miss. The pin is computed ONCE at
+// boot; a transient DNS race at startup would otherwise leave the host UNPINNED
+// for the whole session, sending every request to it into the dead-AAAA IPv6
+// stall (the 2026-07-13 Jikan scar — genre index / Jump registry / Theatre anime
+// all silently emptied). A short backoff-retry makes a cold-DNS boot survivable.
 static QString resolveIpv4(const QString &host) {
-    const QHostInfo info = QHostInfo::fromName(host);
-    for (const QHostAddress &address : info.addresses()) {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol)
-            return address.toString();
+    for (int attempt = 1; attempt <= 4; ++attempt) {
+        const QHostInfo info = QHostInfo::fromName(host);
+        for (const QHostAddress &address : info.addresses()) {
+            if (address.protocol() == QAbstractSocket::IPv4Protocol)
+                return address.toString();
+        }
+        if (attempt < 4)
+            QThread::msleep(250);  // DNS can be momentarily cold at boot; give it a beat
     }
     return {};
 }
@@ -373,8 +383,16 @@ int main(int argc, char *argv[]) {
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
         const QString ipv4 = resolveIpv4(host);
-        if (!ipv4.isEmpty())
+        if (!ipv4.isEmpty()) {
             ipv4ByHost.insert(host, ipv4);
+            qInfo("[net] IPv4-pinned %s -> %s", qUtf8Printable(host), qUtf8Printable(ipv4));
+        } else {
+            // A pinned host with no IPv4 falls through to normal DNS -> the IPv6
+            // stall. Never let that be silent again: this WARNING is the smoking
+            // gun for an emptied Jikan/MangaDex/Apple surface.
+            qWarning("[net] NO IPv4 for %s after retries -> its requests ride the IPv6 stall",
+                     qUtf8Printable(host));
+        }
     }
     engine.setNetworkAccessManagerFactory(new CachingNamFactory(pinnedHosts, ipv4ByHost));
 
