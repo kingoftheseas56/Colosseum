@@ -20,13 +20,14 @@ Item {
         { key: "discover", label: "Discover" },
         { key: "movies", label: "Movies" },
         { key: "shows", label: "Shows" },
-        { key: "anime", label: "Anime" }
+        { key: "anime", label: "Anime" },
+        { key: "library", label: "Library" }
     ]
 
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width, 620)
+        width: Math.min(parent.width, 760)
         height: 54
         backdrop: tabs.backdrop
         radius: 18

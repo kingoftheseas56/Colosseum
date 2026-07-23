@@ -20,8 +20,9 @@ WorldPage {
     signal theatreGenreIndexRequested(string kind)
     // Bubbles a tap on a Your Collection tile up to Main's openCollectionEntry door.
     signal collectionOpenRequested(var entry)
-    // Your Collection "See all ›" opens the Library page (Stage 2, spec §4.1).
-    signal libraryRequested()
+    // Library tab (Stage 2) — the ⋮ menu's Resume / Mark-watched bubble up to Main's handlers.
+    signal libraryResumeRequested(var entry)
+    signal libraryMarkWatchedRequested(var entry, bool watched)
     // Next Up direct play — the exact TheatreSeries.playRequested shape, wired in Main
     // to the same openMovieSession door (spec 2026-07-18, Jellyfin library inheritance).
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
@@ -173,15 +174,6 @@ WorldPage {
         onSeeAllRequested: theatre.continueSeeAllRequested()
     }
 
-    ContinueRow {
-        title: "Your Collection"
-        onSeeAllRequested: theatre.libraryRequested()
-        items: (Collection.revision, Collection.items("theatre"))
-        forgetHandler: function(e) { Collection.remove("theatre", String(e.id)) }
-        onDetailRequested: function(item) { theatre.collectionOpenRequested(item) }
-        onResumeRequested: function(item) { theatre.collectionOpenRequested(item) }
-    }
-
     TheatreTabBar {
         backdrop: theatre.backdrop
         currentTab: theatre.activeTab
@@ -198,9 +190,10 @@ WorldPage {
     }
 
     TheatreCatalogPage {
-        visible: theatre.activeTab !== "discover"
+        visible: theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime"
         height: visible ? implicitHeight : 0
-        pageKey: theatre.activeTab === "discover" ? "movies" : theatre.activeTab
+        pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")
+                 ? theatre.activeTab : "movies"
         onItemRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
@@ -209,5 +202,17 @@ WorldPage {
             theatre.activeTab = "discover"
             discoverPage.applyPin(pin)
         }
+    }
+
+    // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
+    LibraryPage {
+        visible: theatre.activeTab === "library"
+        width: parent.width
+        height: visible ? Math.max(620, theatre.height - 200) : 0
+        onResumeRequested: (e) => theatre.libraryResumeRequested(e)
+        onDetailRequested: (e) => theatre.collectionOpenRequested(e)
+        onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.forget("video", String(e.id)) }
+        onMarkWatchedRequested: (e, w) => theatre.libraryMarkWatchedRequested(e, w)
+        onRemoveRequested: (e) => { if (typeof Collection !== "undefined") Collection.remove("theatre", String(e.id)) }
     }
 }

@@ -1,8 +1,8 @@
-// LibraryPage — Theatre's Library (Stage 2, spec §4). The "Shelf Ledger" design
-// (agents/colosseum-library-page-mock.html, approved by Hemanth). A standalone layer
-// opened from "Your Collection · See all ›": header band + the ledger (every fragment IS
-// a filter), the quiet bar (sort / type / airing pills), and a life-marked poster wall
-// with a floating ⋮ menu. All derivations are LibraryApi (headless-proven); the page only
+// LibraryPage — Theatre's Library (Stage 2), the fifth tab. The "Shelf Ledger" design
+// (agents/colosseum-library-tab-mock.html, approved by Hemanth): the ledger leads (every
+// fragment IS a filter), the quiet bar (sort / type / airing pills), and a life-marked
+// poster wall with a floating ⋮ menu. Renders as tab content inside TheatreWorld (no
+// standalone chrome). All derivations are LibraryApi (headless-proven); the page only
 // paints and wires. Context properties (Collection/Progress/LocalDownloads) are typeof-
 // guarded so it constructs offscreen for the harness.
 import QtQuick
@@ -13,9 +13,6 @@ import "CollectionBackfill.js" as CB
 
 Item {
     id: root
-    anchors.fill: parent
-
-    property Item backdrop: null
 
     // ── page state (the ledger + quiet bar drive these) ──
     property string sortMode: "lastWatched"   // lastWatched | added | az | year
@@ -40,11 +37,7 @@ Item {
     property real menuX: 0
     property real menuY: 0
 
-    // chrome
-    signal backRequested()
-    signal minimizeRequested()
-    signal closeRequested()
-    // card menu → Main (spec §4.2)
+    // card menu → owning surface (spec §4.2)
     signal resumeRequested(var entry)
     signal detailRequested(var entry)
     signal dismissRequested(var entry)
@@ -100,60 +93,35 @@ Item {
         MultiEffect { anchors.fill: g; source: g; colorization: 1.0; colorizationColor: parent.ink }
     }
 
-    // ── wallpaper: the backdrop, washed dark (matches MangaCatalogPage) ──
+    // ── header: the shelf ledger leads (the active "Library" tab already names it) + search ──
     Item {
-        anchors.fill: parent
-        ShaderEffectSource {
-            anchors.fill: parent; sourceItem: root.backdrop
-            live: true; hideSource: false; visible: root.backdrop !== null
-        }
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.024, 0.031, 0.043, 0.82) }
-    }
-
-    // ── header band: eyebrow · title · the shelf ledger · search ──
-    Rectangle {
         id: header
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 222; z: 20
-        color: Qt.rgba(0.024, 0.031, 0.043, 0.85)
-        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: theme.edge }
+        anchors.leftMargin: Math.max(64, theme.margin); anchors.rightMargin: Math.max(64, theme.margin)
+        height: 76; z: 20
 
-        Column {
-            anchors.left: parent.left; anchors.leftMargin: Math.max(64, theme.margin)
-            anchors.right: parent.right; anchors.rightMargin: Math.max(64, theme.margin)
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 22
-            spacing: 4
-            Text {
-                text: "THEATRE · COLLECTION"; color: theme.inkDimmer; font.family: theme.ui
-                font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold
-            }
-            Text {
-                text: "Library"; color: theme.ink; font.family: theme.display
-                font.pixelSize: 48; font.letterSpacing: -1
-            }
-            // THE SHELF LEDGER — every fragment is the filter itself (gold + underline when active)
-            Flow {
-                width: parent.width - 288
-                spacing: 6; topPadding: 8
-                LedgerFrag { label: "saved"; value: root.counts.saved; fragKey: "" }
-                LedgerDot {}
-                LedgerFrag { label: "in progress"; value: root.counts.inProgress; fragKey: "inProgress" }
-                LedgerDot {}
-                LedgerFrag { label: "unwatched"; value: root.counts.unwatched; fragKey: "unwatched" }
-                LedgerDot {}
-                LedgerFrag { label: "watched"; value: root.counts.watched; fragKey: "watched" }
-                LedgerDot {}
-                LedgerFrag { label: "new episodes"; value: root.counts.newEpisodes; fragKey: "newEpisodes" }
-                LedgerDot {}
-                LedgerFrag { label: "downloaded"; value: root.counts.downloaded; fragKey: "downloaded" }
-            }
+        // THE SHELF LEDGER — every fragment is the filter itself (gold + underline when active)
+        Flow {
+            anchors.left: parent.left; anchors.right: searchField.left; anchors.rightMargin: 24
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 7
+            LedgerFrag { label: "saved"; value: root.counts.saved; fragKey: "" }
+            LedgerDot {}
+            LedgerFrag { label: "in progress"; value: root.counts.inProgress; fragKey: "inProgress" }
+            LedgerDot {}
+            LedgerFrag { label: "unwatched"; value: root.counts.unwatched; fragKey: "unwatched" }
+            LedgerDot {}
+            LedgerFrag { label: "watched"; value: root.counts.watched; fragKey: "watched" }
+            LedgerDot {}
+            LedgerFrag { label: "new episodes"; value: root.counts.newEpisodes; fragKey: "newEpisodes" }
+            LedgerDot {}
+            LedgerFrag { label: "downloaded"; value: root.counts.downloaded; fragKey: "downloaded" }
         }
 
         TextField {
             id: searchField
-            anchors.right: parent.right; anchors.rightMargin: Math.max(64, theme.margin)
-            anchors.bottom: parent.bottom; anchors.bottomMargin: 26
-            width: 260; height: 38; leftPadding: 16; rightPadding: 16
+            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+            width: 250; height: 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
             font.family: theme.ui; font.pixelSize: 14
@@ -207,9 +175,7 @@ Item {
     Item {
         id: filterBar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: header.bottom
-        height: 58; z: 19
-        Rectangle { anchors.fill: parent; color: Qt.rgba(0.024, 0.031, 0.043, 0.55) }
-        Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: theme.edge }
+        height: 54; z: 19
 
         component FilterPill: Rectangle {
             property string label: ""
@@ -511,30 +477,4 @@ Item {
         }
     }
 
-    // ── standalone-page chrome: back capsule + minimize / power (copied from MangaCatalogPage) ──
-    Item {
-        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 52; z: 30
-        BackAction {
-            variant: "capsule"; tip: "Back"
-            anchors.left: parent.left; anchors.leftMargin: 22; anchors.verticalCenter: parent.verticalCenter
-            onTriggered: root.backRequested()
-        }
-        Row {
-            anchors.right: parent.right; anchors.rightMargin: 25; anchors.verticalCenter: parent.verticalCenter
-            spacing: 18
-            Item {
-                width: 17; height: 17
-                Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"; opacity: minHover.hovered ? 1 : 0.7 }
-                HoverHandler { id: minHover }
-                MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-            }
-            Item {
-                width: 17; height: 17
-                Image { anchors.fill: parent; source: "../assets/icons/power.svg"; opacity: powHover.hovered ? 1 : 0.7 }
-                HoverHandler { id: powHover }
-                MouseArea { anchors.fill: parent; anchors.margins: -6; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-            }
-        }
-    }
 }
