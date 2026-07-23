@@ -132,4 +132,11 @@ qint64 PlaybackClock::correctToward(qint64 masterMediaUs, qint64 qpcNow,
 
 qint64 PlaybackClock::qpcFrequency() const noexcept { return m_qpcFrequency; }
 
+ClockResync decideClockResync(bool audioWasValid, qint64 discontinuityUs, qint64 hardResetThresholdUs)
+{
+    if (!audioWasValid && std::llabs(discontinuityUs) > hardResetThresholdUs)
+        return ClockResync::HardReset;
+    return ClockResync::Slew;
+}
+
 } // namespace Colosseum::Player2

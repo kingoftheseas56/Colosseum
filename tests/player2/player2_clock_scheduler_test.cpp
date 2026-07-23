@@ -50,6 +50,28 @@ void clockSupportsPauseRateAndCorrection()
     require(!clock.valid(), "clock invalidation retained the prior media epoch");
 }
 
+// The audio clock going valid->invalid->valid is an underrun (or a pause). On recovery the video
+// master must SNAP to the fresh audio position when the gap is large, not crawl 5 ms/frame across it
+// — the crawl is the visible "audio comes way earlier than the video" drift Hemanth reported.
+void clockResyncSnapsAfterUnderrunGapOnly()
+{
+    constexpr qint64 threshold = 50'000;  // 50 ms
+    // Steady state (audio was valid last frame): always slew, even on a big lone reading, so a single
+    // noisy sample can never jolt the picture.
+    require(decideClockResync(true, 4'000, threshold) == ClockResync::Slew,
+            "steady-state jitter must slew");
+    require(decideClockResync(true, 400'000, threshold) == ClockResync::Slew,
+            "a spurious steady-state error must not hard-reset mid-play");
+    // Recovering from an underrun (audio was invalid last frame) with a large discontinuity: snap.
+    require(decideClockResync(false, 300'000, threshold) == ClockResync::HardReset,
+            "a large post-underrun discontinuity must hard-reset, not crawl");
+    require(decideClockResync(false, -280'000, threshold) == ClockResync::HardReset,
+            "hard-reset must trigger on discontinuity magnitude regardless of sign");
+    // Recovering, but the gap is tiny: slew smoothly — there is no visible jump to snap over.
+    require(decideClockResync(false, 8'000, threshold) == ClockResync::Slew,
+            "a tiny post-underrun gap should still slew");
+}
+
 void schedulerHandlesCommonFrameRates()
 {
     FrameScheduler scheduler(QpcFrequency);
@@ -104,6 +126,7 @@ int main()
 {
     try {
         clockSupportsPauseRateAndCorrection();
+        clockResyncSnapsAfterUnderrunGapOnly();
         schedulerHandlesCommonFrameRates();
         schedulerBoundsLateDropsAndRepeats();
         thirtyMinuteAcceleratedSimulationHasNoDrift();

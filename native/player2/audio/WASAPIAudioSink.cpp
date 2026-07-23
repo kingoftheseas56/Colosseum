@@ -395,6 +395,12 @@ public:
                     m_queue->lastReadMediaPositionUs() - paddingUs), std::memory_order_release);
                 m_clockQpc.store(queryPerformanceCounter(), std::memory_order_release);
                 m_clockValid.store(endpointClockAdvanced, std::memory_order_release);
+            } else {
+                // Zero-copy underrun: the endpoint just played inserted silence. The frozen
+                // (media, qpc) snapshot no longer tracks real audio, so invalidate the clock at once
+                // — otherwise video keeps extrapolating a dead clock through the gap and jumps when
+                // audio resumes. Recovery snaps the video master forward via decideClockResync.
+                m_clockValid.store(false, std::memory_order_release);
             }
         }
 

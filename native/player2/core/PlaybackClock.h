@@ -37,4 +37,17 @@ private:
     bool m_valid = false;
 };
 
+enum class ClockResync
+{
+    Slew,      // absorb the reading smoothly over several frames
+    HardReset  // snap the epoch to the reading in one step
+};
+
+// Policy for how the video master clock absorbs a fresh audio-master reading once audio is already
+// the master. On RECOVERY from a gap — a pause or underrun that invalidated the audio clock, so
+// `audioWasValid` is false — a discontinuity larger than `hardResetThresholdUs` must SNAP: crawling a
+// few ms/frame across a multi-hundred-ms jump is exactly the visible "audio ahead of video" drift.
+// In steady state (`audioWasValid`) we always slew, so a lone noisy reading can never jolt the picture.
+ClockResync decideClockResync(bool audioWasValid, qint64 discontinuityUs, qint64 hardResetThresholdUs);
+
 } // namespace Colosseum::Player2
