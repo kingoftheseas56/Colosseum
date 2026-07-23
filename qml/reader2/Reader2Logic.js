@@ -885,3 +885,99 @@ function readAlongScrubAction(phase, fraction, durationSec, available) {
 // follow move is a gentle "ensureVisible" (comfort zone). ReaderShell sets the pending flag
 // on a commit and clears it when the next navigationRequested consumes it. Pure.
 function navModeFor(pendingCommittedJump) { return pendingCommittedJump ? "navigate" : "ensureVisible" }
+
+// ---------------------------------------------------------------------------
+// TASK 7 — Text Sync status COPY (pure; proven headless).
+//
+// Honest presentation of the native AudioTextAlignmentService's OWN status. The LeftPanel
+// Text Sync block is a THIN renderer of these: it never re-derives stage or progress, it
+// only formats the numbers/codes the service already decided (statusFor -> {stage, ready,
+// total, paused}; chaptersFor -> [{index, stage, failureCode, ...}]). The stage and failure
+// WIRE CODES are the service's stable contract (design Task 3); QML maps them here to the
+// approved plain-language copy and never invents alternate meanings. Everything is data-in /
+// data-out so tests/alignment_activity_harness.qml proves the copy directly.
+// ---------------------------------------------------------------------------
+
+// stageLabel(stage) → the plain display label for a stage wire code. An unknown/absent code
+// falls back to a safe generic so a future or garbage stage never renders blank.
+function stageLabel(stage) {
+    switch (String(stage === undefined || stage === null ? "" : stage)) {
+    case "waiting":      return "Waiting"
+    case "preparing":    return "Preparing"
+    case "transcribing": return "Transcribing"
+    case "matching":     return "Matching"
+    case "aligning":     return "Aligning words"
+    case "ready":        return "Ready"
+    case "couldnt_sync": return "Couldn't sync"
+    default:             return "Syncing"
+    }
+}
+
+// chapterFailureCopy(code) → the approved plain-language line for a terminal failure wire
+// code (design Task 3's failure map). QML renders this verbatim on a failed chapter; an
+// empty/unknown code is the generic "Couldn't sync". Pure.
+function chapterFailureCopy(code) {
+    switch (String(code === undefined || code === null ? "" : code)) {
+    case "edition_mismatch":       return "Couldn't sync — edition may differ"
+    case "chapter_match_missing":  return "Couldn't sync — no matching passage found"
+    case "audio_decode_failed":    return "Couldn't sync — audio couldn't be read"
+    case "model_missing":          return "Couldn't sync — speech model missing"
+    case "model_checksum_failed":  return "Couldn't sync — speech model is damaged"
+    case "epub_index_failed":      return "Couldn't sync — book text couldn't be read"
+    case "alignment_failed":       return "Couldn't sync — words couldn't be timed"
+    default:                       return "Couldn't sync"
+    }
+}
+
+// textSyncAllReady(status) → is every chapter aligned? True when the overall stage is
+// 'ready' OR the ready count reached the total (and a total is known). Pure.
+function textSyncAllReady(status) {
+    var s = status || {}
+    var ready = Number.isFinite(s.ready) ? s.ready : 0
+    var total = Number.isFinite(s.total) ? s.total : 0
+    return s.stage === "ready" || (total > 0 && ready >= total)
+}
+
+// textSyncSummary(status) → the one-line honest summary. Every chapter aligned → "All N
+// chapters ready". Otherwise "Syncing chapter K of N · <stage>", where K = the chapter now
+// in flight (chapters completed + 1, clamped to N) and <stage> is its stage label; a PAUSED
+// job says "Paused" in place of "Syncing" (never claim work is happening while it isn't).
+// An unknown total (nothing discovered yet) → "Preparing text sync". Pure — reads only the
+// service's own {stage, ready, total, paused}.
+function textSyncSummary(status) {
+    var s = status || {}
+    var ready = Number.isFinite(s.ready) ? s.ready : 0
+    var total = Number.isFinite(s.total) ? s.total : 0
+    if (total <= 0) return "Preparing text sync"
+    if (textSyncAllReady(s)) return "All " + total + " chapters ready"
+    var current = ready + 1
+    if (current > total) current = total
+    var head = (s.paused ? "Paused" : "Syncing") + " chapter " + current + " of " + total
+    var label = stageLabel(s.stage)
+    return label ? (head + " · " + label) : head
+}
+
+// readyCountText(status) → "K chapters ready" (singular "1 chapter ready"). Pure.
+function readyCountText(status) {
+    var s = status || {}
+    var ready = Number.isFinite(s.ready) ? s.ready : 0
+    return ready + (ready === 1 ? " chapter ready" : " chapters ready")
+}
+
+// chapterFailed(chapter) → did this chapter's alignment fail terminally? True when its stage
+// is 'couldnt_sync' or it carries a non-empty failure code. A failed chapter stays playable
+// as ordinary audio — this only gates the failure copy + the Retry affordance. Pure.
+function chapterFailed(chapter) {
+    var c = chapter || {}
+    if (c.stage === "couldnt_sync") return true
+    return c.failureCode !== undefined && c.failureCode !== null && String(c.failureCode) !== ""
+}
+
+// chapterStateText(chapter) → the per-chapter row label: the plain failure line when it
+// failed, "Ready" when aligned, else its stage label. Pure. Renders any of the seven states.
+function chapterStateText(chapter) {
+    var c = chapter || {}
+    if (chapterFailed(c)) return chapterFailureCopy(c.failureCode)
+    if (c.stage === "ready") return "Ready"
+    return stageLabel(c.stage)
+}

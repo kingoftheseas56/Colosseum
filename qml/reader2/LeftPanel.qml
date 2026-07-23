@@ -53,6 +53,61 @@ Item {
     property string readAlongMode: "sentenceWord" // "sentence" | "word" | "sentenceWord"
     property real readAlongWordScale: 1.0        // word enlargement (1.0..2.0)
 
+    // ---- Text Sync status (Task 7) — the honest per-chapter alignment status + controls ----
+    // Bridge-free in the SAME sense as the rest of the panel: the native
+    // AudioTextAlignmentService arrives as an INJECTED object (`textSync`), not reached as a
+    // context property — so a harness feeds a fake and ReaderShell binds the real one. The
+    // panel reads status/chapters STRAIGHT off the service on each refresh (never a second
+    // copy of truth, never re-derives stage/progress in QML) and re-fetches on `jobChanged`.
+    // DORMANT until the service is registered (Task 12): textSync stays null, textSyncOn is
+    // false, and the whole block is absent — the Audio pane reads byte-for-byte as today.
+    property var textSync: null                  // AudioTextAlignmentService (or a fake); null = dormant
+    property string bookId: ""                   // the book whose alignment job we show
+    property var textSyncStatus: ({})            // last statusFor(bookId): {stage, ready, total, paused}
+    property var textSyncChapters: []            // last chaptersFor(bookId): [{index, stage, failureCode, ...}]
+    property bool restartArmed: false            // protected Restart: true = the confirm step is showing
+
+    // Shown only when the native service AND a book id are present (and read-along is on).
+    readonly property bool textSyncOn: panel.readAlongAvailable && !!panel.textSync && panel.bookId !== ""
+    // Thin renders of the service's own status — never a re-derivation.
+    readonly property string textSyncSummaryText: L.textSyncSummary(panel.textSyncStatus)
+    readonly property string textSyncReadyText: L.readyCountText(panel.textSyncStatus)
+    readonly property bool textSyncAllReady: L.textSyncAllReady(panel.textSyncStatus)
+    readonly property var textSyncChapterLabels: {
+        var out = []
+        var cs = panel.textSyncChapters || []
+        for (var i = 0; i < cs.length; i++) out.push(L.chapterStateText(cs[i]))
+        return out
+    }
+
+    // Re-fetch the service's own status/chapters. Called at init, when the service or book
+    // changes, and on every jobChanged — the ONLY way the panel's view of the job updates.
+    function refreshTextSync() {
+        if (panel.textSync && panel.bookId !== "") {
+            panel.textSyncStatus = panel.textSync.statusFor(panel.bookId) || ({})
+            panel.textSyncChapters = panel.textSync.chaptersFor(panel.bookId) || []
+        } else {
+            panel.textSyncStatus = ({})
+            panel.textSyncChapters = []
+        }
+    }
+    // Control intents call the service DIRECTLY (it owns the job); the refresh rides jobChanged.
+    function pauseTextSync() { if (panel.textSync) panel.textSync.pause(panel.bookId) }
+    function resumeTextSync() { if (panel.textSync) panel.textSync.resume(panel.bookId) }
+    function retryChapter(index) { if (panel.textSync) panel.textSync.retry(panel.bookId, index) }
+    function requestRestart() { panel.restartArmed = true }           // arm the confirm step
+    function cancelRestart() { panel.restartArmed = false }
+    function confirmRestart() { panel.restartArmed = false; if (panel.textSync) panel.textSync.restart(panel.bookId) }
+
+    onTextSyncChanged: panel.refreshTextSync()
+    onBookIdChanged: panel.refreshTextSync()
+    Component.onCompleted: panel.refreshTextSync()
+    Connections {
+        target: panel.textSync
+        ignoreUnknownSignals: true
+        function onJobChanged(changedBookId) { if (changedBookId === panel.bookId) panel.refreshTextSync() }
+    }
+
     // ---- signals up ----
     signal closeRequested()
     signal tabSelected(string tab)
@@ -627,6 +682,215 @@ Item {
                                 anchors.margins: -6
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: panel.followToggled(!panel.followOn)
+                            }
+                        }
+                    }
+
+                    // --- SYNC STATUS (Task 7 — honest read-along alignment progress) ---
+                    // DORMANT-GATED on textSyncOn (native service present + a book id). A pure
+                    // renderer of the service's OWN status: a summary line, a ready count, every
+                    // chapter's state, per-chapter Retry on a failure (the chapter stays playable
+                    // as ordinary audio), pause/resume, and a confirmation-gated Restart. The
+                    // controls call the service directly; the view refreshes on jobChanged.
+                    Rectangle {
+                        width: parent.width
+                        visible: panel.textSyncOn
+                        height: visible ? (tsStatusCol.implicitHeight + 28) : 0
+                        radius: 11
+                        color: Theme.cardBg
+                        border.color: Theme.barBorder
+                        border.width: 1
+
+                        Column {
+                            id: tsStatusCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 14
+                            spacing: 10
+
+                            // header + pause/resume (hidden once every chapter is ready)
+                            Item {
+                                width: parent.width
+                                height: tsHeader.implicitHeight
+                                Text {
+                                    id: tsHeader
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: "Sync status"
+                                    font.family: Theme.ui
+                                    font.pixelSize: 11
+                                    font.weight: Font.Bold
+                                    font.letterSpacing: 1.4
+                                    font.capitalization: Font.AllUppercase
+                                    color: Theme.inkFaint
+                                }
+                                Text {
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: !panel.textSyncAllReady
+                                    text: panel.textSyncStatus.paused ? "Resume" : "Pause"
+                                    font.family: Theme.ui
+                                    font.pixelSize: 12
+                                    font.weight: Font.DemiBold
+                                    color: tsPauseMa.containsMouse ? Theme.ink : Theme.inkDim
+                                    MouseArea {
+                                        id: tsPauseMa
+                                        anchors.fill: parent
+                                        anchors.margins: -8
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: panel.textSyncStatus.paused ? panel.resumeTextSync() : panel.pauseTextSync()
+                                    }
+                                }
+                            }
+
+                            // the one-line summary (Syncing chapter K of N · <stage> / All N ready)
+                            Text {
+                                width: parent.width
+                                text: panel.textSyncSummaryText
+                                wrapMode: Text.WordWrap
+                                font.family: Theme.ui
+                                font.pixelSize: 13
+                                color: Theme.inkDim
+                            }
+                            // K chapters ready (redundant once the summary says "All N ready")
+                            Text {
+                                width: parent.width
+                                visible: !panel.textSyncAllReady && panel.textSyncReadyText !== ""
+                                text: panel.textSyncReadyText
+                                font.family: Theme.ui
+                                font.pixelSize: 11
+                                color: Theme.inkGhost
+                            }
+
+                            // per-chapter states — one row each; a failed row shows its plain
+                            // failure line (gold) + a Retry that re-attempts just that chapter.
+                            Column {
+                                width: parent.width
+                                spacing: 0
+                                Repeater {
+                                    model: panel.textSyncChapters
+                                    delegate: Item {
+                                        id: tsRow
+                                        required property var modelData
+                                        required property int index
+                                        readonly property bool failed: L.chapterFailed(tsRow.modelData)
+                                        readonly property int chIndex: (tsRow.modelData && Number.isFinite(tsRow.modelData.index))
+                                                                       ? tsRow.modelData.index : tsRow.index
+                                        width: parent.width
+                                        height: 30
+                                        Text {
+                                            id: tsRowNum
+                                            anchors.left: parent.left
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            width: 24
+                                            text: String(tsRow.chIndex + 1)
+                                            font.family: Theme.ui
+                                            font.pixelSize: 11
+                                            color: Theme.inkGhost
+                                        }
+                                        Text {
+                                            anchors.left: tsRowNum.right
+                                            anchors.leftMargin: 6
+                                            anchors.right: tsRetry.left
+                                            anchors.rightMargin: 8
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            text: L.chapterStateText(tsRow.modelData)
+                                            elide: Text.ElideRight
+                                            font.family: Theme.ui
+                                            font.pixelSize: 12
+                                            color: tsRow.failed ? Theme.gold : Theme.inkDim
+                                        }
+                                        Text {
+                                            id: tsRetry
+                                            anchors.right: parent.right
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: tsRow.failed
+                                            text: "Retry"
+                                            font.family: Theme.ui
+                                            font.pixelSize: 12
+                                            font.weight: Font.DemiBold
+                                            color: tsRetryMa.containsMouse ? Theme.ink : Theme.inkDim
+                                            MouseArea {
+                                                id: tsRetryMa
+                                                anchors.fill: parent
+                                                anchors.margins: -8
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: panel.retryChapter(tsRow.chIndex)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // protected Restart — a confirm step gates it (re-runs everything).
+                            Item {
+                                width: parent.width
+                                height: 24
+                                Text {
+                                    anchors.left: parent.left
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: !panel.restartArmed
+                                    text: "Restart sync"
+                                    font.family: Theme.ui
+                                    font.pixelSize: 12
+                                    color: tsRestartMa.containsMouse ? Theme.ink : Theme.inkGhost
+                                    MouseArea {
+                                        id: tsRestartMa
+                                        anchors.fill: parent
+                                        anchors.margins: -8
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: panel.requestRestart()
+                                    }
+                                }
+                                Row {
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: panel.restartArmed
+                                    spacing: 12
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "Re-run all chapters?"
+                                        font.family: Theme.ui
+                                        font.pixelSize: 12
+                                        color: Theme.inkDim
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "Confirm"
+                                        font.family: Theme.ui
+                                        font.pixelSize: 12
+                                        font.weight: Font.DemiBold
+                                        color: tsConfirmMa.containsMouse ? Theme.gold : Theme.inkDim
+                                        MouseArea {
+                                            id: tsConfirmMa
+                                            anchors.fill: parent
+                                            anchors.margins: -8
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: panel.confirmRestart()
+                                        }
+                                    }
+                                    Text {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "Cancel"
+                                        font.family: Theme.ui
+                                        font.pixelSize: 12
+                                        color: tsCancelMa.containsMouse ? Theme.ink : Theme.inkGhost
+                                        MouseArea {
+                                            id: tsCancelMa
+                                            anchors.fill: parent
+                                            anchors.margins: -8
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: panel.cancelRestart()
+                                        }
+                                    }
+                                }
                             }
                         }
                     }

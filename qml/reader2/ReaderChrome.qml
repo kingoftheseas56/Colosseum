@@ -64,6 +64,15 @@ Item {
     property string readAlongPreviewLabel: ""     // "12:34 · Ch 3" (from the controller preview)
     property bool readAlongFollowDetached: false  // user navigated away → offer Return to narration
 
+    // ---- Text Sync status service (Task 7), threaded down to the LeftPanel ---- The native
+    // AudioTextAlignmentService is a context property registered in Task 12; today it is
+    // absent, so this SELF-RESOLVES to null (the typeof guard never throws) and the LeftPanel
+    // Text Sync block stays dormant. A harness overrides `textSync` with a fake; ReaderShell
+    // will bind the real one + `bookId` in Task 12. Presentation only — the chrome never
+    // calls it; the authoritative Text Sync controls live in the LeftPanel Audio pane.
+    property var textSync: (typeof AudioTextAlignment !== "undefined") ? AudioTextAlignment : null
+    property string bookId: ""
+
     // ---- left-panel state (owned here; the panel is a pure view over these) ----
     property bool panelOpen: false
     property string activeTab: "contents"
@@ -657,6 +666,11 @@ Item {
         readAlongWordScale: chrome.readAlongWordScale
         onReadAlongModePicked: (m) => chrome.readAlongModePicked(m)
         onReadAlongScaleChanged: (s) => chrome.readAlongScaleChanged(s)
+
+        // read-along Text Sync STATUS (Task 7) — the service + book id down; the panel calls
+        // the service directly for pause/resume/retry/restart and reads status off it.
+        textSync: chrome.textSync
+        bookId: chrome.bookId
 
         onCloseRequested: chrome.closePanel()
         onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }
