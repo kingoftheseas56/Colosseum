@@ -24,6 +24,7 @@ Rectangle {
     readonly property string rating: meta && meta.imdbRating ? String(meta.imdbRating) : ""
     readonly property string runtime: meta && meta.runtime ? String(meta.runtime) : ""
     readonly property string blurb: meta ? String(meta.description || meta.synopsis || "") : ""
+    readonly property var genres: (meta && meta.genres && meta.genres.length) ? meta.genres : []
 
     // ---- art (top ~45%): cover, dark-scrimmed, title overlaid ----
     Item {
@@ -80,6 +81,28 @@ Rectangle {
                 Text { text: "★"; color: theme.gold; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                 Text { text: pane.rating; color: theme.ink; font.family: theme.ui
                        font.pixelSize: 14; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+            }
+        }
+        // genre chips (mock .pv-genres) — dim bordered tags from the meta's genres
+        Flow {
+            width: parent.width
+            visible: pane.genres.length > 0
+            spacing: 6
+            Repeater {
+                model: pane.genres
+                Rectangle {
+                    required property var modelData
+                    height: 22; radius: 7
+                    width: chipTxt.implicitWidth + 18
+                    color: "transparent"
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        id: chipTxt
+                        anchors.centerIn: parent
+                        text: modelData
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                    }
+                }
             }
         }
         Text {

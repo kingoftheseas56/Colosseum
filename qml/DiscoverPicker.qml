@@ -1,21 +1,26 @@
 // DiscoverPicker — one Discover selector pill: label + current value, popup option
 // list. House grammar: glass pill, gold active option, click-swallower popup body
 // (floating panel rule). Popup closes on outside tap or Esc.
+// Options may carry section HEADERS ({header:"…"}) — the catalog picker splits its
+// rows into "Cinemeta" / "Your addons" (addon attribution is the parity anatomy).
+// A row option is {key, text, sub} — sub is the owning addon, right-aligned.
 import QtQuick
 
 Item {
     id: picker
-    property string label: ""                 // dim prefix ("Genre") — optional
-    property var options: []                  // [{key, text, sub}] — sub dims after text
+    property string label: ""                 // dim placeholder ("Genre") — shown when no real value
+    property var options: []                  // [{key,text,sub} | {header:"…"}]
     property string currentKey: ""
     property bool open: false
     signal picked(string key)
 
+    // current = the selected ROW option (headers and the empty "All" key don't count as a value)
     readonly property var current: {
         for (var i = 0; i < options.length; i++)
-            if (options[i].key === currentKey) return options[i];
+            if (options[i].header === undefined && options[i].key === currentKey) return options[i];
         return null;
     }
+    readonly property bool hasValue: !!current && current.key !== ""
 
     implicitWidth: Math.max(150, pillRow.implicitWidth + 38)
     implicitHeight: 40
@@ -36,21 +41,21 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 15
             spacing: 8
             Text {
-                visible: picker.label.length > 0 && !picker.current
+                visible: picker.label.length > 0 && !picker.hasValue
                 text: picker.label
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
-                visible: !!picker.current
-                text: picker.current ? picker.current.text : ""
+                visible: picker.hasValue
+                text: picker.hasValue ? picker.current.text : ""
                 color: theme.ink; font.family: theme.ui
                 font.pixelSize: 14; font.weight: Font.DemiBold
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
-                visible: !!(picker.current && picker.current.sub)
-                text: picker.current && picker.current.sub ? picker.current.sub : ""
+                visible: picker.hasValue && !!picker.current.sub
+                text: picker.hasValue && picker.current.sub ? picker.current.sub : ""
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -74,8 +79,8 @@ Item {
         id: pop
         visible: picker.open
         y: pill.height + 6
-        width: Math.max(picker.width, 240)
-        height: Math.min(360, list.contentHeight + 12)
+        width: Math.max(picker.width, 280)
+        height: Math.min(380, list.contentHeight + 12)
         radius: 13
         z: 60
         color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
@@ -88,34 +93,56 @@ Item {
             clip: true
             model: picker.options
             boundsBehavior: Flickable.StopAtBounds
-            delegate: Rectangle {
+            delegate: Item {
+                id: opt
                 required property var modelData
-                width: list.width; height: 38; radius: 9
-                color: modelData.key === picker.currentKey ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
-                     : rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-                Row {
-                    anchors.verticalCenter: parent.verticalCenter
+                readonly property bool isHeader: modelData.header !== undefined
+                width: list.width
+                height: isHeader ? 27 : 38
+
+                // section header (.msec) — small uppercase, dim
+                Text {
+                    visible: opt.isHeader
+                    text: opt.isHeader ? opt.modelData.header : ""
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 10
+                    font.letterSpacing: 1.6; font.capitalization: Font.AllUppercase
                     anchors.left: parent.left; anchors.leftMargin: 12
-                    spacing: 8
-                    Text {
-                        text: modelData.text
-                        color: modelData.key === picker.currentKey ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 13
-                        font.weight: modelData.key === picker.currentKey ? Font.DemiBold : Font.Normal
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        visible: !!modelData.sub
-                        text: modelData.sub || ""
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 6
                 }
-                MouseArea {
-                    id: rowMa
+
+                // option row — catalog name left, owning addon dimmed right (mock .mrow)
+                Rectangle {
+                    visible: !opt.isHeader
                     anchors.fill: parent
-                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: { picker.open = false; picker.picked(modelData.key); }
+                    radius: 9
+                    color: opt.modelData.key === picker.currentKey ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
+                         : rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                    Text {
+                        id: catText
+                        text: opt.isHeader ? "" : opt.modelData.text
+                        color: opt.modelData.key === picker.currentKey ? theme.gold : theme.ink
+                        font.family: theme.ui; font.pixelSize: 13
+                        font.weight: opt.modelData.key === picker.currentKey ? Font.DemiBold : Font.Normal
+                        anchors.left: parent.left; anchors.leftMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        visible: !!opt.modelData.sub
+                        text: opt.modelData.sub || ""
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                        anchors.right: parent.right; anchors.rightMargin: 12
+                        anchors.left: catText.right; anchors.leftMargin: 8
+                        horizontalAlignment: Text.AlignRight
+                        elide: Text.ElideRight
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    MouseArea {
+                        id: rowMa
+                        anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: { picker.open = false; picker.picked(opt.modelData.key); }
+                    }
                 }
             }
         }

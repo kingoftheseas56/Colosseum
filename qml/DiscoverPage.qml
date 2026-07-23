@@ -33,10 +33,21 @@ Item {
     property string missingUrl: ""
     property int selectedIndex: -1
     property int fetchGen: 0                // stale-response fence
+    property bool selectHintUsed: false     // one-time "click again to open" teach
+    property bool keyboardMode: false       // true once arrows are used → shows the focus ring
 
     signal itemOpenRequested(var item)      // second click / Show — up to TheatreWorld
 
     Theme { id: theme }
+
+    // keyboard/click activation: first hit selects (preview), second on the same card opens.
+    function activateIndex(i) {
+        if (i < 0 || i >= items.length) return         // skeletons/out-of-range never activate
+        if (selectedIndex === i) { selectHintUsed = true; itemOpenRequested(items[i]) }
+        else selectedIndex = i
+    }
+
+    onVisibleChanged: if (visible && wall) wall.forceActiveFocus()
 
     function applyPin(p) {
         pin = p || null
@@ -129,8 +140,18 @@ Item {
             onPicked: (key) => disco.setType(key)
         }
         DiscoverPicker {
-            options: disco.catalogs.map(function(c) {
-                return { key: c.key, text: c.title, sub: c.addonName } })
+            // catalog rows split into sections: core Cinemeta first (by addon name),
+            // everything else under "Your addons" — the mock's attribution anatomy.
+            options: {
+                var out = []; var lastSec = null;
+                for (var i = 0; i < disco.catalogs.length; i++) {
+                    var c = disco.catalogs[i];
+                    var sec = c.core ? c.addonName : "Your addons";
+                    if (sec !== lastSec) { out.push({ header: sec }); lastSec = sec; }
+                    out.push({ key: c.key, text: c.title, sub: c.addonName });
+                }
+                return out;
+            }
             currentKey: disco.currentCatalog ? disco.currentCatalog.key : ""
             onPicked: (key) => {
                 for (var i = 0; i < disco.catalogs.length; i++)
@@ -199,22 +220,47 @@ Item {
             clip: true
             interactive: true
             boundsBehavior: Flickable.StopAtBounds
-            model: disco.items
+            focus: true
+            keyNavigationEnabled: true
             readonly property int columnCount: Math.max(3, Math.floor(width / 168))
             cellWidth: Math.floor(width / columnCount)
             cellHeight: Math.floor(cellWidth * 1.62) + 34
             cacheBuffer: cellHeight * 2
+            // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
+            // fill the viewport on the first page, one trailing row while paging.
+            readonly property int skelCount: !disco.loading ? 0
+                : (disco.items.length === 0
+                   ? columnCount * Math.max(2, Math.ceil(height / cellHeight))
+                   : columnCount)
+            model: disco.items.length + skelCount
             ScrollBar.vertical: HouseScrollBar { flick: wall }
             onContentYChanged: {
                 if (contentHeight > height
                     && contentY > contentHeight - height * 1.6)
                     disco.fetchMore()
             }
+            Keys.onPressed: (event) => {
+                if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
+                    || event.key === Qt.Key_Up || event.key === Qt.Key_Down) {
+                    disco.keyboardMode = true
+                    event.accepted = false            // let GridView move currentIndex
+                } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                    disco.keyboardMode = true
+                    disco.activateIndex(wall.currentIndex)
+                    event.accepted = true
+                }
+            }
 
             delegate: Item {
                 id: card
-                required property var modelData
                 required property int index
+                readonly property bool isSkel: card.index >= disco.items.length
+                readonly property var item: card.isSkel ? null : disco.items[card.index]
+                readonly property bool selected: !card.isSkel && card.index === disco.selectedIndex
+                readonly property bool kfocused: !card.isSkel && disco.keyboardMode
+                                                 && card.index === wall.currentIndex
+                readonly property string capText: card.item
+                    ? (card.item.title || card.item.caption || card.item.name || "") : ""
                 width: wall.cellWidth - 14
                 height: wall.cellHeight - 14
 
@@ -223,11 +269,20 @@ Item {
                     anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
                     height: Math.floor(width * 1.5)
                     radius: 6; clip: true
-                    color: "#181a20"
+                    color: card.isSkel ? Qt.rgba(1, 1, 1, 0.06) : "#181a20"
                     border.width: 1
-                    border.color: card.index === disco.selectedIndex ? theme.gold
-                                 : hov.hovered ? Qt.rgba(1, 1, 1, 0.4) : theme.edge
+                    border.color: card.isSkel ? Qt.rgba(1, 1, 1, 0.09)
+                                 : card.selected ? theme.gold
+                                 : hov.hovered ? Qt.rgba(1, 1, 1, 0.42) : theme.edge
+                    // skeleton pulse (mock @keyframes pulse) — only while this is a placeholder
+                    SequentialAnimation on opacity {
+                        running: card.isSkel
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 0.5; to: 0.9; duration: 800; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 0.9; to: 0.5; duration: 800; easing.type: Easing.InOutSine }
+                    }
                     Rectangle {
+                        visible: !card.isSkel
                         anchors.fill: parent
                         gradient: Gradient {
                             GradientStop { position: 0; color: "#343d52" }
@@ -235,7 +290,7 @@ Item {
                         }
                         Text {
                             anchors.centerIn: parent; width: parent.width - 20
-                            text: card.modelData.title || card.modelData.caption || card.modelData.name || ""
+                            text: card.capText
                             color: Qt.rgba(1, 1, 1, 0.66)
                             font.family: theme.display; font.pixelSize: 15; font.weight: Font.DemiBold
                             horizontalAlignment: Text.AlignHCenter
@@ -243,49 +298,78 @@ Item {
                         }
                     }
                     Image {
+                        visible: !card.isSkel
                         anchors.fill: parent
-                        source: card.modelData.cover || card.modelData.poster || ""
+                        source: card.item ? (card.item.cover || card.item.poster || "") : ""
                         fillMode: Image.PreserveAspectCrop
                         asynchronous: true
                         opacity: status === Image.Ready ? 1 : 0
                         Behavior on opacity { NumberAnimation { duration: 160 } }
                     }
                 }
+                // keyboard focus ring — a DOUBLE soft-gold halo, drawn as an overlay so it
+                // reads distinctly from the solid gold selection border (mock .kfocus)
+                Rectangle {
+                    anchors.fill: frame; radius: 6
+                    visible: card.kfocused
+                    color: "transparent"
+                    border.width: 2; border.color: Qt.rgba(240/255, 196/255, 74/255, 0.55)
+                    Rectangle {
+                        anchors.fill: parent; anchors.margins: -3
+                        radius: 8; color: "transparent"
+                        border.width: 3; border.color: Qt.rgba(240/255, 196/255, 74/255, 0.18)
+                    }
+                }
+                // one-time "click again to open" teach on the freshly-selected card
+                Rectangle {
+                    visible: card.selected && !disco.selectHintUsed
+                    anchors.left: frame.left; anchors.right: frame.right; anchors.bottom: frame.bottom
+                    anchors.margins: 8
+                    height: 26; radius: 9
+                    color: Qt.rgba(10/255, 10/255, 14/255, 0.82)
+                    border.width: 1; border.color: theme.gold
+                    Text {
+                        anchors.centerIn: parent
+                        text: "click again to open"
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                    }
+                }
                 Text {
+                    visible: !card.isSkel
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.top: frame.bottom; anchors.topMargin: 7
-                    text: card.modelData.title || card.modelData.caption || card.modelData.name || ""
-                    color: card.index === disco.selectedIndex ? theme.ink : theme.inkDim
+                    text: card.capText
+                    color: card.selected ? theme.ink : theme.inkDim
                     font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
-                HoverHandler { id: hov }
+                // skeleton title bar (reserves the title row's space too)
+                Rectangle {
+                    visible: card.isSkel
+                    anchors.left: parent.left; anchors.top: frame.bottom; anchors.topMargin: 7
+                    width: parent.width * 0.7; height: 12; radius: 5
+                    color: Qt.rgba(1, 1, 1, 0.08)
+                }
+                HoverHandler { id: hov; enabled: !card.isSkel }
                 MouseArea {
                     anchors.fill: parent
+                    enabled: !card.isSkel
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        if (disco.selectedIndex === card.index)
-                            disco.itemOpenRequested(card.modelData)    // second click = the door
-                        else
-                            disco.selectedIndex = card.index           // first click = preview
+                        wall.forceActiveFocus()
+                        disco.keyboardMode = false
+                        wall.currentIndex = card.index
+                        if (disco.selectedIndex === card.index) {
+                            disco.selectHintUsed = true
+                            disco.itemOpenRequested(card.item)    // second click = the door
+                        } else {
+                            disco.selectedIndex = card.index      // first click = preview
+                        }
                     }
                 }
             }
 
-            // skeletons while the first page loads
-            Row {
-                visible: disco.loading && disco.items.length === 0
-                spacing: 16
-                Repeater {
-                    model: 5
-                    Rectangle {
-                        width: 150; height: 225; radius: 6
-                        color: Qt.rgba(1, 1, 1, 0.07)
-                        border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.10)
-                    }
-                }
-            }
-            // honest empty state
+            // honest empty state (skeletons now live in-grid, reserving exact cells)
             Text {
                 visible: !disco.loading && disco.items.length === 0 && !disco.missingAddon
                 anchors.centerIn: parent
