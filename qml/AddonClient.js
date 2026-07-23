@@ -379,3 +379,74 @@ function loadStreams(extensions, type, id, onPartial, onDone) {
         })(exts[i], i);
     }
 }
+
+// ---------------------------------------------------- Discover (arc 2026-07-23)
+
+// Discover's picker wants EVERY installed addon's catalogs INCLUDING core rows
+// (Cinemeta's Popular/New are the picker's backbone — unlike the tab shelves,
+// which skip core because the house rows already carry Cinemeta).
+// A catalog qualifies when every isRequired extra can be auto-answered from its
+// options (search-required catalogs stay excluded until the search stage).
+function discoverBrowsable(catalog) {
+    var extras = (catalog && catalog.extra) || [];
+    for (var i = 0; i < extras.length; i++) {
+        var x = extras[i];
+        if (!x || !x.isRequired) continue;
+        if (x.name === "skip") continue;
+        var opts = x.options || (x.name === "genre" ? (catalog.genres || []) : []);
+        if (x.name === "search" || !opts.length) return false;
+    }
+    return true;
+}
+
+// [{extName, transportUrl, type, catalogId, title, extra, genres, core}] for one
+// content type, in installed (ask) order. Used by DiscoverApi only.
+function discoverCatalogSpecs(installedList, contentType) {
+    var out = [];
+    for (var i = 0; i < (installedList || []).length; i++) {
+        var e = installedList[i];
+        if (!e || e.enabled !== true) continue;
+        var m = e.manifest || ({});
+        var cats = m.catalogs || [];
+        for (var j = 0; j < cats.length; j++) {
+            var c = cats[j];
+            if (!c || !c.id || !c.type || c.type !== contentType) continue;
+            if (!discoverBrowsable(c)) continue;
+            out.push({
+                extName: m.name || e.id,
+                transportUrl: String(e.transportUrl),
+                type: c.type,
+                catalogId: String(c.id),
+                title: c.name || m.name || "Catalog",
+                extra: c.extra || [],
+                genres: c.genres || [],
+                core: e.core === true
+            });
+        }
+    }
+    return out;
+}
+
+// /catalog/{type}/{id}[/{extraProps}].json — extraPairs = [["genre","Action"]],
+// skip appended when > 0. Values are URI-encoded; the path id too.
+function catalogUrl(transportUrl, type, catalogId, extraPairs, skip) {
+    var base = String(transportUrl).replace(/\/manifest\.json$/i, "");
+    var url = base + "/catalog/" + type + "/" + encodeURIComponent(catalogId);
+    var parts = [];
+    for (var i = 0; i < (extraPairs || []).length; i++) {
+        var p = extraPairs[i];
+        if (p && p[0] && p[1] !== null && p[1] !== undefined && String(p[1]).length)
+            parts.push(p[0] + "=" + encodeURIComponent(p[1]));
+    }
+    if (skip && skip > 0) parts.push("skip=" + skip);
+    if (parts.length) url += "/" + parts.join("&");
+    return url + ".json";
+}
+
+// One page of one catalog → metas array (defensive cap 100).
+function fetchCatalogUrl(url, done) {
+    _get(url, FAST_TIMEOUT_MS, function(json) {
+        var metas = (json && json.metas) ? json.metas : [];
+        done(metas.slice(0, 100));
+    });
+}
