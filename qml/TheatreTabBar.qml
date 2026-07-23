@@ -17,6 +17,7 @@ Item {
     Theme { id: theme }
 
     readonly property var tabModel: [
+        { key: "discover", label: "Discover" },
         { key: "movies", label: "Movies" },
         { key: "shows", label: "Shows" },
         { key: "anime", label: "Anime" }
@@ -25,7 +26,7 @@ Item {
     Glass {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width, 480)
+        width: Math.min(parent.width, 620)
         height: 54
         backdrop: tabs.backdrop
         radius: 18
@@ -43,7 +44,7 @@ Item {
                     id: pill
                     required property var modelData
 
-                    width: (parent.width - 12) / 3
+                    width: (parent.width - (tabs.tabModel.length - 1) * 6 - 12) / tabs.tabModel.length
                     height: parent.height
                     radius: 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold : (ma.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent")
