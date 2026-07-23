@@ -1,0 +1,513 @@
+// Comic Reader — ORCHESTRATION SHELL oracle (Task 9).
+//
+// Instantiates qml/comicreader/ComicReaderShell.qml offscreen with INJECTED FAKE seams — a fake
+// backend core (the ComicReaderCore API), a fake Progress sink, and a fake page store — for all
+// three lanes (manga chapter / western comic / Tankoban volume) and asserts the orchestration the
+// shell owns:
+//   * ready manga entry -> core.openEntry(entryId, localPages, direction="rtl", persisted);
+//     ready western -> direction="ltr" (ComicReaderState smart default per lane).
+//   * an unavailable manga chapter routes startDownload() -> store.downloadChapter(...);
+//     an unavailable western issue -> store.downloadIssue(...);
+//     an unavailable Tankoban volume -> sourceRequested(entryId) (never a chapter-download API).
+//   * RESUME: given Progress.get returns a saved {resume:{page,scrollFrac,maxSeen}}, the shell
+//     applies currentPage + stripFraction + maxSeen BEFORE first paint (checked at Qt.callLater,
+//     i.e. after Component.onCompleted's load() ran and before any real frame).
+//   * PROGRESS: a per-page-change record is DEBOUNCED (NOT immediate — Task 10's strip scroll would
+//     storm QSettings otherwise); after the debounce interval it fires with the byte-identical
+//     Task 1 §4.1 payload. Crossing + close/shutdown record IMMEDIATELY. Nothing records when
+//     max <= 0 (the MangaReader.qml:211 guard).
+//   * CROSSING: next/previous over a newest-first `chapters` array opens the right adjacent entry
+//     and RECORDS progress for the outgoing entry BEFORE jumping (asserted via a shared event log);
+//     hasNext/hasPrev reflect the adjacency (false at the ends).
+//   * HIDE vs CLOSE: hiding the reader (visible:false — how the three callers "go back") FLUSHES
+//     progress but must NOT close the backend entry (reopen-same-entry would blank); the entry is
+//     torn down ONLY on destruction (shutdown()).
+//   * progressKind flips manga -> comic -> tankoban as western/entryKind change.
+//   * GRACEFUL DEGRADATION: null core+progress seams never error; a null STORE (western caller with
+//     no Comics context property) never errors.
+//   * NO Guided: the shell imports nothing under guided/ and references no guided service — the
+//     grep-style assertion lives in tests/test_comicreader_shell.ps1 (PowerShell can read the file;
+//     qml.exe cannot read arbitrary local files reliably). This harness pins BEHAVIOR.
+//
+// The three seams are injectable BECAUSE the shell declares them as plain `property var` with a
+// `typeof <ContextProperty> !== "undefined" ? ... : null` default — createObject assignment
+// overrides that default with our fake, exactly the mechanism the real app uses (context
+// properties) and the reason the shell degrades gracefully when a seam is absent (every call is
+// guarded `if (core) ...` / `if (progress) ...`).
+//
+// HOUSE HARNESS PATTERN (mirrors tests/comicreader_contract_harness.qml): a thrown error HANGS
+// qml.exe offscreen, so `ck` never throws — it collects failures; the run prints exactly ONE
+// `COMICREADER_SHELL_OK` when clean, else one `COMICREADER_SHELL_FAIL: <msg>` per failure and
+// Qt.exit(1). Because per-page recording is debounced, the run has a SYNC phase (all immediate
+// assertions) then a DEFERRED phase (fires after the debounce, asserts the debounced record +
+// close), then reports. A safety-net Timer fails loudly on a true hang instead of stalling CI.
+
+import QtQuick
+
+Item {
+    id: harness
+    width: 640; height: 480
+    visible: false
+
+    property var failures: []
+    function ck(cond, msg) { if (!cond) failures.push(msg) }
+
+    // shared ordered event log — both the fake core and the fake progress push here so the
+    // crossing test can prove record-before-jump ordering across two separate spies.
+    property var events: []
+
+    // ---- fake backend core: the ComicReaderCore QML-facing API (Task 7) ----
+    component FakeCore: QtObject {
+        // Q_PROPERTY surface the shell/surfaces read (present for shape; shell only needs a few)
+        property int generation: 0
+        property int pageCount: 0
+        property string couplingState: "auto:normal:1.0"
+        property var stripModel: null
+        // spies
+        property var lastOpenEntry: null
+        property int openCount: 0
+        property bool closed: false
+        property int closeCount: 0
+        // signals (shape parity with the real core)
+        signal entryChanged()
+        signal pageReady(int page)
+        signal pageFailed(int page, string code)
+        signal pairingChanged()
+        signal progressChanged()
+        function openEntry(entryId, pages, direction, persisted) {
+            lastOpenEntry = { entryId: String(entryId), pages: pages,
+                              direction: String(direction), persisted: persisted,
+                              pageCount: (pages ? pages.length : 0) }
+            pageCount = pages ? pages.length : 0
+            openCount += 1
+            harness.events.push({ t: "open", id: String(entryId) })
+        }
+        function closeEntry() { closed = true; closeCount += 1; harness.events.push({ t: "close" }) }
+        function setVisible(pages) {}
+        function unitForPage(page) { return { rightIndex: page - 1, leftIndex: -1, spread: false } }
+        function setSpreadOverride(page, state) {}
+        function nudgeCoupling() {}
+        function setMemorySaver(on) {}
+    }
+
+    // ---- fake Progress sink: record(payload) spy + get(kind, id) ----
+    component FakeProgress: QtObject {
+        property var saved: null          // what get(kind, id) hands back (resume restore)
+        property var lastRecord: null
+        property var records: []
+        function record(payload) {
+            lastRecord = payload
+            records.push(payload)
+            harness.events.push({ t: "record",
+                                  chapter: (payload && payload.resume) ? String(payload.resume.chapterId) : "" })
+        }
+        function get(kind, id) { return saved }
+    }
+
+    // ---- fake page store: same localPages/statusOf/download shape as Downloads/Comics ----
+    component FakePageStore: QtObject {
+        property var pages: []
+        property string lastLocalPagesArg: "<none>"
+        property var lastDownloadChapter: null
+        property var lastDownloadIssue: null
+        signal progress(string cid, real done, real total)
+        signal finished(string cid)
+        signal failed(string cid, string reason)
+        function localPages(cid) { lastLocalPagesArg = String(cid); return pages }
+        function statusOf(cid) { return { state: pages.length ? "ready" : "none", done: 0, total: 0 } }
+        function downloadChapter(cid, sid, title, label) {
+            lastDownloadChapter = { cid: String(cid), sid: String(sid), title: String(title), label: String(label) }
+        }
+        function downloadIssue(cid, url, sid, title, label, bytes) {
+            lastDownloadIssue = { cid: String(cid), url: String(url), sid: String(sid),
+                                  title: String(title), label: String(label), bytes: bytes }
+        }
+    }
+
+    // small structural deep-equal (plain object/array payload shapes)
+    function deepEqual(a, b) {
+        if (a === b) return true
+        if (typeof a !== typeof b) return false
+        if (a === null || b === null) return false
+        if (typeof a !== "object") return false
+        var ak = Object.keys(a), bk = Object.keys(b)
+        if (ak.length !== bk.length) return false
+        for (var i = 0; i < ak.length; i++) {
+            var k = ak[i]
+            if (!b.hasOwnProperty(k)) return false
+            if (!deepEqual(a[k], b[k])) return false
+        }
+        return true
+    }
+
+    function fivePages() {
+        return [ { index: 0, url: "file:///f/p0.png", group: 0 },
+                 { index: 1, url: "file:///f/p1.png", group: 0 },
+                 { index: 2, url: "file:///f/p2.png", group: 0 },
+                 { index: 3, url: "file:///f/p3.png", group: 0 },
+                 { index: 4, url: "file:///f/p4.png", group: 0 } ]
+    }
+
+    // ---- signal probes ----
+    property string gotSource: ""
+    property bool gotBack: false
+    property bool gotMin: false
+    property bool gotFull: false
+    property bool gotClose: false
+
+    property var shellComp: null
+
+    // makeShell(cfg) — create the shell with injected fakes; returns the instance.
+    function makeShell(cfg) {
+        var inst = shellComp.createObject(harness, cfg)
+        if (!inst) throw new Error("shell createObject returned null")
+        return inst
+    }
+
+    function report() {
+        if (failures.length === 0) {
+            console.log("COMICREADER_SHELL_OK")
+            Qt.exit(0)
+        } else {
+            for (var i = 0; i < failures.length; i++)
+                console.log("COMICREADER_SHELL_FAIL: " + failures[i])
+            Qt.exit(1)
+        }
+    }
+
+    // context stashed for the DEFERRED phase (asserted after the debounce interval elapses)
+    property var _mShell: null
+    property var _mProg: null
+    property var _mCore: null
+    property int _recBefore: 0
+    property var _expectPageRec: null
+
+    function runChecks() {
+        try {
+            // ===== 1. READY MANGA: openEntry(localPages, rtl); max; progressKind =====
+            // recordDebounceMs pinned tiny so the DEFERRED phase can observe the debounced record fast.
+            var mCore = fakeCoreA, mProg = fakeProgA, mStore = fakeStoreA
+            mStore.pages = fivePages()
+            var mShell = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20,
+                "seriesId": "s1", "seriesTitle": "Contract Series", "seriesCover": "file:///f/cover.png",
+                "core": mCore, "progress": mProg, "pageStore": mStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+
+            ck(mShell.max === 5, "ready manga: reader.max must be 5, got " + mShell.max)
+            ck(mShell.pageCount === 5, "ready manga: pageCount must be 5, got " + mShell.pageCount)
+            ck(String(mStore.lastLocalPagesArg) === "ch1",
+               "ready manga: store.localPages(curChapterId='ch1') must be called, got '" + mStore.lastLocalPagesArg + "'")
+            ck(mCore.lastOpenEntry !== null, "ready manga: core.openEntry must be called")
+            if (mCore.lastOpenEntry) {
+                ck(mCore.lastOpenEntry.entryId === "ch1", "ready manga: openEntry entryId must be 'ch1', got " + mCore.lastOpenEntry.entryId)
+                ck(mCore.lastOpenEntry.pageCount === 5, "ready manga: openEntry must receive the 5 local pages, got " + mCore.lastOpenEntry.pageCount)
+                ck(mCore.lastOpenEntry.direction === "rtl", "ready manga: openEntry direction must be 'rtl', got " + mCore.lastOpenEntry.direction)
+            }
+            ck(mShell.rtl === true, "ready manga: reader.rtl must be true")
+            ck(mShell.mode === "long_strip", "ready manga: mode must default to 'long_strip', got " + mShell.mode)
+
+            // trailing eager record on entry change: the freshly-opened entry is already persisted
+            // (a crash before the next page-turn/close must not lose it) — MangaReader.qml:157.
+            ck(mProg.records.length >= 1, "ready manga: entry open must EAGERLY record once (not wait for a page-turn), got " + mProg.records.length)
+
+            // progressKind flips manga -> comic -> tankoban
+            ck(mShell.progressKind === "manga", "progressKind must be 'manga', got " + mShell.progressKind)
+            mShell.western = true
+            ck(mShell.progressKind === "comic", "progressKind must flip to 'comic' when western, got " + mShell.progressKind)
+            mShell.western = false; mShell.entryKind = "tankoban"
+            ck(mShell.progressKind === "tankoban", "progressKind must flip to 'tankoban', got " + mShell.progressKind)
+            mShell.entryKind = "manga"   // restore for the record test below
+
+            // ---- required signals exist + connect + emit ----
+            harness.gotBack = false; harness.gotMin = false; harness.gotFull = false; harness.gotClose = false
+            mShell.backRequested.connect(function () { harness.gotBack = true })
+            mShell.minimizeRequested.connect(function () { harness.gotMin = true })
+            mShell.fullscreenRequested.connect(function () { harness.gotFull = true })
+            mShell.closeRequested.connect(function () { harness.gotClose = true })
+            mShell.backRequested();       ck(harness.gotBack,  "backRequested must connect + emit")
+            mShell.minimizeRequested();   ck(harness.gotMin,   "minimizeRequested must connect + emit")
+            mShell.fullscreenRequested(); ck(harness.gotFull,  "fullscreenRequested must connect + emit")
+            mShell.closeRequested();      ck(harness.gotClose, "closeRequested must connect + emit")
+
+            // ===== PROGRESS record on a page change is DEBOUNCED (not immediate) =====
+            var recBefore = mProg.records.length
+            mShell.currentPage = 3
+            ck(mProg.records.length === recBefore,
+               "page change must be DEBOUNCED — no immediate record, got " + mProg.records.length + " (was " + recBefore + ")")
+            var expectPageRec = {
+                "id": "s1", "kind": "manga", "caption": "Contract Series", "title": "Contract Series",
+                "sub": "Chapter 1", "cover": "file:///f/cover.png",
+                "c1": "#3a2f55", "c2": "#15111f",
+                "progress": 0.6,
+                "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "maxSeen": 3, "finished": false }
+            }
+            // stash for the deferred phase (after the debounce fires + the close flush)
+            harness._mShell = mShell; harness._mProg = mProg; harness._mCore = mCore
+            harness._recBefore = recBefore; harness._expectPageRec = expectPageRec
+
+            // ===== 1b. HIDE must NOT close the backend (callers hide on back, then reopen) =====
+            var hCore = fakeCoreH, hProg = fakeProgH, hStore = fakeStoreH
+            hStore.pages = fivePages()
+            var hShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-hide", "seriesTitle": "Hide", "seriesCover": "file:///f/h.png",
+                "core": hCore, "progress": hProg, "pageStore": hStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            var hOpenCount = hCore.openCount
+            ck(hCore.closed === false, "hide test: entry must be open (not closed) after construction")
+            hShell.visible = false
+            ck(hCore.closed === false, "HIDE must NOT call core.closeEntry() (callers reopen the same entry)")
+            hShell.visible = true
+            ck(hCore.closed === false, "reopen after hide must keep the entry open (still not closed)")
+            ck(hCore.openCount === hOpenCount, "reopen-same-entry after hide must not need a reload/reopen, got openCount " + hCore.openCount)
+
+            // ===== 2a. READY WESTERN: direction 'ltr', progressKind 'comic' =====
+            var wCore = fakeCoreW, wProg = fakeProgW, wStore = fakeStoreW
+            wStore.pages = fivePages()
+            var wShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "gc:x", "seriesTitle": "West", "seriesCover": "file:///f/w.png",
+                "core": wCore, "progress": wProg, "pageStore": wStore,
+                "entryKind": "manga", "western": true,
+                "chapters": [{ "id": "iss1", "number": "1", "name": "", "url": "http://p/1", "sizeMB": 10 }],
+                "chapterId": "iss1", "chapterLabel": "Issue 1"
+            })
+            ck(wCore.lastOpenEntry && wCore.lastOpenEntry.direction === "ltr",
+               "ready western: openEntry direction must be 'ltr', got " + (wCore.lastOpenEntry ? wCore.lastOpenEntry.direction : "<none>"))
+            ck(wShell.rtl === false, "ready western: rtl must be false")
+            ck(wShell.progressKind === "comic", "ready western: progressKind must be 'comic', got " + wShell.progressKind)
+
+            // ===== 2b. UNAVAILABLE MANGA chapter -> store.downloadChapter(...) =====
+            var uCore = fakeCoreU, uProg = fakeProgU, uStore = fakeStoreU
+            uStore.pages = []   // not downloaded
+            var uShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s2", "seriesTitle": "Unavail", "seriesCover": "file:///f/u.png",
+                "core": uCore, "progress": uProg, "pageStore": uStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "chU", "number": "9", "name": "" }],
+                "chapterId": "chU", "chapterLabel": "Chapter 9"
+            })
+            ck(uShell.max === 0, "unavailable manga: max must be 0, got " + uShell.max)
+            ck(uCore.lastOpenEntry === null, "unavailable manga: core.openEntry must NOT be called for a not-ready entry")
+            // NOT recorded while max <= 0 (MangaReader.qml:211 guard) — even the eager entry record is guarded
+            ck(uProg.records.length === 0, "unavailable manga: progress.record must NOT fire while max<=0, got " + uProg.records.length)
+            uShell.currentPage = 2   // poke a page change — still guarded
+            ck(uProg.records.length === 0, "unavailable manga: a page change with max<=0 must not record, got " + uProg.records.length)
+            uShell.startDownload()
+            var dc = uStore.lastDownloadChapter
+            ck(dc !== null && dc.cid === "chU" && dc.sid === "s2" && dc.label === "Chapter 9",
+               "unavailable manga startDownload must call store.downloadChapter(chU, s2, .., 'Chapter 9'), got " + JSON.stringify(dc))
+
+            // ===== 2c. UNAVAILABLE WESTERN issue -> store.downloadIssue(...) =====
+            var uwStore = fakeStoreUW
+            uwStore.pages = []
+            var uwShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "gc:y", "seriesTitle": "UW", "seriesCover": "",
+                "core": fakeCoreUW, "progress": fakeProgUW, "pageStore": uwStore,
+                "entryKind": "manga", "western": true,
+                "chapters": [{ "id": "issU", "number": "3", "name": "", "url": "http://p/3", "sizeMB": 5 }],
+                "chapterId": "issU", "chapterLabel": "Issue 3"
+            })
+            uwShell.startDownload()
+            var di = uwStore.lastDownloadIssue
+            ck(di !== null && di.cid === "issU" && di.url === "http://p/3" && di.sid === "gc:y"
+               && di.bytes === 5 * 1024 * 1024,
+               "unavailable western startDownload must call store.downloadIssue(issU, url, gc:y, .., 5MiB), got " + JSON.stringify(di))
+
+            // ===== 2d. UNAVAILABLE TANKOBAN volume -> sourceRequested(entryId) =====
+            var tStore = fakeStoreT
+            tStore.pages = []
+            harness.gotSource = ""
+            var tShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "tk:1", "seriesTitle": "Tank", "seriesCover": "file:///f/t.png",
+                "core": fakeCoreT, "progress": fakeProgT, "pageStore": tStore,
+                "entryKind": "tankoban", "entryLabelPrefix": "Vol. ",
+                "chapters": [{ "id": "v1", "number": 1, "name": "" }],
+                "chapterId": "v1", "chapterLabel": "Vol. 1"
+            })
+            tShell.sourceRequested.connect(function (id) { harness.gotSource = String(id) })
+            tShell.startDownload()
+            ck(harness.gotSource === "v1",
+               "unavailable tankoban startDownload must emit sourceRequested('v1'), got '" + harness.gotSource + "'")
+            ck(fakeStoreT.lastDownloadChapter === null && fakeStoreT.lastDownloadIssue === null,
+               "tankoban must NOT touch a chapter-download API")
+
+            // ===== 3. RESUME: apply saved page + strip fraction + maxSeen before first paint =====
+            var rCore = fakeCoreR, rProg = fakeProgR, rStore = fakeStoreR
+            rStore.pages = fivePages()
+            rProg.saved = { "cover": "file:///f/c.png",
+                            "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0.5, "maxSeen": 4 } }
+            var rShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s3", "seriesTitle": "Resume", "seriesCover": "file:///f/c.png",
+                "core": rCore, "progress": rProg, "pageStore": rStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(rShell.currentPage === 3, "resume: currentPage must be restored to 3 before first paint, got " + rShell.currentPage)
+            ck(rShell.stripFraction === 0.5, "resume: stripFraction must be restored to 0.5, got " + rShell.stripFraction)
+            ck(rShell.maxSeen === 4, "resume: maxSeen must be restored to 4, got " + rShell.maxSeen)
+
+            // ===== 4a. CROSSING next: newest-first, record BEFORE jump; hasNext/hasPrev =====
+            var xCore = fakeCoreX, xProg = fakeProgX, xStore = fakeStoreX
+            xStore.pages = fivePages()   // every id is 'ready' (localPages ignores id here)
+            harness.events = []
+            var xShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-cross", "seriesTitle": "Cross", "seriesCover": "file:///f/x.png",
+                "core": xCore, "progress": xProg, "pageStore": xStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "c3", "number": "3", "name": "" },
+                             { "id": "c2", "number": "2", "name": "" },
+                             { "id": "c1", "number": "1", "name": "" }],
+                "chapterId": "c2", "chapterLabel": "Chapter 2"
+            })
+            // at the MIDDLE entry: both directions available
+            ck(xShell.hasNext === true, "hasNext must be true at a middle entry (c2)")
+            ck(xShell.hasPrev === true, "hasPrev must be true at a middle entry (c2)")
+            xShell.goNext()
+            ck(String(xShell.curChapterId) === "c3", "crossing next: curChapterId must become 'c3' (newest-first index-1), got " + xShell.curChapterId)
+            ck(xCore.lastOpenEntry && xCore.lastOpenEntry.entryId === "c3",
+               "crossing next: core.openEntry must open 'c3', got " + (xCore.lastOpenEntry ? xCore.lastOpenEntry.entryId : "<none>"))
+            // at the NEWEST entry (c3): no next, still a previous
+            ck(xShell.hasNext === false, "hasNext must be false at the newest entry (c3)")
+            ck(xShell.hasPrev === true, "hasPrev must be true at the newest entry (c3)")
+            // record(c2) must appear BEFORE open(c3) in the shared event log
+            var idxRecC2 = -1, idxOpenC3 = -1
+            for (var e = 0; e < harness.events.length; e++) {
+                var ev = harness.events[e]
+                if (idxRecC2 < 0 && ev.t === "record" && ev.chapter === "c2") idxRecC2 = e
+                if (idxOpenC3 < 0 && ev.t === "open" && ev.id === "c3") idxOpenC3 = e
+            }
+            ck(idxRecC2 >= 0 && idxOpenC3 >= 0 && idxRecC2 < idxOpenC3,
+               "crossing next: must record outgoing 'c2' BEFORE opening 'c3' (record@" + idxRecC2 + ", open@" + idxOpenC3 + ")")
+
+            // ===== 4b. CROSSING previous: index+1 (older); hasPrev false at the oldest =====
+            var pStore = fakeStoreP
+            pStore.pages = fivePages()
+            var pShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-prev", "seriesTitle": "Prev", "seriesCover": "file:///f/p.png",
+                "core": fakeCoreP, "progress": fakeProgP, "pageStore": pStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "c3", "number": "3", "name": "" },
+                             { "id": "c2", "number": "2", "name": "" },
+                             { "id": "c1", "number": "1", "name": "" }],
+                "chapterId": "c2", "chapterLabel": "Chapter 2"
+            })
+            pShell.goPrev(false)
+            ck(String(pShell.curChapterId) === "c1", "crossing previous: curChapterId must become 'c1' (index+1, older), got " + pShell.curChapterId)
+            ck(fakeCoreP.lastOpenEntry && fakeCoreP.lastOpenEntry.entryId === "c1",
+               "crossing previous: core.openEntry must open 'c1', got " + (fakeCoreP.lastOpenEntry ? fakeCoreP.lastOpenEntry.entryId : "<none>"))
+            // at the OLDEST entry (c1): no previous, still a next
+            ck(pShell.hasPrev === false, "hasPrev must be false at the oldest entry (c1)")
+            ck(pShell.hasNext === true, "hasNext must be true at the oldest entry (c1)")
+
+            // ===== 5a. graceful degradation: null core+progress seams never error =====
+            var gStore = fakeStoreG
+            gStore.pages = fivePages()
+            var gShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-null", "seriesTitle": "NullSeams", "seriesCover": "file:///f/n.png",
+                "core": null, "progress": null, "pageStore": gStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(gShell.max === 5, "null seams: shell still resolves pages (max=5), got " + gShell.max)
+            gShell.currentPage = 2      // must not throw with progress null
+            gShell.goPrev(false)        // must not throw with core null
+            gShell.shutdown()           // must not throw with core null
+            ck(true, "null seams: page change / crossing / shutdown must not error")
+
+            // ===== 5b. graceful degradation: a NULL STORE (western caller, no Comics ctx prop) =====
+            // pageStore null AND no Comics/Downloads context property offscreen -> store resolves null.
+            var sCore = fakeCoreS, sProg = fakeProgS
+            var sShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "gc:z", "seriesTitle": "NullStore", "seriesCover": "file:///f/z.png",
+                "core": sCore, "progress": sProg, "pageStore": null,
+                "entryKind": "manga", "western": true,
+                "chapters": [{ "id": "issZ", "number": "1", "name": "", "url": "http://p/z", "sizeMB": 1 }],
+                "chapterId": "issZ", "chapterLabel": "Issue Z"
+            })
+            ck(sShell.max === 0, "null store: with no store the shell resolves no pages (max=0), got " + sShell.max)
+            ck(sCore.lastOpenEntry === null, "null store: core.openEntry must NOT be called (no pages)")
+            sShell.currentPage = 2      // must not throw
+            sShell.startDownload()      // guarded by `if (!store) return` — must not throw
+            sShell.goNext()             // must not throw
+            sShell.shutdown()           // must not throw
+            ck(true, "null store: page change / startDownload / crossing / shutdown must not error")
+
+        } catch (e) {
+            failures.push("exception during checks: " + e.message)
+        }
+        // hand off to the deferred phase to observe the DEBOUNCED page-change record + close
+        deferredTimer.start()
+    }
+
+    // DEFERRED phase — runs after the debounce interval elapses: assert the debounced page-change
+    // record fired with the exact §4.1 payload, then assert close flushes immediately + closes.
+    function runDeferred() {
+        try {
+            ck(_mProg.records.length > _recBefore,
+               "page change must produce a DEBOUNCED record after the interval, got " + _mProg.records.length + " (was " + _recBefore + ")")
+            ck(deepEqual(_mProg.lastRecord, _expectPageRec),
+               "debounced page-change record must deep-equal the §4.1 payload, got " + JSON.stringify(_mProg.lastRecord))
+
+            // CLOSE: immediate flush + core.closeEntry() (must NOT wait for the debounce)
+            var recBeforeClose = _mProg.records.length
+            _mShell.shutdown()
+            ck(_mProg.records.length > recBeforeClose, "close must flush a final progress.record (immediate)")
+            ck(deepEqual(_mProg.lastRecord, _expectPageRec),
+               "close record must deep-equal the §4.1 payload (state unchanged), got " + JSON.stringify(_mProg.lastRecord))
+            ck(_mCore.closed === true, "close (shutdown) must call core.closeEntry()")
+        } catch (e) {
+            failures.push("exception during deferred checks: " + e.message)
+        }
+        report()
+    }
+
+    // declarative fake instances (one bundle per scenario, ids referenced in runChecks)
+    FakeCore { id: fakeCoreA }   FakeProgress { id: fakeProgA }   FakePageStore { id: fakeStoreA }
+    FakeCore { id: fakeCoreH }   FakeProgress { id: fakeProgH }   FakePageStore { id: fakeStoreH }
+    FakeCore { id: fakeCoreW }   FakeProgress { id: fakeProgW }   FakePageStore { id: fakeStoreW }
+    FakeCore { id: fakeCoreU }   FakeProgress { id: fakeProgU }   FakePageStore { id: fakeStoreU }
+    FakeCore { id: fakeCoreUW }  FakeProgress { id: fakeProgUW }  FakePageStore { id: fakeStoreUW }
+    FakeCore { id: fakeCoreT }   FakeProgress { id: fakeProgT }   FakePageStore { id: fakeStoreT }
+    FakeCore { id: fakeCoreR }   FakeProgress { id: fakeProgR }   FakePageStore { id: fakeStoreR }
+    FakeCore { id: fakeCoreX }   FakeProgress { id: fakeProgX }   FakePageStore { id: fakeStoreX }
+    FakeCore { id: fakeCoreP }   FakeProgress { id: fakeProgP }   FakePageStore { id: fakeStoreP }
+    FakeCore { id: fakeCoreS }   FakeProgress { id: fakeProgS }
+    FakePageStore { id: fakeStoreG }
+
+    // fires the deferred phase after the pinned 20ms record debounce has elapsed
+    Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
+
+    Component.onCompleted: {
+        try {
+            shellComp = Qt.createComponent("../qml/comicreader/ComicReaderShell.qml")
+            if (shellComp.status === Component.Error) throw new Error("shell component: " + shellComp.errorString())
+            Qt.callLater(runChecks)
+        } catch (e) {
+            console.log("COMICREADER_SHELL_FAIL: setup: " + e.message); Qt.exit(1)
+        }
+    }
+
+    // safety net — a true hang (not a thrown error) still fails loudly instead of stalling CI
+    Timer {
+        interval: 8000; running: true
+        onTriggered: { console.log("COMICREADER_SHELL_FAIL: timeout"); Qt.exit(1) }
+    }
+}
