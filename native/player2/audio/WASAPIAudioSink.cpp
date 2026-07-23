@@ -10,6 +10,7 @@
 #include <thread>
 
 #include <audioclient.h>
+#include <avrt.h>
 #include <endpointvolume.h>
 #include <mmdeviceapi.h>
 #include <wrl/client.h>
@@ -260,6 +261,18 @@ public:
             bool active = false;
             ~CoGuard() { if (active) CoUninitialize(); }
         } coGuard{uninitializeCom};
+
+        // Register this thread with MMCSS as "Pro Audio" so Windows keeps it real-time scheduled even
+        // when the app is minimized/backgrounded. Without this, background throttling delays the
+        // ~10 ms endpoint refill below and the endpoint underruns (audible crackle) despite a full
+        // software queue — exactly the "fractures when minimized" symptom.
+        struct MmcssGuard
+        {
+            HANDLE handle = nullptr;
+            ~MmcssGuard() { if (handle) AvRevertMmThreadCharacteristics(handle); }
+        } mmcssGuard;
+        DWORD mmcssTaskIndex = 0;
+        mmcssGuard.handle = AvSetMmThreadCharacteristicsW(L"Pro Audio", &mmcssTaskIndex);
 
         ComPtr<IMMDeviceEnumerator> enumerator;
         ComPtr<IMMDevice> device;

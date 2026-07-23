@@ -166,6 +166,12 @@ void DemuxSession::cancel()
 {
     m_cancelled.store(true, std::memory_order_release);
     m_commandCv.notify_all();
+    // Wake a demux thread that may be blocked writing into a full audio sink. WASAPIAudioSink's
+    // enqueueBlocking() has no cancel predicate, so if the sink ever stops draining (a device fault,
+    // or a future direct pause) a teardown could never join. Flushing empties the sink queue and
+    // bumps its generation, releasing the writer; the worker then observes m_cancelled and exits.
+    if (AudioPipeline *audio = m_audioPipeline.load(std::memory_order_acquire))
+        audio->flush(m_activeGeneration.load(std::memory_order_acquire));
     // Unblock a blocked AVIO read so the worker can observe the cancel and exit; the shared_ptr copy
     // keeps the source alive across this call even as the worker tears it down.
     std::shared_ptr<HttpMediaSource> source;
@@ -526,8 +532,16 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     std::atomic<bool> videoReachedEnd{false};
     QString videoFailureMessage; // published before videoThreadFailed is set (release/acquire)
 
-    // Bounded video read-ahead: ~2 s of packets, with byte and count safety caps.
-    PacketQueue videoQueue(PacketQueue::Bounds{2'000'000, 48 * 1024 * 1024, 600});
+    // Bounded video read-ahead. This horizon is load-bearing: audio is decoded inline on THIS
+    // (demux) thread, and packets are read interleaved, so the demux cannot reach a future audio
+    // packet while it is blocked pushing a full video queue. The horizon must therefore exceed the
+    // audio pre-roll the sink needs — loudnorm's ~3 s lookahead plus the 2 s WASAPI cushion (~5 s) —
+    // or the video back-pressure re-paces the demuxer to real time and the loudness filter starves
+    // (measured: Full/Light sink floor collapses, underruns climb). 8 s covers 3 s + 2 s + interleave
+    // and scheduling margin. The byte/packet caps are raised proportionally so the time bound, not a
+    // smaller cap, is the one that governs. (In practice the audio sink's own 2 s back-pressure
+    // self-limits the demuxer to ~5 s of read-ahead, well under this ceiling.)
+    PacketQueue videoQueue(PacketQueue::Bounds{8'000'000, 128 * 1024 * 1024, 1200});
 
     // The video decode thread: builds its own hardware decoder, then pops packets and paces frames
     // against the master clock. Joined at the end of run() — its captured references outlive it.
@@ -948,10 +962,11 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 const qint64 clockPtsUs = ptsUs + m_audioDelayUs.load(std::memory_order_acquire);
                 if (!audioPipeline->submitDecodedFrame(audioFrame.get(), clockPtsUs, gen,
                                                        &audioError)) {
-                    if (m_commandPending.load(std::memory_order_acquire) ||
+                    if (m_cancelled.load(std::memory_order_acquire) ||
+                        m_commandPending.load(std::memory_order_acquire) ||
                         gen != m_activeGeneration.load(std::memory_order_acquire)) {
                         av_frame_unref(audioFrame.get());
-                        return true; // benign: a flush/seek is in flight
+                        return true; // benign: cancel, or a flush/seek, is in flight
                     }
                     decodeFailure = audioError;
                     return false;

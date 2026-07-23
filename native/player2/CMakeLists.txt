@@ -94,6 +94,7 @@ target_link_libraries(player2_core
     dxgi
     ole32
     uuid
+    avrt
 )
 
 add_executable(player2_harness

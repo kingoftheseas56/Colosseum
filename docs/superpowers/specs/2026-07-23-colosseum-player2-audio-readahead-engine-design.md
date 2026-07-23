@@ -136,6 +136,60 @@ landing frame), exactly mirroring today's `decodingToTarget` logic — just on t
 - **Eyes-on (Hemanth):** launch `player2_harness --file <5.1 clip> --normalization full`; confirm
   "loud" no longer fractures. This is the acceptance gate no test replaces.
 
+## Cross-substrate review + the read-ahead horizon fix (Codex, 2026-07-23)
+
+The first cut (`fe495b7`) moved the throttle but did not remove it — Hemanth's ears caught that
+Light AND Full still fractured. Codex (Agent 0 substrate) independently confirmed the mechanism and
+**measured** it: because audio is decoded inline on the demux thread and packets are read
+interleaved, the demux cannot reach a future audio packet while blocked pushing a full video queue;
+the video thread drains one packet per presented frame, so a **2 s video horizon re-paces the whole
+demuxer to real time**. loudnorm's ~3 s lookahead never fills.
+
+**Fix (a) — enlarge the read-ahead horizon** to `8'000'000 us / 128 MB / 1200 pkts` (byte/packet
+caps raised so the *time* bound governs). 8 s covers loudnorm's 3 s + the 2 s WASAPI cushion +
+interleave/scheduling margin. In practice the sink's own 2 s back-pressure self-limits the demuxer
+to ~5 s of read-ahead, well under the ceiling.
+
+**Measured, same clip/benchmark (`player2_normalization_benchmark.ps1`, 30 s soak):**
+
+| mode | sink floor max (before → after) | final sink after | underruns (before → after) |
+|---|---|---|---|
+| Smooth | 2000 → 2000 ms | 1977 ms | 0 → 0 |
+| Light  | 480 → **2000** ms | 1996 ms | 332 → **15** |
+| Full   | 450 → **2000** ms | 1948 ms | 577 → **25** |
+
+Both fill the whole 2 s cushion and hold it to the end; the residual 15–25 underruns are the
+startup fill from zero and do not climb. loudnorm latency reads ~2916 ms (its 3 s lookahead is now
+fed). Codex's caveat that Light might have a *second* problem is resolved — Light is fully healthy
+too, so the video back-pressure was the entire throttle.
+
+### Why not the 3rd thread (Codex's key correction)
+A separate audio thread does **not** by itself decouple audio read-ahead: if the demux still blocks
+pushing a full video queue, it still can't reach later audio packets. The durable mpv model needs a
+demux/cache policy that blocks only when a *shared* budget is full (or per-stream watermarks that
+keep reading the underfilled stream) — i.e. option (b) *plus* a different back-pressure policy. The
+horizon fix delivers the cure without that complexity; the 3rd thread is deferred until a real need.
+
+### Correctness traps (Codex) — disposition
+- **Teardown hang** (`enqueueBlocking` has no cancel predicate): FIXED — `DemuxSession::cancel()`
+  now flushes the sink (empties + bumps generation) before joining, so a demux thread blocked
+  writing to a non-draining sink always releases. Currently unreachable (pause is command-based, so
+  the sink is paused only by the demux thread — mutually exclusive with the demux being blocked in
+  `enqueueBlocking`), but the guard removes the fragile invariant at a catastrophic seam.
+  `receiveAudioFrames` also now treats a woken write as benign on cancel.
+- **Seek cannot interrupt `PacketQueue::push()`** (predicate wakes only on cancel/capacity):
+  ACCEPTED for now. With the 8 s horizon the demuxer self-limits on the *audio sink* (~10 ms
+  bursts), rarely blocking on video push; when it does, a seek waits ≤ ~1 video frame (~40 ms), which
+  the passing `player2_seek_generation_test` and eyes-on bear out. A control-epoch wake on the queue
+  is a clean future refinement, not a current defect.
+- **Pause has no explicit park in the video thread** — it idles on a frozen clock. ACCEPTED: the
+  frozen clock is a correct park (the next-frame deadline never arrives; the wait loop idles in ≤5 ms
+  slices re-checking cancel/seek, ~0 CPU). Seek-while-paused (seekEpoch) and cancel-while-paused both
+  wake it. Documented here so the doc matches the implementation.
+- Filter-seek reset, generation-reject-as-cancellation: already correct.
+
 ## Not in scope this pass
-- The separate audio-decode thread (3rd thread) — only if eyes-on shows residual coupling.
+- The separate audio-decode thread (3rd thread) + shared-budget demux back-pressure — deferred; the
+  horizon fix cures the starvation without it.
+- Seek-interrupts-push control epoch on PacketQueue — future refinement.
 - Task 13 remaining chrome, Tasks 14-16.
