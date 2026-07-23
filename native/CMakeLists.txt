@@ -1080,6 +1080,61 @@ if(COLOSSEUM_ENABLE_ONNX)
             "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
             "$<TARGET_FILE_DIR:english_forced_aligner_harness>"
         VERBATIM)
+
+    # ── End-to-end alignment pipeline (Agent 2, Task 12 capstone) ─────────────
+    # The REAL chapter processor: composes the five alignment components (EPUB index,
+    # audio decode, coarse whisper transcribe, sequence match, ONNX CTC forced align)
+    # into the AudioTextAlignmentService's ChapterProcessor seam, and proves end-to-end
+    # on a REALISTIC 41-word / three-sentence chapter that passage.wav + passage.epub ->
+    # matcher anchors (matched=true) -> per-region forced alignment -> word/sentence cues
+    # -> a Ready chapter, while an unrelated EPUB the matcher rejects yields no cues ->
+    # CouldntSync. ONNX-linked (the aligner is), so it lives inside this guarded block. It
+    # compiles all five components + the store + the service (for the ChapterProcessor types
+    # + AUTOMOC) + the work spine + miniz. whisper-cli.exe resolves to the build-msvc staging
+    # dir (its DLLs sit beside it).
+    set(_ALIGN_WHISPER_EXE "")
+    foreach(_wc
+        "${CMAKE_CURRENT_SOURCE_DIR}/build-msvc/tools/whisper/whisper-cli.exe"
+        "${CMAKE_CURRENT_BINARY_DIR}/tools/whisper/whisper-cli.exe")
+        if(EXISTS "${_wc}")
+            set(_ALIGN_WHISPER_EXE "${_wc}")
+            break()
+        endif()
+    endforeach()
+
+    add_executable(alignment_pipeline_harness
+        ../tests/alignment_pipeline_harness.cpp
+        alignment/AlignmentPipeline.cpp alignment/AlignmentPipeline.h
+        alignment/AudioTextAlignmentService.cpp alignment/AudioTextAlignmentService.h
+        alignment/AlignmentStore.cpp alignment/AlignmentStore.h
+        alignment/AlignmentTypes.h
+        alignment/AudiobookAnalysisDecoder.cpp alignment/AudiobookAnalysisDecoder.h
+        alignment/CoarseTranscriber.cpp alignment/CoarseTranscriber.h
+        alignment/CoarseTypes.h
+        alignment/EpubSequenceMatcher.cpp alignment/EpubSequenceMatcher.h
+        alignment/EpubTextIndexer.cpp alignment/EpubTextIndexer.h
+        alignment/EnglishForcedAligner.cpp alignment/EnglishForcedAligner.h
+        AudioPairingStore.h
+        models/ModelManifest.cpp models/ModelManifest.h
+        work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h
+        work/BackgroundActivityRegistry.cpp work/BackgroundActivityRegistry.h
+        third_party/miniz/miniz.c)
+    target_include_directories(alignment_pipeline_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_compile_definitions(alignment_pipeline_harness PRIVATE
+        COLOSSEUM_ENABLE_ONNX
+        ALIGNMENT_AUDIO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/audio"
+        PIPELINE_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/pipeline"
+        COARSE_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/models/alignment/coarse"
+        FORCED_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/models/alignment/forced"
+        ALIGNMENT_FFMPEG_DIR="${_ALIGN_FFMPEG_DIR}"
+        WHISPER_EXE="${_ALIGN_WHISPER_EXE}")
+    target_link_libraries(alignment_pipeline_harness PRIVATE
+        Qt6::Core Qt6::Sql onnxruntime::onnxruntime)
+    add_custom_command(TARGET alignment_pipeline_harness POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
+            "$<TARGET_FILE_DIR:alignment_pipeline_harness>"
+        VERBATIM)
 endif()
 
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
