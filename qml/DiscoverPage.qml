@@ -126,8 +126,12 @@ Item {
     }
 
     // ─── selector row ───
+    // z above the wall: an open picker popup drops down INTO the wall region and must
+    // paint over the posters. A child's own z only orders it among ITS siblings, so the
+    // whole row has to outrank the (later-declared) wall container here.
     Row {
         id: selectorRow
+        z: 100
         spacing: 10
         DiscoverPicker {
             options: Api.typesFor(disco.installed).map(function(t) {
