@@ -64,11 +64,16 @@ bool AudioBufferQueue::enqueueBlocking(const AudioBuffer &buffer, quint64 genera
     return true;
 }
 
-int AudioBufferQueue::read(float *destination, int requestedFrames, int channels)
+int AudioBufferQueue::read(float *destination, int requestedFrames, int channels,
+                           qint64 *mediaPositionUs, quint64 *generation)
 {
     if (!destination || requestedFrames <= 0 || channels <= 0)
         return 0;
     std::unique_lock lock(m_mutex);
+    if (mediaPositionUs)
+        *mediaPositionUs = 0;
+    if (generation)
+        *generation = m_generation;
     std::fill_n(destination, requestedFrames * channels, 0.0f);
     int copied = 0;
     while (copied < requestedFrames && !m_entries.empty()) {
@@ -88,6 +93,10 @@ int AudioBufferQueue::read(float *destination, int requestedFrames, int channels
             m_lastReadMediaPositionUs = entry.buffer.ptsUs +
                 static_cast<qint64>((entry.offsetFrames * 1'000'000.0) /
                                     entry.buffer.format.sampleRate);
+            if (mediaPositionUs)
+                *mediaPositionUs = m_lastReadMediaPositionUs;
+            if (generation)
+                *generation = m_generation;
         }
         entry.offsetFrames += count;
         copied += count;
@@ -233,7 +242,26 @@ public:
         }
         m_paused.store(false, std::memory_order_release);
         m_open.store(false, std::memory_order_release);
-        m_clockValid.store(false, std::memory_order_release);
+        invalidateClock(m_generation.load(std::memory_order_acquire));
+    }
+
+    void publishClock(const AudioClockSnapshot &snapshot)
+    {
+        std::scoped_lock lock(m_clockMutex);
+        m_clock = snapshot;
+    }
+
+    void invalidateClock(quint64 generation)
+    {
+        std::scoped_lock lock(m_clockMutex);
+        m_clock.generation = generation;
+        m_clock.valid = false;
+    }
+
+    AudioClockSnapshot clock() const
+    {
+        std::scoped_lock lock(m_clockMutex);
+        return m_clock;
     }
 
     void finishInitialization(bool success, const QString &error = {})
@@ -359,7 +387,7 @@ public:
             if (wantPaused && !audioStopped) {
                 client->Stop();
                 audioStopped = true;
-                m_clockValid.store(false, std::memory_order_release);
+                invalidateClock(m_generation.load(std::memory_order_acquire));
                 continue;
             }
             if (!wantPaused && audioStopped) {
@@ -379,8 +407,11 @@ public:
             BYTE *destination = nullptr;
             if (FAILED(renderClient->GetBuffer(available, &destination)))
                 continue;
+            qint64 readMediaPositionUs = 0;
+            quint64 readGeneration = 0;
             const int copied = m_queue->read(reinterpret_cast<float *>(destination),
-                                             static_cast<int>(available), m_format.channels);
+                                             static_cast<int>(available), m_format.channels,
+                                             &readMediaPositionUs, &readGeneration);
             renderClient->ReleaseBuffer(available,
                                         copied == 0 ? AUDCLNT_BUFFERFLAGS_SILENT : 0);
             if (copied > 0) {
@@ -391,16 +422,17 @@ public:
                     devicePosition > 0 && deviceQpc100ns > 0;
                 const qint64 paddingUs = static_cast<qint64>(
                     static_cast<long double>(padding) * 1'000'000.0L / m_format.sampleRate);
-                m_clockMediaUs.store(std::max<qint64>(0,
-                    m_queue->lastReadMediaPositionUs() - paddingUs), std::memory_order_release);
-                m_clockQpc.store(queryPerformanceCounter(), std::memory_order_release);
-                m_clockValid.store(endpointClockAdvanced, std::memory_order_release);
+                publishClock(AudioClockSnapshot{
+                    std::max<qint64>(0, readMediaPositionUs - paddingUs),
+                    queryPerformanceCounter(),
+                    readGeneration,
+                    endpointClockAdvanced});
             } else {
                 // Zero-copy underrun: the endpoint just played inserted silence. The frozen
                 // (media, qpc) snapshot no longer tracks real audio, so invalidate the clock at once
                 // — otherwise video keeps extrapolating a dead clock through the gap and jumps when
                 // audio resumes. Recovery snaps the video master forward via decideClockResync.
-                m_clockValid.store(false, std::memory_order_release);
+                invalidateClock(m_generation.load(std::memory_order_acquire));
             }
         }
 
@@ -421,9 +453,8 @@ public:
     std::atomic_bool m_muted{false};
     std::atomic<quint64> m_generation{0};
     std::atomic<int> m_endpointFrames{0};
-    std::atomic<qint64> m_clockMediaUs{0};
-    std::atomic<qint64> m_clockQpc{0};
-    std::atomic_bool m_clockValid{false};
+    mutable std::mutex m_clockMutex;
+    AudioClockSnapshot m_clock;
     mutable std::mutex m_statusMutex;
     QString m_deviceName;
     std::mutex m_initMutex;
@@ -460,9 +491,7 @@ int WASAPIAudioSink::write(const AudioBuffer &buffer, quint64 generation, QStrin
 
 AudioClockSnapshot WASAPIAudioSink::clock() const
 {
-    return AudioClockSnapshot{m_impl->m_clockMediaUs.load(std::memory_order_acquire),
-                              m_impl->m_clockQpc.load(std::memory_order_acquire),
-                              m_impl->m_clockValid.load(std::memory_order_acquire)};
+    return m_impl->clock();
 }
 
 void WASAPIAudioSink::flush(quint64 generation)
@@ -470,7 +499,7 @@ void WASAPIAudioSink::flush(quint64 generation)
     m_impl->m_generation.store(generation, std::memory_order_release);
     if (m_impl->m_queue)
         m_impl->m_queue->flush(generation);
-    m_impl->m_clockValid.store(false, std::memory_order_release);
+    m_impl->invalidateClock(generation);
 }
 
 void WASAPIAudioSink::setPaused(bool paused)

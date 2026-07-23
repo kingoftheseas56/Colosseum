@@ -7,6 +7,7 @@ extern "C" {
 #include <libavutil/channel_layout.h>
 #include <libavutil/error.h>
 #include <libavutil/frame.h>
+#include <libavutil/mathematics.h>
 #include <libavutil/opt.h>
 #include <libavutil/samplefmt.h>
 }
@@ -166,7 +167,10 @@ bool AudioNormalizer::pullOutputs(std::vector<AudioBuffer> *outputs, QString *er
         AudioBuffer buffer;
         buffer.format = m_format;
         buffer.frameCount = frames;
-        buffer.ptsUs = m_frame->pts;
+        buffer.ptsUs = m_frame->pts == AV_NOPTS_VALUE
+            ? 0
+            : av_rescale_q(m_frame->pts, av_buffersink_get_time_base(m_sink),
+                           AVRational{1, 1'000'000});
         buffer.bytes.resize(frames * channels * static_cast<int>(sizeof(float)));
         std::memcpy(buffer.bytes.data(), m_frame->extended_data[0], buffer.bytes.size());
         m_pulledSamples += frames;

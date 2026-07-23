@@ -5,6 +5,7 @@
 #include <condition_variable>
 #include <deque>
 #include <mutex>
+#include <optional>
 
 struct AVPacket;
 
@@ -28,10 +29,10 @@ public:
         qint64 maxBufferedUs = 0; // buffered pts span cap (the read-ahead / loudnorm-lookahead knob)
         qint64 maxBytes = 0;      // total packet payload bytes cap
         int maxPackets = 0;       // packet count cap
-        // When true, a full push does NOT block: it drops the OLDEST buffered backlog (whole leading
-        // GOPs, so the new front is a keyframe) to make room, then admits. This is the video queue's
-        // policy — the demux thread decodes audio inline, so it must never block on a full video
-        // queue or audio starves and the whole pipeline deadlocks. A slow video skips ahead instead.
+        // Enables caller-authorized recovery from a full queue by dropping the OLDEST buffered
+        // backlog (whole leading GOPs, so the new front is a keyframe). A full queue alone does not
+        // authorize a drop: normal worker-fed read-ahead uses interruptible backpressure, while a
+        // clock/lateness policy may explicitly request recovery.
         bool dropOldestWhenFull = false;
     };
 
@@ -45,7 +46,7 @@ public:
     enum class Admit
     {
         Accepted,    // the packet was taken (ownership moved out)
-        Interrupted, // a pending command woke the blocked push; packet left intact for a retry
+        Interrupted, // command/recheck woke the blocked push; packet left intact for a retry
         Cancelled    // the queue was cancelled; packet left intact; the caller should exit
     };
 
@@ -63,15 +64,18 @@ public:
     bool push(AVPacket *packet, qint64 ptsUs, quint64 generation, bool keyframe = false);
 
     // Blocking push that a pending command can interrupt. Blocks while the queue is full until space
-    // frees (Accepted), cancel() (Cancelled), or interrupt() (Interrupted — packet left intact). This
-    // is the AUDIO queue's policy: blocking on it paces the demux to real-time audio consumption, but
-    // the demux thread is ALSO the sole command loop, so a full audio queue must never trap it — a
-    // Pause/Resume/Seek/Cancel interrupts the wait so the command is serviced, then the push retries.
-    Admit pushInterruptible(AVPacket *packet, qint64 ptsUs, quint64 generation);
+    // frees (Accepted), cancel() (Cancelled), or interrupt() (Interrupted — packet left intact).
+    // `dropOldestWhenFull` requests non-blocking whole-GOP recovery, but is honored only when Bounds
+    // enable that capability. Video applies a clock/lateness decision per admission; audio uses the
+    // default interruptible backpressure path. A positive `recheckAfterMs` bounds a normal wait and
+    // returns Interrupted with the packet intact so a clock-driven caller can re-evaluate lateness.
+    Admit pushInterruptible(AVPacket *packet, qint64 ptsUs, quint64 generation,
+                            bool keyframe = false, bool dropOldestWhenFull = false,
+                            int recheckAfterMs = 0);
 
     // Wake a blocked pushInterruptible so it returns Interrupted (one-shot, cleared on observe).
     // Reachable off the demux thread so DemuxSession's command/cancel path can free a demux that is
-    // blocked pushing into a full audio queue.
+    // blocked pushing into either full worker queue.
     void interrupt();
 
     // Move the front packet into `out` (the caller unrefs) and report its generation. If
@@ -94,6 +98,7 @@ public:
     int bufferedPackets() const;
     qint64 bufferedUs() const;
     qint64 bufferedBytes() const;
+    std::optional<qint64> oldestPtsUs() const;
 
 private:
     struct Entry
@@ -106,6 +111,7 @@ private:
 
     bool isFullLocked() const;
     qint64 bufferedUsLocked() const;
+    void dropOldestBacklogLocked();
 
     const Bounds m_bounds;
     mutable std::mutex m_mutex;

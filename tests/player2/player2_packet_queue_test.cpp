@@ -17,6 +17,8 @@ extern "C" {
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <type_traits>
+#include <utility>
 
 using namespace Colosseum::Player2;
 
@@ -294,9 +296,166 @@ bool pushKf(PacketQueue &queue, unsigned char tag, qint64 ptsUs, quint64 generat
     return ok;
 }
 
-// The video queue's policy: a full push NEVER blocks — it drops the oldest whole GOP so the new
-// front is a keyframe, then admits. Single-threaded here: a blocking push would HANG this test, so a
-// clean completion IS the proof the demux thread can never be stalled by a full video queue.
+template <typename Queue, typename = void>
+struct HasAdaptiveInterruptiblePush : std::false_type
+{
+};
+
+template <typename Queue>
+struct HasAdaptiveInterruptiblePush<
+    Queue,
+    std::void_t<decltype(std::declval<Queue &>().pushInterruptible(
+        static_cast<AVPacket *>(nullptr), qint64{}, quint64{}, bool{}, bool{}))>> : std::true_type
+{
+};
+
+template <typename Queue, typename = void>
+struct HasTimedAdaptiveInterruptiblePush : std::false_type
+{
+};
+
+template <typename Queue>
+struct HasTimedAdaptiveInterruptiblePush<
+    Queue,
+    std::void_t<decltype(std::declval<Queue &>().pushInterruptible(
+        static_cast<AVPacket *>(nullptr), qint64{}, quint64{}, bool{}, bool{}, int{}))>>
+    : std::true_type
+{
+};
+
+template <typename Queue>
+PacketQueue::Admit pushAdaptive(Queue &queue, unsigned char tag, qint64 ptsUs,
+                                quint64 generation, bool keyframe, bool dropLateBacklog)
+{
+    AVPacket *packet = makePacket(4, tag);
+    PacketQueue::Admit result = PacketQueue::Admit::Cancelled;
+    if constexpr (HasAdaptiveInterruptiblePush<Queue>::value) {
+        result = queue.pushInterruptible(
+            packet, ptsUs, generation, keyframe, dropLateBacklog);
+    } else {
+        // RED fallback: pre-fix DemuxSession always uses push() on its drop-oldest video queue, so a
+        // full queue drops forward regardless of whether the oldest backlog is actually late.
+        result = queue.push(packet, ptsUs, generation, keyframe)
+            ? PacketQueue::Admit::Accepted : PacketQueue::Admit::Cancelled;
+    }
+    av_packet_free(&packet);
+    return result;
+}
+
+template <typename Queue>
+PacketQueue::Admit pushAdaptiveWithRecheck(Queue &queue, unsigned char tag, qint64 ptsUs,
+                                           quint64 generation, bool keyframe,
+                                           bool dropLateBacklog, int recheckAfterMs)
+{
+    AVPacket *packet = makePacket(4, tag);
+    PacketQueue::Admit result = PacketQueue::Admit::Cancelled;
+    if constexpr (HasTimedAdaptiveInterruptiblePush<Queue>::value) {
+        result = queue.pushInterruptible(packet, ptsUs, generation, keyframe,
+                                         dropLateBacklog, recheckAfterMs);
+    } else {
+        // RED fallback: the first adaptive implementation can wait forever after an on-time
+        // decision, so it never asks again once the sink clock proves this backlog is late.
+        result = queue.pushInterruptible(packet, ptsUs, generation, keyframe,
+                                         dropLateBacklog);
+    }
+    av_packet_free(&packet);
+    return result;
+}
+
+// A full video queue is normal coordinated read-ahead once audio has its own worker, not proof that
+// video is late. Normal read-ahead must retain the oldest epoch and backpressure interruptibly.
+// Once the active sink clock proves that backlog is genuinely late, the same admission may discard
+// a whole leading GOP so playback can recover without decoding from a dangling inter-frame.
+void testAdaptiveVideoAdmissionBackpressuresOnTimeAndDropsLate()
+{
+    const PacketQueue::Bounds bounds{/*maxBufferedUs*/ 0, /*maxBytes*/ 0, /*maxPackets*/ 2,
+                                     /*dropOldestWhenFull*/ true};
+    PacketQueue onTimeQueue(bounds);
+    require(pushKf(onTimeQueue, 0xA0, 0, 1, true), "on-time K0 admitted");
+    require(pushKf(onTimeQueue, 0xA1, 1, 1, true), "on-time K1 fills the queue");
+
+    std::atomic<bool> pushReturned{false};
+    std::atomic<PacketQueue::Admit> onTimeAdmit{PacketQueue::Admit::Cancelled};
+    std::thread producer([&] {
+        onTimeAdmit = pushAdaptive(onTimeQueue, 0xA2, 2, 1, true,
+                                   /*dropLateBacklog*/ false);
+        pushReturned = true;
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(40));
+    const bool blockedWhileFull = !pushReturned.load();
+
+    AVPacket *out = av_packet_alloc();
+    quint64 generation = 0;
+    bool discontinuity = false;
+    const PacketQueue::PopResult result =
+        onTimeQueue.pop(out, &generation, &discontinuity);
+    const unsigned char firstTag = out->size > 0 ? out->data[0] : 0;
+    av_packet_unref(out);
+    producer.join();
+
+    require(blockedWhileFull,
+            "on-time worker-fed video overflow dropped forward instead of backpressuring");
+    require(result == PacketQueue::PopResult::Packet && firstTag == 0xA0,
+            "on-time worker-fed video overflow discarded the oldest presentation epoch");
+    require(!discontinuity,
+            "normal worker-fed read-ahead was misclassified as a video discontinuity");
+    require(onTimeAdmit.load() == PacketQueue::Admit::Accepted,
+            "the on-time blocked push did not complete after consumer progress");
+
+    PacketQueue lateQueue(bounds);
+    require(pushKf(lateQueue, 0xB0, 0, 1, true), "late K0 admitted");
+    require(pushKf(lateQueue, 0xB1, 1, 1, true), "late K1 fills the queue");
+    require(pushAdaptive(lateQueue, 0xB2, 2, 1, true, /*dropLateBacklog*/ true)
+                == PacketQueue::Admit::Accepted,
+            "proven-late backlog did not admit without blocking");
+
+    discontinuity = false;
+    require(lateQueue.pop(out, &generation, &discontinuity)
+                == PacketQueue::PopResult::Packet,
+            "late queue did not yield its recovery keyframe");
+    const unsigned char recoveryTag = out->size > 0 ? out->data[0] : 0;
+    av_packet_unref(out);
+    av_packet_free(&out);
+    require(recoveryTag == 0xB1,
+            "proven-late admission did not drop to the next decodable keyframe");
+    require(discontinuity,
+            "proven-late GOP drop did not report a decoder discontinuity");
+}
+
+void testAdaptiveVideoWaitReturnsForClockRecheck()
+{
+    PacketQueue queue(PacketQueue::Bounds{
+        /*maxBufferedUs*/ 0, /*maxBytes*/ 0, /*maxPackets*/ 2,
+        /*dropOldestWhenFull*/ true});
+    require(pushKf(queue, 0xC0, 0, 1, true), "recheck K0 admitted");
+    require(pushKf(queue, 0xC1, 1, 1, true), "recheck K1 fills the queue");
+
+    std::atomic<bool> started{false};
+    std::atomic<bool> returned{false};
+    std::atomic<PacketQueue::Admit> admit{PacketQueue::Admit::Cancelled};
+    std::thread producer([&] {
+        started = true;
+        admit = pushAdaptiveWithRecheck(queue, 0xC2, 2, 1, true,
+                                        /*dropLateBacklog*/ false,
+                                        /*recheckAfterMs*/ 10);
+        returned = true;
+    });
+    for (int i = 0; i < 50 && !started.load(); ++i)
+        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    const bool returnedForRecheck = returned.load();
+    if (!returnedForRecheck)
+        queue.interrupt(); // release the pre-fix indefinite wait so the test can report RED
+    producer.join();
+
+    require(returnedForRecheck,
+            "on-time video backpressure never returned to re-evaluate advancing sink time");
+    require(admit.load() == PacketQueue::Admit::Interrupted,
+            "a timed policy recheck moved or cancelled the pending video packet");
+}
+
+// The explicit drop-oldest primitive remains available once its caller has established distress.
+// Single-threaded completion proves that recovery admission never parks behind a full queue.
 void testDropOldestWhenFullNeverBlocksAndKeepsNewest()
 {
     PacketQueue queue(PacketQueue::Bounds{/*maxBufferedUs*/ 0, /*maxBytes*/ 0, /*maxPackets*/ 4,
@@ -412,6 +571,8 @@ int main()
         testFlushClearsBufferedAndResetsEndOfStream();
         testCancelUnblocksWaitersAndRejects();
         testEndOfStreamDrainsThenSignals();
+        testAdaptiveVideoAdmissionBackpressuresOnTimeAndDropsLate();
+        testAdaptiveVideoWaitReturnsForClockRecheck();
         testDropOldestWhenFullNeverBlocksAndKeepsNewest();
         testDropDiscontinuityReportedOncePerDrop();
         testInterruptiblePushBreaksOutForCommands();

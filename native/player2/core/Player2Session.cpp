@@ -222,7 +222,13 @@ double Player2Session::audioDelay() const noexcept { return m_audioDelay; }
 QString Player2Session::videoAspect() const { return m_videoAspect; }
 double Player2Session::panscan() const noexcept { return m_panscan; }
 double Player2Session::videoZoom() const noexcept { return m_videoZoom; }
-AudioClockSnapshot Player2Session::audioClock() const { return m_audioPipeline.clock(); }
+AudioClockSnapshot Player2Session::audioClock() const
+{
+    AudioClockSnapshot snapshot = m_audioPipeline.clock();
+    if (!snapshot.isValidForGeneration(m_generation.current()))
+        snapshot.valid = false;
+    return snapshot;
+}
 quint64 Player2Session::audioUnderruns() const { return m_audioPipeline.underrunCount(); }
 
 void Player2Session::setVideoPipeline(D3D11VideoPipeline *pipeline)

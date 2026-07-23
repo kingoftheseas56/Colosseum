@@ -1,5 +1,6 @@
 #include "player2/core/FrameScheduler.h"
 #include "player2/core/PlaybackClock.h"
+#include "player2/audio/WASAPIAudioSink.h"
 
 #include <algorithm>
 #include <cmath>
@@ -7,6 +8,8 @@
 #include <iostream>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace Colosseum::Player2;
@@ -24,6 +27,67 @@ void require(bool condition, const std::string &message)
 qint64 qpcForUs(qint64 microseconds)
 {
     return microseconds * QpcFrequency / 1'000'000;
+}
+
+void audioClockRejectsMismatchedGeneration()
+{
+    AudioClockSnapshot snapshot;
+    snapshot.mediaPositionUs = 4'000'000;
+    snapshot.qpcTimestamp = qpcForUs(4'000'000);
+    snapshot.generation = 7;
+    snapshot.valid = true;
+
+    require(snapshot.isValidForGeneration(7),
+            "the current generation's valid audio clock was rejected");
+    require(!snapshot.isValidForGeneration(8),
+            "a valid clock from the flushed generation was accepted as the new audio epoch");
+}
+
+template <typename Snapshot, typename = void>
+struct HasVideoBacklogDecision : std::false_type
+{
+};
+
+template <typename Snapshot>
+struct HasVideoBacklogDecision<
+    Snapshot,
+    std::void_t<decltype(shouldDropVideoBacklog(
+        std::declval<const Snapshot &>(), quint64{}, qint64{}, qint64{}, qint64{}, qint64{}))>>
+    : std::true_type
+{
+};
+
+template <typename Snapshot>
+bool dropVideoBacklog(const Snapshot &snapshot, quint64 expectedGeneration,
+                      qint64 oldestVideoPtsUs, qint64 qpcNow, qint64 qpcFrequency,
+                      qint64 lateThresholdUs)
+{
+    if constexpr (HasVideoBacklogDecision<Snapshot>::value) {
+        return shouldDropVideoBacklog(snapshot, expectedGeneration, oldestVideoPtsUs,
+                                      qpcNow, qpcFrequency, lateThresholdUs);
+    }
+    // Pre-fix video admission drops whenever its queue is full, independent of the sink clock.
+    return snapshot.valid;
+}
+
+void videoBacklogDropRequiresCurrentClockAndActualLateness()
+{
+    AudioClockSnapshot snapshot;
+    snapshot.mediaPositionUs = 1'000'000;
+    snapshot.qpcTimestamp = 0;
+    snapshot.generation = 7;
+    snapshot.valid = true;
+    const qint64 now = qpcForUs(100'000); // extrapolated audible position: 1.100 s
+
+    require(!dropVideoBacklog(snapshot, 7, 1'200'000, now, QpcFrequency, 40'000),
+            "on-time/ahead video backlog was misclassified as late");
+    require(dropVideoBacklog(snapshot, 7, 500'000, now, QpcFrequency, 40'000),
+            "genuinely late video backlog did not enter recovery");
+    require(!dropVideoBacklog(snapshot, 8, 500'000, now, QpcFrequency, 40'000),
+            "a stale audio-clock generation authorized a video GOP drop");
+    snapshot.valid = false;
+    require(!dropVideoBacklog(snapshot, 7, 500'000, now, QpcFrequency, 40'000),
+            "an invalid audio clock authorized a video GOP drop");
 }
 
 void clockSupportsPauseRateAndCorrection()
@@ -125,6 +189,8 @@ void thirtyMinuteAcceleratedSimulationHasNoDrift()
 int main()
 {
     try {
+        audioClockRejectsMismatchedGeneration();
+        videoBacklogDropRequiresCurrentClockAndActualLateness();
         clockSupportsPauseRateAndCorrection();
         clockResyncSnapsAfterUnderrunGapOnly();
         schedulerHandlesCommonFrameRates();

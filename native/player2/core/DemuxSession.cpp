@@ -175,6 +175,11 @@ void DemuxSession::cancel()
         if (m_audioQueueForInterrupt)
             m_audioQueueForInterrupt->interrupt();
     }
+    {
+        std::scoped_lock queueLock(m_videoQueueMutex);
+        if (m_videoQueueForInterrupt)
+            m_videoQueueForInterrupt->interrupt();
+    }
     // NOTE: do NOT flush the audio sink here. cancel() is also called at the top of open() as
     // pre-run cleanup, and flushing would stamp the sink with the previous generation right before
     // the new run's first write, which the sink then rejects ("Audio generation rejected"). The
@@ -199,10 +204,17 @@ void DemuxSession::enqueueCommand(const Command &command)
     }
     m_commandPending.store(true, std::memory_order_release);
     m_commandCv.notify_all();
-    // Wake a demux blocked pushing into a full audio queue so it breaks out and services this command.
-    std::scoped_lock queueLock(m_audioQueueMutex);
-    if (m_audioQueueForInterrupt)
-        m_audioQueueForInterrupt->interrupt();
+    // Wake a demux blocked on either worker queue so it breaks out and services this command.
+    {
+        std::scoped_lock queueLock(m_audioQueueMutex);
+        if (m_audioQueueForInterrupt)
+            m_audioQueueForInterrupt->interrupt();
+    }
+    {
+        std::scoped_lock queueLock(m_videoQueueMutex);
+        if (m_videoQueueForInterrupt)
+            m_videoQueueForInterrupt->interrupt();
+    }
 }
 
 void DemuxSession::requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying)
@@ -444,10 +456,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     postOpened(generation, metadata);
 
     // Video is DISCOVERED here (it needs the format context) but DECODED on its own thread. The
-    // demux thread must never pace — pacing is exactly what starved the audio read-ahead — so the
     // video decoder, its D3D11 pipeline and the frame scheduler live entirely on a dedicated thread
-    // fed a bounded queue of video packets. Audio is decoded inline below (it races ahead unpaced,
-    // filling loudnorm's lookahead and the sink cushion — the cure).
+    // fed a bounded queue of video packets. Audio has its own worker too, so a full-but-on-time video
+    // queue may safely backpressure demux; only measured lateness authorizes dropping forward.
     D3D11VideoPipeline *pipeline = m_videoPipeline.load(std::memory_order_acquire);
     int videoStreamIndex = -1;
     AVStream *videoStream = nullptr;
@@ -488,8 +499,8 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
     // The audio decode WORKER (the third thread) owns the audio decoder, frame, and every mutable
     // pipeline decode op end-to-end. The demux only PUSHES packets into this queue; blocking on the
-    // small queue (pushInterruptible) paces the demux to real-time audio, so video can drop without
-    // starving audio and the demux command loop is never trapped. Created below — after landSeek is
+    // small queue (pushInterruptible) paces the demux to real-time audio and the demux command loop
+    // is never trapped. Created below — after landSeek is
     // defined, since the worker's Host reports the seek landing through it.
     // Sizing is NOT the video-stutter fix (measured): 1.5 s → decode ~6 fps, avDrift ~+40 ms mean;
     // 4 s → decode ~0.3 fps, avDrift ~+2534 ms mean. Enlarging the read-ahead pushed video FURTHER
@@ -524,18 +535,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     std::atomic<bool> videoReachedEnd{false};
     QString videoFailureMessage; // published before videoThreadFailed is set (release/acquire)
 
-    // Bounded video read-ahead with a DROP-OLDEST admission policy. Audio is decoded inline on THIS
-    // (demux) thread, so the demux must NEVER block pushing a full video queue — if it did, a video
-    // that consumes slightly below real time would back the queue up, the demux would stall, audio
-    // would starve, its clock would freeze, video would pace to the frozen clock and stop draining,
-    // and the whole pipeline would deadlock (measured: after ~60 s of Full-EBU playback, video → 0
-    // fps for the rest of the run, 1800+ underruns). Enlarging the horizon only delays that. Instead,
-    // when the 8 s buffer is full the queue drops the oldest whole GOP so a slow video skips ahead to
-    // a keyframe (audio is sacred, video is droppable) and the demux thread is never blocked. The
-    // consumer flushes its decoder on the signalled discontinuity. 8 s still covers loudnorm's ~3 s
-    // lookahead + the 2 s WASAPI cushion + interleave in the healthy case where no drop is needed.
+    // Bounded video read-ahead with ADAPTIVE admission. A full queue is normal now that audio has an
+    // independent worker: when its oldest packet is on-time/ahead of the active sink clock, demux
+    // backpressures interruptibly and preserves presentation order. If that oldest packet is truly
+    // late, admission drops a whole leading GOP to a keyframe and signals decoder discontinuity.
+    // This keeps the historical overload escape hatch without the future-GOP feedback loop caused
+    // by unconditional drop-oldest. The existing 8 s horizon is unchanged.
     PacketQueue videoQueue(
         PacketQueue::Bounds{8'000'000, 128 * 1024 * 1024, 1200, /*dropOldestWhenFull*/ true});
+    if (videoPresent) {
+        std::scoped_lock queueLock(m_videoQueueMutex);
+        m_videoQueueForInterrupt = &videoQueue;
+    }
 
     // The video decode thread: builds its own hardware decoder, then pops packets and paces frames
     // against the master clock. Joined at the end of run() — its captured references outlive it.
@@ -669,6 +680,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                             audioMasterActive = false;
                         const AudioClockSnapshot audio = (audioIsMaster && audioPipeline)
                             ? audioPipeline->clock() : AudioClockSnapshot{};
+                        const quint64 expectedAudioGeneration =
+                            m_activeGeneration.load(std::memory_order_acquire);
+                        const bool audioClockCurrent =
+                            audio.isValidForGeneration(expectedAudioGeneration);
 
                         // === Audio-master readiness barrier ===
                         // Until the sink produces a real clock for this audio-path epoch, HOLD video
@@ -677,7 +692,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                         // hard-reset to it — the truly-audible event. Video-only playback (below)
                         // skips the barrier and stays its own master.
                         if (audioIsMaster && !audioReady) {
-                            if (!audio.valid) {
+                            if (!audioClockCurrent) {
                                 if (!barrierPresented) {
                                     QString e;
                                     const VideoFrameToken t{gen, ++videoSequence, ptsUs};
@@ -696,11 +711,11 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                                        audioIsMaster) {
                                     ready = audioPipeline ? audioPipeline->clock()
                                                           : AudioClockSnapshot{};
-                                    if (ready.valid)
+                                    if (ready.isValidForGeneration(expectedAudioGeneration))
                                         break;
                                     std::this_thread::sleep_for(std::chrono::milliseconds(3));
                                 }
-                                if (!ready.valid)
+                                if (!ready.isValidForGeneration(expectedAudioGeneration))
                                     return true; // interrupted (cancel/seek/track) — re-drive fresh
                                 const qint64 hnow = qpcNow();
                                 const qint64 audioNow = ready.mediaPositionUs + static_cast<qint64>(
@@ -718,7 +733,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                             playbackClock->reset(audioNow, now);
                             audioMasterActive = true;
                             audioReady = true;
-                        } else if (audio.valid) {
+                        } else if (audioClockCurrent) {
                             const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
                                 static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
                                 playbackClock->qpcFrequency());
@@ -740,8 +755,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                         } else if (!audioIsMaster && !playbackClock->valid()) {
                             playbackClock->reset(ptsUs, now); // video-only: video is its own master
                         }
-                        // (audioIsMaster && audioReady && !audio.valid == paused: keep frozen clock.)
-                        audioWasValid = audio.valid;
+                        // Current-path audio that is invalid means pause/underrun: keep frozen clock.
+                        // A valid older-generation snapshot is ignored while a pre-flush callback
+                        // finishes publishing; it cannot seed or resync the new audio epoch.
+                        audioWasValid = audioClockCurrent;
 
                         const FrameScheduleDecision decision = frameScheduler->choose(
                             playbackClock->positionAt(now), now,
@@ -1009,6 +1026,23 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         }
     };
 
+    auto videoBacklogIsLate = [&]() {
+        if (!audioPipeline || !playbackClock ||
+            !audioIsMaster.load(std::memory_order_acquire)) {
+            return false;
+        }
+        const std::optional<qint64> oldestVideoPtsUs = videoQueue.oldestPtsUs();
+        if (!oldestVideoPtsUs)
+            return false;
+        return shouldDropVideoBacklog(
+            audioPipeline->clock(),
+            m_activeGeneration.load(std::memory_order_acquire),
+            *oldestVideoPtsUs,
+            qpcNow(),
+            playbackClock->qpcFrequency(),
+            FrameSchedulerConfig{}.lateDropThresholdUs);
+    };
+
     // Adapts the demux's shared playback state to the audio worker's narrow, thread-safe seam. Holds
     // POINTERS to the atomics (never reaches into private members), and forwards the seek landing
     // through landSeek — the exact couplings the old inline audio decode had, now across a thread.
@@ -1016,6 +1050,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         std::atomic<bool> *pCancelled = nullptr;
         std::atomic<bool> *pPaused = nullptr;
         std::atomic<bool> *pCommandPending = nullptr;
+        std::atomic<quint64> *pActiveGeneration = nullptr;
         std::atomic<qint64> *pAudioDelayUs = nullptr;
         std::atomic<bool> *pDecodingToTarget = nullptr;
         std::atomic<qint64> *pSeekTargetUs = nullptr;
@@ -1025,6 +1060,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         bool cancelled() const override { return pCancelled->load(std::memory_order_acquire); }
         bool paused() const override { return pPaused->load(std::memory_order_acquire); }
         bool commandPending() const override { return pCommandPending->load(std::memory_order_acquire); }
+        quint64 activeGeneration() const override
+        {
+            return pActiveGeneration->load(std::memory_order_acquire);
+        }
         qint64 audioDelayUs() const override { return pAudioDelayUs->load(std::memory_order_acquire); }
         bool audioIsMaster() const override { return pAudioIsMaster->load(std::memory_order_acquire); }
         bool decodingToTarget() const override { return pDecodingToTarget->load(std::memory_order_acquire); }
@@ -1044,6 +1083,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         audioHost.pCancelled = &m_cancelled;
         audioHost.pPaused = &m_paused;
         audioHost.pCommandPending = &m_commandPending;
+        audioHost.pActiveGeneration = &m_activeGeneration;
         audioHost.pAudioDelayUs = &m_audioDelayUs;
         audioHost.pDecodingToTarget = &decodingToTarget;
         audioHost.pSeekTargetUs = &seekTargetUs;
@@ -1062,6 +1102,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             {
                 std::scoped_lock queueLock(m_audioQueueMutex);
                 m_audioQueueForInterrupt = nullptr;
+            }
+            {
+                std::scoped_lock queueLock(m_videoQueueMutex);
+                m_videoQueueForInterrupt = nullptr;
             }
             videoQueue.cancel(); // the video thread is already spawned; tear it down before returning
             if (videoThread.joinable())
@@ -1164,13 +1208,28 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         // Route the packet by stream. `streamIndex` is captured above because a video push moves out
         // of the packet (blanking stream_index); else-if keeps exactly one branch consuming it.
         if (videoPresent && streamIndex == videoStreamIndex) {
-            // Hand off to the video thread (moves out of the packet). Drop-oldest admission: never
-            // blocks — when the 8 s buffer is full it drops the oldest GOP so a slow video skips
-            // ahead, and audio decode on this thread is never stalled. The keyframe flag lets the
-            // queue drop to a clean restart point. A false return means the queue was cancelled (the
-            // video thread died) — surface it.
-            if (!videoQueue.push(packet.get(), toUs(packet->pts), gen,
-                                 (packet->flags & AV_PKT_FLAG_KEY) != 0)) {
+            // Hand off to the video worker. A full-but-on-time queue backpressures without
+            // discarding presentation order; only the current sink clock proving that its oldest
+            // packet is late authorizes whole-GOP recovery. Commands interrupt either path so seek,
+            // pause and cancel stay responsive. After a generation-changing command the same packet
+            // is stale and must not be retried.
+            const qint64 packetPtsUs = toUs(packet->pts);
+            const bool keyframe = (packet->flags & AV_PKT_FLAG_KEY) != 0;
+            PacketQueue::Admit admit = videoQueue.pushInterruptible(
+                packet.get(), packetPtsUs, gen, keyframe, videoBacklogIsLate(),
+                /*recheckAfterMs*/ 10);
+            while (admit == PacketQueue::Admit::Interrupted) {
+                const quint64 genBefore = gen;
+                if (m_commandPending.exchange(false, std::memory_order_acq_rel))
+                    processCommands();
+                if (m_cancelled.load(std::memory_order_acquire) || gen != genBefore)
+                    break;
+                admit = videoQueue.pushInterruptible(
+                    packet.get(), packetPtsUs, gen, keyframe, videoBacklogIsLate(),
+                    /*recheckAfterMs*/ 10);
+            }
+            if (admit == PacketQueue::Admit::Cancelled &&
+                !m_cancelled.load(std::memory_order_acquire)) {
                 if (decodeFailure.isEmpty())
                     decodeFailure = videoFailureMessage;
                 decodeFailed = true;
@@ -1222,6 +1281,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         decodeFailed = true;
         if (decodeFailure.isEmpty())
             decodeFailure = videoFailureMessage;
+    }
+    {
+        std::scoped_lock queueLock(m_videoQueueMutex);
+        m_videoQueueForInterrupt = nullptr;
     }
 
     // Tear down the audio worker: stop() cancels its queue (unblocking its pop) and joins its thread

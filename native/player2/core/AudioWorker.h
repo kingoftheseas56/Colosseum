@@ -42,6 +42,9 @@ public:
         virtual bool cancelled() const = 0;
         virtual bool paused() const = 0;
         virtual bool commandPending() const = 0;
+        // Durable generation authority. The transient command flag may already be consumed while
+        // an old sink write is still returning from a concurrent flush.
+        virtual quint64 activeGeneration() const = 0;
         virtual qint64 audioDelayUs() const = 0;
         virtual bool audioIsMaster() const = 0;
         virtual bool decodingToTarget() const = 0;

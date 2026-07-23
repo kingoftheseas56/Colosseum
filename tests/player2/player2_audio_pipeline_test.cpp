@@ -1,5 +1,6 @@
 #include "player2/audio/AudioPipeline.h"
 #include "player2/audio/WASAPIAudioSink.h"
+#include "player2/core/AudioWorker.h"
 
 extern "C" {
 #include <libavutil/frame.h>
@@ -14,6 +15,8 @@ extern "C" {
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 #include <vector>
 
 using namespace Colosseum::Player2;
@@ -139,6 +142,68 @@ void queueFlushUnderrunAndGenerationRules()
     require(queue.enqueue(buffer, 8), "current generation audio was rejected");
 }
 
+void queueReadCapturesClockGenerationWithSamples()
+{
+    AudioBufferQueue queue(16);
+    queue.flush(7);
+    AudioBuffer buffer;
+    buffer.format = AudioFormat{48'000, 2};
+    buffer.frameCount = 8;
+    buffer.ptsUs = 125'000;
+    buffer.bytes.resize(buffer.frameCount * buffer.format.channels * sizeof(float));
+    require(queue.enqueue(buffer, 7), "clock-reference buffer enqueue failed");
+
+    qint64 mediaPositionUs = -1;
+    quint64 generation = 0;
+    std::vector<float> output(8 * 2);
+    const int copied =
+        queue.read(output.data(), 8, 2, &mediaPositionUs, &generation);
+    queue.flush(8); // a flush after read must not relabel the already-consumed samples
+
+    require(copied == 8, "clock-reference read copied the wrong number of frames");
+    require(mediaPositionUs == 125'000,
+            "a post-read flush replaced the consumed samples' media position");
+    require(generation == 7,
+            "a post-read flush relabelled consumed samples with the new generation");
+}
+
+template <typename Host, typename = void>
+struct HasAuthoritativeAudioGeneration : std::false_type
+{
+};
+
+template <typename Host>
+struct HasAuthoritativeAudioGeneration<
+    Host,
+    std::void_t<decltype(std::declval<const Host &>().activeGeneration())>>
+    : std::true_type
+{
+};
+
+template <typename Host>
+bool audioSubmitFailureIsBenign(bool cancelled, bool commandPending,
+                                quint64 submittedGeneration, quint64 activeGeneration)
+{
+    bool staleGeneration = false;
+    if constexpr (HasAuthoritativeAudioGeneration<Host>::value)
+        staleGeneration = submittedGeneration != activeGeneration;
+    // Pre-fix the worker consults only the transient command flag. Once Demux has exchanged that
+    // flag and flushed the sink, an in-flight old-generation write is incorrectly reported fatal.
+    return cancelled || commandPending || staleGeneration;
+}
+
+void staleWorkerWriteUsesAuthoritativeGenerationNotTransientCommandFlag()
+{
+    require(audioSubmitFailureIsBenign<AudioWorker::Host>(
+                /*cancelled*/ false, /*commandPending*/ false,
+                /*submittedGeneration*/ 7, /*activeGeneration*/ 8),
+            "a flushed worker generation was misclassified as a hard audio failure");
+    require(!audioSubmitFailureIsBenign<AudioWorker::Host>(
+                /*cancelled*/ false, /*commandPending*/ false,
+                /*submittedGeneration*/ 8, /*activeGeneration*/ 8),
+            "a current-generation audio failure was incorrectly hidden");
+}
+
 void sinkRejectionPropagates()
 {
     FakeAudioSink sink;
@@ -192,6 +257,8 @@ int main()
         exactPassthroughAndTimestamp();
         resampleHasExactLongRunCount();
         queueFlushUnderrunAndGenerationRules();
+        queueReadCapturesClockGenerationWithSamples();
+        staleWorkerWriteUsesAuthoritativeGenerationNotTransientCommandFlag();
         boundedQueueAppliesBackpressureAndFlushCancelsIt();
         sinkRejectionPropagates();
     } catch (const std::exception &error) {

@@ -25,6 +25,12 @@ QString avErr(int code)
     return QString::fromUtf8(text);
 }
 
+bool benignGenerationTransition(const AudioWorker::Host *host, quint64 submittedGeneration)
+{
+    return host->cancelled() || host->commandPending() ||
+        submittedGeneration != host->activeGeneration();
+}
+
 } // namespace
 
 AudioWorker::AudioWorker(AudioPipeline *pipeline, const AVCodecParameters *codecpar,
@@ -133,7 +139,7 @@ bool AudioWorker::receiveFrames(quint64 generation)
             // (host's lastMasterPts, seek landing) stays unshifted.
             const qint64 clockPtsUs = ptsUs + m_host->audioDelayUs();
             if (!m_pipeline->submitDecodedFrame(m_frame, clockPtsUs, generation, &submitError)) {
-                if (m_host->cancelled() || m_host->commandPending()) {
+                if (benignGenerationTransition(m_host, generation)) {
                     av_frame_unref(m_frame);
                     return true; // benign: a cancel, or a flush/seek/track-switch, is in flight
                 }
@@ -216,8 +222,9 @@ void AudioWorker::run()
         const int sendResult = avcodec_send_packet(m_decoder, packet);
         av_packet_unref(packet);
         if (sendResult < 0 || !receiveFrames(activeGen)) {
-            // Benign if a command (seek/track/cancel) is in flight — the packet was for a stale path.
-            if (!m_host->commandPending() && !m_host->cancelled()) {
+            // The command flag may already be cleared by Demux before an in-flight stale write
+            // returns. The active generation is the durable transition authority.
+            if (!benignGenerationTransition(m_host, activeGen)) {
                 if (m_failureMessage.isEmpty())
                     m_failureMessage =
                         QStringLiteral("Audio packet submission failed: %1").arg(avErr(sendResult));

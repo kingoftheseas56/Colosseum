@@ -182,6 +182,10 @@ private:
     // never be serviced. Null except while a run owns the queue.
     std::mutex m_audioQueueMutex;
     PacketQueue *m_audioQueueForInterrupt = nullptr;
+    // The video queue normally backpressures too; expose its run-local interrupt handle so
+    // Pause/Seek/Cancel cannot strand the demux while waiting for consumer progress.
+    std::mutex m_videoQueueMutex;
+    PacketQueue *m_videoQueueForInterrupt = nullptr;
 };
 
 } // namespace Colosseum::Player2

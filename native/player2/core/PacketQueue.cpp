@@ -1,5 +1,7 @@
 #include "PacketQueue.h"
 
+#include <chrono>
+
 extern "C" {
 #include <libavcodec/packet.h>
 }
@@ -37,25 +39,30 @@ bool PacketQueue::isFullLocked() const
     return false;
 }
 
+void PacketQueue::dropOldestBacklogLocked()
+{
+    // Remove whole leading GOPs: stop only once there is room AND the new front is a clean decode
+    // restart point. The consumer observes one discontinuity before decoding that new front.
+    while (!m_entries.empty() && (isFullLocked() || !m_entries.front().keyframe)) {
+        Entry &front = m_entries.front();
+        m_bufferedBytes -= front.packet->size;
+        av_packet_free(&front.packet);
+        m_entries.pop_front();
+        m_discontinuityPending = true;
+    }
+}
+
 bool PacketQueue::push(AVPacket *packet, qint64 ptsUs, quint64 generation, bool keyframe)
 {
     std::unique_lock lock(m_mutex);
     if (m_bounds.dropOldestWhenFull) {
         if (m_cancelled)
             return false;
-        // Never block. Drop the OLDEST backlog so a slow video skips ahead instead of stalling the
-        // demux thread (which decodes audio inline). Only when full: remove whole leading GOPs —
-        // keep dropping the front until there is room AND the new front is a keyframe (a clean
-        // decode-restart point), so the consumer only flushes, never decodes a dangling P-frame.
-        if (isFullLocked()) {
-            while (!m_entries.empty() && (isFullLocked() || !m_entries.front().keyframe)) {
-                Entry &front = m_entries.front();
-                m_bufferedBytes -= front.packet->size;
-                av_packet_free(&front.packet);
-                m_entries.pop_front();
-                m_discontinuityPending = true;
-            }
-        }
+        // Explicit legacy recovery primitive: its caller has already established distress, so drop
+        // whole leading GOPs rather than block. Normal worker-fed video uses pushInterruptible()
+        // with a per-admission clock/lateness decision instead.
+        if (isFullLocked())
+            dropOldestBacklogLocked();
     } else {
         // Back-pressure: block while the buffer is full so the demuxer cannot run unbounded ahead.
         m_notFull.wait(lock, [this] { return m_cancelled || !isFullLocked(); });
@@ -70,12 +77,35 @@ bool PacketQueue::push(AVPacket *packet, qint64 ptsUs, quint64 generation, bool 
     return true;
 }
 
-PacketQueue::Admit PacketQueue::pushInterruptible(AVPacket *packet, qint64 ptsUs, quint64 generation)
+PacketQueue::Admit PacketQueue::pushInterruptible(AVPacket *packet, qint64 ptsUs,
+                                                  quint64 generation, bool keyframe,
+                                                  bool dropOldestWhenFull,
+                                                  int recheckAfterMs)
 {
     std::unique_lock lock(m_mutex);
-    // Block while full, but wake for cancel or a command interrupt so the demux command loop is never
-    // trapped. An empty queue is never full (a single oversized packet is always accepted).
-    m_notFull.wait(lock, [this] { return m_cancelled || m_interruptRequested || !isFullLocked(); });
+    if (dropOldestWhenFull && m_bounds.dropOldestWhenFull) {
+        // Commands/cancel win over recovery so the packet remains intact for command processing.
+        if (m_cancelled)
+            return Admit::Cancelled;
+        if (m_interruptRequested) {
+            m_interruptRequested = false;
+            return Admit::Interrupted;
+        }
+        if (isFullLocked())
+            dropOldestBacklogLocked();
+    } else {
+        // Block while full, but wake for cancel or a command interrupt so the demux command loop is
+        // never trapped. An empty queue is never full (one oversized packet is always accepted).
+        const auto ready = [this] {
+            return m_cancelled || m_interruptRequested || !isFullLocked();
+        };
+        if (recheckAfterMs > 0) {
+            if (!m_notFull.wait_for(lock, std::chrono::milliseconds(recheckAfterMs), ready))
+                return Admit::Interrupted; // packet intact: caller re-evaluates clock/lateness
+        } else {
+            m_notFull.wait(lock, ready);
+        }
+    }
     if (m_cancelled)
         return Admit::Cancelled;
     if (m_interruptRequested) {
@@ -85,7 +115,7 @@ PacketQueue::Admit PacketQueue::pushInterruptible(AVPacket *packet, qint64 ptsUs
     AVPacket *owned = av_packet_alloc();
     av_packet_move_ref(owned, packet);
     m_bufferedBytes += owned->size;
-    m_entries.push_back(Entry{owned, ptsUs, generation, false});
+    m_entries.push_back(Entry{owned, ptsUs, generation, keyframe});
     m_notEmpty.notify_one();
     return Admit::Accepted;
 }
@@ -179,6 +209,14 @@ qint64 PacketQueue::bufferedBytes() const
 {
     std::scoped_lock lock(m_mutex);
     return m_bufferedBytes;
+}
+
+std::optional<qint64> PacketQueue::oldestPtsUs() const
+{
+    std::scoped_lock lock(m_mutex);
+    if (m_entries.empty())
+        return std::nullopt;
+    return m_entries.front().ptsUs;
 }
 
 } // namespace Colosseum::Player2

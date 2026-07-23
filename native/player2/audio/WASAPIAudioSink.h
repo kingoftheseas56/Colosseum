@@ -29,7 +29,13 @@ struct AudioClockSnapshot
 {
     qint64 mediaPositionUs = 0;
     qint64 qpcTimestamp = 0;
+    quint64 generation = 0;
     bool valid = false;
+
+    bool isValidForGeneration(quint64 expectedGeneration) const noexcept
+    {
+        return valid && generation == expectedGeneration;
+    }
 };
 
 class IAudioSink
@@ -56,7 +62,8 @@ public:
 
     bool enqueue(const AudioBuffer &buffer, quint64 generation);
     bool enqueueBlocking(const AudioBuffer &buffer, quint64 generation);
-    int read(float *destination, int requestedFrames, int channels);
+    int read(float *destination, int requestedFrames, int channels,
+             qint64 *mediaPositionUs = nullptr, quint64 *generation = nullptr);
     void flush(quint64 generation);
     int depthFrames() const;
     quint64 generation() const;
