@@ -54,6 +54,16 @@ Item {
     property real audioVolume: 1.0            // 0..1 fraction of the mpv 0..100 (shell converts)
     property bool audioMuted: false
 
+    // ---- read-along (Task 6), bound through from ReaderShell ---- DORMANT by default: when
+    // readAlongAvailable is false (native engine absent) the scrub preview label + the Return-
+    // to-narration chip stay hidden, so the chrome reads byte-for-byte as today.
+    property bool readAlongAvailable: false
+    property string readAlongMode: "sentenceWord"
+    property real readAlongWordScale: 1.0
+    property bool readAlongPreviewActive: false   // dragging the aligned rail (show the preview)
+    property string readAlongPreviewLabel: ""     // "12:34 · Ch 3" (from the controller preview)
+    property bool readAlongFollowDetached: false  // user navigated away → offer Return to narration
+
     // ---- left-panel state (owned here; the panel is a pure view over these) ----
     property bool panelOpen: false
     property string activeTab: "contents"
@@ -101,6 +111,14 @@ Item {
     signal audioChapterPicked(int index)      // Audio-tab playlist row → play that chapter/file
     signal audioVolumeRequested(real fraction) // pill volume rail: 0..1
     signal audioMuteToggled()
+    // read-along (Task 6): the gold scrub rail is an aligned timeline now — hover/drag PREVIEWS
+    // (no seek), release COMMITS exactly once. ReaderShell routes both (controller when
+    // available, a plain seek when dormant). Plus the mode picks + Return to narration.
+    signal audioScrubPreviewed(real fraction)  // hover/drag → preview only
+    signal audioScrubCommitted(real fraction)  // release → one committed seek
+    signal returnToNarrationRequested()        // the chip after a manual navigation detach
+    signal readAlongModePicked(string mode)    // forwarded from the LeftPanel Text Sync control
+    signal readAlongScaleChanged(real scale)
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
     // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
@@ -513,11 +531,73 @@ Item {
                     anchors.bottomMargin: -6
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    function apply() { chrome.audioSeekRequested(Math.max(0, Math.min(1, mouseX / Math.max(1, scrubRail.width)))) }
-                    onPressed: apply()
-                    onPositionChanged: if (pressed) apply()
+                    // Split (Task 6): press/drag PREVIEW, release COMMIT. ReaderShell decides
+                    // what preview/commit mean — previewTime/commitTime when read-along is
+                    // available (no seek until release), a plain seek on preview when dormant.
+                    // The release-COMMIT only fires when read-along is available, so DORMANT is
+                    // byte-for-byte today: preview seeks continuously on press/drag, release
+                    // does nothing (the aligned one-commit-on-release is a read-along-only add).
+                    function frac() { return Math.max(0, Math.min(1, mouseX / Math.max(1, scrubRail.width))) }
+                    onPressed: chrome.audioScrubPreviewed(frac())
+                    onPositionChanged: if (pressed) chrome.audioScrubPreviewed(frac())
+                    onReleased: if (chrome.readAlongAvailable) chrome.audioScrubCommitted(frac())
+                    onCanceled: if (chrome.readAlongAvailable) chrome.audioScrubCommitted(frac())
+                }
+                // read-along scrub PREVIEW read-out (timestamp · chapter) — floats above the
+                // rail while dragging an aligned timeline; hidden entirely when dormant.
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.top
+                    anchors.bottomMargin: 4
+                    visible: chrome.readAlongAvailable && chrome.readAlongPreviewActive && chrome.readAlongPreviewLabel !== ""
+                    text: chrome.readAlongPreviewLabel
+                    color: Theme.gold
+                    font.family: Theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
                 }
             }
+        }
+    }
+
+    // ---------- read-along "Return to narration" chip (Task 6) ----------
+    // After a manual navigation detaches follow, this gold chip offers a one-tap return to
+    // the live narration cue. Rides the chrome reveal, sits above the audio HUD, and is
+    // completely absent when dormant (readAlongAvailable false) — no footprint on today's UI.
+    Rectangle {
+        id: returnChip
+        visible: opacity > 0.01 && chrome.readAlongAvailable && chrome.readAlongFollowDetached
+        opacity: (chrome.awake && chrome.readAlongAvailable && chrome.readAlongFollowDetached) ? 1 : 0
+        Behavior on opacity { NumberAnimation { duration: 160 } }
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: audioHud.visible ? audioHud.top : bottomRail.top
+        anchors.bottomMargin: 10
+        width: returnRow.implicitWidth + 30
+        height: 34
+        radius: 17
+        color: Theme.bar
+        border.color: Theme.gold
+        border.width: 1
+        Row {
+            id: returnRow
+            anchors.centerIn: parent
+            spacing: 7
+            Rectangle {
+                width: 6; height: 6; radius: 3
+                anchors.verticalCenter: parent.verticalCenter
+                color: Theme.gold
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Return to narration"
+                color: returnMa.containsMouse ? Theme.ink : Theme.inkDim
+                font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+            }
+        }
+        MouseArea {
+            id: returnMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: chrome.returnToNarrationRequested()
         }
     }
 
@@ -570,6 +650,13 @@ Item {
         audioPlaylist: chrome.audioPlaylist
         audioCurrentIndex: chrome.audioCurrentIndex
         onAudioChapterPicked: (i) => chrome.audioChapterPicked(i)
+
+        // read-along Text Sync (Task 6) — data down, intent up.
+        readAlongAvailable: chrome.readAlongAvailable
+        readAlongMode: chrome.readAlongMode
+        readAlongWordScale: chrome.readAlongWordScale
+        onReadAlongModePicked: (m) => chrome.readAlongModePicked(m)
+        onReadAlongScaleChanged: (s) => chrome.readAlongScaleChanged(s)
 
         onCloseRequested: chrome.closePanel()
         onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }

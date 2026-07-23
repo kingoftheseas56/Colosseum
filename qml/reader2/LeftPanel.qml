@@ -45,6 +45,14 @@ Item {
     property var audioPlaylist: []               // chapter/file labels — the PLAYLIST rows
     property int audioCurrentIndex: -1           // playing row (-1 = stream not live yet)
 
+    // ---- read-along (Task 6) — the Text Sync mode controls, all bound from ReaderShell ----
+    // DORMANT by default: when the native ReadAlong/AudioTextAlignment context props are
+    // absent, ReaderShell leaves readAlongAvailable false and this whole block stays hidden,
+    // so the Audio pane reads byte-for-byte as it does today.
+    property bool readAlongAvailable: false      // native read-along engine present for this book
+    property string readAlongMode: "sentenceWord" // "sentence" | "word" | "sentenceWord"
+    property real readAlongWordScale: 1.0        // word enlargement (1.0..2.0)
+
     // ---- signals up ----
     signal closeRequested()
     signal tabSelected(string tab)
@@ -58,6 +66,9 @@ Item {
     signal audioSpeedCycled()
     signal audioSeekRequested(real fraction)     // (compat; the pill owns transport now)
     signal audioChapterPicked(int index)         // playlist row tap → play that chapter/file
+    // read-along (Task 6): ReaderShell persists the mode/enlargement + pushes them to the paper.
+    signal readAlongModePicked(string mode)      // "sentence" | "word" | "sentenceWord"
+    signal readAlongScaleChanged(real scale)     // word enlargement 1.0..2.0
 
     readonly property int colWidth: 348
     readonly property int topBarPx: 64           // keep the top bar's right icons clickable
@@ -620,6 +631,81 @@ Item {
                         }
                     }
 
+                    // --- TEXT SYNC controls (Task 6 — read-along) --- DORMANT-GATED: only
+                    // shows when the native read-along engine is present for this book. Mode
+                    // (Sentence / Word / Sentence + Word) + a word-enlargement stepper. Bridge-
+                    // free: it reports the pick up; ReaderShell persists it + styles the paper.
+                    Rectangle {
+                        width: parent.width
+                        visible: panel.readAlongAvailable
+                        height: visible ? (tsCol.implicitHeight + 28) : 0
+                        radius: 11
+                        color: Theme.cardBg
+                        border.color: Theme.barBorder
+                        border.width: 1
+
+                        Column {
+                            id: tsCol
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.margins: 14
+                            spacing: 12
+
+                            Text {
+                                text: "Text sync"
+                                font.family: Theme.ui
+                                font.pixelSize: 11
+                                font.weight: Font.Bold
+                                font.letterSpacing: 1.4
+                                font.capitalization: Font.AllUppercase
+                                color: Theme.inkFaint
+                            }
+
+                            // segmented mode control — three equal cells, the active one gold.
+                            Row {
+                                width: parent.width
+                                spacing: 0
+                                readonly property real segW: (width - 2) / 3
+                                RaMode { width: parent.segW; label: "Sentence";      mode: "sentence" }
+                                RaMode { width: parent.segW; label: "Word";          mode: "word" }
+                                RaMode { width: parent.segW; label: "Sentence + Word"; mode: "sentenceWord" }
+                            }
+
+                            // word enlargement stepper (− value +), disabled when Word emphasis is off.
+                            Row {
+                                width: parent.width
+                                spacing: 10
+                                readonly property bool wordShown: panel.readAlongMode !== "sentence"
+                                Text {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: parent.width - 3 * 34 - 2 * parent.spacing
+                                    text: "Word size"
+                                    font.family: Theme.ui
+                                    font.pixelSize: 13
+                                    color: parent.wordShown ? Theme.inkDim : Theme.inkGhost
+                                }
+                                RaStep { symbol: "−"; enabledStep: parent.wordShown && panel.readAlongWordScale > 1.0
+                                         onStepped: panel.readAlongScaleChanged(Math.max(1.0, panel.readAlongWordScale - 0.1)) }
+                                Rectangle {
+                                    width: 34; height: 30; radius: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    color: "transparent"
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: (Math.round(panel.readAlongWordScale * 10) / 10).toFixed(1) + "×"
+                                        font.family: Theme.ui
+                                        font.pixelSize: 12
+                                        font.weight: Font.DemiBold
+                                        color: parent.parent.wordShown ? Theme.inkTitle : Theme.inkGhost
+                                    }
+                                }
+                                RaStep { symbol: "+"; enabledStep: parent.wordShown && panel.readAlongWordScale < 2.0
+                                         onStepped: panel.readAlongScaleChanged(Math.min(2.0, panel.readAlongWordScale + 0.1)) }
+                            }
+                        }
+                    }
+
                     // --- THE PLAYLIST (Hemanth 2026-07-18: every chapter/file of the audiobook,
                     // listed the way Contents lists the book's chapters — filenames as labels;
                     // tap a row to play it; the playing row is marked gold. The transport
@@ -693,6 +779,69 @@ Item {
                 }
                 }
             }
+        }
+    }
+
+    // ---------- read-along (Task 6) mode segment: an equal-width cell, gold when it's the
+    // active mode; a tap reports the pick up (ReaderShell persists + styles the paper) ----------
+    component RaMode: Item {
+        id: raSeg
+        property string label: ""
+        property string mode: ""
+        readonly property bool active: panel.readAlongMode === raSeg.mode
+        height: 34
+        Rectangle {
+            anchors.fill: parent
+            anchors.margins: 2
+            radius: 8
+            color: raSeg.active ? Theme.goldWash : (raSegMa.containsMouse ? Theme.rowHover : "transparent")
+            border.color: raSeg.active ? Theme.gold : Theme.barBorder
+            border.width: 1
+        }
+        Text {
+            anchors.centerIn: parent
+            width: parent.width - 8
+            horizontalAlignment: Text.AlignHCenter
+            text: raSeg.label
+            elide: Text.ElideRight
+            font.family: Theme.ui
+            font.pixelSize: 11
+            font.weight: raSeg.active ? Font.DemiBold : Font.Normal
+            color: raSeg.active ? Theme.gold : Theme.inkDim
+        }
+        MouseArea {
+            id: raSegMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: panel.readAlongModePicked(raSeg.mode)
+        }
+    }
+
+    // ---------- read-along (Task 6) enlargement stepper button (− / +) ----------
+    component RaStep: Rectangle {
+        id: raStep
+        property string symbol: ""
+        property bool enabledStep: true
+        signal stepped()
+        width: 34; height: 30; radius: 8
+        anchors.verticalCenter: parent.verticalCenter
+        color: raStepMa.containsMouse && raStep.enabledStep ? Theme.rowHover : "transparent"
+        border.color: Theme.barBorder
+        border.width: 1
+        Text {
+            anchors.centerIn: parent
+            text: raStep.symbol
+            font.family: Theme.ui
+            font.pixelSize: 16
+            color: raStep.enabledStep ? Theme.inkDim : Theme.inkGhost
+        }
+        MouseArea {
+            id: raStepMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: raStep.enabledStep ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: if (raStep.enabledStep) raStep.stepped()
         }
     }
 

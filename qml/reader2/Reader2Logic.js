@@ -464,7 +464,10 @@ function appearanceDefaults() {
     return {
         theme: "night", font: "literata", sizePx: 18, lineHeight: 1.6, marginPx: 72,
         justify: true, flow: "paginated",
-        rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40
+        rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40,
+        // read-along mode/enlargement (Task 6) rides in the SAME reader2 store; it's ignored
+        // by appearanceToPaper (not a text-layout knob) but round-trips like the ruler fields.
+        readAlong: { mode: "sentenceWord", wordScale: 1.0 }
     }
 }
 
@@ -745,3 +748,140 @@ function speedLabel(rate) {
     s = s.replace(/(\.\d)0$/, "$1")   // 1.50 -> 1.5, but 1.00 -> 1.0
     return s + "×"
 }
+
+// ---------------------------------------------------------------------------
+// TASK 6 — audiobook↔EPUB read-along WIRING decisions (pure; proven headless).
+//
+// ReaderShell can't be instantiated offscreen (it needs the WebEngine paper + a dozen
+// context singletons), so EVERY read-along decision lives here as data-in / data-out and
+// ReaderShell's handlers are thin callers. That keeps the wiring honest AND testable:
+// tests/reader2_readalong_harness.qml proves these functions and wires them to fake
+// ReadAlong/paper/audioSession objects exactly as ReaderShell does. When the native
+// `ReadAlong`/`AudioTextAlignment` context props are ABSENT the reader is DORMANT — every
+// function here has a dormant answer (a plain audio seek), so nothing read-along fires.
+// ---------------------------------------------------------------------------
+
+// The three read-along modes (Tankoban-Max parity). Sentence + Word is the ratified default.
+function readAlongModeValid_(mode) {
+    return mode === "sentence" || mode === "word" || mode === "sentenceWord"
+}
+function readAlongDefaults() { return { mode: "sentenceWord", wordScale: 1.0 } }
+
+// readAlongFrom(appearance) → the persisted { mode, wordScale }, read back from the SAME
+// `settings.reader2` object appearance is stored in (its `.readAlong` sub-key), merged over
+// the defaults + validated. A missing/junk value falls back so the paper never sees garbage.
+// (Persisting read-along under `appearance.readAlong` reuses the appearance store round-trip:
+// applyAppearancePatch writes `all.reader2 = appearance` wholesale, so nesting here means the
+// two never clobber each other — exactly as the ruler controls ride along in `appearance`.)
+function readAlongFrom(appearance) {
+    var a = appearance || {}
+    var ra = (a.readAlong && typeof a.readAlong === "object") ? a.readAlong : {}
+    var mode = readAlongModeValid_(ra.mode) ? ra.mode : "sentenceWord"
+    var scale = Number.isFinite(ra.wordScale) ? clamp_(ra.wordScale, 1.0, 2.0) : 1.0
+    return { mode: mode, wordScale: scale }
+}
+
+// mergeReadAlong(appearance, patch) → a NEW appearance object with `.readAlong` updated by
+// `patch` (mode and/or wordScale), validated + clamped. Pure — every other appearance field
+// is copied through untouched so a read-along edit never disturbs theme/font/ruler/etc.
+function mergeReadAlong(appearance, patch) {
+    var out = mergeAppearance({}, appearance)     // shallow copy of the whole appearance
+    var cur = readAlongFrom(appearance)
+    var next = { mode: cur.mode, wordScale: cur.wordScale }
+    var p = patch || {}
+    if (p.mode !== undefined && p.mode !== null) next.mode = readAlongModeValid_(p.mode) ? p.mode : next.mode
+    if (p.wordScale !== undefined && p.wordScale !== null && Number.isFinite(Number(p.wordScale)))
+        next.wordScale = clamp_(p.wordScale, 1.0, 2.0)
+    out.readAlong = next
+    return out
+}
+
+// readAlongStyleFromMode(mode, wordScale) → the paper.setReadAlongStyle() payload:
+// { mode, sentence, word, wordScale }. Sentence lights the sentence wash, Word lights the
+// word emphasis, Sentence + Word lights both. wordScale is the enlargement (1.0..2.0). Pure.
+function readAlongStyleFromMode(mode, wordScale) {
+    var m = readAlongModeValid_(mode) ? mode : "sentenceWord"
+    var scale = Number.isFinite(Number(wordScale)) ? clamp_(wordScale, 1.0, 2.0) : 1.0
+    return { mode: m, sentence: m !== "word", word: m !== "sentence", wordScale: scale }
+}
+
+// scrubFractionToTimeMs(fraction, durationSec) → an absolute time IN THE CURRENT STREAM, in
+// ms, for previewTime/commitTime. The gold scrub rail's fraction is over the session's
+// current-stream duration (position/duration), so this stays in the same "per-current-stream
+// ms" convention as sessionToAbsMs below. Clamped; a zero/absent duration yields 0. Pure.
+function scrubFractionToTimeMs(fraction, durationSec) {
+    var f = clamp_(fraction, 0, 1)
+    var d = (Number.isFinite(durationSec) && durationSec > 0) ? durationSec : 0
+    return Math.round(f * d * 1000)
+}
+
+// sessionToAbsMs(index, positionSec, chapterBoundsMs) → the audiobook time to feed the
+// controller. When REAL chapter start offsets are known (Task 12 supplies chapterBoundsMs),
+// absolute = boundsMs[index] + position*1000. Absent them we pass position*1000 — exactly
+// correct for a single-file m4b (the primary read-along case, where the whole book is one
+// stream and `index` is an mpv-chapter marker, not a stream offset), and a consistent
+// per-file value for a multi-file set (the controller is fed the SAME convention on both the
+// feed and the commit, so the round-trip is coherent until Task 12 lands real durations). Pure.
+function sessionToAbsMs(index, positionSec, chapterBoundsMs) {
+    var i = Number(index)
+    var base = (chapterBoundsMs && Number.isFinite(chapterBoundsMs[i])) ? chapterBoundsMs[i] : 0
+    var pos = Number.isFinite(positionSec) ? positionSec : 0
+    return Math.round(base + pos * 1000)
+}
+
+// audioSeekTargetSec(chapter, timeMs, chapterBoundsMs) → the inverse of sessionToAbsMs: the
+// SECONDS to seek within the target chapter's stream when the controller's audioSeekRequested
+// asks for absolute `timeMs`. Never negative. Pure.
+function audioSeekTargetSec(chapter, timeMs, chapterBoundsMs) {
+    var c = Number(chapter)
+    var base = (chapterBoundsMs && Number.isFinite(chapterBoundsMs[c])) ? chapterBoundsMs[c] : 0
+    var t = Number.isFinite(timeMs) ? timeMs : 0
+    return Math.max(0, (t - base) / 1000)
+}
+
+// shouldEmitSetPlayhead(prev, next) → did the playhead-relevant identity change? prev/next
+// are { chapter, absMs }. Emit on the first playhead (prev null) or whenever the chapter or
+// the time moved — this suppresses ONLY true no-ops (a re-notify with an identical position,
+// e.g. a paused stream re-emitting). The controller itself further no-ops when the resolved
+// sentence/word is unchanged, so feeding every real tick is cheap and correct. Pure.
+function shouldEmitSetPlayhead(prev, next) {
+    if (!prev || typeof prev !== "object") return true
+    var n = next || {}
+    return prev.chapter !== n.chapter || prev.absMs !== n.absMs
+}
+
+// previewLabelFrom(previewMap) → the scrub-preview view model (timestamp + chapter + the
+// synced/located flags), shown while dragging the rail WITHOUT seeking. previewMap is the
+// controller's `preview`: { timeMs, chapter, synced, spineHref?, canonicalStart?, ... }.
+// Returns { line, time, chapter, synced, located }; `line` is the ready-to-render string.
+// Pure — no engine, its own clock formatter (fmtClock_).
+function previewLabelFrom(previewMap) {
+    var p = previewMap || {}
+    var time = Number.isFinite(p.timeMs) ? fmtClock_(p.timeMs / 1000) : ""
+    var chapter = Number.isFinite(p.chapter) ? ("Ch " + (Number(p.chapter) + 1)) : ""
+    var synced = !!p.synced
+    var located = (p.spineHref !== undefined && p.spineHref !== null && String(p.spineHref) !== "")
+    var parts = []
+    if (time) parts.push(time)
+    if (chapter) parts.push(chapter)
+    return { line: parts.join(" · "), time: time, chapter: chapter, synced: synced, located: located }
+}
+
+// readAlongScrubAction(phase, fraction, durationSec, available) → what the gold scrub rail
+// should DO for a hover/drag ("preview") or a release ("commit"). When read-along is
+// AVAILABLE: preview → { kind:"preview", timeMs } (NO seek), commit → { kind:"commit",
+// timeMs } (exactly one controller commit). When DORMANT: always { kind:"seek", fraction }
+// — the reader's existing direct-seek behavior, byte-for-byte. Pure — the ONE branch that
+// makes the rail an aligned timeline when available and an ordinary scrub when not.
+function readAlongScrubAction(phase, fraction, durationSec, available) {
+    if (!available) return { kind: "seek", fraction: clamp_(fraction, 0, 1) }
+    var timeMs = scrubFractionToTimeMs(fraction, durationSec)
+    if (phase === "commit") return { kind: "commit", timeMs: timeMs }
+    return { kind: "preview", timeMs: timeMs }
+}
+
+// navModeFor(pendingCommittedJump) → how to honor the controller's navigationRequested: a
+// jump we just committed (double-click / scrub release) is a hard "navigate"; a passive
+// follow move is a gentle "ensureVisible" (comfort zone). ReaderShell sets the pending flag
+// on a commit and clears it when the next navigationRequested consumes it. Pure.
+function navModeFor(pendingCommittedJump) { return pendingCommittedJump ? "navigate" : "ensureVisible" }

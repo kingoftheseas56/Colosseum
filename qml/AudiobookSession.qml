@@ -105,6 +105,10 @@ Item {
         mpv.pause = false
     }
     function togglePlay() { mpv.pause = !mpv.pause; session.recordProgress() }
+    // Deterministic play (read-along, Task 6): the ReadAlongController's audioSeekRequested
+    // carries a `play` flag — a double-click-to-seek wants the narration PLAYING, not toggled
+    // (togglePlay would pause an already-playing stream). Idempotent: a no-op if already playing.
+    function play() { if (mpv.pause) { mpv.pause = false; session.recordProgress() } }
     function seekRel(delta) { mpv.seekExact(Math.max(0, Math.min(mpv.duration, mpv.position + delta))) }
     function seekTo(t) { mpv.seekExact(Math.max(0, t)) }
     // Read-along: jump to a chapter by its index in chapterModel — a file load for an mp3
