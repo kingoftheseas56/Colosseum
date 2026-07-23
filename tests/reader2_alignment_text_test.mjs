@@ -11,7 +11,8 @@
 
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
-import { canonicalFold, canonicalWalk } from '../resources/reader2/alignment_text.js'
+import { canonicalFold, canonicalWalk, resolveCanonicalSpan, canonicalRangeFromDom }
+    from '../resources/reader2/alignment_text.js'
 
 let fails = 0
 const check = (ok, what) => { console.log((ok ? 'ok   ' : 'FAIL ') + what); if (!ok) fails++ }
@@ -75,6 +76,48 @@ check(!walked.canonical.includes('var skip'), 'script text is skipped')
     const at = walked.nodeAt(k)
     check(at != null && at.node.nodeType === 3, 'canonicalWalk resolves an inline-split word to a text node')
 }
+
+// ── 4. resolveCanonicalSpan — canonical [start,end) -> DOM Range endpoints ────
+// The sentence/word range resolution the paper paints with. The fixture's "really" is
+// split across an <em> (re|al|ly), the canonical cross-inline-node case.
+const reNode = body.childNodes[2].childNodes[0]     // 3rd <p>'s "...re" text node
+const lyNode = body.childNodes[2].childNodes[2]     // its "ly..." text node
+const smithNode = body.childNodes[0].childNodes[0]  // 1st <p>'s single text node
+{
+    const rk = walked.canonical.indexOf('really')
+    const span = resolveCanonicalSpan(walked, rk, rk + 'really'.length)
+    check(span != null, 'resolveCanonicalSpan resolves the "really" span')
+    check(span && span.startNode === reNode, 'word span start lands in the "...re" text node')
+    check(span && span.endNode === lyNode, 'word span end lands in the "ly..." text node (crossed the <em>)')
+    check(span && span.startNode !== span.endNode, 'inline-split word yields a cross-node range')
+}
+{
+    const sk = walked.canonical.indexOf('smith')
+    const span = resolveCanonicalSpan(walked, sk, sk + 'smith'.length)
+    check(span && span.startNode === smithNode && span.endNode === smithNode,
+        'a word inside one text node yields a single-node range')
+    check(span && span.endOffset - span.startOffset === 'smith'.length, 'single-node span width == word length')
+}
+check(resolveCanonicalSpan(walked, 5, 5) === null, 'empty span (end<=start) -> null')
+check(resolveCanonicalSpan(walked, 99999, 100000) === null, 'out-of-range span -> null')
+
+// ── 5. canonicalRangeFromDom — DOM selection -> canonical [start,end) (double-click) ──
+{
+    const rk = walked.canonical.indexOf('really')
+    const span = resolveCanonicalSpan(walked, rk, rk + 'really'.length)
+    const back = canonicalRangeFromDom(walked, span)   // round-trip the cross-node word
+    check(back != null && back.start === rk && back.end === rk + 'really'.length,
+        'canonicalRangeFromDom round-trips a cross-node word to its canonical span')
+}
+{
+    const sk = walked.canonical.indexOf('smith')
+    const span = resolveCanonicalSpan(walked, sk, sk + 'smith'.length)
+    const back = canonicalRangeFromDom(walked, span)
+    check(back != null && back.start === sk && back.end === sk + 'smith'.length,
+        'canonicalRangeFromDom round-trips a single-node word')
+}
+check(canonicalRangeFromDom(walked, { startNode: txt('orphan'), startOffset: 0, endNode: lyNode, endOffset: 1 }) === null,
+    'a selection start not in this walk -> null')
 
 console.log(`PASS canonical text and offsets agree`)
 console.log(fails ? 'VERDICT: FAIL' : 'VERDICT: PASS')

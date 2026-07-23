@@ -216,6 +216,18 @@ let sectionHasText = true              // is the CURRENT section real prose (vs 
                                        // reported as relocated.textPage so the reading ruler only dims
                                        // TEXT pages — a focus band over a cover image is a bug, not an aid.
 
+// read-along (Task 4) — the paper's presentation seam for audiobook↔EPUB alignment.
+// The pure paint/resolve state machine lives in alignment_text.js; these hold its wiring.
+let AT = null                          // the alignment_text.js module (dynamic-imported in boot)
+let readAlong = null                   // the single createReadAlongPainter instance
+// Programmatic-navigation tag: set (depth-counted) around view moves WE initiate (init,
+// navigateReadAlong, ensureReadAlongVisible) so the relocate handler can tell a reader-
+// initiated move (wheel/drag/page-turn/TOC/search — emits manualNavigation) from a
+// programmatic one (emits nothing). Cleared on the NEXT tick so a relocate dispatched just
+// after the move still counts programmatic. (Depth-counted for overlapping moves.)
+let programmaticNav = false
+let programmaticDepth = 0
+
 // appearance state + defaults (dark paper)
 let appearance = {
   theme: { bg: '#000000', fg: '#e6e1d5' },
@@ -550,14 +562,28 @@ const attachSelection = (view, doc, index, gen) => {
   //     'toggleChrome'; ReaderShell routes that to chrome.toggle() — the same reveal
   //     Hemanth ratified, minus the selection-blocking overlay.
   doc.addEventListener('dblclick', () => {
-    let hasText = false
+    let hasText = false, selRange = null
     try {
       const sel = doc.getSelection && doc.getSelection()
       if (sel && sel.rangeCount) {
         const range = sel.getRangeAt(0)
         hasText = !!range && !range.collapsed && !!(range.toString() || sel.toString() || '').trim()
+        if (hasText) selRange = range
       }
     } catch (e) { /* treat as empty → toggle */ }
+    // Read-along seek: a double-click that lands WITHIN a painted sentence/word emits
+    // 'alignedDoubleClick' with the clicked word's canonical offset — IN ADDITION to the
+    // 'selection' the word-select already produced (both are fine; the controller uses the
+    // aligned event to seek). It never fires on empty space (there's no selection there), so
+    // the toggleChrome reveal below is untouched.
+    if (selRange && readAlong) {
+      try {
+        readAlong.handleDoubleClick({
+          startNode: selRange.startContainer, startOffset: selRange.startOffset,
+          endNode: selRange.endContainer, endOffset: selRange.endOffset,
+        })
+      } catch (e) { /* alignment optional — never break the reveal */ }
+    }
     if (!hasText) emit('toggleChrome', {})
   })
 }
@@ -616,6 +642,12 @@ const wireView = (view, gen) => {
       // from the live section (robust vs a relocate that races ahead of this section's 'load').
       textPage: !(currentView && currentView.isFixedLayout) && currentSectionHasText(),
     })
+
+    // Read-along (Task 4): a READER-initiated relocate (wheel, drag, page turn, TOC/search/
+    // bookmark/annotation jump) emits 'manualNavigation' so the controller detaches audio
+    // follow. A move WE initiated (init / navigateReadAlong / ensureReadAlongVisible) is tagged
+    // programmatic and stays silent — the return-to-narration path must not detach itself.
+    if (!programmaticNav) emit('manualNavigation', { gen })
   })
 
   view.addEventListener('load', e => {
@@ -708,6 +740,125 @@ const wireView = (view, gen) => {
 }
 
 // ---------------------------------------------------------------------------
+// read-along (Task 4) — non-destructive alignment painting + canonical navigation.
+// The pure paint/resolve logic lives in alignment_text.js (createReadAlongPainter); these
+// supply it the LIVE platform: on-screen foliate sections, a foliate Overlayer wash/emphasis
+// layer per section, and word-clone geometry. No model, SQLite, matching, job, or playback
+// authority ever enters here (design §"Reader2 paper bridge": QML paints, C++ decides).
+// ---------------------------------------------------------------------------
+const beginProgrammatic = () => { programmaticDepth++; programmaticNav = true }
+const endProgrammatic = () => setTimeout(() => {
+  programmaticDepth = Math.max(0, programmaticDepth - 1)
+  if (programmaticDepth === 0) programmaticNav = false
+}, 0)
+const runProgrammatic = async fn => {
+  beginProgrammatic()
+  try { return await fn() } catch (e) { /* navigation is best-effort */ } finally { endProgrammatic() }
+}
+
+// A soft harbor wash for the active sentence; a stronger cast for the active word. Both are
+// foliate Overlayer rects in a NON-INTERACTIVE (pointer-events:none) SVG layer, so they never
+// steal the pointer from selection/link/footnote/highlight (which keep their exact behavior).
+// Opacity is soft so the glyphs read through.
+const READALONG_SENTENCE_COLOR = 'rgba(167, 96, 52, 0.20)'
+const READALONG_WORD_COLOR = 'rgba(167, 96, 52, 0.45)'
+
+// One dedicated Overlayer per section doc, SEPARATE from foliate's annotation overlay so
+// clear() never disturbs a reader's highlights. Built lazily; the empty SVG lingering in the
+// body after clear is inert (foliate leaves its own annotation SVG the same way).
+const makeReadAlongOverlay = doc => {
+  const layer = new Overlayer(doc)
+  try { (doc.body || doc.documentElement).appendChild(layer.element) } catch (e) {}
+  const toRange = rd => { const r = doc.createRange(); r.setStart(rd.startNode, rd.startOffset); r.setEnd(rd.endNode, rd.endOffset); return r }
+  return {
+    draw(kind, rd) {
+      try {
+        const color = kind === 'word' ? READALONG_WORD_COLOR : READALONG_SENTENCE_COLOR
+        layer.add('readalong-' + kind, toRange(rd), Overlayer.highlight, { color })
+      } catch (e) { /* boundary range — skip this frame */ }
+    },
+    clear() { try { layer.remove('readalong-sentence') } catch (e) {} try { layer.remove('readalong-word') } catch (e) {} },
+  }
+}
+
+// The word's page-space rect (doc-relative, scroll-corrected) so the enlarged clone sits over
+// the word without touching the text flow. Bench-tuned geometry; null on failure.
+const measureReadAlong = (doc, rd) => {
+  try {
+    const range = doc.createRange()
+    range.setStart(rd.startNode, rd.startOffset); range.setEnd(rd.endNode, rd.endOffset)
+    const r = range.getBoundingClientRect()
+    const win = doc.defaultView || {}
+    return { left: r.left + (win.scrollX || 0), top: r.top + (win.scrollY || 0), width: r.width, height: r.height }
+  } catch (e) { return null }
+}
+
+// The on-screen rendered sections, each tagged with its spine href (foliate's section id =
+// the manifest-relative href). The painter matches a cue's spineHref against these.
+const spineHrefForIndex = index => {
+  try { const sec = currentView?.book?.sections?.[index]; return sec ? (sec.id || '') : '' }
+  catch (e) { return '' }
+}
+const readAlongSections = () => {
+  try {
+    return (currentView?.renderer?.getContents?.() || [])
+      .map(c => ({ doc: c.doc, spineHref: spineHrefForIndex(c.index) }))
+      .filter(s => s.doc)
+  } catch (e) { return [] }
+}
+
+const toDomRange = (doc, rd) => {
+  const range = doc.createRange()
+  range.setStart(rd.startNode, rd.startOffset); range.setEnd(rd.endNode, rd.endOffset)
+  return range
+}
+const parseArg = json => { try { return JSON.parse(json) } catch (e) { return null } }
+
+const paperSetReadAlongStyle = json => { readAlong?.setStyle(parseArg(json)) }
+const paperPaintReadAlong = json => { const cue = parseArg(json); if (cue) readAlong?.paint(cue) }
+const paperClearReadAlong = () => { readAlong?.clear() }
+
+// ensureReadAlongVisible(location): bring a resolved canonical location into the comfort zone
+// with a MINIMAL foliate scroll — programmatic, so no manualNavigation. No text mutation.
+const paperEnsureReadAlongVisible = json => {
+  const loc = parseArg(json)
+  if (!loc || !readAlong || !currentView) return
+  const hit = readAlong.resolveLocation(loc)
+  if (!hit) return                                 // off-screen/unresolvable — the controller decides
+  runProgrammatic(() => currentView.renderer?.scrollToAnchor?.(toDomRange(hit.doc, hit.range)))
+}
+
+// navigateReadAlong(location): programmatically move the view to a canonical location (the
+// double-click-to-seek RETURN path). PROGRAMMATIC → must NOT emit manualNavigation. If the
+// section is on screen we comfort-scroll to the range; otherwise we goTo the spine section and
+// resolve the range in the freshly-rendered doc (foliate calls the anchor fn with the new doc).
+const paperNavigateReadAlong = json => {
+  const loc = parseArg(json)
+  if (!loc || !currentView) return
+  const hit = readAlong && readAlong.resolveLocation(loc)
+  if (hit) {
+    runProgrammatic(() => currentView.renderer?.scrollToAnchor?.(toDomRange(hit.doc, hit.range)))
+    return
+  }
+  runProgrammatic(async () => {
+    const resolved = currentView.book?.resolveHref?.(String(loc.spineHref || '').split('#')[0])
+    if (resolved && Number.isFinite(resolved.index)) {
+      await currentView.renderer?.goTo?.({
+        index: resolved.index,
+        anchor: docNew => {
+          try {
+            const rd = AT && AT.resolveCanonicalSpan(AT.canonicalWalk(docNew.body || docNew), loc.canonicalStart, loc.canonicalEnd)
+            return rd ? toDomRange(docNew, rd) : 0
+          } catch (e) { return 0 }
+        },
+      })
+    } else {
+      await currentView.goTo?.(String(loc.spineHref || '').split('#')[0])
+    }
+  })
+}
+
+// ---------------------------------------------------------------------------
 // commands DOWN — window.paper.*
 // ---------------------------------------------------------------------------
 // Drop a <foliate-view> WE appended once a newer open superseded us: close+remove it, and
@@ -757,6 +908,7 @@ const paperOpen = async (path, cfi, gen) => {
     }
     annotations.clear()
     flatToc = []
+    try { readAlong?.invalidate() } catch (e) {}   // a previous book's paint/caches can't cross over
 
     if (!window.bridge || typeof window.bridge.filesRead !== 'function')
       throw new Error('bridge.filesRead is not available')
@@ -838,8 +990,13 @@ const paperOpen = async (path, cfi, gen) => {
     })
     readyEmitted = true
 
-    if (cfi) await view.init({ lastLocation: cfi })
-    else await view.init({})                      // pushState(0) + first page (single advance)
+    // Wrap the initial position in a programmatic tag so its first relocate does NOT emit
+    // 'manualNavigation' — the book opening isn't a reader-initiated navigation.
+    beginProgrammatic()
+    try {
+      if (cfi) await view.init({ lastLocation: cfi })
+      else await view.init({})                      // pushState(0) + first page (single advance)
+    } finally { endProgrammatic() }
     if (superseded()) { removeSupersededView(view); return }  // switched during view.init
   } catch (e) {
     if (superseded()) return                       // a newer open owns the surface now — its errors, not ours
@@ -964,6 +1121,18 @@ const boot = async () => {
   await import(mod('./vendor/foliate-anx/src/view.js'))          // registers <foliate-view>
   const ov = await import(mod('./vendor/foliate-anx/src/overlayer.js'))
   Overlayer = ov.Overlayer
+  // read-along (Task 4): the shared canonical module + the single paint state machine, wired
+  // to the LIVE view (on-screen sections, a foliate Overlayer layer, and clone geometry).
+  try {
+    AT = await import(mod('./alignment_text.js'))
+    readAlong = AT.createReadAlongPainter({
+      sections: readAlongSections,
+      makeOverlay: makeReadAlongOverlay,
+      measure: measureReadAlong,
+      emit,
+      getGen: () => openGen,
+    })
+  } catch (e) { console.warn('[paper] read-along module load failed (alignment disabled)', e) }
   // footnotes: the fork's FootnoteHandler (no self-boot, imports nothing DOM-bound) — the
   // proven note-extraction path. Set up one handler for the page lifetime (its listeners
   // fan out per book via handle(view.book, e)).
@@ -991,6 +1160,12 @@ const boot = async () => {
     addHighlight: paperAddHighlight,
     removeHighlight: paperRemoveHighlight,
     clearSelection: paperClearSelection,
+    // read-along (Task 4) — alignment presentation. Consume canonical locations only.
+    setReadAlongStyle: paperSetReadAlongStyle,
+    paintReadAlong: paperPaintReadAlong,
+    clearReadAlong: paperClearReadAlong,
+    ensureReadAlongVisible: paperEnsureReadAlongVisible,
+    navigateReadAlong: paperNavigateReadAlong,
   }
 
   await waitForBridge()
