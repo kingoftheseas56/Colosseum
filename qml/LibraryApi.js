@@ -203,3 +203,91 @@ function ledgerCounts(rows) {
     }
     return c;
 }
+
+// ── the new-episode pipeline (spec §4.5) + ended-finale auto-complete (spec §4.3) ──
+// The auto-complete DECISION, isolated and pure: an ENDED series whose watched finale is done
+// and which carries no manual mark completes itself. An ONGOING series NEVER auto-completes
+// (catching up = staying live); a manual mark (1 or -1) always wins over auto.
+function shouldAutoComplete(airing, videos, watchedEpisodeIds, mark) {
+    return airing === "ended" && mark === 0 && finaleWatched(videos, watchedEpisodeIds);
+}
+
+function _isStampFresh(payload, nowMs, maxAgeMs) {
+    var t = Number((payload && payload.libStampAt) || 0);
+    return t > 0 && (nowMs - t) < maxAgeMs;
+}
+function _releasedOf(videos, epId) {
+    for (var i = 0; i < (videos || []).length; i++)
+        if (String(videos[i].id) === epId) return Date.parse(videos[i].released || "");
+    return NaN;
+}
+
+// refreshStamps — walk the Collection's SERIES entries, refresh each STALE one (stamp older
+// than 6h) from a fresh meta fetch: recompute the new-episode count + airing status, auto-
+// complete an ended series on its watched finale, and re-stamp the Collection payload (upsert).
+// Serial — one fetch at a time (loadMeta is async: kind,id,cb); done() fires after the last.
+// Movies and fresh-stamped series are skipped; an empty shelf does zero network.
+//   loadMeta(kind,id,cb) · markFn(id)→-1|0|1 · forgetFn(id) · setMarkFn(id,on) · addFn(entry)
+function refreshStamps(entries, loadMeta, progressList, markFn, forgetFn, setMarkFn, addFn, nowMs, done) {
+    entries = entries || [];
+    progressList = progressList || [];
+    var SIX_H = 6 * 60 * 60 * 1000;
+    var todo = [];
+    for (var i = 0; i < entries.length; i++) {
+        var e = entries[i];
+        if (!e || e.type !== "series" || !e.id) continue;
+        if (_isStampFresh(e.payload || {}, nowMs, SIX_H)) continue;
+        todo.push(e);
+    }
+    if (!todo.length) { if (done) done(); return; }
+
+    var k = 0;
+    function step() {
+        if (k >= todo.length) { if (done) done(); return; }
+        var e = todo[k++];
+        loadMeta("series", String(e.id), function (meta) {
+            _applyStamp(e, meta || {}, progressList, markFn, forgetFn, setMarkFn, addFn, nowMs);
+            step();
+        });
+    }
+    step();
+}
+
+function _applyStamp(e, meta, progressList, markFn, forgetFn, setMarkFn, addFn, nowMs) {
+    var videos = (meta && meta.videos) ? meta.videos : [];
+    var airing = airingFrom(meta);
+    // watched frontier: episodes released after the representative watched episode are "new";
+    // never played → count what aired since it was ADDED.
+    var rep = _matchProgress(String(e.id), progressList);
+    var sinceMs = Number(e.addedAt || 0);
+    var watchedIds = [];
+    if (rep) {
+        var repId = String(rep.id || "");
+        if (rep.watched === true || Number(rep.progress || 0) >= 0.90) watchedIds = [repId];
+        var rel = _releasedOf(videos, repId);
+        if (!isNaN(rel)) sinceMs = rel;
+    }
+    var newCount = newEpisodeCount(videos, sinceMs, nowMs);
+    var mark = markFn ? markFn(String(e.id)) : 0;
+    if (shouldAutoComplete(airing, videos, watchedIds, mark)) {
+        if (forgetFn) forgetFn(String(e.id));           // clear Continue + Next Up FIRST...
+        if (setMarkFn) setMarkFn(String(e.id), true);   // ...then set the mark (forget cleared it)
+        newCount = 0;                                    // a done show shows no new-episode badge
+    }
+    // re-stamp the Collection entry (upsert): copy, patch payload, re-add.
+    var patched = {};
+    for (var kk in e) patched[kk] = e[kk];
+    var payload = {};
+    var src = e.payload || {};
+    for (var pk in src) payload[pk] = src[pk];
+    payload.libNewCount = newCount;
+    payload.libAiring = airing;
+    payload.libStampAt = nowMs;
+    if (_year(payload) === 0) {
+        var my = Number(meta && meta.year);
+        if (!isNaN(my) && my > 0) payload.libYear = my;
+        else { var m = String((meta && meta.releaseInfo) || "").match(/\d{4}/); if (m) payload.libYear = Number(m[0]); }
+    }
+    patched.payload = payload;
+    if (addFn) addFn(patched);
+}

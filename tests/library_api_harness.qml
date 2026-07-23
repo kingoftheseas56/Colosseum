@@ -154,6 +154,55 @@ Item {
             ok(brows[4].progress === 0.95 && brows[4].state === "progress" && brows[4].lastWatchedAt === 6000,
                "buildRows series clamp: raw bar progress, in-progress state");
 
+            // ── shouldAutoComplete (spec §4.3) — the pure decision ──
+            var acVids = [ { id: "s1:1:1", season: 1, number: 1 }, { id: "s1:2:1", season: 2, number: 1 } ];
+            ok(Api.shouldAutoComplete("ended", acVids, ["s1:2:1"], 0) === true, "ended+finale+no-mark → fires");
+            ok(Api.shouldAutoComplete("ongoing", acVids, ["s1:2:1"], 0) === false, "ongoing NEVER auto-completes");
+            ok(Api.shouldAutoComplete("ended", acVids, ["s1:2:1"], -1) === false, "manual -1 blocks auto-complete");
+            ok(Api.shouldAutoComplete("ended", acVids, ["s1:2:1"], 1) === false, "already marked → no re-fire");
+            ok(Api.shouldAutoComplete("ended", acVids, ["s1:1:1"], 0) === false, "non-finale watched → no fire");
+
+            // ── refreshStamps orchestration (fakes: serial walk, skips, auto-complete, order) ──
+            function fakeLoadMeta(kind, id, cb) {
+                if (id === "s1") cb({ status: "Ended", videos: [
+                    { id: "s1:1:1", season: 1, number: 1, released: "2020-01-01" },
+                    { id: "s1:1:2", season: 1, number: 2, released: "2020-01-08" },
+                    { id: "s1:2:1", season: 2, number: 1, released: "2020-02-01" } ] });
+                else if (id === "s2") cb({ status: "Continuing", videos: [
+                    { id: "s2:1:1", season: 1, number: 1, released: "2024-01-01" },
+                    { id: "s2:1:2", season: 1, number: 2, released: "2024-06-01" },
+                    { id: "s2:1:3", season: 1, number: 3, released: "2024-11-01" } ] });
+                else cb(null);
+            }
+            var s1 = ent("s1", "Ended Show", "series", {}, 1000);
+            var s2 = ent("s2", "Ongoing Show", "series", {}, 1000);
+            var s3 = ent("s3", "Fresh Show", "series", { libStampAt: now, libAiring: "ongoing" }, 1000);
+            var m1 = ent("m1", "A Movie", "movie", {}, 1000);
+            var plist2 = [
+                { id: "s1:2:1", watched: true, progress: 0.95, updatedAt: 5000 },   // s1 rep = finale, watched
+                { id: "s2:1:1", watched: true, progress: 0.95, updatedAt: 4000 }    // s2 rep = ep1 (2024-01-01)
+            ];
+            var seq = [], addCalls = [], setMarks = [], forgets = [], doneFlag = { v: false };
+            Api.refreshStamps([s1, s2, s3, m1], fakeLoadMeta, plist2,
+                function (id) { return 0; },
+                function (id) { forgets.push(id); seq.push("forget:" + id); },
+                function (id, on) { setMarks.push(id + ":" + on); seq.push("setmark:" + id + ":" + on); },
+                function (e) { addCalls.push(e); },
+                now, function () { doneFlag.v = true; });
+
+            ok(doneFlag.v === true, "refreshStamps calls done()");
+            ok(addCalls.length === 2, "refreshStamps re-stamps only stale series (s1,s2): " + addCalls.length);
+            var byId = {};
+            for (var ai = 0; ai < addCalls.length; ai++) byId[addCalls[ai].id] = addCalls[ai].payload;
+            ok(byId["s1"] && byId["s1"].libAiring === "ended" && byId["s1"].libNewCount === 0
+               && byId["s1"].libStampAt === now, "s1 stamped ended + auto-completed (newCount 0)");
+            ok(byId["s2"] && byId["s2"].libAiring === "ongoing" && byId["s2"].libNewCount === 2
+               && byId["s2"].libStampAt === now, "s2 stamped ongoing + 2 new since watched ep");
+            ok(!byId["s3"] && !byId["m1"], "fresh series + movie skipped (no fetch/re-stamp)");
+            ok(setMarks.length === 1 && setMarks[0] === "s1:true", "only s1 auto-marks watched");
+            ok(forgets.length === 1 && forgets[0] === "s1", "s1 forgotten before marking");
+            ok(seq.indexOf("forget:s1") < seq.indexOf("setmark:s1:true"), "forget precedes setmark (order matters)");
+
             if (fails.length) console.log("FAILS:\n  " + fails.join("\n  "));
             else console.log("library_api_harness: ALL PASS");
             Qt.exit(fails.length);
