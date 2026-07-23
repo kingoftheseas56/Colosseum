@@ -166,12 +166,10 @@ void DemuxSession::cancel()
 {
     m_cancelled.store(true, std::memory_order_release);
     m_commandCv.notify_all();
-    // Wake a demux thread that may be blocked writing into a full audio sink. WASAPIAudioSink's
-    // enqueueBlocking() has no cancel predicate, so if the sink ever stops draining (a device fault,
-    // or a future direct pause) a teardown could never join. Flushing empties the sink queue and
-    // bumps its generation, releasing the writer; the worker then observes m_cancelled and exits.
-    if (AudioPipeline *audio = m_audioPipeline.load(std::memory_order_acquire))
-        audio->flush(m_activeGeneration.load(std::memory_order_acquire));
+    // NOTE: do NOT flush the audio sink here. cancel() is also called at the top of open() as
+    // pre-run cleanup, and flushing would stamp the sink with the previous generation right before
+    // the new run's first write, which the sink then rejects ("Audio generation rejected"). The
+    // enqueueBlocking-teardown wake is handled by the sink's own flush on close()/reopen instead.
     // Unblock a blocked AVIO read so the worker can observe the cancel and exit; the shared_ptr copy
     // keeps the source alive across this call even as the worker tears it down.
     std::shared_ptr<HttpMediaSource> source;
