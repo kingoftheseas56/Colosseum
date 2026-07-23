@@ -296,17 +296,27 @@ public:
     void rebuild(const QVector<PageMeta>& pages, const Options& opt);
     void updatePage(const PageMeta& meta);            // real size arrives → height changes
     QVector<int> window(double top, double vpHeight, double marginScreens) const; // ±1.5
-    int pageAtCenter(double top, double vpHeight) const;   // binary search
+    int pageAtCenter(double top, double vpHeight) const;   // binary search; -1 when empty
     double pageTop(int page) const;
-    double compensation(int page, double oldH) const;  // scroll delta when a page above grows
+    // Anti-jump: ACCUMULATE-AND-CLEAR. Every updatePage() whose height changed records (oldTop,
+    // delta). takePendingCompensation(viewportTop) returns the SUM of deltas for recorded pages
+    // whose oldTop < viewportTop (the ones above the fold), then CLEARS the accumulator. Robust to
+    // Task 7 batching several updatePage() calls before one query. (Replaces the plan's earlier
+    // single-shot compensation(page,oldH) sketch — oldH lives in model state; the caller can't pass
+    // a stale value.) The model itself stays viewport-agnostic.
+    double takePendingCompensation(double viewportTop);
 };
 ```
+`rebuild()` MUST assert (or clearly document) the invariant `pages[i].index == i` — `updatePage`
+keys the entry by `meta.index` while window/pageAtCenter/geometry key by array position, so a
+sparse/reordered feed would silently write the wrong row.
 
 - [ ] **Step 1: Tests first** (`COMICREADER_STRIP_OK`): unknown pages use estimate 1600×2400 scaled
   to portrait width; spread pages span full viewport width; exact gap between tops;
   `window(...)` returns exactly the ±1.5-screen set; `pageAtCenter` matches a hand-computed
-  layout; `updatePage` on a page ABOVE the anchor yields `compensation == newH − oldH`, on a
-  page below yields 0; eviction (ready=false) never changes geometry.
+  layout; `updatePage` on a page ABOVE the fold contributes `newH − oldH` and a page below
+  contributes 0 to `takePendingCompensation`; **a BATCH of updatePage() calls before one query
+  sums all above-fold deltas then clears**; eviction (ready=false) never changes geometry.
 - [ ] **Steps 2–5:** fail → implement → green → commit.
 
 ### Task 7: Backend + provider into the app
