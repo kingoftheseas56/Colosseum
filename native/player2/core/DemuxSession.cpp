@@ -533,16 +533,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     std::atomic<bool> videoReachedEnd{false};
     QString videoFailureMessage; // published before videoThreadFailed is set (release/acquire)
 
-    // Bounded video read-ahead. This horizon is load-bearing: audio is decoded inline on THIS
-    // (demux) thread, and packets are read interleaved, so the demux cannot reach a future audio
-    // packet while it is blocked pushing a full video queue. The horizon must therefore exceed the
-    // audio pre-roll the sink needs — loudnorm's ~3 s lookahead plus the 2 s WASAPI cushion (~5 s) —
-    // or the video back-pressure re-paces the demuxer to real time and the loudness filter starves
-    // (measured: Full/Light sink floor collapses, underruns climb). 8 s covers 3 s + 2 s + interleave
-    // and scheduling margin. The byte/packet caps are raised proportionally so the time bound, not a
-    // smaller cap, is the one that governs. (In practice the audio sink's own 2 s back-pressure
-    // self-limits the demuxer to ~5 s of read-ahead, well under this ceiling.)
-    PacketQueue videoQueue(PacketQueue::Bounds{8'000'000, 128 * 1024 * 1024, 1200});
+    // Bounded video read-ahead with a DROP-OLDEST admission policy. Audio is decoded inline on THIS
+    // (demux) thread, so the demux must NEVER block pushing a full video queue — if it did, a video
+    // that consumes slightly below real time would back the queue up, the demux would stall, audio
+    // would starve, its clock would freeze, video would pace to the frozen clock and stop draining,
+    // and the whole pipeline would deadlock (measured: after ~60 s of Full-EBU playback, video → 0
+    // fps for the rest of the run, 1800+ underruns). Enlarging the horizon only delays that. Instead,
+    // when the 8 s buffer is full the queue drops the oldest whole GOP so a slow video skips ahead to
+    // a keyframe (audio is sacred, video is droppable) and the demux thread is never blocked. The
+    // consumer flushes its decoder on the signalled discontinuity. 8 s still covers loudnorm's ~3 s
+    // lookahead + the 2 s WASAPI cushion + interleave in the healthy case where no drop is needed.
+    PacketQueue videoQueue(
+        PacketQueue::Bounds{8'000'000, 128 * 1024 * 1024, 1200, /*dropOldestWhenFull*/ true});
 
     // The video decode thread: builds its own hardware decoder, then pops packets and paces frames
     // against the master clock. Joined at the end of run() — its captured references outlive it.
@@ -582,6 +584,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             bool discarding = false;
             bool landingPresented = false;
             bool audioMasterActive = false;
+            // Tracks the audio clock's validity across frames so a valid->invalid->valid transition
+            // (an underrun that emptied the sink, then refilled) is recognised as a RECOVERY: the
+            // frozen master clock is stale, so we snap to the fresh audio position instead of crawling.
+            bool audioWasValid = false;
             // Audio-master readiness barrier state. `audioReady` latches true once the sink produces a
             // real clock for the current audio-path epoch; until then video holds so it cannot lead
             // the silent loudnorm preroll. `barrierPresented` remembers we already showed one held
@@ -731,6 +737,12 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                                 else
                                     playbackClock->reset(audioNow, now);
                                 audioMasterActive = true;
+                            } else if (decideClockResync(audioWasValid,
+                                                         audioNow - playbackClock->positionAt(now),
+                                                         50'000) == ClockResync::HardReset) {
+                                // Recovering from an underrun: snap across the gap so the picture does
+                                // not lag audio while a 5 ms/frame slew crawls a multi-100 ms jump.
+                                playbackClock->reset(audioNow, now);
                             } else {
                                 playbackClock->correctToward(audioNow, now, 5'000);
                             }
@@ -738,6 +750,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                             playbackClock->reset(ptsUs, now); // video-only: video is its own master
                         }
                         // (audioIsMaster && audioReady && !audio.valid == paused: keep frozen clock.)
+                        audioWasValid = audio.valid;
 
                         const FrameScheduleDecision decision = frameScheduler->choose(
                             playbackClock->positionAt(now), now,
@@ -786,7 +799,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             std::unique_ptr<AVPacket, PacketCloser> pkt(av_packet_alloc());
             while (!m_cancelled.load(std::memory_order_acquire) && !failed) {
                 quint64 pktGen = gen;
-                const PacketQueue::PopResult pop = videoQueue.pop(pkt.get(), &pktGen);
+                bool videoDiscontinuity = false;
+                const PacketQueue::PopResult pop =
+                    videoQueue.pop(pkt.get(), &pktGen, &videoDiscontinuity);
                 if (pop == PacketQueue::PopResult::Cancelled)
                     break;
                 if (pop == PacketQueue::PopResult::EndOfStream) {
@@ -814,6 +829,14 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                     audioMasterActive = false;
                 }
                 gen = pktGen; // adopt the generation (covers both seeks and plain track changes)
+
+                // The queue dropped stale backlog to let a slow video skip ahead to a keyframe; the
+                // decoder's reference chain is broken across that gap, so flush before decoding it.
+                if (videoDiscontinuity) {
+                    avcodec_flush_buffers(decoder.get());
+                    if (frameScheduler)
+                        frameScheduler->reset();
+                }
 
                 const int sr = avcodec_send_packet(decoder.get(), pkt.get());
                 av_packet_unref(pkt.get());
@@ -1144,9 +1167,13 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         // Route the packet by stream. `streamIndex` is captured above because a video push moves out
         // of the packet (blanking stream_index); else-if keeps exactly one branch consuming it.
         if (videoPresent && streamIndex == videoStreamIndex) {
-            // Hand off to the video thread (moves out of the packet; blocks while ~2 s ahead). A
-            // false return means the queue was cancelled — the video thread died — so surface it.
-            if (!videoQueue.push(packet.get(), toUs(packet->pts), gen)) {
+            // Hand off to the video thread (moves out of the packet). Drop-oldest admission: never
+            // blocks — when the 8 s buffer is full it drops the oldest GOP so a slow video skips
+            // ahead, and audio decode on this thread is never stalled. The keyframe flag lets the
+            // queue drop to a clean restart point. A false return means the queue was cancelled (the
+            // video thread died) — surface it.
+            if (!videoQueue.push(packet.get(), toUs(packet->pts), gen,
+                                 (packet->flags & AV_PKT_FLAG_KEY) != 0)) {
                 if (decodeFailure.isEmpty())
                     decodeFailure = videoFailureMessage;
                 decodeFailed = true;
