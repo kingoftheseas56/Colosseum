@@ -116,6 +116,10 @@ Window {
                 visible: shellToggle.checked
                 session: videoSurface.session
                 hostServices: HarnessHost
+                // The shell only requests fullscreen (typed intent); the host owns the window. In the
+                // lab the host is this Window — toggle it. Production wires this to its own window.
+                onFullscreenRequested: root.visibility =
+                    (root.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen)
             }
 
             // Lab toggle between the raw frame-rail instrument and the parity chrome.

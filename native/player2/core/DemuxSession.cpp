@@ -760,6 +760,26 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                         // finishes publishing; it cannot seed or resync the new audio epoch.
                         audioWasValid = audioClockCurrent;
 
+                        // Real pause: freeze on this frame and HOLD. Without this the scheduler keeps
+                        // firing wall-clock deadlines against the paused (frozen) clock, so the picture
+                        // creeps forward through the buffered read-ahead instead of stopping. Present
+                        // the current frame once, then wait interruptibly — resume, seek and cancel all
+                        // break the hold so the transport stays responsive.
+                        if (m_paused.load(std::memory_order_acquire) &&
+                            !decodingToTarget.load(std::memory_order_acquire)) {
+                            QString pauseError;
+                            const VideoFrameToken held{gen, ++videoSequence, ptsUs};
+                            pipeline->submitDecodedFrame(frame.get(), held, &pauseError);
+                            av_frame_unref(frame.get());
+                            while (m_paused.load(std::memory_order_acquire) &&
+                                   !m_cancelled.load(std::memory_order_acquire) &&
+                                   seekEpoch.load(std::memory_order_acquire) == lastSeekEpoch &&
+                                   !decodingToTarget.load(std::memory_order_acquire)) {
+                                std::this_thread::sleep_for(std::chrono::milliseconds(5));
+                            }
+                            continue;
+                        }
+
                         const FrameScheduleDecision decision = frameScheduler->choose(
                             playbackClock->positionAt(now), now,
                             std::vector<FrameCandidate>{{videoSequence + 1, ptsUs}});
