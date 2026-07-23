@@ -285,6 +285,66 @@ void testEndOfStreamDrainsThenSignals()
     av_packet_free(&out);
 }
 
+// Push a keyframe-tagged packet through the ownership-safe helper (frees on the caller's side).
+bool pushKf(PacketQueue &queue, unsigned char tag, qint64 ptsUs, quint64 generation, bool keyframe)
+{
+    AVPacket *packet = makePacket(4, tag);
+    const bool ok = queue.push(packet, ptsUs, generation, keyframe);
+    av_packet_free(&packet);
+    return ok;
+}
+
+// The video queue's policy: a full push NEVER blocks — it drops the oldest whole GOP so the new
+// front is a keyframe, then admits. Single-threaded here: a blocking push would HANG this test, so a
+// clean completion IS the proof the demux thread can never be stalled by a full video queue.
+void testDropOldestWhenFullNeverBlocksAndKeepsNewest()
+{
+    PacketQueue queue(PacketQueue::Bounds{/*maxBufferedUs*/ 0, /*maxBytes*/ 0, /*maxPackets*/ 4,
+                                          /*dropOldestWhenFull*/ true});
+    require(pushKf(queue, 0xA0, 0, 1, /*keyframe*/ true), "K0 admitted");
+    require(pushKf(queue, 0xB1, 1, 1, false), "P1 admitted");
+    require(pushKf(queue, 0xB2, 2, 1, false), "P2 admitted");
+    require(pushKf(queue, 0xA3, 3, 1, true), "K3 admitted — queue full at the 4-packet bound");
+    require(queue.bufferedPackets() == 4, "queue is full");
+
+    // Over-push: must not block; drops the leading GOP (K0,P1,P2) so the new front is keyframe K3.
+    require(pushKf(queue, 0xB4, 4, 1, false), "over-push admitted WITHOUT blocking");
+    require(queue.bufferedPackets() <= 4, "buffered stays within the bound after the drop");
+
+    AVPacket *out = av_packet_alloc();
+    quint64 gen = 0;
+    bool discontinuity = false;
+    require(queue.pop(out, &gen, &discontinuity) == PacketQueue::PopResult::Packet, "pop after drop");
+    require(out->data[0] == 0xA3,
+            "the oldest GOP was dropped; the retained keyframe pops first (a slow video skips ahead)");
+    require(discontinuity, "the post-drop pop flags a discontinuity so the decoder flushes cleanly");
+    av_packet_unref(out);
+    av_packet_free(&out);
+}
+
+// The discontinuity flag is one-shot: it fires on the first pop after a drop, then clears.
+void testDropDiscontinuityReportedOncePerDrop()
+{
+    PacketQueue queue(PacketQueue::Bounds{0, 0, /*maxPackets*/ 2, /*dropOldestWhenFull*/ true});
+    require(pushKf(queue, 0xA0, 0, 1, true), "K0");
+    require(pushKf(queue, 0xA1, 1, 1, true), "K1 — full");
+    require(pushKf(queue, 0xA2, 2, 1, true), "K2 over-push drops the oldest");
+
+    AVPacket *out = av_packet_alloc();
+    quint64 gen = 0;
+    bool discontinuity = false;
+    require(queue.pop(out, &gen, &discontinuity) == PacketQueue::PopResult::Packet, "pop 1");
+    require(discontinuity, "first pop after a drop flags a discontinuity");
+    av_packet_unref(out);
+
+    require(pushKf(queue, 0xA3, 3, 1, true), "K3 fits without overflow");
+    discontinuity = true;
+    require(queue.pop(out, &gen, &discontinuity) == PacketQueue::PopResult::Packet, "pop 2");
+    require(!discontinuity, "a normal pop after the discontinuity was consumed does not re-flag");
+    av_packet_unref(out);
+    av_packet_free(&out);
+}
+
 } // namespace
 
 int main()
@@ -297,6 +357,8 @@ int main()
         testFlushClearsBufferedAndResetsEndOfStream();
         testCancelUnblocksWaitersAndRejects();
         testEndOfStreamDrainsThenSignals();
+        testDropOldestWhenFullNeverBlocksAndKeepsNewest();
+        testDropDiscontinuityReportedOncePerDrop();
     } catch (const std::exception &error) {
         std::cerr << "player2_packet_queue_test: FAIL " << error.what() << '\n';
         return 1;

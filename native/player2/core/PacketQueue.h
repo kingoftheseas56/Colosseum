@@ -28,6 +28,11 @@ public:
         qint64 maxBufferedUs = 0; // buffered pts span cap (the read-ahead / loudnorm-lookahead knob)
         qint64 maxBytes = 0;      // total packet payload bytes cap
         int maxPackets = 0;       // packet count cap
+        // When true, a full push does NOT block: it drops the OLDEST buffered backlog (whole leading
+        // GOPs, so the new front is a keyframe) to make room, then admits. This is the video queue's
+        // policy — the demux thread decodes audio inline, so it must never block on a full video
+        // queue or audio starves and the whole pipeline deadlocks. A slow video skips ahead instead.
+        bool dropOldestWhenFull = false;
     };
 
     enum class PopResult
@@ -43,15 +48,18 @@ public:
     PacketQueue(const PacketQueue &) = delete;
     PacketQueue &operator=(const PacketQueue &) = delete;
 
-    // Take ownership of `packet` (moved via av_packet_move_ref) tagged with `generation` and
-    // `ptsUs`. Blocks while the queue is full (unless the queue is empty — a single oversized
-    // packet is always accepted so the pipeline can never deadlock). Returns false only if the
-    // queue is cancelled while blocked, leaving `packet` untouched for the caller to unref.
-    bool push(AVPacket *packet, qint64 ptsUs, quint64 generation);
+    // Take ownership of `packet` (moved via av_packet_move_ref) tagged with `generation`, `ptsUs`
+    // and whether it is a `keyframe`. Blocks while the queue is full (unless the queue is empty — a
+    // single oversized packet is always accepted so the pipeline can never deadlock), EXCEPT when
+    // Bounds::dropOldestWhenFull is set, in which case it drops the oldest backlog and never blocks.
+    // Returns false only if the queue is cancelled while blocked, leaving `packet` for the caller.
+    bool push(AVPacket *packet, qint64 ptsUs, quint64 generation, bool keyframe = false);
 
-    // Move the front packet into `out` (the caller unrefs) and report its generation. Blocks while
-    // the queue is empty until a push, setEndOfStream(), flush(), or cancel().
-    PopResult pop(AVPacket *out, quint64 *generation);
+    // Move the front packet into `out` (the caller unrefs) and report its generation. If
+    // `discontinuity` is non-null, it is set true when a drop-oldest admission discarded backlog
+    // before this packet — the consumer must flush its decoder before decoding it. Blocks while the
+    // queue is empty until a push, setEndOfStream(), flush(), or cancel().
+    PopResult pop(AVPacket *out, quint64 *generation, bool *discontinuity = nullptr);
 
     // Mark that no more packets will arrive. Once the buffer drains, pop() returns EndOfStream.
     // A blocked consumer is woken so it observes the end promptly.
@@ -74,6 +82,7 @@ private:
         AVPacket *packet = nullptr;
         qint64 ptsUs = 0;
         quint64 generation = 0;
+        bool keyframe = false;
     };
 
     bool isFullLocked() const;
@@ -87,6 +96,7 @@ private:
     qint64 m_bufferedBytes = 0;
     bool m_endOfStream = false;
     bool m_cancelled = false;
+    bool m_discontinuityPending = false; // a drop-oldest admission discarded backlog; next pop flags it
 };
 
 } // namespace Colosseum::Player2
