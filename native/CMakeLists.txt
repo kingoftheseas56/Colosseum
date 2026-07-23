@@ -1070,3 +1070,16 @@ add_executable(comicreader_decode_harness
     comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
 target_include_directories(comicreader_decode_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_decode_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): auto-coupling probe (Task 5).
+#    Pure scoring + decision: edgeContinuityCost samples the touching inner
+#    edges of a displayed pair (8x96 luminance strip); chooseCouplingPhase picks
+#    Normal vs Shifted from the summed per-pair costs under each phase. Depends
+#    only on QImage (Gui) + Task 1's CouplingPhase enum — no other comicreader/
+#    unit, no decode, no I/O. ──
+add_executable(comicreader_coupling_harness
+    ../tests/comicreader_coupling_harness.cpp
+    comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_coupling_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_coupling_harness PRIVATE Qt6::Core Qt6::Gui)
