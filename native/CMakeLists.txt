@@ -975,6 +975,23 @@ add_executable(read_along_controller_harness
 target_include_directories(read_along_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(read_along_controller_harness PRIVATE Qt6::Core Qt6::Sql)
 
+# EPUB sequence matcher (Agent 2). Pure, deterministic algorithm: monotonic phrase
+# anchors between coarse speech and the canonical EPUB text, plus explicit gap regions,
+# and a deliberate edition-mismatch rejection. No SQLite, no models, no I/O — the header
+# structs (EpubIndex/CoarseSegment) are enough, so only EpubSequenceMatcher.cpp compiles.
+# Qt Core alone.
+add_executable(epub_sequence_matcher_harness
+    ../tests/epub_sequence_matcher_harness.cpp
+    alignment/EpubSequenceMatcher.cpp
+    alignment/EpubSequenceMatcher.h
+    alignment/CoarseTypes.h
+    alignment/EpubTextIndexer.h
+    alignment/AlignmentTypes.h)
+target_include_directories(epub_sequence_matcher_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(epub_sequence_matcher_harness PRIVATE
+    ALIGNMENT_MATCHING_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/matching")
+target_link_libraries(epub_sequence_matcher_harness PRIVATE Qt6::Core)
+
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
 #    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
 #    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
