@@ -336,6 +336,7 @@ Window {
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
         else if (comicIndexLayer.active) win.closeComicArchive()
         else if (continueSeeAllLayer.active) win.closeContinueSeeAll()
+        else if (libraryLayer.active) win.closeLibrary()
         else if (theatreGenreLayer.active) win.closeTheatreGenre()
         else if (theatreGenreIndexLayer.active) win.closeTheatreGenreIndex()
         else if (genreLayer.active) win.closeGenre()
@@ -417,6 +418,31 @@ Window {
         else continueSeeAllLayer.active = true
     }
     function closeContinueSeeAll() { continueSeeAllLayer.active = false }
+
+    // ---- Library (Theatre stage 2): the shelf page opened from "Your Collection · See all ›" ----
+    function openLibrary() { libraryLayer.active = true }
+    function closeLibrary() { libraryLayer.active = false }
+    // Menu "Resume / Play": resume the series' current episode through the EXACT Continue path
+    // when there's watch history; otherwise (fresh save / "Play") open the detail page to start.
+    function resumeLibraryEntry(entry) {
+        if (!entry) return
+        var pid = String(entry.id || "")
+        var list = (typeof Progress !== "undefined") ? Progress.recent("video", 0) : []
+        for (var i = 0; i < list.length; i++) {
+            var id = String(list[i].id || "")
+            if (id === pid || id.indexOf(pid + ":") === 0) { win.resumeContinue(list[i]); return }
+        }
+        win.openCollectionEntry(entry)
+    }
+    // Menu "Mark watched / unwatched" (spec §4.3). Marking watched = "I'm done": clear Continue
+    // AND Next Up (both derive from Progress) FIRST, then set the mark — forget() clears the mark
+    // by design, so the ORDER matters. Unmark just reverses the flag; progress history stays.
+    function markLibraryWatched(entry, watched) {
+        if (!entry || typeof Progress === "undefined") return
+        var id = String(entry.id || "")
+        if (watched) { Progress.forget("video", id); Progress.setWatchedMark(id, true) }
+        else { Progress.setWatchedMark(id, false) }
+    }
 
     function openBiblioGenre(name) {
         biblioGenreLayer.genreName = name
@@ -1004,6 +1030,14 @@ Window {
 
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
+        // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
+        // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
+        // a movie's subId IS its id. Downloads keep auto-adding; one shelf, no saved-vs-watched split.
+        var joinId = (subType === "series" && subId) ? EpisodeBrowser.seriesRootId(subId) : subId
+        if (joinId && typeof Collection !== "undefined" && !Collection.has("theatre", String(joinId)))
+            Collection.add("theatre", { "id": String(joinId),
+                "type": (subType === "series") ? "series" : "movie",
+                "title": title || "", "cover": backdrop || "", "payload": ({}) })
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
             "target": { "showKey": EpisodeBrowser.seriesRootId(subId || ""),
@@ -1502,6 +1536,7 @@ Window {
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
+                    if (item.libraryRequested) item.libraryRequested.connect(win.openLibrary)
                     if (item.continueSeeAllRequested) item.continueSeeAllRequested.connect(function() {
                         win.openContinueSeeAll(mode === "Theatre" ? "video"
                                              : mode === "Biblio"  ? "book" : "tankoban")
@@ -1794,6 +1829,33 @@ Window {
             item.searchClicked.connect(win.openSearch)
             item.resumeRequested.connect(win.resumeContinue)     // same sinks the rows use
             item.detailRequested.connect(win.detailContinue)
+        }
+    }
+
+    // ---- Library layer (Theatre stage 2): the shelf page (LibraryPage) opened from the
+    //      "Your Collection · See all ›" door. z 49 beside the continue see-all backlog; a
+    //      tapped card opens its detail OVER this (z 50+) and back returns here. ----
+    Loader {
+        id: libraryLayer
+        anchors.fill: parent
+        z: 49
+        active: false
+        visible: active
+        source: "LibraryPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeLibrary)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+            item.resumeRequested.connect(win.resumeLibraryEntry)
+            item.detailRequested.connect(win.openCollectionEntry)
+            item.dismissRequested.connect(function(e) {
+                if (e && typeof Progress !== "undefined") Progress.forget("video", String(e.id || ""))
+            })
+            item.markWatchedRequested.connect(win.markLibraryWatched)
+            item.removeRequested.connect(function(e) {
+                if (e && typeof Collection !== "undefined") Collection.remove("theatre", String(e.id || ""))
+            })
         }
     }
 
