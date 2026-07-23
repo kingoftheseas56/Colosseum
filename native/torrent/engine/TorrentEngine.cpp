@@ -329,8 +329,13 @@ void TorrentEngine::applySettings()
 {
     lt::settings_pack sp;
 
+    // IPv4-only listen. This ISP hands out a dead/bogus IPv6 (DNS64-style AAAA that
+    // resolves to the local router), so binding DHT/peer/tracker UDP to [::] made the
+    // DHT bootstrap ping dead IPv6 nodes → 0 DHT nodes → torrent metadata never resolved
+    // and volume downloads sat at "Finding source…" forever. IPv4 is the only working
+    // route here (every HTTP host is IPv4-pinned for the same reason), so drop [::].
     sp.set_str(lt::settings_pack::listen_interfaces,
-               "0.0.0.0:6881,[::]:6881");
+               "0.0.0.0:6881");
 
     sp.set_str(lt::settings_pack::dht_bootstrap_nodes,
                "router.bittorrent.com:6881,"
