@@ -94,6 +94,9 @@ add_executable(colosseum
     work/BackgroundWorkCoordinator.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
+    net/LoopbackPinProxy.cpp       # instant posters: pin the connection, keep the hostname (HTTP/2)
+    net/LoopbackPinProxy.h
+    net/PinProxyFactory.h
     third_party/miniz/miniz.c      # gunzip for the Jikan Accept-Encoding workaround (needs C, enabled below)
     guided/GuidedCameraController.cpp
     guided/GuidedCameraController.h

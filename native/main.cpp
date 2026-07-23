@@ -60,6 +60,11 @@
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
+#include "net/LoopbackPinProxy.h"
+#include "net/PinProxyFactory.h"
+#include <QNetworkProxyFactory>
+#include <QSet>
+#include <algorithm>
 #include "anime/AnimeOrderService.h"
 #include "reader/BookBridge.h"
 #include "reader2/Reader2Bridge.h"
@@ -205,14 +210,13 @@ protected:
         if (m_pinnedHosts.contains(host)) {
             r.setRawHeader("Host", host.toUtf8());
             r.setPeerVerifyName(host);
-            // HTTP/2 MUST stay OFF while we pin by rewriting the URL to the IPv4
-            // literal below: h2's :authority then becomes the IP, and metahub's h2
-            // server rejects it — "HTTP/2 protocol error" on every poster, forcing a
-            // failed-h2→h1 retry that's SLOWER than clean h1 (empirically confirmed,
-            // 2026-07-23). We can't drop the pin either: metahub HAS live IPv6, so an
-            // unpinned host hits the 21s IPv6 black-hole stall. The real Stremio-parity
-            // fix (connect-to-IPv4 while keeping the hostname for h2's authority) needs
-            // a true DNS-pin layer Qt doesn't natively expose — tracked as a follow-up.
+            // HTTP/2 MUST stay OFF for URL-rewrite-pinned hosts: rewriting the URL to
+            // the IPv4 literal below makes h2's :authority the IP, which servers like
+            // metahub reject ("HTTP/2 protocol error"), forcing a slower failed-h2→h1
+            // retry (confirmed 2026-07-23). metahub itself no longer reaches this path
+            // — it's pinned at the CONNECTION layer by the loopback concierge (spec
+            // 2026-07-23), keeping its hostname so h2 works. This branch now governs
+            // the JSON hosts and the concierge-unavailable fallback only.
             r.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
             const QString ipv4 = m_ipv4ByHost.value(host);
@@ -516,7 +520,32 @@ int main(int argc, char *argv[]) {
                      qUtf8Printable(host));
         }
     }
-    engine.setNetworkAccessManagerFactory(new CachingNamFactory(pinnedHosts, ipv4ByHost));
+    // Instant posters (spec 2026-07-23): keep the hostname in metahub requests so
+    // HTTP/2 negotiates (SNI / cert / :authority all correct → the whole poster wall
+    // multiplexes over ONE connection), while a loopback CONNECT concierge pins the
+    // CONNECTION to metahub's IPv4 — dodging the dead-IPv6 stall the URL-rewrite pin
+    // exists for. If the concierge can't bind, metahub stays URL-rewrite-pinned
+    // (today's slower HTTP/1.1 path); posters never break.
+    const QSet<QString> metahubHosts = {
+        QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space")
+    };
+    auto *concierge = new LoopbackPinProxy(ipv4ByHost, &app);
+    const bool conciergeOk = concierge->start();
+    if (conciergeOk)
+        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub -> HTTP/2)", concierge->port());
+    else
+        qWarning("[net] concierge could not bind -> metahub falls back to URL-pin + HTTP/1.1");
+    QNetworkProxyFactory::setApplicationProxyFactory(
+        new PinProxyFactory(metahubHosts, conciergeOk ? concierge->port() : quint16(0), conciergeOk));
+
+    // When the concierge is up, metahub leaves the URL-rewrite pin set (its URL keeps
+    // the hostname, h2 stays on, the proxy carries the connection). Everything else —
+    // and metahub in the fallback — keeps today's URL-rewrite pin.
+    QStringList namPinnedHosts = pinnedHosts;
+    if (conciergeOk)
+        namPinnedHosts.erase(std::remove_if(namPinnedHosts.begin(), namPinnedHosts.end(),
+            [&](const QString &h){ return metahubHosts.contains(h); }), namPinnedHosts.end());
+    engine.setNetworkAccessManagerFactory(new CachingNamFactory(namPinnedHosts, ipv4ByHost));
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
