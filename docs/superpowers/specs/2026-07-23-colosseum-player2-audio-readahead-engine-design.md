@@ -188,6 +188,31 @@ horizon fix delivers the cure without that complexity; the 3rd thread is deferre
   wake it. Documented here so the doc matches the implementation.
 - Filter-seek reset, generation-reject-as-cancellation: already correct.
 
+## Audio-master readiness barrier (A/V startup + post-seek sync) — Codex-designed, implemented
+
+Ears-on after the horizon fix surfaced a large A/V lead: on Full, loudnorm holds ~3 s of audio
+before emitting, so the sink is silent for ~3 s while video, seeing no valid audio clock, seeded
+`PlaybackClock` from video PTS and ran ahead; the 5 ms/frame `correctToward` then clawed it back only
+over ~25 s. Codex confirmed the mechanism and independently caught the seek variant: `landSeek()`
+reset the clock from decoded-but-inaudible audio PTS, recreating the lead after every seek.
+
+**Fix — an audio-master readiness barrier in the video thread.** A per-audio-path-epoch `audioReady`
+latch (re-armed by a new `audioPathEpoch` that both a seek and an audio-track change bump). While
+audio is master and `!audioReady`, the video thread presents ONE held frame (the cold-start first
+frame or the seek landing frame) and then holds — decoding/consuming no further frames — until the
+first **valid sink clock** (the truly-audible event), at which point it hard-resets `PlaybackClock`
+to `audioNow` and authorizes normal scheduling. `landSeek()` no longer touches the clock (it only
+publishes completion + restores pause). Video-only playback bypasses the barrier and stays its own
+master; while audio is master the clock is never reseeded from video, so pause keeps its frozen
+clock. The 8 s video queue is the preroll runway that absorbs the ~3 s hold (loudnorm 3 s < 8 s), and
+is now a load-bearing contract. Per Codex, filter-latency compensation via `reportedLatencyUs()` is
+explicitly NOT used (it would double-account and still allow video to move during silence).
+
+Verified: full player2 suite green (incl. demux_session, seek_generation ×3, no barrier deadlock);
+report mode healthy (presented 320, sink 2000 ms, passed). A/V sync itself is an ears-on gate.
+Known minor: startup underruns during the loudnorm fill remain (the sink is genuinely silent then);
+Codex's optional refinement (delay `IAudioClient::Start()` until ~150 ms is queued) is deferred.
+
 ## Not in scope this pass
 - The separate audio-decode thread (3rd thread) + shared-budget demux back-pressure — deferred; the
   horizon fix cures the starvation without it.

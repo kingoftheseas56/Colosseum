@@ -521,6 +521,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     // what tells the video thread to flush its decoder + pipeline + scheduler and discard to the
     // target. So a plain generation bump from an audio/subtitle track swap never hitches video.
     std::atomic<quint64> seekEpoch{0};
+    // Bumped whenever the audio path is flushed (seek OR audio-track change): it re-arms the video
+    // thread's audio-master readiness barrier so video holds until the NEW audio becomes audible.
+    std::atomic<quint64> audioPathEpoch{0};
     std::atomic<qint64> seekTargetUs{0};
     std::atomic<bool> seekResumePlaying{true};
     std::atomic<bool> decodingToTarget{false};
@@ -574,10 +577,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
             quint64 gen = generation;
             quint64 lastSeekEpoch = seekEpoch.load(std::memory_order_acquire);
+            quint64 lastAudioPathEpoch = audioPathEpoch.load(std::memory_order_acquire);
             quint64 videoSequence = 0;
             bool discarding = false;
             bool landingPresented = false;
             bool audioMasterActive = false;
+            // Audio-master readiness barrier state. `audioReady` latches true once the sink produces a
+            // real clock for the current audio-path epoch; until then video holds so it cannot lead
+            // the silent loudnorm preroll. `barrierPresented` remembers we already showed one held
+            // frame this epoch (the cold-start first frame or the seek landing frame).
+            bool audioReady = false;
+            bool barrierPresented = false;
             bool failed = false;
 
             // Drain and present every frame the decoder can emit for the packet just fed. Returns
@@ -607,6 +617,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                                              AVRational{1, 1'000'000});
                     }
 
+                    // Re-arm the readiness barrier when the audio path was flushed (seek/track swap):
+                    // the new audio must become audible before video may advance again.
+                    const quint64 currentAudioPathEpoch =
+                        audioPathEpoch.load(std::memory_order_acquire);
+                    if (currentAudioPathEpoch != lastAudioPathEpoch) {
+                        lastAudioPathEpoch = currentAudioPathEpoch;
+                        audioReady = false;
+                        barrierPresented = false;
+                        audioMasterActive = false;
+                    }
+
                     if (discarding) {
                         // Skip everything before the target; present only the first landing frame,
                         // then hold until the master (audio, if present) lands.
@@ -625,6 +646,7 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                         }
                         av_frame_unref(frame.get());
                         landingPresented = true;
+                        barrierPresented = true; // the landing frame is the held image for the barrier
                         if (!audioIsMaster) {
                             // Video-only: this frame is the landing point. Reset the clock, restore
                             // the requested pause state, publish completion.
@@ -650,14 +672,60 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                             audioMasterActive = false;
                         const AudioClockSnapshot audio = (audioIsMaster && audioPipeline)
                             ? audioPipeline->clock() : AudioClockSnapshot{};
-                        if (audio.valid) {
+
+                        // === Audio-master readiness barrier ===
+                        // Until the sink produces a real clock for this audio-path epoch, HOLD video
+                        // rather than let it lead the silent loudnorm/dynaudnorm preroll. Show one
+                        // held frame, then wait interruptibly for the first valid sink clock and
+                        // hard-reset to it — the truly-audible event. Video-only playback (below)
+                        // skips the barrier and stays its own master.
+                        if (audioIsMaster && !audioReady) {
+                            if (!audio.valid) {
+                                if (!barrierPresented) {
+                                    QString e;
+                                    const VideoFrameToken t{gen, ++videoSequence, ptsUs};
+                                    pipeline->submitDecodedFrame(frame.get(), t, &e);
+                                    barrierPresented = true;
+                                }
+                                av_frame_unref(frame.get());
+                                // Hold in place — do NOT decode/consume further frames — until the
+                                // sink clock is real or an interruption arrives. The 8 s video queue
+                                // is the preroll runway that absorbs this ~3 s wait while audio fills.
+                                AudioClockSnapshot ready{};
+                                while (!m_cancelled.load(std::memory_order_acquire) &&
+                                       seekEpoch.load(std::memory_order_acquire) == lastSeekEpoch &&
+                                       audioPathEpoch.load(std::memory_order_acquire) ==
+                                           lastAudioPathEpoch &&
+                                       audioIsMaster) {
+                                    ready = audioPipeline ? audioPipeline->clock()
+                                                          : AudioClockSnapshot{};
+                                    if (ready.valid)
+                                        break;
+                                    std::this_thread::sleep_for(std::chrono::milliseconds(3));
+                                }
+                                if (!ready.valid)
+                                    return true; // interrupted (cancel/seek/track) — re-drive fresh
+                                const qint64 hnow = qpcNow();
+                                const qint64 audioNow = ready.mediaPositionUs + static_cast<qint64>(
+                                    static_cast<long double>(hnow - ready.qpcTimestamp) *
+                                    1'000'000.0L / playbackClock->qpcFrequency());
+                                playbackClock->reset(audioNow, hnow);
+                                audioMasterActive = true;
+                                audioReady = true;
+                                continue; // the held frame is shown; advance to the next frame
+                            }
+                            // Audio already audible on the first check → hard-reset and authorize.
+                            const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
+                                static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
+                                playbackClock->qpcFrequency());
+                            playbackClock->reset(audioNow, now);
+                            audioMasterActive = true;
+                            audioReady = true;
+                        } else if (audio.valid) {
                             const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
                                 static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
                                 playbackClock->qpcFrequency());
                             if (!audioMasterActive) {
-                                // First audio lock. If the clock was already QPC-seeded (video ran
-                                // ahead during audio/normalization warmup), converge toward audio
-                                // instead of snapping backward, which would spike A/V error.
                                 if (playbackClock->valid())
                                     playbackClock->correctToward(audioNow, now, 20'000);
                                 else
@@ -666,9 +734,10 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                             } else {
                                 playbackClock->correctToward(audioNow, now, 5'000);
                             }
-                        } else if (!playbackClock->valid()) {
-                            playbackClock->reset(ptsUs, now);
+                        } else if (!audioIsMaster && !playbackClock->valid()) {
+                            playbackClock->reset(ptsUs, now); // video-only: video is its own master
                         }
+                        // (audioIsMaster && audioReady && !audio.valid == paused: keep frozen clock.)
 
                         const FrameScheduleDecision decision = frameScheduler->choose(
                             playbackClock->positionAt(now), now,
@@ -788,12 +857,12 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         m_paused.store(pausing, std::memory_order_release);
         if (audioPipeline)
             audioPipeline->setPaused(pausing);
-        if (playbackClock) {
-            playbackClock->reset(ptsUs, qpcNow());
-            if (pausing)
-                playbackClock->pause(qpcNow());
-        }
-        audioMasterResync.store(true, std::memory_order_release); // video re-locks to the new clock
+        // Do NOT start the playback clock here. This fires when audio is DECODED to the target, but
+        // loudnorm still has to refill (~3 s) before it is AUDIBLE; seeding the clock now would let
+        // video run ahead of silence (the same lead as cold start). The video thread's readiness
+        // barrier hard-resets the clock on the first valid SINK clock — the truly-audible event.
+        // We only publish that the seek landed and restore the requested pause state.
+        audioMasterResync.store(true, std::memory_order_release);
         postSeekCompleted(gen, ptsUs / 1'000'000.0);
     };
 
@@ -822,8 +891,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         decodingToTarget.store(true, std::memory_order_release);
         audioMasterResync.store(true, std::memory_order_release);
         videoReachedEnd.store(false, std::memory_order_release);
-        seekEpoch.fetch_add(1, std::memory_order_acq_rel); // tell the video thread a seek happened
-        videoQueue.flush();                                // drop stale video packets in flight
+        seekEpoch.fetch_add(1, std::memory_order_acq_rel);      // tell the video thread a seek happened
+        audioPathEpoch.fetch_add(1, std::memory_order_acq_rel); // re-arm the audio readiness barrier
+        videoQueue.flush();                                     // drop stale video packets in flight
         av_seek_frame(format.get(), -1, clamped, AVSEEK_FLAG_BACKWARD);
         eofReached = false;
         eofSignaled = false;
@@ -862,6 +932,8 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             }
         }
         audioMasterResync.store(true, std::memory_order_release); // video re-locks after the swap
+        audioPathEpoch.fetch_add(1, std::memory_order_acq_rel);   // re-arm the readiness barrier: the
+        // new track must refill loudnorm before it is audible, so video holds until it is.
         // Report the track actually decoding now: if the requested decoder failed to open,
         // audioStreamIndex still points at the previous track that keeps playing.
         postAudioTrackChanged(newGeneration, audioStreamIndex);
