@@ -1083,3 +1083,16 @@ add_executable(comicreader_coupling_harness
     comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
 target_include_directories(comicreader_coupling_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_coupling_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): strip geometry model (Task 6).
+#    Pure QAbstractListModel over PageMeta: estimated-vs-real page sizing,
+#    running tops with a gap, the ±marginScreens decode window, pageAtCenter's
+#    binary search, and TB2/QTGW's anti-jump scroll compensation. QObject ->
+#    AUTOMOC (enabled project-wide above). No QImage/decode/IO here; Gui is
+#    linked alongside Core to mirror this comicreader/ family's other harnesses. ──
+add_executable(comicreader_strip_harness
+    ../tests/comicreader_strip_harness.cpp
+    comicreader/ComicReaderStripModel.cpp comicreader/ComicReaderStripModel.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_strip_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_strip_harness PRIVATE Qt6::Core Qt6::Gui)
