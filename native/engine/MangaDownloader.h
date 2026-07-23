@@ -168,6 +168,7 @@ private:
 
     QNetworkAccessManager* m_nam = nullptr;
     QHash<QString, QString> m_pins;                // host -> IPv4 (dead-IPv6 machine)
+    QSet<QString>          m_pinTried;             // hosts we've already tried to resolve+pin (incl. misses)
     QHash<QString, Entry> m_index;                 // chapterId -> entry
     QHash<QString, Job*>  m_active;                 // chapterId -> in-flight job
     QQueue<Job*>          m_queue;                  // waiting jobs
