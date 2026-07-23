@@ -70,12 +70,26 @@ work::WorkResult AlignmentPipeline::alignMatchedRegions(const EpubIndex &index,
             continue;
         }
 
+        // A degenerate or inverted audio window (endMs <= startMs) can fall out of a
+        // BookOnly-gap boundary in the matcher's region partition — there is literally
+        // nothing to decode. Carry the region as an honest Uncertain gap rather than
+        // hard-failing the whole chapter (a single unresolvable region is not a
+        // chapter-wide failure). [Deeper fix: clamp the gap-boundary times in the
+        // EpubSequenceMatcher region partition — tracked as its own tested pass.]
+        if (r.endMs <= r.startMs) {
+            out.regions.append({RegionKind::Uncertain, r.startMs, r.endMs,
+                                r.spineHref, r.canonicalStart, r.canonicalEnd});
+            continue;
+        }
+
         PcmWindow sub = m_decoder.decodeWindow(file, r.startMs, r.endMs, cacheKey, ctx);
         if (!sub.ok) {
             if (!ctx.checkpoint()) return work::WorkResult::Cancelled;   // cancelled mid-decode
-            out.failure = (sub.failure != FailureCode::None) ? sub.failure
-                                                             : FailureCode::AudioDecodeFailed;
-            return work::WorkResult::Failed;
+            // One region we can't decode is unresolved, not a chapter-wide failure — carry it
+            // as Uncertain and keep aligning the rest (same policy as a failed forced-align).
+            out.regions.append({RegionKind::Uncertain, r.startMs, r.endMs,
+                                r.spineHref, r.canonicalStart, r.canonicalEnd});
+            continue;
         }
 
         CanonicalPassage passage;
