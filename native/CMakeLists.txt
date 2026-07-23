@@ -380,6 +380,14 @@ add_executable(collection_store_harness
 target_include_directories(collection_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(collection_store_harness PRIVATE Qt6::Core)
 
+add_executable(loopback_pin_proxy_harness
+    ../tests/loopback_pin_proxy_harness.cpp
+    net/LoopbackPinProxy.cpp
+    net/LoopbackPinProxy.h
+)
+target_include_directories(loopback_pin_proxy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(loopback_pin_proxy_harness PRIVATE Qt6::Core Qt6::Network)
+
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
     engine/ComicDlsParse.cpp
