@@ -30,7 +30,7 @@ WorldPage {
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
-    property string activeTab: "movies"
+    property string activeTab: "discover"
 
     onProgressRevisionChanged: {
         continueRows = Progress.recent("video", 12)
@@ -176,8 +176,18 @@ WorldPage {
         onTabRequested: (tab) => theatre.activeTab = tab
     }
 
+    DiscoverPage {
+        visible: theatre.activeTab === "discover"
+        width: parent.width
+        height: visible ? Math.max(620, theatre.height - 200) : 0
+        onItemOpenRequested: (item) => theatre.theatreItemRequested(
+            theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
+    }
+
     TheatreCatalogPage {
-        pageKey: theatre.activeTab
+        visible: theatre.activeTab !== "discover"
+        height: visible ? implicitHeight : 0
+        pageKey: theatre.activeTab === "discover" ? "movies" : theatre.activeTab
         onItemRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
