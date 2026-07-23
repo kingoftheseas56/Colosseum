@@ -269,13 +269,18 @@ function uniqueById(items) {
     return out;
 }
 
-function row(title, sub, items, ranked) {
-    return {
+function row(title, sub, items, ranked, discoverPin) {
+    var r = {
         title: title,
         sub: sub || "",
         ranked: ranked === true,
         items: items || []
     };
+    // extension rows carry a See-all pin into Discover; house rows leave the key
+    // ABSENT (undefined) so the delegate's `discoverPin !== undefined` gate reads false
+    if (discoverPin)
+        r.discoverPin = discoverPin;
+    return r;
 }
 
 function catalogFetch(type, genre, limit, done) {
@@ -346,7 +351,7 @@ function runSpecs(pageKey, specs, done, sequential) {
         (function(spec, index) {
             spec.fetch(function(items) {
                 if (items && items.length > 0)
-                    rows[index] = row(spec.title, spec.sub, items, spec.ranked);
+                    rows[index] = row(spec.title, spec.sub, items, spec.ranked, spec.discoverPin);
                 pending -= 1;
                 if (pending === 0) {
                     var out = [];
@@ -384,7 +389,7 @@ function runSpecsProgressive(pageKey, specs, done) {
         var spec = specs[index];
         spec.fetch(function(items) {
             if (items && items.length > 0)
-                rows[index] = row(spec.title, spec.sub, items, spec.ranked);
+                rows[index] = row(spec.title, spec.sub, items, spec.ranked, spec.discoverPin);
             publish();
             fetchOne(index + 1);
         });
@@ -439,6 +444,8 @@ function extensionSpecs(pageKey, existingTitles) {
                 title: spec.title,
                 sub: "via " + spec.extName,
                 ranked: false,
+                discoverPin: { transportUrl: spec.transportUrl, type: contentType,
+                               catalogId: spec.catalogId, addonName: spec.extName },
                 fetch: function(done) {
                     AddonClient.fetchCatalog(spec, function(metas) {
                         done(metas.slice(0, EXTENSION_ROW_ITEM_CAP).map(mapCinemeta));

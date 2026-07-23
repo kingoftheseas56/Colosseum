@@ -177,6 +177,7 @@ WorldPage {
     }
 
     DiscoverPage {
+        id: discoverPage
         visible: theatre.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, theatre.height - 200) : 0
@@ -192,5 +193,9 @@ WorldPage {
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
         onGenreIndexRequested: (kind) => theatre.theatreGenreIndexRequested(kind)
+        onDiscoverPinRequested: (pin) => {
+            theatre.activeTab = "discover"
+            discoverPage.applyPin(pin)
+        }
     }
 }

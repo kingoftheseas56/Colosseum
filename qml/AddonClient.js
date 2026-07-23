@@ -286,6 +286,8 @@ function catalogSpecs(installedList, contentType) {
             if (!_browsable(c)) continue;
             out.push({
                 extName: m.name || e.id,
+                transportUrl: String(e.transportUrl),
+                catalogId: String(c.id),
                 title: c.name || m.name || "Catalog",
                 url: _baseUrl(e) + "/catalog/" + c.type + "/" + encodeURIComponent(c.id) + ".json"
             });
