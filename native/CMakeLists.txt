@@ -1035,3 +1035,14 @@ add_executable(guided_camera_controller_harness
     guided/GuidedTypes.cpp guided/GuidedTypes.h)
 target_include_directories(guided_camera_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(guided_camera_controller_harness PRIVATE Qt6::Core)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): pure canonical pairing + typed model.
+#    The from-scratch reader's combinatorial core — no Qt GUI, no decode, no cache,
+#    no I/O. Every comicreader/ unit builds on these value types + the pairing walk.
+#    QString/QVector/QSize/QVariantMap all live in Qt6::Core, so Core alone links. ──
+add_executable(comicreader_pairing_harness
+    ../tests/comicreader_pairing_harness.cpp
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h
+    comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h)
+target_include_directories(comicreader_pairing_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_pairing_harness PRIVATE Qt6::Core)
