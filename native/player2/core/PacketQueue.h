@@ -42,6 +42,13 @@ public:
         Cancelled    // the queue was cancelled; the calling thread should exit
     };
 
+    enum class Admit
+    {
+        Accepted,    // the packet was taken (ownership moved out)
+        Interrupted, // a pending command woke the blocked push; packet left intact for a retry
+        Cancelled    // the queue was cancelled; packet left intact; the caller should exit
+    };
+
     explicit PacketQueue(Bounds bounds);
     ~PacketQueue();
 
@@ -54,6 +61,18 @@ public:
     // Bounds::dropOldestWhenFull is set, in which case it drops the oldest backlog and never blocks.
     // Returns false only if the queue is cancelled while blocked, leaving `packet` for the caller.
     bool push(AVPacket *packet, qint64 ptsUs, quint64 generation, bool keyframe = false);
+
+    // Blocking push that a pending command can interrupt. Blocks while the queue is full until space
+    // frees (Accepted), cancel() (Cancelled), or interrupt() (Interrupted — packet left intact). This
+    // is the AUDIO queue's policy: blocking on it paces the demux to real-time audio consumption, but
+    // the demux thread is ALSO the sole command loop, so a full audio queue must never trap it — a
+    // Pause/Resume/Seek/Cancel interrupts the wait so the command is serviced, then the push retries.
+    Admit pushInterruptible(AVPacket *packet, qint64 ptsUs, quint64 generation);
+
+    // Wake a blocked pushInterruptible so it returns Interrupted (one-shot, cleared on observe).
+    // Reachable off the demux thread so DemuxSession's command/cancel path can free a demux that is
+    // blocked pushing into a full audio queue.
+    void interrupt();
 
     // Move the front packet into `out` (the caller unrefs) and report its generation. If
     // `discontinuity` is non-null, it is set true when a drop-oldest admission discarded backlog
@@ -97,6 +116,7 @@ private:
     bool m_endOfStream = false;
     bool m_cancelled = false;
     bool m_discontinuityPending = false; // a drop-oldest admission discarded backlog; next pop flags it
+    bool m_interruptRequested = false;   // a command woke a blocked pushInterruptible (one-shot)
 };
 
 } // namespace Colosseum::Player2

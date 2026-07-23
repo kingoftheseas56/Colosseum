@@ -70,6 +70,35 @@ bool PacketQueue::push(AVPacket *packet, qint64 ptsUs, quint64 generation, bool 
     return true;
 }
 
+PacketQueue::Admit PacketQueue::pushInterruptible(AVPacket *packet, qint64 ptsUs, quint64 generation)
+{
+    std::unique_lock lock(m_mutex);
+    // Block while full, but wake for cancel or a command interrupt so the demux command loop is never
+    // trapped. An empty queue is never full (a single oversized packet is always accepted).
+    m_notFull.wait(lock, [this] { return m_cancelled || m_interruptRequested || !isFullLocked(); });
+    if (m_cancelled)
+        return Admit::Cancelled;
+    if (m_interruptRequested) {
+        m_interruptRequested = false; // one-shot: observed here, the caller services + retries
+        return Admit::Interrupted;    // packet left intact (not moved)
+    }
+    AVPacket *owned = av_packet_alloc();
+    av_packet_move_ref(owned, packet);
+    m_bufferedBytes += owned->size;
+    m_entries.push_back(Entry{owned, ptsUs, generation, false});
+    m_notEmpty.notify_one();
+    return Admit::Accepted;
+}
+
+void PacketQueue::interrupt()
+{
+    {
+        std::scoped_lock lock(m_mutex);
+        m_interruptRequested = true;
+    }
+    m_notFull.notify_all();
+}
+
 PacketQueue::PopResult PacketQueue::pop(AVPacket *out, quint64 *generation, bool *discontinuity)
 {
     std::unique_lock lock(m_mutex);

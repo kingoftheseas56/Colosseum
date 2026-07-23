@@ -345,6 +345,61 @@ void testDropDiscontinuityReportedOncePerDrop()
     av_packet_free(&out);
 }
 
+// A demux blocked pushing into a full audio queue must break out when a command needs servicing:
+// pushInterruptible returns Interrupted (packet intact) rather than trapping the sole command thread.
+void testInterruptiblePushBreaksOutForCommands()
+{
+    // (a) With space, an interruptible push is Accepted.
+    {
+        PacketQueue queue(PacketQueue::Bounds{0, 0, /*maxPackets*/ 4});
+        AVPacket *p = makePacket(4, 7);
+        require(queue.pushInterruptible(p, 1'000, 3) == PacketQueue::Admit::Accepted,
+                "interruptible push into a non-full queue is Accepted");
+        av_packet_free(&p);
+    }
+
+    // (b) A blocked interruptible push wakes and returns Interrupted when interrupt() fires; the
+    //     packet is left intact so the caller can service its command loop and retry.
+    auto full = std::make_shared<PacketQueue>(PacketQueue::Bounds{0, 0, /*maxPackets*/ 1});
+    require(pushPacket(*full, 4, 1, 1'000, 1), "fill the 1-slot queue");
+    auto woke = std::make_shared<std::atomic<bool>>(false);
+    auto result = std::make_shared<std::atomic<int>>(-1);
+    auto intact = std::make_shared<std::atomic<bool>>(false);
+    std::thread producer([full, woke, result, intact] {
+        AVPacket *p = makePacket(4, 2);
+        const PacketQueue::Admit admit = full->pushInterruptible(p, 2'000, 1); // blocks: queue full
+        *intact = (p->size == 4 && p->data && p->data[0] == 2); // not moved out on Interrupted
+        av_packet_free(&p);
+        *result = static_cast<int>(admit);
+        *woke = true;
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(30));
+    full->interrupt();
+    const bool awoke = waitForFlag(*woke, 2'000);
+    if (awoke)
+        producer.join();
+    else {
+        full->cancel();
+        producer.detach();
+    }
+    require(awoke, "interrupt() must wake a blocked interruptible push promptly");
+    require(result->load() == static_cast<int>(PacketQueue::Admit::Interrupted),
+            "a push interrupted while blocked returns Interrupted");
+    require(intact->load(), "an interrupted push leaves the packet intact for retry");
+
+    // (c) The interrupt is one-shot: after it is observed, a later push with space is Accepted, not
+    //     Interrupted again — otherwise the demux would spin re-servicing a phantom command.
+    AVPacket *drain = av_packet_alloc();
+    quint64 g = 0;
+    full->pop(drain, &g);
+    av_packet_unref(drain);
+    av_packet_free(&drain);
+    AVPacket *p3 = makePacket(4, 9);
+    require(full->pushInterruptible(p3, 3'000, 1) == PacketQueue::Admit::Accepted,
+            "interrupt is one-shot: a later push with space is Accepted");
+    av_packet_free(&p3);
+}
+
 } // namespace
 
 int main()
@@ -359,6 +414,7 @@ int main()
         testEndOfStreamDrainsThenSignals();
         testDropOldestWhenFullNeverBlocksAndKeepsNewest();
         testDropDiscontinuityReportedOncePerDrop();
+        testInterruptiblePushBreaksOutForCommands();
     } catch (const std::exception &error) {
         std::cerr << "player2_packet_queue_test: FAIL " << error.what() << '\n';
         return 1;
