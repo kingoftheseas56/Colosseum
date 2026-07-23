@@ -1056,3 +1056,17 @@ add_executable(comicreader_cache_harness
     comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h)
 target_include_directories(comicreader_cache_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_cache_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): generation-safe decode coordinator.
+#    The concurrency crux — a QThreadPool (max 2) decodes off-thread with
+#    QImageReader; every result is re-checked against the live generation on the
+#    owning thread before it can touch the cache or fire a signal, so a fast
+#    entry switch never paints a stale page. QThreadPool/QRunnable are Core;
+#    QImage/QImageReader are Gui. Depends on the types + page cache units. ──
+add_executable(comicreader_decode_harness
+    ../tests/comicreader_decode_harness.cpp
+    comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_decode_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_decode_harness PRIVATE Qt6::Core Qt6::Gui)
