@@ -94,6 +94,7 @@ add_executable(colosseum
     work/BackgroundWorkCoordinator.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
+    third_party/miniz/miniz.c      # gunzip for the Jikan Accept-Encoding workaround (needs C, enabled below)
     guided/GuidedCameraController.cpp
     guided/GuidedCameraController.h
     guided/GuidedTypes.cpp

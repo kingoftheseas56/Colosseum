@@ -39,6 +39,7 @@
 #include "AudioPairingStore.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
+#include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "guided/GuidedCameraController.h"
 #ifdef COLOSSEUM_ENABLE_ONNX
 #include "guided/PanelAnalysisService.h"
@@ -71,6 +72,104 @@
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
+
+// gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
+// Strip the header, raw-inflate with miniz's tinfl. Empty on any malformation.
+static QByteArray gunzip(const QByteArray &in) {
+    if (in.size() < 18 || static_cast<quint8>(in[0]) != 0x1f
+        || static_cast<quint8>(in[1]) != 0x8b)
+        return {};
+    int idx = 10;
+    const quint8 flg = static_cast<quint8>(in[3]);
+    if (flg & 0x04) { // FEXTRA
+        const int xlen = static_cast<quint8>(in[idx]) | (static_cast<quint8>(in[idx + 1]) << 8);
+        idx += 2 + xlen;
+    }
+    if (flg & 0x08) { while (idx < in.size() && in[idx] != 0) ++idx; ++idx; } // FNAME
+    if (flg & 0x10) { while (idx < in.size() && in[idx] != 0) ++idx; ++idx; } // FCOMMENT
+    if (flg & 0x02) idx += 2;                                                 // FHCRC
+    if (idx >= in.size() - 8)
+        return {};
+    size_t outLen = 0;
+    void *out = tinfl_decompress_mem_to_heap(in.constData() + idx,
+                                             static_cast<size_t>(in.size() - idx - 8), &outLen, 0);
+    if (!out)
+        return {};
+    QByteArray result(static_cast<const char *>(out), static_cast<int>(outLen));
+    mz_free(out);
+    return result;
+}
+
+// Transparent gzip-decompressing reply. api.jikan.moe's origin returns 504 for
+// Qt's default multi-codec Accept-Encoding but 200 for a plain "gzip" request —
+// and Qt does NOT auto-decompress a manually-set encoding, so we buffer the inner
+// reply and gunzip it before QML's XMLHttpRequest reads responseText. No Q_OBJECT:
+// only inherited QNetworkReply signals are emitted (matches this file's style).
+class GunzipReply : public QNetworkReply {
+public:
+    explicit GunzipReply(QNetworkReply *inner) : m_inner(inner) {
+        m_inner->setParent(this);
+        setOperation(m_inner->operation());
+        setRequest(m_inner->request());
+        setUrl(m_inner->url());
+        setOpenMode(QIODevice::ReadOnly);
+        QObject::connect(m_inner, &QNetworkReply::finished, this, [this] { finalize(); });
+    }
+    void abort() override { m_inner->abort(); }
+    qint64 bytesAvailable() const override {
+        return QNetworkReply::bytesAvailable() + (m_buffer.size() - m_pos);
+    }
+    bool isSequential() const override { return true; }
+
+protected:
+    qint64 readData(char *data, qint64 maxlen) override {
+        const qint64 avail = m_buffer.size() - m_pos;
+        if (avail <= 0)
+            return m_done ? -1 : 0;
+        const qint64 n = qMin(maxlen, avail);
+        memcpy(data, m_buffer.constData() + m_pos, n);
+        m_pos += n;
+        return n;
+    }
+
+private:
+    void finalize() {
+        setAttribute(QNetworkRequest::HttpStatusCodeAttribute,
+                     m_inner->attribute(QNetworkRequest::HttpStatusCodeAttribute));
+        setAttribute(QNetworkRequest::HttpReasonPhraseAttribute,
+                     m_inner->attribute(QNetworkRequest::HttpReasonPhraseAttribute));
+        const auto pairs = m_inner->rawHeaderPairs();
+        for (const auto &h : pairs) {
+            if (qstricmp(h.first.constData(), "Content-Encoding") == 0
+                || qstricmp(h.first.constData(), "Content-Length") == 0)
+                continue;
+            setRawHeader(h.first, h.second);
+        }
+        const QByteArray raw = m_inner->readAll();
+        const QByteArray enc = m_inner->rawHeader("Content-Encoding");
+        if (qstricmp(enc.constData(), "gzip") == 0) {
+            const QByteArray plain = gunzip(raw);
+            m_buffer = plain.isEmpty() ? raw : plain; // fall back to raw if gunzip fails
+        } else {
+            m_buffer = raw;
+        }
+        setHeader(QNetworkRequest::ContentLengthHeader, m_buffer.size());
+        if (m_inner->error() != QNetworkReply::NoError)
+            setError(m_inner->error(), m_inner->errorString());
+        m_done = true;
+        emit metaDataChanged();
+        if (m_inner->error() != QNetworkReply::NoError)
+            emit errorOccurred(m_inner->error());
+        emit readyRead();
+        setFinished(true);
+        emit finished();
+    }
+
+    QNetworkReply *m_inner;
+    QByteArray m_buffer;
+    qint64 m_pos = 0;
+    bool m_done = false;
+};
 
 class CachingNam : public QNetworkAccessManager {
 public:
@@ -125,6 +224,17 @@ protected:
                        QNetworkRequest::NoLessSafeRedirectPolicy);
         if (m_useCache)
             r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
+
+        // Jikan's origin proxy returns 504 for Qt's default multi-codec Accept-Encoding
+        // (br/zstd) but 200 for a plain "gzip" — this silently emptied every Jikan-fed
+        // surface (genre index / Jump registry / Theatre anime). Force gzip and hand the
+        // reply through GunzipReply, which decompresses it since Qt won't for a manual
+        // encoding. Scoped to api.jikan.moe so nothing else changes shape.
+        if (host == QLatin1String("api.jikan.moe")) {
+            r.setRawHeader("Accept-Encoding", "gzip");
+            QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
+            return new GunzipReply(inner);
+        }
         return QNetworkAccessManager::createRequest(op, r, outgoing);
     }
 
