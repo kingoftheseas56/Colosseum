@@ -131,7 +131,7 @@ Item {
             var e5 = ent("tt5", "Caught Up Show", "series", { libAiring: "ongoing" }, 600);
             var bentries = [e1, e2, e3, e4, e5];
             var plist = [
-                { id: "tt1:2:9", progress: 0.5, updatedAt: 5000, watched: false },
+                { id: "tt1:2:9", progress: 0.5, updatedAt: 5000, watched: false, sub: "S2 · E9" },
                 { id: "tt3", progress: 0.95, updatedAt: 4000 },
                 { id: "tt5:1:12", progress: 0.95, updatedAt: 6000, watched: true }
             ];
@@ -141,7 +141,8 @@ Item {
             // join correctness: series in progress, movie auto-watched, stamps + downloaded joined
             ok(brows[0].state === "progress" && brows[0].progress === 0.5 && brows[0].lastWatchedAt === 5000
                && brows[0].downloaded === true && brows[0].newCount === 3 && brows[0].airing === "ongoing"
-               && brows[0].year === 2020 && brows[0].isSeries === true, "buildRows join series");
+               && brows[0].year === 2020 && brows[0].isSeries === true && brows[0].sub === "S2 · E9",
+               "buildRows join series (incl. resume sub)");
             ok(brows[2].state === "watched" && brows[2].isSeries === false, "buildRows movie auto-watched via matched progress");
             // notif-off suppression: libNotif===false forces newCount to 0 despite libNewCount:5
             ok(brows[1].newCount === 0 && brows[1].airing === "ended" && brows[1].state === "unwatched"

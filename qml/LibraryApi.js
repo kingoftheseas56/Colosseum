@@ -155,7 +155,8 @@ function buildRows(entries, progressList, markFn, downloadedIds, nowMs) {
             downloaded: dl[String(e.id)] === true,
             lastWatchedAt: lastWatchedAt,
             year: _year(payload),
-            isSeries: isSeries
+            isSeries: isSeries,
+            sub: (pm && pm.sub) ? String(pm.sub) : ""   // "S21 · E4" — the menu's resume label
         });
     }
     return rows;

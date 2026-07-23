@@ -22,6 +22,8 @@ $icons = @(
   # episodes, audio(=languages), subtitles(=captions; Lucide has no 'subtitles'), speed
   'replace','download','circle-check','triangle-alert','sliders-horizontal',
   'list-video','languages','captions','gauge',
+  # library page menu (stage 2): details(=info), watched mark + Discover watched-eye
+  'info','eye','eye-off',
   # fallback for any unmapped kind
   'circle-alert'
 )
