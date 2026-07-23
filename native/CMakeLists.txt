@@ -1046,3 +1046,13 @@ add_executable(comicreader_pairing_harness
     comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h)
 target_include_directories(comicreader_pairing_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_pairing_harness PRIVATE Qt6::Core)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): pinned, budgeted LRU page cache.
+#    Keyed by (generation, page); a mutex-guarded QHash + LRU list, never held
+#    while doing image work. Depends only on QImage (Gui) — no other
+#    comicreader/ unit, no decode, no I/O. ──
+add_executable(comicreader_cache_harness
+    ../tests/comicreader_cache_harness.cpp
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h)
+target_include_directories(comicreader_cache_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_cache_harness PRIVATE Qt6::Core Qt6::Gui)
