@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "modelId": "whisper-base.en",
+  "modelVersion": "1.9.1",
+  "file": "ggml-base.en.bin",
+  "sha256": "a03779c86df3323075f5e796cb2ce5029f00ec8869eee3fdfb897afe36c6d002",
+  "bytes": 147964211,
+  "license": "MIT",
+  "engine": "whisper.cpp",
+  "language": "en",
+  "sourceRepo": "ggml-org/whisper.cpp",
+  "sourceModel": "ggml-base.en.bin"
+}

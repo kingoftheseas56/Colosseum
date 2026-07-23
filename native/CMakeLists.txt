@@ -1010,6 +1010,32 @@ target_compile_definitions(audiobook_analysis_decoder_harness PRIVATE
     ALIGNMENT_AUDIO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/audio")
 target_link_libraries(audiobook_analysis_decoder_harness PRIVATE Qt6::Core)
 
+# Coarse English transcriber (Agent 2). Adapter over the bundled CPU whisper.cpp
+# binary (tools/whisper/whisper-cli.exe): writes a decoded PcmWindow to a temp 16 kHz
+# mono s16 WAV, runs whisper-cli, parses its JSON transcription[] (ms offsets + text)
+# into CoarseSegments — matching EVIDENCE only, never displayed. Model integrity is
+# validated first via models::ModelManifest (ModelMissing / ModelChecksumFailed). The
+# harness chains the real decoder (speech.wav -> PcmWindow) and routes the WorkContext
+# through the shared BackgroundWorkCoordinator, so its .cpp + ModelManifest.cpp compile
+# in. Qt Core only (QProcess lives in Core).
+add_executable(coarse_transcriber_harness
+    ../tests/coarse_transcriber_harness.cpp
+    alignment/CoarseTranscriber.cpp
+    alignment/CoarseTranscriber.h
+    alignment/CoarseTypes.h
+    alignment/AudiobookAnalysisDecoder.cpp
+    alignment/AudiobookAnalysisDecoder.h
+    alignment/AlignmentTypes.h
+    models/ModelManifest.cpp
+    models/ModelManifest.h
+    work/BackgroundWorkCoordinator.cpp
+    work/BackgroundWorkCoordinator.h)
+target_include_directories(coarse_transcriber_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(coarse_transcriber_harness PRIVATE
+    ALIGNMENT_AUDIO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/audio"
+    COARSE_MODEL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../resources/models/alignment/coarse")
+target_link_libraries(coarse_transcriber_harness PRIVATE Qt6::Core)
+
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
 #    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
 #    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
