@@ -52,6 +52,8 @@ add_library(player2_core STATIC
     core/PlaybackClock.h
     core/PlaybackMetrics.cpp
     core/PlaybackMetrics.h
+    core/AudioWorker.cpp
+    core/AudioWorker.h
     core/TrackPolicy.cpp
     core/TrackPolicy.h
     core/SubtitlePipeline.cpp
