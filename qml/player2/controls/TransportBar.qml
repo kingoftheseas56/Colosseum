@@ -8,7 +8,22 @@ Item {
     property var session
     property QtObject theme
     property bool showRemaining: false
+    property int currentAudioIndex: -1
+    property int currentSubtitleIndex: -1
+    readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open
     signal fullscreenRequested()
+
+    function closeMenus() {
+        audioMenu.open = false
+        subtitleMenu.open = false
+    }
+
+    Connections {
+        target: root.session
+        ignoreUnknownSignals: true
+        function onAudioTrackChanged(generation, streamIndex) { root.currentAudioIndex = streamIndex }
+        function onSubtitleTrackChanged(generation, streamIndex) { root.currentSubtitleIndex = streamIndex }
+    }
 
     implicitHeight: 126
 
@@ -245,11 +260,58 @@ Item {
             }
         }
 
-        RoundButton {
+        Row {
+            id: rightCluster
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            size: 40; icon: "fullscreen"; tooltip: "Fullscreen"
-            onTapped: root.fullscreenRequested()
+            spacing: 6
+            RoundButton {
+                size: 40; icon: "audio"; active: audioMenu.open; tooltip: "Audio track"
+                onTapped: { subtitleMenu.open = false; audioMenu.open = !audioMenu.open }
+            }
+            RoundButton {
+                size: 40; icon: "subtitle"; active: subtitleMenu.open; tooltip: "Subtitles"
+                onTapped: { audioMenu.open = false; subtitleMenu.open = !subtitleMenu.open }
+            }
+            RoundButton {
+                size: 40; icon: "fullscreen"; tooltip: "Fullscreen"
+                onTapped: root.fullscreenRequested()
+            }
+        }
+
+        TrackMenu {
+            id: audioMenu
+            theme: root.theme
+            title: "Audio"
+            tracks: root.session ? root.session.audioTracks : []
+            selectedIndex: root.currentAudioIndex
+            syncValue: root.session ? root.session.audioDelay : 0
+            anchors.right: rightCluster.right
+            anchors.bottom: rightCluster.top
+            anchors.bottomMargin: 12
+            onPicked: function(streamIndex) {
+                if (root.session) root.session.selectAudioTrack(String(streamIndex))
+                audioMenu.open = false
+            }
+            onSyncChanged: function(seconds) { if (root.session) root.session.setAudioDelay(seconds) }
+        }
+        TrackMenu {
+            id: subtitleMenu
+            theme: root.theme
+            title: "Subtitles"
+            allowOff: true
+            tracks: root.session ? root.session.subtitleTracks : []
+            selectedIndex: root.currentSubtitleIndex
+            syncValue: root.session ? root.session.subDelay : 0
+            anchors.right: rightCluster.right
+            anchors.bottom: rightCluster.top
+            anchors.bottomMargin: 12
+            onPicked: function(streamIndex) {
+                if (root.session)
+                    root.session.selectSubtitleTrack(streamIndex < 0 ? "off" : String(streamIndex))
+                subtitleMenu.open = false
+            }
+            onSyncChanged: function(seconds) { if (root.session) root.session.setSubDelay(seconds) }
         }
     }
 }

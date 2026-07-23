@@ -25,38 +25,57 @@ Item {
     }
 
     property bool controlsShown: true
+    readonly property bool menusOpen: transportBar.anyMenuOpen || overflowMenu.open
     function wakeChrome() {
         controlsShown = true
         hideTimer.restart()
+    }
+    function closeAllMenus() {
+        transportBar.closeMenus()
+        overflowMenu.open = false
     }
 
     Timer {
         id: hideTimer
         interval: (transportBar.paused || transportBar.buffering || !shell.session) ? 4500 : 1800
         onTriggered: {
-            // Never hide the chrome while there is nothing playing to watch behind it.
-            if (!transportBar.paused && !transportBar.buffering)
+            // Never hide while paused/buffering or while a menu is open.
+            if (!transportBar.paused && !transportBar.buffering && !shell.menusOpen)
                 shell.controlsShown = false
         }
     }
     Component.onCompleted: hideTimer.start()
 
-    // Pointer: move wakes the chrome; left-click toggles play/pause; cursor hides with the HUD.
+    // Subtitles paint on the video, below the chrome, and persist when the chrome auto-hides.
+    SubtitleLayer {
+        anchors.fill: parent
+        session: shell.session
+        theme: shell.theme
+    }
+
+    // Pointer: move wakes the chrome; left-click toggles play/pause (or dismisses a menu); right-click
+    // raises the overflow menu; the cursor hides with the HUD.
     MouseArea {
+        id: videoMouse
         anchors.fill: parent
         hoverEnabled: true
-        acceptedButtons: Qt.LeftButton
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         cursorShape: shell.controlsShown ? Qt.ArrowCursor : Qt.BlankCursor
         onPositionChanged: shell.wakeChrome()
-        onClicked: {
-            if (shell.session)
-                transportBar.togglePlayPause()
+        onClicked: function(mouse) {
             shell.wakeChrome()
+            if (mouse.button === Qt.RightButton) {
+                // Close any open track menu first so two popovers never stack, then raise overflow.
+                transportBar.closeMenus()
+                shell.popupOverflow(mouse.x, mouse.y)
+                return
+            }
+            if (shell.menusOpen) { shell.closeAllMenus(); return }
+            if (shell.session) transportBar.togglePlayPause()
         }
     }
 
     WheelHandler {
-        // Scroll over the video adjusts volume ±5% (parity with the current player).
         onWheel: function(event) {
             if (!shell.session)
                 return
@@ -76,11 +95,31 @@ Item {
             if (shell.session) shell.session.seekRelative(-10); event.accepted = true; break
         case Qt.Key_Right:
             if (shell.session) shell.session.seekRelative(10); event.accepted = true; break
+        case Qt.Key_Comma:
+            if (shell.session) shell.session.frameStep(-1); event.accepted = true; break
+        case Qt.Key_Period:
+            if (shell.session) shell.session.frameStep(1); event.accepted = true; break
         case Qt.Key_M:
             if (shell.session) shell.session.setMuted(!shell.session.muted); event.accepted = true; break
+        case Qt.Key_D:
+            statsOverlay.open = !statsOverlay.open; event.accepted = true; break
         case Qt.Key_F:
             shell.fullscreenRequested(); event.accepted = true; break
+        case Qt.Key_Escape:
+            if (shell.menusOpen) { shell.closeAllMenus(); event.accepted = true }
+            break
         }
+    }
+
+    // Stats overlay persists (toggled with D / overflow) independent of the chrome fade.
+    StatsOverlay {
+        id: statsOverlay
+        anchors.left: parent.left
+        anchors.top: parent.top
+        anchors.leftMargin: 40
+        anchors.topMargin: 120
+        session: shell.session
+        theme: shell.theme
     }
 
     // All interactive chrome fades together on auto-hide.
@@ -128,5 +167,18 @@ Item {
                 onFullscreenRequested: shell.fullscreenRequested()
             }
         }
+    }
+
+    // Right-click "more controls" menu, positioned at the cursor and clamped to the window.
+    function popupOverflow(px, py) {
+        overflowMenu.x = Math.max(10, Math.min(width - overflowMenu.width - 10, px))
+        overflowMenu.y = Math.max(10, Math.min(height - overflowMenu.implicitHeight - 10, py))
+        overflowMenu.open = true
+    }
+    OverflowMenu {
+        id: overflowMenu
+        session: shell.session
+        theme: shell.theme
+        onToggleStatsRequested: { statsOverlay.open = !statsOverlay.open; overflowMenu.open = false }
     }
 }

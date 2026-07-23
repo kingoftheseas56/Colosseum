@@ -11,6 +11,7 @@
 #include "player2/platform/windows/DeviceRecovery.h"
 
 #include <QtCore/QObject>
+#include <QtCore/QTimer>
 #include <QtCore/QVariantList>
 
 #include <atomic>
@@ -46,6 +47,9 @@ class Player2Session final : public QObject, public IRecoverableTarget
     Q_PROPERTY(QString videoAspect READ videoAspect WRITE setVideoAspect NOTIFY videoFillChanged)
     Q_PROPERTY(double panscan READ panscan WRITE setPanscan NOTIFY videoFillChanged)
     Q_PROPERTY(double videoZoom READ videoZoom WRITE setVideoZoom NOTIFY videoFillChanged)
+    // The active subtitle text for the QML SubtitleLayer to paint. C++ decides WHEN a cue is on
+    // screen (set on cue arrival, cleared by a C++ timer for the cue's duration); QML only paints it.
+    Q_PROPERTY(QString subtitleText READ subtitleText NOTIFY subtitleTextChanged)
 
 public:
     explicit Player2Session(QObject *parent = nullptr);
@@ -76,6 +80,9 @@ public:
     quint64 audioUnderruns() const;
     // A typed, stable diagnostics snapshot aggregating video, audio, colour, state and recovery.
     PlaybackDiagnostics diagnosticsSnapshot() const;
+    // The same snapshot as a plain map for QML (the stats overlay). Typed fields, fixed schema.
+    Q_INVOKABLE QVariantMap diagnostics() const;
+    QString subtitleText() const;
 
     // IRecoverableTarget — driven only by the recovery coordinator, never called directly.
     bool rebuildDevice(DeviceLostReason reason, QString *error) override;
@@ -121,6 +128,7 @@ signals:
     void subDelayChanged();
     void audioDelayChanged();
     void videoFillChanged();
+    void subtitleTextChanged();
 
 private:
     bool transition(Player2State state);
@@ -148,6 +156,9 @@ private:
     NormalizationMode m_normalizationMode = NormalizationMode::Smooth;
     double m_subDelay = 0.0;
     double m_audioDelay = 0.0;
+    QString m_subtitleText;
+    QTimer m_subtitleClearTimer;
+    int m_subtitleRemainingMs = -1; // remaining cue time captured while paused, restored on resume
     QString m_videoAspect;
     double m_panscan = 0.0;
     double m_videoZoom = 0.0;

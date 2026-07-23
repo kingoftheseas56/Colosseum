@@ -2,6 +2,7 @@
 
 #include "player2/video/D3D11VideoPipeline.h"
 
+#include <QtCore/QJsonObject>
 #include <QtCore/QMetaEnum>
 #include <QtCore/QVariantMap>
 
@@ -88,6 +89,11 @@ Player2Session::Player2Session(QObject *parent)
         // A seek is the one path allowed to move position backward.
         m_position = actualSeconds;
         emit positionChanged();
+        if (!m_subtitleText.isEmpty()) {
+            m_subtitleText.clear();
+            m_subtitleClearTimer.stop();
+            emit subtitleTextChanged();
+        }
         transition(m_postSeekState);
         emit seekCompleted(generation, actualSeconds);
     });
@@ -107,6 +113,14 @@ Player2Session::Player2Session(QObject *parent)
             [this](quint64 generation, int streamIndex) {
         if (!m_generation.accepts(generation))
             return;
+        // Turning subtitles off or switching tracks must drop the currently-painted line at once,
+        // not leave it frozen on screen until its (up to 30s) clear timer fires.
+        if (!m_subtitleText.isEmpty()) {
+            m_subtitleText.clear();
+            m_subtitleClearTimer.stop();
+            m_subtitleRemainingMs = -1;
+            emit subtitleTextChanged();
+        }
         emit subtitleTrackChanged(generation, streamIndex);
     });
     connect(&m_demux, &DemuxSession::subtitleCue, this,
@@ -119,6 +133,22 @@ Player2Session::Player2Session(QObject *parent)
         shifted.startUs += shiftUs;
         shifted.endUs += shiftUs;
         emit subtitleCue(generation, shifted);
+        // Drive the QML subtitle layer: text cues become the active line, cleared after their
+        // duration by a C++ timer so no QML timer owns cue visibility. Bitmap cues are skipped here.
+        if (!shifted.bitmap && !shifted.text.isEmpty()) {
+            m_subtitleText = shifted.text;
+            emit subtitleTextChanged();
+            const qint64 durationMs =
+                std::clamp<qint64>((shifted.endUs - shifted.startUs) / 1000, 500, 30000);
+            m_subtitleClearTimer.start(static_cast<int>(durationMs));
+        }
+    });
+    m_subtitleClearTimer.setSingleShot(true);
+    connect(&m_subtitleClearTimer, &QTimer::timeout, this, [this] {
+        if (!m_subtitleText.isEmpty()) {
+            m_subtitleText.clear();
+            emit subtitleTextChanged();
+        }
     });
     connect(&m_demux, &DemuxSession::networkStateChanged, this,
             [this](quint64 generation, int stateValue) {
@@ -187,6 +217,7 @@ double Player2Session::normalizationLatencyMs() const
     return m_audioPipeline.normalizationLatencyUs() / 1000.0;
 }
 double Player2Session::subDelay() const noexcept { return m_subDelay; }
+QString Player2Session::subtitleText() const { return m_subtitleText; }
 double Player2Session::audioDelay() const noexcept { return m_audioDelay; }
 QString Player2Session::videoAspect() const { return m_videoAspect; }
 double Player2Session::panscan() const noexcept { return m_panscan; }
@@ -240,6 +271,11 @@ void Player2Session::play()
     const bool wasPaused = m_state.state() == Player2State::Paused;
     if (!transition(Player2State::Playing))
         return;
+    // Restore the subtitle's remaining on-screen time captured at pause, so a cue does not vanish
+    // off a paused frame and reappears for the right remainder on resume.
+    if (wasPaused && m_subtitleRemainingMs > 0 && !m_subtitleText.isEmpty())
+        m_subtitleClearTimer.start(m_subtitleRemainingMs);
+    m_subtitleRemainingMs = -1;
     if (wasPaused)
         m_demux.requestResume();
 }
@@ -250,6 +286,11 @@ void Player2Session::pause()
         return;
     if (!transition(Player2State::Paused))
         return;
+    // Freeze the subtitle clear timer with playback (it is wall-clock otherwise).
+    if (m_subtitleClearTimer.isActive()) {
+        m_subtitleRemainingMs = m_subtitleClearTimer.remainingTime();
+        m_subtitleClearTimer.stop();
+    }
     m_demux.requestPause();
 }
 
@@ -429,6 +470,11 @@ void Player2Session::resetMediaProperties()
         m_chapters.clear();
         emit chaptersChanged();
     }
+    if (!m_subtitleText.isEmpty()) {
+        m_subtitleText.clear();
+        m_subtitleClearTimer.stop();
+        emit subtitleTextChanged();
+    }
 }
 
 void Player2Session::attemptDeviceRecovery(const Player2Error &error)
@@ -527,6 +573,11 @@ PlaybackDiagnostics Player2Session::diagnosticsSnapshot() const
     snapshot.normalizationLatencyMs = normalizationLatencyMs();
     snapshot.recoveryAttempts = m_recoveryAttempts;
     return snapshot;
+}
+
+QVariantMap Player2Session::diagnostics() const
+{
+    return diagnosticsSnapshot().toJson().toVariantMap();
 }
 
 } // namespace Colosseum::Player2

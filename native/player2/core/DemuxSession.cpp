@@ -520,6 +520,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 m_running.store(false, std::memory_order_release);
                 return;
             }
+            // Announce the audio track auto-selected at open so the UI marks the active track
+            // (av_find_best_stream picks it silently; nothing else would tell the shell).
+            postAudioTrackChanged(generation, audioStreamIndex);
         }
     }
 

@@ -31,18 +31,18 @@ Tasks 14–15 and stay `NOT RUN` here.
 | Auto-hide + cursor hide | `hideTimer` 1800/4500ms | shell loads | NOT RUN | NOT RUN | NOT RUN | pins visible while paused/buffering; menu-pin in slice 2 |
 | Fullscreen request | fullscreen RoundButton + F | shell loads | NOT RUN | NOT RUN | NOT RUN | emits `fullscreenRequested()` for the host |
 | Prev / next episode | transportRow prev/next | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (needs host adjacency) |
-| Frame step (`,` / `.`) | `mpv.frameStep/frameBackStep` | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (session has `frameStep`) |
-| Speed + sleep timer | SpeedMenuButton | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (session speed not yet exposed — gap) |
-| Audio track menu + delay | AudioMenu + SYNC row | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (TrackMenu) |
-| Subtitle menu + delay + style | SubtitleMenu + SubStyleBar | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (TrackMenu + SubtitleLayer) |
-| Subtitle rendering | mpv/libass on the surface | — | NOT RUN | NOT RUN | NOT RUN | Player 2 paints cues in QML (SubtitleLayer) from `session.subtitleCue` |
-| Fit / fill / aspect / zoom | FillMenuButton | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (session `videoAspect/panscan/videoZoom`) |
-| Loudness normalization (Smooth/Light/Full) | overflow loudness cycle | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (session `normalizationMode`) |
+| Frame step (`,` / `.`) | `mpv.frameStep/frameBackStep` | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (`,`/`.` -> session.frameStep); eyes-on |
+| Speed + sleep timer | SpeedMenuButton | — | NOT RUN | NOT RUN | NOT RUN | DEFERRED: session has no speed yet (clock rate + audio atempo needed) — gap |
+| Audio track menu + delay | AudioMenu + SYNC row | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (TrackMenu -> selectAudioTrack + audioDelay); eyes-on |
+| Subtitle menu + delay + style | SubtitleMenu + SubStyleBar | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (TrackMenu -> selectSubtitleTrack + subDelay); ASS style deferred; eyes-on |
+| Subtitle rendering | mpv/libass on the surface | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT: SubtitleLayer paints text cues from session.subtitleText (C++-timed); PGS bitmap deferred; eyes-on |
+| Fit / fill / aspect / zoom | FillMenuButton | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (OverflowMenu aspect/fit/fill/zoom cycle); eyes-on |
+| Loudness normalization (Smooth/Light/Full) | overflow loudness cycle | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (OverflowMenu loudness Smooth/Light/Full cycle); eyes-on |
 | Chapters (labels, current, switch) | seek ticks + chapter transient | shell loads | NOT RUN | NOT RUN | NOT RUN | ticks shown; label/menu slice 2 |
-| Stats overlay (`D`) | statsOverlay | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (StatsOverlay ← `diagnosticsSnapshot`) |
+| Stats overlay (`D`) | statsOverlay | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (StatsOverlay <- session.diagnostics(), D key); eyes-on |
 | Loading / buffering / error screen | PlayerLoadingScreen | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
 | Hotkeys / shortcut sheet | PlayerHotkeys.js + ShortcutsSheet | — | NOT RUN | NOT RUN | NOT RUN | slice 1 wires Space/←/→/M/F; full registry + sheet slice 2 |
-| Context menu (right-click) | overflowPanel | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
+| Context menu (right-click) | overflowPanel | shell loads | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (right-click -> OverflowMenu at cursor); eyes-on |
 | Pause card | pauseCard | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
 | Compact folds (tight/snug/tiny) | width-driven folds | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
 
@@ -55,3 +55,14 @@ live/DVR — all `NOT RUN`; owned by Tasks 14–15.
 
 A/V p95, 2h soak, 100 seeks, 50 open/close, memory, ABBA efficiency ≥25%, hardware matrix,
 normalization measurements — all `NOT RUN`; owned by Task 16.
+
+## Slice 2 review notes (cross-substrate)
+
+Fixed: audio menu now marks the track auto-selected at open; Off/switch clears the painted
+subtitle immediately; the subtitle clear timer is paused with playback (no vanish off a paused
+frame); right-click closes an open track menu before raising overflow.
+
+Minor debt (deferred, self-healing): the auto-hide timer is not re-armed when a track is picked by
+clicking a menu row without moving the pointer — heals on the next pointer move. OverflowMenu's
+`fillIndex` is local QML state and could drift if aspect were changed by another path (none in this
+slice). ASS subtitle styling and PGS bitmap cues are not yet painted (text cues only).

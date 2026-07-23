@@ -112,6 +112,10 @@ qt_add_resources(player2_harness player2_harness_qml
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Icon.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SeekBar.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/TransportBar.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/TrackMenu.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/OverflowMenu.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SubtitleLayer.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/StatsOverlay.qml"
 )
 
 set(_player2_shell_icons play pause volume-2 volume-x rotate-ccw rotate-cw maximize minimize

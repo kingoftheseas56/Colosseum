@@ -17,6 +17,15 @@
 #include <algorithm>
 #include <cstdlib>
 
+// The D3D11 header chain (via HarnessHostServices.h -> D3D11VideoPipeline.h) drags in windows.h,
+// whose min/max macros clobber std::max; undo them, as the rest of the engine does.
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
+
 namespace Colosseum::Player2 {
 
 HarnessHostServices::HarnessHostServices(QObject *parent)
