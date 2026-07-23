@@ -947,6 +947,21 @@ target_compile_definitions(epub_text_indexer_harness PRIVATE
     ALIGNMENT_CANONICAL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/canonical")
 target_link_libraries(epub_text_indexer_harness PRIVATE Qt6::Core)
 
+# Audio↔text alignment service (Agent 2). QML facade + background orchestration over the
+# app-owned BackgroundWorkCoordinator: a worker-local AlignmentStore + a fake
+# ChapterProcessor drive a deterministic priority / pause / failure / retry / restart proof.
+# Service, coordinator, registry and AudioPairingStore are QObjects → AUTOMOC. Qt Core+Sql.
+add_executable(alignment_service_harness
+    ../tests/alignment_service_harness.cpp
+    alignment/AudioTextAlignmentService.cpp alignment/AudioTextAlignmentService.h
+    alignment/AlignmentStore.cpp alignment/AlignmentStore.h
+    alignment/AlignmentTypes.h
+    AudioPairingStore.h
+    work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h
+    work/BackgroundActivityRegistry.cpp work/BackgroundActivityRegistry.h)
+target_include_directories(alignment_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(alignment_service_harness PRIVATE Qt6::Core Qt6::Sql)
+
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
 #    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
 #    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
