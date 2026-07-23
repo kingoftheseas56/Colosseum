@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Player2HostServices.h"
+#include "player2/core/PlaybackMetrics.h"
 #include "player2/core/Player2Session.h"
 #include "player2/video/D3D11VideoPipeline.h"
 
@@ -101,6 +102,7 @@ private:
     double m_reportAvP95Ms = 0.0;
     int m_minimumRunSeconds = 0;
     QElapsedTimer m_runTimer;
+    PlaybackMetricsAccumulator m_playbackMetrics;
     bool m_fileOpened = false;
     bool m_sawPlaying = false;
     bool m_started = false;

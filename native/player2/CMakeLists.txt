@@ -50,6 +50,8 @@ add_library(player2_core STATIC
     core/FrameScheduler.h
     core/PlaybackClock.cpp
     core/PlaybackClock.h
+    core/PlaybackMetrics.cpp
+    core/PlaybackMetrics.h
     core/TrackPolicy.cpp
     core/TrackPolicy.h
     core/SubtitlePipeline.cpp
@@ -286,6 +288,15 @@ set_target_properties(player2_packet_queue_test PROPERTIES
 )
 add_test(NAME player2_packet_queue_test COMMAND player2_packet_queue_test)
 
+add_executable(player2_playback_metrics_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_playback_metrics_test.cpp"
+)
+target_link_libraries(player2_playback_metrics_test PRIVATE player2_core)
+set_target_properties(player2_playback_metrics_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_playback_metrics_test COMMAND player2_playback_metrics_test)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -299,4 +310,5 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_http_media_test
     player2_device_recovery_test
     player2_packet_queue_test
+    player2_playback_metrics_test
 )

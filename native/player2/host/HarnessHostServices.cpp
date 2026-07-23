@@ -6,6 +6,7 @@
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonParseError>
@@ -207,6 +208,19 @@ void HarnessHostServices::produceFrame()
     refreshMetrics();
     m_maxAudioQueueMs = std::max(m_maxAudioQueueMs, m_session.audioQueueMs());
     m_sawAudioClock = m_sawAudioClock || m_session.audioClock().valid;
+    if (hasMedia() && m_fileOpened) {
+        // Anchored playback sample: the accumulator measures rates from the first valid audio clock,
+        // never from run start — so device init + loudnorm priming can't manufacture a low fps.
+        PlaybackMetricSample sample;
+        sample.monotonicMs = m_runTimer.isValid() ? m_runTimer.elapsed() : 0;
+        sample.decoded = m_metrics.decoded;
+        sample.presented = m_metrics.presented;
+        sample.audioQueueMs = m_session.audioQueueMs();
+        sample.audioClockValid = m_session.audioClock().valid;
+        sample.avErrorUs = m_metrics.lastAvErrorUs;
+        sample.audioUnderruns = m_session.audioUnderruns();
+        m_playbackMetrics.add(sample);
+    }
     if (!m_metrics.adapterMatch) {
         m_item->update();
         return;
@@ -320,6 +334,16 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
 
 bool HarnessHostServices::writeReport(bool passed, const QString &message) const
 {
+    // Playback-anchored truth: fps measured from the first valid audio clock, plus the signals that
+    // map to Hemanth's symptoms — low-water audio queue (crackle) and signed A/V drift (sync).
+    const PlaybackMetricsReport playback = m_playbackMetrics.report();
+    QJsonArray windowFps;
+    for (const PlaybackMetricWindow &window : playback.windows) {
+        windowFps.append(QJsonObject{
+            {QStringLiteral("startSeconds"), window.startSeconds},
+            {QStringLiteral("fps"), window.fps},
+            {QStringLiteral("minAudioQueueMs"), window.minAudioQueueMs}});
+    }
     const QJsonObject report{
         {QStringLiteral("scenario"), !hasMedia() ? QStringLiteral("synthetic")
                                     : (m_url.isEmpty() ? QStringLiteral("file")
@@ -333,6 +357,7 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         {QStringLiteral("adapterMatch"), m_metrics.adapterMatch},
         {QStringLiteral("sharedFences"), m_metrics.sharedFences},
         {QStringLiteral("generated"), static_cast<qint64>(m_metrics.submitted)},
+        {QStringLiteral("decoded"), static_cast<qint64>(m_metrics.decoded)},
         {QStringLiteral("presented"), static_cast<qint64>(m_metrics.presented)},
         {QStringLiteral("dropped"), static_cast<qint64>(m_metrics.producerStarved)},
         {QStringLiteral("scheduledLateDrops"), static_cast<qint64>(m_metrics.scheduledLateDrops)},
@@ -352,6 +377,16 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         ,{QStringLiteral("maxAudioQueueMs"), m_maxAudioQueueMs}
         ,{QStringLiteral("finalAudioQueueMs"), m_finalAudioQueueMs}
         ,{QStringLiteral("elapsedSeconds"), m_runTimer.isValid() ? m_runTimer.elapsed() / 1000.0 : 0.0}
+        ,{QStringLiteral("playbackAnchored"), playback.anchored}
+        ,{QStringLiteral("playbackSeconds"), playback.playbackSeconds}
+        ,{QStringLiteral("sustainedFps"), playback.sustainedFps}
+        ,{QStringLiteral("decodedFps"), playback.decodedFps}
+        ,{QStringLiteral("minAudioQueueMs"), playback.minAudioQueueMs}
+        ,{QStringLiteral("avDriftMinMs"), playback.avErrorMinUs / 1000.0}
+        ,{QStringLiteral("avDriftMaxMs"), playback.avErrorMaxUs / 1000.0}
+        ,{QStringLiteral("avDriftMaxAbsMs"), playback.avErrorMaxAbsUs / 1000.0}
+        ,{QStringLiteral("avDriftMeanMs"), playback.avErrorMeanUs / 1000.0}
+        ,{QStringLiteral("windowFps"), windowFps}
         ,{QStringLiteral("finalState"), sessionState()}
         ,{QStringLiteral("normalization"), m_reportNormalization}
         ,{QStringLiteral("normalizationLatencyMs"), m_reportNormalizationLatencyMs}
