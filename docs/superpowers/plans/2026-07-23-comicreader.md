@@ -255,6 +255,13 @@ double edgeContinuityCost(const QImage& left, const QImage& right);   // 96×8 s
 struct CouplingVerdict { CouplingPhase phase; double confidence; };   // conf 0..1
 // Score both phases over up to 4 sample pairs from the first 8 pages; adopt Shifted only
 // when it wins with confidence >= 0.12 (QTGroundWork's floor). Pure — caller decodes.
+// AGGREGATE BY MEAN, not sum (QTGroundWork's `_score_auto_coupling_phase` returns the MEAN of
+// each phase's per-pair costs, then `_choose_auto_coupling_phase` compares those two scalar
+// means). Mean is the faithful aggregation boundary: the two phases routinely have DIFFERENT
+// sample counts (`_auto_phase_sample_indexes` derives indices from each phase's own units), and
+// summing would give a different decision than the lineage on unequal-length inputs. If EITHER
+// vector is empty (a phase had no decodable samples), return {Normal, 0.0} — the reference guards
+// `if normal_samples<=0 or shifted_samples<=0` and bails to Normal/retry, never deciding.
 CouplingVerdict chooseCouplingPhase(const QVector<double>& normalCosts,
                                     const QVector<double>& shiftedCosts);
 }
@@ -263,7 +270,15 @@ CouplingVerdict chooseCouplingPhase(const QVector<double>& normalCosts,
 - [ ] **Step 1: Tests first** (`COMICREADER_COUPLING_OK`): synthetic continuity — image A ends in a
   black-to-white gradient column, image B starts with the same column → cost < 0.08; B
   reversed → cost > 0.3; verdict picks Shifted when shifted costs are clearly lower, Normal
-  on a tie (confidence below floor), confidence formula `|nΣ−sΣ| / (nΣ+sΣ)` clamped 0..1.
+  on a tie (confidence below floor); confidence formula uses per-phase **means** `|n̄−s̄| / (n̄+s̄)`
+  clamped 0..1 (n̄=mean(normalCosts), s̄=mean(shiftedCosts)). REQUIRED fixtures that pin the two
+  behaviors that actually differ from a naive port: (a) an **unequal-length** case —
+  normal=[0.5,0.5,0.5,0.5], shifted=[0.4,0.4,0.4] → means 0.5 vs 0.4, confidence 0.111 < 0.12 →
+  **Normal** (a sum-based impl would wrongly pick Shifted); (b) a **horizontally-distinct**
+  edge-cost fixture (left bright only in its RIGHT-most columns, right bright only in its
+  LEFT-most columns → low cost when the correct touching columns are compared; a wrong-column /
+  transposition bug would score high) so the tests can actually detect reading the wrong edge;
+  (c) one-empty vector → {Normal, 0.0}.
 - [ ] **Steps 2–5:** fail → implement → green → commit, as above.
 
 ### Task 6: Strip geometry model
