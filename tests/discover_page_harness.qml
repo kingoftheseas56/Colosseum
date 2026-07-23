@@ -10,7 +10,7 @@ Item {
         onTriggered: {
             var fails = [];
             if (p.currentType !== "movie") fails.push("currentType default: " + p.currentType);
-            if (p.selectedIndex !== -1) fails.push("selectedIndex default: " + p.selectedIndex);
+            if (p.keyboardMode !== false) fails.push("keyboardMode default: " + p.keyboardMode);
             if (fails.length) console.log("FAILS: " + fails.join("; "));
             else console.log("discover_page_harness: ALL PASS");
             Qt.exit(fails.length);

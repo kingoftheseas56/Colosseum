@@ -94,8 +94,8 @@ Item {
             ok(bext.length === 1 && bext[0].name === "genre" && bext[0].options.length === 19,
                "cinemeta fallback genres (19): " + (bext.length ? bext[0].options.length : -1));
             ok(Api.urlFor(bcats[0], { genre: "Sci-Fi" }, 0) ===
-               "https://v3-cinemeta.strem.io/catalog/movie/top/genre=Sci-Fi.json",
-               "cinemeta fallback url builds");
+               "https://cinemeta-catalogs.strem.io/top/catalog/movie/top/genre=Sci-Fi.json",
+               "cinemeta fallback url builds (CDN, dodges v3 307)");
             // fallback does NOT fire when the core Cinemeta row ALREADY has catalogs
             // (the `cinemeta` fixture above carries a 2-genre movie catalog — must stay 2)
             var realCin = Api.extrasFor(Api.catalogsFor([cinemeta], "movie")[0]);

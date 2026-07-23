@@ -1,8 +1,8 @@
 // DiscoverPage — Stremio's Discover in house glass (Stage 1, spec 2026-07-23 §3).
-// Lives as the Discover tab's content inside TheatreWorld's board. The region takes
-// ~viewport height: wall (interactive GridView, skip-paging) left, preview pane right.
-// Pickers derive PURELY from installed addon catalogs (DiscoverApi). First click on a
-// poster fills the pane; second click (or ▶ Show) opens the detail page.
+// Lives as the Discover tab's content inside TheatreWorld's board. A FULL-WIDTH poster
+// grid (interactive GridView, skip-paging) — no side pane (Hemanth's call 2026-06-24:
+// the preview pane was a bad choice). Pickers derive PURELY from installed addon catalogs
+// (DiscoverApi). A click (or Enter on the keyboard-focused card) opens the detail page.
 import QtQuick
 import QtQuick.Controls
 import "DiscoverApi.js" as Api
@@ -31,20 +31,17 @@ Item {
     property bool missingAddon: false
     property string missingName: ""
     property string missingUrl: ""
-    property int selectedIndex: -1
     property int fetchGen: 0                // stale-response fence
-    property bool selectHintUsed: false     // one-time "click again to open" teach
     property bool keyboardMode: false       // true once arrows are used → shows the focus ring
 
-    signal itemOpenRequested(var item)      // second click / Show — up to TheatreWorld
+    signal itemOpenRequested(var item)      // a click / Enter on a poster opens the detail page
 
     Theme { id: theme }
 
-    // keyboard/click activation: first hit selects (preview), second on the same card opens.
+    // Stremio grid: a click (or Enter on the keyboard-focused card) opens the title directly.
     function activateIndex(i) {
         if (i < 0 || i >= items.length) return         // skeletons/out-of-range never activate
-        if (selectedIndex === i) { selectHintUsed = true; itemOpenRequested(items[i]) }
-        else selectedIndex = i
+        itemOpenRequested(items[i])
     }
 
     onVisibleChanged: if (visible && wall) wall.forceActiveFocus()
@@ -55,7 +52,7 @@ Item {
         var res = Api.resolvePin(installed, pin)
         if (res.missing) {
             missingAddon = true; missingName = res.addonName; missingUrl = res.transportUrl
-            items = []; selectedIndex = -1
+            items = []
             return
         }
         missingAddon = false
@@ -89,7 +86,7 @@ Item {
     }
 
     function reload() {
-        items = []; selectedIndex = -1; exhausted = false
+        items = []; exhausted = false
         fetchMore()
     }
 
@@ -105,7 +102,6 @@ Item {
             var merged = disco.items.slice()
             for (var i = 0; i < metas.length; i++) merged.push(metas[i])
             disco.items = merged
-            if (disco.selectedIndex < 0 && merged.length) disco.selectedIndex = 0
         })
     }
 
@@ -206,7 +202,7 @@ Item {
         }
     }
 
-    // ─── wall + pane ───
+    // ─── the wall — full-width Stremio grid (no side pane; a click opens the title) ───
     Item {
         anchors.top: missingBar.visible ? missingBar.bottom : selectorRow.bottom
         anchors.topMargin: 18
@@ -215,7 +211,7 @@ Item {
         GridView {
             id: wall
             anchors.left: parent.left
-            anchors.right: pane.left; anchors.rightMargin: 24
+            anchors.right: parent.right
             anchors.top: parent.top; anchors.bottom: parent.bottom
             clip: true
             interactive: true
@@ -256,7 +252,6 @@ Item {
                 required property int index
                 readonly property bool isSkel: card.index >= disco.items.length
                 readonly property var item: card.isSkel ? null : disco.items[card.index]
-                readonly property bool selected: !card.isSkel && card.index === disco.selectedIndex
                 readonly property bool kfocused: !card.isSkel && disco.keyboardMode
                                                  && card.index === wall.currentIndex
                 readonly property string capText: card.item
@@ -272,7 +267,6 @@ Item {
                     color: card.isSkel ? Qt.rgba(1, 1, 1, 0.06) : "#181a20"
                     border.width: 1
                     border.color: card.isSkel ? Qt.rgba(1, 1, 1, 0.09)
-                                 : card.selected ? theme.gold
                                  : hov.hovered ? Qt.rgba(1, 1, 1, 0.42) : theme.edge
                     // skeleton pulse (mock @keyframes pulse) — only while this is a placeholder
                     SequentialAnimation on opacity {
@@ -320,26 +314,12 @@ Item {
                         border.width: 3; border.color: Qt.rgba(240/255, 196/255, 74/255, 0.18)
                     }
                 }
-                // one-time "click again to open" teach on the freshly-selected card
-                Rectangle {
-                    visible: card.selected && !disco.selectHintUsed
-                    anchors.left: frame.left; anchors.right: frame.right; anchors.bottom: frame.bottom
-                    anchors.margins: 8
-                    height: 26; radius: 9
-                    color: Qt.rgba(10/255, 10/255, 14/255, 0.82)
-                    border.width: 1; border.color: theme.gold
-                    Text {
-                        anchors.centerIn: parent
-                        text: "click again to open"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11
-                    }
-                }
                 Text {
                     visible: !card.isSkel
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.top: frame.bottom; anchors.topMargin: 7
                     text: card.capText
-                    color: card.selected ? theme.ink : theme.inkDim
+                    color: hov.hovered ? theme.ink : theme.inkDim
                     font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
@@ -359,12 +339,7 @@ Item {
                         wall.forceActiveFocus()
                         disco.keyboardMode = false
                         wall.currentIndex = card.index
-                        if (disco.selectedIndex === card.index) {
-                            disco.selectHintUsed = true
-                            disco.itemOpenRequested(card.item)    // second click = the door
-                        } else {
-                            disco.selectedIndex = card.index      // first click = preview
-                        }
+                        disco.itemOpenRequested(card.item)    // a click opens the title (Stremio)
                     }
                 }
             }
@@ -377,15 +352,6 @@ Item {
                                            : "No catalogues here — install an addon that carries some."
                 color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
             }
-        }
-
-        DiscoverPreview {
-            id: pane
-            anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-            width: Math.min(380, parent.width * 0.34)
-            meta: disco.selectedIndex >= 0 && disco.selectedIndex < disco.items.length
-                  ? disco.items[disco.selectedIndex] : null
-            onShowRequested: (item) => disco.itemOpenRequested(item)
         }
     }
 }

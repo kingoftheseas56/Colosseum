@@ -39,6 +39,13 @@ function _isCinemetaCore(e) {
         (e.id === "com.linvo.cinemeta" || /cinemeta/i.test(String(e.transportUrl || "")));
 }
 
+// Cinemeta's addon origin (v3-cinemeta.strem.io) answers a catalog GET with a 307
+// redirect to its CDN, and Qt's XHR does NOT follow it (empty body → blank wall).
+// Point the synthetic Cinemeta catalogs at the CDN directly — the exact endpoint
+// the Theatre tab shelves already use (cinemeta-catalogs.strem.io/top), which serves
+// genre filters and skip paging. Verified live 2026-06-24.
+var CINEMETA_CDN_TRANSPORT = "https://cinemeta-catalogs.strem.io/top/manifest.json";
+
 // The installed list with the Cinemeta seed's missing catalogs filled in. Every
 // entry passes through untouched EXCEPT a catalog-less core Cinemeta row, which
 // gets a shallow copy carrying the synthetic catalogs (originals never mutated).
@@ -56,6 +63,7 @@ function _effectiveInstalled(installed) {
             var e2 = {};
             for (var kk in e) e2[kk] = e[kk];
             e2.manifest = m2;
+            e2.transportUrl = CINEMETA_CDN_TRANSPORT;   // dodge v3-cinemeta's unfollowed 307
             out.push(e2);
         } else {
             out.push(e);
