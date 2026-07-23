@@ -165,6 +165,64 @@ function dayList(entries, dateMs, watchedIds, nowMs) {
     return out;
 }
 
+// ---- fetch support (refreshCalendar) ----
+var STAMP_TTL_MS = 6 * 3600 * 1000;
+var WINDOW_PAST_MS = 45 * 86400 * 1000;
+var WINDOW_FUTURE_MS = 120 * 86400 * 1000;
+
+// a series entry's calendar slice is fresh if stamped within the TTL.
+function stampFresh(entry, nowMs) {
+    var at = entry && entry.payload && entry.payload.libCalStampAt;
+    return !!at && (nowMs - at) < STAMP_TTL_MS;
+}
+
+// meta.videos → the compact 5-key slices we persist: only dated episodes inside
+// the [now-45d, now+120d] window (the calendar's relevant horizon).
+function calendarSlice(videos, nowMs) {
+    var out = [];
+    for (var i = 0; i < (videos || []).length; i++) {
+        var v = videos[i];
+        var ms = Date.parse(v && v.released);
+        if (isNaN(ms)) continue;
+        if (ms < nowMs - WINDOW_PAST_MS || ms > nowMs + WINDOW_FUTURE_MS) continue;
+        out.push({ id: String(v.id || ""), season: v.season, episode: v.episode,
+                   title: v.title || "", released: v.released });
+    }
+    return out;
+}
+
+// Refresh stale series entries' calendar slices, serially (one meta fetch at a
+// time, the Next Up cache style). Movies are ignored (calendar is series-only).
+// addFn upserts the patched entry (Collection.add). done() after the last.
+// loadMeta(type, id, cb) — cb(meta{videos}). Distinct payload keys from stage 2.
+function refreshCalendar(entries, loadMeta, addFn, nowMs, done) {
+    var stale = [];
+    for (var i = 0; i < (entries || []).length; i++) {
+        var e = entries[i];
+        if (!isSeries(e) || stampFresh(e, nowMs)) continue;
+        stale.push(e);
+    }
+    if (!stale.length) { if (done) done(); return; }
+    var idx = 0;
+    function step() {
+        if (idx >= stale.length) { if (done) done(); return; }
+        var e = stale[idx++];
+        loadMeta("series", String(e.id), function(meta) {
+            var slice = calendarSlice((meta && meta.videos) || [], nowMs);
+            var patched = {};
+            for (var k in e) patched[k] = e[k];
+            var pay = {};
+            if (e.payload) for (var pk in e.payload) pay[pk] = e.payload[pk];
+            pay.libCalendar = slice;
+            pay.libCalStampAt = nowMs;
+            patched.payload = pay;
+            addFn(patched);
+            step();
+        });
+    }
+    step();
+}
+
 // ---- month header count ----
 function monthCount(entries, year, month1, nowMs, watchedIds) {
     var vids = _visibleVideos(entries, watchedIds, nowMs);
