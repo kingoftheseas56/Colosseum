@@ -1,0 +1,589 @@
+// native/comicreader/ComicReaderCore.cpp
+#include "comicreader/ComicReaderCore.h"
+
+#include "comicreader/ComicReaderDecode.h"
+#include "comicreader/ComicReaderPairing.h"
+#include "comicreader/ComicReaderProvider.h"
+#include "comicreader/ComicReaderStripModel.h"
+
+#include <QFileInfo>
+#include <QUrl>
+
+#include <algorithm>
+
+namespace comicreader {
+
+namespace {
+constexpr qint64 kBudgetNormal = 512LL * 1024 * 1024;
+constexpr qint64 kBudgetSaver  = 256LL * 1024 * 1024;
+
+// Decode priorities (higher runs sooner in QThreadPool).
+constexpr int kPrioVisible    = 100;
+constexpr int kPrioNext1       = 90;
+constexpr int kPrioNext2       = 89;
+constexpr int kPrioPrev        = 80;
+constexpr int kPrioStripBase   = 70;   // strip window, descending
+constexpr int kPrioProbe       = 10;   // auto-coupling probe: LOW, so visible pages win
+} // namespace
+
+ComicReaderCore::ComicReaderCore(QObject* parent) : QObject(parent) {
+    // m_cache is declared before m_decode, so &m_cache is fully constructed here.
+    // The decode coordinator is a child of this object and lives on this thread —
+    // satisfying its construct-and-destroy-on-owning-thread affinity invariant.
+    m_decode = new ComicReaderDecode(&m_cache, this);
+    m_strip = new ComicReaderStripModel(this);
+
+    connect(m_decode, &ComicReaderDecode::metaReady, this, &ComicReaderCore::onMetaReady);
+    connect(m_decode, &ComicReaderDecode::pageReady, this, &ComicReaderCore::onPageReady);
+    connect(m_decode, &ComicReaderDecode::pageFailed, this, &ComicReaderCore::onPageFailed);
+
+    m_cache.setBudget(m_cacheBudget);
+}
+
+ComicReaderCore::~ComicReaderCore() = default;
+
+QString ComicReaderCore::couplingState() const {
+    const QString mode = (m_couplingMode == CouplingMode::Manual)
+                             ? QStringLiteral("manual") : QStringLiteral("auto");
+    const QString phase = (m_couplingPhase == CouplingPhase::Shifted)
+                              ? QStringLiteral("shifted") : QStringLiteral("normal");
+    return mode + QLatin1Char(':') + phase + QLatin1Char(':')
+           + QString::number(m_couplingConfidence, 'f', 2);
+}
+
+QAbstractListModel* ComicReaderCore::stripModel() const {
+    return m_strip;
+}
+
+// ── entry lifecycle ─────────────────────────────────────────────────────────
+
+void ComicReaderCore::resetEntryState() {
+    m_entryId.clear();
+    m_direction = Direction::Ltr;
+    m_pages.clear();
+    m_units.clear();
+    m_analyzable = false;
+
+    m_couplingMode = CouplingMode::Auto;
+    m_couplingPhase = CouplingPhase::Normal;
+    m_couplingResolved = false;
+    m_couplingConfidence = 0.0;
+
+    m_spreadOverrides.clear();
+    m_bookmarks.clear();
+    m_memorySaver = false;
+
+    m_readyCount = 0;
+    m_readyPages.clear();
+    m_pageRev.clear();
+    m_lastPinned.clear();
+    m_stripViewportTop = 0.0;
+    m_stripViewportHeight = 0.0;
+
+    m_probeActive = false;
+    m_probeNormalPairs.clear();
+    m_probeShiftedPairs.clear();
+    m_probePendingPages.clear();
+    m_probeCalledChoose = false;
+    m_probeNormalSamples = 0;
+    m_probeShiftedSamples = 0;
+}
+
+void ComicReaderCore::parsePages(const QVariantList& pages) {
+    m_pages.clear();
+    m_pages.reserve(pages.size());
+    for (int i = 0; i < pages.size(); ++i) {
+        const QVariantMap pm = pages[i].toMap();
+        PageMeta meta;
+        meta.index = i;   // authoritative dense index (the strip model asserts pages[i].index==i)
+        const QString url = pm.value(QStringLiteral("url")).toString();
+        const QUrl u(url);
+        if (u.isLocalFile()) {
+            const QString local = u.toLocalFile();
+            if (QFileInfo::exists(local))
+                meta.localPath = local;
+            else
+                meta.error = PageError::MissingFile;   // downloaded-but-vanished
+        } else if (!url.isEmpty() && u.scheme().isEmpty() && QFileInfo::exists(url)) {
+            meta.localPath = url;   // tolerate a bare existing local path
+        } else {
+            meta.error = PageError::MissingFile;   // remote / non-file:// / undownloaded
+        }
+        m_pages.append(meta);
+    }
+}
+
+void ComicReaderCore::applyPersisted(const QVariantMap& persisted) {
+    if (persisted.contains(QStringLiteral("memorySaver")))
+        m_memorySaver = persisted.value(QStringLiteral("memorySaver")).toBool();
+
+    if (persisted.contains(QStringLiteral("bookmarks"))) {
+        m_bookmarks.clear();
+        const QVariantList bm = persisted.value(QStringLiteral("bookmarks")).toList();
+        for (const QVariant& v : bm)
+            m_bookmarks.append(v.toInt());
+    }
+
+    if (persisted.contains(QStringLiteral("spreadOverrides"))) {
+        m_spreadOverrides.clear();
+        const QVariantMap so = persisted.value(QStringLiteral("spreadOverrides")).toMap();
+        for (auto it = so.constBegin(); it != so.constEnd(); ++it) {
+            bool ok = false;
+            const int idx = it.key().toInt(&ok);
+            if (ok)
+                m_spreadOverrides.insert(idx, it.value().toBool());
+        }
+    }
+
+    if (persisted.contains(QStringLiteral("couplingMode"))) {
+        const QString mode = persisted.value(QStringLiteral("couplingMode")).toString();
+        if (mode == QLatin1String("manual")) {
+            m_couplingMode = CouplingMode::Manual;
+            m_couplingResolved = true;   // a manual choice is a resolved state
+        } else {
+            m_couplingMode = CouplingMode::Auto;
+            // A persisted Auto is resolved only if the shell saved it that way;
+            // an unresolved Auto (first open) re-runs the probe.
+            m_couplingResolved =
+                persisted.value(QStringLiteral("couplingResolved"), false).toBool();
+        }
+    }
+    if (persisted.contains(QStringLiteral("couplingPhase")))
+        m_couplingPhase =
+            (persisted.value(QStringLiteral("couplingPhase")).toString() == QLatin1String("shifted"))
+                ? CouplingPhase::Shifted : CouplingPhase::Normal;
+    if (persisted.contains(QStringLiteral("couplingConfidence")))
+        m_couplingConfidence = persisted.value(QStringLiteral("couplingConfidence")).toDouble();
+}
+
+void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString direction,
+                                QVariantMap persisted) {
+    resetEntryState();
+
+    ++m_generation;
+    m_liveGeneration.store(m_generation);
+    m_entryId = entryId;
+    m_direction = (direction.trimmed().toLower() == QLatin1String("rtl"))
+                      ? Direction::Rtl : Direction::Ltr;
+
+    parsePages(pages);
+    applyPersisted(persisted);
+
+    // Fold persisted spread overrides onto the page metas so pairing + strip see them.
+    for (auto it = m_spreadOverrides.constBegin(); it != m_spreadOverrides.constEnd(); ++it) {
+        const int idx = it.key();
+        if (idx >= 0 && idx < m_pages.size())
+            m_pages[idx].spreadOverride = it.value();
+    }
+
+    m_cacheBudget = m_memorySaver ? kBudgetSaver : kBudgetNormal;
+    m_cache.setBudget(m_cacheBudget);
+
+    // Becomes the live generation; drops the previous generation's cached pages.
+    m_decode->openGeneration(m_generation, m_pages);
+
+    ComicReaderStripModel::Options opt;
+    opt.viewportWidth = m_stripViewportWidth;
+    opt.portraitWidthPct = m_portraitWidthPct;
+    opt.gap = m_stripGap;
+    m_strip->rebuild(m_pages, opt);
+
+    rebuildUnits();
+
+    m_analyzable = false;
+    for (const PageMeta& m : m_pages) {
+        if (m.error == PageError::None && !m.localPath.isEmpty()) {
+            m_analyzable = true;
+            break;
+        }
+    }
+
+    emit entryChanged();
+    emit pairingChanged();
+    emit progressChanged();
+    emit cacheChanged();
+
+    // The auto-coupling probe runs at most once per entry, only for an unresolved
+    // Auto coupling over an analyzable (local, decodable) entry.
+    if (m_analyzable && m_couplingMode == CouplingMode::Auto && !m_couplingResolved)
+        startAutoCouplingProbe();
+}
+
+void ComicReaderCore::closeEntry() {
+    resetEntryState();
+
+    // Retire the generation so any provider request still bound to the closed
+    // entry returns null, and drop that generation's cached pages.
+    ++m_generation;
+    m_liveGeneration.store(m_generation);
+    m_cacheBudget = kBudgetNormal;
+    m_cache.setBudget(m_cacheBudget);
+    m_decode->openGeneration(m_generation, {});
+
+    ComicReaderStripModel::Options opt;
+    opt.viewportWidth = m_stripViewportWidth;
+    opt.portraitWidthPct = m_portraitWidthPct;
+    opt.gap = m_stripGap;
+    m_strip->rebuild({}, opt);
+    m_units.clear();
+
+    emit entryChanged();
+    emit pairingChanged();
+    emit progressChanged();
+    emit cacheChanged();
+}
+
+// ── read-only queries ───────────────────────────────────────────────────────
+
+QVariantMap ComicReaderCore::pageInfo(int page) const {
+    if (page < 0 || page >= m_pages.size())
+        return {};
+    QVariantMap m = m_pages[page].toVariantMap();
+    m.insert(QStringLiteral("rev"), m_pageRev.value(page, 0));
+    m.insert(QStringLiteral("imageUrl"), imageUrl(page));
+    return m;
+}
+
+QVariantMap ComicReaderCore::unitForPage(int page) const {
+    if (m_units.isEmpty())
+        return {};
+    const int u = comicreader::unitForPage(m_units, page);
+    if (u < 0 || u >= m_units.size())
+        return {};
+    return m_units[u].toVariantMap();
+}
+
+QString ComicReaderCore::imageUrl(int page) const {
+    return QStringLiteral("image://comicreader/%1/%2?rev=%3")
+        .arg(m_generation)
+        .arg(page)
+        .arg(m_pageRev.value(page, 0));
+}
+
+QVariantMap ComicReaderCore::persistedState() const {
+    QVariantMap m;
+    QVariantMap so;
+    for (auto it = m_spreadOverrides.constBegin(); it != m_spreadOverrides.constEnd(); ++it)
+        so.insert(QString::number(it.key()), it.value());
+    m.insert(QStringLiteral("spreadOverrides"), so);
+    m.insert(QStringLiteral("couplingMode"),
+             m_couplingMode == CouplingMode::Manual ? QStringLiteral("manual")
+                                                    : QStringLiteral("auto"));
+    m.insert(QStringLiteral("couplingPhase"),
+             m_couplingPhase == CouplingPhase::Shifted ? QStringLiteral("shifted")
+                                                       : QStringLiteral("normal"));
+    m.insert(QStringLiteral("couplingResolved"), m_couplingResolved);
+    m.insert(QStringLiteral("couplingConfidence"), m_couplingConfidence);
+    QVariantList bm;
+    for (int b : m_bookmarks)
+        bm.append(b);
+    m.insert(QStringLiteral("bookmarks"), bm);
+    m.insert(QStringLiteral("memorySaver"), m_memorySaver);
+    return m;
+}
+
+QVariantList ComicReaderCore::pinnedPages() const {
+    QVariantList out;
+    for (int p : m_lastPinned)
+        out.append(p);
+    return out;
+}
+
+QVariantMap ComicReaderCore::couplingProbeDebug() const {
+    QVariantMap m;
+    m.insert(QStringLiteral("called"), m_probeCalledChoose);
+    m.insert(QStringLiteral("normalSamples"), m_probeNormalSamples);
+    m.insert(QStringLiteral("shiftedSamples"), m_probeShiftedSamples);
+    m.insert(QStringLiteral("resolved"), m_couplingResolved);
+    m.insert(QStringLiteral("active"), m_probeActive);
+    return m;
+}
+
+// ── mutations ───────────────────────────────────────────────────────────────
+
+void ComicReaderCore::setSpreadOverride(int page, QString state) {
+    if (page < 0 || page >= m_pages.size())
+        return;
+    const QString s = state.trimmed().toLower();
+    if (s == QLatin1String("spread")) {
+        m_spreadOverrides.insert(page, true);
+        m_pages[page].spreadOverride = true;
+    } else if (s == QLatin1String("single")) {
+        m_spreadOverrides.insert(page, false);
+        m_pages[page].spreadOverride = false;
+    } else {   // "clear" (or anything else) defers back to detection
+        m_spreadOverrides.remove(page);
+        m_pages[page].spreadOverride.reset();
+    }
+    m_strip->updatePage(m_pages[page]);
+    flushStripCompensation();
+    rebuildUnits();
+    emit pairingChanged();
+}
+
+void ComicReaderCore::nudgeCoupling() {
+    m_couplingMode = CouplingMode::Manual;
+    m_couplingResolved = true;
+    m_couplingPhase = (m_couplingPhase == CouplingPhase::Normal)
+                          ? CouplingPhase::Shifted : CouplingPhase::Normal;
+    // A deliberate manual nudge aborts any pending auto-coupling probe.
+    m_probeActive = false;
+    m_probePendingPages.clear();
+    rebuildUnits();
+    emit pairingChanged();
+}
+
+void ComicReaderCore::setVisible(QVariantList pageIndices) {
+    QVector<int> visible;
+    for (const QVariant& v : pageIndices) {
+        const int i = v.toInt();
+        if (i >= 0 && i < m_pages.size())
+            visible.append(i);
+    }
+    if (visible.isEmpty())
+        return;
+
+    // Pin the visible pages plus their immediate neighbors so the on-screen frame
+    // (and the pages a flip lands on) never blank under memory pressure.
+    QSet<int> pinSet;
+    int minV = visible.first();
+    int maxV = visible.first();
+    for (int v : visible) {
+        pinSet.insert(v);
+        if (v - 1 >= 0) pinSet.insert(v - 1);
+        if (v + 1 < m_pages.size()) pinSet.insert(v + 1);
+        minV = qMin(minV, v);
+        maxV = qMax(maxV, v);
+    }
+    QVector<int> pinned(pinSet.begin(), pinSet.end());
+    std::sort(pinned.begin(), pinned.end());
+    m_lastPinned = pinned;
+    m_cache.setPinned(m_generation, pinned);
+
+    for (int v : visible)
+        m_decode->request(v, kPrioVisible);
+    if (maxV + 1 < m_pages.size()) m_decode->request(maxV + 1, kPrioNext1);
+    if (maxV + 2 < m_pages.size()) m_decode->request(maxV + 2, kPrioNext2);
+    if (minV - 1 >= 0)             m_decode->request(minV - 1, kPrioPrev);
+}
+
+void ComicReaderCore::setStripViewport(double top, double height) {
+    m_stripViewportTop = top;
+    m_stripViewportHeight = height;
+    const QVector<int> w = m_strip->window(top, height, 1.5);
+    int prio = kPrioStripBase;
+    for (int p : w) {
+        m_decode->request(p, prio);
+        if (prio > 1)
+            --prio;
+    }
+    flushStripCompensation();
+}
+
+void ComicReaderCore::setStripViewportWidth(int width) {
+    if (width <= 0 || width == m_stripViewportWidth)
+        return;
+    m_stripViewportWidth = width;
+    ComicReaderStripModel::Options opt;
+    opt.viewportWidth = m_stripViewportWidth;
+    opt.portraitWidthPct = m_portraitWidthPct;
+    opt.gap = m_stripGap;
+    // rebuild re-locks already-decoded sizes from PageMeta (decoded=true carries
+    // the real sourceSize), so a resize never loses a learned page height.
+    m_strip->rebuild(m_pages, opt);
+}
+
+void ComicReaderCore::setMemorySaver(bool on) {
+    m_memorySaver = on;
+    m_cacheBudget = on ? kBudgetSaver : kBudgetNormal;
+    m_cache.setBudget(m_cacheBudget);
+    emit cacheChanged();
+}
+
+void ComicReaderCore::rebuildUnits() {
+    m_units = buildUnits(m_pages, m_couplingPhase);
+}
+
+void ComicReaderCore::flushStripCompensation() {
+    const double delta = m_strip->takePendingCompensation(m_stripViewportTop);
+    if (delta != 0.0)
+        emit stripCompensation(delta);
+}
+
+// ── decode coordinator callbacks (owning thread) ────────────────────────────
+
+void ComicReaderCore::onMetaReady(quint64 gen, const PageMeta& meta) {
+    if (gen != m_generation)
+        return;
+    const int p = meta.index;
+    if (p < 0 || p >= m_pages.size())
+        return;
+
+    const bool wasSpread = isSpread(m_pages[p]);
+    m_pages[p].sourceSize = meta.sourceSize;
+    m_pages[p].decoded = true;
+    m_pages[p].detectedSpread = meta.detectedSpread;
+    m_pages[p].error = PageError::None;
+
+    m_strip->updatePage(m_pages[p]);
+    flushStripCompensation();
+
+    // Metadata-driven spread discovery: a newly-learned spread (with no manual
+    // override) restructures the double-page units.
+    const bool nowSpread = isSpread(m_pages[p]);
+    if (nowSpread != wasSpread && !m_pages[p].spreadOverride.has_value()) {
+        rebuildUnits();
+        emit pairingChanged();
+    }
+}
+
+void ComicReaderCore::onPageReady(quint64 gen, int page) {
+    if (gen != m_generation)
+        return;
+    // Bump the page's imageUrl rev so a bound QML Image re-requests the fresh pixels.
+    m_pageRev.insert(page, m_pageRev.value(page, 0) + 1);
+    if (!m_readyPages.contains(page)) {
+        m_readyPages.insert(page);
+        ++m_readyCount;
+        emit progressChanged();
+    }
+    emit pageReady(page);
+
+    if (m_probeActive && m_probePendingPages.contains(page))
+        onProbePageResolved(page);
+}
+
+void ComicReaderCore::onPageFailed(quint64 gen, int page, PageError error) {
+    if (gen != m_generation)
+        return;
+    if (page >= 0 && page < m_pages.size()) {
+        m_pages[page].error = error;
+        m_pages[page].decoded = false;
+        m_strip->updatePage(m_pages[page]);
+    }
+    emit pageFailed(page, pageErrorToString(error));
+
+    if (m_probeActive && m_probePendingPages.contains(page))
+        onProbePageResolved(page);
+}
+
+// ── auto-coupling probe ─────────────────────────────────────────────────────
+
+void ComicReaderCore::startAutoCouplingProbe() {
+    m_probeActive = true;
+    m_probeCalledChoose = false;
+    m_probeNormalSamples = 0;
+    m_probeShiftedSamples = 0;
+    m_probeNormalPairs.clear();
+    m_probeShiftedPairs.clear();
+    m_probePendingPages.clear();
+
+    const int limit = qMin(8, m_pages.size());   // sample only the first ~8 pages
+    auto collect = [&](CouplingPhase ph) {
+        QVector<ProbePair> out;
+        const QVector<PairUnit> units = buildUnits(m_pages, ph);
+        for (const PairUnit& pu : units) {
+            if (pu.spread)
+                continue;
+            if (pu.leftIndex < 0 || pu.rightIndex < 0)
+                continue;   // only true two-page pairs are continuity candidates
+            const int a = qMin(pu.rightIndex, pu.leftIndex);
+            const int b = qMax(pu.rightIndex, pu.leftIndex);
+            if (b >= limit)
+                continue;
+            out.append({a, b});
+            if (out.size() >= 4)
+                break;
+        }
+        return out;
+    };
+    m_probeNormalPairs = collect(CouplingPhase::Normal);
+    m_probeShiftedPairs = collect(CouplingPhase::Shifted);
+
+    QSet<int> targets;
+    for (const ProbePair& pr : m_probeNormalPairs) { targets.insert(pr.a); targets.insert(pr.b); }
+    for (const ProbePair& pr : m_probeShiftedPairs) { targets.insert(pr.a); targets.insert(pr.b); }
+
+    for (int p : targets) {
+        if (p < 0 || p >= m_pages.size())
+            continue;
+        if (m_pages[p].error != PageError::None)
+            continue;   // undecodable — leave it out, finalize will treat it as absent
+        if (m_cache.get(m_generation, p).has_value())
+            continue;   // already decoded (e.g. a visible page) — cost read at finalize
+        m_probePendingPages.insert(p);
+        m_decode->request(p, kPrioProbe);
+    }
+
+    if (m_probePendingPages.isEmpty())
+        finalizeProbe();
+}
+
+void ComicReaderCore::onProbePageResolved(int page) {
+    if (!m_probeActive)
+        return;
+    m_probePendingPages.remove(page);
+    if (m_probePendingPages.isEmpty())
+        finalizeProbe();
+}
+
+void ComicReaderCore::finalizeProbe() {
+    m_probeActive = false;
+
+    auto costFor = [&](const ProbePair& pr, double& out) -> bool {
+        const std::optional<QImage> la = m_cache.get(m_generation, pr.a);
+        const std::optional<QImage> lb = m_cache.get(m_generation, pr.b);
+        if (!la.has_value() || !lb.has_value())
+            return false;
+        out = edgeContinuityCost(*la, *lb);
+        return true;
+    };
+
+    QVector<double> normalCosts;
+    QVector<double> shiftedCosts;
+    for (const ProbePair& pr : m_probeNormalPairs) {
+        double c = 0.0;
+        if (costFor(pr, c))
+            normalCosts.append(c);
+    }
+    for (const ProbePair& pr : m_probeShiftedPairs) {
+        double c = 0.0;
+        if (costFor(pr, c))
+            shiftedCosts.append(c);
+    }
+
+    // Feed the FULL per-phase cost vectors (both non-empty); mean aggregation in
+    // chooseCouplingPhase handles different sample counts — do NOT trim to equal
+    // length. Each phase's pairing yields its OWN seams (normal collects (1,2),
+    // (3,4),(5,6)...; shifted collects (2,3),(4,5)...), so the two vectors
+    // routinely differ in length AND normalCosts[i]/shiftedCosts[i] are different
+    // page seams — a positional min()-trim was never a principled paired compare,
+    // and it would discard real evidence (e.g. normal's last high-cost seam, the
+    // very proof that normal coupling is wrong), flipping the verdict. The MEAN
+    // is the faithful aggregation boundary (Task 5 contract, commit f92491c).
+    if (!normalCosts.isEmpty() && !shiftedCosts.isEmpty()) {
+        m_probeNormalSamples = normalCosts.size();
+        m_probeShiftedSamples = shiftedCosts.size();
+        m_probeCalledChoose = true;
+        const CouplingVerdict v = chooseCouplingPhase(normalCosts, shiftedCosts);
+        m_couplingPhase = v.phase;
+        m_couplingConfidence = v.confidence;
+    } else {
+        // A one-sided (or empty/empty) probe never decides — stay Normal.
+        m_couplingPhase = CouplingPhase::Normal;
+        m_couplingConfidence = 0.0;
+        m_probeCalledChoose = false;
+    }
+
+    m_couplingResolved = true;
+    rebuildUnits();
+    emit pairingChanged();
+}
+
+// ── provider factory ────────────────────────────────────────────────────────
+
+ComicReaderProvider* ComicReaderCore::createProvider() {
+    return new ComicReaderProvider(&m_cache, &m_liveGeneration);
+}
+
+} // namespace comicreader

@@ -234,6 +234,26 @@ add_executable(colosseum
     anime/AnimeOrderIndex.h
     anime/AnimeOrderService.cpp
     anime/AnimeOrderService.h
+    # ── Comic Reader (Agent 1, plan 2026-07-23): from-scratch native reader.
+    #    ComicReaderCore is the app-facing backend (QML `ComicReaderCore` context
+    #    property, registered in main.cpp) orchestrating the five pure engine
+    #    units; ComicReaderProvider is the read-only image://comicreader/ seam. ──
+    comicreader/ComicReaderTypes.cpp
+    comicreader/ComicReaderTypes.h
+    comicreader/ComicReaderPairing.cpp
+    comicreader/ComicReaderPairing.h
+    comicreader/ComicReaderCoupling.cpp
+    comicreader/ComicReaderCoupling.h
+    comicreader/ComicReaderPageCache.cpp
+    comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderDecode.cpp
+    comicreader/ComicReaderDecode.h
+    comicreader/ComicReaderStripModel.cpp
+    comicreader/ComicReaderStripModel.h
+    comicreader/ComicReaderProvider.cpp
+    comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderCore.cpp
+    comicreader/ComicReaderCore.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
@@ -1096,3 +1116,23 @@ add_executable(comicreader_strip_harness
     comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
 target_include_directories(comicreader_strip_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_strip_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): the app-facing backend + provider
+#    (Task 7). ComicReaderCore orchestrates ALL five engine units behind the
+#    QML `ComicReaderCore` context property; ComicReaderProvider is the read-only
+#    image://comicreader/ seam. The harness drives that orchestration over real
+#    decoded PNGs, pumping a QCoreApplication event loop for the decode
+#    coordinator's queued report-backs. QQuickImageProvider lives in Qt6::Quick;
+#    QImage/QImageReader in Qt6::Gui; the coordinator's QThreadPool in Qt6::Core. ──
+add_executable(comicreader_core_harness
+    ../tests/comicreader_core_harness.cpp
+    comicreader/ComicReaderCore.cpp comicreader/ComicReaderCore.h
+    comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderStripModel.cpp comicreader/ComicReaderStripModel.h
+    comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
+    comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
