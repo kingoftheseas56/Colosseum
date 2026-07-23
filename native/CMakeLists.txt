@@ -992,6 +992,24 @@ target_compile_definitions(epub_sequence_matcher_harness PRIVATE
     ALIGNMENT_MATCHING_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/matching")
 target_link_libraries(epub_sequence_matcher_harness PRIVATE Qt6::Core)
 
+# Audiobook analysis decoder (Agent 2). Bounded 16 kHz mono float PCM windows via
+# the app-bundled tools/ffmpeg.exe (QProcess), a resumable on-disk cache, and a
+# corrupt-input failure path. Reads ffmpeg stdout in bounded chunks, consulting the
+# shared BackgroundWorkCoordinator's WorkContext between reads — so the coordinator
+# .cpp compiles in (its WorkContext is coordinator-private, the only honest way to
+# obtain one in the harness). Qt Core only (QProcess lives in Core).
+add_executable(audiobook_analysis_decoder_harness
+    ../tests/audiobook_analysis_decoder_harness.cpp
+    alignment/AudiobookAnalysisDecoder.cpp
+    alignment/AudiobookAnalysisDecoder.h
+    alignment/AlignmentTypes.h
+    work/BackgroundWorkCoordinator.cpp
+    work/BackgroundWorkCoordinator.h)
+target_include_directories(audiobook_analysis_decoder_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(audiobook_analysis_decoder_harness PRIVATE
+    ALIGNMENT_AUDIO_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/audio")
+target_link_libraries(audiobook_analysis_decoder_harness PRIVATE Qt6::Core)
+
 # ── Panel analysis service (Agent 1): QML facade + background orchestration over
 #    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
 #    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
