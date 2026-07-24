@@ -243,6 +243,10 @@ FocusScope {
     // seeded from the old reader's flat `theme` on first run), pushed to the paper as the first
     // paint, and re-pushed LIVE on every panel edit. Seeded to the ratified defaults until 'ready'.
     property var appearance: L.appearanceDefaults()
+    // The WHOLE appearance store (PARITY 2026-07-24): { defaults, books } — per-book sparse
+    // patches over a global default. `appearance` above stays THE effective object for this
+    // book (what the panel binds and the paper renders); the store is the persistence truth.
+    property var appearanceStore: ({ defaults: L.appearanceDefaults(), books: {} })
 
     // ---- search view-model (Task 11) ----
     // Fed by the paper's 'searchResults' event and handed to the SearchSheet through the
@@ -497,9 +501,9 @@ FocusScope {
         var patch = {}
         patch[key] = value
         shell.appearance = L.mergeReadAlong(shell.appearance, patch)
-        var all = Reader2Bridge.settingsGet() || ({})
-        all.reader2 = shell.appearance
-        Reader2Bridge.settingsSave(all)
+        shell.appearanceStore = L.applyStorePatch(shell.appearanceStore, shell.bookId,
+                                                  "readAlong", L.readAlongFrom(shell.appearance))
+        persistAppearanceStore()
         if (shell.readAlongAvailable)
             paper.setReadAlongStyle(L.readAlongStyleFromMode(shell.readAlongMode, shell.readAlongWordScale))
     }
@@ -641,18 +645,39 @@ FocusScope {
         }
     }
 
-    // A single appearance edit from the panel: merge into shell.appearance, PERSIST under the
-    // namespaced settings.reader2 (READ-MODIFY-WRITE — the OLD reader's flat keys are never
-    // clobbered), and LIVE-APPLY to the paper. The ruler fields (rulerOn/Height/Dim) ride along
-    // in the store but are ignored by appearanceToPaper — their overlay is Task 11.
-    function applyAppearancePatch(key, value) {
-        var patch = {}
-        patch[key] = value
-        shell.appearance = L.mergeAppearance(shell.appearance, patch)
-        var all = Reader2Bridge.settingsGet() || ({})
-        all.reader2 = shell.appearance
-        Reader2Bridge.settingsSave(all)
+    // Commit a new store: recompute this book's effective appearance, persist, and paint.
+    // The single sync point for the three appearance actions (patch / use-as-default / reset).
+    function commitAppearanceStore(newStore) {
+        shell.appearanceStore = newStore
+        shell.appearance = L.effectiveAppearance(newStore, shell.bookId)
+        persistAppearanceStore()
         paper.setAppearance(L.appearanceToPaper(shell.appearance))
+    }
+
+    // A single appearance edit from the panel: route it through the STORE (applyStorePatch
+    // tiers GLOBAL keys → defaults, others → this book's sparse patch), then commit. The ruler
+    // fields ride along in the store but are ignored by appearanceToPaper — their overlay is Task 11.
+    function applyAppearancePatch(key, value) {
+        commitAppearanceStore(L.applyStorePatch(shell.appearanceStore, shell.bookId, key, value))
+    }
+
+    // "Use as default for all books": this book's look becomes the global default; books
+    // Hemanth personally tuned keep their own patches.
+    function applyUseAsDefault() {
+        commitAppearanceStore(L.useAsDefaultStore(shell.appearanceStore, shell.bookId))
+    }
+
+    // "Reset appearance": drop this book's patch — it falls back to the default look.
+    function applyResetBook() {
+        commitAppearanceStore(L.resetBookStore(shell.appearanceStore, shell.bookId))
+    }
+
+    // Persist the whole store under settings.reader2 (READ-MODIFY-WRITE — the OLD reader's
+    // flat keys elsewhere in settings.json are never clobbered).
+    function persistAppearanceStore() {
+        var all = Reader2Bridge.settingsGet() || ({})
+        all.reader2 = shell.appearanceStore
+        Reader2Bridge.settingsSave(all)
     }
 
     // Keyboard now lives IN-PAGE (paper_glue.js): the web view owns focus + keys, so a key
@@ -752,7 +777,10 @@ FocusScope {
                 shell.chapterTicks = L.railTicks(p.toc, (p.toc && p.toc.length) ? p.toc.length : 0)
                 shell.refreshMarks()                              // load bookmarks/highlights from the shared stores
                 shell.reapplyHighlights()                         // re-paint stored highlights onto the fresh paper
-                shell.appearance = L.initialAppearance(Reader2Bridge.settingsGet())  // persisted reader2 appearance (or seeded default)
+                // PARITY: adopt the store (legacy flat reader2 migrates silently), then paint
+                // THIS book's effective appearance — defaults overlaid by its own patch.
+                shell.appearanceStore = L.appearanceStore(Reader2Bridge.settingsGet())
+                shell.appearance = L.effectiveAppearance(shell.appearanceStore, shell.bookId)
                 paper.setAppearance(L.appearanceToPaper(shell.appearance))           // first paint = the persisted appearance
                 shell.followOn = false                            // read-along Follow resets per book (default OFF)
                 shell.lastSyncedAudioChapter = -1                 // fresh book → no prior audio-chapter sync
