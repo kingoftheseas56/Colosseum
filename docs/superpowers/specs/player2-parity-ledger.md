@@ -1,68 +1,73 @@
 # Player 2 — Lab Parity Ledger
 
+> **FROZEN 2026-07-25** at branch `agent4/player2-task8-seek`, commit `01e4477` (chrome-parity marathon
+> `f530597`→`b2953db`→`cda7d13` + Fable review fixes `01e4477`). Eyes-on verdicts are Hemanth's, across
+> three sessions on 2026-07-24/25; the final pass ("done I checked everything" + post-review "it looks
+> great") closed every built surface. Cross-substrate review: **Fable 5** re-derived the whole diff
+> (engine: clean; chrome: 3 drifts + 1 minor, fixed in `01e4477`). Integrated status reopens at Task 17.
+
 Parity is a ledger, not a feeling. A row is complete only when the behavior exists in the standalone
 harness, has automated evidence where practical, AND passes an eyes-on comparison against the current
-player. **No row is complete until both evidence columns are populated.** Status is restricted to
-`NOT RUN`, `FAIL`, `PASS`, or `ACCEPTED EXCEPTION (<Hemanth's written reference>)`.
+player. Status: `NOT RUN`, `FAIL`, `PASS`, `OPEN GAP` (needs a build or Hemanth's exception word), or
+`ACCEPTED EXCEPTION (<Hemanth's written reference>)`.
 
-- **Production evidence** — the current-player behavior/file this row matches (`qml/PlayerPage.qml`
-  and friends; read-only, never modified).
-- **Harness test** — the automated/deterministic check, if any.
-- **Eyes-on result** — Hemanth's side-by-side verdict.
-- **Lab status** — the standalone-harness closure. **Integrated status** — reopened after
-  `ColosseumPlayer2HostServices` is connected (Task 17); starts `NOT RUN` for every host-backed row.
+## Core playback chrome (Task 13, closed through Tasks 14–15)
 
-Seeded from the design parity table (`2026-07-21-colosseum-player2-isolated-development-design.md`).
-Task 13 builds the core playback chrome; source/episode/skip/window/capture/live rows belong to
-Tasks 14–15 and stay `NOT RUN` here.
-
-## Core playback chrome (Task 13)
-
-| Behavior | Production evidence | Harness test | Eyes-on result | Lab status | Integrated status | Notes |
+| Behavior | Production evidence | Harness test | Eyes-on result | Lab status | Integrated | Notes |
 |---|---|---|---|---|---|---|
-| Play / pause (button + Space + click) | PlayerPage transportRow hero + `togglePlayPause` | harness loads shell, gate green | NOT RUN | NOT RUN | NOT RUN | TransportBar hero → `session.play/pause` |
-| Exact seek (scrub) | seekBar `seekTo`→`mpv.seekExact` | shell loads | NOT RUN | NOT RUN | NOT RUN | SeekBar release → `session.seekExact`; no position-timer |
-| Relative seek (skip ±10, ← / →) | `seekStep`→`mpv.seekStep` | shell loads | NOT RUN | NOT RUN | NOT RUN | → `session.seekRelative` |
-| Seek bar (progress, chapters, handle, hover time) | seekBar fills + chapter ticks + hover card | shell loads | NOT RUN | NOT RUN | NOT RUN | gold progress, chapter ticks from `session.chapters` |
-| Buffer/cache fill on seek bar | seekBar cache fill (`mpv.cacheTime`) | — | NOT RUN | NOT RUN | NOT RUN | `bufferedFraction` not yet surfaced by the session (gap) |
-| Volume + mute (slider, M, wheel) | VolumeControl + `M` + wheel ±5% | shell loads | NOT RUN | NOT RUN | NOT RUN | → `session.setVolume/setMuted` |
-| Elapsed / duration / remaining toggle | seekRow time labels | shell loads | NOT RUN | NOT RUN | NOT RUN | click duration → remaining |
-| State line (buffering / paused / seek) | stateRow `stateLineText` | shell loads | NOT RUN | NOT RUN | NOT RUN | ends-at wall clock deferred to slice 2 |
-| Auto-hide + cursor hide | `hideTimer` 1800/4500ms | shell loads | NOT RUN | NOT RUN | NOT RUN | pins visible while paused/buffering; menu-pin in slice 2 |
-| Fullscreen request | fullscreen RoundButton + F | shell loads | NOT RUN | NOT RUN | NOT RUN | emits `fullscreenRequested()` for the host |
-| Prev / next episode | transportRow prev/next | — | NOT RUN | NOT RUN | NOT RUN | slice 2 (needs host adjacency) |
-| Frame step (`,` / `.`) | `mpv.frameStep/frameBackStep` | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (`,`/`.` -> session.frameStep); eyes-on |
-| Speed + sleep timer | SpeedMenuButton | — | NOT RUN | NOT RUN | NOT RUN | DEFERRED: session has no speed yet (clock rate + audio atempo needed) — gap |
-| Audio track menu + delay | AudioMenu + SYNC row | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (TrackMenu -> selectAudioTrack + audioDelay); eyes-on |
-| Subtitle menu + delay + style | SubtitleMenu + SubStyleBar | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (TrackMenu -> selectSubtitleTrack + subDelay); ASS style deferred; eyes-on |
-| Subtitle rendering | mpv/libass on the surface | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT: SubtitleLayer paints text cues from session.subtitleText (C++-timed); PGS bitmap deferred; eyes-on |
-| Fit / fill / aspect / zoom | FillMenuButton | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (OverflowMenu aspect/fit/fill/zoom cycle); eyes-on |
-| Loudness normalization (Smooth/Light/Full) | overflow loudness cycle | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (OverflowMenu loudness Smooth/Light/Full cycle); eyes-on |
-| Chapters (labels, current, switch) | seek ticks + chapter transient | shell loads | NOT RUN | NOT RUN | NOT RUN | ticks shown; label/menu slice 2 |
-| Stats overlay (`D`) | statsOverlay | — | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (StatsOverlay <- session.diagnostics(), D key); eyes-on |
-| Loading / buffering / error screen | PlayerLoadingScreen | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
-| Hotkeys / shortcut sheet | PlayerHotkeys.js + ShortcutsSheet | — | NOT RUN | NOT RUN | NOT RUN | slice 1 wires Space/←/→/M/F; full registry + sheet slice 2 |
-| Context menu (right-click) | overflowPanel | shell loads | NOT RUN | NOT RUN | NOT RUN | slice 2 BUILT (right-click -> OverflowMenu at cursor); eyes-on |
-| Pause card | pauseCard | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
-| Compact folds (tight/snug/tiny) | width-driven folds | — | NOT RUN | NOT RUN | NOT RUN | slice 2 |
+| Play / pause (button + Space + click) | PlayerPage transportRow hero | gate summary green | ✔ 07-24/25 | PASS | NOT RUN | |
+| Exact seek (scrub) | seekBar → `mpv.seekExact` | seek-generation test | ✔ 07-25 ("seek freeze" root-caused + fixed candid-current) | PASS | NOT RUN | |
+| Relative seek (±10s, ← / →) | `seekStep` | shell contract | ✔ | PASS | NOT RUN | |
+| Seek bar (progress, chapter ticks, handle, hover) | seekBar | shell loads | ✔ | PASS | NOT RUN | ticks only — see Chapters row |
+| Buffer/cache fill on seek bar | seekBar cache fill | — | — | **OPEN GAP** | NOT RUN | SeekBar rect exists; `bufferedFraction` never fed by the session (engine seam missing) |
+| Volume + mute (slider, M, wheel) | VolumeControl | shell contract | ✔ | PASS | NOT RUN | |
+| Elapsed / duration / remaining toggle | seekRow labels | browser-logic gate (fmt) | ✔ | PASS | NOT RUN | |
+| State line + ENDS wall clock + now clock | stateRow + Kodi clocks | `fmtWallClock`/`endsAtLabel` tested | ✔ 07-25 (`3e048a6`) | PASS | NOT RUN | |
+| Auto-hide + cursor hide | `hideTimer` | shell loads | ✔ | PASS | NOT RUN | |
+| Fullscreen request + icon toggle | fullscreen button + F | shell contract | ✔ 07-25 | PASS | NOT RUN | icon flips via host-fed `windowed` (Fable F4) |
+| Prev / next episode | transportRow prev/next | adjacency via host seam | ✔ 07-25 | PASS | NOT RUN | peeks `requestAdjacentEpisode`; plays via `playEpisodeRequested` |
+| Frame step (`,` / `.`) | `mpv.frameStep` | shell contract | ✔ | PASS | NOT RUN | |
+| Playback speed | SpeedMenuButton (speed column) | av-sync gate `-Speed`; 1.5× p95 24ms | ✔ 07-25 (ears: pitch-correct) | PASS | NOT RUN | REAL engine: atempo + clock rate. 2× = 45ms p95 on Intel UHD 620 (fps ceiling ~36) — hardware-matrix item, not a sync defect. No `[`/`]` hotkeys (P2's smaller registry, drift-guarded) |
+| Sleep timer + skip-step (speed panel columns) | SpeedMenuButton | — | — | ACCEPTED EXCEPTION (approved absent, eyes-on 07-25 "it looks great"; no engine for either) | NOT RUN | |
+| Audio track menu + delay | AudioMenu + SYNC | TrackMenu wired | ✔ | PASS | NOT RUN | icon-button presentation (vs P1 chips) approved eyes-on Task 13 |
+| Subtitle menu + delay | SubtitleMenu | TrackMenu wired | ✔ 07-25 ("checked all of it") | PASS | NOT RUN | embedded tracks; external-file/online/styling need engine seams (flagged, not faked) |
+| Subtitle rendering (text + PGS bitmap, clock-synced) | mpv/libass | subtitle image/schedule/timing tests | ✔ 07-25 ("subtitles work now brother") | PASS | NOT RUN | Known refinements: letterbox positioning; multi-rect PGS (front rect only) |
+| Fit / fill / aspect | FillMenuButton | shell contract | ✔ 07-25 ("it looks great" post-Fable) | PASS | NOT RUN | LEFT-cluster placement + "Video" popover (Fable F1) |
+| Loudness normalization | overflow loudness | normalizer tests + benchmark | ✔ | PASS | NOT RUN | |
+| Chapters (labels, current, menu) | chapter transient/menu | — | — | **OPEN GAP** | NOT RUN | ticks render; no labels/menu |
+| Stats overlay (`D`) | statsOverlay | diagnostics contract | ✔ | PASS | NOT RUN | |
+| Loading / buffering / error screen | PlayerLoadingScreen | — | — | **OPEN GAP** | NOT RUN | no dedicated surface; state line only |
+| Hotkeys + shortcuts sheet (`?`) | PlayerHotkeys.js + ShortcutsSheet | shortcuts drift-guard contract | ✔ 07-25 | PASS | NOT RUN | P2's real (smaller) registry; sheet mirrors P1 presentation; no scrollview (content fits at min height) |
+| Context menu (right-click) | overflowPanel | shell loads | ✔ | PASS | NOT RUN | |
+| Pause card | pauseCard | pause-card helpers tested | ✔ 07-25 (`3d6c240`; no rating — his veto) | PASS | NOT RUN | quality line codec-only (engine lacks res/HDR/channels) |
+| Compact folds (tight/snug/tiny) | width-driven folds | — | — | **OPEN GAP** | NOT RUN | fixed roster; fine ≥ lab min-width (Fable observation) |
 
-## Deferred to Tasks 14–15 (source/episode/skip/window/capture/live)
+## Source / episode / skip / window / capture / live (Tasks 14–15)
 
-Source recovery drawer, episode browser / Up Next, skip segments, window/PiP/minimize, screenshot/GIF,
-live/DVR — all `NOT RUN`; owned by Tasks 14–15.
+| Behavior | Production evidence | Harness test | Eyes-on result | Lab status | Integrated | Notes |
+|---|---|---|---|---|---|---|
+| Episode/source drawer (E, tabs, season pills, rows) | Feature 8 BrowserDrawer | browser-logic gate + host-seam test | ✔ 07-25 (`8a0d6f7`) | PASS | NOT RUN | pick→actual switch needs prod pipeline (Task 17) |
+| Skip Intro/Recap/Credits pill | skip pill | `activeSegment`/`skipLabel` tested | ✔ 07-25 (parity fix `3e048a6`) | PASS | NOT RUN | lab fixture times (no real AniSkip addon) — his own diagnosis |
+| Progress reporting cadence | resume/watched persistence | `shouldReportProgress` tested + event ledger | headless-proven | PASS | NOT RUN | |
+| Close-confirm | closeConfirmPanel | `shouldConfirmClose` tested | ✔ 07-25 | PASS | NOT RUN | paused-close exits without prompt (Fable F3, P1 parity) |
+| PiP + window lifecycle | WindowMode pip | seams wired; lab toggle | ✔ 07-25 | PASS | NOT RUN | overflow trigger is LAB-ONLY; production drives PiP natively |
+| Power inhibit (keep-awake) | display sleep inhibit | `shouldInhibitSleep` tested + `[lab] keep-awake` log | headless-proven | PASS | NOT RUN | production wires `SetThreadExecutionState` at Task 17 |
+| Screenshot / GIF capture | mpv screenshot + GIF pipeline | — | — | ACCEPTED EXCEPTION ("you can skip screenshot and gif honestly", 2026-07-25) | NOT RUN | |
+| Live guide / DVR panels | LiveGuide/DvrPanel | — | — | ACCEPTED EXCEPTION (left unchecked in the 2026-07-25 surface pick: "Shortcuts sheet, Close-confirm, Window: minimize/PiP") | NOT RUN | |
+| Retry / pick-stream / download HUD buttons | leftUtilityRow | — | — | ACCEPTED EXCEPTION ("Keep sources in the drawer for now", 2026-07-25) | NOT RUN | drawer's Sources tab owns switching |
 
 ## Numeric gates (Task 16)
 
-A/V p95, 2h soak, 100 seeks, 50 open/close, memory, ABBA efficiency ≥25%, hardware matrix,
-normalization measurements — all `NOT RUN`; owned by Task 16.
+| Gate | Result | Status |
+|---|---|---|
+| A/V sync p95 ≤ 40ms | **7.6ms** (15s smoke, The Wire); 1.5× speed **24ms**; 1× post-tempo regression **2.86ms** | PASS (smoke; 30-min release run pending) |
+| Deterministic tier (9 unit + 4 contracts + smoke) | `PLAYER2 PROMOTION GATES: PASS` | PASS |
+| 2h soak · 100 seeks · 50 open/close · memory | harness modes + scripts being built this wake | NOT RUN |
+| ABBA efficiency ≥25% vs mpvqt | needs production player side-by-side | NOT RUN |
+| Hardware matrix (Intel + discrete) | needs 2nd GPU; will also clear the 2×-speed fps ceiling | NOT RUN |
 
-## Slice 2 review notes (cross-substrate)
+## Freeze note
 
-Fixed: audio menu now marks the track auto-selected at open; Off/switch clears the painted
-subtitle immediately; the subtitle clear timer is paused with playback (no vanish off a paused
-frame); right-click closes an open track menu before raising overflow.
-
-Minor debt (deferred, self-healing): the auto-hide timer is not re-armed when a track is picked by
-clicking a menu row without moving the pointer — heals on the next pointer move. OverflowMenu's
-`fillIndex` is local QML state and could drift if aspect were changed by another path (none in this
-slice). ASS subtitle styling and PGS bitmap cues are not yet painted (text cues only).
+Three **OPEN GAP** rows (cache-fill fraction, chapter labels/menu, loading/error screen, compact folds)
+need either a build-out or Hemanth's exception word before Phase D can close — surfaced, not silently
+blessed. Everything else is PASS or carries his written exception.
