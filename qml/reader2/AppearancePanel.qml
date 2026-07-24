@@ -33,7 +33,17 @@ Item {
     // ---- current values, read from `appearance` with safe fallbacks (defaults from the model) ----
     readonly property string curTheme: (appearance && appearance.theme) ? String(appearance.theme) : "night"
     readonly property string curFont: (appearance && appearance.font) ? String(appearance.font) : "literata"
-    readonly property int curSize: (appearance && Number.isFinite(appearance.sizePx)) ? appearance.sizePx : 18
+    readonly property int curSizePct: (appearance && Number.isFinite(appearance.sizePct)) ? appearance.sizePct
+                                    : (appearance && Number.isFinite(appearance.sizePx)) ? clampInt(Math.round(appearance.sizePx / 18 * 100 / 5) * 5, 50, 300)
+                                    : 100
+    readonly property int curWeight: (appearance && Number.isFinite(appearance.fontWeight)) ? appearance.fontWeight : 400
+    readonly property real curWordSp: (appearance && Number.isFinite(appearance.wordSpacing)) ? appearance.wordSpacing : 0
+    readonly property real curLetterSp: (appearance && Number.isFinite(appearance.letterSpacing)) ? appearance.letterSpacing : 0
+    readonly property real curParaSp: (appearance && Number.isFinite(appearance.paraSpacing)) ? appearance.paraSpacing : 0
+    readonly property string curIndent: (appearance && (appearance.paraIndent === "none" || appearance.paraIndent === "indent")) ? appearance.paraIndent : "book"
+    readonly property int curMaxWidth: (appearance && Number.isFinite(appearance.maxLineWidthPx)) ? appearance.maxLineWidthPx : 960
+    readonly property bool curHyphens: appearance ? !!appearance.hyphens : false
+    readonly property bool curSpread: appearance ? appearance.columns === "spread" : false
     readonly property real curLine: (appearance && Number.isFinite(appearance.lineHeight)) ? appearance.lineHeight : 1.6
     readonly property int curMargin: (appearance && Number.isFinite(appearance.marginPx)) ? appearance.marginPx : 72
     readonly property bool curJustify: appearance ? (appearance.justify === undefined ? true : !!appearance.justify) : true
@@ -173,6 +183,12 @@ Item {
                         FontCard { width: parent.cardW; face: Theme.ui; label: "Inter"
                             active: panel.curFont === "inter"; onPicked: panel.changed("font", "inter") }
                     }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Weight"; minValue: 100; maxValue: 900; stepSize: 100
+                        value: panel.curWeight; valueText: String(panel.curWeight)
+                        onMoved: (v) => panel.changed("fontWeight", Math.round(v))
+                    }
                 }
 
                 // ===== Size =====
@@ -183,17 +199,72 @@ Item {
                     Row {
                         width: parent.width
                         spacing: 14
-                        StepBtn { label: "A−"; onClicked: panel.changed("sizePx", panel.clampInt(panel.curSize - 1, 12, 26)) }
+                        StepBtn { label: "A−"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct - 5, 50, 300)) }
                         Text {
                             width: parent.width - 34 * 2 - 14 * 2
                             anchors.verticalCenter: parent.verticalCenter
                             horizontalAlignment: Text.AlignHCenter
-                            text: panel.curSize + " px"
+                            text: panel.curSizePct + " %"
                             color: Theme.inkDim
                             font.family: Theme.ui
                             font.pixelSize: 13
                         }
-                        StepBtn { label: "A+"; onClicked: panel.changed("sizePx", panel.clampInt(panel.curSize + 1, 12, 26)) }
+                        StepBtn { label: "A+"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct + 5, 50, 300)) }
+                    }
+                }
+
+                // ===== Spacing (PARITY 2026-07-24 — the functional dials Reader 1 had) =====
+                Column {
+                    width: parent.width
+                    spacing: 10
+                    GroupLabel { text: "Spacing" }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Line"; minValue: 1.0; maxValue: 2.2; stepSize: 0.1
+                        value: panel.curLine; valueText: panel.curLine.toFixed(1)
+                        onMoved: (v) => panel.changed("lineHeight", Math.round(v * 10) / 10)
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Word"; minValue: 0; maxValue: 1.0; stepSize: 0.05
+                        value: panel.curWordSp; valueText: panel.curWordSp.toFixed(2)
+                        onMoved: (v) => panel.changed("wordSpacing", Math.round(v * 100) / 100)
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Letter"; minValue: 0; maxValue: 0.5; stepSize: 0.01
+                        value: panel.curLetterSp; valueText: panel.curLetterSp.toFixed(2)
+                        onMoved: (v) => panel.changed("letterSpacing", Math.round(v * 100) / 100)
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Paragraph"; minValue: 0; maxValue: 2.0; stepSize: 0.1
+                        value: panel.curParaSp; valueText: panel.curParaSp.toFixed(1)
+                        onMoved: (v) => panel.changed("paraSpacing", Math.round(v * 10) / 10)
+                    }
+                    Item {
+                        width: parent.width
+                        height: 34
+                        Text {
+                            id: indentCaption
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 78
+                            text: "Indent"
+                            color: Theme.inkFaint
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                        }
+                        TriSegment {
+                            anchors.left: indentCaption.right
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            labels: ["Book", "None", "Indent"]
+                            values: ["book", "none", "indent"]
+                            current: panel.curIndent
+                            onPicked: (v) => panel.changed("paraIndent", v)
+                        }
                     }
                 }
 
@@ -202,12 +273,6 @@ Item {
                     width: parent.width
                     spacing: 10
                     GroupLabel { text: "Layout" }
-                    SliderRow {
-                        width: parent.width
-                        caption: "Line spacing"; minValue: 1.2; maxValue: 2.2; stepSize: 0.1
-                        value: panel.curLine; valueText: panel.curLine.toFixed(1)
-                        onMoved: (v) => panel.changed("lineHeight", Math.round(v * 10) / 10)
-                    }
                     SliderRow {
                         width: parent.width
                         caption: "Margins"; minValue: 24; maxValue: 160; stepSize: 4
@@ -260,6 +325,58 @@ Item {
                             leftLabel: "Pages"; rightLabel: "Scroll"
                             leftActive: !panel.curScrolled
                             onPicked: (left) => panel.changed("flow", left ? "paginated" : "scrolled")
+                        }
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Line width"; minValue: 400; maxValue: 1600; stepSize: 50
+                        value: panel.curMaxWidth; valueText: String(panel.curMaxWidth)
+                        opacity: panel.curScrolled ? 0.35 : 1.0      // Pages only — scrolled is edge-to-edge (2026-07-20 ruling)
+                        enabled: !panel.curScrolled
+                        onMoved: (v) => panel.changed("maxLineWidthPx", Math.round(v))
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Hyphenation"
+                            color: Theme.inkDim
+                            font.family: Theme.ui
+                            font.weight: Font.DemiBold
+                            font.pixelSize: 13
+                        }
+                        ToggleSwitch {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            on: panel.curHyphens
+                            onToggled: panel.changed("hyphens", !panel.curHyphens)
+                        }
+                    }
+                    Item {
+                        width: parent.width
+                        height: 34
+                        opacity: panel.curScrolled ? 0.35 : 1.0      // columns are a page-mode idea
+                        enabled: !panel.curScrolled
+                        Text {
+                            id: colCaption
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 78
+                            text: "Columns"
+                            color: Theme.inkFaint
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                        }
+                        Segment {
+                            anchors.left: colCaption.right
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftLabel: "Single"; rightLabel: "Spread"
+                            leftActive: !panel.curSpread
+                            onPicked: (left) => panel.changed("columns", left ? "single" : "spread")
                         }
                     }
                 }
@@ -523,6 +640,41 @@ Item {
                 }
                 onPressed: (m) => emitAt(m.x)
                 onPositionChanged: (m) => { if (pressed) emitAt(m.x) }
+            }
+        }
+    }
+
+    // a three-option segment (Book / None / Indent) — same visual family as Segment.
+    component TriSegment: Item {
+        id: tseg
+        property var labels: []
+        property var values: []
+        property string current: ""
+        signal picked(string v)
+        height: 34
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 8
+            color: Qt.rgba(1, 1, 1, 0.05)
+            border.color: Qt.rgba(1, 1, 1, 0.09)
+            border.width: 1
+            Row {
+                id: tsegRow
+                anchors.fill: parent
+                anchors.margins: 3
+                spacing: 2
+                readonly property real segW: (width - spacing * 2) / 3
+                Repeater {
+                    model: 3
+                    SegBtn {
+                        required property int index
+                        width: tsegRow.segW
+                        label: tseg.labels[index] || ""
+                        active: tseg.current === tseg.values[index]
+                        onClicked: tseg.picked(tseg.values[index])
+                    }
+                }
             }
         }
     }
