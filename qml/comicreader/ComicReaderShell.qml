@@ -6,10 +6,10 @@
 // MangaSeries / ComicSeries / ComicSeriesPage / Main — keeps working byte-for-byte.
 //
 // Orchestration ONLY. It owns the entry lifecycle (load -> open, resume, crossing, close), drives
-// the C++ backend + the Progress sink through injectable seams, and mounts PLACEHOLDER surfaces for
-// the two reading modes. The real Long Strip / Double Page surfaces (Task 10), the Family Gradient
-// HUD (Task 11) and the overlays (Task 12) mount INSIDE this shell later. No rendering, no chrome,
-// no overlays here.
+// the C++ backend + the Progress sink through injectable seams, and mounts the two reading surfaces
+// (Task 10: ComicReaderStripSurface / ComicReaderDoubleSurface), toggled by `mode`. The surfaces
+// PAINT; the shell still owns every DECISION. The Family Gradient HUD (Task 11) and the overlays
+// (Task 12) mount INSIDE this shell later. No chrome, no overlays here yet.
 //
 // Every pairing/crossing/completion/progress/direction/acquisition DECISION is delegated to the
 // pure library ComicReaderState.js (Task 8) — the shell never re-derives that logic inline.
@@ -156,8 +156,9 @@ Item {
     }
 
     // restore the saved page + strip fraction BEFORE first paint when this open matches the saved
-    // Continue entry (mirrors MangaReader load() resume, lines 280-290; strip fraction needs no
-    // layout settle here because the surfaces are placeholders — Task 10 re-adds the settle).
+    // Continue entry (mirrors MangaReader load() resume, lines 280-290). The shell just publishes
+    // stripFraction; the strip surface owns the layout settle — it applies the resume fraction once
+    // its content has laid out (ComicReaderStripSurface._applyResumeFraction).
     function _applyResume() {
         if (!_resumeArmed) return
         _resumeArmed = false
@@ -294,28 +295,41 @@ Item {
     // the ONLY teardown of the backend entry — the reader is being destroyed for good, not hidden.
     Component.onDestruction: shutdown()
 
-    // ================= placeholder surfaces (Task 10 replaces these with the real surfaces) =================
+    // ================= reading surfaces (Task 10) =================
+    // The two direction/geometry surfaces mount here, toggled by `mode`, each handed the shell's
+    // `core` seam. They PAINT; the shell still owns every DECISION (page, direction, completion).
     focus: true
-    Rectangle {
+
+    // Long Strip (manga default). It drives currentPage/stripFraction as the user scrolls — but
+    // ONLY on a genuine scroll gesture, so mounting it never clobbers a resumed page/fraction.
+    ComicReaderStripSurface {
+        id: stripSurface
         anchors.fill: parent
         visible: reader.mode === "long_strip"
-        color: "#0f0d15"
-        Text {
-            anchors.centerIn: parent
-            color: "#8a8496"
-            text: "Long Strip surface — page " + reader.currentPage + " / " + reader.max
-        }
+        active: visible
+        core: reader.core
+        rtl: reader.rtl
+        resumeFraction: reader.stripFraction
+        onPageInView: function (page) { reader.currentPage = page }
+        onScrolled: function (frac) { reader.stripFraction = frac }
     }
-    Rectangle {
+
+    // Double Page (direction-aware). It renders the canonical unit and drives the maxSeen
+    // pair-anchor contract: unitShown carries the unit's reading-HIGHEST page (see onCurrentPageChanged
+    // above) so a pair-terminated entry can reach `finished` from the anchor.
+    ComicReaderDoubleSurface {
+        id: doubleSurface
         anchors.fill: parent
         visible: reader.mode === "double_page"
-        color: "#0c0a12"
-        Text {
-            anchors.centerIn: parent
-            color: "#8a8496"
-            text: "Double Page surface — page " + reader.currentPage + " / " + reader.max
-        }
+        active: visible
+        core: reader.core
+        currentPage: reader.currentPage
+        rtl: reader.rtl
+        onUnitShown: function (highestPage) { if (highestPage > reader.maxSeen) reader.maxSeen = highestPage }
     }
+    // reflect the active double surface's zoom onto the shell for the HUD/settings (Task 11); the
+    // double surface owns zoom/pan authoritatively (it resets them per unit).
+    Binding { target: reader; property: "zoomPercent"; value: doubleSurface.zoomPercent; when: doubleSurface.active }
 
     // an injected page store (or a future store) may not emit this exact progress/finished/failed
     // triple — don't spam "no such signal" warnings. A completed download re-runs load() so the
