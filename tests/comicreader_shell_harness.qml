@@ -486,6 +486,20 @@ Item {
                 ck(Math.abs(veil.opacity - 0.26) < 1e-9, "night veil: opacity must be 0.26 when nightVeil='high', got " + veil.opacity)
             }
 
+            // ===== 7. GUTTER SHADOW: shell.gutterStrength feeds the double surface (real behavior) =====
+            // The settings sheet writes reader.gutterStrength; the shell must drive the double
+            // surface's gutter shadow from it, so a chip tap actually changes the spine shadow.
+            ck(vShell.gutterStrength === 0.35, "gutter: shell must default gutterStrength=0.35, got " + vShell.gutterStrength)
+            var dsurf = byName(vShell, "doubleSurface")
+            ck(dsurf !== null, "gutter: the double surface must be mounted (objectName 'doubleSurface')")
+            if (dsurf) {
+                ck(Math.abs(dsurf.gutterStrength - 0.35) < 1e-9, "gutter: double surface must inherit the shell default 0.35, got " + dsurf.gutterStrength)
+                vShell.gutterStrength = 0.55
+                ck(Math.abs(dsurf.gutterStrength - 0.55) < 1e-9, "gutter: double surface gutterStrength must track shell.gutterStrength (0.55), got " + dsurf.gutterStrength)
+                vShell.gutterStrength = 0
+                ck(dsurf.gutterStrength === 0, "gutter: setting shell.gutterStrength=0 must reach the double surface (Off), got " + dsurf.gutterStrength)
+            }
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }

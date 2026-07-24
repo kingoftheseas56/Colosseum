@@ -31,6 +31,8 @@ Item {
         property string persistedMode: ""         // the sheet writes HERE, never `mode`
         property string persistedDirection: ""    // the sheet writes HERE, never `rtl`
         property string nightVeil: "off"          // "off" | "low" | "high" — the sheet writes HERE (live setting)
+        property real   gutterStrength: 0.35      // double-page gutter shadow (0/.22/.35/.55) — the sheet writes HERE
+        property int    zoomPercent: 100          // double-page zoom (readout only this pass)
         property bool   modalOpen: false
     }
 
@@ -113,6 +115,33 @@ Item {
         ck(veilHigh.active === true && veilOff.active === false && veilLow.active === false,
            "settings: Night veil chips must re-reflect when reader.nightVeil changes (High active)")
         fakeReader.nightVeil = "off"   // restore for later assertions
+
+        // --- DOUBLE PAGE section: mode-aware, gutter presets (0/.22/.35/.55), zoom readout ---
+        fakeReader.mode = "double_page"   // the double section shows only in double mode
+        var dpSection = byName(sheet, "settingsDoubleSection")
+        ck(dpSection !== null, "settings: DOUBLE PAGE section must exist")
+        ck(dpSection && dpSection.visible === true, "settings: DOUBLE PAGE section must be VISIBLE in double_page mode")
+        // gutter shadow chips reflect reader.gutterStrength (Medium=0.35 default) and write the presets
+        var gOff = byName(sheet, "settingsGutterOff"),    gSub = byName(sheet, "settingsGutterSubtle")
+        var gMed = byName(sheet, "settingsGutterMedium"), gStr = byName(sheet, "settingsGutterStrong")
+        ck(gOff && gSub && gMed && gStr, "settings: Gutter chips (Off/Subtle/Medium/Strong) must exist")
+        ck(gMed && gMed.active === true, "settings: Medium gutter chip must be ACTIVE at the 0.35 default")
+        clickCenter(gStr)
+        ck(Math.abs(fakeReader.gutterStrength - 0.55) < 1e-9, "settings: tapping Strong must write gutterStrength=0.55, got " + fakeReader.gutterStrength)
+        clickCenter(gOff)
+        ck(fakeReader.gutterStrength === 0, "settings: tapping Off must write gutterStrength=0, got " + fakeReader.gutterStrength)
+        fakeReader.gutterStrength = 0.22   // reflect a change coming back
+        ck(gSub.active === true && gOff.active === false, "settings: gutter chips must re-reflect when gutterStrength changes (Subtle active)")
+        // zoom readout reflects reader.zoomPercent (display only this pass)
+        var zoomVal = byName(sheet, "settingsZoomValue")
+        ck(zoomVal !== null, "settings: Zoom readout must exist")
+        ck(zoomVal && String(zoomVal.text).indexOf("100") >= 0, "settings: Zoom readout must show 100(%), got '" + (zoomVal ? zoomVal.text : "") + "'")
+        fakeReader.zoomPercent = 180
+        ck(zoomVal && String(zoomVal.text).indexOf("180") >= 0, "settings: Zoom readout must reflect a zoomPercent change to 180, got '" + (zoomVal ? zoomVal.text : "") + "'")
+        // mode-aware: in Strip the whole double section yields (hidden)
+        fakeReader.mode = "long_strip"
+        ck(dpSection.visible === false, "settings: DOUBLE PAGE section must be HIDDEN in long_strip mode")
+        fakeReader.mode = "double_page"   // restore
 
         // --- dismiss: X ---
         harness.dismissCount = 0

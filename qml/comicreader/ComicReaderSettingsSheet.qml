@@ -43,6 +43,8 @@ Item {
     readonly property string mode: reader ? reader.mode : "long_strip"
     readonly property bool   rtl:  reader ? reader.rtl  : false
     readonly property string nightVeil: reader ? reader.nightVeil : "off"
+    readonly property real   gutterStrength: reader ? reader.gutterStrength : 0.35
+    readonly property int    zoomPercent:    reader ? reader.zoomPercent : 100
 
     // ---- writes to the persisted seams (never mode/rtl directly) ----
     function setMode(m)      { if (reader) reader.persistedMode = m }
@@ -50,6 +52,8 @@ Item {
     // night veil is a LIVE reader-wide setting (not load()-derived per entry like mode/direction),
     // so the sheet writes it straight onto the reader; the shell's veil overlay reads it back.
     function setNightVeil(v) { if (reader) reader.nightVeil = v }
+    // gutter shadow is a live double-page setting; the shell feeds it to the double surface.
+    function setGutter(v)    { if (reader) reader.gutterStrength = v }
 
     Theme { id: theme }
 
@@ -220,6 +224,40 @@ Item {
                 Chip { objectName: "settingsVeilOff";  label: "Off";  active: root.nightVeil === "off";  onTapped: root.setNightVeil("off") }
                 Chip { objectName: "settingsVeilLow";  label: "Low";  active: root.nightVeil === "low";  onTapped: root.setNightVeil("low") }
                 Chip { objectName: "settingsVeilHigh"; label: "High"; active: root.nightVeil === "high"; onTapped: root.setNightVeil("high") }
+            }
+
+            // ============ DOUBLE PAGE (mode-aware: yields entirely in Strip) ============
+            Column {
+                objectName: "settingsDoubleSection"
+                width: parent.width
+                visible: root.mode === "double_page"
+                spacing: 0
+
+                SectionLabel { text: "Double page"; height: 32; verticalAlignment: Text.AlignVCenter }
+
+                SettingRow {
+                    width: parent.width
+                    label: "Gutter shadow"
+                    Chip { objectName: "settingsGutterOff";    label: "Off";    active: root.gutterStrength === 0;    onTapped: root.setGutter(0) }
+                    Chip { objectName: "settingsGutterSubtle"; label: "Subtle"; active: root.gutterStrength === 0.22; onTapped: root.setGutter(0.22) }
+                    Chip { objectName: "settingsGutterMedium"; label: "Medium"; active: root.gutterStrength === 0.35; onTapped: root.setGutter(0.35) }
+                    Chip { objectName: "settingsGutterStrong"; label: "Strong"; active: root.gutterStrength === 0.55; onTapped: root.setGutter(0.55) }
+                }
+
+                // Zoom is a live READOUT this pass (you zoom with the wheel/keys on the page);
+                // the gold value tracks reader.zoomPercent. In-sheet +/- is a later call.
+                SettingRow {
+                    width: parent.width
+                    label: "Zoom"
+                    Text {
+                        objectName: "settingsZoomValue"
+                        text: root.zoomPercent + "%"
+                        color: theme.gold
+                        font.family: theme.hud
+                        font.pixelSize: 12
+                        font.bold: true
+                    }
+                }
             }
         }
     }

@@ -112,6 +112,9 @@ Item {
     // sheet writes this level; the veil overlay below binds its opacity to it. Not load()-derived
     // per entry (unlike mode/direction), so it survives crossings for free.
     property string nightVeil: "off"            // "off" | "low" | "high"
+    // gutter shadow strength for double-page mode (settings surface 02). The sheet writes this;
+    // the double surface below binds its gutter shadow to it. Presets 0/.22/.35/.55 (Off..Strong).
+    property real   gutterStrength: 0.35
     // an overlay is up (Task 12) — swallows background input + pauses auto-hide. Aggregated off the
     // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
     readonly property bool modalOpen: settingsSheet.opened
@@ -404,12 +407,14 @@ Item {
     // above) so a pair-terminated entry can reach `finished` from the anchor.
     ComicReaderDoubleSurface {
         id: doubleSurface
+        objectName: "doubleSurface"
         anchors.fill: parent
         visible: reader.mode === "double_page"
         active: visible
         core: reader.core
         currentPage: reader.currentPage
         rtl: reader.rtl
+        gutterStrength: reader.gutterStrength      // settings sheet -> live spine shadow
         onUnitShown: function (highestPage) { if (highestPage > reader.maxSeen) reader.maxSeen = highestPage }
     }
     // reflect the active double surface's zoom onto the shell for the HUD/settings (Task 11); the
