@@ -124,6 +124,18 @@ Item {
         }
     }
 
+    // find a descendant item by its marker objectName (the shell tags its veil overlay)
+    function byName(root, name) {
+        if (!root) return null
+        if (root.objectName === name) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var f = byName(kids[i], name)
+            if (f) return f
+        }
+        return null
+    }
+
     // small structural deep-equal (plain object/array payload shapes)
     function deepEqual(a, b) {
         if (a === b) return true
@@ -450,6 +462,30 @@ Item {
             sShell.shutdown()           // must not throw
             ck(true, "null store: page change / startDownload / crossing / shutdown must not error")
 
+            // ===== 6. NIGHT VEIL: a page-dim overlay whose opacity tracks nightVeil (0/.12/.26) =====
+            // The settings sheet writes reader.nightVeil (a live setting); the shell paints a black
+            // veil over the reading surfaces at ComicReaderState.nightVeilOpacity(level). Default off.
+            var vStore = fakeStoreV
+            vStore.pages = fivePages()
+            var vShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-veil", "seriesTitle": "Veil", "seriesCover": "file:///f/v.png",
+                "core": fakeCoreV, "progress": fakeProgV, "pageStore": vStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(vShell.nightVeil === "off", "night veil: shell must default nightVeil='off', got '" + vShell.nightVeil + "'")
+            var veil = byName(vShell, "nightVeil")
+            ck(veil !== null, "night veil: a veil overlay (objectName 'nightVeil') must be mounted in the shell")
+            if (veil) {
+                ck(veil.opacity === 0, "night veil: opacity must be 0 when nightVeil='off', got " + veil.opacity)
+                vShell.nightVeil = "low"
+                ck(Math.abs(veil.opacity - 0.12) < 1e-9, "night veil: opacity must be 0.12 when nightVeil='low', got " + veil.opacity)
+                vShell.nightVeil = "high"
+                ck(Math.abs(veil.opacity - 0.26) < 1e-9, "night veil: opacity must be 0.26 when nightVeil='high', got " + veil.opacity)
+            }
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -491,6 +527,7 @@ Item {
     FakeCore { id: fakeCoreP }   FakeProgress { id: fakeProgP }   FakePageStore { id: fakeStoreP }
     FakeCore { id: fakeCoreS }   FakeProgress { id: fakeProgS }
     FakePageStore { id: fakeStoreG }
+    FakeCore { id: fakeCoreV }   FakeProgress { id: fakeProgV }   FakePageStore { id: fakeStoreV }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }

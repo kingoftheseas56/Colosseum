@@ -241,6 +241,19 @@ Item {
                "DOCUMENTED unsafe contract: progressPayload with max=0 clamps progress to 1 (1/0=Infinity), got " + unsafeZeroMax.progress)
             ck(unsafeZeroMax.resume.finished === true,
                "DOCUMENTED unsafe contract: progressPayload with max=0 reports finished=true (0>=0) even though nothing was read — CALLERS MUST guard max>0 before calling, got " + unsafeZeroMax.resume.finished)
+
+            // ---- 9. nightVeilOpacity — Night-veil level -> page-dim overlay opacity (design ruling,
+            // comicreader-design.md surface 02 + plan Task 12: Off/Low/High -> 0/.12/.26). The sheet
+            // writes the LEVEL string; this pure mapping is what the shell's veil overlay binds its
+            // opacity to. Fails CLOSED (no dim) for an unknown/empty level so a bad persisted value
+            // never blacks out the page. ----
+            ck(State.nightVeilOpacity("off")  === 0,    "nightVeilOpacity('off') must be 0")
+            ck(State.nightVeilOpacity("low")  === 0.12, "nightVeilOpacity('low') must be 0.12, got " + State.nightVeilOpacity("low"))
+            ck(State.nightVeilOpacity("high") === 0.26, "nightVeilOpacity('high') must be 0.26, got " + State.nightVeilOpacity("high"))
+            ck(State.nightVeilOpacity("")     === 0,    "nightVeilOpacity('') must fail closed to 0 (no dim)")
+            ck(State.nightVeilOpacity("bogus")=== 0,    "nightVeilOpacity(unknown) must fail closed to 0 (no dim)")
+            ck(State.nightVeilOpacity(null)   === 0,    "nightVeilOpacity(null) must fail closed to 0 (no dim)")
+            ck(State.nightVeilOpacity(undefined) === 0, "nightVeilOpacity(undefined) must fail closed to 0 (no dim)")
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }

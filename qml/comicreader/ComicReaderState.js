@@ -139,3 +139,16 @@ function shouldAcquire(status) {
     var s = status.state
     return s !== "done" && s !== "ready"
 }
+
+// --- night veil ------------------------------------------------------------------------------
+// The Night-veil level (settings surface 02) -> the opacity of the black page-dim overlay the
+// shell paints over the reading surfaces. Design ruling (comicreader-design.md surface 02 +
+// plan Task 12): Off/Low/High -> 0 / 0.12 / 0.26. The settings sheet writes the LEVEL string;
+// the shell's veil overlay binds its opacity here so the mapping lives in ONE tested place.
+// Fails CLOSED (0 = no dim) for any unknown/empty/null level, so a corrupt persisted value can
+// never black out the page.
+function nightVeilOpacity(level) {
+    if (level === "low")  return 0.12
+    if (level === "high") return 0.26
+    return 0
+}

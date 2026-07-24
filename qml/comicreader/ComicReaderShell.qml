@@ -108,6 +108,10 @@ Item {
     property int    zoomPercent: 100            // paged zoom (surfaces, later)
     property real   stripFraction: 0            // long-strip scroll fraction (resume + HUD scrub, later)
     property bool   chromeVisible: true         // HUD visibility (Task 11)
+    // night veil — a LIVE reading-comfort dim over the page (settings surface 02). The settings
+    // sheet writes this level; the veil overlay below binds its opacity to it. Not load()-derived
+    // per entry (unlike mode/direction), so it survives crossings for free.
+    property string nightVeil: "off"            // "off" | "low" | "high"
     // an overlay is up (Task 12) — swallows background input + pauses auto-hide. Aggregated off the
     // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
     readonly property bool modalOpen: settingsSheet.opened
@@ -411,6 +415,17 @@ Item {
     // reflect the active double surface's zoom onto the shell for the HUD/settings (Task 11); the
     // double surface owns zoom/pan authoritatively (it resets them per unit).
     Binding { target: reader; property: "zoomPercent"; value: doubleSurface.zoomPercent; when: doubleSurface.active }
+
+    // ---- night veil (Task 12): a black page-dim over the reading surfaces, BELOW the chrome so
+    // controls stay full-brightness + readable. A plain Rectangle intercepts no input (no MouseArea),
+    // so it never blocks page taps/scroll. Opacity comes from the ONE tested mapping. ----
+    Rectangle {
+        objectName: "nightVeil"
+        anchors.fill: parent
+        color: "black"
+        opacity: ComicReaderState.nightVeilOpacity(reader.nightVeil)
+        visible: opacity > 0.001
+    }
 
     // ================= chrome (Task 11): semantic input + Family Gradient HUD =================
     // Mount ORDER = z-order: surfaces (below) -> input (fills the reader, below the HUD) -> HUD

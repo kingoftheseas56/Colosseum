@@ -42,10 +42,14 @@ Item {
     // ---- read-only reading state ----
     readonly property string mode: reader ? reader.mode : "long_strip"
     readonly property bool   rtl:  reader ? reader.rtl  : false
+    readonly property string nightVeil: reader ? reader.nightVeil : "off"
 
     // ---- writes to the persisted seams (never mode/rtl directly) ----
     function setMode(m)      { if (reader) reader.persistedMode = m }
     function setDirection(d) { if (reader) reader.persistedDirection = d }
+    // night veil is a LIVE reader-wide setting (not load()-derived per entry like mode/direction),
+    // so the sheet writes it straight onto the reader; the shell's veil overlay reads it back.
+    function setNightVeil(v) { if (reader) reader.nightVeil = v }
 
     Theme { id: theme }
 
@@ -208,6 +212,14 @@ Item {
                 label: "Direction"
                 Chip { objectName: "settingsDirRtl"; label: "RTL · manga"; active: root.rtl;  onTapped: root.setDirection("rtl") }
                 Chip { objectName: "settingsDirLtr"; label: "LTR";             active: !root.rtl; onTapped: root.setDirection("ltr") }
+            }
+
+            SettingRow {
+                width: parent.width
+                label: "Night veil"
+                Chip { objectName: "settingsVeilOff";  label: "Off";  active: root.nightVeil === "off";  onTapped: root.setNightVeil("off") }
+                Chip { objectName: "settingsVeilLow";  label: "Low";  active: root.nightVeil === "low";  onTapped: root.setNightVeil("low") }
+                Chip { objectName: "settingsVeilHigh"; label: "High"; active: root.nightVeil === "high"; onTapped: root.setNightVeil("high") }
             }
         }
     }

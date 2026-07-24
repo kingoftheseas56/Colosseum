@@ -30,6 +30,7 @@ Item {
         property bool   rtl: true
         property string persistedMode: ""         // the sheet writes HERE, never `mode`
         property string persistedDirection: ""    // the sheet writes HERE, never `rtl`
+        property string nightVeil: "off"          // "off" | "low" | "high" — the sheet writes HERE (live setting)
         property bool   modalOpen: false
     }
 
@@ -97,6 +98,21 @@ Item {
         ck(dirRtl && dirRtl.active === true,   "settings: RTL chip must be ACTIVE when reader.rtl=true")
         clickCenter(dirLtr)
         ck(fakeReader.persistedDirection === "ltr", "settings: tapping LTR must write persistedDirection=ltr, got '" + fakeReader.persistedDirection + "'")
+
+        // --- DISPLAY: Night veil chips reflect reader.nightVeil, tap writes it live (Off default) ---
+        var veilOff  = byName(sheet, "settingsVeilOff")
+        var veilLow  = byName(sheet, "settingsVeilLow")
+        var veilHigh = byName(sheet, "settingsVeilHigh")
+        ck(veilOff !== null && veilLow !== null && veilHigh !== null, "settings: Night veil chips (Off/Low/High) must exist")
+        ck(veilOff && veilOff.active === true, "settings: Off chip must be ACTIVE when reader.nightVeil=off (default)")
+        ck(veilLow && veilLow.active === false && veilHigh && veilHigh.active === false, "settings: only Off active by default")
+        clickCenter(veilLow)
+        ck(fakeReader.nightVeil === "low", "settings: tapping Low must write reader.nightVeil=low, got '" + fakeReader.nightVeil + "'")
+        // reflect a level change coming back from the shell
+        fakeReader.nightVeil = "high"
+        ck(veilHigh.active === true && veilOff.active === false && veilLow.active === false,
+           "settings: Night veil chips must re-reflect when reader.nightVeil changes (High active)")
+        fakeReader.nightVeil = "off"   // restore for later assertions
 
         // --- dismiss: X ---
         harness.dismissCount = 0
