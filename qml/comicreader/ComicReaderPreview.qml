@@ -128,7 +128,7 @@ Window {
                 if (fm.count <= 0 || win.folderPages.length === fm.count) return
                 var arr = []
                 for (var i = 0; i < fm.count; ++i)
-                    arr.push({ index: i, url: fm.get(i, "fileURL").toString(), group: 0 })
+                    arr.push({ index: i, url: fm.get(i, "fileUrl").toString(), group: 0 })
                 win.folderPages = arr
                 console.info("[comicreader-preview] folder override:", arr.length, "images from", url)
                 readerShell.load()   // re-open now that the real pages are known
