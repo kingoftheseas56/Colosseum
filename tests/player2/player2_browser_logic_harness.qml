@@ -62,6 +62,20 @@ QtObject {
         check(Browser.skipLabel("recap") === "Skip Recap", "recap labels Skip Recap")
         check(Browser.skipLabel("credits") === "Skip Credits", "credits labels Skip Credits")
         check(Browser.skipLabel("weird") === "Skip", "an unknown kind still labels a plain Skip")
+
+        // --- wall clock: 12-hour with AM/PM, zero-padded minutes, 12 at the boundaries ---
+        function at(h, m) { return new Date(2026, 0, 1, h, m, 0).getTime() }
+        check(Browser.fmtWallClock(at(18, 59)) === "6:59 PM", "evening formats 12-hour PM")
+        check(Browser.fmtWallClock(at(6, 5)) === "6:05 AM", "morning zero-pads the minutes")
+        check(Browser.fmtWallClock(at(0, 0)) === "12:00 AM", "midnight is 12 AM")
+        check(Browser.fmtWallClock(at(12, 0)) === "12:00 PM", "noon is 12 PM")
+
+        // --- ends-at: now + remaining/speed, empty when duration is unknown ---
+        check(Browser.endsAtLabel(at(18, 0), 0, 3540, 1) === "6:59 PM", "ends = now + full runtime")
+        check(Browser.endsAtLabel(at(18, 0), 300, 3600, 1) === "6:55 PM", "remaining counts from position")
+        check(Browser.endsAtLabel(at(18, 0), 0, 3600, 2) === "6:30 PM", "double speed halves the remaining")
+        check(Browser.endsAtLabel(at(18, 0), 0, 0, 1) === "", "unknown duration yields no ends time")
+        check(Browser.endsAtLabel(at(18, 0), 5000, 3600, 1) === "6:00 PM", "past the end never goes negative")
     }
 
     Component.onCompleted: {

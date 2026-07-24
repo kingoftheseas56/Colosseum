@@ -67,3 +67,25 @@ function skipLabel(kind) {
     if (kind === "credits") return "Skip Credits"
     return "Skip"
 }
+
+// A 12-hour wall clock ("6:59 PM") from epoch milliseconds. Local time; 12 at the AM/PM boundaries.
+function fmtWallClock(epochMs) {
+    var d = new Date(epochMs)
+    var h = d.getHours(), m = d.getMinutes()
+    var ap = h >= 12 ? "PM" : "AM"
+    var h12 = h % 12
+    if (h12 === 0) h12 = 12
+    return h12 + ":" + (m < 10 ? "0" : "") + m + " " + ap
+}
+
+// The wall-clock time the media finishes: now + remaining/speed. Empty when the duration is unknown
+// (live/no-length). Never negative once you're past the end. Deterministic — the caller passes the
+// clock in (nowMs), so this is testable without reading the machine clock.
+function endsAtLabel(nowMs, positionSeconds, durationSeconds, speed) {
+    var dur = Number(durationSeconds)
+    if (!isFinite(dur) || dur <= 0)
+        return ""
+    var rate = (isFinite(Number(speed)) && Number(speed) > 0.05) ? Number(speed) : 1
+    var remaining = Math.max(0, (dur - Number(positionSeconds)) / rate)
+    return fmtWallClock(nowMs + remaining * 1000)
+}

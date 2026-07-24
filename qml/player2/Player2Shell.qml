@@ -1,5 +1,6 @@
 import QtQuick
 import "controls"
+import "controls/Player2Browser.js" as Browser
 
 // The immersive Player 2 chrome, overlaid on the video surface. It receives the C++ `session` (typed
 // state + commands) and `hostServices` (app orchestration); it renders typed state and sends typed
@@ -23,6 +24,28 @@ Item {
 
     // Host-resolved intro/recap/credits skip segments for the current episode (drives SkipButton).
     property var skipSegments: []
+
+    // The Kodi-style wall clocks — recomputed on a 1s tick and when the duration lands, never bound to
+    // position churn. nowClock = the current time (top-right, like the main player); endsAtClock = the
+    // wall-clock finish time (transport state row + the pause card).
+    property string nowClock: ""
+    property string endsAtClock: ""
+    function updateEndsAt() {
+        shell.nowClock = Browser.fmtWallClock(Date.now())
+        shell.endsAtClock = shell.session
+            ? Browser.endsAtLabel(Date.now(), shell.session.position, shell.session.duration, 1)
+            : ""
+    }
+    Timer {
+        id: endsAtTick
+        interval: 1000; repeat: true; running: true
+        onTriggered: shell.updateEndsAt()   // formats a display string only — never touches position
+    }
+    Connections {
+        target: shell.session
+        ignoreUnknownSignals: true
+        function onDurationChanged() { shell.updateEndsAt() }
+    }
 
     // Typed intent up to the host app: the browser picked another episode / a different source. The
     // shell forwards; the app drives the actual (re)play — the same seam pattern as fullscreenRequested.
@@ -79,7 +102,7 @@ Item {
                 shell.controlsShown = false
         }
     }
-    Component.onCompleted: { hideTimer.start(); requestSkipSegments() }
+    Component.onCompleted: { hideTimer.start(); requestSkipSegments(); updateEndsAt() }
 
     // Subtitles paint on the video, below the chrome, and persist when the chrome auto-hides.
     SubtitleLayer {
@@ -179,6 +202,22 @@ Item {
             }
         }
 
+        // Live wall clock, top-right — the one place the player tells you the actual time (main-player
+        // parity). Fades with the chrome.
+        Text {
+            id: nowClockLabel
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.rightMargin: 24
+            anchors.topMargin: 18
+            visible: shell.nowClock.length > 0
+            text: shell.nowClock
+            color: shell.theme.inkDim
+            font.family: "Segoe UI"; font.pixelSize: 13; font.letterSpacing: 0.5
+            font.features: ({ "tnum": 1 })
+            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
+        }
+
         Item {
             id: bottomDock
             anchors.left: parent.left
@@ -202,6 +241,7 @@ Item {
                 anchors.bottom: parent.bottom
                 session: shell.session
                 theme: shell.theme
+                endsAtClock: shell.endsAtClock
                 onFullscreenRequested: shell.fullscreenRequested()
                 onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
             }
@@ -217,6 +257,7 @@ Item {
         segments: shell.skipSegments
         positionSeconds: shell.session ? shell.session.position : 0
         enabled: !shell.menusOpen
+        chromeShown: shell.controlsShown
         onSkipRequested: function(toSeconds) { if (shell.session) shell.session.seekExact(toSeconds) }
     }
 

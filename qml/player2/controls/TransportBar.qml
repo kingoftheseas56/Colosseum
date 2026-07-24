@@ -8,6 +8,7 @@ Item {
     property var session
     property QtObject theme
     property bool showRemaining: false
+    property string endsAtClock: ""   // "11:42 PM" wall-clock finish time (computed by the shell)
     property int currentAudioIndex: -1
     property int currentSubtitleIndex: -1
     readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open
@@ -152,22 +153,36 @@ Item {
         }
     }
 
-    // ---- state line --------------------------------------------------------------------------------
-    Text {
-        id: stateLine
+    // ---- state row: left = what the player is doing, right = the wall-clock finish time -----------
+    Item {
+        id: stateRow
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.leftMargin: 54
         anchors.rightMargin: 54
         height: 22
-        verticalAlignment: Text.AlignVCenter
-        color: root.theme ? root.theme.ink : "#f7f7f5"
-        font.family: "Segoe UI"
-        font.pixelSize: 14
-        font.weight: Font.DemiBold
-        text: root.buffering ? "Buffering" : (root.paused ? "Paused"
-              : (seekBar.seeking ? "Seek  " + root.fmt(seekBar.previewSeconds) : ""))
+        Text {
+            id: stateLine
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            color: root.theme ? root.theme.ink : "#f7f7f5"
+            font.family: "Segoe UI"
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+            text: root.buffering ? "Buffering" : (root.paused ? "Paused"
+                  : (seekBar.seeking ? "Seek  " + root.fmt(seekBar.previewSeconds) : ""))
+        }
+        Text {
+            id: endsLabel
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.endsAtClock.length > 0
+            text: "ENDS  " + root.endsAtClock
+            color: root.theme ? root.theme.inkDim : "#c9c8d0"
+            font.family: "Segoe UI"; font.pixelSize: 12; font.letterSpacing: 1.5
+            font.features: ({ "tnum": 1 })
+        }
     }
 
     // ---- seek row: elapsed  [seek bar]  duration/remaining ---------------------------------------
@@ -175,7 +190,7 @@ Item {
         id: seekRow
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: stateLine.bottom
+        anchors.top: stateRow.bottom
         anchors.leftMargin: 54
         anchors.rightMargin: 54
         height: 42
