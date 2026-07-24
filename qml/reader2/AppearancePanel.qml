@@ -525,13 +525,26 @@ Item {
                             TextEdit {
                                 id: cssEdit
                                 width: cssFlick.width
-                                text: panel.curCss
+                                // NOT `text: panel.curCss` — an editable field's text binding is
+                                // broken by the first keystroke, so external changes (Reset / book
+                                // switch) would leave the box showing stale CSS. Seed once, then
+                                // re-sync from the model below only when the field isn't being edited.
+                                Component.onCompleted: text = panel.curCss
                                 wrapMode: TextEdit.Wrap
                                 color: Theme.inkDim
                                 selectionColor: Theme.gold
                                 font.family: "Consolas"
                                 font.pixelSize: 12
                                 onTextChanged: { if (text !== panel.curCss) cssDebounce.restart() }
+                                // Refresh the box when customCss changes from OUTSIDE the editor
+                                // (Reset appearance, opening another book) — but never while the
+                                // user is typing, so a pending edit is never clobbered.
+                                Connections {
+                                    target: panel
+                                    function onCurCssChanged() {
+                                        if (!cssEdit.activeFocus) cssEdit.text = panel.curCss
+                                    }
+                                }
                             }
                         }
                         Text {
