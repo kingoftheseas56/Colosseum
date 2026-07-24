@@ -463,7 +463,7 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             focus: true
             keyNavigationEnabled: true
-            readonly property int columnCount: Math.max(3, Math.floor(width / 168))
+            readonly property int columnCount: Math.max(3, Math.floor(width / 146))  // ~132px tiles, matching the Top-list rails (Hemanth 2026-07-25)
             cellWidth: Math.floor(width / columnCount)
             cellHeight: Math.floor(cellWidth * 1.62) + 34
             cacheBuffer: cellHeight * 2
