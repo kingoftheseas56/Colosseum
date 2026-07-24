@@ -31,6 +31,8 @@ Item {
     readonly property int    max:           reader ? reader.max           : 1
     readonly property string mode:          reader ? reader.mode          : "long_strip"
     readonly property bool   rtl:           reader ? reader.rtl           : false
+    // the single user-facing identity (Manga/Comic/Strip) — the mode chip shows + writes THIS.
+    readonly property string readingMode:   reader ? reader.readingMode   : "manga"
     readonly property real   stripFraction: reader ? reader.stripFraction : 0
     readonly property int    zoomPercent:   reader ? reader.zoomPercent   : 100
     readonly property bool   hasNext:       reader ? reader.hasNext       : false
@@ -123,11 +125,15 @@ Item {
         return Math.max(1, currentPage) + " / " + m
     }
 
-    // ================= writes to the persisted seams (never mode/rtl directly) =================
-    function setMode(m) { if (reader) reader.persistedMode = m }
-    function toggleMode() { setMode(mode === "double_page" ? "long_strip" : "double_page") }
-    function setDirection(d) { if (reader) reader.persistedDirection = d }
-    function toggleDirection() { setDirection(rtl ? "ltr" : "rtl") }
+    // ================= the single Manga/Comic/Strip identity (direction baked in) =================
+    // The shell translates the identity into the internal layout+direction seams so a crossing's
+    // load() honors the choice. There is no separate RTL/LTR toggle anymore.
+    function setReadingMode(rm) { if (reader) reader.setReadingMode(rm) }
+    function cycleReadingMode() {
+        var order = ["manga", "comic", "strip"]
+        var i = order.indexOf(readingMode)
+        setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
+    }
 
     // ================= chrome visibility + auto-hide =================
     function toggleChrome() { if (reader) reader.chromeVisible = !reader.chromeVisible }
@@ -492,7 +498,8 @@ Item {
                     onTapped: hud.openThumbnails()
                 }
 
-                // two-segment mode chip (Double / Strip) — active segment gold
+                // ONE three-segment identity chip — Manga (RTL double, MangaPlus) / Comic (LTR
+                // double) / Strip (vertical). Active segment gold; direction is baked into the choice.
                 Rectangle {
                     id: modeChip
                     anchors.verticalCenter: parent.verticalCenter
@@ -503,65 +510,31 @@ Item {
                     border.width: 1
                     border.color: hud.cEdgeSoft
                     clip: true
+                    component ModeSeg: Rectangle {
+                        property string rm: ""
+                        property string label: ""
+                        readonly property bool on: hud.readingMode === rm
+                        height: modeRow.height
+                        width: segText.implicitWidth + 24
+                        color: on ? hud.cGoldActive : "transparent"
+                        Text {
+                            id: segText
+                            anchors.centerIn: parent
+                            text: parent.label
+                            color: parent.on ? theme.gold : theme.inkDimmer
+                            font.family: theme.hud
+                            font.pixelSize: 12
+                            font.bold: parent.on
+                        }
+                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: hud.setReadingMode(parent.rm) }
+                    }
                     Row {
                         id: modeRow
                         height: parent.height
-                        Rectangle {
-                            id: segDouble
-                            height: parent.height
-                            width: dblText.implicitWidth + 24
-                            color: hud.mode === "double_page" ? hud.cGoldActive : "transparent"
-                            Text {
-                                id: dblText
-                                anchors.centerIn: parent
-                                text: "Double"
-                                color: hud.mode === "double_page" ? theme.gold : theme.inkDimmer
-                                font.family: theme.hud
-                                font.pixelSize: 12
-                                font.bold: hud.mode === "double_page"
-                            }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: hud.setMode("double_page") }
-                        }
-                        Rectangle {
-                            id: segStrip
-                            height: parent.height
-                            width: stripText.implicitWidth + 24
-                            color: hud.mode === "long_strip" ? hud.cGoldActive : "transparent"
-                            Text {
-                                id: stripText
-                                anchors.centerIn: parent
-                                text: "Strip"
-                                color: hud.mode === "long_strip" ? theme.gold : theme.inkDimmer
-                                font.family: theme.hud
-                                font.pixelSize: 12
-                                font.bold: hud.mode === "long_strip"
-                            }
-                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: hud.setMode("long_strip") }
-                        }
+                        ModeSeg { objectName: "hudModeManga"; rm: "manga"; label: "Manga" }
+                        ModeSeg { objectName: "hudModeComic"; rm: "comic"; label: "Comic" }
+                        ModeSeg { objectName: "hudModeStrip"; rm: "strip"; label: "Strip" }
                     }
-                }
-
-                // direction pill (RTL / LTR) — gold when RTL (manga) is active
-                Rectangle {
-                    id: directionPill
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 30
-                    width: dirText.implicitWidth + 24
-                    radius: 9
-                    color: hud.rtl ? hud.cGoldActive : hud.cPillBg
-                    border.width: 1
-                    border.color: hud.rtl ? hud.cGoldBorder : hud.cEdgeSoft
-                    Text {
-                        id: dirText
-                        anchors.centerIn: parent
-                        text: hud.rtl ? "RTL" : "LTR"
-                        color: hud.rtl ? theme.gold : theme.inkDim
-                        font.family: theme.hud
-                        font.pixelSize: 12
-                        font.letterSpacing: 0.6
-                        font.bold: hud.rtl
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: hud.toggleDirection() }
                 }
 
                 IconPill {

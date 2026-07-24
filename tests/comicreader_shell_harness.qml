@@ -220,7 +220,10 @@ Item {
                 ck(mCore.lastOpenEntry.direction === "rtl", "ready manga: openEntry direction must be 'rtl', got " + mCore.lastOpenEntry.direction)
             }
             ck(mShell.rtl === true, "ready manga: reader.rtl must be true")
-            ck(mShell.mode === "long_strip", "ready manga: mode must default to 'long_strip', got " + mShell.mode)
+            // Hemanth ruling 2026-07-25: manga now DEFAULTS to Manga mode = RTL double-page (MangaPlus),
+            // not long_strip. readingMode reflects the single identity.
+            ck(mShell.mode === "double_page", "ready manga: mode must default to 'double_page' (Manga/MangaPlus), got " + mShell.mode)
+            ck(mShell.readingMode === "manga", "ready manga: readingMode must be 'manga', got " + mShell.readingMode)
 
             // trailing eager record on entry change: the freshly-opened entry is already persisted
             // (a crash before the next page-turn/close must not lose it) — MangaReader.qml:157.
@@ -363,10 +366,14 @@ Item {
                 "width": 640, "height": 480,
                 "seriesId": "s3", "seriesTitle": "Resume", "seriesCover": "file:///f/c.png",
                 "core": rCore, "progress": rProg, "pageStore": rStore,
+                // strip-fraction resume only applies in the vertical Strip layout; force it so the
+                // scrollFrac restore is exercised (manga now defaults to double-page — MangaPlus).
+                "persistedMode": "long_strip",
                 "entryKind": "manga", "western": false,
                 "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
             })
+            ck(rShell.readingMode === "strip", "resume: forced Strip layout must read as readingMode 'strip', got " + rShell.readingMode)
             ck(rShell.currentPage === 3, "resume: currentPage must be restored to 3 before first paint, got " + rShell.currentPage)
             ck(rShell.stripFraction === 0.5, "resume: stripFraction must be restored to 0.5, got " + rShell.stripFraction)
             ck(rShell.maxSeen === 4, "resume: maxSeen must be restored to 4, got " + rShell.maxSeen)

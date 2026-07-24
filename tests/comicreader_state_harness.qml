@@ -254,6 +254,32 @@ Item {
             ck(State.nightVeilOpacity("bogus")=== 0,    "nightVeilOpacity(unknown) must fail closed to 0 (no dim)")
             ck(State.nightVeilOpacity(null)   === 0,    "nightVeilOpacity(null) must fail closed to 0 (no dim)")
             ck(State.nightVeilOpacity(undefined) === 0, "nightVeilOpacity(undefined) must fail closed to 0 (no dim)")
+
+            // ---- 10. readingMode — the single user-facing identity (Hemanth ruling 2026-07-25):
+            // "manga" | "comic" | "strip" bakes in BOTH layout and direction, replacing the separate
+            // mode(double/strip) + direction(rtl/ltr) toggles. manga = RTL double-page (MangaPlus),
+            // comic = LTR double-page, strip = vertical scroll (direction-neutral). ----
+            // defaults per lane: manga chapters + tankoban volumes open as Manga; western opens as Comic.
+            ck(State.defaultReadingMode("manga", false) === "manga", "defaultReadingMode(manga) must be 'manga'")
+            ck(State.defaultReadingMode("tankoban", false) === "manga", "defaultReadingMode(tankoban) must be 'manga'")
+            ck(State.defaultReadingMode("manga", true) === "comic", "defaultReadingMode(western) must be 'comic' regardless of entryKind")
+            ck(State.defaultReadingMode("tankoban", true) === "comic", "defaultReadingMode(western) must be 'comic'")
+            // layout: manga + comic are double-page; strip is the vertical scroll layout
+            ck(State.readingModeLayout("manga") === "double_page", "readingModeLayout(manga) must be 'double_page'")
+            ck(State.readingModeLayout("comic") === "double_page", "readingModeLayout(comic) must be 'double_page'")
+            ck(State.readingModeLayout("strip")  === "long_strip",  "readingModeLayout(strip) must be 'long_strip'")
+            // direction baked in: ONLY manga is RTL; comic + strip are LTR/neutral
+            ck(State.readingModeRtl("manga") === true,  "readingModeRtl(manga) must be true (RTL)")
+            ck(State.readingModeRtl("comic") === false, "readingModeRtl(comic) must be false (LTR)")
+            ck(State.readingModeRtl("strip") === false, "readingModeRtl(strip) must be false (neutral)")
+            // fail-closed: an unknown/empty readingMode resolves to a safe double-page LTR (comic-like)
+            ck(State.readingModeLayout("bogus") === "double_page", "readingModeLayout(unknown) must fail safe to 'double_page'")
+            ck(State.readingModeRtl("") === false, "readingModeRtl('') must fail safe to false")
+            // reverse map: (layout, rtl) -> readingMode, so a legacy mode+direction still resolves
+            ck(State.readingModeFrom("double_page", true)  === "manga", "readingModeFrom(double_page, rtl) must be 'manga'")
+            ck(State.readingModeFrom("double_page", false) === "comic", "readingModeFrom(double_page, ltr) must be 'comic'")
+            ck(State.readingModeFrom("long_strip", false)  === "strip", "readingModeFrom(long_strip, _) must be 'strip'")
+            ck(State.readingModeFrom("long_strip", true)   === "strip", "readingModeFrom(long_strip, rtl) must still be 'strip'")
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }

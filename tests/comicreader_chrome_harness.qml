@@ -61,8 +61,9 @@ Item {
         property int currentPage: 1
         property int max: 1
         property int maxSeen: 0
-        property string mode: "long_strip"
-        property bool rtl: false
+        property string mode: "long_strip"        // internal layout (counter/scrub read this)
+        property bool rtl: false                  // internal direction
+        property string readingMode: "manga"      // the single user-facing identity
         property real stripFraction: 0
         property int zoomPercent: 100
         property bool hasNext: false
@@ -79,6 +80,12 @@ Item {
         signal minimizeRequested()
         signal fullscreenRequested()
         signal closeRequested()
+        // mirror the real shell: the mode selector writes the identity -> internal layout+dir seams
+        function setReadingMode(rm) {
+            readingMode = rm
+            persistedMode = (rm === "strip") ? "long_strip" : "double_page"
+            persistedDirection = (rm === "manga") ? "rtl" : "ltr"
+        }
     }
 
     FakeCore  { id: coreA }
@@ -115,7 +122,6 @@ Item {
         inp.goToPage.connect(function () { bump("goToPage") })
         inp.closeTop.connect(function () { bump("closeTop") })
         inp.cycleMode.connect(function () { bump("cycleMode") })
-        inp.toggleDirection.connect(function () { bump("toggleDirection") })
         inp.nudgeCoupling.connect(function () { bump("nudgeCoupling") })
         inp.openShortcuts.connect(function () { bump("openShortcuts") })
         inp.toggleLoupe.connect(function () { bump("toggleLoupe") })
@@ -186,21 +192,18 @@ Item {
         coreA.units[45] = { rightIndex: 45, leftIndex: -1, spread: true, coverAlone: false }
         ck(hud.counterText() === "46 / 230", "hud: a spread counter must read its one page '46 / 230', got '" + hud.counterText() + "'")
 
-        // ----- mode chip tap WRITES persistedMode (NOT mode) -----
-        shellA.mode = "long_strip"; shellA.persistedMode = ""
-        hud.setMode("double_page")
-        ck(shellA.persistedMode === "double_page", "hud: mode chip tap must WRITE persistedMode='double_page', got '" + shellA.persistedMode + "'")
-        ck(shellA.mode === "long_strip", "hud: mode chip tap must NOT write mode directly (still 'long_strip'), got '" + shellA.mode + "'")
-        // toggleMode picks the other of the two modes off the CURRENT mode
-        shellA.mode = "double_page"; shellA.persistedMode = ""
-        hud.toggleMode()
-        ck(shellA.persistedMode === "long_strip", "hud: toggleMode from double must persist 'long_strip', got '" + shellA.persistedMode + "'")
-
-        // ----- direction pill tap WRITES persistedDirection (NOT rtl) -----
-        shellA.rtl = true; shellA.persistedDirection = ""
-        hud.toggleDirection()
-        ck(shellA.persistedDirection === "ltr", "hud: direction pill tap must WRITE persistedDirection='ltr', got '" + shellA.persistedDirection + "'")
-        ck(shellA.rtl === true, "hud: direction pill tap must NOT write rtl directly (still true), got " + shellA.rtl)
+        // ----- ONE Mode selector: Manga/Comic/Strip WRITE via setReadingMode (direction baked in) -----
+        shellA.readingMode = "manga"; shellA.persistedMode = ""; shellA.persistedDirection = ""
+        hud.setReadingMode("comic")
+        ck(shellA.readingMode === "comic", "hud: mode chip must set readingMode='comic', got '" + shellA.readingMode + "'")
+        ck(shellA.persistedMode === "double_page" && shellA.persistedDirection === "ltr",
+           "hud: Comic must write double_page + LTR seams (no RTL/LTR toggle), got '" + shellA.persistedMode + "'/'" + shellA.persistedDirection + "'")
+        hud.setReadingMode("strip")
+        ck(shellA.readingMode === "strip" && shellA.persistedMode === "long_strip", "hud: Strip must set readingMode='strip' + long_strip layout")
+        // cycleReadingMode advances Manga -> Comic -> Strip -> Manga
+        shellA.readingMode = "manga"
+        hud.cycleReadingMode()
+        ck(shellA.readingMode === "comic", "hud: cycleReadingMode from manga must advance to comic, got '" + shellA.readingMode + "'")
 
         // ----- prev/next pills honor hasPrev/hasNext -----
         shellA.hasPrev = false; shellA.hasNext = false
@@ -231,9 +234,10 @@ Item {
         function key(k, mods) { sig = {}; return input.keyAction(k, mods || Qt.NoModifier) }
 
         // --- simple map (mode-agnostic) ---
-        ck(key(Qt.Key_M) === "cycleMode" && cnt("cycleMode") === 1, "key M -> cycleMode")
-        ck(key(Qt.Key_I) === "toggleDirection" && cnt("toggleDirection") === 1, "key I -> toggleDirection")
-        ck(key(Qt.Key_P) === "nudgeCoupling" && cnt("nudgeCoupling") === 1, "key P -> nudgeCoupling")
+        ck(key(Qt.Key_M) === "cycleMode" && cnt("cycleMode") === 1, "key M -> cycleMode (Manga/Comic/Strip)")
+        // I (direction toggle) is RETIRED — direction is baked into the Manga/Comic identity now.
+        ck(key(Qt.Key_I) === "" && cnt("toggleDirection") === 0, "key I is unbound (RTL/LTR toggle removed)")
+        ck(key(Qt.Key_P) === "nudgeCoupling" && cnt("nudgeCoupling") === 1, "key P -> nudgeCoupling (still user-nudgeable)")
         ck(key(Qt.Key_O) === "openNavigator" && cnt("openNavigator") === 1, "key O -> openNavigator")
         ck(key(Qt.Key_T) === "openThumbnails" && cnt("openThumbnails") === 1, "key T -> openThumbnails")
         ck(key(Qt.Key_B) === "toggleBookmark" && cnt("toggleBookmark") === 1, "key B -> toggleBookmark")

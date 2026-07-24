@@ -40,20 +40,20 @@ Item {
     visible: opened || scrim.opacity > 0.001
 
     // ---- read-only reading state ----
-    readonly property string mode: reader ? reader.mode : "long_strip"
-    readonly property bool   rtl:  reader ? reader.rtl  : false
+    // ONE user-facing identity (Hemanth 2026-07-25): manga | comic | strip — direction is baked in.
+    readonly property string readingMode: reader ? reader.readingMode : "manga"
     readonly property string nightVeil: reader ? reader.nightVeil : "off"
     readonly property real   gutterStrength: reader ? reader.gutterStrength : 0.35
     readonly property int    zoomPercent:    reader ? reader.zoomPercent : 100
 
-    // ---- writes to the persisted seams (never mode/rtl directly) ----
-    function setMode(m)      { if (reader) reader.persistedMode = m }
-    function setDirection(d) { if (reader) reader.persistedDirection = d }
-    // night veil is a LIVE reader-wide setting (not load()-derived per entry like mode/direction),
-    // so the sheet writes it straight onto the reader; the shell's veil overlay reads it back.
-    function setNightVeil(v) { if (reader) reader.nightVeil = v }
+    // ---- writes ----
+    // the single Manga/Comic/Strip identity; the shell translates it into the internal layout +
+    // direction seams so a crossing's load() honors the choice (there is no separate RTL/LTR toggle).
+    function setReadingMode(rm) { if (reader) reader.setReadingMode(rm) }
+    // night veil is a LIVE reader-wide setting; the sheet writes it straight; the shell's veil reads it.
+    function setNightVeil(v)    { if (reader) reader.nightVeil = v }
     // gutter shadow is a live double-page setting; the shell feeds it to the double surface.
-    function setGutter(v)    { if (reader) reader.gutterStrength = v }
+    function setGutter(v)       { if (reader) reader.gutterStrength = v }
 
     Theme { id: theme }
 
@@ -204,18 +204,14 @@ Item {
             // ============ DISPLAY ============
             SectionLabel { text: "Display"; height: 32; verticalAlignment: Text.AlignVCenter }
 
+            // ONE identity row — Manga (RTL double-page, MangaPlus) · Comic (LTR double-page) ·
+            // Strip (vertical scroll). Direction is baked into the choice; no RTL/LTR toggle.
             SettingRow {
                 width: parent.width
                 label: "Mode"
-                Chip { objectName: "settingsModeDouble"; label: "Double"; active: root.mode === "double_page"; onTapped: root.setMode("double_page") }
-                Chip { objectName: "settingsModeStrip";  label: "Strip";  active: root.mode === "long_strip";  onTapped: root.setMode("long_strip") }
-            }
-
-            SettingRow {
-                width: parent.width
-                label: "Direction"
-                Chip { objectName: "settingsDirRtl"; label: "RTL · manga"; active: root.rtl;  onTapped: root.setDirection("rtl") }
-                Chip { objectName: "settingsDirLtr"; label: "LTR";             active: !root.rtl; onTapped: root.setDirection("ltr") }
+                Chip { objectName: "settingsModeManga"; label: "Manga"; active: root.readingMode === "manga"; onTapped: root.setReadingMode("manga") }
+                Chip { objectName: "settingsModeComic"; label: "Comic"; active: root.readingMode === "comic"; onTapped: root.setReadingMode("comic") }
+                Chip { objectName: "settingsModeStrip"; label: "Strip"; active: root.readingMode === "strip"; onTapped: root.setReadingMode("strip") }
             }
 
             SettingRow {
@@ -230,7 +226,7 @@ Item {
             Column {
                 objectName: "settingsDoubleSection"
                 width: parent.width
-                visible: root.mode === "double_page"
+                visible: root.readingMode !== "strip"   // shown for Manga + Comic (double-page)
                 spacing: 0
 
                 SectionLabel { text: "Double page"; height: 32; verticalAlignment: Text.AlignVCenter }

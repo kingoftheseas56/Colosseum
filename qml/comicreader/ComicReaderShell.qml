@@ -103,8 +103,12 @@ Item {
     property string curChapterId: ""            // the entry we're actually reading (crossing changes it)
     property int    currentPage: 1              // 1-based current page
     property int    maxSeen: 0                  // high-water mark (finished never un-finishes on reread)
-    property string mode: "long_strip"          // "long_strip" | "double_page"
-    property bool   rtl: false                  // reading direction (paints RTL when true)
+    property string mode: "long_strip"          // "long_strip" | "double_page" (internal layout)
+    property bool   rtl: false                  // reading direction (paints RTL when true; internal)
+    // the ONE user-facing identity (Hemanth 2026-07-25): Manga / Comic / Strip, derived from the
+    // internal layout+direction. The HUD + settings show THIS and write it via setReadingMode() —
+    // there is no separate RTL/LTR toggle. manga=RTL double, comic=LTR double, strip=vertical scroll.
+    readonly property string readingMode: ComicReaderState.readingModeFrom(mode, rtl)
     property int    zoomPercent: 100            // paged zoom (surfaces, later)
     property real   stripFraction: 0            // long-strip scroll fraction (resume + HUD scrub, later)
     property bool   chromeVisible: true         // HUD visibility (Task 11)
@@ -153,9 +157,13 @@ Item {
         try {
             _pages = (curChapterId.length && store) ? (store.localPages(curChapterId) || []) : []
 
-            // mode + direction: per-series persisted override, else the smart default for this lane
-            mode = persistedMode.length ? persistedMode : ComicReaderState.defaultMode(entryKind, western)
-            var dir = persistedDirection.length ? persistedDirection : ComicReaderState.defaultDirection(entryKind, western)
+            // reading mode: per-series persisted override, else the lane default (manga->Manga
+            // RTL double-page (MangaPlus), western->Comic LTR double-page). Layout + direction are
+            // both derived from the single readingMode identity.
+            var rm0 = ComicReaderState.defaultReadingMode(entryKind, western)
+            mode = persistedMode.length ? persistedMode : ComicReaderState.readingModeLayout(rm0)
+            var dir = persistedDirection.length ? persistedDirection
+                    : (ComicReaderState.readingModeRtl(rm0) ? "rtl" : "ltr")
             rtl = (dir === "rtl")
 
             if (_pages.length > 0) {
@@ -296,10 +304,19 @@ Item {
         if (mode === "long_strip")
             stripSurface.contentY = Math.max(0, stripSurface.contentHeight - stripSurface.height)
     }
-    // mode/direction TOGGLES write the PERSISTED seam (never mode/rtl directly) so a crossing's
-    // load() honors the choice; the reactions below flip the visible mode/rtl live.
-    function cycleMode() { persistedMode = (mode === "double_page") ? "long_strip" : "double_page" }
-    function toggleDirection() { persistedDirection = rtl ? "ltr" : "rtl" }
+    // reading-mode changes write the PERSISTED seams (never mode/rtl directly) so a crossing's
+    // load() honors the choice; the reactions below flip the visible mode/rtl live. setReadingMode
+    // translates the single Manga/Comic/Strip identity into the internal layout + direction seams.
+    function setReadingMode(rm) {
+        persistedMode = ComicReaderState.readingModeLayout(rm)
+        persistedDirection = ComicReaderState.readingModeRtl(rm) ? "rtl" : "ltr"
+    }
+    // M cycles the three identities Manga -> Comic -> Strip -> Manga.
+    function cycleMode() {
+        var order = ["manga", "comic", "strip"]
+        var i = order.indexOf(readingMode)
+        setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
+    }
     function nudgeCoupling() { if (core && core.nudgeCoupling) core.nudgeCoupling() }
 
     // ================= progress (Continue) =================
@@ -462,9 +479,9 @@ Item {
         onToggleChrome: reader.chromeVisible = !reader.chromeVisible
         onToggleFullscreen: reader.fullscreenRequested()
         onBack: reader.backRequested()
-        // mode / direction / coupling toggles -> persisted seams
+        // mode cycle (Manga/Comic/Strip) + coupling nudge -> persisted seams. Direction is baked
+        // into the mode identity now, so there is no separate direction toggle.
         onCycleMode: reader.cycleMode()
-        onToggleDirection: reader.toggleDirection()
         onNudgeCoupling: reader.nudgeCoupling()
         // first/last + crossing
         onFirstPage: reader.firstPageNav()

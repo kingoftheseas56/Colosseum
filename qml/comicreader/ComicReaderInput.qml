@@ -49,8 +49,7 @@ Item {
     signal toggleBookmark()
     signal goToPage()
     signal closeTop()                        // close the top overlay (Task 12)
-    signal cycleMode()                       // M — toggle the two modes
-    signal toggleDirection()                 // I
+    signal cycleMode()                       // M — cycle the three modes (Manga/Comic/Strip)
     signal nudgeCoupling()                   // P — core.nudgeCoupling (via shell)
     signal openShortcuts()                   // K
     signal toggleLoupe()                     // L
@@ -88,7 +87,6 @@ Item {
         case Qt.Key_T: openThumbnails();   return "openThumbnails"
         case Qt.Key_F: toggleFullscreen(); return "toggleFullscreen"
         case Qt.Key_M: cycleMode();        return "cycleMode"
-        case Qt.Key_I: toggleDirection();  return "toggleDirection"
         case Qt.Key_P: nudgeCoupling();    return "nudgeCoupling"
         case Qt.Key_K: openShortcuts();    return "openShortcuts"
         case Qt.Key_B: toggleBookmark();   return "toggleBookmark"

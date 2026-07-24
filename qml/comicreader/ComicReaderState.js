@@ -140,6 +140,31 @@ function shouldAcquire(status) {
     return s !== "done" && s !== "ready"
 }
 
+// --- reading mode (Hemanth ruling 2026-07-25) ------------------------------------------------
+// ONE user-facing identity replaces the old orthogonal mode(double/strip) + direction(rtl/ltr)
+// toggles. Three peers, each baking in BOTH its page layout AND its reading direction:
+//   "manga" -> RTL double-page (the MangaPlus manga default)
+//   "comic" -> LTR double-page
+//   "strip" -> vertical continuous scroll (direction-neutral)
+// The shell keeps the low-level `mode` + `rtl` the surfaces/input consume, and DERIVES them from
+// the readingMode via readingModeLayout()/readingModeRtl(). Coupling stays user-nudgeable (P).
+// Everything fails SAFE to comic-like (double-page, LTR) so a bad persisted value never wedges.
+function defaultReadingMode(entryKind, western) {
+    return western ? "comic" : "manga"   // manga chapters + tankoban volumes open as Manga
+}
+function readingModeLayout(rm) {
+    return rm === "strip" ? "long_strip" : "double_page"
+}
+function readingModeRtl(rm) {
+    return rm === "manga"                 // only manga reads right-to-left
+}
+// reverse map, so a legacy (mode, rtl) pair — or a HUD that flipped mode/rtl — resolves back to
+// the single identity. long_strip is always "strip" regardless of direction.
+function readingModeFrom(layout, rtl) {
+    if (layout === "long_strip") return "strip"
+    return rtl ? "manga" : "comic"
+}
+
 // --- night veil ------------------------------------------------------------------------------
 // The Night-veil level (settings surface 02) -> the opacity of the black page-dim overlay the
 // shell paints over the reading surfaces. Design ruling (comicreader-design.md surface 02 +

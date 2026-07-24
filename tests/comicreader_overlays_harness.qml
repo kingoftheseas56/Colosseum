@@ -26,14 +26,20 @@ Item {
 
     // ---- fake shell/reader seam: the ComicReaderShell-facing API the settings sheet reads/writes ----
     component FakeReader: QtObject {
-        property string mode: "double_page"       // "double_page" | "long_strip"
-        property bool   rtl: true
-        property string persistedMode: ""         // the sheet writes HERE, never `mode`
-        property string persistedDirection: ""    // the sheet writes HERE, never `rtl`
+        // the single user-facing identity (Hemanth 2026-07-25): manga | comic | strip.
+        property string readingMode: "manga"
+        property string persistedMode: ""         // setReadingMode writes the internal layout seam
+        property string persistedDirection: ""    // setReadingMode writes the internal direction seam
         property string nightVeil: "off"          // "off" | "low" | "high" — the sheet writes HERE (live setting)
         property real   gutterStrength: 0.35      // double-page gutter shadow (0/.22/.35/.55) — the sheet writes HERE
         property int    zoomPercent: 100          // double-page zoom (readout only this pass)
         property bool   modalOpen: false
+        // mirror the real shell: translate the identity to the internal layout+direction seams
+        function setReadingMode(rm) {
+            readingMode = rm
+            persistedMode = (rm === "strip") ? "long_strip" : "double_page"
+            persistedDirection = (rm === "manga") ? "rtl" : "ltr"
+        }
     }
 
     FakeReader { id: fakeReader }
@@ -80,26 +86,26 @@ Item {
         sheet.open()
         ck(sheet.opened === true, "settings: open() must set opened=true")
 
-        // --- DISPLAY: Mode chips reflect reader.mode (double active), tap writes persistedMode ---
-        var modeDouble = byName(sheet, "settingsModeDouble")
-        var modeStrip  = byName(sheet, "settingsModeStrip")
-        ck(modeDouble !== null && modeStrip !== null, "settings: Mode chips (Double/Strip) must exist")
-        ck(modeDouble && modeDouble.active === true,  "settings: Double chip must be ACTIVE when reader.mode=double_page")
-        ck(modeStrip && modeStrip.active === false,   "settings: Strip chip must be inactive when reader.mode=double_page")
+        // --- DISPLAY: ONE Mode row — Manga / Comic / Strip (direction baked in). Chips reflect
+        //     reader.readingMode; a tap calls reader.setReadingMode(rm) which writes the internal
+        //     layout + direction seams (no separate RTL/LTR toggle). ---
+        var modeManga = byName(sheet, "settingsModeManga")
+        var modeComic = byName(sheet, "settingsModeComic")
+        var modeStrip = byName(sheet, "settingsModeStrip")
+        ck(modeManga !== null && modeComic !== null && modeStrip !== null, "settings: Mode chips (Manga/Comic/Strip) must exist")
+        ck(modeManga && modeManga.active === true, "settings: Manga chip ACTIVE when readingMode=manga")
+        ck(modeComic && modeComic.active === false && modeStrip && modeStrip.active === false, "settings: only Manga active at default")
+        clickCenter(modeComic)
+        ck(fakeReader.readingMode === "comic", "settings: tapping Comic must set readingMode=comic, got '" + fakeReader.readingMode + "'")
+        ck(fakeReader.persistedMode === "double_page" && fakeReader.persistedDirection === "ltr",
+           "settings: Comic must write double_page + LTR seams, got '" + fakeReader.persistedMode + "'/'" + fakeReader.persistedDirection + "'")
         clickCenter(modeStrip)
-        ck(fakeReader.persistedMode === "long_strip", "settings: tapping Strip must write persistedMode=long_strip, got '" + fakeReader.persistedMode + "'")
-        ck(fakeReader.mode === "double_page",         "settings: the sheet must NOT write reader.mode directly (load() owns it)")
+        ck(fakeReader.readingMode === "strip", "settings: tapping Strip must set readingMode=strip")
+        ck(fakeReader.persistedMode === "long_strip", "settings: Strip must write long_strip layout, got '" + fakeReader.persistedMode + "'")
         // reflect a mode change coming back from the shell
-        fakeReader.mode = "long_strip"
-        ck(modeStrip.active === true && modeDouble.active === false, "settings: Mode chips must re-reflect when reader.mode changes")
-
-        // --- DISPLAY: Direction chips reflect reader.rtl, tap writes persistedDirection ---
-        var dirRtl = byName(sheet, "settingsDirRtl")
-        var dirLtr = byName(sheet, "settingsDirLtr")
-        ck(dirRtl !== null && dirLtr !== null, "settings: Direction chips (RTL/LTR) must exist")
-        ck(dirRtl && dirRtl.active === true,   "settings: RTL chip must be ACTIVE when reader.rtl=true")
-        clickCenter(dirLtr)
-        ck(fakeReader.persistedDirection === "ltr", "settings: tapping LTR must write persistedDirection=ltr, got '" + fakeReader.persistedDirection + "'")
+        fakeReader.readingMode = "manga"
+        ck(modeManga.active === true && modeComic.active === false && modeStrip.active === false,
+           "settings: Mode chips must re-reflect when readingMode changes back to manga")
 
         // --- DISPLAY: Night veil chips reflect reader.nightVeil, tap writes it live (Off default) ---
         var veilOff  = byName(sheet, "settingsVeilOff")
@@ -117,7 +123,7 @@ Item {
         fakeReader.nightVeil = "off"   // restore for later assertions
 
         // --- DOUBLE PAGE section: mode-aware, gutter presets (0/.22/.35/.55), zoom readout ---
-        fakeReader.mode = "double_page"   // the double section shows only in double mode
+        fakeReader.readingMode = "manga"   // the double section shows in Manga/Comic (double-page), not Strip
         var dpSection = byName(sheet, "settingsDoubleSection")
         ck(dpSection !== null, "settings: DOUBLE PAGE section must exist")
         ck(dpSection && dpSection.visible === true, "settings: DOUBLE PAGE section must be VISIBLE in double_page mode")
@@ -139,9 +145,9 @@ Item {
         fakeReader.zoomPercent = 180
         ck(zoomVal && String(zoomVal.text).indexOf("180") >= 0, "settings: Zoom readout must reflect a zoomPercent change to 180, got '" + (zoomVal ? zoomVal.text : "") + "'")
         // mode-aware: in Strip the whole double section yields (hidden)
-        fakeReader.mode = "long_strip"
-        ck(dpSection.visible === false, "settings: DOUBLE PAGE section must be HIDDEN in long_strip mode")
-        fakeReader.mode = "double_page"   // restore
+        fakeReader.readingMode = "strip"
+        ck(dpSection.visible === false, "settings: DOUBLE PAGE section must be HIDDEN in Strip mode")
+        fakeReader.readingMode = "manga"   // restore
 
         // --- dismiss: X ---
         harness.dismissCount = 0
