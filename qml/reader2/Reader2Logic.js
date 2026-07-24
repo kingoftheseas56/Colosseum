@@ -458,15 +458,18 @@ function clamp_(v, lo, hi) {
     return n < lo ? lo : (n > hi ? hi : n)
 }
 
-// appearanceDefaults() → the ratified default reader2 appearance. Literata is the default
-// typeface now that we ship it; Night is the ratified default theme.
+// appearanceDefaults() → the ratified default reader2 appearance (PARITY 2026-07-24:
+// full Reader-1 control set; sizePct replaces sizePx — 100% == the old 18px look).
 function appearanceDefaults() {
     return {
-        theme: "night", font: "literata", sizePx: 18, lineHeight: 1.6, marginPx: 72,
-        justify: true, flow: "paginated",
+        theme: "night", font: "literata", sizePct: 100, fontWeight: 400,
+        lineHeight: 1.6, marginPx: 72, justify: true, flow: "paginated",
+        wordSpacing: 0, letterSpacing: 0, paraSpacing: 0, paraIndent: "book",
+        maxLineWidthPx: 960, hyphens: false, columns: "single",
+        customPage: "#111214", customInk: "#c9c5bc", customCss: "",
+        // GLOBAL keys (reading habits, never per-book): images-in-dark + ruler + read-along.
+        invertImages: true,
         rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40,
-        // read-along mode/enlargement (Task 6) rides in the SAME reader2 store; it's ignored
-        // by appearanceToPaper (not a text-layout knob) but round-trips like the ruler fields.
         readAlong: { mode: "sentenceWord", wordScale: 1.0 }
     }
 }
@@ -526,20 +529,89 @@ function mergeAppearance(prev, patch) {
     return out
 }
 
-// initialAppearance(settings) → the reader2 appearance to open with, from the WHOLE
-// settings.json object. Reads back our namespaced `settings.reader2` sub-object when present
-// (merged over the defaults, so a missing key falls back and a future key survives). On
-// FIRST run (no reader2 sub-object) it courtesy-seeds the theme from the old reader's flat
-// `theme` name when that name is one of our four; otherwise the ratified default (Night).
-function initialAppearance(settings) {
-    var s = settings || {}
-    var base = appearanceDefaults()
-    if (s.reader2 && typeof s.reader2 === "object")
-        return mergeAppearance(base, s.reader2)
+// migrateAppearance(a) → a full appearance from a possibly-legacy object: new keys are
+// filled from defaults, a legacy sizePx (no sizePct) converts losslessly (18px == 100%,
+// quantized to the 5% step), and sizePx is dropped from the result.
+function migrateAppearance(a) {
+    var out = mergeAppearance(appearanceDefaults(), a || {})
+    if (a && Number.isFinite(a.sizePx) && !(a && Number.isFinite(a.sizePct)))
+        out.sizePct = clamp_(Math.round((a.sizePx / 18) * 100 / 5) * 5, 50, 300)
+    delete out.sizePx
+    return out
+}
+
+// appearanceStore(settingsAll) → the normalized { defaults, books } store from the WHOLE
+// settings.json object. Three births: fresh (no reader2), legacy flat (reader2 IS an
+// appearance — migrate it into defaults), and the new shape (normalize defaults, keep books).
+// The legacy old-old-reader flat `theme` courtesy-seed is preserved from initialAppearance.
+function appearanceStore(settingsAll) {
+    var s = settingsAll || {}
+    var r2 = s.reader2
+    if (r2 && typeof r2 === "object" && r2.defaults && typeof r2.defaults === "object") {
+        var books = {}
+        if (r2.books && typeof r2.books === "object")
+            for (var b in r2.books) books[b] = r2.books[b]
+        return { defaults: migrateAppearance(r2.defaults), books: books }
+    }
+    if (r2 && typeof r2 === "object")
+        return { defaults: migrateAppearance(r2), books: {} }
     var known = { paper: 1, sepia: 1, slate: 1, night: 1 }
     if (s.theme && known[String(s.theme).toLowerCase()])
-        return mergeAppearance(base, { theme: String(s.theme).toLowerCase() })
-    return base
+        return { defaults: migrateAppearance({ theme: String(s.theme).toLowerCase() }), books: {} }
+    return { defaults: appearanceDefaults(), books: {} }
+}
+
+// effectiveAppearance(store, bookId) → what this book actually renders with: the defaults
+// overlaid by the book's sparse patch (absent/empty patch == the defaults).
+function effectiveAppearance(store, bookId) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var patch = (bookId && st.books && st.books[bookId]) ? st.books[bookId] : {}
+    return mergeAppearance(st.defaults, patch)
+}
+
+// GLOBAL appearance keys — reading habits, not book traits: edits write to defaults, never
+// into a per-book patch.
+var GLOBAL_APPEARANCE_KEYS_ = {
+    invertImages: 1, rulerOn: 1, rulerHeightPx: 1, rulerDimPct: 1, rulerYPct: 1, readAlong: 1
+}
+function isGlobalAppearanceKey(key) { return !!GLOBAL_APPEARANCE_KEYS_[String(key)] }
+
+// applyStorePatch(store, bookId, key, value) → a NEW store with one edit applied to the
+// right tier (pure — no mutation of the input).
+function applyStorePatch(store, bookId, key, value) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var out = { defaults: mergeAppearance(st.defaults, {}), books: {} }
+    for (var b in (st.books || {})) out.books[b] = mergeAppearance(st.books[b], {})
+    if (isGlobalAppearanceKey(key) || !bookId) {
+        out.defaults[key] = value
+    } else {
+        if (!out.books[bookId]) out.books[bookId] = {}
+        out.books[bookId][key] = value
+    }
+    return out
+}
+
+// useAsDefaultStore(store, bookId) → this book's effective appearance becomes the global
+// default; its own patch clears (it now IS the default). Other books keep their tuning.
+function useAsDefaultStore(store, bookId) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var out = { defaults: effectiveAppearance(st, bookId), books: {} }
+    for (var b in (st.books || {})) if (b !== bookId) out.books[b] = mergeAppearance(st.books[b], {})
+    return out
+}
+
+// resetBookStore(store, bookId) → drop this book's patch; it falls back to the defaults.
+function resetBookStore(store, bookId) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var out = { defaults: mergeAppearance(st.defaults, {}), books: {} }
+    for (var b in (st.books || {})) if (b !== bookId) out.books[b] = mergeAppearance(st.books[b], {})
+    return out
+}
+
+// initialAppearance(settings) → KEPT for existing callers/tests: the defaults-tier
+// appearance the store yields for this settings object (legacy flat reader2 included).
+function initialAppearance(settings) {
+    return effectiveAppearance(appearanceStore(settings), "")
 }
 
 // ---------------------------------------------------------------------------

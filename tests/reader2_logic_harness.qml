@@ -301,7 +301,7 @@ QtObject {
             var ad = L.appearanceDefaults()
             check(ad.theme === "night", "appearanceDefaults: theme night")
             check(ad.font === "literata", "appearanceDefaults: font literata")
-            check(ad.sizePx === 18 && ad.marginPx === 72, "appearanceDefaults: size + margins")
+            check(ad.sizePct === 100 && ad.marginPx === 72, "appearanceDefaults: size + margins")
             check(ad.lineHeight === 1.6 && ad.justify === true, "appearanceDefaults: lineHeight + justify")
             check(ad.rulerOn === false && ad.rulerHeightPx === 92 && ad.rulerDimPct === 42,
                   "appearanceDefaults: ruler controls")
@@ -339,22 +339,84 @@ QtObject {
             check(L.appearanceToPaper({ theme: "night" }).flow === "paginated", "flow: missing key -> paginated")
             check(L.appearanceToPaper({ theme: "night", flow: "banana" }).flow === "paginated", "flow: junk -> paginated")
 
+            // 15. appearance PARITY (2026-07-24) — store shape, migration, per-book merge.
+            var d2 = L.appearanceDefaults()
+            check(d2.sizePct === 100 && d2.sizePx === undefined, "defaults: sizePct 100, sizePx gone")
+            check(d2.fontWeight === 400 && d2.wordSpacing === 0 && d2.letterSpacing === 0, "defaults: weight + spacings")
+            check(d2.paraSpacing === 0 && d2.paraIndent === "book", "defaults: para spacing + indent")
+            check(d2.maxLineWidthPx === 960 && d2.hyphens === false && d2.columns === "single", "defaults: measure + hyphens + columns")
+            check(d2.customPage === "#111214" && d2.customInk === "#c9c5bc" && d2.customCss === "", "defaults: custom theme fields")
+            check(d2.invertImages === true, "defaults: invertImages on")
+
+            // migrateAppearance: legacy sizePx converts to sizePct (18px -> 100%), 5%-quantized.
+            check(L.migrateAppearance({ sizePx: 18 }).sizePct === 100, "migrate: 18px -> 100%")
+            check(L.migrateAppearance({ sizePx: 22 }).sizePct === 120, "migrate: 22px -> 120% (quantized)")
+            check(L.migrateAppearance({ sizePx: 12 }).sizePct === 65, "migrate: 12px -> 65%")
+            check(L.migrateAppearance({ sizePct: 150, sizePx: 18 }).sizePct === 150, "migrate: existing sizePct wins")
+            check(L.migrateAppearance({ theme: "sepia" }).maxLineWidthPx === 960, "migrate: new keys filled from defaults")
+            check(L.migrateAppearance({ theme: "sepia" }).theme === "sepia", "migrate: old keys preserved")
+
+            // appearanceStore: the three store births.
+            var stFresh = L.appearanceStore({})
+            check(stFresh.defaults.theme === "night" && JSON.stringify(stFresh.books) === "{}", "store: fresh -> defaults + empty books")
+            var stLegacy = L.appearanceStore({ reader2: { theme: "sepia", sizePx: 22, marginPx: 100 } })
+            check(stLegacy.defaults.theme === "sepia" && stLegacy.defaults.sizePct === 120, "store: legacy flat migrates into defaults")
+            check(stLegacy.defaults.marginPx === 100 && stLegacy.defaults.fontWeight === 400, "store: legacy keeps old, gains new")
+            var stNew = L.appearanceStore({ reader2: { defaults: { theme: "paper", sizePct: 110 }, books: { b1: { justify: false } } } })
+            check(stNew.defaults.theme === "paper" && stNew.defaults.sizePct === 110, "store: new shape passes through")
+            check(stNew.books.b1.justify === false, "store: books preserved")
+
+            // effectiveAppearance: defaults overlaid by the book's sparse patch.
+            var stE = { defaults: L.appearanceDefaults(), books: { b1: { theme: "paper", sizePct: 150 } } }
+            var eff = L.effectiveAppearance(stE, "b1")
+            check(eff.theme === "paper" && eff.sizePct === 150, "effective: book patch wins")
+            check(eff.fontWeight === 400, "effective: untouched keys fall back to defaults")
+            check(L.effectiveAppearance(stE, "b2").theme === "night", "effective: unpatched book == defaults")
+            check(L.effectiveAppearance(stE, "").theme === "night", "effective: empty bookId == defaults")
+
+            // applyStorePatch: book key -> books[bookId]; GLOBAL key -> defaults.
+            var stP = L.applyStorePatch({ defaults: L.appearanceDefaults(), books: {} }, "b1", "sizePct", 130)
+            check(stP.books.b1.sizePct === 130, "patch: book key lands in books[b1]")
+            check(stP.defaults.sizePct === 100, "patch: defaults untouched by a book edit")
+            var stG = L.applyStorePatch(stP, "b1", "rulerOn", true)
+            check(stG.defaults.rulerOn === true && stG.books.b1.rulerOn === undefined, "patch: GLOBAL key lands in defaults")
+            var stG2 = L.applyStorePatch(stG, "b1", "invertImages", false)
+            check(stG2.defaults.invertImages === false, "patch: invertImages is GLOBAL")
+            check(L.isGlobalAppearanceKey("readAlong") === true && L.isGlobalAppearanceKey("theme") === false, "isGlobalAppearanceKey")
+            var stNoBook = L.applyStorePatch({ defaults: L.appearanceDefaults(), books: {} }, "", "sizePct", 130)
+            check(stNoBook.defaults.sizePct === 130 && JSON.stringify(stNoBook.books) === "{}", "patch: empty bookId -> defaults, no book patch")
+
+            // useAsDefaultStore: effective becomes defaults; this book's patch clears; others keep theirs.
+            var stU = { defaults: L.appearanceDefaults(), books: { b1: { theme: "paper", sizePct: 150 }, b2: { justify: false } } }
+            var stU2 = L.useAsDefaultStore(stU, "b1")
+            check(stU2.defaults.theme === "paper" && stU2.defaults.sizePct === 150, "useAsDefault: effective -> defaults")
+            check(stU2.books.b1 === undefined, "useAsDefault: this book's patch cleared")
+            check(stU2.books.b2.justify === false, "useAsDefault: other books keep their tuning")
+
+            // resetBookStore: delete this book's patch only.
+            var stR = L.resetBookStore(stU, "b1")
+            check(stR.books.b1 === undefined && stR.books.b2.justify === false, "resetBook: only b1 cleared")
+            check(stR.defaults.theme === "night", "resetBook: defaults untouched")
+
+            // initialAppearance still works for old callers (routes through the store now).
+            check(L.initialAppearance({ reader2: { theme: "sepia" } }).theme === "sepia", "initialAppearance: legacy compat kept")
+
             // mergeAppearance: patches ONE key, keeps the rest (pure new object).
             var mBase = L.appearanceDefaults()
             var mNext = L.mergeAppearance(mBase, { theme: "paper" })
             check(mNext.theme === "paper", "mergeAppearance: patched key applied")
-            check(mNext.font === "literata" && mNext.sizePx === 18 && mNext.marginPx === 72, "mergeAppearance: other keys intact")
+            check(mNext.font === "literata" && mNext.sizePct === 100 && mNext.marginPx === 72, "mergeAppearance: other keys intact")
             check(mBase.theme === "night", "mergeAppearance: original not mutated (pure)")
             check(L.mergeAppearance(null, { sizePx: 22 }).sizePx === 22, "mergeAppearance: null prev -> patch only")
 
             // initialAppearance: reads back settings.reader2, else courtesy-seeds theme from the
             // old flat `theme`, else the ratified default — the store-boundary logic.
             var iRead = L.initialAppearance({ theme: "sepia", reader2: { theme: "slate", sizePx: 22 } })
-            check(iRead.theme === "slate" && iRead.sizePx === 22, "initialAppearance: reader2 sub-object wins")
+            check(iRead.theme === "slate" && iRead.sizePct === 120, "initialAppearance: reader2 sub-object wins")
             check(iRead.font === "literata", "initialAppearance: reader2 merged over defaults (missing key filled)")
             var iSeed = L.initialAppearance({ theme: "sepia" })      // old flat key only, first run
             check(iSeed.theme === "sepia", "initialAppearance: first run courtesy-seeds theme from old flat key")
-            check(iSeed.font === "literata" && iSeed.sizePx === 18, "initialAppearance: seed keeps the rest of the defaults")
+            check(iSeed.font === "literata" && iSeed.sizePct === 100, "initialAppearance: seed keeps the rest of the defaults")
             check(L.initialAppearance({ theme: "not-a-theme" }).theme === "night", "initialAppearance: unknown old theme -> default night")
             check(L.initialAppearance({}).theme === "night", "initialAppearance: empty settings -> default night")
             check(L.initialAppearance(null).theme === "night", "initialAppearance: null-safe -> default night")
