@@ -89,6 +89,8 @@ add_executable(colosseum
     net/LoopbackPinProxy.cpp       # instant posters: pin the connection, keep the hostname (HTTP/2)
     net/LoopbackPinProxy.h
     net/PinProxyFactory.h
+    net/PosterScoreboard.cpp       # felt-speed Stage 0: arrived/failed/undecodable per host
+    net/PosterScoreboard.h
     third_party/miniz/miniz.c      # gunzip for the Jikan Accept-Encoding workaround (needs C, enabled below)
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
@@ -355,6 +357,14 @@ add_executable(pin_proxy_factory_harness
 )
 target_include_directories(pin_proxy_factory_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(pin_proxy_factory_harness PRIVATE Qt6::Core Qt6::Network)
+
+add_executable(poster_scoreboard_harness
+    ../tests/poster_scoreboard_harness.cpp
+    net/PosterScoreboard.cpp
+    net/PosterScoreboard.h
+)
+target_include_directories(poster_scoreboard_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(poster_scoreboard_harness PRIVATE Qt6::Core)
 
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
