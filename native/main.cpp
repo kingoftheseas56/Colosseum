@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QHostAddress>
 #include <QIcon>
+#include <QImageReader>
 #include <QHostInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkDiskCache>
@@ -51,6 +52,7 @@
 #include "engine/MangaTankobanService.h"
 #include "net/LoopbackPinProxy.h"
 #include "net/PinProxyFactory.h"
+#include "net/PosterScoreboard.h"
 #include <QNetworkProxyFactory>
 #include <QSet>
 #include <algorithm>
@@ -174,11 +176,13 @@ public:
     // useCache=false gives a pin+UA NAM with NO disk cache / no PreferCache — for live
     // lanes (torrent search) where a stale cached response would freeze seeder counts.
     CachingNam(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
-               QObject *parent = nullptr, bool useCache = true)
+               QObject *parent = nullptr, bool useCache = true,
+               PosterScoreboard *scoreboard = nullptr)
         : QNetworkAccessManager(parent),
           m_pinnedHosts(std::move(pinnedHosts)),
           m_ipv4ByHost(std::move(ipv4ByHost)),
-          m_useCache(useCache) {
+          m_useCache(useCache),
+          m_scoreboard(scoreboard) {
         if (m_useCache) {
             auto *cache = new QNetworkDiskCache(this);
             const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
@@ -238,30 +242,55 @@ protected:
         if (host == QLatin1String("api.jikan.moe")) {
             r.setRawHeader("Accept-Encoding", "gzip");
             QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
+            watch(host, inner);   // watch the INNER reply: GunzipReply doesn't forward attributes
             return new GunzipReply(inner);
         }
-        return QNetworkAccessManager::createRequest(op, r, outgoing);
+        QNetworkReply *reply = QNetworkAccessManager::createRequest(op, r, outgoing);
+        watch(host, reply);
+        return reply;
     }
 
 private:
     QStringList m_pinnedHosts;
     QHash<QString, QString> m_ipv4ByHost;
     bool m_useCache = true;
+    PosterScoreboard *m_scoreboard = nullptr;
+
+    void watch(const QString &host, QNetworkReply *reply) {
+        if (!m_scoreboard)
+            return;
+        PosterScoreboard *scoreboard = m_scoreboard;
+        // No receiver context on purpose: the lambda runs on the reply's own thread and
+        // record() is mutex-guarded. `host` is the ORIGINAL hostname — reply->url() may
+        // carry the rewritten IPv4 literal for URL-pinned hosts.
+        QObject::connect(reply, &QNetworkReply::finished, [scoreboard, host, reply] {
+            const int status =
+                reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+            const QVariant clen = reply->header(QNetworkRequest::ContentLengthHeader);
+            const qint64 bytes = clen.isValid() ? clen.toLongLong() : reply->bytesAvailable();
+            scoreboard->record(host, status, ct, bytes,
+                               reply->error() != QNetworkReply::NoError);
+        });
+    }
 };
 
 class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
 public:
-    CachingNamFactory(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost)
+    CachingNamFactory(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
+                      PosterScoreboard *scoreboard)
         : m_pinnedHosts(std::move(pinnedHosts)),
-          m_ipv4ByHost(std::move(ipv4ByHost)) {}
+          m_ipv4ByHost(std::move(ipv4ByHost)),
+          m_scoreboard(scoreboard) {}
 
     QNetworkAccessManager *create(QObject *parent) override {
-        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent);
+        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent, /*useCache=*/true, m_scoreboard);
     }
 
 private:
     QStringList m_pinnedHosts;
     QHash<QString, QString> m_ipv4ByHost;
+    PosterScoreboard *m_scoreboard = nullptr;   // owned by the app, outlives every NAM
 };
 
 // Resolve a host's IPv4, retrying briefly on a miss. The pin is computed ONCE at
@@ -532,7 +561,30 @@ int main(int argc, char *argv[]) {
     if (conciergeOk)
         namPinnedHosts.erase(std::remove_if(namPinnedHosts.begin(), namPinnedHosts.end(),
             [&](const QString &h){ return metahubHosts.contains(h); }), namPinnedHosts.end());
-    engine.setNetworkAccessManagerFactory(new CachingNamFactory(namPinnedHosts, ipv4ByHost));
+    // Felt-speed Stage 0: the poster scoreboard. Counts every reply on the QML image
+    // NAM; dumped at quit so a real run answers "did the posters actually arrive?"
+    // with numbers instead of a shrug. The webp check is the dev-hack scar made loud:
+    // the decoder must ship BESIDE the exe (deploy-runtime.bat), not live in the Qt install.
+    auto *scoreboard = new PosterScoreboard(&app);
+    {
+        const bool webpOk =
+            QImageReader::supportedImageFormats().contains(QByteArrayLiteral("webp"));
+        scoreboard->setWebpDecoderPresent(webpOk);
+        if (webpOk)
+            qInfo("[img] webp decoder present");
+        else
+            qWarning("[img] webp decoder MISSING -> every image/webp poster is UNDECODABLE "
+                     "(run native/deploy-runtime.bat to bundle qwebp.dll)");
+    }
+    engine.setNetworkAccessManagerFactory(
+        new CachingNamFactory(namPinnedHosts, ipv4ByHost, scoreboard));
+    engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {
+        const QString text = scoreboard->summaryText();
+        if (!text.isEmpty())
+            qInfo("[net] poster scoreboard (arrived/failed/undecodable/bytes by host):\n%s",
+                  qUtf8Printable(text));
+    });
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
