@@ -21,6 +21,7 @@ import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
+import "WarmingQueue.js" as Warming
 
 Window {
     id: win
@@ -1491,6 +1492,32 @@ Window {
     // ---- world pages: one keep-alive Loader PER visited mode, stacked over the home on the SAME
     //      wallpaper. worldStack.current picks which is visible; "" = home. Kept alive so covers
     //      don't re-fetch on return (the home's top bar + scroll hide while a world is up). ----
+    // ---- Stage 2 warming: after the home screen settles, quietly pre-build the world
+    //      pages the user hasn't opened yet — one at a time, only while on Home — so the
+    //      first click lands on an already-painted page instead of paying the cold build.
+    //      Each append builds a hidden async Loader (worldStack) and pre-caches its covers.
+    Timer {
+        id: warmStart
+        interval: 2500          // let the home page finish its own first paint first
+        running: true
+        repeat: false
+        onTriggered: warmer.running = true
+    }
+    Timer {
+        id: warmer
+        interval: 1800          // stagger: one world at a time, easy on CPU/network
+        running: false
+        repeat: true
+        readonly property var targets: ["Tankoban", "Theatre", "Biblio"]
+        onTriggered: {
+            if (worldStack.current !== "") return          // a world is open → yield, retry next tick
+            var names = []
+            for (var i = 0; i < openModes.count; i++) names.push(openModes.get(i).mode)
+            var next = Warming.nextWarmMode(names, warmer.targets)
+            if (next === "") { warmer.running = false; return }   // everything warmed → stop
+            openModes.append({ mode: next })               // builds its hidden async Loader
+        }
+    }
     ListModel { id: openModes }
     Item {
         id: worldStack
