@@ -55,10 +55,20 @@ Item {
     // re-request after the decode lands — every freshly-navigated unit would stay blank until you
     // navigate away and back. readyRev is bumped on pageReady and folded into both `source` bindings.
     property int readyRev: 0
+    // Entry/pairing dependency: core.unitForPage() is a plain function call, so the `unit` binding
+    // below re-evaluates only when active/core/currentPage change — NOT when the backend's pairing
+    // becomes available. On a FRESH open in double mode (manga's default now), the surface is active
+    // before the volume finishes loading, so the FIRST unit is empty and, without this, never
+    // recomputes when the entry arrives -> the page stays BLACK. entryRev is bumped on the core's
+    // entryChanged + pairingChanged (ComicReaderCore.cpp:201-202, and every rebuildUnits) and folded
+    // into the unit binding; the same signal re-runs _onUnitShown() so setVisible() drives the decode.
+    property int entryRev: 0
     Connections {
         target: root.core
         ignoreUnknownSignals: true
-        function onPageReady(page) { root.readyRev += 1 }
+        function onPageReady(page)  { root.readyRev += 1 }
+        function onEntryChanged()   { root.entryRev += 1; root._onUnitShown() }
+        function onPairingChanged() { root.entryRev += 1; root._onUnitShown() }
     }
 
     clip: true
@@ -73,9 +83,9 @@ Item {
                  spread:     !!u.spread,
                  coverAlone: !!u.coverAlone }
     }
-    readonly property var unit: (active && core && core.unitForPage)
+    readonly property var unit: (root.entryRev, (active && core && core.unitForPage)
         ? _normUnit(core.unitForPage(Math.max(0, currentPage - 1)))
-        : _emptyUnit
+        : _emptyUnit)
 
     readonly property bool isPair: unit.leftIndex >= 0 && unit.rightIndex >= 0 && !unit.spread && !unit.coverAlone
     readonly property bool isSingle: !isPair && (unit.rightIndex >= 0 || unit.leftIndex >= 0)

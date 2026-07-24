@@ -76,10 +76,16 @@ Item {
         // the binding -> no binding loop). The ONLY thing that re-drives `source` is the surface's
         // own readyRev counter — which is the fix under test.
         property var pageRevs: ({})
+        // whether an entry is loaded — before openEntry, unitForPage returns a degenerate empty unit
+        // (mirrors the real core with no entry). loadEntry() flips it + fires the load signals.
+        property bool loaded: true
         // signals (shape parity with the real core)
         signal pageReady(int page)
         signal pageFailed(int page, string code)
         signal stripCompensation(real delta)
+        signal entryChanged()      // real core emits this on openEntry (ComicReaderCore.cpp:201)
+        signal pairingChanged()    // ...and this (ComicReaderCore.cpp:202), + on every rebuildUnits
+        function loadEntry() { loaded = true; entryChanged(); pairingChanged() }
         function imageUrl(page) {
             var r = (pageRevs[page] !== undefined) ? pageRevs[page] : 0
             return "image://comicreader/1/" + page + "?rev=" + r
@@ -90,6 +96,7 @@ Item {
             pageReady(page)
         }
         function unitForPage(page) {
+            if (!loaded) return { rightIndex: -1, leftIndex: -1, spread: false, coverAlone: false }
             if (units[page] !== undefined) return units[page]
             return { rightIndex: page, leftIndex: -1, spread: false, coverAlone: false }
         }
@@ -108,6 +115,7 @@ Item {
     FakeCore { id: coreStrip }
     FakeCore { id: coreFail }
     FakeCore { id: coreDouble }
+    FakeCore { id: coreFresh }
 
     property var stripComp: null
     property var doubleComp: null
@@ -366,6 +374,25 @@ Item {
         ck(unitShownCount >= 1, "double: showing a unit must emit unitShown at least once")
     }
 
+    // FRESH-OPEN in double mode: manga now DEFAULTS to double-page, so the double surface is active
+    // from the start and the entry becomes available AFTER (async volume load). The unit MUST
+    // recompute on entryChanged/pairingChanged even though `active` and `currentPage` never change —
+    // else the surface holds its empty first-frame unit forever and the page stays BLACK.
+    function runDoubleFreshOpen() {
+        coreFresh.loaded = false            // core has no entry yet (first paint, before pages arrive)
+        var dbl = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 1, "core": coreFresh
+        })
+        if (!dbl) { failures.push("double-fresh: createObject returned null"); return }
+        ck(dbl.imageCount === 0, "double-fresh: before the entry loads the surface must have NO unit (blank), got " + dbl.imageCount)
+        // the volume finishes loading: the pairing units become available + the core signals it
+        coreFresh.units[0] = { rightIndex: 0, leftIndex: -1, spread: false, coverAlone: true }
+        coreFresh.loadEntry()               // sets loaded + emits entryChanged + pairingChanged (NO currentPage/active change)
+        ck(dbl.imageCount === 1, "double-fresh: after entryChanged/pairingChanged the unit MUST recompute (cover renders), got " + dbl.imageCount)
+        ck(dbl.unit.rightIndex === 0, "double-fresh: the recomputed unit must be the loaded cover (rightIndex 0), got " + dbl.unit.rightIndex)
+        ck(coreFresh.setVisibleCalls >= 1, "double-fresh: the load must drive core.setVisible so the cover decodes (else no request), got " + coreFresh.setVisibleCalls)
+    }
+
     Timer { id: phaseTimer; interval: 30; running: false; onTriggered: harness.runPhaseTwo() }
 
     function runPhaseTwo() {
@@ -373,6 +400,7 @@ Item {
             runStripFailure()
             runDouble()
             runDoubleMaxSeen()
+            runDoubleFreshOpen()
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
         }
