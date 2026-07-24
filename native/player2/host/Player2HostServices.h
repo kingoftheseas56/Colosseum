@@ -9,7 +9,7 @@ namespace Colosseum::Player2
 {
 // Player2HostServices is the ORCHESTRATION SEAM between the player and the app. The player asks
 // (typed requests) and renders whatever the host resolves; it never searches, ranks, downloads or
-// persists on its own — those policies live in the host (production: Cinemeta / Torrentio / the
+// persists on its own — those policies live in the host (production: the app's catalog / stream / the
 // download store; lab: deterministic fixtures). Every request resolves EXACTLY ONCE via its matching
 // signal, whose payload is one of: data, an empty collection, or an error map {"error": "..."}. This
 // keeps the engine and QML free of catalog/source policy (Task 14 contract).
