@@ -112,6 +112,26 @@ void ComicReaderStripModel::rebuild(const QVector<PageMeta>& pages, const Option
     endResetModel();
 }
 
+void ComicReaderStripModel::setViewportWidth(int width)
+{
+    if (width <= 0 || width == m_options.viewportWidth)
+        return;
+
+    m_options.viewportWidth = width;
+
+    // In-place rescale: same rows, new sizes. recomputeGeometry re-fits each page to
+    // the new viewport width (keeping any locked-in real source size); recomputeTops
+    // re-sums the column. dataChanged — NOT beginResetModel — so the bound ListView
+    // keeps its delegates AND its contentY, and simply reflows.
+    for (int i = 0; i < m_entries.size(); ++i)
+        recomputeGeometry(m_entries[i]);
+    recomputeTops();
+
+    if (!m_entries.isEmpty())
+        emit dataChanged(index(0, 0), index(m_entries.size() - 1, 0),
+                         {TopRole, DisplayWidthRole, DisplayHeightRole});
+}
+
 void ComicReaderStripModel::updatePage(const PageMeta& meta)
 {
     const int idx = meta.index;

@@ -80,6 +80,16 @@ public:
     // regardless of what `meta.decoded` says now — see the class comment.
     void updatePage(const PageMeta& meta);
 
+    // Viewport width changed (window resize / fullscreen). Rescales every page's
+    // geometry to the new width IN PLACE — same rows, same order, only sizes
+    // change — and emits dataChanged, NOT a model reset. A reset tears down and
+    // recreates every ListView delegate (a visible blink) and zeroes the bound
+    // ListView's contentY (a scroll jump); dataChanged keeps the delegates and the
+    // scroll, so the reader reflows smoothly the way the rest of the app does.
+    // Locked-in real page sizes are preserved; only the fit-to-width changes.
+    // No-op if width is unchanged or non-positive.
+    void setViewportWidth(int width);
+
     // Pages whose [top, bottom] band intersects [top - margin, top + vpHeight
     // + margin], margin = marginScreens * vpHeight (Task 7 uses 1.5). Returns
     // indices in ascending, contiguous order.

@@ -18,12 +18,14 @@
 
 import QtQuick
 import QtQuick.Window
+import "../"                    // FullscreenTransitionShield — the app's shared fullscreen cover
 
 Window {
     id: win
     width: 1400
     height: 900
     visible: true
+    visibility: Window.Maximized     // open full-window; fullscreen toggles against this, not a small window
     color: "#000000"
     title: "Comic Reader — Preview"
 
@@ -101,8 +103,19 @@ Window {
         onCloseRequested: Qt.quit()
         onBackRequested: Qt.quit()
         onMinimizeRequested: win.showMinimized()
-        onFullscreenRequested:
-            win.visibility = (win.visibility === Window.FullScreen) ? Window.Windowed : Window.FullScreen
+        // Route fullscreen through the SAME shield the main app uses (Main.qml): a dark cover fades in,
+        // the window mode flips BEHIND it, then it fades out on the next painted frame — so the geometry
+        // jump never shows as a shake/blink. In the real app the reader's fullscreen already reaches
+        // this shield via readerFullscreenRequested; the preview mounts its own so it feels the same.
+        onFullscreenRequested: fsShield.begin()
+    }
+
+    // the app's shared fullscreen transition cover — masks the resize/reflow beat
+    FullscreenTransitionShield {
+        id: fsShield
+        anchors.fill: parent
+        onApplyRequested:
+            win.visibility = (win.visibility === Window.FullScreen) ? Window.Maximized : Window.FullScreen
     }
 
     // ---- folder override: build the page list from argv[2] once, then re-open the shell ----

@@ -384,13 +384,11 @@ void ComicReaderCore::setStripViewportWidth(int width) {
     if (width <= 0 || width == m_stripViewportWidth)
         return;
     m_stripViewportWidth = width;
-    ComicReaderStripModel::Options opt;
-    opt.viewportWidth = m_stripViewportWidth;
-    opt.portraitWidthPct = m_portraitWidthPct;
-    opt.gap = m_stripGap;
-    // rebuild re-locks already-decoded sizes from PageMeta (decoded=true carries
-    // the real sourceSize), so a resize never loses a learned page height.
-    m_strip->rebuild(m_pages, opt);
+    // In-place geometry rescale (dataChanged, NOT a model reset): the ListView keeps its
+    // delegates and its scroll and simply reflows — no blink, no jump to page 1 — matching
+    // how the rest of the app resizes. Locked-in real page sizes are preserved. The QML
+    // strip surface scales its own scroll by the width ratio to hold the read position.
+    m_strip->setViewportWidth(width);
 }
 
 void ComicReaderCore::setMemorySaver(bool on) {

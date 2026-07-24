@@ -211,8 +211,22 @@ Item {
         if (!active || !core) return
         if (core.setStripViewport) core.setStripViewport(list.contentY, list.height)
         if (core.setStripViewportWidth && list.width !== _lastReportedWidth) {
+            // A width change (fullscreen, window resize) rescales the page column. The backend does this
+            // IN PLACE (dataChanged, not a model reset), so the ListView keeps its delegates and its
+            // contentY and simply reflows — no blink, no jump to page 1. The whole column scaled by
+            // `ratio`, so scale the (preserved) scroll by the same factor to hold the read position.
+            // forceLayout settles the new contentHeight first so the scaled value isn't clamped short.
+            // Skip the first report (_lastReportedWidth < 0): initial layout, resume owns the position.
+            var ratio = (_lastReportedWidth > 0) ? (list.width / _lastReportedWidth) : 1
             _lastReportedWidth = list.width
             core.setStripViewportWidth(list.width)
+            if (ratio > 0 && ratio !== 1 && list.contentY > 0) {
+                _programmatic = true
+                list.forceLayout()
+                list.contentY = list.contentY * ratio
+                _smoothY = list.contentY
+                _programmatic = false
+            }
         }
     }
     // becoming active (mode switched back to strip) — push the current viewport once so the backend
