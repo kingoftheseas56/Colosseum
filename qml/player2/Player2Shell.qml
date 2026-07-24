@@ -21,6 +21,9 @@ Item {
     property bool isSeries: false
     property int activeSeason: 1
 
+    // Host-resolved intro/recap/credits skip segments for the current episode (drives SkipButton).
+    property var skipSegments: []
+
     // Typed intent up to the host app: the browser picked another episode / a different source. The
     // shell forwards; the app drives the actual (re)play — the same seam pattern as fullscreenRequested.
     signal playEpisodeRequested(string episodeId)
@@ -50,6 +53,23 @@ Item {
         sourceDrawer.open = false
     }
 
+    // Ask the host for this episode's skip segments (intro/recap/credits). Re-asked whenever the
+    // playing episode changes; the host resolves once with a typed list (or empty).
+    function requestSkipSegments() {
+        if (!shell.hostServices)
+            return
+        var id = shell.currentEpisodeId.length ? shell.currentEpisodeId : shell.rootMediaId
+        if (id.length)
+            shell.hostServices.requestSkipSegments(id)
+    }
+    onCurrentEpisodeIdChanged: { shell.skipSegments = []; requestSkipSegments() }
+
+    Connections {
+        target: shell.hostServices
+        ignoreUnknownSignals: true
+        function onSkipSegmentsResolved(mediaId, segments) { shell.skipSegments = segments }
+    }
+
     Timer {
         id: hideTimer
         interval: (transportBar.paused || transportBar.buffering || !shell.session) ? 4500 : 1800
@@ -59,7 +79,7 @@ Item {
                 shell.controlsShown = false
         }
     }
-    Component.onCompleted: hideTimer.start()
+    Component.onCompleted: { hideTimer.start(); requestSkipSegments() }
 
     // Subtitles paint on the video, below the chrome, and persist when the chrome auto-hides.
     SubtitleLayer {
@@ -186,6 +206,18 @@ Item {
                 onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
             }
         }
+    }
+
+    // Skip Intro/Recap/Credits — persists through the chrome auto-hide, so it lives here (not inside the
+    // fading dock). Appears only inside a segment; hidden while a menu/drawer is open.
+    SkipButton {
+        id: skipButton
+        anchors.fill: parent
+        theme: shell.theme
+        segments: shell.skipSegments
+        positionSeconds: shell.session ? shell.session.position : 0
+        enabled: !shell.menusOpen
+        onSkipRequested: function(toSeconds) { if (shell.session) shell.session.seekExact(toSeconds) }
     }
 
     // Feature 8 — the in-player episode/source browser. Above the transport chrome; the video keeps

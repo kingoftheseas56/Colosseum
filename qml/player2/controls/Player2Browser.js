@@ -44,3 +44,26 @@ function seasonPills(seasonCount) {
     for (var s = 1; s <= n; ++s) pills.push(s)
     return pills
 }
+
+// Which host-resolved skip segment (intro/recap/credits) contains the playhead, or null. The window
+// is half-open [start, end): the start is skippable, the end is already past it, so the button clears
+// exactly when the seek would land. A missing/empty list is safe (nothing to skip).
+function activeSegment(segments, positionSeconds) {
+    if (!segments || !segments.length) return null
+    var pos = Number(positionSeconds)
+    if (!isFinite(pos)) return null
+    for (var i = 0; i < segments.length; ++i) {
+        var seg = segments[i]
+        if (pos >= Number(seg.startSeconds) && pos < Number(seg.endSeconds))
+            return seg
+    }
+    return null
+}
+
+// The skip button's label for a segment kind.
+function skipLabel(kind) {
+    if (kind === "intro") return "Skip Intro"
+    if (kind === "recap") return "Skip Recap"
+    if (kind === "credits") return "Skip Credits"
+    return "Skip"
+}

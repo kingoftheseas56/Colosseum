@@ -42,6 +42,26 @@ QtObject {
         check(pills.length === 4 && pills[0] === 1 && pills[3] === 4, "seasons derive as 1..count")
         check(Browser.seasonPills(0).length === 0, "an unknown season count yields no pills")
         check(Browser.seasonPills(1).length === 1, "a single-season show yields one pill")
+
+        // --- skip segments: which segment (if any) contains the playhead; [start,end) half-open ---
+        var segs = [
+            { kind: "intro", startSeconds: 62, endSeconds: 152, autoSkip: false },
+            { kind: "credits", startSeconds: 2520, endSeconds: 2640, autoSkip: true }
+        ]
+        check(Browser.activeSegment(segs, 30) === null, "before any segment there is nothing to skip")
+        check(Browser.activeSegment(segs, 100).kind === "intro", "mid-intro exposes the intro segment")
+        check(Browser.activeSegment(segs, 62).kind === "intro", "the segment start is inclusive")
+        check(Browser.activeSegment(segs, 152) === null, "the segment end is exclusive (already past it)")
+        check(Browser.activeSegment(segs, 200) === null, "between segments there is nothing to skip")
+        check(Browser.activeSegment(segs, 2600).kind === "credits", "mid-credits exposes the credits segment")
+        check(Browser.activeSegment([], 100) === null, "no segments means nothing to skip")
+        check(Browser.activeSegment(null, 100) === null, "a missing segment list is safe")
+
+        // --- skip label reads from the segment kind ---
+        check(Browser.skipLabel("intro") === "Skip Intro", "intro labels Skip Intro")
+        check(Browser.skipLabel("recap") === "Skip Recap", "recap labels Skip Recap")
+        check(Browser.skipLabel("credits") === "Skip Credits", "credits labels Skip Credits")
+        check(Browser.skipLabel("weird") === "Skip", "an unknown kind still labels a plain Skip")
     }
 
     Component.onCompleted: {
