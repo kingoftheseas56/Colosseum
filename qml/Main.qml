@@ -1503,6 +1503,10 @@ Window {
                 anchors.fill: parent
                 visible: worldStack.current === mode
                 active: true
+                // Stage 2: build off the GUI thread so instantiating a world (~190 tiles)
+                // never freezes the app — the page fills in progressively, and warming
+                // (below) builds it hidden ahead of the first click.
+                asynchronous: true
                 source: win.worldSourceFor(mode)
                 onLoaded: {
                     item.medium = mode
