@@ -321,16 +321,16 @@ QtObject {
             check(L.fontFamilyFor("weird") === "book", "fontFamilyFor: unknown -> book")
 
             // appearanceToPaper: shapes the glue payload + CLAMPS the numeric fields.
-            var pPay = L.appearanceToPaper({ theme: "sepia", font: "literata", sizePx: 20, lineHeight: 1.8, marginPx: 100, justify: false })
+            var pPay = L.appearanceToPaper(L.mergeAppearance(L.appearanceDefaults(),
+                { theme: "sepia", sizePct: 110, lineHeight: 1.8, marginPx: 100, justify: false }))
             check(pPay.theme.bg === "#e5d5b8" && pPay.theme.fg === "#4a3f2c", "appearanceToPaper: theme -> colors")
             check(pPay.font === "Literata", "appearanceToPaper: font -> family")
-            check(pPay.sizePx === 20 && pPay.lineHeight === 1.8 && pPay.marginPx === 100, "appearanceToPaper: passes through in-range")
+            check(pPay.sizePx === 20 && pPay.lineHeight === 1.8 && pPay.marginPx === 100, "appearanceToPaper: 110% -> 20px (round 19.8)")
             check(pPay.justify === false, "appearanceToPaper: justify bool")
-            // clamps: below-min and above-max on every numeric field.
-            var pLo = L.appearanceToPaper({ theme: "night", font: "book", sizePx: 4, lineHeight: 0.5, marginPx: 5 })
-            check(pLo.sizePx === 12 && pLo.lineHeight === 1.2 && pLo.marginPx === 24, "appearanceToPaper: clamps to the floors")
-            var pHi = L.appearanceToPaper({ theme: "night", font: "book", sizePx: 99, lineHeight: 9, marginPx: 999 })
-            check(pHi.sizePx === 26 && pHi.lineHeight === 2.2 && pHi.marginPx === 160, "appearanceToPaper: clamps to the ceilings")
+            var pLo = L.appearanceToPaper({ theme: "night", font: "book", sizePct: 10, lineHeight: 0.5, marginPx: 5 })
+            check(pLo.sizePx === 9 && pLo.lineHeight === 1.0 && pLo.marginPx === 24, "appearanceToPaper: clamps floors (50% -> 9px, lh 1.0)")
+            var pHi = L.appearanceToPaper({ theme: "night", font: "book", sizePct: 900, lineHeight: 9, marginPx: 999 })
+            check(pHi.sizePx === 54 && pHi.lineHeight === 2.2 && pHi.marginPx === 160, "appearanceToPaper: clamps ceilings (300% -> 54px)")
 
             // flow (2026-07-20): 'scrolled' passes through; anything else — including the
             // legacy stored appearance with NO flow key — normalizes to 'paginated'.
@@ -424,6 +424,34 @@ QtObject {
             check(L.hslToHex(0, 100, 50) === "#ff0000", "hslToHex: pure red")
             var hsl = L.hexToHsl("#ff0000")
             check(hsl.h === 0 && hsl.s === 100 && hsl.l === 50, "hexToHsl: pure red round-trip")
+
+            // 15c. appearanceToPaper: the parity payload.
+            var pFull = L.appearanceToPaper(L.mergeAppearance(L.appearanceDefaults(), {
+                fontWeight: 700, wordSpacing: 0.5, letterSpacing: 0.1, paraSpacing: 1.2,
+                paraIndent: "none", maxLineWidthPx: 1200, hyphens: true, columns: "spread",
+                customCss: "p { color: red }" }))
+            check(pFull.fontWeight === 700, "toPaper: fontWeight")
+            check(pFull.wordSpacing === 0.5 && pFull.letterSpacing === 0.1 && pFull.paraSpacing === 1.2, "toPaper: spacings")
+            check(pFull.paraIndent === "none" && pFull.maxLineWidthPx === 1200, "toPaper: indent + measure")
+            check(pFull.hyphens === true && pFull.columns === "spread", "toPaper: hyphens + columns")
+            check(pFull.customCss === "p { color: red }", "toPaper: customCss carried")
+            check(pFull.invertImages === true && pFull.isDark === true, "toPaper: invert + isDark (night)")
+            var pDef = L.appearanceToPaper(L.appearanceDefaults())
+            check(pDef.sizePx === 18, "toPaper: 100% == 18px (migration-invisible)")
+            check(pDef.fontWeight === 400 && pDef.wordSpacing === 0 && pDef.paraIndent === "book", "toPaper: defaults neutral")
+            check(pDef.columns === "single" && pDef.maxLineWidthPx === 960, "toPaper: default measure == today's clamp")
+            var pJunk = L.appearanceToPaper({ theme: "night", fontWeight: 350, wordSpacing: 9, paraIndent: "wat", columns: "wat", maxLineWidthPx: 50 })
+            check(pJunk.fontWeight === 400, "toPaper: weight snaps to 100-step (350 -> 400)")
+            check(pJunk.wordSpacing === 1, "toPaper: wordSpacing clamped")
+            check(pJunk.paraIndent === "book" && pJunk.columns === "single", "toPaper: junk enums -> defaults")
+            check(pJunk.maxLineWidthPx === 400, "toPaper: measure floor")
+            check(L.appearanceToPaper({ theme: "night", sizePx: 22 }).sizePx === 22, "toPaper: legacy sizePx honoured when no sizePct")
+            var pCust = L.appearanceToPaper(L.mergeAppearance(L.appearanceDefaults(), { theme: "custom", customPage: "#f0ead6", customInk: "#222222" }))
+            check(pCust.theme.bg === "#f0ead6" && pCust.isDark === false, "toPaper: custom colours + luminance darkness")
+            check(L.appearanceToPaper({ theme: "night", fontWeight: 349 }).fontWeight === 300, "toPaper: weight snaps DOWN (349 -> 300)")
+            check(L.appearanceToPaper({ theme: "night", letterSpacing: 9 }).letterSpacing === 0.5, "toPaper: letterSpacing ceiling")
+            check(L.appearanceToPaper({ theme: "night", paraSpacing: 9 }).paraSpacing === 2, "toPaper: paraSpacing ceiling")
+            check(L.appearanceToPaper({ theme: "night" }).justify === true, "toPaper: absent justify -> true (default)")
 
             // mergeAppearance: patches ONE key, keeps the rest (pure new object).
             var mBase = L.appearanceDefaults()

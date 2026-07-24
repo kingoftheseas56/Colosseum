@@ -576,23 +576,38 @@ function fontFamilyFor(name) {
     }
 }
 
-// appearanceToPaper(settings) → the glue payload the paper's setAppearance() takes:
-// { theme:{bg,fg}, font, sizePx, lineHeight, marginPx, justify }. Numeric fields are
-// CLAMPED to sane ranges here (sizePx 12..26, lineHeight 1.2..2.2, marginPx 24..160) so a
-// bad stored value can never break the paper. The ruler fields are intentionally NOT part
-// of this payload — they drive the Task 11 overlay, not the paper's text layout.
+// appearanceToPaper(settings) → the glue payload the paper's setAppearance() takes.
+// Every field is normalized/CLAMPED here so a bad stored value can never break the paper:
+// sizePct 50..300 (→ px 9..54, 100% == 18px), weight snapped to the 100 step, spacings to
+// their rem ranges, enums to their known values. The ruler + readAlong fields are
+// intentionally NOT part of this payload — they drive native overlays, not the paper.
 function appearanceToPaper(settings) {
     var s = settings || {}
+    var pct = Number.isFinite(s.sizePct) ? clamp_(s.sizePct, 50, 300)
+            : Number.isFinite(s.sizePx) ? clamp_((s.sizePx / 18) * 100, 50, 300) : 100
+    var indent = (s.paraIndent === "none" || s.paraIndent === "indent") ? s.paraIndent : "book"
+    var cols = s.columns === "spread" ? "spread" : "single"
+    // The outer clamp_ on sizePx/fontWeight is defensive insurance: the inner clamp already
+    // bounds the range, so it's a no-op today — kept so a future range-constant edit can't leak.
     return {
-        theme: themeColors(s.theme),
+        theme: appearanceThemeColors(s),
         font: fontFamilyFor(s.font),
-        sizePx: clamp_(s.sizePx, 12, 26),
-        lineHeight: clamp_(s.lineHeight, 1.2, 2.2),
-        marginPx: clamp_(s.marginPx, 24, 160),
-        justify: !!s.justify,
-        // flow: 'scrolled' is the ONLY non-default; junk or a legacy stored appearance
-        // (no flow key) normalizes to 'paginated' so the paper never sees a bad value.
-        flow: s.flow === "scrolled" ? "scrolled" : "paginated"
+        sizePx: clamp_(Math.round(18 * pct / 100), 9, 54),
+        fontWeight: clamp_(Math.round(clamp_(s.fontWeight === undefined ? 400 : s.fontWeight, 100, 900) / 100) * 100, 100, 900),
+        lineHeight: clamp_(s.lineHeight === undefined ? 1.6 : s.lineHeight, 1.0, 2.2),
+        marginPx: clamp_(s.marginPx === undefined ? 72 : s.marginPx, 24, 160),
+        justify: s.justify === undefined ? true : !!s.justify,
+        flow: s.flow === "scrolled" ? "scrolled" : "paginated",
+        wordSpacing: clamp_(s.wordSpacing === undefined ? 0 : s.wordSpacing, 0, 1),
+        letterSpacing: clamp_(s.letterSpacing === undefined ? 0 : s.letterSpacing, 0, 0.5),
+        paraSpacing: clamp_(s.paraSpacing === undefined ? 0 : s.paraSpacing, 0, 2),
+        paraIndent: indent,
+        maxLineWidthPx: clamp_(s.maxLineWidthPx === undefined ? 960 : s.maxLineWidthPx, 400, 1600),
+        hyphens: !!s.hyphens,
+        columns: cols,
+        customCss: String(s.customCss || ""),
+        invertImages: s.invertImages === undefined ? true : !!s.invertImages,
+        isDark: isDarkAppearance(s)
     }
 }
 
