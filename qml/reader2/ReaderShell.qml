@@ -1100,6 +1100,8 @@ FocusScope {
         // Appearance panel (Task 10): the chrome owns the right panel; each control edit lands
         // here → merge + persist (reader2 sub-object) + live-apply to the paper.
         onAppearanceEdited: (key, value) => shell.applyAppearancePatch(key, value)
+        onAppearanceDefaultRequested: shell.applyUseAsDefault()
+        onAppearanceResetRequested: shell.applyResetBook()
     }
 
     // The selection popover (Task 9, the pen). Declared near-LAST so it floats above the

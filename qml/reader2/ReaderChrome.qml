@@ -130,6 +130,8 @@ Item {
     signal readAlongScaleChanged(real scale)
     // appearance edits forwarded to ReaderShell (which merges + persists + live-applies)
     signal appearanceEdited(string key, var value)
+    signal appearanceDefaultRequested()
+    signal appearanceResetRequested()
     // search actions forwarded to ReaderShell (which owns paper.search / goTo / clearSearch)
     signal searchSubmitted(string query)
     signal searchResultActivated(string cfi)
@@ -694,6 +696,8 @@ Item {
         appearance: chrome.appearance
         onCloseRequested: chrome.closeAppearance()
         onChanged: (key, value) => chrome.appearanceEdited(key, value)
+        onUseAsDefault: chrome.appearanceDefaultRequested()
+        onResetBook: chrome.appearanceResetRequested()
     }
 
     // ---------- 8. SEARCH SHEET (Task 11) — top-most so it floats above the bars/panels ----------
