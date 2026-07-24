@@ -482,8 +482,84 @@ function themeColors(name) {
     case "sepia": return { bg: "#e5d5b8", fg: "#4a3f2c" }
     case "slate": return { bg: "#232830", fg: "#c6cdd8" }
     case "night": return { bg: "#111013", fg: "#eee9de" }
+    case "contrast": return { bg: "#000000", fg: "#ffffff" }
     default: return { bg: "#111013", fg: "#eee9de" }
     }
+}
+
+// appearanceThemeColors(a) → the { bg, fg } this appearance renders with — custom-aware
+// (the Custom theme's colours live in the appearance, not the name table).
+function appearanceThemeColors(a) {
+    var s = a || {}
+    if (String(s.theme).toLowerCase() === "custom")
+        return { bg: s.customPage || "#111214", fg: s.customInk || "#c9c5bc" }
+    return themeColors(s.theme)
+}
+
+// isDarkHex(hex) → perceived-dark judgment (Reader 1's formula: weighted luminance < 128).
+function isDarkHex(hex) {
+    var h = String(hex || "").replace("#", "")
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+    if (h.length !== 6) return true
+    var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 128
+}
+
+// isDarkAppearance(a) → drives image inversion + the invert toggle's visibility. Named
+// dark themes are dark; Custom is judged by its page colour.
+function isDarkAppearance(a) {
+    var t = String((a || {}).theme || "").toLowerCase()
+    if (t === "custom") return isDarkHex((a || {}).customPage || "#111214")
+    return t === "slate" || t === "night" || t === "contrast"
+}
+
+// contrastRatio(hex1, hex2) → WCAG ratio (1..21) for the custom-colour low-contrast hint.
+function contrastRatio(hex1, hex2) {
+    function lum(hex) {
+        var h = String(hex || "").replace("#", "")
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+        if (h.length !== 6) return 0
+        function ch(i) {
+            var c = parseInt(h.slice(i, i + 2), 16) / 255
+            return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4)
+    }
+    var a = lum(hex1), b = lum(hex2)
+    var hi = Math.max(a, b), lo = Math.min(a, b)
+    return (hi + 0.05) / (lo + 0.05)
+}
+
+// hslToHex(h, s, l) / hexToHsl(hex) → the custom-colour sliders' unit conversions
+// (h 0..360, s/l 0..100).
+function hslToHex(h, s, l) {
+    h = ((Number(h) % 360) + 360) % 360; s = clamp_(s, 0, 100) / 100; l = clamp_(l, 0, 100) / 100
+    var c = (1 - Math.abs(2 * l - 1)) * s
+    var x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+    var m = l - c / 2
+    var r = 0, g = 0, b = 0
+    if (h < 60) { r = c; g = x } else if (h < 120) { r = x; g = c }
+    else if (h < 180) { g = c; b = x } else if (h < 240) { g = x; b = c }
+    else if (h < 300) { r = x; b = c } else { r = c; b = x }
+    function hex2(v) { var n = Math.round((v + m) * 255); return (n < 16 ? "0" : "") + n.toString(16) }
+    return "#" + hex2(r) + hex2(g) + hex2(b)
+}
+function hexToHsl(hex) {
+    var h6 = String(hex || "").replace("#", "")
+    if (h6.length === 3) h6 = h6[0] + h6[0] + h6[1] + h6[1] + h6[2] + h6[2]
+    if (h6.length !== 6) return { h: 0, s: 0, l: 50 }
+    var r = parseInt(h6.slice(0, 2), 16) / 255, g = parseInt(h6.slice(2, 4), 16) / 255, b = parseInt(h6.slice(4, 6), 16) / 255
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min
+    var l = (max + min) / 2
+    var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+    var h = 0
+    if (d !== 0) {
+        if (max === r) h = 60 * (((g - b) / d) % 6)
+        else if (max === g) h = 60 * ((b - r) / d + 2)
+        else h = 60 * ((r - g) / d + 4)
+    }
+    if (h < 0) h += 360
+    return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) }
 }
 
 // fontFamilyFor(name) → the CSS family the glue applies. 'book' = publisher default,

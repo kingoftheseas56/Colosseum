@@ -401,6 +401,30 @@ QtObject {
             // initialAppearance still works for old callers (routes through the store now).
             check(L.initialAppearance({ reader2: { theme: "sepia" } }).theme === "sepia", "initialAppearance: legacy compat kept")
 
+            // 15b. themes: contrast + custom; darkness; contrast ratio; HSL helpers.
+            check(L.themeColors("contrast").bg === "#000000" && L.themeColors("contrast").fg === "#ffffff", "themeColors: contrast")
+            var aCust = L.mergeAppearance(L.appearanceDefaults(), { theme: "custom", customPage: "#f0ead6", customInk: "#222222" })
+            check(L.appearanceThemeColors(aCust).bg === "#f0ead6" && L.appearanceThemeColors(aCust).fg === "#222222", "appearanceThemeColors: custom uses page/ink")
+            check(L.appearanceThemeColors(L.appearanceDefaults()).bg === "#111013", "appearanceThemeColors: named theme via themeColors")
+
+            check(L.isDarkHex("#111013") === true && L.isDarkHex("#e9e4d8") === false, "isDarkHex")
+            check(L.isDarkAppearance(L.appearanceDefaults()) === true, "isDarkAppearance: night is dark")
+            check(L.isDarkAppearance(L.mergeAppearance(L.appearanceDefaults(), { theme: "paper" })) === false, "isDarkAppearance: paper is light")
+            check(L.isDarkAppearance(L.mergeAppearance(L.appearanceDefaults(), { theme: "contrast" })) === true, "isDarkAppearance: contrast is dark")
+            check(L.isDarkAppearance(aCust) === false, "isDarkAppearance: custom judged by page luminance (light page)")
+            check(L.isDarkAppearance(L.mergeAppearance(aCust, { customPage: "#101014" })) === true, "isDarkAppearance: dark custom page")
+
+            // WCAG contrast ratio: black/white == 21; low-contrast pair flags under 4.5.
+            check(Math.round(L.contrastRatio("#000000", "#ffffff")) === 21, "contrastRatio: black on white == 21")
+            check(L.contrastRatio("#777777", "#888888") < 4.5, "contrastRatio: near-identical grays < 4.5")
+            check(L.contrastRatio("#111013", "#eee9de") >= 4.5, "contrastRatio: night pairing comfortable")
+
+            // HSL round-trip (for the custom-colour sliders).
+            check(L.hslToHex(0, 0, 100) === "#ffffff" && L.hslToHex(0, 0, 0) === "#000000", "hslToHex: extremes")
+            check(L.hslToHex(0, 100, 50) === "#ff0000", "hslToHex: pure red")
+            var hsl = L.hexToHsl("#ff0000")
+            check(hsl.h === 0 && hsl.s === 100 && hsl.l === 50, "hexToHsl: pure red round-trip")
+
             // mergeAppearance: patches ONE key, keeps the rest (pure new object).
             var mBase = L.appearanceDefaults()
             var mNext = L.mergeAppearance(mBase, { theme: "paper" })
