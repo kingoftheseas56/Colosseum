@@ -64,6 +64,8 @@ public:
     void flush(quint64 nextGeneration);
 
     std::optional<PresentationFrame> acquirePresentationFrame(quint64 generation);
+    // Presents the ring's CURRENT generation — the paint item follows seeks automatically.
+    std::optional<PresentationFrame> acquirePresentationFrame();
     bool waitForProducer(quint64 sequence);
     bool retireAfterRendering(std::size_t slot);
     ID3D11Texture2D *consumerTexture(std::size_t slot) const;

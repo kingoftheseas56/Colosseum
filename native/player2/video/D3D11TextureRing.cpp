@@ -50,9 +50,22 @@ bool D3D11TextureRing::publishProduced(std::size_t slot, VideoFrameToken token)
 }
 
 std::optional<D3D11TextureRing::ConsumerSelection>
+D3D11TextureRing::acquireLatestForConsumer()
+{
+    std::scoped_lock lock(m_mutex);
+    return acquireLatestForConsumerLocked(m_generation);
+}
+
+std::optional<D3D11TextureRing::ConsumerSelection>
 D3D11TextureRing::acquireLatestForConsumer(quint64 generation)
 {
     std::scoped_lock lock(m_mutex);
+    return acquireLatestForConsumerLocked(generation);
+}
+
+std::optional<D3D11TextureRing::ConsumerSelection>
+D3D11TextureRing::acquireLatestForConsumerLocked(quint64 generation)
+{
     if (generation != m_generation)
         return std::nullopt;
 

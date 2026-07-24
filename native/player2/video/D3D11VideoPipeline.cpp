@@ -463,6 +463,15 @@ D3D11VideoPipeline::acquirePresentationFrame(quint64 generation)
     return PresentationFrame{selection->slot, selection->token, selection->retiringSlot};
 }
 
+std::optional<D3D11VideoPipeline::PresentationFrame>
+D3D11VideoPipeline::acquirePresentationFrame()
+{
+    const auto selection = m_ring.acquireLatestForConsumer();
+    if (!selection)
+        return std::nullopt;
+    return PresentationFrame{selection->slot, selection->token, selection->retiringSlot};
+}
+
 std::optional<VideoFrameToken>
 D3D11VideoPipeline::acquireLatestForPresentation(quint64 generation)
 {

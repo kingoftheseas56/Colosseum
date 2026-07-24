@@ -47,7 +47,6 @@ private:
     std::array<std::unique_ptr<QSGTexture>, D3D11TextureRing::SlotCount> m_textures;
     std::optional<std::size_t> m_pendingRetire;
     QString m_error;
-    quint64 m_generation = 1;
     bool m_initialized = false;
     bool m_afterRenderingConnected = false;
 };
