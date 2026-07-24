@@ -46,6 +46,7 @@ Item {
     property bool audioPlaying: false
     property string audioTimeLine: ""
     property real audioProgress: 0
+    property real audioDurationSec: 0         // numeric total (s) — for the scrub tooltip's time
     property string audioSpeedLabel: "1.0×"
     property var audioPlaylist: []            // chapter/file labels for the Audio tab's playlist
     property int audioCurrentIndex: -1        // playing row (-1 = not live)
@@ -324,247 +325,303 @@ Item {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: bottomRail.top
         anchors.bottomMargin: 10
-        width: Math.max(hudRow.implicitWidth + 52, 470)
-        height: 80
+        property bool showRemaining: false        // scrub total ↔ remaining (click the total)
+        width: Math.min(600, (parent ? parent.width : 648) - 48)
+        height: 138
         radius: 24
         color: Theme.bar
         border.color: Theme.barBorder
         border.width: 1
         MouseArea { anchors.fill: parent }        // swallow — nothing falls through to the page
 
-        // Ratified layout (Hemanth 2026-07-18): [prev chapter] [10s back] [play/pause]
-        // [10s fwd] [next chapter] [speed] [playlist] over a SCRUB RAIL (TB2 parity).
-        // Glyphs are HAND-DRAWN QML Canvas (AudioGlyph — the player's forged-line family;
-        // his call after the SVG skip icons rendered badly). A reusable cell keeps the
-        // buttons uniform.
+        // Overhauled 2026-07-25 (Hemanth): three tiers in the reader's glass, rebuilt to the
+        // VIDEO player's craft — now-playing chapter line (Fraunces) · premium scrubber (grow +
+        // floating time tooltip) · balanced 3-zone transport (volume · [prev·−10·PLAY·+10·next] ·
+        // speed·list) with hover-scale round buttons + a white hero play. Icons stay the hand-drawn
+        // AudioGlyph forged-line family (Hemanth's ratified call); only the button chrome is new.
+        // Chapter TICKS on the rail are DEFERRED — they need per-chapter position data not yet wired.
+        //
+        // A round transport cell: an AudioGlyph inside the video HUD's RoundButton treatment —
+        // hover raises a faint disc + scales the cell up (1.04), press dips it (0.95).
         component HudGlyphButton: Item {
             id: hgb
             property string kind: ""
             property string label: ""
-            property int box: 27
+            property int box: 40                              // round-button diameter
             signal clicked()
             width: box; height: box
             anchors.verticalCenter: parent.verticalCenter
-            AudioGlyph {
+            scale: hgbMa.pressed ? 0.95 : (hgbMa.containsMouse ? 1.04 : 1.0)
+            Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+            Rectangle {
                 anchors.fill: parent
+                radius: width / 2
+                color: hgbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                Behavior on color { ColorAnimation { duration: 120 } }
+            }
+            AudioGlyph {
+                anchors.centerIn: parent
+                width: Math.round(hgb.box * 0.62); height: Math.round(hgb.box * 0.62)
                 kind: hgb.kind
                 label: hgb.label
                 ink: Theme.ink
-                opacity: hgbMa.containsMouse ? 1.0 : 0.55
+                opacity: hgbMa.containsMouse ? 1.0 : 0.62
                 Behavior on opacity { NumberAnimation { duration: 120 } }
             }
-            MouseArea { id: hgbMa; anchors.fill: parent; anchors.margins: -7
+            MouseArea { id: hgbMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: hgb.clicked() }
         }
 
-        Row {
-            id: hudRow
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.top: parent.top
-            anchors.topMargin: 9
-            height: 38
-            spacing: 18
+        // ---- tier 1 · now-playing chapter line (Fraunces — the book's own serif) ----
+        Item {
+            id: chapterLine
+            anchors.top: parent.top; anchors.topMargin: 16
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 22; anchors.rightMargin: 22
+            height: 22
+            readonly property int idx: chrome.audioCurrentIndex
+            readonly property int count: chrome.audioPlaylist ? chrome.audioPlaylist.length : 0
+            readonly property string chapTitle: (idx >= 0 && idx < count)
+                ? String(chrome.audioPlaylist[idx])
+                : (chrome.audioTitle !== "" ? chrome.audioTitle : "Audiobook")
 
-            HudGlyphButton { kind: "prevChapter"; box: 33; onClicked: chrome.audioPrevChapterRequested() }
-            HudGlyphButton { kind: "seekBack"; label: "10"; box: 31
-                             onClicked: chrome.audioSkipRequested(-10) }
-
-            Rectangle {                           // play / pause — white circle, dark forged-line glyph
+            Text {
+                anchors.left: parent.left; anchors.right: chapPos.left; anchors.rightMargin: 14
                 anchors.verticalCenter: parent.verticalCenter
-                width: 40; height: 40; radius: 20
-                color: Theme.ink
-                AudioGlyph {
-                    anchors.centerIn: parent
-                    width: 40; height: 40
-                    // nudge the play triangle right for optical centering (family convention)
-                    anchors.horizontalCenterOffset: chrome.audioPlaying ? 0 : 1
-                    kind: chrome.audioPlaying ? "pause" : "play"
-                    ink: "#14161d"
-                }
-                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: chrome.audioPlayToggled() }
+                text: chapterLine.chapTitle
+                elide: Text.ElideRight
+                color: clMa.containsMouse ? Theme.ink : Theme.inkTitle
+                font.family: Theme.display; font.weight: Font.Medium; font.pixelSize: 16
             }
-
-            HudGlyphButton { kind: "seekForward"; label: "10"; box: 31
-                             // box MUST equal seekBack's — the pair is one drawing mirrored, so
-                             // unequal boxes = visibly unequal icons (Hemanth's 2026-07-20 catch)
-                             onClicked: chrome.audioSkipRequested(10) }
-            HudGlyphButton { kind: "nextChapter"; box: 33; onClicked: chrome.audioNextChapterRequested() }
-
-            Item {                                // speed — gauge glyph + the current rate beside it
-                width: speedIconRow.implicitWidth; height: 30
-                anchors.verticalCenter: parent.verticalCenter
-                Row {
-                    id: speedIconRow
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 5
-                    AudioGlyph {
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 27; height: 27
-                        kind: "speed"
-                        ink: Theme.ink
-                        opacity: spdMa.containsMouse ? 1.0 : 0.55
-                    }
-                    Text {
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: chrome.audioSpeedLabel
-                        color: spdMa.containsMouse ? Theme.ink : Theme.inkDim
-                        font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
-                    }
-                }
-                MouseArea { id: spdMa; anchors.fill: parent; anchors.margins: -7
-                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            onClicked: chrome.audioSpeedCycled() }
+            Text {
+                id: chapPos
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                visible: chapterLine.count > 0
+                text: chapterLine.idx >= 0 ? ((chapterLine.idx + 1) + " of " + chapterLine.count)
+                                           : (chapterLine.count + " chapters")
+                color: Theme.inkFaint
+                font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.Medium
+                font.features: ({ "tnum": 1 })
             }
-
-            HudGlyphButton { kind: "playlist"; box: 31
-                             // the playlist LIVES in the left panel's Audio tab — opens it there
-                             onClicked: chrome.openPanelTo("audio") }
-
-            Item {                                // volume — mute glyph + compact gold rail
-                // (Hemanth 2026-07-20: "there needs to be a volume control".) The video
-                // player's VolumeControl pattern at pill scale: glyph toggles mute, the
-                // rail drags 0..1. Appended AFTER the ratified 7 slots — a utility, not
-                // transport, mirroring the player's utility-cluster placement.
-                width: volRow.implicitWidth; height: 30
-                anchors.verticalCenter: parent.verticalCenter
-                Row {
-                    id: volRow
-                    spacing: 8
-                    anchors.verticalCenter: parent.verticalCenter
-                    HudGlyphButton {
-                        kind: (chrome.audioMuted || chrome.audioVolume <= 0) ? "mute" : "volume"
-                        box: 29
-                        onClicked: chrome.audioMuteToggled()
-                    }
-                    Item {
-                        id: volRail
-                        width: 58; height: 30
-                        anchors.verticalCenter: parent.verticalCenter
-                        Rectangle {               // track
-                            anchors.left: parent.left; anchors.right: parent.right
-                            anchors.verticalCenter: parent.verticalCenter
-                            height: volMa.containsMouse || volMa.pressed ? 5 : 3
-                            radius: height / 2
-                            color: Theme.track
-                        }
-                        Rectangle {               // fill
-                            anchors.left: parent.left
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume)))
-                            height: volMa.containsMouse || volMa.pressed ? 5 : 3
-                            radius: height / 2
-                            color: Theme.gold
-                        }
-                        Rectangle {               // knob — hover/drag only (rail manners)
-                            visible: volMa.containsMouse || volMa.pressed
-                            x: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume))) - width / 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 11; height: 11; radius: 5.5
-                            color: Theme.gold
-                        }
-                        MouseArea {
-                            id: volMa
-                            anchors.fill: parent
-                            anchors.topMargin: -6; anchors.bottomMargin: -6
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            function apply() { chrome.audioVolumeRequested(Math.max(0, Math.min(1, mouseX / Math.max(1, volRail.width)))) }
-                            onPressed: apply()
-                            onPositionChanged: if (pressed) apply()
-                        }
-                    }
-                }
-            }
+            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor; onClicked: chrome.openPanelTo("audio") }
         }
 
-        // ---- the SCRUB RAIL (TB2/Max parity): elapsed · draggable timeline · total ----
+        // ---- tier 2 · the scrubber (elapsed · rail w/ time tooltip · total) ----
         Item {
-            anchors.left: parent.left
-            anchors.right: parent.right
-            anchors.bottom: parent.bottom
-            anchors.leftMargin: 22
-            anchors.rightMargin: 22
-            anchors.bottomMargin: 10
-            height: 18
+            id: scrubRow
+            anchors.top: chapterLine.bottom; anchors.topMargin: 10
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 22; anchors.rightMargin: 22
+            height: 20
 
             Text {
                 id: posLabel
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                 text: chrome.audioPosLabel !== "" ? chrome.audioPosLabel : "0:00"
-                color: Theme.inkFaint
-                font.family: Theme.ui; font.pixelSize: 11
+                color: Theme.ink
+                font.family: Theme.ui; font.pixelSize: 12; font.features: ({ "tnum": 1 })
             }
             Text {
                 id: durLabel
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                text: chrome.audioDurLabel !== "" ? chrome.audioDurLabel : "–:––"
-                color: Theme.inkFaint
-                font.family: Theme.ui; font.pixelSize: 11
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                text: (audioHud.showRemaining && chrome.audioDurationSec > 0)
+                      ? ("-" + L.fmtClock_(Math.max(0, (1 - Math.max(0, Math.min(1, chrome.audioProgress))) * chrome.audioDurationSec)))
+                      : (chrome.audioDurLabel !== "" ? chrome.audioDurLabel : "–:––")
+                color: durMa.containsMouse ? Theme.ink : Theme.inkDim
+                font.family: Theme.ui; font.pixelSize: 12; font.features: ({ "tnum": 1 })
+                MouseArea { id: durMa; anchors.fill: parent; anchors.margins: -4
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            enabled: chrome.audioDurationSec > 0
+                            onClicked: audioHud.showRemaining = !audioHud.showRemaining }
             }
             Item {
                 id: scrubRail
-                anchors.left: posLabel.right
-                anchors.right: durLabel.left
-                anchors.leftMargin: 10
-                anchors.rightMargin: 10
+                anchors.left: posLabel.right; anchors.right: durLabel.left
+                anchors.leftMargin: 12; anchors.rightMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 height: parent.height
                 Rectangle {                       // track
                     anchors.left: parent.left; anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     height: railMa.containsMouse || railMa.pressed ? 5 : 3
-                    radius: height / 2
-                    color: Theme.track
+                    radius: height / 2; color: Theme.track
+                    Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                 }
                 Rectangle {                       // fill
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     width: parent.width * Math.max(0, Math.min(1, chrome.audioProgress))
                     height: railMa.containsMouse || railMa.pressed ? 5 : 3
-                    radius: height / 2
-                    color: Theme.gold
+                    radius: height / 2; color: Theme.gold
+                    Behavior on height { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                 }
-                Rectangle {                       // knob — appears on hover/drag (player-rail manners)
-                    visible: railMa.containsMouse || railMa.pressed
+                Rectangle {                       // handle — persistent, grows on drag (video parity)
+                    visible: chrome.audioAttached
                     x: parent.width * Math.max(0, Math.min(1, chrome.audioProgress)) - width / 2
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 11; height: 11; radius: 5.5
-                    color: Theme.gold
+                    width: railMa.pressed ? 14 : 12; height: width; radius: width / 2
+                    color: Theme.gold; border.width: 1; border.color: Qt.rgba(0, 0, 0, 0.32)
+                    Behavior on width { NumberAnimation { duration: 90 } }
                 }
                 MouseArea {
                     id: railMa
                     anchors.fill: parent
-                    anchors.topMargin: -6
-                    anchors.bottomMargin: -6
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    // Split (Task 6): press/drag PREVIEW, release COMMIT. ReaderShell decides
-                    // what preview/commit mean — previewTime/commitTime when read-along is
-                    // available (no seek until release), a plain seek on preview when dormant.
-                    // The release-COMMIT only fires when read-along is available, so DORMANT is
-                    // byte-for-byte today: preview seeks continuously on press/drag, release
-                    // does nothing (the aligned one-commit-on-release is a read-along-only add).
+                    anchors.topMargin: -6; anchors.bottomMargin: -6
+                    hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                    // press/drag PREVIEW, release COMMIT (read-along only). DORMANT today is
+                    // byte-for-byte the old continuous-seek-on-preview behavior.
                     function frac() { return Math.max(0, Math.min(1, mouseX / Math.max(1, scrubRail.width))) }
                     onPressed: chrome.audioScrubPreviewed(frac())
                     onPositionChanged: if (pressed) chrome.audioScrubPreviewed(frac())
                     onReleased: if (chrome.readAlongAvailable) chrome.audioScrubCommitted(frac())
                     onCanceled: if (chrome.readAlongAvailable) chrome.audioScrubCommitted(frac())
                 }
-                // read-along scrub PREVIEW read-out (timestamp · chapter) — floats above the
-                // rail while dragging an aligned timeline; hidden entirely when dormant.
+                // floating time tooltip — the cursor's time (video SeekBar parity). Hidden when the
+                // read-along preview label is talking, or when there is no known duration.
+                Rectangle {
+                    id: timeTip
+                    visible: (railMa.containsMouse || railMa.pressed) && chrome.audioDurationSec > 0
+                             && !(chrome.readAlongAvailable && chrome.readAlongPreviewActive)
+                    color: Qt.rgba(0, 0, 0, 0.86); radius: 7
+                    height: 24; width: tipText.implicitWidth + 18
+                    anchors.bottom: parent.top; anchors.bottomMargin: 6
+                    x: Math.max(0, Math.min(scrubRail.width - width, railMa.mouseX - width / 2))
+                    Text {
+                        id: tipText
+                        anchors.centerIn: parent
+                        text: L.fmtClock_(railMa.frac() * chrome.audioDurationSec)
+                        color: Theme.ink
+                        font.family: Theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                        font.features: ({ "tnum": 1 })
+                    }
+                }
+                // read-along scrub PREVIEW read-out (timestamp · chapter) — dormant today.
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.bottom: parent.top
-                    anchors.bottomMargin: 4
+                    anchors.bottomMargin: 6
                     visible: chrome.readAlongAvailable && chrome.readAlongPreviewActive && chrome.readAlongPreviewLabel !== ""
                     text: chrome.readAlongPreviewLabel
                     color: Theme.gold
                     font.family: Theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
                 }
+            }
+        }
+
+        // ---- tier 3 · transport: [volume] · [prev · −10 · PLAY · +10 · next] · [speed · list] ----
+        Item {
+            id: transport
+            anchors.top: scrubRow.bottom; anchors.topMargin: 8
+            anchors.left: parent.left; anchors.right: parent.right
+            anchors.leftMargin: 22; anchors.rightMargin: 22
+            height: 52
+
+            // LEFT zone · volume (the video HUD places volume on the left)
+            Row {
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                spacing: 6
+                HudGlyphButton {
+                    kind: (chrome.audioMuted || chrome.audioVolume <= 0) ? "mute" : "volume"
+                    box: 36
+                    onClicked: chrome.audioMuteToggled()
+                }
+                Item {
+                    id: volRail
+                    width: 58; height: 20
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {                   // track
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        height: volMa.containsMouse || volMa.pressed ? 5 : 3
+                        radius: height / 2; color: Theme.track
+                        Behavior on height { NumberAnimation { duration: 120 } }
+                    }
+                    Rectangle {                   // fill
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume)))
+                        height: volMa.containsMouse || volMa.pressed ? 5 : 3
+                        radius: height / 2; color: Theme.gold
+                        Behavior on height { NumberAnimation { duration: 120 } }
+                    }
+                    Rectangle {                   // knob — hover/drag only (rail manners)
+                        visible: volMa.containsMouse || volMa.pressed
+                        x: parent.width * (chrome.audioMuted ? 0 : Math.max(0, Math.min(1, chrome.audioVolume))) - width / 2
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 11; height: 11; radius: 5.5; color: Theme.gold
+                    }
+                    MouseArea {
+                        id: volMa
+                        anchors.fill: parent; anchors.topMargin: -6; anchors.bottomMargin: -6
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        function apply() { chrome.audioVolumeRequested(Math.max(0, Math.min(1, mouseX / Math.max(1, volRail.width)))) }
+                        onPressed: apply()
+                        onPositionChanged: if (pressed) apply()
+                    }
+                }
+            }
+
+            // CENTER zone · transport
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 10
+                HudGlyphButton { kind: "prevChapter"; box: 40; onClicked: chrome.audioPrevChapterRequested() }
+                HudGlyphButton { kind: "seekBack"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(-10) }
+                Rectangle {                       // HERO play — white circle, dark forged-line glyph
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 48; height: 48; radius: 24; color: Theme.ink
+                    scale: heroMa.pressed ? 0.95 : (heroMa.containsMouse ? 1.05 : 1.0)
+                    Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+                    AudioGlyph {
+                        anchors.centerIn: parent
+                        width: 30; height: 30
+                        // nudge the play triangle right for optical centering (family convention)
+                        anchors.horizontalCenterOffset: chrome.audioPlaying ? 0 : 1
+                        kind: chrome.audioPlaying ? "pause" : "play"
+                        ink: "#14161d"
+                    }
+                    MouseArea { id: heroMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor; onClicked: chrome.audioPlayToggled() }
+                }
+                HudGlyphButton { kind: "seekForward"; label: "10"; box: 40; onClicked: chrome.audioSkipRequested(10) }
+                HudGlyphButton { kind: "nextChapter"; box: 40; onClicked: chrome.audioNextChapterRequested() }
+            }
+
+            // RIGHT zone · utilities (speed · chapter list)
+            Row {
+                anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                spacing: 4
+                Item {                            // speed — gauge glyph + rate, pill hover
+                    width: speedInner.implicitWidth + 16; height: 34
+                    anchors.verticalCenter: parent.verticalCenter
+                    Rectangle {
+                        anchors.fill: parent; radius: 17
+                        color: spdMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                    }
+                    Row {
+                        id: speedInner
+                        anchors.centerIn: parent
+                        spacing: 5
+                        AudioGlyph {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 22; height: 22; kind: "speed"; ink: Theme.ink
+                            opacity: spdMa.containsMouse ? 1.0 : 0.62
+                        }
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: chrome.audioSpeedLabel
+                            color: spdMa.containsMouse ? Theme.ink : Theme.inkDim
+                            font.family: Theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                            font.features: ({ "tnum": 1 })
+                        }
+                    }
+                    MouseArea { id: spdMa; anchors.fill: parent; hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor; onClicked: chrome.audioSpeedCycled() }
+                }
+                HudGlyphButton { kind: "playlist"; box: 36; onClicked: chrome.openPanelTo("audio") }
             }
         }
     }

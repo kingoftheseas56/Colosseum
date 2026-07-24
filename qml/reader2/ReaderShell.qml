@@ -374,6 +374,9 @@ FocusScope {
     readonly property string audioPosLabel: shell.audioSessionLive ? L.fmtClock_(shell.audioSession.position) : ""
     readonly property string audioDurLabel: (shell.audioSessionLive && shell.audioSession.duration > 0)
         ? L.fmtClock_(shell.audioSession.duration) : ""
+    // Numeric total (seconds) for the HUD scrub-tooltip's time readout (same source as audioDurLabel).
+    readonly property real audioDurationSec: (shell.audioSessionLive && shell.audioSession.duration > 0)
+        ? shell.audioSession.duration : 0
     // CHOSEN speed (Hemanth 2026-07-18: "the speed button does not do anything" — it only
     // acted on a LIVE stream). The choice now lives shell-side: cycling always works and
     // shows, and it's applied to the session on load and on every cycle while live.
@@ -993,6 +996,7 @@ FocusScope {
         audioCurrentIndex: shell.audioCurrentIndex
         audioPosLabel: shell.audioPosLabel
         audioDurLabel: shell.audioDurLabel
+        audioDurationSec: shell.audioDurationSec
         audioVolume: shell.audioVolume
         audioMuted: shell.audioMuted
 
