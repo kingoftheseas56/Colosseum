@@ -59,6 +59,17 @@ Item {
     signal closeRequested()
     signal sourceRequested(string entryId)     // a not-ready tankoban volume needs the series page's source chooser
 
+    // --- Task 11 chrome intents: the HUD / input emit these; Task 12 mounts the overlays that
+    // consume them. Until then they are honest seams (no overlay exists), so `modalOpen` stays false. ---
+    signal navigatorRequested()
+    signal thumbnailsRequested()
+    signal settingsRequested()
+    signal bookmarkToggleRequested()
+    signal goToPageRequested()
+    signal shortcutsRequested()
+    signal loupeRequested()
+    signal closeTopRequested()
+
     // --- store resolution (contract §3): injected pageStore wins, else western=Comics / manga=Downloads ---
     readonly property var store: pageStore ? pageStore
         : (western ? (typeof Comics !== "undefined" ? Comics : null)
@@ -225,6 +236,63 @@ Item {
         openEntryById(id, !!atLast)
     }
 
+    // ================= page navigation (Task 11 input + HUD drive these) =================
+    // Within-entry page/unit navigation — DISTINCT from crossing (goNext/goPrev change the ENTRY).
+    // Double mode snaps to canonical units (via the backend's unitForPage); strip mode nudges the
+    // scroll by viewport-heights (the strip surface owns the smooth-wheel feel for gestures).
+    function _unitBoundsForIndex(idx0) {
+        // [lo0, hi0] 0-based page indices of the canonical unit containing idx0 (self if no pairing)
+        if (core && core.unitForPage) {
+            var u = core.unitForPage(idx0)
+            if (u) {
+                var a = []
+                if (u.rightIndex !== undefined && u.rightIndex >= 0) a.push(u.rightIndex)
+                if (u.leftIndex !== undefined && u.leftIndex >= 0) a.push(u.leftIndex)
+                if (a.length) return [Math.min.apply(null, a), Math.max.apply(null, a)]
+            }
+        }
+        return [idx0, idx0]
+    }
+    function pageNext() {
+        if (mode === "double_page") {
+            var t = _unitBoundsForIndex(currentPage - 1)[1] + 1
+            if (t < max) currentPage = _unitBoundsForIndex(t)[0] + 1
+        } else _stripScroll(0.9)
+    }
+    function pagePrev() {
+        if (mode === "double_page") {
+            var t = _unitBoundsForIndex(currentPage - 1)[0] - 1
+            if (t >= 0) currentPage = _unitBoundsForIndex(t)[0] + 1
+        } else _stripScroll(-0.9)
+    }
+    function goToPageIndex(p1) {
+        var p = Math.max(1, Math.min(Math.max(1, max), Math.round(p1)))
+        if (mode === "double_page") p = _unitBoundsForIndex(p - 1)[0] + 1
+        currentPage = p
+    }
+    function _stripScroll(screens) {
+        var span = stripSurface.contentHeight - stripSurface.height
+        if (span <= 0) return
+        stripSurface.contentY = Math.max(0, Math.min(span, stripSurface.contentY + screens * stripSurface.height))
+    }
+    function scrubToFraction(frac) {
+        var f = Math.max(0, Math.min(1, frac))
+        stripFraction = f
+        var span = stripSurface.contentHeight - stripSurface.height
+        if (span > 0) stripSurface.contentY = f * span
+    }
+    function firstPageNav() { currentPage = 1; if (mode === "long_strip") stripSurface.contentY = 0 }
+    function lastPageNav() {
+        goToPageIndex(max)
+        if (mode === "long_strip")
+            stripSurface.contentY = Math.max(0, stripSurface.contentHeight - stripSurface.height)
+    }
+    // mode/direction TOGGLES write the PERSISTED seam (never mode/rtl directly) so a crossing's
+    // load() honors the choice; the reactions below flip the visible mode/rtl live.
+    function cycleMode() { persistedMode = (mode === "double_page") ? "long_strip" : "double_page" }
+    function toggleDirection() { persistedDirection = rtl ? "ltr" : "rtl" }
+    function nudgeCoupling() { if (core && core.nudgeCoupling) core.nudgeCoupling() }
+
     // ================= progress (Continue) =================
     // Build the payload via ComicReaderState.progressPayload (byte-identical to contract §4.1) and
     // record it — BUT ONLY when max > 0 (MangaReader.qml:211 guard: progressPayload assumes max>0).
@@ -273,6 +341,17 @@ Item {
     }
     // runtime chapterId change (a caller re-targets the reader) — construction is handled by onCompleted
     onChapterIdChanged: { if (_ready && chapterId !== curChapterId) openEntryById(chapterId, false) }
+    // Task 11: a HUD/input toggle writes the PERSISTED seam; flip the visible mode/rtl live. Guarded
+    // by _ready so construction-time defaults (persisted "" during createObject) never fire this —
+    // load() owns the initial mode/direction. persistedMode/Direction stay the single source load()
+    // reads on every crossing, so the toggle survives a chapter/volume jump.
+    onPersistedModeChanged: if (_ready && persistedMode.length && mode !== persistedMode) mode = persistedMode
+    onPersistedDirectionChanged: {
+        if (_ready && persistedDirection.length) {
+            var want = (persistedDirection === "rtl")
+            if (rtl !== want) rtl = want
+        }
+    }
     // callers HIDE (visible:false) on back and SHOW again to reopen — flush the Continue spot but
     // KEEP the backend entry open, or reopen-same-entry would show a blank reader. The entry is torn
     // down ONLY on destruction (Component.onDestruction).
@@ -330,6 +409,79 @@ Item {
     // reflect the active double surface's zoom onto the shell for the HUD/settings (Task 11); the
     // double surface owns zoom/pan authoritatively (it resets them per unit).
     Binding { target: reader; property: "zoomPercent"; value: doubleSurface.zoomPercent; when: doubleSurface.active }
+
+    // ================= chrome (Task 11): semantic input + Family Gradient HUD =================
+    // Mount ORDER = z-order: surfaces (below) -> input (fills the reader, below the HUD) -> HUD
+    // (over everything). The shell owns keyboard focus, so it forwards keys into the input's pure map.
+    Keys.onPressed: function (event) {
+        if (comicInput.keyAction(event.key, event.modifiers) !== "") event.accepted = true
+    }
+
+    ComicReaderInput {
+        id: comicInput
+        anchors.fill: parent
+        // reading-state mirrors bound from the shell
+        mode: reader.mode
+        rtl: reader.rtl
+        zoomPercent: reader.zoomPercent
+        modalOpen: reader.modalOpen
+        chromeVisible: reader.chromeVisible
+        // within-entry navigation + surface control
+        onNext: reader.pageNext()
+        onPrevious: reader.pagePrev()
+        onScrollBy: function (screens) { reader._stripScroll(screens) }
+        onZoomBy: function (delta) { if (doubleSurface) doubleSurface.setZoom(doubleSurface.clampedZoom + delta) }
+        onPanBy: function (dx, dy) { if (doubleSurface) doubleSurface.panBy(dx, dy) }
+        // chrome + window verbs
+        onToggleChrome: reader.chromeVisible = !reader.chromeVisible
+        onToggleFullscreen: reader.fullscreenRequested()
+        onBack: reader.backRequested()
+        // mode / direction / coupling toggles -> persisted seams
+        onCycleMode: reader.cycleMode()
+        onToggleDirection: reader.toggleDirection()
+        onNudgeCoupling: reader.nudgeCoupling()
+        // first/last + crossing
+        onFirstPage: reader.firstPageNav()
+        onLastPage: reader.lastPageNav()
+        onPrevEntry: reader.goPrev(false)
+        onNextEntry: reader.goNext()
+        // overlay intents (Task 12 wires the overlays)
+        onOpenSettings: reader.settingsRequested()
+        onOpenNavigator: reader.navigatorRequested()
+        onOpenThumbnails: reader.thumbnailsRequested()
+        onToggleBookmark: reader.bookmarkToggleRequested()
+        onGoToPage: reader.goToPageRequested()
+        onOpenShortcuts: reader.shortcutsRequested()
+        onToggleLoupe: reader.loupeRequested()
+        onCloseTop: reader.closeTopRequested()
+        onOpenContextMenu: reader.settingsRequested()
+        // reveal-zone hover keeps the HUD alive
+        onRevealRequested: hud.reveal()
+        onActivity: hud.notifyActivity()
+    }
+
+    ComicReaderHud {
+        id: hud
+        anchors.fill: parent
+        reader: reader
+        bookmarkPages: (reader.persistedState && reader.persistedState.bookmarks) ? reader.persistedState.bookmarks : []
+        // scrub -> shell navigation
+        onSeekRequested: function (page) { reader.goToPageIndex(page) }
+        onScrubFractionRequested: function (frac) { reader.scrubToFraction(frac) }
+        // prev/next PILLS cross entries (bound to hasPrev/hasNext, per the crossing note above)
+        onPrevRequested: reader.goPrev(false)
+        onNextRequested: reader.goNext()
+        // overlay intents
+        onOpenNavigator: reader.navigatorRequested()
+        onOpenThumbnails: reader.thumbnailsRequested()
+        onOpenSettings: reader.settingsRequested()
+        onToggleBookmark: reader.bookmarkToggleRequested()
+        // window verbs -> the shell's existing session-window signals
+        onBackRequested: reader.backRequested()
+        onMinimizeRequested: reader.minimizeRequested()
+        onFullscreenRequested: reader.fullscreenRequested()
+        onCloseRequested: reader.closeRequested()
+    }
 
     // an injected page store (or a future store) may not emit this exact progress/finished/failed
     // triple — don't spam "no such signal" warnings. A completed download re-runs load() so the
