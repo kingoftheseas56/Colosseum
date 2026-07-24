@@ -33,6 +33,9 @@ git -C "$REPO" archive --format=tar HEAD | tar -x -C "$STAGE"
 
 echo "[3/6] overlay CURRENT windeployqt runtime (today's build)"
 cp -r "$REPO/native/build-msvc" "$STAGE/native/"
+# Felt-speed Stage 0: an installer without the webp decoder ships blank covers. Refuse.
+[ -f "$STAGE/native/build-msvc/imageformats/qwebp.dll" ] \
+  || { echo "qwebp.dll missing from runtime — run native/deploy-runtime.bat first"; exit 1; }
 
 echo "[4/6] strip build intermediates (keeps ALL runtime: dlls, tools/, qml/, resources/, translations/)"
 ( cd "$STAGE/native/build-msvc"
