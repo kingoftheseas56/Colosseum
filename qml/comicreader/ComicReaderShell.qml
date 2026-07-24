@@ -108,7 +108,9 @@ Item {
     property int    zoomPercent: 100            // paged zoom (surfaces, later)
     property real   stripFraction: 0            // long-strip scroll fraction (resume + HUD scrub, later)
     property bool   chromeVisible: true         // HUD visibility (Task 11)
-    property bool   modalOpen: false            // an overlay is up (Task 12)
+    // an overlay is up (Task 12) — swallows background input + pauses auto-hide. Aggregated off the
+    // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
+    readonly property bool modalOpen: settingsSheet.opened
 
     // crossing enable-state — Task 11's prev/next pills and Task 12's end card bind THESE instead
     // of re-deriving the newest-first math (index-1 = newer/next, index+1 = older/previous).
@@ -481,6 +483,18 @@ Item {
         onMinimizeRequested: reader.minimizeRequested()
         onFullscreenRequested: reader.fullscreenRequested()
         onCloseRequested: reader.closeRequested()
+    }
+
+    // ---- overlays (Task 12) — mounted ABOVE the HUD so they own input while open ----
+    ComicReaderSettingsSheet {
+        id: settingsSheet
+        reader: reader   // sizes itself to the shell (explicit width/height binding, see the component)
+    }
+    // the settings pill / right-click / S key -> open the sheet; Escape (closeTop) -> close it
+    Connections {
+        target: reader
+        function onSettingsRequested()  { settingsSheet.open() }
+        function onCloseTopRequested()  { settingsSheet.close() }
     }
 
     // an injected page store (or a future store) may not emit this exact progress/finished/failed
