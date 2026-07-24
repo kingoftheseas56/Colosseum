@@ -40,17 +40,6 @@
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
-#include "guided/GuidedCameraController.h"
-#ifdef COLOSSEUM_ENABLE_ONNX
-#include "guided/PanelAnalysisService.h"
-#include "guided/PanelDetectorOnnx.h"
-#include "guided/PanelMapStore.h"
-#include "guided/PanelPlanner.h"
-#include "alignment/AlignmentStore.h"
-#include "alignment/AlignmentPipeline.h"
-#include "alignment/AudioTextAlignmentService.h"
-#include "alignment/ReadAlongController.h"
-#endif
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
@@ -411,8 +400,6 @@ int main(int argc, char *argv[]) {
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
-    // Guided (panel-aware) reader camera, reached from QML as `import Colosseum.Guided`.
-    qmlRegisterType<guided::GuidedCameraController>("Colosseum.Guided", 1, 0, "GuidedCameraController");
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -785,47 +772,13 @@ int main(int argc, char *argv[]) {
     auto *live = new LiveStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Live"), live);
 
-    // Shared background-work spine: ONE coordinator (one worker) for every
-    // offline-analysis domain — guided comics, audiobook alignment. Services
-    // receive it by injection so heavy inference never runs two-wide on
-    // laptop-class hardware. The registry is the unified activity surface.
+    // Shared background-work spine: ONE coordinator (one worker) for offline-analysis
+    // domains. Kept as the unified activity surface QML reads via `BackgroundActivity`.
     auto *backgroundWork = new work::BackgroundWorkCoordinator(1, &app);
-    Q_UNUSED(backgroundWork); // consumed by guided/alignment services as they land
+    Q_UNUSED(backgroundWork);
     auto *backgroundActivity = new work::BackgroundActivityRegistry(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
-
-#ifdef COLOSSEUM_ENABLE_ONNX
-    // Guided panel analysis (real detected panels). Shares the ONE background worker
-    // with audiobook alignment. The detector validates the bundled model and fails
-    // closed if it is missing/tampered — Guided then simply stays whole-page. Only
-    // present in the ONNX build; the default build ships the whole-page Guided shell.
-    {
-        const QString appDir = QCoreApplication::applicationDirPath();
-        const QStringList modelDirs = {
-            qEnvironmentVariable("COLOSSEUM_GUIDED_MODEL_DIR"),
-            appDir + QStringLiteral("/resources/models/guided"),
-            appDir + QStringLiteral("/../resources/models/guided"),
-            appDir + QStringLiteral("/../../resources/models/guided"),
-            appDir + QStringLiteral("/../../../resources/models/guided")
-        };
-        QString guidedManifest;
-        for (const QString& d : modelDirs) {
-            if (!d.isEmpty() && QFileInfo::exists(d + QStringLiteral("/manifest.json"))) {
-                guidedManifest = d + QStringLiteral("/manifest.json");
-                break;
-            }
-        }
-        const QString guidedDir =
-            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/guided");
-        QDir().mkpath(guidedDir);
-        auto *guidedStore = new guided::PanelMapStore(guidedDir + QStringLiteral("/panel-maps.sqlite"));
-        auto *guidedDetector = new guided::PanelDetectorOnnx(guidedManifest);
-        auto *guidedAnalysis = new guided::PanelAnalysisService(
-            backgroundWork, guidedDetector, new guided::PanelPlanner, guidedStore, &app);
-        engine.rootContext()->setContextProperty(QStringLiteral("GuidedAnalysis"), guidedAnalysis);
-    }
-#endif
 
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the
@@ -868,56 +821,6 @@ int main(int argc, char *argv[]) {
     // book's page, the downloader writes the pairing under the reader's bookId itself —
     // no pairing UI. Same store instance QML/BookBridge use, so the Audio tab reads it.
     audiobooks->setPairing(audioPairing);
-
-#ifdef COLOSSEUM_ENABLE_ONNX
-    // Audiobook↔EPUB read-along (Tasks 3–12). Registering these two props flips
-    // ReaderShell.readAlongAvailable true → the word-level engine goes live (the coarse
-    // whisper transcribe + wav2vec2 CTC forced-align pipeline runs per chapter on the
-    // shared background worker; the controller drives the page-follows-audio highlight).
-    // Fails closed exactly like guided: if the two model files aren't found, we skip
-    // registration and read-along stays dormant (chapter-level sync only).
-    {
-        const QString appDir = QCoreApplication::applicationDirPath();
-        const QStringList alignDirs = {
-            qEnvironmentVariable("COLOSSEUM_ALIGNMENT_MODEL_DIR"),
-            appDir + QStringLiteral("/models/alignment"),
-            appDir + QStringLiteral("/resources/models/alignment"),
-            appDir + QStringLiteral("/../resources/models/alignment"),
-            appDir + QStringLiteral("/../../resources/models/alignment"),
-            appDir + QStringLiteral("/../../../resources/models/alignment")
-        };
-        QString alignBase;
-        for (const QString& d : alignDirs) {
-            if (!d.isEmpty()
-                && QFileInfo::exists(d + QStringLiteral("/coarse/ggml-base.en.bin"))
-                && QFileInfo::exists(d + QStringLiteral("/forced/wav2vec2_base_960h.onnx"))) {
-                alignBase = d;
-                break;
-            }
-        }
-        if (!alignBase.isEmpty()) {
-            const QString alignDir =
-                QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
-                + QStringLiteral("/alignment");
-            QDir().mkpath(alignDir);
-            const QString dbPath = alignDir + QStringLiteral("/readalong.db");
-            auto *readStore = new alignment::AlignmentStore(dbPath);
-            auto *pipeline  = new alignment::AlignmentPipeline(
-                alignBase + QStringLiteral("/coarse/ggml-base.en.bin"),
-                alignBase + QStringLiteral("/forced/wav2vec2_base_960h.onnx"));
-            auto *alignSvc  = new alignment::AudioTextAlignmentService(
-                backgroundWork, backgroundActivity, readStore, dbPath, audioPairing,
-                [audiobooks](const QString& pairKey){ return audiobooks->localFiles(pairKey); },
-                pipeline->makeProcessor(), &app);
-            auto *readAlong = new alignment::ReadAlongController(readStore, &app);
-            engine.rootContext()->setContextProperty(QStringLiteral("AudioTextAlignment"), alignSvc);
-            engine.rootContext()->setContextProperty(QStringLiteral("ReadAlong"), readAlong);
-            // NOTE (demo build): the shared coordinator ideally drains before alignSvc
-            // (handoff STEP 3); parented to &app here like guided, so process teardown
-            // order applies. Production hardening: explicit drain on aboutToQuit.
-        }
-    }
-#endif
 
     // Durable, world-scoped recent searches. Search QML reloads this store when its Loader
     // is recreated, so remote provider success is irrelevant to whether intent is remembered.
