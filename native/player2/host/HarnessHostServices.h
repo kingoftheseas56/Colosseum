@@ -61,6 +61,10 @@ public:
     Q_INVOKABLE void attachVideoItem(QObject *item);
     void requestAdjacentEpisode(const QString &mediaId, int direction) override;
     void requestAlternateSources(const QString &mediaId) override;
+    void requestOnlineSubtitles(const QString &mediaId) override;
+    void requestSkipSegments(const QString &mediaId) override;
+    void requestDownload(const QString &mediaId, const QString &sourceId) override;
+    void requestMetadata(const QString &mediaId) override;
     void reportProgress(const QString &mediaId, double position, double duration) override;
 
 signals:

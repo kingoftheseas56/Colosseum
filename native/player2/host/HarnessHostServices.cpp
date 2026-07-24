@@ -53,15 +53,173 @@ HarnessHostServices::HarnessHostServices(QObject *parent)
             [this](const Player2Error &error) { finish(false, error.message, 2); });
 }
 
+// --- Deterministic orchestration fixtures (Task 14) -----------------------------------------------
+// The lab host answers every seam from these builders; it never touches a real catalog/source/store.
+// Requests are recorded (appendEvent) AND resolved exactly once via the base signal after a short
+// async hop, so the shell's request->render flow is exercised the same as against a live host.
+namespace {
+
+constexpr int kResolveDelayMs = 15; // one async hop: proves the shell handles non-immediate results
+
+QVariantMap fixtureEpisode(const QString &mediaId, int direction)
+{
+    if (mediaId == QStringLiteral("series-head") && direction < 0)
+        return QVariantMap{{QStringLiteral("dead"), true}}; // real series boundary, not an error
+    if (mediaId == QStringLiteral("boom"))
+        return QVariantMap{{QStringLiteral("error"), QStringLiteral("episode lookup failed")}};
+    const QString suffix = direction >= 0 ? QStringLiteral("#next") : QStringLiteral("#prev");
+    return QVariantMap{
+        {QStringLiteral("mediaId"), mediaId + suffix},
+        {QStringLiteral("title"), (direction >= 0 ? QStringLiteral("Next Episode")
+                                                  : QStringLiteral("Previous Episode"))},
+        {QStringLiteral("season"), 1},
+        {QStringLiteral("episode"), direction >= 0 ? 6 : 4},
+        {QStringLiteral("durationSeconds"), 2640.0},
+        {QStringLiteral("poster"), QStringLiteral("qrc:/player2/fixtures/poster.png")}};
+}
+
+QVariantList fixtureSources(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    return QVariantList{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("src-2160")},
+                    {QStringLiteral("title"), QStringLiteral("2160p HDR · WEB")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/2160")},
+                    {QStringLiteral("quality"), QStringLiteral("2160p")},
+                    {QStringLiteral("sizeBytes"), 8'000'000'000.0},
+                    {QStringLiteral("seeders"), 240},
+                    {QStringLiteral("current"), true}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("src-1080")},
+                    {QStringLiteral("title"), QStringLiteral("1080p · BluRay")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/1080")},
+                    {QStringLiteral("quality"), QStringLiteral("1080p")},
+                    {QStringLiteral("sizeBytes"), 3'000'000'000.0},
+                    {QStringLiteral("seeders"), 512},
+                    {QStringLiteral("current"), false}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("src-720")},
+                    {QStringLiteral("title"), QStringLiteral("720p · WEB")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/720")},
+                    {QStringLiteral("quality"), QStringLiteral("720p")},
+                    {QStringLiteral("sizeBytes"), 1'200'000'000.0},
+                    {QStringLiteral("seeders"), 90},
+                    {QStringLiteral("dead"), true}}};
+}
+
+QVariantList fixtureSubtitles(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    return QVariantList{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("os-en-1")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/en.srt")},
+                    {QStringLiteral("lang"), QStringLiteral("en")},
+                    {QStringLiteral("langName"), QStringLiteral("English")},
+                    {QStringLiteral("provider"), QStringLiteral("OpenSubtitles")},
+                    {QStringLiteral("downloads"), 4210},
+                    {QStringLiteral("external"), true}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("os-es-1")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/es.srt")},
+                    {QStringLiteral("lang"), QStringLiteral("es")},
+                    {QStringLiteral("langName"), QStringLiteral("Spanish")},
+                    {QStringLiteral("provider"), QStringLiteral("OpenSubtitles")},
+                    {QStringLiteral("downloads"), 1180},
+                    {QStringLiteral("external"), true}}};
+}
+
+QVariantList fixtureSegments(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    return QVariantList{
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("intro")},
+                    {QStringLiteral("startSeconds"), 62.0},
+                    {QStringLiteral("endSeconds"), 152.0},
+                    {QStringLiteral("autoSkip"), false}},
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("credits")},
+                    {QStringLiteral("startSeconds"), 2520.0},
+                    {QStringLiteral("endSeconds"), 2640.0},
+                    {QStringLiteral("autoSkip"), true}}};
+}
+
+QVariantMap fixtureMetadata(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("boom"))
+        return QVariantMap{{QStringLiteral("error"), QStringLiteral("metadata hydration failed")}};
+    return QVariantMap{
+        {QStringLiteral("mediaId"), mediaId},
+        {QStringLiteral("title"), QStringLiteral("Lab Title")},
+        {QStringLiteral("logo"), QStringLiteral("qrc:/player2/fixtures/logo.png")},
+        {QStringLiteral("backdrop"), QStringLiteral("qrc:/player2/fixtures/backdrop.png")},
+        {QStringLiteral("seasons"), 4},
+        {QStringLiteral("resumeSeconds"), 305.0}};
+}
+
+} // namespace
+
 void HarnessHostServices::requestAdjacentEpisode(const QString &mediaId, int direction)
 {
     appendEvent(QStringLiteral("adjacent-episode"),
                 QStringLiteral("%1:%2").arg(mediaId).arg(direction));
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId, direction] {
+        emit adjacentEpisodeResolved(mediaId, direction, fixtureEpisode(mediaId, direction));
+    });
 }
 
 void HarnessHostServices::requestAlternateSources(const QString &mediaId)
 {
     appendEvent(QStringLiteral("alternate-sources"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit alternateSourcesResolved(mediaId, fixtureSources(mediaId));
+    });
+}
+
+void HarnessHostServices::requestOnlineSubtitles(const QString &mediaId)
+{
+    appendEvent(QStringLiteral("online-subtitles"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit onlineSubtitlesResolved(mediaId, fixtureSubtitles(mediaId));
+    });
+}
+
+void HarnessHostServices::requestSkipSegments(const QString &mediaId)
+{
+    appendEvent(QStringLiteral("skip-segments"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit skipSegmentsResolved(mediaId, fixtureSegments(mediaId));
+    });
+}
+
+void HarnessHostServices::requestDownload(const QString &mediaId, const QString &sourceId)
+{
+    appendEvent(QStringLiteral("download"), QStringLiteral("%1:%2").arg(mediaId, sourceId));
+    // A monotonic STATE STREAM, not resolve-once: queued -> active -> (ready | failed).
+    const auto emitState = [this, mediaId](const QString &state, double progress,
+                                           const QString &error) {
+        QVariantMap s{{QStringLiteral("state"), state}, {QStringLiteral("progress"), progress}};
+        if (!error.isEmpty())
+            s.insert(QStringLiteral("error"), error);
+        emit downloadStateChanged(mediaId, s);
+    };
+    QTimer::singleShot(kResolveDelayMs, this, [emitState] { emitState(QStringLiteral("queued"), 0.0, {}); });
+    QTimer::singleShot(kResolveDelayMs * 2, this,
+                       [emitState] { emitState(QStringLiteral("active"), 0.5, {}); });
+    if (sourceId == QStringLiteral("no")) {
+        QTimer::singleShot(kResolveDelayMs * 3, this, [emitState] {
+            emitState(QStringLiteral("failed"), 0.5, QStringLiteral("source is dead"));
+        });
+    } else {
+        QTimer::singleShot(kResolveDelayMs * 3, this,
+                           [emitState] { emitState(QStringLiteral("ready"), 1.0, {}); });
+    }
+}
+
+void HarnessHostServices::requestMetadata(const QString &mediaId)
+{
+    appendEvent(QStringLiteral("metadata"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit metadataResolved(mediaId, fixtureMetadata(mediaId));
+    });
 }
 
 void HarnessHostServices::reportProgress(const QString &mediaId, double position, double duration)

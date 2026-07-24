@@ -158,6 +158,16 @@ set_target_properties(player2_texture_ring_test PROPERTIES
 )
 add_test(NAME player2_texture_ring_test COMMAND player2_texture_ring_test)
 
+# Task 14 — orchestration seam contract (headless: HarnessHostServices with no GPU/render path).
+add_executable(player2_host_services_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_host_services_test.cpp"
+)
+target_link_libraries(player2_host_services_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_host_services_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_host_services_test COMMAND player2_host_services_test)
+
 set(_player2_fixture_dir "${CMAKE_BINARY_DIR}/player2-fixtures")
 set(_player2_fixture_script
     "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/fixtures/make_media_fixtures.ps1")
