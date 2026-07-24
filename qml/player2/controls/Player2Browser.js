@@ -109,6 +109,17 @@ function runtimeLabel(durationSeconds) {
     return Math.round(d / 60) + " min"
 }
 
+// Should the player report playback progress to the host now? Report the first position, then no more
+// than once per `minGapSeconds`, and always right after a backward seek (the position jumped back).
+function shouldReportProgress(lastReportedSeconds, nowSeconds, minGapSeconds) {
+    var last = Number(lastReportedSeconds), now = Number(nowSeconds)
+    if (!isFinite(last) || last < 0)
+        return true
+    if (now < last)
+        return true
+    return (now - last) >= Number(minGapSeconds)
+}
+
 // Where a PGS/bitmap subtitle cue lands on the displayed video. The cue's x/y/width/height are in the
 // subtitle canvas (the source video frame); this scales them onto the layer, which is assumed to hold
 // the video content. Returns zeros for a canvas-less cue (never divides by zero). Letterboxed video is

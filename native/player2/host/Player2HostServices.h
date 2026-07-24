@@ -52,7 +52,7 @@ public:
     // Hydrate richer metadata (logo/backdrop/seasons/resume point) for the media.
     Q_INVOKABLE virtual void requestMetadata(const QString &mediaId) = 0;
     // Fire-and-forget progress persistence (resume points, watched state). No result.
-    virtual void reportProgress(const QString &mediaId, double position, double duration) = 0;
+    Q_INVOKABLE virtual void reportProgress(const QString &mediaId, double position, double duration) = 0;
 
 signals:
     void adjacentEpisodeResolved(const QString &mediaId, int direction, const QVariantMap &episode);

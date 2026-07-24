@@ -36,10 +36,26 @@ Item {
             ? Browser.endsAtLabel(Date.now(), shell.session.position, shell.session.duration, 1)
             : ""
     }
+    // Progress cadence (Task 14): the player tells the host where you are so the host can persist a
+    // resume point. Throttled to once every few seconds + forced on pause; the host owns the store.
+    property real _lastReportedSec: -1
+    function reportProgress(force) {
+        if (!shell.hostServices || !shell.session || shell.session.duration <= 0)
+            return
+        var id = shell.currentEpisodeId.length ? shell.currentEpisodeId : shell.rootMediaId
+        if (!id.length)
+            return
+        if (force || Browser.shouldReportProgress(shell._lastReportedSec, shell.session.position, 5)) {
+            shell.hostServices.reportProgress(id, shell.session.position, shell.session.duration)
+            shell._lastReportedSec = shell.session.position
+        }
+    }
+    onPausedChanged: if (shell.paused) reportProgress(true)
     Timer {
         id: endsAtTick
         interval: 1000; repeat: true; running: true
-        onTriggered: shell.updateEndsAt()   // formats a display string only — never touches position
+        // Formats the clock (display only) and reports progress on cadence — never touches position.
+        onTriggered: { shell.updateEndsAt(); shell.reportProgress(false) }
     }
     Connections {
         target: shell.session

@@ -105,6 +105,13 @@ QtObject {
         check(close(box.height, 80 * 2 / 3), "bitmap height scales with the frame")
         var none = Browser.subtitleBitmapLayout({ x: 0, y: 0, width: 0, height: 0, canvasWidth: 0, canvasHeight: 0 }, 1280, 720)
         check(none.width === 0 && none.height === 0, "a canvas-less cue lays out empty, never divides by zero")
+
+        // --- progress report cadence: report on first tick, every gap seconds, and after a backward seek ---
+        check(Browser.shouldReportProgress(-1, 10, 5) === true, "report the very first position")
+        check(Browser.shouldReportProgress(10, 12, 5) === false, "hold within the gap")
+        check(Browser.shouldReportProgress(10, 15, 5) === true, "report once a full gap has passed")
+        check(Browser.shouldReportProgress(10, 30, 5) === true, "report after more than a gap")
+        check(Browser.shouldReportProgress(100, 40, 5) === true, "a backward seek reports the new position")
     }
 
     Component.onCompleted: {
