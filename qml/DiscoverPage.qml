@@ -115,6 +115,17 @@ Item {
         setCatalog(0)
     }
 
+    // Discover pickers are mutually exclusive: opening one closes the rest, so a single
+    // tap never leaves multiple popups stacked over the wall (Hemanth 2026-07-24). The
+    // Repeater's filter pickers land in selectorRow.children too; a child without an
+    // `open` property (the Repeater item itself) is skipped.
+    function closePickersExcept(keep) {
+        for (var i = 0; i < selectorRow.children.length; i++) {
+            var c = selectorRow.children[i]
+            if (c !== keep && c.open !== undefined) c.open = false
+        }
+    }
+
     Connections {
         target: (typeof Extensions !== "undefined") ? Extensions : null
         function onChanged() { disco.refreshFromRegistry() }
@@ -134,12 +145,15 @@ Item {
         z: 100
         spacing: 10
         DiscoverPicker {
+            id: typePicker
             options: Api.typesFor(disco.installed).map(function(t) {
                 return { key: t, text: Api.typeLabel(t), sub: "" } })
             currentKey: disco.currentType
             onPicked: (key) => disco.setType(key)
+            onOpenChanged: if (open) disco.closePickersExcept(typePicker)
         }
         DiscoverPicker {
+            id: catalogPicker
             // catalog rows split into sections: core Cinemeta first (by addon name),
             // everything else under "Your addons" — the mock's attribution anatomy.
             options: {
@@ -157,10 +171,12 @@ Item {
                 for (var i = 0; i < disco.catalogs.length; i++)
                     if (disco.catalogs[i].key === key) { disco.setCatalog(i); break }
             }
+            onOpenChanged: if (open) disco.closePickersExcept(catalogPicker)
         }
         Repeater {
             model: disco.extras
             DiscoverPicker {
+                id: extraPicker
                 required property var modelData
                 label: modelData.label
                 options: {
@@ -171,6 +187,7 @@ Item {
                 }
                 currentKey: disco.selections[modelData.name] || ""
                 onPicked: (key) => disco.setSelection(modelData.name, key.length ? key : null)
+                onOpenChanged: if (open) disco.closePickersExcept(extraPicker)
             }
         }
     }
