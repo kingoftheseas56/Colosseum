@@ -12,7 +12,9 @@ Item {
     property var options: []                  // [{key,text,sub} | {header:"…"}]
     property string currentKey: ""
     property bool open: false
+    property bool clearable: true             // an active filter shows an ✕ that resets it
     signal picked(string key)
+    signal cleared()
 
     // current = the selected ROW option (headers and the empty "All" key don't count as a value)
     readonly property var current: {
@@ -33,7 +35,9 @@ Item {
         radius: 13
         color: ma.containsMouse || picker.open ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
         border.width: 1
-        border.color: picker.open ? theme.gold : theme.edge
+        border.color: picker.open ? theme.gold
+                    : picker.hasValue ? Qt.rgba(240/255, 196/255, 74/255, 0.55)
+                    : theme.edge
 
         Row {
             id: pillRow
@@ -49,7 +53,7 @@ Item {
             Text {
                 visible: picker.hasValue
                 text: picker.hasValue ? picker.current.text : ""
-                color: theme.ink; font.family: theme.ui
+                color: theme.gold; font.family: theme.ui
                 font.pixelSize: 14; font.weight: Font.DemiBold
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -60,9 +64,11 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
+        readonly property bool showClear: picker.hasValue && picker.clearable
         Text {
-            text: "▾"
-            color: theme.inkDimmer; font.pixelSize: 11
+            text: pill.showClear ? "✕" : "▾"
+            color: pill.showClear ? theme.inkDim : theme.inkDimmer
+            font.pixelSize: pill.showClear ? 12 : 11
             anchors.right: parent.right; anchors.rightMargin: 13
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -71,6 +77,15 @@ Item {
             anchors.fill: parent
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: picker.open = !picker.open
+        }
+        // clear hit-area — sits over the ✕ (declared after `ma`, so it wins the click there)
+        MouseArea {
+            id: clearMa
+            visible: pill.showClear
+            anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
+            width: 36
+            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+            onClicked: { picker.open = false; picker.cleared() }
         }
     }
 
