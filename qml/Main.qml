@@ -40,13 +40,10 @@ Window {
     readonly property bool wallpaperIsNative: wallpaperSource.indexOf("native:") === 0
     // Mirrors WallpaperApi.nativeSceneFor — keep the two in sync when adding a scene.
     function nativeWallpaperFile(source) {
-        if (source === "native:arena-night") return "wallpapers/ArenaNight.qml"
-        if (source === "native:gilded-rain") return "wallpapers/GildedRain.qml"
         if (source === "native:aurora-flow") return "wallpapers/AuroraFlow.qml"
         if (source === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml"
         if (source === "native:mesh-ember") return "wallpapers/MeshEmber.qml"
         if (source === "native:mesh-mint") return "wallpapers/MeshMint.qml"
-        if (source === "native:facet") return "wallpapers/Facet.qml"
         if (source === "native:lowpoly") return "wallpapers/LowPoly.qml"
         return ""
     }
