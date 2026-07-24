@@ -1286,8 +1286,15 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             QString subtitleError;
             if (subtitlePipeline.decode(packet.get(), gen, subtitleStreamIndex, &cues,
                                         &subtitleError)) {
-                for (SubtitleCue &cue : cues)
+                for (SubtitleCue &cue : cues) {
+                    // Bitmap cues are positioned against the video frame — carry its size so the QML
+                    // layer can scale the region onto the displayed video.
+                    if (cue.bitmap && videoStream && videoStream->codecpar) {
+                        cue.canvasWidth = videoStream->codecpar->width;
+                        cue.canvasHeight = videoStream->codecpar->height;
+                    }
                     postSubtitleCue(gen, std::move(cue));
+                }
             }
         }
         av_packet_unref(packet.get());

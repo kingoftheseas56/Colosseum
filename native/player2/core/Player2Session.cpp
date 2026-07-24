@@ -17,6 +17,15 @@
 
 namespace Colosseum::Player2 {
 
+// The performance counter reading the playback clock expects, so the subtitle tick can sample the true
+// playback position (the same clock the video is scheduled against).
+static qint64 sessionQpcNow()
+{
+    LARGE_INTEGER value;
+    QueryPerformanceCounter(&value);
+    return value.QuadPart;
+}
+
 Player2Session::Player2Session(QObject *parent)
     : QObject(parent), m_audioPipeline(&m_audioSink),
       // No wall-clock backoff: recovery runs synchronously on the GUI-thread error seam, so it must
@@ -89,11 +98,7 @@ Player2Session::Player2Session(QObject *parent)
         // A seek is the one path allowed to move position backward.
         m_position = actualSeconds;
         emit positionChanged();
-        if (!m_subtitleText.isEmpty()) {
-            m_subtitleText.clear();
-            m_subtitleClearTimer.stop();
-            emit subtitleTextChanged();
-        }
+        flushSubtitles(); // drop the painted cue AND buffered upcoming cues from the old position
         transition(m_postSeekState);
         emit seekCompleted(generation, actualSeconds);
     });
@@ -113,14 +118,9 @@ Player2Session::Player2Session(QObject *parent)
             [this](quint64 generation, int streamIndex) {
         if (!m_generation.accepts(generation))
             return;
-        // Turning subtitles off or switching tracks must drop the currently-painted line at once,
-        // not leave it frozen on screen until its (up to 30s) clear timer fires.
-        if (!m_subtitleText.isEmpty()) {
-            m_subtitleText.clear();
-            m_subtitleClearTimer.stop();
-            m_subtitleRemainingMs = -1;
-            emit subtitleTextChanged();
-        }
+        // Turning subtitles off or switching tracks must drop the painted cue AND the buffered upcoming
+        // cues of the old track at once, so nothing stale shows.
+        flushSubtitles();
         emit subtitleTrackChanged(generation, streamIndex);
     });
     connect(&m_demux, &DemuxSession::subtitleCue, this,
@@ -133,23 +133,24 @@ Player2Session::Player2Session(QObject *parent)
         shifted.startUs += shiftUs;
         shifted.endUs += shiftUs;
         emit subtitleCue(generation, shifted);
-        // Drive the QML subtitle layer: text cues become the active line, cleared after their
-        // duration by a C++ timer so no QML timer owns cue visibility. Bitmap cues are skipped here.
-        if (!shifted.bitmap && !shifted.text.isEmpty()) {
-            m_subtitleText = shifted.text;
-            emit subtitleTextChanged();
-            const qint64 durationMs =
-                std::clamp<qint64>((shifted.endUs - shifted.startUs) / 1000, 500, 30000);
-            m_subtitleClearTimer.start(static_cast<int>(durationMs));
+        // Cues decode seconds AHEAD of playback (read-ahead), so buffer them; the subtitle tick shows
+        // each one only when the playback clock reaches its window. Displaying on arrival ran the
+        // subtitles early. Text and bitmap cues both flow through the same clock-gated path.
+        const bool renderable = shifted.bitmap
+            ? (shifted.width > 0 && shifted.height > 0 && !shifted.rgba.isEmpty())
+            : !shifted.text.isEmpty();
+        if (renderable) {
+            m_cueBuffer.push_back(std::move(shifted));
+            if (m_cueBuffer.size() > 1024)
+                m_cueBuffer.erase(m_cueBuffer.begin());
         }
     });
-    m_subtitleClearTimer.setSingleShot(true);
-    connect(&m_subtitleClearTimer, &QTimer::timeout, this, [this] {
-        if (!m_subtitleText.isEmpty()) {
-            m_subtitleText.clear();
-            emit subtitleTextChanged();
-        }
-    });
+    // The subtitle tick gates display on the playback clock (not decode-arrival). ~25Hz is well within
+    // subtitle timing tolerance; it no-ops until the clock is valid, and pause freezes the clock so the
+    // active cue simply holds. Replaces the old show-on-arrival + wall-clock clear timer.
+    m_subtitleTick.setInterval(40);
+    connect(&m_subtitleTick, &QTimer::timeout, this, &Player2Session::evaluateSubtitles);
+    m_subtitleTick.start();
     connect(&m_demux, &DemuxSession::networkStateChanged, this,
             [this](quint64 generation, int stateValue) {
         if (!m_generation.accepts(generation))
@@ -218,6 +219,114 @@ double Player2Session::normalizationLatencyMs() const
 }
 double Player2Session::subDelay() const noexcept { return m_subDelay; }
 QString Player2Session::subtitleText() const { return m_subtitleText; }
+
+QImage subtitleImageFromRgba(const QByteArray &rgba, int width, int height)
+{
+    if (width <= 0 || height <= 0 || rgba.size() < static_cast<qsizetype>(width) * height * 4)
+        return QImage();
+    // The cue packs native-endian 0xAARRGGBB pixels — exactly QImage::Format_ARGB32. Wrap the
+    // transient bytes, then deep-copy so the image outlives the cue buffer.
+    return QImage(reinterpret_cast<const uchar *>(rgba.constData()), width, height,
+                  QImage::Format_ARGB32)
+        .copy();
+}
+
+qsizetype activeSubtitleCueIndex(const std::vector<SubtitleCue> &cues, qint64 nowUs)
+{
+    qsizetype found = -1;
+    for (qsizetype i = 0; i < static_cast<qsizetype>(cues.size()); ++i)
+        if (cues[i].startUs <= nowUs && nowUs < cues[i].endUs)
+            found = i; // last match wins so a newer overlapping cue takes over
+    return found;
+}
+
+// The ~25Hz heartbeat: show the cue whose window holds the playback clock, clear when none does, and
+// drop cues fully in the past. No-ops until the clock is valid (no timeline yet / not playing).
+void Player2Session::evaluateSubtitles()
+{
+    if (!m_playbackClock.valid())
+        return;
+    const qint64 nowUs = m_playbackClock.positionAt(sessionQpcNow());
+    const qsizetype idx = activeSubtitleCueIndex(m_cueBuffer, nowUs);
+    applyActiveSubtitle(idx >= 0 ? &m_cueBuffer[static_cast<size_t>(idx)] : nullptr);
+    // Prune cues fully in the past (the active cue always has endUs > now, so it is never pruned).
+    m_cueBuffer.erase(std::remove_if(m_cueBuffer.begin(), m_cueBuffer.end(),
+                                     [nowUs](const SubtitleCue &c) { return c.endUs <= nowUs; }),
+                      m_cueBuffer.end());
+}
+
+// Publish (or clear) the on-screen cue, skipping redundant re-emits while the same cue stays active.
+void Player2Session::applyActiveSubtitle(const SubtitleCue *cue)
+{
+    if (!cue) {
+        if (!m_subtitleText.isEmpty()) {
+            m_subtitleText.clear();
+            emit subtitleTextChanged();
+        }
+        clearSubtitleBitmap();
+        m_hasActiveCue = false;
+        return;
+    }
+    if (m_hasActiveCue && cue->startUs == m_activeCueStartUs && cue->bitmap == m_activeCueIsBitmap)
+        return; // already showing this cue
+    m_hasActiveCue = true;
+    m_activeCueStartUs = cue->startUs;
+    m_activeCueIsBitmap = cue->bitmap;
+    if (cue->bitmap) {
+        if (!m_subtitleText.isEmpty()) {
+            m_subtitleText.clear();
+            emit subtitleTextChanged();
+        }
+        QImage image = subtitleImageFromRgba(cue->rgba, cue->width, cue->height);
+        {
+            QMutexLocker locker(&m_subtitleImageMutex);
+            m_subtitleImage = image;
+            ++m_subtitleImageId;
+        }
+        m_subtitleBitmap = QVariantMap{
+            {QStringLiteral("id"), m_subtitleImageId},
+            {QStringLiteral("x"), cue->x},
+            {QStringLiteral("y"), cue->y},
+            {QStringLiteral("width"), cue->width},
+            {QStringLiteral("height"), cue->height},
+            {QStringLiteral("canvasWidth"), cue->canvasWidth},
+            {QStringLiteral("canvasHeight"), cue->canvasHeight}};
+        emit subtitleBitmapChanged();
+    } else {
+        clearSubtitleBitmap();
+        m_subtitleText = cue->text;
+        emit subtitleTextChanged();
+    }
+}
+
+// Drop the painted cue and every buffered upcoming cue — used on seek, track switch and reset.
+void Player2Session::flushSubtitles()
+{
+    m_cueBuffer.clear();
+    applyActiveSubtitle(nullptr);
+}
+
+QVariantMap Player2Session::subtitleBitmap() const { return m_subtitleBitmap; }
+
+QImage Player2Session::subtitleImageForProvider(const QString &id) const
+{
+    QMutexLocker locker(&m_subtitleImageMutex);
+    if (id != QString::number(m_subtitleImageId))
+        return QImage();
+    return m_subtitleImage;
+}
+
+void Player2Session::clearSubtitleBitmap()
+{
+    if (m_subtitleBitmap.isEmpty())
+        return;
+    {
+        QMutexLocker locker(&m_subtitleImageMutex);
+        m_subtitleImage = QImage();
+    }
+    m_subtitleBitmap.clear();
+    emit subtitleBitmapChanged();
+}
 double Player2Session::audioDelay() const noexcept { return m_audioDelay; }
 QString Player2Session::videoAspect() const { return m_videoAspect; }
 double Player2Session::panscan() const noexcept { return m_panscan; }
@@ -277,11 +386,8 @@ void Player2Session::play()
     const bool wasPaused = m_state.state() == Player2State::Paused;
     if (!transition(Player2State::Playing))
         return;
-    // Restore the subtitle's remaining on-screen time captured at pause, so a cue does not vanish
-    // off a paused frame and reappears for the right remainder on resume.
-    if (wasPaused && m_subtitleRemainingMs > 0 && !m_subtitleText.isEmpty())
-        m_subtitleClearTimer.start(m_subtitleRemainingMs);
-    m_subtitleRemainingMs = -1;
+    // Subtitles ride the playback clock via the tick, so a paused cue holds and resumes on its own —
+    // there is no wall-clock remainder to restore here.
     if (wasPaused)
         m_demux.requestResume();
 }
@@ -292,11 +398,7 @@ void Player2Session::pause()
         return;
     if (!transition(Player2State::Paused))
         return;
-    // Freeze the subtitle clear timer with playback (it is wall-clock otherwise).
-    if (m_subtitleClearTimer.isActive()) {
-        m_subtitleRemainingMs = m_subtitleClearTimer.remainingTime();
-        m_subtitleClearTimer.stop();
-    }
+    // The subtitle tick reads the playback clock, which freezes on pause — the active cue simply holds.
     m_demux.requestPause();
 }
 
@@ -476,11 +578,7 @@ void Player2Session::resetMediaProperties()
         m_chapters.clear();
         emit chaptersChanged();
     }
-    if (!m_subtitleText.isEmpty()) {
-        m_subtitleText.clear();
-        m_subtitleClearTimer.stop();
-        emit subtitleTextChanged();
-    }
+    flushSubtitles();
 }
 
 void Player2Session::attemptDeviceRecovery(const Player2Error &error)

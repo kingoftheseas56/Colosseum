@@ -109,6 +109,23 @@ function runtimeLabel(durationSeconds) {
     return Math.round(d / 60) + " min"
 }
 
+// Where a PGS/bitmap subtitle cue lands on the displayed video. The cue's x/y/width/height are in the
+// subtitle canvas (the source video frame); this scales them onto the layer, which is assumed to hold
+// the video content. Returns zeros for a canvas-less cue (never divides by zero). Letterboxed video is
+// a later refinement — v1 assumes the video fills the layer.
+function subtitleBitmapLayout(cue, layerWidth, layerHeight) {
+    var cw = Number(cue ? cue.canvasWidth : 0), ch = Number(cue ? cue.canvasHeight : 0)
+    if (!isFinite(cw) || !isFinite(ch) || cw <= 0 || ch <= 0)
+        return { x: 0, y: 0, width: 0, height: 0 }
+    var sx = Number(layerWidth) / cw, sy = Number(layerHeight) / ch
+    return {
+        x: Number(cue.x) * sx,
+        y: Number(cue.y) * sy,
+        width: Number(cue.width) * sx,
+        height: Number(cue.height) * sy
+    }
+}
+
 // The pause card's quality line from the session's tracks: the video codec then the audio codec, first
 // token, upper-cased ("H264 · AC3"). Resolution/HDR/channels aren't in Player 2's track shape yet, so
 // this is codec-only for now (engine exposure is a follow-up). Blank when there are no tracks.

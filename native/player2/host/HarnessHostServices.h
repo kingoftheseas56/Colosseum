@@ -59,6 +59,8 @@ public:
     bool startFile(const QString &path, QString *error);
     bool startUrl(const QString &url, const QString &headersJsonPath, bool live, QString *error);
     Q_INVOKABLE void attachVideoItem(QObject *item);
+    // The playback session, for wiring the subtitle image provider (lab lifetime = app lifetime).
+    const Player2Session *playbackSession() const { return &m_session; }
     void requestAdjacentEpisode(const QString &mediaId, int direction) override;
     void requestSeasonEpisodes(const QString &mediaId, int season) override;
     void requestAlternateSources(const QString &mediaId) override;

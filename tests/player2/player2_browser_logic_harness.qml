@@ -95,6 +95,16 @@ QtObject {
         check(Browser.codecQualityLine(tracks) === "H264 · AC3", "quality line joins video+audio codec, upper")
         check(Browser.codecQualityLine([{ type: "video", codec: "hevc" }]) === "HEVC", "video-only quality line")
         check(Browser.codecQualityLine([]) === "", "no tracks means no quality line")
+
+        // --- PGS bitmap layout: map a cue's canvas-space rect onto the displayed video area ---
+        var cue = { x: 400, y: 980, width: 1120, height: 80, canvasWidth: 1920, canvasHeight: 1080 }
+        var box = Browser.subtitleBitmapLayout(cue, 1280, 720)   // 2/3 scale on both axes
+        check(close(box.x, 400 * 2 / 3), "bitmap x scales by layer/canvas width")
+        check(close(box.y, 980 * 2 / 3), "bitmap y scales by layer/canvas height")
+        check(close(box.width, 1120 * 2 / 3), "bitmap width scales with the frame")
+        check(close(box.height, 80 * 2 / 3), "bitmap height scales with the frame")
+        var none = Browser.subtitleBitmapLayout({ x: 0, y: 0, width: 0, height: 0, canvasWidth: 0, canvasHeight: 0 }, 1280, 720)
+        check(none.width === 0 && none.height === 0, "a canvas-less cue lays out empty, never divides by zero")
     }
 
     Component.onCompleted: {

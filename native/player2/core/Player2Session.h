@@ -11,14 +11,28 @@
 #include "player2/platform/windows/DeviceRecovery.h"
 
 #include <QtCore/QObject>
+#include <QtCore/QMutex>
 #include <QtCore/QTimer>
 #include <QtCore/QVariantList>
+#include <QtCore/QVariantMap>
+#include <QtGui/QImage>
 
 #include <atomic>
+#include <deque>
+#include <vector>
 
 namespace Colosseum::Player2 {
 
 class D3D11VideoPipeline;
+
+// Build an ARGB32 QImage from a bitmap subtitle cue's tightly-packed native-endian 0xAARRGGBB pixels.
+// Deep-copies (the cue's buffer is transient); returns a null image for an empty/degenerate cue.
+QImage subtitleImageFromRgba(const QByteArray &rgba, int width, int height);
+
+// The index of the cue that should be on screen at nowUs (startUs <= now < endUs) among a start-ordered
+// list, or -1 if none. The last match wins, so a newer overlapping cue takes over. This is what gates
+// subtitle display on the playback clock instead of decode-arrival (cues decode ~seconds ahead).
+qsizetype activeSubtitleCueIndex(const std::vector<SubtitleCue> &cues, qint64 nowUs);
 
 // Player2Session is also the recovery target: it owns the pipeline/sink/demux, so it is the one
 // place that may rebuild a lost device and reopen the current media. The coordinator drives it.
@@ -50,6 +64,10 @@ class Player2Session final : public QObject, public IRecoverableTarget
     // The active subtitle text for the QML SubtitleLayer to paint. C++ decides WHEN a cue is on
     // screen (set on cue arrival, cleared by a C++ timer for the cue's duration); QML only paints it.
     Q_PROPERTY(QString subtitleText READ subtitleText NOTIFY subtitleTextChanged)
+    // The active bitmap (PGS/DVD) subtitle region: { id, x, y, width, height, canvasWidth,
+    // canvasHeight }, empty when none. QML renders the picture via the "player2subtitle" image
+    // provider (keyed by id) and positions it with the rect; C++ owns cue lifetime, same as text.
+    Q_PROPERTY(QVariantMap subtitleBitmap READ subtitleBitmap NOTIFY subtitleBitmapChanged)
 
 public:
     explicit Player2Session(QObject *parent = nullptr);
@@ -83,6 +101,10 @@ public:
     // The same snapshot as a plain map for QML (the stats overlay). Typed fields, fixed schema.
     Q_INVOKABLE QVariantMap diagnostics() const;
     QString subtitleText() const;
+    QVariantMap subtitleBitmap() const;
+    // The current bitmap subtitle image for the "player2subtitle" provider. Thread-safe (the render
+    // thread calls it); returns a null image if `id` no longer matches the active cue.
+    QImage subtitleImageForProvider(const QString &id) const;
 
     // IRecoverableTarget — driven only by the recovery coordinator, never called directly.
     bool rebuildDevice(DeviceLostReason reason, QString *error) override;
@@ -129,6 +151,7 @@ signals:
     void audioDelayChanged();
     void videoFillChanged();
     void subtitleTextChanged();
+    void subtitleBitmapChanged();
 
 private:
     bool transition(Player2State state);
@@ -157,8 +180,19 @@ private:
     double m_subDelay = 0.0;
     double m_audioDelay = 0.0;
     QString m_subtitleText;
-    QTimer m_subtitleClearTimer;
-    int m_subtitleRemainingMs = -1; // remaining cue time captured while paused, restored on resume
+    void clearSubtitleBitmap();     // drop the painted bitmap cue (mirrors the text clear paths)
+    void evaluateSubtitles();       // ~25Hz: show the cue whose window holds the playback clock
+    void applyActiveSubtitle(const SubtitleCue *cue); // publish/clear the on-screen cue (deduped)
+    void flushSubtitles();          // drop the painted cue + all buffered cues (seek/track/reset)
+    QVariantMap m_subtitleBitmap;   // active bitmap region for QML (empty when none)
+    QImage m_subtitleImage;         // the RGBA picture the provider serves (guarded across threads)
+    mutable QMutex m_subtitleImageMutex;
+    int m_subtitleImageId = 0;      // bumped per bitmap cue so the QML Image source reloads
+    std::vector<SubtitleCue> m_cueBuffer; // cues decode ahead of playback; held until their clock time
+    QTimer m_subtitleTick;          // heartbeat that gates subtitle display on the playback clock
+    bool m_hasActiveCue = false;    // dedup: is a cue currently published?
+    qint64 m_activeCueStartUs = 0;  // ...and its start, so the same cue is not re-emitted every tick
+    bool m_activeCueIsBitmap = false;
     QString m_videoAspect;
     double m_panscan = 0.0;
     double m_videoZoom = 0.0;

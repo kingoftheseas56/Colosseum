@@ -173,6 +173,26 @@ set_target_properties(player2_host_services_test PROPERTIES
 )
 add_test(NAME player2_host_services_test COMMAND player2_host_services_test)
 
+# Task: PGS/bitmap subtitle image conversion — pins the RGBA byte order (invisible on white subs).
+add_executable(player2_subtitle_image_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_subtitle_image_test.cpp"
+)
+target_link_libraries(player2_subtitle_image_test PRIVATE player2_core Qt6::Core Qt6::Gui)
+set_target_properties(player2_subtitle_image_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_subtitle_image_test COMMAND player2_subtitle_image_test)
+
+# Task: subtitle cue scheduling — display gated on the playback clock, not decode-arrival.
+add_executable(player2_subtitle_schedule_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_subtitle_schedule_test.cpp"
+)
+target_link_libraries(player2_subtitle_schedule_test PRIVATE player2_core Qt6::Core Qt6::Gui)
+set_target_properties(player2_subtitle_schedule_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_subtitle_schedule_test COMMAND player2_subtitle_schedule_test)
+
 set(_player2_fixture_dir "${CMAKE_BINARY_DIR}/player2-fixtures")
 set(_player2_fixture_script
     "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/fixtures/make_media_fixtures.ps1")

@@ -73,6 +73,8 @@ struct SubtitleCue
     int y = 0;
     int width = 0;
     int height = 0;
+    int canvasWidth = 0;   // bitmap cues: the video-frame size the x/y/w/h are composed against
+    int canvasHeight = 0;
     QByteArray rgba;   // bitmap cues only, tightly packed width*height*4
 };
 

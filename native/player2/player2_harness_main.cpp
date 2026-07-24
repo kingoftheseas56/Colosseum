@@ -1,4 +1,5 @@
 #include "host/HarnessHostServices.h"
+#include "host/Player2SubtitleImageProvider.h"
 #include "video/Player2VideoItem.h"
 
 #include <QtCore/QCommandLineOption>
@@ -80,6 +81,9 @@ int main(int argc, char *argv[])
     qmlRegisterType<Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
 
     QQmlApplicationEngine engine;
+    // Serves PGS/DVD bitmap subtitle pictures to the QML SubtitleLayer (image://player2subtitle/<id>).
+    engine.addImageProvider(QStringLiteral("player2subtitle"),
+                            new Player2SubtitleImageProvider(host.playbackSession()));
     engine.rootContext()->setContextProperty(QStringLiteral("HarnessHost"), &host);
     const QUrl harnessUrl(QStringLiteral("qrc:/player2/Harness.qml"));
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &application,
