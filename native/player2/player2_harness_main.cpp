@@ -52,6 +52,10 @@ int main(int argc, char *argv[])
         QStringLiteral("normalization"),
         QStringLiteral("Loudness mode: smooth | light | full"),
         QStringLiteral("mode"), QStringLiteral("smooth"));
+    const QCommandLineOption speedOption(
+        QStringLiteral("speed"),
+        QStringLiteral("Playback speed (0.5-2.0); exercises the atempo path for the sync gate"),
+        QStringLiteral("rate"), QStringLiteral("1.0"));
     parser.addOption(scenarioOption);
     parser.addOption(reportOption);
     parser.addOption(fileOption);
@@ -60,6 +64,7 @@ int main(int argc, char *argv[])
     parser.addOption(liveOption);
     parser.addOption(soakOption);
     parser.addOption(normalizationOption);
+    parser.addOption(speedOption);
     parser.process(application);
     const int sourceCount = (parser.isSet(scenarioOption) ? 1 : 0) +
         (parser.isSet(fileOption) ? 1 : 0) + (parser.isSet(urlOption) ? 1 : 0);
@@ -91,6 +96,12 @@ int main(int argc, char *argv[])
     engine.load(harnessUrl);
     if (engine.rootObjects().isEmpty())
         return 4;
+
+    // Playback speed for this run; carried into the session so open() applies it from the first frame
+    // (exercises the atempo path under the A/V sync gate).
+    const double speed = parser.value(speedOption).toDouble();
+    if (speed > 0.0 && speed != 1.0)
+        host.setStartupSpeed(speed);
 
     QString error;
     bool started = false;

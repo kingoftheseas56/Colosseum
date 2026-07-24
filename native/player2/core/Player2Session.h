@@ -54,6 +54,7 @@ class Player2Session final : public QObject, public IRecoverableTarget
     Q_PROPERTY(bool muted READ muted WRITE setMuted NOTIFY mutedChanged)
     Q_PROPERTY(NormalizationMode normalizationMode READ normalizationMode
                WRITE setNormalizationMode NOTIFY normalizationModeChanged)
+    Q_PROPERTY(double speed READ speed WRITE setSpeed NOTIFY speedChanged)
     Q_PROPERTY(double normalizationLatencyMs READ normalizationLatencyMs
                NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(double subDelay READ subDelay WRITE setSubDelay NOTIFY subDelayChanged)
@@ -88,6 +89,7 @@ public:
     float volume() const noexcept;
     bool muted() const noexcept;
     NormalizationMode normalizationMode() const noexcept;
+    double speed() const noexcept;
     double normalizationLatencyMs() const;
     double subDelay() const noexcept;
     double audioDelay() const noexcept;
@@ -121,6 +123,7 @@ public slots:
     void selectAudioTrack(const QString &trackId);
     void selectSubtitleTrack(const QString &trackId);
     void setNormalizationMode(NormalizationMode mode);
+    void setSpeed(double speed);
     void setSubDelay(double seconds);
     void setAudioDelay(double seconds);
     void setVideoAspect(const QString &aspect);
@@ -147,6 +150,7 @@ signals:
     void volumeChanged();
     void mutedChanged();
     void normalizationModeChanged();
+    void speedChanged();
     void subDelayChanged();
     void audioDelayChanged();
     void videoFillChanged();
@@ -177,6 +181,7 @@ private:
     QVariantList m_chapters;
     Player2State m_postSeekState = Player2State::Playing;
     NormalizationMode m_normalizationMode = NormalizationMode::Smooth;
+    double m_speed = 1.0;
     double m_subDelay = 0.0;
     double m_audioDelay = 0.0;
     QString m_subtitleText;

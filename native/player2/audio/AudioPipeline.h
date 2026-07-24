@@ -1,6 +1,7 @@
 #pragma once
 
 #include "AudioNormalizer.h"
+#include "AudioTempo.h"
 #include "WASAPIAudioSink.h"
 #include "player2/core/Player2Types.h"
 
@@ -33,6 +34,12 @@ public:
     NormalizationMode normalizationMode() const noexcept;
     qint64 normalizationLatencyUs() const noexcept;
 
+    // Worker-thread only: pitch-preserving playback speed (atempo). 1.0 = normal. The clamped rate is
+    // applied to the tempo graph; samples emerge time-stretched and each output buffer carries the rate
+    // so the audio-master clock advances at the true media rate.
+    void configureTempo(double speed);
+    double tempoSpeed() const noexcept;
+
     AudioFormat outputFormat() const noexcept;
     int queueDepthFrames() const;
     QString deviceName() const;
@@ -46,8 +53,12 @@ private:
     bool writeNormalized(const AudioBuffer &buffer, quint64 generation, QString *error);
     void resetConverter();
 
+    bool writeThroughTempo(const AudioBuffer &buffer, quint64 generation, QString *error);
+
     IAudioSink *m_sink = nullptr;
     AudioNormalizer m_normalizer;
+    AudioTempo m_tempo;
+    double m_speed = 1.0;
     NormalizationMode m_mode = NormalizationMode::Smooth;
     AudioFormat m_outputFormat;
     SwrContext *m_resampler = nullptr;

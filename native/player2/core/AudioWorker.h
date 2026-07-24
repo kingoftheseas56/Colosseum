@@ -75,6 +75,9 @@ public:
     // Post a normalization mode; the worker applies it on its own thread (it owns the normalizer).
     void setNormalizationMode(int mode);
 
+    // Post a playback speed; the worker applies it on its own thread (it owns the tempo stage).
+    void setSpeed(double speed);
+
     // Post an audio-track switch: the worker reconfigures its decoder from `codecpar`/`timeBase` on
     // its own thread when it next sees the matching generation, so the demux never touches the decoder.
     void reconfigure(const AVCodecParameters *codecpar, AVRational timeBase, quint64 generation);
@@ -105,8 +108,9 @@ private:
     std::atomic<bool> m_reachedEnd{false};
     QString m_failureMessage;
 
-    // Posted controls the worker applies on its own thread (owns the decoder + normalizer).
+    // Posted controls the worker applies on its own thread (owns the decoder + normalizer + tempo).
     std::atomic<int> m_pendingNormalization{-1};                  // -1 = none
+    std::atomic<double> m_pendingSpeed{-1.0};                     // <0 = none
     std::atomic<const AVCodecParameters *> m_pendingReconfig{nullptr};
     std::atomic<qint64> m_pendingReconfigTimeBase{0};             // packed num<<32 | den
     std::atomic<quint64> m_pendingReconfigGeneration{0};

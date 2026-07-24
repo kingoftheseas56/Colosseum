@@ -9,7 +9,8 @@ param(
     [string]$Clip = "$env:USERPROFILE\Downloads\Colosseum\The Wire - S4E10 - Misgivings - 20260720_175049.mp4",
     [int]$SoakSeconds = 1800,
     [double]$MaxP95Ms = 40.0,
-    [double]$MaxDriftAbsMs = 80.0
+    [double]$MaxDriftAbsMs = 80.0,
+    [double]$Speed = 1.0
 )
 $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
@@ -29,7 +30,7 @@ Remove-Item $report -ErrorAction SilentlyContinue
 # terminating errors under 'Stop', so drop to 'Continue' just for the run and redirect its streams.
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = 'Continue'
-& $harness --file $Clip --report $report --soak-seconds $SoakSeconds 2>$null 1>$null
+& $harness --file $Clip --report $report --soak-seconds $SoakSeconds --speed $Speed 2>$null 1>$null
 $exit = $LASTEXITCODE
 $ErrorActionPreference = $prevEAP
 if (-not (Test-Path $report)) { throw "player2_av_sync_gate: FAIL (no report written; harness exit $exit)" }

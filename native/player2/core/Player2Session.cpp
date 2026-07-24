@@ -213,6 +213,7 @@ double Player2Session::audioQueueMs() const
 float Player2Session::volume() const noexcept { return m_volume; }
 bool Player2Session::muted() const noexcept { return m_muted; }
 NormalizationMode Player2Session::normalizationMode() const noexcept { return m_normalizationMode; }
+double Player2Session::speed() const noexcept { return m_speed; }
 double Player2Session::normalizationLatencyMs() const
 {
     return m_audioPipeline.normalizationLatencyUs() / 1000.0;
@@ -365,6 +366,9 @@ void Player2Session::open(const PlaybackRequest &request)
     // Carry the chosen loudness mode into the new session (default Smooth needs no command).
     if (m_normalizationMode != NormalizationMode::Smooth)
         m_demux.requestNormalizationMode(static_cast<int>(m_normalizationMode));
+    // Carry a non-default playback speed into the new session (default 1.0 needs no command).
+    if (m_speed != 1.0)
+        m_demux.requestSpeed(m_speed);
 }
 
 void Player2Session::close()
@@ -526,6 +530,17 @@ void Player2Session::setNormalizationMode(NormalizationMode mode)
     emit normalizationModeChanged();
     // The filter graph is worker-owned; the change is applied live through the command channel.
     m_demux.requestNormalizationMode(static_cast<int>(mode));
+}
+
+void Player2Session::setSpeed(double speed)
+{
+    const double bounded = std::clamp(speed, 0.5, 2.0);
+    if (m_speed == bounded) // presets are exact binary doubles (0.5/0.75/1.0/1.25/1.5/1.75/2.0)
+        return;
+    m_speed = bounded;
+    emit speedChanged();
+    // The tempo stage + clock rate are worker-owned; applied live through the command channel.
+    m_demux.requestSpeed(bounded);
 }
 
 void Player2Session::setVolume(float linear)

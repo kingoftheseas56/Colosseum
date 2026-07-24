@@ -23,6 +23,11 @@ struct AudioBuffer
     QByteArray bytes;
     int frameCount = 0;
     qint64 ptsUs = 0;
+    // Playback speed the samples were time-stretched to (1.0 = normal). The sink advances the media
+    // clock within a buffer at this rate, so a sped-up buffer (fewer samples, same media span) reports
+    // media advancing faster — keeping the audio-master clock honest under atempo. Travels with the
+    // buffer so the render thread needs no shared speed state.
+    double speed = 1.0;
 };
 
 struct AudioClockSnapshot

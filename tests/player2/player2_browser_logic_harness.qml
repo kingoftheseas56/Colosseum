@@ -112,6 +112,27 @@ QtObject {
         check(Browser.shouldReportProgress(10, 15, 5) === true, "report once a full gap has passed")
         check(Browser.shouldReportProgress(10, 30, 5) === true, "report after more than a gap")
         check(Browser.shouldReportProgress(100, 40, 5) === true, "a backward seek reports the new position")
+
+        // --- close confirm: prompt only in the actively-watching states (Player2State enum values) ---
+        check(Browser.shouldConfirmClose(3) === true, "closing while playing prompts to confirm")
+        check(Browser.shouldConfirmClose(4) === true, "closing while paused prompts to confirm")
+        check(Browser.shouldConfirmClose(2) === true, "closing while buffering prompts to confirm")
+        check(Browser.shouldConfirmClose(5) === true, "closing mid-seek prompts to confirm")
+        check(Browser.shouldConfirmClose(7) === true, "closing while recovering prompts to confirm")
+        check(Browser.shouldConfirmClose(0) === false, "closing while idle needs no prompt")
+        check(Browser.shouldConfirmClose(1) === false, "closing while still opening needs no prompt")
+        check(Browser.shouldConfirmClose(6) === false, "closing after it ended needs no prompt")
+        check(Browser.shouldConfirmClose(8) === false, "closing on an error needs no prompt")
+
+        // --- power inhibit: hold the display awake only while the picture is advancing ---
+        check(Browser.shouldInhibitSleep(3) === true, "playing holds the display awake")
+        check(Browser.shouldInhibitSleep(2) === true, "buffering still holds the display awake")
+        check(Browser.shouldInhibitSleep(5) === true, "seeking holds the display awake")
+        check(Browser.shouldInhibitSleep(7) === true, "recovering holds the display awake")
+        check(Browser.shouldInhibitSleep(4) === false, "pausing releases the display to sleep")
+        check(Browser.shouldInhibitSleep(0) === false, "idle releases the display")
+        check(Browser.shouldInhibitSleep(6) === false, "ended releases the display")
+        check(Browser.shouldInhibitSleep(8) === false, "an error releases the display")
     }
 
     Component.onCompleted: {

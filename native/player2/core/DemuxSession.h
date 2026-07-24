@@ -104,6 +104,7 @@ public:
     void requestSelectAudioTrack(int streamIndex, quint64 generation);
     void requestSelectSubtitleTrack(int streamIndex); // does not flush A/V, so keeps the generation
     void requestNormalizationMode(int mode);
+    void requestSpeed(double speed);
     void requestPause();
     void requestResume();
     // Live A/V offset (mpv audio-delay parity): shifts the audio buffer pts reported to the master
@@ -129,7 +130,7 @@ signals:
 
 private:
     enum class CommandType {
-        Seek, FrameStep, SelectAudioTrack, SelectSubtitleTrack, Normalization, Pause, Resume
+        Seek, FrameStep, SelectAudioTrack, SelectSubtitleTrack, Normalization, Speed, Pause, Resume
     };
     struct Command
     {
@@ -138,6 +139,7 @@ private:
         int frames = 0;
         int streamIndex = -1;
         int normalizationMode = 0;
+        double speed = 1.0;
         quint64 generation = 0;
         bool resumePlaying = true;
     };

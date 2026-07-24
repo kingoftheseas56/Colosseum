@@ -12,6 +12,21 @@ Item {
     property var session
     property var hostServices
     signal fullscreenRequested()
+    // Typed intent to leave the player (host owns the actual close: lab quits the Window, production
+    // navigates away). Emitted directly when nothing is playing, or after the viewer confirms the
+    // "Stop playback?" prompt. Same seam shape as fullscreenRequested.
+    signal closeRequested()
+    // Typed intent to toggle picture-in-picture. The host owns the window (lab: a small always-on-top
+    // Window; production: its own PiP surface), exactly like fullscreenRequested.
+    signal pipRequested()
+    // Fact, not command: whether the display-sleep/screensaver should be inhibited right now. The host
+    // acts on it (lab: records it; production: SetThreadExecutionState). Fires only on transitions.
+    signal keepAwakeRequested(bool inhibit)
+
+    // Derived from playback state; drives keepAwakeRequested on every transition (held while the picture
+    // advances, released on pause/idle/end/error) — the plan's power-inhibit lifetime.
+    readonly property bool _inhibitSleep: shell.session ? Browser.shouldInhibitSleep(shell.session.state) : false
+    on_InhibitSleepChanged: shell.keepAwakeRequested(shell._inhibitSleep)
 
     // Structured identity of what's playing, provided by the host (production: from its playbackContext;
     // lab: set on the shell). The drawer needs these to ask the host and to mark the now-playing row;
@@ -106,6 +121,7 @@ Item {
 
     property bool controlsShown: true
     readonly property bool menusOpen: transportBar.anyMenuOpen || overflowMenu.open || sourceDrawer.open
+                                      || shortcutsSheet.open || closeConfirm.open
     function wakeChrome() {
         controlsShown = true
         hideTimer.restart()
@@ -114,6 +130,18 @@ Item {
         transportBar.closeMenus()
         overflowMenu.open = false
         sourceDrawer.open = false
+        shortcutsSheet.open = false
+        closeConfirm.open = false
+    }
+
+    // The viewer asked to leave. Prompt first only if something is actively playing (Browser gate);
+    // otherwise leave straight away. The host wires onCloseRequested to the real close.
+    function requestClose() {
+        var st = shell.session ? shell.session.state : 0
+        if (Browser.shouldConfirmClose(st))
+            closeConfirm.open = true
+        else
+            shell.closeRequested()
     }
 
     // Ask the host for this episode's skip segments (intro/recap/credits). Re-asked whenever the
@@ -125,12 +153,39 @@ Item {
         if (id.length)
             shell.hostServices.requestSkipSegments(id)
     }
-    onCurrentEpisodeIdChanged: { shell.skipSegments = []; requestSkipSegments() }
+    onCurrentEpisodeIdChanged: {
+        shell.skipSegments = []; requestSkipSegments()
+        shell.prevEpisodeId = ""; shell.nextEpisodeId = ""; refreshAdjacency()
+    }
+
+    // Prev/next episode: peek both directions so the transport arrows only light when a real neighbour
+    // exists (the host resolves a {dead:true} map at a series boundary). Clicking plays the peeked id
+    // via the same playEpisodeRequested seam the drawer uses — the host owns the actual (re)play.
+    property string prevEpisodeId: ""
+    property string nextEpisodeId: ""
+    function refreshAdjacency() {
+        if (shell.hostServices && shell.isSeries && shell.currentEpisodeId.length) {
+            shell.hostServices.requestAdjacentEpisode(shell.currentEpisodeId, -1)
+            shell.hostServices.requestAdjacentEpisode(shell.currentEpisodeId, 1)
+        }
+    }
+    function playAdjacentEpisode(direction) {
+        var id = direction < 0 ? shell.prevEpisodeId : shell.nextEpisodeId
+        if (id.length)
+            shell.playEpisodeRequested(id)
+    }
 
     Connections {
         target: shell.hostServices
         ignoreUnknownSignals: true
         function onSkipSegmentsResolved(mediaId, segments) { shell.skipSegments = segments }
+        function onAdjacentEpisodeResolved(mediaId, direction, episode) {
+            if (mediaId !== shell.currentEpisodeId)
+                return
+            var id = (episode && !episode.dead && episode.mediaId) ? String(episode.mediaId) : ""
+            if (direction < 0) shell.prevEpisodeId = id
+            else shell.nextEpisodeId = id
+        }
         function onMetadataResolved(mediaId, meta) {
             if (mediaId !== shell.rootMediaId)
                 return
@@ -151,7 +206,7 @@ Item {
                 shell.controlsShown = false
         }
     }
-    Component.onCompleted: { hideTimer.start(); requestSkipSegments(); requestMediaMeta(); updateEndsAt() }
+    Component.onCompleted: { hideTimer.start(); requestSkipSegments(); requestMediaMeta(); updateEndsAt(); refreshAdjacency() }
 
     // Subtitles paint on the video, below the chrome, and persist when the chrome auto-hides.
     SubtitleLayer {
@@ -215,6 +270,9 @@ Item {
         case Qt.Key_E:
             // Feature 8: E raises the episode/source browser (and toggles it back shut).
             sourceDrawer.open = !sourceDrawer.open; event.accepted = true; break
+        case Qt.Key_Question:
+            // "?" raises (and toggles) the keyboard-shortcuts sheet; Esc/tap also close it.
+            shortcutsSheet.open = !shortcutsSheet.open; event.accepted = true; break
         case Qt.Key_Escape:
             if (shell.menusOpen) { shell.closeAllMenus(); event.accepted = true }
             break
@@ -291,8 +349,12 @@ Item {
                 session: shell.session
                 theme: shell.theme
                 endsAtClock: shell.endsAtClock
+                hasPrevEpisode: shell.prevEpisodeId.length > 0
+                hasNextEpisode: shell.nextEpisodeId.length > 0
                 onFullscreenRequested: shell.fullscreenRequested()
                 onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
+                onPrevEpisodeRequested: shell.playAdjacentEpisode(-1)
+                onNextEpisodeRequested: shell.playAdjacentEpisode(1)
             }
         }
     }
@@ -353,5 +415,23 @@ Item {
         session: shell.session
         theme: shell.theme
         onToggleStatsRequested: { statsOverlay.open = !statsOverlay.open; overflowMenu.open = false }
+        onShowShortcutsRequested: { shortcutsSheet.open = true; overflowMenu.open = false }
+        onPipRequested: { overflowMenu.open = false; shell.pipRequested() }
+    }
+
+    // Modal keyboard-shortcuts sheet (raised by "?" or the overflow menu). Data-driven from
+    // Player2Shortcuts.js; sits above the fading chrome so it holds while open.
+    ShortcutsSheet {
+        id: shortcutsSheet
+        theme: shell.theme
+    }
+
+    // Modal "Stop playback?" confirmation. requestClose() raises it when actively watching; confirming
+    // fires the typed closeRequested seam (host does the real close), cancelling just dismisses.
+    CloseConfirm {
+        id: closeConfirm
+        theme: shell.theme
+        onConfirmed: { closeConfirm.open = false; shell.closeRequested() }
+        onCancelled: closeConfirm.open = false
     }
 }

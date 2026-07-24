@@ -42,7 +42,8 @@ foreach ($t in $unitTests) {
 
 # --- isolation / orchestration / logic contracts ---
 $contracts = @(
-    'player2_shell_contract.ps1', 'player2_orchestration_contract.ps1', 'player2_browser_logic_contract.ps1'
+    'player2_shell_contract.ps1', 'player2_orchestration_contract.ps1', 'player2_browser_logic_contract.ps1',
+    'player2_shortcuts_contract.ps1'
 )
 foreach ($c in $contracts) {
     $path = Join-Path $testsDir $c

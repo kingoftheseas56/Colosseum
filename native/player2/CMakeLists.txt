@@ -32,6 +32,8 @@ int Colosseum::Player2::buildMarker() noexcept
 add_library(player2_core STATIC
     audio/AudioNormalizer.cpp
     audio/AudioNormalizer.h
+    audio/AudioTempo.cpp
+    audio/AudioTempo.h
     audio/AudioPipeline.cpp
     audio/AudioPipeline.h
     audio/WASAPIAudioSink.cpp
@@ -127,11 +129,14 @@ qt_add_resources(player2_harness player2_harness_qml
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/EpisodeBrowser.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SkipButton.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/PauseCard.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/ShortcutsSheet.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/CloseConfirm.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Browser.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Shortcuts.js"
 )
 
 set(_player2_shell_icons play pause volume-2 volume-x rotate-ccw rotate-cw maximize minimize
-    circle-alert skip-back skip-forward languages captions gauge list-video)
+    circle-alert skip-back skip-forward languages captions gauge list-video sliders-horizontal)
 set(_player2_shell_icon_files "")
 foreach(_icon IN LISTS _player2_shell_icons)
     list(APPEND _player2_shell_icon_files

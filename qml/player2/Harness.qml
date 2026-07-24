@@ -13,6 +13,36 @@ Window {
     color: Theme.ink
     title: "Player 2 laboratory"
 
+    // Close-confirm (Task 15): the window's close is deferred to the shell's "Stop playback?" flow while
+    // actively watching. The shell re-triggers the real close via onCloseRequested once confirmed (or
+    // when nothing is playing). `leaving` breaks the recursion so the second close actually goes through.
+    property bool leaving: false
+    onClosing: function(close) {
+        if (root.leaving)
+            return
+        close.accepted = false
+        playerShell.requestClose()
+    }
+
+    // Picture-in-picture (Task 15): the shell only asks (typed pipRequested); the HOST owns the window.
+    // In the lab, PiP is a small always-on-top frameless window; production wires this to its own PiP
+    // surface. Remember the normal geometry so exiting PiP restores it.
+    property bool pipActive: false
+    property rect normalGeometry: Qt.rect(0, 0, 1280, 720)
+    function togglePip() {
+        if (!root.pipActive) {
+            root.normalGeometry = Qt.rect(root.x, root.y, root.width, root.height)
+            root.flags = Qt.Window | Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint
+            root.width = 480; root.height = 270
+            root.pipActive = true
+        } else {
+            root.flags = Qt.Window
+            root.x = root.normalGeometry.x; root.y = root.normalGeometry.y
+            root.width = root.normalGeometry.width; root.height = root.normalGeometry.height
+            root.pipActive = false
+        }
+    }
+
     component MetricRow: Item {
         required property string label
         required property string value
@@ -132,6 +162,13 @@ Window {
                 // a pick just confirms the typed intent fired; production wires these to its play pipeline.
                 onPlayEpisodeRequested: function(episodeId) { console.log("[lab] play episode:", episodeId) }
                 onSwitchSourceRequested: function(index, sourceId) { console.log("[lab] switch source:", index, sourceId) }
+                // Close-confirm resolved: the host performs the real close. In the lab that's quitting
+                // the Window; production navigates back out of the player.
+                onCloseRequested: { root.leaving = true; root.close() }
+                // PiP: host toggles the window. Keep-awake: the host acts on the fact — the lab logs it
+                // (proof the seam fires on transitions); production calls SetThreadExecutionState.
+                onPipRequested: root.togglePip()
+                onKeepAwakeRequested: function(inhibit) { console.log("[lab] keep-awake:", inhibit) }
             }
 
             // Lab toggle between the raw frame-rail instrument and the parity chrome.

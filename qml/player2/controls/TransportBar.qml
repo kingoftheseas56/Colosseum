@@ -11,13 +11,45 @@ Item {
     property string endsAtClock: ""   // "11:42 PM" wall-clock finish time (computed by the shell)
     property int currentAudioIndex: -1
     property int currentSubtitleIndex: -1
-    readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open
+    readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open || fillMenu.open
+                                        || speedMenu.open
+    property bool hasPrevEpisode: false
+    property bool hasNextEpisode: false
+    // Playback-speed presets (parity with the current player's speedChoices).
+    readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+    readonly property real currentSpeed: session ? session.speed : 1.0
     signal fullscreenRequested()
     signal browseRequested()
+    signal prevEpisodeRequested()
+    signal nextEpisodeRequested()
 
     function closeMenus() {
         audioMenu.open = false
         subtitleMenu.open = false
+        fillMenu.open = false
+        speedMenu.open = false
+    }
+
+    // Aspect / fill modes — a first-class bottom-bar control (parity: the current player keeps this as a
+    // HUD chip, folding it into the overflow only when the bar is too narrow). Applying a mode sends the
+    // three typed session commands; C++ owns the actual scaling.
+    property int fillIndex: 0
+    readonly property var fillModes: [
+        { name: "Fit",  aspect: "",     panscan: 0.0, zoom: 0.0 },
+        { name: "Fill", aspect: "",     panscan: 1.0, zoom: 0.0 },
+        { name: "Zoom", aspect: "",     panscan: 0.0, zoom: 0.35 },
+        { name: "16:9", aspect: "16:9", panscan: 0.0, zoom: 0.0 },
+        { name: "4:3",  aspect: "4:3",  panscan: 0.0, zoom: 0.0 }
+    ]
+    function applyFill(i) {
+        fillIndex = i
+        var m = fillModes[i]
+        if (session) {
+            session.setVideoAspect(m.aspect)
+            session.setPanscan(m.panscan)
+            session.setVideoZoom(m.zoom)
+        }
+        fillMenu.open = false
     }
 
     Connections {
@@ -256,6 +288,12 @@ Item {
             anchors.centerIn: parent
             spacing: 8
             RoundButton {
+                visible: root.hasPrevEpisode
+                size: 40; icon: "prevEpisode"; tooltip: "Previous episode"
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: root.prevEpisodeRequested()
+            }
+            RoundButton {
                 size: 40; icon: "seekBack"; seconds: String(root.seekStepSeconds)
                 tooltip: "Skip back"
                 anchors.verticalCenter: parent.verticalCenter
@@ -274,6 +312,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: if (root.session) root.session.seekRelative(root.seekStepSeconds)
             }
+            RoundButton {
+                visible: root.hasNextEpisode
+                size: 40; icon: "nextEpisode"; tooltip: "Next episode"
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: root.nextEpisodeRequested()
+            }
         }
 
         Row {
@@ -281,6 +325,18 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
+            // Aspect / fill — an icon button (the "fit"/sliders-horizontal glyph), lit while a non-Fit
+            // mode is active, exactly like the current player's FillMenuButton. Parity, not a text chip.
+            RoundButton {
+                id: fillButton
+                size: 40; icon: "fit"
+                active: fillMenu.open || root.fillIndex !== 0
+                tooltip: "Aspect ratio"
+                onTapped: {
+                    audioMenu.open = false; subtitleMenu.open = false
+                    fillMenu.open = !fillMenu.open
+                }
+            }
             RoundButton {
                 size: 40; icon: "episodes"; tooltip: "Episodes & sources"
                 onTapped: { root.closeMenus(); root.browseRequested() }
@@ -292,6 +348,39 @@ Item {
             RoundButton {
                 size: 40; icon: "subtitle"; active: subtitleMenu.open; tooltip: "Subtitles"
                 onTapped: { audioMenu.open = false; subtitleMenu.open = !subtitleMenu.open }
+            }
+            // Playback speed — icon button with a small gold badge showing the rate when non-default,
+            // exactly like the current player's SpeedMenuButton (speed portion; sleep/skip not ported).
+            Item {
+                id: speedButton
+                width: 40; height: 40
+                anchors.verticalCenter: parent.verticalCenter
+                readonly property bool nonDefault: Math.abs(root.currentSpeed - 1) > 0.001
+                RoundButton {
+                    anchors.fill: parent
+                    size: 40; icon: "speed"
+                    active: speedMenu.open || speedButton.nonDefault
+                    tooltip: "Speed"
+                    onTapped: {
+                        audioMenu.open = false; subtitleMenu.open = false; fillMenu.open = false
+                        speedMenu.open = !speedMenu.open
+                    }
+                }
+                Rectangle {
+                    visible: speedButton.nonDefault
+                    anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.rightMargin: 1; anchors.bottomMargin: 3
+                    width: spdVal.implicitWidth + 6; height: 13; radius: 6.5
+                    color: root.theme ? root.theme.gold : "#f0c44a"
+                    Text {
+                        id: spdVal
+                        anchors.centerIn: parent
+                        text: (Math.round(root.currentSpeed * 100) / 100) + "×"
+                        color: "#101014"
+                        font.family: "Segoe UI"; font.features: ({ "tnum": 1 })
+                        font.pixelSize: 8; font.weight: Font.DemiBold
+                    }
+                }
             }
             RoundButton {
                 size: 40; icon: "fullscreen"; tooltip: "Fullscreen"
@@ -332,6 +421,136 @@ Item {
                 subtitleMenu.open = false
             }
             onSyncChanged: function(seconds) { if (root.session) root.session.setSubDelay(seconds) }
+        }
+
+        // Fill/aspect popover — ported from the current player's FillMenuButton panel: a "Video" title,
+        // centred mode rows (selected in gold), and a little arrow pointer, centred directly above the
+        // fill button.
+        Rectangle {
+            id: fillMenu
+            property bool open: false
+            width: 188
+            height: 56 + root.fillModes.length * 34
+            anchors.horizontalCenter: rightCluster.left
+            anchors.horizontalCenterOffset: 20   // centre over the fill button (leftmost in the cluster)
+            anchors.bottom: rightCluster.top
+            anchors.bottomMargin: 12
+            visible: open
+            opacity: open ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+            radius: 14
+            color: root.theme ? root.theme.panel : Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            MouseArea { anchors.fill: parent; hoverEnabled: true } // absorb background clicks
+
+            Rectangle {
+                width: 8; height: 8; rotation: 45
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            Text {
+                x: 18; y: 15
+                text: "Video"
+                color: root.theme ? root.theme.ink : "#f7f7f5"
+                font.family: "Segoe UI"; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+
+            Repeater {
+                model: root.fillModes
+                Rectangle {
+                    required property int index
+                    required property var modelData
+                    x: 8; y: 48 + index * 34
+                    width: parent.width - 16; height: 32; radius: 8
+                    readonly property bool selected: root.fillIndex === index
+                    color: selected ? Qt.rgba(1, 1, 1, 0.10)
+                         : (fillRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData.name
+                        color: parent.selected ? (root.theme ? root.theme.gold : "#f0c44a")
+                                               : (root.theme ? root.theme.ink : "#f7f7f5")
+                        font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        id: fillRowArea
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.applyFill(index)
+                    }
+                }
+            }
+        }
+
+        // Speed popover — same idiom as the fill panel: a "Speed" title, centred rate rows (current in
+        // gold), arrow pointer, centred above the speed button. Ported from SpeedMenuButton (speed only).
+        Rectangle {
+            id: speedMenu
+            property bool open: false
+            width: 168
+            height: 56 + root.speedChoices.length * 34
+            anchors.horizontalCenter: rightCluster.right
+            anchors.horizontalCenterOffset: -66   // centre over the speed button (2nd from the right)
+            anchors.bottom: rightCluster.top
+            anchors.bottomMargin: 12
+            visible: open
+            opacity: open ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+            radius: 14
+            color: root.theme ? root.theme.panel : Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            MouseArea { anchors.fill: parent; hoverEnabled: true } // absorb background clicks
+
+            Rectangle {
+                width: 8; height: 8; rotation: 45
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            Text {
+                x: 18; y: 15
+                text: "Speed"
+                color: root.theme ? root.theme.ink : "#f7f7f5"
+                font.family: "Segoe UI"; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+
+            Repeater {
+                model: root.speedChoices
+                Rectangle {
+                    required property int index
+                    required property var modelData
+                    x: 8; y: 48 + index * 34
+                    width: parent.width - 16; height: 32; radius: 8
+                    readonly property bool selected: Math.abs(root.currentSpeed - modelData) < 0.001
+                    color: selected ? Qt.rgba(1, 1, 1, 0.10)
+                         : (speedRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    Text {
+                        anchors.centerIn: parent
+                        text: (modelData === 1 ? "Normal" : modelData + "×")
+                        color: parent.selected ? (root.theme ? root.theme.gold : "#f0c44a")
+                                               : (root.theme ? root.theme.ink : "#f7f7f5")
+                        font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        id: speedRowArea
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (root.session) root.session.speed = modelData
+                            speedMenu.open = false
+                        }
+                    }
+                }
+            }
         }
     }
 }

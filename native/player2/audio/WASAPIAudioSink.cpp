@@ -90,8 +90,10 @@ int AudioBufferQueue::read(float *destination, int requestedFrames, int channels
         std::memcpy(destination + copied * channels, source,
                     count * channels * sizeof(float));
         if (copied == 0) {
+            // Advance within the buffer at its playback speed: a 1.5× buffer holds 1.5× the media span
+            // its sample count implies, so scale the interpolation to keep the media clock truthful.
             m_lastReadMediaPositionUs = entry.buffer.ptsUs +
-                static_cast<qint64>((entry.offsetFrames * 1'000'000.0) /
+                static_cast<qint64>((entry.offsetFrames * 1'000'000.0 * entry.buffer.speed) /
                                     entry.buffer.format.sampleRate);
             if (mediaPositionUs)
                 *mediaPositionUs = m_lastReadMediaPositionUs;

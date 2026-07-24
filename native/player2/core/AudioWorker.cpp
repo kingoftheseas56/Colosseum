@@ -101,6 +101,13 @@ void AudioWorker::setNormalizationMode(int mode)
         m_queue->interrupt(); // in case the worker is blocked in pop with an empty queue mid-pause
 }
 
+void AudioWorker::setSpeed(double speed)
+{
+    m_pendingSpeed.store(speed, std::memory_order_release);
+    if (m_queue)
+        m_queue->interrupt(); // in case the worker is blocked in pop with an empty queue mid-pause
+}
+
 void AudioWorker::reconfigure(const AVCodecParameters *codecpar, AVRational timeBase,
                               quint64 generation)
 {
@@ -165,6 +172,11 @@ void AudioWorker::run()
         const int normalization = m_pendingNormalization.exchange(-1, std::memory_order_acq_rel);
         if (normalization >= 0)
             m_pipeline->configureNormalization(static_cast<NormalizationMode>(normalization));
+
+        // The worker owns the tempo stage: apply a posted speed change here, never from the demux.
+        const double pendingSpeed = m_pendingSpeed.exchange(-1.0, std::memory_order_acq_rel);
+        if (pendingSpeed > 0.0)
+            m_pipeline->configureTempo(pendingSpeed);
 
         quint64 packetGen = 0;
         bool discontinuity = false;

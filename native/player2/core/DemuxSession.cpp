@@ -272,6 +272,16 @@ void DemuxSession::requestNormalizationMode(int mode)
     enqueueCommand(command);
 }
 
+void DemuxSession::requestSpeed(double speed)
+{
+    if (!running())
+        return;
+    Command command;
+    command.type = CommandType::Speed;
+    command.speed = speed;
+    enqueueCommand(command);
+}
+
 void DemuxSession::requestPause()
 {
     if (!running())
@@ -1026,6 +1036,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                     audioPipeline->configureNormalization(
                         static_cast<NormalizationMode>(command.normalizationMode));
                 postAudioNormalizationChanged(gen, command.normalizationMode);
+                break;
+            case CommandType::Speed:
+                // The worker owns the tempo stage; the clock rate must move with it so the master
+                // prediction matches the now-faster audio between corrections. Resync so the tempo
+                // discontinuity snaps cleanly instead of slewing.
+                if (audioWorker)
+                    audioWorker->setSpeed(command.speed);
+                else if (audioPipeline)
+                    audioPipeline->configureTempo(command.speed);
+                if (playbackClock)
+                    playbackClock->setRate(command.speed, qpcNow());
+                audioMasterResync.store(true, std::memory_order_release);
                 break;
             case CommandType::Pause:
                 m_paused.store(true, std::memory_order_release);

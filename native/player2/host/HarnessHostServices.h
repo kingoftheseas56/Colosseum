@@ -61,6 +61,9 @@ public:
     Q_INVOKABLE void attachVideoItem(QObject *item);
     // The playback session, for wiring the subtitle image provider (lab lifetime = app lifetime).
     const Player2Session *playbackSession() const { return &m_session; }
+    // Carry a startup playback speed into the session before it opens (open() re-applies it), so a
+    // report-mode run exercises the atempo path under the A/V sync gate.
+    void setStartupSpeed(double speed) { m_session.setSpeed(speed); }
     void requestAdjacentEpisode(const QString &mediaId, int direction) override;
     void requestSeasonEpisodes(const QString &mediaId, int season) override;
     void requestAlternateSources(const QString &mediaId) override;

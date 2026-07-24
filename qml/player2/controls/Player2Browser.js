@@ -158,3 +158,19 @@ function codecQualityLine(tracks) {
     var a = codecOf("audio"); if (a.length) out.push(a)
     return out.join(" · ")
 }
+
+// Whether closing the player should first ask "Stop playback?". True only for the actively-watching
+// states — Buffering(2), Playing(3), Paused(4), Seeking(5), Recovering(7) — where a stray close would
+// lose the user's place. Idle(0)/Opening(1)/Ended(6)/Error(8) close without a prompt (nothing to lose).
+// Takes the raw Player2State enum value (Player2Types.h) so it stays in lockstep with the engine.
+function shouldConfirmClose(state) {
+    return state === 2 || state === 3 || state === 4 || state === 5 || state === 7
+}
+
+// Whether the screensaver / display sleep should be inhibited right now. True only while the picture is
+// actively advancing — Buffering(2), Playing(3), Seeking(5), Recovering(7). Released on Paused(4),
+// Idle(0), Opening(1), Ended(6) and Error(8), matching the plan's "held while playing, released on
+// pause/end/error/close". Takes the raw Player2State enum value so it tracks the engine.
+function shouldInhibitSleep(state) {
+    return state === 2 || state === 3 || state === 5 || state === 7
+}
