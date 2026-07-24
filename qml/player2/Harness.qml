@@ -116,10 +116,22 @@ Window {
                 visible: shellToggle.checked
                 session: videoSurface.session
                 hostServices: HarnessHost
+                // Lab identity so the browser has something to render: a series, currently on S2E3, four
+                // seasons deep. HarnessHost resolves fixture episodes/sources for this id (press E or the
+                // "Episodes & sources" transport button to open the drawer).
+                mediaTitle: "The Wire"
+                rootMediaId: "series-mid"
+                currentEpisodeId: "series-mid:2:3"
+                isSeries: true
+                activeSeason: 2
                 // The shell only requests fullscreen (typed intent); the host owns the window. In the
                 // lab the host is this Window — toggle it. Production wires this to its own window.
                 onFullscreenRequested: root.visibility =
                     (root.visibility === Window.FullScreen ? Window.Windowed : Window.FullScreen)
+                // In the lab there is no second episode/source to actually cut to (synthetic frames), so
+                // a pick just confirms the typed intent fired; production wires these to its play pipeline.
+                onPlayEpisodeRequested: function(episodeId) { console.log("[lab] play episode:", episodeId) }
+                onSwitchSourceRequested: function(index, sourceId) { console.log("[lab] switch source:", index, sourceId) }
             }
 
             // Lab toggle between the raw frame-rail instrument and the parity chrome.

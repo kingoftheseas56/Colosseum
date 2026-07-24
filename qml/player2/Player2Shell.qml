@@ -12,6 +12,20 @@ Item {
     property var hostServices
     signal fullscreenRequested()
 
+    // Structured identity of what's playing, provided by the host (production: from its playbackContext;
+    // lab: set on the shell). The drawer needs these to ask the host and to mark the now-playing row;
+    // the engine itself never carries media identity — that stays orchestration.
+    property string mediaTitle: ""
+    property string rootMediaId: ""        // the series/movie id the host queries by
+    property string currentEpisodeId: ""   // the exact episode playing now (now-playing highlight)
+    property bool isSeries: false
+    property int activeSeason: 1
+
+    // Typed intent up to the host app: the browser picked another episode / a different source. The
+    // shell forwards; the app drives the actual (re)play — the same seam pattern as fullscreenRequested.
+    signal playEpisodeRequested(string episodeId)
+    signal switchSourceRequested(int index, string sourceId)
+
     focus: true
 
     // Parity palette (matches the current player's Theme: gold accent on dark glass).
@@ -25,7 +39,7 @@ Item {
     }
 
     property bool controlsShown: true
-    readonly property bool menusOpen: transportBar.anyMenuOpen || overflowMenu.open
+    readonly property bool menusOpen: transportBar.anyMenuOpen || overflowMenu.open || sourceDrawer.open
     function wakeChrome() {
         controlsShown = true
         hideTimer.restart()
@@ -33,6 +47,7 @@ Item {
     function closeAllMenus() {
         transportBar.closeMenus()
         overflowMenu.open = false
+        sourceDrawer.open = false
     }
 
     Timer {
@@ -105,6 +120,9 @@ Item {
             statsOverlay.open = !statsOverlay.open; event.accepted = true; break
         case Qt.Key_F:
             shell.fullscreenRequested(); event.accepted = true; break
+        case Qt.Key_E:
+            // Feature 8: E raises the episode/source browser (and toggles it back shut).
+            sourceDrawer.open = !sourceDrawer.open; event.accepted = true; break
         case Qt.Key_Escape:
             if (shell.menusOpen) { shell.closeAllMenus(); event.accepted = true }
             break
@@ -165,8 +183,26 @@ Item {
                 session: shell.session
                 theme: shell.theme
                 onFullscreenRequested: shell.fullscreenRequested()
+                onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
             }
         }
+    }
+
+    // Feature 8 — the in-player episode/source browser. Above the transport chrome; the video keeps
+    // playing beside it. Opens via the transport "Episodes & sources" button or the E key.
+    SourceDrawer {
+        id: sourceDrawer
+        anchors.fill: parent
+        theme: shell.theme
+        hostServices: shell.hostServices
+        rootMediaId: shell.rootMediaId
+        currentEpisodeId: shell.currentEpisodeId
+        mediaTitle: shell.mediaTitle
+        isSeries: shell.isSeries
+        activeSeason: shell.activeSeason
+        onDismissed: sourceDrawer.open = false
+        onEpisodePicked: function(episodeId) { shell.playEpisodeRequested(episodeId) }
+        onSourcePicked: function(index, sourceId) { shell.switchSourceRequested(index, sourceId) }
     }
 
     // Right-click "more controls" menu, positioned at the cursor and clamped to the window.

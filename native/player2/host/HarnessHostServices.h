@@ -60,6 +60,7 @@ public:
     bool startUrl(const QString &url, const QString &headersJsonPath, bool live, QString *error);
     Q_INVOKABLE void attachVideoItem(QObject *item);
     void requestAdjacentEpisode(const QString &mediaId, int direction) override;
+    void requestSeasonEpisodes(const QString &mediaId, int season) override;
     void requestAlternateSources(const QString &mediaId) override;
     void requestOnlineSubtitles(const QString &mediaId) override;
     void requestSkipSegments(const QString &mediaId) override;

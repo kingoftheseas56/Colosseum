@@ -10,6 +10,10 @@
 //   media "series-mid"  : adjacent(+1)->"series-mid#next", adjacent(-1)->"series-mid#prev" (data)
 //   media "series-head" : adjacent(-1)-> { dead:true } (a real series boundary, not an error)
 //   media "empty"       : every collection request resolves to [] (no data, not an error)
+//   season episodes     : a known series+season resolves an ordered list; each episode carries a
+//                         media id, its 1-based number, the season, and host-owned progress
+//                         (progressFraction in [0,1], watched). "now-playing" is NOT a host flag — the
+//                         shell derives it by comparing episode media ids to what it currently plays.
 //   media "boom"        : every request resolves to { error:<non-empty> }
 //   any other id        : sources/subs/segments/metadata resolve with >=1 deterministic entry
 //   download source "ok": queued -> active -> ready (a monotonic STATE STREAM, not resolve-once)
@@ -226,6 +230,54 @@ void reportProgressIsFireAndForget()
     require(true, "reportProgress must not throw");
 }
 
+// The episode browser needs a whole season's episodes (season pills + list), which adjacent-only
+// cannot supply. This seam lists them: ordered, id-bearing, with host-owned progress. now-playing is
+// the shell's business, so no episode is flagged "current" here.
+void seasonEpisodesResolveOrderedListWithProgress()
+{
+    HarnessHostServices host;
+    QVariantList episodes;
+    QString gotMedia;
+    int gotSeason = -1;
+    int count = 0;
+    QObject::connect(&host, &Player2HostServices::seasonEpisodesResolved, &host,
+                     [&](const QString &m, int season, const QVariantList &e) {
+                         ++count; gotMedia = m; gotSeason = season; episodes = e;
+                     });
+    const bool ok = pump([&] { host.requestSeasonEpisodes(QStringLiteral("series-mid"), 2); },
+                         [&] { return count > 0; });
+    require(ok, "season episodes never resolved within its deadline");
+    require(count == 1, "season episodes resolved more than once");
+    require(gotMedia == QStringLiteral("series-mid") && gotSeason == 2,
+            "resolved the wrong media/season");
+    require(episodes.size() >= 2, "a known series+season returns its episode list");
+    int previousNumber = 0;
+    for (const QVariant &v : episodes) {
+        const QVariantMap m = v.toMap();
+        require(!m.value(QStringLiteral("mediaId")).toString().isEmpty(),
+                "each episode needs a media id to play/compare against");
+        require(m.value(QStringLiteral("season")).toInt() == 2, "each episode belongs to its season");
+        const int number = m.value(QStringLiteral("episode")).toInt();
+        require(number > previousNumber, "episodes resolve in ascending episode order");
+        previousNumber = number;
+        const double frac = m.value(QStringLiteral("progressFraction")).toDouble();
+        require(frac >= 0.0 && frac <= 1.0, "progress fraction stays within [0,1]");
+    }
+}
+
+void seasonEpisodesEmptyMediaResolvesEmptyNotError()
+{
+    HarnessHostServices host;
+    QVariantList episodes;
+    int count = 0;
+    QObject::connect(&host, &Player2HostServices::seasonEpisodesResolved, &host,
+                     [&](const QString &, int, const QVariantList &e) { ++count; episodes = e; });
+    const bool ok = pump([&] { host.requestSeasonEpisodes(QStringLiteral("empty"), 1); },
+                         [&] { return count > 0; });
+    require(ok && count == 1, "empty media must still resolve season episodes exactly once");
+    require(episodes.isEmpty(), "no episodes resolves to an empty list, never an error");
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
@@ -242,6 +294,8 @@ int main(int argc, char *argv[])
         downloadEmitsMonotonicStateStreamToReady();
         downloadBadSourceFailsWithError();
         reportProgressIsFireAndForget();
+        seasonEpisodesResolveOrderedListWithProgress();
+        seasonEpisodesEmptyMediaResolvesEmptyNotError();
     } catch (const std::exception &error) {
         std::cerr << "player2_host_services_test: FAIL: " << error.what() << '\n';
         return EXIT_FAILURE;

@@ -16,7 +16,9 @@ namespace Colosseum::Player2
 //
 // Payloads are QVariant (QML-native, no meta-type registration): a map per object, a list of maps per
 // collection. Documented shapes:
-//   episode  : { mediaId, title, season, episode, durationSeconds, poster, dead? , error? }
+//   episode  : { mediaId, title, season, episode, durationSeconds, poster, progressFraction?,
+//               watched?, dead? , error? }  (progressFraction/watched are host-owned; "now-playing"
+//               is NOT here — the shell derives it by comparing media ids to what it plays)
 //   source   : { id, title, url, quality, sizeBytes, seeders, dead?, current? }
 //   subtitle : { id, url, lang, langName, provider, downloads, external }
 //   segment  : { kind("intro"|"recap"|"credits"), startSeconds, endSeconds, autoSkip }
@@ -34,6 +36,10 @@ public:
     // direction: -1 previous, +1 next. Resolves adjacentEpisodeResolved with an episode map (possibly
     // {dead:true} at a series boundary, or {error}).
     Q_INVOKABLE virtual void requestAdjacentEpisode(const QString &mediaId, int direction) = 0;
+    // The whole episode list for one season (the browser's season pills + list). Resolves once via
+    // seasonEpisodesResolved with an episode list in ascending episode order (empty if none, never an
+    // error). Fetched lazily per season so switching seasons never front-loads the rest.
+    Q_INVOKABLE virtual void requestSeasonEpisodes(const QString &mediaId, int season) = 0;
     // Ranked alternate sources for the SAME media (identity/position preserved by the caller).
     Q_INVOKABLE virtual void requestAlternateSources(const QString &mediaId) = 0;
     // Online subtitle candidates for the media (provider search lives in the host).
@@ -50,6 +56,7 @@ public:
 
 signals:
     void adjacentEpisodeResolved(const QString &mediaId, int direction, const QVariantMap &episode);
+    void seasonEpisodesResolved(const QString &mediaId, int season, const QVariantList &episodes);
     void alternateSourcesResolved(const QString &mediaId, const QVariantList &sources);
     void onlineSubtitlesResolved(const QString &mediaId, const QVariantList &subtitles);
     void skipSegmentsResolved(const QString &mediaId, const QVariantList &segments);

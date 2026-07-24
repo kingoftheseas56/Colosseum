@@ -12,6 +12,7 @@ Item {
     property int currentSubtitleIndex: -1
     readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open
     signal fullscreenRequested()
+    signal browseRequested()
 
     function closeMenus() {
         audioMenu.open = false
@@ -265,6 +266,10 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
+            RoundButton {
+                size: 40; icon: "episodes"; tooltip: "Episodes & sources"
+                onTapped: { root.closeMenus(); root.browseRequested() }
+            }
             RoundButton {
                 size: 40; icon: "audio"; active: audioMenu.open; tooltip: "Audio track"
                 onTapped: { subtitleMenu.open = false; audioMenu.open = !audioMenu.open }

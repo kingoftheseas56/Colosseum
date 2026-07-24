@@ -155,6 +155,31 @@ QVariantMap fixtureMetadata(const QString &mediaId)
         {QStringLiteral("resumeSeconds"), 305.0}};
 }
 
+QVariantList fixtureSeasonEpisodes(const QString &mediaId, int season)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    // A believable season: the first episode fully watched, the second mid-progress, the rest fresh —
+    // so the browser's watched-dim / progress-bar / fresh states all have something to render.
+    static const char *const kTitles[] = {"The Target", "Old Cases", "Amsterdam", "Hard Cases",
+                                          "Bad Dreams", "The Wire"};
+    const int total = 6;
+    QVariantList episodes;
+    for (int number = 1; number <= total; ++number) {
+        const double frac = number == 1 ? 1.0 : (number == 2 ? 0.42 : 0.0);
+        episodes.append(QVariantMap{
+            {QStringLiteral("mediaId"),
+             QStringLiteral("%1:%2:%3").arg(mediaId).arg(season).arg(number)},
+            {QStringLiteral("title"), QString::fromLatin1(kTitles[(number - 1) % 6])},
+            {QStringLiteral("season"), season},
+            {QStringLiteral("episode"), number},
+            {QStringLiteral("durationSeconds"), 3120.0},
+            {QStringLiteral("progressFraction"), frac},
+            {QStringLiteral("watched"), number == 1}});
+    }
+    return episodes;
+}
+
 } // namespace
 
 void HarnessHostServices::requestAdjacentEpisode(const QString &mediaId, int direction)
@@ -163,6 +188,15 @@ void HarnessHostServices::requestAdjacentEpisode(const QString &mediaId, int dir
                 QStringLiteral("%1:%2").arg(mediaId).arg(direction));
     QTimer::singleShot(kResolveDelayMs, this, [this, mediaId, direction] {
         emit adjacentEpisodeResolved(mediaId, direction, fixtureEpisode(mediaId, direction));
+    });
+}
+
+void HarnessHostServices::requestSeasonEpisodes(const QString &mediaId, int season)
+{
+    appendEvent(QStringLiteral("season-episodes"),
+                QStringLiteral("%1:%2").arg(mediaId).arg(season));
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId, season] {
+        emit seasonEpisodesResolved(mediaId, season, fixtureSeasonEpisodes(mediaId, season));
     });
 }
 
