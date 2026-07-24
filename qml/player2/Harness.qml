@@ -154,6 +154,7 @@ Window {
                 currentEpisodeId: "series-mid:2:3"
                 isSeries: true
                 activeSeason: 2
+                windowed: root.visibility !== Window.FullScreen && !root.pipActive
                 // The shell only requests fullscreen (typed intent); the host owns the window. In the
                 // lab the host is this Window — toggle it. Production wires this to its own window.
                 onFullscreenRequested: root.visibility =

@@ -15,6 +15,7 @@ Item {
                                         || speedMenu.open
     property bool hasPrevEpisode: false
     property bool hasNextEpisode: false
+    property bool windowed: true   // host-fed window state; drives the fullscreen/exit icon (parity)
     // Playback-speed presets (parity with the current player's speedChoices).
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
     readonly property real currentSpeed: session ? session.speed : 1.0
@@ -279,9 +280,27 @@ Item {
         anchors.topMargin: 4
         height: 56
 
-        VolumeControl {
+        // LEFT cluster: volume, then aspect/fill — fill's home is the LEFT side per the current
+        // player's approved placement ("Main HUD icon (Hemanth 2026-07-18), LEFT cluster").
+        Row {
+            id: leftCluster
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+            VolumeControl {
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            RoundButton {
+                id: fillButton
+                size: 40; icon: "fit"
+                active: fillMenu.open || root.fillIndex !== 0
+                tooltip: "Aspect ratio"
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: {
+                    audioMenu.open = false; subtitleMenu.open = false; speedMenu.open = false
+                    fillMenu.open = !fillMenu.open
+                }
+            }
         }
 
         Row {
@@ -325,20 +344,8 @@ Item {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
-            // Aspect / fill — an icon button (the "fit"/sliders-horizontal glyph), lit while a non-Fit
-            // mode is active, exactly like the current player's FillMenuButton. Parity, not a text chip.
             RoundButton {
-                id: fillButton
-                size: 40; icon: "fit"
-                active: fillMenu.open || root.fillIndex !== 0
-                tooltip: "Aspect ratio"
-                onTapped: {
-                    audioMenu.open = false; subtitleMenu.open = false
-                    fillMenu.open = !fillMenu.open
-                }
-            }
-            RoundButton {
-                size: 40; icon: "episodes"; tooltip: "Episodes & sources"
+                size: 40; icon: "episodes"; tooltip: "Episodes & sources (E)"
                 onTapped: { root.closeMenus(); root.browseRequested() }
             }
             RoundButton {
@@ -383,7 +390,9 @@ Item {
                 }
             }
             RoundButton {
-                size: 40; icon: "fullscreen"; tooltip: "Fullscreen"
+                size: 40
+                icon: root.windowed ? "fullscreen" : "fullscreenExit"
+                tooltip: root.windowed ? "Enter fullscreen (F)" : "Exit fullscreen (F)"
                 onTapped: root.fullscreenRequested()
             }
         }
@@ -431,9 +440,10 @@ Item {
             property bool open: false
             width: 188
             height: 56 + root.fillModes.length * 34
-            anchors.horizontalCenter: rightCluster.left
-            anchors.horizontalCenterOffset: 20   // centre over the fill button (leftmost in the cluster)
-            anchors.bottom: rightCluster.top
+            // Centred over the fill button in the LEFT cluster — bound to the button's real geometry
+            // (clamped to the bar), not a hand-tuned offset that rots when the roster changes.
+            x: Math.max(10, leftCluster.x + fillButton.x + fillButton.width / 2 - width / 2)
+            anchors.bottom: leftCluster.top
             anchors.bottomMargin: 12
             visible: open
             opacity: open ? 1 : 0
@@ -487,15 +497,17 @@ Item {
             }
         }
 
-        // Speed popover — same idiom as the fill panel: a "Speed" title, centred rate rows (current in
-        // gold), arrow pointer, centred above the speed button. Ported from SpeedMenuButton (speed only).
+        // Speed popover — ported from the current player's SpeedMenuButton panel (speed column only;
+        // sleep timer + skip step are accepted exceptions): uppercase "PLAYBACK SPEED" eyebrow,
+        // left-aligned rows (selected = gold + border), a DEFAULT hint on the Normal row, arrow pointer.
         Rectangle {
             id: speedMenu
             property bool open: false
-            width: 168
-            height: 56 + root.speedChoices.length * 34
-            anchors.horizontalCenter: rightCluster.right
-            anchors.horizontalCenterOffset: -66   // centre over the speed button (2nd from the right)
+            width: 210
+            height: 46 + root.speedChoices.length * 38 + 8
+            // Centred over the speed button — bound to the button's real geometry, clamped to the bar.
+            x: Math.min(parent.width - width - 10,
+                        rightCluster.x + speedButton.x + speedButton.width / 2 - width / 2)
             anchors.bottom: rightCluster.top
             anchors.bottomMargin: 12
             visible: open
@@ -516,29 +528,48 @@ Item {
                 border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
             }
 
+            // Harbor's exact section title (uppercase eyebrow) — matches the current player.
             Text {
-                x: 18; y: 15
-                text: "Speed"
-                color: root.theme ? root.theme.ink : "#f7f7f5"
-                font.family: "Segoe UI"; font.pixelSize: 14; font.weight: Font.DemiBold
+                x: 18; y: 16
+                text: "Playback speed"
+                color: root.theme ? root.theme.inkDimmer : "#9a99a5"
+                font.family: "Segoe UI"; font.pixelSize: 11; font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.6
             }
 
             Repeater {
                 model: root.speedChoices
                 Rectangle {
                     required property int index
-                    required property var modelData
-                    x: 8; y: 48 + index * 34
-                    width: parent.width - 16; height: 32; radius: 8
-                    readonly property bool selected: Math.abs(root.currentSpeed - modelData) < 0.001
+                    required property real modelData
+                    x: 8; y: 46 + index * 38
+                    width: parent.width - 16; height: 36; radius: 9
+                    readonly property bool selected: Math.abs(root.currentSpeed - modelData) < 0.01
                     color: selected ? Qt.rgba(1, 1, 1, 0.10)
                          : (speedRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    border.width: selected ? 1 : 0
+                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    // "Normal" for 1×, else "1.25×" — left-aligned (current-player parity).
                     Text {
-                        anchors.centerIn: parent
-                        text: (modelData === 1 ? "Normal" : modelData + "×")
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.abs(modelData - 1) < 0.01 ? "Normal"
+                              : ((Math.round(modelData * 100) / 100) + "×")
                         color: parent.selected ? (root.theme ? root.theme.gold : "#f0c44a")
                                                : (root.theme ? root.theme.ink : "#f7f7f5")
-                        font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold
+                        font.family: "Segoe UI"; font.pixelSize: 14
+                        font.weight: parent.selected ? Font.DemiBold : Font.Medium
+                    }
+                    Text {
+                        visible: Math.abs(modelData - 1) < 0.01
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "DEFAULT"
+                        color: root.theme ? root.theme.inkDimmer : "#9a99a5"
+                        font.family: "Segoe UI"; font.pixelSize: 10; font.letterSpacing: 1.4
                     }
                     MouseArea {
                         id: speedRowArea

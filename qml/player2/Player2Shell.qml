@@ -12,6 +12,8 @@ Item {
     property var session
     property var hostServices
     signal fullscreenRequested()
+    // Host-fed window state (the host owns the window); drives the fullscreen/exit icon (parity).
+    property bool windowed: true
     // Typed intent to leave the player (host owns the actual close: lab quits the Window, production
     // navigates away). Emitted directly when nothing is playing, or after the viewer confirms the
     // "Stop playback?" prompt. Same seam shape as fullscreenRequested.
@@ -351,6 +353,7 @@ Item {
                 endsAtClock: shell.endsAtClock
                 hasPrevEpisode: shell.prevEpisodeId.length > 0
                 hasNextEpisode: shell.nextEpisodeId.length > 0
+                windowed: shell.windowed
                 onFullscreenRequested: shell.fullscreenRequested()
                 onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
                 onPrevEpisodeRequested: shell.playAdjacentEpisode(-1)

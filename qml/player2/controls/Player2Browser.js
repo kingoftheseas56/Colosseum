@@ -159,12 +159,13 @@ function codecQualityLine(tracks) {
     return out.join(" · ")
 }
 
-// Whether closing the player should first ask "Stop playback?". True only for the actively-watching
-// states — Buffering(2), Playing(3), Paused(4), Seeking(5), Recovering(7) — where a stray close would
-// lose the user's place. Idle(0)/Opening(1)/Ended(6)/Error(8) close without a prompt (nothing to lose).
-// Takes the raw Player2State enum value (Player2Types.h) so it stays in lockstep with the engine.
+// Whether closing the player should first ask to confirm. Current-player parity: P1 prompts only when
+// actually PLAYING (`fileReady && !mpv.pause`) — a PAUSED close exits immediately (the viewer already
+// stopped watching; their spot is saved). So: Buffering(2), Playing(3), Seeking(5), Recovering(7)
+// prompt; Idle(0)/Opening(1)/Paused(4)/Ended(6)/Error(8) close without one. Takes the raw Player2State
+// enum value (Player2Types.h) so it stays in lockstep with the engine.
 function shouldConfirmClose(state) {
-    return state === 2 || state === 3 || state === 4 || state === 5 || state === 7
+    return state === 2 || state === 3 || state === 5 || state === 7
 }
 
 // Whether the screensaver / display sleep should be inhibited right now. True only while the picture is

@@ -113,9 +113,10 @@ QtObject {
         check(Browser.shouldReportProgress(10, 30, 5) === true, "report after more than a gap")
         check(Browser.shouldReportProgress(100, 40, 5) === true, "a backward seek reports the new position")
 
-        // --- close confirm: prompt only in the actively-watching states (Player2State enum values) ---
+        // --- close confirm: prompt only while actually watching; PAUSED closes without one (P1 parity:
+        //     `fileReady && !mpv.pause` — the paused viewer already stopped; their spot is saved) ---
         check(Browser.shouldConfirmClose(3) === true, "closing while playing prompts to confirm")
-        check(Browser.shouldConfirmClose(4) === true, "closing while paused prompts to confirm")
+        check(Browser.shouldConfirmClose(4) === false, "closing while paused exits without a prompt")
         check(Browser.shouldConfirmClose(2) === true, "closing while buffering prompts to confirm")
         check(Browser.shouldConfirmClose(5) === true, "closing mid-seek prompts to confirm")
         check(Browser.shouldConfirmClose(7) === true, "closing while recovering prompts to confirm")
