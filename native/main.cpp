@@ -520,7 +520,11 @@ int main(int argc, char *argv[]) {
         QStringLiteral("uploads.mangadex.org"),
         QStringLiteral("api.mangadex.org"),
         QStringLiteral("itunes.apple.com"),
-        QStringLiteral("openlibrary.org")
+        QStringLiteral("openlibrary.org"),
+        // Wallpaper CDN (WallpaperApi.js): unpinned, its requests rode the same dead-AAAA
+        // ISP stall as the Jikan scar, so walls silently fell back to the packaged
+        // captured-motion asset (humbled-current recap 2026-07-24). Same scar, same fix.
+        QStringLiteral("wsrv.nl")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
