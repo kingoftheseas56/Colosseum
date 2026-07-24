@@ -149,9 +149,15 @@ QVariantMap fixtureMetadata(const QString &mediaId)
     return QVariantMap{
         {QStringLiteral("mediaId"), mediaId},
         {QStringLiteral("title"), QStringLiteral("Lab Title")},
-        {QStringLiteral("logo"), QStringLiteral("qrc:/player2/fixtures/logo.png")},
-        {QStringLiteral("backdrop"), QStringLiteral("qrc:/player2/fixtures/backdrop.png")},
+        // No logo/backdrop art ships in the lab, so these resolve empty — the card falls back to the
+        // title in caps (production hands over real URLs). Empty, not a fake path, keeps the run clean.
+        {QStringLiteral("logo"), QString()},
+        {QStringLiteral("backdrop"), QString()},
         {QStringLiteral("seasons"), 4},
+        {QStringLiteral("year"), QStringLiteral("2006")},
+        {QStringLiteral("plot"), QStringLiteral("With the mayoral race in full swing, the detail's "
+            "investigation into the Barksdale crew collides with City Hall politics while four West "
+            "Baltimore boys start eighth grade.")},
         {QStringLiteral("resumeSeconds"), 305.0}};
 }
 

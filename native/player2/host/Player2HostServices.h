@@ -23,7 +23,7 @@ namespace Colosseum::Player2
 //   subtitle : { id, url, lang, langName, provider, downloads, external }
 //   segment  : { kind("intro"|"recap"|"credits"), startSeconds, endSeconds, autoSkip }
 //   download : { sourceId, state("queued"|"active"|"ready"|"failed"), progress, error? }
-//   metadata : { mediaId, title, logo, backdrop, seasons, resumeSeconds }
+//   metadata : { mediaId, title, logo, backdrop, seasons, year?, plot?, resumeSeconds }
 class Player2HostServices : public QObject
 {
     Q_OBJECT

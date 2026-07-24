@@ -126,6 +126,7 @@ qt_add_resources(player2_harness player2_harness_qml
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SourceDrawer.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/EpisodeBrowser.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SkipButton.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/PauseCard.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Browser.js"
 )
 

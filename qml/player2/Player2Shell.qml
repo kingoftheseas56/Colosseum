@@ -47,6 +47,30 @@ Item {
         function onDurationChanged() { shell.updateEndsAt() }
     }
 
+    // Pause info card (main-player parity): media details hydrated from host metadata, shown a beat
+    // after you pause so a glance tells you what you're watching.
+    property string mediaLogo: ""
+    property string mediaPlot: ""
+    property string mediaYear: ""
+    property bool pauseCardShown: false
+    readonly property bool paused: shell.session && shell.session.state === 4   // Player2State::Paused
+    readonly property bool pauseCardEligible: shell.paused && !shell.menusOpen
+                                              && shell.session && shell.session.duration > 0
+    onPauseCardEligibleChanged: {
+        if (shell.pauseCardEligible) pauseCardDelay.restart()
+        else { pauseCardDelay.stop(); shell.pauseCardShown = false }
+    }
+    Timer {
+        id: pauseCardDelay
+        interval: 900
+        onTriggered: if (shell.pauseCardEligible) shell.pauseCardShown = true
+    }
+    function requestMediaMeta() {
+        if (shell.hostServices && shell.rootMediaId.length)
+            shell.hostServices.requestMetadata(shell.rootMediaId)
+    }
+    onRootMediaIdChanged: requestMediaMeta()
+
     // Typed intent up to the host app: the browser picked another episode / a different source. The
     // shell forwards; the app drives the actual (re)play — the same seam pattern as fullscreenRequested.
     signal playEpisodeRequested(string episodeId)
@@ -91,6 +115,15 @@ Item {
         target: shell.hostServices
         ignoreUnknownSignals: true
         function onSkipSegmentsResolved(mediaId, segments) { shell.skipSegments = segments }
+        function onMetadataResolved(mediaId, meta) {
+            if (mediaId !== shell.rootMediaId)
+                return
+            shell.mediaLogo = meta.logo ? meta.logo : ""
+            shell.mediaPlot = meta.plot ? meta.plot : ""
+            shell.mediaYear = meta.year ? String(meta.year) : ""
+            if (!shell.mediaTitle.length && meta.title)
+                shell.mediaTitle = meta.title
+        }
     }
 
     Timer {
@@ -102,7 +135,7 @@ Item {
                 shell.controlsShown = false
         }
     }
-    Component.onCompleted: { hideTimer.start(); requestSkipSegments(); updateEndsAt() }
+    Component.onCompleted: { hideTimer.start(); requestSkipSegments(); requestMediaMeta(); updateEndsAt() }
 
     // Subtitles paint on the video, below the chrome, and persist when the chrome auto-hides.
     SubtitleLayer {
@@ -246,6 +279,21 @@ Item {
                 onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
             }
         }
+    }
+
+    // Pause info card (main-player parity) — bottom-left; fades in a beat after you pause.
+    PauseCard {
+        anchors.fill: parent
+        theme: shell.theme
+        shown: shell.pauseCardShown
+        mediaTitle: shell.mediaTitle
+        mediaLogo: shell.mediaLogo
+        currentEpisodeId: shell.currentEpisodeId
+        mediaYear: shell.mediaYear
+        mediaPlot: shell.mediaPlot
+        durationSeconds: shell.session ? shell.session.duration : 0
+        endsAtClock: shell.endsAtClock
+        tracks: shell.session ? shell.session.tracks : []
     }
 
     // Skip Intro/Recap/Credits — persists through the chrome auto-hide, so it lives here (not inside the

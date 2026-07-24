@@ -76,6 +76,25 @@ QtObject {
         check(Browser.endsAtLabel(at(18, 0), 0, 3600, 2) === "6:30 PM", "double speed halves the remaining")
         check(Browser.endsAtLabel(at(18, 0), 0, 0, 1) === "", "unknown duration yields no ends time")
         check(Browser.endsAtLabel(at(18, 0), 5000, 3600, 1) === "6:00 PM", "past the end never goes negative")
+
+        // --- pause card: S/E from the episode id, runtime, codec quality line ---
+        check(Browser.seasonEpisodeLabel("series-mid:2:3") === "S2 · E3", "episode id yields S/E")
+        check(Browser.seasonEpisodeLabel("tt0306414:1:1") === "S1 · E1", "imdb episode id yields S/E")
+        check(Browser.seasonEpisodeLabel("tt0306414") === "", "a movie id has no S/E")
+        check(Browser.seasonEpisodeLabel("") === "", "an empty id has no S/E")
+        check(Browser.seasonEpisodeLabel("a:b:c") === "", "non-numeric tail is not an S/E")
+
+        check(Browser.runtimeLabel(3120) === "52 min", "runtime rounds to whole minutes")
+        check(Browser.runtimeLabel(0) === "", "unknown runtime is blank")
+        check(Browser.runtimeLabel(-5) === "", "garbage runtime is blank")
+
+        var tracks = [
+            { type: "video", codec: "h264 high" }, { type: "audio", codec: "ac3" },
+            { type: "subtitle", codec: "subrip" }
+        ]
+        check(Browser.codecQualityLine(tracks) === "H264 · AC3", "quality line joins video+audio codec, upper")
+        check(Browser.codecQualityLine([{ type: "video", codec: "hevc" }]) === "HEVC", "video-only quality line")
+        check(Browser.codecQualityLine([]) === "", "no tracks means no quality line")
     }
 
     Component.onCompleted: {

@@ -89,3 +89,44 @@ function endsAtLabel(nowMs, positionSeconds, durationSeconds, speed) {
     var remaining = Math.max(0, (dur - Number(positionSeconds)) / rate)
     return fmtWallClock(nowMs + remaining * 1000)
 }
+
+// "S2 · E3" from a "root:season:episode" media id, or "" when the id has no episode shape (a movie).
+function seasonEpisodeLabel(mediaId) {
+    var parts = String(mediaId || "").split(":")
+    if (parts.length < 3)
+        return ""
+    var s = parts[parts.length - 2], e = parts[parts.length - 1]
+    if (!/^\d+$/.test(s) || !/^\d+$/.test(e))
+        return ""
+    return "S" + Number(s) + " · E" + Number(e)
+}
+
+// "52 min" from a duration in seconds, blank when the runtime is unknown.
+function runtimeLabel(durationSeconds) {
+    var d = Number(durationSeconds)
+    if (!isFinite(d) || d <= 0)
+        return ""
+    return Math.round(d / 60) + " min"
+}
+
+// The pause card's quality line from the session's tracks: the video codec then the audio codec, first
+// token, upper-cased ("H264 · AC3"). Resolution/HDR/channels aren't in Player 2's track shape yet, so
+// this is codec-only for now (engine exposure is a follow-up). Blank when there are no tracks.
+function codecQualityLine(tracks) {
+    if (!tracks || !tracks.length)
+        return ""
+    function codecOf(kind) {
+        for (var i = 0; i < tracks.length; ++i) {
+            if (tracks[i].type === kind && tracks[i].codec) {
+                var token = String(tracks[i].codec).split(" ")[0]
+                if (token.length)
+                    return token.toUpperCase()
+            }
+        }
+        return ""
+    }
+    var out = []
+    var v = codecOf("video"); if (v.length) out.push(v)
+    var a = codecOf("audio"); if (a.length) out.push(a)
+    return out.join(" · ")
+}
