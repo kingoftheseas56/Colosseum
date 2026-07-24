@@ -21,6 +21,12 @@ Item {
     property int    zoomPercent: 100
     property bool   modalOpen: false         // an overlay is up (Task 12)
     property bool   chromeVisible: true
+    // double-page vertical scroll state, mirrored from the double surface (panY / panYMax). At base
+    // zoom a fill-width pair/spread is usually TALLER than the viewport (fill-width + scroll model,
+    // TB2 / QTGroundWork / MangaPlus): the wheel + Up/Down scroll the overflow and only turn the page
+    // at the top/bottom edge. vScrollMax==0 means the content fits — the wheel/arrows just navigate.
+    property real   vScrollPos: 0            // current panY (0 = top)
+    property real   vScrollMax: 0            // max panY (contentHeight - viewportHeight); 0 = no overflow
 
     // ---- tunables (lineage house numbers) ----
     property int  singleClickMs: 220         // SINGLE_CLICK_DELAY_MS
@@ -102,19 +108,26 @@ Item {
             scrollBy(-0.8); return "scrollBy"
         }
 
-        // arrows — pan when magnified, navigate otherwise
-        if (key === Qt.Key_Left || key === Qt.Key_Right || key === Qt.Key_Up || key === Qt.Key_Down) {
-            if (zoomed) {
-                if (key === Qt.Key_Left)       panBy(-panKeyStep, 0)
-                else if (key === Qt.Key_Right) panBy(panKeyStep, 0)
-                else if (key === Qt.Key_Up)    panBy(0, -panKeyStep)
-                else                           panBy(0, panKeyStep)
-                return "panBy"
-            }
+        // Left/Right — pan horizontally when magnified, else page-nav BY DIRECTION.
+        if (key === Qt.Key_Left || key === Qt.Key_Right) {
+            if (zoomed) { panBy(key === Qt.Key_Left ? -panKeyStep : panKeyStep, 0); return "panBy" }
             if (key === Qt.Key_Left)  { if (rtl) { next(); return "next" } else { previous(); return "previous" } }
-            if (key === Qt.Key_Right) { if (rtl) { previous(); return "previous" } else { next(); return "next" } }
-            if (key === Qt.Key_Up)    { previous(); return "previous" }
-            if (key === Qt.Key_Down)  { next(); return "next" }
+            if (rtl) { previous(); return "previous" } else { next(); return "next" }
+        }
+        // Up/Down — pan when magnified; else at base zoom SCROLL a too-tall pair/spread, turning the
+        // page only at the top/bottom edge (fill-width + scroll); no overflow -> plain page-nav.
+        if (key === Qt.Key_Up || key === Qt.Key_Down) {
+            if (zoomed) { panBy(0, key === Qt.Key_Up ? -panKeyStep : panKeyStep); return "panBy" }
+            if (vScrollMax > 0) {
+                if (key === Qt.Key_Down) {
+                    if (vScrollPos < vScrollMax - 0.5) { panBy(0, panKeyStep); return "panBy" }
+                    next(); return "next"
+                }
+                if (vScrollPos > 0.5) { panBy(0, -panKeyStep); return "panBy" }
+                previous(); return "previous"
+            }
+            if (key === Qt.Key_Up) { previous(); return "previous" }
+            next(); return "next"
         }
         return ""
     }
@@ -192,18 +205,33 @@ Item {
     Timer { id: singleClickTimer; interval: input.singleClickMs; repeat: false; onTriggered: input._commitSingleClick() }
 
     // ================= wheel (pure) =================
-    // Ctrl+wheel zooms (double); an unmodified wheel while magnified pans; strip wheels are NOT
-    // consumed here (they fall through to the strip surface's smooth accumulator).
+    // Ctrl+wheel zooms (double); a magnified wheel pans; at base zoom a fill-width pair/spread taller
+    // than the viewport SCROLLS (fill-width + scroll model, TB2/QTGW/MangaPlus), turning the page only
+    // at the top/bottom edge; content that fits turns the page directly. Strip wheels are NOT consumed
+    // here (they fall through to the strip surface's smooth accumulator).
     function wheelAction(angleY, angleX, ctrl) {
         if (mode !== "double_page") return ""
         if (ctrl) { zoomBy(angleY >= 0 ? 20 : -20); return "zoomBy" }
+        // MAGNIFIED: the zoomed content owns the wheel (horizontal or vertical pan), as before.
         if (zoomPercent > 100) {
-            var dyPx = angleY * (100.0 / 120.0)
-            var dxPx = angleX * (100.0 / 120.0)
-            if (Math.abs(dxPx) > Math.abs(dyPx)) panBy(-dxPx, 0)
-            else panBy(0, -dyPx)
+            var zdyPx = angleY * (100.0 / 120.0)
+            var zdxPx = angleX * (100.0 / 120.0)
+            if (Math.abs(zdxPx) > Math.abs(zdyPx)) panBy(-zdxPx, 0)
+            else panBy(0, -zdyPx)
             return "panBy"
         }
+        // BASE ZOOM: scroll the vertical overflow; turn the page only at the edge in the travel dir.
+        if (vScrollMax > 0) {
+            var dyPx = angleY * (100.0 / 120.0)     // wheel down => angleY<0 => -dyPx>0 => reveal bottom
+            var goingDown = angleY < 0
+            if (goingDown && vScrollPos < vScrollMax - 0.5) { panBy(0, -dyPx); return "panBy" }
+            if (!goingDown && vScrollPos > 0.5)             { panBy(0, -dyPx); return "panBy" }
+            if (goingDown) { next(); return "next" }
+            previous(); return "previous"
+        }
+        // BASE ZOOM, content fits: the wheel turns the page.
+        if (angleY < 0) { next(); return "next" }
+        if (angleY > 0) { previous(); return "previous" }
         return ""
     }
 

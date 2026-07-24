@@ -96,13 +96,16 @@ Item {
     property var sig: ({})
     function bump(name) { sig[name] = (sig[name] || 0) + 1 }
     function cnt(name) { return sig[name] || 0 }
+    // last panBy delta (so a scroll test can assert DIRECTION, not just that it fired)
+    property real lastPanDx: 0
+    property real lastPanDy: 0
 
     function wireInput(inp) {
         inp.next.connect(function () { bump("next") })
         inp.previous.connect(function () { bump("previous") })
         inp.scrollBy.connect(function () { bump("scrollBy") })
         inp.zoomBy.connect(function () { bump("zoomBy") })
-        inp.panBy.connect(function () { bump("panBy") })
+        inp.panBy.connect(function (dx, dy) { bump("panBy"); harness.lastPanDx = dx; harness.lastPanDy = dy })
         inp.toggleChrome.connect(function () { bump("toggleChrome") })
         inp.toggleFullscreen.connect(function () { bump("toggleFullscreen") })
         inp.openSettings.connect(function () { bump("openSettings") })
@@ -271,6 +274,25 @@ Item {
         ck(key(Qt.Key_Down) === "panBy" && cnt("panBy") === 1, "arrow Down (double, zoomed) -> panBy")
         input.zoomPercent = 100
 
+        // --- Up/Down VERTICAL SCROLL at base zoom when fill-width content overflows the viewport
+        //     (fill-width + scroll model): scroll the overflow, turn the page only at the top/bottom edge ---
+        input.mode = "double_page"; input.rtl = false; input.zoomPercent = 100
+        input.vScrollMax = 400; input.vScrollPos = 0                  // overflow, at TOP
+        ck(key(Qt.Key_Down) === "panBy" && cnt("panBy") === 1, "arrow Down (base zoom, overflow, not at bottom) -> scroll (panBy)")
+        ck(harness.lastPanDy > 0, "arrow Down scroll must move panY DOWN (+dy reveals the bottom), got dy=" + harness.lastPanDy)
+        input.vScrollPos = 400                                        // at BOTTOM edge
+        ck(key(Qt.Key_Down) === "next" && cnt("next") === 1, "arrow Down (base zoom, AT bottom edge) -> next page")
+        input.vScrollPos = 400                                        // scroll up from bottom
+        ck(key(Qt.Key_Up) === "panBy" && cnt("panBy") === 1, "arrow Up (base zoom, overflow, not at top) -> scroll (panBy)")
+        ck(harness.lastPanDy < 0, "arrow Up scroll must move panY UP (-dy reveals the top), got dy=" + harness.lastPanDy)
+        input.vScrollPos = 0                                          // at TOP edge
+        ck(key(Qt.Key_Up) === "previous" && cnt("previous") === 1, "arrow Up (base zoom, AT top edge) -> previous page")
+        // no overflow: Up/Down navigate as before
+        input.vScrollMax = 0; input.vScrollPos = 0
+        ck(key(Qt.Key_Down) === "next" && cnt("next") === 1, "arrow Down (base zoom, NO overflow) -> next")
+        ck(key(Qt.Key_Up) === "previous" && cnt("previous") === 1, "arrow Up (base zoom, NO overflow) -> previous")
+        input.vScrollMax = 0; input.vScrollPos = 0
+
         // --- Esc order: overlay -> chrome -> back ---
         input.modalOpen = true; input.chromeVisible = true
         ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc (overlay up) -> closeTop")
@@ -359,6 +381,25 @@ Item {
         ck(cnt("panBy") === 1, "wheel while magnified (double) -> panBy")
         input.mode = "long_strip"; input.zoomPercent = 100
         sig = {}; ck(input.wheelAction(120, 0, false) === "" && cnt("zoomBy") === 0 && cnt("panBy") === 0, "strip wheel is NOT consumed by the input (falls through to the strip surface)")
+
+        // --- base-zoom VERTICAL SCROLL on the wheel: fill-width content taller than the viewport
+        //     scrolls; the page turns only at the top/bottom edge (fill-width + scroll model) ---
+        input.mode = "double_page"; input.zoomPercent = 100
+        input.vScrollMax = 400; input.vScrollPos = 0                  // overflow, at TOP
+        sig = {}; ck(input.wheelAction(-120, 0, false) === "panBy" && cnt("panBy") === 1, "wheel down (base zoom, overflow, at top) -> scroll (panBy)")
+        ck(harness.lastPanDy > 0, "wheel-down scroll must move panY DOWN (+dy reveals bottom), got dy=" + harness.lastPanDy)
+        input.vScrollPos = 400                                        // at BOTTOM edge
+        sig = {}; ck(input.wheelAction(-120, 0, false) === "next" && cnt("next") === 1, "wheel down (base zoom, AT bottom edge) -> next page")
+        input.vScrollPos = 400                                        // scroll up from bottom
+        sig = {}; ck(input.wheelAction(120, 0, false) === "panBy" && cnt("panBy") === 1, "wheel up (base zoom, overflow, at bottom) -> scroll (panBy)")
+        ck(harness.lastPanDy < 0, "wheel-up scroll must move panY UP (-dy reveals top), got dy=" + harness.lastPanDy)
+        input.vScrollPos = 0                                          // at TOP edge
+        sig = {}; ck(input.wheelAction(120, 0, false) === "previous" && cnt("previous") === 1, "wheel up (base zoom, AT top edge) -> previous page")
+        // no overflow: the wheel turns the page
+        input.vScrollMax = 0; input.vScrollPos = 0
+        sig = {}; ck(input.wheelAction(-120, 0, false) === "next" && cnt("next") === 1, "wheel down (base zoom, NO overflow) -> next")
+        sig = {}; ck(input.wheelAction(120, 0, false) === "previous" && cnt("previous") === 1, "wheel up (base zoom, NO overflow) -> previous")
+        input.vScrollMax = 0; input.vScrollPos = 0; input.zoomPercent = 100
     }
 
     // ============================ DEFERRED (timers) ============================
