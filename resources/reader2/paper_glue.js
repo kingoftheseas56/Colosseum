@@ -114,8 +114,8 @@ const forkStyleFromAppearance = () => ({
   fontSize: (appearance.sizePx ?? 18) / 16,
   fontName: appearance.font ?? 'book',
   fontPath: '',
-  fontWeight: 400,
-  letterSpacing: 0,
+  fontWeight: appearance.fontWeight ?? 400,
+  letterSpacing: appearance.letterSpacing ?? 0,
   spacing: appearance.lineHeight ?? 1.5,
   paragraphSpacing: 1,
   textIndent: 0,
@@ -233,10 +233,15 @@ let appearance = {
   theme: { bg: '#000000', fg: '#e6e1d5' },
   font: 'book',      // 'book' = publisher font, 'system', or a family name
   sizePx: 18,
+  fontWeight: 400,
   lineHeight: 1.5,
   marginPx: 48,
   justify: false,
   flow: 'paginated', // 'paginated' | 'scrolled' (2026-07-20 — vertical-scroll reading)
+  // PARITY (2026-07-24) — neutral values == pre-parity behavior:
+  wordSpacing: 0, letterSpacing: 0, paraSpacing: 0, paraIndent: 'book',
+  maxLineWidthPx: 960, hyphens: false, columns: 'single',
+  customCss: '', invertImages: true, isDark: true,
 }
 
 // ---------------------------------------------------------------------------
@@ -313,6 +318,23 @@ const buildCss = (bg, fg) => {
   const lh = appearance.lineHeight ?? 1.5
   const size = appearance.sizePx ?? 18
   const align = appearance.justify ? 'justify' : 'start'
+  // PARITY (2026-07-24): body-text selectors for the typography dials. Headings and
+  // b/strong are deliberately NOT forced — publisher emphasis survives the dials.
+  const textSel = 'p, li, blockquote, dd'
+  const w = appearance.fontWeight ?? 400
+  const weightCss = w === 400 ? '' : `${textSel} { font-weight: ${w} !important; }`
+  const ws = appearance.wordSpacing ?? 0
+  const wordCss = ws > 0 ? `${textSel} { word-spacing: ${ws}rem !important; }` : ''
+  const ls = appearance.letterSpacing ?? 0
+  const letterCss = ls > 0 ? `${textSel} { letter-spacing: ${ls}rem !important; }` : ''
+  const ps = appearance.paraSpacing ?? 0
+  const paraCss = ps > 0 ? `p { margin-bottom: ${ps}rem !important; }` : ''
+  const indentCss = appearance.paraIndent === 'none' ? 'p { text-indent: 0 !important; }'
+    : appearance.paraIndent === 'indent' ? 'p { text-indent: 1.5em !important; }' : ''
+  const hyphCss = appearance.hyphens
+    ? `${textSel} { hyphens: auto !important; -webkit-hyphens: auto !important; }` : ''
+  const invertCss = (appearance.isDark && appearance.invertImages)
+    ? 'img, svg, image { filter: invert(1) hue-rotate(180deg) !important; }' : ''
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
     ${FONT_FACE_CSS}
@@ -321,16 +343,27 @@ const buildCss = (bg, fg) => {
     /* READABLE MEASURE (2026-07-20, the Wool full-bleed finding): with max-column-count 1
        the paginator sizes its one column to the whole viewport and ignores max-inline-size,
        so an unconstrained body renders 1700px+ lines — and justify across a line that long
-       shreds word spacing. Centered max-width column is the OLD reader's ratified pattern
-       (engine_foliate.js: body auto margins + max-width). 960px matches its default.
-       PAGE MODE ONLY — in scrolled flow Hemanth's call (same day) is edge-to-edge prose,
-       so the clamp drops and the gap padding alone frames the run. */
-    ${appearance.flow === 'scrolled' ? '' : `body { max-width: 960px !important;
+       shreds word spacing. Centered max-width column is the OLD reader's ratified pattern.
+       PARITY (2026-07-24): the value is now the user's Max line width dial (default 960 ==
+       the old hardcoded clamp). PAGE MODE + SINGLE COLUMN ONLY — scrolled stays
+       edge-to-edge (Hemanth's 2026-07-20 ruling), and in spread mode the two columns
+       define the measure themselves. */
+    ${(appearance.flow === 'scrolled' || appearance.columns === 'spread') ? '' :
+      `body { max-width: ${appearance.maxLineWidthPx ?? 960}px !important;
            margin-left: auto !important; margin-right: auto !important;
            box-sizing: border-box !important; }`}
     p, li, blockquote, dd, div, font { color: ${fg} !important; line-height: ${lh} !important; text-align: ${align}; }
     a, a:link { color: #a76034 !important; }
     ${fontCss}
+    ${weightCss}
+    ${wordCss}
+    ${letterCss}
+    ${paraCss}
+    ${indentCss}
+    ${hyphCss}
+    ${invertCss}
+    /* user custom CSS — LAST so it wins over every dial (Reader 1's contract) */
+    ${appearance.customCss || ''}
   `
 }
 
@@ -380,7 +413,8 @@ const applyAppearance = () => {
   const gapPct = Math.max(2, Math.min(18,
     Math.round(((appearance.marginPx ?? 48) / (window.innerWidth || 1000)) * 100)))
   r.setAttribute('gap', `${gapPct}%`)
-  r.setAttribute('max-column-count', '1')
+  r.setAttribute('max-column-count',
+    (appearance.columns === 'spread' && appearance.flow !== 'scrolled') ? '2' : '1')
   r.removeAttribute('animated')                 // no-animation page turns
   r.setStyles?.(buildCss(bg, fg))
 }
