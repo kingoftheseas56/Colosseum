@@ -1006,19 +1006,26 @@ Item {
             root.updateMediaSubtitle()
         }
         // Same source ladder as the picker and the episode jump: every installed
-        // extension, ranked the same way, Torrentio as the fallback.
-        var exts = (typeof Extensions !== "undefined")
-                 ? AddonClient.streamExtensions(Extensions.installed(), subType, subId)
-                 : []
+        // extension, ranked the same way, Torrentio as the fallback — but only while
+        // it is still installed AND enabled, so Remove and the off-switch mean
+        // something. Removed and nothing else answering: leave the candidate list
+        // exactly as it is (this pass only ENRICHES the picker's rows; it is not the
+        // path that starts playback). (2026-07-25, A5 — Torrentio-honesty fix.)
+        var installed = (typeof Extensions !== "undefined") ? Extensions.installed() : []
+        var exts = AddonClient.streamExtensions(installed, subType, subId)
+        var lastResort = function() {
+            if (AddonClient.torrentioEnabled(installed))
+                Torrentio.loadStreams(subType, subId, applyRows)
+        }
         if (exts.length) {
             AddonClient.loadStreams(exts, subType, subId, function() {}, function(rows) {
                 if (myGen !== root.hydrateGen)
                     return
                 if (rows && rows.length) applyRows(rows)
-                else Torrentio.loadStreams(subType, subId, applyRows)
+                else lastResort()
             })
         } else {
-            Torrentio.loadStreams(subType, subId, applyRows)
+            lastResort()
         }
     }
 
@@ -1454,22 +1461,29 @@ Item {
                              ep.type || "series", ep.id, list, ep.context || ({}))
         }
         // Same pipeline as the main picker: every installed extension, ranked the same
-        // way. Torrentio stays as the fallback — never worse than before.
-        var exts = (typeof Extensions !== "undefined")
-                 ? AddonClient.streamExtensions(Extensions.installed(), ep.type || "series", ep.id)
-                 : []
+        // way. Torrentio stays as the fallback while it is installed AND enabled —
+        // never worse than before. Removed and nothing else answering: startWith([])
+        // is already the honest landing ("No stream found for …"), not a dead spinner.
+        // (2026-07-25, A5 — Torrentio-honesty fix.)
+        var installed = (typeof Extensions !== "undefined") ? Extensions.installed() : []
+        var exts = AddonClient.streamExtensions(installed, ep.type || "series", ep.id)
+        var lastResort = function() {
+            if (!AddonClient.torrentioEnabled(installed)) {
+                startWith([])
+                return
+            }
+            streamWatchdog.restart()   // fallback gets the same full budget the old direct path had
+            Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
+        }
         if (exts.length) {
             AddonClient.loadStreams(exts, ep.type || "series", ep.id, function() {}, function(rows) {
                 if (myGen !== root.adjacentResolveGen)
                     return
                 if (rows && rows.length) startWith(rows)
-                else {
-                    streamWatchdog.restart()   // fallback gets the same full budget the old direct path had
-                    Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
-                }
+                else lastResort()
             })
         } else {
-            Torrentio.loadStreams(ep.type || "series", ep.id, startWith)
+            lastResort()
         }
     }
 
