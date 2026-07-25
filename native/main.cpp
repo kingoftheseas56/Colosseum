@@ -882,8 +882,9 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("DevAbbaClip"),
                                              qEnvironmentVariable("COLOSSEUM_ABBA_CLIP"));
 
-    // Whether this binary can play through Player 2 at all. False in a stock build, so the opt-in
-    // setting alone can never route playback into a backend that was not linked in.
+    // Whether THIS PROCESS actually booted on D3D11 - a boot fact, not a build flag or a saved
+    // setting. False in a stock build (nothing linked in) and false whenever COLOSSEUM_PLAYER2 was
+    // unset at launch, so QML can never route playback into a backend this process cannot render.
 #ifdef COLOSSEUM_PLAYER2
     // Available only when the process ACTUALLY booted on D3D11. Reporting true on an OpenGL boot is
     // what made Player 2 take a playback it could never render (2026-07-25).

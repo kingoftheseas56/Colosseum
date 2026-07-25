@@ -14,15 +14,24 @@ namespace Colosseum::Player2 {
 //
 // The handle to the session is a WEAK QPointer, not a raw pointer: the QQmlEngine owns this
 // provider for the life of the engine, but the session dies with the page (Player2Backend is
-// created/destroyed per playback). A provider can therefore outlive its session — and because
-// requestImage runs on Qt's dedicated image thread, a raw pointer left dangling after the session
-// is destroyed would be a genuine cross-thread use-after-free the very next time a stale image
-// request lands. QPointer self-nulls when the QObject it tracks is destroyed, so requestImage just
-// has to null-check it and hand back an empty QImage() instead of touching freed memory. (We do NOT
-// remove the provider from the engine on session teardown: addImageProvider replaces any existing
-// provider registered under the same id, so a naive removeImageProvider("player2subtitle") in a
-// later-installed Player2Backend's destructor could tear out a NEWER page's live provider instead
-// of the old one. The weak handle sidesteps that trap entirely — nothing needs to be removed.)
+// created/destroyed per playback), so a provider can outlive its session. QPointer self-nulls when
+// the tracked QObject is destroyed, so the COMMON case - a stale image request arriving after the
+// page has already closed - is answered correctly with an empty QImage() instead of touching freed
+// memory. (We do NOT remove the provider from the engine on session teardown: addImageProvider
+// replaces any existing provider registered under the same id, so a naive
+// removeImageProvider("player2subtitle") in a later-installed Player2Backend's destructor could tear
+// out a NEWER page's live provider instead of the old one. The weak handle sidesteps that specific
+// trap - nothing needs to be removed.)
+//
+// What this does NOT close: requestImage runs on Qt's image thread while ~Player2Session runs on the
+// GUI thread, and QPointer has no atomic promote-to-strong. Nothing stops the destructor completing
+// BETWEEN the null-check below and the subtitleImageForProvider() call on the same line - Qt documents
+// QPointer as unsafe for exactly this cross-thread tracking pattern. That window is a genuine
+// use-after-free (a destroyed QMutex, on freed memory) that this change narrows but does not close.
+// The real fix is to stop sharing Player2Session across the thread boundary at all: a small shared
+// state object (the mutex + the current subtitle image) owned by both Player2Session and this
+// provider via std::shared_ptr, so the provider never dereferences the session itself. Not done here
+// - flagged for whoever next touches this file.
 class Player2SubtitleImageProvider : public QQuickImageProvider
 {
 public:

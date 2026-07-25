@@ -81,7 +81,7 @@ if ($main_cpp -notmatch '#ifdef COLOSSEUM_PLAYER2') {
     $violations += 'main.cpp must guard every Player 2 reference behind #ifdef COLOSSEUM_PLAYER2'
 }
 if ($main_qml -notmatch 'Player2Available\s*===\s*true') {
-    $violations += 'Main.qml must gate the backend on Player2Available (build fact), not on the setting alone'
+    $violations += 'Main.qml must gate the backend on Player2Available (the actual boot, not a saved setting)'
 }
 
 # 4. The single-line swap. If someone starts branching playerLayer.item.* per backend, the facade has
@@ -90,10 +90,18 @@ if ($main_qml -notmatch 'win\.usePlayer2\s*\?\s*"player2host/Player2Page\.qml"\s
     $violations += 'Main.qml must select the backend by Loader source, not by branching the call sites'
 }
 
-# 5. No hot swap after the first frame. The restart handler must NOT route into the fallback path -
-#    that would hand a running session to the other backend and put two clocks on one playback.
-if ($main_qml -match 'function\s+handlePlayer2Restart[\s\S]{0,400}?handlePlayer2Fallback') {
-    $violations += 'handlePlayer2Restart must not call the fallback path (no mid-session backend swap)'
+# 5. The backend is a BOOT fact: usePlayer2 must be EXACTLY Player2Available, with no runtime term.
+#    mpv cannot render on a D3D11 boot, so any runtime re-route is a black screen, not a fallback.
+if ($main_qml -notmatch '(?m)^\s*readonly\s+property\s+bool\s+usePlayer2:\s*Player2Available\s*===\s*true\s*$') {
+    $violations += 'usePlayer2 must bind to exactly `Player2Available === true` - no extra runtime terms'
+}
+if ($main_qml -match 'backend(Fallback|RestartRequired)\.connect[\s\S]{0,300}?(activateSession|playerLayer\.source|usePlayer2\s*=)') {
+    $violations += 'a Player 2 failure handler must not re-route the player (no runtime backend swap)'
+}
+# And the layer below: nothing stops Player2Available reverting to a build-time-only truth (the
+# original mismatch that made mpv take a playback it could never render, 2026-07-25).
+if ($main_cpp -notmatch 'setContextProperty\(QStringLiteral\("Player2Available"\),\s*bootPlayer2\)') {
+    $violations += 'Player2Available must report the ACTUAL boot (bootPlayer2), not the build flag alone'
 }
 
 # 6. The production host must live OUTSIDE qml/player2. That directory is the isolated player, and the
@@ -112,13 +120,31 @@ if ($main_qml -match 'player2FallbackActive') {
     $violations += 'qml/Main.qml must not reference player2FallbackActive - there is no runtime fallback in a Player 2 boot'
 }
 
-# 8. Both Player2Page failure paths must set errorText so the loading/error surface shows the
-#    reason instead of silently relying on a backend swap that can no longer happen.
-if ($page_qml -notmatch 'function\s+onFallbackRequested\s*\([^)]*\)\s*\{([\s\S]*?)\}') {
-    $violations += 'Player2Page must implement onFallbackRequested'
+# 8. EVERY path that gives up on a playback (router decline, torrent failure, or a post-first-frame
+#    death) must funnel into the one place that sets errorText - not just the two Connections handlers,
+#    which is where finding 1 (2026-07-25 review) actually lived: _open()'s decline branch called
+#    backendFallback directly and never touched errorText, leaving a black page with no message.
+if ($page_qml -notmatch 'function\s+_failPlayback\s*\([^)]*\)\s*\{([\s\S]*?)\}') {
+    $violations += 'Player2Page must implement a single _failPlayback(reason) funnel'
 } elseif ($Matches[1] -notmatch 'errorText') {
-    $violations += 'Player2Page onFallbackRequested must set page.errorText (a pre-first-frame failure must surface on the page)'
+    $violations += '_failPlayback must set page.errorText (that is the only thing that makes the error screen show)'
 }
+# Each anchored on its OWN function definition, not a bare name match - '_open' in particular is
+# called from four other functions before it is ever defined, so a bare substring match would anchor
+# on a call site and never find _failPlayback within range.
+$callerDefs = @{
+    'onFallbackRequested' = 'function\s+onFallbackRequested\s*\('
+    'onStreamError'       = 'function\s+onStreamError\s*\('
+    '_open'                = 'function\s+_open\s*\('
+}
+foreach ($caller in $callerDefs.Keys) {
+    if ($page_qml -notmatch "$($callerDefs[$caller])[\s\S]{0,900}?_failPlayback\(") {
+        $violations += "Player2Page's '$caller' must route through _failPlayback - a decline that skips it is a silent black screen"
+    }
+}
+# onRestartRequired is the one legitimate exception (it emits backendRestartRequired, not
+# backendFallback - there IS no runtime swap to route through _failPlayback for), but it must still
+# set errorText itself so a post-first-frame death is not silent either.
 if ($page_qml -notmatch 'function\s+onRestartRequired\s*\([^)]*\)\s*\{([\s\S]*?)\}') {
     $violations += 'Player2Page must implement onRestartRequired'
 } elseif ($Matches[1] -notmatch 'errorText') {

@@ -27,9 +27,11 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
 
-    // Player 2 could not carry this playback. The app hands the SAME request to mpvqt (see Main.qml);
-    // this is the one legal backend swap and it only ever happens before a frame is shown.
-    signal backendFallback(string reason, var request)
+    // Player 2 gave up on this playback before a frame was shown. There is no other backend to hand
+    // it to in this process (mpv cannot render on D3D11) — this signal exists so Main.qml can log the
+    // distinction from a post-first-frame failure; the page itself is the only destination, via
+    // errorText below.
+    signal backendFallback(string reason)
     // Player 2 died with the picture already up. No hot swap — the app surfaces it and starts clean.
     signal backendRestartRequired(string reason)
 
@@ -41,10 +43,6 @@ Item {
     property string subStreamId: ""
     property var playbackContext: ({})
     property real pendingSeekSec: 0
-    // The last request handed to the engine, kept so a fallback can be replayed on mpvqt verbatim
-    // rather than reconstructed (a reconstruction is where a "fallback played the wrong thing" bug
-    // would live).
-    property var _lastRequest: ({})
     // True between Stream.play() and streamReady/streamError - a torrent is warming up.
     property bool _awaitingStream: false
 
@@ -151,15 +149,10 @@ Item {
 
     Connections {
         target: backend
-        function onFallbackRequested(reason) {
-            // In a Player 2 boot there is nowhere to fall back TO (mpv cannot render on
-            // D3D11), so a pre-first-frame failure surfaces here exactly like a late one.
-            page.errorText = reason
-            page.backendFallback(reason, page._lastRequest)
-        }
+        function onFallbackRequested(reason) { page._failPlayback(reason) }
         function onRestartRequired(reason) {
             // Show it. Closing the player was the old behaviour and it read as the app vanishing.
-            page.errorText = reason
+            page.errorText = String(reason || "Player 2 could not continue this playback")
             page.backendRestartRequired(reason)
         }
     }
@@ -178,10 +171,9 @@ Item {
             if (!page._awaitingStream)
                 return
             page._awaitingStream = false
-            // The torrent never produced a URL. Player 2 has no retry/pick-another-source machinery
-            // yet (that lives in the shipped player), so hand it over rather than sit on a dead page.
-            page.errorText = String(message || "the stream could not be started")
-            page.backendFallback(String(message || "the stream could not be started"), page._lastRequest)
+            // The torrent never produced a URL. There is no other backend to hand this to in this
+            // process, so the page's own error surface is the only honest destination.
+            page._failPlayback(String(message || "the stream could not be started"))
         }
     }
 
@@ -336,6 +328,13 @@ Item {
         return (p.indexOf("file:") === 0) ? p : ("file:///" + p.replace(/\\/g, "/"))
     }
 
+    // Every path that gives up on a playback ends here: there is no other backend in this process,
+    // so the page's own error surface is the only honest destination.
+    function _failPlayback(reason) {
+        page.errorText = String(reason || "Player 2 could not play this")
+        page.backendFallback(page.errorText)
+    }
+
     function _open(url) {
         var request = {
             "url": String(url || ""),
@@ -345,15 +344,15 @@ Item {
             "live": String(page.subStreamId || "").indexOf("iptv:") === 0,
             "headers": ({})
         }
-        page._lastRequest = request
         hostServices.currentPlaybackUrl = request.url
 
         var decision = backend.play(request)
         if (decision.outcome === "player2")
             return
 
-        // Anything else means Player 2 is not carrying this playback. Nothing has been shown yet, so
-        // handing it to mpvqt is invisible — but it is never silent: the reason travels with it.
-        page.backendFallback(String(decision.reason || "Player 2 declined this playback"), request)
+        // Anything else means Player 2 declined this playback outright (e.g. live/DVR, not yet
+        // built; or no source at all). Nothing has been shown yet, but there is still nowhere else
+        // for it to go — surface it the same as every other decline.
+        page._failPlayback(decision.reason || "Player 2 declined this playback")
     }
 }

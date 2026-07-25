@@ -208,7 +208,7 @@ Window {
         // Which video backend this launch will use. Announced at startup so a run can be diagnosed
         // without playing anything (Task 17).
         console.log("[player] startup backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
-                    + "  (built-in=" + Player2Available + ")")
+                    + "  (booted=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
         if (typeof WindowMode !== "undefined")
@@ -1995,7 +1995,7 @@ Window {
             // apart means reading process paths after the fact - which is exactly what happened on the
             // first swap attempt (2026-07-25).
             console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
-                        + "  (available=" + Player2Available + ")")
+                        + "  (booted=" + Player2Available + ")")
             item.backdrop = wall
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
@@ -2004,7 +2004,7 @@ Window {
             // Player-2-only seams; absent on the mpv page, hence the guards. Log only: there is
             // no backend to swap to in this boot, so the page itself shows the failure.
             if (item.backendFallback)
-                item.backendFallback.connect(function(reason, request) {
+                item.backendFallback.connect(function(reason) {
                     console.warn("[player2] declined/failed before first frame: " + reason)
                 })
             if (item.backendRestartRequired)
