@@ -81,7 +81,7 @@ private:
     void seed();                       // first run: every house catalogue + well
     void migrateDefaults();            // existing install: add house rows a newer
                                        // defaults version introduced, once only
-    void appendHouseDefaults(bool onlyMissing);
+    bool appendHouseDefaults(bool onlyMissing);   // true if anything added or refreshed
     void bump();
     int  indexOfId(const QString& id) const;
     QString indexPath() const;         // <appdata>/extensions/installed.json

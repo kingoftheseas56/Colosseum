@@ -21,8 +21,11 @@ constexpr int kManifestTimeoutMs = 12000;
 constexpr int kDescriptionCap = 400;
 // Generation of the house roster. 1 = the original four Theatre rows. 2 added the
 // Tankoban and Biblio catalogues and wells, so those two worlds stop being empty
-// tabs. Bump this when a house row is ADDED; the additive migration then runs once.
-constexpr int kHouseDefaultsVersion = 3;
+// tabs. 3 retired the WeebCentral/GetComics catalogue rows and emptied the house
+// descriptions. 4 renamed the vault row to "Colosseum Grand Database".
+// Bump this whenever a house row is added, retired, OR its manifest copy changes —
+// the migration re-runs once and now refreshes existing rows as well as adding new ones.
+constexpr int kHouseDefaultsVersion = 4;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -90,8 +93,12 @@ void ExtensionsStore::bump()
 // The four the house already runs on. Manifests are embedded (no network at
 // boot); the real, richer manifest replaces the seed copy if the extension is
 // ever re-installed by link.
-void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
+// Returns true if anything was actually added or refreshed — the caller cannot infer
+// that from the row COUNT, because a generation can add as many rows as it retires and
+// a manifest refresh changes no count at all.
+bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
 {
+    bool touched = false;
     const qint64 now = QDateTime::currentSecsSinceEpoch();
     auto entry = [now](const char* id, const char* url, bool core,
                        const QVariantMap& manifest) {
@@ -126,11 +133,27 @@ void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // onlyMissing = the additive migration pass. It must never duplicate a row the
     // profile already carries, and never resurrect one the user deliberately removed
     // at an older defaults version (the version marker is what stops that).
-    auto add = [this, onlyMissing, &entry](const char* id, const char* url, bool core,
-                                           const QVariantMap& m) {
-        if (onlyMissing && indexOfId(QString::fromLatin1(id)) >= 0)
+    //
+    // A row the profile already has still gets its MANIFEST refreshed, because a house
+    // row's name and metadata are ours, not the user's — only its enabled flag and its
+    // position are his, and those live outside the manifest. Without this, every change
+    // to house copy reaches new installs only and silently skips every existing profile.
+    // That bit twice in one day: the false descriptions stayed after they were deleted,
+    // and "Colosseum Data" stayed after it was renamed. Remote add-ons are never touched
+    // here — their manifest belongs to their author and arrives over the wire.
+    auto add = [this, onlyMissing, &entry, &touched](const char* id, const char* url,
+                                                     bool core, const QVariantMap& m) {
+        const int at = indexOfId(QString::fromLatin1(id));
+        if (at >= 0) {
+            if (onlyMissing
+                && m_items.at(at).value(QStringLiteral("manifest")).toMap() != m) {
+                m_items[at].insert(QStringLiteral("manifest"), m);
+                touched = true;
+            }
             return;
+        }
         m_items.append(entry(id, url, core, m));
+        touched = true;
     };
 
     // ---- Theatre (defaults generation 1) -----------------------------------
@@ -169,7 +192,7 @@ void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // Descriptions are gone by the same ruling: they needed no explaining, and the lines
     // we wrote were either obvious or false.
     add("colosseum.catalogue.vault", "colosseum://catalogue/vault", true,
-        manifest("colosseum.catalogue.vault", "Colosseum Data", "",
+        manifest("colosseum.catalogue.vault", "Colosseum Grand Database", "",
                  { QStringLiteral("catalog"), QStringLiteral("meta") },
                  { QStringLiteral("manga"), QStringLiteral("comic") }, {}, false));
     add("colosseum.catalogue.anilist", "colosseum://catalogue/anilist", true,
@@ -210,6 +233,8 @@ void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
         manifest("colosseum.well.audiobookbay", "AudioBookBay", "",
                  { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));
+
+    return touched;
 }
 
 void ExtensionsStore::seed()
@@ -235,8 +260,9 @@ static const char* const kRetiredIds[] = {
 // well stays removed across restarts.
 void ExtensionsStore::migrateDefaults()
 {
-    // Count is NOT a change signal: generation 3 retires two rows and adds two, which
-    // nets to zero. Track the edit explicitly or the UI never refreshes.
+    // Count is NOT a change signal: generation 3 retired two rows and added two, netting
+    // zero, and a manifest refresh changes no count at all. Track the edit explicitly or
+    // the UI never refreshes.
     bool changed = false;
 
     for (const char* id : kRetiredIds) {
@@ -247,9 +273,7 @@ void ExtensionsStore::migrateDefaults()
         }
     }
 
-    const int before = m_items.size();
-    appendHouseDefaults(/*onlyMissing=*/true);
-    if (m_items.size() != before)
+    if (appendHouseDefaults(/*onlyMissing=*/true))
         changed = true;
 
     m_defaultsVersion = kHouseDefaultsVersion;

@@ -61,12 +61,22 @@ for (const [a, b, n] of pairs) {
   else bad(`${n}: roles disagree — ${la || "(letter)"} vs ${lb || "(letter)"}`);
 }
 
-console.log("our own catalogues have no borrowed iconography — letters, honestly");
-for (const [id, name] of [["colosseum.catalogue.vault", "Colosseum Data"],
-                          ["colosseum.catalogue.anilist", "AniList"]]) {
-  const got = mod.logoFor(id, name);
-  if (!got) ok(`${name.padEnd(14)} -> letter square`);
-  else bad(`${name} borrowed ${path.basename(got)} — we ship no mark for it`);
+console.log("the one mark we do not borrow, because we own it");
+{
+  const got = mod.logoFor("colosseum.catalogue.vault", "Colosseum Grand Database");
+  const want = "colosseum-grand-database.png";
+  if (!got) bad(`Grand Database got the letter square, expected ${want}`);
+  else if (path.basename(got) !== want) bad(`Grand Database -> ${path.basename(got)}, expected ${want}`);
+  else if (!onDisk(got)) bad(`Grand Database -> ${want} but that file is not on disk`);
+  else ok(`Grand Database -> ${want} (the house arch, same mark as the app)`);
+  // and the narrow matcher must not swallow our other colosseum.* rows
+  for (const [id, n] of [["colosseum.well.indexers", "Torrent Indexers"],
+                         ["colosseum.catalogue.applebooks", "Apple Books"]]) {
+    const g = mod.logoFor(id, n);
+    (g && path.basename(g) === want)
+      ? bad(`${n} wrongly picked up the house arch`)
+      : ok(`${n.padEnd(17)} did not pick up the house arch`);
+  }
 }
 
 console.log("the deliberate letter squares stay letters (never a wrong-site logo)");

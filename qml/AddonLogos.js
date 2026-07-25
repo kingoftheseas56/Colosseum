@@ -65,6 +65,12 @@ var TABLE = [
     { file: "libgen.ico",       m: function (id, n) { return id.indexOf("libgen") >= 0 || /lib.?gen/i.test(n); } },
     { file: "audiobookbay.png", m: function (id, n) { return id.indexOf("audiobookbay") >= 0 || /audio.?book.?bay/i.test(n); } },
     { file: "applebooks.ico",   m: function (id, n) { return id.indexOf("applebooks") >= 0 || /apple ?books/i.test(n); } },
+    // The one row whose mark we do not borrow because we own it: the Grand Database is
+    // ours, so it wears the house arch (rasterised from assets/icons/colosseum.ico, the
+    // same mark as the app). Matched narrowly on the vault id so no other colosseum.*
+    // row picks it up by accident.
+    { file: "colosseum-grand-database.png",
+      m: function (id, n) { return id.indexOf("catalogue.vault") >= 0 || /grand ?database/i.test(n); } },
     // NOT listed: "Torrent Indexers". It is OUR composite of four sites, not a site, so
     // it has no official iconography to borrow — it keeps the honest letter square.
     // ExtTorrents and Torrents-CSV publish no square mark either (ExtTorrents' only
