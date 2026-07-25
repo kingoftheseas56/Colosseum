@@ -600,6 +600,21 @@ int main(int argc, char** argv) {
               "T15 the returned top is clamped inside the book");
     }
 
+    // ── Test 16: stripPageTop is the strip model's own top for that page ─────────
+    // The strip restore (B2) seeks by asking the BACKEND where a page starts, because the ListView
+    // only realizes delegates near the viewport — the page you are resuming TO has no y to read yet.
+    // So this answer must be the model's own geometry, not a second estimate that can drift from it.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t16"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+        QAbstractListModel* m = core.stripModel();
+        const double top3 = m->data(m->index(3, 0), ComicReaderStripModel::TopRole).toDouble();
+        CHECK(qAbs(core.stripPageTop(3) - top3) < 0.5, "T16 stripPageTop(3) matches the model's TopRole");
+        CHECK(core.stripPageTop(-1) == 0.0 && core.stripPageTop(999) == 0.0,
+              "T16 out-of-range stripPageTop is 0, never a crash");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

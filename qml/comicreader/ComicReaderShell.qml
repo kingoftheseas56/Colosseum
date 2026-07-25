@@ -155,6 +155,9 @@ Item {
     property bool _resumeArmed: false           // the next load may restore the saved Continue spot
     property bool _pendingAtLast: false         // open the entry at its last page (previous-crossing)
     property bool _suspendRecord: false         // mutating state during load() must not emit records
+    property real _pendingStripFrac: 0          // one-shot: the saved scrollFrac awaiting layout settle
+    // is a restore in flight? Consumed by the shell gate; also the honest answer to "did resume arm".
+    readonly property bool _stripRestorePending: stripRestore.running || _stripRestoreTries > 0
 
     // --- current entry label (mirrors MangaReader curLabel, lines 170-175) ---
     readonly property string curLabel: {
@@ -196,12 +199,18 @@ Item {
                 currentPage = _pendingAtLast ? pageCount : 1
                 maxSeen = currentPage
                 stripFraction = 0
-                _pendingAtLast = false
+                _pendingStripFrac = 0                   // one-shot, PER ENTRY — a stale fraction from the
+                _pendingAtLast = false                  // previous book must never restore into this one
                 _applyResume()                          // a matching Continue entry overrides the start spot
                 maxSeen = Math.max(maxSeen, currentPage)
                 if (core) core.openEntry(curChapterId, _pages, dir, persistedState)
+                // Physically move the strip to the restored spot. ONE door (stripRestore), settle-gated:
+                // the column positions its delegates a vsync later, and its heights are estimates until
+                // decodes land — an immediate jump reads y=0 for unrealized delegates and lands at the top.
+                if (mode === "long_strip" && (_pendingStripFrac > 0 || currentPage > 1))
+                    stripRestore.restart()
             } else {
-                currentPage = 1; maxSeen = 0; stripFraction = 0; _pendingAtLast = false
+                currentPage = 1; maxSeen = 0; stripFraction = 0; _pendingStripFrac = 0; _pendingAtLast = false
                 // not downloaded — the acquire routing is startDownload() (per-lane). Nothing auto-fires.
             }
         } finally {
@@ -210,9 +219,9 @@ Item {
     }
 
     // restore the saved page + strip fraction BEFORE first paint when this open matches the saved
-    // Continue entry (mirrors MangaReader load() resume, lines 280-290). The shell just publishes
-    // stripFraction; the strip surface owns the layout settle — it applies the resume fraction once
-    // its content has laid out (ComicReaderStripSurface._applyResumeFraction).
+    // Continue entry (mirrors MangaReader load() resume, lines 280-290). The shell publishes
+    // stripFraction (the HUD reads it) and ARMS the one-shot _pendingStripFrac; load() then opens the
+    // ONE restore door (stripRestore) which physically moves the column once it has settled.
     function _applyResume() {
         if (!_resumeArmed) return
         _resumeArmed = false
@@ -222,6 +231,7 @@ Item {
             currentPage = Math.max(1, Math.min(pageCount, Number(r.page) || 1))
             maxSeen = Math.max(currentPage, Number(r.maxSeen) || 0)
             stripFraction = (mode === "long_strip") ? (Number(r.scrollFrac) || 0) : 0
+            _pendingStripFrac = (mode === "long_strip") ? (Number(r.scrollFrac) || 0) : 0
         }
     }
 
@@ -596,18 +606,29 @@ Item {
     // the write is debounced exactly like recordProgress — QSettings syncs to disk on every write.
     Timer { id: entrySave; interval: 800; onTriggered: reader._saveEntryBlob() }
 
-    // The deferred strip seek (TB2's 300ms settle). Retries once if the column still has not laid
-    // out, rather than silently leaving the reader at the top — a slow first decode should cost you
-    // a moment, never your place.
+    // THE ONE restore door (TB2's 300ms settle). Everything that has to put the strip somewhere goes
+    // through here — a resumed Continue spot, a page-only record, a mode switch into the strip — so
+    // there is exactly one mechanism to reason about and no second one to fight it. Retries while the
+    // column still has not laid out, rather than silently leaving the reader at the top.
     property int _stripRestoreTries: 0
     Timer {
         id: stripRestore
         interval: 300
         onTriggered: {
             if (reader.mode !== "long_strip" || reader.max <= 0) { reader._stripRestoreTries = 0; return }
-            if (stripSurface.seekToPage(reader.currentPage - 1)) { reader._stripRestoreTries = 0; return }
-            if (reader._stripRestoreTries < 3) { reader._stripRestoreTries += 1; stripRestore.restart() }
-            else reader._stripRestoreTries = 0
+            var span = stripSurface.contentHeight - stripSurface.height
+            if (span <= 0) {   // not laid out yet — retry; a slow decode costs a moment, never your place
+                if (reader._stripRestoreTries < 3) { reader._stripRestoreTries += 1; stripRestore.restart() }
+                else reader._stripRestoreTries = 0
+                return
+            }
+            reader._stripRestoreTries = 0
+            if (reader._pendingStripFrac > 0) {
+                stripSurface.haltScrollAt(Math.max(0, Math.min(span, reader._pendingStripFrac * span)))
+                reader._pendingStripFrac = 0
+            } else if (reader.currentPage > 1) {
+                stripSurface.seekToPage(reader.currentPage - 1)   // backend-exact page top
+            }
         }
     }
 
@@ -640,7 +661,9 @@ Item {
         active: visible
         core: reader.core
         rtl: reader.rtl
-        resumeFraction: reader.stripFraction
+        // NO resume binding in: the surface is a painter, and a bound fraction it applies itself is a
+        // feedback loop (its own onScrolled writes reader.stripFraction, which re-drives the binding).
+        // Restoring is a one-shot COMMAND from the shell (stripRestore -> haltScrollAt/seekToPage).
         onPageInView: function (page) { reader.currentPage = page }
         onScrolled: function (frac) { reader.stripFraction = frac }
     }

@@ -415,6 +415,27 @@ Item {
             ck(rShell.stripFraction === 0.5, "resume: stripFraction must be restored to 0.5, got " + rShell.stripFraction)
             ck(rShell.maxSeen === 4, "resume: maxSeen must be restored to 4, got " + rShell.maxSeen)
 
+            // resume routes through the ONE restore door: a saved fraction arms it, and a
+            // page-only record (scrollFrac 0, page > 1) must arm it too — that second shape is
+            // what a paged-mode record looks like, and it used to leave the column at the top.
+            ck(Math.abs(rShell._pendingStripFrac - 0.5) < 1e-9,
+               "resume: the saved scrollFrac must arm _pendingStripFrac, got " + rShell._pendingStripFrac)
+
+            var r2Prog = fakeProgR2
+            r2Prog.saved = { "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "maxSeen": 4, "finished": false } }
+            var r2Store = fakeStoreR2; r2Store.pages = fivePages()
+            var r2 = makeShell({
+                "width": 640, "height": 480, "seriesId": "s3b", "seriesTitle": "Resume2",
+                "seriesCover": "file:///f/c.png", "core": fakeCoreR2, "progress": r2Prog,
+                "pageStore": r2Store, "persistedMode": "long_strip",
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(r2.currentPage === 3, "resume2: page restored to 3")
+            ck(r2._pendingStripFrac === 0, "resume2: no fraction to arm")
+            ck(r2._stripRestorePending === true, "resume2: the restore door must be ARMED for a page-only record")
+
             // ===== 4a. CROSSING next: newest-first, record BEFORE jump; hasNext/hasPrev =====
             var xCore = fakeCoreX, xProg = fakeProgX, xStore = fakeStoreX
             xStore.pages = fivePages()   // every id is 'ready' (localPages ignores id here)
@@ -721,6 +742,7 @@ Item {
     FakeCore { id: fakeCoreUW }  FakeProgress { id: fakeProgUW }  FakePageStore { id: fakeStoreUW }
     FakeCore { id: fakeCoreT }   FakeProgress { id: fakeProgT }   FakePageStore { id: fakeStoreT }
     FakeCore { id: fakeCoreR }   FakeProgress { id: fakeProgR }   FakePageStore { id: fakeStoreR }
+    FakeCore { id: fakeCoreR2 }  FakeProgress { id: fakeProgR2 }  FakePageStore { id: fakeStoreR2 }
     FakeCore { id: fakeCoreX }   FakeProgress { id: fakeProgX }   FakePageStore { id: fakeStoreX }
     FakeCore { id: fakeCoreP }   FakeProgress { id: fakeProgP }   FakePageStore { id: fakeStoreP }
     FakeCore { id: fakeCoreS }   FakeProgress { id: fakeProgS }

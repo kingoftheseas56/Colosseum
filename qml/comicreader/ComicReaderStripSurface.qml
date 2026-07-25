@@ -25,8 +25,9 @@
 //
 // STATE-MUTATING SIGNALS ARE GATED. pageInView/scrolled/manualNavigation fire ONLY on genuine user
 // scroll (a wheel gesture), never on construction, resume, or compensation — so mounting this
-// surface never clobbers the shell's resumed page/fraction. The shell binds `resumeFraction` in and
-// consumes pageInView/scrolled out.
+// surface never clobbers the shell's resumed page/fraction. The shell consumes pageInView/scrolled
+// out; it puts the column somewhere by CALLING seekToPage()/haltScrollAt(), never by binding a
+// fraction in (that would be a scroll -> fraction -> apply -> scroll loop).
 
 import QtQuick
 
@@ -37,7 +38,6 @@ Item {
     property var core: null
     property bool active: true
     property bool rtl: false                 // strip is vertical; kept for parity / future affordances
-    property real resumeFraction: 0          // initial scroll fraction (resume-before-first-paint)
     property int cacheScreens: 2             // cacheBuffer in viewport-heights (modest -> virtualized)
 
     // ---- DECODE CAP (the lineage's sourceSize.width; the strip had none) ----
@@ -77,7 +77,6 @@ Item {
     property bool _programmatic: false       // suppress user-signal emission for resume/compensation
     property bool _draining: false           // the wheel drain is authoring contentY (don't resync smoothY)
     property bool _userInteracted: false     // a wheel gesture has occurred (gates user-signal emission)
-    property bool _resumeApplied: false
 
     // Decode-refresh dependency. The C++ provider returns a NULL image for a not-yet-decoded page
     // and imageUrl() embeds a per-page rev that bumps on pageReady — but imageUrl() reading that rev
@@ -210,7 +209,6 @@ Item {
         }
         onWidthChanged: root._scheduleReport()
         onHeightChanged: root._scheduleReport()
-        onContentHeightChanged: root._applyResumeFraction()
     }
 
     // ================= throttled viewport report (<= once per frame) =================
@@ -366,19 +364,12 @@ Item {
         onWheel: function (event) { root._intakeWheel(event.angleDelta.y, event.pixelDelta.y) }
     }
 
-    // ================= resume + user-scroll reporting =================
-    function _applyResumeFraction() {
-        if (_resumeApplied) return
-        var span = list.contentHeight - list.height
-        if (span <= 0) return                 // content not laid out yet / fits — nothing to resume to
-        _resumeApplied = true
-        _programmatic = true
-        list.contentY = Math.max(0, Math.min(span, resumeFraction * span))
-        _smoothY = list.contentY
-        _programmatic = false
-    }
-    onResumeFractionChanged: _applyResumeFraction()
-
+    // ================= user-scroll reporting =================
+    // NOTE: the surface no longer restores anything itself. Resume is a one-shot COMMAND from the
+    // shell (seekToPage / haltScrollAt above), never a bound `resumeFraction` the surface re-applies:
+    // the shell's fraction is written BY this surface's own onScrolled, so a binding the surface acts
+    // on is a scroll -> fraction -> apply -> scroll loop, and the latch that used to break the loop
+    // was per-object-lifetime — the reader is a persistent child, so the second book never resumed.
     function _emitUserScroll() {
         if (list.count <= 0) return
         var span = list.contentHeight - list.height
@@ -394,6 +385,4 @@ Item {
             root.visiblePages(arr)
         }
     }
-
-    Component.onCompleted: Qt.callLater(_applyResumeFraction)
 }

@@ -19,6 +19,10 @@
 //       lands ~100px/notch into a bounded backlog, and each 16ms drain takes ~0.38 of the backlog
 //       clamped to a max step (no giant jump), draining smoothly in float sub-pixel space.
 //     * a per-page pageFailed(page,code) shows the typed placard for THAT page's delegate only.
+//     * RESTORE is a one-shot COMMAND from the shell, never a bound fraction: seekToPage(n) lands on
+//       the BACKEND's page top (clamped to the span) and haltScrollAt(y) pins contentY exactly; both
+//       drop any in-flight glide and emit NO scrolled()/pageInView() — the surface owns no resume
+//       state, so nothing can loop (surface scroll -> shell fraction -> surface applies -> scroll).
 //
 //   DOUBLE (ComicReaderDoubleSurface):
 //     * a real PAIR unit renders TWO images; RTL vs LTR FLIPS the physical x-order of the
@@ -105,6 +109,19 @@ Item {
         function setStripViewport(top, height) {
             setStripViewportCalls += 1; lastViewportTop = top; lastViewportHeight = height
         }
+        // the backend's own page top (Q_INVOKABLE double stripPageTop(int) on the real core). The
+        // ListView cannot supply this — it only realizes delegates near the viewport, so the page you
+        // are seeking TO has no y to read yet, which is exactly why an immediate seek lands at 0.
+        // Matches fillStripModel's `top: i * 1220`; out of range is 0, never a crash (the real core's
+        // contract, pinned in comicreader_core_harness T16).
+        property int stripPageTopCalls: 0
+        property real stripPageTopForce: -1      // >=0 overrides the answer (to exercise the clamp)
+        function stripPageTop(page) {
+            stripPageTopCalls += 1
+            if (stripPageTopForce >= 0) return stripPageTopForce
+            if (!stripModel || page < 0 || page >= stripModel.count) return 0
+            return page * 1220
+        }
         function setStripViewportWidth(w) { setStripViewportWidthCalls += 1; lastViewportWidth = w }
     }
 
@@ -126,6 +143,9 @@ Item {
     // ---- unitShown capture ----
     property int capturedHighest: -1
     property int unitShownCount: 0
+
+    // ---- strip user-signal capture: a PROGRAMMATIC restore must emit none of these ----
+    property int stripScrolledCount: 0
 
     function fillStripModel(m, n) {
         m.clear()
@@ -155,6 +175,8 @@ Item {
             "width": 520, "height": 480, "active": true, "core": coreStrip
         })
         if (!stripSurface) { failures.push("strip: createObject returned null"); return }
+        stripSurface.scrolled.connect(function (f) { harness.stripScrolledCount += 1 })
+        stripSurface.pageInView.connect(function (p) { harness.stripScrolledCount += 1 })
         stripSurface.forceRelayout()
 
         // --- virtualization: near window has a delegate, a far page does not ---
@@ -280,6 +302,42 @@ Item {
         stripSurface.haltScrollAt(1234.5)
         ck(approx(stripSurface.contentY, 1234.5, 0.001), "wheel: haltScrollAt must pin contentY exactly, got " + stripSurface.contentY)
         ck(stripSurface._pendingWheelPx === 0, "wheel: haltScrollAt must drop the in-flight backlog, got " + stripSurface._pendingWheelPx)
+        ck(stripSurface._smoothY === 1234.5, "wheel: haltScrollAt must re-anchor the float accumulator, got " + stripSurface._smoothY)
+
+        // --- RESTORE (B2): the surface is a PAINTER. It restores nothing itself — the shell puts the
+        // column somewhere by CALLING seekToPage()/haltScrollAt(). This replaces the old bound
+        // `resumeFraction` + `_resumeApplied` latch, which was a feedback loop (the surface's own
+        // onScrolled writes the shell's fraction, which re-drove the binding) broken by a latch that
+        // was per-OBJECT-LIFETIME — the reader is a persistent child, so the second book never resumed.
+        ck(stripSurface.resumeFraction === undefined,
+           "restore: the surface must expose NO bound resumeFraction (a scroll->fraction->apply loop)")
+
+        // seekToPage lands on the BACKEND's page top, not on a delegate's y (a far page has no
+        // delegate — that is exactly why an immediate seek used to land at the top of the book).
+        stripSurface._intakeWheel(-360, 0)            // a glide still in flight must not fight the seek
+        var seekOk = stripSurface.seekToPage(10)
+        ck(seekOk === true, "restore: seekToPage must report success once the column is laid out")
+        ck(approx(stripSurface.contentY, 12200, 0.001),
+           "restore: seekToPage(10) must land on the backend's page top 12200, got " + stripSurface.contentY)
+        ck(stripSurface._pendingWheelPx === 0, "restore: a seek must drop any in-flight scroll backlog, got " + stripSurface._pendingWheelPx)
+
+        // ...and it CLAMPS to the scrollable span rather than assigning past the end of the book.
+        // The column's heights are ESTIMATES until decodes land, so a backend top can legitimately
+        // exceed the span the ListView currently reports — forced here rather than hoped for.
+        var spanNow = stripSurface.contentHeight - 480
+        coreStrip.stripPageTopForce = spanNow + 50000
+        stripSurface.seekToPage(199)
+        ck(approx(stripSurface.contentY, spanNow, 0.001),
+           "restore: seekToPage must clamp to the scrollable span " + spanNow + ", got " + stripSurface.contentY)
+        coreStrip.stripPageTopForce = -1
+
+        // a restore must NEVER masquerade as a user scroll — that is the loop, from the other side.
+        var scrollsBefore = harness.stripScrolledCount
+        stripSurface.seekToPage(20)
+        stripSurface.haltScrollAt(700)
+        ck(harness.stripScrolledCount === scrollsBefore,
+           "restore: a programmatic restore must emit NO scrolled()/pageInView() (that is the feedback loop), got "
+           + (harness.stripScrolledCount - scrollsBefore) + " emissions")
 
         // --- I2: a HIDDEN (inactive) strip must NOT report its viewport — both surfaces share one
         // core/pool, so a hidden strip driving decode requests would compete with the active surface. ---
