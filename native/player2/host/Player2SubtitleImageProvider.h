@@ -25,9 +25,9 @@ namespace Colosseum::Player2 {
 //
 // What this does NOT close: requestImage runs on Qt's image thread while ~Player2Session runs on the
 // GUI thread, and QPointer has no atomic promote-to-strong. Nothing stops the destructor completing
-// BETWEEN the null-check below and the subtitleImageForProvider() call on the same line - Qt documents
-// QPointer as unsafe for exactly this cross-thread tracking pattern. That window is a genuine
-// use-after-free (a destroyed QMutex, on freed memory) that this change narrows but does not close.
+// BETWEEN the null-check below and the subtitleImageForProvider() call on the same line. That window
+// is a genuine use-after-free (a destroyed QMutex, on freed memory) that this change narrows but does
+// not close.
 // The real fix is to stop sharing Player2Session across the thread boundary at all: a small shared
 // state object (the mutex + the current subtitle image) owned by both Player2Session and this
 // provider via std::shared_ptr, so the provider never dereferences the session itself. Not done here

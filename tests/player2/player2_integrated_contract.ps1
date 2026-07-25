@@ -95,6 +95,13 @@ if ($main_qml -notmatch 'win\.usePlayer2\s*\?\s*"player2host/Player2Page\.qml"\s
 if ($main_qml -notmatch '(?m)^\s*readonly\s+property\s+bool\s+usePlayer2:\s*Player2Available\s*===\s*true\s*$') {
     $violations += 'usePlayer2 must bind to exactly `Player2Available === true` - no extra runtime terms'
 }
+# The single-line check above stops at the first line end under (?m), so a term wrapped onto a
+# continuation line (`Player2Available === true` then `&& !win.someFlag` on the next line) passes it
+# undetected. Catch that shape explicitly: nothing may be ANDed/ORed/ternaried onto the boot fact,
+# same line or next.
+if ($main_qml -match 'usePlayer2:\s*Player2Available\s*===\s*true\s*(\r?\n\s*)?(&&|\|\||\?)') {
+    $violations += 'usePlayer2 must have no extra terms - nothing may be ANDed onto the boot fact'
+}
 if ($main_qml -match 'backend(Fallback|RestartRequired)\.connect[\s\S]{0,300}?(activateSession|playerLayer\.source|usePlayer2\s*=)') {
     $violations += 'a Player 2 failure handler must not re-route the player (no runtime backend swap)'
 }
