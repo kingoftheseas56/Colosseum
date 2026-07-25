@@ -56,6 +56,10 @@ signals:
     void restartRequired(const QString &reason);
 
 private:
+    // One failure per playback attempt, claimed synchronously (so an already-armed net cannot beat
+    // it) and reported from the event loop (so no caller's frame - transition(), m_pump's timeout -
+    // is still alive when a fallback destroys us). A play()/stop() in between cancels the report.
+    void claimFailure(const QString &reason);
     // Route a failure by whether anything has been presented yet — see classifyRuntimeFailure.
     void reportFailure(const QString &reason);
     bool firstFrameSeen() const;
@@ -78,11 +82,10 @@ private:
     bool m_hasPending = false;
     int m_waitTicks = 0;
 
-    // The engine's own last error text, and whether a failure has already been reported for the
-    // CURRENT playback attempt — both reset in play() and stop(). The reported flag is what stops a
-    // harmless rejected-transition signal, or stateChanged's own net, from re-reporting or
-    // overwriting the real cause once errorOccurred has already delivered it.
-    QString m_lastError;
+    // Whether a failure has already been claimed/reported for the CURRENT playback attempt — reset
+    // in play() and stop(). This is what stops a harmless rejected-transition signal, the generic
+    // stateChanged net, or a late device-init/device-never-ready failure from double-reporting or
+    // overwriting a cause that has already gone out.
     bool m_failureReported = false;
 };
 }

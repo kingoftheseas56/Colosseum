@@ -50,23 +50,17 @@ Player2Backend::Player2Backend(QObject *parent)
     // synchronously, same call stack), so stateChanged always sees the failure first with no
     // message yet attached - that ordering is why this handler, not stateChanged, has to be the one
     // that actually reports. errorOccurred also fires for a REJECTED transition (e.g. a stray
-    // command arriving late) with no state change at all; that is not a failure to report, so it is
-    // gated on the session actually being in Error. m_failureReported blocks a second rejection (or
-    // stateChanged's net below) from re-reporting/overwriting the real cause once it has landed.
+    // command arriving late) with no state change at all; that is not a failure to report, so the
+    // state gate runs BEFORE any of the formatting work below, not after it.
     connect(&m_session, &Player2Session::errorOccurred, this, [this](const Player2Error &error) {
+        if (m_session.state() != Player2State::Error)
+            return;
         const QString name = QString::fromLatin1(
             QMetaEnum::fromType<Player2ErrorCode>().valueToKey(static_cast<int>(error.code)));
         const QString message = error.message.isEmpty()
             ? QStringLiteral("Playback failed (%1)").arg(name)
             : QStringLiteral("%1 (%2)").arg(error.message, name);
-        if (m_session.state() != Player2State::Error || m_failureReported)
-            return;
-        m_lastError = message;
-        m_failureReported = true;
-        // Deferred: this signal can fire from inside Player2Session::transition(), and reportFailure
-        // can emit fallbackRequested, which QML answers by swapping the player Loader - destroying
-        // this session (and us) while transition()'s own frame is still on the stack.
-        QTimer::singleShot(0, this, [this, message] { reportFailure(message); });
+        claimFailure(message);
     });
     // A session that errors out is the engine telling us it cannot carry this playback. Whether that
     // is recoverable by handing over to mpvqt depends entirely on whether anything was shown yet.
@@ -104,14 +98,14 @@ void Player2Backend::attachVideoItem(QObject *object)
 {
     auto *item = qobject_cast<Player2VideoItem *>(object);
     if (!item) {
-        reportFailure(QStringLiteral("the Player 2 video surface was not a Player2VideoItem"));
+        claimFailure(QStringLiteral("the Player 2 video surface was not a Player2VideoItem"));
         return;
     }
     m_item = item;
     item->setSession(&m_session);
     item->setVideoPipeline(&m_pipeline);
     connect(item, &Player2VideoItem::initializationFailed, this,
-            [this](const QString &message) { reportFailure(message); });
+            [this](const QString &message) { claimFailure(message); });
 
     // PGS/DVD bitmap subtitles are served to QML as image://player2subtitle/<id>, which needs THIS
     // session. In the lab that provider is installed at startup because the harness owns the session
@@ -152,7 +146,6 @@ QVariantMap Player2Backend::play(const QVariantMap &request)
         return result;
 
     // Queue it; pump() opens once the GPU side is genuinely up. See the note on m_pending.
-    m_lastError.clear();
     m_failureReported = false;
     m_pending = playback;
     m_hasPending = true;
@@ -184,7 +177,7 @@ void Player2Backend::pump()
         // does, say so rather than sit forever on a black page.
         if (++m_waitTicks > 300) {
             m_hasPending = false;
-            reportFailure(QStringLiteral("the Player 2 video device never became ready"));
+            claimFailure(QStringLiteral("the Player 2 video device never became ready"));
         }
         return;
     }
@@ -196,6 +189,17 @@ void Player2Backend::pump()
 bool Player2Backend::firstFrameSeen() const
 {
     return m_pipeline.diagnostics().presented > 0;
+}
+
+// One failure per playback attempt, claimed synchronously (so an already-armed net cannot beat it)
+// and reported from the event loop (so no caller's frame - transition(), m_pump's timeout - is still
+// alive when a fallback destroys us). A play()/stop() in between cancels the report.
+void Player2Backend::claimFailure(const QString &reason)
+{
+    if (m_failureReported)
+        return;
+    m_failureReported = true;
+    QTimer::singleShot(0, this, [this, reason] { if (m_failureReported) reportFailure(reason); });
 }
 
 void Player2Backend::reportFailure(const QString &reason)
