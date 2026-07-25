@@ -1162,6 +1162,9 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
     std::unique_ptr<AVPacket, PacketCloser> packet(av_packet_alloc());
     bool decodeFailed = false;
+    // Set when the failure came from the network source rather than the decoder, so the reported
+    // error code matches the layer that failed.
+    bool networkFailed = false;
     result = 0;
     while (!m_cancelled.load(std::memory_order_acquire)) {
         if (m_commandPending.exchange(false, std::memory_order_acq_rel))
@@ -1223,7 +1226,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                 eofSignaled = true;
                 continue;
             }
-            decodeFailure = QStringLiteral("Demux read failed: %1").arg(avError(result));
+            // A terminal network source makes read() return AVERROR_EXIT, and FFmpeg's word for that
+            // is "Immediate exit requested" — which would tell the viewer a DECODE failed when what
+            // actually failed was the network. The source stamps its own cause; report THAT, with
+            // the network error code, so the message names the layer that really gave up.
+            const QString networkCause = httpSource ? httpSource->terminalError() : QString();
+            if (!networkCause.isEmpty()) {
+                decodeFailure = networkCause;
+                networkFailed = true;
+            } else {
+                decodeFailure = QStringLiteral("Demux read failed: %1").arg(avError(result));
+            }
             decodeFailed = true;
             break;
         }
@@ -1358,16 +1371,19 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
                   Player2Error{Player2ErrorCode::Cancelled, QStringLiteral("Demux cancelled"), true});
     } else if (decodeFailed) {
         // A GPU device-removed surfaces here as a decode failure; report it as a typed, recoverable
-        // DeviceLost so the session's recovery coordinator can act, not a generic decode error.
+        // DeviceLost so the session's recovery coordinator can act, not a generic decode error. The
+        // same honesty applies to the network: a stalled stream is NetworkFailed, never DecodeFailed.
         const bool deviceLost = pipeline && pipeline->deviceLost();
+        const Player2ErrorCode code = deviceLost      ? Player2ErrorCode::DeviceLost
+                                      : networkFailed ? Player2ErrorCode::NetworkFailed
+                                                      : Player2ErrorCode::DecodeFailed;
         postEnded(gen, DemuxEndReason::Failed,
-                  Player2Error{deviceLost ? Player2ErrorCode::DeviceLost
-                                          : Player2ErrorCode::DecodeFailed,
+                  Player2Error{code,
                                deviceLost ? QStringLiteral("Video device lost")
                                           : (decodeFailure.isEmpty()
                                                  ? QStringLiteral("Demux read failed")
                                                  : decodeFailure),
-                               deviceLost});
+                               deviceLost || networkFailed});
     }
     // A normal end of file was already published inside the loop before parking.
     m_running.store(false, std::memory_order_release);

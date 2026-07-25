@@ -85,7 +85,10 @@ struct HttpSourcePolicy
     int highWaterBytes = 8 * 1024 * 1024;  // stop fetching above this (backpressure; one cache)
     int lowWaterBytes = 64 * 1024;         // resume fetching below this
     int resumeBytes = 512 * 1024;          // leave Buffering once the ring refills to here
-    int maxReconnectAttempts = 5;          // bounded reconnect before a terminal Failed
+    // Bounded reconnect attempts for a FLAPPING origin (one that accepts, dribbles a little and
+    // drops, over and over). This is a per-incident budget, not a session lifetime one: it is reset
+    // once a connection has demonstrably recovered by refilling the whole read-ahead below.
+    int maxReconnectAttempts = 5;
     // Bounded retries for a SEEK whose target the origin does not hold yet (a torrent still
     // downloading). Separate budget from mid-stream reconnects: nothing is broken, the bytes just
     // have not arrived, so this is deliberately more patient.
@@ -93,10 +96,14 @@ struct HttpSourcePolicy
     // How long a connected-but-silent origin may stall a normal read before it counts as a
     // mid-stream failure. Handed to the transport at open().
     int stallTimeoutMs = 20'000;
-    // Total wall-clock patience for a seek target the origin does not hold yet. This is the bound
-    // that matters, because the Stremio sidecar answers such a range with SILENCE, not a refusal:
-    // an attempt COUNT multiplied by a socket timeout is not a budget anyone can reason about.
-    int seekStallBudgetMs = 90'000;
+    // TOTAL wall-clock patience for one stall where the origin is alive but is not sending the bytes
+    // we need — whether that is a seek target it has not downloaded yet, or the download frontier
+    // reached during ordinary playback. Both are the same situation and get the same ceiling,
+    // because the Stremio sidecar answers either with SILENCE, not a refusal: an attempt COUNT
+    // multiplied by a socket timeout is not a budget anyone can reason about. Measured 2026-07-25:
+    // the mid-stream path had only the count, and 5 attempts x (a silent open + a silent read +
+    // backoff) spent 233 s against this 90 s promise.
+    int stallBudgetMs = 90'000;
     std::function<int(int)> reconnectDelayMs; // delay before attempt N; nullptr => capped backoff
 };
 
@@ -136,6 +143,10 @@ public:
     void cancel();
 
     NetworkState state() const noexcept;
+    // Why the source went terminal, in the transport's own words. Empty unless state() is Failed.
+    // The layer above reports THIS instead of FFmpeg's generic AVERROR_EXIT string, so a network
+    // stall is never announced to the viewer as a decode failure.
+    QString terminalError() const;
     // Invoked on the fetch/demux thread whenever the network state changes; the caller marshals to
     // the GUI thread. Set before open().
     void setStateCallback(std::function<void(NetworkState)> callback);
@@ -150,6 +161,9 @@ public:
 private:
     void fetchLoop();
     void setState(NetworkState next);
+    // Go terminal WITH a cause. Every Failed transition goes through here so the reason always
+    // reaches the demuxer; setState(Failed) alone would leave it to guess.
+    void setFailed(const QString &reason);
     int reconnectDelayFor(int attempt) const;
     qint64 knownSize() const; // total bytes if known, else -1 (call with m_mutex held)
 
@@ -167,6 +181,7 @@ private:
     bool m_openResolved = false;            // the fetch thread has attempted the first connection
     bool m_openOk = false;                  // the first connection succeeded
     QString m_openError;                    // failure detail for open()
+    QString m_terminalError;                // why the source went Failed (guarded by m_mutex)
     std::deque<QByteArray> m_ring;          // buffered body chunks, in order
     qint64 m_ringBytes = 0;                 // sum of chunk sizes still unread
     int m_frontOffset = 0;                  // bytes already consumed from m_ring.front()

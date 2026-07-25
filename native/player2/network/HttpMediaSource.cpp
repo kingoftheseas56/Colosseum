@@ -1,6 +1,7 @@
 #include "HttpMediaSource.h"
 
 #include <QtCore/QElapsedTimer>
+#include <QtCore/QtGlobal>
 
 #include <algorithm>
 #include <chrono>
@@ -22,6 +23,44 @@ int defaultReconnectDelayMs(int attempt)
     // Capped exponential backoff, mirroring the current mpv player's reconnect_delay_max=10s.
     const int capped = std::min(attempt, 6);
     return std::min(10'000, 250 * (1 << capped));
+}
+
+int clampToIntMs(qint64 milliseconds)
+{
+    return static_cast<int>(std::min<qint64>(milliseconds, std::numeric_limits<int>::max()));
+}
+
+// The two stall causes, in the viewer's words. They are the transport's own account of what went
+// wrong, carried up so the layer above never has to describe a network stall as a decode failure.
+QString seekStallMessage(int budgetMs)
+{
+    return QStringLiteral("Network stalled: that part of the stream has not downloaded yet "
+                          "(waited %1s)").arg(budgetMs / 1000);
+}
+
+QString frontierStallMessage(int budgetMs)
+{
+    return QStringLiteral("Network stalled: the stream stopped sending data (waited %1s)")
+        .arg(budgetMs / 1000);
+}
+
+// A timeline for this layer, off unless COLOSSEUM_PLAYER2_NET_TRACE is set. It exists because the
+// bound on this path has now been diagnosed twice from arithmetic alone; the next diagnosis should
+// read a stamped run instead. One env check, one fprintf, zero cost when unset.
+bool netTraceEnabled()
+{
+    static const bool enabled = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2_NET_TRACE");
+    return enabled;
+}
+
+void netTrace(const QString &line)
+{
+    if (!netTraceEnabled())
+        return;
+    static QElapsedTimer since = [] { QElapsedTimer t; t.start(); return t; }();
+    std::fprintf(stderr, "player2.net t=%lldms %s\n", static_cast<long long>(since.elapsed()),
+                 line.toUtf8().constData());
+    std::fflush(stderr);
 }
 
 } // namespace
@@ -62,6 +101,23 @@ void HttpMediaSource::setState(NetworkState next)
     const NetworkState previous = m_state.exchange(next, std::memory_order_acq_rel);
     if (previous != next && m_stateCallback)
         m_stateCallback(next);
+}
+
+void HttpMediaSource::setFailed(const QString &reason)
+{
+    {
+        std::scoped_lock lock(m_mutex);
+        if (m_terminalError.isEmpty())
+            m_terminalError = reason;
+    }
+    netTrace(QStringLiteral("FAILED %1").arg(reason));
+    setState(NetworkState::Failed);
+}
+
+QString HttpMediaSource::terminalError() const
+{
+    std::scoped_lock lock(m_mutex);
+    return m_terminalError;
 }
 
 bool HttpMediaSource::open(QString *error)
@@ -249,8 +305,9 @@ void HttpMediaSource::fetchLoop()
             std::scoped_lock lock(m_mutex);
             m_openOk = false;
             m_openError = error;
+            m_terminalError = QStringLiteral("Could not open the stream: %1").arg(error);
             m_openResolved = true;
-            setState(NetworkState::Failed);
+            setState(NetworkState::Failed); // m_mutex is held here; setFailed would deadlock
             m_openReady.notify_all();
             return;
         }
@@ -271,6 +328,23 @@ void HttpMediaSource::fetchLoop()
 
     QByteArray chunk;
     chunk.resize(64 * 1024);
+
+    // ---- One mid-stream STALL EPISODE (fetch-thread state) ----------------------------------
+    // A progressive origin does not only withhold a SEEK target; ordinary playback walks into the
+    // same download frontier and the origin goes silent there too. That path had no wall-clock
+    // bound at all — only an attempt count — and measured 233 s against a 90 s promise
+    // (fixture 2026-07-25: five reconnects, every one at the frontier byte, 20 s silent open plus
+    // 20 s silent read plus backoff each). So the episode is armed at the first mid-stream failure
+    // and bounded by the SAME stallBudgetMs the seek path uses; the first byte that arrives
+    // disarms it, because the stall is then genuinely over.
+    QElapsedTimer stallEpisode;
+    bool stalled = false;
+    // Bytes this connection has delivered since the last reconnect. maxReconnectAttempts is a budget
+    // for a FLAPPING origin, so it may only be cleared by recovery that is actually demonstrated —
+    // a whole read-ahead refilled. Clearing it on a mere successful start() would re-arm the budget
+    // every cycle for an origin that accepts and instantly drops, and the flap would never end.
+    qint64 deliveredSinceReconnect = 0;
+
     for (;;) {
         qint64 seekTarget = -1;
         {
@@ -320,23 +394,24 @@ void HttpMediaSource::fetchLoop()
             // retrying makes the wait longer, not shorter. Retries remain only for an origin that
             // refuses or drops us quickly - which is cheap, and bounded by maxSeekOpenAttempts.
             setState(NetworkState::Buffering);
+            netTrace(QStringLiteral("SEEK budget armed target=%1 budget=%2ms")
+                         .arg(seekTarget)
+                         .arg(m_policy.stallBudgetMs));
             QElapsedTimer seekBudget;
             seekBudget.start();
             bool seekOpened = false;
             bool seekSuperseded = false;
             for (int attempt = 1; ; ++attempt) {
-                const qint64 remainingMs =
-                    m_policy.seekStallBudgetMs - seekBudget.elapsed();
+                const qint64 remainingMs = m_policy.stallBudgetMs - seekBudget.elapsed();
                 if (remainingMs <= 0) {
-                    setState(NetworkState::Failed);
+                    setFailed(seekStallMessage(m_policy.stallBudgetMs));
                     std::scoped_lock lock(m_mutex);
                     m_dataReady.notify_all();
                     return;
                 }
                 // Wait out whatever is left of the budget on this one attempt; cancel() and a newer
                 // seek both interrupt it, so patience never costs responsiveness.
-                m_transport->setStallTimeoutMs(static_cast<int>(
-                    std::min<qint64>(remainingMs, std::numeric_limits<int>::max())));
+                m_transport->setStallTimeoutMs(clampToIntMs(remainingMs));
                 const bool opened = m_transport->start(m_request.source, m_request.headers,
                                                        seekTarget, &response, &error);
                 m_transport->setStallTimeoutMs(m_policy.stallTimeoutMs);
@@ -355,8 +430,8 @@ void HttpMediaSource::fetchLoop()
                     }
                 }
                 if (attempt >= m_policy.maxSeekOpenAttempts ||
-                    seekBudget.elapsed() >= m_policy.seekStallBudgetMs) {
-                    setState(NetworkState::Failed);
+                    seekBudget.elapsed() >= m_policy.stallBudgetMs) {
+                    setFailed(seekStallMessage(m_policy.stallBudgetMs));
                     std::scoped_lock lock(m_mutex);
                     m_dataReady.notify_all();
                     return;
@@ -380,15 +455,37 @@ void HttpMediaSource::fetchLoop()
             // A server that ignored the range (served 200 from 0) would splice misaligned bytes at
             // the seek target; fail instead of corrupting the stream.
             if (response.rangeStart != seekTarget) {
-                setState(NetworkState::Failed);
+                setFailed(QStringLiteral("Network error: the server ignored the seek byte range"));
                 std::scoped_lock lock(m_mutex);
                 m_dataReady.notify_all();
                 return;
             }
+            // The seek landed on a live connection: this is a fresh stream, so any earlier stall
+            // episode is over and the reconnect budget starts clean at the new offset.
+            stalled = false;
+            deliveredSinceReconnect = 0;
+            netTrace(QStringLiteral("SEEK opened target=%1 after %2ms")
+                         .arg(seekTarget)
+                         .arg(seekBudget.elapsed()));
             continue;
         }
 
+        // While a stall episode is open the transport's patience is whatever is LEFT of the budget,
+        // never a fresh stallTimeoutMs. That is what stops two independent 20 s waits per attempt
+        // from stacking past the ceiling.
+        if (stalled) {
+            const qint64 remainingMs = m_policy.stallBudgetMs - stallEpisode.elapsed();
+            if (remainingMs <= 0) {
+                setFailed(frontierStallMessage(m_policy.stallBudgetMs));
+                std::scoped_lock lock(m_mutex);
+                m_dataReady.notify_all();
+                return;
+            }
+            m_transport->setStallTimeoutMs(clampToIntMs(remainingMs));
+        }
         const int n = m_transport->read(chunk.data(), chunk.size());
+        if (stalled)
+            m_transport->setStallTimeoutMs(m_policy.stallTimeoutMs);
 
         if (m_cancelled.load(std::memory_order_acquire))
             return;
@@ -405,6 +502,18 @@ void HttpMediaSource::fetchLoop()
                 m_ringBytes += n;
                 m_fetchPosition += n;
                 m_hasStreamed = true;
+                // Bytes arrived: the stall is over, so the wall-clock episode ends here. The
+                // reconnect COUNT is a separate, stricter question and is answered below.
+                stalled = false;
+                deliveredSinceReconnect += n;
+                if (m_reconnectCount.load(std::memory_order_acquire) > 0 &&
+                    deliveredSinceReconnect >= m_policy.highWaterBytes) {
+                    // A whole read-ahead refilled on this connection: the incident is genuinely
+                    // over, so the next one gets the full budget instead of inheriting a spent one.
+                    netTrace(QStringLiteral("RECOVERED after %1 bytes; reconnect budget reset")
+                                 .arg(deliveredSinceReconnect));
+                    m_reconnectCount.store(0, std::memory_order_release);
+                }
                 if (m_state.load(std::memory_order_acquire) != NetworkState::Streaming)
                     setState(NetworkState::Streaming);
                 m_dataReady.notify_all();
@@ -417,22 +526,41 @@ void HttpMediaSource::fetchLoop()
             }
         }
 
-        // n < 0: a mid-stream disconnect. Reconnect with bounded attempts from the last byte, but a
-        // seek that arrived alongside the disconnect takes precedence and must not burn an attempt.
+        // n < 0: the stream stopped delivering — a dropped connection, or the download frontier of a
+        // progressive origin going silent. A seek that arrived alongside it takes precedence and
+        // must not burn an attempt.
         {
             std::scoped_lock lock(m_mutex);
             if (m_seekRequest >= 0)
                 continue;
         }
+        // Arm the wall-clock episode on the FIRST failure. Everything below spends what remains of
+        // it; two attempt budgets (count and clock) both apply and the tighter one wins.
+        if (!stalled) {
+            stallEpisode.start();
+            stalled = true;
+            netTrace(QStringLiteral("STALL armed budget=%1ms").arg(m_policy.stallBudgetMs));
+        }
+        qint64 remainingMs = m_policy.stallBudgetMs - stallEpisode.elapsed();
+        if (remainingMs <= 0) {
+            setFailed(frontierStallMessage(m_policy.stallBudgetMs));
+            std::scoped_lock lock(m_mutex);
+            m_dataReady.notify_all();
+            return;
+        }
         if (m_reconnectCount.load(std::memory_order_acquire) >= m_policy.maxReconnectAttempts) {
-            setState(NetworkState::Failed);
+            setFailed(QStringLiteral("Network stream lost: reconnecting failed %1 times")
+                          .arg(m_policy.maxReconnectAttempts));
             std::scoped_lock lock(m_mutex);
             m_dataReady.notify_all();
             return;
         }
         const int attempt = m_reconnectCount.fetch_add(1, std::memory_order_acq_rel) + 1;
+        deliveredSinceReconnect = 0;
         setState(NetworkState::Recovering);
-        const int delayMs = reconnectDelayFor(attempt);
+        // The backoff is part of the episode, not extra to it.
+        const int delayMs = static_cast<int>(
+            std::min<qint64>(reconnectDelayFor(attempt), remainingMs));
         if (delayMs > 0) {
             std::unique_lock lock(m_mutex);
             m_spaceReady.wait_for(lock, std::chrono::milliseconds(delayMs), [this] {
@@ -449,16 +577,34 @@ void HttpMediaSource::fetchLoop()
                 continue; // a seek arrived during the backoff; handle it at the top
             resumeAt = m_fetchPosition;
         }
+        remainingMs = m_policy.stallBudgetMs - stallEpisode.elapsed();
+        if (remainingMs <= 0) {
+            setFailed(frontierStallMessage(m_policy.stallBudgetMs));
+            std::scoped_lock lock(m_mutex);
+            m_dataReady.notify_all();
+            return;
+        }
         HttpResponse response;
         QString error;
-        if (!m_transport->start(m_request.source, m_request.headers, resumeAt, &response, &error)) {
+        netTrace(QStringLiteral("RECONNECT attempt=%1 offset=%2 patience=%3ms")
+                     .arg(attempt).arg(resumeAt).arg(remainingMs));
+        // Same doctrine as the seek path: spend what is left of the budget WAITING on this one
+        // connection rather than re-dialling. A silent origin is still fetching for us; a genuinely
+        // dead one refuses or drops immediately and costs nothing.
+        m_transport->setStallTimeoutMs(clampToIntMs(remainingMs));
+        const bool reconnected =
+            m_transport->start(m_request.source, m_request.headers, resumeAt, &response, &error);
+        m_transport->setStallTimeoutMs(m_policy.stallTimeoutMs);
+        if (!reconnected) {
             // A failed reconnect start counts against the bound; loop to retry or fail.
+            netTrace(QStringLiteral("RECONNECT attempt=%1 failed after %2ms: %3")
+                         .arg(attempt).arg(stallEpisode.elapsed()).arg(error));
             continue;
         }
         // If the reconnect did not resume from the requested byte (server ignored the range, or the
         // source is not seekable), resuming would corrupt the stream — fail cleanly instead.
         if (response.rangeStart != resumeAt) {
-            setState(NetworkState::Failed);
+            setFailed(QStringLiteral("Network error: the server ignored the resume byte range"));
             std::scoped_lock lock(m_mutex);
             m_dataReady.notify_all();
             return;

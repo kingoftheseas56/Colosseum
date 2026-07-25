@@ -115,6 +115,13 @@ public:
     // real session: in the fake a retry cost nothing, in the field it cost 20 seconds.
     bool silenceRangedStarts = false;
 
+    // The DOWNLOAD FRONTIER during ordinary playback, which is the same origin behaviour one step
+    // later: after this many bytes on a connection the body simply stops. The origin does not close
+    // anything - it holds the connection open and says nothing - so read() burns the SOURCE's stall
+    // timeout and only then reports a timeout. A fake that returned -1 for free is exactly why the
+    // mid-stream path looked bounded and measured 233 s in the field.
+    int silentAfterBytes = -1;
+
     void releaseRangedSilence()
     {
         {
@@ -185,6 +192,11 @@ public:
         }
         if (stallAfterBytes >= 0 && m_served >= stallAfterBytes && !m_stallReleased) {
             m_cv.wait(lock, [this] { return m_stallReleased || m_cancelled; });
+        }
+        if (silentAfterBytes >= 0 && m_served >= silentAfterBytes) {
+            m_cv.wait_for(lock, std::chrono::milliseconds(m_stallTimeoutMs),
+                          [this] { return m_cancelled; });
+            return -1; // the socket's patience ran out, exactly as a real silent origin does
         }
         if (m_cancelled)
             return -1;
@@ -490,7 +502,7 @@ void testSeekIntoSilentProgressiveOriginWaitsThenLands()
     HttpSourcePolicy policy = fastPolicy();
     policy.stallTimeoutMs = 50;       // a short socket-level patience, as in the field
     policy.maxSeekOpenAttempts = 8;   // 8 x 50 ms = 400 ms of attempts...
-    policy.seekStallBudgetMs = 5'000; // ...but 5 s of real budget, which is what must govern
+    policy.stallBudgetMs = 5'000; // ...but 5 s of real budget, which is what must govern
     HttpMediaSource source(std::move(transport), streamRequest(), policy);
     source.setStateCallback([&log](NetworkState state) { log.record(state); });
     QString error;
@@ -531,7 +543,7 @@ void testSilentSeekStillFailsWhenTheBudgetIsSpent()
     HttpSourcePolicy policy = fastPolicy();
     policy.stallTimeoutMs = 50;
     policy.maxSeekOpenAttempts = 8;
-    policy.seekStallBudgetMs = 400;
+    policy.stallBudgetMs = 400;
     HttpMediaSource source(std::move(transport), streamRequest(), policy);
     source.setStateCallback([&log](NetworkState state) { log.record(state); });
     QString error;
@@ -547,6 +559,80 @@ void testSilentSeekStillFailsWhenTheBudgetIsSpent()
     require(log.saw(NetworkState::Failed), "a spent seek budget must report Failed");
     require(elapsed < std::chrono::seconds(5),
             "the seek budget must bound the wait - buffering forever is not an option");
+}
+
+// The bound that was NOT holding. Measured 2026-07-25 against the window fixture with the bytes set
+// never to arrive: the seek never even reached the source, because ordinary playback had already
+// walked into the download frontier and the DEMUX thread was parked inside read(). The fixture's own
+// log named the path — five accepted connections, every one at the frontier byte
+//   player2_http_fixture_server: window start=12582912 served=0 of 49106150 then STALLED (held open)
+// and never one at the seek target — and the arithmetic matched to the second: 20 s (the first
+// silent read) + 5 x (backoff + 20 s silent open + 20 s silent read) = 235 s against a 90 s promise.
+// The attempt count was the ONLY bound on that path, and an attempt cost two independent socket
+// timeouts. The ceiling has to be wall clock, and the transport's patience inside an episode has to
+// be what remains of it.
+void testMidStreamStallAtTheFrontierIsBoundedByWallClock()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->silentAfterBytes = 64 * 1024; // playback reaches the frontier after one chunk
+    transport->silenceRangedStarts = true;   // and every reconnect there is met with silence too
+
+    StateLog log;
+    HttpSourcePolicy policy = fastPolicy();
+    policy.stallTimeoutMs = 300;       // the socket-level patience
+    policy.maxReconnectAttempts = 5;   // 5 attempts x (300 ms open + 300 ms read) = 3 s of attempts
+    policy.stallBudgetMs = 500;        // ...against a 500 ms ceiling, which is what must govern
+    HttpMediaSource source(std::move(transport), streamRequest(), policy);
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "frontier-stall open failed: " + error.toStdString());
+
+    const auto started = std::chrono::steady_clock::now();
+    int terminal = 0;
+    drainAll(source, &terminal);
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+
+    require(terminal < 0, "a frontier that never opens must end in a terminal error");
+    require(log.saw(NetworkState::Failed), "a spent stall budget must report Failed");
+    // The first silent read (300 ms, outside the budget) plus the 500 ms budget is ~800 ms. The old
+    // attempt-only bound was ~3.3 s here, which is what this margin catches.
+    require(elapsed < std::chrono::milliseconds(2'000),
+            "the mid-stream stall must be bounded by the wall clock, not attempts x socket timeout");
+    require(!source.terminalError().isEmpty(),
+            "a terminal network stall must stamp its own cause, or the layer above reports a "
+            "decode failure for a network problem");
+}
+
+// The reconnect COUNT is a budget for a flapping origin, not a session lifetime allowance. A stream
+// that drops, recovers and streams cleanly for a whole read-ahead has demonstrably recovered, so the
+// next incident must get the full budget instead of inheriting a spent one. Without this, the new
+// wall-clock ceiling would still strand a real torrent, which walks into a fresh frontier repeatedly.
+void testReconnectBudgetResetsAfterDemonstratedRecovery()
+{
+    const QByteArray body = countedBody(2 * 1024 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->disconnectAfterBytes = 512 * 1024; // each connection streams 512 KiB, then drops
+    transport->alwaysDisconnect = true;           // four incidents are needed to reach the end
+
+    StateLog log;
+    HttpSourcePolicy policy = fastPolicy(); // highWaterBytes = 256 KiB: the recovery threshold
+    policy.maxReconnectAttempts = 2;        // fewer than the four incidents the body needs
+    HttpMediaSource source(std::move(transport), streamRequest(), policy);
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "recovery-reset open failed: " + error.toStdString());
+
+    int terminal = 1;
+    const QByteArray whole = drainAll(source, &terminal);
+    require(!log.saw(NetworkState::Failed),
+            "a stream that recovers fully between drops must not exhaust a lifetime budget");
+    require(terminal == 0, "the body must reach a clean EOF, not a terminal error");
+    require(whole == body, "a recovered stream must reassemble the exact body");
 }
 
 void testUnknownLengthIsLive()
@@ -692,6 +778,8 @@ int main()
         testSeekRefusalsEventuallyFail();
         testSeekIntoSilentProgressiveOriginWaitsThenLands();
         testSilentSeekStillFailsWhenTheBudgetIsSpent();
+        testReconnectBudgetResetsAfterDemonstratedRecovery();
+        testMidStreamStallAtTheFrontierIsBoundedByWallClock();
         testUnknownLengthIsLive();
         testSeekToEndParksWithoutOutOfRangeRequest();
         testReconnectFromWrongOffsetFails();
