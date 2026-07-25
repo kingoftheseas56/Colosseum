@@ -142,6 +142,23 @@ public:
     // Wake and stop everything; a blocked read() returns promptly.
     void cancel();
 
+    // --- Command responsiveness while parked (the T2d seam) ---------------------------------------
+    // read() parks on an underrun, and at the download frontier that park can last the whole stall
+    // budget. The demux thread is the ONLY thread that services transport commands, so while it is
+    // parked here a viewer's seek is queued to a loop nobody is running. These three let its owner
+    // abort a park that has nothing to give, WITHOUT the park becoming terminal.
+    //
+    // The predicate answers "is a command waiting right now?". It is evaluated on the demux thread
+    // with the source's mutex held, so it must be non-blocking and must not re-enter the source (the
+    // demux passes a plain atomic load). Clearing the pending flag is the OWNER's job before it reads
+    // again — that is what stops an interrupted read from immediately interrupting itself.
+    void setInterruptPredicate(std::function<bool()> predicate);
+    // Wake a parked read so the predicate is re-evaluated. Called when a command is enqueued.
+    void wakeRead();
+    // True once, for a read that returned because the predicate said a command was waiting. It tells
+    // the caller "this negative code is NOT a failure" — the source is healthy and still usable.
+    bool consumeReadInterrupt() noexcept;
+
     NetworkState state() const noexcept;
     // Why the source went terminal, in the transport's own words. Empty unless state() is Failed.
     // The layer above reports THIS instead of FFmpeg's generic AVERROR_EXIT string, so a network
@@ -173,6 +190,7 @@ private:
 
     SourceCapabilities m_capabilities;
     std::function<void(NetworkState)> m_stateCallback;
+    std::function<bool()> m_interruptPredicate; // set before open(); see setInterruptPredicate
 
     mutable std::mutex m_mutex;
     std::condition_variable m_dataReady;    // demux read waits here on underrun
@@ -194,6 +212,7 @@ private:
 
     std::atomic<NetworkState> m_state{NetworkState::Idle};
     std::atomic_bool m_cancelled{false};
+    std::atomic_bool m_readWasInterrupted{false}; // set when a park ended on the interrupt predicate
     std::atomic<int> m_reconnectCount{0};
 
     std::thread m_fetch;

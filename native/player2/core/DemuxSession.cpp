@@ -215,6 +215,17 @@ void DemuxSession::enqueueCommand(const Command &command)
         if (m_videoQueueForInterrupt)
             m_videoQueueForInterrupt->interrupt();
     }
+    // ...and the THIRD place the demux thread parks: inside the network read. At the download
+    // frontier that park lasts the whole stall budget, so without this wake a viewer's seek sat
+    // queued to a command loop nobody was running until the source went terminal (measured
+    // 2026-07-25: press seek, nothing happens, ~110 s later it dies). The source only abandons a
+    // read that has nothing to give, and only while m_commandPending is set — which the loop below
+    // clears before it reads again.
+    {
+        std::scoped_lock lock(m_httpMutex);
+        if (m_httpSource)
+            m_httpSource->wakeRead();
+    }
 }
 
 void DemuxSession::requestSeek(qint64 targetUs, quint64 generation, bool resumePlaying)
@@ -367,6 +378,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     if (useHttpSource) {
         httpSource = std::make_shared<HttpMediaSource>(std::make_unique<QtHttpTransport>(), request);
         httpSource->setStateCallback([this](NetworkState state) { postNetworkState(state); });
+        // Let a parked read give the demux thread back when a transport command is waiting. A plain
+        // atomic load, as the seam requires: it runs on this thread with the source's mutex held.
+        //
+        // Deliberately NOT scoped to "outside command processing". A seek's own keyframe scan reads
+        // through here, so a SECOND command arriving mid-seek does abandon those reads — and that is
+        // the behaviour we want: the byte position is already moved by then (our seek() is
+        // non-blocking), FFmpeg only loses a partial scan, and the loop below flushes and services
+        // the newer command. Gating it would be tidier and strictly worse for the viewer: a second
+        // press during a seek into not-yet-downloaded bytes would park again for the whole stall
+        // budget — the exact defect this fixes.
+        httpSource->setInterruptPredicate(
+            [this] { return m_commandPending.load(std::memory_order_acquire); });
         QString openError;
         if (!httpSource->open(&openError)) {
             avformat_free_context(rawFormat);
@@ -1214,6 +1237,22 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
         result = av_read_frame(format.get(), packet.get());
         if (result < 0) {
+            // The read was abandoned so THIS loop could run: a command is waiting. Not a failure —
+            // go service it. Asked before the EOF/error branches because the source's own account of
+            // why the read ended beats whatever code FFmpeg chose to wrap it in.
+            if (httpSource && httpSource->consumeReadInterrupt()) {
+                // FFmpeg latches the AVIO error, so every later read would return it unread. Clear
+                // it, and drop whatever half-packet the aborted read left behind — otherwise the
+                // next parse surfaces as a decode error blamed on the wrong layer. A seek command
+                // flushes and repositions itself right after this, so the extra flush is harmless.
+                if (format->pb) {
+                    format->pb->error = 0;
+                    format->pb->eof_reached = 0;
+                }
+                avformat_flush(format.get());
+                continue; // the loop top consumes m_commandPending, which is what stops a livelock:
+                          // the predicate is false again before the next read parks.
+            }
             if (result == AVERROR_EOF) {
                 // Signal end-of-stream to both workers; each drains its OWN tail (audio: decoder +
                 // loudnorm lookahead to the sink, then lands at the edge if it was scanning; video:

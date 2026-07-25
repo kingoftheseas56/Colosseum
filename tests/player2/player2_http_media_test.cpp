@@ -764,6 +764,71 @@ void testCancellationIsPrompt()
     require(elapsed < std::chrono::seconds(2), "cancellation must return within two seconds");
 }
 
+void testParkedReadWakesForAPendingCommand()
+{
+    // The T2d defect, at the layer that owns it. When the origin goes silent at the download
+    // frontier the demux thread parks HERE, inside read()'s underrun wait, and nothing in that wait
+    // knew that the viewer had asked for something. So a seek sat queued to a command loop nobody
+    // was running until the source went terminal ~110 s later: press seek, nothing happens, it dies.
+    // A parked read must be abortable by a pending command WITHOUT being terminal - the source is
+    // healthy, it is just holding nothing right now.
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->stallAfterBytes = 64 * 1024; // serve one chunk, then go silent: the frontier
+    ScriptedTransport *raw = transport.get();
+
+    std::atomic<bool> commandPending{false};
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    source.setInterruptPredicate([&commandPending] { return commandPending.load(); });
+    QString error;
+    require(source.open(&error), "frontier open failed: " + error.toStdString());
+
+    // Drain everything the origin served, so the next read has nothing to give and must park.
+    char buffer[16 * 1024];
+    int drained = 0;
+    while (drained < 64 * 1024) {
+        const int n = source.read(buffer, sizeof(buffer));
+        require(n > 0, "the served prefix should read without blocking");
+        drained += n;
+    }
+
+    // With no command pending the parked read stays parked (this is the wait that paces playback).
+    std::atomic<int> code{123};
+    std::atomic<bool> returned{false};
+    const auto begin = std::chrono::steady_clock::now();
+    std::thread demux([&] {
+        char parkedBuffer[16 * 1024];
+        code = source.read(parkedBuffer, sizeof(parkedBuffer));
+        returned = true;
+    });
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    require(!returned, "a parked read must not return while no command is pending");
+
+    // The viewer presses seek: the owner marks a command pending and wakes the read.
+    commandPending = true;
+    source.wakeRead();
+    demux.join();
+    const auto elapsed = std::chrono::steady_clock::now() - begin;
+
+    require(code < 0, "an interrupted read must return a negative code");
+    require(elapsed < std::chrono::seconds(2), "a pending command must abort the park promptly");
+    require(source.consumeReadInterrupt(),
+            "the source must report that the read ended on a command, not on a failure");
+    require(!source.consumeReadInterrupt(), "the interrupt report is one-shot");
+    require(source.state() != NetworkState::Failed,
+            "an interrupted read is NOT terminal - the source must stay usable");
+    require(source.terminalError().isEmpty(), "an interrupted read must not stamp a failure cause");
+
+    // And the source still works: the owner serviced its command, cleared the flag, and reads on.
+    commandPending = false;
+    raw->releaseStall();
+    const QByteArray rest = drainAll(source);
+    require(rest == body.mid(64 * 1024),
+            "the source must resume delivering the body after a command interrupt");
+}
+
 } // namespace
 
 int main()
@@ -785,6 +850,7 @@ int main()
         testReconnectFromWrongOffsetFails();
         testCancelDuringActiveReadNeverHangs();
         testCancellationIsPrompt();
+        testParkedReadWakesForAPendingCommand();
     } catch (const std::exception &error) {
         std::cerr << "player2_http_media_test: FAIL " << error.what() << '\n';
         return 1;

@@ -17,6 +17,9 @@ namespace {
 constexpr int kAvseekSize = 0x10000;
 constexpr int kAvseekForce = 0x20000;
 constexpr int kTerminal = -1; // negative sentinel returned to the demuxer on cancel / terminal error
+// A read that gave up so its caller can service a pending command. Negative like kTerminal (FFmpeg's
+// AVIO contract has no third answer), but NOT a failure: the caller asks consumeReadInterrupt().
+constexpr int kInterrupted = -2;
 
 int defaultReconnectDelayMs(int attempt)
 {
@@ -94,6 +97,28 @@ int HttpMediaSource::reconnectDelayFor(int attempt) const
 void HttpMediaSource::setStateCallback(std::function<void(NetworkState)> callback)
 {
     m_stateCallback = std::move(callback);
+}
+
+void HttpMediaSource::setInterruptPredicate(std::function<bool()> predicate)
+{
+    std::scoped_lock lock(m_mutex);
+    m_interruptPredicate = std::move(predicate);
+}
+
+void HttpMediaSource::wakeRead()
+{
+    // A pure wake: it changes no state, it only makes a parked read re-evaluate its predicate.
+    // Taking the mutex first is what makes it reliable, exactly as cancel() does: the caller sets its
+    // pending flag BEFORE calling here, so a read that is mid-way through evaluating the predicate
+    // either has not looked yet (and will see the flag) or is already waiting (and gets this notify).
+    // Without the lock, a notify landing in that window would be lost and the park would hold.
+    { std::scoped_lock lock(m_mutex); }
+    m_dataReady.notify_all();
+}
+
+bool HttpMediaSource::consumeReadInterrupt() noexcept
+{
+    return m_readWasInterrupted.exchange(false, std::memory_order_acq_rel);
 }
 
 void HttpMediaSource::setState(NetworkState next)
@@ -223,16 +248,31 @@ int HttpMediaSource::read(char *dst, int maxLen)
             return 0;
         }
 
+        // Nothing to give AND the owner has a command waiting: hand the thread back so it can run
+        // it. Checked HERE, below the ring, so data always wins — if bytes are available we serve
+        // them and the caller services its command on its next turn anyway. This is the only exit
+        // from read() that is not terminal; consumeReadInterrupt() is how the caller tells them
+        // apart. The predicate must be false again before the next read, or the read would abort
+        // itself forever; the demux clears its pending flag when it services the command.
+        if (m_interruptPredicate && m_interruptPredicate()) {
+            m_readWasInterrupted.store(true, std::memory_order_release);
+            netTrace(QStringLiteral("READ INTERRUPTED for a pending command at pos=%1")
+                         .arg(m_readPosition));
+            return kInterrupted;
+        }
+
         // The ring is empty and the body has not ended: a genuine underrun. Only report Buffering
         // once we have actually streamed, so the initial pre-roll wait is not mislabelled.
         if (m_hasStreamed && m_state.load(std::memory_order_acquire) == NetworkState::Streaming)
             setState(NetworkState::Buffering);
         // Predicate-based wait: cancel() sets m_cancelled under m_mutex, so a cancel that arrives
-        // between the checks above and this wait is never lost (no hang on close/switch).
+        // between the checks above and this wait is never lost (no hang on close/switch). The
+        // interrupt predicate rides the same wait, woken by wakeRead().
         m_dataReady.wait(lock, [this] {
             return m_cancelled.load(std::memory_order_acquire) ||
                    m_state.load(std::memory_order_acquire) == NetworkState::Failed ||
-                   m_ringBytes > 0 || m_eof;
+                   m_ringBytes > 0 || m_eof ||
+                   (m_interruptPredicate && m_interruptPredicate());
         });
     }
 }

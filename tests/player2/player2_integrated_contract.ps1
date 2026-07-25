@@ -19,13 +19,17 @@ $main_qml  = Read-File 'qml/Main.qml'
 $cmake     = Read-File 'native/CMakeLists.txt'
 $main_cpp  = Read-File 'native/main.cpp'
 $seam_h    = Read-File 'native/player2/host/Player2HostServices.h'
+$demux_cpp = Read-File 'native/player2/core/DemuxSession.cpp'
+$http_cpp  = Read-File 'native/player2/network/HttpMediaSource.cpp'
 
 foreach ($pair in @(@('qml/player2host/ColosseumHostServices.qml', $host_qml),
                     @('qml/player2host/Player2Page.qml', $page_qml),
                     @('qml/Main.qml', $main_qml),
                     @('native/CMakeLists.txt', $cmake),
                     @('native/main.cpp', $main_cpp),
-                    @('native/player2/host/Player2HostServices.h', $seam_h))) {
+                    @('native/player2/host/Player2HostServices.h', $seam_h),
+                    @('native/player2/core/DemuxSession.cpp', $demux_cpp),
+                    @('native/player2/network/HttpMediaSource.cpp', $http_cpp))) {
     if ($null -eq $pair[1]) { $violations += "missing file: $($pair[0])" }
 }
 if ($violations.Count -gt 0) {
@@ -156,6 +160,32 @@ if ($page_qml -notmatch 'function\s+onRestartRequired\s*\([^)]*\)\s*\{([\s\S]*?)
     $violations += 'Player2Page must implement onRestartRequired'
 } elseif ($Matches[1] -notmatch 'errorText') {
     $violations += 'Player2Page onRestartRequired must set page.errorText (a post-first-frame failure must surface on the page)'
+}
+
+# 9. A PARKED NETWORK READ MUST STAY INTERRUPTIBLE (T2d). The demux thread is the only thread that
+#    services transport commands, and it parks in three places: the audio queue, the video queue and
+#    the network read. The first two were woken from the start; the third was not, so at the download
+#    frontier a viewer's seek sat queued to a loop nobody was running until the source went terminal
+#    (measured 2026-07-25: press seek, nothing, ~110 s, dead). Runtime proof is
+#    player2_frontier_seek_probe.qml; this pins the wiring that probe depends on.
+if ($demux_cpp -notmatch 'setInterruptPredicate') {
+    $violations += 'DemuxSession must give HttpMediaSource an interrupt predicate - without it a parked read never learns a command is waiting'
+}
+if ($demux_cpp -notmatch 'wakeRead\(\)') {
+    $violations += 'DemuxSession::enqueueCommand must wake a parked network read, the same way it interrupts the audio and video queues'
+}
+if ($demux_cpp -notmatch 'consumeReadInterrupt\(\)') {
+    $violations += 'the demux read loop must ask consumeReadInterrupt() - otherwise an interrupted read is reported to the viewer as a decode failure'
+}
+#    THE LIVELOCK RULE, written down because it is invisible and load-bearing: the loop clears the
+#    pending flag BEFORE it reads again, which is the only reason an interrupted read does not
+#    immediately interrupt itself. Anyone who moves the clear after the read gets a spin, not a bug
+#    report.
+if ($demux_cpp -notmatch 'm_commandPending\.exchange\(false') {
+    $violations += 'the demux loop must clear m_commandPending with exchange(false) before reading again - that is what stops the interrupt predicate from firing forever'
+}
+if ($http_cpp -notmatch 'm_interruptPredicate') {
+    $violations += 'HttpMediaSource::read must consult the interrupt predicate - that wait IS the frontier stall'
 }
 
 if ($violations.Count -gt 0) {
