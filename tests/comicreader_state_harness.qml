@@ -280,6 +280,55 @@ Item {
             ck(State.readingModeFrom("double_page", false) === "comic", "readingModeFrom(double_page, ltr) must be 'comic'")
             ck(State.readingModeFrom("long_strip", false)  === "strip", "readingModeFrom(long_strip, _) must be 'strip'")
             ck(State.readingModeFrom("long_strip", true)   === "strip", "readingModeFrom(long_strip, rtl) must still be 'strip'")
+
+            // --- persistence map helpers (the Settings elements are thin sinks; THIS is the logic) ---
+            // Both stores are one JSON string holding a map keyed by series/entry id, exactly like
+            // MangaReader's seriesStore/chapterStore. Reads must survive garbage without throwing —
+            // a corrupt store must degrade to "no memory", never take the reader down on open.
+            ck(State.storeGet("", "s1") === null, "storeGet on an EMPTY string must be null, not a throw")
+            ck(State.storeGet("not json{", "s1") === null, "storeGet on CORRUPT json must be null, not a throw")
+            ck(State.storeGet("{}", "s1") === null, "storeGet on an empty map must be null")
+            ck(State.storeGet('{"s1":{"rm":"strip"}}', "s1").rm === "strip", "storeGet must return the record for the id")
+            ck(State.storeGet('{"s1":{"rm":"strip"}}', "s2") === null, "storeGet must return null for an absent id")
+            ck(State.storeGet('{"s1":{"rm":"strip"}}', "") === null, "storeGet with an EMPTY id must be null (never a blind hit)")
+
+            // writes round-trip and leave the other ids untouched
+            var w1 = State.storePut('{"a":{"rm":"manga"}}', "b", { rm: "strip" })
+            ck(State.storeGet(w1, "b").rm === "strip", "storePut must store the new record")
+            ck(State.storeGet(w1, "a").rm === "manga", "storePut must NOT disturb other ids")
+            var w2 = State.storePut(w1, "b", { rm: "comic" })
+            ck(State.storeGet(w2, "b").rm === "comic", "storePut must overwrite an existing record")
+
+            // an EMPTY record PRUNES its key instead of accumulating dead entries forever (the
+            // lineage's `delete m[curChapterId]` — these maps are written on every book you open).
+            var p1 = State.storePut('{"a":{"rm":"manga"},"b":{"rm":"strip"}}', "b", {})
+            ck(State.storeGet(p1, "b") === null, "storePut of an EMPTY record must prune the key")
+            ck(State.storeGet(p1, "a") !== null, "pruning one key must leave the others")
+            ck(State.storePut('{"a":{"rm":"manga"}}', "a", null).indexOf("a") < 0, "storePut(null) must prune too")
+            // a record that is only default-ish noise still counts as empty
+            ck(State.storeGet(State.storePut("{}", "x", { spreadOverrides: {}, bookmarks: [] }), "x") === null,
+               "a record of only empty collections must prune, not persist as clutter")
+            // corrupt store + a write => a clean single-entry store (self-healing, not a throw)
+            var heal = State.storePut("not json{", "z", { rm: "comic" })
+            ck(State.storeGet(heal, "z").rm === "comic", "storePut must self-heal a corrupt store")
+
+            // --- what counts as a non-empty entry blob ---
+            ck(State.blobIsEmpty(null) === true, "blobIsEmpty(null)")
+            ck(State.blobIsEmpty({}) === true, "blobIsEmpty({})")
+            ck(State.blobIsEmpty({ bookmarks: [], spreadOverrides: {} }) === true, "empty collections are still empty")
+            ck(State.blobIsEmpty({ bookmarks: [3] }) === false, "a bookmark makes the blob worth keeping")
+            ck(State.blobIsEmpty({ spreadOverrides: { "4": true } }) === false, "a spread override makes it worth keeping")
+            // an AUTO+unresolved coupling is the default state — not worth a record on its own
+            ck(State.blobIsEmpty({ couplingMode: "auto", couplingResolved: false }) === true,
+               "an unresolved auto coupling is the default — must NOT create a record")
+            ck(State.blobIsEmpty({ couplingMode: "manual", couplingPhase: "shifted" }) === false,
+               "a MANUAL coupling is a real user decision — must be kept")
+            ck(State.blobIsEmpty({ couplingMode: "auto", couplingResolved: true }) === false,
+               "a RESOLVED auto coupling is a probe verdict worth not re-running")
+            // memorySaver is a GLOBAL that merely rides the per-entry blob — it must never, on its
+            // own, cause a per-book record to be written.
+            ck(State.blobIsEmpty({ memorySaver: true }) === true,
+               "memorySaver alone must NOT create a per-entry record (it is a global)")
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }

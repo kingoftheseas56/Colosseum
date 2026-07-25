@@ -33,6 +33,7 @@
 //                reader (contract §3). Callers of western comics pass NO pageStore and rely on this.
 
 import QtQuick
+import QtCore                                   // Settings — the house persistence sink
 import "ComicReaderState.js" as ComicReaderState
 
 Item {
@@ -170,6 +171,12 @@ Item {
         try {
             _pages = (curChapterId.length && store) ? (store.localPages(curChapterId) || []) : []
 
+            // Pull this series' identity override and this entry's remembered reader state BEFORE
+            // either is read below — load() is the one place both are consumed, so it is the one
+            // place they have to be fresh (a crossing lands here too, with a new entry id).
+            _applySeriesPrefs()
+            _applyEntryPrefs()
+
             // reading mode: per-series persisted override, else the lane default (manga->Manga
             // RTL double-page (MangaPlus), western->Comic LTR double-page). Layout + direction are
             // both derived from the single readingMode identity.
@@ -240,6 +247,13 @@ Item {
     // open a specific entry (crossing / modal). Resume applies only if the saved spot matches.
     function openEntryById(id, atLast) {
         if (!id || !String(id).length) return
+        // A crossing replaces the backend entry, so the OUTGOING book's record has to land before
+        // curChapterId moves — otherwise the debounce fires against the next book and files the old
+        // book's overrides under the new book's id.
+        if (_ready && curChapterId.length && String(id) !== curChapterId) {
+            entrySave.stop()
+            _saveEntryBlob()
+        }
         _pendingAtLast = !!atLast
         _resumeArmed = true
         curChapterId = String(id)                   // -> onCurChapterIdChanged -> load()
@@ -323,6 +337,13 @@ Item {
     function setReadingMode(rm) {
         persistedMode = ComicReaderState.readingModeLayout(rm)
         persistedDirection = ComicReaderState.readingModeRtl(rm) ? "rtl" : "ltr"
+        // Remember it for THIS series, and make it the default for series you haven't touched —
+        // MangaReader.setDirection writes both for exactly this reason: the mode you keep choosing
+        // is the mode you want, and re-picking it per new series is a chore.
+        if (_ready) {
+            globalPrefs.readingMode = rm
+            _saveSeriesPrefs()
+        }
     }
     // M cycles the three identities Manga -> Comic -> Strip -> Manga.
     function cycleMode() {
@@ -351,12 +372,16 @@ Item {
     // the lane default and a fresh auto-coupling probe decide again.
     function resetSeries() {
         clearResume()
+        // Forget the STORED records too, not just the live values — now that these survive a
+        // relaunch, clearing only memory would have the book quietly re-dress itself on next open.
+        // Global taste (night veil, gutter, strip measure, memory saver) is deliberately NOT reset:
+        // "Reset series" is about this book, not about your reader.
+        entrySave.stop()
+        entryRecords.all = ComicReaderState.storePut(entryRecords.all, curChapterId, null)
+        seriesRecords.all = ComicReaderState.storePut(seriesRecords.all, seriesId, null)
         persistedMode = ""
         persistedDirection = ""
         persistedState = ({})
-        nightVeil = "off"
-        gutterStrength = 0.35
-        if (core && core.setStripLayout) core.setStripLayout(78, 0)
         load()
     }
 
@@ -387,6 +412,10 @@ Item {
     // path flushes without closing (see onVisibleChanged). Guarded so a null core never errors.
     function shutdown() {
         recordProgress()
+        // Flush the book's record NOW — closeEntry() wipes the backend state the blob is read from,
+        // and a pending debounce would be writing an already-cleared entry (or never fire at all).
+        entrySave.stop()
+        _saveEntryBlob()
         if (core) core.closeEntry()
     }
 
@@ -429,6 +458,9 @@ Item {
     }
 
     Component.onCompleted: {
+        // Globals first: the very first entry must open already wearing your night veil and strip
+        // measure, not flash the defaults and correct itself a frame later.
+        _applyGlobalPrefs()
         _ready = true
         _resumeArmed = true
         if (chapterId.length) {
@@ -440,6 +472,104 @@ Item {
     }
     // the ONLY teardown of the backend entry — the reader is being destroyed for good, not hidden.
     Component.onDestruction: shutdown()
+
+    // ================= persistence (three stores, mirroring MangaReader.qml) =================
+    // The old reader keeps globals + per-series overrides + per-chapter records in three separate
+    // QSettings categories. Same split here, because the three kinds of memory genuinely differ:
+    //
+    //   comicReader        GLOBAL taste — night veil, gutter, strip width/gap, memory saver. These
+    //                      follow you to every book; nobody wants to re-dim the page per volume.
+    //   comicReaderSeries  PER-SERIES — which identity a series reads as. THIS is the one that
+    //                      really varies per book (One Piece is Manga, a webtoon is Strip).
+    //   comicReaderEntries PER-ENTRY — the backend's own persisted blob (spread overrides, coupling
+    //                      verdict, bookmarks). Per chapter/volume, not per series: a spread
+    //                      override is about the pages in THAT book.
+    //
+    // The Settings elements are dumb sinks; every map decision is a tested pure function in
+    // ComicReaderState.js. Reads are total — a corrupt store degrades to "no memory", never a throw.
+    Settings {
+        id: prefs
+        category: "comicReader"
+        property string nightVeil: "off"
+        property real   gutterStrength: 0.35
+        property int    stripWidthPct: 78
+        property int    stripGap: 0
+        property bool   memorySaver: false
+        // the last identity you picked anywhere becomes the default for a series you've never
+        // touched (MangaReader.setDirection writes the global AND the per-series override). "" =
+        // never chosen -> the lane default (manga->Manga, western->Comic) still decides.
+        property string readingMode: ""
+    }
+    Settings { id: seriesStore; category: "comicReaderSeries"; property string all: "{}" }
+    Settings { id: entryStore;  category: "comicReaderEntries"; property string all: "{}" }
+
+    // ---- injectable seams, like `core` / `progress` / `pageStore` ----
+    // Everything below reads and writes through THESE, never the Settings elements directly, so a
+    // harness can hand over plain objects. Without the seam a test run reads whatever a previous
+    // run left in your real reader settings (non-deterministic) and writes its own scratch values
+    // back into them (it changed the night veil under you). A test must not be able to do that.
+    property var globalPrefs:   prefs         // needs the six preference properties above
+    property var seriesRecords: seriesStore   // needs a writable `all` JSON string
+    property var entryRecords:  entryStore    // needs a writable `all` JSON string
+
+    // ---- load ----
+    // Globals are applied ONCE, before the first load(), so the first entry opens already dressed.
+    function _applyGlobalPrefs() {
+        nightVeil = globalPrefs.nightVeil
+        gutterStrength = globalPrefs.gutterStrength
+        // strip layout + memory saver live in the backend. Strip layout is reader-wide there (it
+        // deliberately survives entry crossings), so pushing it once here is enough.
+        if (core && core.setStripLayout) core.setStripLayout(globalPrefs.stripWidthPct, globalPrefs.stripGap)
+    }
+    // The per-series identity override, resolved for the CURRENT series. Falls back to the global
+    // last-choice, then to "" so load()'s lane default decides.
+    function _applySeriesPrefs() {
+        var rec = ComicReaderState.storeGet(seriesRecords.all, seriesId)
+        var rm = (rec && rec.rm) ? rec.rm : globalPrefs.readingMode
+        // Nothing remembered -> leave persistedMode/Direction EXACTLY as they are. The store is a
+        // source of memory, not an eraser: these are also the seams a caller (or the harness) can
+        // set directly, and an empty store must not wipe a deliberate choice back to the default.
+        if (!rm) return
+        persistedMode = ComicReaderState.readingModeLayout(rm)
+        persistedDirection = ComicReaderState.readingModeRtl(rm) ? "rtl" : "ltr"
+    }
+    // The per-entry blob handed straight to core.openEntry(). memorySaver is a GLOBAL that merely
+    // RIDES this blob (the backend round-trips it there and resets it per entry), so it is injected
+    // on the way in and stripped on the way out — see _saveEntryBlob.
+    function _applyEntryPrefs() {
+        var blob = ComicReaderState.storeGet(entryRecords.all, curChapterId) || ({})
+        blob.memorySaver = globalPrefs.memorySaver
+        persistedState = blob
+    }
+    // ---- save ----
+    function _saveSeriesPrefs() {
+        if (!seriesId.length) return
+        seriesRecords.all = ComicReaderState.storePut(seriesRecords.all, seriesId, { rm: readingMode })
+    }
+    function _saveEntryBlob() {
+        if (!curChapterId.length || !core || !core.persistedState) return
+        var blob = core.persistedState()
+        if (blob) delete blob.memorySaver          // a global has no business in a per-book record
+        entryRecords.all = ComicReaderState.storePut(entryRecords.all, curChapterId, blob)
+    }
+    // Spread overrides and the coupling verdict land in bursts (a probe resolving, a P nudge), so
+    // the write is debounced exactly like recordProgress — QSettings syncs to disk on every write.
+    Timer { id: entrySave; interval: 800; onTriggered: reader._saveEntryBlob() }
+
+    // ---- reactions: every settings write goes straight back to its store ----
+    onNightVeilChanged:      if (_ready) globalPrefs.nightVeil = nightVeil
+    onGutterStrengthChanged: if (_ready) globalPrefs.gutterStrength = gutterStrength
+    onStripWidthPctChanged:  if (_ready) globalPrefs.stripWidthPct = stripWidthPct
+    onStripGapChanged:       if (_ready) globalPrefs.stripGap = stripGap
+    onMemorySaverChanged:    if (_ready) globalPrefs.memorySaver = memorySaver
+    onSeriesIdChanged:       if (_ready) _applySeriesPrefs()
+
+    Connections {
+        target: reader.core
+        ignoreUnknownSignals: true
+        // a spread override, a nudge or a resolved probe changed the book's pairing record
+        function onPairingChanged() { if (reader._ready) entrySave.restart() }
+    }
 
     // ================= reading surfaces (Task 10) =================
     // The two direction/geometry surfaces mount here, toggled by `mode`, each handed the shell's

@@ -177,3 +177,78 @@ function nightVeilOpacity(level) {
     if (level === "high") return 0.26
     return 0
 }
+
+// --- persisted stores ---------------------------------------------------------------------
+// Two of the reader's three Settings stores hold ONE JSON string each, holding a map keyed by
+// series id / entry id — the shape MangaReader.qml uses for its seriesStore + chapterStore. The
+// Settings elements are dumb sinks; all the map logic lives here so it is testable headless.
+//
+// Every read is total: an empty, corrupt or half-written store degrades to "no memory" and
+// NEVER throws. A settings blob is not a trustworthy input — it survives crashes, upgrades and
+// hand-edits — and taking the reader down on open because a string went bad is not a trade
+// worth making. A write over a corrupt store self-heals it to a clean single-entry map.
+
+function _parseStore(json) {
+    if (!json) return {}
+    try {
+        var m = JSON.parse(json)
+        return (m && typeof m === "object" && !Array.isArray(m)) ? m : {}
+    } catch (e) {
+        return {}
+    }
+}
+
+// The record stored under `id`, or null. An empty id never matches (a blank series/entry id is
+// "we don't know what we're reading", not a key).
+function storeGet(json, id) {
+    if (!id) return null
+    var rec = _parseStore(json)[id]
+    return (rec && typeof rec === "object") ? rec : null
+}
+
+// Store `rec` under `id` and return the new JSON string. An empty/null record PRUNES the key
+// instead of leaving a husk — these maps get a write for every book opened, so without pruning
+// they grow forever with records that say nothing (the lineage's `delete m[curChapterId]`).
+function storePut(json, id, rec) {
+    if (!id) return json
+    var m = _parseStore(json)
+    if (blobIsEmpty(rec)) delete m[id]
+    else                  m[id] = rec
+    return JSON.stringify(m)
+}
+
+// Is this record worth a line in the store? Only REAL user/probe decisions count:
+//   * any bookmark or spread override
+//   * a MANUAL coupling (you nudged it) or a RESOLVED auto one (the probe paid to decide; a
+//     record spares the next open from re-running it)
+//   * any other non-empty own value
+// Deliberately NOT counted: memorySaver, which is a GLOBAL preference that merely rides this
+// per-entry blob because the backend round-trips it there. Counting it would write a per-book
+// record for every book you ever open, purely to restate a machine-wide setting.
+function blobIsEmpty(rec) {
+    if (!rec || typeof rec !== "object") return true
+    for (var k in rec) {
+        var v = rec[k]
+        if (k === "memorySaver") continue
+        if (k === "couplingMode") {
+            if (v === "manual") return false
+            continue
+        }
+        if (k === "couplingResolved") {
+            if (v === true) return false
+            continue
+        }
+        // couplingPhase/Confidence alone describe an undecided default — they only matter
+        // alongside a manual mode or a resolved flag, both handled above.
+        if (k === "couplingPhase" || k === "couplingConfidence") continue
+        if (v === null || v === undefined) continue
+        if (Array.isArray(v)) { if (v.length) return false; continue }
+        if (typeof v === "object") {
+            for (var kk in v) return false
+            continue
+        }
+        if (v === "" || v === false) continue
+        return false
+    }
+    return true
+}

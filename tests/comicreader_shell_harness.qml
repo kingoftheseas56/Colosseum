@@ -87,8 +87,28 @@ Item {
         function unitForPage(page) { return { rightIndex: page - 1, leftIndex: -1, spread: false } }
         function setSpreadOverride(page, state) {}
         function nudgeCoupling() {}
-        function setMemorySaver(on) {}
+        // settings-seam surface (Task 12): the shell pushes taste in and reads it back out
+        property int stripWidthPct: 78
+        property int stripGap: 0
+        property bool memorySaver: false
+        property var lastStripLayout: null
+        property var blob: ({})        // what persistedState() hands back to the shell's saver
+        function setMemorySaver(on) { memorySaver = (on === true) }
+        function setStripLayout(w, g) { stripWidthPct = w; stripGap = g; lastStripLayout = { w: w, g: g } }
+        function resetCoupling() {}
+        function persistedState() { return JSON.parse(JSON.stringify(blob)) }
     }
+
+    // ---- fake persistence stores: the shape of the shell's three Settings seams ----
+    component FakePrefs: QtObject {
+        property string nightVeil: "off"
+        property real   gutterStrength: 0.35
+        property int    stripWidthPct: 78
+        property int    stripGap: 0
+        property bool   memorySaver: false
+        property string readingMode: ""
+    }
+    component FakeRecords: QtObject { property string all: "{}" }
 
     // ---- fake Progress sink: record(payload) spy + get(kind, id) ----
     component FakeProgress: QtObject {
@@ -170,7 +190,24 @@ Item {
     property var shellComp: null
 
     // makeShell(cfg) — create the shell with injected fakes; returns the instance.
+    // Fresh in-memory persistence stores. The shell reads/writes its settings through injectable
+    // seams for exactly this reason: without them a harness run reads whatever a PREVIOUS run left
+    // in the real reader settings (so the suite passes or fails depending on history) and writes its
+    // own scratch values back into them. A test must never be able to change your night veil.
+    //
+    // These are real QtObjects, NOT JS object literals: a literal passed through createObject is
+    // converted to a QVariantMap — a COPY — so the shell's write-backs would land in the copy and
+    // the assertions would silently test nothing. A QObject is passed by reference, exactly like the
+    // real Settings element it stands in for.
+    Component { id: prefsComp; FakePrefs {} }
+    Component { id: recordsComp; FakeRecords {} }
+    function freshPrefs(over) { return prefsComp.createObject(harness, over || {}) }
+    function freshRecords(json) { return recordsComp.createObject(harness, { all: json || "{}" }) }
+
     function makeShell(cfg) {
+        if (!cfg.globalPrefs)   cfg.globalPrefs   = freshPrefs()
+        if (!cfg.seriesRecords) cfg.seriesRecords = freshRecords()
+        if (!cfg.entryRecords)  cfg.entryRecords  = freshRecords()
         var inst = shellComp.createObject(harness, cfg)
         if (!inst) throw new Error("shell createObject returned null")
         return inst
@@ -507,6 +544,146 @@ Item {
                 ck(dsurf.gutterStrength === 0, "gutter: setting shell.gutterStrength=0 must reach the double surface (Off), got " + dsurf.gutterStrength)
             }
 
+            // ===== 8. PERSISTENCE: the reader REMEMBERS across launches =====
+            // Three stores, three different lifetimes: global taste, per-series identity, per-entry
+            // reader state. All three are injected here, so these assertions are about the shell's
+            // logic and never about whatever is in the real settings.
+
+            // -- 8a. globals are applied at construction, BEFORE the first entry opens --
+            var pStore = fakeStoreP
+            pStore.pages = fivePages()
+            var pPrefs = freshPrefs({ nightVeil: "high", gutterStrength: 0.55,
+                                      stripWidthPct: 62, stripGap: 20, memorySaver: true })
+            var pShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-persist", "seriesTitle": "Persist", "seriesCover": "file:///f/p.png",
+                "core": fakeCoreP, "progress": fakeProgP, "pageStore": pStore,
+                "globalPrefs": pPrefs,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(pShell.nightVeil === "high", "persist: a stored night veil must be applied at construction, got '" + pShell.nightVeil + "'")
+            ck(Math.abs(pShell.gutterStrength - 0.55) < 1e-9, "persist: a stored gutter must be applied, got " + pShell.gutterStrength)
+            ck(fakeCoreP.lastStripLayout !== null && fakeCoreP.lastStripLayout.w === 62 && fakeCoreP.lastStripLayout.g === 20,
+               "persist: the stored strip measure must be pushed to the backend at construction")
+            // memorySaver is a GLOBAL that rides the per-entry blob into openEntry
+            ck(fakeCoreP.lastOpenEntry && fakeCoreP.lastOpenEntry.persisted
+               && fakeCoreP.lastOpenEntry.persisted.memorySaver === true,
+               "persist: the global memorySaver must ride the per-entry blob into openEntry")
+
+            // -- 8b. changing a setting writes straight back to the global store --
+            pShell.nightVeil = "low"
+            ck(pPrefs.nightVeil === "low", "persist: changing the night veil must write it back, got '" + pPrefs.nightVeil + "'")
+            pShell.gutterStrength = 0.22
+            ck(Math.abs(pPrefs.gutterStrength - 0.22) < 1e-9, "persist: changing the gutter must write it back")
+
+            // -- 8c. per-series identity override beats the lane default --
+            var qStore = fakeStoreQ
+            qStore.pages = fivePages()
+            var qShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-op", "seriesTitle": "OP", "seriesCover": "file:///f/o.png",
+                "core": fakeCoreQ, "progress": fakeProgQ, "pageStore": qStore,
+                "seriesRecords": freshRecords('{"s-op":{"rm":"strip"}}'),
+                "entryKind": "manga", "western": false,     // lane default would be Manga
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(qShell.readingMode === "strip",
+               "persist: a per-series override must beat the lane default, got '" + qShell.readingMode + "'")
+
+            // -- 8d. no per-series record -> the LAST mode chosen anywhere is the default --
+            var rStore2 = fakeStoreY
+            rStore2.pages = fivePages()
+            var yShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-new", "seriesTitle": "New", "seriesCover": "file:///f/n.png",
+                "core": fakeCoreY, "progress": fakeProgY, "pageStore": rStore2,
+                "globalPrefs": freshPrefs({ readingMode: "comic" }),
+                "entryKind": "manga", "western": false,     // lane default is Manga; global says Comic
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(yShell.readingMode === "comic",
+               "persist: an untouched series must follow the last mode chosen anywhere, got '" + yShell.readingMode + "'")
+
+            // -- 8e. picking a mode writes BOTH the series record and the global default --
+            var qSeries = freshRecords()
+            var zStore = fakeStoreZ
+            zStore.pages = fivePages()
+            var zPrefs = freshPrefs()
+            var zShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-z", "seriesTitle": "Z", "seriesCover": "file:///f/z.png",
+                "core": fakeCoreZ, "progress": fakeProgZ, "pageStore": zStore,
+                "globalPrefs": zPrefs, "seriesRecords": qSeries,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            zShell.setReadingMode("strip")
+            ck(zPrefs.readingMode === "strip", "persist: picking a mode must update the global default")
+            ck(JSON.parse(qSeries.all)["s-z"].rm === "strip", "persist: picking a mode must record it for THIS series")
+
+            // -- 8f. a stored entry blob reaches openEntry; a corrupt store degrades to no memory --
+            ck(qShell.persistedState !== null, "persist: persistedState must never be null after load")
+            var cShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-c", "seriesTitle": "C", "seriesCover": "file:///f/c2.png",
+                "core": fakeCoreC, "progress": fakeProgC, "pageStore": fakeStoreC,
+                "entryRecords": freshRecords("not json{"),   // corrupt on purpose
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(cShell.max === 0 || cShell.max >= 0, "persist: a CORRUPT entry store must not throw on open")
+
+            // -- 8g. the book's record is written on shutdown, WITHOUT the global riding along --
+            var sRecords = freshRecords()
+            fakeCoreS2.blob = { spreadOverrides: { "3": true }, couplingMode: "manual",
+                                couplingPhase: "shifted", bookmarks: [2], memorySaver: true }
+            var sStore2 = fakeStoreS2
+            sStore2.pages = fivePages()
+            var sShell2 = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-save", "seriesTitle": "Save", "seriesCover": "file:///f/s.png",
+                "core": fakeCoreS2, "progress": fakeProgS2, "pageStore": sStore2,
+                "entryRecords": sRecords,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            sShell2.shutdown()
+            var saved = JSON.parse(sRecords.all)["ch1"]
+            ck(saved !== undefined, "persist: shutdown must write the book's record immediately (no waiting on the debounce)")
+            if (saved) {
+                ck(saved.spreadOverrides && saved.spreadOverrides["3"] === true, "persist: spread overrides must survive")
+                ck(saved.couplingMode === "manual", "persist: a manual coupling must survive")
+                ck(saved.bookmarks && saved.bookmarks.length === 1, "persist: bookmarks must survive")
+                ck(saved.memorySaver === undefined,
+                   "persist: the GLOBAL memorySaver must be stripped from the per-book record")
+            }
+
+            // -- 8h. a crossing files the OUTGOING book's record under the OUTGOING id --
+            var xRecords = freshRecords()
+            fakeCoreW2.blob = { bookmarks: [4] }
+            var wStore = fakeStoreW2
+            wStore.pages = fivePages()
+            var wShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-w", "seriesTitle": "W", "seriesCover": "file:///f/w.png",
+                "core": fakeCoreW2, "progress": fakeProgW2, "pageStore": wStore,
+                "entryRecords": xRecords,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch2", "number": "2", "name": "" }, { "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch2", "chapterLabel": "Chapter 2"
+            })
+            wShell.openEntryById("ch1", false)        // cross to the older entry
+            var wm = JSON.parse(xRecords.all)
+            ck(wm["ch2"] !== undefined,
+               "persist: crossing must file the OUTGOING book's record under ITS id (ch2), got keys " + JSON.stringify(Object.keys(wm)))
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -549,6 +726,13 @@ Item {
     FakeCore { id: fakeCoreS }   FakeProgress { id: fakeProgS }
     FakePageStore { id: fakeStoreG }
     FakeCore { id: fakeCoreV }   FakeProgress { id: fakeProgV }   FakePageStore { id: fakeStoreV }
+    // --- persistence phase (section 8) ---
+    FakeCore { id: fakeCoreQ }   FakeProgress { id: fakeProgQ }   FakePageStore { id: fakeStoreQ }
+    FakeCore { id: fakeCoreY }   FakeProgress { id: fakeProgY }   FakePageStore { id: fakeStoreY }
+    FakeCore { id: fakeCoreZ }   FakeProgress { id: fakeProgZ }   FakePageStore { id: fakeStoreZ }
+    FakeCore { id: fakeCoreC }   FakeProgress { id: fakeProgC }   FakePageStore { id: fakeStoreC }
+    FakeCore { id: fakeCoreS2 }  FakeProgress { id: fakeProgS2 }  FakePageStore { id: fakeStoreS2 }
+    FakeCore { id: fakeCoreW2 }  FakeProgress { id: fakeProgW2 }  FakePageStore { id: fakeStoreW2 }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
