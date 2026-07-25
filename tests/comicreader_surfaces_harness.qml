@@ -27,7 +27,7 @@
 //       image, no fabricated crop), and shows NO gutter shadow.
 //     * a real pair shows the gutter shadow element; a spread does not.
 //     * zoom clamps to [100,260]; pan clamps to [0,panXMax]/[0,panYMax]; a unit change RESETS
-//       zoom + pan.
+//       pan only — zoom SURVIVES a page turn (a magnified volume must stay readable).
 //     * the maxSeen pair-anchor contract (shell Task 9, onCurrentPageChanged): showing a unit emits
 //       unitShown(highestPage) with the reading-HIGHEST page of the unit (max(rightIndex,leftIndex),
 //       1-based) so a pair-terminated entry can reach `finished`.
@@ -374,14 +374,25 @@ Item {
         dbl.panBy(0, 99999)
         ck(dbl.panY >= 0 && dbl.panY <= dbl.panYMax + 1e-6, "double: panY must clamp to [0,panYMax], got " + dbl.panY + " (max " + dbl.panYMax + ")")
 
-        // --- a unit change RESETS zoom + pan ---
+        // --- a unit change RESETS pan only — zoom SURVIVES (a magnified volume must stay
+        // magnified across turns; only the pan offset is stale on a new unit) ---
         dbl.setZoom(220)
         dbl.panBy(200, 0)
         ck(dbl.zoomPercent === 220 && dbl.panX > 0, "double: precondition — zoom/pan applied before unit change")
         coreDouble.units[7] = { rightIndex: 7, leftIndex: 8, spread: false, coverAlone: false }
         dbl.currentPage = 8      // new anchor -> new unit
-        ck(dbl.zoomPercent === 100, "double: a unit change must RESET zoom to 100, got " + dbl.zoomPercent)
+        ck(dbl.zoomPercent === 220, "double: a unit change must NOT reset zoom, got " + dbl.zoomPercent)
         ck(approx(dbl.panX, 0) && approx(dbl.panY, 0), "double: a unit change must RESET pan to 0, got x=" + dbl.panX + " y=" + dbl.panY)
+        dbl.setZoom(100)   // restore baseline before the next block
+
+        // --- zoom survives a page turn — you must be able to read a whole volume magnified ---
+        dbl.setZoom(160)
+        ck(dbl.clampedZoom === 160, "double: setZoom(160) takes")
+        dbl.panBy(50, 50)
+        dbl.currentPage = dbl.currentPage + 2   // a page turn
+        ck(dbl.clampedZoom === 160, "double: zoom must SURVIVE a page turn, got " + dbl.clampedZoom)
+        ck(dbl.panX === 0 && dbl.panY === 0, "double: pan resets to origin on a turn (zoom does not)")
+        dbl.setZoom(100)   // restore so later assertions in the file are unaffected
 
         // --- spread / coverAlone / single render ONE full-width image, no gutter, no crop ---
         coreDouble.units[2] = { rightIndex: 2, leftIndex: -1, spread: true, coverAlone: false }

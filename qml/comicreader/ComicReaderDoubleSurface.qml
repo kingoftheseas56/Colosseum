@@ -148,7 +148,10 @@ Item {
         return hi >= 0 ? hi + 1 : Math.max(1, currentPage)
     }
     function _onUnitShown() {
-        zoomPercent = 100; panX = 0; panY = 0          // a new unit opens at 100% / top-left
+        // A new unit resets the PAN to origin — never the zoom. Both lineage readers keep
+        // zoom across turns (TB2 even persists it per series); resetting it made a magnified
+        // volume unreadable: zoom in, turn the page, back to 100%, every single turn.
+        panX = 0; panY = 0
         if (!active) return
         var u = _currentUnit()
         if (core && core.setVisible) {
