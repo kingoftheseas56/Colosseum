@@ -61,6 +61,16 @@ class ComicReaderDecode;
 class ComicReaderStripModel;
 class ComicReaderProvider;
 
+// Decode priorities (higher runs sooner in QThreadPool). Exposed here (not just the .cpp's
+// anonymous namespace) so the strip decode-priority helper below is directly unit-testable.
+constexpr int kPrioVisible    = 100;
+constexpr int kPrioStripBase  = 70;   // strip window base, falls off with distance from centre
+
+// Priority for a strip page at `page`, given the page currently at the viewport centre
+// (`centrePage`, or -1 when the model is empty/unknown). Peaks AT the centre and falls off
+// symmetrically with distance, floored at 1 (never 0 — a request must still queue).
+int stripDecodePriority(int page, int centrePage);
+
 class ComicReaderCore final : public QObject {
     Q_OBJECT
     Q_PROPERTY(qulonglong generation READ generation NOTIFY entryChanged)

@@ -651,6 +651,18 @@ int main(int argc, char** argv) {
               "T17b bookmarks() reflects a persisted-on-open bookmark set");
     }
 
+    // ── Test 18: stripDecodePriority — priority peaks AT the viewport centre and falls off
+    //    symmetrically with distance, never underflowing below 1; a centre of -1 (empty strip
+    //    model) hands back the flat base for every page. Pure function, no ComicReaderCore
+    //    instance needed.
+    {
+        CHECK(stripDecodePriority(10, 10) == kPrioStripBase, "T18 the centre page gets the base priority");
+        CHECK(stripDecodePriority(9, 10) == stripDecodePriority(11, 10), "T18 priority is symmetric around the centre");
+        CHECK(stripDecodePriority(10, 10) > stripDecodePriority(13, 10), "T18 priority falls off with distance");
+        CHECK(stripDecodePriority(0, 200) >= 1, "T18 priority never underflows below 1");
+        CHECK(stripDecodePriority(5, -1) == kPrioStripBase, "T18 with no centre (empty model) every page gets the flat base");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

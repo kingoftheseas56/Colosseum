@@ -17,14 +17,19 @@ namespace {
 constexpr qint64 kBudgetNormal = 512LL * 1024 * 1024;
 constexpr qint64 kBudgetSaver  = 256LL * 1024 * 1024;
 
-// Decode priorities (higher runs sooner in QThreadPool).
-constexpr int kPrioVisible    = 100;
+// Decode priorities (higher runs sooner in QThreadPool). kPrioVisible and kPrioStripBase live
+// in the header (not here) so stripDecodePriority() is directly unit-testable.
 constexpr int kPrioNext1       = 90;
 constexpr int kPrioNext2       = 89;
 constexpr int kPrioPrev        = 80;
-constexpr int kPrioStripBase   = 70;   // strip window, descending
 constexpr int kPrioProbe       = 10;   // auto-coupling probe: LOW, so visible pages win
 } // namespace
+
+int stripDecodePriority(int page, int centrePage) {
+    if (centrePage < 0)
+        return kPrioStripBase;
+    return qMax(1, kPrioStripBase - qAbs(page - centrePage));
+}
 
 ComicReaderCore::ComicReaderCore(QObject* parent) : QObject(parent) {
     // m_cache is declared before m_decode, so &m_cache is fully constructed here.
@@ -442,12 +447,12 @@ void ComicReaderCore::setStripViewport(double top, double height) {
     m_stripViewportTop = top;
     m_stripViewportHeight = height;
     const QVector<int> w = m_strip->window(top, height, 1.5);
-    int prio = kPrioStripBase;
-    for (int p : w) {
-        m_decode->request(p, prio);
-        if (prio > 1)
-            --prio;
-    }
+    // Priority peaks AT the viewport centre and falls off symmetrically. The window starts
+    // 1.5 screens ABOVE the fold, so ordering by window position handed the best priority to
+    // pages the reader had already finished.
+    const int centre = m_strip->pageAtCenter(top, height);
+    for (int p : w)
+        m_decode->request(p, stripDecodePriority(p, centre));
     flushStripCompensation();
 }
 
