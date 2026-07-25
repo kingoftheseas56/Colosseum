@@ -14,6 +14,12 @@ import "../../qml/player2host"
 //
 // The probe plays inside the served window, then seeks WELL past it and reports the session state,
 // the position, and page.errorText — the engine's REAL message, which is the root-cause record.
+//
+// It also reports session.networkStalled and the page's derived status text every tick, because the
+// engine waiting on purpose is only half the fix: a legitimate 30s wait that renders as a dead
+// player is the ORIGINAL complaint ("if i seek forward or backward the video player closes"). Run
+// the fixture with -WindowOpenAfterSec N to watch the flag go true for the wait and false when the
+// bytes land.
 Window {
     id: probe
     width: 960; height: 540; visible: true; color: "black"
@@ -32,6 +38,14 @@ Window {
             var d = page.diagnosticsSnapshot()
             var presented = Number((d && d.presented) || 0)
             var state = page.sessionState()
+            var stalled = page.sessionNetworkStalled()
+            var status = page.statusText()
+
+            // Every tick after the seek, so the wait is a visible RUN of lines, not a single sample.
+            if (probe.seeked)
+                console.log("STREAM SEEK PROBE: tick=" + probe.ticks + " state=" + state
+                            + " networkStalled=" + stalled + " status=[" + status + "]"
+                            + " pos=" + page.sessionPosition().toFixed(2))
 
             if (!probe.seeked && presented > 25) {
                 probe.seeked = true
@@ -60,6 +74,7 @@ Window {
                 console.log("STREAM SEEK PROBE: " + (landed ? "PASS" : (errored ? "FAIL-ERROR" : "FAIL-HANG"))
                             + " finalState=" + state + " presented=" + presented
                             + " pos=" + page.sessionPosition()
+                            + " networkStalled=" + stalled + " status=[" + status + "]"
                             + " errorText=[" + page.errorText + "]")
                 Qt.callLater(function() { Qt.quit() })
             }

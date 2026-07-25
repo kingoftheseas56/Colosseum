@@ -156,6 +156,11 @@ Player2Session::Player2Session(QObject *parent)
         if (!m_generation.accepts(generation))
             return;
         const NetworkState network = static_cast<NetworkState>(stateValue);
+        // Publish the source's own truth alongside the state. The session deliberately does NOT
+        // enter Buffering during a seek, so this flag is the only thing that can tell the chrome
+        // "we are waiting on bytes" while it stays in Seeking. Every other network state clears it,
+        // including Failed and Ended — the flag can never outlive the wait it describes.
+        setNetworkStalled(network == NetworkState::Buffering || network == NetworkState::Recovering);
         const std::optional<Player2State> target =
             networkStateTarget(m_state.state(), network);
         if (!target)
@@ -198,6 +203,7 @@ QVariantList Player2Session::subtitleTracks() const
     return out;
 }
 quint64 Player2Session::generation() const noexcept { return m_generation.current(); }
+bool Player2Session::networkStalled() const noexcept { return m_networkStalled; }
 QString Player2Session::audioDevice() const { return m_audioPipeline.deviceName(); }
 QString Player2Session::audioFormat() const
 {
@@ -575,8 +581,19 @@ bool Player2Session::transition(Player2State next)
     return true;
 }
 
+void Player2Session::setNetworkStalled(bool stalled)
+{
+    if (m_networkStalled == stalled)
+        return;
+    m_networkStalled = stalled;
+    emit networkStalledChanged();
+}
+
 void Player2Session::resetMediaProperties()
 {
+    // open() and close() both land here, so a stall never survives the media that produced it —
+    // a local file opened after a stalled stream starts honestly un-stalled.
+    setNetworkStalled(false);
     if (m_position != 0.0) {
         m_position = 0.0;
         emit positionChanged();

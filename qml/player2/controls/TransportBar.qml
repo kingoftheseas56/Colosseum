@@ -64,7 +64,13 @@ Item {
 
     readonly property int seekStepSeconds: 10
     readonly property bool playing: session && session.state === 3 // Player2State::Playing
-    readonly property bool buffering: session && session.state === 2 // Player2State::Buffering
+    // Waiting on bytes. Two shapes, one meaning: the session sat down in Buffering(2), OR it is in
+    // Seeking(5) and the source says it is stalled. A seek into a torrent's not-yet-downloaded bytes
+    // is the second shape - the engine waits on purpose and the state never leaves Seeking, so
+    // without networkStalled the whole wait rendered as the PREVIOUS play/pause state, i.e. nothing.
+    readonly property bool buffering: session
+        && (session.state === 2 // Player2State::Buffering
+            || (session.state === 5 && session.networkStalled)) // Seeking, waiting on the origin
     readonly property bool paused: session && session.state === 4 // Player2State::Paused
     readonly property real dur: session && session.duration > 0 ? session.duration : 0
     readonly property real pos: session ? session.position : 0

@@ -47,6 +47,13 @@ class Player2Session final : public QObject, public IRecoverableTarget
     Q_PROPERTY(QVariantList subtitleTracks READ subtitleTracks NOTIFY tracksChanged)
     Q_PROPERTY(QVariantList chapters READ chapters NOTIFY chaptersChanged)
     Q_PROPERTY(quint64 generation READ generation NOTIFY generationChanged)
+    // True while the SOURCE is waiting on bytes (NetworkState Buffering or Recovering), carried
+    // alongside the state instead of through it. A seek into not-yet-downloaded torrent bytes is a
+    // deliberate wait on one held-open connection, but networkStateTarget() keeps the session in
+    // Seeking on purpose (letting it reach Buffering would let the recovery preempt m_postSeekState
+    // and start playback before seekCompleted lands). So the state alone cannot tell the chrome that
+    // a wait is in progress — this flag can. Always false for local files: no source, no callback.
+    Q_PROPERTY(bool networkStalled READ networkStalled NOTIFY networkStalledChanged)
     Q_PROPERTY(QString audioDevice READ audioDevice NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(QString audioFormat READ audioFormat NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(double audioQueueMs READ audioQueueMs NOTIFY audioDiagnosticsChanged)
@@ -82,6 +89,7 @@ public:
     QVariantList subtitleTracks() const;
     QVariantList chapters() const;
     quint64 generation() const noexcept;
+    bool networkStalled() const noexcept;
     void setVideoPipeline(D3D11VideoPipeline *pipeline);
     QString audioDevice() const;
     QString audioFormat() const;
@@ -139,6 +147,7 @@ signals:
     void tracksChanged();
     void chaptersChanged();
     void generationChanged();
+    void networkStalledChanged();
     void errorOccurred(const Player2Error &error);
     void demuxEnded(DemuxEndReason reason);
     void packetAccepted(quint64 generation, const DemuxPacketInfo &packet);
@@ -159,6 +168,7 @@ signals:
 
 private:
     bool transition(Player2State state);
+    void setNetworkStalled(bool stalled);
     void resetMediaProperties();
     bool hasActiveMedia() const noexcept;
     void attemptDeviceRecovery(const Player2Error &error);
@@ -174,6 +184,7 @@ private:
     DeviceRecoveryCoordinator m_recovery;
     PlaybackRequest m_lastRequest;
     std::atomic_bool m_shuttingDown{false};
+    bool m_networkStalled = false;
     int m_recoveryAttempts = 0;
     double m_position = 0.0;
     double m_duration = 0.0;

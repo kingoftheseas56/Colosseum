@@ -23,6 +23,9 @@ Window {
 
     property string clip: ""
     property int ticks: 0
+    // A local file has no network source, so networkStalled must stay false for the whole play. If
+    // it ever went true here the chrome would sit on a permanent, lying "Buffering".
+    property bool everStalled: false
 
     Player2Page {
         id: page
@@ -37,6 +40,11 @@ Window {
         onTriggered: {
             probe.ticks += 1
             var d = page.diagnosticsSnapshot()
+            if (page.sessionNetworkStalled())
+                probe.everStalled = true
+            console.log("PROBE tick=" + probe.ticks + " state=" + page.sessionState()
+                        + " networkStalled=" + page.sessionNetworkStalled()
+                        + " status=[" + page.statusText() + "]")
             if (probe.ticks === 3) {
                 // One full dump early on, so a zero counter can be traced to its cause instead of
                 // guessed at (state? never opened? decoded but never presented?).
@@ -48,13 +56,16 @@ Window {
                 var presented = d ? Number(d.presented || 0) : 0
                 var decoded = d ? Number(d.decoded || 0) : 0
                 var errors = d ? Number(d.deviceErrors || 0) : 0
-                if (presented > 0 && decoded > 0 && errors === 0)
+                if (presented > 0 && decoded > 0 && errors === 0 && !probe.everStalled)
                     console.log("PLAYER2 PLAY PROBE: PASS decoded=" + decoded
-                                + " presented=" + presented + " deviceErrors=" + errors)
+                                + " presented=" + presented + " deviceErrors=" + errors
+                                + " everStalled=" + probe.everStalled)
                 else
                     console.log("PLAYER2 PLAY PROBE: FAIL decoded=" + decoded
                                 + " presented=" + presented + " deviceErrors=" + errors
-                                + "  (presented=0 means the picture is black)")
+                                + " everStalled=" + probe.everStalled
+                                + "  (presented=0 means the picture is black;"
+                                + " everStalled=true means a local file reported a network stall)")
                 Qt.callLater(function() { Qt.quit() })
             }
         }

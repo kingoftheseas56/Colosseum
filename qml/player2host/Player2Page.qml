@@ -59,18 +59,25 @@ Item {
     // from under the viewer - which is what it did before, and read as "the player just vanished".
     property string errorText: ""
     readonly property bool errored: page.errorText.length > 0
-    // Player2State: 1 = Opening, 2 = Buffering, 7 = Recovering (Player2Types.h).
+    // Player2State: 1 = Opening, 2 = Buffering, 5 = Seeking, 7 = Recovering (Player2Types.h).
     readonly property int _state: backend.session ? backend.session.state : 0
+    // A seek into a torrent's not-yet-downloaded bytes is a deliberate wait on one held-open
+    // connection - but the session stays in Seeking on purpose, so the state alone reads as
+    // "nothing is happening". The source's own stall flag is what makes that wait visible here,
+    // and it keeps this surface saying the same thing the transport bar says.
+    readonly property bool _stalledSeek: backend.session ? (page._state === 5
+                                                            && backend.session.networkStalled) : false
     readonly property bool _starting: !page.errored
                                       && (page._awaitingStream
-                                          || page._state === 1 || page._state === 2 || page._state === 7)
+                                          || page._state === 1 || page._state === 2
+                                          || page._state === 7 || page._stalledSeek)
 
     function _statusText() {
         if (page.errored)
             return page.errorText
         if (page._awaitingStream)
             return "Starting stream..."
-        if (page._state === 2 || page._state === 7)
+        if (page._state === 2 || page._state === 7 || page._stalledSeek)
             return "Buffering..."
         return "Loading..."
     }
@@ -250,6 +257,8 @@ Item {
     function sessionState() { return backend.session ? backend.session.state : -1 }
     function sessionDuration() { return backend.session ? backend.session.duration : -1 }
     function sessionPosition() { return backend.session ? backend.session.position : -1 }
+    function sessionNetworkStalled() { return backend.session ? backend.session.networkStalled : false }
+    function statusText() { return page._statusText() }
 
     function diagnosticsSnapshot() {
         return (backend.session && backend.session.diagnostics) ? backend.session.diagnostics() : ({})
