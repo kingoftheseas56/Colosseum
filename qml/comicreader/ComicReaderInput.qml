@@ -21,11 +21,9 @@ Item {
     property int    zoomPercent: 100
     property bool   modalOpen: false         // an overlay is up (Task 12)
     property bool   chromeVisible: true
-    // double-page vertical scroll state, mirrored from the double surface (panY / panYMax). At base
-    // zoom a fill-width pair/spread is usually TALLER than the viewport (fill-width + scroll model,
-    // TB2 / QTGroundWork / MangaPlus): the wheel + Up/Down scroll the overflow and only turn the page
-    // at the top/bottom edge. vScrollMax==0 means the content fits — the wheel/arrows just navigate.
-    property real   vScrollPos: 0            // current panY (0 = top)
+    // double-page vertical pan headroom, mirrored from the double surface (panYMax). >0 means the
+    // fill-width spread is taller than the viewport, so Up/Down pan it (never flip); ==0 means it
+    // fits, so Up/Down are swallowed. The wheel always pans (the surface clamps), never flips.
     property real   vScrollMax: 0            // max panY (contentHeight - viewportHeight); 0 = no overflow
 
     // ---- tunables (lineage house numbers) ----
@@ -112,20 +110,13 @@ Item {
             if (key === Qt.Key_Left)  { if (rtl) { next(); return "next" } else { previous(); return "previous" } }
             if (rtl) { previous(); return "previous" } else { next(); return "next" }
         }
-        // Up/Down — pan when magnified; else at base zoom SCROLL a too-tall pair/spread, turning the
-        // page only at the top/bottom edge (fill-width + scroll); no overflow -> plain page-nav.
+        // Up/Down — vertical intent = PAN, NEVER a page flip (Tankoban Max strict model, Hemanth's
+        // 2026-07-17 ruling; mirrored from MangaReader.qml). A spread taller than the screen pans
+        // within itself (clamped by the surface, stops at the edge); a spread that fits swallows the
+        // key. Page turns are Left/Right, Space, and click zones only.
         if (key === Qt.Key_Up || key === Qt.Key_Down) {
-            if (zoomed) { panBy(0, key === Qt.Key_Up ? -panKeyStep : panKeyStep); return "panBy" }
-            if (vScrollMax > 0) {
-                if (key === Qt.Key_Down) {
-                    if (vScrollPos < vScrollMax - 0.5) { panBy(0, panKeyStep); return "panBy" }
-                    next(); return "next"
-                }
-                if (vScrollPos > 0.5) { panBy(0, -panKeyStep); return "panBy" }
-                previous(); return "previous"
-            }
-            if (key === Qt.Key_Up) { previous(); return "previous" }
-            next(); return "next"
+            if (zoomed || vScrollMax > 0) { panBy(0, key === Qt.Key_Up ? -panKeyStep : panKeyStep); return "panBy" }
+            return ""   // nothing to scroll -> swallow (never flips)
         }
         return ""
     }
@@ -203,34 +194,22 @@ Item {
     Timer { id: singleClickTimer; interval: input.singleClickMs; repeat: false; onTriggered: input._commitSingleClick() }
 
     // ================= wheel (pure) =================
-    // Ctrl+wheel zooms (double); a magnified wheel pans; at base zoom a fill-width pair/spread taller
-    // than the viewport SCROLLS (fill-width + scroll model, TB2/QTGW/MangaPlus), turning the page only
-    // at the top/bottom edge; content that fits turns the page directly. Strip wheels are NOT consumed
-    // here (they fall through to the strip surface's smooth accumulator).
+    // Ctrl+wheel zooms. In DOUBLE PAGE the wheel NEVER turns the page (Tankoban Max strict model,
+    // Hemanth's 2026-07-17 ruling; mirrored from MangaReader.qml): a magnified page, or a fit-width
+    // spread taller than the screen, PANS within itself (clamped by the surface — stops at the edge);
+    // a spread that fits SWALLOWS the wheel. Flips are keys / click zones only. Strip wheels are NOT
+    // consumed here (they fall through to the strip surface's smooth accumulator).
     function wheelAction(angleY, angleX, ctrl) {
         if (mode !== "double_page") return ""
         if (ctrl) { zoomBy(angleY >= 0 ? 20 : -20); return "zoomBy" }
-        // MAGNIFIED: the zoomed content owns the wheel (horizontal or vertical pan), as before.
-        if (zoomPercent > 100) {
-            var zdyPx = angleY * (100.0 / 120.0)
-            var zdxPx = angleX * (100.0 / 120.0)
-            if (Math.abs(zdxPx) > Math.abs(zdyPx)) panBy(-zdxPx, 0)
-            else panBy(0, -zdyPx)
-            return "panBy"
-        }
-        // BASE ZOOM: scroll the vertical overflow; turn the page only at the edge in the travel dir.
-        if (vScrollMax > 0) {
-            var dyPx = angleY * (100.0 / 120.0)     // wheel down => angleY<0 => -dyPx>0 => reveal bottom
-            var goingDown = angleY < 0
-            if (goingDown && vScrollPos < vScrollMax - 0.5) { panBy(0, -dyPx); return "panBy" }
-            if (!goingDown && vScrollPos > 0.5)             { panBy(0, -dyPx); return "panBy" }
-            if (goingDown) { next(); return "next" }
-            previous(); return "previous"
-        }
-        // BASE ZOOM, content fits: the wheel turns the page.
-        if (angleY < 0) { next(); return "next" }
-        if (angleY > 0) { previous(); return "previous" }
-        return ""
+        var zdyPx = angleY * (100.0 / 120.0)
+        var zdxPx = angleX * (100.0 / 120.0)
+        // magnified: horizontal intent pans sideways; otherwise (and at base zoom) pan vertically.
+        // panBy CLAMPS to [0,panXMax]/[0,panYMax], so at the edge — or when the spread fits — it is a
+        // no-op: the wheel is swallowed, never a page turn.
+        if (zoomPercent > 100 && Math.abs(zdxPx) > Math.abs(zdyPx)) { panBy(-zdxPx, 0); return "panBy" }
+        panBy(0, -zdyPx)
+        return "panBy"
     }
 
     // ================= live handlers (delegate to the pure functions) =================

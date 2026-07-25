@@ -465,9 +465,7 @@ Item {
         zoomPercent: reader.zoomPercent
         modalOpen: reader.modalOpen
         chromeVisible: reader.chromeVisible
-        // double-page vertical-scroll state, so the wheel/Up-Down scroll a too-tall fill-width
-        // pair/spread at base zoom and only turn the page at the top/bottom edge.
-        vScrollPos: doubleSurface.panY
+        // double-page vertical pan headroom, so Up/Down pan a too-tall spread (never flip).
         vScrollMax: doubleSurface.panYMax
         // within-entry navigation + surface control
         onNext: reader.pageNext()

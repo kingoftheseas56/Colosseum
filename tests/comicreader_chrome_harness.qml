@@ -278,24 +278,16 @@ Item {
         ck(key(Qt.Key_Down) === "panBy" && cnt("panBy") === 1, "arrow Down (double, zoomed) -> panBy")
         input.zoomPercent = 100
 
-        // --- Up/Down VERTICAL SCROLL at base zoom when fill-width content overflows the viewport
-        //     (fill-width + scroll model): scroll the overflow, turn the page only at the top/bottom edge ---
+        // --- Up/Down = PAN only, NEVER a flip (Tankoban Max strict model, Hemanth 2026-07-17):
+        //     a too-tall spread pans within itself (surface clamps); a spread that FITS swallows it ---
         input.mode = "double_page"; input.rtl = false; input.zoomPercent = 100
-        input.vScrollMax = 400; input.vScrollPos = 0                  // overflow, at TOP
-        ck(key(Qt.Key_Down) === "panBy" && cnt("panBy") === 1, "arrow Down (base zoom, overflow, not at bottom) -> scroll (panBy)")
-        ck(harness.lastPanDy > 0, "arrow Down scroll must move panY DOWN (+dy reveals the bottom), got dy=" + harness.lastPanDy)
-        input.vScrollPos = 400                                        // at BOTTOM edge
-        ck(key(Qt.Key_Down) === "next" && cnt("next") === 1, "arrow Down (base zoom, AT bottom edge) -> next page")
-        input.vScrollPos = 400                                        // scroll up from bottom
-        ck(key(Qt.Key_Up) === "panBy" && cnt("panBy") === 1, "arrow Up (base zoom, overflow, not at top) -> scroll (panBy)")
-        ck(harness.lastPanDy < 0, "arrow Up scroll must move panY UP (-dy reveals the top), got dy=" + harness.lastPanDy)
-        input.vScrollPos = 0                                          // at TOP edge
-        ck(key(Qt.Key_Up) === "previous" && cnt("previous") === 1, "arrow Up (base zoom, AT top edge) -> previous page")
-        // no overflow: Up/Down navigate as before
-        input.vScrollMax = 0; input.vScrollPos = 0
-        ck(key(Qt.Key_Down) === "next" && cnt("next") === 1, "arrow Down (base zoom, NO overflow) -> next")
-        ck(key(Qt.Key_Up) === "previous" && cnt("previous") === 1, "arrow Up (base zoom, NO overflow) -> previous")
-        input.vScrollMax = 0; input.vScrollPos = 0
+        input.vScrollMax = 400                                        // spread taller than the screen
+        ck(key(Qt.Key_Down) === "panBy" && cnt("panBy") === 1 && harness.lastPanDy > 0, "arrow Down (double, overflow) -> PAN down (never flip)")
+        ck(key(Qt.Key_Up) === "panBy" && cnt("panBy") === 1 && harness.lastPanDy < 0, "arrow Up (double, overflow) -> PAN up (never flip)")
+        ck(cnt("next") === 0 && cnt("previous") === 0, "arrow Up/Down must NEVER turn the page in double mode")
+        input.vScrollMax = 0                                          // spread FITS -> swallow, no flip
+        ck(key(Qt.Key_Down) === "" && cnt("panBy") === 0 && cnt("next") === 0, "arrow Down (double, fits) -> swallowed, never a flip")
+        ck(key(Qt.Key_Up) === "" && cnt("panBy") === 0 && cnt("previous") === 0, "arrow Up (double, fits) -> swallowed, never a flip")
 
         // --- Esc order: overlay -> chrome -> back ---
         input.modalOpen = true; input.chromeVisible = true
@@ -386,24 +378,19 @@ Item {
         input.mode = "long_strip"; input.zoomPercent = 100
         sig = {}; ck(input.wheelAction(120, 0, false) === "" && cnt("zoomBy") === 0 && cnt("panBy") === 0, "strip wheel is NOT consumed by the input (falls through to the strip surface)")
 
-        // --- base-zoom VERTICAL SCROLL on the wheel: fill-width content taller than the viewport
-        //     scrolls; the page turns only at the top/bottom edge (fill-width + scroll model) ---
+        // --- the wheel in DOUBLE PAGE NEVER turns the page (Tankoban Max strict model, Hemanth
+        //     2026-07-17): a too-tall spread pans within itself (surface clamps); a spread that FITS
+        //     swallows the wheel. Flips are keys / click zones only. ---
         input.mode = "double_page"; input.zoomPercent = 100
-        input.vScrollMax = 400; input.vScrollPos = 0                  // overflow, at TOP
-        sig = {}; ck(input.wheelAction(-120, 0, false) === "panBy" && cnt("panBy") === 1, "wheel down (base zoom, overflow, at top) -> scroll (panBy)")
-        ck(harness.lastPanDy > 0, "wheel-down scroll must move panY DOWN (+dy reveals bottom), got dy=" + harness.lastPanDy)
-        input.vScrollPos = 400                                        // at BOTTOM edge
-        sig = {}; ck(input.wheelAction(-120, 0, false) === "next" && cnt("next") === 1, "wheel down (base zoom, AT bottom edge) -> next page")
-        input.vScrollPos = 400                                        // scroll up from bottom
-        sig = {}; ck(input.wheelAction(120, 0, false) === "panBy" && cnt("panBy") === 1, "wheel up (base zoom, overflow, at bottom) -> scroll (panBy)")
-        ck(harness.lastPanDy < 0, "wheel-up scroll must move panY UP (-dy reveals top), got dy=" + harness.lastPanDy)
-        input.vScrollPos = 0                                          // at TOP edge
-        sig = {}; ck(input.wheelAction(120, 0, false) === "previous" && cnt("previous") === 1, "wheel up (base zoom, AT top edge) -> previous page")
-        // no overflow: the wheel turns the page
-        input.vScrollMax = 0; input.vScrollPos = 0
-        sig = {}; ck(input.wheelAction(-120, 0, false) === "next" && cnt("next") === 1, "wheel down (base zoom, NO overflow) -> next")
-        sig = {}; ck(input.wheelAction(120, 0, false) === "previous" && cnt("previous") === 1, "wheel up (base zoom, NO overflow) -> previous")
-        input.vScrollMax = 0; input.vScrollPos = 0; input.zoomPercent = 100
+        input.vScrollMax = 400                                        // spread taller than the screen
+        sig = {}; ck(input.wheelAction(-120, 0, false) === "panBy" && cnt("panBy") === 1 && harness.lastPanDy > 0, "wheel down (double, overflow) -> PAN down (never flip)")
+        sig = {}; ck(input.wheelAction(120, 0, false) === "panBy" && cnt("panBy") === 1 && harness.lastPanDy < 0, "wheel up (double, overflow) -> PAN up (never flip)")
+        sig = {}; input.wheelAction(-120, 0, false); ck(cnt("next") === 0 && cnt("previous") === 0, "wheel must NEVER turn the page in double mode")
+        // a spread that FITS: the wheel is swallowed (surface clamps panBy to a no-op), still never a flip
+        input.vScrollMax = 0
+        sig = {}; ck(input.wheelAction(-120, 0, false) === "panBy" && cnt("next") === 0, "wheel down (double, fits) -> swallowed (panBy), never a flip")
+        sig = {}; ck(input.wheelAction(120, 0, false) === "panBy" && cnt("previous") === 0, "wheel up (double, fits) -> swallowed (panBy), never a flip")
+        input.vScrollMax = 0; input.zoomPercent = 100
     }
 
     // ============================ DEFERRED (timers) ============================
