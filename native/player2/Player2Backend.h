@@ -6,6 +6,7 @@
 
 #include <QtCore/QObject>
 #include <QtCore/QPointer>
+#include <QtCore/QTimer>
 #include <QtCore/QVariantMap>
 
 namespace Colosseum::Player2
@@ -58,9 +59,20 @@ private:
     // Route a failure by whether anything has been presented yet — see classifyRuntimeFailure.
     void reportFailure(const QString &reason);
     bool firstFrameSeen() const;
+    // Drives the render loop and opens the pending request once the GPU side is genuinely up.
+    void pump();
 
     D3D11VideoPipeline m_pipeline;
     Player2Session m_session;
     QPointer<Player2VideoItem> m_item;
+
+    // A request may NOT be opened until the D3D11 pipeline has a live device (adapterMatch). Opening
+    // earlier gives the decoder no hardware context: the file opens, duration and codec read fine,
+    // and then nothing decodes — audio plays on its own pipeline while the picture stays black. The
+    // lab avoids this by only opening from its frame tick once adapterMatch is true; this mirrors it.
+    QTimer m_pump;
+    PlaybackRequest m_pending;
+    bool m_hasPending = false;
+    int m_waitTicks = 0;
 };
 }

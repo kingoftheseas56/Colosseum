@@ -30,6 +30,16 @@ QString outcomeName(BackendOutcome outcome)
 Player2Backend::Player2Backend(QObject *parent)
     : QObject(parent)
 {
+    // Give the session the video pipeline decoded frames are submitted INTO. Without this the session
+    // holds a null pipeline: audio plays perfectly (it owns a separate AudioPipeline) while every
+    // decoded video frame goes nowhere, the item is never handed a texture, and the picture stays
+    // black - which is exactly how the first real Player 2 playback behaved (2026-07-25).
+    m_session.setVideoPipeline(&m_pipeline);
+
+    // ~60Hz pump: keeps the video item repainting and opens a pending request the moment the D3D11
+    // pipeline reports a matching adapter. Same shape as the lab's frame timer.
+    m_pump.setInterval(16);
+    connect(&m_pump, &QTimer::timeout, this, &Player2Backend::pump);
     // A session that errors out is the engine telling us it cannot carry this playback. Whether that
     // is recoverable by handing over to mpvqt depends entirely on whether anything was shown yet.
     connect(&m_session, &Player2Session::stateChanged, this, [this]() {
@@ -103,13 +113,43 @@ QVariantMap Player2Backend::play(const QVariantMap &request)
     if (decision.outcome != BackendOutcome::UsePlayer2)
         return result;
 
-    m_session.open(playback);
+    // Queue it; pump() opens once the GPU side is genuinely up. See the note on m_pending.
+    m_pending = playback;
+    m_hasPending = true;
+    m_waitTicks = 0;
+    m_pump.start();
     return result;
 }
 
 void Player2Backend::stop()
 {
+    m_hasPending = false;
+    m_pump.stop();
     m_session.close();
+}
+
+void Player2Backend::pump()
+{
+    if (!m_item)
+        return;
+    // Repaint drives the pipeline's initialisation and, once playing, its presentation.
+    m_item->update();
+
+    if (!m_hasPending)
+        return;
+
+    if (!m_pipeline.diagnostics().adapterMatch) {
+        // Give the scene graph a bounded chance to bring the device up (~5s at 16ms). If it never
+        // does, say so rather than sit forever on a black page.
+        if (++m_waitTicks > 300) {
+            m_hasPending = false;
+            reportFailure(QStringLiteral("the Player 2 video device never became ready"));
+        }
+        return;
+    }
+
+    m_hasPending = false;
+    m_session.open(m_pending);
 }
 
 bool Player2Backend::firstFrameSeen() const

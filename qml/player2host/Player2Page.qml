@@ -182,6 +182,16 @@ Item {
         backend.stop()
     }
 
+    // The engine's own frame counters, for probes and diagnostics. Presented > 0 is the only honest
+    // proof that a picture actually reached the screen - session state and audio both look healthy
+    // while the video is black.
+    function sessionState() { return backend.session ? backend.session.state : -1 }
+    function sessionDuration() { return backend.session ? backend.session.duration : -1 }
+
+    function diagnosticsSnapshot() {
+        return (backend.session && backend.session.diagnostics) ? backend.session.diagnostics() : ({})
+    }
+
     function captureState() {
         return { "position": (backend.session && backend.session.position > 0) ? backend.session.position : 0 }
     }
