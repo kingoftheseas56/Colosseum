@@ -281,6 +281,84 @@ var JOB = {
 
 function jobFor(id) { return JOB[id] || ""; }
 
+// What to physically move when the user presses ▲/▼ *in a given world*, as
+// { id, index } into the stored (global) array — or null for "no move": already at
+// this world's edge, not a well, or unknown.
+//
+// Two problems live here, and the second is the subtle one.
+//
+// FIRST: the arrows are world-relative and the array is global, and they disagree
+// whenever another world's row sits between two of this world's wells — the ordinary
+// case, not a corner. With the shipped defaults Tankoban's 4th well and its global
+// predecessor (LibGen, Biblio-only) are neighbours in the array and strangers on screen.
+// A global ±1 therefore did nothing visible 4 presses out of 8 in Tankoban, and 3 of
+// those silently reordered Biblio. (A5's audit P0-3, verified worse than written.)
+//
+// SECOND: a well can live in two worlds, and one array cannot hold two independent
+// orders for it. Ask to move Torrent Indexers up in Tankoban and it MUST cross LibGen,
+// because that is the only way to get above GetComics in the array — so Biblio's order
+// changes as a side effect of curating Tankoban.
+//
+// The way out is that a swap has two implementations: move A down to B, or move B up to
+// A. Both produce the same result in *this* world; they differ entirely in what they do
+// to the others, because only the row that physically travels crosses the rows between.
+// So cost both and take the cheaper. In the case above, moving GetComics (Tankoban-only)
+// down past LibGen costs nothing at all, where moving Indexers up costs Biblio's order.
+// Ties go to the row the user clicked, which is the one he expects to see move.
+//
+// This does not make every cross-world disturbance vanish — when both candidates share a
+// world with a row between them, something has to give, and the caller should say so.
+// It removes every disturbance that was avoidable, which with our roster is all of them.
+function _worldsOf(entry) {
+    return worldsFor(entry);
+}
+function _sharesAnyWorld(a, b) {
+    var wa = _worldsOf(a), wb = _worldsOf(b);
+    for (var i = 0; i < wa.length; i++)
+        if (wb.indexOf(wa[i]) !== -1) return true;
+    return false;
+}
+// How many rows lying between `lo` and `hi` would have their order flipped, in some
+// world, by `mover` travelling across them.
+function _crossingCost(list, lo, hi, mover) {
+    var cost = 0;
+    for (var i = lo + 1; i < hi; i++)
+        if (_sharesAnyWorld(list[i], mover)) cost++;
+    return cost;
+}
+
+function moveDestination(list, world, id, delta) {
+    if (!list || !list.length || !delta) return null;
+
+    var wells = [];
+    for (var i = 0; i < list.length; i++)
+        if (inWorld(list[i], world) && isWell(list[i])) wells.push(list[i]);
+
+    var from = -1;
+    for (var w = 0; w < wells.length; w++)
+        if (wells[w].id === id) { from = w; break; }
+    if (from < 0) return null;
+
+    var to = from + delta;
+    if (to < 0 || to >= wells.length) return null;     // first or last in its own world
+
+    // The two rows to be swapped, at their positions in the stored array.
+    var ia = -1, ib = -1, otherId = wells[to].id;
+    for (var k = 0; k < list.length; k++) {
+        if (list[k].id === id) ia = k;
+        if (list[k].id === otherId) ib = k;
+    }
+    if (ia < 0 || ib < 0) return null;
+
+    var lo = Math.min(ia, ib), hi = Math.max(ia, ib);
+    var costClicked = _crossingCost(list, lo, hi, list[ia]);
+    var costOther   = _crossingCost(list, lo, hi, list[ib]);
+
+    // Move the clicked row unless moving its neighbour genuinely disturbs less.
+    return costOther < costClicked ? { id: otherId, index: ia }
+                                   : { id: id,      index: ib };
+}
+
 function _kindLine(manifest, categories, id) {
     // A house well's job wins over the resource-derived vocabulary.
     var job = jobFor(id || (manifest && manifest.id) || "");

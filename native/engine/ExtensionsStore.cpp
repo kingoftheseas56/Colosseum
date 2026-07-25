@@ -313,12 +313,27 @@ void ExtensionsStore::setEnabled(const QString& id, bool on)
     bump();
 }
 
-void ExtensionsStore::move(const QString& id, int delta)
+// Reorder is a WORLD-relative act performed on a GLOBAL array, and the two disagree
+// whenever another world's row sits between two of this world's wells — which is the
+// normal case, not the corner case.
+//
+// This replaces move(id, ±1), which swapped GLOBAL neighbours and was wrong twice over.
+// Simulated against the shipped defaults: of Tankoban's 8 possible arrow presses, 4 moved
+// a row past a Biblio-only row and changed nothing on screen — and 3 of those silently
+// reordered BIBLIO's ask-order. A user curating his manga sources was editing his book
+// sources, with no feedback in either world. (A5's audit P0-3, and worse than it read.)
+//
+// The destination is computed in QML because ExtensionsCatalog.js owns world derivation;
+// duplicating that here would be a second source of truth for "the next well in Tankoban".
+// This end does one thing: move a row to an absolute index, and refuse to rank a catalogue.
+void ExtensionsStore::moveTo(const QString& id, int index)
 {
     const int i = indexOfId(id);
-    if (i < 0 || delta == 0)
+    if (i < 0)
         return;
-    const int j = qBound(0, i + delta, int(m_items.size()) - 1);
+    if (m_items.at(i).value(QStringLiteral("core")).toBool())
+        return;                                  // catalogues are never ranked
+    const int j = qBound(0, index, int(m_items.size()) - 1);
     if (i == j)
         return;
     m_items.move(i, j);

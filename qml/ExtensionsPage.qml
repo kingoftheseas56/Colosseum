@@ -70,6 +70,14 @@ Item {
         pendingRemoveId = "";
         Extensions.remove(entry.id);
     }
+    // Reorder a well within the world the user is actually looking at. The arrows are
+    // world-relative and the stored array is global, so the destination has to be resolved
+    // against this world's own well list — see Catalog.moveDestination for why a global
+    // ±1 both failed to move Tankoban and silently reordered Biblio.
+    function moveWell(id, delta) {
+        var dest = Catalog.moveDestination(installedList, world, id, delta);
+        if (dest >= 0) Extensions.moveTo(id, dest);
+    }
     // A world's rank for a well is its index among that world's wells — which is how one
     // stored row ranks 4th in Tankoban and 2nd in Biblio without storing a rank at all.
     function wellRank(entry, world) {
@@ -821,6 +829,16 @@ Item {
                                     // reads 4 in Tankoban and 2 in Biblio with nothing stored.
                                     property int rank: irow.isCatalogue ? 0
                                                      : root.wellRank(irow.modelData, root.world)
+                                    // An arrow is live only when it has somewhere to go IN THIS
+                                    // WORLD. Asking the same resolver the click uses means the
+                                    // control can never be offered for a move that won't happen —
+                                    // the old arrows were always lit and silently did nothing.
+                                    readonly property bool canMoveUp:
+                                        !irow.isCatalogue && Catalog.moveDestination(
+                                            root.installedList, root.world, irow.modelData.id, -1) >= 0
+                                    readonly property bool canMoveDown:
+                                        !irow.isCatalogue && Catalog.moveDestination(
+                                            root.installedList, root.world, irow.modelData.id, 1) >= 0
                                     // A house well lives in-app and has no web page to open, so it
                                     // gets Settings; a remote addon keeps Configure ↗ (stage 4 builds
                                     // the sheet — until then only remote rows offer anything).
@@ -922,16 +940,20 @@ Item {
                                             Text {
                                                 text: "▲"; font.pixelSize: 10
                                                 color: upMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                opacity: irow.canMoveUp ? 1 : 0.3
                                                 MouseArea { id: upMa; anchors.fill: parent; hoverEnabled: true
+                                                            enabled: irow.canMoveUp
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: Extensions.move(irow.modelData.id, -1) }
+                                                            onClicked: root.moveWell(irow.modelData.id, -1) }
                                             }
                                             Text {
                                                 text: "▼"; font.pixelSize: 10
                                                 color: downMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                opacity: irow.canMoveDown ? 1 : 0.3
                                                 MouseArea { id: downMa; anchors.fill: parent; hoverEnabled: true
+                                                            enabled: irow.canMoveDown
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: Extensions.move(irow.modelData.id, 1) }
+                                                            onClicked: root.moveWell(irow.modelData.id, 1) }
                                             }
                                         }
 

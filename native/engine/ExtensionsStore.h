@@ -59,7 +59,10 @@ public:
 
     Q_INVOKABLE void remove(const QString& id);          // core rows refuse
     Q_INVOKABLE void setEnabled(const QString& id, bool on);  // core rows refuse
-    Q_INVOKABLE void move(const QString& id, int delta); // reorder by ±steps
+    // Absolute reorder. NOT ±steps: a world-relative arrow press is not a global
+    // neighbour swap, so QML resolves the destination (it owns world derivation) and
+    // this just performs it. Core rows refuse — catalogues are never ranked.
+    Q_INVOKABLE void moveTo(const QString& id, int index);
 
     // "stremio://host/manifest.json" → "https://host/manifest.json";
     // bare host/path gets "/manifest.json" appended. Exposed for the sheet's echo.
