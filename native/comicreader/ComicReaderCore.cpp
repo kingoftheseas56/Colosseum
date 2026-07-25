@@ -15,6 +15,20 @@
 namespace comicreader {
 
 namespace {
+// LATEST-WINS wave priorities. Each setVisible wave sits kVisibleWaveStep above the last, and the
+// offsets below rank the requests WITHIN one wave. The whole scheme is correct only while every
+// offset is smaller than the step — otherwise a wave's prefetch would sink beneath the PREVIOUS
+// wave's, silently undoing the newest-first ordering with no test to catch it (the ordering tests
+// space their waves further apart than these offsets). Pinned rather than trusted.
+constexpr int kVisibleWaveStep = 8;
+constexpr int kOffNext1        = 3;    // the page after the visible run
+constexpr int kOffNext2        = 4;    // one further ahead
+constexpr int kOffPrevUnit     = 6;    // both halves of the previous unit
+static_assert(kOffNext1 < kVisibleWaveStep && kOffNext2 < kVisibleWaveStep
+                  && kOffPrevUnit < kVisibleWaveStep,
+              "a within-wave offset must stay under the wave step, or a new wave's prefetch "
+              "would rank below the previous wave's and latest-wins would silently break");
+
 constexpr qint64 kBudgetNormal = 512LL * 1024 * 1024;
 constexpr qint64 kBudgetSaver  = 256LL * 1024 * 1024;
 
@@ -452,21 +466,21 @@ void ComicReaderCore::setVisible(QVariantList pageIndices) {
     // has to hold at the request, not later — a page already sitting in the pool queue can
     // never be re-prioritized (QThreadPool has no such call, and request() dedups it away),
     // so out-ranking the stale work is the only lever there is.
-    m_visibleBoost += 8;
+    m_visibleBoost += kVisibleWaveStep;
     const int prioVisible = kPrioVisible + m_visibleBoost;
 
     for (int v : visible)
         m_decode->request(v, prioVisible);
-    if (maxV + 1 < m_pages.size()) m_decode->request(maxV + 1, prioVisible - 3);
-    if (maxV + 2 < m_pages.size()) m_decode->request(maxV + 2, prioVisible - 4);
+    if (maxV + 1 < m_pages.size()) m_decode->request(maxV + 1, prioVisible - kOffNext1);
+    if (maxV + 2 < m_pages.size()) m_decode->request(maxV + 2, prioVisible - kOffNext2);
     if (minV - 1 >= 0) {
         // Flipping BACK lands on a UNIT, not a page — prefetch both halves or the second one
         // pops in late (most visible re-reading backwards in RTL manga).
         const QVariantMap prevUnit = unitForPage(minV - 1);
         const int pr = prevUnit.value(QStringLiteral("rightIndex"), -1).toInt();
         const int pl = prevUnit.value(QStringLiteral("leftIndex"), -1).toInt();
-        if (pr >= 0) m_decode->request(pr, prioVisible - 6);
-        if (pl >= 0) m_decode->request(pl, prioVisible - 6);
+        if (pr >= 0) m_decode->request(pr, prioVisible - kOffPrevUnit);
+        if (pl >= 0) m_decode->request(pl, prioVisible - kOffPrevUnit);
     }
 }
 
