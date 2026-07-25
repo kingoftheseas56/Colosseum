@@ -1,9 +1,12 @@
 #include "HttpMediaSource.h"
 
+#include <QtCore/QElapsedTimer>
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 
 namespace Colosseum::Player2 {
 namespace {
@@ -229,6 +232,9 @@ qint64 HttpMediaSource::seek(qint64 offset, int whence)
 
 void HttpMediaSource::fetchLoop()
 {
+    // The transport does not get to decide how patient we are with a slow origin; we do.
+    m_transport->setStallTimeoutMs(m_policy.stallTimeoutMs);
+
     // First connection: resolve open() with the discovered capabilities (or a failure).
     {
         qint64 startOffset = 0;
@@ -300,16 +306,41 @@ void HttpMediaSource::fetchLoop()
             m_transport->close();
             HttpResponse response;
             QString error;
-            // A progressive origin (a torrent still downloading) legitimately refuses a range it does
-            // not hold YET. Nothing is broken, so this is Buffering with bounded backoff retries of
-            // the SAME target - not a terminal failure. Giving the seek re-open a single attempt is
-            // what closed the player on every seek during the first real playback (2026-07-25);
-            // a mid-stream disconnect had always had this patience, a seek never did.
+            // A progressive origin (a torrent still downloading) does not hold the seek target YET.
+            // Measured 2026-07-25 against the real Stremio EngineFS sidecar and a fixture that
+            // copies it: such an origin does not refuse and does not misalign - it ACCEPTS the
+            // connection and says NOTHING until the pieces land (server.js:18267, which stages a
+            // 206 at the exact offset and only emits it with the first body byte). So the wait is
+            // Buffering from the first instant, and the bound has to be WALL CLOCK: an attempt
+            // count times a socket timeout is what turned one legitimate stall into 8 x 20s of
+            // frozen Seeking followed by a killed session.
+            //
+            // Spend the budget on ONE held-open connection rather than a run of teardowns. Each
+            // teardown destroys the read stream the origin had already prioritised for us, so
+            // retrying makes the wait longer, not shorter. Retries remain only for an origin that
+            // refuses or drops us quickly - which is cheap, and bounded by maxSeekOpenAttempts.
+            setState(NetworkState::Buffering);
+            QElapsedTimer seekBudget;
+            seekBudget.start();
             bool seekOpened = false;
             bool seekSuperseded = false;
             for (int attempt = 1; ; ++attempt) {
-                if (m_transport->start(m_request.source, m_request.headers, seekTarget, &response,
-                                       &error)) {
+                const qint64 remainingMs =
+                    m_policy.seekStallBudgetMs - seekBudget.elapsed();
+                if (remainingMs <= 0) {
+                    setState(NetworkState::Failed);
+                    std::scoped_lock lock(m_mutex);
+                    m_dataReady.notify_all();
+                    return;
+                }
+                // Wait out whatever is left of the budget on this one attempt; cancel() and a newer
+                // seek both interrupt it, so patience never costs responsiveness.
+                m_transport->setStallTimeoutMs(static_cast<int>(
+                    std::min<qint64>(remainingMs, std::numeric_limits<int>::max())));
+                const bool opened = m_transport->start(m_request.source, m_request.headers,
+                                                       seekTarget, &response, &error);
+                m_transport->setStallTimeoutMs(m_policy.stallTimeoutMs);
+                if (opened) {
                     seekOpened = true;
                     break;
                 }
@@ -323,13 +354,13 @@ void HttpMediaSource::fetchLoop()
                         break;
                     }
                 }
-                if (attempt >= m_policy.maxSeekOpenAttempts) {
+                if (attempt >= m_policy.maxSeekOpenAttempts ||
+                    seekBudget.elapsed() >= m_policy.seekStallBudgetMs) {
                     setState(NetworkState::Failed);
                     std::scoped_lock lock(m_mutex);
                     m_dataReady.notify_all();
                     return;
                 }
-                setState(NetworkState::Buffering);
                 const int delayMs = reconnectDelayFor(attempt);
                 if (delayMs > 0) {
                     std::unique_lock lock(m_mutex);

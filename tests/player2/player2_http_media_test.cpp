@@ -106,6 +106,24 @@ public:
     // simply are not there yet - so the source must treat it as buffering, not as a dead stream.
     int refuseRangedStarts = 0;
 
+    // Progressive-origin SILENCE - what the Stremio EngineFS sidecar measurably does (2026-07-25).
+    // It does not refuse a range it does not hold yet: it accepts the connection and answers
+    // NOTHING, because it stages the 206 and only emits it with the first body byte. So start()
+    // BLOCKS, and the only thing that ends the wait is the bytes arriving (releaseRangedSilence())
+    // or the stall timeout the SOURCE handed us running out. Modelling this as a free, instant
+    // refusal is exactly why the earlier bounded-retry fix passed its tests and still killed the
+    // real session: in the fake a retry cost nothing, in the field it cost 20 seconds.
+    bool silenceRangedStarts = false;
+
+    void releaseRangedSilence()
+    {
+        {
+            std::scoped_lock lock(m_mutex);
+            m_silenceReleased = true;
+        }
+        m_cv.notify_all();
+    }
+
     int startCount() const { return m_startCount.load(); }
 
     void releaseStall()
@@ -120,7 +138,7 @@ public:
     bool start(const QUrl &, const RequestHeaders &, qint64 byteOffset, HttpResponse *response,
                QString *error) override
     {
-        std::scoped_lock lock(m_mutex);
+        std::unique_lock lock(m_mutex);
         // A new connection rearms the transport: a real client is reusable after a per-operation
         // cancel(); only HttpMediaSource's own flag is the permanent shutdown.
         m_cancelled = false;
@@ -130,6 +148,21 @@ public:
             if (error)
                 *error = QStringLiteral("range not available yet");
             return false;
+        }
+        if (byteOffset > 0 && silenceRangedStarts && !m_silenceReleased) {
+            const bool arrived =
+                m_cv.wait_for(lock, std::chrono::milliseconds(m_stallTimeoutMs),
+                              [this] { return m_silenceReleased || m_cancelled; });
+            if (m_cancelled) {
+                if (error)
+                    *error = QStringLiteral("cancelled");
+                return false;
+            }
+            if (!arrived) {
+                if (error)
+                    *error = QStringLiteral("timed out reading headers");
+                return false;
+            }
         }
         m_served = 0;
         m_connectionHadDisconnect = false;
@@ -182,6 +215,14 @@ public:
         m_cv.notify_all();
     }
 
+    // The source owns the patience; record it so a silent ranged start times out exactly the way a
+    // real socket would.
+    void setStallTimeoutMs(int milliseconds) override
+    {
+        std::scoped_lock lock(m_mutex);
+        m_stallTimeoutMs = milliseconds;
+    }
+
 private:
     std::mutex m_mutex;
     std::condition_variable m_cv;
@@ -190,7 +231,9 @@ private:
     int m_served = 0;
     bool m_connectionHadDisconnect = false;
     bool m_stallReleased = false;
+    bool m_silenceReleased = false;
     bool m_cancelled = false;
+    int m_stallTimeoutMs = 20'000;
 };
 
 HttpSourcePolicy fastPolicy()
@@ -427,6 +470,85 @@ void testSeekRefusalsEventuallyFail()
     require(log.saw(NetworkState::Failed), "exhausted seek attempts must report Failed");
 }
 
+// The regression Hemanth actually hit: "if i seek forward or backward the video player closes".
+// Measured against the real sidecar 2026-07-25 - a seek past the download frontier produced
+//   errorText=[Network stream failed (NetworkFailed)] finalState=8
+// after 196 s frozen in Seeking and exactly 8 re-open attempts at the same byte offset. The origin
+// never refused any of them; it accepted every connection and stayed silent because the bytes had
+// not downloaded yet, and each 20 s socket timeout was counted as an attempt against an 8-attempt
+// budget. The bound has to be wall clock, and it has to be spent WAITING, not re-dialling.
+void testSeekIntoSilentProgressiveOriginWaitsThenLands()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->silenceRangedStarts = true; // accepts the connection, then says nothing
+    ScriptedTransport *scripted = transport.get();
+
+    StateLog log;
+    HttpSourcePolicy policy = fastPolicy();
+    policy.stallTimeoutMs = 50;       // a short socket-level patience, as in the field
+    policy.maxSeekOpenAttempts = 8;   // 8 x 50 ms = 400 ms of attempts...
+    policy.seekStallBudgetMs = 5'000; // ...but 5 s of real budget, which is what must govern
+    HttpMediaSource source(std::move(transport), streamRequest(), policy);
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "silent-origin open failed: " + error.toStdString());
+
+    // The pieces land well after the attempt budget would have run out, but well inside the wall
+    // clock budget - the exact gap the field failure fell into.
+    std::thread arrival([scripted] {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1'500));
+        scripted->releaseRangedSilence();
+    });
+
+    require(source.seek(128 * 1024, SEEK_SET) == 128 * 1024, "seek must report its target");
+    QByteArray tail;
+    tail.resize(64 * 1024);
+    const int n = source.read(tail.data(), tail.size());
+    arrival.join();
+
+    require(n > 0, "a seek into bytes that arrive late must deliver them, not kill the session");
+    require(!log.saw(NetworkState::Failed),
+            "an origin that is still fetching has not failed - that is what closed the player");
+    require(log.saw(NetworkState::Buffering),
+            "the wait must be published as Buffering, not left as silent dead air");
+    require(tail.left(n) == body.mid(128 * 1024, n), "delivered bytes must come from the seek target");
+}
+
+// The patience stays bounded: an origin that goes silent forever still fails cleanly and promptly
+// once the wall-clock budget is spent - it must never buffer forever.
+void testSilentSeekStillFailsWhenTheBudgetIsSpent()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->silenceRangedStarts = true; // never releases: the bytes never arrive
+
+    StateLog log;
+    HttpSourcePolicy policy = fastPolicy();
+    policy.stallTimeoutMs = 50;
+    policy.maxSeekOpenAttempts = 8;
+    policy.seekStallBudgetMs = 400;
+    HttpMediaSource source(std::move(transport), streamRequest(), policy);
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "bounded silent-seek open failed: " + error.toStdString());
+
+    const auto started = std::chrono::steady_clock::now();
+    source.seek(128 * 1024, SEEK_SET);
+    int terminal = 0;
+    drainAll(source, &terminal);
+    const auto elapsed = std::chrono::steady_clock::now() - started;
+
+    require(terminal < 0, "a target that never arrives must end in a terminal error");
+    require(log.saw(NetworkState::Failed), "a spent seek budget must report Failed");
+    require(elapsed < std::chrono::seconds(5),
+            "the seek budget must bound the wait - buffering forever is not an option");
+}
+
 void testUnknownLengthIsLive()
 {
     const QByteArray body = countedBody(100 * 1024);
@@ -568,6 +690,8 @@ int main()
         testReconnectExhaustionFails();
         testSeekIntoNotYetAvailableBytesBuffersThenRecovers();
         testSeekRefusalsEventuallyFail();
+        testSeekIntoSilentProgressiveOriginWaitsThenLands();
+        testSilentSeekStillFailsWhenTheBudgetIsSpent();
         testUnknownLengthIsLive();
         testSeekToEndParksWithoutOutOfRangeRequest();
         testReconnectFromWrongOffsetFails();

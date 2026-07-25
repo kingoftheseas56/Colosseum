@@ -9,6 +9,13 @@
 #     norange   ignore Range, always serve 200 with no Accept-Ranges (unseekable)
 #     slow      serve the body in small throttled chunks (forces Buffering)
 #     dropfirst disconnect the first connection mid-body; later ranged reconnects succeed
+#     window    PROGRESSIVE ORIGIN — models the Stremio EngineFS torrent sidecar exactly.
+#               Bytes [0,WindowBytes) are "downloaded"; everything past that has not arrived yet.
+#               Like EngineFS (server.js:18261-18269) it answers EVERY range with an honest 206 at
+#               the EXACT requested offset advertising the FULL remaining length, then simply stops
+#               writing at the download frontier and holds the connection open — no refusal, no
+#               200-from-zero, no disconnect. A seek past WindowBytes therefore gets correct headers
+#               and ZERO body bytes, which is the real torrent-seek case.
 #
 #   Example:
 #     powershell -NoProfile -File tests/player2/player2_http_fixture_server.ps1 `
@@ -19,7 +26,13 @@
 param(
     [Parameter(Mandatory = $true)][string]$File,
     [int]$Port = 8791,
-    [ValidateSet('range', 'norange', 'slow', 'dropfirst')][string]$Mode = 'range'
+    [ValidateSet('range', 'norange', 'slow', 'dropfirst', 'window')][string]$Mode = 'range',
+    # Size of the "already downloaded" prefix for -Mode window.
+    [int]$WindowBytes = 4194304,
+    # Seconds after which the rest of the file "finishes downloading" and every stalled response
+    # resumes from where it stopped. 0 keeps the window closed forever (the bytes never arrive),
+    # which is how the client's bound is tested.
+    [int]$WindowOpenAfterSec = 0
 )
 
 $ErrorActionPreference = 'Stop'
@@ -31,12 +44,63 @@ $listener = [System.Net.HttpListener]::new()
 $listener.Prefixes.Add("http://localhost:$Port/")
 $listener.Start()
 Write-Host "player2_http_fixture_server: serving $File ($total bytes) at http://localhost:$Port/media [mode=$Mode]"
+if ($Mode -eq 'window') {
+    Write-Host "player2_http_fixture_server: window mode - bytes [0,$WindowBytes) are downloaded; past that the body stalls"
+    if ($WindowOpenAfterSec -gt 0) {
+        Write-Host "player2_http_fixture_server: the rest arrives after ${WindowOpenAfterSec}s and stalled responses resume"
+    } else {
+        Write-Host "player2_http_fixture_server: the rest NEVER arrives (tests the client's bound)"
+    }
+}
 Write-Host "player2_http_fixture_server: GET /quit to stop"
 
 $connectionCount = 0
+# window mode holds stalled responses open (a torrent waiting on pieces) instead of closing them,
+# so the accept loop must stay free to take the client's reconnects. Keep the contexts referenced,
+# and revisit them on every idle tick so a window that opens later resumes them in place.
+$stalled = [System.Collections.ArrayList]::new()
+$startedAt = Get-Date
+
+function Get-AvailableBytes {
+    if ($WindowOpenAfterSec -gt 0 -and
+        ((Get-Date) - $startedAt).TotalSeconds -ge $WindowOpenAfterSec) { return $total }
+    return $WindowBytes
+}
+
+function Resume-StalledResponses {
+    $available = Get-AvailableBytes
+    $done = @()
+    foreach ($entry in $stalled) {
+        $sendTo = [Math]::Min($available, $entry.End + 1)
+        # Cap each tick so one resumed response cannot block the accept loop behind a slow reader.
+        $sendTo = [Math]::Min($sendTo, $entry.Offset + 1048576)
+        if ($sendTo -le $entry.Offset) { continue }
+        try {
+            $take = $sendTo - $entry.Offset
+            $entry.Context.Response.OutputStream.Write($bytes, $entry.Offset, $take)
+            $entry.Context.Response.OutputStream.Flush()
+            [Console]::Error.WriteLine("player2_http_fixture_server: resumed a stalled response with $take bytes from $($entry.Offset)")
+            $entry.Offset = $sendTo
+            if ($entry.Offset -gt $entry.End) {
+                $entry.Context.Response.Close()
+                $done += $entry
+            }
+        } catch {
+            try { $entry.Context.Response.Abort() } catch { }
+            $done += $entry
+        }
+    }
+    foreach ($entry in $done) { $stalled.Remove($entry) }
+}
+
 try {
     while ($listener.IsListening) {
-        $context = $listener.GetContext()
+        # Non-blocking accept: the idle ticks are what let a stalled response resume in place.
+        $async = $listener.BeginGetContext($null, $null)
+        while (-not $async.AsyncWaitHandle.WaitOne(200)) {
+            if ($stalled.Count -gt 0) { Resume-StalledResponses }
+        }
+        $context = $listener.EndGetContext($async)
         $request = $context.Request
         $response = $context.Response
         if ($request.Url.AbsolutePath -eq '/quit') {
@@ -76,6 +140,31 @@ try {
 
         try {
             $stream = $response.OutputStream
+            if ($Mode -eq 'window') {
+                # Serve only the part of the requested range that has "arrived", then hold the
+                # connection open without writing another byte — exactly what EngineFS does while
+                # it waits for torrent pieces. The headers already promised the full length, and
+                # (like Node's ServerResponse) they do not even reach the wire until the first body
+                # byte does, so a request wholly past the frontier gets total silence.
+                $sendTo = [Math]::Min((Get-AvailableBytes), $end + 1)
+                $take = $sendTo - $start
+                if ($take -gt 0) {
+                    $stream.Write($bytes, $start, $take)
+                    $stream.Flush()
+                }
+                if ($start + [Math]::Max(0, $take) -gt $end) {
+                    $response.Close()
+                    [Console]::Error.WriteLine("player2_http_fixture_server: window start=$start served the whole range")
+                } else {
+                    [void]$stalled.Add([pscustomobject]@{
+                        Context = $context
+                        Offset  = $start + [Math]::Max(0, $take)
+                        End     = $end
+                    })
+                    [Console]::Error.WriteLine("player2_http_fixture_server: window start=$start served=$([Math]::Max(0,$take)) of $count then STALLED (held open)")
+                }
+                continue
+            }
             if ($Mode -eq 'dropfirst' -and $connectionCount -eq 1) {
                 # Send only part of the body then abort so the client must reconnect.
                 $half = [Math]::Max(1, [int]($count / 2))

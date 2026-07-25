@@ -69,6 +69,12 @@ public:
     virtual void close() = 0;
     // Unblock any in-flight start()/read() so it returns promptly. Idempotent and thread-safe.
     virtual void cancel() = 0;
+    // How long a CONNECTED but silent origin may say nothing before start()/read() calls it a
+    // failure. The SOURCE owns this number, not the socket: how patient to be with a progressive
+    // origin is a policy decision. A genuinely dropped connection does not depend on it at all —
+    // the socket goes Unconnected and the wait ends immediately — so this only ever governs an
+    // origin that is alive and still fetching. Default no-op: fakes need nothing.
+    virtual void setStallTimeoutMs(int /*milliseconds*/) {}
 };
 
 // Bounds and reconnect policy. Injectable so tests exercise buffering and reconnect without real
@@ -84,6 +90,13 @@ struct HttpSourcePolicy
     // downloading). Separate budget from mid-stream reconnects: nothing is broken, the bytes just
     // have not arrived, so this is deliberately more patient.
     int maxSeekOpenAttempts = 8;
+    // How long a connected-but-silent origin may stall a normal read before it counts as a
+    // mid-stream failure. Handed to the transport at open().
+    int stallTimeoutMs = 20'000;
+    // Total wall-clock patience for a seek target the origin does not hold yet. This is the bound
+    // that matters, because the Stremio sidecar answers such a range with SILENCE, not a refusal:
+    // an attempt COUNT multiplied by a socket timeout is not a budget anyone can reason about.
+    int seekStallBudgetMs = 90'000;
     std::function<int(int)> reconnectDelayMs; // delay before attempt N; nullptr => capped backoff
 };
 
