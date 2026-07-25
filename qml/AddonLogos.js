@@ -56,6 +56,20 @@ var TABLE = [
     { file: "meteor.png",      m: function (id, n) { return id.indexOf("meteor") >= 0 || /\bmeteor\b/i.test(n); } },
     { file: "anime-kitsu.png", m: function (id, n) { return id.indexOf("anime-kitsu") >= 0 || /anime.?kitsu/i.test(n); } },
 
+    // ---- house wells + house catalogues (site marks, pulled by scripts/fetch_site_marks.py) ----
+    // Matched on the SITE name, deliberately, so both of a site's roles share one mark:
+    // WeebCentral appears twice in Tankoban (locked catalogue + removable chapter-pages
+    // well) and GetComics twice in comics — same logo, different job. (2026-07-25)
+    { file: "weebcentral.png",  m: function (id, n) { return id.indexOf("weebcentral") >= 0 || /weeb.?central/i.test(n); } },
+    { file: "getcomics.png",    m: function (id, n) { return id.indexOf("getcomics") >= 0 || /get.?comics/i.test(n); } },
+    { file: "libgen.ico",       m: function (id, n) { return id.indexOf("libgen") >= 0 || /lib.?gen/i.test(n); } },
+    { file: "audiobookbay.png", m: function (id, n) { return id.indexOf("audiobookbay") >= 0 || /audio.?book.?bay/i.test(n); } },
+    { file: "applebooks.ico",   m: function (id, n) { return id.indexOf("applebooks") >= 0 || /apple ?books/i.test(n); } },
+    // NOT listed: "Torrent Indexers". It is OUR composite of four sites, not a site, so
+    // it has no official iconography to borrow — it keeps the honest letter square.
+    // ExtTorrents and Torrents-CSV publish no square mark either (ExtTorrents' only
+    // logo is a 73x29 wordmark); they keep letters inside the Settings sheet.
+
     // ---- local / built-in ----
     { file: "local-files.png", m: function (id, n) { return id === "org.stremio.local" || /local.?files/i.test(id) || /^local files\b/i.test(n); } }
 ];
