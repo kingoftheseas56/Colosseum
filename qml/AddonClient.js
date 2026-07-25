@@ -324,6 +324,23 @@ function loadMetaFromExtensions(installedList, type, id, done) {
     tryNext(0);
 }
 
+// The ONE place that answers "may we still fall back to Torrentio?".
+//
+// Torrentio ships seeded but removable (core:false, ExtensionsStore.cpp seed()).
+// Several paths reach torrentio.strem.fun by hardcoded URL via Torrentio.js, so
+// without this check the store's Remove and off-switch are cosmetic for it: the
+// app keeps calling a source the user threw out. Every one of those fallbacks
+// asks here first. (2026-07-25, A5 — Torrentio-honesty fix.)
+var TORRENTIO_ID = "com.stremio.torrentio.addon";
+function torrentioEnabled(installedList) {
+    for (var i = 0; i < (installedList || []).length; i++) {
+        var e = installedList[i];
+        if (e && e.id === TORRENTIO_ID)
+            return e.enabled === true;
+    }
+    return false;   // not installed at all
+}
+
 // The extensions that would answer a stream ask, in installed (ask) order.
 // installedList = Extensions.installed(); type "movie"|"series"; id "tt…"/"tt…:s:e"/"kitsu:…".
 function streamExtensions(installedList, type, id) {
