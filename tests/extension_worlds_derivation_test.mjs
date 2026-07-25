@@ -32,8 +32,10 @@ const roster = [
   E('com.stremio.torrentio.addon',     false, STR, ['movie', 'series', 'anime']),
   E('community.anime.kitsu',           false, CAT, ['series', 'movie', 'anime']),
   E('org.stremio.opensubtitlesv3',     false, ['subtitles'], ['movie', 'series']),
-  E('colosseum.catalogue.weebcentral', true,  CAT, ['manga']),
-  E('colosseum.catalogue.getcomics',   true,  CAT, ['comic']),
+  // Our catalogues are the private data vault and AniList — NOT WeebCentral/GetComics,
+  // which only ever say what is available to download (Hemanth's ruling 2026-07-26).
+  E('colosseum.catalogue.vault',       true,  CAT, ['manga', 'comic']),
+  E('colosseum.catalogue.anilist',     true,  CAT, ['manga']),
   E('colosseum.catalogue.applebooks',  true,  CAT, ['book']),
   E('colosseum.well.nyaa',             false, STR, ['manga']),
   E('colosseum.well.weebcentral.pages',false, STR, ['manga']),
@@ -60,11 +62,15 @@ console.log('per-world rank is the filtered index, so one row ranks differently 
 eq(wells(inW('tankoban')).findIndex(e => e.id === 'colosseum.well.indexers') + 1, 4, 'Indexers rank in Tankoban');
 eq(wells(inW('biblio')).findIndex(e => e.id === 'colosseum.well.indexers') + 1, 2, 'Indexers rank in Biblio');
 
-console.log('roles: a site holding both appears twice, once per role');
-const wcCat  = roster.find(e => e.id === 'colosseum.catalogue.weebcentral');
-const wcWell = roster.find(e => e.id === 'colosseum.well.weebcentral.pages');
-eq([mod.isCatalogue(wcCat), mod.isWell(wcCat)],   [true, false],  'WeebCentral catalogue row');
-eq([mod.isCatalogue(wcWell), mod.isWell(wcWell)], [false, true],  'WeebCentral well row');
+console.log('roles: catalogue and well stay independent, so a site COULD hold both');
+// The house roster no longer exercises this — since 2026-07-26 every house row holds
+// exactly one role — but the predicates must stay independent, so a synthetic pair
+// guards the machinery that would let a future site appear twice.
+const bothCat  = E('colosseum.catalogue.somesite', true,  CAT, ['manga']);
+const bothWell = E('colosseum.well.somesite',      false, STR, ['manga']);
+eq([mod.isCatalogue(bothCat),  mod.isWell(bothCat)],  [true, false], 'a catalogue row is only a catalogue');
+eq([mod.isCatalogue(bothWell), mod.isWell(bothWell)], [false, true], 'a well row is only a well');
+eq(roster.filter(e => mod.isCatalogue(e) && mod.isWell(e)).length, 0, 'no house row holds two roles');
 
 console.log('universes: role beats content — one tab, never four');
 const uni = { id: 'com.colosseum.universe.onepiece', core: false,

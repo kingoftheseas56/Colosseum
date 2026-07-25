@@ -273,7 +273,9 @@ var JOB = {
     "colosseum.well.weebcentral.pages": "chapter pages",
     "colosseum.well.getcomics.issues":  "issue downloads",
     "colosseum.well.libgen":            "book files",
-    "colosseum.well.indexers":          "comic packs · book & audiobook torrents",
+    // Three indexers, not four (Knaben is off in TankorentSearchService), and the search
+    // is only ever asked for books and comics — never audiobooks. 2026-07-26 ground-truth.
+    "colosseum.well.indexers":          "comic and book torrents",
     "colosseum.well.audiobookbay":      "audiobook torrents"
 };
 

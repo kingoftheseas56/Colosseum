@@ -33,9 +33,7 @@ console.log("house wells and catalogues resolve to their site mark");
 // [ id, display name, expected file ]
 const cases = [
   ["colosseum.well.weebcentral.pages",  "WeebCentral",       "weebcentral.png"],
-  ["colosseum.catalogue.weebcentral",   "WeebCentral",       "weebcentral.png"],
   ["colosseum.well.getcomics.issues",   "GetComics",         "getcomics.png"],
-  ["colosseum.catalogue.getcomics",     "GetComics",         "getcomics.png"],
   ["colosseum.well.libgen",             "LibGen",            "libgen.ico"],
   ["colosseum.well.audiobookbay",       "AudioBookBay",      "audiobookbay.png"],
   ["colosseum.catalogue.applebooks",    "Apple Books",       "applebooks.ico"],
@@ -51,13 +49,24 @@ for (const [id, name, want] of cases) {
   ok(`${name.padEnd(13)} -> ${want}`);
 }
 
-console.log("a two-role site shares ONE mark across both roles");
+console.log("the mark follows the SITE, whatever role id it is asked under");
+// Since 2026-07-26 WeebCentral and GetComics hold only the well role — they were never
+// our catalogues, just catalogues of what is downloadable. The matcher is still keyed on
+// the site inside the id, so it must answer the same mark under either role's id shape.
 const pairs = [["colosseum.catalogue.weebcentral", "colosseum.well.weebcentral.pages", "WeebCentral"],
                ["colosseum.catalogue.getcomics",   "colosseum.well.getcomics.issues",  "GetComics"]];
 for (const [a, b, n] of pairs) {
   const la = mod.logoFor(a, n), lb = mod.logoFor(b, n);
-  if (la && la === lb) ok(`${n}: catalogue row and well row draw the same mark`);
+  if (la && la === lb) ok(`${n}: the same mark under either role id`);
   else bad(`${n}: roles disagree — ${la || "(letter)"} vs ${lb || "(letter)"}`);
+}
+
+console.log("our own catalogues have no borrowed iconography — letters, honestly");
+for (const [id, name] of [["colosseum.catalogue.vault", "Colosseum Data"],
+                          ["colosseum.catalogue.anilist", "AniList"]]) {
+  const got = mod.logoFor(id, name);
+  if (!got) ok(`${name.padEnd(14)} -> letter square`);
+  else bad(`${name} borrowed ${path.basename(got)} — we ship no mark for it`);
 }
 
 console.log("the deliberate letter squares stay letters (never a wrong-site logo)");

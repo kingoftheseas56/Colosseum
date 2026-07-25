@@ -22,7 +22,7 @@ constexpr int kDescriptionCap = 400;
 // Generation of the house roster. 1 = the original four Theatre rows. 2 added the
 // Tankoban and Biblio catalogues and wells, so those two worlds stop being empty
 // tabs. Bump this when a house row is ADDED; the additive migration then runs once.
-constexpr int kHouseDefaultsVersion = 2;
+constexpr int kHouseDefaultsVersion = 3;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -160,21 +160,24 @@ void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
                  {}, false));
 
     // ---- Catalogues: what fills the shelves. Locked (core), never ranked ----
-    // Hemanth's ruling 2026-07-04/07-25: catalogue and well are two ROLES, so a site
-    // holding both appears twice. Cinemeta's locked row above is the precedent.
-    add("colosseum.catalogue.weebcentral", "colosseum://catalogue/weebcentral", true,
-        manifest("colosseum.catalogue.weebcentral", "WeebCentral",
-                 "The manga catalogue — every series and chapter list Tankoban wakes up with.",
+    // Hemanth's ruling 2026-07-26: WeebCentral and GetComics are NOT our catalogues —
+    // they are catalogues of what is available to DOWNLOAD, which is a well's job. Our
+    // catalogues are the private data vault and AniList. Ground-truthed against the code:
+    // the manga shelves wake on data/mal_catalog.db, comics on data/comics_catalog.db —
+    // both shipped from the private Colosseum-Data repo — and AniList serves manga search
+    // and series artwork. WeebCentral/GetComics are only consulted after a series opens.
+    // Descriptions are gone by the same ruling: they needed no explaining, and the lines
+    // we wrote were either obvious or false.
+    add("colosseum.catalogue.vault", "colosseum://catalogue/vault", true,
+        manifest("colosseum.catalogue.vault", "Colosseum Data", "",
+                 { QStringLiteral("catalog"), QStringLiteral("meta") },
+                 { QStringLiteral("manga"), QStringLiteral("comic") }, {}, false));
+    add("colosseum.catalogue.anilist", "colosseum://catalogue/anilist", true,
+        manifest("colosseum.catalogue.anilist", "AniList", "",
                  { QStringLiteral("catalog"), QStringLiteral("meta") },
                  { QStringLiteral("manga") }, {}, false));
-    add("colosseum.catalogue.getcomics", "colosseum://catalogue/getcomics", true,
-        manifest("colosseum.catalogue.getcomics", "GetComics",
-                 "The comics catalogue — the issue and run listings the comics shelf is built on.",
-                 { QStringLiteral("catalog"), QStringLiteral("meta") },
-                 { QStringLiteral("comic") }, {}, false));
     add("colosseum.catalogue.applebooks", "colosseum://catalogue/applebooks", true,
-        manifest("colosseum.catalogue.applebooks", "Apple Books",
-                 "The book catalogue — covers, blurbs and the charts Biblio's shelves come from.",
+        manifest("colosseum.catalogue.applebooks", "Apple Books", "",
                  { QStringLiteral("catalog"), QStringLiteral("meta") },
                  { QStringLiteral("book") }, {}, false));
 
@@ -183,32 +186,29 @@ void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // This order gives Tankoban 1-4 and Biblio 1-3 exactly as the design's roster says,
     // with the one shared Torrent Indexers row landing 4th in Tankoban and 2nd in Biblio.
     add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
-        manifest("colosseum.well.nyaa", "Nyaa",
-                 "Volume torrents for manga — whole tankobon, not single chapters.",
+        manifest("colosseum.well.nyaa", "Nyaa", "",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
     add("colosseum.well.weebcentral.pages", "colosseum://well/weebcentral.pages", false,
-        manifest("colosseum.well.weebcentral.pages", "WeebCentral",
-                 "Chapter pages, read straight through without a download.",
+        manifest("colosseum.well.weebcentral.pages", "WeebCentral", "",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
     add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
-        manifest("colosseum.well.getcomics.issues", "GetComics",
-                 "Issue and run downloads for western comics.",
+        manifest("colosseum.well.getcomics.issues", "GetComics", "",
                  { QStringLiteral("stream") }, { QStringLiteral("comic") }, {}, false));
     add("colosseum.well.libgen", "colosseum://well/libgen", false,
-        manifest("colosseum.well.libgen", "LibGen",
-                 "Book files — epub and pdf editions for the reader.",
+        manifest("colosseum.well.libgen", "LibGen", "",
                  { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false));
-    // One well, two worlds: a federated search over four indexers. Hemanth overrode the
-    // four-separate-extensions recommendation, so it carries a Configure sheet (stage 4).
+    // One well, two worlds. Hemanth overrode the four-separate-extensions recommendation,
+    // so it carries a Configure sheet (stage 4).
+    // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
+    // search is only ever asked for "books" and "comics", never audiobooks. Left in place
+    // rather than silently changed, because dropping it changes Biblio's roster.
     add("colosseum.well.indexers", "colosseum://well/indexers", false,
-        manifest("colosseum.well.indexers", "Torrent Indexers",
-                 "A federated search across four indexers — comic packs, book and audiobook torrents.",
+        manifest("colosseum.well.indexers", "Torrent Indexers", "",
                  { QStringLiteral("stream") },
                  { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
                  {}, true));
     add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
-        manifest("colosseum.well.audiobookbay", "AudioBookBay",
-                 "Audiobook torrents, streamed rather than kept.",
+        manifest("colosseum.well.audiobookbay", "AudioBookBay", "",
                  { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));
 }
 
@@ -220,16 +220,41 @@ void ExtensionsStore::seed()
     bump();
 }
 
+// Rows the house once shipped and has since disowned. A profile that already carries
+// one must have it taken away — additive migration alone would leave it sitting there
+// forever. Generation 3 retires the WeebCentral and GetComics *catalogue* rows: both
+// sites are where downloads come from, not where our shelves come from (Hemanth's
+// ruling 2026-07-26). Their well rows are untouched — that role was always correct.
+static const char* const kRetiredIds[] = {
+    "colosseum.catalogue.weebcentral",
+    "colosseum.catalogue.getcomics",
+};
+
 // An existing profile predates a house row that now ships. Add only what is absent,
 // stamp the new generation, and never run again for that generation — so removing a
 // well stays removed across restarts.
 void ExtensionsStore::migrateDefaults()
 {
+    // Count is NOT a change signal: generation 3 retires two rows and adds two, which
+    // nets to zero. Track the edit explicitly or the UI never refreshes.
+    bool changed = false;
+
+    for (const char* id : kRetiredIds) {
+        const int at = indexOfId(QString::fromLatin1(id));
+        if (at >= 0) {
+            m_items.removeAt(at);
+            changed = true;
+        }
+    }
+
     const int before = m_items.size();
     appendHouseDefaults(/*onlyMissing=*/true);
+    if (m_items.size() != before)
+        changed = true;
+
     m_defaultsVersion = kHouseDefaultsVersion;
     saveIndex();
-    if (m_items.size() != before)
+    if (changed)
         bump();
 }
 

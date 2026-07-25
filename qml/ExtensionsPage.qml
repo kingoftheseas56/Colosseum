@@ -953,6 +953,9 @@ Item {
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 4
                                             opacity: irow.isOn ? 1 : 0.45
+                                            // The name carries the row. Hemanth's ruling 2026-07-26:
+                                            // these need no explaining, and every line we wrote was
+                                            // either obvious or wrong.
                                             Row {
                                                 spacing: 10
                                                 Text { text: irow.manifest.name || irow.modelData.id
@@ -965,13 +968,6 @@ Item {
                                                     color: theme.inkDimmer
                                                     font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 0.6
                                                 }
-                                            }
-                                            Text {
-                                                width: parent.width
-                                                text: irow.manifest.description || irow.modelData.transportUrl
-                                                color: theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 12
-                                                elide: Text.ElideRight
                                             }
                                         }
 
