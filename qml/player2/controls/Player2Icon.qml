@@ -27,7 +27,14 @@ Item {
         "speed": "gauge"
     })
     readonly property string _file: _map[kind] !== undefined ? _map[kind] : "circle-alert"
-    readonly property url iconSource: Qt.resolvedUrl("../icons/" + _file + ".svg")
+    // The same SVGs live in two places depending on how the chrome is loaded: the lab bundles them
+    // into its resource file at /player2/icons, while the app runs the qml/ tree straight off disk,
+    // where the vendored originals sit in assets/icons/lucide. Resolving one way only left every
+    // transport glyph blank in the app (caught by the Task 17 page probe, 2026-07-25).
+    readonly property bool _fromResource: String(Qt.resolvedUrl(".")).indexOf("qrc:") === 0
+    readonly property url iconSource: _fromResource
+        ? Qt.resolvedUrl("../icons/" + _file + ".svg")
+        : Qt.resolvedUrl("../../../assets/icons/lucide/" + _file + ".svg")
 
     Accessible.role: Accessible.Graphic
     Accessible.name: _accessibleName
