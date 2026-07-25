@@ -358,17 +358,44 @@ void ComicReaderCore::resetCoupling() {
         startAutoCouplingProbe();
 }
 
-void ComicReaderCore::setStripLayout(int portraitWidthPct, int gap) {
+double ComicReaderCore::setStripLayout(int portraitWidthPct, int gap,
+                                       double viewportTop, double viewportHeight) {
     const int wpct = qBound(40, portraitWidthPct, 100);
     const int g = qBound(0, gap, 80);
     if (wpct == m_portraitWidthPct && g == m_stripGap)
-        return;
+        return viewportTop;   // nothing moved, so the reader must not move either
+
+    // Capture the anchor BEFORE the geometry changes: which page the viewport centre sits in, and
+    // how far down that page it is. Both are read from the pre-change column.
+    const bool anchoring = viewportHeight > 0.0 && !m_pages.isEmpty();
+    int anchorPage = -1;
+    double anchorFrac = 0.0;
+    if (anchoring) {
+        anchorPage = m_strip->pageAtCenter(viewportTop, viewportHeight);
+        if (anchorPage >= 0) {
+            const double top = m_strip->pageTop(anchorPage);
+            const double h = m_strip->pageHeight(anchorPage);
+            if (h > 0.0)
+                anchorFrac = qBound(0.0, (viewportTop + viewportHeight / 2.0 - top) / h, 1.0);
+        }
+    }
+
     m_portraitWidthPct = wpct;
     m_stripGap = g;
-    // In place: the strip reflows without losing the reader's scroll (a rebuild()
-    // here would reset the model and snap the reader back to page 1).
+    // In place: the strip reflows without a model reset (a rebuild() here would tear down every
+    // delegate and snap the reader back to page 1).
     m_strip->setLayout(m_portraitWidthPct, m_stripGap);
     emit stripLayoutChanged();
+
+    if (!anchoring || anchorPage < 0)
+        return viewportTop;
+
+    // Put the same point of the same page back under the viewport centre.
+    const double newTop = m_strip->pageTop(anchorPage)
+                          + anchorFrac * m_strip->pageHeight(anchorPage)
+                          - viewportHeight / 2.0;
+    const double maxTop = qMax(0.0, m_strip->contentHeight() - viewportHeight);
+    return qBound(0.0, newTop, maxTop);
 }
 
 void ComicReaderCore::setVisible(QVariantList pageIndices) {

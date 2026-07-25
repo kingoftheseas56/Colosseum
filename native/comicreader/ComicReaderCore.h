@@ -111,8 +111,22 @@ public:
     Q_INVOKABLE void setStripViewportWidth(int width);            // Task 10: strip geometry width
     // Long Strip taste: portrait page width as a % of the viewport (clamped
     // 40..100) and the gap between pages in px (clamped 0..80). Applied in place
-    // — the strip reflows without losing the reader's scroll position.
-    Q_INVOKABLE void setStripLayout(int portraitWidthPct, int gap);
+    // — the strip reflows without a model reset.
+    //
+    // Rescaling the column moves every page, so a viewport top that pointed at
+    // page N now points somewhere else. Pass the caller's current viewport and
+    // this ANCHORS: it remembers the page under the viewport centre plus the
+    // fraction down that page, and RETURNS the new top to scroll to so the
+    // reader keeps their place. A plain ratio-scale (what a viewport RESIZE
+    // uses) cannot do this job — a portrait-width change leaves spreads
+    // untouched, since they always span the full width, and a gap change shifts
+    // tops by a per-page constant; neither scales the column uniformly.
+    //
+    // Pass a non-positive viewportHeight (the default) when there is nothing to
+    // anchor to; the given viewportTop is returned unchanged.
+    Q_INVOKABLE double setStripLayout(int portraitWidthPct, int gap,
+                                      double viewportTop = 0.0,
+                                      double viewportHeight = 0.0);
     Q_INVOKABLE QString imageUrl(int page) const;                 // image://comicreader/<gen>/<page>?rev=N
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
 

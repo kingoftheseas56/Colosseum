@@ -530,6 +530,76 @@ int main(int argc, char** argv) {
               "T14 an over-range layout clamps to 100% / gap 80");
     }
 
+    // ── Test 15: a strip layout change HOLDS THE READER'S PLACE ──────────────
+    // Changing portrait width or gap rescales the column, so a viewport top that pointed at page N
+    // now points somewhere else entirely. A ratio-scale (what a viewport RESIZE uses) is the wrong
+    // tool: a portrait-width change leaves SPREADS untouched — they always span the full width — and
+    // a gap change shifts tops by a per-page constant, so the column does not scale uniformly.
+    // setStripLayout therefore anchors the page under the viewport centre, and the fraction down
+    // that page, and returns the top to scroll to.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("anchor"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+
+        QAbstractListModel* m = core.stripModel();
+        const auto roleOf = [&](int row, int role) {
+            return m->data(m->index(row, 0), role).toDouble();
+        };
+        const int hRole = ComicReaderStripModel::DisplayHeightRole;
+        const int tRole = ComicReaderStripModel::TopRole;
+
+        const double vpTop = 2400.0;
+        const double vpH = 800.0;
+        const double centre = vpTop + vpH / 2.0;
+
+        // find the page under the centre, and how far down it we are, BEFORE the change
+        int anchorRow = -1;
+        double frac = 0.0;
+        for (int r = 0; r < m->rowCount(); ++r) {
+            const double t = roleOf(r, tRole);
+            const double h = roleOf(r, hRole);
+            if (centre >= t && centre < t + h) {
+                anchorRow = r;
+                frac = (centre - t) / h;
+                break;
+            }
+        }
+        CHECK(anchorRow > 0, "T15 the fixture places the viewport centre inside a real page");
+
+        const double newTop = core.setStripLayout(100, 0, vpTop, vpH);
+
+        // THE invariant: the same point of the same page is still under the viewport centre.
+        const double newCentre = newTop + vpH / 2.0;
+        const double t2 = roleOf(anchorRow, tRole);
+        const double h2 = roleOf(anchorRow, hRole);
+        CHECK(newCentre >= t2 && newCentre <= t2 + h2,
+              "T15 the anchor page is STILL under the viewport centre after the width change");
+        CHECK(h2 > 0 && qAbs((newCentre - t2) / h2 - frac) < 0.01,
+              "T15 the same fraction down that page is still centred");
+        CHECK(qAbs(newTop - vpTop) > 1.0,
+              "T15 holding the place actually MOVED the viewport top (the column really rescaled)");
+
+        // a gap change anchors too — its shift is per-page, so a ratio could never express it
+        const double gapTop = core.setStripLayout(100, 40, newTop, vpH);
+        const double gapCentre = gapTop + vpH / 2.0;
+        const double t3 = roleOf(anchorRow, tRole);
+        const double h3 = roleOf(anchorRow, hRole);
+        CHECK(gapCentre >= t3 && gapCentre <= t3 + h3,
+              "T15 a GAP change also holds the anchor page under the centre");
+
+        // no viewport given -> nothing to anchor to; the caller's top comes back untouched
+        CHECK(qAbs(core.setStripLayout(62, 0, 1234.0, 0.0) - 1234.0) < 1e-9,
+              "T15 with no viewport height there is nothing to anchor — the top is returned as-is");
+        // a no-op layout change must not move anything either
+        CHECK(qAbs(core.setStripLayout(62, 0, 999.0, 800.0) - 999.0) < 1e-9,
+              "T15 a layout change that changes nothing must not move the reader");
+        // never scroll past the end of the book
+        const double clamped = core.setStripLayout(40, 0, 1e9, vpH);
+        CHECK(clamped >= 0.0 && clamped <= qMax(0.0, m->rowCount() * roleOf(0, hRole)),
+              "T15 the returned top is clamped inside the book");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

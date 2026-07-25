@@ -356,7 +356,16 @@ Item {
     function resetCoupling() { if (core && core.resetCoupling) core.resetCoupling() }
     // Long-strip taste: portrait page width % + inter-page gap px. The core owns the strip geometry,
     // so these read straight off it; ONE setter carries both so changing either preserves the other.
-    function setStripLayout(widthPct, gap) { if (core && core.setStripLayout) core.setStripLayout(widthPct, gap) }
+    // Route through the strip surface while it is the live one: rescaling the column moves every
+    // page, so without anchoring a Page-width tap would silently scroll you somewhere else in the
+    // book. Off the strip there is no viewport to hold, so the plain call is right.
+    function setStripLayout(widthPct, gap) {
+        if (!core || !core.setStripLayout) return
+        if (mode === "long_strip" && stripSurface && stripSurface.active)
+            stripSurface.applyLayout(widthPct, gap)
+        else
+            core.setStripLayout(widthPct, gap)
+    }
     function setMemorySaver(on) { if (core && core.setMemorySaver) core.setMemorySaver(on === true) }
 
     // ---- the settings sheet's two danger actions (the sheet arms them; this fires) ----

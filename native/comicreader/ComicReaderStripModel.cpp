@@ -262,6 +262,13 @@ double ComicReaderStripModel::pageTop(int page) const
     return m_entries[page].top;
 }
 
+double ComicReaderStripModel::pageHeight(int page) const
+{
+    if (page < 0 || page >= m_entries.size())
+        return 0.0;
+    return m_entries[page].displayHeight;
+}
+
 double ComicReaderStripModel::contentHeight() const
 {
     return m_contentHeight;

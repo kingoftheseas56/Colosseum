@@ -108,6 +108,7 @@ public:
     int pageAtCenter(double top, double vpHeight) const;
 
     double pageTop(int page) const;
+    double pageHeight(int page) const;
     double contentHeight() const;
 
     // Anti-jump compensation — ACCUMULATE AND CLEAR. Ports QTGW's

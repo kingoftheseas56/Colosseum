@@ -229,6 +229,24 @@ Item {
             }
         }
     }
+    // Change the strip's page width / gap WITHOUT losing the reader's place. The backend owns the
+    // geometry (QML paints, C++ decides): it anchors the page under the viewport centre across the
+    // relayout and hands back the top to land on. forceLayout settles the new contentHeight first,
+    // so assigning that top is not clamped short against a stale one.
+    function applyLayout(widthPct, gap) {
+        if (!core || !core.setStripLayout) return
+        var newTop = core.setStripLayout(widthPct, gap, list.contentY, list.height)
+        // A partial seam (an older backend, a harness fake) returns nothing — hold the current
+        // position rather than assigning NaN into contentY and blanking the strip.
+        if (typeof newTop !== "number" || !isFinite(newTop)) newTop = list.contentY
+        _programmatic = true
+        list.forceLayout()
+        var maxY = Math.max(0, list.contentHeight - list.height)
+        list.contentY = Math.max(0, Math.min(maxY, newTop))
+        _smoothY = list.contentY
+        _programmatic = false
+    }
+
     // becoming active (mode switched back to strip) — push the current viewport once so the backend
     // resumes decoding the right window (geometry changes while hidden were intentionally ignored).
     onActiveChanged: if (active) _scheduleReport()
