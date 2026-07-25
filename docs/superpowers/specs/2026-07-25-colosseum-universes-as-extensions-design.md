@@ -146,6 +146,7 @@ GET <transportUrl base>/universe.json
 | `entry.id` | yes | A verified provider identity. See §5.4. |
 | `entry.type` | video only | `movie` \| `series`. **Required for video** — a universe tile that reaches Theatre without a type opens a series as a movie and dies. |
 | `entry.provider` | non-video | `anilist` \| `mal` \| `applebooks` \| `getcomics`. |
+| `entry.posts[]` | **`kind: comic` only** | **AMENDMENT — Hemanth, 2026-07-25.** A comic entry pins an explicit array of GetComics **post IDs**, *not* a tag. Proven against our own 72,322-post GetComics mirror (`scripts/comics_brain/getcomics_index.json`): tags are routinely polluted by same-named mainline books. Tag `738` (Batman Beyond) holds 107 posts including *Batman Beyond 2.0* and *Unlimited*; "Justice League Unlimited" mixes the DCAU book (2004–08) with an unrelated **2024– DC series of the identical name**; "Static Shock" is mostly the New 52 title. A tag cannot express "the DCAU books only" — post IDs can. Accepted trade-off: the list is frozen until the payload is refreshed. |
 | `entry.title` | yes | Display + fallback. |
 | `entry.year`, `entry.poster`, `entry.note`, `entry.edition` | no | `poster` overrides provider art; `note` is one short line; `edition` disambiguates (§5.4). |
 
@@ -216,7 +217,7 @@ tile per medium**, the most recent, ordered by recency. Hidden when the result i
 |---|---|
 | `video` | `watchRequested({ id, type, title })` → Theatre series/movie page. `type` is mandatory. |
 | `manga` | `win.openSeries(title)` / `openSeriesAt(title, seriesId, chapterId)` (`qml/Main.qml:476`, `:488`) |
-| `comic` | `win.openWesternAt(title, tagSlug, chapterId)` (`qml/Main.qml:542`) |
+| `comic` | **Baked-releases injection, not the tag path.** `ComicsApi.postsById(entry.posts)` (`qml/ComicsApi.js:204`, batches of 100, returns cover + size per post) feeds `ComicSeries.bakedReleases` (`qml/ComicSeries.qml:25` — *"null = live shelf; []+ = catalogue-fed"*), the same seam `openGcdSeries` already uses (`qml/Main.qml:559`). ⚠ Known implementation detail: baked mode derives `seriesId` as `"gcd:" + gcdId` (`ComicSeries.qml:43`), and a universe has no `gcdId` — a universe-scoped key is needed so Progress doesn't collide with the catalogue's. `openWesternAt`'s tag path (`Main.qml:542`) stays for the rest of the app. |
 | `book` | `win.openBook(b)` (`qml/Main.qml:872`) |
 
 Deep-linking *into* a specific episode or book chapter is **not** part of this design — video and books
