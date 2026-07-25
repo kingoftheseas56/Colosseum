@@ -103,6 +103,11 @@ Item {
     readonly property real _contentW: width * zoomFactor
     readonly property real _halfW: _contentW / 2
     readonly property real panXMax: Math.max(0, _contentW - width)
+
+    // Decode cap, ported from the reader this replaced (its `pagedSrcW`): cap the decoded width so a
+    // page costs what it is DISPLAYED at, not its full scan resolution — but raise the cap as you
+    // zoom in, or magnification would just be showing you a bigger blur.
+    readonly property int srcCapW: clampedZoom >= 180 ? 2800 : (clampedZoom > 100 ? 2048 : 1400)
     readonly property real _maxImgH: Math.max(rightImg.visible ? rightImg.height : 0,
                                               leftImg.visible ? leftImg.height : 0)
     readonly property real panYMax: Math.max(0, _maxImgH - height)
@@ -174,6 +179,8 @@ Item {
             cache: false
             retainWhileLoading: true
             fillMode: Image.PreserveAspectFit
+            sourceSize.width: root.srcCapW
+            mipmap: true
             width: root.isPair ? root._halfW : root._contentW
             height: implicitWidth > 0 ? width * implicitHeight / implicitWidth : root.height
             x: root.isPair ? (root.rtl ? root._halfW : 0) : 0
@@ -190,6 +197,8 @@ Item {
             cache: false
             retainWhileLoading: true
             fillMode: Image.PreserveAspectFit
+            sourceSize.width: root.srcCapW
+            mipmap: true
             width: root._halfW
             height: implicitWidth > 0 ? width * implicitHeight / implicitWidth : root.height
             x: root.rtl ? 0 : root._halfW

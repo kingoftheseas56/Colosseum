@@ -40,6 +40,21 @@ Item {
     property real resumeFraction: 0          // initial scroll fraction (resume-before-first-paint)
     property int cacheScreens: 2             // cacheBuffer in viewport-heights (modest -> virtualized)
 
+    // ---- DECODE CAP (the lineage's sourceSize.width; the strip had none) ----
+    // Without a cap, every page decodes and uploads its FULL source resolution — a scanned tankobon
+    // page is routinely 2000-3000px wide — while it is displayed at a fraction of that. The cost is
+    // paid on the render thread, once per page arriving on screen, which is why an uncapped strip
+    // reads as smooth-but-intermittently-laggy rather than uniformly harsh: you only feel it when a
+    // fresh page comes into view. The reader this one replaced capped its strip at 1100px.
+    //
+    // DELIBERATE DEVIATION from that flat 1100: it would be visibly soft on a large display, where
+    // a page is shown wider than that. This caps to the VIEWPORT width instead — never smaller than
+    // the lineage's 1100, never more than 2048 — so it can't be soft and can't be wasteful.
+    // Quantised to 256px steps, and taken from the viewport rather than the page's own width, so
+    // neither a drag-resize nor a Page-width chip re-decodes the whole column over a few pixels.
+    readonly property int srcCapW:
+        Math.max(1100, Math.min(2048, Math.ceil(Math.max(320, width) / 256) * 256))
+
     // ---- outputs consumed by the shell / HUD (Task 11) ----
     signal pageInView(int page)              // 1-based page at the vertical center (user scroll only)
     signal visiblePages(var indices)         // 0-based indices currently on screen (user scroll only)
@@ -152,6 +167,8 @@ Item {
                 cache: false                  // the ?rev= in the url busts QML's cache on redecode
                 retainWhileLoading: true      // hold the current pixels through a redecode (no flash)
                 fillMode: Image.PreserveAspectFit
+                sourceSize.width: root.srcCapW   // decode what it LOOKS like, not what it IS
+                mipmap: true                     // it is still a downscale — without this it shimmers while scrolling
             }
 
             // typed error placard — this page only; the rest of the column keeps reading

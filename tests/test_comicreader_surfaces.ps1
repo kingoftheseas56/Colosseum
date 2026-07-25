@@ -62,6 +62,20 @@ if ($strip -match "contentY\s*=\s*Math\.round") {
     exit 1
 }
 
+# --- static: every page image caps its DECODE size ---
+# An uncapped Image decodes and uploads the page's full scan resolution (routinely 2000-3000px wide)
+# to show it at a fraction of that, on the render thread, once per page arriving on screen. That is
+# felt as smooth-but-occasionally-laggy rather than uniformly harsh, so a behavioural harness with
+# fake 1x1 fixtures will never catch it. The lineage capped both surfaces; this reader did not.
+$dbl = Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) "qml/comicreader/ComicReaderDoubleSurface.qml")
+foreach ($pair in @(@("strip", $strip), @("double", $dbl))) {
+    if (-not ($pair[1] -match "sourceSize\.width")) {
+        Write-Host ("FAIL: the " + $pair[0] + " surface must cap page decode with sourceSize.width -")
+        Write-Host "      otherwise every page uploads its full scan resolution to be shown small."
+        exit 1
+    }
+}
+
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 $output = & $qmlExe -platform offscreen -I $mockPath $harness 2>&1 | Out-String
