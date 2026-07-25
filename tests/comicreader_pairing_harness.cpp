@@ -5,10 +5,11 @@
 // House CHECK idiom: collect every failure (never abort), print each FAIL, then
 // print exactly COMICREADER_PAIRING_OK iff zero failures, else return 1.
 //
-// Pairing law (design 2026-07-23 "Pairing"): cover (index 0) rides alone unless
-// page 0 is itself a confirmed spread; a confirmed spread is one full-width unit
-// consuming a parity slot; manual override beats detection; phase Shifted nudges
-// parity but never pairs across a spread.
+// Pairing law (Hemanth 2026-07-25): TWO leading singles anchor the book — the cover (index 0) AND
+// the first content page (index 1) each ride alone (the first page is the lone recto facing the
+// inside cover). Pairing then begins at index 2, so the natural spreads (2+3, 4+5, ...) align and a
+// wide spread lands on a pair boundary. A confirmed spread is one full-width unit consuming a parity
+// slot; manual override beats detection; phase Shifted nudges parity but never pairs across a spread.
 
 #include "comicreader/ComicReaderPairing.h"
 #include "comicreader/ComicReaderTypes.h"
@@ -66,33 +67,32 @@ static bool unitForPageConsistent(const QVector<PairUnit>& units, int pageCount)
 }
 
 int main() {
-    // ── Fixture 1: 5 normal portrait pages → [cover 0][1+2][3+4] ──────────────
+    // ── Fixture 1: 5 normal portrait pages → [cover 0][single 1][pair 2+3][single 4] ──
+    // Two leading singles (cover + first page), then pairing from index 2; page 4 has no partner.
     {
         const QVector<PageMeta> p = {portrait(0), portrait(1), portrait(2),
                                      portrait(3), portrait(4)};
         const auto u = buildUnits(p, CouplingPhase::Normal);
-        CHECK(u.size() == 3, "F1 three units");
+        CHECK(u.size() == 4, "F1 four units");
         CHECK(unitEq(u[0], 0, -1, false, true), "F1 cover rides alone");
-        CHECK(unitEq(u[1], 1, 2, false, false), "F1 pair 1+2");
-        CHECK(unitEq(u[2], 3, 4, false, false), "F1 pair 3+4");
+        CHECK(unitEq(u[1], 1, -1, false, false), "F1 first page rides alone");
+        CHECK(unitEq(u[2], 2, 3, false, false), "F1 pair 2+3");
+        CHECK(unitEq(u[3], 4, -1, false, false), "F1 trailing single 4");
         CHECK(unitForPageConsistent(u, p.size()), "F1 unitForPage every page");
     }
 
-    // ── Fixture 2: spread at page 2 → [cover 0][single 1][spread 2][single 3][single 4]
-    // The proven TB2 / QTGroundWork law: ONLY the spread shifts parity, so the
-    // pages after it fall on singles. The page-1 single is forced (its natural
-    // partner is the spread) but does NOT compensate parity. Nudge (P) is the
-    // escape hatch for this, not a hidden slot. TB2 == QTGW == this output.
+    // ── Fixture 2: spread at page 2 → [cover 0][single 1][spread 2][pair 3+4] ──
+    // The two leading singles + the spread's parity slot land pages 3 and 4 as a clean pair — NO
+    // orphan singles around the spread (this is exactly the misalignment Hemanth's rule fixes).
     {
         const QVector<PageMeta> p = {portrait(0), portrait(1), landscape(2),
                                      portrait(3), portrait(4)};
         const auto u = buildUnits(p, CouplingPhase::Normal);
-        CHECK(u.size() == 5, "F2 five units");
+        CHECK(u.size() == 4, "F2 four units");
         CHECK(unitEq(u[0], 0, -1, false, true), "F2 cover");
-        CHECK(unitEq(u[1], 1, -1, false, false), "F2 single 1 (partner is spread)");
+        CHECK(unitEq(u[1], 1, -1, false, false), "F2 first page rides alone");
         CHECK(unitEq(u[2], 2, -1, true, false), "F2 spread 2");
-        CHECK(unitEq(u[3], 3, -1, false, false), "F2 single 3");
-        CHECK(unitEq(u[4], 4, -1, false, false), "F2 single 4");
+        CHECK(unitEq(u[3], 3, 4, false, false), "F2 pair 3+4 (no orphans around the spread)");
         CHECK(unitForPageConsistent(u, p.size()), "F2 unitForPage every page");
     }
 
@@ -112,59 +112,65 @@ int main() {
         CHECK(unitForPageConsistent(u, p.size()), "F2b unitForPage every page");
     }
 
-    // ── Fixture 3: page 0 IS a confirmed spread → [spread 0][pair 1+2] ────────
+    // ── Fixture 3: page 0 IS a confirmed spread → [spread 0][single 1][single 2] ──
+    // The cover-spread + the lone first page are the two leading singles; page 2 has no partner.
     {
         const QVector<PageMeta> p = {landscape(0), portrait(1), portrait(2)};
         const auto u = buildUnits(p, CouplingPhase::Normal);
-        CHECK(u.size() == 2, "F3 two units");
+        CHECK(u.size() == 3, "F3 three units");
         CHECK(unitEq(u[0], 0, -1, true, false), "F3 spread 0 (not coverAlone)");
-        CHECK(unitEq(u[1], 1, 2, false, false), "F3 pair 1+2");
+        CHECK(unitEq(u[1], 1, -1, false, false), "F3 first page rides alone");
+        CHECK(unitEq(u[2], 2, -1, false, false), "F3 trailing single 2");
         CHECK(unitForPageConsistent(u, p.size()), "F3 unitForPage every page");
     }
 
     // ── Fixture 4: override page 3 forced-spread (page 3 is portrait) ─────────
-    // → [cover 0][pair 1+2][spread 3][single 4]; the forced spread consumes a
-    //   parity slot exactly like a detected one.
+    // → [cover 0][single 1][single 2][spread 3][single 4]; the two leading singles + the forced
+    //   spread at an odd index leave page 2 orphaned (its partner is the spread).
     {
         QVector<PageMeta> p = {portrait(0), portrait(1), portrait(2),
                                portrait(3), portrait(4)};
         p[3].spreadOverride = true; // force spread despite portrait geometry
         const auto u = buildUnits(p, CouplingPhase::Normal);
-        CHECK(u.size() == 4, "F4 four units");
+        CHECK(u.size() == 5, "F4 five units");
         CHECK(unitEq(u[0], 0, -1, false, true), "F4 cover");
-        CHECK(unitEq(u[1], 1, 2, false, false), "F4 pair 1+2");
-        CHECK(unitEq(u[2], 3, -1, true, false), "F4 spread 3 by override");
-        CHECK(unitEq(u[3], 4, -1, false, false), "F4 single 4");
+        CHECK(unitEq(u[1], 1, -1, false, false), "F4 first page rides alone");
+        CHECK(unitEq(u[2], 2, -1, false, false), "F4 single 2 (partner is spread)");
+        CHECK(unitEq(u[3], 3, -1, true, false), "F4 spread 3 by override");
+        CHECK(unitEq(u[4], 4, -1, false, false), "F4 single 4");
         CHECK(isSpread(p[3]) == true, "F4 override beats portrait detection");
         CHECK(unitForPageConsistent(u, p.size()), "F4 unitForPage every page");
     }
 
     // ── Fixture 5: override a landscape page forced-normal → ordinary pairing ─
-    // page 2 is landscape (detected spread) but overridden normal → it pairs.
+    // page 2 is landscape (detected spread) but overridden normal → it pairs with page 3.
     {
         QVector<PageMeta> p = {portrait(0), portrait(1), landscape(2),
                                portrait(3), portrait(4)};
         p[2].spreadOverride = false; // force normal despite landscape geometry
         CHECK(isSpread(p[2]) == false, "F5 override false beats landscape detection");
         const auto u = buildUnits(p, CouplingPhase::Normal);
-        CHECK(u.size() == 3, "F5 three units");
+        CHECK(u.size() == 4, "F5 four units");
         CHECK(unitEq(u[0], 0, -1, false, true), "F5 cover");
-        CHECK(unitEq(u[1], 1, 2, false, false), "F5 pair 1+2");
-        CHECK(unitEq(u[2], 3, 4, false, false), "F5 pair 3+4 (page 2 rejoined)");
+        CHECK(unitEq(u[1], 1, -1, false, false), "F5 first page rides alone");
+        CHECK(unitEq(u[2], 2, 3, false, false), "F5 pair 2+3 (page 2 rejoined as normal)");
+        CHECK(unitEq(u[3], 4, -1, false, false), "F5 trailing single 4");
         CHECK(unitForPageConsistent(u, p.size()), "F5 unitForPage every page");
     }
 
     // ── Fixture 6: CouplingPhase::Shifted on 6 normal pages ──────────────────
-    // parity shifts: [cover 0][single 1][pair 2+3][pair 4+5]
+    // Shifted nudges parity by one ON TOP of the two leading singles:
+    // [cover 0][single 1][single 2][pair 3+4][single 5]
     {
         const QVector<PageMeta> p = {portrait(0), portrait(1), portrait(2),
                                      portrait(3), portrait(4), portrait(5)};
         const auto u = buildUnits(p, CouplingPhase::Shifted);
-        CHECK(u.size() == 4, "F6 four units");
+        CHECK(u.size() == 5, "F6 five units");
         CHECK(unitEq(u[0], 0, -1, false, true), "F6 cover");
-        CHECK(unitEq(u[1], 1, -1, false, false), "F6 single 1 (nudge lead)");
-        CHECK(unitEq(u[2], 2, 3, false, false), "F6 pair 2+3");
-        CHECK(unitEq(u[3], 4, 5, false, false), "F6 pair 4+5");
+        CHECK(unitEq(u[1], 1, -1, false, false), "F6 first page rides alone");
+        CHECK(unitEq(u[2], 2, -1, false, false), "F6 single 2 (nudge lead)");
+        CHECK(unitEq(u[3], 3, 4, false, false), "F6 pair 3+4");
+        CHECK(unitEq(u[4], 5, -1, false, false), "F6 trailing single 5");
         CHECK(unitForPageConsistent(u, p.size()), "F6 unitForPage every page");
     }
 

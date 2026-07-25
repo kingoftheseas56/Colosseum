@@ -15,9 +15,12 @@ QVector<PairUnit> buildUnits(const QVector<PageMeta>& pages, CouplingPhase phase
 
     const int nudge = (phase == CouplingPhase::Shifted) ? 1 : 0;
 
-    // Cover unit (index 0): rides alone unless page 0 is itself a confirmed
-    // spread, in which case it is a full-width spread unit. The cover anchors the
-    // pairing parity, so it never contributes an extra slot.
+    // TWO leading singles anchor the pairing (Hemanth 2026-07-25). In a physical tankoban the
+    // COVER (index 0) is a single leaf, AND the FIRST content page (index 1) is the lone recto that
+    // faces the inside cover — it does not come in a set. Emitting BOTH as singles shifts every
+    // following spread onto its true book parity (pages 3-4, 5-6, 7-8 ...) and lands a wide spread on
+    // a pair boundary instead of orphaning its neighbours. Neither leading page adds an extra parity
+    // slot (they ARE the anchor). Each is a full-width spread unit if it is itself a confirmed spread.
     {
         PairUnit cover;
         cover.rightIndex = 0;
@@ -27,14 +30,20 @@ QVector<PairUnit> buildUnits(const QVector<PageMeta>& pages, CouplingPhase phase
             cover.coverAlone = true;
         units.append(cover);
     }
+    if (n > 1) {
+        PairUnit first;
+        first.rightIndex = 1;
+        if (isSpread(pages[1]))
+            first.spread = true;
+        // else a plain lone page (coverAlone stays false — it is the first page, not "the cover")
+        units.append(first);
+    }
 
-    // Proven TB2 / QTGroundWork law: ONLY a confirmed spread consumes an extra
-    // parity slot. A page forced to stand alone (its would-be partner is a
-    // spread) does NOT compensate parity — the nudge (P) and auto-coupling are
-    // the escape hatches for pairing edge cases, so the default behaves exactly
-    // like the readers Hemanth already uses.
+    // Pairing begins at index 2, anchored so (2,3),(4,5),... pair by default (parity == 0). ONLY a
+    // confirmed spread consumes an extra parity slot; a page forced alone (its partner is a spread)
+    // does NOT compensate parity — the nudge (P) / auto-coupling are the escape hatches.
     int extraSlots = 0;
-    int idx = 1;
+    int idx = 2;
     while (idx < n) {
         // Never pair across a spread: a confirmed spread is one full-width unit.
         if (isSpread(pages[idx])) {
@@ -48,7 +57,7 @@ QVector<PairUnit> buildUnits(const QVector<PageMeta>& pages, CouplingPhase phase
         }
 
         const int parity = (idx + extraSlots + nudge) % 2;
-        if (parity == 1) {
+        if (parity == 0) {
             // idx opens a pair with idx+1 when that partner exists and is not a
             // spread; otherwise idx stands as an unpaired single.
             const int left = idx + 1;
