@@ -21,6 +21,12 @@ Item {
     // Typed intent to toggle picture-in-picture. The host owns the window (lab: a small always-on-top
     // Window; production: its own PiP surface), exactly like fullscreenRequested.
     signal pipRequested()
+    // Typed intents from the title bar. The host owns what "back" and "minimize" actually do (the app
+    // returns to where you came from and parks the session warm in the taskbar).
+    signal backRequested()
+    signal minimizeRequested()
+    // The line under the title: "S3 E1 - 1080p - <source>" in the shipped player.
+    property string mediaSubtitle: ""
     // Fact, not command: whether the display-sleep/screensaver should be inhibited right now. The host
     // acts on it (lab: records it; production: SetThreadExecutionState). Fires only on transitions.
     signal keepAwakeRequested(bool inhibit)
@@ -341,6 +347,23 @@ Item {
                     GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.45) }
                     GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.85) }
                 }
+            }
+
+            // Title bar, matched to the shipped player's. Absent until now because the lab ran in an
+            // ordinary desktop window that already had a frame.
+            TopBar {
+                id: topBar
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                theme: shell.theme
+                title: shell.mediaTitle
+                subtitle: shell.mediaSubtitle
+                nowClock: shell.nowClock
+                shown: shell.controlsShown
+                onBackRequested: { shell.closeAllMenus(); shell.backRequested() }
+                onMinimizeRequested: { shell.closeAllMenus(); shell.minimizeRequested() }
+                onCloseRequested: { shell.closeAllMenus(); shell.requestClose() }
             }
 
             TransportBar {

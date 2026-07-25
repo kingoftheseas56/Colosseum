@@ -55,6 +55,8 @@ Item {
     property string mediaLogo: ""
     property string mediaLoadingArt: ""
     property string mediaLoadingLine: ""
+    // The title bar's second line, same content the shipped player shows there.
+    property string mediaSubtitle: ""
     // Set when the engine gives up. The page SHOWS this instead of the app closing the player out
     // from under the viewer - which is what it did before, and read as "the player just vanished".
     property string errorText: ""
@@ -101,8 +103,15 @@ Item {
             isSeries: page.isSeries
             activeSeason: hostServices._episodeMeta().season
 
+            // Window state from the app, so the fullscreen control shows the right mode instead of
+            // assuming one (the shell defaults to windowed and had never been told otherwise).
+            windowed: (typeof WindowMode !== "undefined") ? WindowMode.shellWindowed : true
+            mediaSubtitle: page.mediaSubtitle
+
             onFullscreenRequested: page.fullscreenRequested()
             onCloseRequested: page.closeRequested()
+            onBackRequested: page.backRequested()
+            onMinimizeRequested: page.minimizeRequested()
             onPipRequested: page.minimizeRequested()
             // Same call and the same reason string the shipped player passes (qml/PlayerPage.qml:2624).
             onKeepAwakeRequested: function(inhibit) {
@@ -296,6 +305,7 @@ Item {
             || (ttId ? "https://live.metahub.space/logo/medium/" + ttId + "/img" : "")
         page.mediaLoadingArt = ctx.episodeStill || ctx.loaderBackdrop || posterUrl || ""
         page.mediaLoadingLine = ctx.episodeLine || ""
+        page.mediaSubtitle = ctx.episodeLine || ""
     }
 
     function _directUrlFor(candidates, infoHash) {
