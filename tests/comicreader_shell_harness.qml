@@ -83,7 +83,8 @@ Item {
             harness.events.push({ t: "open", id: String(entryId) })
         }
         function closeEntry() { closed = true; closeCount += 1; harness.events.push({ t: "close" }) }
-        function setVisible(pages) {}
+        property var lastVisible: null
+        function setVisible(pages) { lastVisible = pages }
         property var fakeUnit: null   // when set, unitForPage returns THIS regardless of page (B5 RTL test)
         function unitForPage(page) { return fakeUnit !== null ? fakeUnit : { rightIndex: page - 1, leftIndex: -1, spread: false } }
         // spread override spy (B5): pageInfo reports the override as absent/true/false (matches the
@@ -910,6 +911,29 @@ Item {
             // itself mutates persisted state.)
             harness._mB6Records = b6Records
 
+            // -- 11. STRIP PINNING: the mounted strip surface's visiblePages signal must reach
+            // core.setVisible (pins on-screen pages in the LRU + promotes them to top decode
+            // priority). Force long_strip via persistedMode so the surface actually mounts active.
+            var vpStore = fakeStoreVP
+            vpStore.pages = fivePages()
+            var vpShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-vp", "seriesTitle": "VisiblePages", "seriesCover": "file:///f/vp.png",
+                "core": fakeCoreVP, "progress": fakeProgVP, "pageStore": vpStore,
+                "persistedMode": "long_strip",
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(vpShell.mode === "long_strip", "strip pinning: fixture must be mounted in long_strip, got " + vpShell.mode)
+            var vpSurface = byName(vpShell, "stripSurface")
+            ck(vpSurface !== null, "strip pinning: the strip surface must be mounted (objectName 'stripSurface')")
+            if (vpSurface) {
+                vpSurface.visiblePages([2, 3, 4])
+                ck(deepEqual(fakeCoreVP.lastVisible, [2, 3, 4]),
+                   "strip pinning: the strip surface's visiblePages must reach core.setVisible, got " + JSON.stringify(fakeCoreVP.lastVisible))
+            }
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -979,6 +1003,7 @@ Item {
     FakeCore { id: fakeCoreW2 }  FakeProgress { id: fakeProgW2 }  FakePageStore { id: fakeStoreW2 }
     FakeCore { id: fakeCoreB5 }  FakeProgress { id: fakeProgB5 }  FakePageStore { id: fakeStoreB5 }
     FakeCore { id: fakeCoreB6 }  FakeProgress { id: fakeProgB6 }  FakePageStore { id: fakeStoreB6 }
+    FakeCore { id: fakeCoreVP }  FakeProgress { id: fakeProgVP }  FakePageStore { id: fakeStoreVP }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }

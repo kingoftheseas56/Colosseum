@@ -728,6 +728,7 @@ Item {
     // ONLY on a genuine scroll gesture, so mounting it never clobbers a resumed page/fraction.
     ComicReaderStripSurface {
         id: stripSurface
+        objectName: "stripSurface"
         anchors.fill: parent
         visible: reader.mode === "long_strip"
         active: visible
@@ -738,6 +739,10 @@ Item {
         // Restoring is a one-shot COMMAND from the shell (stripRestore -> haltScrollAt/seekToPage).
         onPageInView: function (page) { reader.currentPage = page }
         onScrolled: function (frac) { reader.stripFraction = frac }
+        // Pin what the reader is LOOKING at. Without this the strip pins nothing and the LRU can
+        // evict the on-screen page mid-read (TB2 pins its whole zone every refresh). This also
+        // promotes visible pages to the top decode priority, which the strip window alone doesn't.
+        onVisiblePages: function (indices) { if (reader.core && reader.core.setVisible) reader.core.setVisible(indices) }
     }
 
     // Double Page (direction-aware). It renders the canonical unit and drives the maxSeen
