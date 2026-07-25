@@ -512,6 +512,9 @@ Item {
         // prev/next PILLS cross entries (bound to hasPrev/hasNext, per the crossing note above)
         onPrevRequested: reader.goPrev(false)
         onNextRequested: reader.goNext()
+        // edge side bars turn a PAGE/unit within the entry (double-page); direction resolved in the HUD
+        onAdvancePageRequested: reader.pageNext()
+        onRetreatPageRequested: reader.pagePrev()
         // overlay intents
         onOpenNavigator: reader.navigatorRequested()
         onOpenThumbnails: reader.thumbnailsRequested()

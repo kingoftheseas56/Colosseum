@@ -217,6 +217,28 @@ Item {
         hud.pressPrev(); hud.pressNext()
         ck(cnt("prevRequested") === 1 && cnt("nextRequested") === 1, "hud: prev/next pills must emit their intent when enabled, got prev=" + cnt("prevRequested") + " next=" + cnt("nextRequested"))
 
+        // ----- edge SIDE NAV BARS: double-page only, direction-aware page turn -----
+        // LEFT bar advances in RTL / retreats in LTR; RIGHT bar mirrors it (matches the click zones
+        // and the current reader's NavBar). advance = pageNext (forward in reading), retreat = pagePrev.
+        sig = {}
+        hud.advancePageRequested.connect(function () { bump("advancePage") })
+        hud.retreatPageRequested.connect(function () { bump("retreatPage") })
+        shellA.max = 230; shellA.mode = "double_page"; shellA.rtl = true
+        ck(hud.navBarsVisible === true, "hud: side nav bars must be VISIBLE in double-page mode")
+        sig = {}; hud.navBarTap(true)   // left bar, RTL -> advance (next in reading)
+        ck(cnt("advancePage") === 1 && cnt("retreatPage") === 0, "hud: LEFT bar in RTL -> advance page")
+        sig = {}; hud.navBarTap(false)  // right bar, RTL -> retreat
+        ck(cnt("retreatPage") === 1 && cnt("advancePage") === 0, "hud: RIGHT bar in RTL -> retreat page")
+        shellA.rtl = false
+        sig = {}; hud.navBarTap(true)   // left bar, LTR -> retreat
+        ck(cnt("retreatPage") === 1 && cnt("advancePage") === 0, "hud: LEFT bar in LTR -> retreat page")
+        sig = {}; hud.navBarTap(false)  // right bar, LTR -> advance
+        ck(cnt("advancePage") === 1 && cnt("retreatPage") === 0, "hud: RIGHT bar in LTR -> advance page")
+        // hidden in Strip mode (page turns don't apply to continuous scroll)
+        shellA.mode = "long_strip"
+        ck(hud.navBarsVisible === false, "hud: side nav bars must be HIDDEN in Strip mode")
+        shellA.mode = "double_page"
+
         // ----- toggleChrome flips chromeVisible on the shell seam -----
         shellA.chromeVisible = true
         hud.toggleChrome()

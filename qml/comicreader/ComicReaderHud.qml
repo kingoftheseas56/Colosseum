@@ -55,6 +55,10 @@ Item {
     signal scrubFractionRequested(real fraction) // strip-mode scrub -> scroll fraction
     signal prevRequested()
     signal nextRequested()
+    // page-turn intents from the edge side bars (double-page). DISTINCT from prev/nextRequested,
+    // which CROSS entries — these turn one page/unit WITHIN the entry (shell to pageNext/pagePrev).
+    signal advancePageRequested()   // forward in reading order
+    signal retreatPageRequested()   // backward in reading order
     signal openNavigator()
     signal openThumbnails()
     signal openSettings()
@@ -159,6 +163,16 @@ Item {
     // ================= nav pill intents (boundary-gated) =================
     function pressPrev() { if (hasPrev) prevRequested() }
     function pressNext() { if (hasNext) nextRequested() }
+
+    // ================= edge side bars (double-page page-turn affordance) =================
+    // Visible only in double-page (page turns don't apply to continuous Strip scroll). Direction-
+    // aware, matching the click zones + the current reader's NavBar: LEFT bar advances in RTL /
+    // retreats in LTR; RIGHT bar mirrors it. They live in the chrome layer, so they auto-hide with it.
+    readonly property bool navBarsVisible: mode === "double_page" && max > 0
+    function navBarTap(isLeft) {
+        if (isLeft) { if (rtl) advancePageRequested(); else retreatPageRequested() }
+        else        { if (rtl) retreatPageRequested(); else advancePageRequested() }
+    }
 
     // enumerable glyph inventory — every HUD glyph is a ComicReaderIcon (semantic-icon-audit oracle)
     readonly property var iconKinds: [
@@ -316,6 +330,33 @@ Item {
                 }
             }
         }
+
+        // ---- edge side bars: a visible, direction-aware page-turn affordance (double-page only) ----
+        // Chevron is PHYSICAL (left bar = a left chevron, right bar = a right); the ACTION is
+        // direction-aware via navBarTap(). Glyphs are ComicReaderIcon (semantic-icon-audit law).
+        component NavBar: Rectangle {
+            property bool isLeft: true
+            width: 52
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            visible: hud.navBarsVisible
+            color: navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
+            ComicReaderIcon {
+                anchors.centerIn: parent
+                kind: parent.isLeft ? "prev" : "next"
+                width: 24; height: 24
+                ink: navMa.containsMouse ? theme.gold : theme.inkDimmer
+            }
+            MouseArea {
+                id: navMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: hud.navBarTap(parent.isLeft)
+            }
+        }
+        NavBar { objectName: "hudNavLeft";  isLeft: true;  anchors.left: parent.left }
+        NavBar { objectName: "hudNavRight"; isLeft: false; anchors.right: parent.right }
 
         // ---- bottom gradient footer ----
         Item {
