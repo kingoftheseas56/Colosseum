@@ -564,8 +564,17 @@ Item {
 
                     ActionBtn { width: parent.width; label: "Use as default for all books"
                         confirmLabel: "✓ Default updated"; onClicked: panel.useAsDefault() }
-                    ActionBtn { width: parent.width; label: "Reset appearance"
+                    ActionBtn { width: parent.width; label: "Reset to default"; emphasis: true
                         confirmLabel: "✓ Back to your default"; onClicked: panel.resetBook() }
+                    Text {
+                        width: parent.width
+                        text: "Returns fonts, spacing, size, theme and colours to your default."
+                        wrapMode: Text.WordWrap
+                        color: Theme.inkFaint
+                        font.family: Theme.ui
+                        font.pixelSize: 11
+                        lineHeight: 1.2
+                    }
                 }
             }
         }
@@ -946,24 +955,28 @@ Item {
         }
     }
 
-    // a full-width bordered action button with a brief inline confirmation swap.
+    // a full-width bordered action button with a brief inline confirmation swap. `emphasis`
+    // gives it a persistent faint fill + brighter label so the important action (Reset to
+    // default) stands out from its quieter neighbour instead of looking identical.
     component ActionBtn: Item {
         id: ab
         property string label: ""
         property string confirmLabel: ""
+        property bool emphasis: false
         property bool confirming: false
         signal clicked()
         height: 38
         Rectangle {
             anchors.fill: parent
             radius: 9
-            color: abMa.containsMouse ? Theme.rowHover : "transparent"
-            border.color: Qt.rgba(1, 1, 1, 0.12)
+            color: abMa.containsMouse ? Theme.rowHover
+                   : ab.emphasis ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+            border.color: ab.emphasis ? Qt.rgba(1, 1, 1, 0.20) : Qt.rgba(1, 1, 1, 0.12)
             border.width: 1
             Text {
                 anchors.centerIn: parent
                 text: ab.confirming ? ab.confirmLabel : ab.label
-                color: ab.confirming ? Theme.gold : Theme.inkDim
+                color: ab.confirming ? Theme.gold : (ab.emphasis ? Theme.ink : Theme.inkDim)
                 font.family: Theme.ui
                 font.weight: Font.DemiBold
                 font.pixelSize: 12
