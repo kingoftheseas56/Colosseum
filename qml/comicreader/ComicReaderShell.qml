@@ -137,6 +137,12 @@ Item {
     // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
     readonly property bool modalOpen: settingsSheet.opened
 
+    // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
+    // (MangaReader.qml:165) and read by tests/manga_tankoban_page_harness.qml — the Task 1 contract
+    // survey captured `max` but missed this one. Exposing it also stops hasNext/hasPrev below from
+    // each re-deriving the same lookup.
+    readonly property int curIndex: ComicReaderState.entryIndex(chapters, curChapterId)
+
     // crossing enable-state — Task 11's prev/next pills and Task 12's end card bind THESE instead
     // of re-deriving the newest-first math (index-1 = newer/next, index+1 = older/previous).
     readonly property bool hasNext:
@@ -245,6 +251,18 @@ Item {
     }
 
     // open a specific entry (crossing / modal). Resume applies only if the saved spot matches.
+    // Contract alias for the old reader's public name (MangaReader.qml:445 before the cutover).
+    // qml/BakeoffStripHost.qml calls openChapterById by name; the Task 1 contract survey missed it
+    // because it only read the three series pages. Kept so "callers untouched" holds for EVERY
+    // caller, not just the surveyed ones — a missing method here is a runtime "not a function" that
+    // only bites whoever opens that surface.
+    function openChapterById(id, atLast) { openEntryById(id, atLast) }
+    // Same story for the crossing pair (MangaReader.qml:456/472). The reader reads volumes as well
+    // as chapters now, so the internal names dropped "Chapter" — but the old names are the published
+    // ones, so they stay as aliases rather than making every consumer chase a rename.
+    function goNextChapter() { goNext() }
+    function goPrevChapter(atLast) { goPrev(atLast) }
+
     function openEntryById(id, atLast) {
         if (!id || !String(id).length) return
         // A crossing replaces the backend entry, so the OUTGOING book's record has to land before
