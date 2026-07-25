@@ -23,11 +23,14 @@
 // use is guarded, so the surface also survives the shell's Task-9 fake (which has no imageUrl /
 // stripModel / setStripViewport) — it simply renders nothing until a real core is present.
 //
-// STATE-MUTATING SIGNALS ARE GATED. pageInView/scrolled/manualNavigation fire ONLY on genuine user
-// scroll (a wheel gesture), never on construction, resume, or compensation — so mounting this
-// surface never clobbers the shell's resumed page/fraction. The shell consumes pageInView/scrolled
-// out; it puts the column somewhere by CALLING seekToPage()/haltScrollAt(), never by binding a
-// fraction in (that would be a scroll -> fraction -> apply -> scroll loop).
+// STATE-MUTATING SIGNALS ARE PROVENANCE-BLIND, GATED ONLY ON _programmatic. pageInView/scrolled fire
+// on ANY real move of the column — wheel, keyboard (Space/PageUp/PageDown), a scrub-bar drag, Home/
+// End — throttled to at most once per ~80ms window (Reader 1's pageTrack), never once per contentY
+// tick. They fire NEVER on construction, resume, or compensation (those write contentY with
+// _programmatic held true) — so mounting this surface never clobbers the shell's resumed page/
+// fraction. The shell consumes pageInView/scrolled out; it puts the column somewhere by CALLING
+// seekToPage()/haltScrollAt(), never by binding a fraction in (that would be a scroll -> fraction ->
+// apply -> scroll loop).
 
 import QtQuick
 
@@ -76,7 +79,16 @@ Item {
     // ---- internal flags ----
     property bool _programmatic: false       // suppress user-signal emission for resume/compensation
     property bool _draining: false           // the wheel drain is authoring contentY (don't resync smoothY)
-    property bool _userInteracted: false     // a wheel gesture has occurred (gates user-signal emission)
+    // a wheel gesture has occurred this session. NARROWED (B3): this used to ALSO gate
+    // pageInView/scrolled emission in onContentYChanged — that was bug 1 (keyboard/scrub reading
+    // never reported until one incidental wheel notch anywhere in the session silently "fixed" it).
+    // Tracking is now provenance-blind (gated on _programmatic only, see onContentYChanged below).
+    // Kept as wheel-specific session provenance for manualNavigation()'s potential future consumers
+    // (e.g. HUD auto-hide reacting only to a real gesture, not every strip move) — currently
+    // unconsumed by the shell (grep shows no onManualNavigation handler), so this flag has no live
+    // reader today, but nothing else duplicates "did a wheel gesture happen" and removing it would
+    // be an unrelated cleanup outside this bug fix's scope.
+    property bool _userInteracted: false
 
     // Decode-refresh dependency. The C++ provider returns a NULL image for a not-yet-decoded page
     // and imageUrl() embeds a per-page rev that bumps on pageReady — but imageUrl() reading that rev
@@ -205,7 +217,10 @@ Item {
         onContentYChanged: {
             root._scheduleReport()
             if (!root._draining) root._smoothY = list.contentY   // resync on any external move
-            if (!root._programmatic && root._userInteracted) root._emitUserScroll()
+            // Tracking is provenance-BLIND: keyboard, scrub, wheel — a move is a move. Only
+            // _programmatic writes (resume, compensation, layout anchoring) stay silent, so
+            // mounting or restoring never clobbers the shell's page.
+            if (!root._programmatic) root._scheduleEmit()
         }
         onWidthChanged: root._scheduleReport()
         onHeightChanged: root._scheduleReport()
@@ -244,6 +259,22 @@ Item {
                 _programmatic = false
             }
         }
+    }
+
+    // ================= throttled tracking emit (<= once per ~80ms window) =================
+    // Reader 1's pageTrack (MangaReader.qml, pre-cutover): "onContentYChanged: if
+    // (!pageTrack.running) pageTrack.start()", a single-shot 80ms Timer. _emitUserScroll() does three
+    // list.indexAt() probes and builds the visible-index array — per-frame during a glide that is
+    // pure overhead on the one thread that has to hold 60fps, so it is scheduled, not called inline.
+    property bool _emitPending: false
+    Timer { id: emitTimer; interval: 80; repeat: false; onTriggered: root._flushEmit() }
+    function _scheduleEmit() {
+        _emitPending = true
+        if (!emitTimer.running) emitTimer.start()
+    }
+    function _flushEmit() {
+        _emitPending = false
+        _emitUserScroll()
     }
     // Change the strip's page width / gap WITHOUT losing the reader's place. The backend owns the
     // geometry (QML paints, C++ decides): it anchors the page under the viewport centre across the

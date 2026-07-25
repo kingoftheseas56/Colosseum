@@ -227,6 +227,56 @@ Item {
         coreStrip.stripCompensation(-25)
         ck(approx(stripSurface.contentY, 2035), "strip: stripCompensation(-25) must subtract 25 (2060 -> 2035), got " + stripSurface.contentY)
 
+        // --- B3: TRACKING IS PROVENANCE-BLIND (bug 1) + THROTTLED, not per-frame (bug 2). This block
+        // runs BEFORE the first _intakeWheel call below, so _userInteracted is still false here — that
+        // is the whole point: the OLD contract gated the emit on _userInteracted, which only a wheel
+        // gesture ever set (_intakeWheel), so reading via Space/PageUp/PageDown/scrub-drag/Home/End
+        // reported NOTHING to the HUD counter, the gold thread, or the Continue record until one
+        // incidental wheel notch anywhere in the session silently "fixed" it. The NEW contract gates
+        // on _programmatic ONLY: any other move is a move, and gets throttled to <= one emit per
+        // ~80ms window (Reader 1's pageTrack) rather than once per contentY tick. ---
+        ck(stripSurface._userInteracted === false,
+           "B3 precondition: no wheel gesture has fired yet, _userInteracted must still be false")
+
+        var b3Before = harness.stripScrolledCount
+        // three rapid PLAIN writes in one window — simulates keyboard Space/PageUp/PageDown or a
+        // scrub-bar drag: NOT the wheel path (no _intakeWheel call), and NOT _programmatic.
+        stripSurface.contentY = 300
+        stripSurface.contentY = 600
+        stripSurface.contentY = 900
+        // _emitPending is the scheduling seam (mirrors _reportPending / _flushViewportReport below) —
+        // reading it is the ONLY way to prove the plain writes above actually SCHEDULED an emit rather
+        // than being silently dropped by a _userInteracted gate: _emitUserScroll() itself has no
+        // gating logic, so calling it directly would "pass" even against the old buggy code and prove
+        // nothing about bug 1.
+        ck(stripSurface._emitPending === true,
+           "B3 (bug 1 fix): a plain non-programmatic contentY move must SCHEDULE an emit even though no "
+           + "wheel gesture has ever fired (old code gated scheduling on _userInteracted, set ONLY by "
+           + "_intakeWheel, so Space/PageUp/PageDown/scrub/Home/End emitted NOTHING), got _emitPending="
+           + stripSurface._emitPending)
+        ck(harness.stripScrolledCount === b3Before,
+           "B3 (bug 2 fix): the emit must be THROTTLED, not per-tick — a burst of plain contentY writes must produce ZERO immediate emissions, got "
+           + (harness.stripScrolledCount - b3Before))
+        stripSurface._flushEmit()      // the same entry point the 80ms throttle timer calls
+        ck(harness.stripScrolledCount === b3Before + 2,
+           "B3: once the throttle window elapses the scheduled emit must fire scrolled()+pageInView(), got "
+           + (harness.stripScrolledCount - b3Before))
+        ck(stripSurface._emitPending === false,
+           "B3: flushing the scheduled emit must clear _emitPending, got " + stripSurface._emitPending)
+        ck(stripSurface._userInteracted === false,
+           "B3: a plain contentY move must NOT retroactively set _userInteracted — that flag stays wheel-only")
+
+        // a _programmatic move (haltScrollAt, same door as seekToPage/compensation/applyLayout) must
+        // STILL emit nothing — that guard is load-bearing: it is what stops a restore from clobbering
+        // the shell's page.
+        var b3Before2 = harness.stripScrolledCount
+        stripSurface.haltScrollAt(50)
+        ck(stripSurface._emitPending === false,
+           "B3: a _programmatic move (haltScrollAt) must NOT schedule an emit at all, got _emitPending=" + stripSurface._emitPending)
+        ck(harness.stripScrolledCount === b3Before2,
+           "B3: a _programmatic move (haltScrollAt) must still emit NOTHING, got "
+           + (harness.stripScrolledCount - b3Before2))
+
         // --- smooth-wheel float accumulator ---
         // reset to a clean scroll state
         stripSurface.contentY = 0
