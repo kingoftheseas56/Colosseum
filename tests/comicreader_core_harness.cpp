@@ -13,6 +13,7 @@
 
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
+#include "comicreader/ComicReaderStripModel.h"   // T14 reads the strip geometry roles
 #include "comicreader/ComicReaderTypes.h"
 
 #include <QCoreApplication>
@@ -96,20 +97,26 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // ── Continuity fixture: 6 solid portrait pages engineered so that the
+    // ── Continuity fixture: 7 solid portrait pages engineered so that the
     //    SHIFTED pairing's touching edges are seamless and NORMAL's are not.
-    //    Normal pairs (from buildUnits): (1,2),(3,4). Shifted pairs: (2,3),(4,5).
-    //    Luminances: p1=0 p2=255 p3=255 p4=0 p5=0  ->
+    //    Pairing anchors on TWO leading singles (0 and 1 — the cover and the lone
+    //    first recto, ComicReaderPairing::buildUnits), so pairing opens at index 2:
+    //      normal  -> singles 0,1; pairs (2,3),(4,5); single 6
+    //      shifted -> singles 0,1,2; pairs (3,4),(5,6)
+    //    Luminances: p2=0 p3=255 p4=255 p5=0 p6=0  ->
     //      normal costs |0-255|,|255-0| ~ 1.0,1.0 (high); shifted |255-255|,|0-0| = 0,0 (low)
-    //    => the probe must adopt Shifted. ─────────────────────────────────────
+    //    => the probe must adopt Shifted.
+    //    The two leading pages are never sampled (a single has no touching seam),
+    //    so their luminance is arbitrary.
     QStringList cont;
-    for (int i = 0; i < 6; ++i) cont << dir.filePath(QStringLiteral("cont%1.png").arg(i));
+    for (int i = 0; i < 7; ++i) cont << dir.filePath(QStringLiteral("cont%1.png").arg(i));
     CHECK(writeSolidPng(cont[0], 128), "setup: cont0");
-    CHECK(writeSolidPng(cont[1], 0),   "setup: cont1");
-    CHECK(writeSolidPng(cont[2], 255), "setup: cont2");
+    CHECK(writeSolidPng(cont[1], 128), "setup: cont1");
+    CHECK(writeSolidPng(cont[2], 0),   "setup: cont2");
     CHECK(writeSolidPng(cont[3], 255), "setup: cont3");
-    CHECK(writeSolidPng(cont[4], 0),   "setup: cont4");
+    CHECK(writeSolidPng(cont[4], 255), "setup: cont4");
     CHECK(writeSolidPng(cont[5], 0),   "setup: cont5");
+    CHECK(writeSolidPng(cont[6], 0),   "setup: cont6");
     const QVariantList contPages = pagesFromPaths(cont);
 
     // ── Plain 6-page portrait fixture (all mid-gray, no spreads) ──────────────
@@ -278,19 +285,22 @@ int main(int argc, char** argv) {
     // ── Test 7b: ASYMMETRIC per-phase sample counts — the probe must feed the
     //            FULL vectors to chooseCouplingPhase (MEAN aggregation), NEVER a
     //            positional min()-trim (which would flip this verdict). ─────────
-    // 7 pages -> normal pairs (1,2),(3,4),(5,6) = 3 seams; shifted pairs (2,3),
-    // (4,5) = 2 seams. Solid-gray luminances make each seam cost |La-Lb|/255:
+    // 8 pages, pairing anchored on the two leading singles (buildUnits opens at
+    // index 2) -> normal pairs (2,3),(4,5),(6,7) = 3 seams; shifted single 2,
+    // pairs (3,4),(5,6), single 7 = 2 seams. Solid-gray luminances make each seam
+    // cost |La-Lb|/255:
     //   normal:  |204-178|,|102-76|,|0-255| ~ [0.10, 0.10, 1.00] -> mean 0.40
     //   shifted: |178-102|,|76-0|           ~ [0.30, 0.30]        -> mean 0.30
     // Full-vector mean -> SHIFTED (conf ~0.15). A min(3,2)=2 positional trim would
-    // drop normal's (5,6)=1.00 seam -> normal scores [0.10,0.10]=0.10 vs shifted
+    // drop normal's (6,7)=1.00 seam -> normal scores [0.10,0.10]=0.10 vs shifted
     // 0.30 -> wrongly NORMAL. That dropped seam is the very proof normal is wrong.
     {
         QStringList asym;
-        for (int i = 0; i < 7; ++i)
+        for (int i = 0; i < 8; ++i)
             asym << dir.filePath(QStringLiteral("asym%1.png").arg(i));
-        const int lum[7] = {128, 204, 178, 102, 76, 0, 255};
-        for (int i = 0; i < 7; ++i)
+        // [0] and [1] are the leading singles — never sampled, value arbitrary.
+        const int lum[8] = {128, 128, 204, 178, 102, 76, 0, 255};
+        for (int i = 0; i < 8; ++i)
             CHECK(writeSolidPng(asym[i], lum[i]), "setup: asym page");
         const QVariantList asymPages = pagesFromPaths(asym);
 
@@ -445,6 +455,79 @@ int main(int argc, char** argv) {
         // No probe (a resolved manual state is never re-analyzed).
         CHECK(core.couplingProbeDebug().value(QStringLiteral("called")).toBool() == false,
               "T12 a resolved persisted coupling skips the auto-coupling probe");
+    }
+
+    // ── Test 13: resetCoupling un-pins a manual entry back to Auto + RE-PROBES ─
+    // The settings sheet's Coupling row is Auto | Nudge: Nudge pins the phase by
+    // hand (T6), and tapping Auto must hand the decision back to the probe. The
+    // continuity fixture is the oracle — the probe demonstrably picks Shifted on
+    // it (T7), so a reset that merely cleared the flag without re-running would
+    // leave the phase on Normal and fail here.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("reset"), contPages, QStringLiteral("ltr"), manualNormal());
+        CHECK(core.couplingState().startsWith(QStringLiteral("manual:normal")),
+              "T13 opens manual:normal from the persisted blob");
+        CHECK(core.couplingProbeDebug().value(QStringLiteral("called")).toBool() == false,
+              "T13 a manual entry never probed in the first place");
+
+        core.resetCoupling();
+        CHECK(core.couplingState().startsWith(QStringLiteral("auto:normal:0.00")),
+              "T13 resetCoupling reports auto immediately, phase + confidence cleared");
+
+        const bool resolved = waitFor([&] {
+            return core.couplingProbeDebug().value(QStringLiteral("resolved")).toBool();
+        });
+        CHECK(resolved, "T13 resetCoupling RE-RUNS the auto-coupling probe");
+        CHECK(core.couplingState().startsWith(QStringLiteral("auto:shifted")),
+              "T13 the re-run probe re-decides the phase (Shifted on the continuity fixture)");
+        CHECK(core.persistedState().value(QStringLiteral("couplingMode")).toString()
+                  == QStringLiteral("auto"),
+              "T13 the reset rides out in persistedState as auto");
+    }
+
+    // ── Test 14: setStripLayout drives the strip geometry, in place ───────────
+    // Portrait width % and inter-page gap were fixed at 78/0 with no way in; the
+    // settings sheet's LONG STRIP section needs both a setter and a readback.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("layout"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+
+        CHECK(core.stripWidthPct() == 78, "T14 default portrait width is 78%");
+        CHECK(core.stripGap() == 0, "T14 default gap is 0");
+
+        QAbstractListModel* m = core.stripModel();
+        const auto roleOf = [&](int row, int role) {
+            return m->data(m->index(row, 0), role).toDouble();
+        };
+        const int wRole = ComicReaderStripModel::DisplayWidthRole;
+        const int hRole = ComicReaderStripModel::DisplayHeightRole;
+        const int tRole = ComicReaderStripModel::TopRole;
+
+        CHECK(qAbs(roleOf(0, wRole) - 780.0) < 1.0,
+              "T14 a portrait page displays at 78% of the viewport width");
+        CHECK(qAbs(roleOf(1, tRole) - roleOf(0, hRole)) < 0.5,
+              "T14 with gap 0, page 1 starts exactly where page 0 ends");
+
+        core.setStripLayout(60, 24);
+        CHECK(core.stripWidthPct() == 60 && core.stripGap() == 24,
+              "T14 the readbacks follow setStripLayout");
+        CHECK(qAbs(roleOf(0, wRole) - 600.0) < 1.0,
+              "T14 page width follows the new portrait pct");
+        CHECK(qAbs(roleOf(1, tRole) - (roleOf(0, hRole) + 24.0)) < 0.5,
+              "T14 the gap separates consecutive pages");
+        CHECK(m->rowCount() == 6,
+              "T14 the layout change is in place — same rows, no model teardown");
+
+        // Out-of-range input is clamped, never applied raw (a 0% width would
+        // collapse every page to nothing).
+        core.setStripLayout(5, -10);
+        CHECK(core.stripWidthPct() == 40 && core.stripGap() == 0,
+              "T14 an under-range layout clamps to 40% / gap 0");
+        core.setStripLayout(400, 5000);
+        CHECK(core.stripWidthPct() == 100 && core.stripGap() == 80,
+              "T14 an over-range layout clamps to 100% / gap 80");
     }
 
     if (g_failures == 0) {

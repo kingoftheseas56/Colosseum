@@ -132,6 +132,25 @@ void ComicReaderStripModel::setViewportWidth(int width)
                          {TopRole, DisplayWidthRole, DisplayHeightRole});
 }
 
+void ComicReaderStripModel::setLayout(int portraitWidthPct, int gap)
+{
+    if (portraitWidthPct == m_options.portraitWidthPct && gap == m_options.gap)
+        return;
+
+    m_options.portraitWidthPct = portraitWidthPct;
+    m_options.gap = gap;
+
+    // Same in-place path as setViewportWidth: the width % changes each page's
+    // fit, the gap changes only the running tops. dataChanged, not a reset.
+    for (int i = 0; i < m_entries.size(); ++i)
+        recomputeGeometry(m_entries[i]);
+    recomputeTops();
+
+    if (!m_entries.isEmpty())
+        emit dataChanged(index(0, 0), index(m_entries.size() - 1, 0),
+                         {TopRole, DisplayWidthRole, DisplayHeightRole});
+}
+
 void ComicReaderStripModel::updatePage(const PageMeta& meta)
 {
     const int idx = meta.index;

@@ -90,6 +90,14 @@ public:
     // No-op if width is unchanged or non-positive.
     void setViewportWidth(int width);
 
+    // Portrait width % and inter-page gap changed (the settings sheet's LONG
+    // STRIP section). Same in-place contract as setViewportWidth: recompute
+    // every page's fit and re-sum the column, then dataChanged — never a model
+    // reset, so the bound ListView keeps its delegates and its scroll. Locked-in
+    // real page sizes are preserved. Callers pass already-clamped values; this
+    // no-ops if neither number actually changed.
+    void setLayout(int portraitWidthPct, int gap);
+
     // Pages whose [top, bottom] band intersects [top - margin, top + vpHeight
     // + margin], margin = marginScreens * vpHeight (Task 7 uses 1.5). Returns
     // indices in ascending, contiguous order.

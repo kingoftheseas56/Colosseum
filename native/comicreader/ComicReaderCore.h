@@ -68,6 +68,12 @@ class ComicReaderCore final : public QObject {
     Q_PROPERTY(int readyCount READ readyCount NOTIFY progressChanged)
     Q_PROPERTY(QString couplingState READ couplingState NOTIFY pairingChanged)
     Q_PROPERTY(QAbstractListModel* stripModel READ stripModel CONSTANT)
+    // Settings-sheet readbacks. A chip can only mark itself active if it can read
+    // the value back, so every setter below has one. memorySaver rides cacheChanged
+    // (setMemorySaver already emits it — it IS a cache-budget change).
+    Q_PROPERTY(bool memorySaver READ memorySaver NOTIFY cacheChanged)
+    Q_PROPERTY(int stripWidthPct READ stripWidthPct NOTIFY stripLayoutChanged)
+    Q_PROPERTY(int stripGap READ stripGap NOTIFY stripLayoutChanged)
 public:
     explicit ComicReaderCore(QObject* parent = nullptr);
     ~ComicReaderCore() override;
@@ -77,6 +83,9 @@ public:
     int readyCount() const { return m_readyCount; }
     QString couplingState() const;
     QAbstractListModel* stripModel() const;
+    bool memorySaver() const { return m_memorySaver; }
+    int stripWidthPct() const { return m_portraitWidthPct; }
+    int stripGap() const { return m_stripGap; }
 
     // Open an entry. `pages` is a QVariantList of {index,url,group}; each url must
     // be a local file:// that exists (a remote/undownloaded page is rejected with
@@ -91,9 +100,19 @@ public:
     Q_INVOKABLE QVariantMap unitForPage(int page) const;
     Q_INVOKABLE void setSpreadOverride(int page, QString state);   // "spread"|"single"|"clear"
     Q_INVOKABLE void nudgeCoupling();                              // -> Manual + flipped phase
+    // The other half of the settings sheet's Coupling row: hand the phase back to
+    // the probe. Clears the manual pin AND re-runs the auto-coupling probe on the
+    // open entry, so tapping Auto after a bad nudge actually re-decides — merely
+    // clearing the flag would leave the hand-picked phase in place until the next
+    // entry-open.
+    Q_INVOKABLE void resetCoupling();
     Q_INVOKABLE void setVisible(QVariantList pageIndices);         // pin(+neighbors) + priorities
     Q_INVOKABLE void setStripViewport(double top, double height); // drive strip decode window
     Q_INVOKABLE void setStripViewportWidth(int width);            // Task 10: strip geometry width
+    // Long Strip taste: portrait page width as a % of the viewport (clamped
+    // 40..100) and the gap between pages in px (clamped 0..80). Applied in place
+    // — the strip reflows without losing the reader's scroll position.
+    Q_INVOKABLE void setStripLayout(int portraitWidthPct, int gap);
     Q_INVOKABLE QString imageUrl(int page) const;                 // image://comicreader/<gen>/<page>?rev=N
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
 
@@ -118,6 +137,7 @@ signals:
     void pairingChanged();
     void progressChanged();
     void cacheChanged();
+    void stripLayoutChanged();              // portrait width % / gap changed
     void stripCompensation(double delta);   // QML strip adds this to its scroll pos
 
 private:

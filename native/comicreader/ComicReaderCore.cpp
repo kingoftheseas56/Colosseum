@@ -333,6 +333,44 @@ void ComicReaderCore::nudgeCoupling() {
     emit pairingChanged();
 }
 
+void ComicReaderCore::resetCoupling() {
+    m_couplingMode = CouplingMode::Auto;
+    m_couplingPhase = CouplingPhase::Normal;
+    m_couplingResolved = false;
+    m_couplingConfidence = 0.0;
+
+    // Drop anything a previous probe left mid-flight so the fresh one owns the
+    // verdict alone (a stale in-flight probe would finalize against the old
+    // sample set and re-resolve behind this one).
+    m_probeActive = false;
+    m_probePendingPages.clear();
+    m_probeNormalPairs.clear();
+    m_probeShiftedPairs.clear();
+    m_probeCalledChoose = false;
+    m_probeNormalSamples = 0;
+    m_probeShiftedSamples = 0;
+
+    rebuildUnits();
+    emit pairingChanged();
+
+    // Re-decide, same gate as openEntry: only an analyzable entry can be probed.
+    if (m_analyzable)
+        startAutoCouplingProbe();
+}
+
+void ComicReaderCore::setStripLayout(int portraitWidthPct, int gap) {
+    const int wpct = qBound(40, portraitWidthPct, 100);
+    const int g = qBound(0, gap, 80);
+    if (wpct == m_portraitWidthPct && g == m_stripGap)
+        return;
+    m_portraitWidthPct = wpct;
+    m_stripGap = g;
+    // In place: the strip reflows without losing the reader's scroll (a rebuild()
+    // here would reset the model and snap the reader back to page 1).
+    m_strip->setLayout(m_portraitWidthPct, m_stripGap);
+    emit stripLayoutChanged();
+}
+
 void ComicReaderCore::setVisible(QVariantList pageIndices) {
     QVector<int> visible;
     for (const QVariant& v : pageIndices) {
