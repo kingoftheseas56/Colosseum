@@ -606,3 +606,48 @@ BackendDecision chooseBackend(const PlaybackRequest &request, const Player2Capab
 - [ ] The Task 16 and Task 18 gate summaries pass from committed binaries and identify the tested hardware/media/settings.
 - [ ] Production mpvqt remains the one-release rollback; its eventual removal is not bundled into Player 2 promotion.
 - [ ] Licensing manifest covers the actual FFmpeg build, libass or other selected dependencies, redistribution terms and notices.
+
+---
+
+## Task 17 — as-built record (2026-07-25)
+
+The task shipped as specified in behaviour, with three deliberate deviations from its file list. Each
+is recorded here so a later reader does not mistake them for drift.
+
+**1. The production host is QML, not `ColosseumPlayer2HostServices.{h,cpp}`.**
+Ground-truthing the app first showed that all eight orchestration policies — episode ordering, source
+ranking, subtitle wells, AniSkip, Cinemeta metadata — live in the app's JS libraries (`TheatreApi.js`,
+`AddonClient.js`, `Subtitles.js`, `SkipSegments.js`, `EpisodeBrowser.js`), and the shipped player calls
+exactly those. Re-deriving them in C++ would have produced a SECOND copy of the same policy that drifts
+from the first the next time an addon changes. **Hemanth's call, 2026-07-25: share the one brain.** So
+the production host is `qml/player2host/ColosseumHostServices.qml`, satisfying the same seam by
+duck-typing (the shell binds via `Connections { ignoreUnknownSignals: true }`). The engine —
+demux/decode/clock/audio/video — remains pure C++; only orchestration is shared, which is exactly what
+`Player2HostServices.h` defines the seam to hold.
+
+**2. `Player2Page.qml` (a facade) instead of branching the six dispatch sites.**
+`Main.qml` drives the player from six places, one of which (the movie arm of `activateSession`) is a hot
+merge region. `qml/player2host/Player2Page.qml` implements PlayerPage's exact public interface
+(`playTorrent`/`playLocalFile`/`playRemoteUrl`/`stop`/`captureState`/`restoreState`/
+`suspendForMinimize`/`resumeFromMinimize` + the four signals), so the entire production change is ONE
+line: which source the existing Loader points at. `player2_integrated_contract.ps1` pins both halves.
+
+**3. `Player2Backend.{h,cpp}` was added; it was not in the task's file list.**
+Something in production must own the session's lifetime the way the lab's harness does, and the engine's
+`open()` takes a C++ gadget QML cannot reasonably build. `Player2Backend` is that owner and nothing more
+— it holds the session + D3D11 pipeline, runs `chooseBackend`, and installs the bitmap-subtitle image
+provider once it is demonstrably inside a live engine. No catalog, no source policy, no persistence.
+
+**Placement correction worth remembering:** the host was first written into `qml/player2/`, and the
+Task 14 orchestration contract failed it for naming production surfaces there. The contract was right —
+`qml/player2/` is the *isolated player*, and the host is not the player. Both production files moved to
+`qml/player2host/`, and the Task 14 contract passes unchanged. Do not weaken that contract to fit
+production code into the player's directory.
+
+**Router signature widened.** `chooseBackend(request, requested, capabilities)` takes the viewer's
+preference as its own argument rather than folding it into the request or the capability facts, because
+it is neither. Documented in `PlayerBackendRouter.h`.
+
+**Still open at the end of this task:** the ABBA >=25% efficiency gate and the release long runs remain
+NOT RUN, so the default flip (Task 18) is still gated by the plan's own hard rule. `COLOSSEUM_PLAYER2_IN_APP`
+defaults OFF and the runtime setting defaults to mpv, so a stock build is byte-identical in behaviour.

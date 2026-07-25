@@ -1,3 +1,6 @@
 module Player2Harness
 singleton Theme 1.0 Theme.qml
 Harness 1.0 Harness.qml
+# Exported so the production host page (qml/player2host) can mount the shell. The shell itself
+# stays inside the isolated player; only the HOST lives outside it.
+Player2Shell 1.0 Player2Shell.qml

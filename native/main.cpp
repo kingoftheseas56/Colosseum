@@ -72,6 +72,12 @@
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
+// Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
+// old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
+#ifdef COLOSSEUM_PLAYER2
+#include "player2/Player2Backend.h"
+#include "player2/video/Player2VideoItem.h"
+#endif
 
 // gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
 // Strip the header, raw-inflate with miniz's tinfl. Empty on any malformation.
@@ -429,6 +435,12 @@ int main(int argc, char *argv[]) {
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#ifdef COLOSSEUM_PLAYER2
+    // The Player 2 backend, opt-in (build flag COLOSSEUM_PLAYER2_IN_APP). Registering the types costs
+    // nothing at runtime — the engine is only constructed if QML instantiates Player2Page.
+    qmlRegisterType<Colosseum::Player2::Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
+    qmlRegisterType<Colosseum::Player2::Player2Backend>("Colosseum.Player2", 1, 0, "Player2Backend");
+#endif
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -850,6 +862,14 @@ int main(int argc, char *argv[]) {
     // OS/display sleep prevention.
     auto *power = new PowerStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Power"), power);
+
+    // Whether this binary can play through Player 2 at all. False in a stock build, so the opt-in
+    // setting alone can never route playback into a backend that was not linked in.
+#ifdef COLOSSEUM_PLAYER2
+    engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), true);
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
+#endif
 
     // Continue / resume backbone exposed to QML as `Progress`. The player and the
     // manga reader write watch/read progress; every Continue row reads it back.

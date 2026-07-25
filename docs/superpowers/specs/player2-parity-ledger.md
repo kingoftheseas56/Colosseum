@@ -19,7 +19,7 @@ player. Status: `NOT RUN`, `FAIL`, `PASS`, `OPEN GAP` (needs a build or Hemanth'
 | Exact seek (scrub) | seekBar → `mpv.seekExact` | seek-generation test | ✔ 07-25 ("seek freeze" root-caused + fixed candid-current) | PASS | NOT RUN | |
 | Relative seek (±10s, ← / →) | `seekStep` | shell contract | ✔ | PASS | NOT RUN | |
 | Seek bar (progress, chapter ticks, handle, hover) | seekBar | shell loads | ✔ | PASS | NOT RUN | ticks only — see Chapters row |
-| Buffer/cache fill on seek bar | seekBar cache fill | — | — | **OPEN GAP** | NOT RUN | SeekBar rect exists; `bufferedFraction` never fed by the session (engine seam missing) |
+| Buffer/cache fill on seek bar | seekBar cache fill | — | — | **QUEUED (post-swap)** | NOT RUN | SeekBar rect exists; `bufferedFraction` never fed by the session (engine seam missing) |
 | Volume + mute (slider, M, wheel) | VolumeControl | shell contract | ✔ | PASS | NOT RUN | |
 | Elapsed / duration / remaining toggle | seekRow labels | browser-logic gate (fmt) | ✔ | PASS | NOT RUN | |
 | State line + ENDS wall clock + now clock | stateRow + Kodi clocks | `fmtWallClock`/`endsAtLabel` tested | ✔ 07-25 (`3e048a6`) | PASS | NOT RUN | |
@@ -34,13 +34,13 @@ player. Status: `NOT RUN`, `FAIL`, `PASS`, `OPEN GAP` (needs a build or Hemanth'
 | Subtitle rendering (text + PGS bitmap, clock-synced) | mpv/libass | subtitle image/schedule/timing tests | ✔ 07-25 ("subtitles work now brother") | PASS | NOT RUN | Known refinements: letterbox positioning; multi-rect PGS (front rect only) |
 | Fit / fill / aspect | FillMenuButton | shell contract | ✔ 07-25 ("it looks great" post-Fable) | PASS | NOT RUN | LEFT-cluster placement + "Video" popover (Fable F1) |
 | Loudness normalization | overflow loudness | normalizer tests + benchmark | ✔ | PASS | NOT RUN | |
-| Chapters (labels, current, menu) | chapter transient/menu | — | — | **OPEN GAP** | NOT RUN | ticks render; no labels/menu |
+| Chapters (labels, current, menu) | chapter transient/menu | — | — | **QUEUED (post-swap)** | NOT RUN | ticks render; no labels/menu |
 | Stats overlay (`D`) | statsOverlay | diagnostics contract | ✔ | PASS | NOT RUN | |
-| Loading / buffering / error screen | PlayerLoadingScreen | — | — | **OPEN GAP** | NOT RUN | no dedicated surface; state line only |
+| Loading / buffering / error screen | PlayerLoadingScreen | — | — | **QUEUED (post-swap)** | NOT RUN | no dedicated surface; state line only |
 | Hotkeys + shortcuts sheet (`?`) | PlayerHotkeys.js + ShortcutsSheet | shortcuts drift-guard contract | ✔ 07-25 | PASS | NOT RUN | P2's real (smaller) registry; sheet mirrors P1 presentation; no scrollview (content fits at min height) |
 | Context menu (right-click) | overflowPanel | shell loads | ✔ | PASS | NOT RUN | |
 | Pause card | pauseCard | pause-card helpers tested | ✔ 07-25 (`3d6c240`; no rating — his veto) | PASS | NOT RUN | quality line codec-only (engine lacks res/HDR/channels) |
-| Compact folds (tight/snug/tiny) | width-driven folds | — | — | **OPEN GAP** | NOT RUN | fixed roster; fine ≥ lab min-width (Fable observation) |
+| Compact folds (tight/snug/tiny) | width-driven folds | — | — | **QUEUED (post-swap)** | NOT RUN | fixed roster; fine ≥ lab min-width (Fable observation) |
 
 ## Source / episode / skip / window / capture / live (Tasks 14–15)
 
@@ -68,6 +68,14 @@ player. Status: `NOT RUN`, `FAIL`, `PASS`, `OPEN GAP` (needs a build or Hemanth'
 
 ## Freeze note
 
-Three **OPEN GAP** rows (cache-fill fraction, chapter labels/menu, loading/error screen, compact folds)
-need either a build-out or Hemanth's exception word before Phase D can close — surfaced, not silently
-blessed. Everything else is PASS or carries his written exception.
+Four **OPEN GAP** rows (cache-fill fraction, chapter labels/menu, loading/error screen, compact folds)
+were surfaced for Hemanth's build-or-except word rather than silently blessed. Everything else is PASS
+or carries his written exception.
+
+**RULED 2026-07-25 (Hemanth, verbatim):** *"we still build all of these: seek-bar cache fill · chapter
+labels/menu · loading/error screen · compact folds. But I suppose they can wait after the player's been
+swapped."*
+
+So: **all four are BUILD, not except — sequenced AFTER the swap (Tasks 17–18).** They are no longer open
+questions blocking Phase D; they are queued work with his date on them. Re-status each row to `QUEUED
+(post-swap)` as it is built, and do not close the integrated ledger while any of the four is unbuilt.

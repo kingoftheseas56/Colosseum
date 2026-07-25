@@ -73,6 +73,10 @@ add_library(player2_core STATIC
     host/Player2HostServices.h
     host/HarnessHostServices.cpp
     host/HarnessHostServices.h
+    PlayerBackendRouter.cpp
+    PlayerBackendRouter.h
+    Player2Backend.cpp
+    Player2Backend.h
     video/D3D11TextureRing.cpp
     video/D3D11TextureRing.h
     video/ColorHdrPolicy.cpp
@@ -177,6 +181,17 @@ set_target_properties(player2_host_services_test PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 add_test(NAME player2_host_services_test COMMAND player2_host_services_test)
+
+# Task 17 — backend routing: which player plays this, and what a mid-flight Player 2 failure may do.
+# Pure decision logic, so this runs with no window, device or media.
+add_executable(player2_backend_router_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_backend_router_test.cpp"
+)
+target_link_libraries(player2_backend_router_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_backend_router_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_backend_router_test COMMAND player2_backend_router_test)
 
 # Task: PGS/bitmap subtitle image conversion — pins the RGBA byte order (invisible on white subs).
 add_executable(player2_subtitle_image_test
