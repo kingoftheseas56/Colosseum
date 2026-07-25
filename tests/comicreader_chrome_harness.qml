@@ -47,6 +47,18 @@ Item {
     function ck(cond, msg) { if (!cond) failures.push(msg) }
     function approx(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 1e-6 : eps) }
 
+    // find a descendant by a marker objectName (mirrors comicreader_overlays_harness.qml)
+    function byName(root, name) {
+        if (!root) return null
+        if (root.objectName === name) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var f = byName(kids[i], name)
+            if (f) return f
+        }
+        return null
+    }
+
     // ---- fake backend core (the surfaces' unitForPage contract the HUD reads for pair/snap) ----
     component FakeCore: QtObject {
         property var units: ({})
@@ -245,6 +257,35 @@ Item {
         ck(shellA.chromeVisible === false, "hud: toggleChrome must flip the shell's chromeVisible to false")
         hud.toggleChrome()
         ck(shellA.chromeVisible === true, "hud: toggleChrome must flip chromeVisible back to true")
+
+        // ----- toast: the one transient-feedback surface (zoom, pairing, bookmarks) -----
+        // The fade is a real `Behavior on opacity` (140ms) — a synchronous read right after calling
+        // showToast() still observes the PRE-animation value (qml.exe never ticks the animation
+        // clock mid-script), so the "presents it" assertion is deferred (see runToastDeferred);
+        // only structural, non-animated facts are checked here.
+        harness._toast = byName(hud, "hudToast")
+        harness._toastText = byName(hud, "hudToastText")
+        ck(harness._toast !== null, "toast: the HUD must mount a toast surface")
+        ck(harness._toast.opacity === 0, "toast: starts hidden")
+    }
+
+    // ============================ TOAST (deferred: animated opacity) ============================
+    property var _toast: null
+    property var _toastText: null
+    function runToastDeferred() {
+        ck(harness._toast.opacity === 1, "toast: showToast presents it")
+        ck(harness._toastText.text === "Zoom 160%", "toast: the message shows verbatim")
+        // the toast is mounted OUTSIDE the auto-hiding chrome layer on purpose — it must still show
+        // when the chrome itself is hidden, which is exactly when there is no other readout to check.
+        // (opacity is already 1 here, so re-presenting at the same value settles immediately — no
+        // second animation wait needed.)
+        shellA.chromeVisible = false
+        hud.showToast("Shifted pairing")
+        ck(harness._toast.opacity === 1 && harness._toast.visible === true,
+           "toast: must present even when the chrome is hidden (mounted outside chromeLayer)")
+        ck(harness._toastText.text === "Shifted pairing",
+           "toast: message shows verbatim while chrome is hidden")
+        shellA.chromeVisible = true
     }
 
     // ============================ INPUT (keys) ============================
@@ -426,16 +467,20 @@ Item {
         input.singleClickMs = 30
         sig = {}
         input.pressAt(450, 300); input.releaseAt(450, 900)
+        // kick off the toast fade-in now so its 140ms Behavior has settled by the time deferredTimer
+        // fires (220ms — comfortably past the fade, and past the 40ms/30ms auto-hide/click timers).
+        hud.showToast("Zoom 160%")
         deferredTimer.start()
     }
 
     function runDeferred() {
         ck(hudAuto && shellAuto.chromeVisible === false, "hud: chrome must AUTO-HIDE after the (pinned) inactivity interval, chromeVisible=" + (hudAuto ? shellAuto.chromeVisible : "<null>"))
         ck(cnt("toggleChrome") === 1, "input: a lone center single click must toggle chrome after the (pinned) 220ms disambiguation, got " + cnt("toggleChrome"))
+        try { runToastDeferred() } catch (e) { failures.push("exception in runToastDeferred: " + e.message) }
         report()
     }
 
-    Timer { id: deferredTimer; interval: 160; running: false; onTriggered: harness.runDeferred() }
+    Timer { id: deferredTimer; interval: 220; running: false; onTriggered: harness.runDeferred() }
 
     function runChecks() {
         try { runHud() } catch (e) { failures.push("exception in runHud: " + e.message) }

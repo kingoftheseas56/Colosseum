@@ -681,4 +681,34 @@ Item {
         if (mode === "double_page") seekRequested(pageForRatio(ratio))
         else scrubFractionRequested(_clamp01(ratio))
     }
+
+    // ---- toast: the one transient-feedback surface (zoom, pairing, bookmarks) ----
+    // Mounted OUTSIDE the auto-hiding chrome on purpose: feedback must land even when the
+    // chrome is away, which is exactly when you have no other readout to check against.
+    function showToast(msg) { hudToastText.text = msg; hudToast.opacity = 1; hudToastTimer.restart() }
+    Rectangle {
+        id: hudToast
+        objectName: "hudToast"
+        anchors.horizontalCenter: parent.horizontalCenter
+        y: Math.round(parent.height * 0.14)
+        width: hudToastText.implicitWidth + 28
+        height: 34
+        radius: 17
+        color: hud.cGlassDeep
+        border.width: 1
+        border.color: theme.edge
+        opacity: 0
+        visible: opacity > 0.001
+        Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+        Text {
+            id: hudToastText
+            objectName: "hudToastText"
+            anchors.centerIn: parent
+            color: theme.ink
+            font.family: theme.hud
+            font.pixelSize: 13
+            font.bold: true
+        }
+        Timer { id: hudToastTimer; interval: 900; onTriggered: hudToast.opacity = 0 }
+    }
 }

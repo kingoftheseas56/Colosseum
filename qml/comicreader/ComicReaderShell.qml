@@ -737,7 +737,12 @@ Item {
         onNext: reader.pageNext()
         onPrevious: reader.pagePrev()
         onScrollBy: function (screens) { reader._stripScroll(screens) }
-        onZoomBy: function (delta) { if (doubleSurface) doubleSurface.setZoom(doubleSurface.clampedZoom + delta) }
+        onZoomBy: function (delta) {
+            if (doubleSurface) {
+                doubleSurface.setZoom(doubleSurface.clampedZoom + delta)
+                hud.showToast("Zoom " + doubleSurface.clampedZoom + "%")
+            }
+        }
         onPanBy: function (dx, dy) { if (doubleSurface) doubleSurface.panBy(dx, dy) }
         // chrome + window verbs
         onToggleChrome: reader.chromeVisible = !reader.chromeVisible
@@ -746,7 +751,11 @@ Item {
         // mode cycle (Manga/Comic/Strip) + coupling nudge -> persisted seams. Direction is baked
         // into the mode identity now, so there is no separate direction toggle.
         onCycleMode: reader.cycleMode()
-        onNudgeCoupling: reader.nudgeCoupling()
+        onNudgeCoupling: {
+            reader.nudgeCoupling()
+            var phase = (core && core.couplingState) ? String(core.couplingState).split(":")[1] : ""
+            hud.showToast(phase === "shifted" ? "Shifted pairing" : "Normal pairing")
+        }
         // first/last + crossing
         onFirstPage: reader.firstPageNav()
         onLastPage: reader.lastPageNav()
