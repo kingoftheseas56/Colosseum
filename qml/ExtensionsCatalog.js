@@ -8,6 +8,12 @@
 var COMMUNITY_API = "https://stremio-addons.net/api/v0";
 var OFFICIAL_COLLECTION = "https://api.strem.io/addonsofficialcollection.json";
 
+// A socket that never reaches DONE would otherwise leave the caller waiting forever,
+// with no way back — and now that typing a query sends you straight to Browse, that is
+// on the common path, not a corner. 12s is past the slowest healthy registry answer
+// we have measured and well short of feeling hung. (A5's audit P0-1.)
+var REQUEST_TIMEOUT_MS = 12000;
+
 function _get(url, done) {
     var xhr = new XMLHttpRequest();
     var settled = false;
@@ -17,6 +23,9 @@ function _get(url, done) {
         if (xhr.status < 200 || xhr.status >= 300) { finish(null); return; }
         try { finish(JSON.parse(xhr.responseText)); } catch (e) { finish(null); }
     };
+    xhr.timeout = REQUEST_TIMEOUT_MS;
+    xhr.ontimeout = function() { finish(null); };
+    xhr.onerror = function() { finish(null); };
     xhr.open("GET", url);
     xhr.send();
 }

@@ -129,7 +129,14 @@ Item {
         communityLoading = true;
         var mySort = sort, myQuery = query;
         Catalog.browse(mySort, myQuery, function(rows) {
-            if (mySort !== root.sort || myQuery !== root.query) return; // stale answer
+            // A stale answer is discarded, but the flag it set is NOT its to keep: the
+            // newer request owns it, and if none is coming this must still fall to false
+            // or Browse sits on "Asking the registry…" forever with the re-entry guard
+            // (!communityLoading) refusing to try again. (A5's audit P0-1.)
+            if (mySort !== root.sort || myQuery !== root.query) {
+                if (!queryDebounce.running) root.communityLoading = false;
+                return;
+            }
             root.communityRows = rows || [];
             root.communityLoading = false;
             root.communityLoaded = true;
@@ -161,15 +168,56 @@ Item {
     // instance, at page level, is the whole point of the component.
     ScrollGlide { flick: page }
 
-    // community loads when Browse first opens, and reloads on sort/search change
-    onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading) loadCommunity()
+    // ---- which panes this world actually has ----------------------------------
+    // Hemanth's ruling 2026-07-26: "remove discover and browser for the other worlds."
+    // Both were Theatre surfaces wearing a world tab. Discover renders a hardcoded
+    // curated rail list — Netflix Catalog and Marvel Universe, under the Tankoban tab —
+    // and Browse queries a community registry that is entirely video add-ons, so a
+    // world-filtered Browse would be permanently empty in Tankoban and Biblio. Rather
+    // than invent per-world catalogue data to justify two panes, the other worlds have
+    // the one pane that was ever true for them: what is installed.
+    //
+    // This also retires A5's P0-6 ("world tabs are decorative in two of three panes")
+    // at the root instead of patching it: the decorative panes are gone.
+    readonly property bool hasStore: world === "theatre"
+    readonly property var paneModel: hasStore
+        ? [ { key: "discover",  label: "Discover" },
+            { key: "browse",    label: "Browse everything" },
+            { key: "installed", label: "Installed · " } ]
+        : [ { key: "installed", label: "Installed · " } ]
+    onWorldChanged: if (!hasStore && pane !== "installed") pane = "installed"
+
+    // community loads when Browse first opens, and reloads on sort/search change.
+    // Skipped while a search debounce is pending — that timer owns the fetch, and
+    // firing both sends the same request twice on the first search from Discover.
+    onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading
+                       && !queryDebounce.running) loadCommunity()
     onSortChanged: if (pane === "browse") loadCommunity()
     Timer {
         id: queryDebounce
         interval: 450
         onTriggered: if (root.pane === "browse") root.loadCommunity()
     }
-    onQueryChanged: queryDebounce.restart()
+
+    // ---- a search goes where the answers are -----------------------------------
+    // Hemanth 2026-07-26: "when I search for something in theatre, it does nothing
+    // because the results show up in browse but if the page is in discover it doesn't
+    // turn to browse." Exactly right. Discover's matcher only tests curated card NAMES,
+    // so nearly every real query matched nothing and the pane went silently blank while
+    // the actual results sat unfetched one tab over. Typing is a request for results, so
+    // it now moves to the pane that has them — and clearing the box gives Discover back,
+    // so the search never costs you your place.
+    property bool _searchDroveThePane: false
+    onQueryChanged: {
+        if (hasStore && query !== "" && pane === "discover") {
+            _searchDroveThePane = true;
+            pane = "browse";
+        } else if (query === "" && _searchDroveThePane) {
+            _searchDroveThePane = false;
+            if (pane === "browse") pane = "discover";
+        }
+        queryDebounce.restart();
+    }
 
     MouseArea { anchors.fill: parent }
     Rectangle { anchors.fill: parent; color: "#000000" }
@@ -313,11 +361,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 26
                         Repeater {
-                            model: [
-                                { key: "discover", label: "Discover" },
-                                { key: "browse", label: "Browse everything" },
-                                { key: "installed", label: "Installed · " }
-                            ]
+                            model: root.paneModel
                             delegate: Item {
                                 id: paneTab
                                 required property var modelData
@@ -325,8 +369,11 @@ Item {
                                 implicitHeight: paneLabel.implicitHeight + 9
                                 Text {
                                     id: paneLabel
+                                    // Count THIS world, not the whole app. The pane below
+                                    // draws installedRowsFor(world), so a global total read
+                                    // "Installed · 13" above 4 Biblio rows. (A5's P0-7.)
                                     text: paneTab.modelData.key === "installed"
-                                          ? paneTab.modelData.label + root.installedList.length
+                                          ? paneTab.modelData.label + root.countIn(root.world)
                                           : paneTab.modelData.label
                                     color: root.pane === paneTab.modelData.key ? theme.ink
                                          : paneMa.containsMouse ? theme.inkDim : theme.inkDimmer
