@@ -208,7 +208,7 @@ Item {
                 // the column positions its delegates a vsync later, and its heights are estimates until
                 // decodes land — an immediate jump reads y=0 for unrealized delegates and lands at the top.
                 if (mode === "long_strip" && (_pendingStripFrac > 0 || currentPage > 1))
-                    stripRestore.restart()
+                    _armStripRestore()
             } else {
                 currentPage = 1; maxSeen = 0; stripFraction = 0; _pendingStripFrac = 0; _pendingAtLast = false
                 // not downloaded — the acquire routing is startDownload() (per-lane). Nothing auto-fires.
@@ -376,7 +376,7 @@ Item {
             // is the whole bug: the view positions its children a vsync later, so an immediate jump
             // reads y=0 for every not-yet-realized delegate and lands at the top of the book. The
             // 300ms settle is TB2's number.
-            if (persistedMode === "long_strip") stripRestore.restart()
+            if (persistedMode === "long_strip") _armStripRestore()
         }
         // Remember it for THIS series, and make it the default for series you haven't touched —
         // MangaReader.setDirection writes both for exactly this reason: the mode you keep choosing
@@ -611,24 +611,41 @@ Item {
     // there is exactly one mechanism to reason about and no second one to fight it. Retries while the
     // column still has not laid out, rather than silently leaving the reader at the top.
     property int _stripRestoreTries: 0
-    Timer {
-        id: stripRestore
-        interval: 300
-        onTriggered: {
-            if (reader.mode !== "long_strip" || reader.max <= 0) { reader._stripRestoreTries = 0; return }
-            var span = stripSurface.contentHeight - stripSurface.height
-            if (span <= 0) {   // not laid out yet — retry; a slow decode costs a moment, never your place
-                if (reader._stripRestoreTries < 3) { reader._stripRestoreTries += 1; stripRestore.restart() }
-                else reader._stripRestoreTries = 0
-                return
-            }
-            reader._stripRestoreTries = 0
-            if (reader._pendingStripFrac > 0) {
-                stripSurface.haltScrollAt(Math.max(0, Math.min(span, reader._pendingStripFrac * span)))
-                reader._pendingStripFrac = 0
-            } else if (reader.currentPage > 1) {
-                stripSurface.seekToPage(reader.currentPage - 1)   // backend-exact page top
-            }
+    Timer { id: stripRestore; interval: 300; onTriggered: reader._runStripRestore() }
+
+    // ARM the door. The ONLY way to open it — because "arm" has to mean a FULL retry budget, not
+    // whatever the previous restore happened to leave behind. Both arm sites (load(), setReadingMode())
+    // come through here, so a crossing or mode switch that lands mid-retry cannot inherit a spent
+    // budget and give up early on a column that is merely slow to lay out.
+    function _armStripRestore() {
+        _stripRestoreTries = 0
+        stripRestore.restart()
+    }
+
+    // The door's body, as a named function so it can be driven deterministically by the harness
+    // (a 300ms sleep in a test is a flake waiting to happen).
+    function _runStripRestore() {
+        if (mode !== "long_strip" || max <= 0) {
+            // We are not on the strip any more: THIS opening is over. Disarm as well as close — a
+            // fraction left lying here is a landmine for the NEXT, unrelated opening (a mode switch
+            // back into Strip), which would take the fraction arm and jump to the entry's original
+            // resume spot instead of the page the switch is contractually bound to keep.
+            _stripRestoreTries = 0
+            _pendingStripFrac = 0
+            return
+        }
+        var span = stripSurface.contentHeight - stripSurface.height
+        if (span <= 0) {   // not laid out yet — retry; a slow decode costs a moment, never your place
+            if (_stripRestoreTries < 3) { _stripRestoreTries += 1; stripRestore.restart() }
+            else _stripRestoreTries = 0
+            return
+        }
+        _stripRestoreTries = 0
+        if (_pendingStripFrac > 0) {
+            stripSurface.haltScrollAt(Math.max(0, Math.min(span, _pendingStripFrac * span)))
+            _pendingStripFrac = 0
+        } else if (currentPage > 1) {
+            stripSurface.seekToPage(currentPage - 1)   // backend-exact page top
         }
     }
 

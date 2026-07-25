@@ -436,6 +436,72 @@ Item {
             ck(r2._pendingStripFrac === 0, "resume2: no fraction to arm")
             ck(r2._stripRestorePending === true, "resume2: the restore door must be ARMED for a page-only record")
 
+            // ===== 3b. LEAVING the strip must DISARM the pending fraction =====
+            // The door is settle-gated, so there is a real window between arming it and it firing.
+            // If the reader leaves Strip inside that window the door closes — but a fraction left
+            // armed behind it is a landmine: the NEXT opening of the door (a mode switch BACK into
+            // Strip, which is contractually "keep your page") would take the fraction arm and jump to
+            // the entry's original resume spot instead, discarding the page it promised to keep.
+            // That is this task's own bug class re-entering through the mode-switch path.
+            var r3Prog = fakeProgR3
+            r3Prog.saved = { "resume": { "chapterId": "ch1", "page": 2, "scrollFrac": 0.6, "maxSeen": 5 } }
+            var r3Store = fakeStoreR3; r3Store.pages = fivePages()
+            var r3 = makeShell({
+                "width": 640, "height": 480, "seriesId": "s3c", "seriesTitle": "Resume3",
+                "seriesCover": "file:///f/c.png", "core": fakeCoreR3, "progress": r3Prog,
+                "pageStore": r3Store, "persistedMode": "long_strip",
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(Math.abs(r3._pendingStripFrac - 0.6) < 1e-9,
+               "disarm: the saved 0.6 must arm the door, got " + r3._pendingStripFrac)
+
+            // 2. the user leaves Strip BEFORE the settle-gated door fires
+            r3.setReadingMode("comic")
+            ck(r3.mode === "double_page", "disarm: setReadingMode('comic') must leave the strip, got " + r3.mode)
+
+            // 3. the door fires while we are OFF the strip — it must CLOSE AND DISARM
+            r3._runStripRestore()
+            ck(r3._pendingStripFrac === 0,
+               "disarm: leaving the strip must CLEAR the pending fraction, got " + r3._pendingStripFrac
+               + " (armed for a later, unrelated opening)")
+
+            // 4+5. back to Strip: the door re-arms, and the ONLY arm it can take is the PAGE arm —
+            // the mode switch's kept page, never the stale entry-resume fraction.
+            // The page is captured rather than asserted as a literal: in double mode goToPageIndex
+            // snaps to the canonical UNIT anchor, and this harness's fake unitForPage answers
+            // `rightIndex: page - 1`, so the landing page is the fake's business, not the shell's.
+            // What the shell owes us is that whatever page we are on SURVIVES the switch.
+            r3.goToPageIndex(4)
+            var keptPage = r3.currentPage
+            ck(keptPage > 1, "disarm: the fixture must sit past page 1 for the page arm to mean anything, got " + keptPage)
+            r3.setReadingMode("strip")
+            ck(r3.currentPage === keptPage,
+               "disarm: the mode switch must KEEP the page (" + keptPage + "), got " + r3.currentPage)
+            ck(r3._pendingStripFrac === 0,
+               "disarm: a mode switch back into Strip must NOT resurrect the entry's resume fraction, got "
+               + r3._pendingStripFrac)
+            ck(r3._stripRestorePending === true, "disarm: the door must be armed again by the mode switch")
+
+            // ===== 3c. ARMING the door always grants a FULL retry budget =====
+            // The budget is spent by the retry loop on a column that has not laid out yet. If a new
+            // target (a crossing, a mode switch) armed the door without resetting it, that target
+            // would inherit whatever the PREVIOUS restore had left — so a slow-to-lay-out column
+            // would give up early, and the retry guarantee would depend on unrelated history.
+            // The shell harness's fake core has no strip model, so the surface never lays out —
+            // span <= 0 is exactly the retry branch, no scaffolding needed.
+            ck(r3.max > 0 && r3.mode === "long_strip", "budget: fixture must be on the strip with pages")
+            r3._runStripRestore()
+            r3._runStripRestore()
+            ck(r3._stripRestoreTries === 2,
+               "budget: an unlaid column must burn retries (expected 2), got " + r3._stripRestoreTries)
+            r3.setReadingMode("comic")      // leave + come back = a NEW target for the door
+            r3.setReadingMode("strip")
+            ck(r3._stripRestoreTries === 0,
+               "budget: arming the door for a new target must RESET the retry budget, got "
+               + r3._stripRestoreTries + " already spent")
+
             // ===== 4a. CROSSING next: newest-first, record BEFORE jump; hasNext/hasPrev =====
             var xCore = fakeCoreX, xProg = fakeProgX, xStore = fakeStoreX
             xStore.pages = fivePages()   // every id is 'ready' (localPages ignores id here)
@@ -743,6 +809,7 @@ Item {
     FakeCore { id: fakeCoreT }   FakeProgress { id: fakeProgT }   FakePageStore { id: fakeStoreT }
     FakeCore { id: fakeCoreR }   FakeProgress { id: fakeProgR }   FakePageStore { id: fakeStoreR }
     FakeCore { id: fakeCoreR2 }  FakeProgress { id: fakeProgR2 }  FakePageStore { id: fakeStoreR2 }
+    FakeCore { id: fakeCoreR3 }  FakeProgress { id: fakeProgR3 }  FakePageStore { id: fakeStoreR3 }
     FakeCore { id: fakeCoreX }   FakeProgress { id: fakeProgX }   FakePageStore { id: fakeStoreX }
     FakeCore { id: fakeCoreP }   FakeProgress { id: fakeProgP }   FakePageStore { id: fakeStoreP }
     FakeCore { id: fakeCoreS }   FakeProgress { id: fakeProgS }
