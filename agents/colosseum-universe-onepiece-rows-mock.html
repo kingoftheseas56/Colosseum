@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!-- DISPOSABLE MOCK — Agent 0, 2026-07-25 (rev 2). Universe addon page rows, One Piece.
+     REV 2: dimensions and fonts pulled from qml/SagaUniversePage.qml — the Harry Potter /
+     Game of Thrones (ASOIAF) template Hemanth named as the reference. Exact values:
+       theme.margin 54 · header band 360 · name Fraunces 62 · kicker Segoe UI 12/ls4 gold
+       section title Fraunces 25 + Segoe UI 13 sub · tile 150x236 r8 · tile gap 22
+       row height 246 · caption Segoe UI 12 DemiBold · inter-section spacer 40
+     Rough on purpose: aggregation, not a designed page. Delete after Hemanth's eye. -->
+<html><head><meta charset="utf-8"><title>Universe — One Piece (rows, saga lineage)</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#f4f3f0; --inkDim:#c9c8c2; --inkDimmer:#96948e; --gold:#d8c07a;
+    --bg:#0c0e11; --edge:#262a31; --card:#15181d;
+    --ui:"Segoe UI",system-ui,sans-serif; --display:"Fraunces",Georgia,serif;
+    --margin:54px;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--ui);font-size:14px}
+
+  /* ── header band: 360px, exactly the saga template ── */
+  .band{position:relative;height:360px;overflow:hidden}
+  .band img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.30}
+  .band .wash{position:absolute;inset:0;
+    background:linear-gradient(90deg,var(--bg) 4%,rgba(12,14,17,.55) 55%,rgba(12,14,17,.9))}
+  .band .stack{position:absolute;left:var(--margin);bottom:46px;display:flex;flex-direction:column;gap:9px}
+  .kicker{color:var(--gold);font-size:12px;letter-spacing:4px;font-weight:700}
+  .name{font-family:var(--display);font-size:62px;line-height:1.02;font-weight:400}
+  .metaline{color:var(--inkDimmer);font-size:14px}
+  .back{position:absolute;left:var(--margin);top:28px;color:var(--inkDim);font-size:16px}
+
+  main{padding:44px var(--margin) 60px}
+
+  /* ── section header: Fraunces 25 + Segoe 13, 12px gap, 16px block ── */
+  .sec{margin-bottom:40px}
+  .sechead{display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+  .sechead .t{font-family:var(--display);font-size:25px}
+  .sechead .s{color:var(--inkDimmer);font-size:13px}
+  .rule{height:3px;border-radius:1.5px;background:linear-gradient(90deg,var(--gold),transparent 42%);
+        opacity:.5;margin-bottom:18px}
+
+  /* ── tiles: 150 x 236, radius 8, gap 22 ── */
+  .row{display:flex;gap:22px;overflow-x:auto;padding-bottom:10px;min-height:246px}
+  .row::-webkit-scrollbar{height:6px}.row::-webkit-scrollbar-thumb{background:#2c3037;border-radius:3px}
+  .tile{flex:0 0 auto;width:150px}
+  .tile .art{width:150px;height:236px;border-radius:8px;overflow:hidden;background:#191c21;
+             border:1px solid var(--edge);position:relative}
+  .tile .art img{width:100%;height:100%;object-fit:cover;display:block}
+  .tile .ph{width:100%;height:100%;display:flex;align-items:flex-end;padding:10px;
+            font-size:12px;color:var(--inkDim);line-height:1.25}
+  .tile .cap{height:56px;padding-top:8px;font-size:12px;font-weight:600;color:var(--ink);line-height:1.3}
+  .tile .cap small{display:block;font-weight:400;color:var(--inkDimmer);font-size:11px;margin-top:2px}
+  .idx{position:absolute;left:8px;top:8px;width:26px;height:26px;border-radius:6px;
+       background:rgba(8,9,11,.78);color:var(--gold);font-size:13px;font-weight:700;
+       display:flex;align-items:center;justify-content:center}
+  .chip{position:absolute;right:8px;top:8px;padding:3px 6px;border-radius:4px;
+        background:rgba(8,9,11,.8);color:var(--gold);font-size:9px;letter-spacing:2px}
+
+  /* ── Continue: the one row that knows you ── */
+  .cont{display:flex;gap:22px}
+  .ct{flex:0 0 auto;width:304px;background:var(--card);border:1px solid var(--edge);
+      border-radius:12px;padding:14px 16px}
+  .ct .k{font-size:10px;letter-spacing:3px;color:var(--gold);font-weight:700}
+  .ct .n{font-family:var(--display);font-size:19px;margin:6px 0 10px}
+  .ct .bar{height:3px;background:#2a2e35;border-radius:1.5px}
+  .ct .bar i{display:block;height:3px;background:var(--gold);border-radius:1.5px}
+  .note{margin-top:20px;padding-top:16px;border-top:1px solid #1c1f24;font-size:12px;
+        color:#77756f;max-width:900px;line-height:1.6}
+</style></head><body>
+
+<div class="band">
+  <img src="https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg" alt="">
+  <div class="wash"></div>
+  <div class="back">&larr;</div>
+  <div class="stack">
+    <div class="kicker">UNIVERSE</div>
+    <div class="name">One Piece</div>
+    <div class="metaline">53 works · anime, film, manga, novels · 1997&ndash;present</div>
+  </div>
+</div>
+
+<main>
+  <div class="sec">
+    <div class="sechead"><div class="t">Continue</div><div class="s">Where you left off, in each medium</div></div>
+    <div class="cont">
+      <div class="ct"><div class="k">ANIME</div><div class="n">Episode 1104</div><div class="bar"><i style="width:62%"></i></div></div>
+      <div class="ct"><div class="k">MANGA</div><div class="n">Chapter 1140</div><div class="bar"><i style="width:38%"></i></div></div>
+    </div>
+  </div>
+
+  <div class="sec"><div class="sechead"><div class="t">TV Shows</div><div class="s">5 works</div></div>
+    <div class="rule"></div><div class="row" id="tv"></div></div>
+
+  <div class="sec"><div class="sechead"><div class="t">Movies</div><div class="s">15 films</div></div>
+    <div class="rule"></div><div class="row" id="mv"></div></div>
+
+  <div class="sec"><div class="sechead"><div class="t">Manga</div><div class="s">12 works</div></div>
+    <div class="rule"></div><div class="row" id="mg"></div></div>
+
+  <div class="sec"><div class="sechead"><div class="t">Specials</div><div class="s">17 works</div></div>
+    <div class="rule"></div><div class="row" id="sp"></div></div>
+
+  <div class="sec"><div class="sechead"><div class="t">Novels</div><div class="s">4 English editions</div></div>
+    <div class="rule"></div><div class="row" id="nv"></div></div>
+
+  <p class="note">Dimensions and fonts taken from <code>qml/SagaUniversePage.qml</code> — the Harry Potter /
+  Game of Thrones template. Tile 150&times;236 r8, gap 22, margin 54, name Fraunces 62, section titles
+  Fraunces 25. Section order and contents come from the addon's served payload; the page renders whatever
+  arrives. No hero, no canon tags, no chronology &mdash; One Piece has no inherent timeline. Continue is the
+  only row that knows anything about you.</p>
+</main>
+
+<script>
+const V=(n,id,t,sub,chip)=>`<div class="tile"><div class="art">
+  <img src="https://images.metahub.space/poster/small/${id}/img" alt="" onerror="this.style.display='none'">
+  <div class="idx">${n}</div>${chip?`<div class="chip">${chip}</div>`:''}</div>
+  <div class="cap">${t}${sub?`<small>${sub}</small>`:''}</div></div>`;
+const P=(n,t,sub)=>`<div class="tile"><div class="art"><div class="ph">${t}</div><div class="idx">${n}</div></div>
+  <div class="cap">${t}${sub?`<small>${sub}</small>`:''}</div></div>`;
+
+document.getElementById('tv').innerHTML=[
+ ['tt0388629','One Piece','1999 · anime'],['tt11737520','One Piece','2023 · live action'],
+ ['tt33992229','Fish-Man Island Log','2024 · recap'],['tt36600601','One Piece in Love','2025 · spin-off'],
+ ['tt30476502','THE ONE PIECE','2027 · Wit remake','UPCOMING']
+].map((a,i)=>V(i+1,a[0],a[1],a[2],a[3])).join('') + P(6,'One Pace','fan re-edit · manual');
+
+document.getElementById('mv').innerHTML=[
+ ['tt0814243','One Piece: The Movie','2000'],['tt0832449','Clockwork Island','2001'],
+ ['tt0997084','Chopper’s Kingdom','2002'],['tt1006926','Dead End Adventure','2003'],
+ ['tt1010435','Cursed Holy Sword','2004'],['tt1018764','Baron Omatsuri','2005'],
+ ['tt1059950','Karakuri Castle','2006'],['tt1037116','Episode of Alabasta','2007'],
+ ['tt1206326','Chopper Plus','2008'],['tt1485763','Film: Strong World','2009'],
+ ['tt1865467','3D: Straw Hat Chase','2011'],['tt2375379','Film: Z','2012'],
+ ['tt5251328','Film: Gold','2016'],['tt9430698','Stampede','2019'],['tt16183464','Film: Red','2022']
+].map((a,i)=>V(i+1,a[0],a[1],a[2])).join('');
+
+document.getElementById('sp').innerHTML=[
+ ['tt1012788','Pirate Ganzack','1998 · OVA'],['tt0975705','Ocean’s Navel','2000'],
+ ['tt1003286','A Father’s Dream','2003'],['tt1010037','Last Great Stage','2003'],
+ ['tt1012787','Luffy’s Detective Story','2005'],['tt7947592','Strong World Ep 0','2010 · OVA'],
+ ['tt2598466','Episode of Nami','2012'],['tt3354344','Episode of Luffy','2012'],
+ ['tt3354352','Episode of Merry','2013'],['tt2893336','Dream 9 Crossover','2013'],
+ ['tt5098548','3D2Y','2014'],['tt6597356','Episode of Sabo','2015'],
+ ['tt6609162','Adventure of Nebulandia','2015'],['tt6425816','Heart of Gold','2016'],
+ ['tt11757066','Episode of East Blue','2017'],['tt11744496','Episode of Skypiea','2018'],
+ ['tt33998607','One Piece Fan Letter','2024']
+].map((a,i)=>V(i+1,a[0],a[1],a[2])).join('');
+
+// Hemanth's ruling 2026-07-25: the coloured edition sits at position 2, beside the source.
+document.getElementById('mg').innerHTML=[
+ ['One Piece','1997 · the source'],['One Piece — coloured','alt edition · manual'],
+ ['Log Book Omake','1999'],['Strong World','2009 · one-shot'],
+ ['Chopperman','2010'],['One Piece Party','2014'],['Chin Piece','2018'],
+ ['Koisuru One Piece','2018'],['Shokugeki no Sanji','2018'],['Kobiyama','2018'],
+ ['Gakuen!!','2019'],['Ace’s Story — Manga','2020'],['1000 Story Memorial','2021']
+].map((a,i)=>P(i+1,a[0],a[1])).join('');
+
+document.getElementById('nv').innerHTML=[
+ ['Ace’s Story, Vol. 1','2020'],['Ace’s Story, Vol. 2','2020'],
+ ['Law’s Story','2025'],['Heroines, Vol. 2','2025']
+].map((a,i)=>P(i+1,a[0],a[1])).join('');
+</script>
+</body></html>
