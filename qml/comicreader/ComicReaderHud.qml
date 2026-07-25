@@ -334,18 +334,31 @@ Item {
         // ---- edge side bars: a visible, direction-aware page-turn affordance (double-page only) ----
         // Chevron is PHYSICAL (left bar = a left chevron, right bar = a right); the ACTION is
         // direction-aware via navBarTap(). Glyphs are ComicReaderIcon (semantic-icon-audit law).
-        component NavBar: Rectangle {
+        component NavBar: Item {
             property bool isLeft: true
-            width: 52
+            width: 60
             anchors.top: parent.top
             anchors.bottom: parent.bottom
             visible: hud.navBarsVisible
-            color: navMa.containsMouse ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
-            ComicReaderIcon {
+            // Tankoban 2's SideNavArrow scheme: a big chevron drawn TWICE — a black drop shadow, then
+            // a white foreground — so it reads on ANY page (a plain white glyph vanishes on a white
+            // manga page; gold was wrong too). No bg fill. Brighter on hover. ComicReaderIcon per the
+            // semantic-icon-audit law (TB2's QtWidget paints a Segoe UI chevron; we colorize ours).
+            ComicReaderIcon {                       // drop shadow (TB2: QColor(0,0,0,90) offset +2,+2)
+                anchors.centerIn: parent
+                anchors.horizontalCenterOffset: 2
+                anchors.verticalCenterOffset: 2
+                kind: parent.isLeft ? "prev" : "next"
+                width: 34; height: 34
+                ink: "black"
+                opacity: 0.55
+            }
+            ComicReaderIcon {                       // foreground white (TB2: QColor(255,255,255,180))
                 anchors.centerIn: parent
                 kind: parent.isLeft ? "prev" : "next"
-                width: 24; height: 24
-                ink: navMa.containsMouse ? theme.gold : theme.inkDimmer
+                width: 34; height: 34
+                ink: "white"
+                opacity: navMa.containsMouse ? 1.0 : 0.85
             }
             MouseArea {
                 id: navMa
