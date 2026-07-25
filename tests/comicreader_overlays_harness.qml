@@ -45,6 +45,24 @@ Item {
         property int stripWidthPct: 78
         property int stripGap: 0
         function setStripLayout(w, g) { stripWidthPct = w; stripGap = g }
+        // tool grid: the sheet invokes the shell's request signals; the fake counts them as plain
+        // functions (invoking a QML signal and calling a function look identical at the call site).
+        property int loupeCount: 0
+        property int bookmarksCount: 0
+        property int thumbsCount: 0
+        property int shortcutsCount: 0
+        function loupeRequested()      { loupeCount += 1 }
+        function bookmarksRequested()  { bookmarksCount += 1 }
+        function thumbnailsRequested() { thumbsCount += 1 }
+        function shortcutsRequested()  { shortcutsCount += 1 }
+        // memory saver (cache budget 512 -> 256 MiB)
+        property bool memorySaver: false
+        function setMemorySaver(on) { memorySaver = on }
+        // danger actions — both destructive, so the sheet must ARM before it fires either
+        property int clearResumeCount: 0
+        property int resetSeriesCount: 0
+        function clearResume() { clearResumeCount += 1 }
+        function resetSeries() { resetSeriesCount += 1 }
         // mirror the real shell: translate the identity to the internal layout+direction seams
         function setReadingMode(rm) {
             readingMode = rm
@@ -216,6 +234,65 @@ Item {
 
         fakeReader.readingMode = "manga"   // restore
         ck(stripSection.visible === false, "settings: LONG STRIP section must be HIDDEN outside Strip mode")
+
+        // --- TOOLS: a 2x2 launcher grid, mode-independent (shows in every mode) ---
+        var tLoupe  = byName(sheet, "settingsToolLoupe"),      tBooks = byName(sheet, "settingsToolBookmarks")
+        var tThumbs = byName(sheet, "settingsToolThumbnails"), tKeys  = byName(sheet, "settingsToolShortcuts")
+        ck(tLoupe && tBooks && tThumbs && tKeys, "settings: all four tool tiles must exist")
+        clickCenter(tLoupe);  ck(fakeReader.loupeCount === 1,     "settings: Loupe tile must request the loupe")
+        clickCenter(tBooks);  ck(fakeReader.bookmarksCount === 1, "settings: Bookmarks tile must request the bookmarks overlay")
+        clickCenter(tThumbs); ck(fakeReader.thumbsCount === 1,    "settings: Thumbnails tile must request thumbnails")
+        clickCenter(tKeys);   ck(fakeReader.shortcutsCount === 1, "settings: Shortcuts tile must request the shortcuts sheet")
+        // every tile is an icon tile — no Text-glyph chips (semantic-icon-audit law)
+        ck(byName(tLoupe, "settingsToolLoupeIcon") !== null, "settings: the Loupe tile must carry a real ComicReaderIcon, not a text glyph")
+        // the grid is NOT mode-gated — the tools apply in Strip too
+        fakeReader.readingMode = "strip"
+        ck(tLoupe.visible === true, "settings: the TOOLS grid must stay visible in Strip mode")
+        fakeReader.readingMode = "manga"
+
+        // --- Memory saver: a switch, reflecting reader.memorySaver, writing setMemorySaver ---
+        var mem = byName(sheet, "settingsMemorySaver")
+        ck(mem !== null, "settings: Memory saver switch must exist")
+        ck(mem && mem.checked === false, "settings: Memory saver must be OFF by default")
+        clickCenter(mem)
+        ck(fakeReader.memorySaver === true, "settings: tapping the switch must call setMemorySaver(true)")
+        ck(mem.checked === true, "settings: the switch must read back as ON")
+        clickCenter(mem)
+        ck(fakeReader.memorySaver === false, "settings: tapping again must call setMemorySaver(false)")
+        // reflect a change arriving from the shell
+        fakeReader.memorySaver = true
+        ck(mem.checked === true, "settings: the switch must re-reflect a memorySaver change from the shell")
+        fakeReader.memorySaver = false
+
+        // --- Danger row: both actions destroy state, so a single tap must ARM, never fire ---
+        var dClear = byName(sheet, "settingsDangerClearResume")
+        var dReset = byName(sheet, "settingsDangerResetSeries")
+        ck(dClear && dReset, "settings: both danger actions must exist")
+        ck(dClear && dClear.armed === false && dReset && dReset.armed === false,
+           "settings: danger actions must start UNARMED")
+        clickCenter(dClear)
+        ck(fakeReader.clearResumeCount === 0, "settings: the FIRST tap on Clear resume must NOT fire it")
+        ck(dClear.armed === true, "settings: the first tap must ARM Clear resume")
+        clickCenter(dClear)
+        ck(fakeReader.clearResumeCount === 1, "settings: the SECOND tap must fire clearResume(), got " + fakeReader.clearResumeCount)
+        ck(dClear.armed === false, "settings: firing must disarm again")
+
+        // arming one action disarms the other — two armed hammers is how you hit the wrong one
+        clickCenter(dReset)
+        ck(dReset.armed === true, "settings: Reset series arms on its first tap")
+        clickCenter(dClear)
+        ck(dReset.armed === false, "settings: arming Clear resume must DISARM Reset series")
+        ck(dClear.armed === true && fakeReader.clearResumeCount === 1, "settings: Clear resume is the armed one now, and did not fire")
+        clickCenter(dClear)
+        ck(fakeReader.clearResumeCount === 2, "settings: the armed action fires on its second tap")
+        clickCenter(dReset); clickCenter(dReset)
+        ck(fakeReader.resetSeriesCount === 1, "settings: Reset series fires on its own second tap, got " + fakeReader.resetSeriesCount)
+
+        // closing the sheet must leave nothing armed behind for the next open
+        clickCenter(dReset)
+        ck(dReset.armed === true, "settings: re-arm before the close test")
+        sheet.close(); sheet.open()
+        ck(dReset.armed === false, "settings: closing the sheet must DISARM every danger action")
 
         // --- dismiss: X ---
         harness.dismissCount = 0

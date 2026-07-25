@@ -65,6 +65,7 @@ Item {
     signal thumbnailsRequested()
     signal settingsRequested()
     signal bookmarkToggleRequested()
+    signal bookmarksRequested()                // the bookmarks LIST (settings tool grid), not the toggle
     signal goToPageRequested()
     signal shortcutsRequested()
     signal loupeRequested()
@@ -129,6 +130,8 @@ Item {
         (core && core.stripWidthPct !== undefined) ? core.stripWidthPct : 78
     readonly property int stripGap:
         (core && core.stripGap !== undefined) ? core.stripGap : 0
+    readonly property bool memorySaver:
+        (core && core.memorySaver !== undefined) ? core.memorySaver === true : false
     // an overlay is up (Task 12) — swallows background input + pauses auto-hide. Aggregated off the
     // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
     readonly property bool modalOpen: settingsSheet.opened
@@ -333,6 +336,29 @@ Item {
     // Long-strip taste: portrait page width % + inter-page gap px. The core owns the strip geometry,
     // so these read straight off it; ONE setter carries both so changing either preserves the other.
     function setStripLayout(widthPct, gap) { if (core && core.setStripLayout) core.setStripLayout(widthPct, gap) }
+    function setMemorySaver(on) { if (core && core.setMemorySaver) core.setMemorySaver(on === true) }
+
+    // ---- the settings sheet's two danger actions (the sheet arms them; this fires) ----
+    // Clear resume: forget THIS series' Continue spot. The book keeps its bookmarks, spread
+    // overrides and coupling — only "where you were" is dropped, so the next open starts at page 1.
+    function clearResume() {
+        if (progress && seriesId.length)
+            progress.forget(progressKind, seriesId)
+        _resumeArmed = false
+    }
+    // Reset series: the bigger hammer — resume AND every remembered reader decision for this book
+    // (mode/direction override, spread overrides, bookmarks, coupling), then reopen from scratch so
+    // the lane default and a fresh auto-coupling probe decide again.
+    function resetSeries() {
+        clearResume()
+        persistedMode = ""
+        persistedDirection = ""
+        persistedState = ({})
+        nightVeil = "off"
+        gutterStrength = 0.35
+        if (core && core.setStripLayout) core.setStripLayout(78, 0)
+        load()
+    }
 
     // ================= progress (Continue) =================
     // Build the payload via ComicReaderState.progressPayload (byte-identical to contract §4.1) and

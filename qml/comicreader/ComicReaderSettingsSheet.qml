@@ -6,10 +6,14 @@
 // Mode writes only reader.persistedMode / reader.persistedDirection (never reader.mode / reader.rtl),
 // like the HUD, so a crossing's load() still owns the actual toggle.
 //
-// Sections, all mode-aware: DISPLAY (Mode, Night veil) always · DOUBLE PAGE (Coupling, Gutter
-// shadow, Zoom readout) in Manga/Comic · LONG STRIP (Page width, Gap) in Strip. Each section is the
-// other's mirror — exactly one of the two is up at a time. The tool grid and the danger row land in
-// the next slice (they need vendored icons + the shell's acquisition/reset routing).
+// Sections: DISPLAY (Mode, Night veil) always · DOUBLE PAGE (Coupling, Gutter shadow, Zoom readout)
+// in Manga/Comic · LONG STRIP (Page width, Gap) in Strip — those two are mirrors, exactly one is up
+// at a time · TOOLS (2x2 launcher grid, Memory saver, danger row) in every mode, because a tool is
+// not a display choice.
+//
+// The tool tiles ask the SHELL to raise each overlay; those overlays land in the following slices,
+// exactly as the HUD's own pills already work. The danger actions ARM on the first tap and fire on
+// the second — nothing here destroys state on a single touch.
 //
 // NOT persisted across launches yet: every setting here is live-for-the-session, same as it was
 // before this sheet existed. One pass wires the whole sheet to a Settings store; doing it per-row
@@ -57,6 +61,7 @@ Item {
     // long-strip taste — portrait page width as a % of the viewport, and the gap between pages.
     readonly property int    stripWidthPct:  reader ? reader.stripWidthPct : 78
     readonly property int    stripGap:       reader ? reader.stripGap : 0
+    readonly property bool   memorySaver:    reader ? reader.memorySaver === true : false
 
     // ---- writes ----
     // the single Manga/Comic/Strip identity; the shell translates it into the internal layout +
@@ -74,6 +79,19 @@ Item {
     // ONE setter carries both strip numbers, so changing either preserves the other.
     function setStripWidth(pct) { if (reader) reader.setStripLayout(pct, root.stripGap) }
     function setStripGap(px)    { if (reader) reader.setStripLayout(root.stripWidthPct, px) }
+    function setMemorySaver(on) { if (reader) reader.setMemorySaver(on) }
+
+    // ---- danger arming ----
+    // Both danger actions destroy state a reader can't get back (a resume spot, a book's bookmarks
+    // and spread overrides), so neither fires on a single tap: the first tap ARMS, the second
+    // commits. Exactly ONE can be armed at a time — two armed hammers is how you hit the wrong one.
+    property string armedDanger: ""
+    function armDanger(id, fire) {
+        if (root.armedDanger === id) { root.armedDanger = ""; fire() }
+        else                          root.armedDanger = id
+    }
+    // A closed sheet must never reopen mid-swing.
+    onOpenedChanged: if (!root.opened) root.armedDanger = ""
 
     Theme { id: theme }
 
@@ -85,6 +103,9 @@ Item {
     readonly property color cGoldChipBg: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.08)
     readonly property color cGoldBorder: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
     readonly property color cDim:        Qt.rgba(0, 0, 0, 0.44)
+    readonly property color cDanger:       "#ff8a8a"                              // mock --danger
+    readonly property color cDangerBorder: Qt.rgba(1, 138 / 255, 138 / 255, 0.30)  // mock .danger border
+    readonly property color cDangerFill:   Qt.rgba(1, 138 / 255, 138 / 255, 0.10)  // armed only
 
     // ============================================================================================
     // sheet vocabulary
@@ -134,6 +155,89 @@ Item {
             spacing: 5
         }
         Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 1; color: root.cRowLine }
+    }
+
+    // a tool tile — icon over label, the grid's one unit. A REAL ComicReaderIcon, never a text
+    // glyph (semantic-icon-audit law). Hover lifts the border, matching the chip's restraint:
+    // nothing in the tool grid is a "choice", so nothing here goes gold.
+    component ToolTile: Rectangle {
+        id: tile
+        property string kind: ""
+        property string label: ""
+        property string iconObjectName: ""
+        signal tapped()
+        implicitHeight: 58
+        radius: 9
+        color: "transparent"
+        border.width: 1
+        border.color: tileHover.hovered ? root.cEdge : root.cEdgeSoft
+        Column {
+            anchors.centerIn: parent
+            spacing: 5
+            ComicReaderIcon {
+                objectName: tile.iconObjectName
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: 16; height: 16
+                kind: tile.kind
+                ink: tileHover.hovered ? theme.ink : theme.inkDim
+                accessibleName: tile.label
+            }
+            Text {
+                anchors.horizontalCenter: parent.horizontalCenter
+                text: tile.label
+                color: tileHover.hovered ? theme.ink : theme.inkDim
+                font.family: theme.hud
+                font.pixelSize: 11
+            }
+        }
+        HoverHandler { id: tileHover }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.tapped() }
+    }
+
+    // a pill switch — the mock's `.sw`. Gold only when ON, same law as the chips.
+    component Switch: Rectangle {
+        id: sw
+        property bool checked: false
+        signal tapped()
+        implicitWidth: 34
+        implicitHeight: 18
+        radius: height / 2
+        color: sw.checked ? root.cGoldChipBg : "transparent"
+        border.width: 1
+        border.color: sw.checked ? root.cGoldBorder : root.cEdgeSoft
+        Rectangle {
+            width: 12; height: 12
+            radius: 6
+            y: 2
+            x: sw.checked ? sw.width - width - 3 : 3
+            color: sw.checked ? theme.gold : theme.inkDimmer
+            Behavior on x { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sw.tapped() }
+    }
+
+    // a danger action — the mock's bordered red pill. Unarmed it just names itself; ARMED it says
+    // what the next tap will do and fills faintly. The armed label IS the confirmation; a modal
+    // dialog on top of a modal sheet is one layer too many for a two-item row.
+    component DangerAction: Rectangle {
+        id: danger
+        property bool armed: false
+        property string label: ""
+        signal tapped()
+        implicitHeight: 28
+        radius: 8
+        color: danger.armed ? root.cDangerFill : "transparent"
+        border.width: 1
+        border.color: danger.armed ? root.cDanger : root.cDangerBorder
+        Text {
+            anchors.centerIn: parent
+            text: danger.armed ? "Tap again to confirm" : danger.label
+            color: root.cDanger
+            font.family: theme.hud
+            font.pixelSize: 12          // mock says 11.5px; pixelSize is an int — 12 matches the chips
+            font.bold: danger.armed
+        }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: danger.tapped() }
     }
 
     component SectionLabel: Text {
@@ -315,6 +419,87 @@ Item {
                     Chip { objectName: "settingsStripGapNone"; label: "None"; active: root.stripGap === 0;  onTapped: root.setStripGap(0) }
                     Chip { objectName: "settingsStripGapThin"; label: "Thin"; active: root.stripGap === 8;  onTapped: root.setStripGap(8) }
                     Chip { objectName: "settingsStripGapWide"; label: "Wide"; active: root.stripGap === 20; onTapped: root.setStripGap(20) }
+                }
+            }
+
+            // ============ TOOLS (every mode — these are not display choices) ============
+            SectionLabel { text: "Tools"; height: 32; verticalAlignment: Text.AlignVCenter }
+
+            // 2x2 launcher. Each tile asks the SHELL to raise the tool; the overlays themselves
+            // land in the following slices, exactly as the HUD's own pills already work.
+            Grid {
+                width: parent.width
+                columns: 2
+                columnSpacing: 7
+                rowSpacing: 7
+                readonly property real cellW: (width - columnSpacing) / 2
+
+                ToolTile {
+                    objectName: "settingsToolLoupe"; iconObjectName: "settingsToolLoupeIcon"
+                    width: parent.cellW; kind: "loupe"; label: "Loupe"
+                    onTapped: if (root.reader) root.reader.loupeRequested()
+                }
+                ToolTile {
+                    objectName: "settingsToolBookmarks"; iconObjectName: "settingsToolBookmarksIcon"
+                    width: parent.cellW; kind: "bookmarks"; label: "Bookmarks"
+                    onTapped: if (root.reader) root.reader.bookmarksRequested()
+                }
+                ToolTile {
+                    objectName: "settingsToolThumbnails"; iconObjectName: "settingsToolThumbnailsIcon"
+                    width: parent.cellW; kind: "thumbnails"; label: "Thumbnails"
+                    onTapped: if (root.reader) root.reader.thumbnailsRequested()
+                }
+                ToolTile {
+                    objectName: "settingsToolShortcuts"; iconObjectName: "settingsToolShortcutsIcon"
+                    width: parent.cellW; kind: "shortcuts"; label: "Shortcuts"
+                    onTapped: if (root.reader) root.reader.shortcutsRequested()
+                }
+            }
+
+            // Memory saver halves the page cache (512 -> 256 MiB). A switch, not chips: it is a
+            // state, not a choice among peers.
+            Item {
+                width: parent.width
+                height: 37
+                Text {
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "Memory saver"
+                    color: theme.inkDim
+                    font.family: theme.hud
+                    font.pixelSize: 12
+                }
+                Switch {
+                    objectName: "settingsMemorySaver"
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    checked: root.memorySaver
+                    onTapped: root.setMemorySaver(!root.memorySaver)
+                }
+            }
+
+            // The two destructive actions, side by side at the very bottom (mock .dangerrow).
+            Row {
+                width: parent.width
+                height: 40
+                spacing: 7
+                readonly property real cellW: (width - spacing) / 2
+
+                DangerAction {
+                    objectName: "settingsDangerClearResume"
+                    width: parent.cellW
+                    anchors.verticalCenter: parent.verticalCenter
+                    label: "Clear resume"
+                    armed: root.armedDanger === "clearResume"
+                    onTapped: root.armDanger("clearResume", function () { if (root.reader) root.reader.clearResume() })
+                }
+                DangerAction {
+                    objectName: "settingsDangerResetSeries"
+                    width: parent.cellW
+                    anchors.verticalCenter: parent.verticalCenter
+                    label: "Reset series"
+                    armed: root.armedDanger === "resetSeries"
+                    onTapped: root.armDanger("resetSeries", function () { if (root.reader) root.reader.resetSeries() })
                 }
             }
         }

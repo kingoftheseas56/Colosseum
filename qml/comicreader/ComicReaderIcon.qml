@@ -31,6 +31,9 @@ Item {
         case "chapters":    return "chapters"        // chapters / volume navigator
         case "thumbnails":  return "thumbnails"      // thumbnails grid
         case "settings":    return "sliders-horizontal"  // reader settings sheet
+        case "loupe":       return "search"          // tool grid: magnifier
+        case "bookmarks":   return "bookmark"        // tool grid: bookmarks
+        case "shortcuts":   return "keyboard"        // tool grid: keyboard shortcuts
         default:
             console.warn("ComicReaderIcon: unmapped kind '" + k + "' -> x")
             return "x"
