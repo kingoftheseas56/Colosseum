@@ -14,15 +14,21 @@
 // exact line-by-line mapping):
 //   - A page whose real size has never been learned displays at an ESTIMATED
 //     1600x2400 (portrait) source size.
-//   - Once a page decodes with a real sourceSize, that real size is LOCKED IN
-//     for this model's lifetime (until the next rebuild()). A later
-//     updatePage() that reports decoded=false again (a page-cache eviction,
-//     not a fresh decode) must NOT revert the page back to the estimate — TB2
-//     has no "undecode" event either; ScrollStripCanvas's per-page dimension
-//     slots are sticky, and only its SEPARATE scaled-pixmap cache evicts
-//     (evictScaledOutsideZone). `ReadyRole` still tracks the live decoded flag
-//     so QML can show a placeholder frame while pixels are evicted, even
-//     though the page's box in the strip keeps its already-known height.
+//   - The moment a page's real sourceSize is LEARNED, that size is LOCKED IN
+//     for this model's lifetime (until the next rebuild()). The trigger is the
+//     SIZE alone, never `meta.decoded`: the decode coordinator publishes a
+//     header-only dimension hint (TB2's DecodeTask::dimensionsReady) carrying
+//     real dimensions with decoded=false, ahead of — and independently of —
+//     the full decode, and geometry that true must not wait for pixels. A
+//     later updatePage() that reports decoded=false with a ZEROED sourceSize
+//     (a page-cache eviction, not a fresh decode) must NOT revert the page
+//     back to the estimate — TB2 has no "undecode" event either;
+//     ScrollStripCanvas's per-page dimension slots are sticky, and only its
+//     SEPARATE scaled-pixmap cache evicts (evictScaledOutsideZone).
+//     `ReadyRole` tracks the live decoded flag SEPARATELY from the sticky
+//     size, so QML can show a placeholder frame while pixels are absent —
+//     never yet decoded, or evicted — even though the page's box in the strip
+//     already holds its known height.
 //   - Spread pages (effective spread = spreadOverride if set, else
 //     detectedSpread) span the full viewport width; portrait pages span
 //     portraitWidthPct% of it.
@@ -62,8 +68,8 @@ public:
     explicit ComicReaderStripModel(QObject* parent = nullptr);
 
     // Full reset: replaces every page and its geometry from scratch. Any page
-    // already carrying decoded=true plus a valid sourceSize locks in its real
-    // size immediately (as if updatePage() had just delivered it). Clears any
+    // already carrying a valid sourceSize locks in that real size immediately
+    // (as if updatePage() had just delivered it), decoded or not. Clears any
     // pending anti-jump compensation left over from before this call.
     //
     // Precondition: pages[i].index == i for every i. updatePage() keys
@@ -137,7 +143,7 @@ public:
 private:
     struct Entry {
         PageMeta meta;
-        bool sizeKnown = false;    // sticky: true once a real decoded size has been locked in
+        bool sizeKnown = false;    // sticky: true once a real source size has been locked in
         QSize knownSize;           // sticky real source size (valid only if sizeKnown)
         bool knownSpread = false;  // sticky effective spread, captured at lock-in time
         double displayWidth = 0.0;

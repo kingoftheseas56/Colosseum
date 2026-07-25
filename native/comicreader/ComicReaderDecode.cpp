@@ -93,6 +93,33 @@ public:
                 QByteArray bytes = file.readAll();
                 file.close();
 
+                // EARLY DIMENSION HINT (TB2 DecodeTask parity). The header names
+                // the page's true size for a fraction of the decode's cost, so
+                // the strip column can snap to real geometry — and pairing can
+                // learn a spread — before the pixels exist. Without it every page
+                // holds the flat 1600x2400 estimate until its FULL decode lands,
+                // and the column pays a stream of anti-jump corrections during a
+                // fast scroll instead of settling once. Reported on the SAME
+                // queued path as the finished result, so it rides the same stale
+                // guard and the same ordering.
+                {
+                    QBuffer probeBuf(&bytes);
+                    probeBuf.open(QIODevice::ReadOnly);
+                    QImageReader probe(&probeBuf);
+                    probe.setDecideFormatFromContent(true);
+                    probe.setAutoTransform(true);
+                    const QSize dims = probe.size();   // header-only for png/jpeg/webp
+                    if (dims.isValid() && dims.width() > 0 && dims.height() > 0) {
+                        ComicReaderDecode* c = m_coordinator;
+                        const quint64 g = m_gen;
+                        const int p = m_page;
+                        QMetaObject::invokeMethod(
+                            c,
+                            [c, g, p, dims]() { c->onWorkerDimensions(g, p, dims); },
+                            Qt::QueuedConnection);
+                    }
+                }
+
                 QBuffer buffer(&bytes);
                 buffer.open(QIODevice::ReadOnly);
                 QImageReader reader(&buffer);
@@ -208,6 +235,29 @@ void ComicReaderDecode::request(int page, int priority) {
     auto* runnable = new DecodeRunnable(this, m_currentGen, page, it->localPath,
                                         m_testOnWorkerEnter, m_testOnWorkerExit);
     m_pool.start(runnable, priority);
+}
+
+// The header-only size hint, landing ahead of the same worker's finished result
+// (or ahead of its failure — a truncated file still names its own dimensions).
+// Same stale guard as onWorkerResult: a hint tagged with a superseded generation
+// is dropped before it can reach any client. Deliberately does NOT touch
+// m_inflight or m_failed — the decode is still running and still owns those.
+void ComicReaderDecode::onWorkerDimensions(quint64 gen, int page, const QSize& dims) {
+    if (gen != m_currentGen)
+        return;
+
+    PageMeta meta;
+    meta.index = page;
+    const auto it = m_pageByIndex.constFind(page);
+    if (it != m_pageByIndex.constEnd())
+        meta.localPath = it->localPath;
+    meta.sourceSize = dims;
+    // A hint carries geometry, never pixels: `decoded` stays false so every
+    // consumer of "is this page ready to paint" keeps telling the truth.
+    meta.decoded = false;
+    meta.detectedSpread = spreadRatioExceeded(dims);
+
+    emit metaReady(gen, meta);
 }
 
 void ComicReaderDecode::onWorkerResult(quint64 gen, int page, const QImage& image,

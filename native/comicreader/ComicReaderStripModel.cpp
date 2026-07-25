@@ -96,7 +96,11 @@ void ComicReaderStripModel::rebuild(const QVector<PageMeta>& pages, const Option
         for (int i = 0; i < pages.size(); ++i) {
             Entry& e = m_entries[i];
             e.meta = pages[i];
-            if (pages[i].decoded && pages[i].sourceSize.width() > 0 && pages[i].sourceSize.height() > 0) {
+            // A VALID sourceSize is the whole test — `decoded` is not consulted.
+            // The decode coordinator's header hint delivers a page's real size
+            // with decoded=false (geometry, no pixels), and that size is just as
+            // true as a finished decode's. See the class comment.
+            if (pages[i].sourceSize.width() > 0 && pages[i].sourceSize.height() > 0) {
                 e.sizeKnown = true;
                 e.knownSize = pages[i].sourceSize;
                 e.knownSpread = effectiveSpread(pages[i]);
@@ -163,11 +167,14 @@ void ComicReaderStripModel::updatePage(const PageMeta& meta)
     const double oldTop = e.top;
     const double oldHeight = e.displayHeight;
 
-    // Lock in a real size the first time it arrives (or if a later decode
-    // reports a genuinely different real size/spread verdict). A page that
-    // reports decoded=false here — an eviction, not a fresh decode — leaves
-    // an already-locked size untouched: see the class comment.
-    const bool hasRealSize = meta.decoded && meta.sourceSize.width() > 0 && meta.sourceSize.height() > 0;
+    // Lock in a real size the first time it arrives (or if a later report
+    // carries a genuinely different real size/spread verdict). The test is the
+    // SIZE, not `decoded`: the decode coordinator's header hint names a page's
+    // true dimensions with decoded=false, and geometry that true must not wait
+    // for pixels. An eviction — decoded=false AND a zeroed sourceSize — still
+    // fails this test, so it leaves an already-locked size untouched, exactly as
+    // before. See the class comment.
+    const bool hasRealSize = meta.sourceSize.width() > 0 && meta.sourceSize.height() > 0;
     if (hasRealSize) {
         const bool spreadNow = effectiveSpread(meta);
         if (!e.sizeKnown || e.knownSize != meta.sourceSize || e.knownSpread != spreadNow) {

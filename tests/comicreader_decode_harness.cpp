@@ -154,8 +154,15 @@ int main(int argc, char** argv) {
               "T1 metaReady fired with gen 7");
         CHECK(!log.meta.isEmpty() && log.meta[0].second.sourceSize == QSize(900, 1400),
               "T1 metaReady carries the real sourceSize 900x1400");
-        CHECK(!log.meta.isEmpty() && log.meta[0].second.decoded,
-              "T1 metaReady marks the page decoded");
+        // metaReady fires TWICE per successful decode: the header-only dimension
+        // hint first (real size, decoded=false — geometry, no pixels), then the
+        // finished decode (decoded=true). The hint must NOT claim readiness.
+        CHECK(log.meta.size() == 2, "T1 metaReady fired twice — the header hint, then the decode");
+        CHECK(log.meta.size() == 2 && log.meta[0].second.decoded == false,
+              "T1 the FIRST metaReady is the header hint — real size, decoded=false");
+        CHECK(log.meta.size() == 2 && log.meta[1].second.sourceSize == QSize(900, 1400)
+                  && log.meta[1].second.decoded,
+              "T1 the SECOND metaReady is the decode — same real size, decoded=true");
         CHECK(!log.meta.isEmpty() && log.meta[0].second.detectedSpread == false,
               "T1 portrait is NOT detected as a spread");
         CHECK(log.failed.isEmpty(), "T1 no failure for the valid portrait");
@@ -170,13 +177,21 @@ int main(int argc, char** argv) {
 
         decode.openGeneration(8, {makeMeta(0, landscapePath)});
         decode.request(0, 100);
-        const bool got = waitFor([&] { return !log.meta.isEmpty(); });
+        // Wait on pageReady, NOT on the first metaReady: the header hint fires
+        // BEFORE the decode does, so a metaReady wait would return while the
+        // image is still being decoded and the cache assertion below would race.
+        const bool got = waitFor([&] { return !log.ready.isEmpty(); });
 
-        CHECK(got, "T2 metaReady fired for the landscape page");
+        CHECK(got, "T2 the landscape page decodes and reports ready");
         CHECK(!log.meta.isEmpty() && log.meta[0].second.sourceSize == QSize(1400, 900),
               "T2 metaReady carries the real sourceSize 1400x900");
         CHECK(!log.meta.isEmpty() && log.meta[0].second.detectedSpread == true,
               "T2 landscape IS detected as a spread (width >= 1.08*height)");
+        // The spread verdict is derived from the HEADER hint too, not only from
+        // the finished decode — that is what lets pairing learn a spread early.
+        CHECK(log.meta.size() == 2 && log.meta[0].second.decoded == false
+                  && log.meta[0].second.detectedSpread == true,
+              "T2 the header hint ALONE already carries the spread verdict");
         CHECK(cache.get(8, 0).has_value(), "T2 landscape image is cached");
     }
 

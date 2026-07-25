@@ -18,8 +18,15 @@
 //     and reports the result BACK to the owning thread via a QUEUED delivery
 //     (QMetaObject::invokeMethod(..., Qt::QueuedConnection)). The worker NEVER
 //     touches the cache, the inflight set, or any coordinator state directly.
-//   * onWorkerResult() (owning thread) is the STALE GUARD: if the result's gen
-//     is not the live generation, it is dropped silently.
+//   * The worker posts TWO reports on that same queued path, in order: first a
+//     HEADER-ONLY dimension hint (QImageReader::size() over the bytes it just
+//     read — TB2 DecodeTask's dimensionsReady), then the finished decode. The
+//     hint costs a few KB of parsing and lets the strip column snap to real
+//     geometry, and pairing learn a spread, without waiting for pixels. It is
+//     posted BEFORE the decode runs, so it lands even when the decode FAILS.
+//   * onWorkerResult() and onWorkerDimensions() (owning thread) are the STALE
+//     GUARD: if the report's gen is not the live generation, it is dropped
+//     silently.
 //
 // Affinity invariant: CONSTRUCT AND DESTROY this object on its owning thread.
 // The destructor waits for in-flight workers to finish; any report-back still
@@ -73,6 +80,12 @@ public:
     // client. Public solely so the worker's queued lambda can reach it.
     void onWorkerResult(quint64 gen, int page, const QImage& image, PageError error);
 
+    // Same contract as onWorkerResult (owning thread, posted from the worker as
+    // a queued call, public only so the worker's lambda can reach it): the
+    // worker's HEADER-ONLY size hint, published before the full decode runs.
+    // Emits metaReady with decoded=false — real geometry, no pixels.
+    void onWorkerDimensions(quint64 gen, int page, const QSize& dims);
+
     // ---- Test seam (empty/no-op in production) -----------------------------
     // Owning thread only, and set before any request(). Copied by value into
     // each worker at request() time and run ON THE WORKER THREAD: `onEnter` at
@@ -84,7 +97,9 @@ public:
                                std::function<void(quint64, int)> onExit);
 
 signals:
-    void metaReady(quint64 gen, comicreader::PageMeta meta);   // real sourceSize + detectedSpread
+    // Fires TWICE per page: the header-only size hint (decoded=false), then the
+    // finished decode (decoded=true). Both carry the real sourceSize + spread verdict.
+    void metaReady(quint64 gen, comicreader::PageMeta meta);
     void pageReady(quint64 gen, int page);                     // decoded image now in the cache
     void pageFailed(quint64 gen, int page, comicreader::PageError error);
 

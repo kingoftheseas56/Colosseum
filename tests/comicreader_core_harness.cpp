@@ -19,6 +19,7 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QEventLoop>
+#include <QFile>
 #include <QImage>
 #include <QMutex>
 #include <QSemaphore>
@@ -802,6 +803,82 @@ int main(int argc, char** argv) {
         CHECK(both, "T20 the backwards prefetch fetches BOTH halves of the previous unit");
         CHECK(core.pageInfo(2).value(QStringLiteral("decoded")).toBool(),
               "T20 the FAR half of the previous unit (page 2) is prefetched, not just the near one");
+    }
+
+    // ── Test 21: the EARLY DIMENSION HINT — the strip learns a page's REAL
+    //    geometry from the file HEADER, independently of the full decode.
+    //
+    // Until a page decodes, the strip model sizes it at a flat 1600x2400
+    // estimate; when the truth lands the column re-lays out and the anti-jump
+    // machinery pays a correction. Learning the size from the header (a few KB)
+    // instead of the whole file is what lets a fast scroll settle on true
+    // geometry almost at once instead of trickling corrections.
+    //
+    // The fixture is a valid LANDSCAPE PNG truncated to its first 256 bytes: the
+    // IHDR (real size) survives, the image body does not. So the full decode
+    // MUST fail while the hint still lands — proving the hint is genuinely
+    // independent of the decode, not merely a beat ahead of it.
+    //
+    // Landscape is load-bearing, not decoration. The estimate is 1600x2400
+    // (ratio 1.5); a portrait fixture could land on the same displayed height by
+    // coincidence and prove nothing. 1200x600 is ratio 0.5 AND trips
+    // spreadRatioExceeded, so BOTH the height and the spread verdict differ
+    // visibly from the estimate:
+    //   estimate -> portrait, 78% of a 1000px viewport = 780 wide, h = 780*1.5 = 1170
+    //   hint     -> spread,   FULL viewport width      = 1000 wide, h = 1000*0.5 = 500
+    {
+        const QString whole = dir.filePath(QStringLiteral("truncsrc.png"));
+        CHECK(writeSolidPng(whole, 90, 1200, 600), "setup: T21 landscape source");
+        QByteArray head;
+        {
+            QFile in(whole);
+            CHECK(in.open(QIODevice::ReadOnly), "setup: T21 source opened for truncation");
+            head = in.read(256);   // the PNG signature + IHDR live in the first ~33 bytes
+        }
+        const QString trunc = dir.filePath(QStringLiteral("trunc.png"));
+        {
+            QFile out(trunc);
+            CHECK(out.open(QIODevice::WriteOnly), "setup: T21 truncated file opened");
+            out.write(head);
+        }
+
+        QStringList hintPaths;
+        hintPaths << trunc << plain[1] << plain[2];
+
+        ComicReaderCore core;
+        QVector<int> failedPages;
+        QObject::connect(&core, &ComicReaderCore::pageFailed,
+                         [&](int page, QString) { failedPages.append(page); });
+
+        core.openEntry(QStringLiteral("hint"), pagesFromPaths(hintPaths),
+                       QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+
+        QAbstractListModel* m = core.stripModel();
+        const int hRole = ComicReaderStripModel::DisplayHeightRole;
+        const int wRole = ComicReaderStripModel::DisplayWidthRole;
+        const int rRole = ComicReaderStripModel::ReadyRole;
+        const auto row0 = [&](int role) { return m->data(m->index(0, 0), role); };
+
+        // Baseline: before any decode work, page 0 is the flat estimate.
+        CHECK(qAbs(row0(hRole).toDouble() - 1170.0) < 1.0,
+              "T21 baseline: page 0 starts at the 1600x2400 estimate (780 x 1.5 = 1170)");
+
+        core.setStripViewport(0.0, 800.0);
+
+        // The decode really does fail — this is "despite a failed decode", not
+        // "just before it".
+        const bool failed = waitFor([&] { return failedPages.contains(0); });
+        CHECK(failed, "T21 page 0's FULL decode genuinely fails (truncated body)");
+
+        CHECK(qAbs(row0(hRole).toDouble() - 500.0) < 1.0,
+              "T21 the strip learned page 0's REAL 1200x600 geometry from the header (h == 500, not the estimate's 1170)");
+        CHECK(qAbs(row0(wRole).toDouble() - 1000.0) < 1.0,
+              "T21 the header hint also carried the SPREAD verdict — page 0 spans the full viewport width");
+        CHECK(row0(rRole).toBool() == false,
+              "T21 a header hint is NOT pixels: ReadyRole stays false while the size is locked");
+        CHECK(core.pageInfo(0).value(QStringLiteral("decoded")).toBool() == false,
+              "T21 pageInfo agrees — the page never decoded");
     }
 
     if (g_failures == 0) {

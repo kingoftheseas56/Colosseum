@@ -556,9 +556,18 @@ void ComicReaderCore::onMetaReady(quint64 gen, const PageMeta& meta) {
 
     const bool wasSpread = isSpread(m_pages[p]);
     m_pages[p].sourceSize = meta.sourceSize;
-    m_pages[p].decoded = true;
     m_pages[p].detectedSpread = meta.detectedSpread;
-    m_pages[p].error = PageError::None;
+    // metaReady arrives TWICE per page now: once as the coordinator's
+    // header-only dimension hint (real geometry, decoded=false), then again
+    // when the full decode lands (decoded=true). Only the second one means
+    // "there are pixels" — forcing decoded=true here would make the hint claim
+    // a readiness it does not have, and would clear a real error on a page that
+    // never actually decoded. Geometry is taken from both; readiness only from
+    // the decode.
+    if (meta.decoded) {
+        m_pages[p].decoded = true;
+        m_pages[p].error = PageError::None;
+    }
 
     m_strip->updatePage(m_pages[p]);
     flushStripCompensation();
