@@ -353,8 +353,21 @@ Item {
     // load() honors the choice; the reactions below flip the visible mode/rtl live. setReadingMode
     // translates the single Manga/Comic/Strip identity into the internal layout + direction seams.
     function setReadingMode(rm) {
+        if (rm === readingMode) return
+        // KEEP YOUR PAGE across the switch. Ported from the reader this replaced
+        // (MangaReader.setStyle): changing how pages are laid out is not a reason to lose your
+        // place, and every reader in the family gets this right.
+        var keep = currentPage
         persistedMode = ComicReaderState.readingModeLayout(rm)
         persistedDirection = ComicReaderState.readingModeRtl(rm) ? "rtl" : "ltr"
+        if (max > 0 && keep > 1) {
+            currentPage = keep
+            // Entering the strip, the seek MUST be deferred. The lineage's comment says why, and it
+            // is the whole bug: the view positions its children a vsync later, so an immediate jump
+            // reads y=0 for every not-yet-realized delegate and lands at the top of the book. The
+            // 300ms settle is TB2's number.
+            if (persistedMode === "long_strip") stripRestore.restart()
+        }
         // Remember it for THIS series, and make it the default for series you haven't touched —
         // MangaReader.setDirection writes both for exactly this reason: the mode you keep choosing
         // is the mode you want, and re-picking it per new series is a chore.
@@ -582,6 +595,21 @@ Item {
     // Spread overrides and the coupling verdict land in bursts (a probe resolving, a P nudge), so
     // the write is debounced exactly like recordProgress — QSettings syncs to disk on every write.
     Timer { id: entrySave; interval: 800; onTriggered: reader._saveEntryBlob() }
+
+    // The deferred strip seek (TB2's 300ms settle). Retries once if the column still has not laid
+    // out, rather than silently leaving the reader at the top — a slow first decode should cost you
+    // a moment, never your place.
+    property int _stripRestoreTries: 0
+    Timer {
+        id: stripRestore
+        interval: 300
+        onTriggered: {
+            if (reader.mode !== "long_strip" || reader.max <= 0) { reader._stripRestoreTries = 0; return }
+            if (stripSurface.seekToPage(reader.currentPage - 1)) { reader._stripRestoreTries = 0; return }
+            if (reader._stripRestoreTries < 3) { reader._stripRestoreTries += 1; stripRestore.restart() }
+            else reader._stripRestoreTries = 0
+        }
+    }
 
     // ---- reactions: every settings write goes straight back to its store ----
     onNightVeilChanged:      if (_ready) globalPrefs.nightVeil = nightVeil

@@ -202,6 +202,7 @@ Item {
         ck(m.readingMode === "manga", "modes: Manga must be selectable, got '" + m.readingMode + "'")
         m.setReadingMode("comic")
         ck(m.readingMode === "comic", "modes: Comic must be selectable, got '" + m.readingMode + "'")
+
         // Guided is frozen: the picker must not reach it, whatever it is asked for.
         m.setReadingMode("guided")
         ck(m.readingMode !== "guided",
@@ -254,6 +255,18 @@ Item {
         ck(deepEqual(progM.lastRecord, expect),
            "progress: the Continue payload must be byte-identical to the old reader's — got "
            + JSON.stringify(progM.lastRecord))
+        // SWITCHING MODE MUST NOT RESTART THE BOOK. Hemanth hit this on the first eyes-on of the
+        // cutover: entering Strip dropped him back at page 1. Changing how pages are laid out is not
+        // a reason to lose your place — every reader in the family keeps it, and so must this one.
+        m.setReadingMode("manga")
+        m.currentPage = 4
+        m.setReadingMode("strip")
+        ck(m.currentPage === 4,
+           "modes: switching INTO Strip must keep your page (was 4), got " + m.currentPage)
+        m.setReadingMode("manga")
+        ck(m.currentPage === 4,
+           "modes: switching back OUT of Strip must keep your page (was 4), got " + m.currentPage)
+        m.currentPage = 1
 
         // ===== 5. MEMORY SURVIVES RECREATION =====
         // The callers hide and re-show the reader, and the app restarts. Memory that only lives in

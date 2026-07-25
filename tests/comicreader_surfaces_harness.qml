@@ -214,33 +214,72 @@ Item {
         stripSurface._intakeWheel(-360, 0)
         var pend0 = stripSurface._pendingWheelPx
         ck(approx(pend0, 300, 1.0), "wheel: 3-notch intake (~100px/notch) must land ~300px in the backlog, got " + pend0)
-        // one drain tick: take = clamp(pending*0.38, maxStep). maxStep = max(70, 480*0.22=105.6)=105.6
-        var maxStep = Math.max(70.0, 480 * 0.22)
+        // The drain model is PORTED from the reader this one replaced, not re-derived, so these
+        // assertions pin the lineage's curve rather than a plausible-looking one:
+        //   take = pending * (1 - (1-0.38)^frames),  frames = min(3, max(0.25, frameTime*60))
+        // There is deliberately NO max-step clamp — an earlier pass here invented one, and it
+        // throttled exactly the fast flings that are supposed to feel weightless.
+
+        // COLD START: an intake from idle marks the drain FRESH, and a fresh tick always drains the
+        // full fraction. Without it the first tick after idle reports a ~3ms frameTime, drains ~11%
+        // (about 19px, below what you can see) and every scroll opens with a dead beat.
+        ck(stripSurface._drainFresh === true, "wheel: an intake from idle must mark the drain FRESH (cold-start fix)")
         stripSurface._drainWheel()
         var moved1 = stripSurface._smoothY            // started at 0
-        var expectTake1 = Math.min(pend0 * 0.38, maxStep)
-        ck(approx(moved1, expectTake1, 0.5), "wheel: first drain must move ~" + expectTake1.toFixed(2) + " (0.38 of backlog, capped by maxStep), got " + moved1.toFixed(2))
-        ck(moved1 <= maxStep + 1e-6, "wheel: a single drain step must not exceed maxStep " + maxStep.toFixed(1) + " (no giant jump), got " + moved1.toFixed(2))
-        ck(stripSurface._pendingWheelPx < pend0, "wheel: the backlog must drain down after a tick (" + pend0.toFixed(1) + " -> " + stripSurface._pendingWheelPx.toFixed(1) + ")")
-        ck(Math.abs(moved1 - Math.round(moved1)) > 1e-6, "wheel: _smoothY must accumulate in FLOAT sub-pixel space (got integer " + moved1 + ")")
-        // drain to completion — monotone, bounded, backlog -> 0
+        var expectTake1 = pend0 * 0.38                // frames == 1 on a fresh tick
+        ck(approx(moved1, expectTake1, 0.5), "wheel: the first drain must take the FULL 0.38 of the backlog (~"
+           + expectTake1.toFixed(2) + "), got " + moved1.toFixed(2))
+        ck(stripSurface._drainFresh === false, "wheel: the cold-start fraction must be spent once, not every tick")
+        ck(stripSurface._pendingWheelPx < pend0, "wheel: the backlog must drain down after a tick ("
+           + pend0.toFixed(1) + " -> " + stripSurface._pendingWheelPx.toFixed(1) + ")")
+
+        // drain to completion — monotone, decelerating, backlog -> 0
         var prevPend = stripSurface._pendingWheelPx
         var prevSmooth = stripSurface._smoothY
-        var monotone = true, bounded = true, guard = 0
+        var monotone = true, decelerating = true, guard = 0
+        var lastStep = moved1
+        var midSmooth = -1
         while (Math.abs(stripSurface._pendingWheelPx) >= 0.75 && guard < 200) {
+            var pendBefore = stripSurface._pendingWheelPx
             stripSurface._drainWheel()
             var step = stripSurface._smoothY - prevSmooth
             if (step < -1e-6) monotone = false
-            if (step > maxStep + 1e-6) bounded = false
+            // An exponential drain never accelerates MID-GLIDE. The exception is the deliberate
+            // final settle: once the backlog drops under 1px the drain takes the whole remainder in
+            // one go rather than chasing an ever-halving sliver forever, so that last step is
+            // legitimately larger than the one before it. Measured, not assumed - instrumenting the
+            // sequence is what showed this step was the code behaving, and the assertion misreading it.
+            if (Math.abs(pendBefore) > 1 && step > lastStep + 1e-6) decelerating = false
             if (stripSurface._pendingWheelPx > prevPend + 1e-6) monotone = false
+            if (midSmooth < 0) midSmooth = stripSurface._smoothY   // sample one step into the glide
+            lastStep = step
             prevPend = stripSurface._pendingWheelPx
             prevSmooth = stripSurface._smoothY
             guard += 1
         }
         ck(monotone, "wheel: the drain must be positional/monotone (backlog shrinks, smoothY advances)")
-        ck(bounded, "wheel: every drain step must stay <= maxStep (no giant jump)")
+        ck(decelerating, "wheel: the glide must DECELERATE — an exponential drain never speeds up mid-flight")
         ck(approx(stripSurface._pendingWheelPx, 0, 0.75), "wheel: the backlog must fully drain to ~0, got " + stripSurface._pendingWheelPx)
         ck(stripSurface._smoothY > 0, "wheel: the accumulated scroll must be positive (scrolled down), got " + stripSurface._smoothY)
+
+        // SUB-PIXEL: contentY carries the float accumulator itself, never a rounded copy. Rounding
+        // quantises the slow tail of every glide into stand-still-then-jump, which is the single
+        // most obvious "harsh" tell.
+        // Sampled MID-GLIDE, not at rest: a completed glide lands on exactly the distance that was
+        // put in (300px here), which is a whole number by construction and would pass even if every
+        // step had been rounded.
+        ck(Math.abs(midSmooth - Math.round(midSmooth)) > 1e-6,
+           "wheel: _smoothY must accumulate in FLOAT sub-pixel space, got integer " + midSmooth)
+        ck(Math.abs(stripSurface.contentY - stripSurface._smoothY) < 1e-9,
+           "wheel: contentY must BE the float accumulator, not a rounded copy (contentY "
+           + stripSurface.contentY + " vs smoothY " + stripSurface._smoothY + ")")
+
+        // haltScrollAt pins the view and kills any backlog still in flight, so a seek can never be
+        // fought by a glide that is still carrying old input.
+        stripSurface._intakeWheel(-360, 0)
+        stripSurface.haltScrollAt(1234.5)
+        ck(approx(stripSurface.contentY, 1234.5, 0.001), "wheel: haltScrollAt must pin contentY exactly, got " + stripSurface.contentY)
+        ck(stripSurface._pendingWheelPx === 0, "wheel: haltScrollAt must drop the in-flight backlog, got " + stripSurface._pendingWheelPx)
 
         // --- I2: a HIDDEN (inactive) strip must NOT report its viewport — both surfaces share one
         // core/pool, so a hidden strip driving decode requests would compete with the active surface. ---

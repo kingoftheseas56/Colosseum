@@ -358,6 +358,12 @@ void ComicReaderCore::resetCoupling() {
         startAutoCouplingProbe();
 }
 
+double ComicReaderCore::stripPageTop(int page) const {
+    if (page < 0 || page >= m_pages.size())
+        return 0.0;
+    return m_strip->pageTop(page);
+}
+
 double ComicReaderCore::setStripLayout(int portraitWidthPct, int gap,
                                        double viewportTop, double viewportHeight) {
     const int wpct = qBound(40, portraitWidthPct, 100);

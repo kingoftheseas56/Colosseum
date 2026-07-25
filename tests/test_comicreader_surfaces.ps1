@@ -45,6 +45,23 @@ $env:QT_FORCE_STDERR_LOGGING = "1"
 $harness  = Join-Path $PSScriptRoot "comicreader_surfaces_harness.qml"
 $mockPath = Join-Path $PSScriptRoot "qmlmock"
 
+# --- static: the two things that make the strip feel SMOOTH rather than harsh ---
+# Both were got wrong once by re-deriving the drain instead of porting it, and neither is visible to
+# a behavioural harness (a headless test can drive _drainWheel() by hand no matter what clocks it).
+$strip = Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) "qml/comicreader/ComicReaderStripSurface.qml")
+if (-not $strip.Contains("FrameAnimation")) {
+    Write-Host "FAIL: the strip scroll drain must be a FrameAnimation (vsync-locked)."
+    Write-Host "      A Timer free-runs against the compositor, so steps double up or drop out and the"
+    Write-Host "      column judders however good the easing curve is. This is the single biggest"
+    Write-Host "      difference between the smooth lineage reader and a harsh one."
+    exit 1
+}
+if ($strip -match "contentY\s*=\s*Math\.round") {
+    Write-Host "FAIL: the strip must assign contentY the FLOAT accumulator, never Math.round(it)."
+    Write-Host "      Rounding quantises the slow tail of every glide into stand-still-then-jump."
+    exit 1
+}
+
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 $output = & $qmlExe -platform offscreen -I $mockPath $harness 2>&1 | Out-String

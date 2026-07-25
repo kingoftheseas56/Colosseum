@@ -128,6 +128,10 @@ public:
                                       double viewportTop = 0.0,
                                       double viewportHeight = 0.0);
     Q_INVOKABLE QString imageUrl(int page) const;                 // image://comicreader/<gen>/<page>?rev=N
+    // The strip Y a page starts at. The QML surface needs this to land a page-accurate seek —
+    // switching into Strip, a go-to-page, a chapter jump — and it cannot compute it itself: the
+    // ListView only realizes delegates near the viewport, so anything off-screen has no y to read.
+    Q_INVOKABLE double stripPageTop(int page) const;
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
 
     // Additive observability / persistence (read-only, no state mutation).

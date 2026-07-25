@@ -12,9 +12,10 @@
 //     THROTTLED to at most once per frame (a 16ms coalescing timer, not one call per contentY tick).
 //   * ANTI-JUMP. core.stripCompensation(delta) — emitted when a page above the fold decodes to a new
 //     height — is added straight to contentY so the read position doesn't shift under the reader.
-//   * SMOOTH WHEEL. The family's float accumulator (Tankoban-Max / QTGW SmoothScrollArea,
-//     comic_reader.py ~1371-1439): ~100px/notch intake into a bounded backlog, ~0.38 drain per 16ms
-//     tick capped by a max step, sub-pixel float contentY. THIS is the reading feel.
+//   * SMOOTH WHEEL. The family's float accumulator — ported from the reader this one replaced
+//     (MangaReader.qml's FrameAnimation drain, itself TB2's), NOT re-derived. ~100px/notch intake
+//     into a bounded backlog, 38% of that backlog drained per frame, sub-pixel float contentY.
+//     THIS is the reading feel, and every clause of it is load-bearing — see the drain below.
 //   * PER-PAGE FAILURE. core.pageFailed(page,code) shows a typed placard on THAT page's delegate
 //     only (missing / decode / unsupported); the rest of the column keeps reading.
 //
@@ -253,46 +254,94 @@ Item {
 
     // ================= smooth-wheel float accumulator (Tankoban-Max / QTGW SmoothScrollArea) =================
     property real _pendingWheelPx: 0         // bounded backlog of intake still to drain
-    property real _smoothY: 0                // float sub-pixel scroll position (contentY is round(this))
-    Timer { id: wheelTimer; interval: 16; repeat: true; onTriggered: root._drainWheel() }
+    property real _smoothY: 0                // float sub-pixel scroll position — contentY IS this
+    property bool _drainFresh: false         // first tick after an idle start
+    readonly property real _drainFraction: 0.38   // TB2: 38% of the backlog per frame
+    readonly property real _maxBacklogPx: 6000    // a wheel flurry can't queue forever
 
-    // intake ~100px per notch into the bounded backlog (mirror comic_reader.py wheelEvent)
+    // The drain is a FrameAnimation, NOT a Timer. It is the single biggest thing separating smooth
+    // from harsh: a FrameAnimation ticks ON the render loop, so each step lands exactly once per
+    // presented frame. A 16ms Timer free-runs against the compositor instead — it beats with the
+    // vsync, so steps double up or drop out and the column judders no matter how good the easing is.
+    FrameAnimation {
+        id: scrollDrain
+        running: false
+        onTriggered: root._drainWheel()
+    }
+
+    // intake ~100px per notch into the bounded backlog
     function _intakeWheel(angleY, pixelY) {
         var dy = pixelY
         if (dy === 0) dy = angleY * (100.0 / 120.0)
         if (dy === 0) return
         _userInteracted = true
         manualNavigation()
-        var vpH = Math.max(1, height)
-        var maxInput = Math.max(1200.0, vpH * 3)
-        var step = Math.max(-maxInput, Math.min(maxInput, -dy))   // wheel-down (angle<0) -> +contentY
-        var cap = Math.max(2400.0, vpH * 8)
-        _pendingWheelPx = Math.max(-cap, Math.min(cap, _pendingWheelPx + step))
-        if (!wheelTimer.running) wheelTimer.start()
+        // Starting from idle: re-anchor on the real position and mark this drain FRESH.
+        if (!scrollDrain.running) { _smoothY = list.contentY; _drainFresh = true }
+        _pendingWheelPx = Math.max(-_maxBacklogPx,
+                          Math.min(_maxBacklogPx, _pendingWheelPx - dy))   // wheel-down -> +contentY
+        if (!scrollDrain.running) scrollDrain.running = true
     }
 
-    // drain ~0.38 of the backlog per 16ms tick, capped by max step (mirror comic_reader.py _drain_wheel)
+    // Drain 38% of the remaining backlog per frame — but scaled by how much time ACTUALLY passed, so
+    // the same glide feels identical at 60Hz, 120Hz or through a frame hitch. A fixed 38%-per-tick
+    // silently becomes a different curve on every other refresh rate.
     function _drainWheel() {
         if (Math.abs(_pendingWheelPx) < 0.75) {
             _pendingWheelPx = 0
-            wheelTimer.stop()
+            scrollDrain.running = false
             return
         }
-        var vpH = Math.max(1, height)
-        var maxStep = Math.max(70.0, vpH * 0.22)
-        var take = _pendingWheelPx * 0.38
-        take = Math.max(-maxStep, Math.min(maxStep, take))
-        if (Math.abs(take) < 2.0) take = _pendingWheelPx      // finish off the last sub-2px sliver
-        _pendingWheelPx -= take
-        _smoothY += take
+        // re-anchor if something else moved the view (a drag, a resume, a seek)
+        if (Math.abs(list.contentY - _smoothY) > 1.5) _smoothY = list.contentY
+
+        var frames = Math.min(3, Math.max(0.25, scrollDrain.frameTime * 60))
+        // COLD-START (measured 2026-07-17, agents/wheel_latency_harness.qml): the first tick after
+        // idle reports a ~3ms frameTime, so the 0.25 floor drained only 11% — about 19px, below the
+        // threshold you can see. Every fresh scroll began with a dead beat. The first tick always
+        // drains the full fraction. [[reference_frameanimation_cold_first_tick_underdrains]]
+        if (_drainFresh) { frames = Math.max(1, frames); _drainFresh = false }
+
+        var take = _pendingWheelPx * (1 - Math.pow(1 - _drainFraction, frames))
+        if (Math.abs(_pendingWheelPx) <= 1) take = _pendingWheelPx    // final settle
         var maxY = Math.max(0, list.contentHeight - list.height)
-        _smoothY = Math.max(0, Math.min(maxY, _smoothY))
-        var newY = Math.round(_smoothY)
-        if (newY !== list.contentY) {
-            _draining = true
-            list.contentY = newY
-            _draining = false
+        var y = _smoothY + take
+        if (y <= 0 || y >= maxY) {          // ran into an edge: clamp and drop the backlog
+            y = Math.max(0, Math.min(maxY, y))
+            _pendingWheelPx = 0
+        } else {
+            _pendingWheelPx -= take
         }
+        _smoothY = y
+        // Assign the FLOAT, never Math.round(): rounding quantises every step to whole pixels, which
+        // is exactly what "harsh" feels like at the slow end of a glide, where the true step is a
+        // fraction of a pixel per frame and rounding turns it into stand-still-then-jump.
+        _draining = true
+        list.contentY = y
+        _draining = false
+        if (_pendingWheelPx === 0) scrollDrain.running = false
+    }
+
+    // Land page `page0` (0-based) at the top of the viewport. The top comes from the BACKEND, not
+    // from a delegate: the ListView only realizes delegates near the viewport, so a page you are
+    // switching TO has no y to read yet — which is exactly why an immediate seek lands at 0.
+    function seekToPage(page0) {
+        if (!core || !core.stripPageTop) return false
+        var span = list.contentHeight - list.height
+        if (span <= 0) return false            // not laid out yet, or the whole book fits
+        haltScrollAt(Math.max(0, Math.min(span, core.stripPageTop(page0))))
+        return true
+    }
+
+    // Stop any glide and pin the view at y — every instant reposition goes through here, so a seek
+    // can never be fought by a drain that is still carrying old backlog.
+    function haltScrollAt(y) {
+        scrollDrain.running = false
+        _pendingWheelPx = 0
+        _smoothY = y
+        _programmatic = true
+        list.contentY = y
+        _programmatic = false
     }
 
     WheelHandler {
