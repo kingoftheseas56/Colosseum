@@ -16,6 +16,7 @@
 #include <QtCore/QStandardPaths>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 // The D3D11 header chain (via HarnessHostServices.h -> D3D11VideoPipeline.h) drags in windows.h,
@@ -38,7 +39,7 @@ HarnessHostServices::HarnessHostServices(QObject *parent)
     connect(&m_frameTimer, &QTimer::timeout, this, &HarnessHostServices::produceFrame);
     m_watchdog.setSingleShot(true);
     connect(&m_watchdog, &QTimer::timeout, this, [this] {
-        finish(false, QStringLiteral("Player 2 lab gate did not complete in 20 seconds"), 2);
+        finish(false, QStringLiteral("Player 2 lab gate watchdog expired before completion"), 2);
     });
     connect(&m_session, &Player2Session::stateChanged, this, [this] {
         if (m_session.state() == Player2State::Playing)
@@ -297,6 +298,116 @@ double HarnessHostServices::duration() const { return m_session.duration(); }
 int HarnessHostServices::trackCount() const { return m_session.tracks().size(); }
 
 void HarnessHostServices::setReportPath(const QString &path) { m_reportPath = path; }
+
+void HarnessHostServices::setSeekScript(int count, int intervalMs)
+{
+    m_seekTarget = std::max(0, count);
+    if (m_seekTarget == 0)
+        return;
+    m_seekTimer.setInterval(std::max(200, intervalMs));
+    connect(&m_seekTimer, &QTimer::timeout, this, &HarnessHostServices::runSeekScript,
+            Qt::UniqueConnection);
+    m_seekTimer.start();
+}
+
+void HarnessHostServices::setCycleScript(int cycles, int dwellSeconds)
+{
+    m_cycleTarget = std::max(0, cycles);
+    if (m_cycleTarget == 0)
+        return;
+    m_cycleTimer.setInterval(std::max(1, dwellSeconds) * 1'000);
+    connect(&m_cycleTimer, &QTimer::timeout, this, &HarnessHostServices::runCycleScript,
+            Qt::UniqueConnection);
+    m_cycleTimer.start();
+}
+
+void HarnessHostServices::runSeekScript()
+{
+    if (m_finished || !m_fileOpened || m_session.duration() <= 15.0)
+        return;
+    if (m_cycleReopenPending)
+        return; // never seek across a close/reopen boundary
+    // Issue AND judge only from Playing — a seek fired during Opening/Buffering is rejected by the
+    // state machine and would strand the script waiting on a landing that never comes.
+    if (m_session.state() != Player2State::Playing)
+        return;
+    if (m_seekPendingTarget >= 0.0) {
+        // A landed seek keeps PLAYING from where it landed, so judge against the EXPECTED position:
+        // target plus the playback time since issue (±5s absorbs keyframe snap + decode-to-target).
+        // Judging against the static target was the first version's bug — a correct landing walked
+        // straight out of the window (measured in the event ledger, 2026-07-25).
+        const double sinceIssueSeconds =
+            (m_runTimer.elapsed() - m_seekIssuedAtMs) / 1000.0 * m_session.speed();
+        const double expected = m_seekPendingTarget + sinceIssueSeconds;
+        if (std::abs(m_session.position() - expected) < 5.0) {
+            ++m_seeksCompleted;
+            appendEvent(QStringLiteral("seek-landed"),
+                        QStringLiteral("target=%1 pos=%2 done=%3/%4")
+                            .arg(m_seekPendingTarget, 0, 'f', 1)
+                            .arg(m_session.position(), 0, 'f', 1)
+                            .arg(m_seeksCompleted).arg(m_seekTarget));
+            m_seekPendingTarget = -1.0;
+            m_seekStallTicks = 0;
+        } else if (++m_seekStallTicks >= 6) {
+            // Bounded self-heal: re-issue the same target (a seek raced a state transition and was
+            // dropped). The watchdog still bounds the whole run.
+            appendEvent(QStringLiteral("seek-reissued"),
+                        QStringLiteral("target=%1 pos=%2")
+                            .arg(m_seekPendingTarget, 0, 'f', 1)
+                            .arg(m_session.position(), 0, 'f', 1));
+            m_seekIssuedAtMs = m_runTimer.elapsed();
+            m_session.seekExact(m_seekPendingTarget);
+            m_seekStallTicks = 0;
+        }
+        return; // one seek in flight at a time
+    }
+    if (m_seeksIssued >= m_seekTarget)
+        return;
+    // Deterministic forward/backward pattern — reproducible runs, no wall-clock randomness.
+    static constexpr double kPattern[] = {0.15, 0.70, 0.30, 0.80, 0.45, 0.10, 0.60, 0.25};
+    const double fraction = kPattern[m_seeksIssued % 8];
+    const double target = std::clamp(fraction * m_session.duration(), 1.0,
+                                     m_session.duration() - 5.0);
+    m_seekPendingTarget = target;
+    m_seekIssuedAtMs = m_runTimer.elapsed();
+    ++m_seeksIssued;
+    m_session.seekExact(target);
+}
+
+void HarnessHostServices::runCycleScript()
+{
+    if (m_finished || !hasMedia() || !m_url.isEmpty())
+        return; // file mode only
+    appendEvent(QStringLiteral("cycle-tick"),
+                QStringLiteral("state=%1 opened=%2 pending=%3 done=%4/%5")
+                    .arg(static_cast<int>(m_session.state()))
+                    .arg(m_fileOpened).arg(m_cycleReopenPending)
+                    .arg(m_cyclesCompleted).arg(m_cycleTarget));
+    if (m_cycleReopenPending) {
+        // The reopened session must climb all the way back to Playing to count.
+        if (m_session.state() == Player2State::Playing) {
+            ++m_cyclesCompleted;
+            m_cycleReopenPending = false;
+            appendEvent(QStringLiteral("cycle-completed"),
+                        QStringLiteral("%1/%2").arg(m_cyclesCompleted).arg(m_cycleTarget));
+        }
+        return;
+    }
+    if (m_cyclesCompleted >= m_cycleTarget || !m_fileOpened)
+        return;
+    if (m_session.state() != Player2State::Playing)
+        return; // only cycle from a healthy playing state
+    appendEvent(QStringLiteral("cycle-closing"), QString::number(m_cyclesCompleted + 1));
+    m_session.close();
+    m_fileOpened = false;        // produceFrame reopens the same file on its next tick
+    m_cycleReopenPending = true;
+}
+
+bool HarnessHostServices::scriptsComplete() const
+{
+    return (m_seekTarget == 0 || m_seeksCompleted >= m_seekTarget) &&
+           (m_cycleTarget == 0 || m_cyclesCompleted >= m_cycleTarget);
+}
 void HarnessHostServices::setMinimumRunSeconds(int seconds)
 {
     m_minimumRunSeconds = std::max(0, seconds);
@@ -339,8 +450,15 @@ bool HarnessHostServices::startFile(const QString &path, QString *error)
     m_runTimer.start();
     appendEvent(QStringLiteral("file-started"), QFileInfo(path).fileName());
     m_frameTimer.start();
-    if (!m_reportPath.isEmpty())
-        m_watchdog.start((m_minimumRunSeconds + 30) * 1'000);
+    if (!m_reportPath.isEmpty()) {
+        // Watchdog budget grows with the scripted work: each seek needs its interval (plus landing
+        // slack), each cycle its dwell plus a reopen allowance.
+        const int seekBudget = m_seekTarget > 0
+            ? (m_seekTarget * (m_seekTimer.interval() * 3) / 1'000 + 30) : 0;
+        const int cycleBudget = m_cycleTarget > 0
+            ? (m_cycleTarget * (m_cycleTimer.interval() / 1'000 * 2 + 10)) : 0;
+        m_watchdog.start((m_minimumRunSeconds + 30 + seekBudget + cycleBudget) * 1'000);
+    }
     emit metricsChanged();
     return true;
 }
@@ -476,7 +594,7 @@ void HarnessHostServices::produceFrame()
         // A streamed source may report an unknown duration (live/no-length), so it is not required.
         const bool durationReady = !m_url.isEmpty() || m_session.duration() > 0.0;
         if ((hasMedia() && minimumRunMet && m_metrics.presented >= target && m_sawPlaying &&
-             durationReady && !m_session.tracks().isEmpty() && audioReady) ||
+             durationReady && !m_session.tracks().isEmpty() && audioReady && scriptsComplete()) ||
             (!hasMedia() && m_metrics.presented >= target)) {
             finish(true, !hasMedia() ? QStringLiteral("Synthetic D3D11 gate passed")
                                      : (m_url.isEmpty() ? QStringLiteral("Local file gate passed")
@@ -500,6 +618,8 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
     m_finished = true;
     m_frameTimer.stop();
     m_watchdog.stop();
+    m_seekTimer.stop();
+    m_cycleTimer.stop();
     if (hasMedia()) {
         m_reportDuration = m_session.duration();
         m_reportTrackCount = m_session.tracks().size();
@@ -575,6 +695,10 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         ,{QStringLiteral("maxAudioQueueMs"), m_maxAudioQueueMs}
         ,{QStringLiteral("finalAudioQueueMs"), m_finalAudioQueueMs}
         ,{QStringLiteral("elapsedSeconds"), m_runTimer.isValid() ? m_runTimer.elapsed() / 1000.0 : 0.0}
+        ,{QStringLiteral("seeksRequested"), m_seekTarget}
+        ,{QStringLiteral("seeksCompleted"), m_seeksCompleted}
+        ,{QStringLiteral("cyclesRequested"), m_cycleTarget}
+        ,{QStringLiteral("cyclesCompleted"), m_cyclesCompleted}
         ,{QStringLiteral("playbackAnchored"), playback.anchored}
         ,{QStringLiteral("playbackSeconds"), playback.playbackSeconds}
         ,{QStringLiteral("sustainedFps"), playback.sustainedFps}

@@ -56,6 +56,22 @@ int main(int argc, char *argv[])
         QStringLiteral("speed"),
         QStringLiteral("Playback speed (0.5-2.0); exercises the atempo path for the sync gate"),
         QStringLiteral("rate"), QStringLiteral("1.0"));
+    const QCommandLineOption seekCountOption(
+        QStringLiteral("seek-count"),
+        QStringLiteral("Scripted deterministic seeks to run (Task 16 seek soak)"),
+        QStringLiteral("count"), QStringLiteral("0"));
+    const QCommandLineOption seekIntervalOption(
+        QStringLiteral("seek-interval-ms"),
+        QStringLiteral("Milliseconds between scripted seeks"),
+        QStringLiteral("ms"), QStringLiteral("1500"));
+    const QCommandLineOption cyclesOption(
+        QStringLiteral("cycles"),
+        QStringLiteral("Close/reopen cycles of the same file (Task 16 memory soak)"),
+        QStringLiteral("count"), QStringLiteral("0"));
+    const QCommandLineOption cycleDwellOption(
+        QStringLiteral("cycle-dwell-seconds"),
+        QStringLiteral("Seconds of playback between cycles"),
+        QStringLiteral("seconds"), QStringLiteral("8"));
     parser.addOption(scenarioOption);
     parser.addOption(reportOption);
     parser.addOption(fileOption);
@@ -65,6 +81,10 @@ int main(int argc, char *argv[])
     parser.addOption(soakOption);
     parser.addOption(normalizationOption);
     parser.addOption(speedOption);
+    parser.addOption(seekCountOption);
+    parser.addOption(seekIntervalOption);
+    parser.addOption(cyclesOption);
+    parser.addOption(cycleDwellOption);
     parser.process(application);
     const int sourceCount = (parser.isSet(scenarioOption) ? 1 : 0) +
         (parser.isSet(fileOption) ? 1 : 0) + (parser.isSet(urlOption) ? 1 : 0);
@@ -102,6 +122,11 @@ int main(int argc, char *argv[])
     const double speed = parser.value(speedOption).toDouble();
     if (speed > 0.0 && speed != 1.0)
         host.setStartupSpeed(speed);
+    // Task 16 soak scripts (scripted seeks / open-close cycles); report success requires completion.
+    host.setSeekScript(parser.value(seekCountOption).toInt(),
+                       parser.value(seekIntervalOption).toInt());
+    host.setCycleScript(parser.value(cyclesOption).toInt(),
+                        parser.value(cycleDwellOption).toInt());
 
     QString error;
     bool started = false;

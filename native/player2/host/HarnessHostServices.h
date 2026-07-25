@@ -55,6 +55,13 @@ public:
     void setReportPath(const QString &path);
     void setMinimumRunSeconds(int seconds);
     void setNormalizationMode(NormalizationMode mode);
+    // Task 16 soak modes. Seek script: issue `count` deterministic seeks (a fixed forward/backward
+    // fraction pattern), one per interval, each counted complete only when playback lands within 3s of
+    // its target. Cycle script: close and reopen the SAME file `cycles` times (one per dwell), each
+    // counted complete only when the reopened session reaches Playing again. Report-mode success then
+    // additionally requires every scripted seek/cycle to have completed.
+    void setSeekScript(int count, int intervalMs);
+    void setCycleScript(int cycles, int dwellSeconds);
     bool startScenario(const QString &scenario, QString *error);
     bool startFile(const QString &path, QString *error);
     bool startUrl(const QString &url, const QString &headersJsonPath, bool live, QString *error);
@@ -79,6 +86,9 @@ signals:
 private:
     void produceFrame();
     void refreshMetrics();
+    void runSeekScript();
+    void runCycleScript();
+    bool scriptsComplete() const;
     void finish(bool passed, const QString &message, int exitCode);
     bool writeReport(bool passed, const QString &message) const;
     void appendEvent(const QString &event, const QString &message) const;
@@ -117,6 +127,19 @@ private:
     bool m_sawPlaying = false;
     bool m_started = false;
     bool m_finished = false;
+
+    // Task 16 soak scripts (see setSeekScript/setCycleScript).
+    QTimer m_seekTimer;
+    int m_seekTarget = 0;
+    int m_seeksIssued = 0;
+    int m_seeksCompleted = 0;
+    double m_seekPendingTarget = -1.0;   // seconds; <0 = no seek in flight
+    int m_seekStallTicks = 0;            // ticks waiting on the pending landing (re-issue after 6)
+    qint64 m_seekIssuedAtMs = 0;         // run-clock stamp of the in-flight seek (expected-position judge)
+    QTimer m_cycleTimer;
+    int m_cycleTarget = 0;
+    int m_cyclesCompleted = 0;
+    bool m_cycleReopenPending = false;
 };
 
 } // namespace Colosseum::Player2
