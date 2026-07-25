@@ -2,8 +2,8 @@
 // are discovered, browsed, installed, toggled, ordered and removed.
 // Ratified design: agents/colosseum-extensions-mock.html (2026-07-05, "we can go
 // for it"), spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
-// Serves all three worlds — Theatre live in v1; Tankoban and Biblio get honest
-// designed empty states, never a blank. Data = `Extensions` (the C++ registry)
+// Serves all three worlds, all live as of stage 1a — Tankoban and Biblio carry real
+// catalogues and wells now. Data = `Extensions` (the C++ registry)
 // + ExtensionsCatalog.js (curated rails, community registry, adult wall).
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -35,6 +35,41 @@ Item {
         return out;
     }
     function countIn(world) { return installedIn(world).length }
+
+    // Grouped by job: Catalogue (what fills the shelves) then Wells (what fetches),
+    // then anything that is neither — e.g. Anime Kitsu, a non-core catalog provider,
+    // and OpenSubtitles, which answers subtitles only.
+    function installedRowsFor(world) {
+        var rows = installedIn(world), cat = [], wells = [], other = [];
+        for (var i = 0; i < rows.length; i++) {
+            if (Catalog.isCatalogue(rows[i])) cat.push(rows[i]);
+            else if (Catalog.isWell(rows[i])) wells.push(rows[i]);
+            else other.push(rows[i]);
+        }
+        return cat.concat(wells).concat(other);
+    }
+
+    readonly property var worldTitles: ({ theatre: "Theatre", tankoban: "Tankoban",
+                                          biblio: "Biblio", universes: "Universes" })
+    // Removing a well that serves two worlds removes it from BOTH. Say which, by name,
+    // and require a second press — an unnamed one-click removal would silently empty a
+    // world the user wasn't looking at.
+    property string pendingRemoveId: ""
+    function askRemove(entry) {
+        var ws = Catalog.worldsFor(entry);
+        var name = (entry.manifest && entry.manifest.name) || entry.id;
+        if (ws.length > 1 && pendingRemoveId !== entry.id) {
+            var names = [];
+            for (var i = 0; i < ws.length; i++) names.push(worldTitles[ws[i]] || ws[i]);
+            pendingRemoveId = entry.id;
+            notice = name + " feeds " + names.join(" and ")
+                   + ". Removing it takes it out of both — press Remove again to confirm.";
+            noticeTimer.restart();
+            return;
+        }
+        pendingRemoveId = "";
+        Extensions.remove(entry.id);
+    }
     // A world's rank for a well is its index among that world's wells — which is how one
     // stored row ranks 4th in Tankoban and 2nd in Biblio without storing a rank at all.
     function wellRank(entry, world) {
@@ -111,6 +146,12 @@ Item {
         }
     }
     Timer { id: noticeTimer; interval: 6000; onTriggered: root.notice = "" }
+
+    // The page's eased wheel-scroll. It was nested INSIDE the installed-row delegate
+    // (the brace defect at the old :781-786), so it was instantiated once per row —
+    // 4 competing NumberAnimations on page.contentY before stage 1a, 13 after. One
+    // instance, at page level, is the whole point of the component.
+    ScrollGlide { flick: page }
 
     // community loads when Browse first opens, and reloads on sort/search change
     onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading) loadCommunity()
@@ -761,7 +802,10 @@ Item {
                             anchors.rightMargin: 28
 
                             Repeater {
-                                model: root.installedList
+                                // World-filtered AND job-ordered, so the pane reads
+                                // Catalogue-then-Wells without needing name suffixes to
+                                // tell WeebCentral's two roles apart.
+                                model: root.installedRowsFor(root.world)
                                 delegate: Item {
                                     id: irow
                                     required property var modelData
@@ -770,17 +814,73 @@ Item {
                                     property bool isCore: irow.modelData.core === true
                                     property bool isOn: irow.modelData.enabled === true
                                     property bool configurable: (irow.manifest.behaviorHints || {}).configurable === true
-                                    // Filter by the world tab, then (stage 1b) group by job.
+                                    // Role (spec §3.1): a catalogue fills the shelves — locked,
+                                    // unranked, never removable. A well fetches — ranked, removable.
+                                    property bool isCatalogue: Catalog.isCatalogue(irow.modelData)
+                                    // Rank is this world's filtered well index, so one shared row
+                                    // reads 4 in Tankoban and 2 in Biblio with nothing stored.
+                                    property int rank: irow.isCatalogue ? 0
+                                                     : root.wellRank(irow.modelData, root.world)
+                                    // A house well lives in-app and has no web page to open, so it
+                                    // gets Settings; a remote addon keeps Configure ↗ (stage 4 builds
+                                    // the sheet — until then only remote rows offer anything).
+                                    property bool isHouse: String(irow.modelData.transportUrl || "")
+                                                           .indexOf("colosseum://") === 0
+                                    // The model is ordered Catalogue-then-Wells-then-rest, so a row
+                                    // knows it opens a group when its job differs from the row above.
+                                    // Drawing the header here keeps one Repeater and one delegate.
+                                    readonly property string group: irow.isCatalogue ? "catalogue"
+                                                                  : (Catalog.isWell(irow.modelData) ? "wells" : "rest")
+                                    readonly property bool startsGroup: {
+                                        var rows = root.installedRowsFor(root.world);
+                                        if (irow.index <= 0) return true;
+                                        var p = rows[irow.index - 1];
+                                        if (!p) return true;
+                                        var pg = Catalog.isCatalogue(p) ? "catalogue"
+                                               : (Catalog.isWell(p) ? "wells" : "rest");
+                                        return pg !== irow.group;
+                                    }
+                                    readonly property string groupTitle:
+                                        irow.group === "catalogue" ? "Catalogue"
+                                      : irow.group === "wells" ? "Wells" : "Also installed"
+                                    readonly property string groupSub:
+                                        irow.group === "catalogue"
+                                            ? "what fills the shelves · always asked first · not ranked"
+                                      : irow.group === "wells"
+                                            ? "what actually fetches · asked in this order, top first"
+                                      : "details and subtitles — neither a shelf nor a source"
+                                    // The model is already world-filtered and job-ordered;
+                                    // only the search filter remains here.
                                     visible: root.hit(irow.manifest.name || irow.modelData.id)
-                                             && Catalog.inWorld(irow.modelData, root.world)
                                     width: installedCol.width
-                                    height: 82
+                                    height: 82 + (irow.startsGroup ? 48 : 0)
+
+                                    // ---- job header, drawn by the row that opens the group ----
+                                    Column {
+                                        visible: irow.startsGroup
+                                        anchors.top: parent.top
+                                        anchors.topMargin: 12
+                                        anchors.left: parent.left
+                                        anchors.right: parent.right
+                                        spacing: 3
+                                        Text {
+                                            text: irow.groupTitle.toUpperCase()
+                                            color: theme.gold
+                                            font.family: theme.ui; font.pixelSize: 10
+                                            font.letterSpacing: 2.4; font.bold: true
+                                        }
+                                        Text {
+                                            text: irow.groupSub
+                                            color: theme.inkDimmer
+                                            font.family: theme.ui; font.pixelSize: 12
+                                        }
+                                    }
 
                                     Rectangle {
                                         anchors.bottom: parent.bottom
                                         width: parent.width; height: 1
                                         color: Qt.rgba(1, 1, 1, 0.06)
-                                        visible: irow.index < root.installedList.length - 1
+                                        visible: irow.index < root.installedRowsFor(root.world).length - 1
                                     }
                                     MouseArea {
                                         id: irowMa
@@ -791,12 +891,31 @@ Item {
 
                                     Row {
                                         anchors.verticalCenter: parent.verticalCenter
+                                        // sit below the job header when this row opens a group
+                                        anchors.verticalCenterOffset: irow.startsGroup ? 24 : 0
                                         width: parent.width
                                         spacing: 18
 
-                                        // move up / down — the ask-order controls
+                                        // rank + move up/down — the ask-order controls. Only wells
+                                        // are ever ranked or reordered, which is what finally makes
+                                        // this pane's own printed ordering law below true.
+                                        Item {
+                                            width: 18; height: 30
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: !irow.isCatalogue
+                                            Text {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                anchors.top: parent.top
+                                                text: irow.rank
+                                                color: theme.gold
+                                                font.family: theme.ui; font.pixelSize: 12
+                                                font.weight: Font.Bold
+                                                opacity: irow.isOn ? 1 : 0.4
+                                            }
+                                        }
                                         Column {
                                             width: 18
+                                            visible: !irow.isCatalogue
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 4
                                             opacity: irowMa.containsMouse ? 1 : 0.25
@@ -813,12 +932,10 @@ Item {
                                                 MouseArea { id: downMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
                                                             onClicked: Extensions.move(irow.modelData.id, 1) }
-        }
-    }
+                                            }
+                                        }
 
-    ScrollGlide { flick: page }
-
-    AddonLogo {
+                                        AddonLogo {
                                             anchors.verticalCenter: parent.verticalCenter
                                             opacity: irow.isOn ? 1 : 0.45
                                             addonId: irow.manifest.id || irow.modelData.id
@@ -828,7 +945,11 @@ Item {
                                         }
 
                                         Column {
-                                            width: parent.width - 18 - 44 - 300 - 18 * 3
+                                            // Row omits invisible children from layout, so a
+                                            // catalogue row (no rank, no grip) reclaims their
+                                            // 18+18 widths and their two gaps.
+                                            width: parent.width - 44 - 300 - 18 * 2
+                                                   - (irow.isCatalogue ? 0 : 18 + 18 + 18 * 2)
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 4
                                             opacity: irow.isOn ? 1 : 0.45
@@ -891,19 +1012,43 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: Extensions.remove(irow.modelData.id) }
+                                                            onClicked: root.askRemove(irow.modelData) }
+                                            }
+                                            // A catalogue says plainly why there is no Remove, rather
+                                            // than leaving an unexplained gap where every other row
+                                            // has a verb.
+                                            Text {
+                                                visible: irow.isCore
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: "Locked"
+                                                color: theme.inkDimmer
+                                                opacity: 0.7
+                                                font.family: theme.ui; font.pixelSize: 13
                                             }
                                             Text {
                                                 visible: irow.configurable
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                text: "Configure"
+                                                // A house well has no web page; Configure would silently
+                                                // leave the app. The ↗ marks the outbound one, matching
+                                                // the convention already at BiblioBook.qml:590.
+                                                text: irow.isHouse ? "Settings" : "Configure ↗"
                                                 color: cfgMa.containsMouse ? theme.ink : theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 MouseArea {
                                                     id: cfgMa; anchors.fill: parent; hoverEnabled: true
                                                     cursorShape: Qt.PointingHandCursor
-                                                    onClicked: Qt.openUrlExternally(
-                                                        irow.modelData.transportUrl.replace(/manifest\.json$/i, "configure"))
+                                                    onClicked: {
+                                                        if (irow.isHouse) {
+                                                            // Stage 4 builds the in-app sheet. Until then
+                                                            // say so rather than opening a dead URL.
+                                                            root.notice = (irow.manifest.name || "This well")
+                                                                        + " settings arrive with the indexer sheet."
+                                                            noticeTimer.restart()
+                                                        } else {
+                                                            Qt.openUrlExternally(irow.modelData.transportUrl
+                                                                .replace(/manifest\.json$/i, "configure"))
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -922,51 +1067,6 @@ Item {
                 }
             }
 
-            // =================== retired: the two hand-written empty states ==========
-            // Tankoban and Biblio carry real catalogues and wells now, so this panel is
-            // never shown. Kept inert for one commit rather than deleted in the same pass
-            // that restructures the pane — it comes out with the job grouping (stage 1b).
-            Rectangle {
-                width: col.width
-                visible: false
-                radius: 18
-                color: Qt.rgba(0.04, 0.045, 0.065, 0.48)
-                border.width: 1; border.color: theme.edge
-                height: emptyCol.implicitHeight + 76
-                Column {
-                    id: emptyCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 38
-                    spacing: 12
-                    Text {
-                        text: root.world === "tankoban"
-                              ? "No extensions live in Tankoban yet."
-                              : "No extensions live in Biblio yet."
-                        color: theme.inkDim
-                        font.family: theme.display; font.italic: true; font.pixelSize: 20
-                    }
-                    Text {
-                        width: parent.width * 0.7
-                        text: root.world === "tankoban"
-                              ? "The store opens with Theatre first. When the comics lane is ready for guests, its sources — catalogs, download wells, metadata — will install from this same page, the same way."
-                              : "Books keep their one trusted source for now. When Biblio is ready to take recommendations, new shelves and download wells will arrive here."
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
-                        wrapMode: Text.WordWrap
-                        lineHeight: 1.35
-                    }
-                    Text {
-                        text: "See what Theatre’s store looks like ›"
-                        color: goMa.containsMouse ? "#ffd968" : theme.gold
-                        font.family: theme.ui; font.pixelSize: 14
-                        MouseArea { id: goMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.world = "theatre" }
-                    }
-                }
-            }
         }
     }
 
