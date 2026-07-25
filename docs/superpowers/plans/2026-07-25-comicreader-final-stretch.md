@@ -37,19 +37,20 @@ This task is a conversation, not code. Present the table; record each verdict in
 
 | # | Ruling | Options (references) | Recommendation | Verdict |
 |---|---|---|---|---|
-| R1 | Wheel travel per notch | 100px (TB2, ours) vs 168px (Reader 1 — the reader he last used) | 168 | — |
-| R2 | Strip page width scope | global (ours, deliberate) vs per-series with global seed (both references) | per-series | — |
-| R3 | Coupling phase memory | per-entry only (ours) vs per-series seed (TB2) | per-series seed | — |
-| R4 | Cover/lone single width | full width (ours + Reader 1) vs half-width flush to spine (TB2) | keep full width | — |
-| R5 | Forward turn on last page | silent no-op (ours) vs cross to next entry (Reader 1) vs end overlay (TB2) | toast "End of volume" until the end card lands | — |
-| R6 | Keypress keeps chrome alive | yes (TB2) vs no, keyboard reading is immersive (Reader 1, ours) | keep Reader 1 behaviour | — |
-| R7 | Click-zone flash on page turn | TB2-only flourish | skip | — |
-| R8 | No-upscale ceiling | TB2-only; interacts badly with our decode cap (decoded width < true native, so the ceiling would cap at decode size) | skip | — |
-| R9 | Zoom persisted per series | both references persist; ours keeps it per session after B1 | defer | — |
-| R10 | BackAction law vs HUD back pill | extend BackAction with a raised-label variant / carve out the reader / drop the shadow | extend BackAction (Task F10) | — |
+| R1 | Wheel travel per notch | 100px (TB2, ours) vs 168px (Reader 1 — the reader he last used) | 168 | **168** — EXECUTE F1 |
+| R2 | Strip page width scope | global (ours, deliberate) vs per-series with global seed (both references) | per-series | **per-series** — EXECUTE F2 |
+| R3 | Coupling phase memory | per-entry only (ours) vs per-series seed (TB2) | per-series seed | **per-series seed** — EXECUTE F3 |
+| R4 | Cover/lone single width | full width (ours + Reader 1) vs half-width flush to spine (TB2) | keep full width | **keep full width** — no task |
+| R5 | Forward turn on last page | silent no-op (ours) vs cross to next entry (Reader 1) vs end overlay (TB2) | toast "End of volume" until the end card lands | **toast** — EXECUTE F5 |
+| R6 | Keypress keeps chrome alive | yes (TB2) vs no, keyboard reading is immersive (Reader 1, ours) | keep Reader 1 behaviour | **keep Reader 1** (no poke) — no task |
+| R7 | Click-zone flash on page turn | TB2-only flourish | skip | **skip** — no task |
+| R8 | No-upscale ceiling | TB2-only; interacts badly with our decode cap (decoded width < true native, so the ceiling would cap at decode size) | skip | **skip** — no task |
+| R9 | Zoom persisted per series | both references persist; ours keeps it per session after B1 | defer | **defer** — no task |
+| R10 | BackAction law vs HUD back pill | extend BackAction with a raised-label variant / carve out the reader / drop the shadow | extend BackAction (Task F10) | **extend BackAction** — EXECUTE F10 |
 
-- [ ] **Step 1:** Present the table to Hemanth in chat, one line of consequence per row.
-- [ ] **Step 2:** Write the verdicts into this file's table; commit: `git commit -m "[Agent 1 (Claude), comics] plan: final-stretch rulings recorded" -- docs/superpowers/plans/2026-07-25-comicreader-final-stretch.md`
+- [x] **Step 1:** Presented; Hemanth's verdict 2026-07-25: "take your recommendations" — every recommended option adopted as-is, no deviations.
+- [x] **Step 2:** Verdicts written into the table above. EXECUTE: F1, F2, F3, F5, F10. NO TASK: R4, R6, R7, R8. DEFERRED: R9 (zoom per-series persistence — revisit only if he asks for it after living with zoom-survives-the-turn from B1).
+- [ ] ~~Step 2 commit~~ (done): `git commit -m "[Agent 1 (Claude), comics] plan: final-stretch rulings recorded" -- docs/superpowers/plans/2026-07-25-comicreader-final-stretch.md`
 
 ---
 
