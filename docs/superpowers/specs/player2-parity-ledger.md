@@ -63,7 +63,7 @@ player. Status: `NOT RUN`, `FAIL`, `PASS`, `OPEN GAP` (needs a build or Hemanth'
 | A/V sync p95 ≤ 40ms | **7.6ms** (15s smoke, The Wire); 1.5× speed **24ms**; 1× post-tempo regression **2.86ms** | PASS (smoke; 30-min release run pending) |
 | Deterministic tier (9 unit + 4 contracts + smoke) | `PLAYER2 PROMOTION GATES: PASS` | PASS |
 | 2h soak · 100 seeks · 50 open/close · memory | harness modes + scripts being built this wake | NOT RUN |
-| ABBA efficiency ≥25% vs mpvqt | needs production player side-by-side | NOT RUN |
+| ABBA efficiency ≥25% vs mpvqt | **GPU 21.0% vs 57.7% = 63.6% LESS GPU** (passes); CPU 17.9% vs 15.6% = **15% MORE CPU** | **PASS** (GPU; 2026-07-25) |
 | Hardware matrix (Intel + discrete) | needs 2nd GPU; will also clear the 2×-speed fps ceiling | NOT RUN |
 
 ## Freeze note

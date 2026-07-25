@@ -874,6 +874,14 @@ int main(int argc, char *argv[]) {
     auto *power = new PowerStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Power"), power);
 
+    // Efficiency gate: auto-play this local file through the app's REAL player on startup. Both
+    // backends are then measured inside the same application, playing the same file, through the
+    // same session machinery - the only difference being which engine draws. That removes every
+    // asymmetry a synthetic side-by-side introduces (the previous attempt compared a bare lab
+    // harness against a probe window that decoded without ever painting).
+    engine.rootContext()->setContextProperty(QStringLiteral("DevAbbaClip"),
+                                             qEnvironmentVariable("COLOSSEUM_ABBA_CLIP"));
+
     // Whether this binary can play through Player 2 at all. False in a stock build, so the opt-in
     // setting alone can never route playback into a backend that was not linked in.
 #ifdef COLOSSEUM_PLAYER2

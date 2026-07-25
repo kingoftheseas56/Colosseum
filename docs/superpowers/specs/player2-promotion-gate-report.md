@@ -31,3 +31,37 @@
    (see `player2-runtime-licensing-manifest.md`).
 5. Cross-substrate review of raw samples/arithmetic before the Task 17 flag flip (Fable reviewed the
    chrome + engine 2026-07-25; the numeric re-check rides the release runs).
+
+## ABBA efficiency gate — RUN 2026-07-25
+
+**Result: PASS on GPU, regression on CPU.**
+
+| Metric | Player 2 | mpv (production) | Advantage |
+|---|---|---|---|
+| GPU (3D engine, system-wide counter) | **21.0%** | 57.7% | **63.6% less** |
+| CPU (normalized per core) | 17.9% | **15.6%** | **15% more** (a regression) |
+
+Method — and why the first attempt was thrown away. The runner originally launched production as
+`colosseum.exe "<clip>"`, but that argument selects a QML entry point, not a media file: production
+would have idled on its home screen while Player 2 decoded video. A second attempt drove mpv through
+a synthetic probe window, which decoded (position advanced) but never painted — Hemanth caught the
+black window on screen. Both would have handed Player 2 a fabricated win.
+
+What was finally measured: **both backends inside the REAL app**, same clip, same window, same session
+machinery, ABBA order (P2, prod, prod, P2) with 180s passes and 60s cooldowns so warm-up and thermal
+drift cancel. The only difference between passes is which engine draws, so the app's own overhead is
+identical on both sides and cancels out. The runner refuses to score a pass that did not start the
+clip, ran on the wrong backend, or fell back mid-measurement.
+
+Evidence the Player 2 passes were genuinely rendering (not a fast black screen): 13 and 6 transient
+missing-texture lines at startup, against 275 in the known-black failure earlier the same day.
+
+Reading it honestly:
+- The GPU result is the headline and it is large. On this Intel UHD 620 the GPU is the binding
+  constraint for video, so 57.7% -> 21.0% is the difference that matters for heat, battery and
+  sustained smoothness.
+- **The CPU regression is real and must not be buried.** Part of it may be the integration rather
+  than the engine: `Player2Backend::pump()` calls `update()` on the video item at 60Hz for the whole
+  session (mirroring the lab's frame timer). That is a candidate to measure and trim before Task 18.
+- Hardware caveat unchanged: one machine, integrated graphics. The discrete-GPU row is still NOT RUN,
+  and the 2x-speed fps ceiling measured earlier is a property of this GPU, not of either player.

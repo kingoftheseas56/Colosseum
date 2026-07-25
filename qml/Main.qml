@@ -198,6 +198,13 @@ Window {
     }
 
     Component.onCompleted: {
+        // Efficiency gate: play a given local file through the real player as soon as the shell is
+        // up, so both backends can be measured under identical conditions.
+        if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
+            var abbaPath = String(DevAbbaClip)
+            abbaTimer.path = abbaPath
+            abbaTimer.start()
+        }
         // Which video backend this launch will use. Announced at startup so a run can be diagnosed
         // without playing anything (Task 17).
         console.log("[player] startup backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
@@ -668,6 +675,19 @@ Window {
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
+
+    // Gives the shell a moment to finish coming up before the player is opened on top of it.
+    Timer {
+        id: abbaTimer
+        property string path: ""
+        interval: 2500
+        repeat: false
+        onTriggered: {
+            console.log("[abba] auto-playing " + abbaTimer.path)
+            win.openLocalVideoSession({ "id": "abba:clip", "title": "ABBA measurement clip",
+                                        "path": abbaTimer.path })
+        }
+    }
 
     // ---- which video backend plays (Task 17). Player 2 is opt-in and OFF by default. ----
     // `Player2Available` is a build fact from C++, so the setting alone can never route playback
