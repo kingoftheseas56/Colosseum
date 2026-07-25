@@ -144,6 +144,16 @@ private:
         bool resumePlaying = true;
     };
 
+    // Does this command reposition the stream (and therefore re-establish a known-good read
+    // position by itself)? Only these may abandon a parked network read. Cutting a read off
+    // mid-packet can leave the container's private cursor advanced past a sample, and NOTHING but a
+    // seek puts that right — so a Pause or a track swap that interrupted a read would corrupt the
+    // stream with no repair to follow. Both of these apply a seek.
+    static constexpr bool repositions(CommandType type) noexcept
+    {
+        return type == CommandType::Seek || type == CommandType::FrameStep;
+    }
+
     static int interrupt(void *opaque);
     // Custom AVIO callbacks routing FFmpeg's byte reads/seeks through an HttpMediaSource.
     static int avioRead(void *opaque, uint8_t *buffer, int size);
@@ -164,6 +174,12 @@ private:
     std::atomic_bool m_cancelled{false};
     std::atomic_bool m_running{false};
     std::atomic_bool m_commandPending{false};
+    // How many QUEUED-but-unprocessed commands reposition the stream. This, not m_commandPending, is
+    // what may abandon a parked network read: it is exact (incremented on enqueue, decremented the
+    // instant the worker takes the command off the queue), so it can never be left true for a
+    // command that was already handled — which would abort a read with no seek behind it to repair
+    // the container. It is a COUNT rather than a flag so two seeks in flight cannot cancel to zero.
+    std::atomic<int> m_pendingRepositions{0};
     std::atomic_bool m_paused{false};
     std::atomic<qint64> m_audioDelayUs{0};
     std::atomic<quint64> m_activeGeneration{0};

@@ -174,6 +174,26 @@ if ($demux_cpp -notmatch 'setInterruptPredicate') {
 if ($demux_cpp -notmatch 'wakeRead\(\)') {
     $violations += 'DemuxSession::enqueueCommand must wake a parked network read, the same way it interrupts the audio and video queues'
 }
+#    ONLY A REPOSITIONING COMMAND MAY ABANDON A READ (cross-model review, 2026-07-26). An aborted
+#    read can leave the container's private sample cursor advanced, and avformat_flush does not undo
+#    that - only a seek does. So a Pause or track swap that interrupted a read would corrupt the
+#    stream with no repair behind it. The predicate must therefore be the reposition COUNT, never
+#    the generic pending flag, and the wake must be gated the same way.
+if ($demux_cpp -notmatch 'setInterruptPredicate[\s\S]{0,600}?m_pendingRepositions') {
+    $violations += 'the interrupt predicate must be the reposition count, not m_commandPending - a non-seek command must never abandon a read (nothing would repair the container position)'
+}
+if ($demux_cpp -notmatch 'if\s*\(repositions\(command\.type\)\)\s*\{[\s\S]{0,300}?wakeRead\(\)') {
+    $violations += 'the network-read wake must be gated on repositions(command.type)'
+}
+#    A SEEK THAT DID NOT HAPPEN MUST NOT BE REPORTED AS ONE. applySeek commits the reposition before
+#    it seeks; ignoring av_seek_frame's result left the session promising a jump it never made -
+#    frozen picture, engine still reading. Leading suspect for the two dead runs of 2026-07-26.
+if ($demux_cpp -notmatch 'seekResult\s*=\s*av_seek_frame') {
+    $violations += 'av_seek_frame''s result must be captured - a failed seek that is ignored freezes the picture while the engine reads on'
+}
+if ($demux_cpp -notmatch 'seekResult\s*<\s*0') {
+    $violations += 'a failed av_seek_frame must be acted on, not just captured'
+}
 if ($demux_cpp -notmatch 'consumeReadInterrupt\(\)') {
     $violations += 'the demux read loop must ask consumeReadInterrupt() - otherwise an interrupted read is reported to the viewer as a decode failure'
 }

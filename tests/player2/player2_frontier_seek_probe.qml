@@ -13,19 +13,28 @@ import "../../qml/player2host"
 // playback, and he drags the bar BACK to a part he has already downloaded. Those bytes are on the
 // origin's disk, so the only thing that can make this slow is us.
 //
+// WHAT COUNTS AS PASS (hardened after the 2026-07-26 cross-model review, which was right on all
+// three counts):
+//   * a NEWLY PRESENTED FRAME. Position and state are promises; a presented frame is the picture
+//     actually moving. The two dead runs of 2026-07-26 held a plausible state and a plausible
+//     position while presenting nothing, which is exactly what a position-only assertion misses.
+//   * WITHIN ONE SECOND of the press. Not five. The requirement is that the press is answered now.
+//   * a NON-ZERO EXIT on every failure path, so a runner can detect it. This probe used to print
+//     FAIL and exit 0 — a gate that cannot fail is decoration.
+//
 // Drive it with the window fixture, window CLOSED FOREVER (the frontier never opens):
 //   powershell -NoProfile -File tests/player2/player2_http_fixture_server.ps1 `
-//     -File artifacts/streamclip.mp4 -Port 8791 -Mode window -WindowBytes 8388608
+//     -File artifacts/streamclip.mp4 -Port 8791 -Mode window -WindowBytes 25165824
 // then, with COLOSSEUM_PLAYER2=1 and QSG_NO_VSYNC=1 (QML timers stall without it once P2 plays):
 //   native\build-msvc\colosseum.exe tests\player2\player2_frontier_seek_probe.qml
+// Or just run the gate, which owns the fixture and repeats the run:
+//   powershell -NoProfile -File tests/player2/player2_frontier_seek_gate.ps1 -Runs 5
 Window {
     id: probe
     width: 960; height: 540; visible: true; color: "black"
     title: "Player 2 frontier-seek probe"
 
-    // Inside the served window, and FAR behind where the picture freezes, so "it landed" cannot be
-    // satisfied by the position it was already sitting at. The read-ahead reaches the frontier long
-    // before the picture does (it runs a whole ring ahead), so the wait below is for the PICTURE.
+    // Inside the served window, and far behind where the picture freezes.
     property real seekTarget: 3.0
     property int ticks: 0
     property real lastPos: -1
@@ -33,16 +42,28 @@ Window {
     property bool played: false
     property bool seeked: false
     property real stallPos: -1
+    property int presentedAtPress: -1
     property double seekPressedAtMs: 0
-    property bool landed: false
-    // The whole point of the probe: pre-fix this takes the stall budget (~110 s) or never lands.
-    property int budgetMs: 5000
+    property bool finished: false
+    // THE requirement, in one number.
+    property int budgetMs: 1000
 
     Player2Page { id: page; anchors.fill: parent }
 
+    function finish(pass, message) {
+        if (probe.finished)
+            return
+        probe.finished = true
+        console.log("FRONTIER SEEK PROBE: " + (pass ? "PASS" : "FAIL") + " " + message)
+        console.log("FRONTIER SEEK RESULT: " + (pass ? "PASS" : "FAIL"))
+        Qt.callLater(function() { Qt.exit(pass ? 0 : 1) })
+    }
+
     Timer {
-        interval: 250; repeat: true; running: true
+        interval: 100; repeat: true; running: true
         onTriggered: {
+            if (probe.finished)
+                return
             probe.ticks += 1
             var d = page.diagnosticsSnapshot()
             var presented = Number((d && d.presented) || 0)
@@ -57,76 +78,62 @@ Window {
                     console.log("FRONTIER SEEK PROBE: playing presented=" + presented
                                 + " pos=" + pos.toFixed(2))
                 }
-                if (probe.ticks > 240) {
-                    console.log("FRONTIER SEEK PROBE: FAIL-NOPLAY presented=" + presented
-                                + " state=" + state)
-                    Qt.callLater(function() { Qt.quit() })
-                }
+                if (probe.ticks > 900)
+                    probe.finish(false, "NOPLAY — never started playing (presented=" + presented
+                                        + " state=" + state + ")")
                 return
             }
 
-            // --- 2. wait for the frontier: the origin holds the connection and says nothing --------
+            // --- 2. wait for the frontier: the PICTURE must freeze, not just the transport flag ----
             if (!probe.seeked) {
                 if (Math.abs(pos - probe.lastPos) < 0.02)
                     probe.stillTicks += 1
                 else
                     probe.stillTicks = 0
                 probe.lastPos = pos
-                // The PICTURE must have frozen — the transport's stall flag fires as soon as the
-                // read parks, which is a whole read-ahead earlier, while playback is still fine.
-                // Waiting for the buffer to actually run dry is what puts the demux thread in the
-                // parked state this probe exists to interrupt, and it puts the seek target far
-                // enough behind that landing on it cannot be confused with standing still.
-                if (probe.stillTicks >= 12 && pos > probe.seekTarget + 3.0) {
+                // The transport's stall flag fires as soon as the read parks, which is a whole
+                // read-ahead before the picture runs dry. Waiting for the buffer to actually empty
+                // is what puts the demux thread in the parked state this probe exists to interrupt.
+                if (probe.stillTicks >= 30 && pos > probe.seekTarget + 3.0) {
                     probe.seeked = true
                     probe.stallPos = pos
+                    probe.presentedAtPress = presented
                     probe.seekPressedAtMs = Date.now()
                     console.log("FRONTIER SEEK PROBE: picture frozen at pos=" + pos.toFixed(2)
-                                + " stalled=" + stalled + " — pressing seek to " + probe.seekTarget)
+                                + " presented=" + presented + " stalled=" + stalled
+                                + " — pressing seek to " + probe.seekTarget)
                     page.sessionSeek(probe.seekTarget)
                     return
                 }
-                if (probe.ticks % 4 === 0)
-                    console.log("FRONTIER SEEK PROBE: pre-seek tick=" + probe.ticks + " pos="
-                                + pos.toFixed(2) + " still=" + probe.stillTicks + " state=" + state
-                                + " stalled=" + stalled + " presented=" + presented)
-                if (probe.ticks > 480) {
-                    console.log("FRONTIER SEEK PROBE: FAIL-NOSTALL never reached the frontier pos="
-                                + pos.toFixed(2))
-                    Qt.callLater(function() { Qt.quit() })
-                }
+                if (probe.ticks > 1800)
+                    probe.finish(false, "NOSTALL — never reached the frontier (pos="
+                                        + pos.toFixed(2) + ")")
                 return
             }
 
-            // --- 3. the seek must be ANSWERED, not queued behind a dead read ----------------------
+            // --- 3. the seek must be ANSWERED, and the PICTURE must move --------------------------
             var elapsed = Date.now() - probe.seekPressedAtMs
-            // Landed = the film is PLAYING again from somewhere well behind the frozen position.
-            // Deliberately not "within X of the target": this engine holds the clock after a seek
-            // until the audio is genuinely audible (loudnorm refills ~3 s), so the first visible
-            // position is a few seconds past the target — measured, not assumed. Pinning the exact
-            // target would fail a player that is working correctly in front of him.
-            if (!probe.landed && state === 3 && pos < probe.stallPos - 5.0) {
-                probe.landed = true
-                console.log("FRONTIER SEEK PROBE: " + (elapsed <= probe.budgetMs ? "PASS" : "FAIL-SLOW")
-                            + " seek answered in " + elapsed + "ms (budget " + probe.budgetMs
-                            + "ms) from frozen pos=" + probe.stallPos.toFixed(2)
-                            + " to pos=" + pos.toFixed(2) + " state=" + state)
-                Qt.callLater(function() { Qt.quit() })
+            var newFrames = presented - probe.presentedAtPress
+            var movedBack = pos < probe.stallPos - 5.0
+            if (newFrames > 0 && movedBack && state === 3) {
+                probe.finish(elapsed <= probe.budgetMs,
+                             (elapsed <= probe.budgetMs ? "" : "TOO SLOW — ")
+                             + "picture moving again " + elapsed + "ms after the press (budget "
+                             + probe.budgetMs + "ms), " + newFrames + " new frames, from frozen pos="
+                             + probe.stallPos.toFixed(2) + " to pos=" + pos.toFixed(2))
                 return
             }
-            // Which stage is stuck matters more than the fact that it is: decoded growing with
-            // presented flat is a presentation/clock hold, both flat is a decode or feed problem.
-            if (probe.ticks % 8 === 0)
+            if (probe.ticks % 20 === 0)
                 console.log("FRONTIER SEEK PROBE: waiting " + elapsed + "ms state=" + state
                             + " stalled=" + stalled + " pos=" + pos.toFixed(2)
-                            + " decoded=" + Number((d && d.decoded) || 0)
-                            + " submitted=" + Number((d && d.submitted) || 0)
-                            + " presented=" + presented)
-            if (elapsed > 150000) {
-                console.log("FRONTIER SEEK PROBE: FAIL-NEVER the seek was never answered ("
-                            + elapsed + "ms) state=" + state + " pos=" + pos.toFixed(2))
-                Qt.callLater(function() { Qt.quit() })
-            }
+                            + " newFrames=" + newFrames
+                            + " decoded=" + Number((d && d.decoded) || 0))
+            // Deliberately much longer than the budget: a run that is merely SLOW must be reported
+            // as slow with its real number, not as a hang.
+            if (elapsed > 150000)
+                probe.finish(false, "NEVER — the seek was never answered (" + elapsed + "ms, "
+                                    + newFrames + " new frames, state=" + state + ", pos="
+                                    + pos.toFixed(2) + ")")
         }
     }
 

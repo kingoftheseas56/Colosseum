@@ -157,6 +157,7 @@ void DemuxSession::open(const PlaybackRequest &request, quint64 generation)
         m_commands.clear();
     }
     m_commandPending.store(false, std::memory_order_release);
+    m_pendingRepositions.store(0, std::memory_order_release); // never inherit a dead run's count
     m_paused.store(false, std::memory_order_release);
     m_activeGeneration.store(generation, std::memory_order_release);
     m_cancelled.store(false, std::memory_order_release);
@@ -202,6 +203,10 @@ void DemuxSession::enqueueCommand(const Command &command)
         std::scoped_lock lock(m_commandMutex);
         m_commands.push_back(command);
     }
+    // Counted AFTER the push, so the count is never positive without the command already being on
+    // the queue — otherwise a read could abandon itself chasing a command that has not arrived.
+    if (repositions(command.type))
+        m_pendingRepositions.fetch_add(1, std::memory_order_acq_rel);
     m_commandPending.store(true, std::memory_order_release);
     m_commandCv.notify_all();
     // Wake a demux blocked on either worker queue so it breaks out and services this command.
@@ -218,10 +223,11 @@ void DemuxSession::enqueueCommand(const Command &command)
     // ...and the THIRD place the demux thread parks: inside the network read. At the download
     // frontier that park lasts the whole stall budget, so without this wake a viewer's seek sat
     // queued to a command loop nobody was running until the source went terminal (measured
-    // 2026-07-25: press seek, nothing happens, ~110 s later it dies). The source only abandons a
-    // read that has nothing to give, and only while m_commandPending is set — which the loop below
-    // clears before it reads again.
-    {
+    // 2026-07-25: press seek, nothing happens, ~110 s later it dies). ONLY a repositioning command
+    // wakes it — see repositions(): a read abandoned mid-packet is only made good again by the seek
+    // that follows it, so a Pause has to wait its turn. That costs the viewer nothing (a stalled
+    // picture is already frozen, and the pause press lands at the session layer regardless).
+    if (repositions(command.type)) {
         std::scoped_lock lock(m_httpMutex);
         if (m_httpSource)
             m_httpSource->wakeRead();
@@ -378,18 +384,19 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     if (useHttpSource) {
         httpSource = std::make_shared<HttpMediaSource>(std::make_unique<QtHttpTransport>(), request);
         httpSource->setStateCallback([this](NetworkState state) { postNetworkState(state); });
-        // Let a parked read give the demux thread back when a transport command is waiting. A plain
-        // atomic load, as the seam requires: it runs on this thread with the source's mutex held.
+        // Let a parked read give the demux thread back when a REPOSITIONING command is waiting. A
+        // plain atomic load, as the seam requires: it runs on this thread with the source's mutex
+        // held. Every interruption is therefore followed immediately by a seek that re-establishes a
+        // known-good read position, which is what makes abandoning a read safe at all (cross-model
+        // review, 2026-07-26: an aborted read can leave the container's private sample cursor
+        // advanced, and avformat_flush does NOT undo that — only a seek does).
         //
-        // Deliberately NOT scoped to "outside command processing". A seek's own keyframe scan reads
-        // through here, so a SECOND command arriving mid-seek does abandon those reads — and that is
-        // the behaviour we want: the byte position is already moved by then (our seek() is
-        // non-blocking), FFmpeg only loses a partial scan, and the loop below flushes and services
-        // the newer command. Gating it would be tidier and strictly worse for the viewer: a second
-        // press during a seek into not-yet-downloaded bytes would park again for the whole stall
-        // budget — the exact defect this fixes.
+        // The count is still live during a seek's own keyframe scan ONLY if a newer seek arrived
+        // meanwhile, and that is deliberate: the newer press wins, and it is itself a reposition, so
+        // it repairs whatever scan it interrupted. Gating that case would re-park a second press for
+        // the whole stall budget — the exact defect this fixes.
         httpSource->setInterruptPredicate(
-            [this] { return m_commandPending.load(std::memory_order_acquire); });
+            [this] { return m_pendingRepositions.load(std::memory_order_acquire) > 0; });
         QString openError;
         if (!httpSource->open(&openError)) {
             avformat_free_context(rawFormat);
@@ -931,6 +938,12 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
     bool eofReached = false;
     bool eofSignaled = false;
     QString decodeFailure;
+    // A seek that did NOT happen. applySeek commits the reposition (new generation, flushed queues,
+    // decodingToTarget) and, until now, ignored whether av_seek_frame actually succeeded — so a
+    // failed seek left the session promising a jump it never made: buffers gone, target published,
+    // nothing to decode. That is what a frozen picture with a busy engine looks like, and it is the
+    // leading suspect for the two dead runs of 2026-07-26. Now it is reported instead of endured.
+    bool seekFailed = false;
 
     // Publishes seek/frame-step completion, restores the requested play/pause state and re-arms the
     // clock at the landed position. Called once per reposition, from whichever stream is master.
@@ -977,7 +990,17 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         seekEpoch.fetch_add(1, std::memory_order_acq_rel);      // tell the video thread a seek happened
         audioPathEpoch.fetch_add(1, std::memory_order_acq_rel); // re-arm the audio readiness barrier
         videoQueue.flush();                                     // drop stale video packets in flight
-        av_seek_frame(format.get(), -1, clamped, AVSEEK_FLAG_BACKWARD);
+        const int seekResult = av_seek_frame(format.get(), -1, clamped, AVSEEK_FLAG_BACKWARD);
+        if (seekResult < 0) {
+            // Everything above is already committed, so there is no honest way to pretend the jump
+            // did not happen — say so and let the loop stop. Silently carrying on is the failure
+            // mode this replaces: the viewer watches a frozen frame while the engine reads on.
+            seekFailed = true;
+            if (decodeFailure.isEmpty())
+                decodeFailure = QStringLiteral("Could not seek to %1s: %2")
+                                    .arg(clamped / 1'000'000.0, 0, 'f', 1)
+                                    .arg(avError(seekResult));
+        }
         eofReached = false;
         eofSignaled = false;
         // Scan to the target with the endpoint running; landSeek applies the final pause state.
@@ -1033,6 +1056,15 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             std::scoped_lock lock(m_commandMutex);
             pending.swap(m_commands);
         }
+        // Retire the reposition count the moment the commands leave the queue, BEFORE any of them
+        // is applied. Applying comes second on purpose: a seek's own reads must not be abandoned by
+        // the very command that requested them, while a NEWER seek arriving mid-scan still counts
+        // and still wins.
+        int retired = 0;
+        for (const Command &command : pending)
+            retired += repositions(command.type) ? 1 : 0;
+        if (retired > 0)
+            m_pendingRepositions.fetch_sub(retired, std::memory_order_acq_rel);
         for (const Command &command : pending) {
             switch (command.type) {
             case CommandType::Seek:
@@ -1195,6 +1227,18 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         if (m_cancelled.load(std::memory_order_acquire))
             break;
 
+        // A seek the container refused. Report the network's own account when it has one, because a
+        // seek fails on a dead stream far more often than on a bad container.
+        if (seekFailed) {
+            const QString networkCause = httpSource ? httpSource->terminalError() : QString();
+            if (!networkCause.isEmpty()) {
+                decodeFailure = networkCause;
+                networkFailed = true;
+            }
+            decodeFailed = true;
+            break;
+        }
+
         // The video thread failed (decoder setup or a hard decode error) — surface it and stop.
         if (videoThreadFailed.load(std::memory_order_acquire)) {
             if (decodeFailure.isEmpty())
@@ -1241,17 +1285,24 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
             // go service it. Asked before the EOF/error branches because the source's own account of
             // why the read ended beats whatever code FFmpeg chose to wrap it in.
             if (httpSource && httpSource->consumeReadInterrupt()) {
-                // FFmpeg latches the AVIO error, so every later read would return it unread. Clear
-                // it, and drop whatever half-packet the aborted read left behind — otherwise the
-                // next parse surfaces as a decode error blamed on the wrong layer. A seek command
-                // flushes and repositions itself right after this, so the extra flush is harmless.
+                // FFmpeg latches the AVIO error, so every later read would return it unread; clear
+                // it so the seek that follows can read at all. The flush drops generic packet and
+                // parser state.
+                //
+                // What makes this SAFE is not the flush — cross-model review 2026-07-26 is right
+                // that avformat_flush neither empties the AVIO buffer nor rewinds a demuxer's
+                // private cursor (MOV advances its sample index before reading, so an aborted read
+                // can skip a sample). It is safe because only a REPOSITIONING command can get us
+                // here (see repositions()), so the very next action is a seek that re-establishes
+                // the position from the container's index. We never resume reading from where the
+                // abort left off, which is the case that would have been unsound.
                 if (format->pb) {
                     format->pb->error = 0;
                     format->pb->eof_reached = 0;
                 }
                 avformat_flush(format.get());
-                continue; // the loop top consumes m_commandPending, which is what stops a livelock:
-                          // the predicate is false again before the next read parks.
+                continue; // the loop top retires the reposition count before applying the command,
+                          // so the predicate is false again before the next read parks — no livelock.
             }
             if (result == AVERROR_EOF) {
                 // Signal end-of-stream to both workers; each drains its OWN tail (audio: decoder +

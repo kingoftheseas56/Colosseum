@@ -806,6 +806,12 @@ void testParkedReadWakesForAPendingCommand()
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
     require(!returned, "a parked read must not return while no command is pending");
 
+    // A wake with NOTHING pending must not abandon the park either — the predicate is the truth,
+    // the notify is only a prompt to re-read it.
+    source.wakeRead();
+    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    require(!returned, "a wake with no command pending must leave the read parked");
+
     // The viewer presses seek: the owner marks a command pending and wakes the read.
     commandPending = true;
     source.wakeRead();
@@ -813,7 +819,10 @@ void testParkedReadWakesForAPendingCommand()
     const auto elapsed = std::chrono::steady_clock::now() - begin;
 
     require(code < 0, "an interrupted read must return a negative code");
-    require(elapsed < std::chrono::seconds(2), "a pending command must abort the park promptly");
+    // Sub-second is the requirement (cross-model review 2026-07-26): the whole point is that the
+    // press is answered now, not eventually. Two seconds was slack enough to pass a broken fix.
+    require(elapsed < std::chrono::milliseconds(1000),
+            "a pending command must abort the park in under a second");
     require(source.consumeReadInterrupt(),
             "the source must report that the read ended on a command, not on a failure");
     require(!source.consumeReadInterrupt(), "the interrupt report is one-shot");
