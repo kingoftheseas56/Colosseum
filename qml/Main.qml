@@ -2006,6 +2006,13 @@ Window {
         // same interface as PlayerPage.qml, so every playerLayer.item.* call site below stays as-is.
         source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
         onLoaded: {
+            // Say which engine is driving, every time the player opens. Without this, telling the two
+            // apart means reading process paths after the fact - which is exactly what happened on the
+            // first swap attempt (2026-07-25).
+            console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
+                        + "  (available=" + Player2Available
+                        + " optIn=" + playerBackendSettings.usePlayer2
+                        + " fellBack=" + win.player2FallbackActive + ")")
             item.backdrop = wall
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
