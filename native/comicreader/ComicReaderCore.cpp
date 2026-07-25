@@ -461,9 +461,10 @@ void ComicReaderCore::setVisible(QVariantList pageIndices) {
     // which put the newest — and only interesting — page at the back). Monotonic within an
     // entry; always above the strip band, which tops out at kPrioStripBase.
     //
-    // The step is 8 and the offsets below never go past -6, so a wave's LOWEST priority
-    // still beats the previous wave's HIGHEST: (100 + 8N) - 6 > 100 + 8(N-1). That ordering
-    // has to hold at the request, not later — a page already sitting in the pool queue can
+    // A wave's LOWEST priority still beats the previous wave's HIGHEST, because every
+    // within-wave offset is smaller than kVisibleWaveStep — pinned by the static_assert up
+    // top rather than restated here in numbers that can drift out of step with it. That
+    // ordering has to hold at the request, not later — a page already in the pool queue can
     // never be re-prioritized (QThreadPool has no such call, and request() dedups it away),
     // so out-ranking the stale work is the only lever there is.
     m_visibleBoost += kVisibleWaveStep;
