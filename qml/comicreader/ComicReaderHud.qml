@@ -217,6 +217,41 @@ Item {
         }
     }
 
+    // an immersive window verb (back / minimize / fullscreen / close) — Colosseum's player-chrome
+    // pattern (PlayerPage RoundButton): a TRANSPARENT circular button with a BRIGHT ink glyph, a
+    // faint white hover chip + a subtle scale — NO persistent glass box, NO dim ink. It reads because
+    // it sits on the top gradient scrim, exactly like the footer pills sit on the footer gradient.
+    component VerbButton: Item {
+        id: vb
+        property string glyphKindProp: ""
+        property alias glyphKind: vbGlyph.kind
+        property int side: 34
+        signal tapped()
+        implicitWidth: side
+        implicitHeight: side
+        scale: vbMa.pressed ? 0.94 : (vbMa.containsMouse ? 1.06 : 1.0)
+        Behavior on scale { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
+        Rectangle {
+            anchors.fill: parent
+            radius: width / 2
+            color: vbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+        }
+        ComicReaderIcon {
+            id: vbGlyph
+            anchors.centerIn: parent
+            kind: vb.glyphKindProp
+            width: Math.round(vb.side * 0.5); height: width
+            ink: theme.ink
+        }
+        MouseArea {
+            id: vbMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: vb.tapped()
+        }
+    }
+
     // an icon + label glass pill (Library, Chapters)
     component LabeledPill: Rectangle {
         id: lp
@@ -267,26 +302,64 @@ Item {
         visible: opacity > 0.001
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
-        // ---- back pill (top-left) ----
-        LabeledPill {
-            id: icBack
-            x: 16; y: 16
-            glyphKindProp: "back"
-            label: "Library"
-            onTapped: hud.backRequested()
+        // ---- top gradient scrim: darkens the top edge so the back + window verbs read on ANY page,
+        //      mirroring the footer gradient (and the player's playerTopScrim). The page still owns
+        //      the screen — this is a soft visitor, not a bar. ----
+        Rectangle {
+            id: topScrim
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: parent.top
+            height: 108
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.58) }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
+            }
         }
 
-        // ---- window verbs (top-right) ----
+        // ---- back to Library (top-left) — bright glyph + label on the scrim, no glass box ----
+        Row {
+            id: icBack
+            x: 18; y: 16
+            spacing: 7
+            property alias glyphKind: backGlyph.kind   // enumerated by iconKinds (audit)
+            ComicReaderIcon {
+                id: backGlyph
+                anchors.verticalCenter: parent.verticalCenter
+                kind: "back"
+                width: 20; height: 20
+                ink: backMa.containsMouse ? theme.gold : theme.ink
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: "Library"
+                color: backMa.containsMouse ? theme.gold : theme.ink
+                font.family: theme.hud
+                font.pixelSize: 14
+                font.weight: Font.DemiBold
+                style: Text.Raised
+                styleColor: Qt.rgba(0, 0, 0, 0.5)
+            }
+            MouseArea {
+                id: backMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: hud.backRequested()
+            }
+        }
+
+        // ---- window verbs (top-right) — transparent RoundButtons on the scrim, bright ink ----
         Row {
             id: verbs
             anchors.right: parent.right
             anchors.top: parent.top
             anchors.rightMargin: 16
-            anchors.topMargin: 16
-            spacing: 8
-            IconPill { id: icMin;   glyphKindProp: "minimize";   iconInk: theme.inkDimmer; color: hud.cGlass; onTapped: hud.minimizeRequested() }
-            IconPill { id: icFull;  glyphKindProp: "fullscreen"; iconInk: theme.inkDimmer; color: hud.cGlass; onTapped: hud.fullscreenRequested() }
-            IconPill { id: icClose; glyphKindProp: "close";      iconInk: theme.inkDimmer; color: hud.cGlass; onTapped: hud.closeRequested() }
+            anchors.topMargin: 14
+            spacing: 4
+            VerbButton { id: icMin;   glyphKindProp: "minimize";   onTapped: hud.minimizeRequested() }
+            VerbButton { id: icFull;  glyphKindProp: "fullscreen"; onTapped: hud.fullscreenRequested() }
+            VerbButton { id: icClose; glyphKindProp: "close";      onTapped: hud.closeRequested() }
         }
 
         // ---- thin side scroller (right edge) ----
