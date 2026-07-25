@@ -42,6 +42,8 @@ Item {
     // rather than reconstructed (a reconstruction is where a "fallback played the wrong thing" bug
     // would live).
     property var _lastRequest: ({})
+    // True between Stream.play() and streamReady/streamError - a torrent is warming up.
+    property bool _awaitingStream: false
 
     readonly property bool isSeries: page.subStreamType === "series"
 
@@ -97,6 +99,26 @@ Item {
         function onRestartRequired(reason) { page.backendRestartRequired(reason) }
     }
 
+    // The torrent seam, same shape the shipped player uses (qml/PlayerPage.qml:2924).
+    Connections {
+        target: (typeof Stream !== "undefined") ? Stream : null
+        ignoreUnknownSignals: true
+        function onStreamReady(url, infoHash, fileIdx) {
+            if (!page._awaitingStream)
+                return
+            page._awaitingStream = false
+            page._open(String(url || ""))
+        }
+        function onStreamError(message) {
+            if (!page._awaitingStream)
+                return
+            page._awaitingStream = false
+            // The torrent never produced a URL. Player 2 has no retry/pick-another-source machinery
+            // yet (that lives in the shipped player), so hand it over rather than sit on a dead page.
+            page.backendFallback(String(message || "the stream could not be started"), page._lastRequest)
+        }
+    }
+
     Component.onCompleted: backend.attachVideoItem(videoSurface)
     // Never leave the display-sleep inhibit held after the page goes away (PlayerPage.qml:2633).
     Component.onDestruction: if (typeof Power !== "undefined") Power.release()
@@ -118,9 +140,22 @@ Item {
         // A candidate carries either a direct URL (debrid/HTTP) or an infoHash the torrent sidecar
         // serves over loopback — the same two transports the shipped player distinguishes.
         var url = page._directUrlFor(streamCandidates, infoHash)
-        if (!url.length && String(infoHash || "").length)
-            url = Stream.streamUrl(String(infoHash), Number(fileIdx || 0))
-        page._open(url)
+        if (url.length) {
+            page._open(url)
+            return
+        }
+        if (String(infoHash || "").length) {
+            // Torrent playback is ASYNCHRONOUS. Stream.streamUrl() is only a formatter and returns
+            // EMPTY until the sidecar's HTTP server is listening; the real URL arrives on
+            // streamReady. Asking for it synchronously made every torrent fall back with "no
+            // playable source" on the first swap attempt (2026-07-25) — the shipped player has
+            // always used play() -> streamReady, and so must this.
+            page._awaitingStream = true
+            hostServices.currentPlaybackUrl = ""
+            Stream.play(String(infoHash), Number(fileIdx || 0))
+            return
+        }
+        page._open("")   // nothing playable travelled with the request; let the router say so
     }
 
     function playLocalFile(target) {
@@ -173,6 +208,9 @@ Item {
 
     function _reset() {
         page.pendingSeekSec = 0
+        // Drop any torrent still warming up for the PREVIOUS media, so its late streamReady cannot
+        // open the wrong thing over what we are about to play.
+        page._awaitingStream = false
         hostServices.streamCandidates = []
         hostServices.currentStreamIndex = -1
         hostServices.deadStreamKeys = ({})
