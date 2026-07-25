@@ -13,7 +13,7 @@
 //   * ANTI-JUMP. core.stripCompensation(delta) — emitted when a page above the fold decodes to a new
 //     height — is added straight to contentY so the read position doesn't shift under the reader.
 //   * SMOOTH WHEEL. The family's float accumulator — ported from the reader this one replaced
-//     (MangaReader.qml's FrameAnimation drain, itself TB2's), NOT re-derived. ~100px/notch intake
+//     (MangaReader.qml's FrameAnimation drain, itself TB2's), NOT re-derived. ~168px/notch intake
 //     into a bounded backlog, 38% of that backlog drained per frame, sub-pixel float contentY.
 //     THIS is the reading feel, and every clause of it is load-bearing — see the drain below.
 //   * PER-PAGE FAILURE. core.pageFailed(page,code) shows a typed placard on THAT page's delegate
@@ -284,10 +284,13 @@ Item {
         onTriggered: root._drainWheel()
     }
 
-    // intake ~100px per notch into the bounded backlog
+    // 1.4 px per angle unit = 168px/notch — the house tuning from the reader this one
+    // replaced, restored on Hemanth's ruling (2026-07-25). We had TB2's 100px/notch: the
+    // same easing curve travelling 40% less per notch, which reads as smooth-but-heavy.
+    // The trackpad path is untouched — pixelDelta is already real pixels on every platform.
     function _intakeWheel(angleY, pixelY) {
         var dy = pixelY
-        if (dy === 0) dy = angleY * (100.0 / 120.0)
+        if (dy === 0) dy = angleY * 1.4
         if (dy === 0) return
         _userInteracted = true
         manualNavigation()

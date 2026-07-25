@@ -16,7 +16,7 @@
 //       call after the frame flush, carrying the LATEST viewport.
 //     * core.stripCompensation(delta) -> contentY shifts by delta (anti-jump).
 //     * the smooth-wheel float accumulator (Tankoban-Max / QTGW SmoothScrollArea): a wheel intake
-//       lands ~100px/notch into a bounded backlog, and each 16ms drain takes ~0.38 of the backlog
+//       lands ~168px/notch into a bounded backlog, and each 16ms drain takes ~0.38 of the backlog
 //       clamped to a max step (no giant jump), draining smoothly in float sub-pixel space.
 //     * a per-page pageFailed(page,code) shows the typed placard for THAT page's delegate only.
 //     * RESTORE is a one-shot COMMAND from the shell, never a bound fraction: seekToPage(n) lands on
@@ -232,10 +232,11 @@ Item {
         stripSurface.contentY = 0
         stripSurface._pendingWheelPx = 0
         stripSurface._smoothY = 0
-        // 3 notches DOWN: angleDelta -360 -> intake ~ -360*100/120 = -300 -> +300 into the backlog
+        // 3 notches DOWN: angleDelta -360 -> intake ~ -360*1.4 = -504 -> +504 into the backlog
+        // (168px/notch — the reader-1 house tuning restored on Hemanth's 2026-07-25 ruling)
         stripSurface._intakeWheel(-360, 0)
         var pend0 = stripSurface._pendingWheelPx
-        ck(approx(pend0, 300, 1.0), "wheel: 3-notch intake (~100px/notch) must land ~300px in the backlog, got " + pend0)
+        ck(approx(pend0, 504, 1.0), "wheel: 3-notch intake (~168px/notch) must land ~504px in the backlog, got " + pend0)
         // The drain model is PORTED from the reader this one replaced, not re-derived, so these
         // assertions pin the lineage's curve rather than a plausible-looking one:
         //   take = pending * (1 - (1-0.38)^frames),  frames = min(3, max(0.25, frameTime*60))
@@ -288,7 +289,7 @@ Item {
         // quantises the slow tail of every glide into stand-still-then-jump, which is the single
         // most obvious "harsh" tell.
         // Sampled MID-GLIDE, not at rest: a completed glide lands on exactly the distance that was
-        // put in (300px here), which is a whole number by construction and would pass even if every
+        // put in (504px here), which is a whole number by construction and would pass even if every
         // step had been rounded.
         ck(Math.abs(midSmooth - Math.round(midSmooth)) > 1e-6,
            "wheel: _smoothY must accumulate in FLOAT sub-pixel space, got integer " + midSmooth)
