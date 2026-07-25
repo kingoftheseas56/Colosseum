@@ -74,6 +74,37 @@ Item {
                  "type": mediaType, "title": title, "cover": cover,
                  "payload": { "art": banner } }
     }
+    // Notify-about-new-episodes flag (spec §4.5), read off the saved Collection entry. Default
+    // ON (undefined libNotif == on); a scan of the small theatre collection is cheap. Naming
+    // Collection.revision in the caller keeps it live.
+    function libNotifOn() {
+        var id = String(page.collectionEntry().id)
+        var items = (typeof Collection !== "undefined") ? Collection.items("theatre") : []
+        for (var i = 0; i < items.length; i++)
+            if (String(items[i].id) === id)
+                return !(items[i].payload && items[i].payload.libNotif === false)
+        return true
+    }
+    // Flip libNotif on the STORED entry (preserving its stamps) via the upsert pattern. A
+    // silenced series never badges or counts in the ledger (buildRows forces its newCount to 0).
+    function toggleLibNotif() {
+        if (typeof Collection === "undefined") return
+        var id = String(page.collectionEntry().id)
+        var items = Collection.items("theatre")
+        for (var i = 0; i < items.length; i++) {
+            if (String(items[i].id) !== id) continue
+            var e = items[i]
+            var patched = {}
+            for (var k in e) patched[k] = e[k]
+            var payload = {}
+            var src = e.payload || {}
+            for (var pk in src) payload[pk] = src[pk]
+            payload.libNotif = (payload.libNotif === false)   // off → on (true) ; on → off (false)
+            patched.payload = payload
+            Collection.add("theatre", patched)
+            return
+        }
+    }
     // Canonical annotations win when present (sourceSeason/sourceEpisode from the
     // native resolver); raw provider rows fall back to season/episode so non-anime
     // and unmapped titles behave exactly as before.
@@ -913,6 +944,34 @@ Item {
                         LibraryButton {
                             world: "theatre"
                             entry: page.collectionEntry()
+                        }
+                        // Notify-about-new-episodes toggle (spec §4.5) — only for SAVED series.
+                        // Flips payload.libNotif; a silenced series stops badging + counting.
+                        Rectangle {
+                            id: notifPill
+                            visible: page.mediaType === "series" && (typeof Collection !== "undefined")
+                                     && (Collection.revision, Collection.has("theatre", String(page.collectionEntry().id)))
+                            readonly property bool on: (Collection.revision, page.libNotifOn())
+                            width: notifText.implicitWidth + 32
+                            height: 42
+                            radius: 11
+                            color: notifMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
+                            border.width: 1
+                            border.color: theme.edge
+                            Text {
+                                id: notifText
+                                anchors.centerIn: parent
+                                text: notifPill.on ? "Notifications on" : "Notifications off"
+                                color: notifPill.on ? theme.ink : theme.inkDimmer
+                                font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                id: notifMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: page.toggleLibNotif()
+                            }
                         }
                     }
                 }

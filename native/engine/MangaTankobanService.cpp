@@ -61,6 +61,15 @@ MangaTorrentEngineAdapter::MangaTorrentEngineAdapter(TorrentEngine* engine, QObj
 
 QString MangaTorrentEngineAdapter::addMagnet(const QString& magnetUri, const QString& savePath, bool paused)
 {
+    // Bring the shared engine LIVE on first use — exactly like the comic/book downloaders
+    // (ComicTorrentDownloader / BookTorrentDownloader) do. The engine is constructed dormant
+    // (empty listen_interfaces, DHT disabled) and only start() → applySettings() turns
+    // networking on. The manga-volume path never did this, so a volume download added its
+    // magnet to a network-DEAD session → no DHT, no peers, metadata never resolved and it sat
+    // at "Finding source…" forever (unless a comic/book download had already started the
+    // engine). start() is idempotent (no-op when already running).
+    if (m_engine && !m_engine->isRunning())
+        m_engine->start();
     return m_engine->addMagnet(magnetUri, savePath, paused);
 }
 

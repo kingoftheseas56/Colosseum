@@ -458,13 +458,19 @@ function clamp_(v, lo, hi) {
     return n < lo ? lo : (n > hi ? hi : n)
 }
 
-// appearanceDefaults() → the ratified default reader2 appearance. Literata is the default
-// typeface now that we ship it; Night is the ratified default theme.
+// appearanceDefaults() → the ratified default reader2 appearance (PARITY 2026-07-24:
+// full Reader-1 control set; sizePct replaces sizePx — 100% == the old 18px look).
 function appearanceDefaults() {
     return {
-        theme: "night", font: "literata", sizePx: 18, lineHeight: 1.6, marginPx: 72,
-        justify: true, flow: "paginated",
-        rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40
+        theme: "night", font: "literata", sizePct: 100, fontWeight: 400,
+        lineHeight: 1.6, marginPx: 72, justify: true, flow: "paginated",
+        wordSpacing: 0, letterSpacing: 0, paraSpacing: 0, paraIndent: "book",
+        maxLineWidthPx: 960, hyphens: false, columns: "single",
+        customPage: "#111214", customInk: "#c9c5bc", customCss: "",
+        // GLOBAL keys (reading habits, never per-book): images-in-dark + ruler + read-along.
+        invertImages: true,
+        rulerOn: false, rulerHeightPx: 92, rulerDimPct: 42, rulerYPct: 40,
+        readAlong: { mode: "sentenceWord", wordScale: 1.0 }
     }
 }
 
@@ -476,8 +482,84 @@ function themeColors(name) {
     case "sepia": return { bg: "#e5d5b8", fg: "#4a3f2c" }
     case "slate": return { bg: "#232830", fg: "#c6cdd8" }
     case "night": return { bg: "#111013", fg: "#eee9de" }
+    case "contrast": return { bg: "#000000", fg: "#ffffff" }
     default: return { bg: "#111013", fg: "#eee9de" }
     }
+}
+
+// appearanceThemeColors(a) → the { bg, fg } this appearance renders with — custom-aware
+// (the Custom theme's colours live in the appearance, not the name table).
+function appearanceThemeColors(a) {
+    var s = a || {}
+    if (String(s.theme).toLowerCase() === "custom")
+        return { bg: s.customPage || "#111214", fg: s.customInk || "#c9c5bc" }
+    return themeColors(s.theme)
+}
+
+// isDarkHex(hex) → perceived-dark judgment (Reader 1's formula: weighted luminance < 128).
+function isDarkHex(hex) {
+    var h = String(hex || "").replace("#", "")
+    if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+    if (h.length !== 6) return true
+    var r = parseInt(h.slice(0, 2), 16), g = parseInt(h.slice(2, 4), 16), b = parseInt(h.slice(4, 6), 16)
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 128
+}
+
+// isDarkAppearance(a) → drives image inversion + the invert toggle's visibility. Named
+// dark themes are dark; Custom is judged by its page colour.
+function isDarkAppearance(a) {
+    var t = String((a || {}).theme || "").toLowerCase()
+    if (t === "custom") return isDarkHex((a || {}).customPage || "#111214")
+    return t === "slate" || t === "night" || t === "contrast"
+}
+
+// contrastRatio(hex1, hex2) → WCAG ratio (1..21) for the custom-colour low-contrast hint.
+function contrastRatio(hex1, hex2) {
+    function lum(hex) {
+        var h = String(hex || "").replace("#", "")
+        if (h.length === 3) h = h[0] + h[0] + h[1] + h[1] + h[2] + h[2]
+        if (h.length !== 6) return 0
+        function ch(i) {
+            var c = parseInt(h.slice(i, i + 2), 16) / 255
+            return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * ch(0) + 0.7152 * ch(2) + 0.0722 * ch(4)
+    }
+    var a = lum(hex1), b = lum(hex2)
+    var hi = Math.max(a, b), lo = Math.min(a, b)
+    return (hi + 0.05) / (lo + 0.05)
+}
+
+// hslToHex(h, s, l) / hexToHsl(hex) → the custom-colour sliders' unit conversions
+// (h 0..360, s/l 0..100).
+function hslToHex(h, s, l) {
+    h = ((Number(h) % 360) + 360) % 360; s = clamp_(s, 0, 100) / 100; l = clamp_(l, 0, 100) / 100
+    var c = (1 - Math.abs(2 * l - 1)) * s
+    var x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+    var m = l - c / 2
+    var r = 0, g = 0, b = 0
+    if (h < 60) { r = c; g = x } else if (h < 120) { r = x; g = c }
+    else if (h < 180) { g = c; b = x } else if (h < 240) { g = x; b = c }
+    else if (h < 300) { r = x; b = c } else { r = c; b = x }
+    function hex2(v) { var n = Math.round((v + m) * 255); return (n < 16 ? "0" : "") + n.toString(16) }
+    return "#" + hex2(r) + hex2(g) + hex2(b)
+}
+function hexToHsl(hex) {
+    var h6 = String(hex || "").replace("#", "")
+    if (h6.length === 3) h6 = h6[0] + h6[0] + h6[1] + h6[1] + h6[2] + h6[2]
+    if (h6.length !== 6) return { h: 0, s: 0, l: 50 }
+    var r = parseInt(h6.slice(0, 2), 16) / 255, g = parseInt(h6.slice(2, 4), 16) / 255, b = parseInt(h6.slice(4, 6), 16) / 255
+    var max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min
+    var l = (max + min) / 2
+    var s = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+    var h = 0
+    if (d !== 0) {
+        if (max === r) h = 60 * (((g - b) / d) % 6)
+        else if (max === g) h = 60 * ((b - r) / d + 2)
+        else h = 60 * ((r - g) / d + 4)
+    }
+    if (h < 0) h += 360
+    return { h: Math.round(h), s: Math.round(s * 100), l: Math.round(l * 100) }
 }
 
 // fontFamilyFor(name) → the CSS family the glue applies. 'book' = publisher default,
@@ -494,23 +576,38 @@ function fontFamilyFor(name) {
     }
 }
 
-// appearanceToPaper(settings) → the glue payload the paper's setAppearance() takes:
-// { theme:{bg,fg}, font, sizePx, lineHeight, marginPx, justify }. Numeric fields are
-// CLAMPED to sane ranges here (sizePx 12..26, lineHeight 1.2..2.2, marginPx 24..160) so a
-// bad stored value can never break the paper. The ruler fields are intentionally NOT part
-// of this payload — they drive the Task 11 overlay, not the paper's text layout.
+// appearanceToPaper(settings) → the glue payload the paper's setAppearance() takes.
+// Every field is normalized/CLAMPED here so a bad stored value can never break the paper:
+// sizePct 50..300 (→ px 9..54, 100% == 18px), weight snapped to the 100 step, spacings to
+// their rem ranges, enums to their known values. The ruler + readAlong fields are
+// intentionally NOT part of this payload — they drive native overlays, not the paper.
 function appearanceToPaper(settings) {
     var s = settings || {}
+    var pct = Number.isFinite(s.sizePct) ? clamp_(s.sizePct, 50, 300)
+            : Number.isFinite(s.sizePx) ? clamp_((s.sizePx / 18) * 100, 50, 300) : 100
+    var indent = (s.paraIndent === "none" || s.paraIndent === "indent") ? s.paraIndent : "book"
+    var cols = s.columns === "spread" ? "spread" : "single"
+    // The outer clamp_ on sizePx/fontWeight is defensive insurance: the inner clamp already
+    // bounds the range, so it's a no-op today — kept so a future range-constant edit can't leak.
     return {
-        theme: themeColors(s.theme),
+        theme: appearanceThemeColors(s),
         font: fontFamilyFor(s.font),
-        sizePx: clamp_(s.sizePx, 12, 26),
-        lineHeight: clamp_(s.lineHeight, 1.2, 2.2),
-        marginPx: clamp_(s.marginPx, 24, 160),
-        justify: !!s.justify,
-        // flow: 'scrolled' is the ONLY non-default; junk or a legacy stored appearance
-        // (no flow key) normalizes to 'paginated' so the paper never sees a bad value.
-        flow: s.flow === "scrolled" ? "scrolled" : "paginated"
+        sizePx: clamp_(Math.round(18 * pct / 100), 9, 54),
+        fontWeight: clamp_(Math.round(clamp_(s.fontWeight === undefined ? 400 : s.fontWeight, 100, 900) / 100) * 100, 100, 900),
+        lineHeight: clamp_(s.lineHeight === undefined ? 1.6 : s.lineHeight, 1.0, 2.2),
+        marginPx: clamp_(s.marginPx === undefined ? 72 : s.marginPx, 24, 160),
+        justify: s.justify === undefined ? true : !!s.justify,
+        flow: s.flow === "scrolled" ? "scrolled" : "paginated",
+        wordSpacing: clamp_(s.wordSpacing === undefined ? 0 : s.wordSpacing, 0, 1),
+        letterSpacing: clamp_(s.letterSpacing === undefined ? 0 : s.letterSpacing, 0, 0.5),
+        paraSpacing: clamp_(s.paraSpacing === undefined ? 0 : s.paraSpacing, 0, 2),
+        paraIndent: indent,
+        maxLineWidthPx: clamp_(s.maxLineWidthPx === undefined ? 960 : s.maxLineWidthPx, 400, 1600),
+        hyphens: !!s.hyphens,
+        columns: cols,
+        customCss: String(s.customCss || ""),
+        invertImages: s.invertImages === undefined ? true : !!s.invertImages,
+        isDark: isDarkAppearance(s)
     }
 }
 
@@ -523,20 +620,89 @@ function mergeAppearance(prev, patch) {
     return out
 }
 
-// initialAppearance(settings) → the reader2 appearance to open with, from the WHOLE
-// settings.json object. Reads back our namespaced `settings.reader2` sub-object when present
-// (merged over the defaults, so a missing key falls back and a future key survives). On
-// FIRST run (no reader2 sub-object) it courtesy-seeds the theme from the old reader's flat
-// `theme` name when that name is one of our four; otherwise the ratified default (Night).
-function initialAppearance(settings) {
-    var s = settings || {}
-    var base = appearanceDefaults()
-    if (s.reader2 && typeof s.reader2 === "object")
-        return mergeAppearance(base, s.reader2)
+// migrateAppearance(a) → a full appearance from a possibly-legacy object: new keys are
+// filled from defaults, a legacy sizePx (no sizePct) converts losslessly (18px == 100%,
+// quantized to the 5% step), and sizePx is dropped from the result.
+function migrateAppearance(a) {
+    var out = mergeAppearance(appearanceDefaults(), a || {})
+    if (a && Number.isFinite(a.sizePx) && !(a && Number.isFinite(a.sizePct)))
+        out.sizePct = clamp_(Math.round((a.sizePx / 18) * 100 / 5) * 5, 50, 300)
+    delete out.sizePx
+    return out
+}
+
+// appearanceStore(settingsAll) → the normalized { defaults, books } store from the WHOLE
+// settings.json object. Three births: fresh (no reader2), legacy flat (reader2 IS an
+// appearance — migrate it into defaults), and the new shape (normalize defaults, keep books).
+// The legacy old-old-reader flat `theme` courtesy-seed is preserved from initialAppearance.
+function appearanceStore(settingsAll) {
+    var s = settingsAll || {}
+    var r2 = s.reader2
+    if (r2 && typeof r2 === "object" && r2.defaults && typeof r2.defaults === "object") {
+        var books = {}
+        if (r2.books && typeof r2.books === "object")
+            for (var b in r2.books) books[b] = r2.books[b]
+        return { defaults: migrateAppearance(r2.defaults), books: books }
+    }
+    if (r2 && typeof r2 === "object")
+        return { defaults: migrateAppearance(r2), books: {} }
     var known = { paper: 1, sepia: 1, slate: 1, night: 1 }
     if (s.theme && known[String(s.theme).toLowerCase()])
-        return mergeAppearance(base, { theme: String(s.theme).toLowerCase() })
-    return base
+        return { defaults: migrateAppearance({ theme: String(s.theme).toLowerCase() }), books: {} }
+    return { defaults: appearanceDefaults(), books: {} }
+}
+
+// effectiveAppearance(store, bookId) → what this book actually renders with: the defaults
+// overlaid by the book's sparse patch (absent/empty patch == the defaults).
+function effectiveAppearance(store, bookId) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var patch = (bookId && st.books && st.books[bookId]) ? st.books[bookId] : {}
+    return mergeAppearance(st.defaults, patch)
+}
+
+// GLOBAL appearance keys — reading habits, not book traits: edits write to defaults, never
+// into a per-book patch.
+var GLOBAL_APPEARANCE_KEYS_ = {
+    invertImages: 1, rulerOn: 1, rulerHeightPx: 1, rulerDimPct: 1, rulerYPct: 1, readAlong: 1
+}
+function isGlobalAppearanceKey(key) { return !!GLOBAL_APPEARANCE_KEYS_[String(key)] }
+
+// applyStorePatch(store, bookId, key, value) → a NEW store with one edit applied to the
+// right tier (pure — no mutation of the input).
+function applyStorePatch(store, bookId, key, value) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var out = { defaults: mergeAppearance(st.defaults, {}), books: {} }
+    for (var b in (st.books || {})) out.books[b] = mergeAppearance(st.books[b], {})
+    if (isGlobalAppearanceKey(key) || !bookId) {
+        out.defaults[key] = value
+    } else {
+        if (!out.books[bookId]) out.books[bookId] = {}
+        out.books[bookId][key] = value
+    }
+    return out
+}
+
+// useAsDefaultStore(store, bookId) → this book's effective appearance becomes the global
+// default; its own patch clears (it now IS the default). Other books keep their tuning.
+function useAsDefaultStore(store, bookId) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var out = { defaults: effectiveAppearance(st, bookId), books: {} }
+    for (var b in (st.books || {})) if (b !== bookId) out.books[b] = mergeAppearance(st.books[b], {})
+    return out
+}
+
+// resetBookStore(store, bookId) → drop this book's patch; it falls back to the defaults.
+function resetBookStore(store, bookId) {
+    var st = store || { defaults: appearanceDefaults(), books: {} }
+    var out = { defaults: mergeAppearance(st.defaults, {}), books: {} }
+    for (var b in (st.books || {})) if (b !== bookId) out.books[b] = mergeAppearance(st.books[b], {})
+    return out
+}
+
+// initialAppearance(settings) → KEPT for existing callers/tests: the defaults-tier
+// appearance the store yields for this settings object (legacy flat reader2 included).
+function initialAppearance(settings) {
+    return effectiveAppearance(appearanceStore(settings), "")
 }
 
 // ---------------------------------------------------------------------------
@@ -744,4 +910,237 @@ function speedLabel(rate) {
     var s = r.toFixed(2)
     s = s.replace(/(\.\d)0$/, "$1")   // 1.50 -> 1.5, but 1.00 -> 1.0
     return s + "×"
+}
+
+// ---------------------------------------------------------------------------
+// TASK 6 — audiobook↔EPUB read-along WIRING decisions (pure; proven headless).
+//
+// ReaderShell can't be instantiated offscreen (it needs the WebEngine paper + a dozen
+// context singletons), so EVERY read-along decision lives here as data-in / data-out and
+// ReaderShell's handlers are thin callers. That keeps the wiring honest AND testable:
+// tests/reader2_readalong_harness.qml proves these functions and wires them to fake
+// ReadAlong/paper/audioSession objects exactly as ReaderShell does. When the native
+// `ReadAlong`/`AudioTextAlignment` context props are ABSENT the reader is DORMANT — every
+// function here has a dormant answer (a plain audio seek), so nothing read-along fires.
+// ---------------------------------------------------------------------------
+
+// The three read-along modes (Tankoban-Max parity). Sentence + Word is the ratified default.
+function readAlongModeValid_(mode) {
+    return mode === "sentence" || mode === "word" || mode === "sentenceWord"
+}
+function readAlongDefaults() { return { mode: "sentenceWord", wordScale: 1.0 } }
+
+// readAlongFrom(appearance) → the persisted { mode, wordScale }, read back from the SAME
+// `settings.reader2` object appearance is stored in (its `.readAlong` sub-key), merged over
+// the defaults + validated. A missing/junk value falls back so the paper never sees garbage.
+// (Persisting read-along under `appearance.readAlong` reuses the appearance store round-trip:
+// applyAppearancePatch writes `all.reader2 = appearance` wholesale, so nesting here means the
+// two never clobber each other — exactly as the ruler controls ride along in `appearance`.)
+function readAlongFrom(appearance) {
+    var a = appearance || {}
+    var ra = (a.readAlong && typeof a.readAlong === "object") ? a.readAlong : {}
+    var mode = readAlongModeValid_(ra.mode) ? ra.mode : "sentenceWord"
+    var scale = Number.isFinite(ra.wordScale) ? clamp_(ra.wordScale, 1.0, 2.0) : 1.0
+    return { mode: mode, wordScale: scale }
+}
+
+// mergeReadAlong(appearance, patch) → a NEW appearance object with `.readAlong` updated by
+// `patch` (mode and/or wordScale), validated + clamped. Pure — every other appearance field
+// is copied through untouched so a read-along edit never disturbs theme/font/ruler/etc.
+function mergeReadAlong(appearance, patch) {
+    var out = mergeAppearance({}, appearance)     // shallow copy of the whole appearance
+    var cur = readAlongFrom(appearance)
+    var next = { mode: cur.mode, wordScale: cur.wordScale }
+    var p = patch || {}
+    if (p.mode !== undefined && p.mode !== null) next.mode = readAlongModeValid_(p.mode) ? p.mode : next.mode
+    if (p.wordScale !== undefined && p.wordScale !== null && Number.isFinite(Number(p.wordScale)))
+        next.wordScale = clamp_(p.wordScale, 1.0, 2.0)
+    out.readAlong = next
+    return out
+}
+
+// readAlongStyleFromMode(mode, wordScale) → the paper.setReadAlongStyle() payload:
+// { mode, sentence, word, wordScale }. Sentence lights the sentence wash, Word lights the
+// word emphasis, Sentence + Word lights both. wordScale is the enlargement (1.0..2.0). Pure.
+function readAlongStyleFromMode(mode, wordScale) {
+    var m = readAlongModeValid_(mode) ? mode : "sentenceWord"
+    var scale = Number.isFinite(Number(wordScale)) ? clamp_(wordScale, 1.0, 2.0) : 1.0
+    return { mode: m, sentence: m !== "word", word: m !== "sentence", wordScale: scale }
+}
+
+// scrubFractionToTimeMs(fraction, durationSec) → an absolute time IN THE CURRENT STREAM, in
+// ms, for previewTime/commitTime. The gold scrub rail's fraction is over the session's
+// current-stream duration (position/duration), so this stays in the same "per-current-stream
+// ms" convention as sessionToAbsMs below. Clamped; a zero/absent duration yields 0. Pure.
+function scrubFractionToTimeMs(fraction, durationSec) {
+    var f = clamp_(fraction, 0, 1)
+    var d = (Number.isFinite(durationSec) && durationSec > 0) ? durationSec : 0
+    return Math.round(f * d * 1000)
+}
+
+// sessionToAbsMs(index, positionSec, chapterBoundsMs) → the audiobook time to feed the
+// controller. When REAL chapter start offsets are known (Task 12 supplies chapterBoundsMs),
+// absolute = boundsMs[index] + position*1000. Absent them we pass position*1000 — exactly
+// correct for a single-file m4b (the primary read-along case, where the whole book is one
+// stream and `index` is an mpv-chapter marker, not a stream offset), and a consistent
+// per-file value for a multi-file set (the controller is fed the SAME convention on both the
+// feed and the commit, so the round-trip is coherent until Task 12 lands real durations). Pure.
+function sessionToAbsMs(index, positionSec, chapterBoundsMs) {
+    var i = Number(index)
+    var base = (chapterBoundsMs && Number.isFinite(chapterBoundsMs[i])) ? chapterBoundsMs[i] : 0
+    var pos = Number.isFinite(positionSec) ? positionSec : 0
+    return Math.round(base + pos * 1000)
+}
+
+// audioSeekTargetSec(chapter, timeMs, chapterBoundsMs) → the inverse of sessionToAbsMs: the
+// SECONDS to seek within the target chapter's stream when the controller's audioSeekRequested
+// asks for absolute `timeMs`. Never negative. Pure.
+function audioSeekTargetSec(chapter, timeMs, chapterBoundsMs) {
+    var c = Number(chapter)
+    var base = (chapterBoundsMs && Number.isFinite(chapterBoundsMs[c])) ? chapterBoundsMs[c] : 0
+    var t = Number.isFinite(timeMs) ? timeMs : 0
+    return Math.max(0, (t - base) / 1000)
+}
+
+// shouldEmitSetPlayhead(prev, next) → did the playhead-relevant identity change? prev/next
+// are { chapter, absMs }. Emit on the first playhead (prev null) or whenever the chapter or
+// the time moved — this suppresses ONLY true no-ops (a re-notify with an identical position,
+// e.g. a paused stream re-emitting). The controller itself further no-ops when the resolved
+// sentence/word is unchanged, so feeding every real tick is cheap and correct. Pure.
+function shouldEmitSetPlayhead(prev, next) {
+    if (!prev || typeof prev !== "object") return true
+    var n = next || {}
+    return prev.chapter !== n.chapter || prev.absMs !== n.absMs
+}
+
+// previewLabelFrom(previewMap) → the scrub-preview view model (timestamp + chapter + the
+// synced/located flags), shown while dragging the rail WITHOUT seeking. previewMap is the
+// controller's `preview`: { timeMs, chapter, synced, spineHref?, canonicalStart?, ... }.
+// Returns { line, time, chapter, synced, located }; `line` is the ready-to-render string.
+// Pure — no engine, its own clock formatter (fmtClock_).
+function previewLabelFrom(previewMap) {
+    var p = previewMap || {}
+    var time = Number.isFinite(p.timeMs) ? fmtClock_(p.timeMs / 1000) : ""
+    var chapter = Number.isFinite(p.chapter) ? ("Ch " + (Number(p.chapter) + 1)) : ""
+    var synced = !!p.synced
+    var located = (p.spineHref !== undefined && p.spineHref !== null && String(p.spineHref) !== "")
+    var parts = []
+    if (time) parts.push(time)
+    if (chapter) parts.push(chapter)
+    return { line: parts.join(" · "), time: time, chapter: chapter, synced: synced, located: located }
+}
+
+// readAlongScrubAction(phase, fraction, durationSec, available) → what the gold scrub rail
+// should DO for a hover/drag ("preview") or a release ("commit"). When read-along is
+// AVAILABLE: preview → { kind:"preview", timeMs } (NO seek), commit → { kind:"commit",
+// timeMs } (exactly one controller commit). When DORMANT: always { kind:"seek", fraction }
+// — the reader's existing direct-seek behavior, byte-for-byte. Pure — the ONE branch that
+// makes the rail an aligned timeline when available and an ordinary scrub when not.
+function readAlongScrubAction(phase, fraction, durationSec, available) {
+    if (!available) return { kind: "seek", fraction: clamp_(fraction, 0, 1) }
+    var timeMs = scrubFractionToTimeMs(fraction, durationSec)
+    if (phase === "commit") return { kind: "commit", timeMs: timeMs }
+    return { kind: "preview", timeMs: timeMs }
+}
+
+// navModeFor(pendingCommittedJump) → how to honor the controller's navigationRequested: a
+// jump we just committed (double-click / scrub release) is a hard "navigate"; a passive
+// follow move is a gentle "ensureVisible" (comfort zone). ReaderShell sets the pending flag
+// on a commit and clears it when the next navigationRequested consumes it. Pure.
+function navModeFor(pendingCommittedJump) { return pendingCommittedJump ? "navigate" : "ensureVisible" }
+
+// ---------------------------------------------------------------------------
+// TASK 7 — Text Sync status COPY (pure; proven headless).
+//
+// Honest presentation of the native AudioTextAlignmentService's OWN status. The LeftPanel
+// Text Sync block is a THIN renderer of these: it never re-derives stage or progress, it
+// only formats the numbers/codes the service already decided (statusFor -> {stage, ready,
+// total, paused}; chaptersFor -> [{index, stage, failureCode, ...}]). The stage and failure
+// WIRE CODES are the service's stable contract (design Task 3); QML maps them here to the
+// approved plain-language copy and never invents alternate meanings. Everything is data-in /
+// data-out so tests/alignment_activity_harness.qml proves the copy directly.
+// ---------------------------------------------------------------------------
+
+// stageLabel(stage) → the plain display label for a stage wire code. An unknown/absent code
+// falls back to a safe generic so a future or garbage stage never renders blank.
+function stageLabel(stage) {
+    switch (String(stage === undefined || stage === null ? "" : stage)) {
+    case "waiting":      return "Waiting"
+    case "preparing":    return "Preparing"
+    case "transcribing": return "Transcribing"
+    case "matching":     return "Matching"
+    case "aligning":     return "Aligning words"
+    case "ready":        return "Ready"
+    case "couldnt_sync": return "Couldn't sync"
+    default:             return "Syncing"
+    }
+}
+
+// chapterFailureCopy(code) → the approved plain-language line for a terminal failure wire
+// code (design Task 3's failure map). QML renders this verbatim on a failed chapter; an
+// empty/unknown code is the generic "Couldn't sync". Pure.
+function chapterFailureCopy(code) {
+    switch (String(code === undefined || code === null ? "" : code)) {
+    case "edition_mismatch":       return "Couldn't sync — edition may differ"
+    case "chapter_match_missing":  return "Couldn't sync — no matching passage found"
+    case "audio_decode_failed":    return "Couldn't sync — audio couldn't be read"
+    case "model_missing":          return "Couldn't sync — speech model missing"
+    case "model_checksum_failed":  return "Couldn't sync — speech model is damaged"
+    case "epub_index_failed":      return "Couldn't sync — book text couldn't be read"
+    case "alignment_failed":       return "Couldn't sync — words couldn't be timed"
+    default:                       return "Couldn't sync"
+    }
+}
+
+// textSyncAllReady(status) → is every chapter aligned? True when the overall stage is
+// 'ready' OR the ready count reached the total (and a total is known). Pure.
+function textSyncAllReady(status) {
+    var s = status || {}
+    var ready = Number.isFinite(s.ready) ? s.ready : 0
+    var total = Number.isFinite(s.total) ? s.total : 0
+    return s.stage === "ready" || (total > 0 && ready >= total)
+}
+
+// textSyncSummary(status) → the one-line honest summary. Every chapter aligned → "All N
+// chapters ready". Otherwise "Syncing chapter K of N · <stage>", where K = the chapter now
+// in flight (chapters completed + 1, clamped to N) and <stage> is its stage label; a PAUSED
+// job says "Paused" in place of "Syncing" (never claim work is happening while it isn't).
+// An unknown total (nothing discovered yet) → "Preparing text sync". Pure — reads only the
+// service's own {stage, ready, total, paused}.
+function textSyncSummary(status) {
+    var s = status || {}
+    var ready = Number.isFinite(s.ready) ? s.ready : 0
+    var total = Number.isFinite(s.total) ? s.total : 0
+    if (total <= 0) return "Preparing text sync"
+    if (textSyncAllReady(s)) return "All " + total + " chapters ready"
+    var current = ready + 1
+    if (current > total) current = total
+    var head = (s.paused ? "Paused" : "Syncing") + " chapter " + current + " of " + total
+    var label = stageLabel(s.stage)
+    return label ? (head + " · " + label) : head
+}
+
+// readyCountText(status) → "K chapters ready" (singular "1 chapter ready"). Pure.
+function readyCountText(status) {
+    var s = status || {}
+    var ready = Number.isFinite(s.ready) ? s.ready : 0
+    return ready + (ready === 1 ? " chapter ready" : " chapters ready")
+}
+
+// chapterFailed(chapter) → did this chapter's alignment fail terminally? True when its stage
+// is 'couldnt_sync' or it carries a non-empty failure code. A failed chapter stays playable
+// as ordinary audio — this only gates the failure copy + the Retry affordance. Pure.
+function chapterFailed(chapter) {
+    var c = chapter || {}
+    if (c.stage === "couldnt_sync") return true
+    return c.failureCode !== undefined && c.failureCode !== null && String(c.failureCode) !== ""
+}
+
+// chapterStateText(chapter) → the per-chapter row label: the plain failure line when it
+// failed, "Ready" when aligned, else its stage label. Pure. Renders any of the seven states.
+function chapterStateText(chapter) {
+    var c = chapter || {}
+    if (chapterFailed(c)) return chapterFailureCopy(c.failureCode)
+    if (c.stage === "ready") return "Ready"
+    return stageLabel(c.stage)
 }

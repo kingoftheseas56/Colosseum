@@ -19,6 +19,8 @@ Column {
         return out;
     }
     signal itemRequested(var item)
+    property bool navigable: false
+    signal seeAllRequested()
 
     width: parent ? parent.width : 900
     spacing: 14
@@ -30,8 +32,9 @@ Column {
         width: parent.width
         title: rail.title
         sub: ""
-        moreLabel: "View all"
-        navigable: false
+        moreLabel: "See all"
+        navigable: rail.navigable
+        onMoreClicked: rail.seeAllRequested()
     }
 
     ListView {

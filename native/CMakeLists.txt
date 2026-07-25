@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon (Windows-only, harmless elsewhere)
-project(colosseum LANGUAGES CXX RC)
+# C = the vendored third_party/miniz/miniz.c (gunzip for the Jikan Accept-Encoding workaround).
+project(colosseum LANGUAGES C CXX RC)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,15 +29,6 @@ list(PREPEND CMAKE_PREFIX_PATH "${MPVQT_PREFIX}")
 set(Libmpv_INCLUDE_DIRS "${LIBMPV_PREFIX}/include" CACHE PATH "" FORCE)
 set(Libmpv_LIBRARIES    "${LIBMPV_PREFIX}/lib/${_LIBMPV_IMPLIB}" CACHE FILEPATH "" FORCE)
 find_package(MpvQt REQUIRED)
-
-# --- shared offline-ML seam: ONNX Runtime (guided comics + audiobook alignment) ---
-# Dormant by default so a fresh clone builds without the ~300 MB runtime staged.
-# Arcs that link it configure with -DCOLOSSEUM_ENABLE_ONNX=ON after running
-# scripts/native/fetch_onnxruntime.ps1 once per machine.
-option(COLOSSEUM_ENABLE_ONNX "Enable targets that link ONNX Runtime" OFF)
-if(COLOSSEUM_ENABLE_ONNX)
-    include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/OnnxRuntime.cmake)
-endif()
 
 # ── libtorrent-rasterbar (tankorent engine core) ─────────────────────────────
 # Ported from TB2 CMakeLists.txt (TANKORENT_DOWNLOAD_FLOW_FIX lineage):
@@ -94,10 +86,12 @@ add_executable(colosseum
     work/BackgroundWorkCoordinator.h
     work/BackgroundActivityRegistry.cpp
     work/BackgroundActivityRegistry.h
-    guided/GuidedCameraController.cpp
-    guided/GuidedCameraController.h
-    guided/GuidedTypes.cpp
-    guided/GuidedTypes.h
+    net/LoopbackPinProxy.cpp       # instant posters: pin the connection, keep the hostname (HTTP/2)
+    net/LoopbackPinProxy.h
+    net/PinProxyFactory.h
+    net/PosterScoreboard.cpp       # felt-speed Stage 0: arrived/failed/undecodable per host
+    net/PosterScoreboard.h
+    third_party/miniz/miniz.c      # gunzip for the Jikan Accept-Encoding workaround (needs C, enabled below)
     engine/WeebCentralScraper.cpp
     engine/WeebCentralScraper.h
     engine/MangaScraper.h
@@ -238,43 +232,6 @@ target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine 
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
     Qt6::WebEngineQuick Qt6::WebChannel Qt6::WebSockets colosseum_libtorrent)
 
-# ── Guided panel detector (ONNX Runtime) — dormant by default ─────────────────
-# Only when COLOSSEUM_ENABLE_ONNX=ON: compile the real detector + the guided
-# analysis domain into the app and light up the GuidedAnalysis service (main.cpp
-# guards its own construction on the same macro). The default build ships the
-# whole-page Guided shell with zero ONNX dependency, so siblings are untouched.
-if(COLOSSEUM_ENABLE_ONNX)
-    target_sources(colosseum PRIVATE
-        guided/PanelDetector.h
-        guided/PanelDetectorOnnx.cpp guided/PanelDetectorOnnx.h
-        guided/PanelPlanner.cpp guided/PanelPlanner.h
-        guided/PanelMapStore.cpp guided/PanelMapStore.h
-        guided/PanelAnalysisService.cpp guided/PanelAnalysisService.h
-        models/ModelManifest.cpp models/ModelManifest.h)
-    target_link_libraries(colosseum PRIVATE onnxruntime::onnxruntime)
-    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_ONNX)
-    # ship onnxruntime.dll beside the exe so the app can load it
-    add_custom_command(TARGET colosseum POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
-            "$<TARGET_FILE_DIR:colosseum>"
-        VERBATIM)
-
-    add_executable(panel_detector_harness
-        ../tests/panel_detector_harness.cpp
-        guided/PanelDetectorOnnx.cpp guided/PanelDetectorOnnx.h
-        guided/GuidedTypes.cpp guided/GuidedTypes.h
-        models/ModelManifest.cpp models/ModelManifest.h
-        work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h)
-    target_include_directories(panel_detector_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-    target_link_libraries(panel_detector_harness PRIVATE Qt6::Core Qt6::Gui onnxruntime::onnxruntime)
-    target_compile_definitions(panel_detector_harness PRIVATE COLOSSEUM_ENABLE_ONNX)
-    add_custom_command(TARGET panel_detector_harness POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            "$<TARGET_PROPERTY:onnxruntime::onnxruntime,IMPORTED_LOCATION>"
-            "$<TARGET_FILE_DIR:panel_detector_harness>"
-        VERBATIM)
-endif()
 
 add_executable(search_history_store_harness
     ../tests/search_history_store_harness.cpp
@@ -372,12 +329,42 @@ add_executable(progress_store_harness
 target_include_directories(progress_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(progress_store_harness PRIVATE Qt6::Core)
 
+add_executable(progress_watched_override_harness
+    ../tests/progress_watched_override_harness.cpp
+    ProgressStore.h
+)
+target_include_directories(progress_watched_override_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(progress_watched_override_harness PRIVATE Qt6::Core)
+
 add_executable(collection_store_harness
     ../tests/collection_store_harness.cpp
     CollectionStore.h
 )
 target_include_directories(collection_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(collection_store_harness PRIVATE Qt6::Core)
+
+add_executable(loopback_pin_proxy_harness
+    ../tests/loopback_pin_proxy_harness.cpp
+    net/LoopbackPinProxy.cpp
+    net/LoopbackPinProxy.h
+)
+target_include_directories(loopback_pin_proxy_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(loopback_pin_proxy_harness PRIVATE Qt6::Core Qt6::Network)
+
+add_executable(pin_proxy_factory_harness
+    ../tests/pin_proxy_factory_harness.cpp
+    net/PinProxyFactory.h
+)
+target_include_directories(pin_proxy_factory_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(pin_proxy_factory_harness PRIVATE Qt6::Core Qt6::Network)
+
+add_executable(poster_scoreboard_harness
+    ../tests/poster_scoreboard_harness.cpp
+    net/PosterScoreboard.cpp
+    net/PosterScoreboard.h
+)
+target_include_directories(poster_scoreboard_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(poster_scoreboard_harness PRIVATE Qt6::Core)
 
 add_executable(comic_dls_parse_harness
     ../tests/comic_dls_parse_harness.cpp
@@ -890,85 +877,3 @@ option(COLOSSEUM_BUILD_PLAYER2 "Build the isolated Player 2 laboratory" OFF)
 if(COLOSSEUM_BUILD_PLAYER2)
     add_subdirectory(player2)
 endif()
-
-# --- Guided comic reader (Agent 1) : panel-aware guided reader harnesses ---
-add_executable(guided_types_harness
-    ../tests/guided_types_harness.cpp
-    guided/GuidedTypes.cpp guided/GuidedTypes.h)
-target_include_directories(guided_types_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(guided_types_harness PRIVATE Qt6::Core)
-
-add_executable(panel_map_store_harness
-    ../tests/panel_map_store_harness.cpp
-    guided/PanelMapStore.cpp guided/PanelMapStore.h
-    guided/GuidedTypes.cpp guided/GuidedTypes.h)
-target_include_directories(panel_map_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(panel_map_store_harness PRIVATE Qt6::Core Qt6::Sql)
-
-# ── Audiobook↔EPUB read-along alignment (Agent 2, plan 2026-07-22) ────────────
-# Durable SQLite store of sentence/word cues per book↔audiobook pair. Qt Core+Sql
-# only (no whisper/ONNX at this layer). New Agent-2 alignment targets append below.
-add_executable(alignment_store_harness
-    ../tests/alignment_store_harness.cpp
-    alignment/AlignmentStore.cpp
-    alignment/AlignmentStore.h
-    alignment/AlignmentTypes.h)
-target_include_directories(alignment_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(alignment_store_harness PRIVATE Qt6::Core Qt6::Sql)
-
-add_executable(panel_planner_order_harness
-    ../tests/panel_planner_order_harness.cpp
-    guided/PanelPlanner.cpp guided/PanelPlanner.h
-    guided/GuidedTypes.cpp guided/GuidedTypes.h)
-target_include_directories(panel_planner_order_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(panel_planner_order_harness PRIVATE
-    GUIDED_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/guided")
-target_link_libraries(panel_planner_order_harness PRIVATE Qt6::Core)
-
-add_executable(panel_planner_camera_harness
-    ../tests/panel_planner_camera_harness.cpp
-    guided/PanelPlanner.cpp guided/PanelPlanner.h
-    guided/GuidedTypes.cpp guided/GuidedTypes.h)
-target_include_directories(panel_planner_camera_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(panel_planner_camera_harness PRIVATE Qt6::Core)
-
-# EPUB canonical text index (Agent 2). Vendored miniz opens the container; the walk
-# and canonical fold mirror resources/reader2/alignment_text.js byte-for-byte. Qt Core.
-# miniz.c is C — the project declares only CXX/RC, so enable C for the vendored reader.
-enable_language(C)
-add_executable(epub_text_indexer_harness
-    ../tests/epub_text_indexer_harness.cpp
-    alignment/EpubTextIndexer.cpp
-    alignment/EpubTextIndexer.h
-    alignment/AlignmentTypes.h
-    third_party/miniz/miniz.c)
-target_include_directories(epub_text_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(epub_text_indexer_harness PRIVATE
-    ALIGNMENT_CANONICAL_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/alignment/canonical")
-target_link_libraries(epub_text_indexer_harness PRIVATE Qt6::Core)
-
-# ── Panel analysis service (Agent 1): QML facade + background orchestration over
-#    the app-owned BackgroundWorkCoordinator; per-thread PanelMapStore + fake
-#    detector drive a deterministic canvas visit-order proof. Qt Core/Gui/Sql. ──
-add_executable(panel_analysis_service_harness
-    ../tests/panel_analysis_service_harness.cpp
-    guided/PanelAnalysisService.cpp guided/PanelAnalysisService.h
-    guided/PanelDetector.h
-    guided/PanelMapStore.cpp guided/PanelMapStore.h
-    guided/PanelPlanner.cpp guided/PanelPlanner.h
-    guided/GuidedTypes.cpp guided/GuidedTypes.h
-    work/BackgroundWorkCoordinator.cpp work/BackgroundWorkCoordinator.h)
-target_include_directories(panel_analysis_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(panel_analysis_service_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Sql)
-
-# ── Panel Step / Auto Read state machine (Agent 1): the GuidedCameraController
-#    that drives both manual Panel Step and timed Auto Read over ONE serialized
-#    GuidedPath, with Auto Read deadlines on an injected clock (FakeGuidedClock in
-#    the harness). QRectF/QPointF/QVariantMap/QJson/QTimer are all QtCore, and no
-#    qmlRegisterType is used here — so Qt6::Core alone links (Gui/Qml unneeded). ──
-add_executable(guided_camera_controller_harness
-    ../tests/guided_camera_controller_harness.cpp
-    guided/GuidedCameraController.cpp guided/GuidedCameraController.h
-    guided/GuidedTypes.cpp guided/GuidedTypes.h)
-target_include_directories(guided_camera_controller_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(guided_camera_controller_harness PRIVATE Qt6::Core)

@@ -6,6 +6,7 @@
 #include <QHash>
 #include <QHostAddress>
 #include <QIcon>
+#include <QImageReader>
 #include <QHostInfo>
 #include <QNetworkAccessManager>
 #include <QNetworkDiskCache>
@@ -27,6 +28,7 @@
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
+#include <QThread>
 #include <QTimer>
 
 #include "ClipboardHelper.h"
@@ -38,13 +40,7 @@
 #include "AudioPairingStore.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
-#include "guided/GuidedCameraController.h"
-#ifdef COLOSSEUM_ENABLE_ONNX
-#include "guided/PanelAnalysisService.h"
-#include "guided/PanelDetectorOnnx.h"
-#include "guided/PanelMapStore.h"
-#include "guided/PanelPlanner.h"
-#endif
+#include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
@@ -54,6 +50,12 @@
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
+#include "net/LoopbackPinProxy.h"
+#include "net/PinProxyFactory.h"
+#include "net/PosterScoreboard.h"
+#include <QNetworkProxyFactory>
+#include <QSet>
+#include <algorithm>
 #include "anime/AnimeOrderService.h"
 #include "reader/BookBridge.h"
 #include "reader2/Reader2Bridge.h"
@@ -71,16 +73,116 @@
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
 
+// gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
+// Strip the header, raw-inflate with miniz's tinfl. Empty on any malformation.
+static QByteArray gunzip(const QByteArray &in) {
+    if (in.size() < 18 || static_cast<quint8>(in[0]) != 0x1f
+        || static_cast<quint8>(in[1]) != 0x8b)
+        return {};
+    int idx = 10;
+    const quint8 flg = static_cast<quint8>(in[3]);
+    if (flg & 0x04) { // FEXTRA
+        const int xlen = static_cast<quint8>(in[idx]) | (static_cast<quint8>(in[idx + 1]) << 8);
+        idx += 2 + xlen;
+    }
+    if (flg & 0x08) { while (idx < in.size() && in[idx] != 0) ++idx; ++idx; } // FNAME
+    if (flg & 0x10) { while (idx < in.size() && in[idx] != 0) ++idx; ++idx; } // FCOMMENT
+    if (flg & 0x02) idx += 2;                                                 // FHCRC
+    if (idx >= in.size() - 8)
+        return {};
+    size_t outLen = 0;
+    void *out = tinfl_decompress_mem_to_heap(in.constData() + idx,
+                                             static_cast<size_t>(in.size() - idx - 8), &outLen, 0);
+    if (!out)
+        return {};
+    QByteArray result(static_cast<const char *>(out), static_cast<int>(outLen));
+    mz_free(out);
+    return result;
+}
+
+// Transparent gzip-decompressing reply. api.jikan.moe's origin returns 504 for
+// Qt's default multi-codec Accept-Encoding but 200 for a plain "gzip" request —
+// and Qt does NOT auto-decompress a manually-set encoding, so we buffer the inner
+// reply and gunzip it before QML's XMLHttpRequest reads responseText. No Q_OBJECT:
+// only inherited QNetworkReply signals are emitted (matches this file's style).
+class GunzipReply : public QNetworkReply {
+public:
+    explicit GunzipReply(QNetworkReply *inner) : m_inner(inner) {
+        m_inner->setParent(this);
+        setOperation(m_inner->operation());
+        setRequest(m_inner->request());
+        setUrl(m_inner->url());
+        setOpenMode(QIODevice::ReadOnly);
+        QObject::connect(m_inner, &QNetworkReply::finished, this, [this] { finalize(); });
+    }
+    void abort() override { m_inner->abort(); }
+    qint64 bytesAvailable() const override {
+        return QNetworkReply::bytesAvailable() + (m_buffer.size() - m_pos);
+    }
+    bool isSequential() const override { return true; }
+
+protected:
+    qint64 readData(char *data, qint64 maxlen) override {
+        const qint64 avail = m_buffer.size() - m_pos;
+        if (avail <= 0)
+            return m_done ? -1 : 0;
+        const qint64 n = qMin(maxlen, avail);
+        memcpy(data, m_buffer.constData() + m_pos, n);
+        m_pos += n;
+        return n;
+    }
+
+private:
+    void finalize() {
+        setAttribute(QNetworkRequest::HttpStatusCodeAttribute,
+                     m_inner->attribute(QNetworkRequest::HttpStatusCodeAttribute));
+        setAttribute(QNetworkRequest::HttpReasonPhraseAttribute,
+                     m_inner->attribute(QNetworkRequest::HttpReasonPhraseAttribute));
+        const auto pairs = m_inner->rawHeaderPairs();
+        for (const auto &h : pairs) {
+            if (qstricmp(h.first.constData(), "Content-Encoding") == 0
+                || qstricmp(h.first.constData(), "Content-Length") == 0)
+                continue;
+            setRawHeader(h.first, h.second);
+        }
+        const QByteArray raw = m_inner->readAll();
+        const QByteArray enc = m_inner->rawHeader("Content-Encoding");
+        if (qstricmp(enc.constData(), "gzip") == 0) {
+            const QByteArray plain = gunzip(raw);
+            m_buffer = plain.isEmpty() ? raw : plain; // fall back to raw if gunzip fails
+        } else {
+            m_buffer = raw;
+        }
+        setHeader(QNetworkRequest::ContentLengthHeader, m_buffer.size());
+        if (m_inner->error() != QNetworkReply::NoError)
+            setError(m_inner->error(), m_inner->errorString());
+        m_done = true;
+        emit metaDataChanged();
+        if (m_inner->error() != QNetworkReply::NoError)
+            emit errorOccurred(m_inner->error());
+        emit readyRead();
+        setFinished(true);
+        emit finished();
+    }
+
+    QNetworkReply *m_inner;
+    QByteArray m_buffer;
+    qint64 m_pos = 0;
+    bool m_done = false;
+};
+
 class CachingNam : public QNetworkAccessManager {
 public:
     // useCache=false gives a pin+UA NAM with NO disk cache / no PreferCache — for live
     // lanes (torrent search) where a stale cached response would freeze seeder counts.
     CachingNam(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
-               QObject *parent = nullptr, bool useCache = true)
+               QObject *parent = nullptr, bool useCache = true,
+               PosterScoreboard *scoreboard = nullptr)
         : QNetworkAccessManager(parent),
           m_pinnedHosts(std::move(pinnedHosts)),
           m_ipv4ByHost(std::move(ipv4ByHost)),
-          m_useCache(useCache) {
+          m_useCache(useCache),
+          m_scoreboard(scoreboard) {
         if (m_useCache) {
             auto *cache = new QNetworkDiskCache(this);
             const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
@@ -101,6 +203,13 @@ protected:
         if (m_pinnedHosts.contains(host)) {
             r.setRawHeader("Host", host.toUtf8());
             r.setPeerVerifyName(host);
+            // HTTP/2 MUST stay OFF for URL-rewrite-pinned hosts: rewriting the URL to
+            // the IPv4 literal below makes h2's :authority the IP, which servers like
+            // metahub reject ("HTTP/2 protocol error"), forcing a slower failed-h2→h1
+            // retry (confirmed 2026-07-23). metahub itself no longer reaches this path
+            // — it's pinned at the CONNECTION layer by the loopback concierge (spec
+            // 2026-07-23), keeping its hostname so h2 works. This branch now governs
+            // the JSON hosts and the concierge-unavailable fallback only.
             r.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
 
             const QString ipv4 = m_ipv4ByHost.value(host);
@@ -124,35 +233,80 @@ protected:
                        QNetworkRequest::NoLessSafeRedirectPolicy);
         if (m_useCache)
             r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
-        return QNetworkAccessManager::createRequest(op, r, outgoing);
+
+        // Jikan's origin proxy returns 504 for Qt's default multi-codec Accept-Encoding
+        // (br/zstd) but 200 for a plain "gzip" — this silently emptied every Jikan-fed
+        // surface (genre index / Jump registry / Theatre anime). Force gzip and hand the
+        // reply through GunzipReply, which decompresses it since Qt won't for a manual
+        // encoding. Scoped to api.jikan.moe so nothing else changes shape.
+        if (host == QLatin1String("api.jikan.moe")) {
+            r.setRawHeader("Accept-Encoding", "gzip");
+            QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
+            watch(host, inner);   // watch the INNER reply: GunzipReply doesn't forward attributes
+            return new GunzipReply(inner);
+        }
+        QNetworkReply *reply = QNetworkAccessManager::createRequest(op, r, outgoing);
+        watch(host, reply);
+        return reply;
     }
 
 private:
     QStringList m_pinnedHosts;
     QHash<QString, QString> m_ipv4ByHost;
     bool m_useCache = true;
+    PosterScoreboard *m_scoreboard = nullptr;
+
+    void watch(const QString &host, QNetworkReply *reply) {
+        if (!m_scoreboard)
+            return;
+        PosterScoreboard *scoreboard = m_scoreboard;
+        // No receiver context on purpose: the lambda runs on the reply's own thread and
+        // record() is mutex-guarded. `host` is the ORIGINAL hostname — reply->url() may
+        // carry the rewritten IPv4 literal for URL-pinned hosts.
+        QObject::connect(reply, &QNetworkReply::finished, [scoreboard, host, reply] {
+            const int status =
+                reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+            const QVariant clen = reply->header(QNetworkRequest::ContentLengthHeader);
+            const qint64 bytes = clen.isValid() ? clen.toLongLong() : reply->bytesAvailable();
+            scoreboard->record(host, status, ct, bytes,
+                               reply->error() != QNetworkReply::NoError);
+        });
+    }
 };
 
 class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
 public:
-    CachingNamFactory(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost)
+    CachingNamFactory(QStringList pinnedHosts, QHash<QString, QString> ipv4ByHost,
+                      PosterScoreboard *scoreboard)
         : m_pinnedHosts(std::move(pinnedHosts)),
-          m_ipv4ByHost(std::move(ipv4ByHost)) {}
+          m_ipv4ByHost(std::move(ipv4ByHost)),
+          m_scoreboard(scoreboard) {}
 
     QNetworkAccessManager *create(QObject *parent) override {
-        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent);
+        return new CachingNam(m_pinnedHosts, m_ipv4ByHost, parent, /*useCache=*/true, m_scoreboard);
     }
 
 private:
     QStringList m_pinnedHosts;
     QHash<QString, QString> m_ipv4ByHost;
+    PosterScoreboard *m_scoreboard = nullptr;   // owned by the app, outlives every NAM
 };
 
+// Resolve a host's IPv4, retrying briefly on a miss. The pin is computed ONCE at
+// boot; a transient DNS race at startup would otherwise leave the host UNPINNED
+// for the whole session, sending every request to it into the dead-AAAA IPv6
+// stall (the 2026-07-13 Jikan scar — genre index / Jump registry / Theatre anime
+// all silently emptied). A short backoff-retry makes a cold-DNS boot survivable.
 static QString resolveIpv4(const QString &host) {
-    const QHostInfo info = QHostInfo::fromName(host);
-    for (const QHostAddress &address : info.addresses()) {
-        if (address.protocol() == QAbstractSocket::IPv4Protocol)
-            return address.toString();
+    for (int attempt = 1; attempt <= 4; ++attempt) {
+        const QHostInfo info = QHostInfo::fromName(host);
+        for (const QHostAddress &address : info.addresses()) {
+            if (address.protocol() == QAbstractSocket::IPv4Protocol)
+                return address.toString();
+        }
+        if (attempt < 4)
+            QThread::msleep(250);  // DNS can be momentarily cold at boot; give it a beat
     }
     return {};
 }
@@ -275,8 +429,6 @@ int main(int argc, char *argv[]) {
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
-    // Guided (panel-aware) reader camera, reached from QML as `import Colosseum.Guided`.
-    qmlRegisterType<guided::GuidedCameraController>("Colosseum.Guided", 1, 0, "GuidedCameraController");
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -368,15 +520,75 @@ int main(int argc, char *argv[]) {
         QStringLiteral("uploads.mangadex.org"),
         QStringLiteral("api.mangadex.org"),
         QStringLiteral("itunes.apple.com"),
-        QStringLiteral("openlibrary.org")
+        QStringLiteral("openlibrary.org"),
+        // Wallpaper CDN (WallpaperApi.js): unpinned, its requests rode the same dead-AAAA
+        // ISP stall as the Jikan scar, so walls silently fell back to the packaged
+        // captured-motion asset (humbled-current recap 2026-07-24). Same scar, same fix.
+        QStringLiteral("wsrv.nl")
     };
     QHash<QString, QString> ipv4ByHost;
     for (const QString &host : pinnedHosts) {
         const QString ipv4 = resolveIpv4(host);
-        if (!ipv4.isEmpty())
+        if (!ipv4.isEmpty()) {
             ipv4ByHost.insert(host, ipv4);
+            qInfo("[net] IPv4-pinned %s -> %s", qUtf8Printable(host), qUtf8Printable(ipv4));
+        } else {
+            // A pinned host with no IPv4 falls through to normal DNS -> the IPv6
+            // stall. Never let that be silent again: this WARNING is the smoking
+            // gun for an emptied Jikan/MangaDex/Apple surface.
+            qWarning("[net] NO IPv4 for %s after retries -> its requests ride the IPv6 stall",
+                     qUtf8Printable(host));
+        }
     }
-    engine.setNetworkAccessManagerFactory(new CachingNamFactory(pinnedHosts, ipv4ByHost));
+    // Instant posters (spec 2026-07-23): keep the hostname in metahub requests so
+    // HTTP/2 negotiates (SNI / cert / :authority all correct → the whole poster wall
+    // multiplexes over ONE connection), while a loopback CONNECT concierge pins the
+    // CONNECTION to metahub's IPv4 — dodging the dead-IPv6 stall the URL-rewrite pin
+    // exists for. If the concierge can't bind, metahub stays URL-rewrite-pinned
+    // (today's slower HTTP/1.1 path); posters never break.
+    const QSet<QString> metahubHosts = {
+        QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space")
+    };
+    auto *concierge = new LoopbackPinProxy(ipv4ByHost, &app);
+    const bool conciergeOk = concierge->start();
+    if (conciergeOk)
+        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub -> HTTP/2)", concierge->port());
+    else
+        qWarning("[net] concierge could not bind -> metahub falls back to URL-pin + HTTP/1.1");
+    QNetworkProxyFactory::setApplicationProxyFactory(
+        new PinProxyFactory(metahubHosts, conciergeOk ? concierge->port() : quint16(0), conciergeOk));
+
+    // When the concierge is up, metahub leaves the URL-rewrite pin set (its URL keeps
+    // the hostname, h2 stays on, the proxy carries the connection). Everything else —
+    // and metahub in the fallback — keeps today's URL-rewrite pin.
+    QStringList namPinnedHosts = pinnedHosts;
+    if (conciergeOk)
+        namPinnedHosts.erase(std::remove_if(namPinnedHosts.begin(), namPinnedHosts.end(),
+            [&](const QString &h){ return metahubHosts.contains(h); }), namPinnedHosts.end());
+    // Felt-speed Stage 0: the poster scoreboard. Counts every reply on the QML image
+    // NAM; dumped at quit so a real run answers "did the posters actually arrive?"
+    // with numbers instead of a shrug. The webp check is the dev-hack scar made loud:
+    // the decoder must ship BESIDE the exe (deploy-runtime.bat), not live in the Qt install.
+    auto *scoreboard = new PosterScoreboard(&app);
+    {
+        const bool webpOk =
+            QImageReader::supportedImageFormats().contains(QByteArrayLiteral("webp"));
+        scoreboard->setWebpDecoderPresent(webpOk);
+        if (webpOk)
+            qInfo("[img] webp decoder present");
+        else
+            qWarning("[img] webp decoder MISSING -> every image/webp poster is UNDECODABLE "
+                     "(run native/deploy-runtime.bat to bundle qwebp.dll)");
+    }
+    engine.setNetworkAccessManagerFactory(
+        new CachingNamFactory(namPinnedHosts, ipv4ByHost, scoreboard));
+    engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {
+        const QString text = scoreboard->summaryText();
+        if (!text.isEmpty())
+            qInfo("[net] poster scoreboard (arrived/failed/undecodable/bytes by host):\n%s",
+                  qUtf8Printable(text));
+    });
 
     // Native manga engine (WeebCentral) exposed to QML as `Manga`.
     auto *manga = new MangaEngine(&app);
@@ -616,47 +828,13 @@ int main(int argc, char *argv[]) {
     auto *live = new LiveStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Live"), live);
 
-    // Shared background-work spine: ONE coordinator (one worker) for every
-    // offline-analysis domain — guided comics, audiobook alignment. Services
-    // receive it by injection so heavy inference never runs two-wide on
-    // laptop-class hardware. The registry is the unified activity surface.
+    // Shared background-work spine: ONE coordinator (one worker) for offline-analysis
+    // domains. Kept as the unified activity surface QML reads via `BackgroundActivity`.
     auto *backgroundWork = new work::BackgroundWorkCoordinator(1, &app);
-    Q_UNUSED(backgroundWork); // consumed by guided/alignment services as they land
+    Q_UNUSED(backgroundWork);
     auto *backgroundActivity = new work::BackgroundActivityRegistry(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("BackgroundActivity"),
                                              backgroundActivity);
-
-#ifdef COLOSSEUM_ENABLE_ONNX
-    // Guided panel analysis (real detected panels). Shares the ONE background worker
-    // with audiobook alignment. The detector validates the bundled model and fails
-    // closed if it is missing/tampered — Guided then simply stays whole-page. Only
-    // present in the ONNX build; the default build ships the whole-page Guided shell.
-    {
-        const QString appDir = QCoreApplication::applicationDirPath();
-        const QStringList modelDirs = {
-            qEnvironmentVariable("COLOSSEUM_GUIDED_MODEL_DIR"),
-            appDir + QStringLiteral("/resources/models/guided"),
-            appDir + QStringLiteral("/../resources/models/guided"),
-            appDir + QStringLiteral("/../../resources/models/guided"),
-            appDir + QStringLiteral("/../../../resources/models/guided")
-        };
-        QString guidedManifest;
-        for (const QString& d : modelDirs) {
-            if (!d.isEmpty() && QFileInfo::exists(d + QStringLiteral("/manifest.json"))) {
-                guidedManifest = d + QStringLiteral("/manifest.json");
-                break;
-            }
-        }
-        const QString guidedDir =
-            QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/guided");
-        QDir().mkpath(guidedDir);
-        auto *guidedStore = new guided::PanelMapStore(guidedDir + QStringLiteral("/panel-maps.sqlite"));
-        auto *guidedDetector = new guided::PanelDetectorOnnx(guidedManifest);
-        auto *guidedAnalysis = new guided::PanelAnalysisService(
-            backgroundWork, guidedDetector, new guided::PanelPlanner, guidedStore, &app);
-        engine.rootContext()->setContextProperty(QStringLiteral("GuidedAnalysis"), guidedAnalysis);
-    }
-#endif
 
     // Watch-room / together backbone exposed to QML as `Room`. This first slice is
     // local and in-process, but it carries the participant/chat/sync model the

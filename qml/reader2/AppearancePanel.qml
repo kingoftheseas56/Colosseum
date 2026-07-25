@@ -14,6 +14,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import "Reader2Logic.js" as L
 
 Item {
     id: panel
@@ -27,13 +28,27 @@ Item {
     // One edit = one (key, value): ReaderShell does mergeAppearance → persist → live-apply.
     signal changed(string key, var value)
 
+    // Advanced actions (Task 7): ReaderShell owns the store op behind each.
+    signal useAsDefault()
+    signal resetBook()
+
     readonly property int colWidth: 348
     readonly property int topBarPx: 64           // keep the top bar's right icons clickable
 
     // ---- current values, read from `appearance` with safe fallbacks (defaults from the model) ----
     readonly property string curTheme: (appearance && appearance.theme) ? String(appearance.theme) : "night"
     readonly property string curFont: (appearance && appearance.font) ? String(appearance.font) : "literata"
-    readonly property int curSize: (appearance && Number.isFinite(appearance.sizePx)) ? appearance.sizePx : 18
+    readonly property int curSizePct: (appearance && Number.isFinite(appearance.sizePct)) ? appearance.sizePct
+                                    : (appearance && Number.isFinite(appearance.sizePx)) ? clampInt(Math.round(appearance.sizePx / 18 * 100 / 5) * 5, 50, 300)
+                                    : 100
+    readonly property int curWeight: (appearance && Number.isFinite(appearance.fontWeight)) ? appearance.fontWeight : 400
+    readonly property real curWordSp: (appearance && Number.isFinite(appearance.wordSpacing)) ? appearance.wordSpacing : 0
+    readonly property real curLetterSp: (appearance && Number.isFinite(appearance.letterSpacing)) ? appearance.letterSpacing : 0
+    readonly property real curParaSp: (appearance && Number.isFinite(appearance.paraSpacing)) ? appearance.paraSpacing : 0
+    readonly property string curIndent: (appearance && (appearance.paraIndent === "none" || appearance.paraIndent === "indent")) ? appearance.paraIndent : "book"
+    readonly property int curMaxWidth: (appearance && Number.isFinite(appearance.maxLineWidthPx)) ? appearance.maxLineWidthPx : 960
+    readonly property bool curHyphens: appearance ? !!appearance.hyphens : false
+    readonly property bool curSpread: appearance ? appearance.columns === "spread" : false
     readonly property real curLine: (appearance && Number.isFinite(appearance.lineHeight)) ? appearance.lineHeight : 1.6
     readonly property int curMargin: (appearance && Number.isFinite(appearance.marginPx)) ? appearance.marginPx : 72
     readonly property bool curJustify: appearance ? (appearance.justify === undefined ? true : !!appearance.justify) : true
@@ -44,6 +59,11 @@ Item {
     // band vertical position (0=top .. 100=bottom), clamped so a stored out-of-range value
     // can't drive the overlay off-screen; the overlay's geometry also clamps as a backstop.
     readonly property int curYPct: (appearance && Number.isFinite(appearance.rulerYPct)) ? clampInt(appearance.rulerYPct, 0, 100) : 40
+    readonly property string curPage: (appearance && appearance.customPage) ? String(appearance.customPage) : "#111214"
+    readonly property string curInk: (appearance && appearance.customInk) ? String(appearance.customInk) : "#c9c5bc"
+    readonly property bool curInvert: appearance ? (appearance.invertImages === undefined ? true : !!appearance.invertImages) : true
+    readonly property string curCss: (appearance && appearance.customCss) ? String(appearance.customCss) : ""
+    readonly property bool curIsDark: L.isDarkAppearance(appearance)
 
     function clampInt(v, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(v))) }
 
@@ -141,18 +161,81 @@ Item {
                     width: parent.width
                     spacing: 10
                     GroupLabel { text: "Theme" }
-                    Row {
+                    Column {
                         width: parent.width
                         spacing: 10
-                        readonly property real swW: (width - spacing * 3) / 4
-                        Swatch { width: parent.swW; label: "Paper"; bg: "#e9e4d8"; textColor: "#565044"
-                            active: panel.curTheme === "paper"; onPicked: panel.changed("theme", "paper") }
-                        Swatch { width: parent.swW; label: "Sepia"; bg: "#e5d5b8"; textColor: "#6b5b40"
-                            active: panel.curTheme === "sepia"; onPicked: panel.changed("theme", "sepia") }
-                        Swatch { width: parent.swW; label: "Slate"; bg: "#232830"; textColor: "#9aa4b4"
-                            active: panel.curTheme === "slate"; onPicked: panel.changed("theme", "slate") }
-                        Swatch { width: parent.swW; label: "Night"; bg: "#111013"; textColor: Qt.rgba(238/255,233/255,222/255,0.6)
-                            active: panel.curTheme === "night"; onPicked: panel.changed("theme", "night") }
+                        Row {
+                            width: parent.width
+                            spacing: 10
+                            readonly property real swW: (width - spacing * 2) / 3
+                            Swatch { width: parent.swW; label: "Paper"; bg: "#e9e4d8"; textColor: "#565044"
+                                active: panel.curTheme === "paper"; onPicked: panel.changed("theme", "paper") }
+                            Swatch { width: parent.swW; label: "Sepia"; bg: "#e5d5b8"; textColor: "#6b5b40"
+                                active: panel.curTheme === "sepia"; onPicked: panel.changed("theme", "sepia") }
+                            Swatch { width: parent.swW; label: "Slate"; bg: "#232830"; textColor: "#9aa4b4"
+                                active: panel.curTheme === "slate"; onPicked: panel.changed("theme", "slate") }
+                        }
+                        Row {
+                            width: parent.width
+                            spacing: 10
+                            readonly property real swW: (width - spacing * 2) / 3
+                            Swatch { width: parent.swW; label: "Night"; bg: "#111013"; textColor: Qt.rgba(238/255,233/255,222/255,0.6)
+                                active: panel.curTheme === "night"; onPicked: panel.changed("theme", "night") }
+                            Swatch { width: parent.swW; label: "Contrast"; bg: "#000000"; textColor: "#ffffff"
+                                active: panel.curTheme === "contrast"; onPicked: panel.changed("theme", "contrast") }
+                            Swatch { width: parent.swW; label: "Custom"; bg: panel.curPage; textColor: panel.curInk
+                                active: panel.curTheme === "custom"; onPicked: panel.changed("theme", "custom") }
+                        }
+                    }
+
+                    // Custom theme's colour dials — only present while Custom is active.
+                    Column {
+                        width: parent.width
+                        spacing: 10
+                        visible: panel.curTheme === "custom"
+                        ColourDials {
+                            width: parent.width
+                            title: "Page"
+                            hex: panel.curPage
+                            onColourPicked: (hx) => panel.changed("customPage", hx)
+                        }
+                        ColourDials {
+                            width: parent.width
+                            title: "Ink"
+                            hex: panel.curInk
+                            onColourPicked: (hx) => panel.changed("customInk", hx)
+                        }
+                        Text {
+                            width: parent.width
+                            visible: L.contrastRatio(panel.curPage, panel.curInk) < 4.5
+                            text: "Low contrast — this pair may be hard to read"
+                            wrapMode: Text.WordWrap
+                            color: Theme.gold
+                            font.family: Theme.ui
+                            font.pixelSize: 11
+                        }
+                    }
+
+                    // Invert images — dark pages only (diagrams shouldn't blast white).
+                    Item {
+                        width: parent.width
+                        height: 22
+                        visible: panel.curIsDark
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Invert images in dark themes"
+                            color: Theme.inkDim
+                            font.family: Theme.ui
+                            font.weight: Font.DemiBold
+                            font.pixelSize: 13
+                        }
+                        ToggleSwitch {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            on: panel.curInvert
+                            onToggled: panel.changed("invertImages", !panel.curInvert)
+                        }
                     }
                 }
 
@@ -173,6 +256,12 @@ Item {
                         FontCard { width: parent.cardW; face: Theme.ui; label: "Inter"
                             active: panel.curFont === "inter"; onPicked: panel.changed("font", "inter") }
                     }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Weight"; minValue: 100; maxValue: 900; stepSize: 100
+                        value: panel.curWeight; valueText: String(panel.curWeight)
+                        onMoved: (v) => panel.changed("fontWeight", Math.round(v))
+                    }
                 }
 
                 // ===== Size =====
@@ -183,17 +272,72 @@ Item {
                     Row {
                         width: parent.width
                         spacing: 14
-                        StepBtn { label: "A−"; onClicked: panel.changed("sizePx", panel.clampInt(panel.curSize - 1, 12, 26)) }
+                        StepBtn { label: "A−"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct - 5, 50, 300)) }
                         Text {
                             width: parent.width - 34 * 2 - 14 * 2
                             anchors.verticalCenter: parent.verticalCenter
                             horizontalAlignment: Text.AlignHCenter
-                            text: panel.curSize + " px"
+                            text: panel.curSizePct + " %"
                             color: Theme.inkDim
                             font.family: Theme.ui
                             font.pixelSize: 13
                         }
-                        StepBtn { label: "A+"; onClicked: panel.changed("sizePx", panel.clampInt(panel.curSize + 1, 12, 26)) }
+                        StepBtn { label: "A+"; onClicked: panel.changed("sizePct", panel.clampInt(panel.curSizePct + 5, 50, 300)) }
+                    }
+                }
+
+                // ===== Spacing (PARITY 2026-07-24 — the functional dials Reader 1 had) =====
+                Column {
+                    width: parent.width
+                    spacing: 10
+                    GroupLabel { text: "Spacing" }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Line"; minValue: 1.0; maxValue: 2.2; stepSize: 0.1
+                        value: panel.curLine; valueText: panel.curLine.toFixed(1)
+                        onMoved: (v) => panel.changed("lineHeight", Math.round(v * 10) / 10)
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Word"; minValue: 0; maxValue: 1.0; stepSize: 0.05
+                        value: panel.curWordSp; valueText: panel.curWordSp.toFixed(2)
+                        onMoved: (v) => panel.changed("wordSpacing", Math.round(v * 100) / 100)
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Letter"; minValue: 0; maxValue: 0.5; stepSize: 0.01
+                        value: panel.curLetterSp; valueText: panel.curLetterSp.toFixed(2)
+                        onMoved: (v) => panel.changed("letterSpacing", Math.round(v * 100) / 100)
+                    }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Paragraph"; minValue: 0; maxValue: 2.0; stepSize: 0.1
+                        value: panel.curParaSp; valueText: panel.curParaSp.toFixed(1)
+                        onMoved: (v) => panel.changed("paraSpacing", Math.round(v * 10) / 10)
+                    }
+                    Item {
+                        width: parent.width
+                        height: 34
+                        Text {
+                            id: indentCaption
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 78
+                            text: "Indent"
+                            color: Theme.inkFaint
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                        }
+                        TriSegment {
+                            anchors.left: indentCaption.right
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            labels: ["Book", "None", "Indent"]
+                            values: ["book", "none", "indent"]
+                            current: panel.curIndent
+                            onPicked: (v) => panel.changed("paraIndent", v)
+                        }
                     }
                 }
 
@@ -202,12 +346,6 @@ Item {
                     width: parent.width
                     spacing: 10
                     GroupLabel { text: "Layout" }
-                    SliderRow {
-                        width: parent.width
-                        caption: "Line spacing"; minValue: 1.2; maxValue: 2.2; stepSize: 0.1
-                        value: panel.curLine; valueText: panel.curLine.toFixed(1)
-                        onMoved: (v) => panel.changed("lineHeight", Math.round(v * 10) / 10)
-                    }
                     SliderRow {
                         width: parent.width
                         caption: "Margins"; minValue: 24; maxValue: 160; stepSize: 4
@@ -262,6 +400,58 @@ Item {
                             onPicked: (left) => panel.changed("flow", left ? "paginated" : "scrolled")
                         }
                     }
+                    SliderRow {
+                        width: parent.width
+                        caption: "Line width"; minValue: 400; maxValue: 1600; stepSize: 50
+                        value: panel.curMaxWidth; valueText: String(panel.curMaxWidth)
+                        opacity: panel.curScrolled ? 0.35 : 1.0      // Pages only — scrolled is edge-to-edge (2026-07-20 ruling)
+                        enabled: !panel.curScrolled
+                        onMoved: (v) => panel.changed("maxLineWidthPx", Math.round(v))
+                    }
+                    Item {
+                        width: parent.width
+                        height: 22
+                        Text {
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "Hyphenation"
+                            color: Theme.inkDim
+                            font.family: Theme.ui
+                            font.weight: Font.DemiBold
+                            font.pixelSize: 13
+                        }
+                        ToggleSwitch {
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            on: panel.curHyphens
+                            onToggled: panel.changed("hyphens", !panel.curHyphens)
+                        }
+                    }
+                    Item {
+                        width: parent.width
+                        height: 34
+                        opacity: panel.curScrolled ? 0.35 : 1.0      // columns are a page-mode idea
+                        enabled: !panel.curScrolled
+                        Text {
+                            id: colCaption
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 78
+                            text: "Columns"
+                            color: Theme.inkFaint
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                        }
+                        Segment {
+                            anchors.left: colCaption.right
+                            anchors.right: parent.right
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            leftLabel: "Single"; rightLabel: "Spread"
+                            leftActive: !panel.curSpread
+                            onPicked: (left) => panel.changed("columns", left ? "single" : "spread")
+                        }
+                    }
                 }
 
                 // ===== Reading ruler (CONTROLS only — the overlay is Task 11) =====
@@ -307,6 +497,83 @@ Item {
                         caption: "Band position"; minValue: 0; maxValue: 100; stepSize: 2
                         value: panel.curYPct; valueText: panel.curYPct + "%"
                         onMoved: (v) => panel.changed("rulerYPct", Math.round(v))
+                    }
+                }
+
+                // ===== Advanced (PARITY 2026-07-24) — custom CSS + the two safety actions =====
+                Column {
+                    width: parent.width
+                    spacing: 10
+                    GroupLabel { text: "Advanced" }
+
+                    // Custom CSS — injected into the book LAST (wins over every dial).
+                    // Debounced ~600ms so live-apply doesn't reflow on every keystroke.
+                    Rectangle {
+                        width: parent.width
+                        height: 92
+                        radius: 9
+                        color: Qt.rgba(1, 1, 1, 0.04)
+                        border.color: Qt.rgba(1, 1, 1, 0.10)
+                        border.width: 1
+                        Flickable {
+                            id: cssFlick
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            clip: true
+                            contentWidth: width
+                            contentHeight: cssEdit.implicitHeight
+                            TextEdit {
+                                id: cssEdit
+                                width: cssFlick.width
+                                // NOT `text: panel.curCss` — an editable field's text binding is
+                                // broken by the first keystroke, so external changes (Reset / book
+                                // switch) would leave the box showing stale CSS. Seed once, then
+                                // re-sync from the model below only when the field isn't being edited.
+                                Component.onCompleted: text = panel.curCss
+                                wrapMode: TextEdit.Wrap
+                                color: Theme.inkDim
+                                selectionColor: Theme.gold
+                                font.family: "Consolas"
+                                font.pixelSize: 12
+                                onTextChanged: { if (text !== panel.curCss) cssDebounce.restart() }
+                                // Refresh the box when customCss changes from OUTSIDE the editor
+                                // (Reset appearance, opening another book) — but never while the
+                                // user is typing, so a pending edit is never clobbered.
+                                Connections {
+                                    target: panel
+                                    function onCurCssChanged() {
+                                        if (!cssEdit.activeFocus) cssEdit.text = panel.curCss
+                                    }
+                                }
+                            }
+                        }
+                        Text {
+                            anchors.centerIn: parent
+                            visible: cssEdit.text === "" && !cssEdit.activeFocus
+                            text: "Custom CSS…"
+                            color: Theme.inkGhost
+                            font.family: Theme.ui
+                            font.pixelSize: 12
+                        }
+                    }
+                    Timer {
+                        id: cssDebounce
+                        interval: 600
+                        onTriggered: panel.changed("customCss", cssEdit.text)
+                    }
+
+                    ActionBtn { width: parent.width; label: "Use as default for all books"
+                        confirmLabel: "✓ Default updated"; onClicked: panel.useAsDefault() }
+                    ActionBtn { width: parent.width; label: "Reset to default"; emphasis: true
+                        confirmLabel: "✓ Back to your default"; onClicked: panel.resetBook() }
+                    Text {
+                        width: parent.width
+                        text: "Returns fonts, spacing, size, theme and colours to your default."
+                        wrapMode: Text.WordWrap
+                        color: Theme.inkFaint
+                        font.family: Theme.ui
+                        font.pixelSize: 11
+                        lineHeight: 1.2
                     }
                 }
             }
@@ -527,6 +794,41 @@ Item {
         }
     }
 
+    // a three-option segment (Book / None / Indent) — same visual family as Segment.
+    component TriSegment: Item {
+        id: tseg
+        property var labels: []
+        property var values: []
+        property string current: ""
+        signal picked(string v)
+        height: 34
+
+        Rectangle {
+            anchors.fill: parent
+            radius: 8
+            color: Qt.rgba(1, 1, 1, 0.05)
+            border.color: Qt.rgba(1, 1, 1, 0.09)
+            border.width: 1
+            Row {
+                id: tsegRow
+                anchors.fill: parent
+                anchors.margins: 3
+                spacing: 2
+                readonly property real segW: (width - spacing * 2) / 3
+                Repeater {
+                    model: 3
+                    SegBtn {
+                        required property int index
+                        width: tsegRow.segW
+                        label: tseg.labels[index] || ""
+                        active: tseg.current === tseg.values[index]
+                        onClicked: tseg.picked(tseg.values[index])
+                    }
+                }
+            }
+        }
+    }
+
     // a two-option segment (Justified / Ragged) — the active half is filled (mock .segment).
     component Segment: Item {
         id: seg
@@ -597,5 +899,96 @@ Item {
             }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: ts.toggled() }
+    }
+
+    // Page/Ink colour dials — hue/sat/light sliders + a live swatch. Emits a hex on move.
+    component ColourDials: Column {
+        id: cd
+        property string title: ""
+        property string hex: "#888888"
+        signal colourPicked(string hx)
+        spacing: 8
+        readonly property var hsl: L.hexToHsl(hex)
+        function emitHsl(h, s, l) {
+            var hx = L.hslToHex(h, s, l)
+            if (hx !== cd.hex) cd.colourPicked(hx)   // skip no-op edits (e.g. hue drag at zero saturation)
+        }
+
+        Item {
+            width: parent.width
+            height: 18
+            Text {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                text: cd.title
+                color: Theme.inkDim
+                font.family: Theme.ui
+                font.weight: Font.DemiBold
+                font.pixelSize: 12
+            }
+            Rectangle {
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 44; height: 16; radius: 4
+                color: cd.hex
+                border.color: Qt.rgba(1, 1, 1, 0.18)
+                border.width: 1
+            }
+        }
+        SliderRow {
+            width: parent.width
+            caption: "Hue"; minValue: 0; maxValue: 360; stepSize: 2
+            value: cd.hsl.h; valueText: String(cd.hsl.h)
+            onMoved: (v) => cd.emitHsl(Math.round(v), cd.hsl.s, cd.hsl.l)
+        }
+        SliderRow {
+            width: parent.width
+            caption: "Colour"; minValue: 0; maxValue: 100; stepSize: 1
+            value: cd.hsl.s; valueText: cd.hsl.s + "%"
+            onMoved: (v) => cd.emitHsl(cd.hsl.h, Math.round(v), cd.hsl.l)
+        }
+        SliderRow {
+            width: parent.width
+            caption: "Light"; minValue: 0; maxValue: 100; stepSize: 1
+            value: cd.hsl.l; valueText: cd.hsl.l + "%"
+            onMoved: (v) => cd.emitHsl(cd.hsl.h, cd.hsl.s, Math.round(v))
+        }
+    }
+
+    // a full-width bordered action button with a brief inline confirmation swap. `emphasis`
+    // gives it a persistent faint fill + brighter label so the important action (Reset to
+    // default) stands out from its quieter neighbour instead of looking identical.
+    component ActionBtn: Item {
+        id: ab
+        property string label: ""
+        property string confirmLabel: ""
+        property bool emphasis: false
+        property bool confirming: false
+        signal clicked()
+        height: 38
+        Rectangle {
+            anchors.fill: parent
+            radius: 9
+            color: abMa.containsMouse ? Theme.rowHover
+                   : ab.emphasis ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+            border.color: ab.emphasis ? Qt.rgba(1, 1, 1, 0.20) : Qt.rgba(1, 1, 1, 0.12)
+            border.width: 1
+            Text {
+                anchors.centerIn: parent
+                text: ab.confirming ? ab.confirmLabel : ab.label
+                color: ab.confirming ? Theme.gold : (ab.emphasis ? Theme.ink : Theme.inkDim)
+                font.family: Theme.ui
+                font.weight: Font.DemiBold
+                font.pixelSize: 12
+            }
+        }
+        Timer { id: abTimer; interval: 1500; onTriggered: ab.confirming = false }
+        MouseArea {
+            id: abMa
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: { ab.clicked(); ab.confirming = true; abTimer.restart() }
+        }
     }
 }

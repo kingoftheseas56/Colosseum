@@ -17,6 +17,7 @@ Column {
     signal itemRequested(var item)
     signal genreRequested(string kind, string name)
     signal genreIndexRequested(string kind)
+    signal discoverPinRequested(var pin)
 
     width: parent ? parent.width : 900
     spacing: 30
@@ -96,7 +97,9 @@ Column {
             title: modelData.title
             ranked: modelData.ranked === true
             items: modelData.items !== undefined ? modelData.items : []
+            navigable: modelData.discoverPin !== undefined
             onItemRequested: (item) => page.itemRequested(item)
+            onSeeAllRequested: page.discoverPinRequested(modelData.discoverPin)
         }
     }
 

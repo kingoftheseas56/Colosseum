@@ -24,6 +24,7 @@
 #include <QHash>
 #include <QString>
 #include <QVariant>
+#include <QVariantList>
 #include <QVariantMap>
 #include <QJsonObject>
 #include <QJsonDocument>
@@ -54,6 +55,17 @@ public:
         return m_map.value(bookId).toMap();
     }
 
+    // Every stored pairing, as a list of maps. The alignment service enumerates this on
+    // startup to re-summon in-progress read-alongs; each map is the same self-describing
+    // record getPairing() returns (carries bookId/updatedAt).
+    Q_INVOKABLE QVariantList allPairings() const {
+        QVariantList out;
+        out.reserve(m_map.size());
+        for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it)
+            out.append(it.value().toMap());
+        return out;
+    }
+
     // Upsert one pairing. `pairing` is a plain object from the reader/QML; we stamp
     // the authoritative bookId + a fresh updatedAt so the record is self-describing.
     Q_INVOKABLE void savePairing(const QString &bookId, const QVariantMap &pairing) {
@@ -65,15 +77,21 @@ public:
         m_map.insert(bookId, rec);
         save();
         bump();
+        emit pairingSaved(bookId, rec);
     }
 
     // Unlink — the Audio tab's "unlink" affordance.
     Q_INVOKABLE void deletePairing(const QString &bookId) {
-        if (m_map.remove(bookId)) { save(); bump(); }
+        if (m_map.remove(bookId)) { save(); bump(); emit pairingDeleted(bookId); }
     }
 
 signals:
     void changed();
+    // Fine-grained companions to changed(): a specific pairing was upserted (carries the
+    // stamped record) or removed. The alignment service listens to these to (re)schedule
+    // or drop a book's read-along without re-reading the whole store.
+    void pairingSaved(const QString &bookId, const QVariantMap &pairing);
+    void pairingDeleted(const QString &bookId);
 
 private:
     void bump() { ++m_revision; emit changed(); }

@@ -262,14 +262,15 @@ AudiobookDownloader::Job* AudiobookDownloader::jobForHash(const QString& infoHas
 
 void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QString& infoHashIn,
                                             const QString& title, const QString& author,
-                                            const QString& bookId)
+                                            const QString& bookId, const QString& bookPath)
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (pairKey.isEmpty()) { emit failed(pairKey, QStringLiteral("empty pairKey")); return; }
-    // Remember the reader's bookId for the auto-attach at finished(). Only overwrite
-    // with a real id — a later empty-bookId call (e.g. the 4-arg selfTest path) must
-    // not clobber a bookId a prior call already bound to this pairKey.
+    // Remember the reader's bookId (and ebook path) for the auto-attach at finished().
+    // Only overwrite with a real value — a later empty call (e.g. the 4-arg selfTest
+    // path) must not clobber what a prior call already bound to this pairKey.
     if (!bookId.isEmpty()) m_bookIdFor.insert(pairKey, bookId);
+    if (!bookPath.isEmpty()) m_bookPathFor.insert(pairKey, bookPath);
     if (infoHash.size() != 40) { emit failed(pairKey, QStringLiteral("bad infoHash")); return; }
     if (isDownloaded(pairKey)) {
         const QString dir = localAudiobook(pairKey);
@@ -541,10 +542,17 @@ void AudiobookDownloader::attachToBook(const QString& pairKey, const QString& di
     if (!m_pairing) return;
     const QString bookId = m_bookIdFor.value(pairKey);
     if (bookId.isEmpty()) return;
-    m_pairing->savePairing(bookId, QVariantMap{
+    // Stamp the audiobook's final directory (audioDir) and, when known, the ebook path
+    // so the read-along service can locate both assets straight from the pairing.
+    QVariantMap pairing{
         {QStringLiteral("pairKey"), pairKey},
         {QStringLiteral("dirPath"), dirPath},
-    });
+        {QStringLiteral("audioDir"), dirPath},
+    };
+    const QString bookPath = m_bookPathFor.value(pairKey);
+    if (!bookPath.isEmpty())
+        pairing.insert(QStringLiteral("bookPath"), bookPath);
+    m_pairing->savePairing(bookId, pairing);
     qInfo() << "[AudiobookDownloader] attached" << pairKey << "→ book" << bookId;
 }
 

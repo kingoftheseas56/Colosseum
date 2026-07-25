@@ -221,7 +221,11 @@ function _kindLine(manifest, categories) {
 
 function _rowFrom(entry, i) {
     var m = entry.manifest || entry;
-    var url = entry.transportUrl || entry.url || entry.manifestUrl || "";
+    // Prefer the real manifest over the directory page. stremio-addons.net's v0 API
+    // returns transportUrl=null and `url` = the human listing page (…/addons/<slug>),
+    // which 404s on install because ExtensionsStore.normalizeUrl appends /manifest.json
+    // to a page. The installable manifest is in `manifestUrl`. (Confirmed live 2026-07-24.)
+    var url = entry.transportUrl || entry.manifestUrl || entry.url || "";
     var name = m.name || entry.name || "";
     if (!name || !url) return null;
     var t = _tones[i % _tones.length];

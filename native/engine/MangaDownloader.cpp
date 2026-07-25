@@ -5,6 +5,8 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QHostAddress>
+#include <QHostInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -594,6 +596,23 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
 
     // IPv4 pin (dead-IPv6 machine): rewrite host → IP, keep the real hostname for TLS
     // (peerVerifyName) and the Host header, HTTP/2 off — same recipe as CachingNam.
+    // WeebCentral's page-image CDN hosts (hot.planeptune.us, lowee.us, …) DRIFT and were
+    // never in the boot-time pin list, so they were the ONE network path still exposed to
+    // this ISP's dead-IPv6 stall (curl/happy-eyeballs hid it; downloads intermittently
+    // "Failed"). Resolve + cache their real IPv4 on first use so every page fetch takes the
+    // working IPv4 route — the same fix every other host in the app already has.
+    if (!m_pins.contains(host) && !m_pinTried.contains(host)) {
+        m_pinTried.insert(host);
+        const QHostInfo info = QHostInfo::fromName(host);
+        for (const QHostAddress& a : info.addresses()) {
+            if (a.protocol() == QAbstractSocket::IPv4Protocol) {
+                m_pins.insert(host, a.toString());
+                qInfo("[downloads] pinned CDN host %s -> %s (dead-IPv6 guard)",
+                      qUtf8Printable(host), qUtf8Printable(a.toString()));
+                break;
+            }
+        }
+    }
     const QString ipv4 = m_pins.value(host);
     if (!ipv4.isEmpty()) {
         req.setRawHeader("Host", host.toUtf8());
@@ -637,8 +656,14 @@ void MangaDownloader::fetchImage(Job* job, int pageIndex, int attempt)
                                [this, job, pageIndex, attempt]() { fetchImage(job, pageIndex, attempt + 1); });
             return;   // slot stays held across the backoff
         }
-        qWarning("[downloads] page %d of '%s' failed after %d attempts",
-                 pageIndex, qUtf8Printable(job->chapterId), MAX_IMAGE_RETRIES);
+        // Diagnostic: name the CDN host + the real Qt transport error, so an intermittent
+        // dead-IPv6 / CDN stall is pinpointable from the log instead of a bare "failed".
+        qWarning("[downloads] page %d of '%s' failed after %d attempts "
+                 "(host=%s err=%d '%s' ct='%s' bytes=%lld)",
+                 pageIndex, qUtf8Printable(job->chapterId), MAX_IMAGE_RETRIES,
+                 qUtf8Printable(QUrl(job->pages[pageIndex].imageUrl).host()),
+                 int(reply->error()), qUtf8Printable(reply->errorString()),
+                 qUtf8Printable(ct), static_cast<long long>(data.size()));
         job->failedFlag = true;
         job->inFlight--;
         pumpImages(job);

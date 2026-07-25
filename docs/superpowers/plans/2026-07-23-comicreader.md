@@ -1,0 +1,500 @@
+# Comic Reader Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
+> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
+> checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build Comic Reader — Colosseum's from-scratch native manga/comic/Tankoban reader (two
+modes: Long Strip + direction-aware Double Page) with the approved player-soul visual identity,
+and cut production over to it.
+
+**Architecture:** New `native/comicreader/` C++ engine (generation-safe decode, pinned LRU cache,
+canonical pairing with auto-coupling, strip geometry) exposed to QML as `ComicReaderCore` + an
+`image://comicreader/` provider. New modular `qml/comicreader/` chrome (shell, two surfaces, Family
+Gradient HUD, glass settings sheet, overlays) built beside production; the final cutover turns
+`qml/MangaReader.qml` into a thin wrapper. Guided is frozen and untouched throughout.
+
+**Tech Stack:** C++17, Qt 6 (Core/Gui/Quick/Qml), QImageReader, QThreadPool, QML + pragma-library
+JS, QtCore Settings, PowerShell harnesses, CMake/Ninja/MSVC.
+
+**Design source (binding):** `docs/superpowers/specs/2026-07-23-comicreader-design.md`
+**Visual contract (binding):** `docs/superpowers/mocks/2026-07-23-comicreader-visual-identity.html`
+**Behavioral references:** `~/Desktop/Tankoban 2/src/ui/readers/` (engine),
+`~/Desktop/TankobanQTGroundWork-main/app_qt/ui/readers/comic_reader.py` (auto-coupling, navigator,
+end card, HUD timings), `~/Desktop/Tankoban-Max` (wheel feel), `~/Desktop/Tankoban reference/`
+(Mihon / OpenComic / YACReader, UX only).
+
+## Global constraints
+
+- Do not touch `native/guided/` or `qml/guided/` — any diff there fails review.
+- No Qt Widgets. No GUI-thread decode or file reads. QML paints, C++ decides.
+- Local files only: the engine rejects non-`file://` and nonexistent paths with typed errors.
+- Preserve `MangaReader.qml`'s public property/signal contract byte-for-byte at cutover.
+- Theme tokens only (`qml/Theme.qml`): gold `#f0c44a` sparing, ink ladder, glass edges,
+  `theme.hud` (Segoe UI) for all chrome; Fraunces ONLY on the end-card title. Lucide icons via
+  the PlayerIcon pattern; no text-glyph chips.
+- House numbers (from the lineage, byte-honest): spread ratio ≥ 1.08 ⇒ landscape spread;
+  HUD auto-hide 3000 ms; single-click delay 220 ms; wheel intake ≈100 px/notch, drain 0.38 per
+  16 ms tick; cache 512 MiB normal / 256 MiB memory-saver; zoom 100–260 % in 20 % steps;
+  gutter-shadow presets 0 / 0.22 / 0.35 / 0.55; portrait-width presets 50/60/70/74/78/90/100;
+  strip prefetch ±1.5 screens; decode pool = 2 threads.
+- One reviewable commit per task, committed by explicit pathspec (shared-repo law).
+- Build with `native\build-msvc.bat` targets; kill a running `colosseum.exe` before relinking.
+
+## File map
+
+### Native (create under `native/comicreader/`)
+- `ComicReaderTypes.h/.cpp` — enums (`Mode`, `Direction`, `PageError`, `CouplingMode`,
+  `CouplingPhase`), `PageMeta`, `PairUnit`, QVariant (de)serialization.
+- `ComicReaderPairing.h/.cpp` — pure canonical pairing + unit lookup.
+- `ComicReaderCoupling.h/.cpp` — pure auto-coupling probe (edge-continuity scoring, phase choice).
+- `ComicReaderPageCache.h/.cpp` — pinned budgeted LRU (`QImage`, generation-keyed).
+- `ComicReaderDecode.h/.cpp` — generation-safe decode coordinator (QThreadPool, priorities).
+- `ComicReaderStripModel.h/.cpp` — `QAbstractListModel` strip geometry + viewport window.
+- `ComicReaderProvider.h/.cpp` — read-only `image://comicreader/` provider.
+- `ComicReaderCore.h/.cpp` — the one QML-facing backend orchestrating all of the above.
+
+### QML (create under `qml/comicreader/`)
+- `ComicReaderShell.qml` — public contract, entry lifecycle, resume, crossing, Progress.
+- `ComicReaderState.js` — pure decisions (`.pragma library`): namespaces, crossing, completion.
+- `ComicReaderStripSurface.qml` — virtualized Long Strip.
+- `ComicReaderDoubleSurface.qml` — direction-aware paired surface + gutter shadow + zoom/pan.
+- `ComicReaderHud.qml` — Family Gradient HUD (scrub thread, ticks, bubble, pills, side scroller).
+- `ComicReaderInput.qml` — semantic input map (click zones, dbl-click, wheel, keys).
+- `ComicReaderSettingsSheet.qml` — glass side sheet (mockup surface 02).
+- `ComicReaderNavigator.qml` — searchable entry navigator with inline get (surface 03).
+- `ComicReaderEndCard.qml` — end card / acquisition boundary (surface 04).
+- `ComicReaderOverlays.qml` — thumbnails grid, go-to-page, shortcuts help, loupe, night veil.
+- `ComicReaderIcon.qml` — Lucide icon loader (PlayerIcon pattern, `assets/icons/comicreader/`).
+
+### Modify
+- `native/CMakeLists.txt` — comicreader sources + each harness target.
+- `native/main.cpp` — construct `ComicReaderCore`, register provider + context property.
+- `qml/MangaReader.qml` — Task 13 only: becomes the thin wrapper.
+- `tests/test_guided_manga_reader.ps1` — Task 13: becomes the Guided freeze gate.
+
+### Tests (create under `tests/`)
+- C++: `comicreader_pairing_harness.cpp`, `comicreader_coupling_harness.cpp`,
+  `comicreader_cache_harness.cpp`, `comicreader_decode_harness.cpp`, `comicreader_strip_harness.cpp`,
+  `comicreader_core_harness.cpp`, `comicreader_perf_harness.cpp`.
+- QML/PS: `comicreader_contract_harness.qml` + `test_comicreader_contract.ps1`,
+  `comicreader_state_harness.qml` + `test_comicreader_state.ps1`,
+  `comicreader_shell_harness.qml` + `test_comicreader_shell.ps1`,
+  `comicreader_surfaces_harness.qml` + `test_comicreader_surfaces.ps1`,
+  `comicreader_chrome_harness.qml` + `test_comicreader_chrome.ps1`,
+  `comicreader_overlays_harness.qml` + `test_comicreader_overlays.ps1`,
+  `comicreader_migration_acceptance.qml` + `test_comicreader_migration.ps1`,
+  `test_comicreader_acceptance.ps1` (umbrella).
+
+Each PS harness follows the house offscreen pattern (`reference_headless-qml-logic-harness`):
+`qml.exe -platform offscreen`, `ck(cond, label)` asserts, prints one `<NAME>_OK` sentinel, never
+throws (throw hangs the offscreen runner — collect failures, print, `Qt.exit(1)`).
+
+---
+
+### Task 1: Lock the caller contract
+
+**Files:**
+- Create: `docs/superpowers/handoffs/2026-07-23-comicreader-public-contract.md`
+- Create: `tests/comicreader_contract_harness.qml`, `tests/test_comicreader_contract.ps1`
+
+- [ ] **Step 1: Record the contract.** Read `qml/MangaReader.qml` and the three caller sites in
+  `qml/Main.qml`, `qml/MangaSeries.qml`, `qml/ComicSeries.qml`, `qml/ComicSeriesPage.qml`;
+  write the handoff doc listing required inputs
+  (`backdrop, seriesTitle, seriesId, seriesCover, chapters, chapterId, chapterLabel, western,
+  pageStore, entryKind, entryLabelPrefix`), required signals
+  (`backRequested(), minimizeRequested(), fullscreenRequested(), closeRequested(),
+  sourceRequested(string entryId)`), and injected contracts
+  (`pageStore.localPages(entryId) -> [{index,url,group}]`, `pageStore.statusOf(entryId)`,
+  `pageStore.downloadChapter(...)`, `pageStore.downloadIssue(...)`,
+  `Progress.get(kind, seriesId)`, `Progress.record(payload)`), with the exact `Progress`
+  payload shape copied verbatim from the current reader's `record` call.
+- [ ] **Step 2: Write the harness.** `comicreader_contract_harness.qml` instantiates the REAL
+  `qml/MangaReader.qml` with fake manga / western / tankoban stores (5 local pages each) and
+  asserts: `reader.max === 5` after load; progress namespace flips manga→comic→tankoban with
+  `western`/`entryKind`; every required signal connects (a missing signal fails creation).
+- [ ] **Step 3: Run it.**
+  `powershell -NoProfile -ExecutionPolicy Bypass -File tests/test_comicreader_contract.ps1`
+  Expected: `COMICREADER_CONTRACT_OK` against the OLD reader — this harness must pass before AND
+  after cutover; it is the compatibility oracle.
+- [ ] **Step 4: Commit.**
+  `git commit -m "[Agent 1, comics] test(comicreader): lock caller contract" -- docs/superpowers/handoffs/2026-07-23-comicreader-public-contract.md tests/comicreader_contract_harness.qml tests/test_comicreader_contract.ps1`
+
+### Task 2: Types + canonical pairing (pure C++)
+
+**Files:**
+- Create: `native/comicreader/ComicReaderTypes.h/.cpp`, `native/comicreader/ComicReaderPairing.h/.cpp`
+- Create: `tests/comicreader_pairing_harness.cpp` · Modify: `native/CMakeLists.txt`
+
+**Interfaces:**
+
+```cpp
+namespace comicreader {
+enum class Mode { LongStrip, DoublePage };
+enum class Direction { Ltr, Rtl };
+enum class PageError { None, MissingFile, DecodeFailed, UnsupportedImage };
+enum class CouplingMode { Auto, Manual };
+enum class CouplingPhase { Normal, Shifted };
+
+struct PageMeta {
+    int index = -1; QString localPath; QSize sourceSize; bool decoded = false;
+    bool detectedSpread = false;           // sourceSize.w/h >= 1.08 or w > h; index 0 never
+    std::optional<bool> spreadOverride;    // manual override beats detection
+    PageError error = PageError::None;
+};
+struct PairUnit {
+    int rightIndex = -1; int leftIndex = -1;   // -1 = absent
+    bool spread = false; bool coverAlone = false;
+};
+// Cover (index 0) rides alone. A spread is one full-width unit consuming one parity slot.
+// phase Shifted adds +1 to parity. Never pair across a spread. Deterministic, pure.
+QVector<PairUnit> buildUnits(const QVector<PageMeta>& pages, CouplingPhase phase);
+int unitForPage(const QVector<PairUnit>& units, int pageIndex);   // clamped position
+bool isSpread(const PageMeta& m);                                  // override > detection; 0 never
+}
+```
+
+- [ ] **Step 1: Write fixtures first** in `comicreader_pairing_harness.cpp` (plain `main()`, house
+  `CHECK(cond, label)` macro, prints `COMICREADER_PAIRING_OK`):
+  - 5 normal pages → `[cover 0][1+2][3+4]`
+  - spread at 2 → `[cover 0][single 1][spread 2][3+4]`
+  - spread at 0 → `[spread 0][1+2]` (spread beats cover-alone when page 0 IS a confirmed spread)
+  - override page 3 forced-spread (portrait) → 3 is a full-width unit
+  - override landscape page forced-normal → participates in ordinary pairing
+  - phase Shifted → `[cover 0][single 1][2+3]…`
+  - `unitForPage` returns the containing unit for every page in every fixture
+- [ ] **Step 2: Build to confirm failure.** `native\build-msvc.bat comicreader_pairing_harness` —
+  expected: link failure (functions absent).
+- [ ] **Step 3: Implement** `buildUnits` (port the parity-slot walk: cover unit, then for each
+  idx: spread → own unit + extraSlots++; else parity = (idx + extraSlots + nudge) % 2 pairs
+  idx with idx+1 when idx+1 exists and isn't a spread; else unpaired single).
+- [ ] **Step 4: Run green.** `native\build-msvc\comicreader_pairing_harness.exe` →
+  `COMICREADER_PAIRING_OK`.
+- [ ] **Step 5: Commit** `-- native/comicreader/ComicReaderTypes.* native/comicreader/ComicReaderPairing.* tests/comicreader_pairing_harness.cpp native/CMakeLists.txt`
+
+### Task 3: Pinned LRU page cache
+
+**Files:** Create `native/comicreader/ComicReaderPageCache.h/.cpp`, `tests/comicreader_cache_harness.cpp`;
+modify `native/CMakeLists.txt`.
+
+**Interface:**
+
+```cpp
+class ComicReaderPageCache {
+public:
+    explicit ComicReaderPageCache(qint64 budget = 512LL*1024*1024);
+    void setBudget(qint64 bytes);                     // 256 MiB when memory saver
+    void insert(quint64 gen, int page, const QImage& img);
+    std::optional<QImage> get(quint64 gen, int page); // refreshes LRU order
+    void setPinned(quint64 gen, const QVector<int>& pages);
+    void clearGeneration(quint64 gen);
+    qint64 bytesUsed() const;                         // QImage::sizeInBytes sum
+};
+```
+
+- [ ] **Step 1: Tests first** (`COMICREADER_CACHE_OK`): LRU order changes on `get`; oldest unpinned
+  evicts first at budget; pinned pages survive full pressure (budget may be exceeded when all
+  pinned); `clearGeneration(A)` never touches gen B; shrinking 512→256 evicts immediately
+  where legal. Use 4 MB synthetic images (1024×1024 ARGB32) and a 12 MB test budget.
+- [ ] **Step 2: Confirm failure**, **Step 3: implement** (mutex-guarded QHash + LRU list; never
+  hold the mutex while scaling), **Step 4: run green**, **Step 5: commit** by pathspec.
+
+### Task 4: Generation-safe decode coordinator
+
+**Files:** Create `native/comicreader/ComicReaderDecode.h/.cpp`, `tests/comicreader_decode_harness.cpp`;
+modify `native/CMakeLists.txt`.
+
+**Interface:**
+
+```cpp
+class ComicReaderDecode final : public QObject {
+    Q_OBJECT
+public:
+    explicit ComicReaderDecode(ComicReaderPageCache* cache, QObject* parent = nullptr);
+    void openGeneration(quint64 gen, const QVector<PageMeta>& pages); // cancels prior gen
+    void request(int page, int priority);   // dedup (gen,page); 100 visible, 90/89 next,
+                                            // 80 prev, 70.. strip window
+signals:
+    void metaReady(quint64 gen, comicreader::PageMeta meta);           // real size + spread flag
+    void pageReady(quint64 gen, int page);
+    void pageFailed(quint64 gen, int page, comicreader::PageError error);
+};
+```
+
+- [ ] **Step 1: Tests first** (`COMICREADER_DECODE_OK`), QTemporaryDir PNG fixtures: valid portrait
+  publishes size + image; landscape sets `detectedSpread`; missing path →
+  `PageError::MissingFile`; text bytes → `DecodeFailed`; **stale-generation test**: hold gen A
+  workers on a latch, open gen B, release A → no A result reaches the cache or signals with
+  gen B; pool never exceeds 2 concurrent workers (atomic high-water counter).
+- [ ] **Step 2: Confirm failure**, **Step 3: implement** (QThreadPool max 2; workers read file
+  bytes → QImageReader with `setAutoTransform(true)`; every result re-checked against the live
+  generation on the coordinator thread before publish), **Step 4: green**, **Step 5: commit**.
+
+### Task 5: Auto-coupling probe (pure)
+
+**Files:** Create `native/comicreader/ComicReaderCoupling.h/.cpp`, `tests/comicreader_coupling_harness.cpp`;
+modify `native/CMakeLists.txt`.
+
+**Interface:**
+
+```cpp
+namespace comicreader {
+// Mean |luminance| difference across the touching edges of a displayed pair, 0..1.
+double edgeContinuityCost(const QImage& left, const QImage& right);   // 96×8 samples
+struct CouplingVerdict { CouplingPhase phase; double confidence; };   // conf 0..1
+// Score both phases over up to 4 sample pairs from the first 8 pages; adopt Shifted only
+// when it wins with confidence >= 0.12 (QTGroundWork's floor). Pure — caller decodes.
+CouplingVerdict chooseCouplingPhase(const QVector<double>& normalCosts,
+                                    const QVector<double>& shiftedCosts);
+}
+```
+
+- [ ] **Step 1: Tests first** (`COMICREADER_COUPLING_OK`): synthetic continuity — image A ends in a
+  black-to-white gradient column, image B starts with the same column → cost < 0.08; B
+  reversed → cost > 0.3; verdict picks Shifted when shifted costs are clearly lower, Normal
+  on a tie (confidence below floor), confidence formula `|nΣ−sΣ| / (nΣ+sΣ)` clamped 0..1.
+- [ ] **Steps 2–5:** fail → implement → green → commit, as above.
+
+### Task 6: Strip geometry model
+
+**Files:** Create `native/comicreader/ComicReaderStripModel.h/.cpp`, `tests/comicreader_strip_harness.cpp`;
+modify `native/CMakeLists.txt`.
+
+**Interface:**
+
+```cpp
+class ComicReaderStripModel final : public QAbstractListModel {
+    Q_OBJECT   // roles: pageIndex, top, displayWidth, displayHeight, ready, errorCode
+public:
+    struct Options { int viewportWidth; int portraitWidthPct; int gap; };
+    void rebuild(const QVector<PageMeta>& pages, const Options& opt);
+    void updatePage(const PageMeta& meta);            // real size arrives → height changes
+    QVector<int> window(double top, double vpHeight, double marginScreens) const; // ±1.5
+    int pageAtCenter(double top, double vpHeight) const;   // binary search
+    double pageTop(int page) const;
+    double compensation(int page, double oldH) const;  // scroll delta when a page above grows
+};
+```
+
+- [ ] **Step 1: Tests first** (`COMICREADER_STRIP_OK`): unknown pages use estimate 1600×2400 scaled
+  to portrait width; spread pages span full viewport width; exact gap between tops;
+  `window(...)` returns exactly the ±1.5-screen set; `pageAtCenter` matches a hand-computed
+  layout; `updatePage` on a page ABOVE the anchor yields `compensation == newH − oldH`, on a
+  page below yields 0; eviction (ready=false) never changes geometry.
+- [ ] **Steps 2–5:** fail → implement → green → commit.
+
+### Task 7: Backend + provider into the app
+
+**Files:** Create `native/comicreader/ComicReaderCore.h/.cpp`, `native/comicreader/ComicReaderProvider.h/.cpp`,
+`tests/comicreader_core_harness.cpp`; modify `native/main.cpp`, `native/CMakeLists.txt`.
+
+**QML-facing surface (context property `ComicReaderCore`):**
+
+```cpp
+Q_PROPERTY(qulonglong generation READ generation NOTIFY entryChanged)
+Q_PROPERTY(int pageCount READ pageCount NOTIFY entryChanged)
+Q_PROPERTY(int readyCount READ readyCount NOTIFY progressChanged)
+Q_PROPERTY(QString couplingState READ couplingState NOTIFY pairingChanged) // "auto:normal:0.84"
+Q_PROPERTY(QAbstractListModel* stripModel READ stripModel CONSTANT)       // ComicReaderStripModel
+Q_INVOKABLE void openEntry(QString entryId, QVariantList pages, QString direction,
+                           QVariantMap persisted);   // overrides + coupling + bookmarks
+Q_INVOKABLE void closeEntry();
+Q_INVOKABLE QVariantMap pageInfo(int page) const;
+Q_INVOKABLE QVariantMap unitForPage(int page) const;       // canonical PairUnit
+Q_INVOKABLE void setSpreadOverride(int page, QString state); // "spread"|"single"|"clear"
+Q_INVOKABLE void nudgeCoupling();                            // -> Manual + flipped phase
+Q_INVOKABLE void setVisible(QVariantList pages);             // pins + priorities
+Q_INVOKABLE void setStripViewport(double top, double height);
+Q_INVOKABLE QString imageUrl(int page) const;   // image://comicreader/<gen>/<page>?rev=N
+Q_INVOKABLE void setMemorySaver(bool on);
+signals: void entryChanged(); void pageReady(int page); void pageFailed(int page, QString code);
+         void pairingChanged(); void progressChanged();
+```
+
+- [ ] **Step 1: Tests first** (`COMICREADER_CORE_OK`): open publishes count + estimates; remote URL
+  → entry rejected with typed error; visible pinning + neighbor priorities reach the decode
+  coordinator (spy); metadata-driven spread discovery rebuilds units AND `unitForPage` for
+  the visible page still contains it; override beats detection; `nudgeCoupling` flips phase
+  and reports `manual`; entry replacement invalidates old imageUrls (provider returns null
+  for dead generations); memory-saver switches cache budget live.
+- [ ] **Step 2: Confirm failure.** **Step 3: implement** Core (owns cache/decode/strip/pairing,
+  runs the auto-coupling probe once per entry: decode first ≤8 pages at low priority, score,
+  adopt, persist through `persisted` round-trip) and the read-only Provider.
+- [ ] **Step 4: Register in `main.cpp`** (guarded exactly like existing stores):
+  `engine.addImageProvider("comicreader", provider); rootContext->setContextProperty("ComicReaderCore", core);`
+  Build the app target too: `native\build-msvc.bat colosseum` — clean link, boot smoke clean.
+- [ ] **Step 5: Commit** by pathspec (include `native/main.cpp`).
+
+### Task 8: Pure QML state library
+
+**Files:** Create `qml/comicreader/ComicReaderState.js`, `tests/comicreader_state_harness.qml`,
+`tests/test_comicreader_state.ps1`.
+
+- [ ] **Step 1: Tests first** (`COMICREADER_STATE_OK`), offscreen harness: `progressKind(kind,
+  western)` → manga/comic/tankoban; `entryIndex/nextEntry/previousEntry` honor newest-first
+  chapter ordering AND ascending volume ordering; `completion(page, count)` marks finished at
+  last unit; `progressPayload(...)` matches the Task 1 recorded shape EXACTLY;
+  `defaultDirection(kind, western)` → manga:"rtl", western:"ltr";
+  `shouldAcquire(status)` true only for missing/incomplete entries.
+- [ ] **Step 2: Confirm failure**, **Step 3: implement** (`.pragma library`, zero QML object
+  references — objects are passed IN, per `pragma-library-cant-see-context-properties`),
+- [ ] **Step 4: green**, **Step 5: commit**.
+
+### Task 9: Shell beside production
+
+**Files:** Create `qml/comicreader/ComicReaderShell.qml`, `tests/comicreader_shell_harness.qml`,
+`tests/test_comicreader_shell.ps1`.
+
+- [ ] **Step 1: Tests first** (`COMICREADER_SHELL_OK`) against fake stores for all three lanes:
+  ready entry → `ComicReaderCore.openEntry` called with local pages + smart-default direction;
+  unavailable chapter → `pageStore.downloadChapter` invoked; unavailable Tankoban volume →
+  `sourceRequested(entryId)` emitted; resume applies saved page + strip fraction before first
+  paint; `Progress.record` fires with the locked payload on page change and close; next/prev
+  crossing respects ordering; direction override persists per series (QtCore Settings shim in
+  harness); legacy persisted keys from the old reader (mode, direction, portrait width, zoom,
+  dim, bookmarks, spread overrides) are read once and migrated — a series configured in the
+  old reader opens identically in Comic Reader, nothing silently resets; NO import of anything
+  under `guided/`.
+- [ ] **Step 2: Confirm failure.** **Step 3: implement** the orchestration-only shell exposing
+  the Task 1 public contract, mounting placeholder Rectangles for the two surfaces, wiring
+  `ComicReaderState.js` for every decision. **Step 4: green.** **Step 5: commit.**
+
+### Task 10: The two surfaces
+
+**Files:** Create `qml/comicreader/ComicReaderStripSurface.qml`, `qml/comicreader/ComicReaderDoubleSurface.qml`;
+modify `qml/comicreader/ComicReaderShell.qml`; create `tests/comicreader_surfaces_harness.qml`,
+`tests/test_comicreader_surfaces.ps1`.
+
+- [ ] **Step 1: Tests first** (`COMICREADER_SURFACES_OK`): Strip creates delegates ONLY for the
+  model window; delegate heights come from the model (no Image-driven reflow); wheel uses the
+  Max accumulator (inject 3 notches → smooth positional drain, no step jumps); Double renders
+  the canonical unit — RTL places right page's image left-of-gutter reading-wise (assert
+  physical x-order flips with direction); confirmed spread = ONE image full-width; gutter
+  shadow element present between paired pages with opacity from settings; zoom clamps
+  100–260, pan clamps to zoomed bounds and resets on unit change; page failure shows the
+  typed placard for that page only.
+- [ ] **Step 2: Confirm failure.** **Step 3: implement Strip** (ListView over
+  `ComicReaderCore.stripModel`, `image://comicreader/` URLs with `?rev=` bumped on `pageReady`,
+  viewport reported ≤ once per frame, scroll compensation applied from model). **Step 4:
+  implement Double** (unit from `unitForPage`, two Images or one for spread, Canvas-free CSS
+  gradient gutter shadow, zoom/pan transform). **Step 5: green.** **Step 6: commit.**
+
+### Task 11: Family Gradient HUD + input
+
+**Files:** Create `qml/comicreader/ComicReaderHud.qml`, `qml/comicreader/ComicReaderInput.qml`,
+`qml/comicreader/ComicReaderIcon.qml`; modify `qml/comicreader/ComicReaderShell.qml`; create
+`tests/comicreader_chrome_harness.qml`, `tests/test_comicreader_chrome.ps1`.
+
+Build EXACTLY mockup surface 01: gradient footer (transparent → rgba(0,0,0,.9)); gold scrub
+thread (track 4px, gold fill+knob, bookmark ticks, page bubble on hover/drag); HUD row
+prev/next pills · pair-aware counter (`45–46 / 230`) · Chapters pill · thumbnails pill ·
+two-segment mode chip · direction pill (gold when active) · settings pill; back pill top-left;
+window verbs top-right (wired to the existing shell signals); right-edge side scroller;
+3000 ms auto-hide; H toggles; mouse-move in top/bottom zones reveals.
+
+- [ ] **Step 1: Tests first** (`COMICREADER_CHROME_OK`): scrub ratio→page mapping (double: unit
+  snap; strip: fraction); bookmark ticks positioned at `page/(count−1)`; counter strings for
+  single unit, pair, spread; auto-hide timer fires → chrome hidden; single click (after
+  220 ms, not a double) toggles chrome; double click calls `fullscreenRequested`; left/right
+  third clicks in Double navigate BY DIRECTION (RTL: left=next); center third never
+  navigates; every HUD glyph is a `ComicReaderIcon` (assert no Text-glyph chips —
+  `semantic-icon-audit` law); Escape order: overlay → chrome → `backRequested`.
+- [ ] **Step 2: Confirm failure.** **Step 3: implement** `ComicReaderIcon` (Image over
+  `assets/icons/comicreader/<name>.svg`, white-stroke Lucide files copied from `assets/icons/lucide/`
+  — verify each SVG has `stroke="#ffffff"` per the MultiEffect-colorization law), then HUD,
+  then Input emitting semantic actions only (`next/previous/scrollBy/zoomBy/panBy/
+  toggleChrome/toggleFullscreen/openSettings/openNavigator/openThumbnails/toggleBookmark/
+  goToPage/closeTop`). Keyboard per lineage: Space/PgDn/PgUp/Home/End/arrows, M mode,
+  I direction, P nudge, O navigator, T thumbnails, B bookmark, K shortcuts, L loupe, H HUD,
+  Ctrl+G go-to-page, F fullscreen, Alt+←/→ prev/next entry.
+- [ ] **Step 4: green.** **Step 5: commit.**
+
+### Task 12: Overlays — settings, navigator, end card, tools
+
+**Files:** Create `qml/comicreader/ComicReaderSettingsSheet.qml`, `qml/comicreader/ComicReaderNavigator.qml`,
+`qml/comicreader/ComicReaderEndCard.qml`, `qml/comicreader/ComicReaderOverlays.qml`; modify
+`qml/comicreader/ComicReaderShell.qml`; create `tests/comicreader_overlays_harness.qml`,
+`tests/test_comicreader_overlays.ps1`.
+
+Build EXACTLY mockup surfaces 02–04 plus the tool overlays. Every overlay: glass sheet tokens,
+click-swallower body (floating-panel law), scrim click + Escape dismiss, joins a single
+`modalOpen` gate that swallows background input.
+
+- [ ] **Step 1: Tests first** (`COMICREADER_OVERLAYS_OK`):
+  - Settings: sections DISPLAY/DOUBLE PAGE/LONG STRIP/TOOLS render mode-aware (double rows
+    hidden in strip and vice versa); chip taps write shell-persisted settings; gutter presets
+    exactly 0/.22/.35/.55; night veil Off/Low/High → 0/.12/.26 overlay opacity; memory saver
+    toggle calls `ComicReaderCore.setMemorySaver`; danger actions emit clear/reset signals.
+  - Navigator: search filters; current entry row flagged gold w/ `p.X/Y` from Progress; read
+    entries show `read`; undownloaded rows expose `get` → acquisition path (downloadChapter /
+    downloadIssue / sourceRequested by lane).
+  - End card: shown at last-unit advance; primary = `Next: <title>` when next is local,
+    `Get: <title>` when not; Replay → page 0; keyboard Space/Backspace/Esc flow; title uses
+    Fraunces (`font.family === "Fraunces"` — the ONLY Fraunces assert in the reader).
+  - Overlays: thumbnails grid virtualizes (only ±N delegates), current page highlighted, tap
+    jumps + closes; go-to-page validates 1..count; shortcuts overlay lists the Task 11 map;
+    loupe overlay samples the surface at cursor (2.0× default, presets 1.0–3.5, sizes
+    140/200/280/400).
+- [ ] **Step 2: Confirm failure.** **Step 3: implement** the four files. **Step 4: green.**
+  **Step 5: commit.**
+
+### Task 13: Cutover
+
+**Files:** Replace `qml/MangaReader.qml`; create `tests/comicreader_migration_acceptance.qml`,
+`tests/test_comicreader_migration.ps1`; modify `tests/test_comicreader_contract.ps1` (now runs against
+the wrapper), `tests/test_guided_manga_reader.ps1`.
+
+- [ ] **Step 1: Acceptance harness first**: loads `qml/MangaReader.qml` through all three fake
+  lanes and asserts the Task 1 contract; both modes selectable; Guided absent from the mode
+  chip; resume + bookmarks + overrides survive reader recreation; Progress payload
+  byte-identical to the recorded shape; image URLs use `image://comicreader/`.
+  Run → expected FAIL (old reader).
+- [ ] **Step 2: Cut over.** `qml/MangaReader.qml` becomes:
+
+  ```qml
+  import QtQuick
+  import "comicreader"
+  ComicReaderShell { }
+  ```
+
+  No state, no behavior in the wrapper. Callers untouched — verify with
+  `git diff --stat qml/Main.qml qml/MangaSeries.qml qml/ComicSeries.qml qml/ComicSeriesPage.qml` → empty.
+- [ ] **Step 3: Convert the Guided gate.** `test_guided_manga_reader.ps1` now asserts:
+  `native/guided/` + `qml/guided/` exist untouched; the mode chip offers no Guided; prints
+  `GUIDED_FROZEN_OK` (it must NOT claim Guided works).
+- [ ] **Step 4: Full suite.** Run contract, state, shell, surfaces, chrome, overlays, migration,
+  guided-freeze + existing `test_manga_tankoban_mode.ps1` and comics regressions. Expected
+  sentinels: `COMICREADER_CONTRACT_OK COMICREADER_STATE_OK COMICREADER_SHELL_OK COMICREADER_SURFACES_OK
+  COMICREADER_CHROME_OK COMICREADER_OVERLAYS_OK COMICREADER_MIGRATION_OK GUIDED_FROZEN_OK`. Rebuild the
+  committed tree and boot-smoke the real exe (verify-the-committed-artifact law).
+- [ ] **Step 5: Cross-substrate review** of the full cutover diff against the spec's Acceptance
+  section (producer ≠ reviewer). Any P0/P1 blocks the commit.
+- [ ] **Step 6: Commit** by pathspec.
+
+### Task 14: Performance, resilience, eyes-on
+
+**Files:** Create `tests/comicreader_perf_harness.cpp`, `tests/test_comicreader_acceptance.ps1`;
+modify `native/CMakeLists.txt`.
+
+- [ ] **Step 1: Resilience tests** (`COMICREADER_PERF_OK`): missing + corrupt pages among valid
+  neighbors; 300 rapid next/prev; entry A→B mid-decode ×20 (assert zero stale publishes);
+  all-visible pinned under pressure; 512→256 transition; 500-page strip rebuild + resize ×10
+  with stable anchors.
+- [ ] **Step 2: Perf probes with acceptance numbers:** decode workers high-water ≤ 2; stale
+  publishes == 0; cache ≤ budget unless all-pinned; visible-page request→ready median < 350 ms
+  on local CBZ-extracted pages; warm strip scroll p95 frame ≤ 20 ms on Hemanth's machine.
+- [ ] **Step 3: Umbrella gate.** `test_comicreader_acceptance.ps1` builds + runs every native and
+  QML harness and prints `COMICREADER_ACCEPTANCE_OK` only after all pass.
+- [ ] **Step 4: Eyes-on smoke with Hemanth** (four entries: manga chapter RTL, western issue
+  LTR, clean Tankoban, stitched Volume X): open, resume, scrub+bubble+ticks, both modes,
+  auto-coupling on a known misaligned volume + P override, navigator w/ get, thumbnails,
+  settings sheet, spread override, end card both states, loupe, fullscreen, close/reopen.
+  The four app surfaces must read as the approved mockup.
+- [ ] **Step 5: Commit** acceptance artifacts by pathspec.
+
+## Completion state
+
+- Comic Reader is the production reader for manga, comics, and Tankoban; the old implementation is
+  gone; callers and Progress payloads unchanged.
+- Guided untouched on disk, absent from the picker, gated by `GUIDED_FROZEN_OK`.
+- `COMICREADER_ACCEPTANCE_OK` green + Hemanth's eyes-on approval recorded in the session recap.

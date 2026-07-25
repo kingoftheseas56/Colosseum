@@ -67,9 +67,14 @@ public:
     // looks the pairing up by. On completion, if a pairing store is set and bookId
     // is non-empty, the audiobook auto-attaches to that book. Pass "" (the QML side
     // does when no ebook is on disk yet) to skip the attach — never a mismatched key.
+    //
+    // bookPath (optional, LAST so existing callers keep compiling) is the ebook's local
+    // path. When supplied it is stamped into the auto-attach pairing so the read-along
+    // service can find the EPUB without re-deriving it. Empty leaves the key absent.
     Q_INVOKABLE void downloadAudiobook(const QString& pairKey, const QString& infoHash,
                                        const QString& title, const QString& author,
-                                       const QString& bookId = QString());
+                                       const QString& bookId = QString(),
+                                       const QString& bookPath = QString());
 
     // The local FLIP: absolute path of the audiobook's directory, or "" if not local.
     Q_INVOKABLE QString localAudiobook(const QString& pairKey) const;
@@ -172,4 +177,5 @@ private:
     QHash<QString, Entry> m_index;             // pairKey → entry
     AudioPairingStore* m_pairing = nullptr;    // read-along attach target (not owned)
     QHash<QString, QString> m_bookIdFor;       // pairKey → reader bookId (for auto-attach)
+    QHash<QString, QString> m_bookPathFor;     // pairKey → ebook local path (stamped into pairing)
 };

@@ -34,6 +34,14 @@ Item {
     function addHighlight(h) { run("window.paper.addHighlight(" + JSON.stringify(JSON.stringify(h)) + ")") }
     function removeHighlight(id) { run("window.paper.removeHighlight(" + JSON.stringify(id) + ")") }
     function clearSelection() { run("window.paper.clearSelection()") }
+    // read-along (Task 4): alignment presentation. Objects are double-encoded (like addHighlight)
+    // so the glue receives a JSON string it JSON.parse()s. These only paint/navigate — the native
+    // ReadAlongController owns all cue authority; the paper never sees SQLite/model state.
+    function setReadAlongStyle(s) { run("window.paper.setReadAlongStyle(" + JSON.stringify(JSON.stringify(s)) + ")") }
+    function paintReadAlong(cue) { run("window.paper.paintReadAlong(" + JSON.stringify(JSON.stringify(cue)) + ")") }
+    function clearReadAlong() { run("window.paper.clearReadAlong()") }
+    function ensureReadAlongVisible(loc) { run("window.paper.ensureReadAlongVisible(" + JSON.stringify(JSON.stringify(loc)) + ")") }
+    function navigateReadAlong(loc) { run("window.paper.navigateReadAlong(" + JSON.stringify(JSON.stringify(loc)) + ")") }
     function run(js) { web.runJavaScript(js) }
 
     // Put active focus on the web view so its in-page keyboard (paper_glue.js) receives

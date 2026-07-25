@@ -8,6 +8,7 @@ import "TheatreApi.js" as TheatreApi
 import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "NextUp.js" as NextUp
+import "LibraryApi.js" as LibraryApi
 
 WorldPage {
     id: theatre
@@ -19,6 +20,9 @@ WorldPage {
     signal theatreGenreIndexRequested(string kind)
     // Bubbles a tap on a Your Collection tile up to Main's openCollectionEntry door.
     signal collectionOpenRequested(var entry)
+    // Library tab (Stage 2) — the ⋮ menu's Resume / Mark-watched bubble up to Main's handlers.
+    signal libraryResumeRequested(var entry)
+    signal libraryMarkWatchedRequested(var entry, bool watched)
     // Next Up direct play — the exact TheatreSeries.playRequested shape, wired in Main
     // to the same openMovieSession door (spec 2026-07-18, Jellyfin library inheritance).
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
@@ -30,7 +34,7 @@ WorldPage {
     property var movieRows: Catalog.theatreTopMovies
     property var seriesRows: Catalog.theatreTopSeries
     property var animeRows: []
-    property string activeTab: "movies"
+    property string activeTab: "discover"
 
     onProgressRevisionChanged: {
         continueRows = Progress.recent("video", 12)
@@ -117,6 +121,15 @@ WorldPage {
     Component.onCompleted: {
         recomputeNextUp()
         loadCatalog()
+        // Refresh the Library's new-episode + airing stamps for saved series (spec §4.5).
+        // Cheap: skips fresh-stamped (<6h) series and does zero network on an empty shelf.
+        LibraryApi.refreshStamps(Collection.items("theatre"), TheatreApi.loadMeta,
+            Progress.recent("video", 0),
+            function(id) { return Progress.watchedMark(id) },
+            function(id) { Progress.forget("video", id) },
+            function(id, on) { Progress.setWatchedMark(id, on) },
+            function(e) { Collection.add("theatre", e) },
+            Date.now(), function() {})
     }
     function loadCatalog() { TheatreApi.loadTheatre(function(rows) {
         if (rows.movies.length > 0)
@@ -161,26 +174,45 @@ WorldPage {
         onSeeAllRequested: theatre.continueSeeAllRequested()
     }
 
-    ContinueRow {
-        title: "Your Collection"
-        showSeeAll: false
-        items: (Collection.revision, Collection.items("theatre"))
-        forgetHandler: function(e) { Collection.remove("theatre", String(e.id)) }
-        onDetailRequested: function(item) { theatre.collectionOpenRequested(item) }
-        onResumeRequested: function(item) { theatre.collectionOpenRequested(item) }
-    }
-
     TheatreTabBar {
         backdrop: theatre.backdrop
         currentTab: theatre.activeTab
         onTabRequested: (tab) => theatre.activeTab = tab
     }
 
+    DiscoverPage {
+        id: discoverPage
+        visible: theatre.activeTab === "discover"
+        width: parent.width
+        height: visible ? Math.max(620, theatre.height - 200) : 0
+        onItemOpenRequested: (item) => theatre.theatreItemRequested(
+            theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
+    }
+
     TheatreCatalogPage {
-        pageKey: theatre.activeTab
+        visible: theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime"
+        height: visible ? implicitHeight : 0
+        pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")
+                 ? theatre.activeTab : "movies"
         onItemRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
         onGenreIndexRequested: (kind) => theatre.theatreGenreIndexRequested(kind)
+        onDiscoverPinRequested: (pin) => {
+            theatre.activeTab = "discover"
+            discoverPage.applyPin(pin)
+        }
+    }
+
+    // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
+    LibraryPage {
+        visible: theatre.activeTab === "library"
+        width: parent.width
+        height: visible ? Math.max(620, theatre.height - 200) : 0
+        onResumeRequested: (e) => theatre.libraryResumeRequested(e)
+        onDetailRequested: (e) => theatre.collectionOpenRequested(e)
+        onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.forget("video", String(e.id)) }
+        onMarkWatchedRequested: (e, w) => theatre.libraryMarkWatchedRequested(e, w)
+        onRemoveRequested: (e) => { if (typeof Collection !== "undefined") Collection.remove("theatre", String(e.id)) }
     }
 }

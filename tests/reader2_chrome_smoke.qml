@@ -276,13 +276,13 @@ Item {
             check(appPanel !== null && appPanel.open === true, "AppearancePanel instantiated + open")
             check(appPanel.curTheme === "night" && appPanel.curFont === "literata",
                   "AppearancePanel derives theme/font from appearance")
-            check(appPanel.curSize === 18 && appPanel.curMargin === 72 && appPanel.curJustify === true,
+            check(appPanel.curSizePct === 100 && appPanel.curMargin === 72 && appPanel.curJustify === true,
                   "AppearancePanel derives size/margins/justify")
             check(appPanel.curRulerOn === false && appPanel.curBand === 92 && appPanel.curDim === 42,
                   "AppearancePanel derives ruler controls")
             // a different bound appearance flows through to the derived values.
-            appPanel.appearance = L.mergeAppearance(L.appearanceDefaults(), { theme: "sepia", font: "inter", sizePx: 22 })
-            check(appPanel.curTheme === "sepia" && appPanel.curFont === "inter" && appPanel.curSize === 22,
+            appPanel.appearance = L.mergeAppearance(L.appearanceDefaults(), { theme: "sepia", font: "inter", sizePct: 150 })
+            check(appPanel.curTheme === "sepia" && appPanel.curFont === "inter" && appPanel.curSizePct === 150,
                   "AppearancePanel re-derives on a new appearance")
             // the changed(key,value) signal carries the edit (what ReaderShell persists + live-applies).
             appPanel.changed("theme", "slate")

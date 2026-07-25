@@ -243,6 +243,10 @@ FocusScope {
     // seeded from the old reader's flat `theme` on first run), pushed to the paper as the first
     // paint, and re-pushed LIVE on every panel edit. Seeded to the ratified defaults until 'ready'.
     property var appearance: L.appearanceDefaults()
+    // The WHOLE appearance store (PARITY 2026-07-24): { defaults, books } — per-book sparse
+    // patches over a global default. `appearance` above stays THE effective object for this
+    // book (what the panel binds and the paper renders); the store is the persistence truth.
+    property var appearanceStore: ({ defaults: L.appearanceDefaults(), books: {} })
 
     // ---- search view-model (Task 11) ----
     // Fed by the paper's 'searchResults' event and handed to the SearchSheet through the
@@ -272,6 +276,33 @@ FocusScope {
     // Remember the last audiobook chapter we synced to, so a debounced page turn that maps
     // to the SAME chapter is a no-op (an m4b's currentIndex stays 0, so we can't rely on it).
     property int lastSyncedAudioChapter: -1
+
+    // ---- read-along (Task 6): sentence/word alignment driven by the native engine ----
+    // THE DORMANT GATE (load-bearing): the native ReadAlongController (`ReadAlong`) and
+    // AudioTextAlignmentService (`AudioTextAlignment`) are registered in Task 12, NOT yet.
+    // Until then this flag is false and EVERY read-along binding/handler/connection below is
+    // gated by it, so the live reader behaves EXACTLY as it does today. `typeof X !== 'undefined'`
+    // is the proven in-repo probe for an un-registered context property (same as AudioPairing/
+    // Audiobooks/Progress above); it never throws when the prop is absent.
+    readonly property bool readAlongAvailable:
+        (typeof ReadAlong !== "undefined") && (typeof AudioTextAlignment !== "undefined")
+    // The persisted mode/enlargement ride in the SAME reader2 appearance store (appearance.readAlong).
+    readonly property string readAlongMode: L.readAlongFrom(shell.appearance).mode
+    readonly property real readAlongWordScale: L.readAlongFrom(shell.appearance).wordScale
+    // Controller follow state mirror ("following"|"detached"); updated by followStateChanged.
+    property string readAlongFollowState: "following"
+    readonly property bool readAlongFollowDetached: shell.readAlongAvailable && shell.readAlongFollowState === "detached"
+    // The last playhead identity we fed the controller — skip re-feeding an unchanged one.
+    property var lastPlayhead: null
+    // A committed seek's follow-up navigationRequested is a hard jump (navigate); a passive
+    // follow move is a comfort-zone ensureVisible. This one-shot flag distinguishes them.
+    property bool pendingReadAlongJump: false
+    // Scrub-preview read-out (the aligned rail): active while dragging + the controller's label.
+    property bool readAlongPreviewActive: false
+    property string readAlongPreviewLabel: ""
+    // Real audiobook chapter start offsets (ms) arrive in Task 12; null → nominal (position-as-
+    // absolute, correct for the single-file m4b read-along case). Pure conversions consume it.
+    property var audioChapterBoundsMs: null
 
     // The pairing Task 12 wrote for THIS book (keyed by shell.bookId). Reactive: it
     // re-evaluates when the book changes AND when the store bumps (an audiobook that
@@ -343,6 +374,9 @@ FocusScope {
     readonly property string audioPosLabel: shell.audioSessionLive ? L.fmtClock_(shell.audioSession.position) : ""
     readonly property string audioDurLabel: (shell.audioSessionLive && shell.audioSession.duration > 0)
         ? L.fmtClock_(shell.audioSession.duration) : ""
+    // Numeric total (seconds) for the HUD scrub-tooltip's time readout (same source as audioDurLabel).
+    readonly property real audioDurationSec: (shell.audioSessionLive && shell.audioSession.duration > 0)
+        ? shell.audioSession.duration : 0
     // CHOSEN speed (Hemanth 2026-07-18: "the speed button does not do anything" — it only
     // acted on a LIVE stream). The choice now lives shell-side: cycling always works and
     // shows, and it's applied to the session on load and on every cycle while live.
@@ -393,14 +427,119 @@ FocusScope {
         shell.lastSyncedAudioChapter = ch
         shell.audioSession.goToChapterKeepState(ch)
     }
-    // Follow switch → set state; turning ON loads (paused at last spot) + syncs immediately.
+    // Follow switch → set state; turning ON loads (paused at last spot). When read-along is
+    // AVAILABLE the direction inverts (Task 6): the PAGE follows the AUDIO via the controller
+    // (feedPlayhead → paint), so we attach the controller instead of the old chapter-sync.
+    // DORMANT keeps today's behavior exactly (audio follows the page: syncAudioToPage).
     function setFollow(on) {
         shell.followOn = on
         if (on) {
-            shell.lastSyncedAudioChapter = -1        // force the first sync through
+            shell.lastSyncedAudioChapter = -1        // force the first sync through (dormant path)
             shell.ensureAudioLoaded(true)
-            shell.syncAudioToPage(true)
+            if (shell.readAlongAvailable) {
+                ReadAlong.returnToNarration()        // attach the controller to the live narration
+                shell.readAlongFollowState = "following"
+                shell.lastPlayhead = null
+                shell.feedPlayhead()                 // seed it with the current audio position
+            } else {
+                shell.syncAudioToPage(true)          // dormant: audio follows the page (today)
+            }
+        } else if (shell.readAlongAvailable) {
+            ReadAlong.detachFollow()                 // stop driving the page from audio
         }
+    }
+
+    // ---- read-along wiring (Task 6) — all gated on readAlongAvailable (dormant = untouched) ----
+    // feedPlayhead: playback → controller. Only while following AND the controller is attached
+    // ("following", not "detached" after a manual navigation). Converts (currentIndex, position)
+    // to an absolute-ish audiobook ms and skips an unchanged playhead (pure decisions in L.*).
+    function feedPlayhead() {
+        if (!shell.readAlongAvailable || !shell.followOn) return
+        if (shell.readAlongFollowState !== "following") return
+        if (!shell.audioSessionLive) return
+        var idx = shell.audioSession.currentIndex
+        var absMs = L.sessionToAbsMs(idx, shell.audioSession.position, shell.audioChapterBoundsMs)
+        var next = { chapter: idx, absMs: absMs }
+        if (!L.shouldEmitSetPlayhead(shell.lastPlayhead, next)) return
+        shell.lastPlayhead = next
+        ReadAlong.setPlayhead(shell.bookId, idx, absMs)
+    }
+
+    // dispatchScrub: the gold scrub rail's preview (hover/drag) / commit (release). L decides:
+    // when available → previewTime (NO seek) / commitTime (one commit); when dormant → a plain
+    // direct seek on both, preserving today's continuous-scrub feel.
+    function dispatchScrub(phase, f) {
+        var dur = (shell.audioSession && Number.isFinite(shell.audioSession.duration)) ? shell.audioSession.duration : 0
+        var idx = shell.audioSession ? shell.audioSession.currentIndex : 0
+        var act = L.readAlongScrubAction(phase, f, dur, shell.readAlongAvailable)
+        if (act.kind === "preview") {
+            ReadAlong.previewTime(shell.bookId, idx, act.timeMs)
+            shell.readAlongPreviewActive = true
+        } else if (act.kind === "commit") {
+            ReadAlong.commitTime(shell.bookId, idx, act.timeMs)   // → controller audioSeekRequested → ONE seek
+            shell.readAlongPreviewActive = false
+            shell.pendingReadAlongJump = true                     // the follow-up nav is a hard jump
+        } else {
+            shell.audioSeekFraction(f)                            // dormant: today's direct seek
+        }
+    }
+
+    // performControllerSeek: the controller's audioSeekRequested is the ONE place a read-along
+    // seek actually touches the session (every user gesture funnels through commitX → this).
+    function performControllerSeek(chapter, timeMs, play) {
+        if (!shell.audioSession) return
+        shell.pendingReadAlongJump = true                         // its navigationRequested navigates
+        var n = (shell.audioSession.chapterModel || []).length
+        if (Number.isFinite(chapter) && chapter >= 0 && chapter < n && chapter !== shell.audioSession.currentIndex)
+            shell.audioSession.goToChapterKeepState(chapter)
+        shell.audioSession.seekTo(L.audioSeekTargetSec(chapter, timeMs, shell.audioChapterBoundsMs))
+        if (play === true) shell.audioSession.play()
+        shell.lastPlayhead = null                                 // a jump re-seeds the feed
+    }
+
+    // A single read-along mode/enlargement edit from the panel: merge into appearance.readAlong,
+    // PERSIST under the same namespaced settings.reader2 (read-modify-write, never clobbering the
+    // old reader's flat keys or the appearance fields), and LIVE-STYLE the paper.
+    function applyReadAlongPatch(key, value) {
+        var patch = {}
+        patch[key] = value
+        shell.appearance = L.mergeReadAlong(shell.appearance, patch)
+        shell.appearanceStore = L.applyStorePatch(shell.appearanceStore, shell.bookId,
+                                                  "readAlong", L.readAlongFrom(shell.appearance))
+        persistAppearanceStore()
+        if (shell.readAlongAvailable)
+            paper.setReadAlongStyle(L.readAlongStyleFromMode(shell.readAlongMode, shell.readAlongWordScale))
+    }
+    // Return to narration: re-attach the controller and re-seed it with the current playhead.
+    function returnToNarration() {
+        if (!shell.readAlongAvailable) return
+        ReadAlong.returnToNarration()
+        shell.readAlongFollowState = "following"
+        shell.lastPlayhead = null
+        shell.feedPlayhead()
+    }
+
+    // Controller → shell: paint/navigate the paper, drive the session seek, mirror follow state.
+    // The target guard (readAlongAvailable ? ReadAlong : null) means the ReadAlong id is NEVER
+    // referenced when the prop is absent — dormant instances bind to a null target (inert).
+    Connections {
+        target: shell.readAlongAvailable ? ReadAlong : null
+        function onPaintRequested(cue) { paper.paintReadAlong(cue) }
+        function onNavigationRequested(location) {
+            if (shell.pendingReadAlongJump) { shell.pendingReadAlongJump = false; paper.navigateReadAlong(location) }
+            else paper.ensureReadAlongVisible(location)          // comfort-zone follow
+        }
+        function onAudioSeekRequested(chapter, timeMs, play) { shell.performControllerSeek(chapter, timeMs, play) }
+        function onFollowStateChanged() { shell.readAlongFollowState = ReadAlong.followState }
+        function onPreviewChanged() { shell.readAlongPreviewLabel = L.previewLabelFrom(ReadAlong.preview).line }
+    }
+    // Playback → controller: feed the playhead as the audio position/chapter/pause changes.
+    Connections {
+        target: shell.audioSession
+        enabled: shell.readAlongAvailable
+        function onPositionChanged() { shell.feedPlayhead() }
+        function onCurrentIndexChanged() { shell.feedPlayhead() }
+        function onPausedChanged() { shell.feedPlayhead() }
     }
     // Play/pause from the transport: toggle a live stream, else load-and-play this book's audiobook.
     function audioPlayToggle() {
@@ -422,13 +561,21 @@ FocusScope {
     function audioPrevChapter() {
         if (!shell.audioSessionLive) { shell.ensureAudioLoaded(false); return }
         var i = shell.audioSession.currentIndex
-        if (i > 0) shell.audioSession.goToChapterKeepState(i - 1)
+        if (i <= 0) return
+        // While SYNCING (read-along on + following), a chapter skip converges on a controller
+        // commit — one seek, and the page jumps to the new chapter's narration. Else: today.
+        if (shell.readAlongAvailable && shell.followOn)
+            ReadAlong.commitTime(shell.bookId, i - 1, L.sessionToAbsMs(i - 1, 0, shell.audioChapterBoundsMs))
+        else shell.audioSession.goToChapterKeepState(i - 1)
     }
     function audioNextChapter() {
         if (!shell.audioSessionLive) { shell.ensureAudioLoaded(false); return }
         var i = shell.audioSession.currentIndex
         var n = (shell.audioSession.chapterModel || []).length
-        if (i < n - 1) shell.audioSession.goToChapterKeepState(i + 1)
+        if (i >= n - 1) return
+        if (shell.readAlongAvailable && shell.followOn)
+            ReadAlong.commitTime(shell.bookId, i + 1, L.sessionToAbsMs(i + 1, 0, shell.audioChapterBoundsMs))
+        else shell.audioSession.goToChapterKeepState(i + 1)
     }
     // ---- the playlist (Audio tab lists every chapter/file like Contents lists chapters) ----
     // Live session → its chapterModel labels (m4b embedded chapters or the file set).
@@ -450,7 +597,12 @@ FocusScope {
     // once the session reports ready (openFor is async — a blind jump would race it).
     property int audioPendingJump: -1
     function audioPlayAt(i) {
-        if (shell.audioSessionLive) { shell.audioSession.goToChapter(i); return }
+        if (shell.audioSessionLive) {
+            if (shell.readAlongAvailable && shell.followOn)
+                ReadAlong.commitTime(shell.bookId, i, L.sessionToAbsMs(i, 0, shell.audioChapterBoundsMs))
+            else shell.audioSession.goToChapter(i)
+            return
+        }
         shell.audioPendingJump = i
         shell.ensureAudioLoaded(false)
     }
@@ -482,24 +634,53 @@ FocusScope {
     function audioToggleMute() {
         if (shell.audioSessionLive) shell.audioSession.mute = !shell.audioSession.mute
     }
-    // Relative skip (±seconds) from the HUD transport pill.
+    // Relative skip (±seconds) from the HUD transport pill. While syncing it converges on a
+    // controller commit (the paint follows); dormant / not-following keeps today's direct seek.
     function audioSkip(sec) {
-        if (shell.audioSessionLive)
+        if (!shell.audioSessionLive) return
+        if (shell.readAlongAvailable && shell.followOn) {
+            var absMs = L.sessionToAbsMs(shell.audioSession.currentIndex,
+                                         Math.max(0, shell.audioSession.position + sec),
+                                         shell.audioChapterBoundsMs)
+            ReadAlong.commitTime(shell.bookId, shell.audioSession.currentIndex, absMs)
+        } else {
             shell.audioSession.seekTo(Math.max(0, shell.audioSession.position + sec))
+        }
     }
 
-    // A single appearance edit from the panel: merge into shell.appearance, PERSIST under the
-    // namespaced settings.reader2 (READ-MODIFY-WRITE — the OLD reader's flat keys are never
-    // clobbered), and LIVE-APPLY to the paper. The ruler fields (rulerOn/Height/Dim) ride along
-    // in the store but are ignored by appearanceToPaper — their overlay is Task 11.
-    function applyAppearancePatch(key, value) {
-        var patch = {}
-        patch[key] = value
-        shell.appearance = L.mergeAppearance(shell.appearance, patch)
-        var all = Reader2Bridge.settingsGet() || ({})
-        all.reader2 = shell.appearance
-        Reader2Bridge.settingsSave(all)
+    // Commit a new store: recompute this book's effective appearance, persist, and paint.
+    // The single sync point for the three appearance actions (patch / use-as-default / reset).
+    function commitAppearanceStore(newStore) {
+        shell.appearanceStore = newStore
+        shell.appearance = L.effectiveAppearance(newStore, shell.bookId)
+        persistAppearanceStore()
         paper.setAppearance(L.appearanceToPaper(shell.appearance))
+    }
+
+    // A single appearance edit from the panel: route it through the STORE (applyStorePatch
+    // tiers GLOBAL keys → defaults, others → this book's sparse patch), then commit. The ruler
+    // fields ride along in the store but are ignored by appearanceToPaper — their overlay is Task 11.
+    function applyAppearancePatch(key, value) {
+        commitAppearanceStore(L.applyStorePatch(shell.appearanceStore, shell.bookId, key, value))
+    }
+
+    // "Use as default for all books": this book's look becomes the global default; books
+    // Hemanth personally tuned keep their own patches.
+    function applyUseAsDefault() {
+        commitAppearanceStore(L.useAsDefaultStore(shell.appearanceStore, shell.bookId))
+    }
+
+    // "Reset appearance": drop this book's patch — it falls back to the default look.
+    function applyResetBook() {
+        commitAppearanceStore(L.resetBookStore(shell.appearanceStore, shell.bookId))
+    }
+
+    // Persist the whole store under settings.reader2 (READ-MODIFY-WRITE — the OLD reader's
+    // flat keys elsewhere in settings.json are never clobbered).
+    function persistAppearanceStore() {
+        var all = Reader2Bridge.settingsGet() || ({})
+        all.reader2 = shell.appearanceStore
+        Reader2Bridge.settingsSave(all)
     }
 
     // Keyboard now lives IN-PAGE (paper_glue.js): the web view owns focus + keys, so a key
@@ -599,10 +780,25 @@ FocusScope {
                 shell.chapterTicks = L.railTicks(p.toc, (p.toc && p.toc.length) ? p.toc.length : 0)
                 shell.refreshMarks()                              // load bookmarks/highlights from the shared stores
                 shell.reapplyHighlights()                         // re-paint stored highlights onto the fresh paper
-                shell.appearance = L.initialAppearance(Reader2Bridge.settingsGet())  // persisted reader2 appearance (or seeded default)
+                // PARITY: adopt the store (legacy flat reader2 migrates silently), then paint
+                // THIS book's effective appearance — defaults overlaid by its own patch.
+                shell.appearanceStore = L.appearanceStore(Reader2Bridge.settingsGet())
+                shell.appearance = L.effectiveAppearance(shell.appearanceStore, shell.bookId)
                 paper.setAppearance(L.appearanceToPaper(shell.appearance))           // first paint = the persisted appearance
                 shell.followOn = false                            // read-along Follow resets per book (default OFF)
                 shell.lastSyncedAudioChapter = -1                 // fresh book → no prior audio-chapter sync
+                // read-along per-book reset (Task 6) — all no-ops when dormant.
+                shell.readAlongFollowState = "following"
+                shell.lastPlayhead = null
+                shell.readAlongPreviewActive = false
+                shell.pendingReadAlongJump = false
+                if (shell.readAlongAvailable) {
+                    paper.setReadAlongStyle(L.readAlongStyleFromMode(shell.readAlongMode, shell.readAlongWordScale))
+                    // schedule alignment for the paired audiobook (chapter jobs run in the
+                    // background worker; a no-op when there's no pairing yet — heals in Task 7/12).
+                    if (typeof AudioTextAlignment !== "undefined" && shell.audioPairKey !== "")
+                        AudioTextAlignment.ensurePair(shell.bookId, shell.bookPath, shell.audioPairKey)
+                }
                 chrome.wake()                                     // orientation beat: show briefly on open, recede after 3s idle
                 paper.focusPaper()                                // the web view owns keys — focus it so keys work immediately
             } else if (name === "toggleChrome") {
@@ -717,10 +913,33 @@ FocusScope {
                 shell.pendingSaveBookPath = shell.bookPath
                 progressSaveTimer.restart()
 
-                // --- read-along sync (Task 13) ---
-                // If Follow is on and the companion audiobook is loaded, snap it to the
-                // chapter for this page — DEBOUNCED, so rapid page flips seek once, not each.
-                if (shell.followOn && shell.audioSessionLive) followSyncTimer.restart()
+                // --- chapter-level follow (Task 13) — DORMANT-ONLY now (Task 6) ---
+                // When read-along is available the direction inverts: the PAGE follows the
+                // AUDIO via the controller (feedPlayhead), and USER page turns emit the paper's
+                // 'manualNavigation' event → detachFollow. So the old "audio follows the page"
+                // chapter-snap runs ONLY when read-along is absent — today's behavior, untouched.
+                if (!shell.readAlongAvailable && shell.followOn && shell.audioSessionLive) followSyncTimer.restart()
+            } else if (name === "alignedDoubleClick") {
+                // Read-along (Task 6): a double-click that landed within a painted sentence/word.
+                // Converge on a controller commit → it emits audioSeekRequested (ONE seek) +
+                // navigationRequested (the page jump). Gated + gen-checked like other book events.
+                if (!shell.readAlongAvailable) return
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                shell.pendingReadAlongJump = true
+                ReadAlong.commitLocation(shell.bookId, p.location)
+            } else if (name === "manualNavigation") {
+                // A READER-initiated move (wheel/drag/page-turn/TOC/search/bookmark). Detach the
+                // audio follow WITHOUT pausing — the paint freezes at the last trusted spot and
+                // the "Return to narration" chip appears. Programmatic (controller) moves are
+                // tagged in the glue and never emit this, so return-to-narration can't detach itself.
+                if (!shell.readAlongAvailable) return
+                if (!L.acceptBookEvent(p.gen, shell.currentGen, shell.bookReady)) return
+                ReadAlong.detachFollow()
+            } else if (name === "readAlongRangeMissing") {
+                // The painted cue's range isn't in the live DOM (the reader turned away). Clear
+                // the stale paint; the controller re-navigates/repaints when following resumes.
+                if (!shell.readAlongAvailable) return
+                paper.clearReadAlong()
             }
         }
     }
@@ -777,8 +996,18 @@ FocusScope {
         audioCurrentIndex: shell.audioCurrentIndex
         audioPosLabel: shell.audioPosLabel
         audioDurLabel: shell.audioDurLabel
+        audioDurationSec: shell.audioDurationSec
         audioVolume: shell.audioVolume
         audioMuted: shell.audioMuted
+
+        // read-along Text Sync data (Task 6) — all inert while dormant (readAlongAvailable false)
+        readAlongAvailable: shell.readAlongAvailable
+        bookId: shell.bookId                       // resolves the Sync-status card to this book (Task 7)
+        readAlongMode: shell.readAlongMode
+        readAlongWordScale: shell.readAlongWordScale
+        readAlongPreviewActive: shell.readAlongPreviewActive
+        readAlongPreviewLabel: shell.readAlongPreviewLabel
+        readAlongFollowDetached: shell.readAlongFollowDetached
 
         // appearance panel data (Task 10)
         appearance: shell.appearance
@@ -834,6 +1063,15 @@ FocusScope {
         onAudioVolumeRequested: (f) => shell.audioSetVolume(f)
         onAudioMuteToggled: shell.audioToggleMute()
 
+        // --- read-along (Task 6): the aligned scrub rail + Text Sync + Return to narration ---
+        // The rail is split: hover/drag PREVIEWS (no seek), release COMMITS once. dispatchScrub
+        // routes to the controller when available, a plain seek when dormant.
+        onAudioScrubPreviewed: (f) => shell.dispatchScrub("preview", f)
+        onAudioScrubCommitted: (f) => shell.dispatchScrub("commit", f)
+        onReturnToNarrationRequested: shell.returnToNarration()
+        onReadAlongModePicked: (m) => shell.applyReadAlongPatch("mode", m)
+        onReadAlongScaleChanged: (s) => shell.applyReadAlongPatch("wordScale", s)
+
         // The bookmark icon = "bookmark THIS page" (per the mock). Write the SAME shape the
         // old reader's reader_bookmarks.js uses (locator{cfi,href,fraction} + label + snippet)
         // so marks survive the swap. No text snippet yet — that needs a paper round-trip to
@@ -866,6 +1104,8 @@ FocusScope {
         // Appearance panel (Task 10): the chrome owns the right panel; each control edit lands
         // here → merge + persist (reader2 sub-object) + live-apply to the paper.
         onAppearanceEdited: (key, value) => shell.applyAppearancePatch(key, value)
+        onAppearanceDefaultRequested: shell.applyUseAsDefault()
+        onAppearanceResetRequested: shell.applyResetBook()
     }
 
     // The selection popover (Task 9, the pen). Declared near-LAST so it floats above the

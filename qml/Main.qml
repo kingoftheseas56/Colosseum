@@ -21,6 +21,7 @@ import "Torrentio.js" as Torrentio
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
+import "WarmingQueue.js" as Warming
 
 Window {
     id: win
@@ -417,6 +418,28 @@ Window {
         else continueSeeAllLayer.active = true
     }
     function closeContinueSeeAll() { continueSeeAllLayer.active = false }
+
+    // Menu "Resume / Play": resume the series' current episode through the EXACT Continue path
+    // when there's watch history; otherwise (fresh save / "Play") open the detail page to start.
+    function resumeLibraryEntry(entry) {
+        if (!entry) return
+        var pid = String(entry.id || "")
+        var list = (typeof Progress !== "undefined") ? Progress.recent("video", 0) : []
+        for (var i = 0; i < list.length; i++) {
+            var id = String(list[i].id || "")
+            if (id === pid || id.indexOf(pid + ":") === 0) { win.resumeContinue(list[i]); return }
+        }
+        win.openCollectionEntry(entry)
+    }
+    // Menu "Mark watched / unwatched" (spec §4.3). Marking watched = "I'm done": clear Continue
+    // AND Next Up (both derive from Progress) FIRST, then set the mark — forget() clears the mark
+    // by design, so the ORDER matters. Unmark just reverses the flag; progress history stays.
+    function markLibraryWatched(entry, watched) {
+        if (!entry || typeof Progress === "undefined") return
+        var id = String(entry.id || "")
+        if (watched) { Progress.forget("video", id); Progress.setWatchedMark(id, true) }
+        else { Progress.setWatchedMark(id, false) }
+    }
 
     function openBiblioGenre(name) {
         biblioGenreLayer.genreName = name
@@ -1004,6 +1027,14 @@ Window {
 
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
+        // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
+        // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
+        // a movie's subId IS its id. Downloads keep auto-adding; one shelf, no saved-vs-watched split.
+        var joinId = (subType === "series" && subId) ? EpisodeBrowser.seriesRootId(subId) : subId
+        if (joinId && typeof Collection !== "undefined" && !Collection.has("theatre", String(joinId)))
+            Collection.add("theatre", { "id": String(joinId),
+                "type": (subType === "series") ? "series" : "movie",
+                "title": title || "", "cover": backdrop || "", "payload": ({}) })
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": title || "Movie",
             "target": { "showKey": EpisodeBrowser.seriesRootId(subId || ""),
@@ -1461,6 +1492,32 @@ Window {
     // ---- world pages: one keep-alive Loader PER visited mode, stacked over the home on the SAME
     //      wallpaper. worldStack.current picks which is visible; "" = home. Kept alive so covers
     //      don't re-fetch on return (the home's top bar + scroll hide while a world is up). ----
+    // ---- Stage 2 warming: after the home screen settles, quietly pre-build the world
+    //      pages the user hasn't opened yet — one at a time, only while on Home — so the
+    //      first click lands on an already-painted page instead of paying the cold build.
+    //      Each append builds a hidden async Loader (worldStack) and pre-caches its covers.
+    Timer {
+        id: warmStart
+        interval: 2500          // let the home page finish its own first paint first
+        running: true
+        repeat: false
+        onTriggered: warmer.running = true
+    }
+    Timer {
+        id: warmer
+        interval: 1800          // stagger: one world at a time, easy on CPU/network
+        running: false
+        repeat: true
+        readonly property var targets: ["Tankoban", "Theatre", "Biblio"]
+        onTriggered: {
+            if (worldStack.current !== "") return          // a world is open → yield, retry next tick
+            var names = []
+            for (var i = 0; i < openModes.count; i++) names.push(openModes.get(i).mode)
+            var next = Warming.nextWarmMode(names, warmer.targets)
+            if (next === "") { warmer.running = false; return }   // everything warmed → stop
+            openModes.append({ mode: next })               // builds its hidden async Loader
+        }
+    }
     ListModel { id: openModes }
     Item {
         id: worldStack
@@ -1473,6 +1530,10 @@ Window {
                 anchors.fill: parent
                 visible: worldStack.current === mode
                 active: true
+                // Stage 2: build off the GUI thread so instantiating a world (~190 tiles)
+                // never freezes the app — the page fills in progressively, and warming
+                // (below) builds it hidden ahead of the first click.
+                asynchronous: true
                 source: win.worldSourceFor(mode)
                 onLoaded: {
                     item.medium = mode
@@ -1502,6 +1563,8 @@ Window {
                     if (item.continueResumeRequested) item.continueResumeRequested.connect(win.resumeContinue)
                     if (item.continueDetailRequested) item.continueDetailRequested.connect(win.detailContinue)
                     if (item.collectionOpenRequested) item.collectionOpenRequested.connect(win.openCollectionEntry)
+                    if (item.libraryResumeRequested) item.libraryResumeRequested.connect(win.resumeLibraryEntry)
+                    if (item.libraryMarkWatchedRequested) item.libraryMarkWatchedRequested.connect(win.markLibraryWatched)
                     if (item.continueSeeAllRequested) item.continueSeeAllRequested.connect(function() {
                         win.openContinueSeeAll(mode === "Theatre" ? "video"
                                              : mode === "Biblio"  ? "book" : "tankoban")
@@ -1796,6 +1859,7 @@ Window {
             item.detailRequested.connect(win.detailContinue)
         }
     }
+
 
     // ---- LOCG publisher grid layer: one publisher shelf's paginated series grid
     //      (tile → LOCG series list via openComicSeries) ----
