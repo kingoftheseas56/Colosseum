@@ -40,11 +40,22 @@ Player2Backend::Player2Backend(QObject *parent)
     // pipeline reports a matching adapter. Same shape as the lab's frame timer.
     m_pump.setInterval(16);
     connect(&m_pump, &QTimer::timeout, this, &Player2Backend::pump);
+    // The engine says WHY it failed; report that verbatim rather than a generic line. Surfacing
+    // "the session entered an error state" told nobody anything when seeking on a torrent kept
+    // failing (2026-07-25) - the code and message are what make the next failure diagnosable.
+    connect(&m_session, &Player2Session::errorOccurred, this, [this](const Player2Error &error) {
+        m_lastError = error.message.isEmpty()
+            ? QStringLiteral("code %1").arg(static_cast<int>(error.code))
+            : QStringLiteral("%1 (code %2)").arg(error.message).arg(static_cast<int>(error.code));
+    });
     // A session that errors out is the engine telling us it cannot carry this playback. Whether that
     // is recoverable by handing over to mpvqt depends entirely on whether anything was shown yet.
     connect(&m_session, &Player2Session::stateChanged, this, [this]() {
-        if (m_session.state() == Player2State::Error)
-            reportFailure(QStringLiteral("the Player 2 session entered an error state"));
+        if (m_session.state() == Player2State::Error) {
+            reportFailure(m_lastError.isEmpty()
+                              ? QStringLiteral("the Player 2 session entered an error state")
+                              : m_lastError);
+        }
     });
 }
 
@@ -114,6 +125,7 @@ QVariantMap Player2Backend::play(const QVariantMap &request)
         return result;
 
     // Queue it; pump() opens once the GPU side is genuinely up. See the note on m_pending.
+    m_lastError.clear();
     m_pending = playback;
     m_hasPending = true;
     m_waitTicks = 0;

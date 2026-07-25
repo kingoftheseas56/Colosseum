@@ -306,31 +306,22 @@ Item {
         visible: opacity > 0.01
         Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
-        Rectangle { // top scrim
+        // Title bar: scrim, Back, NOW PLAYING / title / episode line, the wall clock, Minimize and
+        // Close. It REPLACES the bare top scrim and the standalone clock that used to sit here - it
+        // provides both, and keeping them alongside it painted the clock twice.
+        TopBar {
+            id: topBar
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 112
-            gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.60) }
-                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
-            }
-        }
-
-        // Live wall clock, top-right — the one place the player tells you the actual time (main-player
-        // parity). Fades with the chrome.
-        Text {
-            id: nowClockLabel
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.rightMargin: 24
-            anchors.topMargin: 18
-            visible: shell.nowClock.length > 0
-            text: shell.nowClock
-            color: shell.theme.inkDim
-            font.family: "Segoe UI"; font.pixelSize: 13; font.letterSpacing: 0.5
-            font.features: ({ "tnum": 1 })
-            style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.45)
+            theme: shell.theme
+            title: shell.mediaTitle
+            subtitle: shell.mediaSubtitle
+            nowClock: shell.nowClock
+            shown: shell.controlsShown
+            onBackRequested: { shell.closeAllMenus(); shell.backRequested() }
+            onMinimizeRequested: { shell.closeAllMenus(); shell.minimizeRequested() }
+            onCloseRequested: { shell.closeAllMenus(); shell.requestClose() }
         }
 
         Item {
@@ -347,23 +338,6 @@ Item {
                     GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.45) }
                     GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.85) }
                 }
-            }
-
-            // Title bar, matched to the shipped player's. Absent until now because the lab ran in an
-            // ordinary desktop window that already had a frame.
-            TopBar {
-                id: topBar
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                theme: shell.theme
-                title: shell.mediaTitle
-                subtitle: shell.mediaSubtitle
-                nowClock: shell.nowClock
-                shown: shell.controlsShown
-                onBackRequested: { shell.closeAllMenus(); shell.backRequested() }
-                onMinimizeRequested: { shell.closeAllMenus(); shell.minimizeRequested() }
-                onCloseRequested: { shell.closeAllMenus(); shell.requestClose() }
             }
 
             TransportBar {

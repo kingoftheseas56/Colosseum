@@ -70,6 +70,8 @@ private:
     // earlier gives the decoder no hardware context: the file opens, duration and codec read fine,
     // and then nothing decodes — audio plays on its own pipeline while the picture stays black. The
     // lab avoids this by only opening from its frame tick once adapterMatch is true; this mirrors it.
+    // The engine's own last error text, so a failure reports its real cause.
+    QString m_lastError;
     QTimer m_pump;
     PlaybackRequest m_pending;
     bool m_hasPending = false;
