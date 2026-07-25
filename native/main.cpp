@@ -376,8 +376,19 @@ int main(int argc, char *argv[]) {
     // Colosseum's frosted glass survives this — the player path's one prerequisite.
     // WebEngine (the foliate EPUB reader) also rides OpenGL: share contexts + init it
     // before the QGuiApplication, alongside the RHI pick. All three must precede app.
+    // Player 2 draws through D3D11 texture sharing and REFUSES to initialise on any other RHI, while
+    // mpvqt and WebEngine require OpenGL. Qt picks the RHI once per PROCESS, before QGuiApplication -
+    // so the two video backends can never coexist in one running app, and the backend choice is a
+    // BOOT choice, not a runtime one. Env var (not the ini) because this must be decided before any
+    // Qt object exists. Default stays OpenGL: a normal launch is unchanged.
+    const bool bootPlayer2 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2");
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+#ifdef COLOSSEUM_PLAYER2
+    if (bootPlayer2)
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
+    else
+#endif
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QtWebEngineQuick::initialize();
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
@@ -866,7 +877,9 @@ int main(int argc, char *argv[]) {
     // Whether this binary can play through Player 2 at all. False in a stock build, so the opt-in
     // setting alone can never route playback into a backend that was not linked in.
 #ifdef COLOSSEUM_PLAYER2
-    engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), true);
+    // Available only when the process ACTUALLY booted on D3D11. Reporting true on an OpenGL boot is
+    // what made Player 2 take a playback it could never render (2026-07-25).
+    engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), bootPlayer2);
 #else
     engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
 #endif
