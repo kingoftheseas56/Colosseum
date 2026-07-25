@@ -204,7 +204,85 @@ var _tones = [
     ["#2b3038", "#101318"], ["#3f2330", "#1c0d14"], ["#233043", "#0d1420"]
 ];
 
-function _kindLine(manifest, categories) {
+// ─────────────────────────────────────────────────────────────────────────────
+// WORLDS — derived from the manifest's own `types`, never stored. Extending the
+// type vocabulary is all it takes, and ExtensionsStore.slimManifest keeps `types`
+// verbatim, so no C++ store change and no installed.json migration is needed.
+// One extension can legitimately serve TWO worlds: Torrent Indexers feeds comics
+// AND books AND audiobooks from a single install.  (spec §3.2)
+// ─────────────────────────────────────────────────────────────────────────────
+var WORLD_TYPES = {
+    theatre:  ["movie", "series", "anime"],
+    tankoban: ["manga", "comic"],
+    biblio:   ["book", "audiobook"]
+};
+
+// A universe extension is classified by ROLE, not by content: it declares types
+// across every world but aggregates an IP rather than providing any medium, so it
+// belongs to exactly one tab. Checked BEFORE the type derivation, or a universe
+// would appear in all three worlds plus its own — four rows, one stored `enabled`
+// flag.  (Agent 0's ruling, universes design §5.1a)
+function _hasResource(manifest, want) {
+    var res = (manifest && manifest.resources) || [];
+    for (var i = 0; i < res.length; i++) {
+        var n = typeof res[i] === "string" ? res[i] : (res[i] && res[i].name) || "";
+        if (n === want) return true;
+    }
+    return false;
+}
+
+// Every world this installed entry belongs to, as an array. Empty = belongs nowhere
+// (e.g. a subtitles-only addon declaring no world type) — callers decide whether to
+// show it under its declaring world or not at all.
+function worldsFor(entry) {
+    var m = (entry && entry.manifest) || entry || {};
+    if (_hasResource(m, "universe")) return ["universes"];
+    var types = m.types || [];
+    var out = [];
+    for (var w in WORLD_TYPES) {
+        var want = WORLD_TYPES[w];
+        for (var i = 0; i < want.length; i++)
+            if (types.indexOf(want[i]) !== -1) { out.push(w); break; }
+    }
+    return out;
+}
+
+function inWorld(entry, world) {
+    return worldsFor(entry).indexOf(world) !== -1;
+}
+
+// Is this row a catalogue (what fills the shelves) or a well (what fetches)?
+// Catalogues are core+catalog; wells provide `stream`.  (spec §3.1)
+function isCatalogue(entry) {
+    return entry && entry.core === true && _hasResource(entry.manifest || entry, "catalog");
+}
+function isWell(entry) {
+    return !isCatalogue(entry) && _hasResource((entry && entry.manifest) || entry, "stream");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// The human-readable JOB of a house well, keyed by well id — deliberately a static
+// table and NOT a manifest field: slimManifest keeps only a fixed key allowlist, so
+// a custom field would survive seeding and be silently dropped on re-install. It
+// also can't be derived from `types`, because two wells can share one type
+// (WeebCentral "chapter pages" and Nyaa "volume torrents" are both `manga`).
+// Mirrors AddonLogos.js's table pattern.  (spec §3.3, and A5's own spec self-review)
+// ─────────────────────────────────────────────────────────────────────────────
+var JOB = {
+    "colosseum.well.nyaa":              "volume torrents",
+    "colosseum.well.weebcentral.pages": "chapter pages",
+    "colosseum.well.getcomics.issues":  "issue downloads",
+    "colosseum.well.libgen":            "book files",
+    "colosseum.well.indexers":          "comic packs · book & audiobook torrents",
+    "colosseum.well.audiobookbay":      "audiobook torrents"
+};
+
+function jobFor(id) { return JOB[id] || ""; }
+
+function _kindLine(manifest, categories, id) {
+    // A house well's job wins over the resource-derived vocabulary.
+    var job = jobFor(id || (manifest && manifest.id) || "");
+    if (job) return job;
     var res = (manifest && manifest.resources) || [];
     var names = [];
     for (var i = 0; i < res.length; i++)

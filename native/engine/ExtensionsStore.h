@@ -75,7 +75,10 @@ signals:
 private:
     void loadIndex();
     void saveIndex() const;
-    void seed();                       // first run: the four house extensions
+    void seed();                       // first run: every house catalogue + well
+    void migrateDefaults();            // existing install: add house rows a newer
+                                       // defaults version introduced, once only
+    void appendHouseDefaults(bool onlyMissing);
     void bump();
     int  indexOfId(const QString& id) const;
     QString indexPath() const;         // <appdata>/extensions/installed.json
@@ -89,4 +92,9 @@ private:
     QList<QVariantMap> m_items;                 // ordered — array order IS ask-order
     QHash<QString, QVariantMap> m_previewCache; // transportUrl → slim manifest
     int m_revision = 0;
+    // Which generation of house defaults this profile has already been given.
+    // Absent from an older installed.json → treated as 1 (the original four).
+    // Bumping kHouseDefaultsVersion adds the new rows once, and never again — so a
+    // row the user deliberately removed does not come back.
+    int m_defaultsVersion = 0;
 };

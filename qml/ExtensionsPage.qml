@@ -23,6 +23,28 @@ Item {
 
     // ---- registry bindings ----
     property var installedList: []
+
+    // ---- worlds (spec §3.2): derived from each manifest's own `types`, never stored.
+    //      One extension can serve two worlds — Torrent Indexers feeds comics AND books
+    //      AND audiobooks from a single install — so these are filters, not partitions.
+    function inWorld(entry, world) { return Catalog.inWorld(entry, world) }
+    function installedIn(world) {
+        var out = [];
+        for (var i = 0; i < installedList.length; i++)
+            if (Catalog.inWorld(installedList[i], world)) out.push(installedList[i]);
+        return out;
+    }
+    function countIn(world) { return installedIn(world).length }
+    // A world's rank for a well is its index among that world's wells — which is how one
+    // stored row ranks 4th in Tankoban and 2nd in Biblio without storing a rank at all.
+    function wellRank(entry, world) {
+        var w = installedIn(world), n = 0;
+        for (var i = 0; i < w.length; i++) {
+            if (Catalog.isWell(w[i])) n++;
+            if (w[i].id === entry.id) return n;
+        }
+        return 0;
+    }
     property var installedKeys: ({})          // id AND transportUrl → true
     property var pendingUrls: ({})            // url → true while an install is in flight
     property string notice: ""                // one quiet line for install results
@@ -159,11 +181,18 @@ Item {
                     var on = 0;
                     for (var i = 0; i < root.installedList.length; i++)
                         if (root.installedList[i].enabled) on++;
+                    // Real per-world counts. These were hardcoded as "Theatre = every
+                    // install, Tankoban —, Biblio —", which was true only while the other
+                    // two worlds were dead tabs. A world total can exceed the sum of the
+                    // three, because one install may serve two worlds.
+                    var w = function (k) {
+                        return "<font color='#c9c8d0'>" + root.countIn(k) + "</font>";
+                    };
                     return "<b><font color='#f7f7f5'>" + n + "</font></b> installed"
                          + "  ·  " + (on === n ? "all carrying" : on + " carrying")
-                         + "  ·  Theatre <font color='#c9c8d0'>" + n + "</font>"
-                         + "  ·  Tankoban <font color='#c9c8d0'>—</font>"
-                         + "  ·  Biblio <font color='#c9c8d0'>—</font>";
+                         + "  ·  Theatre " + w("theatre")
+                         + "  ·  Tankoban " + w("tankoban")
+                         + "  ·  Biblio " + w("biblio");
                 }
             }
 
@@ -172,10 +201,13 @@ Item {
                 topPadding: 34
                 spacing: 34
                 Repeater {
+                    // All three worlds are live as of stage 1 — Tankoban and Biblio now
+                    // carry real catalogues and wells, so the "arrives later" tag and both
+                    // hand-written empty states are gone.
                     model: [
                         { key: "theatre", title: "Theatre", live: true },
-                        { key: "tankoban", title: "Tankoban", live: false },
-                        { key: "biblio", title: "Biblio", live: false }
+                        { key: "tankoban", title: "Tankoban", live: true },
+                        { key: "biblio", title: "Biblio", live: true }
                     ]
                     delegate: Item {
                         id: worldTab
@@ -216,10 +248,11 @@ Item {
                 }
             }
 
-            // =================== THEATRE — the live store ===================
+            // =================== THE LIVE STORE — all three worlds ===================
+            // Was gated to Theatre only. Every world is live as of stage 1; the pane's
+            // own rows filter by root.world.
             Column {
                 width: col.width
-                visible: root.world === "theatre"
                 spacing: 0
 
                 // ---- pane tabs + ONE global search + install-from-link ----
@@ -737,7 +770,9 @@ Item {
                                     property bool isCore: irow.modelData.core === true
                                     property bool isOn: irow.modelData.enabled === true
                                     property bool configurable: (irow.manifest.behaviorHints || {}).configurable === true
+                                    // Filter by the world tab, then (stage 1b) group by job.
                                     visible: root.hit(irow.manifest.name || irow.modelData.id)
+                                             && Catalog.inWorld(irow.modelData, root.world)
                                     width: installedCol.width
                                     height: 82
 
@@ -887,10 +922,13 @@ Item {
                 }
             }
 
-            // =================== TANKOBAN / BIBLIO — honest empty ===================
+            // =================== retired: the two hand-written empty states ==========
+            // Tankoban and Biblio carry real catalogues and wells now, so this panel is
+            // never shown. Kept inert for one commit rather than deleted in the same pass
+            // that restructures the pane — it comes out with the job grouping (stage 1b).
             Rectangle {
                 width: col.width
-                visible: root.world !== "theatre"
+                visible: false
                 radius: 18
                 color: Qt.rgba(0.04, 0.045, 0.065, 0.48)
                 border.width: 1; border.color: theme.edge

@@ -19,6 +19,10 @@
 namespace {
 constexpr int kManifestTimeoutMs = 12000;
 constexpr int kDescriptionCap = 400;
+// Generation of the house roster. 1 = the original four Theatre rows. 2 added the
+// Tankoban and Biblio catalogues and wells, so those two worlds stop being empty
+// tabs. Bump this when a house row is ADDED; the additive migration then runs once.
+constexpr int kHouseDefaultsVersion = 2;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -27,6 +31,8 @@ ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
     loadIndex();
     if (m_items.isEmpty())
         seed();
+    else if (m_defaultsVersion < kHouseDefaultsVersion)
+        migrateDefaults();
 }
 
 // ---------------------------------------------------------------- persistence
@@ -43,7 +49,10 @@ void ExtensionsStore::loadIndex()
     if (!f.open(QIODevice::ReadOnly))
         return;
     const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
-    const QJsonArray arr = doc.object().value(QStringLiteral("extensions")).toArray();
+    const QJsonObject root = doc.object();
+    // Absent key = written before house defaults were versioned, i.e. generation 1.
+    m_defaultsVersion = root.value(QStringLiteral("defaultsVersion")).toInt(1);
+    const QJsonArray arr = root.value(QStringLiteral("extensions")).toArray();
     m_items.clear();
     for (const QJsonValue& v : arr) {
         const QVariantMap e = v.toObject().toVariantMap();
@@ -60,6 +69,7 @@ void ExtensionsStore::saveIndex() const
         arr.append(QJsonObject::fromVariantMap(e));
     QJsonObject root;
     root.insert(QStringLiteral("v"), 1);
+    root.insert(QStringLiteral("defaultsVersion"), kHouseDefaultsVersion);
     root.insert(QStringLiteral("extensions"), arr);
 
     QSaveFile f(indexPath());
@@ -80,7 +90,7 @@ void ExtensionsStore::bump()
 // The four the house already runs on. Manifests are embedded (no network at
 // boot); the real, richer manifest replaces the seed copy if the extension is
 // ever re-installed by link.
-void ExtensionsStore::seed()
+void ExtensionsStore::appendHouseDefaults(bool onlyMissing)
 {
     const qint64 now = QDateTime::currentSecsSinceEpoch();
     auto entry = [now](const char* id, const char* url, bool core,
@@ -113,37 +123,114 @@ void ExtensionsStore::seed()
         return m;
     };
 
-    m_items.append(entry(
-        "com.linvo.cinemeta", "https://v3-cinemeta.strem.io/manifest.json", true,
+    // onlyMissing = the additive migration pass. It must never duplicate a row the
+    // profile already carries, and never resurrect one the user deliberately removed
+    // at an older defaults version (the version marker is what stops that).
+    auto add = [this, onlyMissing, &entry](const char* id, const char* url, bool core,
+                                           const QVariantMap& m) {
+        if (onlyMissing && indexOfId(QString::fromLatin1(id)) >= 0)
+            return;
+        m_items.append(entry(id, url, core, m));
+    };
+
+    // ---- Theatre (defaults generation 1) -----------------------------------
+    add("com.linvo.cinemeta", "https://v3-cinemeta.strem.io/manifest.json", true,
         manifest("com.linvo.cinemeta", "Cinemeta",
                  "The canonical catalog — every movie and show row Theatre wakes up with.",
                  { QStringLiteral("catalog"), QStringLiteral("meta") },
                  { QStringLiteral("movie"), QStringLiteral("series") },
-                 { QStringLiteral("tt") }, false)));
-    m_items.append(entry(
-        "com.stremio.torrentio.addon", "https://torrentio.strem.fun/manifest.json", false,
+                 { QStringLiteral("tt") }, false));
+    add("com.stremio.torrentio.addon", "https://torrentio.strem.fun/manifest.json", false,
         manifest("com.stremio.torrentio.addon", "Torrentio",
                  "Play sources from twelve indexers, sorted by quality and health.",
                  { QStringLiteral("stream") },
                  { QStringLiteral("movie"), QStringLiteral("series"), QStringLiteral("anime") },
-                 { QStringLiteral("tt"), QStringLiteral("kitsu") }, true)));
-    m_items.append(entry(
-        "community.anime.kitsu", "https://anime-kitsu.strem.fun/manifest.json", false,
+                 { QStringLiteral("tt"), QStringLiteral("kitsu") }, true));
+    add("community.anime.kitsu", "https://anime-kitsu.strem.fun/manifest.json", false,
         manifest("community.anime.kitsu", "Anime Kitsu",
                  "The anime shelf's brain — proper seasons, splits and episode orders.",
                  { QStringLiteral("catalog"), QStringLiteral("meta") },
                  { QStringLiteral("series"), QStringLiteral("movie"), QStringLiteral("anime") },
-                 { QStringLiteral("kitsu"), QStringLiteral("mal") }, false)));
-    m_items.append(entry(
-        "org.stremio.opensubtitlesv3", "https://opensubtitles-v3.strem.io/manifest.json", false,
+                 { QStringLiteral("kitsu"), QStringLiteral("mal") }, false));
+    add("org.stremio.opensubtitlesv3", "https://opensubtitles-v3.strem.io/manifest.json", false,
         manifest("org.stremio.opensubtitlesv3", "OpenSubtitles v3",
                  "Subtitles in every language, matched to the exact episode playing.",
                  { QStringLiteral("subtitles") },
                  { QStringLiteral("movie"), QStringLiteral("series") },
-                 {}, false)));
+                 {}, false));
 
+    // ---- Catalogues: what fills the shelves. Locked (core), never ranked ----
+    // Hemanth's ruling 2026-07-04/07-25: catalogue and well are two ROLES, so a site
+    // holding both appears twice. Cinemeta's locked row above is the precedent.
+    add("colosseum.catalogue.weebcentral", "colosseum://catalogue/weebcentral", true,
+        manifest("colosseum.catalogue.weebcentral", "WeebCentral",
+                 "The manga catalogue — every series and chapter list Tankoban wakes up with.",
+                 { QStringLiteral("catalog"), QStringLiteral("meta") },
+                 { QStringLiteral("manga") }, {}, false));
+    add("colosseum.catalogue.getcomics", "colosseum://catalogue/getcomics", true,
+        manifest("colosseum.catalogue.getcomics", "GetComics",
+                 "The comics catalogue — the issue and run listings the comics shelf is built on.",
+                 { QStringLiteral("catalog"), QStringLiteral("meta") },
+                 { QStringLiteral("comic") }, {}, false));
+    add("colosseum.catalogue.applebooks", "colosseum://catalogue/applebooks", true,
+        manifest("colosseum.catalogue.applebooks", "Apple Books",
+                 "The book catalogue — covers, blurbs and the charts Biblio's shelves come from.",
+                 { QStringLiteral("catalog"), QStringLiteral("meta") },
+                 { QStringLiteral("book") }, {}, false));
+
+    // ---- Wells: what actually fetches. Ranked, removable, asked top-first ----
+    // Array order IS ask-order, and each world's rank is that world's filtered index.
+    // This order gives Tankoban 1-4 and Biblio 1-3 exactly as the design's roster says,
+    // with the one shared Torrent Indexers row landing 4th in Tankoban and 2nd in Biblio.
+    add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
+        manifest("colosseum.well.nyaa", "Nyaa",
+                 "Volume torrents for manga — whole tankobon, not single chapters.",
+                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
+    add("colosseum.well.weebcentral.pages", "colosseum://well/weebcentral.pages", false,
+        manifest("colosseum.well.weebcentral.pages", "WeebCentral",
+                 "Chapter pages, read straight through without a download.",
+                 { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
+    add("colosseum.well.getcomics.issues", "colosseum://well/getcomics.issues", false,
+        manifest("colosseum.well.getcomics.issues", "GetComics",
+                 "Issue and run downloads for western comics.",
+                 { QStringLiteral("stream") }, { QStringLiteral("comic") }, {}, false));
+    add("colosseum.well.libgen", "colosseum://well/libgen", false,
+        manifest("colosseum.well.libgen", "LibGen",
+                 "Book files — epub and pdf editions for the reader.",
+                 { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false));
+    // One well, two worlds: a federated search over four indexers. Hemanth overrode the
+    // four-separate-extensions recommendation, so it carries a Configure sheet (stage 4).
+    add("colosseum.well.indexers", "colosseum://well/indexers", false,
+        manifest("colosseum.well.indexers", "Torrent Indexers",
+                 "A federated search across four indexers — comic packs, book and audiobook torrents.",
+                 { QStringLiteral("stream") },
+                 { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
+                 {}, true));
+    add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
+        manifest("colosseum.well.audiobookbay", "AudioBookBay",
+                 "Audiobook torrents, streamed rather than kept.",
+                 { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));
+}
+
+void ExtensionsStore::seed()
+{
+    appendHouseDefaults(/*onlyMissing=*/false);
+    m_defaultsVersion = kHouseDefaultsVersion;
     saveIndex();
     bump();
+}
+
+// An existing profile predates a house row that now ships. Add only what is absent,
+// stamp the new generation, and never run again for that generation — so removing a
+// well stays removed across restarts.
+void ExtensionsStore::migrateDefaults()
+{
+    const int before = m_items.size();
+    appendHouseDefaults(/*onlyMissing=*/true);
+    m_defaultsVersion = kHouseDefaultsVersion;
+    saveIndex();
+    if (m_items.size() != before)
+        bump();
 }
 
 // ---------------------------------------------------------------------- reads
@@ -221,6 +308,11 @@ QString ExtensionsStore::normalizeUrl(const QString& raw) const
     QString url = raw.trimmed();
     if (url.isEmpty())
         return {};
+    // House catalogues and wells live in-app on a local scheme. They have no manifest
+    // document to fetch, so pass them through UNTOUCHED — the blind
+    // "+= /manifest.json" below is what made directory-page installs 404.
+    if (url.startsWith(QStringLiteral("colosseum://"), Qt::CaseInsensitive))
+        return url;
     if (url.startsWith(QStringLiteral("stremio://"), Qt::CaseInsensitive))
         url = QStringLiteral("https://") + url.mid(10);
     if (!url.startsWith(QStringLiteral("https://"), Qt::CaseInsensitive)
