@@ -208,8 +208,7 @@ Window {
         // Which video backend this launch will use. Announced at startup so a run can be diagnosed
         // without playing anything (Task 17).
         console.log("[player] startup backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
-                    + "  (built-in=" + Player2Available
-                    + " opt-in=" + playerBackendSettings.usePlayer2 + ")")
+                    + "  (built-in=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
         if (typeof WindowMode !== "undefined")
@@ -689,49 +688,12 @@ Window {
         }
     }
 
-    // ---- which video backend plays (Task 17). Player 2 is opt-in and OFF by default. ----
-    // `Player2Available` is a build fact from C++, so the setting alone can never route playback
-    // into a backend that was not linked into this binary.
-    Settings {
-        id: playerBackendSettings
-        location: Qt.resolvedUrl("../player.ini")
-        category: "backend"
-        property bool usePlayer2: false
-    }
-    // Set when Player 2 declines or fails a playback BEFORE showing a frame: this run falls back to
-    // mpv without touching the viewer's saved preference. Cleared when a new session opens.
-    property bool player2FallbackActive: false
-    readonly property bool usePlayer2: (Player2Available === true)
-                                       && playerBackendSettings.usePlayer2
-                                       && !win.player2FallbackActive
+    // The backend is a BOOT fact: COLOSSEUM_PLAYER2 selects the D3D11 RHI in C++, and
+    // Player2Available reports what this process actually booted on. There is no runtime
+    // fallback in a Player 2 boot - mpv cannot render on D3D11 - so failures surface on the
+    // player page's error screen instead of swapping engines.
+    readonly property bool usePlayer2: Player2Available === true
 
-    // Player 2 could not carry this playback and nothing was on screen yet, so mpv takes it over
-    // invisibly — the one legal backend swap. Never silent: the reason is logged, and the swap is
-    // scoped to this run, not written back over the setting.
-    function handlePlayer2Fallback(reason) {
-        if (win.player2FallbackActive)
-            return
-        console.warn("[player2] falling back to mpv: " + reason)
-        win.player2FallbackActive = true
-        // Re-run the active session against the freshly-swapped Loader. warmPlayerSessionId is
-        // cleared first so the dispatcher replays the media instead of resuming a warm stream that
-        // belongs to the backend we just left.
-        var rec = Sessions.get(Sessions.activeId)
-        win.warmPlayerSessionId = ""
-        if (rec && rec.id)
-            win.activateSession(rec)
-    }
-
-    // Player 2 failed with the picture already up. Handing this same session to mpv would put two
-    // clocks on one playback, so we do NOT swap: the playback stops and the viewer reopens it (which
-    // then routes through the normal decision, fallback included). Surfaced, never silently frozen.
-    // Player 2 failed with the picture already up. We do NOT swap backends (two clocks on one
-    // playback) and we no longer close the player either - closing read to Hemanth as the app simply
-    // vanishing. The page now shows the shipped loading/error surface with the reason, and the
-    // viewer leaves via its Cancel, exactly like the current player.
-    function handlePlayer2Restart(reason) {
-        console.warn("[player2] session failed after first frame; surfacing on the player: " + reason)
-    }
     // Every reader/player surface that must suppress the OS-shell taskbar. There are THREE
     // comic/manga reader lanes (all share the reader chrome — see minimizeComicReader):
     // seriesLayer=manga, westernLayer=western comics, comicSeriesLayer=the LOCG catalogue.
@@ -1096,9 +1058,6 @@ Window {
 
     // UI entry points (replace direct open* calls from cards / world pages):
     function openMovieSession(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext, position) {
-        // A brand-new play request gets the viewer's real backend preference back; a fallback only
-        // ever applied to the playback that failed, never to everything after it.
-        win.player2FallbackActive = false
         // Library membership (spec §4.4): the moment playback starts, it joins the shelf.
         // The show root is EpisodeBrowser.seriesRootId (tt123:1:2 → tt123 ; kitsu:9:3:4 → kitsu:9);
         // a movie's subId IS its id. Downloads keep auto-adding; one shelf, no saved-vs-watched split.
@@ -1120,7 +1079,6 @@ Window {
     // so re-opening the same episode reuses its tile. `position` rides along for first-open
     // resume; a fresher captured position (minimize) wins via restoreState.
     function openLocalVideoSession(v) {
-        win.player2FallbackActive = false
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": v.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(v.id || ""),
@@ -2037,19 +1995,22 @@ Window {
             // apart means reading process paths after the fact - which is exactly what happened on the
             // first swap attempt (2026-07-25).
             console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
-                        + "  (available=" + Player2Available
-                        + " optIn=" + playerBackendSettings.usePlayer2
-                        + " fellBack=" + win.player2FallbackActive + ")")
+                        + "  (available=" + Player2Available + ")")
             item.backdrop = wall
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(win.closePlayerSession)
-            // Player-2-only seams; absent on the mpv page, hence the guards.
+            // Player-2-only seams; absent on the mpv page, hence the guards. Log only: there is
+            // no backend to swap to in this boot, so the page itself shows the failure.
             if (item.backendFallback)
-                item.backendFallback.connect(function(reason, request) { win.handlePlayer2Fallback(reason) })
+                item.backendFallback.connect(function(reason, request) {
+                    console.warn("[player2] declined/failed before first frame: " + reason)
+                })
             if (item.backendRestartRequired)
-                item.backendRestartRequired.connect(win.handlePlayer2Restart)
+                item.backendRestartRequired.connect(function(reason) {
+                    console.warn("[player2] failed after first frame: " + reason)
+                })
         }
     }
 

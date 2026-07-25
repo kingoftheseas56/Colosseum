@@ -102,6 +102,29 @@ if (Test-Path (Join-Path $root 'qml/player2/ColosseumHostServices.qml')) {
     $violations += 'the production host must not live in qml/player2 (it is the host, not the player)'
 }
 
+# 7. Boot-mode coherence (Task 1). The RHI is picked once per process before QGuiApplication
+#    exists, so there is no legal runtime swap between Player 2 and mpv. These pin that the old
+#    opt-in-setting-plus-runtime-fallback shape does not creep back in.
+if ($main_qml -match 'playerBackendSettings') {
+    $violations += 'qml/Main.qml must not reference playerBackendSettings - the backend is a boot fact, not a saved setting'
+}
+if ($main_qml -match 'player2FallbackActive') {
+    $violations += 'qml/Main.qml must not reference player2FallbackActive - there is no runtime fallback in a Player 2 boot'
+}
+
+# 8. Both Player2Page failure paths must set errorText so the loading/error surface shows the
+#    reason instead of silently relying on a backend swap that can no longer happen.
+if ($page_qml -notmatch 'function\s+onFallbackRequested\s*\([^)]*\)\s*\{([\s\S]*?)\}') {
+    $violations += 'Player2Page must implement onFallbackRequested'
+} elseif ($Matches[1] -notmatch 'errorText') {
+    $violations += 'Player2Page onFallbackRequested must set page.errorText (a pre-first-frame failure must surface on the page)'
+}
+if ($page_qml -notmatch 'function\s+onRestartRequired\s*\([^)]*\)\s*\{([\s\S]*?)\}') {
+    $violations += 'Player2Page must implement onRestartRequired'
+} elseif ($Matches[1] -notmatch 'errorText') {
+    $violations += 'Player2Page onRestartRequired must set page.errorText (a post-first-frame failure must surface on the page)'
+}
+
 if ($violations.Count -gt 0) {
     $violations | ForEach-Object { Write-Error $_ -ErrorAction Continue }
     Write-Host 'PLAYER2 INTEGRATED CONTRACT: FAIL'

@@ -151,7 +151,12 @@ Item {
 
     Connections {
         target: backend
-        function onFallbackRequested(reason) { page.backendFallback(reason, page._lastRequest) }
+        function onFallbackRequested(reason) {
+            // In a Player 2 boot there is nowhere to fall back TO (mpv cannot render on
+            // D3D11), so a pre-first-frame failure surfaces here exactly like a late one.
+            page.errorText = reason
+            page.backendFallback(reason, page._lastRequest)
+        }
         function onRestartRequired(reason) {
             // Show it. Closing the player was the old behaviour and it read as the app vanishing.
             page.errorText = reason
@@ -175,6 +180,7 @@ Item {
             page._awaitingStream = false
             // The torrent never produced a URL. Player 2 has no retry/pick-another-source machinery
             // yet (that lives in the shipped player), so hand it over rather than sit on a dead page.
+            page.errorText = String(message || "the stream could not be started")
             page.backendFallback(String(message || "the stream could not be started"), page._lastRequest)
         }
     }

@@ -2,6 +2,7 @@
 
 #include "player2/core/Player2Session.h"
 
+#include <QtCore/QPointer>
 #include <QtQuick/QQuickImageProvider>
 
 namespace Colosseum::Player2 {
@@ -9,22 +10,24 @@ namespace Colosseum::Player2 {
 // Serves the current bitmap (PGS/DVD) subtitle picture to QML. The QML source is
 // image://player2subtitle/<id>, where <id> is the session's bitmap-cue id; a stale id (the cue already
 // cleared) returns a null image. Qt calls requestImage on a dedicated image thread, so it only touches
-// Player2Session::subtitleImageForProvider, which is mutex-guarded. The raw m_session pointer is only
-// safe while the owning Player2Backend is alive: in production the session is created from QML and
-// dies with the page, not the whole app lifetime as in the lab. This provider must be removed from
-// the QQmlEngine when its Player2Backend is destroyed; that removal is not wired up yet (a later
-// task owns it) — until it is, a provider can outlive its session. Note for whoever wires it up:
-// removal by id is NOT symmetrical with installation. addImageProvider replaces any existing
-// provider registered under the same id, so if a second page's Player2Backend installs its provider
-// before the first page's destructor runs, a naive removeImageProvider("player2subtitle") in
-// ~Player2Backend tears out the second page's LIVE provider, not the first's dead one. Removing by a
-// weak handle to THIS instance (e.g. comparing against a QPointer captured at install time) avoids
-// that trap; removing by the fixed id string does not.
+// Player2Session::subtitleImageForProvider, which is mutex-guarded.
+//
+// The handle to the session is a WEAK QPointer, not a raw pointer: the QQmlEngine owns this
+// provider for the life of the engine, but the session dies with the page (Player2Backend is
+// created/destroyed per playback). A provider can therefore outlive its session — and because
+// requestImage runs on Qt's dedicated image thread, a raw pointer left dangling after the session
+// is destroyed would be a genuine cross-thread use-after-free the very next time a stale image
+// request lands. QPointer self-nulls when the QObject it tracks is destroyed, so requestImage just
+// has to null-check it and hand back an empty QImage() instead of touching freed memory. (We do NOT
+// remove the provider from the engine on session teardown: addImageProvider replaces any existing
+// provider registered under the same id, so a naive removeImageProvider("player2subtitle") in a
+// later-installed Player2Backend's destructor could tear out a NEWER page's live provider instead
+// of the old one. The weak handle sidesteps that trap entirely — nothing needs to be removed.)
 class Player2SubtitleImageProvider : public QQuickImageProvider
 {
 public:
     explicit Player2SubtitleImageProvider(const Player2Session *session)
-        : QQuickImageProvider(QQuickImageProvider::Image), m_session(session)
+        : QQuickImageProvider(QQuickImageProvider::Image), m_session(const_cast<Player2Session *>(session))
     {
     }
 
@@ -37,7 +40,8 @@ public:
     }
 
 private:
-    const Player2Session *m_session;
+    // Non-const: QPointer requires a non-const QObject type. Held and used read-only.
+    QPointer<Player2Session> m_session;
 };
 
 } // namespace Colosseum::Player2
