@@ -12,7 +12,8 @@
 //   * GUTTER SHADOW — a soft dark vertical gradient over the spine, strength from `gutterStrength`
 //     (presets 0 / 0.22 / 0.35 / 0.55). Only for a real pair, never a spread/single.
 //   * ZOOM 100–260% (20% steps) + PAN. `zoomPercent` widens the spread; when zoomed, pan slides it;
-//     pan clamps to the zoomed bounds; zoom+pan RESET when the unit changes.
+//     pan clamps to the zoomed bounds; a unit change RESETS PAN ONLY — zoom SURVIVES a page
+//     turn, or a magnified volume would snap back to 100% on every turn (see _onUnitShown).
 //     (Matches QTGW DoublePageCanvas: set_zoom clamps 1.0–2.6 and resets pan.)
 //
 // maxSeen PAIR-ANCHOR CONTRACT (shell Task 9, onCurrentPageChanged): in double mode `currentPage`
@@ -39,7 +40,7 @@ Item {
     property bool rtl: false
     property real gutterStrength: 0.35       // presets 0 / 0.22 / 0.35 / 0.55
 
-    // ---- zoom/pan (surface-owned; reset on unit change) ----
+    // ---- zoom/pan (surface-owned; pan resets on a unit change, zoom persists across turns) ----
     property int zoomPercent: 100            // self-managed, clamped to [100,260]
     property real panX: 0
     property real panY: 0
@@ -135,7 +136,7 @@ Item {
     readonly property alias rightSource: rightImg.source   // exposed so the decode-refresh test sees the source re-evaluate
     readonly property alias leftSource: leftImg.source
 
-    // ================= unit lifecycle: reset zoom/pan, pin pages, drive maxSeen =================
+    // ============ unit lifecycle: reset PAN (zoom persists), pin pages, drive maxSeen ============
     // Driven off the RELIABLE int/bool change signals (currentPage/active), computing the unit FRESH
     // here — NOT off the `unit`/`unitHighestPage` var-property bindings, whose re-eval ordering vs the
     // handler is not guaranteed (a var binding can still read stale when the handler pulls it).

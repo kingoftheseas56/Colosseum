@@ -684,7 +684,7 @@ Item {
         onUnitShown: function (highestPage) { if (highestPage > reader.maxSeen) reader.maxSeen = highestPage }
     }
     // reflect the active double surface's zoom onto the shell for the HUD/settings (Task 11); the
-    // double surface owns zoom/pan authoritatively (it resets them per unit).
+    // double surface owns zoom/pan authoritatively (it resets PAN per unit; zoom persists).
     Binding { target: reader; property: "zoomPercent"; value: doubleSurface.zoomPercent; when: doubleSurface.active }
 
     // ---- night veil (Task 12): a black page-dim over the reading surfaces, BELOW the chrome so
