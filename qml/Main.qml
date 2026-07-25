@@ -198,6 +198,11 @@ Window {
     }
 
     Component.onCompleted: {
+        // Which video backend this launch will use. Announced at startup so a run can be diagnosed
+        // without playing anything (Task 17).
+        console.log("[player] startup backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
+                    + "  (built-in=" + Player2Available
+                    + " opt-in=" + playerBackendSettings.usePlayer2 + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
         if (typeof WindowMode !== "undefined")
