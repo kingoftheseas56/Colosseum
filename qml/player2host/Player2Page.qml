@@ -185,8 +185,10 @@ Item {
     // The engine's own frame counters, for probes and diagnostics. Presented > 0 is the only honest
     // proof that a picture actually reached the screen - session state and audio both look healthy
     // while the video is black.
+    function sessionSeek(sec) { if (backend.session) backend.session.seekExact(sec) }
     function sessionState() { return backend.session ? backend.session.state : -1 }
     function sessionDuration() { return backend.session ? backend.session.duration : -1 }
+    function sessionPosition() { return backend.session ? backend.session.position : -1 }
 
     function diagnosticsSnapshot() {
         return (backend.session && backend.session.diagnostics) ? backend.session.diagnostics() : ({})
