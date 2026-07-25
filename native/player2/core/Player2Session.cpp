@@ -100,6 +100,17 @@ Player2Session::Player2Session(QObject *parent)
         emit positionChanged();
         flushSubtitles(); // drop the painted cue AND buffered upcoming cues from the old position
         transition(m_postSeekState);
+        // A play/pause pressed DURING the seek moved m_postSeekState, but the worker had already
+        // latched the state it was told at seek time and restored THAT in landSeek. Correct it now,
+        // or the session and the engine disagree (session Paused, audio still running).
+        const bool wantPlaying = m_postSeekState == Player2State::Playing;
+        if (wantPlaying != m_seekToldResumePlaying) {
+            if (wantPlaying)
+                m_demux.requestResume();
+            else
+                m_demux.requestPause();
+            m_seekToldResumePlaying = wantPlaying;
+        }
         emit seekCompleted(generation, actualSeconds);
     });
     connect(&m_demux, &DemuxSession::audioTrackChanged, this,
@@ -393,6 +404,15 @@ void Player2Session::close()
 
 void Player2Session::play()
 {
+    // Pressed during a seek — including the long, deliberate wait on a torrent's not-yet-downloaded
+    // bytes. Steer the seek's landing state instead of transitioning now. Seeking -> Playing IS a
+    // legal transition, which is exactly the trap: taking it would start playback before
+    // seekCompleted lands and race the seek's own completion. This is the same lever seekExact
+    // uses, so a viewer who pauses and then changes their mind during the wait is still honoured.
+    if (m_state.state() == Player2State::Seeking) {
+        m_postSeekState = Player2State::Playing;
+        return;
+    }
     const bool wasPaused = m_state.state() == Player2State::Paused;
     if (!transition(Player2State::Playing))
         return;
@@ -404,6 +424,14 @@ void Player2Session::play()
 
 void Player2Session::pause()
 {
+    // Pressed during a seek. The transport shows a live pause button through a stalled seek (the
+    // wait on a torrent's missing bytes), so dropping the press would mean a control that looks
+    // active and ignores the viewer. Honour it through the seek's own lever: the seek completes
+    // PAUSED. No Seeking -> Paused transition here, so nothing preempts seekCompleted.
+    if (m_state.state() == Player2State::Seeking) {
+        m_postSeekState = Player2State::Paused;
+        return;
+    }
     if (m_state.state() != Player2State::Playing && m_state.state() != Player2State::Buffering)
         return;
     if (!transition(Player2State::Paused))
@@ -437,7 +465,8 @@ void Player2Session::seekExact(double seconds)
     const quint64 next = m_generation.advance();
     emit generationChanged();
     const qint64 targetUs = static_cast<qint64>(std::max(0.0, seconds) * 1'000'000.0);
-    m_demux.requestSeek(targetUs, next, m_postSeekState == Player2State::Playing);
+    m_seekToldResumePlaying = m_postSeekState == Player2State::Playing;
+    m_demux.requestSeek(targetUs, next, m_seekToldResumePlaying);
 }
 
 void Player2Session::seekRelative(double seconds)
@@ -449,8 +478,10 @@ void Player2Session::frameStep(int frames)
 {
     if (!hasActiveMedia())
         return;
-    // A frame step always resolves to a paused view of the target frame.
+    // A frame step always resolves to a paused view of the target frame — and requestFrameStep
+    // tells the worker exactly that, so the two already agree.
     m_postSeekState = Player2State::Paused;
+    m_seekToldResumePlaying = false;
     if (!transition(Player2State::Seeking))
         return;
     const quint64 next = m_generation.advance();
@@ -576,6 +607,13 @@ bool Player2Session::transition(Player2State next)
             emit errorOccurred(*result.error);
         return false;
     }
+    // Nothing is waiting on bytes once playback is over. A terminal error raised by the DEMUX (not
+    // by NetworkState::Failed) never clears the source's last Buffering, so measured against the
+    // bytes-never-arrive fixture the flag sat true inside Error. Harmless on screen - the transport
+    // gates its buffering read on Seeking - but a flag that outlives its wait is a trap for the next
+    // reader. Clear it where the wait provably ended.
+    if (next == Player2State::Error || next == Player2State::Ended || next == Player2State::Idle)
+        setNetworkStalled(false);
     if (result.changed)
         emit stateChanged();
     return true;

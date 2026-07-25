@@ -46,7 +46,10 @@ Window {
             // mid-playback buffer (only open/retry/reconnect), so this MUST stay false through the
             // whole stall - the picture stays on screen and the transport line does the talking.
             var loading = page.loadingActive()
-            if (probe.seeked && loading)
+            // loadingActive() is `_starting || errored`, and the error surface legitimately uses the
+            // same screen. Only a loader raised WITHOUT an error is the parity violation this field
+            // is meant to catch - otherwise the bytes-never-arrive run reports a false positive.
+            if (probe.seeked && loading && page.errorText.length === 0)
                 probe.loaderRaised = true
 
             // Every tick after the seek, so the wait is a visible RUN of lines, not a single sample.

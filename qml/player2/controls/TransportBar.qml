@@ -76,11 +76,11 @@ Item {
     readonly property real pos: session ? session.position : 0
 
     function fmt(s) { return seekBar.fmtTime(s) }
-    // During a stalled seek `buffering` is true, so this sends pause() - which the session rejects
-    // outside Playing/Buffering, making Space a deliberate no-op for the length of the wait. That is
-    // the point. Before, all three flags were false during the wait and this fell through to play():
-    // a LEGAL Seeking -> Playing transition that preempts m_postSeekState and starts playback before
-    // seekCompleted lands. A dead key for a few seconds beats a hidden race against the seek.
+    // During a stalled seek `buffering` is true, so this button renders as a live Pause - and the
+    // press IS honoured: Player2Session::pause() sees the Seeking state and steers m_postSeekState,
+    // so the seek completes paused. play() is symmetric. Neither takes the Seeking -> Playing
+    // transition directly, which is legal but would start playback before seekCompleted lands and
+    // race the seek's own completion. The press lands; it just lands when the seek does.
     function togglePlayPause() {
         if (!session) return
         if (playing || buffering) session.pause()

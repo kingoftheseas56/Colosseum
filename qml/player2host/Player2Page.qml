@@ -267,6 +267,11 @@ Item {
     function statusText() { return page._statusText() }
     // Is the full-screen loading surface up? A stalled seek must answer FALSE - the picture stays.
     function loadingActive() { return page._starting || page.errored }
+    function sessionPause() { if (backend.session) backend.session.pause() }
+    function sessionPlay() { if (backend.session) backend.session.play() }
+    // Is the chrome up? The auto-hide timer holds while paused/buffering and must RE-ARM, so this
+    // has to go false on its own once playback resumes - with no mouse input at all.
+    function chromeShown() { return shell.controlsShown }
 
     function diagnosticsSnapshot() {
         return (backend.session && backend.session.diagnostics) ? backend.session.diagnostics() : ({})

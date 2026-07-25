@@ -212,6 +212,8 @@ Item {
             // Never hide while paused/buffering or while a menu is open.
             if (!transportBar.paused && !transportBar.buffering && !shell.menusOpen)
                 shell.controlsShown = false
+            else
+                hideTimer.restart() // re-arm: the hold is temporary, the timer must not die with it
         }
     }
     Component.onCompleted: { hideTimer.start(); requestSkipSegments(); requestMediaMeta(); updateEndsAt(); refreshAdjacency() }

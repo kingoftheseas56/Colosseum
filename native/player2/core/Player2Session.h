@@ -191,6 +191,12 @@ private:
     QVariantList m_tracks;
     QVariantList m_chapters;
     Player2State m_postSeekState = Player2State::Playing;
+    // What the demux worker was TOLD to restore when the seek lands. The worker latches this at
+    // seek time (DemuxSession's run()-local seekResumePlaying) and applies it in landSeek, so a
+    // play/pause pressed DURING the seek cannot reach it — m_postSeekState alone would leave the
+    // session saying Paused while the engine kept playing. Comparing the two at completion is what
+    // reconciles them.
+    bool m_seekToldResumePlaying = true;
     NormalizationMode m_normalizationMode = NormalizationMode::Smooth;
     double m_speed = 1.0;
     double m_subDelay = 0.0;
