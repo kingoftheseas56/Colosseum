@@ -469,6 +469,26 @@ void ComicReaderCore::setMemorySaver(bool on) {
     emit cacheChanged();
 }
 
+void ComicReaderCore::toggleBookmark(int page) {
+    if (page < 0 || page >= m_pages.size())
+        return;
+    const int i = m_bookmarks.indexOf(page);
+    if (i >= 0)
+        m_bookmarks.removeAt(i);
+    else {
+        m_bookmarks.append(page);
+        std::sort(m_bookmarks.begin(), m_bookmarks.end());
+    }
+    emit bookmarksChanged();
+}
+
+QVariantList ComicReaderCore::bookmarks() const {
+    QVariantList out;
+    for (int b : m_bookmarks)
+        out.append(b);
+    return out;
+}
+
 void ComicReaderCore::rebuildUnits() {
     m_units = buildUnits(m_pages, m_couplingPhase);
 }

@@ -133,6 +133,12 @@ public:
     // ListView only realizes delegates near the viewport, so anything off-screen has no y to read.
     Q_INVOKABLE double stripPageTop(int page) const;
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
+    // Bookmarks (0-based page). Toggling an in-range page inserts it (kept sorted)
+    // or removes it if already present; out-of-range pages are ignored. bookmarks()
+    // is the live view the HUD's scrub-bar ticks bind to (persistedState()'s
+    // "bookmarks" entry is a point-in-time snapshot taken at load).
+    Q_INVOKABLE void toggleBookmark(int page);
+    Q_INVOKABLE QVariantList bookmarks() const;
 
     // Additive observability / persistence (read-only, no state mutation).
     Q_INVOKABLE QVariantMap persistedState() const;   // the round-trippable blob openEntry accepts
@@ -157,6 +163,7 @@ signals:
     void cacheChanged();
     void stripLayoutChanged();              // portrait width % / gap changed
     void stripCompensation(double delta);   // QML strip adds this to its scroll pos
+    void bookmarksChanged();                // toggleBookmark() mutated the live bookmark set
 
 private:
     void resetEntryState();

@@ -103,6 +103,21 @@ Item {
         function setStripLayout(w, g) { stripWidthPct = w; stripGap = g; lastStripLayout = { w: w, g: g } }
         function resetCoupling() {}
         function persistedState() { return JSON.parse(JSON.stringify(blob)) }
+        // bookmarks (B6): a REAL toggle over a JS array — not a stub — so the shell's live-list
+        // wiring is actually exercised, not merely assumed. Mirrors the real backend's contract:
+        // sorted, de-duped, and folded into persistedState()'s "bookmarks" entry.
+        property var bookmarksArr: []
+        property var lastToggleBookmark: null
+        signal bookmarksChanged()
+        function toggleBookmark(page) {
+            lastToggleBookmark = page
+            var i = bookmarksArr.indexOf(page)
+            if (i >= 0) bookmarksArr.splice(i, 1)
+            else { bookmarksArr.push(page); bookmarksArr.sort(function (a, b) { return a - b }) }
+            blob = Object.assign({}, blob, { bookmarks: bookmarksArr.slice() })
+            bookmarksChanged()
+        }
+        function bookmarks() { return bookmarksArr.slice() }
     }
 
     // ---- fake persistence stores: the shape of the shell's three Settings seams ----
@@ -236,6 +251,7 @@ Item {
     property var _mCore: null
     property int _recBefore: 0
     property var _expectPageRec: null
+    property var _mB6Records: null
 
     function runChecks() {
         try {
@@ -842,6 +858,58 @@ Item {
             ck(ltrLeftTarget === 7, "spread override: LTR left-half click must target rightIndex (physical LEFT), got " + ltrLeftTarget)
             ck(rtlLeftTarget === 3, "spread override: RTL left-half click must target leftIndex (physical LEFT), got " + rtlLeftTarget)
 
+            // -- 10. bookmarks (B6): live end-to-end. B toggles the CURRENT page; the shell's live
+            // list (what the HUD's scrub-bar ticks bind to) updates off core.bookmarksChanged — NOT
+            // the load-time persistedState snapshot — and the toggle rides the same debounced
+            // entrySave door a spread override does (checked in the deferred phase below). --
+            var b6Store = fakeStoreB6
+            b6Store.pages = fivePages()
+            var b6Records = freshRecords()
+            var b6Shell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-b6", "seriesTitle": "B6", "seriesCover": "file:///f/b6.png",
+                "core": fakeCoreB6, "progress": fakeProgB6, "pageStore": b6Store,
+                "entryRecords": b6Records,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+
+            // 10a. pressing the toggle reaches core.toggleBookmark with the 0-based CURRENT page
+            b6Shell.currentPage = 3
+            b6Shell.bookmarkToggleRequested()
+            ck(fakeCoreB6.lastToggleBookmark === 2,
+               "bookmarks: B must reach core.toggleBookmark with the 0-based current page (2), got " + fakeCoreB6.lastToggleBookmark)
+
+            // 10b. shell.liveBookmarks updates when the core emits bookmarksChanged
+            ck(deepEqual(b6Shell.liveBookmarks, [2]),
+               "bookmarks: liveBookmarks must reflect core.bookmarks() after a toggle, got " + JSON.stringify(b6Shell.liveBookmarks))
+
+            // 10c. a second bookmark (page 5, index 4) ADDS, keeping the list sorted
+            b6Shell.currentPage = 5
+            b6Shell.bookmarkToggleRequested()
+            ck(deepEqual(b6Shell.liveBookmarks, [2, 4]),
+               "bookmarks: a second toggle on a different page must ADD (not replace), got " + JSON.stringify(b6Shell.liveBookmarks))
+
+            // 10d. toggling the SAME page again REMOVES it
+            b6Shell.bookmarkToggleRequested()
+            ck(deepEqual(b6Shell.liveBookmarks, [2]),
+               "bookmarks: toggling the same page again must REMOVE it, got " + JSON.stringify(b6Shell.liveBookmarks))
+
+            // 10e. a bare core.entryChanged (a fresh open / crossing) also refreshes the live list —
+            // the new entry's bookmarks must replace the old entry's, never linger.
+            fakeCoreB6.bookmarksArr = [1]
+            fakeCoreB6.entryChanged()
+            ck(deepEqual(b6Shell.liveBookmarks, [1]),
+               "bookmarks: core.entryChanged must refresh liveBookmarks too (a fresh open), got " + JSON.stringify(b6Shell.liveBookmarks))
+
+            // stash for the deferred phase: the persistence debounce (entrySave, 800ms) must have
+            // ARMED on the bookmark change and eventually file the live bookmarks under this entry.
+            // (blob.bookmarks is [2] from the last toggleBookmark call in 10d — 10e's direct
+            // bookmarksArr poke never touched blob, matching a real core where only toggleBookmark
+            // itself mutates persisted state.)
+            harness._mB6Records = b6Records
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -867,6 +935,22 @@ Item {
             ck(_mCore.closed === true, "close (shutdown) must call core.closeEntry()")
         } catch (e) {
             failures.push("exception during deferred checks: " + e.message)
+        }
+        bookmarkDebounceTimer.start()
+    }
+
+    // BOOKMARK-DEFERRED phase — entrySave's debounce (800ms, fixed) is longer than the pinned
+    // recordDebounceMs used above, so it gets its own trailing timer rather than sharing
+    // deferredTimer's 150ms window. Confirms the bookmark toggle in section 10 actually ARMED the
+    // persistence door (not just updated the live in-memory list).
+    function runBookmarkDeferred() {
+        try {
+            ck(_mB6Records !== null, "bookmarks: the B6 entryRecords store must have been stashed")
+            var rec = _mB6Records ? JSON.parse(_mB6Records.all) : {}
+            ck(rec["ch1"] !== undefined && deepEqual(rec["ch1"].bookmarks, [2]),
+               "bookmarks: a bookmark change must ARM the entrySave debounce and file it under the entry, got " + JSON.stringify(rec))
+        } catch (e) {
+            failures.push("exception during bookmark-deferred checks: " + e.message)
         }
         report()
     }
@@ -894,9 +978,12 @@ Item {
     FakeCore { id: fakeCoreS2 }  FakeProgress { id: fakeProgS2 }  FakePageStore { id: fakeStoreS2 }
     FakeCore { id: fakeCoreW2 }  FakeProgress { id: fakeProgW2 }  FakePageStore { id: fakeStoreW2 }
     FakeCore { id: fakeCoreB5 }  FakeProgress { id: fakeProgB5 }  FakePageStore { id: fakeStoreB5 }
+    FakeCore { id: fakeCoreB6 }  FakeProgress { id: fakeProgB6 }  FakePageStore { id: fakeStoreB6 }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
+    // fires after entrySave's fixed 800ms debounce interval elapses
+    Timer { id: bookmarkDebounceTimer; interval: 900; running: false; onTriggered: harness.runBookmarkDeferred() }
 
     Component.onCompleted: {
         try {

@@ -392,6 +392,20 @@ Item {
         var i = order.indexOf(readingMode)
         setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
     }
+    // B toggles a bookmark on the CURRENT page. The HUD's scrub-bar ticks bind to `liveBookmarks`
+    // (below), never to the load-time persistedState snapshot — so a toggle actually moves them.
+    onBookmarkToggleRequested: {
+        if (!core || !core.toggleBookmark || max <= 0) return
+        core.toggleBookmark(currentPage - 1)
+        var on = core.bookmarks().indexOf(currentPage - 1) >= 0
+        hud.showToast(on ? "Bookmarked p." + currentPage : "Bookmark removed")
+    }
+
+    // Live bookmark list — the backend's own bookmarks(), refreshed off the core's bookmarksChanged
+    // (a toggle) and entryChanged (a fresh open/crossing swaps in the NEW entry's bookmarks).
+    property var liveBookmarks: []
+    function _refreshBookmarks() { liveBookmarks = (core && core.bookmarks) ? core.bookmarks() : [] }
+
     function nudgeCoupling() { if (core && core.nudgeCoupling) core.nudgeCoupling() }
     // Fix ONE page's pairing without re-phasing the book (that is what nudgeCoupling/P does). Cycle
     // auto -> spread -> single -> auto, matching Reader 1's cycleSpreadOverride. pageInfo reports the
@@ -699,6 +713,10 @@ Item {
         ignoreUnknownSignals: true
         // a spread override, a nudge or a resolved probe changed the book's pairing record
         function onPairingChanged() { if (reader._ready) entrySave.restart() }
+        // a bookmark toggle: refresh the live list the HUD's ticks bind to, then persist it
+        function onBookmarksChanged() { reader._refreshBookmarks(); if (reader._ready) entrySave.restart() }
+        // a fresh open/crossing: the new entry's bookmarks replace the old entry's live list
+        function onEntryChanged() { reader._refreshBookmarks() }
     }
 
     // ================= reading surfaces (Task 10) =================
@@ -821,7 +839,7 @@ Item {
         id: hud
         anchors.fill: parent
         reader: reader
-        bookmarkPages: (reader.persistedState && reader.persistedState.bookmarks) ? reader.persistedState.bookmarks : []
+        bookmarkPages: reader.liveBookmarks
         // scrub -> shell navigation
         onSeekRequested: function (page) { reader.goToPageIndex(page) }
         onScrubFractionRequested: function (frac) { reader.scrubToFraction(frac) }

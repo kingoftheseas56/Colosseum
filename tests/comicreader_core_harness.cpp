@@ -615,6 +615,42 @@ int main(int argc, char** argv) {
               "T16 out-of-range stripPageTop is 0, never a crash");
     }
 
+    // ── Test 17: toggleBookmark writes, sorts, de-dupes, persists ────────────────
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("bm"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.toggleBookmark(4);
+        core.toggleBookmark(1);
+        QVariantList bm = core.bookmarks();
+        CHECK(bm.size() == 2 && bm[0].toInt() == 1 && bm[1].toInt() == 4,
+              "T17 bookmarks are stored SORTED regardless of the order they were added");
+        core.toggleBookmark(4);
+        CHECK(core.bookmarks().size() == 1, "T17 a second toggle on the same page REMOVES it");
+        core.toggleBookmark(999);
+        CHECK(core.bookmarks().size() == 1, "T17 an out-of-range page is ignored, never appended");
+        core.toggleBookmark(-1);
+        CHECK(core.bookmarks().size() == 1, "T17 a negative page is ignored");
+        CHECK(core.persistedState().value(QStringLiteral("bookmarks")).toList().size() == 1,
+              "T17 the persisted blob carries the LIVE bookmarks");
+    }
+
+    // ── Test 17b: opening an entry with persisted bookmarks makes them visible via
+    //    the new live getter too — the backend already read that key (T12 covers the
+    //    lossless round-trip of persistedState()); this pins that bookmarks() itself
+    //    sees them, not just the blob.
+    {
+        ComicReaderCore core;
+        QVariantMap persisted = manualNormal();
+        QVariantList bm;
+        bm.append(2);
+        bm.append(5);
+        persisted.insert(QStringLiteral("bookmarks"), bm);
+        core.openEntry(QStringLiteral("bm2"), plainPages, QStringLiteral("ltr"), persisted);
+        QVariantList out = core.bookmarks();
+        CHECK(out.size() == 2 && out[0].toInt() == 2 && out[1].toInt() == 5,
+              "T17b bookmarks() reflects a persisted-on-open bookmark set");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;
