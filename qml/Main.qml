@@ -705,10 +705,12 @@ Window {
     // Player 2 failed with the picture already up. Handing this same session to mpv would put two
     // clocks on one playback, so we do NOT swap: the playback stops and the viewer reopens it (which
     // then routes through the normal decision, fallback included). Surfaced, never silently frozen.
+    // Player 2 failed with the picture already up. We do NOT swap backends (two clocks on one
+    // playback) and we no longer close the player either - closing read to Hemanth as the app simply
+    // vanishing. The page now shows the shipped loading/error surface with the reason, and the
+    // viewer leaves via its Cancel, exactly like the current player.
     function handlePlayer2Restart(reason) {
-        console.warn("[player2] session failed after first frame, closing rather than hot-swapping: " + reason)
-        win.player2FallbackActive = true
-        win.closePlayerSession()
+        console.warn("[player2] session failed after first frame; surfacing on the player: " + reason)
     }
     // Every reader/player surface that must suppress the OS-shell taskbar. There are THREE
     // comic/manga reader lanes (all share the reader chrome — see minimizeComicReader):

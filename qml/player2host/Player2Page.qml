@@ -1,6 +1,9 @@
 import QtQuick
 import Colosseum.Player2 1.0
 import "../player2"
+// QUALIFIED on purpose: an unqualified import of qml/ drags in its Theme.qml, which collides
+// with the player2 module's Theme singleton and makes the whole page fail to load.
+import ".." as Shipped
 
 // Player2Page is Player 2 wearing PlayerPage's clothes.
 //
@@ -45,6 +48,33 @@ Item {
     // True between Stream.play() and streamReady/streamError - a torrent is warming up.
     property bool _awaitingStream: false
 
+    // --- loader / error surface state ---------------------------------------------------------
+    // Loader identity, derived exactly as the shipped player derives it (qml/PlayerPage.qml:1173):
+    // most doors hand the player an empty context, so the metahub logo comes from the imdb id that
+    // is already sitting in the artwork URL.
+    property string mediaLogo: ""
+    property string mediaLoadingArt: ""
+    property string mediaLoadingLine: ""
+    // Set when the engine gives up. The page SHOWS this instead of the app closing the player out
+    // from under the viewer - which is what it did before, and read as "the player just vanished".
+    property string errorText: ""
+    readonly property bool errored: page.errorText.length > 0
+    // Player2State: 1 = Opening, 2 = Buffering, 7 = Recovering (Player2Types.h).
+    readonly property int _state: backend.session ? backend.session.state : 0
+    readonly property bool _starting: !page.errored
+                                      && (page._awaitingStream
+                                          || page._state === 1 || page._state === 2 || page._state === 7)
+
+    function _statusText() {
+        if (page.errored)
+            return page.errorText
+        if (page._awaitingStream)
+            return "Starting stream..."
+        if (page._state === 2 || page._state === 7)
+            return "Buffering..."
+        return "Loading..."
+    }
+
     readonly property bool isSeries: page.subStreamType === "series"
 
     Player2Backend { id: backend }
@@ -82,6 +112,23 @@ Item {
         }
     }
 
+    // The SHIPPED loading screen, reused verbatim rather than reimplemented - same Stremio-style
+    // backdrop + logo + status + indeterminate bar the current player shows, so there is nothing to
+    // drift. It also carries the error case, which is why a failed session no longer closes the page.
+    Shipped.PlayerLoadingScreen {
+        anchors.fill: parent
+        z: 4
+        active: page._starting || page.errored
+        errored: page.errored
+        title: (page.mediaTitle || "").replace(/\s+[-–—]\s+S\d+\s*E\d+.*$/i, "")
+        episodeLine: page.mediaLoadingLine
+        logoUrl: page.mediaLogo
+        backdropUrl: page.mediaLoadingArt
+        statusText: page._statusText()
+        errorText: page._statusText()
+        onCancelRequested: page.closeRequested()
+    }
+
     ColosseumHostServices {
         id: hostServices
         playbackContext: page.playbackContext
@@ -96,7 +143,11 @@ Item {
     Connections {
         target: backend
         function onFallbackRequested(reason) { page.backendFallback(reason, page._lastRequest) }
-        function onRestartRequired(reason) { page.backendRestartRequired(reason) }
+        function onRestartRequired(reason) {
+            // Show it. Closing the player was the old behaviour and it read as the app vanishing.
+            page.errorText = reason
+            page.backendRestartRequired(reason)
+        }
     }
 
     // The torrent seam, same shape the shipped player uses (qml/PlayerPage.qml:2924).
@@ -133,6 +184,7 @@ Item {
         page.subStreamId = subId || ""
         page.playbackContext = playbackContext || ({})
         page.mediaId = page.subStreamId.length ? page.subStreamId : String(infoHash || "")
+        page._applyLoaderIdentity(playbackContext, posterUrl)
         hostServices.streamCandidates = streamCandidates || []
         hostServices.mediaResumeHash = String(infoHash || "")
         hostServices.mediaResumeFileIdx = Number(fileIdx || 0)
@@ -166,6 +218,7 @@ Item {
         page.playbackContext = t.playbackContext || ({})
         hostServices.mediaLocalPath = String(t.localPath || "")
         page.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + hostServices.mediaLocalPath)
+        page._applyLoaderIdentity(t.playbackContext, t.art)
         page._open(page._fileUrl(hostServices.mediaLocalPath))
     }
 
@@ -175,6 +228,7 @@ Item {
         page.mediaTitle = t.title || ""
         page.mediaArt = t.art || ""
         page.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("arriving:" + String(t.streamUrl || ""))
+        page._applyLoaderIdentity(t.playbackContext, t.art)
         page._open(String(t.streamUrl || ""))
     }
 
@@ -220,6 +274,7 @@ Item {
 
     function _reset() {
         page.pendingSeekSec = 0
+        page.errorText = ""
         // Drop any torrent still warming up for the PREVIOUS media, so its late streamReady cannot
         // open the wrong thing over what we are about to play.
         page._awaitingStream = false
@@ -230,6 +285,17 @@ Item {
         hostServices.mediaResumeHash = ""
         hostServices.mediaResumeFileIdx = 0
         hostServices.invalidate()
+    }
+
+    // Mirrors qml/PlayerPage.qml:1173-1179 exactly.
+    function _applyLoaderIdentity(context, posterUrl) {
+        var ctx = context || ({})
+        var m = String(posterUrl || "").match(/\/(tt\d+)\//)
+        var ttId = m ? m[1] : ""
+        page.mediaLogo = ctx.logo
+            || (ttId ? "https://live.metahub.space/logo/medium/" + ttId + "/img" : "")
+        page.mediaLoadingArt = ctx.episodeStill || ctx.loaderBackdrop || posterUrl || ""
+        page.mediaLoadingLine = ctx.episodeLine || ""
     }
 
     function _directUrlFor(candidates, infoHash) {
