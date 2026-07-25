@@ -393,6 +393,43 @@ Item {
         setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
     }
     function nudgeCoupling() { if (core && core.nudgeCoupling) core.nudgeCoupling() }
+    // Fix ONE page's pairing without re-phasing the book (that is what nudgeCoupling/P does). Cycle
+    // auto -> spread -> single -> auto, matching Reader 1's cycleSpreadOverride. pageInfo reports the
+    // override as absent / true / false (ComicReaderTypes.cpp PageMeta::toVariantMap), so absence IS
+    // the auto state.
+    function cycleSpreadOverride(page0) {
+        if (!core || !core.pageInfo || !core.setSpreadOverride) return
+        var info = core.pageInfo(page0)
+        var cur = info.spreadOverride === true ? "spread"
+                : info.spreadOverride === false ? "single" : "auto"
+        var nxt = cur === "auto" ? "spread" : (cur === "spread" ? "single" : "clear")
+        core.setSpreadOverride(page0, nxt)
+        entrySave.restart()                          // the override is per-book memory
+        hud.showToast("Page " + (page0 + 1) + " pairing: " + (nxt === "clear" ? "auto" : nxt))
+    }
+    // Resolve which page a right-click in double-page targets, or -1 when out of scope (routes to
+    // Settings instead: long_strip, no unit, or the backend seam is absent). rightIndex sits on the
+    // physical RIGHT in RTL manga and the physical LEFT in LTR comics — ground-truthed against
+    // ComicReaderDoubleSurface's rightIndexX/leftIndexX (rightImg.x: rtl ? _halfW : 0), not assumed.
+    function _spreadOverrideTargetPage(x) {
+        if (mode !== "double_page" || max <= 0 || !core || !core.unitForPage) return -1
+        var u = core.unitForPage(currentPage - 1)
+        if (!u || u.rightIndex === undefined || u.rightIndex < 0) return -1
+        var leftHalf = x < width / 2
+        if (u.leftIndex !== undefined && u.leftIndex >= 0) {
+            return leftHalf ? (rtl ? u.leftIndex : u.rightIndex)
+                             : (rtl ? u.rightIndex : u.leftIndex)
+        }
+        return u.rightIndex
+    }
+    // Wired from comicInput.openContextMenu: the approved design mock is explicit — "spread override
+    // stays a direct right-click on the page itself." Cycle the clicked page's override in
+    // double-page over a real unit; everywhere else (and single/spread units) fall through to Settings.
+    function _onContextMenu(x, y) {
+        var pg = _spreadOverrideTargetPage(x)
+        if (pg >= 0) cycleSpreadOverride(pg)
+        else settingsRequested()
+    }
     // Hand the double-page phase back to the auto-coupling probe (the settings sheet's Auto chip).
     function resetCoupling() { if (core && core.resetCoupling) core.resetCoupling() }
     // Long-strip taste: portrait page width % + inter-page gap px. The core owns the strip geometry,
@@ -774,7 +811,7 @@ Item {
         onOpenShortcuts: reader.shortcutsRequested()
         onToggleLoupe: reader.loupeRequested()
         onCloseTop: reader.closeTopRequested()
-        onOpenContextMenu: reader.settingsRequested()
+        onOpenContextMenu: function (x, y) { reader._onContextMenu(x, y) }
         // reveal-zone hover keeps the HUD alive
         onRevealRequested: hud.reveal()
         onActivity: hud.notifyActivity()

@@ -84,8 +84,14 @@ Item {
         }
         function closeEntry() { closed = true; closeCount += 1; harness.events.push({ t: "close" }) }
         function setVisible(pages) {}
-        function unitForPage(page) { return { rightIndex: page - 1, leftIndex: -1, spread: false } }
-        function setSpreadOverride(page, state) {}
+        property var fakeUnit: null   // when set, unitForPage returns THIS regardless of page (B5 RTL test)
+        function unitForPage(page) { return fakeUnit !== null ? fakeUnit : { rightIndex: page - 1, leftIndex: -1, spread: false } }
+        // spread override spy (B5): pageInfo reports the override as absent/true/false (matches the
+        // real core's PageMeta::toVariantMap — absence IS the auto state, never a third "auto" value).
+        property var fakePageInfo: ({})
+        property var lastSpreadOverride: null
+        function pageInfo(page) { return fakePageInfo }
+        function setSpreadOverride(page, state) { lastSpreadOverride = { page: page, state: String(state) } }
         function nudgeCoupling() {}
         // settings-seam surface (Task 12): the shell pushes taste in and reads it back out
         property int stripWidthPct: 78
@@ -771,6 +777,71 @@ Item {
             ck(wm["ch2"] !== undefined,
                "persist: crossing must file the OUTGOING book's record under ITS id (ch2), got keys " + JSON.stringify(Object.keys(wm)))
 
+            // -- 9. spread override (B5): right-click fixes ONE page's pairing without re-phasing
+            // the book (that is what P/nudgeCoupling does). pageInfo reports the override as
+            // absent/true/false; cycleSpreadOverride walks auto -> spread -> single -> auto(clear).
+            // Right-click routes to it ONLY in double-page over a real unit; everywhere else (and
+            // long_strip) it still opens Settings — the approved mock's explicit rule. --
+            var b5Store = fakeStoreB5
+            b5Store.pages = fivePages()
+            var b5Shell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-b5", "seriesTitle": "B5", "seriesCover": "file:///f/b5.png",
+                "core": fakeCoreB5, "progress": fakeProgB5, "pageStore": b5Store,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+
+            // 9a. the full cycle, driven purely off what pageInfo reports (absence IS auto)
+            fakeCoreB5.fakePageInfo = {}
+            b5Shell.cycleSpreadOverride(3)
+            ck(fakeCoreB5.lastSpreadOverride && fakeCoreB5.lastSpreadOverride.page === 3
+               && fakeCoreB5.lastSpreadOverride.state === "spread",
+               "spread override: absent (auto) must cycle to 'spread', got " + JSON.stringify(fakeCoreB5.lastSpreadOverride))
+
+            fakeCoreB5.fakePageInfo = { spreadOverride: true }
+            b5Shell.cycleSpreadOverride(3)
+            ck(fakeCoreB5.lastSpreadOverride && fakeCoreB5.lastSpreadOverride.state === "single",
+               "spread override: 'spread' must cycle to 'single', got " + JSON.stringify(fakeCoreB5.lastSpreadOverride))
+
+            fakeCoreB5.fakePageInfo = { spreadOverride: false }
+            b5Shell.cycleSpreadOverride(3)
+            ck(fakeCoreB5.lastSpreadOverride && fakeCoreB5.lastSpreadOverride.state === "clear",
+               "spread override: 'single' must cycle to 'clear' (auto), got " + JSON.stringify(fakeCoreB5.lastSpreadOverride))
+
+            // 9b. routing: long_strip mode -> right-click still opens Settings, override untouched
+            fakeCoreB5.lastSpreadOverride = null
+            var gotSettingsB5 = false
+            b5Shell.settingsRequested.connect(function () { gotSettingsB5 = true })
+            b5Shell.mode = "long_strip"
+            b5Shell._onContextMenu(100, 100)
+            ck(gotSettingsB5, "spread override: long_strip right-click must still open Settings")
+            ck(fakeCoreB5.lastSpreadOverride === null, "spread override: long_strip right-click must not touch the override")
+
+            // 9c. routing: double_page over a real pair -> resolves to a page, never opens Settings
+            b5Shell.mode = "double_page"
+            b5Shell.currentPage = 4
+            fakeCoreB5.fakeUnit = { rightIndex: 7, leftIndex: 3, spread: false }
+            gotSettingsB5 = false
+            fakeCoreB5.lastSpreadOverride = null
+            b5Shell._onContextMenu(50, 100)   // left half of a 640-wide shell
+            ck(!gotSettingsB5, "spread override: double-page right-click on a pair must not open Settings")
+            ck(fakeCoreB5.lastSpreadOverride !== null, "spread override: double-page right-click on a pair must cycle a page")
+
+            // 9d. RTL mapping (ground-truthed against ComicReaderDoubleSurface's rightIndexX/
+            // leftIndexX): rightIndex sits physical-RIGHT in RTL manga, physical-LEFT in LTR. So the
+            // SAME left-half click must resolve to a DIFFERENT page depending on direction — the half
+            // most likely to be wrong, and the one a reader notices immediately (wrong page "fixed").
+            b5Shell.rtl = false
+            var ltrLeftTarget = b5Shell._spreadOverrideTargetPage(50)
+            b5Shell.rtl = true
+            var rtlLeftTarget = b5Shell._spreadOverrideTargetPage(50)
+            ck(ltrLeftTarget !== rtlLeftTarget,
+               "spread override: a left-half click must target a different page in RTL (" + rtlLeftTarget + ") vs LTR (" + ltrLeftTarget + ")")
+            ck(ltrLeftTarget === 7, "spread override: LTR left-half click must target rightIndex (physical LEFT), got " + ltrLeftTarget)
+            ck(rtlLeftTarget === 3, "spread override: RTL left-half click must target leftIndex (physical LEFT), got " + rtlLeftTarget)
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -822,6 +893,7 @@ Item {
     FakeCore { id: fakeCoreC }   FakeProgress { id: fakeProgC }   FakePageStore { id: fakeStoreC }
     FakeCore { id: fakeCoreS2 }  FakeProgress { id: fakeProgS2 }  FakePageStore { id: fakeStoreS2 }
     FakeCore { id: fakeCoreW2 }  FakeProgress { id: fakeProgW2 }  FakePageStore { id: fakeStoreW2 }
+    FakeCore { id: fakeCoreB5 }  FakeProgress { id: fakeProgB5 }  FakePageStore { id: fakeStoreB5 }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
