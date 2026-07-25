@@ -76,6 +76,20 @@ foreach ($pair in @(@("strip", $strip), @("double", $dbl))) {
     }
 }
 
+# --- static: every page image KEEPS the pixmap cache ---
+# The provider (ComicReaderProvider.cpp) re-runs a full-res scaledToWidth/SmoothTransformation on
+# EVERY fetch because sourceSize only shrinks the decode for file-backed sources, not a provider's.
+# cache: false forces that expensive downscale to re-pay on every delegate rebuild (scroll a few
+# pages away and back); the ?rev= in the url self-busts the cache key on a genuine redecode, so
+# cache: true is safe here and load-bearing for the "scroll back up and it stutters" cost.
+foreach ($pair in @(@("strip", $strip), @("double", $dbl))) {
+    if ($pair[1] -match "cache:\s*false") {
+        Write-Host ("FAIL: the " + $pair[0] + " surface must keep cache: true on page Images -")
+        Write-Host "      cache: false re-runs the provider's full-res downscale on every delegate rebuild."
+        exit 1
+    }
+}
+
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
 $output = & $qmlExe -platform offscreen -I $mockPath $harness 2>&1 | Out-String

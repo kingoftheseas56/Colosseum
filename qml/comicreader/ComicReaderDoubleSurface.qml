@@ -180,7 +180,9 @@ Item {
             source: (root.readyRev, (visible && root.core && root.core.imageUrl && root.unit.rightIndex >= 0)
                     ? root.core.imageUrl(root.unit.rightIndex) : "")
             asynchronous: true
-            cache: false
+            cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
+                           // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
+                           // SmoothTransformation downscale — the "scroll back up and it stutters" cost.
             retainWhileLoading: true
             fillMode: Image.PreserveAspectFit
             sourceSize.width: root.srcCapW
@@ -198,7 +200,9 @@ Item {
             source: (root.readyRev, (visible && root.core && root.core.imageUrl && root.unit.leftIndex >= 0)
                     ? root.core.imageUrl(root.unit.leftIndex) : "")
             asynchronous: true
-            cache: false
+            cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
+                           // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
+                           // SmoothTransformation downscale — the "scroll back up and it stutters" cost.
             retainWhileLoading: true
             fillMode: Image.PreserveAspectFit
             sourceSize.width: root.srcCapW

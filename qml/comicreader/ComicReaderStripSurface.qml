@@ -182,7 +182,9 @@ Item {
                 // readyRev folded in so the binding re-runs (and re-fetches the bumped ?rev= url) on decode
                 source: (root.readyRev, (root.core && root.core.imageUrl) ? root.core.imageUrl(model.pageIndex) : "")
                 asynchronous: true
-                cache: false                  // the ?rev= in the url busts QML's cache on redecode
+                cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
+                               // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
+                               // SmoothTransformation downscale — the "scroll back up and it stutters" cost.
                 retainWhileLoading: true      // hold the current pixels through a redecode (no flash)
                 fillMode: Image.PreserveAspectFit
                 sourceSize.width: root.srcCapW   // decode what it LOOKS like, not what it IS
