@@ -98,6 +98,29 @@ already behaves — Discover derives everything from installed manifests and sto
 
 `logo` and `background` are optional and used for the Home rail tile and the page header.
 
+#### 5.1a The `universe` resource is a DISCRIMINATOR, checked first
+
+**Ruling — Agent 0, 2026-07-25, answering Agent 5's open question** (`agents/handover-agent-0-extension-worlds.md` §3).
+
+Agent 5's extension-worlds design derives an extension's world from its `types` vocabulary
+(`manga`/`comic`/`book`/`audiobook`/`movie`/`series`). A universe is cross-medium, so under that
+derivation alone a universe would declare types spanning all three worlds and appear in **all three world
+tabs plus its own — four rows for one extension**, with four independently-rendered toggles for a single
+stored `enabled` flag. That is the bug, not a preference.
+
+**The rule, stated once: role is classified before content.** If a manifest declares the `universe`
+resource, the extension **is** a Universe and appears in the Universes tab **only** — regardless of what
+`types` it also declares. The types-based world derivation runs only for extensions that are *not*
+universes.
+
+Why this is right rather than merely convenient: a universe does not *provide* manga or film, it
+**aggregates an IP** (§5.3 — identity and ordering only, never sources). Listing One Piece in Tankoban
+beside WeebCentral would put an aggregator in a row of sources, and a duplicated install row with its own
+switch would be a lie about the single underlying `enabled` flag. Discovery across worlds is a Discover
+concern, never a reason to duplicate an install row.
+
+Consequence for the store: exactly **four** worlds, each extension in exactly **one**.
+
 ### 5.2 The universe resource
 
 One extension serves exactly one universe, so the resource needs no id:
@@ -237,7 +260,7 @@ generation benched.
 | 2 | `qml/Main.qml` | Insert the rail as the **first** child of `contentCol` (before the Continue block at `:1410`); add a lazy `Loader` layer for the universe page + its Esc-chain entry. |
 | 3 | `qml/UniverseExtensionPage.qml` **(new)** | The page: header, Continue section, N served sections. One renderer for every universe, forever. |
 | 4 | `qml/UniverseExtApi.js` **(new)** | Fetch + cache + validate `universe.json`; drop invalid entries per §5.4. |
-| 5 | `qml/ExtensionsPage.qml` | Add a fourth world tab `{ key: "universes", title: "Universes", live: true }` (`:174-179`); make the Installed pane filter/section by world so universes don't pollute the Theatre list; fix the hardcoded counts line (`:157-167`) so it stops claiming every install is Theatre's. |
+| 5 | `qml/ExtensionsPage.qml` | **SUPERSEDED — this spec no longer owns these edits.** See §8a. This spec contributes exactly one line: the fourth world tab entry. |
 | 6 | `qml/ExtensionsCatalog.js` | Add the One Piece universe to the curated Discover rail so it is installable without pasting a link. |
 | 7 | `tests/test_universe_archive_p0.ps1` | **Rewrite.** It currently blocks *any* universe seam. It must instead guard what we actually want dead: the old baked `Universes.js` path. |
 | 8 | `tests/test_universe_exhibit_p0.ps1`, `tests/test_universe_hall_p0.ps1` | **Delete.** Mutually unsatisfiable and unwired (§3). |
@@ -246,6 +269,32 @@ generation benched.
 
 **No C++ change is required.** This is deliberate: classification is derived from the manifest, and the
 store already persists the full slimmed manifest.
+
+## 8a. Collision with the extension-worlds design — RESOLVED
+
+**Ruling — Agent 0, 2026-07-25.** Two specs, both dated 2026-07-25, both locked with Hemanth, both
+rewriting the same three sites in `ExtensionsPage.qml` (`:174-179` world model · the Installed pane ·
+`:157-167` counts line). Raised by Agent 5 in `agents/handover-agent-0-extension-worlds.md` §3.
+
+**Hemanth already settled the sequencing**, 2026-07-25: *"before we add universe extensions we create
+biblio and tankoban's extension."* That decides absorption, because the dependency only runs one way — a
+fourth world is meaningless while two of the three existing worlds are dead tabs rendering an empty state.
+
+Therefore:
+
+- **`Brotherhood/docs/superpowers/specs/2026-07-25-colosseum-extension-worlds-design.md` (Agent 5) owns
+  the store's world machinery** — the world model, world filtering, deleting the two `live:false` empty
+  states, the counts line, and the Installed pane's grouping. Its stage 1 lands **first**.
+- **This spec owns only the Universes tab itself** — one entry appended to the world model, plus the
+  Universes-side content (rail, page, payload). It is built **after** stage 1 and adds no competing edit.
+- **Composition rule, written down once as Agent 5 asked: filter by world, then group by job inside it.**
+  Four worlds; within a world, *Catalogue* (locked, unranked) then *Wells* (ranked). The Universes world
+  has no wells — a universe supplies identity and ordering, never sources (§5.3) — so it groups as a flat
+  installed list and the job grouping is simply inert there.
+- **Each of the three sites is therefore edited exactly once**, by whoever builds stage 1.
+
+Nothing in Agent 5's spec is superseded by this one. The absorption is one-directional and only covers the
+three shared sites.
 
 ## 9. Acceptance criteria
 
