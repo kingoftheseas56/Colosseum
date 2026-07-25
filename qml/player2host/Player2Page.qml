@@ -67,10 +67,16 @@ Item {
     // and it keeps this surface saying the same thing the transport bar says.
     readonly property bool _stalledSeek: backend.session ? (page._state === 5
                                                             && backend.session.networkStalled) : false
+    // _starting raises the full-screen PlayerLoadingScreen, and _stalledSeek is deliberately NOT in
+    // it. The shipped player sets its `starting` flag in exactly three places - the initial open
+    // (PlayerPage.qml:1095), "Retrying stream..." (:1194) and "Reconnecting stream..." (:1345) - and
+    // in NO seek path and NO mid-playback buffer path. It keeps the picture on screen through a
+    // buffer and never throws the Stremio backdrop over it. So a stalled seek keeps the picture too
+    // and speaks through the transport line instead. Do not "fix" this by adding _stalledSeek here.
     readonly property bool _starting: !page.errored
                                       && (page._awaitingStream
                                           || page._state === 1 || page._state === 2
-                                          || page._state === 7 || page._stalledSeek)
+                                          || page._state === 7)
 
     function _statusText() {
         if (page.errored)
@@ -259,6 +265,8 @@ Item {
     function sessionPosition() { return backend.session ? backend.session.position : -1 }
     function sessionNetworkStalled() { return backend.session ? backend.session.networkStalled : false }
     function statusText() { return page._statusText() }
+    // Is the full-screen loading surface up? A stalled seek must answer FALSE - the picture stays.
+    function loadingActive() { return page._starting || page.errored }
 
     function diagnosticsSnapshot() {
         return (backend.session && backend.session.diagnostics) ? backend.session.diagnostics() : ({})

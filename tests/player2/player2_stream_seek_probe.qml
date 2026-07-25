@@ -28,6 +28,8 @@ Window {
     property int ticks: 0
     property bool seeked: false
     property real seekTarget: 60.0
+    // Set if the full-screen loading surface ever came up after the seek. It must not.
+    property bool loaderRaised: false
 
     Player2Page { id: page; anchors.fill: parent }
 
@@ -40,11 +42,18 @@ Window {
             var state = page.sessionState()
             var stalled = page.sessionNetworkStalled()
             var status = page.statusText()
+            // Parity guard: the shipped player never raises the loading surface on a seek or a
+            // mid-playback buffer (only open/retry/reconnect), so this MUST stay false through the
+            // whole stall - the picture stays on screen and the transport line does the talking.
+            var loading = page.loadingActive()
+            if (probe.seeked && loading)
+                probe.loaderRaised = true
 
             // Every tick after the seek, so the wait is a visible RUN of lines, not a single sample.
             if (probe.seeked)
                 console.log("STREAM SEEK PROBE: tick=" + probe.ticks + " state=" + state
                             + " networkStalled=" + stalled + " status=[" + status + "]"
+                            + " _starting=" + loading
                             + " pos=" + page.sessionPosition().toFixed(2))
 
             if (!probe.seeked && presented > 25) {
@@ -69,12 +78,14 @@ Window {
             // Playing at the target is the fix's success condition. Otherwise run out the budget so
             // a HANG is reported as a hang rather than mistaken for either.
             var landed = probe.seeked && state === 3 && page.sessionPosition() >= (probe.seekTarget - 2.0)
+                         && !probe.loaderRaised
             var errored = state === 8 || page.errorText.length > 0
             if (landed || errored || probe.ticks > 700) {
                 console.log("STREAM SEEK PROBE: " + (landed ? "PASS" : (errored ? "FAIL-ERROR" : "FAIL-HANG"))
                             + " finalState=" + state + " presented=" + presented
                             + " pos=" + page.sessionPosition()
                             + " networkStalled=" + stalled + " status=[" + status + "]"
+                            + " loaderRaised=" + probe.loaderRaised
                             + " errorText=[" + page.errorText + "]")
                 Qt.callLater(function() { Qt.quit() })
             }
