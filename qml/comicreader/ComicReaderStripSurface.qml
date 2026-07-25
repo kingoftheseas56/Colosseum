@@ -59,10 +59,17 @@ Item {
         Math.max(1100, Math.min(2048, Math.ceil(Math.max(320, width) / 256) * 256))
 
     // ---- outputs consumed by the shell / HUD (Task 11) ----
-    signal pageInView(int page)              // 1-based page at the vertical center (user scroll only)
-    signal visiblePages(var indices)         // 0-based indices currently on screen (user scroll only)
-    signal scrolled(real fraction)           // 0..1 scroll fraction (user scroll only)
-    signal manualNavigation()                // a user scroll gesture happened (HUD auto-hide, record)
+    // These three are PROVENANCE-BLIND: they fire for any non-programmatic move — wheel, keyboard,
+    // scrub drag, Home/End. Only _programmatic writes (resume, compensation, layout anchoring) stay
+    // silent. Gating them on "was it a wheel gesture" is what made reading with the spacebar file a
+    // Continue record of page 1.
+    signal pageInView(int page)              // 1-based page at the vertical center
+    signal visiblePages(var indices)         // 0-based indices currently on screen
+    signal scrolled(real fraction)           // 0..1 scroll fraction
+    // Unlike the three above this one IS wheel-only — it means "a real gesture happened", not
+    // "the position changed". NOTE: currently has no consumer; kept for a HUD/record consumer that
+    // needs to tell a gesture from a programmatic move. Delete it if that never arrives.
+    signal manualNavigation()
 
     clip: true
 
