@@ -119,6 +119,16 @@ Item {
     // gutter shadow strength for double-page mode (settings surface 02). The sheet writes this;
     // the double surface below binds its gutter shadow to it. Presets 0/.22/.35/.55 (Off..Strong).
     property real   gutterStrength: 0.35
+    // ---- backend-owned settings the sheet READS (every access guarded: the harness injects a
+    // partial core, and a missing property must fall back to the real default, not to 0/"") ----
+    // who owns the double-page phase: the core reports "mode:phase:confidence"; the sheet's
+    // Coupling row shows the MODE ("auto" = the probe decided, "manual" = nudged by hand).
+    readonly property string couplingMode:
+        (core && core.couplingState) ? String(core.couplingState).split(":")[0] : "auto"
+    readonly property int stripWidthPct:
+        (core && core.stripWidthPct !== undefined) ? core.stripWidthPct : 78
+    readonly property int stripGap:
+        (core && core.stripGap !== undefined) ? core.stripGap : 0
     // an overlay is up (Task 12) — swallows background input + pauses auto-hide. Aggregated off the
     // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
     readonly property bool modalOpen: settingsSheet.opened
@@ -318,6 +328,11 @@ Item {
         setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
     }
     function nudgeCoupling() { if (core && core.nudgeCoupling) core.nudgeCoupling() }
+    // Hand the double-page phase back to the auto-coupling probe (the settings sheet's Auto chip).
+    function resetCoupling() { if (core && core.resetCoupling) core.resetCoupling() }
+    // Long-strip taste: portrait page width % + inter-page gap px. The core owns the strip geometry,
+    // so these read straight off it; ONE setter carries both so changing either preserves the other.
+    function setStripLayout(widthPct, gap) { if (core && core.setStripLayout) core.setStripLayout(widthPct, gap) }
 
     // ================= progress (Continue) =================
     // Build the payload via ComicReaderState.progressPayload (byte-identical to contract §4.1) and

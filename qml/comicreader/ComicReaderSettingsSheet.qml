@@ -3,11 +3,17 @@
 // ONLY the active choice. "Lineage layout, player soul": glass-deep panel, Segoe UI chrome, sparing
 // gold. Opens from the HUD settings pill or right-click (shell wires settingsRequested -> open()).
 //
-// SLICE 1: frame + dismiss + the DISPLAY section's Mode + Direction, which ride the shell's existing
-// persisted seams. Like the HUD, it WRITES only reader.persistedMode / reader.persistedDirection
-// (never reader.mode / reader.rtl) so a crossing's load() still owns the actual toggle. Night veil,
-// the mode-specific sections, the tool grid and the danger row land in later slices (they need new
-// settings plumbing + vendored icons).
+// Mode writes only reader.persistedMode / reader.persistedDirection (never reader.mode / reader.rtl),
+// like the HUD, so a crossing's load() still owns the actual toggle.
+//
+// Sections, all mode-aware: DISPLAY (Mode, Night veil) always · DOUBLE PAGE (Coupling, Gutter
+// shadow, Zoom readout) in Manga/Comic · LONG STRIP (Page width, Gap) in Strip. Each section is the
+// other's mirror — exactly one of the two is up at a time. The tool grid and the danger row land in
+// the next slice (they need vendored icons + the shell's acquisition/reset routing).
+//
+// NOT persisted across launches yet: every setting here is live-for-the-session, same as it was
+// before this sheet existed. One pass wires the whole sheet to a Settings store; doing it per-row
+// would leave the sheet half-remembering, which is worse than not remembering at all.
 //
 // PRESENTATION + INTENTS ONLY. Reads reading state off the injected `reader` seam; every `reader.`
 // use is guarded so a null/partial seam never errors. Dismiss (X / scrim / close()) emits dismissed()
@@ -45,6 +51,12 @@ Item {
     readonly property string nightVeil: reader ? reader.nightVeil : "off"
     readonly property real   gutterStrength: reader ? reader.gutterStrength : 0.35
     readonly property int    zoomPercent:    reader ? reader.zoomPercent : 100
+    // who owns the double-page phase right now: "auto" (the probe decided) or "manual" (nudged
+    // by hand). The Coupling row's active chip IS this answer.
+    readonly property string couplingMode:   reader ? reader.couplingMode : "auto"
+    // long-strip taste — portrait page width as a % of the viewport, and the gap between pages.
+    readonly property int    stripWidthPct:  reader ? reader.stripWidthPct : 78
+    readonly property int    stripGap:       reader ? reader.stripGap : 0
 
     // ---- writes ----
     // the single Manga/Comic/Strip identity; the shell translates it into the internal layout +
@@ -54,6 +66,14 @@ Item {
     function setNightVeil(v)    { if (reader) reader.nightVeil = v }
     // gutter shadow is a live double-page setting; the shell feeds it to the double surface.
     function setGutter(v)       { if (reader) reader.gutterStrength = v }
+    // Coupling: Nudge pins the phase by hand (every tap flips it again); Auto hands the decision
+    // back to the probe. Tapping Auto while ALREADY auto is a deliberate no-op — the reset re-runs
+    // a page-decoding probe, and a chip that is already gold shouldn't pay for it.
+    function nudgeCoupling()    { if (reader) reader.nudgeCoupling() }
+    function resetCoupling()    { if (reader && root.couplingMode !== "auto") reader.resetCoupling() }
+    // ONE setter carries both strip numbers, so changing either preserves the other.
+    function setStripWidth(pct) { if (reader) reader.setStripLayout(pct, root.stripGap) }
+    function setStripGap(px)    { if (reader) reader.setStripLayout(root.stripWidthPct, px) }
 
     Theme { id: theme }
 
@@ -231,6 +251,15 @@ Item {
 
                 SectionLabel { text: "Double page"; height: 32; verticalAlignment: Text.AlignVCenter }
 
+                // Which pages ride together. Auto = the coupling probe's verdict; Nudge = flip it
+                // by hand (and every further tap flips again). The gold chip names who's deciding.
+                SettingRow {
+                    width: parent.width
+                    label: "Coupling"
+                    Chip { objectName: "settingsCouplingAuto";  label: "Auto";  active: root.couplingMode === "auto";   onTapped: root.resetCoupling() }
+                    Chip { objectName: "settingsCouplingNudge"; label: "Nudge"; active: root.couplingMode !== "auto";   onTapped: root.nudgeCoupling() }
+                }
+
                 SettingRow {
                     width: parent.width
                     label: "Gutter shadow"
@@ -253,6 +282,39 @@ Item {
                         font.pixelSize: 12
                         font.bold: true
                     }
+                }
+            }
+
+            // ============ LONG STRIP (the mirror: shows ONLY in Strip) ============
+            // The mock's words: "in Strip, the double-page section yields to portrait width and
+            // gap." Both ride ONE backend setter, so changing either preserves the other.
+            Column {
+                objectName: "settingsStripSection"
+                width: parent.width
+                visible: root.readingMode === "strip"
+                spacing: 0
+
+                SectionLabel { text: "Long strip"; height: 32; verticalAlignment: Text.AlignVCenter }
+
+                // How wide a portrait page sits in the column. A confirmed spread always spans the
+                // full width regardless — this sets the portrait measure only.
+                SettingRow {
+                    width: parent.width
+                    label: "Page width"
+                    Chip { objectName: "settingsStripWidthNarrow";  label: "Narrow";  active: root.stripWidthPct === 62;  onTapped: root.setStripWidth(62) }
+                    Chip { objectName: "settingsStripWidthComfort"; label: "Comfort"; active: root.stripWidthPct === 78;  onTapped: root.setStripWidth(78) }
+                    Chip { objectName: "settingsStripWidthWide";    label: "Wide";    active: root.stripWidthPct === 90;  onTapped: root.setStripWidth(90) }
+                    Chip { objectName: "settingsStripWidthFull";    label: "Full";    active: root.stripWidthPct === 100; onTapped: root.setStripWidth(100) }
+                }
+
+                // Breathing room between pages. None (0) is the lineage default — TB2's strip ran
+                // its pages flush, which is what a scanned volume expects.
+                SettingRow {
+                    width: parent.width
+                    label: "Gap"
+                    Chip { objectName: "settingsStripGapNone"; label: "None"; active: root.stripGap === 0;  onTapped: root.setStripGap(0) }
+                    Chip { objectName: "settingsStripGapThin"; label: "Thin"; active: root.stripGap === 8;  onTapped: root.setStripGap(8) }
+                    Chip { objectName: "settingsStripGapWide"; label: "Wide"; active: root.stripGap === 20; onTapped: root.setStripGap(20) }
                 }
             }
         }

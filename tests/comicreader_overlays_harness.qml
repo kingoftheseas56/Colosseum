@@ -34,6 +34,17 @@ Item {
         property real   gutterStrength: 0.35      // double-page gutter shadow (0/.22/.35/.55) — the sheet writes HERE
         property int    zoomPercent: 100          // double-page zoom (readout only this pass)
         property bool   modalOpen: false
+        // coupling: the sheet's Coupling row reads the MODE (auto|manual) and drives the two
+        // halves — Nudge pins the phase by hand, Auto hands it back to the probe.
+        property string couplingMode: "auto"
+        property int    nudgeCount: 0
+        property int    resetCount: 0
+        function nudgeCoupling() { nudgeCount += 1; couplingMode = "manual" }
+        function resetCoupling() { resetCount += 1; couplingMode = "auto" }
+        // long strip taste — portrait page width % + inter-page gap px (one setter, both values)
+        property int stripWidthPct: 78
+        property int stripGap: 0
+        function setStripLayout(w, g) { stripWidthPct = w; stripGap = g }
         // mirror the real shell: translate the identity to the internal layout+direction seams
         function setReadingMode(rm) {
             readingMode = rm
@@ -144,10 +155,67 @@ Item {
         ck(zoomVal && String(zoomVal.text).indexOf("100") >= 0, "settings: Zoom readout must show 100(%), got '" + (zoomVal ? zoomVal.text : "") + "'")
         fakeReader.zoomPercent = 180
         ck(zoomVal && String(zoomVal.text).indexOf("180") >= 0, "settings: Zoom readout must reflect a zoomPercent change to 180, got '" + (zoomVal ? zoomVal.text : "") + "'")
+        // --- DOUBLE PAGE: Coupling row — Auto | Nudge (mock surface 02) ---
+        // Nudge pins the phase by hand; Auto hands the decision back to the probe. The row reads
+        // reader.couplingMode, so the active chip tells you WHO owns the phase right now.
+        var cAuto  = byName(sheet, "settingsCouplingAuto")
+        var cNudge = byName(sheet, "settingsCouplingNudge")
+        ck(cAuto !== null && cNudge !== null, "settings: Coupling chips (Auto/Nudge) must exist")
+        ck(cAuto && cAuto.active === true, "settings: Auto chip must be ACTIVE while couplingMode=auto")
+        ck(cNudge && cNudge.active === false, "settings: Nudge chip must be INACTIVE while coupling is auto")
+        // tapping Auto while ALREADY auto must not fire a redundant re-probe (the probe decodes
+        // pages at low priority — a no-op tap should stay a no-op).
+        clickCenter(cAuto)
+        ck(fakeReader.resetCount === 0, "settings: tapping Auto while already auto must NOT re-probe")
+        // Nudge -> manual
+        clickCenter(cNudge)
+        ck(fakeReader.nudgeCount === 1, "settings: tapping Nudge must call reader.nudgeCoupling(), got " + fakeReader.nudgeCount)
+        ck(fakeReader.couplingMode === "manual", "settings: Nudge must leave coupling MANUAL")
+        ck(cNudge.active === true && cAuto.active === false,
+           "settings: with coupling manual, Nudge is the active chip and Auto is not")
+        // a second nudge is a fresh hand-flip, not a no-op (it flips the phase again)
+        clickCenter(cNudge)
+        ck(fakeReader.nudgeCount === 2, "settings: a second Nudge must flip again, got " + fakeReader.nudgeCount)
+        // Auto -> hand it back to the probe
+        clickCenter(cAuto)
+        ck(fakeReader.resetCount === 1, "settings: tapping Auto while MANUAL must call reader.resetCoupling(), got " + fakeReader.resetCount)
+        ck(fakeReader.couplingMode === "auto", "settings: reset must return coupling to auto")
+        ck(cAuto.active === true, "settings: Auto chip re-reflects as active after the reset")
+
         // mode-aware: in Strip the whole double section yields (hidden)
         fakeReader.readingMode = "strip"
         ck(dpSection.visible === false, "settings: DOUBLE PAGE section must be HIDDEN in Strip mode")
+
+        // --- LONG STRIP section: the mirror of DOUBLE PAGE — shows ONLY in Strip ---
+        var stripSection = byName(sheet, "settingsStripSection")
+        ck(stripSection !== null, "settings: LONG STRIP section must exist")
+        ck(stripSection && stripSection.visible === true, "settings: LONG STRIP section must be VISIBLE in Strip mode")
+
+        // page width presets 62/78/90/100 — the sheet reads reader.stripWidthPct
+        var wNarrow = byName(sheet, "settingsStripWidthNarrow"),  wComfort = byName(sheet, "settingsStripWidthComfort")
+        var wWide   = byName(sheet, "settingsStripWidthWide"),    wFull    = byName(sheet, "settingsStripWidthFull")
+        ck(wNarrow && wComfort && wWide && wFull, "settings: Page width chips (Narrow/Comfort/Wide/Full) must exist")
+        ck(wComfort && wComfort.active === true, "settings: Comfort chip must be ACTIVE at the 78% default")
+        clickCenter(wWide)
+        ck(fakeReader.stripWidthPct === 90, "settings: tapping Wide must write stripWidthPct=90, got " + fakeReader.stripWidthPct)
+        ck(fakeReader.stripGap === 0, "settings: changing width must PRESERVE the gap (one setter, both values)")
+
+        // gap presets 0/8/20
+        var gapNone = byName(sheet, "settingsStripGapNone"), gapThin = byName(sheet, "settingsStripGapThin")
+        var gapWide = byName(sheet, "settingsStripGapWide")
+        ck(gapNone && gapThin && gapWide, "settings: Gap chips (None/Thin/Wide) must exist")
+        ck(gapNone && gapNone.active === true, "settings: None gap chip must be ACTIVE at the 0 default")
+        clickCenter(gapThin)
+        ck(fakeReader.stripGap === 8, "settings: tapping Thin must write stripGap=8, got " + fakeReader.stripGap)
+        ck(fakeReader.stripWidthPct === 90, "settings: changing gap must PRESERVE the width, got " + fakeReader.stripWidthPct)
+        // re-reflect values arriving from the shell
+        fakeReader.stripWidthPct = 62
+        fakeReader.stripGap = 20
+        ck(wNarrow.active === true && wWide.active === false, "settings: width chips must re-reflect a stripWidthPct change (Narrow active)")
+        ck(gapWide.active === true && gapThin.active === false, "settings: gap chips must re-reflect a stripGap change (Wide active)")
+
         fakeReader.readingMode = "manga"   // restore
+        ck(stripSection.visible === false, "settings: LONG STRIP section must be HIDDEN outside Strip mode")
 
         // --- dismiss: X ---
         harness.dismissCount = 0
