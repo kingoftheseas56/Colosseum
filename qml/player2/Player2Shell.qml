@@ -308,7 +308,8 @@ Item {
 
         // Title bar: scrim, Back, NOW PLAYING / title / episode line, the wall clock, Minimize and
         // Close. It REPLACES the bare top scrim and the standalone clock that used to sit here - it
-        // provides both, and keeping them alongside it painted the clock twice.
+        // provides both (TopBar's own nowClock text draws the wall clock now), and keeping them
+        // alongside it painted the clock twice.
         TopBar {
             id: topBar
             anchors.left: parent.left

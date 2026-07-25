@@ -3,6 +3,8 @@
 #include "player2/host/Player2SubtitleImageProvider.h"
 #include "player2/video/Player2VideoItem.h"
 
+#include <QtCore/QMetaEnum>
+#include <QtCore/QTimer>
 #include <QtCore/QUrl>
 #include <QtCore/QVariant>
 #include <QtQml/QQmlEngine>
@@ -43,19 +45,44 @@ Player2Backend::Player2Backend(QObject *parent)
     // The engine says WHY it failed; report that verbatim rather than a generic line. Surfacing
     // "the session entered an error state" told nobody anything when seeking on a torrent kept
     // failing (2026-07-25) - the code and message are what make the next failure diagnosable.
+    //
+    // transition(Player2State::Error) emits stateChanged() BEFORE emitting this signal (both
+    // synchronously, same call stack), so stateChanged always sees the failure first with no
+    // message yet attached - that ordering is why this handler, not stateChanged, has to be the one
+    // that actually reports. errorOccurred also fires for a REJECTED transition (e.g. a stray
+    // command arriving late) with no state change at all; that is not a failure to report, so it is
+    // gated on the session actually being in Error. m_failureReported blocks a second rejection (or
+    // stateChanged's net below) from re-reporting/overwriting the real cause once it has landed.
     connect(&m_session, &Player2Session::errorOccurred, this, [this](const Player2Error &error) {
-        m_lastError = error.message.isEmpty()
-            ? QStringLiteral("code %1").arg(static_cast<int>(error.code))
-            : QStringLiteral("%1 (code %2)").arg(error.message).arg(static_cast<int>(error.code));
+        const QString name = QString::fromLatin1(
+            QMetaEnum::fromType<Player2ErrorCode>().valueToKey(static_cast<int>(error.code)));
+        const QString message = error.message.isEmpty()
+            ? QStringLiteral("Playback failed (%1)").arg(name)
+            : QStringLiteral("%1 (%2)").arg(error.message, name);
+        if (m_session.state() != Player2State::Error || m_failureReported)
+            return;
+        m_lastError = message;
+        m_failureReported = true;
+        // Deferred: this signal can fire from inside Player2Session::transition(), and reportFailure
+        // can emit fallbackRequested, which QML answers by swapping the player Loader - destroying
+        // this session (and us) while transition()'s own frame is still on the stack.
+        QTimer::singleShot(0, this, [this, message] { reportFailure(message); });
     });
     // A session that errors out is the engine telling us it cannot carry this playback. Whether that
     // is recoverable by handing over to mpvqt depends entirely on whether anything was shown yet.
+    // stateChanged fires synchronously the instant Error is entered, ahead of errorOccurred above -
+    // so this is only a net for an Error with no error signal at all, and it must defer so the real
+    // message (if one arrives on the same tick) gets to report first; the guard on the far side of
+    // the timer makes this a no-op once errorOccurred already has.
     connect(&m_session, &Player2Session::stateChanged, this, [this]() {
-        if (m_session.state() == Player2State::Error) {
-            reportFailure(m_lastError.isEmpty()
-                              ? QStringLiteral("the Player 2 session entered an error state")
-                              : m_lastError);
-        }
+        if (m_session.state() != Player2State::Error)
+            return;
+        QTimer::singleShot(0, this, [this] {
+            if (m_failureReported || m_session.state() != Player2State::Error)
+                return;
+            m_failureReported = true;
+            reportFailure(QStringLiteral("the Player 2 session entered an error state"));
+        });
     });
 }
 
@@ -126,6 +153,7 @@ QVariantMap Player2Backend::play(const QVariantMap &request)
 
     // Queue it; pump() opens once the GPU side is genuinely up. See the note on m_pending.
     m_lastError.clear();
+    m_failureReported = false;
     m_pending = playback;
     m_hasPending = true;
     m_waitTicks = 0;
@@ -136,6 +164,7 @@ QVariantMap Player2Backend::play(const QVariantMap &request)
 void Player2Backend::stop()
 {
     m_hasPending = false;
+    m_failureReported = false;
     m_pump.stop();
     m_session.close();
 }

@@ -9,8 +9,11 @@ namespace Colosseum::Player2 {
 // Serves the current bitmap (PGS/DVD) subtitle picture to QML. The QML source is
 // image://player2subtitle/<id>, where <id> is the session's bitmap-cue id; a stale id (the cue already
 // cleared) returns a null image. Qt calls requestImage on a dedicated image thread, so it only touches
-// Player2Session::subtitleImageForProvider, which is mutex-guarded. The session owns the whole app
-// lifetime here, so a raw pointer is safe.
+// Player2Session::subtitleImageForProvider, which is mutex-guarded. The raw m_session pointer is only
+// safe while the owning Player2Backend is alive: in production the session is created from QML and
+// dies with the page, not the whole app lifetime as in the lab. This provider must be removed from
+// the QQmlEngine when its Player2Backend is destroyed; that removal is not wired up yet (a later
+// task owns it) — until it is, a provider can outlive its session.
 class Player2SubtitleImageProvider : public QQuickImageProvider
 {
 public:

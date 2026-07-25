@@ -62,6 +62,9 @@ private:
     // Drives the render loop and opens the pending request once the GPU side is genuinely up.
     void pump();
 
+    // Declared (and therefore destroyed) before m_session: the session holds a raw
+    // D3D11VideoPipeline* (Player2Session.h:173) and must be torn down first, or it is left holding
+    // a dangling pointer during ~Player2Backend. Keep this ordering if the members are ever reshuffled.
     D3D11VideoPipeline m_pipeline;
     Player2Session m_session;
     QPointer<Player2VideoItem> m_item;
@@ -70,11 +73,16 @@ private:
     // earlier gives the decoder no hardware context: the file opens, duration and codec read fine,
     // and then nothing decodes — audio plays on its own pipeline while the picture stays black. The
     // lab avoids this by only opening from its frame tick once adapterMatch is true; this mirrors it.
-    // The engine's own last error text, so a failure reports its real cause.
-    QString m_lastError;
     QTimer m_pump;
     PlaybackRequest m_pending;
     bool m_hasPending = false;
     int m_waitTicks = 0;
+
+    // The engine's own last error text, and whether a failure has already been reported for the
+    // CURRENT playback attempt — both reset in play() and stop(). The reported flag is what stops a
+    // harmless rejected-transition signal, or stateChanged's own net, from re-reporting or
+    // overwriting the real cause once errorOccurred has already delivered it.
+    QString m_lastError;
+    bool m_failureReported = false;
 };
 }

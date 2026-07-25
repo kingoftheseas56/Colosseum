@@ -18,8 +18,11 @@ Item {
     property string subtitle: ""
     property string nowClock: ""
     property bool shown: true
-    // Narrow layouts drop the micro-label and the subtitle, same thresholds as the shipped bar.
-    readonly property bool tight: bar.width < 900
+    // Narrow layouts drop the micro-label and the subtitle, same threshold as the shipped bar (the
+    // measured source is recorded in the parity ledger, per the note above). Matching it keeps this
+    // bar's behaviour identical in the 680-899px band instead of dropping the clock/NOW PLAYING/
+    // episode line early.
+    readonly property bool tight: bar.width < 680
 
     signal backRequested()
     signal minimizeRequested()
