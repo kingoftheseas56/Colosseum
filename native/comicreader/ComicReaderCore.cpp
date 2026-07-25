@@ -10,6 +10,7 @@
 #include <QUrl>
 
 #include <algorithm>
+#include <utility>
 
 namespace comicreader {
 
@@ -18,10 +19,9 @@ constexpr qint64 kBudgetNormal = 512LL * 1024 * 1024;
 constexpr qint64 kBudgetSaver  = 256LL * 1024 * 1024;
 
 // Decode priorities (higher runs sooner in QThreadPool). kPrioVisible and kPrioStripBase live
-// in the header (not here) so stripDecodePriority() is directly unit-testable.
-constexpr int kPrioNext1       = 90;
-constexpr int kPrioNext2       = 89;
-constexpr int kPrioPrev        = 80;
+// in the header (not here) so stripDecodePriority() is directly unit-testable. The visible
+// band's forward/backward prefetch priorities are no longer fixed constants: they are offsets
+// below the CURRENT wave's priority, which climbs per setVisible() — see setVisible().
 constexpr int kPrioProbe       = 10;   // auto-coupling probe: LOW, so visible pages win
 } // namespace
 
@@ -46,6 +46,11 @@ ComicReaderCore::ComicReaderCore(QObject* parent) : QObject(parent) {
 }
 
 ComicReaderCore::~ComicReaderCore() = default;
+
+void ComicReaderCore::setDecodeWorkerHooksForTest(std::function<void(quint64, int)> onEnter,
+                                                  std::function<void(quint64, int)> onExit) {
+    m_decode->setWorkerHooksForTest(std::move(onEnter), std::move(onExit));
+}
 
 QString ComicReaderCore::couplingState() const {
     const QString mode = (m_couplingMode == CouplingMode::Manual)
@@ -82,6 +87,7 @@ void ComicReaderCore::resetEntryState() {
     m_readyPages.clear();
     m_pageRev.clear();
     m_lastPinned.clear();
+    m_visibleBoost = 0;
     m_stripViewportTop = 0.0;
     m_stripViewportHeight = 0.0;
 
@@ -436,11 +442,32 @@ void ComicReaderCore::setVisible(QVariantList pageIndices) {
     m_lastPinned = pinned;
     m_cache.setPinned(m_generation, pinned);
 
+    // LATEST-WINS. Each visible wave outranks every earlier one still queued, so a held
+    // page-turn decodes the page you LAND on first instead of last (equal priority is FIFO,
+    // which put the newest — and only interesting — page at the back). Monotonic within an
+    // entry; always above the strip band, which tops out at kPrioStripBase.
+    //
+    // The step is 8 and the offsets below never go past -6, so a wave's LOWEST priority
+    // still beats the previous wave's HIGHEST: (100 + 8N) - 6 > 100 + 8(N-1). That ordering
+    // has to hold at the request, not later — a page already sitting in the pool queue can
+    // never be re-prioritized (QThreadPool has no such call, and request() dedups it away),
+    // so out-ranking the stale work is the only lever there is.
+    m_visibleBoost += 8;
+    const int prioVisible = kPrioVisible + m_visibleBoost;
+
     for (int v : visible)
-        m_decode->request(v, kPrioVisible);
-    if (maxV + 1 < m_pages.size()) m_decode->request(maxV + 1, kPrioNext1);
-    if (maxV + 2 < m_pages.size()) m_decode->request(maxV + 2, kPrioNext2);
-    if (minV - 1 >= 0)             m_decode->request(minV - 1, kPrioPrev);
+        m_decode->request(v, prioVisible);
+    if (maxV + 1 < m_pages.size()) m_decode->request(maxV + 1, prioVisible - 3);
+    if (maxV + 2 < m_pages.size()) m_decode->request(maxV + 2, prioVisible - 4);
+    if (minV - 1 >= 0) {
+        // Flipping BACK lands on a UNIT, not a page — prefetch both halves or the second one
+        // pops in late (most visible re-reading backwards in RTL manga).
+        const QVariantMap prevUnit = unitForPage(minV - 1);
+        const int pr = prevUnit.value(QStringLiteral("rightIndex"), -1).toInt();
+        const int pl = prevUnit.value(QStringLiteral("leftIndex"), -1).toInt();
+        if (pr >= 0) m_decode->request(pr, prioVisible - 6);
+        if (pl >= 0) m_decode->request(pl, prioVisible - 6);
+    }
 }
 
 void ComicReaderCore::setStripViewport(double top, double height) {

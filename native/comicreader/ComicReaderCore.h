@@ -52,6 +52,7 @@
 #include <QVariantMap>
 
 #include <atomic>
+#include <functional>
 
 #include <QtGlobal>
 
@@ -164,6 +165,15 @@ public:
     ComicReaderPageCache* pageCache() { return &m_cache; }
     const std::atomic<quint64>* liveGenerationAtomic() const { return &m_liveGeneration; }
 
+    // ---- Test seam (no production caller) -----------------------------------
+    // Forwards straight to ComicReaderDecode::setWorkerHooksForTest, so a harness
+    // driving THIS object can hold the two decode lanes busy and then observe the
+    // ORDER queued work is dequeued — the only way to test decode priority from
+    // the core's own surface (m_decode is private and rightly so). Owning thread
+    // only, and set before any request. Mutates no core state.
+    void setDecodeWorkerHooksForTest(std::function<void(quint64, int)> onEnter,
+                                     std::function<void(quint64, int)> onExit);
+
 signals:
     void entryChanged();
     void pageReady(int page);
@@ -226,6 +236,10 @@ private:
 
     // viewport / pinning
     QVector<int> m_lastPinned;
+    // Climbs by a fixed step on every setVisible() so the newest wave of visible
+    // pages outranks every earlier one still queued (see setVisible). Reset per
+    // entry in resetEntryState().
+    int m_visibleBoost = 0;
     double m_stripViewportTop = 0.0;
     double m_stripViewportHeight = 0.0;
     int m_stripViewportWidth = 1000;      // nominal; strip geometry is ratio-driven

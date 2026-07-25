@@ -20,13 +20,17 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QImage>
+#include <QMutex>
+#include <QSemaphore>
 #include <QString>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QVector>
 
+#include <atomic>
 #include <cstdio>
 #include <functional>
 
@@ -124,6 +128,15 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 6; ++i) plain << dir.filePath(QStringLiteral("plain%1.png").arg(i));
     for (int i = 0; i < 6; ++i) CHECK(writeSolidPng(plain[i], 120), "setup: plain page");
     const QVariantList plainPages = pagesFromPaths(plain);
+
+    // ── Wave fixture (T19): 16 plain portrait pages. Big enough that four visible
+    //    waves land on pages FAR enough apart that no wave re-requests a page an
+    //    earlier wave already put inflight (see T19's note on request() dedup), and
+    //    that the two stall pages (14, 15) are nowhere near the measured ones.
+    QStringList wave;
+    for (int i = 0; i < 16; ++i) wave << dir.filePath(QStringLiteral("wave%1.png").arg(i));
+    for (int i = 0; i < 16; ++i) CHECK(writeSolidPng(wave[i], 140), "setup: wave page");
+    const QVariantList wavePages = pagesFromPaths(wave);
 
     // ── Spread-discovery fixture: 5 pages, page 2 is LANDSCAPE (1200x600) so it
     //    decodes as a detected spread; the rest are portrait. ─────────────────
@@ -661,6 +674,134 @@ int main(int argc, char** argv) {
         CHECK(stripDecodePriority(10, 10) > stripDecodePriority(13, 10), "T18 priority falls off with distance");
         CHECK(stripDecodePriority(0, 200) >= 1, "T18 priority never underflows below 1");
         CHECK(stripDecodePriority(5, -1) == kPrioStripBase, "T18 with no centre (empty model) every page gets the flat base");
+    }
+
+    // ── Test 19: LATEST-WINS — the page you LAND on decodes BEFORE the ones you
+    //    flew past.
+    //
+    // Hold the page-turn key through a dozen pages and stop. Every page you passed
+    // queued a decode, and with one flat visible priority equal-priority is FIFO —
+    // so the page now on screen sits at the BACK of the queue behind a dozen pages
+    // nobody is looking at any more. The reader stares at a blank frame AFTER the
+    // input already stopped. Each setVisible wave must therefore outrank every
+    // earlier one.
+    //
+    // Shape: hold BOTH decode lanes on a latch with two pages nobody measures
+    // (14, 15), fire four visible waves while everything else can only queue, then
+    // release and record the ORDER pages report ready.
+    //
+    // Why the waves are 3 pages apart, not adjacent: ComicReaderDecode::request()
+    // dedups against m_inflight, and a page goes into m_inflight the moment it is
+    // REQUESTED — queued counts, not just running. So a wave on page N+1 right
+    // after a wave on page N would request nothing new at all (N+1 and N+2 were
+    // already queued as that wave's next1/next2 prefetch) and the test would prove
+    // nothing. Spacing by 3 gives every wave its own untouched triple: {0,1,2},
+    // {3,4,5}, {6,7,8}, {9,10,11}. (That same dedup is why the boost has to be
+    // MONOTONIC rather than reset per wave: a page already queued can never be
+    // re-prioritized, only out-ranked by newer work.)
+    //
+    // The stall is set up with an explicit two-page visible set rather than one page
+    // plus a prefetch, so this test depends on the priority rule ALONE — not on how
+    // far the backwards prefetch happens to reach (T20's concern).
+    {
+        // Declared BEFORE `core` so the core (and the decode pool inside it) tears
+        // down first, while these captures are still alive — the decode harness's
+        // house rule for &-capturing worker hooks.
+        QSemaphore latch(0);
+        std::atomic<int> held{0};
+        QVector<int> readyOrder;
+        // The order pages are DEQUEUED, recorded in the worker hook (two worker
+        // threads write it, hence the mutex). This is the thing the priority
+        // actually controls; completion order is that plus thread-scheduling
+        // noise — a lane can lag several slots when the machine is busy, so the
+        // fine-grained cross-wave assertion below reads dequeue order, and only
+        // the coarse reader-facing claim reads completion order.
+        QMutex startMutex;
+        QVector<int> startOrder;
+
+        ComicReaderCore core;
+        core.setDecodeWorkerHooksForTest(
+            [&](quint64, int page) {
+                { QMutexLocker lock(&startMutex); startOrder.append(page); }
+                if (page >= 14) {          // the two stall pages, and only those
+                    ++held;
+                    latch.acquire();       // hold the lane so everything else queues
+                }
+            },
+            std::function<void(quint64, int)>());
+        QObject::connect(&core, &ComicReaderCore::pageReady,
+                         [&](int page) { readyOrder.append(page); });
+
+        core.openEntry(QStringLiteral("waves"), wavePages, QStringLiteral("ltr"), manualNormal());
+
+        // Occupy both lanes with the last two pages: a two-page visible set starts
+        // exactly two workers, and both block in the hook.
+        core.setVisible(QVariantList{14, 15});
+        const bool stalled = waitFor([&] { return held.load() == 2; });
+        CHECK(stalled, "T19 both decode lanes are held, so every later request can only queue");
+
+        // The flip: four waves, newest last. Under one flat visible priority this is
+        // exactly FIFO — 0 first, 9 last.
+        core.setVisible(QVariantList{0});
+        core.setVisible(QVariantList{3});
+        core.setVisible(QVariantList{6});
+        core.setVisible(QVariantList{9});
+
+        latch.release(8);
+        const bool allDone = waitFor([&] {
+            return readyOrder.contains(0) && readyOrder.contains(3)
+                   && readyOrder.contains(6) && readyOrder.contains(9);
+        }, 8000);
+        CHECK(allDone, "T19 every waved page still decodes eventually (a stale wave is out-ranked, never cancelled)");
+
+        CHECK(readyOrder.indexOf(9) < readyOrder.indexOf(0),
+              "T19 the most recently requested visible page decodes BEFORE an older queued one");
+
+        // The full order, not just the extremes: one pair could come out right by
+        // luck with two lanes running; a strictly reversed four-wave order cannot.
+        QVector<int> starts;
+        { QMutexLocker lock(&startMutex); starts = startOrder; }
+        const bool newestFirst = starts.indexOf(9) < starts.indexOf(6)
+                                 && starts.indexOf(6) < starts.indexOf(3)
+                                 && starts.indexOf(3) < starts.indexOf(0);
+        if (!newestFirst) {   // a scheduling mystery here is unreadable without the orders
+            QString s, r;
+            for (int p : starts) s += QString::number(p) + QStringLiteral(" ");
+            for (int p : readyOrder) r += QString::number(p) + QStringLiteral(" ");
+            std::fprintf(stderr, "  T19 dequeue order: %s\n  T19 ready order:   %s\n",
+                         s.toUtf8().constData(), r.toUtf8().constData());
+        }
+        CHECK(newestFirst,
+              "T19 the whole queue is newest-first — every wave out-ranks every earlier one");
+    }
+
+    // ── Test 20: the BACKWARDS prefetch is UNIT-aware ────────────────────────────
+    // In double-page mode you do not read pages, you read UNITS. Prefetching a
+    // single page backwards lands the reader on a pair whose OTHER half was never
+    // asked for: one side is instant, the other pops in a beat later. Most visible
+    // re-reading backwards in RTL manga, which is normal there.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("prevunit"), plainPages, QStringLiteral("rtl"), manualNormal());
+
+        // Pin the fixture's real layout before leaning on it: two leading singles,
+        // then pairs — [0][1][2,3][4,5].
+        const QVariantMap u4 = core.unitForPage(4);
+        const QVariantMap u3 = core.unitForPage(3);
+        CHECK(u4.value(QStringLiteral("rightIndex")).toInt() == 4
+                  && u4.value(QStringLiteral("leftIndex")).toInt() == 5,
+              "T20 the fixture really pairs page 4 with page 5");
+        CHECK(u3.value(QStringLiteral("rightIndex")).toInt() == 2
+                  && u3.value(QStringLiteral("leftIndex")).toInt() == 3,
+              "T20 ... and the unit BEFORE it really is the pair [2,3]");
+
+        // Visible unit [4,5] -> forward prefetch has nowhere to go (6 pages), so the
+        // only other work is the backwards one: 4, 5 and BOTH halves of [2,3] = 4.
+        core.setVisible(QVariantList{4});
+        const bool both = waitFor([&] { return core.readyCount() >= 4; });
+        CHECK(both, "T20 the backwards prefetch fetches BOTH halves of the previous unit");
+        CHECK(core.pageInfo(2).value(QStringLiteral("decoded")).toBool(),
+              "T20 the FAR half of the previous unit (page 2) is prefetched, not just the near one");
     }
 
     if (g_failures == 0) {

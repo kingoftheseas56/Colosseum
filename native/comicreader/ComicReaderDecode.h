@@ -61,8 +61,11 @@ public:
     // generation (a permanently-failing page is not re-decoded until the next
     // openGeneration resets the failed set). A request for an already-cached
     // page intentionally bumps that page's LRU recency via the cache get.
-    // `priority` is forwarded to QThreadPool::start (higher runs sooner):
-    // visible=100, next=90/89, prev=80, strip window 70 and below.
+    // `priority` is forwarded to QThreadPool::start (higher runs sooner): the
+    // visible band starts at 100 and CLIMBS per visible wave (ComicReaderCore::
+    // setVisible — a newer wave must out-rank an older one still queued, and a
+    // queued page can never be re-prioritized because the inflight dedup above
+    // drops the second request); the strip window is 70 and below; probe 10.
     void request(int page, int priority);
 
     // Owning thread only, but posted from a worker thread as the target of a
