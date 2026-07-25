@@ -80,6 +80,10 @@ struct HttpSourcePolicy
     int lowWaterBytes = 64 * 1024;         // resume fetching below this
     int resumeBytes = 512 * 1024;          // leave Buffering once the ring refills to here
     int maxReconnectAttempts = 5;          // bounded reconnect before a terminal Failed
+    // Bounded retries for a SEEK whose target the origin does not hold yet (a torrent still
+    // downloading). Separate budget from mid-stream reconnects: nothing is broken, the bytes just
+    // have not arrived, so this is deliberately more patient.
+    int maxSeekOpenAttempts = 8;
     std::function<int(int)> reconnectDelayMs; // delay before attempt N; nullptr => capped backoff
 };
 

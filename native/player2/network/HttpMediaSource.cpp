@@ -300,11 +300,50 @@ void HttpMediaSource::fetchLoop()
             m_transport->close();
             HttpResponse response;
             QString error;
-            if (!m_transport->start(m_request.source, m_request.headers, seekTarget, &response,
-                                    &error)) {
-                setState(NetworkState::Failed);
-                std::scoped_lock lock(m_mutex);
-                m_dataReady.notify_all();
+            // A progressive origin (a torrent still downloading) legitimately refuses a range it does
+            // not hold YET. Nothing is broken, so this is Buffering with bounded backoff retries of
+            // the SAME target - not a terminal failure. Giving the seek re-open a single attempt is
+            // what closed the player on every seek during the first real playback (2026-07-25);
+            // a mid-stream disconnect had always had this patience, a seek never did.
+            bool seekOpened = false;
+            bool seekSuperseded = false;
+            for (int attempt = 1; ; ++attempt) {
+                if (m_transport->start(m_request.source, m_request.headers, seekTarget, &response,
+                                       &error)) {
+                    seekOpened = true;
+                    break;
+                }
+                if (m_cancelled.load(std::memory_order_acquire))
+                    return;
+                {
+                    // A newer seek supersedes this one and must not burn its budget.
+                    std::scoped_lock lock(m_mutex);
+                    if (m_seekRequest >= 0) {
+                        seekSuperseded = true;
+                        break;
+                    }
+                }
+                if (attempt >= m_policy.maxSeekOpenAttempts) {
+                    setState(NetworkState::Failed);
+                    std::scoped_lock lock(m_mutex);
+                    m_dataReady.notify_all();
+                    return;
+                }
+                setState(NetworkState::Buffering);
+                const int delayMs = reconnectDelayFor(attempt);
+                if (delayMs > 0) {
+                    std::unique_lock lock(m_mutex);
+                    m_spaceReady.wait_for(lock, std::chrono::milliseconds(delayMs), [this] {
+                        return m_cancelled.load(std::memory_order_acquire) || m_seekRequest >= 0;
+                    });
+                }
+                if (m_cancelled.load(std::memory_order_acquire))
+                    return;
+                m_transport->close();
+            }
+            if (!seekOpened) {
+                if (seekSuperseded)
+                    continue; // handle the newer seek at the top of the loop
                 return;
             }
             // A server that ignored the range (served 200 from 0) would splice misaligned bytes at

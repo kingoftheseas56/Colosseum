@@ -101,6 +101,11 @@ public:
 
     bool blockForever = false; // read() blocks until cancel() (cancellation test)
 
+    // Progressive-origin fault: the next N start() calls at a NON-ZERO offset are refused, the way a
+    // torrent still downloading refuses a range it does not hold yet. Nothing is broken - the bytes
+    // simply are not there yet - so the source must treat it as buffering, not as a dead stream.
+    int refuseRangedStarts = 0;
+
     int startCount() const { return m_startCount.load(); }
 
     void releaseStall()
@@ -120,6 +125,12 @@ public:
         // cancel(); only HttpMediaSource's own flag is the permanent shutdown.
         m_cancelled = false;
         ++m_startCount;
+        if (byteOffset > 0 && refuseRangedStarts > 0) {
+            --refuseRangedStarts;
+            if (error)
+                *error = QStringLiteral("range not available yet");
+            return false;
+        }
         m_served = 0;
         m_connectionHadDisconnect = false;
         const qint64 effectiveOffset = honorRange ? byteOffset : 0;
@@ -361,6 +372,61 @@ void testReconnectExhaustionFails()
     require(source.reconnectCount() == 2, "reconnect attempts should be bounded to the policy");
 }
 
+// Seeking into bytes a progressive origin does not hold YET is buffering, not a broken stream. The
+// source must retry the same target with backoff and recover. This is the defect Hemanth hit on the
+// first real Player 2 playback: "if i seek forward or backward the video player closes" - the seek
+// re-open was given exactly one attempt and went terminal on the first refusal, while a mid-stream
+// disconnect had always had bounded retries.
+void testSeekIntoNotYetAvailableBytesBuffersThenRecovers()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->refuseRangedStarts = 3; // the first three attempts at the seek target are refused
+
+    StateLog log;
+    HttpMediaSource source(std::move(transport), streamRequest(), fastPolicy());
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "progressive-seek open failed: " + error.toStdString());
+
+    require(source.seek(128 * 1024, SEEK_SET) == 128 * 1024, "seek to a known offset must report it");
+
+    QByteArray tail;
+    tail.resize(64 * 1024);
+    const int n = source.read(tail.data(), tail.size());
+    require(n > 0, "a seek into not-yet-available bytes must eventually deliver data, not fail");
+    require(!log.saw(NetworkState::Failed),
+            "a temporarily unavailable range must NOT be terminal - that closes the player");
+    require(tail.left(n) == body.mid(128 * 1024, n), "recovered bytes must come from the seek target");
+}
+
+// The tolerance is bounded, not infinite: an origin that never serves the target still fails cleanly
+// rather than buffering forever.
+void testSeekRefusalsEventuallyFail()
+{
+    const QByteArray body = countedBody(300 * 1024);
+    auto transport = std::make_unique<ScriptedTransport>();
+    transport->resource = body;
+    transport->chunkSize = 64 * 1024;
+    transport->refuseRangedStarts = 1000; // never serves the seek target
+
+    StateLog log;
+    HttpSourcePolicy policy = fastPolicy();
+    policy.maxSeekOpenAttempts = 3;
+    HttpMediaSource source(std::move(transport), streamRequest(), policy);
+    source.setStateCallback([&log](NetworkState state) { log.record(state); });
+    QString error;
+    require(source.open(&error), "bounded-seek open failed: " + error.toStdString());
+
+    source.seek(128 * 1024, SEEK_SET);
+    int terminal = 0;
+    drainAll(source, &terminal);
+    require(terminal < 0, "an unservable seek target must end in a terminal error");
+    require(log.saw(NetworkState::Failed), "exhausted seek attempts must report Failed");
+}
+
 void testUnknownLengthIsLive()
 {
     const QByteArray body = countedBody(100 * 1024);
@@ -500,6 +566,8 @@ int main()
         testSlowChunksReportBuffering();
         testDisconnectThenReconnect();
         testReconnectExhaustionFails();
+        testSeekIntoNotYetAvailableBytesBuffersThenRecovers();
+        testSeekRefusalsEventuallyFail();
         testUnknownLengthIsLive();
         testSeekToEndParksWithoutOutOfRangeRequest();
         testReconnectFromWrongOffsetFails();
