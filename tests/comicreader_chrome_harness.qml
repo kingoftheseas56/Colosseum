@@ -281,6 +281,13 @@ Item {
         // second animation wait needed.)
         shellA.chromeVisible = false
         hud.showToast("Shifted pairing")
+        // STRUCTURAL, and it has to be: QML's `opacity`/`visible` report an item's OWN values, not
+        // the effective inherited ones. If the toast were re-parented inside chromeLayer — the exact
+        // regression this block exists to catch — the subtree would stop being painted while these
+        // two still read 1/true. The opacity check alone would pass over a broken feature; only the
+        // parent check actually pins the mounting.
+        ck(harness._toast.parent === hud,
+           "toast: must be a DIRECT child of the hud root, never inside the auto-hiding chromeLayer")
         ck(harness._toast.opacity === 1 && harness._toast.visible === true,
            "toast: must present even when the chrome is hidden (mounted outside chromeLayer)")
         ck(harness._toastText.text === "Shifted pairing",

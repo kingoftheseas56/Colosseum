@@ -754,6 +754,10 @@ Item {
         onNudgeCoupling: {
             reader.nudgeCoupling()
             var phase = (core && core.couplingState) ? String(core.couplingState).split(":")[1] : ""
+            // Sentence case is OUR house voice (see the settings sheet: "Night veil", "Page width",
+            // "Memory saver"), deliberately not TB2's Title Case "Shifted Pairing". Reader 1 has no
+            // toast here at all — this feedback is adopted from TB2, not restored parity, because a
+            // nudge visibly reshuffles the spread while saying nothing about which phase you landed in.
             hud.showToast(phase === "shifted" ? "Shifted pairing" : "Normal pairing")
         }
         // first/last + crossing
