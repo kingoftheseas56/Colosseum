@@ -496,12 +496,21 @@ Item {
     // Route through the strip surface while it is the live one: rescaling the column moves every
     // page, so without anchoring a Page-width tap would silently scroll you somewhere else in the
     // book. Off the strip there is no viewport to hold, so the plain call is right.
-    function setStripLayout(widthPct, gap) {
+    // `persist` defaults TRUE: every caller that is a user acting on the settings sheet wants the
+    // choice remembered. _applySeriesPrefs passes false because it is replaying memory, not making
+    // it. The persistence lives HERE rather than in an onStripWidthPctChanged handler on purpose:
+    // that handler fires for any backend change including a per-series apply, so persisting there
+    // rewrote the global seed just for opening a book.
+    function setStripLayout(widthPct, gap, persist) {
         if (!core || !core.setStripLayout) return
         if (mode === "long_strip" && stripSurface && stripSurface.active)
             stripSurface.applyLayout(widthPct, gap)
         else
             core.setStripLayout(widthPct, gap)
+        if (persist === false || !_ready) return
+        globalPrefs.stripWidthPct = widthPct       // the seed for series with no opinion yet
+        globalPrefs.stripGap = gap
+        _saveSeriesPrefs({ sw: widthPct, sg: gap })
     }
     function setMemorySaver(on) { if (core && core.setMemorySaver) core.setMemorySaver(on === true) }
 
@@ -672,6 +681,19 @@ Item {
     // last-choice, then to "" so load()'s lane default decides.
     function _applySeriesPrefs() {
         var rec = ComicReaderState.storeGet(seriesRecords.all, seriesId)
+
+        // F2 — strip measure is PER SERIES, seeded by the global. A weekly gag strip and a
+        // double-page-spread tankobon want different column widths, and re-dressing every book to
+        // match the last one you touched is the behaviour this replaces. A series that has never
+        // been dressed follows the global seed, so a width set anywhere still reaches every book
+        // you have not given an opinion about.
+        var w = (rec && rec.sw !== undefined) ? rec.sw : globalPrefs.stripWidthPct
+        var g = (rec && rec.sg !== undefined) ? rec.sg : globalPrefs.stripGap
+        // Pushed WITHOUT persisting: this is applying memory, not forming it. Writing here would
+        // stamp this series' width onto the global seed merely because you opened the book, and the
+        // next undressed series would inherit it - the exact leak per-series is meant to end.
+        if (core && core.setStripLayout) setStripLayout(w, g, false)
+
         var rm = (rec && rec.rm) ? rec.rm : globalPrefs.readingMode
         // Nothing remembered -> leave persistedMode/Direction EXACTLY as they are. The store is a
         // source of memory, not an eraser: these are also the seams a caller (or the harness) can
@@ -689,9 +711,19 @@ Item {
         persistedState = blob
     }
     // ---- save ----
-    function _saveSeriesPrefs() {
+    // MERGES rather than replaces. It used to write `{ rm }` wholesale, which was fine when the
+    // record held only a reading mode; now that a series can also carry its own strip measure
+    // (sw/sg), a mode change must not silently drop the width you set. `extra` is how a caller adds
+    // fields — absent means "record only what the record already knew, plus the current mode", so
+    // merely changing the reading mode never invents a width opinion this series did not have (and
+    // therefore never stops it following the global seed).
+    function _saveSeriesPrefs(extra) {
         if (!seriesId.length) return
-        seriesRecords.all = ComicReaderState.storePut(seriesRecords.all, seriesId, { rm: readingMode })
+        var rec = ComicReaderState.storeGet(seriesRecords.all, seriesId) || ({})
+        rec.rm = readingMode
+        if (extra)
+            for (var k in extra) rec[k] = extra[k]
+        seriesRecords.all = ComicReaderState.storePut(seriesRecords.all, seriesId, rec)
     }
     function _saveEntryBlob() {
         if (!curChapterId.length || !core || !core.persistedState) return
@@ -749,8 +781,11 @@ Item {
     // ---- reactions: every settings write goes straight back to its store ----
     onNightVeilChanged:      if (_ready) globalPrefs.nightVeil = nightVeil
     onGutterStrengthChanged: if (_ready) globalPrefs.gutterStrength = gutterStrength
-    onStripWidthPctChanged:  if (_ready) globalPrefs.stripWidthPct = stripWidthPct
-    onStripGapChanged:       if (_ready) globalPrefs.stripGap = stripGap
+    // NOTE: stripWidthPct/stripGap are deliberately ABSENT here. They are readonly readbacks of the
+    // backend, so they also change when _applySeriesPrefs replays a series' remembered measure —
+    // persisting from that signal wrote the opened book's width onto the GLOBAL seed, which is how
+    // one series' taste used to re-dress every other. Their persistence lives in setStripLayout(),
+    // the one door a user actually turns. (F2, 2026-07-26.)
     onMemorySaverChanged:    if (_ready) globalPrefs.memorySaver = memorySaver
     onSeriesIdChanged:       if (_ready) _applySeriesPrefs()
 

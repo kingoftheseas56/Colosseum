@@ -1031,6 +1031,79 @@ Item {
                "F5: with a next entry the toast must name the REAL binding (Alt+Right, per "
                + "ComicReaderInput's nextEntry), got '" + (f5bToast ? f5bToast.text : "") + "'")
 
+            // -- 14. F2 PER-SERIES STRIP MEASURE: a width set on one series must not re-dress the
+            // others. Two shells share ONE seriesRecords store and ONE globalPrefs, which is what
+            // makes this a real test of the leak rather than of two isolated objects. --
+            var f2Records = freshRecords()
+            var f2Prefs = freshPrefs({ stripWidthPct: 78, stripGap: 0 })
+            var f2StoreA = fakeStoreF2a, f2StoreB = fakeStoreF2b
+            f2StoreA.pages = fivePages(); f2StoreB.pages = fivePages()
+
+            var aShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "series-A", "seriesTitle": "A", "seriesCover": "file:///f/a.png",
+                "core": fakeCoreF2a, "progress": fakeProgF2a, "pageStore": f2StoreA,
+                "globalPrefs": f2Prefs, "seriesRecords": f2Records,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            // A is dressed narrow by the user
+            aShell.setStripLayout(55, 12)
+            ck(fakeCoreF2a.lastStripLayout.w === 55 && fakeCoreF2a.lastStripLayout.g === 12,
+               "F2: setStripLayout must reach the backend, got " + JSON.stringify(fakeCoreF2a.lastStripLayout))
+            var recA = JSON.parse(f2Records.all)["series-A"]
+            ck(recA && recA.sw === 55 && recA.sg === 12,
+               "F2: the series record must remember this series' own measure, got " + JSON.stringify(recA))
+            ck(f2Prefs.stripWidthPct === 55 && f2Prefs.stripGap === 12,
+               "F2: a user-set measure must ALSO seed the global for undressed series, got "
+               + f2Prefs.stripWidthPct + "/" + f2Prefs.stripGap)
+
+            // B has no record of its own -> follows the global seed (which A just moved). That is
+            // the intended half of the coupling: a width you set still reaches books you have no
+            // opinion about.
+            var bShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "series-B", "seriesTitle": "B", "seriesCover": "file:///f/b.png",
+                "core": fakeCoreF2b, "progress": fakeProgF2b, "pageStore": f2StoreB,
+                "globalPrefs": f2Prefs, "seriesRecords": f2Records,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(fakeCoreF2b.lastStripLayout.w === 55 && fakeCoreF2b.lastStripLayout.g === 12,
+               "F2: a series with NO record must follow the global seed, got "
+               + JSON.stringify(fakeCoreF2b.lastStripLayout))
+            var recBopen = JSON.parse(f2Records.all)["series-B"]
+            ck(recBopen === undefined || recBopen === null || recBopen.sw === undefined,
+               "F2: merely OPENING a series must not invent a width opinion for it, got "
+               + JSON.stringify(recBopen))
+
+            // B is dressed wide by the user...
+            bShell.setStripLayout(92, 4)
+            ck(JSON.parse(f2Records.all)["series-B"].sw === 92,
+               "F2: B must record its own measure, got "
+               + JSON.stringify(JSON.parse(f2Records.all)["series-B"]))
+            // ...and A must be UNTOUCHED. This is the whole point of the task.
+            var recA2 = JSON.parse(f2Records.all)["series-A"]
+            ck(recA2.sw === 55 && recA2.sg === 12,
+               "F2: dressing series B must NOT re-dress series A, got " + JSON.stringify(recA2))
+
+            // ...and re-opening A restores A's own measure, not B's or the global's.
+            fakeCoreF2a.lastStripLayout = null
+            aShell.seriesId = "series-A"
+            aShell._applySeriesPrefs()
+            ck(fakeCoreF2a.lastStripLayout && fakeCoreF2a.lastStripLayout.w === 55,
+               "F2: re-opening A must restore A's own 55, not B's 92 or the global, got "
+               + JSON.stringify(fakeCoreF2a.lastStripLayout))
+
+            // A reading-mode change must not silently invent/drop a width record.
+            var beforeMode = JSON.parse(f2Records.all)["series-A"].sw
+            aShell._saveSeriesPrefs()
+            ck(JSON.parse(f2Records.all)["series-A"].sw === beforeMode,
+               "F2: saving series prefs without an explicit measure must PRESERVE the stored width, got "
+               + JSON.stringify(JSON.parse(f2Records.all)["series-A"]))
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -1151,6 +1224,8 @@ Item {
     FakeCore { id: fakeCoreCS }  FakeProgress { id: fakeProgCS }  FakePageStore { id: fakeStoreCS }
     FakeCore { id: fakeCoreF5 }  FakeProgress { id: fakeProgF5 }  FakePageStore { id: fakeStoreF5 }
     FakeCore { id: fakeCoreF5b } FakeProgress { id: fakeProgF5b } FakePageStore { id: fakeStoreF5b }
+    FakeCore { id: fakeCoreF2a } FakeProgress { id: fakeProgF2a } FakePageStore { id: fakeStoreF2a }
+    FakeCore { id: fakeCoreF2b } FakeProgress { id: fakeProgF2b } FakePageStore { id: fakeStoreF2b }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
