@@ -698,35 +698,80 @@ Item {
         dbl.destroy()
     }
 
-    // ---- FALLBACK path, then the OVERRIDE. Two data: URL PNG fixtures with genuinely different
-    // dimensions (200x300 and 150x300) that the Image really loads offscreen, so the fallback runs
-    // on the decoder's own implicitWidth/implicitHeight rather than on numbers this harness injected.
+    // ---- FALLBACK path, then the OVERRIDE. Two PNG fixtures with genuinely different dimensions
+    // (200x300 and 150x300) that the Image really loads, so the fallback runs on the decoder's own
+    // implicitWidth/implicitHeight rather than on numbers this harness injected.
+    //
+    // WHY THE FIXTURES ARE FILES, PRE-WARMED BY warmRight/warmLeft, AND WHY THIS PHASE IS
+    // SYNCHRONOUS. This used to hand the surface two data: URLs and poll for the decode, and it was
+    // the flakiest thing in the suite — two brothers hit it independently, one 2 failures in 3.
+    // MEASURED 2026-07-26, because the obvious reads were all wrong: the decode is not slow, data:
+    // URLs are not unreliable, the decode cap's upscale is not the cost, and the poll interval was
+    // not the cause either (each was ruled out by its own controlled run). Qt loads an
+    // `asynchronous: true` Image on the shared QQuickPixmapReader thread, and Qt runs that thread at
+    // LOW priority — so on a machine with other work on it, it simply does not get scheduled. The
+    // failing runs showed `progress` still 0 after NINE seconds, i.e. the job had never been picked
+    // up at all, and a plain control Image in the same process stalled in the same millisecond, so
+    // the stall is process-wide rather than anything about these two images. Re-running this very
+    // gate with nothing changed but the process priority raised to High turned "292-2100ms, or never"
+    // into a flat 190-240ms. A harness cannot fix that thread, and no budget is safe against it —
+    // raising it (3s -> 6s) was already tried and the gate still failed 6 runs in 10 under load.
+    //
+    // So the wall clock is designed out rather than tuned. A local FILE fixture loaded by an
+    // `asynchronous: false` Image is decoded synchronously on THIS thread, and it lands in the same
+    // QQuickPixmapCache the surface reads from: same url, same sourceSize (the surface's srcCapW is
+    // 1400 at 100%) and same PreserveAspectFit make the same cache key, so the surface's own
+    // `asynchronous: true` Images hit the cache and report their implicit size immediately, with the
+    // reader thread never involved. Measured: the whole phase is ~15ms, and 10/10 under the same
+    // load that failed 6/10 before. Do NOT reintroduce a poll or a budget here. If someone changes
+    // srcCapW or the fillMode the key stops matching, the images go asynchronous again and the
+    // precondition below fails loudly — by name — instead of flaking.
     //
     // MEASURED HERE, and the reason the backend's geometry is the PRIMARY source: with the surface's
     // decode cap in play these two visibly different pages do NOT report their own widths — the
-    // loader hands back both normalised to the cap. So the fallback keeps the unit drawable and
-    // flush, but it cannot recover the two pages' true RELATIVE size. Part 2 proves the backend's
-    // header geometry overrides a fully decoded Image and restores it.
-    readonly property string png200x300: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAEsCAAAAACjkaNiAAAAUUlEQVR42u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4NeuMAAEvmkSLAAAAAElFTkSuQmCC"
-    readonly property string png150x300: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAAEsCAAAAAAETBWZAAAAQ0lEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACARwOw9AABWDaRwQAAAABJRU5ErkJggg=="
-    property var decodedSurface: null
-    property int decodedTries: 0
+    // loader hands back both normalised to the cap (1400x2100 and 1400x2800). So the fallback keeps
+    // the unit drawable and flush, but it cannot recover the two pages' true RELATIVE size. Part 2
+    // proves the backend's header geometry overrides a fully decoded Image and restores it.
+    readonly property url png200x300: Qt.resolvedUrl("comicreader_fixtures/page-200x300.png")
+    readonly property url png150x300: Qt.resolvedUrl("comicreader_fixtures/page-150x300.png")
 
-    function startDecodedPair() {
+    // The synchronous pre-warm. `asynchronous: false` on a local file decodes on the GUI thread;
+    // every other property here exists ONLY to mirror the surface's own page Images, because the
+    // QQuickPixmap cache key is (url, requestSize, aspect-ratio options) — miss any of them and the
+    // surface re-requests through the reader thread and the determinism is gone.
+    Image {
+        id: warmRight
+        source: harness.png200x300
+        asynchronous: false; cache: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 1400          // ComicReaderDoubleSurface.srcCapW at zoomPercent 100
+        visible: false
+    }
+    Image {
+        id: warmLeft
+        source: harness.png150x300
+        asynchronous: false; cache: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 1400
+        visible: false
+    }
+
+    function runDoubleDecodedPair() {
+        ck(warmRight.status === Image.Ready && warmLeft.status === Image.Ready,
+           "double-decoded precondition: the two file fixtures must decode SYNCHRONOUSLY into the "
+           + "pixmap cache (asynchronous: false on a local file), so this phase never waits on Qt's "
+           + "low-priority reader thread — got warm status right " + warmRight.status
+           + " left " + warmLeft.status)
+
         coreDecoded.units[40] = { rightIndex: 40, leftIndex: 41, spread: false, coverAlone: false }
         coreDecoded.pageUrls[40] = png200x300
         coreDecoded.pageUrls[41] = png150x300
         // NOTE: coreDecoded.pageSizes stays EMPTY — the backend knows no geometry here, which is
         // exactly the fallback under test.
-        decodedSurface = doubleComp.createObject(harness, {
+        var dbl = doubleComp.createObject(harness, {
             "width": 800, "height": 480, "active": true, "currentPage": 41, "rtl": true, "core": coreDecoded
         })
-        if (!decodedSurface) { failures.push("double-decoded: createObject returned null"); report(); return }
-        decodedPoll.start()
-    }
-
-    function runDoubleDecodedPair() {
-        var dbl = decodedSurface
+        if (!dbl) { failures.push("double-decoded: createObject returned null"); return }
 
         // --- part 1: no backend geometry -> the Image's own decoded size carries the layout ---
         ck(dbl.rightNaturalWidth > 0 && dbl.rightNaturalHeight > 0 &&
@@ -760,25 +805,7 @@ Item {
         ck(approx(dbl.rightPageHeight, dbl.leftPageHeight, 0.01),
            "double-decoded: with the true sizes both halves must be drawn at the SAME height, got "
            + dbl.rightPageHeight + " vs " + dbl.leftPageHeight)
-    }
-
-    Timer {
-        id: decodedPoll; interval: 25; repeat: true; running: false
-        onTriggered: {
-            harness.decodedTries += 1
-            var d = harness.decodedSurface
-            if (d && d.rightNaturalWidth > 0 && d.leftNaturalWidth > 0) {
-                decodedPoll.stop()
-                try { harness.runDoubleDecodedPair() }
-                catch (e) { harness.failures.push("exception in the decoded-pair phase: " + e.message) }
-                harness.report()
-            } else if (harness.decodedTries > 240) {     // 6s — a loaded machine took >3s once here
-                decodedPoll.stop()
-                harness.failures.push("double-decoded: the data: URL fixtures never decoded (right nat="
-                    + (d ? d.rightNaturalWidth : "<null>") + " left nat=" + (d ? d.leftNaturalWidth : "<null>") + ")")
-                harness.report()
-            }
-        }
+        dbl.destroy()
     }
 
     Timer { id: phaseTimer; interval: 30; running: false; onTriggered: harness.runPhaseTwo() }
@@ -791,12 +818,13 @@ Item {
             runDoubleFreshOpen()
             runDoubleUnifiedScale()
             runDoubleCentring()
+            runDoubleDecodedPair()   // synchronous: the fixtures are pre-warmed into the pixmap cache
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
             report()
             return
         }
-        startDecodedPair()      // async: the report happens once the two fixtures decode
+        report()
     }
 
     function runChecks() {
@@ -822,8 +850,8 @@ Item {
     }
 
     // safety net — a true hang (not a thrown error) still fails loudly instead of stalling CI.
-    // Sits above the decoded-pair poll budget (6s), the one phase that waits on real wall-clock
-    // image decodes, so a slow machine reports the honest "never decoded" message rather than this.
+    // No phase waits on wall-clock any more (the decoded-pair fixtures are pre-warmed into the
+    // pixmap cache and asserted synchronously), so this should never fire on any machine.
     Timer {
         interval: 15000; running: true
         onTriggered: { console.log("COMICREADER_SURFACES_FAIL: timeout"); Qt.exit(1) }
