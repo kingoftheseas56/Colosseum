@@ -1,4 +1,5 @@
 #include "AudiobookDownloader.h"
+#include "DownloadFileOps.h"
 
 #include "../AudioPairingStore.h"
 #include "../player/streamserver.h"
@@ -598,27 +599,50 @@ void AudiobookDownloader::cleanupInFlight(Job* job)
 void AudiobookDownloader::cancelDownload(const QString& pairKey)
 {
     if (m_active && m_active->pairKey == pairKey) {
-        failJob(m_active, QStringLiteral("cancelled by user"));
+        cancelJob(m_active);
         return;
     }
     for (int i = 0; i < m_queue.size(); ++i) {
         if (m_queue[i]->pairKey == pairKey) {
             Job* j = m_queue.takeAt(i);
-            emit failed(pairKey, QStringLiteral("cancelled by user (queued)"));
+            DownloadFileOps::removeTree(dirFor(pairKey));
             delete j;
+            emit removed(pairKey);
             emit activeCountChanged();
             return;
         }
     }
 }
 
-void AudiobookDownloader::deleteAudiobook(const QString& pairKey)
+QVariantMap AudiobookDownloader::deleteAudiobook(const QString& pairKey)
 {
     auto it = m_index.find(pairKey);
-    if (it == m_index.end()) return;
-    QDir(it.value().dir).removeRecursively();
+    if (it == m_index.end())
+        return DownloadFileOps::toMap({true, QString()});
+    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << pairKey << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.erase(it);
     saveIndex();
+    emit removed(pairKey);
+    return DownloadFileOps::toMap(result);
+}
+
+void AudiobookDownloader::cancelJob(Job* job)
+{
+    cleanupInFlight(job);
+    DownloadFileOps::removeTree(dirFor(job->pairKey));
+    const QString pairKey = job->pairKey;
+    if (m_active == job) {
+        delete m_active; m_active = nullptr;
+        promoteQueue();
+    } else {
+        m_queue.removeOne(job);
+        delete job;
+        emit activeCountChanged();
+    }
     emit removed(pairKey);
 }
 

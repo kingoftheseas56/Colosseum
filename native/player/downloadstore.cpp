@@ -1,4 +1,5 @@
 #include "downloadstore.h"
+#include "engine/DownloadFileOps.h"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -645,14 +646,19 @@ QVariantList DownloadStore::downloadedVideos() const {
     return out;
 }
 
-void DownloadStore::removeVideo(const QString &id) {
+QVariantMap DownloadStore::removeVideo(const QString &id) {
     const auto it = m_index.constFind(id);
     if (it == m_index.constEnd())
-        return;
-    QFile::remove(it.value().path);
+        return DownloadFileOps::toMap({true, QString()});
+    const auto result = DownloadFileOps::removeFile(it.value().path);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << id << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.remove(id);
     saveIndex();
     emit libraryChanged();
+    return DownloadFileOps::toMap(result);
 }
 
 // ── dev selftest harness (headless proof, house pattern) ──

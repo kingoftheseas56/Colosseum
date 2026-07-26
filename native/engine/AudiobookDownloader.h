@@ -92,7 +92,7 @@ public:
     Q_INVOKABLE QVariantList activeDownloads() const;
     int activeCount() const { return (m_active ? 1 : 0) + m_queue.size(); }
     Q_INVOKABLE void cancelDownload(const QString& pairKey);
-    Q_INVOKABLE void deleteAudiobook(const QString& pairKey);
+    Q_INVOKABLE QVariantMap deleteAudiobook(const QString& pairKey);
 
     // Dev smoke (env COLOSSEUM_ABB_DLTEST="<pairKey>|<infoHash>"): resolve +
     // download headlessly, logging the manifest + final paths. Mirrors BookDownloader::selfTest.
@@ -146,6 +146,7 @@ private:
     void onFileFinished();
     void finalizeJob(Job* job);
     void failJob(Job* job, const QString& reason);
+    void cancelJob(Job* job);
     void cleanupInFlight(Job* job);
     void promoteQueue();                       // active done → start next queued
 

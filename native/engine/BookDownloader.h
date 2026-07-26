@@ -82,7 +82,7 @@ public:
     Q_INVOKABLE void cancelDownload(const QString& md5);
 
     // Delete a downloaded book (file + index entry). Emits removed().
-    Q_INVOKABLE void deleteBook(const QString& md5);
+    Q_INVOKABLE QVariantMap deleteBook(const QString& md5);
 
     // Dev smoke (env COLOSSEUM_BOOK_DLTEST=<md5>): resolve + download a book,
     // logging the resolved URL(s) + final path. Proves the whole pipeline
@@ -138,6 +138,7 @@ private:
     void retryOrFailover(InFlight& f, const QString& reason);
     void startNextUrlOrFail(InFlight& f);
     void failAndCleanup(InFlight& f, const QString& reason);
+    void cancelAndCleanup(InFlight& f);
     void finalizeSuccess(InFlight& f);
     void closeAndDeletePart(InFlight& f);
     bool detectStaleHtml(const QByteArray& firstChunk, const QString& contentType) const;

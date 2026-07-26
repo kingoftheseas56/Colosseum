@@ -1,4 +1,5 @@
 #include "ComicDownloader.h"
+#include "DownloadFileOps.h"
 
 #include "ComicDlsParse.h"
 #include "torrent/ComicTorrents.h"
@@ -646,7 +647,7 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
             QNetworkReply* r = it.key();
             m_resolving.erase(it);
             if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
-            emit failed(id, QStringLiteral("cancelled by user"));
+            emit removed(id);
             return;
         }
     }
@@ -658,7 +659,7 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
             m_proc->deleteLater();
             m_proc = nullptr;
         }
-        failAndCleanup(*m_active, QStringLiteral("cancelled by user"));
+        cancelAndCleanup(*m_active);
         return;
     }
     for (int i = 0; i < m_queue.size(); ++i) {
@@ -668,22 +669,28 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
             if (m_queue[i].assembledIngest && !m_queue[i].assembledStagingDir.isEmpty())
                 QDir(m_queue[i].assembledStagingDir).removeRecursively();
             m_queue.removeAt(i);
-            emit failed(id, QStringLiteral("cancelled by user (queued)"));
+            emit removed(id);
             return;
         }
     }
     if (m_torrents) m_torrents->cancel(id);
 }
 
-void ComicDownloader::deleteIssue(const QString& issueIdIn)
+QVariantMap ComicDownloader::deleteIssue(const QString& issueIdIn)
 {
     const QString id = issueIdIn.trimmed();
     auto it = m_index.find(id);
-    if (it == m_index.end()) return;
-    QDir(it.value().dir).removeRecursively();
+    if (it == m_index.end())
+        return DownloadFileOps::toMap({true, QString()});
+    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << id << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.erase(it);
     saveIndex();
     emit removed(id);
+    return DownloadFileOps::toMap(result);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -899,6 +906,18 @@ void ComicDownloader::failAndCleanup(InFlight& f, const QString& reason)
     const QString id = f.id;
     emit failed(id, reason);
     delete m_active; m_active = nullptr;
+    startNextQueued();
+}
+
+void ComicDownloader::cancelAndCleanup(InFlight& f)
+{
+    closeAndDeletePart(f);
+    cleanupExtract(f);
+    if (f.assembledIngest && !f.assembledStagingDir.isEmpty())
+        QDir(f.assembledStagingDir).removeRecursively();
+    const QString id = f.id;
+    delete m_active; m_active = nullptr;
+    emit removed(id);
     startNextQueued();
 }
 

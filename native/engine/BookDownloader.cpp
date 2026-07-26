@@ -1,4 +1,5 @@
 #include "BookDownloader.h"
+#include "DownloadFileOps.h"
 
 #include <QDateTime>
 #include <QDebug>
@@ -326,34 +327,40 @@ void BookDownloader::cancelDownload(const QString& md5In)
             QNetworkReply* r = it.key();
             m_resolving.erase(it);
             if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
-            emit failed(md5, QStringLiteral("cancelled by user"));
+            emit removed(md5);
             return;
         }
     }
     // Active stream
     if (m_active && m_active->md5 == md5) {
-        failAndCleanup(*m_active, QStringLiteral("cancelled by user"));
+        cancelAndCleanup(*m_active);
         return;
     }
     // Queued
     for (int i = 0; i < m_queue.size(); ++i) {
         if (m_queue[i].md5 == md5) {
             m_queue.removeAt(i);
-            emit failed(md5, QStringLiteral("cancelled by user (queued)"));
+            emit removed(md5);
             return;
         }
     }
 }
 
-void BookDownloader::deleteBook(const QString& md5In)
+QVariantMap BookDownloader::deleteBook(const QString& md5In)
 {
     const QString md5 = md5In.trimmed().toLower();
     auto it = m_index.find(md5);
-    if (it == m_index.end()) return;
-    QFile::remove(it.value().path);
+    if (it == m_index.end())
+        return DownloadFileOps::toMap({true, QString()});
+    const auto result = DownloadFileOps::removeFile(it.value().path);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << md5 << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.erase(it);
     saveIndex();
     emit removed(md5);
+    return DownloadFileOps::toMap(result);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -571,6 +578,18 @@ void BookDownloader::failAndCleanup(InFlight& f, const QString& reason)
     const QString md5 = f.md5;
     emit failed(md5, reason);
     delete m_active; m_active = nullptr;
+    if (!m_queue.isEmpty()) {
+        m_active = new InFlight(std::move(m_queue.takeFirst()));
+        startAttempt(*m_active);
+    }
+}
+
+void BookDownloader::cancelAndCleanup(InFlight& f)
+{
+    closeAndDeletePart(f);
+    const QString md5 = f.md5;
+    delete m_active; m_active = nullptr;
+    emit removed(md5);
     if (!m_queue.isEmpty()) {
         m_active = new InFlight(std::move(m_queue.takeFirst()));
         startAttempt(*m_active);

@@ -1,5 +1,6 @@
 // native/engine/MangaTankobanService.cpp
 #include "engine/MangaTankobanService.h"
+#include "engine/DownloadFileOps.h"
 
 #include "engine/MangaTankobanLogic.h"          // MangaTankoban::prepareSeries / volumeId / settingsKey
 #include "engine/MangaSynopsisEnricher.h"
@@ -328,13 +329,13 @@ void MangaTankobanService::cancel(QString volumeId)
     emit removed(volumeId);
 }
 
-void MangaTankobanService::remove(QString volumeId)
+QVariantMap MangaTankobanService::remove(QString volumeId)
 {
     const bool inflight = m_acq.contains(volumeId);
     const bool ready = m_index->statusOf(volumeId).value(QStringLiteral("state")).toString()
                            == QStringLiteral("ready");
     if (!inflight && !ready)
-        return; // nothing to remove → quiet no-op (never a spurious `removed`)
+        return DownloadFileOps::toMap({true, QString()});
     // Tombstone + arrest any in-flight acquisition so a late finish can't republish.
     m_tornDown.insert(volumeId);
     if (inflight) {
@@ -348,9 +349,17 @@ void MangaTankobanService::remove(QString volumeId)
     }
     m_acq.remove(volumeId);
     m_index->remove(volumeId);
+    if (m_index->statusOf(volumeId).value(QStringLiteral("state")).toString()
+        == QStringLiteral("ready")) {
+        const DownloadFileOps::Result result{
+            false, QStringLiteral("Colosseum could not delete the local volume.")};
+        qWarning() << "[downloads] delete failed" << volumeId << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     emit removed(volumeId);
     if (m_volumes.contains(volumeId))
         emit volumesChanged(m_volumes.value(volumeId).seriesId);
+    return DownloadFileOps::toMap({true, QString()});
 }
 
 QVariantMap MangaTankobanService::statusOf(QString volumeId) const
