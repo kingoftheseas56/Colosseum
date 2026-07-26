@@ -52,6 +52,17 @@ Item {
     // is what stops the two directions fighting: a pull assigns the engine's exact value, so the
     // push that follows sees no difference and stops.
     //
+    // INVARIANT THIS RELAY DEPENDS ON - read before writing PlayerEngineP2.qml:
+    //   the engine must either ACCEPT a pushed value or EMIT a change signal.
+    // The engine's change signal is the relay's ONLY re-sync. An engine that silently clamps a
+    // pushed value onto the value it already holds emits nothing, so the facade keeps the number it
+    // was given and the two diverge permanently (measured: facade=4, inner=3, no recovery). That is
+    // currently UNREACHABLE through PlayerPage - every writer clamps inside mpv's accepted range
+    // (speed 0.25..3 vs qBound(0.25,3), volume 0..100 vs qBound(0,600), the fill modes' panscan and
+    // zoom inside qBound(0,1)/qBound(-2,2)) - so there is no live bug and nothing to fix here.
+    // It is a constraint on the OTHER branch: Player 2 clamps on its own ranges, and if any of them
+    // is tighter than what PlayerPage sends, that member needs an explicit re-read after the push.
+    //
     // TYPES ARE THE ENGINE'S, NOT THE PLAN'S: audioTrack/subtitleTrack are STRINGS on MpvItem
     // ("" means off, and MpvItem maps "" -> aid/sid "no"), and volume is an INT.
     property bool pause: true

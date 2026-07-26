@@ -1,24 +1,10 @@
 # Contract for the Player 2 QML shell. It enforces the house doctrine — the shell PAINTS and sends
-    # Strip line comments ONLY where the "//" is genuinely a comment. A naive s|//.*|| also erases
-    # real code - `"qrc:///qml/PlayerPage.qml"`, any https:// URL - which turned this gate into a
-    # false negative (cross-model review, 2026-07-26: it PASSED files that referenced production in
-    # a string literal). So walk each line and honour quotes: a "//" inside a string is code.
-    function Remove-QmlComments([string]$Source) {
-        $out = New-Object System.Text.StringBuilder
-        foreach ($line in ($Source -split "`n")) {
-            $inSingle = $false; $inDouble = $false; $cut = -1
-            for ($i = 0; $i -lt $line.Length; $i++) {
-                $ch = $line[$i]
-                $prev = if ($i -gt 0) { $line[$i - 1] } else { [char]0 }
-                if ($ch -eq "'" -and -not $inDouble -and $prev -ne '`\`') { $inSingle = -not $inSingle; continue }
-                if ($ch -eq '"' -and -not $inSingle -and $prev -ne '`\`') { $inDouble = -not $inDouble; continue }
-                if (-not $inSingle -and -not $inDouble -and $ch -eq '/' -and $i + 1 -lt $line.Length -and $line[$i + 1] -eq '/') { $cut = $i; break }
-            }
-            $kept = if ($cut -ge 0) { $line.Substring(0, $cut) } else { $line }
-            [void]$out.AppendLine($kept)
-        }
-        return $out.ToString()
-    }
+    # Remove-QmlComments moved to tests/player2/qml_lexer.ps1 so this contract and the facade
+    # contract share ONE lexer (a second copy is a second place for it to rot). The lift also fixed
+    # a dead escape arm here: the old `$prev -ne '`\`'` compared a char to a 3-character literal, so
+    # a line holding an escaped quote before a "//" - `return "a\"b//c"` - was truncated as if the
+    # string had ended. Behaviour is otherwise identical; this file's PASS output is unchanged.
+. (Join-Path $PSScriptRoot 'qml_lexer.ps1')
 
 # typed intent; C++ DECIDES. So the shell must never advance playback position with a Timer, read raw
 # FFmpeg/mpv property strings, touch production stores/catalogues, or import the production player.
