@@ -1247,6 +1247,28 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
         if (m_cancelled.load(std::memory_order_acquire))
             break;
 
+        // AUDIO-ONLY: arm and maintain the playback clock here, because nothing else will. Every
+        // other reset() in this engine lives in the VIDEO thread (it is the presentation path, so it
+        // is the natural place to lock the clock to what is on screen) - which silently means that a
+        // playback with no video pipeline never has a valid clock at all. Anything gated on the clock
+        // then does nothing: subtitles never appear, and any clock-derived position stays frozen.
+        // That is not just a headless-test artifact - it is every audio-only playback.
+        // The video-only case has always had its counterpart at "video is its own master".
+        if (!videoPresent && audioIsMaster && audioPipeline && playbackClock
+            && !m_paused.load(std::memory_order_acquire)) {
+            const AudioClockSnapshot audio = audioPipeline->clock();
+            if (audio.isValidForGeneration(gen)) {
+                const qint64 now = qpcNow();
+                const qint64 audioNow = audio.mediaPositionUs + static_cast<qint64>(
+                    static_cast<long double>(now - audio.qpcTimestamp) * 1'000'000.0L /
+                    playbackClock->qpcFrequency());
+                if (!playbackClock->valid())
+                    playbackClock->reset(audioNow, now);
+                else
+                    playbackClock->correctToward(audioNow, now, 20'000);
+            }
+        }
+
         // A seek the container refused. Report the network's own account when it has one, because a
         // seek fails on a dead stream far more often than on a bad container.
         if (seekFailed) {
