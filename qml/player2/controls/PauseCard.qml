@@ -21,12 +21,13 @@ Item {
     property string endsAtClock: ""
     property var tracks: []
 
-    // Width breakpoints, mirroring the shipped player's `tight` (< 680) so the card lifts and pulls
-    // in with the dock instead of floating at fixed margins. `barTiny` there is derived from spare
-    // room in the utility row, which this card has no visibility into; the narrow-window intent is
-    // the same and 520 is where this card starts crowding the frame.
+    // Width breakpoints. `tight` mirrors the shipped player's chrome-width rule directly (this item
+    // fills the player, so its width IS the chrome width). `barTiny` is FED IN from the transport
+    // dock, because production derives it from the room left beside the centre transport, not from
+    // any width this card can see - guessing it here made the card fold at a different moment than
+    // the dock (cross-model review, 2026-07-26).
     readonly property bool tight: card.width < 680
-    readonly property bool barTiny: card.width < 520
+    property bool barTiny: false
 
     readonly property color ink: theme ? theme.ink : "#f7f7f5"
     readonly property color inkDim: theme ? theme.inkDim : "#c9c8d0"

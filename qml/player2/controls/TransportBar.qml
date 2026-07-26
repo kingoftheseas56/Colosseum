@@ -18,6 +18,12 @@ Item {
     // Host-fed, because the shell owns orchestration and this bar only paints. Production gates the
     // same two buttons on "there is more than one candidate" and "there is a URL to download"
     // (PlayerPage.qml:4611, 4620), which is also why neither appears for a local file.
+    // Production's own narrow-window measure: the room left for the utility clusters once the centre
+    // transport has taken the middle (PlayerPage's `utilitySpace` / `barTiny`). Exposed so surfaces
+    // that fold WITH the dock - the pause card - fold at the same moment the dock does, instead of
+    // guessing from their own width.
+    readonly property real utilitySpace: root.width / 2 - centreCluster.width / 2 - 34
+    readonly property bool barTiny: root.utilitySpace < 260
     property bool canSwitchSource: false
     property bool canDownload: false
     property string downloadKind: "idle"   // idle | queued | downloading | done | failed
@@ -357,6 +363,7 @@ Item {
         }
 
         Row {
+            id: centreCluster
             anchors.centerIn: parent
             spacing: 8
             RoundButton {
