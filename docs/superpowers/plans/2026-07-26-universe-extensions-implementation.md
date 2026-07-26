@@ -553,6 +553,21 @@ git add qml/UniverseExtApi.js tests/universe_ext_api_test.mjs
 git commit -m "feat(universes): payload loader + validation gate"
 ```
 
+### AMENDMENT (2026-07-26, after code review) — the transport above is WRONG; C++ reads the payload
+
+The `XMLHttpRequest` in Step 3 **never completes in the shipped app.** Proven by running the real Qt 6.11 `qml.exe`, not inferred: Qt 6 blocks XHR GET on `file://` unless `QML_XHR_ALLOW_FILE_READ=1`, which is set nowhere in this repo. The failure mode is the worst available — `open()` and `send()` both return normally without throwing, `readyState` sticks at 1, `onreadystatechange` never fires, so `done()` is never called and the page stays blank forever with no error line. No `try`/`catch` can catch it.
+
+`qml/ComicsDb.js` is **not** a counter-example: its XHR path is dead code nothing calls, and its "status 0 on success" comment is stale.
+
+**The fix is a reduction, not an addition.** The async machinery existed only to fetch a file already on disk, so moving the read to C++ deletes the whole async layer — and with it the race, the missing timeout, the unchecked status, and the callback-identity bug the same review raised. House doctrine already dictated this: *QML paints, C++ decides — no raw XHR on the GUI thread.*
+
+- `ExtensionsStore` gains `Q_INVOKABLE QString universePayload(const QString& file) const` — takes the bare stem (`one-piece`), sanitised to `^[a-z0-9-]+$`, resolves against the repo's existing asset-path convention, returns raw JSON text or `""`.
+- `UniverseExtApi.load()` keeps its **callback signature unchanged** (so Task 7 needs no edit) but reads through an injectable `_reader`; `setReader(fn)` installs it.
+- Validation logic is unchanged and was confirmed correct.
+- `load()` is now unit-testable — it previously had **zero** coverage, which is why a green suite coexisted with a totally broken loader.
+
+**Consequence for Task 9:** the reader must be installed once at startup — see Task 9 Step 0.
+
 ---
 
 ## Task 5: `universe_payload_test.mjs` — the payloads match their plans
@@ -1041,6 +1056,20 @@ git commit -m "chore(universes): drop the bespoke per-IP pages — one renderer 
 **Files:**
 - Modify: `qml/Main.qml`
 - Modify: `qml/UniverseHallPage.qml`
+
+- [ ] **Step 0: Install the payload reader (added by the Task 4 amendment)**
+
+`UniverseExtApi` reads through an injected reader, so it must be installed once before any universe page loads. In `Main.qml`, add the import and install it at startup:
+
+```qml
+    // C++ owns the payload read (Qt blocks file:// XHR). Installed once, here, because a
+    // .pragma library holds one shared instance per QML engine.
+    Component.onCompleted: UniverseApi.setReader(function (f) { return Extensions.universePayload(f) })
+```
+
+The context-property name is **`Extensions`**, not `ExtensionsStore` — confirmed at `native/main.cpp:905` (`setContextProperty(QStringLiteral("Extensions"), extensions)`). If `Main.qml` already has a `Component.onCompleted`, append to it rather than adding a second one.
+
+**Verify the reader is actually installed** before trusting any page render: a missing `setReader` yields `done(null)` and a silently empty page, which looks identical to a payload bug.
 
 - [ ] **Step 1: Point the carousel at the installed universes**
 
