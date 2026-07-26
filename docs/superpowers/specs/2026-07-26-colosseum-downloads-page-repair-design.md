@@ -1,6 +1,6 @@
 # Colosseum Downloads Page Repair — Design
 
-**Status:** design approved, written-spec review pending
+**Status:** approved for implementation
 
 **Date:** 2026-07-26
 
