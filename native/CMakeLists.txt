@@ -915,6 +915,25 @@ if(COLOSSEUM_PLAYER2_IN_APP)
     endif()
     target_link_libraries(colosseum PRIVATE player2_core)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_PLAYER2=1)
+    # Put the FFmpeg runtime NEXT TO the exe. Windows searches the executable's own directory before
+    # PATH, so this makes the app launchable from anywhere - a Desktop shortcut, Explorer, the Start
+    # menu - instead of only from a shell that happens to have FFmpeg on PATH.
+    #
+    # This is not a nicety. The moment Task 18 made Player 2 the default, the exe began REQUIRING
+    # these DLLs at load time, so every launcher without FFmpeg on PATH stopped opening the app at
+    # all - "avutil-60.dll was not found" before a single window appeared. Hemanth hit that on his own
+    # shortcut within minutes of the flip, because the flip had only ever been verified from a shell
+    # that had already exported the path. Verify launches the way HE launches, not the way you do.
+    set(_player2_runtime_dlls avcodec-62 avdevice-62 avfilter-11 avformat-62 avutil-60
+        swresample-6 swscale-9)
+    foreach(_dll IN LISTS _player2_runtime_dlls)
+        if(EXISTS "${FFMPEG_ROOT}/bin/${_dll}.dll")
+            add_custom_command(TARGET colosseum POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "${FFMPEG_ROOT}/bin/${_dll}.dll" "$<TARGET_FILE_DIR:colosseum>"
+                COMMENT "Staging ${_dll}.dll beside colosseum.exe")
+        endif()
+    endforeach()
 endif()
 
 # --- Comic Reader (Agent 1, plan 2026-07-23): engine + backend harnesses ---
