@@ -25,18 +25,32 @@ if ($api -match 'api_key|apikey|token=') { throw 'a keyed source crept into the 
 # (the historical note in the header keeps the word; the endpoint/functions must not return).
 if ($api -match 'konachan\.net|mapKonachan|searchKonachan|konachanTags') { throw 'Konachan wiring crept back into the wallpaper lane - Wallhaven is the only source' }
 
-# 4. native living wallpapers (the arena, 2026-07-18): scene exists, freezes, and routes.
-$arena = Get-Content (Join-Path $root 'qml/wallpapers/ArenaNight.qml') -Raw
-if ($arena -notmatch 'property bool running') { throw 'ArenaNight lost its running gate - it could never freeze' }
-if ($arena -match 'Canvas\s*\{') { throw 'ArenaNight must stay scene-graph work, never per-frame Canvas painting' }
+# 4. native wallpapers (2026-07-18): the Main native-wallpaper route stays wired.
 $main = Get-Content (Join-Path $root 'qml/Main.qml') -Raw
 if ($main -notmatch 'wallpaperIsNative') { throw 'Main lost the native-wallpaper route' }
 if ($main -notmatch 'nativeWallpaperFile') { throw 'Main lost the native-wallpaper registry' }
 if ($main -notmatch 'immersiveSurfaceOpen[\s\S]{0,80}win\.visibility !== Window\.Minimized') {
     throw 'the native wallpaper must freeze on immersive surfaces and minimize (motion doctrine)'
 }
-if ($api -notmatch 'native:arena-night') { throw 'WallpaperApi lost the arena from nativePicks' }
-if ($ui -notmatch '"Colosseum"') { throw 'the picker lost its Colosseum shelf' }
+
+# 4a. Two Colosseum shelves (2026-07-25, Hemanth): "Colosseum Animated" (living scenes)
+# and "Colosseum Native" (still gradients). The picker renders each from its own function.
+if ($api -notmatch 'function nativeAnimatedPicks') { throw 'WallpaperApi lost the Colosseum Animated shelf' }
+if ($api -notmatch 'function nativeStaticPicks') { throw 'WallpaperApi lost the Colosseum Native shelf' }
+if ($ui -notmatch '"Colosseum Animated"') { throw 'the picker lost its Colosseum Animated shelf' }
+if ($ui -notmatch '"Colosseum Native"') { throw 'the picker lost its Colosseum Native shelf' }
+if ($ui -notmatch 'WallpaperApi\.nativeAnimatedPicks\(\)') { throw 'the Animated shelf must render nativeAnimatedPicks()' }
+if ($ui -notmatch 'WallpaperApi\.nativeStaticPicks\(\)') { throw 'the Native shelf must render nativeStaticPicks()' }
+
+# 4b. Retired wallpapers (2026-07-25, Hemanth): The Arena at Night, Gilded Rain, and Facet
+# were removed - guard they stay out of the catalog, the runtime map, and disk.
+foreach ($gone in @('native:arena-night', 'native:gilded-rain', 'native:facet')) {
+    if ($api -match [regex]::Escape($gone)) { throw "retired wallpaper ($gone) crept back into WallpaperApi" }
+    if ($main -match [regex]::Escape($gone)) { throw "retired wallpaper ($gone) crept back into Main" }
+}
+foreach ($gf in @('ArenaNight', 'GildedRain', 'Facet')) {
+    if (Test-Path (Join-Path $root "qml/wallpapers/$gf.qml")) { throw "retired wallpaper scene ($gf.qml) is still on disk" }
+}
 
 # 4c. KDE Plasma shelf (2026-07-20): real OS-desktop wallpapers under a free
 # licence (CC-BY-SA-4.0 / LGPLv3), remote via jsDelivr through the keyless wsrv.nl
@@ -55,15 +69,8 @@ if (!(Test-Path (Join-Path $root 'THIRD_PARTY_NOTICES.md'))) { throw 'THIRD_PART
 if ($api -match 'function houseDefaultPick|function capturedMotionPicks') { throw 'a Captured Motion picker function crept back' }
 if ($api -match 'function osPicks') { throw 'the old OS-defaults shelf (osPicks) must be gone' }
 
-# 4b. Gilded Rain (2026-07-19): second native living wallpaper, same gates as the arena.
-$rain = Get-Content (Join-Path $root 'qml/wallpapers/GildedRain.qml') -Raw
-if ($rain -notmatch 'property bool running') { throw 'GildedRain lost its running gate - it could never freeze' }
-if ($rain -match 'Canvas\s*\{') { throw 'GildedRain must stay scene-graph work, never per-frame Canvas painting' }
-if ($api -notmatch 'native:gilded-rain') { throw 'WallpaperApi lost gilded-rain from nativePicks' }
 # every native route must resolve to a scene through the one shared map (no more hardcoding).
 if ($api -notmatch 'function nativeSceneFor') { throw 'WallpaperApi lost the single nativeSceneFor scene map' }
-if ($api -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'nativeSceneFor does not route gilded-rain to its scene' }
-if ($main -notmatch 'native:gilded-rain[\s\S]{0,60}GildedRain\.qml') { throw 'Main runtime map does not route gilded-rain to its scene' }
 
 # 4d. The QML-drawn Captured Motion recreations (RibbonMotion + variants) were
 # pulled 2026-07-20 - both the Claude and Codex passes fell short of the real
@@ -103,15 +110,7 @@ foreach ($mv in @('mesh-twilight', 'mesh-ember', 'mesh-mint')) {
     if ($main -notmatch ([regex]::Escape("native:$mv") + '[\s\S]{0,80}Mesh')) { throw "Main runtime map does not route $mv to its scene" }
 }
 
-# 4g. Facet (2026-07-20): a still geometric QML wallpaper (Opal-spirit triangular
-# lattice + sweeping glow band). Our own design, Qt Quick Shapes, NO animation.
-$facet = Get-Content (Join-Path $root 'qml/wallpapers/Facet.qml') -Raw
-if ($facet -match 'Canvas\s*\{') { throw 'Facet must stay scene-graph work, never per-frame Canvas painting' }
-if ($facet -notmatch 'import QtQuick.Shapes') { throw 'Facet must be built from Qt Quick Shapes' }
-if ($facet -match 'SequentialAnimation|NumberAnimation|ColorAnimation') { throw 'Facet must stay STILL (no animation)' }
-if ($api -notmatch 'native:facet[\s\S]{0,80}Facet\.qml') { throw 'nativeSceneFor does not route facet to its scene' }
-if ($main -notmatch 'native:facet[\s\S]{0,80}Facet\.qml') { throw 'Main runtime map does not route facet to its scene' }
-if ($api -notmatch '"Facet"') { throw 'nativePicks lost the Facet tile' }
+# 4g. (Facet retired 2026-07-25 - guarded gone in 4b.)
 
 # 4h. LowPoly (2026-07-20): our first shader wallpaper - an ORIGINAL GLSL fragment
 # shader run through a ShaderEffect (slow-morphing low-poly). Freeze-gated.
@@ -127,8 +126,21 @@ if ($api -notmatch 'native:lowpoly[\s\S]{0,80}LowPoly\.qml') { throw 'nativeScen
 if ($main -notmatch 'native:lowpoly[\s\S]{0,80}LowPoly\.qml') { throw 'Main runtime map does not route lowpoly to its scene' }
 if ($api -notmatch '"Low Poly"') { throw 'nativePicks lost the Low Poly tile' }
 
+# 4i. NoirFlow (2026-07-25, Hemanth): our SECOND original shader wallpaper - a domain-warped
+# monochrome flow. Same shader path/gates as LowPoly; leads the Colosseum Animated shelf.
+$nf = Get-Content (Join-Path $root 'qml/wallpapers/NoirFlow.qml') -Raw
+if ($nf -notmatch 'property bool running') { throw 'NoirFlow lost its running gate - it could never freeze' }
+if ($nf -notmatch 'ShaderEffect') { throw 'NoirFlow must render through a ShaderEffect' }
+if ($nf -notmatch 'FrameAnimation') { throw 'NoirFlow must drive iTime from a freeze-gated FrameAnimation clock' }
+if ($nf -notmatch 'noirflow\.frag\.qsb') { throw 'NoirFlow must reference the compiled shader' }
+if (!(Test-Path (Join-Path $root 'qml/wallpapers/shaders/noirflow.frag.qsb'))) { throw 'the compiled shader (noirflow.frag.qsb) is missing' }
+if (!(Test-Path (Join-Path $root 'qml/wallpapers/shaders/noirflow.frag'))) { throw 'the shader source (noirflow.frag) is missing' }
+if ($api -notmatch 'native:noirflow[\s\S]{0,80}NoirFlow\.qml') { throw 'nativeSceneFor does not route noirflow to its scene' }
+if ($main -notmatch 'native:noirflow[\s\S]{0,80}NoirFlow\.qml') { throw 'Main runtime map does not route noirflow to its scene' }
+if ($api -notmatch '"Noir Flow"') { throw 'nativeAnimatedPicks lost the Noir Flow tile' }
+
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'Facet', 'LowPoly')) {
+foreach ($scene in @('NoirFlow', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'LowPoly')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden
@@ -139,4 +151,4 @@ foreach ($scene in @('ArenaNight', 'GildedRain', 'AuroraFlow', 'MeshGradient', '
     if ($errTxt -match 'error') { throw "$scene instantiation errors: $errTxt" }
 }
 
-Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + native arena + gilded rain; QML ribbon recreations removed)'
+Write-Host 'test_wallpaper_suite_p0: PASS (logic + paging UI + SFW gates + Colosseum Animated/Native shelves; arena/gilded-rain/facet retired)'

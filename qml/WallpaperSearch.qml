@@ -286,39 +286,31 @@ Item {
                 font.pixelSize: 12
             }
 
-            // ---- Colosseum shelf: our own QML wallpapers (the living scenes plus the
-            //      still Captured-Motion ribbons), apart from the searchable pool. A
-            //      horizontal strip — the shelf grew past three tiles, so it scrolls
-            //      sideways rather than overflowing the panel. Each tile IS the
-            //      wallpaper, live and miniature. ----
-            Text {
-                text: "Colosseum"
-                color: "#d8d2c4"
-                font.family: theme.display
-                font.pixelSize: 16
-            }
-
-            ListView {
-                id: nativeStrip
+            // ---- Everything below the search controls — both Colosseum shelves, the KDE
+            //      Plasma shelf, and the Wallhaven results — lives in ONE vertical scroller,
+            //      so the panel never overflows at the bottom as the shelves grow
+            //      (2026-07-25, Hemanth). Each native strip still scrolls sideways on its
+            //      own wheel; the results grid is non-interactive so this outer Flickable
+            //      drives all the vertical scrolling. ----
+            Flickable {
+                id: bodyFlick
                 Layout.fillWidth: true
-                Layout.preferredHeight: 92
-                orientation: ListView.Horizontal
-                spacing: 10
+                Layout.fillHeight: true
                 clip: true
-                model: WallpaperApi.nativePicks()
+                contentWidth: width
+                contentHeight: bodyCol.implicitHeight
                 boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: HouseScrollBar { flick: bodyFlick }
 
-                WheelHandler {
-                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
-                    onWheel: (ev) => {
-                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
-                        nativeStrip.contentX = Math.max(0, Math.min(
-                            Math.max(0, nativeStrip.contentWidth - nativeStrip.width),
-                            nativeStrip.contentX - d))
-                    }
-                }
+                ColumnLayout {
+                    id: bodyCol
+                    width: bodyFlick.width
+                    spacing: 14
 
-                delegate: Rectangle {
+            // one tile delegate, shared by both native shelves
+            Component {
+                id: nativeTileDelegate
+                Rectangle {
                     id: nativeTile
                     required property var modelData
                     width: 144
@@ -358,6 +350,66 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.selectedPick = nativeTile.modelData
+                    }
+                }
+            }
+
+            // Colosseum Animated — the living, moving scenes
+            Text {
+                text: "Colosseum Animated"
+                color: "#d8d2c4"
+                font.family: theme.display
+                font.pixelSize: 16
+            }
+
+            ListView {
+                id: animatedStrip
+                Layout.fillWidth: true
+                Layout.preferredHeight: 92
+                orientation: ListView.Horizontal
+                spacing: 10
+                clip: true
+                model: WallpaperApi.nativeAnimatedPicks()
+                boundsBehavior: Flickable.StopAtBounds
+                delegate: nativeTileDelegate
+
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: (ev) => {
+                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
+                        animatedStrip.contentX = Math.max(0, Math.min(
+                            Math.max(0, animatedStrip.contentWidth - animatedStrip.width),
+                            animatedStrip.contentX - d))
+                    }
+                }
+            }
+
+            // Colosseum Native — the still QML gradients
+            Text {
+                text: "Colosseum Native"
+                color: "#d8d2c4"
+                font.family: theme.display
+                font.pixelSize: 16
+            }
+
+            ListView {
+                id: nativeStrip
+                Layout.fillWidth: true
+                Layout.preferredHeight: 92
+                orientation: ListView.Horizontal
+                spacing: 10
+                clip: true
+                model: WallpaperApi.nativeStaticPicks()
+                boundsBehavior: Flickable.StopAtBounds
+                delegate: nativeTileDelegate
+
+                WheelHandler {
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+                    onWheel: (ev) => {
+                        var d = (ev.angleDelta.y !== 0 ? ev.angleDelta.y : ev.angleDelta.x)
+                        nativeStrip.contentX = Math.max(0, Math.min(
+                            Math.max(0, nativeStrip.contentWidth - nativeStrip.width),
+                            nativeStrip.contentX - d))
                     }
                 }
             }
@@ -459,13 +511,15 @@ Item {
             GridView {
                 id: grid
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                clip: true
+                // non-interactive and sized to its content — the outer bodyFlick does the
+                // scrolling, so the results flow straight on under the shelves.
+                Layout.preferredHeight: grid.contentHeight
+                interactive: false
+                clip: false
                 cellWidth: 154
                 cellHeight: 104
                 model: root.results
                 boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: HouseScrollBar { flick: grid }
 
                 delegate: Rectangle {
                     id: resultTile
@@ -545,9 +599,11 @@ Item {
                     }
                 }
             }
+                }
+            }
         }
 
-        ScrollGlide { flick: grid }
+        ScrollGlide { flick: bodyFlick }
     }
 
     Rectangle {

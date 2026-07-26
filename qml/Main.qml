@@ -33,20 +33,18 @@ Window {
     title: "Colosseum"
 
     property string currentSurface: "Home"
-    property string wallpaperSource: "../assets/wallpaper/captured-motion.jpg"
+    property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
     // Native living wallpapers (2026-07-18, ratified from the arena mock): a pick whose
     // image_url is "native:<id>" loads a QML scene instead of an Image. The registry is
     // the one honest map — an unknown id falls back to the default still.
     readonly property bool wallpaperIsNative: wallpaperSource.indexOf("native:") === 0
     // Mirrors WallpaperApi.nativeSceneFor — keep the two in sync when adding a scene.
     function nativeWallpaperFile(source) {
-        if (source === "native:arena-night") return "wallpapers/ArenaNight.qml"
-        if (source === "native:gilded-rain") return "wallpapers/GildedRain.qml"
+        if (source === "native:noirflow") return "wallpapers/NoirFlow.qml"
         if (source === "native:aurora-flow") return "wallpapers/AuroraFlow.qml"
         if (source === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml"
         if (source === "native:mesh-ember") return "wallpapers/MeshEmber.qml"
         if (source === "native:mesh-mint") return "wallpapers/MeshMint.qml"
-        if (source === "native:facet") return "wallpapers/Facet.qml"
         if (source === "native:lowpoly") return "wallpapers/LowPoly.qml"
         return ""
     }
@@ -91,7 +89,7 @@ Window {
     }
     function refreshWallpaper() {
         var pick = pickFor(currentSurface)
-        wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/captured-motion.jpg"
+        wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/cold-ripple.jpg"
     }
     function setWallpaperPick(world, pick) {
         wallpaperSettings[wallpaperKey(world)] = typeof pick === "string" ? pick : JSON.stringify(pick || {})

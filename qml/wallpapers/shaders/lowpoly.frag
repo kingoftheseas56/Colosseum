@@ -15,13 +15,17 @@ float vnoise(vec2 p){
                mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), u.x), u.y);
 }
 float fbm(vec2 p){ float v=0.0,a=0.5; for(int i=0;i<4;i++){ v+=a*vnoise(p); p*=2.0; a*=0.5; } return v; }
-// constrained premium gradient: deep blue -> violet -> magenta -> rare warm
+// monochrome silver ramp (2026-07-25, Hemanth): near-black -> dark grey -> slate ->
+// cool silver highlight. Dark-dominant with a faint cool tint (b >= g >= r) so the
+// bright facets read as steel/silver, never a warm or bright-white wash — keeps the
+// glass UI + gold accents legible. Same interpolation as before, so the faceted glass
+// depth is untouched; only the palette changed (replacing the old purple/magenta).
 vec3 grad(float t){
     t = clamp(t,0.0,1.0);
-    vec3 c0 = vec3(0.05,0.07,0.20);
-    vec3 c1 = vec3(0.22,0.12,0.44);
-    vec3 c2 = vec3(0.56,0.19,0.52);
-    vec3 c3 = vec3(0.92,0.48,0.44);
+    vec3 c0 = vec3(0.040,0.045,0.060);
+    vec3 c1 = vec3(0.130,0.140,0.170);
+    vec3 c2 = vec3(0.340,0.360,0.400);
+    vec3 c3 = vec3(0.660,0.690,0.740);
     if(t < 0.42) return mix(c0,c1, t/0.42);
     else if(t < 0.78) return mix(c1,c2, (t-0.42)/0.36);
     else return mix(c2,c3, (t-0.78)/0.22);

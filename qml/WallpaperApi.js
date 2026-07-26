@@ -20,35 +20,30 @@ var PAGE_LIMIT = 24;   // Wallhaven serves 24/page
 // ---- Colosseum-native living wallpapers (2026-07-18) ----
 // Designed in-house, drawn live by QML — separate from the searchable pool.
 // image_url carries the "native:" route Main resolves to a scene file.
-function nativePicks() {
+//
+// Two shelves (2026-07-25, Hemanth's call): "Colosseum Animated" holds the living,
+// moving scenes; "Colosseum Native" holds the still QML gradients. The Arena at
+// Night, Gilded Rain, and Facet were retired from the set on the same call.
+
+// Colosseum Animated — the living, moving scenes.
+function nativeAnimatedPicks() {
     return [{
-        source: "Colosseum",
-        source_id: "native:arena-night",
+        // Our second original shader wallpaper (2026-07-25): domain-warped monochrome flow.
+        source: "Colosseum Animated",
+        source_id: "native:noirflow",
         source_url: "",
-        image_url: "native:arena-night",
+        image_url: "native:noirflow",
         thumb_url: "",
         w: 0, h: 0,
         aspect: "any",
-        attribution: "Colosseum original",
+        attribution: "Colosseum original (GLSL shader)",
         query: "",
-        title: "The Arena at Night",
-        spec: "Living wallpaper - Colosseum native"
-    }, {
-        source: "Colosseum",
-        source_id: "native:gilded-rain",
-        source_url: "",
-        image_url: "native:gilded-rain",
-        thumb_url: "",
-        w: 0, h: 0,
-        aspect: "any",
-        attribution: "Colosseum original",
-        query: "",
-        title: "Gilded Rain",
-        spec: "Living wallpaper - Colosseum native"
+        title: "Noir Flow",
+        spec: "Slow silver flow - Colosseum shader (QML)"
     }, {
         // Ported from a real KDE Plasma QML wallpaper plugin (2026-07-20), LGPL-2.1;
         // KDE deps stripped for our Qt6 build. See THIRD_PARTY_NOTICES.md.
-        source: "Colosseum",
+        source: "Colosseum Animated",
         source_id: "native:aurora-flow",
         source_url: "https://github.com/VicenteMcMahon/kde-plasma-gradient-wallpaper",
         image_url: "native:aurora-flow",
@@ -60,9 +55,27 @@ function nativePicks() {
         title: "Aurora Flow",
         spec: "Living gradient - ported from KDE Plasma (QML)"
     }, {
-        // Still QML mesh gradients (2026-07-20) — our own designs, drawn from Qt
-        // Quick Shapes, no animation, no bitmap.
-        source: "Colosseum",
+        // Slow-morphing low-poly — our first shader wallpaper (2026-07-20). An
+        // original GLSL fragment shader run through a ShaderEffect; freeze-gated.
+        source: "Colosseum Animated",
+        source_id: "native:lowpoly",
+        source_url: "",
+        image_url: "native:lowpoly",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original (GLSL shader)",
+        query: "",
+        title: "Low Poly",
+        spec: "Slow-morphing silver low-poly - Colosseum shader (QML)"
+    }];
+}
+
+// Colosseum Native — still QML mesh gradients, our own designs (Qt Quick Shapes,
+// no animation, no bitmap).
+function nativeStaticPicks() {
+    return [{
+        source: "Colosseum Native",
         source_id: "native:mesh-twilight",
         source_url: "",
         image_url: "native:mesh-twilight",
@@ -74,7 +87,7 @@ function nativePicks() {
         title: "Twilight",
         spec: "Still mesh gradient - Colosseum QML"
     }, {
-        source: "Colosseum",
+        source: "Colosseum Native",
         source_id: "native:mesh-ember",
         source_url: "",
         image_url: "native:mesh-ember",
@@ -86,7 +99,7 @@ function nativePicks() {
         title: "Ember",
         spec: "Still mesh gradient - Colosseum QML"
     }, {
-        source: "Colosseum",
+        source: "Colosseum Native",
         source_id: "native:mesh-mint",
         source_url: "",
         image_url: "native:mesh-mint",
@@ -97,35 +110,12 @@ function nativePicks() {
         query: "",
         title: "Mint",
         spec: "Still mesh gradient - Colosseum QML"
-    }, {
-        // Still geometric QML wallpaper (2026-07-20) — Opal-spirit: triangular
-        // lattice + a warm sweeping glow band. Our own design, no animation.
-        source: "Colosseum",
-        source_id: "native:facet",
-        source_url: "",
-        image_url: "native:facet",
-        thumb_url: "",
-        w: 0, h: 0,
-        aspect: "any",
-        attribution: "Colosseum original",
-        query: "",
-        title: "Facet",
-        spec: "Still geometric lattice - Colosseum QML"
-    }, {
-        // Slow-morphing low-poly — our first shader wallpaper (2026-07-20). An
-        // original GLSL fragment shader run through a ShaderEffect; freeze-gated.
-        source: "Colosseum",
-        source_id: "native:lowpoly",
-        source_url: "",
-        image_url: "native:lowpoly",
-        thumb_url: "",
-        w: 0, h: 0,
-        aspect: "any",
-        attribution: "Colosseum original (GLSL shader)",
-        query: "",
-        title: "Low Poly",
-        spec: "Slow-morphing low-poly - Colosseum shader (QML)"
     }];
+}
+
+// The full native set (both shelves) — kept for any caller that wants every pick.
+function nativePicks() {
+    return nativeAnimatedPicks().concat(nativeStaticPicks());
 }
 
 function isNativePick(url) {
@@ -137,13 +127,11 @@ function isNativePick(url) {
 // tiles — resolves through here, so a new living wallpaper is added in exactly one place.
 // (Main mirrors this in nativeWallpaperFile(); keep the two in sync when adding a scene.)
 function nativeSceneFor(url) {
-    if (url === "native:arena-night") return "wallpapers/ArenaNight.qml";
-    if (url === "native:gilded-rain") return "wallpapers/GildedRain.qml";
+    if (url === "native:noirflow") return "wallpapers/NoirFlow.qml";
     if (url === "native:aurora-flow") return "wallpapers/AuroraFlow.qml";
     if (url === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml";
     if (url === "native:mesh-ember") return "wallpapers/MeshEmber.qml";
     if (url === "native:mesh-mint") return "wallpapers/MeshMint.qml";
-    if (url === "native:facet") return "wallpapers/Facet.qml";
     if (url === "native:lowpoly") return "wallpapers/LowPoly.qml";
     return "";
 }
