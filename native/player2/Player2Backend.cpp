@@ -166,13 +166,28 @@ void Player2Backend::pump()
 {
     if (!m_item)
         return;
-    // Repaint drives the pipeline's initialisation and, once playing, its presentation.
-    m_item->update();
+    // DEMAND-DRIVEN repaint (the Task 4 CPU trim, forced by evidence 2026-07-26: 68 producer-starved
+    // frames in a minute of high-motion HEVC while the late-drop count sat still - the presenter was
+    // not discarding frames, it was not GETTING them). The old body called update() unconditionally
+    // at 60Hz for the whole session, so on an iGPU - where decode, presentation and the QML scene
+    // graph share one piece of silicon - the player spent most of its budget repainting an unchanged
+    // frame and starved its own decoder. Now a repaint is asked for only when there is something to
+    // paint:
+    //   * the device is still coming up (repaint IS what initialises the pipeline), or
+    //   * an open is pending / nothing has been presented yet (first-frame path), or
+    //   * the pipeline holds frames not yet on glass (submitted moved, or in-flight backlog).
+    // Paused with nothing new: zero repaints. 24fps content: ~24 repaints/s instead of 60.
+    const D3D11VideoPipeline::Diagnostics d = m_pipeline.diagnostics();
+    const bool warmingUp = m_hasPending || !d.adapterMatch || d.presented == 0;
+    const bool framesInFlight = d.submitted != m_lastSubmitted || d.submitted > d.presented;
+    if (warmingUp || framesInFlight)
+        m_item->update();
+    m_lastSubmitted = d.submitted;
 
     if (!m_hasPending)
         return;
 
-    if (!m_pipeline.diagnostics().adapterMatch) {
+    if (!d.adapterMatch) {
         // Give the scene graph a bounded chance to bring the device up (~5s at 16ms). If it never
         // does, say so rather than sit forever on a black page.
         if (++m_waitTicks > 300) {

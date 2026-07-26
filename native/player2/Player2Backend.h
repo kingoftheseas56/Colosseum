@@ -81,6 +81,7 @@ private:
     PlaybackRequest m_pending;
     bool m_hasPending = false;
     int m_waitTicks = 0;
+    quint64 m_lastSubmitted = 0; // pump(): repaint only when the pipeline moved
 
     // Whether a failure has already been claimed/reported for the CURRENT playback attempt — reset
     // in play() and stop(). This is what stops a harmless rejected-transition signal, the generic
