@@ -146,11 +146,14 @@ Item {
         autoHideTimer.restart()
     }
     function notifyActivity() { if (chromeVisible) autoHideTimer.restart() }
-    function _autoHide() { if (reader) reader.chromeVisible = false }
+    // chrome is HELD while a modal is up or the pointer rests ON the chrome — reaching for a pill
+    // and pausing to aim must not fade the pill out from under your cursor (Reader 1 ~:826-830).
+    readonly property bool _holdChrome: modalOpen || chromeHover.hovered
+    function _autoHide() {
+        if (_holdChrome) { autoHideTimer.restart(); return }
+        if (reader) reader.chromeVisible = false
+    }
 
-    // Task 12 CARRY: PAUSE auto-hide while `modalOpen` once overlays land, else the footer fades
-    // under an open settings sheet / navigator after 3s. Guard _autoHide (or stop the timer) on
-    // modalOpen then. No overlay exists yet, so nothing to pause today.
     Timer {
         id: autoHideTimer
         interval: hud.autoHideMs
@@ -303,6 +306,10 @@ Item {
         opacity: hud.chromeVisible ? 1.0 : 0.0
         visible: opacity > 0.001
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+
+        // a pointer resting anywhere on the chrome (pill, scrim, footer) holds auto-hide — see
+        // hud._holdChrome. chromeLayer is a plain Item (not a Row/Column), so this anchors legally.
+        HoverHandler { id: chromeHover }
 
         // ---- top gradient scrim: darkens the top edge so the back + window verbs read on ANY page,
         //      mirroring the footer gradient (and the player's playerTopScrim). The page still owns

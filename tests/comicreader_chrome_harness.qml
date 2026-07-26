@@ -104,6 +104,9 @@ Item {
     FakeShell { id: shellA; core: coreA }
     FakeShell { id: shellAuto }   // isolated shell for the auto-hide deferred test
 
+    // hudAuto's host, parked away from the origin — see setupDeferred for why.
+    Item { id: hudAutoHost; x: 5000; y: 5000; width: 900; height: 600 }
+
     property var hudComp: null
     property var inputComp: null
     property var iconComp: null
@@ -118,11 +121,13 @@ Item {
     // last panBy delta (so a scroll test can assert DIRECTION, not just that it fired)
     property real lastPanDx: 0
     property real lastPanDy: 0
+    // last scrollBy screens value (so a strip-scroll test can assert MAGNITUDE, not just that it fired)
+    property real lastScrollBy: 0
 
     function wireInput(inp) {
         inp.next.connect(function () { bump("next") })
         inp.previous.connect(function () { bump("previous") })
-        inp.scrollBy.connect(function () { bump("scrollBy") })
+        inp.scrollBy.connect(function (screens) { bump("scrollBy"); harness.lastScrollBy = screens })
         inp.zoomBy.connect(function () { bump("zoomBy") })
         inp.panBy.connect(function (dx, dy) { bump("panBy"); harness.lastPanDx = dx; harness.lastPanDy = dy })
         inp.toggleChrome.connect(function () { bump("toggleChrome") })
@@ -261,6 +266,15 @@ Item {
         hud.toggleChrome()
         ck(shellA.chromeVisible === true, "hud: toggleChrome must flip chromeVisible back to true")
 
+        // ----- FIX 3b: auto-hide is HELD while a modal is open (Task 12 CARRY) -----
+        shellA.modalOpen = true; shellA.chromeVisible = true
+        hud._autoHide()
+        ck(shellA.chromeVisible === true, "hud: _autoHide() must leave chromeVisible TRUE while modalOpen is true")
+        shellA.modalOpen = false
+        hud._autoHide()
+        ck(shellA.chromeVisible === false, "hud: _autoHide() must hide chrome once modalOpen is false again")
+        shellA.chromeVisible = true
+
         // ----- toast: the one transient-feedback surface (zoom, pairing, bookmarks) -----
         // The fade is a real `Behavior on opacity` (140ms) — a synchronous read right after calling
         // showToast() still observes the PRE-animation value (qml.exe never ticks the animation
@@ -362,6 +376,33 @@ Item {
         ck(key(Qt.Key_Down) === "" && cnt("panBy") === 0 && cnt("next") === 0, "arrow Down (double, fits) -> swallowed, never a flip")
         ck(key(Qt.Key_Up) === "" && cnt("panBy") === 0 && cnt("previous") === 0, "arrow Up (double, fits) -> swallowed, never a flip")
 
+        // --- STRIP mode: Up/Down are the fine-scroll key (Reader 1: 12%, Shift 25%) — the most
+        //     instinctive key in a vertical reader must not be swallowed (FIX 1) ---
+        input.mode = "long_strip"; input.vScrollMax = 0
+        ck(key(Qt.Key_Down) === "scrollBy" && cnt("scrollBy") === 1 && approx(harness.lastScrollBy, 0.12),
+           "key Down (strip) -> scrollBy(+0.12), got " + harness.lastScrollBy)
+        ck(key(Qt.Key_Up) === "scrollBy" && cnt("scrollBy") === 1 && approx(harness.lastScrollBy, -0.12),
+           "key Up (strip) -> scrollBy(-0.12), got " + harness.lastScrollBy)
+        ck(key(Qt.Key_Up, Qt.ShiftModifier) === "scrollBy" && cnt("scrollBy") === 1 && approx(harness.lastScrollBy, -0.25),
+           "Shift+Up (strip) -> scrollBy(-0.25), got " + harness.lastScrollBy)
+        ck(key(Qt.Key_Down, Qt.ShiftModifier) === "scrollBy" && cnt("scrollBy") === 1 && approx(harness.lastScrollBy, 0.25),
+           "Shift+Down (strip) -> scrollBy(+0.25), got " + harness.lastScrollBy)
+        // double-page ruling still holds: Up/Down in double mode never scrollBy, never flip
+        input.mode = "double_page"; input.zoomPercent = 100; input.vScrollMax = 0
+        sig = {}
+        ck(key(Qt.Key_Down) === "" && cnt("scrollBy") === 0 && cnt("panBy") === 0 && cnt("next") === 0,
+           "arrow Down (double, fits) must still NEVER scrollBy or flip")
+
+        // --- FIX 3a: an open modal owns the keyboard — everything except Escape is gated ---
+        input.mode = "double_page"; input.modalOpen = true
+        sig = {}
+        ck(key(Qt.Key_M) === "" && cnt("cycleMode") === 0, "key M while modalOpen -> gated (no cycleMode)")
+        ck(key(Qt.Key_T) === "" && cnt("openThumbnails") === 0, "key T while modalOpen -> gated")
+        ck(key(Qt.Key_Left) === "" && cnt("next") === 0 && cnt("previous") === 0, "arrow Left while modalOpen -> gated")
+        input.chromeVisible = true
+        ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc while modalOpen still fires its close action")
+        input.modalOpen = false
+
         // --- Esc order: overlay -> chrome -> back ---
         input.modalOpen = true; input.chromeVisible = true
         ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc (overlay up) -> closeTop")
@@ -392,6 +433,24 @@ Item {
         sig = {}; input.pressAt(midX, 300); input.releaseAt(midX, w)
         ck(cnt("next") === 0 && cnt("previous") === 0, "click center third -> NO navigation")
         ck(input.singleClickRunning === true, "click center third -> schedules the single-click chrome toggle")
+
+        // --- FIX 2: STRIP mode side-zone clicks SCROLL instead of falling through to the chrome
+        //     toggle (Reader 1's third-click step, ~0.82 screens) ---
+        input.mode = "long_strip"
+        // the preceding center-third click left the single-click timer ARMED (as designed — the next
+        // double-click test below re-arms + consumes it); a non-mid doubleClick() stops a timer with
+        // no side effect (its fullscreen branch only fires for the mid zone), clearing it here too.
+        input.doubleClick(leftX, w)
+        sig = {}; input.pressAt(leftX, 300); input.releaseAt(leftX, w)
+        ck(cnt("scrollBy") === 1 && approx(harness.lastScrollBy, -0.82), "strip left-third click -> scrollBy(-0.82), got " + harness.lastScrollBy)
+        ck(input.singleClickRunning === false, "strip left-third click must NOT also schedule the chrome toggle")
+        sig = {}; input.pressAt(rightX, 300); input.releaseAt(rightX, w)
+        ck(cnt("scrollBy") === 1 && approx(harness.lastScrollBy, 0.82), "strip right-third click -> scrollBy(+0.82), got " + harness.lastScrollBy)
+        ck(input.singleClickRunning === false, "strip right-third click must NOT also schedule the chrome toggle")
+        // strip center-third click is UNCHANGED: still schedules the chrome toggle
+        sig = {}; input.pressAt(midX, 300); input.releaseAt(midX, w)
+        ck(cnt("scrollBy") === 0, "strip center-third click must NOT scroll")
+        ck(input.singleClickRunning === true, "strip center-third click -> still schedules the single-click chrome toggle")
 
         // --- CENTER double-click toggles fullscreen; the trailing release must NOT re-arm chrome ---
         // NOTE: a real synthetic double-click can't be delivered to a MouseArea offscreen, so we
@@ -470,7 +529,11 @@ Item {
     property int _autoHideChecked: 0
     function setupDeferred() {
         // auto-hide: an isolated HUD on its own shell; reveal starts the pinned timer -> hides.
-        hudAuto = hudComp.createObject(harness, { "reader": shellAuto, "width": 900, "height": 600, "autoHideMs": 40 })
+        // x offset: the offscreen QPA plants a synthetic hover at the platform's default cursor
+        // point (0,0), which a second same-origin Item would receive on creation and read as
+        // chromeHover.hovered=true forever (an offscreen-harness artifact, not a real bug) — parking
+        // hudAuto away from that point keeps this a clean auto-hide-only test.
+        hudAuto = hudComp.createObject(hudAutoHost, { "reader": shellAuto, "width": 900, "height": 600, "autoHideMs": 40 })
         if (hudAuto) { shellAuto.chromeVisible = true; hudAuto.reveal() }
         // single-click real-timer: pin short, arm a center click, expect a toggleChrome after it fires.
         input.mode = "long_strip"
