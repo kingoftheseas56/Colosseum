@@ -363,12 +363,28 @@ Item {
         var dy = pixelY
         if (dy === 0) dy = angleY * 1.4
         if (dy === 0) return
+        // WHEEL-ONLY provenance, fired before the shared glide call below: manualNavigation() means
+        // "a real mouse gesture happened", which a keyboard glide must never forge.
         _userInteracted = true
         manualNavigation()
+        smoothScrollBy(-dy)                                 // wheel-down -> +contentY
+    }
+
+    // Glide by px through the SAME accumulator the wheel uses, so a keyboard press feels like one
+    // big notch rather than a teleport.
+    //
+    // WHY THIS IS SHARED (E2). A raw `contentY = ...` write bypasses both the glide and the backlog.
+    // Press Space in the middle of a wheel glide and the old code jumped you instantly AND THEN kept
+    // sliding on the leftover wheel input still in the drain — jump-then-slide, the exact tell of two
+    // scroll systems fighting. Reader 1 routes keys through smoothScrollBy and pins instant moves
+    // through haltScrollAt; this restores that discipline. Instant, final repositions (a scrub seek,
+    // Home/End) still go through haltScrollAt, which pins the position AND drops the in-flight
+    // backlog so nothing carries across the jump.
+    function smoothScrollBy(px) {
+        if (px === 0) return
         // Starting from idle: re-anchor on the real position and mark this drain FRESH.
         if (!scrollDrain.running) { _smoothY = list.contentY; _drainFresh = true }
-        _pendingWheelPx = Math.max(-_maxBacklogPx,
-                          Math.min(_maxBacklogPx, _pendingWheelPx - dy))   // wheel-down -> +contentY
+        _pendingWheelPx = Math.max(-_maxBacklogPx, Math.min(_maxBacklogPx, _pendingWheelPx + px))
         if (!scrollDrain.running) scrollDrain.running = true
     }
 

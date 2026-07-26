@@ -175,6 +175,10 @@ Item {
 
     // ---- strip user-signal capture: a PROGRAMMATIC restore must emit none of these ----
     property int stripScrolledCount: 0
+    // manualNavigation() is WHEEL provenance specifically ("a real gesture happened"), unlike the
+    // provenance-blind tracking signals above. E2 routes keyboard scrolling through the same drain
+    // as the wheel, so this counter is what proves the shared path did not forge a wheel gesture.
+    property int stripManualNavCount: 0
 
     function fillStripModel(m, n) {
         m.clear()
@@ -206,6 +210,7 @@ Item {
         if (!stripSurface) { failures.push("strip: createObject returned null"); return }
         stripSurface.scrolled.connect(function (f) { harness.stripScrolledCount += 1 })
         stripSurface.pageInView.connect(function (p) { harness.stripScrolledCount += 1 })
+        stripSurface.manualNavigation.connect(function () { harness.stripManualNavCount += 1 })
         stripSurface.forceRelayout()
 
         // --- virtualization: near window has a delegate, a far page does not ---
@@ -383,6 +388,41 @@ Item {
         ck(approx(stripSurface.contentY, 1234.5, 0.001), "wheel: haltScrollAt must pin contentY exactly, got " + stripSurface.contentY)
         ck(stripSurface._pendingWheelPx === 0, "wheel: haltScrollAt must drop the in-flight backlog, got " + stripSurface._pendingWheelPx)
         ck(stripSurface._smoothY === 1234.5, "wheel: haltScrollAt must re-anchor the float accumulator, got " + stripSurface._smoothY)
+
+        // --- E2: keyboard / API repositions ride the SAME drain as the wheel ---
+        // A raw contentY write bypasses both the glide and the backlog: press Space mid-glide and the
+        // view jumps AND THEN keeps sliding on the leftover wheel input. Reader 1 routes keys through
+        // smoothScrollBy and pins instant moves through haltScrollAt. Space should feel like one big
+        // wheel notch, not a teleport.
+        stripSurface.haltScrollAt(0)
+        stripSurface.smoothScrollBy(300)
+        ck(stripSurface._pendingWheelPx === 300,
+           "glide: smoothScrollBy must feed the SAME drain backlog as the wheel, got " + stripSurface._pendingWheelPx)
+        ck(stripSurface._drainFresh === true,
+           "glide: a glide from idle must mark the drain FRESH, exactly like a wheel intake from idle")
+
+        // An instant reposition mid-glide drops the leftover backlog — no jump-then-slide.
+        stripSurface.haltScrollAt(500)
+        ck(stripSurface._pendingWheelPx === 0 && stripSurface.contentY === 500,
+           "glide: haltScrollAt must pin AND drop in-flight backlog, got contentY=" + stripSurface.contentY
+           + " backlog=" + stripSurface._pendingWheelPx)
+
+        // PROVENANCE: manualNavigation() means "a real WHEEL gesture happened". A keyboard/API glide
+        // must not forge one — otherwise every Space press would look like a mouse gesture to any
+        // future consumer of that signal. (Tracking itself is provenance-blind; this is only the
+        // wheel-specific signal.)
+        var manualBefore = harness.stripManualNavCount
+        stripSurface.smoothScrollBy(120)
+        ck(harness.stripManualNavCount === manualBefore,
+           "glide: smoothScrollBy must NOT emit manualNavigation() — that signal is wheel provenance")
+        stripSurface.haltScrollAt(0)
+
+        // ...while the wheel path still does emit it, so the refactor did not hollow the signal out.
+        stripSurface._intakeWheel(-120, 0)
+        ck(harness.stripManualNavCount === manualBefore + 1,
+           "glide: the WHEEL path must still emit manualNavigation() after the refactor, got "
+           + harness.stripManualNavCount + " vs " + (manualBefore + 1))
+        stripSurface.haltScrollAt(0)
 
         // --- RESTORE (B2): the surface is a PAINTER. It restores nothing itself — the shell puts the
         // column somewhere by CALLING seekToPage()/haltScrollAt(). This replaces the old bound

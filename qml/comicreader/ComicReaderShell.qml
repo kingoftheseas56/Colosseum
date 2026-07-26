@@ -352,16 +352,22 @@ Item {
         if (mode === "double_page") p = _unitBoundsForIndex(p - 1)[0] + 1
         currentPage = p
     }
+    // Keyboard scrolling GLIDES (E2). Space/PageDown feed the same drain the wheel feeds, so they
+    // decelerate identically and a press mid-glide adds to the backlog instead of fighting it. The
+    // surface clamps the landing itself; the old raw contentY write here is what produced
+    // jump-then-slide when a key landed while a wheel glide was still running.
     function _stripScroll(screens) {
         var span = stripSurface.contentHeight - stripSurface.height
         if (span <= 0) return
-        stripSurface.contentY = Math.max(0, Math.min(span, stripSurface.contentY + screens * stripSurface.height))
+        stripSurface.smoothScrollBy(screens * stripSurface.height)
     }
+    // A scrub seek is INSTANT and FINAL — it must land where the thumb was released and carry no
+    // leftover glide across the jump, so it takes the halt door rather than the drain.
     function scrubToFraction(frac) {
         var f = Math.max(0, Math.min(1, frac))
         stripFraction = f
         var span = stripSurface.contentHeight - stripSurface.height
-        if (span > 0) stripSurface.contentY = f * span
+        if (span > 0) stripSurface.haltScrollAt(f * span)
     }
     // What page a scrub fraction actually lands on. In Strip that is a GEOMETRY question — pages
     // have different heights, so a linear pages*fraction estimate lies about where you'd land — so
@@ -377,11 +383,12 @@ Item {
         }
         return Math.max(1, Math.round(f * (Math.max(1, max) - 1)) + 1)
     }
-    function firstPageNav() { currentPage = 1; if (mode === "long_strip") stripSurface.contentY = 0 }
+    // Home/End are instant and final, like a scrub seek — the halt door, not the drain.
+    function firstPageNav() { currentPage = 1; if (mode === "long_strip") stripSurface.haltScrollAt(0) }
     function lastPageNav() {
         goToPageIndex(max)
         if (mode === "long_strip")
-            stripSurface.contentY = Math.max(0, stripSurface.contentHeight - stripSurface.height)
+            stripSurface.haltScrollAt(Math.max(0, stripSurface.contentHeight - stripSurface.height))
     }
     // reading-mode changes write the PERSISTED seams (never mode/rtl directly) so a crossing's
     // load() honors the choice; the reactions below flip the visible mode/rtl live. setReadingMode
