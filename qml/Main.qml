@@ -337,6 +337,8 @@ Window {
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
         else if (downloadsLayer.active) win.closeDownloadsPage()
+        else if (universeLayer.active) win.closeUniverse()
+        else if (universeHallLayer.active) win.closeUniverseHall()
         else if (extensionsLayer.active) win.closeExtensionsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
@@ -840,6 +842,32 @@ Window {
     function closeDownloadsPage() { downloadsLayer.active = false }
 
     // ---- Extensions page: the store, entered from the taskbar beside Downloads ----
+    // The installed roster, live. The universes rail derives from it rather than from a
+    // baked list, so installing or removing a universe changes Home with no other edit.
+    property var installedExtensions:
+        (typeof Extensions !== "undefined") ? Extensions.installed() : []
+
+    // A universe is opened BY NAME: the extension supplies identity, and the payload is
+    // looked up from the curation point. That join is what makes an installed universe a
+    // real page instead of a row in a list. (Universes design §5.3 — a universe supplies
+    // identity and ordering, never sources.)
+    property string openUniverseName: ""
+    function openUniverse(name) {
+        if (!name) return
+        win.openUniverseName = name
+        // Opening a SECOND universe while the page is already up must retarget the live
+        // item — onLoaded only fires once, so without this the second open silently shows
+        // the first universe. (The page reacts to universeName; it has no default, on
+        // purpose: a "One Piece" default made every fresh open construct AS One Piece and
+        // then rename, which is the stale flash Hemanth caught on 2026-07-12.)
+        if (universeLayer.active && universeLayer.item)
+            universeLayer.item.universeName = name
+        universeLayer.active = true
+    }
+    function closeUniverse() { universeLayer.active = false }
+    function openUniverseHall() { universeHallLayer.active = true }
+    function closeUniverseHall() { universeHallLayer.active = false }
+
     function openExtensionsPage() {
         extensionsLayer.active = true
         taskbar.open = false
@@ -1469,6 +1497,29 @@ Window {
             width: win.width - theme.margin * 2
             topPadding: 10
             spacing: 30
+
+            // ---- 0. UNIVERSES (2026-07-26): the installed universe extensions, as a row.
+            //      Model is the live roster, not a baked list, and the row hides itself
+            //      when none are installed — so this costs nothing until you own one.
+            Column {
+                width: parent.width
+                spacing: 14
+                visible: homeUniverses.count > 0
+                WidgetHeader {
+                    width: parent.width; title: "Universes"
+                    moreLabel: "See all"
+                    onMoreClicked: win.openUniverseHall()
+                }
+                UniversesShelf {
+                    id: homeUniverses
+                    width: parent.width
+                    form: "carousel"
+                    installedList: win.installedExtensions
+                    onUniverseActivated: function (entry) {
+                        win.openUniverse((entry.manifest && entry.manifest.name) || "")
+                    }
+                }
+            }
 
             // ---- 3. CONTINUE (one unified row, all mediums mixed; scrolls horizontally) ----
             //      Real resume data from the Progress store; hidden entirely until there's
@@ -2198,6 +2249,42 @@ Window {
         function onChanged() {
             TheatreApi.setExtensions(Extensions.installed())
             Subtitles.setExtensions(Extensions.installed())
+            win.installedExtensions = Extensions.installed()
+        }
+    }
+
+    // ---- Universes: the page for one IP, and the hall listing every installed one ----
+    Loader {
+        id: universeLayer
+        anchors.fill: parent
+        z: 52
+        active: false
+        visible: active
+        asynchronous: true          // it builds a row per medium; never on the click's frame
+        source: "UniversePage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.universeName = win.openUniverseName
+            item.backRequested.connect(win.closeUniverse)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+        }
+    }
+    Loader {
+        id: universeHallLayer
+        anchors.fill: parent
+        z: 52
+        active: false
+        visible: active
+        asynchronous: true
+        source: "UniverseHallPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.backRequested.connect(win.closeUniverseHall)
+            item.exploreRequested.connect(function (name) {
+                win.closeUniverseHall(); win.openUniverse(name)
+            })
         }
     }
 

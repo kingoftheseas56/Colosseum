@@ -25,6 +25,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import "ExtensionsCatalog.js" as Catalog
+import "Universes.js" as Universes
 
 Item {
     id: root
@@ -50,9 +51,35 @@ Item {
     }
     readonly property int count: universes.length
     function nameOf(e) { return (e && e.manifest && e.manifest.name) || (e && e.id) || "" }
-    // Optional per §5.1: absent art is normal and must degrade to the honest mark, never
-    // to a stand-in borrowed from another IP.
-    function artOf(e) { return (e && e.manifest && (e.manifest.background || e.manifest.logo)) || "" }
+    // THE JOIN. The extension supplies identity — name, installed, enabled. The payload
+    // (art, blurb, the curated works) lives at the curation point. Matching them by name
+    // is what makes an installed universe a real page rather than an empty row; without it
+    // these are placeholders, which is exactly what Hemanth called them.
+    //
+    // The spec's end state serves this payload as universe.json over HTTPS (§5.5). Reading
+    // it from the in-repo curation is the honest interim: the data is real and verified,
+    // and no server is being pretended into existence.
+    function payloadFor(e) {
+        var n = nameOf(e);
+        if (!n) return null;
+        var all = Universes.universes || [];
+        for (var i = 0; i < all.length; i++)
+            if (all[i] && all[i].name === n) return all[i];
+        return null;
+    }
+    // Manifest art wins when a served universe carries its own; otherwise the curated
+    // banner. Absent both, the tile degrades to its name on the plate — never to a
+    // stand-in borrowed from another IP.
+    function artOf(e) {
+        var m = (e && e.manifest) || {};
+        if (m.background) return m.background;
+        if (m.logo) return m.logo;
+        var p = payloadFor(e);
+        return (p && p.banner) || "";
+    }
+    // A universe with no payload yet is still installed and still opens — it just has
+    // nothing to show. Saying so on the tile beats a silent empty page.
+    function isDressed(e) { return payloadFor(e) !== null }
 
     implicitHeight: form === "list" ? listCol.implicitHeight : strip.height
 
@@ -107,16 +134,27 @@ Item {
                     GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.78) }
                 }
             }
-            Text {
+            Column {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 anchors.margins: 14
-                text: root.nameOf(tile.modelData)
-                color: theme.ink
-                font.family: theme.display
-                font.pixelSize: 20
-                elide: Text.ElideRight
+                spacing: 2
+                Text {
+                    width: parent.width
+                    text: root.nameOf(tile.modelData)
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 20
+                    elide: Text.ElideRight
+                }
+                Text {
+                    width: parent.width
+                    visible: !root.isDressed(tile.modelData)
+                    text: "No works yet"
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 11
+                }
             }
             MouseArea {
                 id: tileMa
