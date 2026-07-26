@@ -84,6 +84,8 @@ Window {
             // The FIRST frame presented after the cover starts lifting must already be settled.
             if (win.revealSeq >= 0 && win.firstFrameAfterRevealSeq < 0) {
                 win.firstFrameAfterRevealSeq = s
+                win._revealContentY = strip.contentY
+                win._revealContentHeight = strip.contentHeight
                 if (win.reflowSeq < 0)
                     win.fail(win.phase + ": no reflow had happened by the first revealed frame")
                 else if (win.reflowContentY >= 0
@@ -91,10 +93,26 @@ Window {
                     win.fail(win.phase + ": first revealed frame shows contentY="
                              + Math.round(strip.contentY) + " but the reflow settled it at "
                              + Math.round(win.reflowContentY) + " — the settle is visible to the user")
+            } else if (win.firstFrameAfterRevealSeq >= 0) {
+                // NOTHING may move after the cover starts lifting. This is the user-truthful form of
+                // the invariant: not "the call happened early enough" but "no frame the user can
+                // actually see contains any part of the settle". contentHeight is checked too,
+                // because a column still rescaling its rows is visible even when contentY holds.
+                if (Math.abs(strip.contentY - win._revealContentY) > 0.5)
+                    win.fail(win.phase + ": contentY moved AFTER the reveal ("
+                             + Math.round(win._revealContentY) + " -> " + Math.round(strip.contentY)
+                             + ") — the user sees the column shift")
+                if (Math.abs(strip.contentHeight - win._revealContentHeight) > 0.5)
+                    win.fail(win.phase + ": contentHeight changed AFTER the reveal ("
+                             + Math.round(win._revealContentHeight) + " -> "
+                             + Math.round(strip.contentHeight)
+                             + ") — the column is still rescaling in view")
             }
         }
     }
     property int _trailing: 0
+    property real _revealContentY: 0
+    property real _revealContentHeight: 0
 
     // ---------------- fake backend core (shape-parity with ComicReaderCore) ----------------
     QtObject {
@@ -113,18 +131,51 @@ Window {
         function setStripViewport(top, height) {}
         function stripPageTop(page) { return page * 1220 }
         function stripPageAtCenter(top, h) { return Math.floor(top / 1220) }
+        property real lastWidth: -1
         function setStripViewportWidth(w) {
             setStripViewportWidthCalls += 1
-            // THE MOMENT UNDER TEST: the reader's column rescale. Recorded only while a transition
-            // is live, so the initial-layout call does not masquerade as a transition reflow.
+            var ratio = (lastWidth > 0) ? (w / lastWidth) : 1
+            lastWidth = w
+            // REAL REFLOW WORK, not a timestamp. The first version of this probe only recorded that
+            // the backend call had been ENTERED — which proves the call happened before the reveal
+            // but NOT that the column actually finished rescaling. Codex's cross-review caught
+            // exactly that gap. The real ComicReaderCore rescales every row IN PLACE on a width
+            // change (dataChanged, not a model reset), so this mirrors it: forceLayout() below now
+            // has genuine work to do and contentHeight really moves.
+            if (ratio !== 1) {
+                for (var i = 0; i < stripModelA.count; i++) {
+                    var r = stripModelA.get(i)
+                    stripModelA.setProperty(i, "displayWidth", r.displayWidth * ratio)
+                    stripModelA.setProperty(i, "displayHeight", r.displayHeight * ratio)
+                    stripModelA.setProperty(i, "top", r.top * ratio)
+                }
+            }
+            // Recorded only while a transition is live, so the initial-layout call does not
+            // masquerade as a transition reflow.
             if (!shield.transitioning) return
-            win.reflowSeq = win.mark("REFLOW setStripViewportWidth", "w=" + Math.round(w))
+            win.reflowSeq = win.mark("REFLOW begins (backend rescale entered)", "w=" + Math.round(w))
             // contentY is scaled by the CALLER immediately after this returns, so it cannot be read
             // here — a zero-interval timer reads it once that assignment has happened.
             settleRead.restart()
         }
     }
     Timer { id: settleRead; interval: 0; repeat: false; onTriggered: win.reflowContentY = strip.contentY }
+
+    // COMPLETION of the reflow, not its start. _flushViewportReport ends by calling forceLayout()
+    // and re-anchoring contentY by the width ratio; that contentY write is the LAST thing the
+    // reflow does, so observing it is observing completion. This is what lets the gate assert "the
+    // column had FINISHED rescaling before the cover lifted" rather than "the call had begun".
+    property int reflowDoneSeq: -1
+    Connections {
+        target: strip
+        function onContentYChanged() {
+            if (!shield.transitioning) return
+            if (win.reflowSeq < 0 || win.reflowDoneSeq >= 0) return
+            win.reflowDoneSeq = win.mark("REFLOW COMPLETE (layout settled, contentY re-anchored)",
+                                         "contentY=" + Math.round(strip.contentY)
+                                         + " contentHeight=" + Math.round(strip.contentHeight))
+        }
+    }
 
     ListModel { id: stripModelA }
     Component.onCompleted: {
@@ -156,8 +207,14 @@ Window {
                 if (win.reflowSeq < 0)
                     win.fail(win.phase + ": cover began lifting before the reader reflowed at all")
                 else if (win.reflowSeq > win.revealSeq)
-                    win.fail(win.phase + ": reflow (seq " + win.reflowSeq + ") landed AFTER the cover "
+                    win.fail(win.phase + ": reflow (seq " + win.reflowSeq + ") STARTED after the cover "
                              + "began lifting (seq " + win.revealSeq + ") — the user watches it settle")
+                else if (win.reflowDoneSeq < 0)
+                    win.fail(win.phase + ": the reflow started but had not COMPLETED (no contentY "
+                             + "re-anchor) before the cover began lifting — the settle is still visible")
+                else if (win.reflowDoneSeq > win.revealSeq)
+                    win.fail(win.phase + ": the reflow COMPLETED (seq " + win.reflowDoneSeq
+                             + ") after the cover began lifting (seq " + win.revealSeq + ")")
                 win.transitionsChecked += 1
             }
         }
@@ -165,7 +222,7 @@ Window {
 
     function beginTransition(which) {
         win.phase = which
-        win.applySeq = -1; win.reflowSeq = -1; win.revealSeq = -1
+        win.applySeq = -1; win.reflowSeq = -1; win.revealSeq = -1; win.reflowDoneSeq = -1
         win.reflowContentY = -1; win.firstFrameAfterRevealSeq = -1
         win.mark("BEGIN " + which + "-fullscreen", "")
         shield.begin()

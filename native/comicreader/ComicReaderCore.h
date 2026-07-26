@@ -230,6 +230,12 @@ private:
 
     // persisted-shape state
     QHash<int, bool> m_spreadOverrides;   // page -> forced spread(true)/single(false)
+    // Spreads the DECODER learned last time this book was open. Without persisting them, pairing is
+    // rebuilt from scratch on every open and only settles as decodes trickle in — so the same book
+    // could pair differently between sessions, and the pages visibly re-shuffle while you read the
+    // first few. Distinct from m_spreadOverrides, which is the user's explicit verdict and always
+    // wins; this is only the machine's observation, replayed so the FIRST paint is already right.
+    QVector<int> m_persistedDetectedSpreads;
     QVector<int> m_bookmarks;
     bool m_memorySaver = false;
     qint64 m_cacheBudget = 512LL * 1024 * 1024;

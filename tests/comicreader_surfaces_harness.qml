@@ -261,6 +261,7 @@ Item {
         coreStrip.stripCompensation(-25)
         ck(approx(stripSurface.contentY, 2035), "strip: stripCompensation(-25) must subtract 25 (2060 -> 2035), got " + stripSurface.contentY)
 
+
         // --- B3: TRACKING IS PROVENANCE-BLIND (bug 1) + THROTTLED, not per-frame (bug 2). This block
         // runs BEFORE the first _intakeWheel call below, so _userInteracted is still false here — that
         // is the whole point: the OLD contract gated the emit on _userInteracted, which only a wheel
@@ -434,6 +435,24 @@ Item {
             return stripSurface.contentHeight - stripSurface.height
         }
 
+        // UNSETTLED GEOMETRY FIRST (the defect Codex's cross-review caught): until the backend has
+        // learned the LAST page's real size, contentHeight is an underestimate and the span is
+        // short. Scrolling to that short span must NOT be reported as the end, or the reader
+        // announces the end of a volume you are in the middle of.
+        stripSurface.haltScrollAt(0)
+        ck(coreStrip.pageSizes[199] === undefined,
+           "atEnd: precondition - the last page must start UNMEASURED for this check to mean anything")
+        stripSurface.haltScrollAt(stripSurface.contentHeight - stripSurface.height)
+        ck(stripSurface.atEnd === false,
+           "atEnd: parked at the END of an UNMEASURED column must report false (the height is an "
+           + "estimate; announcing here is the false end-of-volume toast)")
+
+        // now the backend learns the last page's true size and the same position IS the end
+        coreStrip.pageSizes[199] = { w: 800, h: 1200 }
+        coreStrip.emitPageReady(199)   // the decode lands -> readyRev bumps -> atEnd re-evaluates
+        ck(stripSurface.atEnd === true,
+           "atEnd: once the last page is measured, the same parked position must report the end")
+
         stripSurface.haltScrollAt(0)
         ck(spanNowF5() > 0, "atEnd: fixture must have a scrollable span to test against, got " + spanNowF5())
         ck(stripSurface.atEnd === false, "atEnd: must be false at the top of a long book")
@@ -451,6 +470,33 @@ Item {
         ck(stripSurface.atEnd === true,
            "atEnd: a glide already heading past the bottom must count as at-the-end (backlog aware)")
         stripSurface.haltScrollAt(0)
+
+        // --- E6: compensation is CLAMPED (placed here, at the end of the strip checks, because it
+        // moves contentY freely and the B3 emit-throttle checks above depend on their own state) ---
+        // Near the top of a book a page above the fold can shrink by more than the current scroll
+        // position; unclamped, contentY went negative and left a black band above page 1 until
+        // something else moved the view.
+        stripSurface.haltScrollAt(40)
+        coreStrip.stripCompensation(-200)
+        ck(approx(stripSurface.contentY, 0),
+           "strip: a compensation larger than the scroll position must clamp to 0, not go negative, got "
+           + stripSurface.contentY)
+        ck(approx(stripSurface._smoothY, 0),
+           "strip: the float accumulator must follow the clamped position, got " + stripSurface._smoothY)
+
+        // ...and it clamps at the bottom too, so a growing page cannot push past the end. The span
+        // is read fresh from the surface at assert time rather than cached in a local: contentHeight
+        // moves with relayout, and a cached copy is what made the first draft of this check compare
+        // against a stale number.
+        stripSurface.forceRelayout()
+        stripSurface.haltScrollAt(stripSurface.contentHeight - stripSurface.height - 30)
+        coreStrip.stripCompensation(9999)
+        ck(approx(stripSurface.contentY, stripSurface.contentHeight - stripSurface.height),
+           "strip: compensation must clamp to the scrollable span at the bottom, got "
+           + stripSurface.contentY + " vs span "
+           + (stripSurface.contentHeight - stripSurface.height))
+        stripSurface.haltScrollAt(0)
+
 
         // --- RESTORE (B2): the surface is a PAINTER. It restores nothing itself — the shell puts the
         // column somewhere by CALLING seekToPage()/haltScrollAt(). This replaces the old bound

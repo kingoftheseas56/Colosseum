@@ -1104,6 +1104,44 @@ Item {
                "F2: saving series prefs without an explicit measure must PRESERVE the stored width, got "
                + JSON.stringify(JSON.parse(f2Records.all)["series-A"]))
 
+            // -- 15. E6 HIDE FLUSHES THE BOOK RECORD: hiding is LEAVING. The 800ms entrySave
+            // debounce may still be pending, so a spread override or coupling nudge just made was
+            // only ever in memory - close the app in that window and it is gone. Asserted with NO
+            // deferred phase on purpose: the whole point is that it lands immediately. --
+            var hfRecords = freshRecords()
+            var hfStore = fakeStoreHF
+            hfStore.pages = fivePages()
+            // The harness root is `visible: false`, so every shell it parents is ALREADY invisible
+            // and assigning visible=false fires no change at all - the sibling hide test above only
+            // asserts negatives, so it never noticed. The root is made visible for the length of
+            // this check so the hide is a REAL true->false transition. (Offscreen platform: nothing
+            // is drawn either way.)
+            harness.visible = true
+            var hfShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-hide", "seriesTitle": "Hide", "seriesCover": "file:///f/h.png",
+                "core": fakeCoreHF, "progress": fakeProgHF, "pageStore": hfStore,
+                "entryRecords": hfRecords,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            // a change the user just made, sitting in the backend and NOT yet debounced to disk
+            fakeCoreHF.blob = { couplingMode: "manual", couplingPhase: "shifted" }
+            ck(JSON.parse(hfRecords.all)["ch1"] === undefined,
+               "E6 hide: precondition - nothing filed for this entry yet, got "
+               + JSON.stringify(JSON.parse(hfRecords.all)["ch1"]))
+            ck(hfShell.visible === true,
+               "E6 hide: precondition - the shell must actually BE visible, otherwise hiding it "
+               + "fires no change and this check would pass vacuously")
+
+            hfShell.visible = false
+            var hfSaved = JSON.parse(hfRecords.all)["ch1"]
+            ck(hfSaved !== undefined && hfSaved.couplingPhase === "shifted",
+               "E6 hide: hiding the reader must flush the book record IMMEDIATELY (not leave it on "
+               + "the 800ms debounce), got " + JSON.stringify(hfSaved))
+            harness.visible = false
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -1226,6 +1264,7 @@ Item {
     FakeCore { id: fakeCoreF5b } FakeProgress { id: fakeProgF5b } FakePageStore { id: fakeStoreF5b }
     FakeCore { id: fakeCoreF2a } FakeProgress { id: fakeProgF2a } FakePageStore { id: fakeStoreF2a }
     FakeCore { id: fakeCoreF2b } FakeProgress { id: fakeProgF2b } FakePageStore { id: fakeStoreF2b }
+    FakeCore { id: fakeCoreHF }  FakeProgress { id: fakeProgHF }  FakePageStore { id: fakeStoreHF }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }

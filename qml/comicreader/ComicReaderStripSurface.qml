@@ -90,9 +90,35 @@ Item {
     // whether a page-down should scroll or announce the end of the volume. It counts the IN-FLIGHT
     // backlog deliberately: without that, a second Space pressed while the first is still gliding
     // would read the not-yet-arrived position and announce the end while the page is still moving.
+    //
+    // AND IT REFUSES TO ANSWER ON ESTIMATED GEOMETRY (hardened after Codex's cross-review, which
+    // caught this as a real defect). Until a page is decoded the column uses an ESTIMATED height for
+    // it, so contentHeight is an underestimate and the scrollable span is short. Scroll down faster
+    // than the decodes land and you reach "the end" while there is still book left — and the reader
+    // announces the end of a volume you are in the middle of. Lying is worse than saying nothing, so
+    // an unmeasured tail reports false and the shell simply scrolls instead.
+    //
+    // `readyRev` is read purely as a reactive dependency: it bumps on every pageReady, which is the
+    // only signal QML gets that the backend learned a real page size (the per-page rev it folds into
+    // imageUrl is a C++-side read QML cannot see). Same trick the `source` bindings below use.
     readonly property bool atEnd: {
+        var _dep = readyRev                       // re-evaluate as decodes land
+        var n = list.count
+        if (n <= 0) return false                  // nothing loaded yet is NOT the end of anything
+        if (!_lastRowMeasured()) return false     // geometry still an estimate — never announce
         var span = Math.max(0, list.contentHeight - list.height)
-        return span <= 0 || (list.contentY + _pendingWheelPx) >= span - 1
+        if (span <= 0) return true                // the whole (measured) book fits the viewport
+        return (list.contentY + _pendingWheelPx) >= span - 1
+    }
+    // Has the backend learned the LAST page's true size? pageInfo() omits geometry it has not
+    // learned yet (ComicReaderCore::onMetaReady fills it from the file header ahead of the decode),
+    // so a present, positive sourceHeight is the honest "this row's height is real, not estimated"
+    // signal. A partial seam or a fake without sizes answers "not measured", which fails CLOSED.
+    function _lastRowMeasured() {
+        var n = list.count
+        if (n <= 0 || !core || !core.pageInfo) return false
+        var pi = core.pageInfo(n - 1)
+        return !!pi && pi.sourceHeight !== undefined && Number(pi.sourceHeight) > 0
     }
     function itemAt(i) { return list.itemAtIndex(i) }
     function forceRelayout() { list.forceLayout() }
@@ -159,8 +185,16 @@ Item {
     function _applyCompensation(delta) {
         // a page above the fold changed height — shift our scroll position by the same delta so the
         // read position holds. Programmatic (never a user gesture).
+        //
+        // CLAMPED (E6): this was the last unclamped contentY write in the surface. Near the top of a
+        // book a page above the fold can shrink, producing a negative delta larger than the scroll
+        // position — contentY goes negative and the reader shows a black band above page 1 until
+        // something else moves the view. Every other write already clamps; this one was simply
+        // missed. The clamp is inert wherever there is room, so ordinary mid-book compensation is
+        // unchanged.
+        var maxY = Math.max(0, list.contentHeight - list.height)
         _programmatic = true
-        list.contentY = list.contentY + delta
+        list.contentY = Math.max(0, Math.min(maxY, list.contentY + delta))
         _smoothY = list.contentY
         _programmatic = false
     }

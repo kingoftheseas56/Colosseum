@@ -380,11 +380,22 @@ Item {
                 color: hud.cSideThumb
                 x: (parent.width - width) / 2
                 readonly property real _span: Math.max(0, parent.height - height)
-                y: hud.fillRatio() * _span
+                // A plain `y:` binding here was DESTROYED by the first drag: drag.target writes y
+                // imperatively, which breaks the binding permanently, so after one drag the thumb
+                // stopped tracking the reading position for the rest of the session. A Binding with
+                // RestoreBindingOrValue re-arms the tracking as soon as the drag ends. (E6)
+                Binding on y {
+                    when: !sideThumbMa.drag.active
+                    value: hud.fillRatio() * sideThumb._span
+                    restoreMode: Binding.RestoreBindingOrValue
+                }
                 MouseArea {
+                    id: sideThumbMa
                     anchors.fill: parent
                     anchors.margins: -6
-                    cursorShape: Qt.SizeVerCursor
+                    // NO cursorShape. A resize cursor here says "drag to resize", which is not what
+                    // this does, and Tankoban 2 explicitly reverted the same SizeVerCursor for that
+                    // reason — restoring it was a lineage paraphrase, not a port. (E6)
                     drag.target: sideThumb
                     drag.axis: Drag.YAxis
                     drag.minimumY: 0

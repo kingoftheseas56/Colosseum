@@ -94,6 +94,7 @@ void ComicReaderCore::resetEntryState() {
     m_couplingConfidence = 0.0;
 
     m_spreadOverrides.clear();
+    m_persistedDetectedSpreads.clear();
     m_bookmarks.clear();
     m_memorySaver = false;
 
@@ -160,6 +161,19 @@ void ComicReaderCore::applyPersisted(const QVariantMap& persisted) {
         }
     }
 
+    // The decoder's learned spreads from the last session (E6). Replayed so pairing is correct on
+    // the FIRST paint instead of re-derived as decodes trickle in.
+    if (persisted.contains(QStringLiteral("detectedSpreads"))) {
+        m_persistedDetectedSpreads.clear();
+        const QVariantList ds = persisted.value(QStringLiteral("detectedSpreads")).toList();
+        for (const QVariant& v : ds) {
+            bool ok = false;
+            const int idx = v.toInt(&ok);
+            if (ok && idx >= 0)
+                m_persistedDetectedSpreads.append(idx);
+        }
+    }
+
     if (persisted.contains(QStringLiteral("couplingMode"))) {
         const QString mode = persisted.value(QStringLiteral("couplingMode")).toString();
         if (mode == QLatin1String("manual")) {
@@ -193,6 +207,14 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
 
     parsePages(pages);
     applyPersisted(persisted);
+
+    // Fold the decoder's REMEMBERED spreads on first, so pairing is shaped correctly before a
+    // single page has decoded. Done before the override fold below, because the user's explicit
+    // verdict must still win over anything the machine merely observed.
+    for (const int idx : m_persistedDetectedSpreads) {
+        if (idx >= 0 && idx < m_pages.size())
+            m_pages[idx].detectedSpread = true;
+    }
 
     // Fold persisted spread overrides onto the page metas so pairing + strip see them.
     for (auto it = m_spreadOverrides.constBegin(); it != m_spreadOverrides.constEnd(); ++it) {
@@ -291,6 +313,14 @@ QVariantMap ComicReaderCore::persistedState() const {
     for (auto it = m_spreadOverrides.constBegin(); it != m_spreadOverrides.constEnd(); ++it)
         so.insert(QString::number(it.key()), it.value());
     m.insert(QStringLiteral("spreadOverrides"), so);
+    // The decoder's learned spreads, emitted ONLY when non-empty so a book with none round-trips as
+    // absence exactly as before (T12's byte-identical round-trip stays green).
+    QVariantList ds;
+    for (const PageMeta& pm : m_pages)
+        if (pm.detectedSpread)
+            ds.append(pm.index);
+    if (!ds.isEmpty())
+        m.insert(QStringLiteral("detectedSpreads"), ds);
     m.insert(QStringLiteral("couplingMode"),
              m_couplingMode == CouplingMode::Manual ? QStringLiteral("manual")
                                                     : QStringLiteral("auto"));

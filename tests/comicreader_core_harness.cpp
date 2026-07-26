@@ -912,6 +912,44 @@ int main(int argc, char** argv) {
               "T22 an entry-less core's stripPageAtCenter is -1, never a crash");
     }
 
+    // ── Test 23: the decoder's LEARNED spreads persist — pairing cannot reshuffle
+    // between opens, and the FIRST paint is already correct instead of settling as
+    // decodes trickle in. (E6)
+    {
+        ComicReaderCore core;
+        QVariantMap p = manualNormal();
+        QVariantList ds; ds.append(3);
+        p.insert(QStringLiteral("detectedSpreads"), ds);
+        core.openEntry(QStringLiteral("t23"), plainPages, QStringLiteral("ltr"), p);
+        CHECK(core.unitForPage(3).value(QStringLiteral("spread")).toBool() == true,
+              "T23 a persisted detected spread shapes the pairing BEFORE any decode");
+        const QVariantList out =
+            core.persistedState().value(QStringLiteral("detectedSpreads")).toList();
+        CHECK(out.size() == 1 && out[0].toInt() == 3, "T23 detectedSpreads round-trips");
+    }
+    {
+        // A book with no learned spreads must emit NO key at all, so absence round-trips as
+        // absence and T12's byte-identical persisted-state check stays green.
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t23b"), plainPages, QStringLiteral("ltr"), manualNormal());
+        CHECK(!core.persistedState().contains(QStringLiteral("detectedSpreads")),
+              "T23 a book with no detected spreads emits no detectedSpreads key");
+    }
+    {
+        // The USER's explicit verdict still wins over the machine's remembered observation:
+        // a persisted detectedSpread of page 3 plus an override saying "not a spread" = single.
+        ComicReaderCore core;
+        QVariantMap p = manualNormal();
+        QVariantList ds; ds.append(3);
+        p.insert(QStringLiteral("detectedSpreads"), ds);
+        QVariantMap so;
+        so.insert(QStringLiteral("3"), false);
+        p.insert(QStringLiteral("spreadOverrides"), so);
+        core.openEntry(QStringLiteral("t23c"), plainPages, QStringLiteral("ltr"), p);
+        CHECK(core.unitForPage(3).value(QStringLiteral("spread")).toBool() == false,
+              "T23 an explicit user override beats a remembered detected spread");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

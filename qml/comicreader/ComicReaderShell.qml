@@ -608,8 +608,15 @@ Item {
     // down ONLY on destruction (Component.onDestruction).
     onVisibleChanged: {
         if (!_ready) return
-        if (visible) forceActiveFocus()
-        else recordProgress()                        // hide = flush only, never core.closeEntry()
+        if (visible) { forceActiveFocus(); return }
+        // hide = flush only, never core.closeEntry() — the entry stays open so coming back is instant.
+        recordProgress()
+        // ...but flush the BOOK's record too (E6). Hiding is leaving: the reader goes away when you
+        // navigate out, and the 800ms entrySave debounce may still be pending. If the app is closed
+        // or killed inside that window, a spread override or coupling nudge you just made was only
+        // ever in memory. shutdown() already does this; the hide path flushed progress alone.
+        entrySave.stop()
+        _saveEntryBlob()
     }
 
     Component.onCompleted: {
