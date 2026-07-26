@@ -33,6 +33,7 @@ QImage subtitleImageFromRgba(const QByteArray &rgba, int width, int height);
 // list, or -1 if none. The last match wins, so a newer overlapping cue takes over. This is what gates
 // subtitle display on the playback clock instead of decode-arrival (cues decode ~seconds ahead).
 qsizetype activeSubtitleCueIndex(const std::vector<SubtitleCue> &cues, qint64 nowUs);
+void capOpenBitmapCues(std::vector<SubtitleCue> *cues, qint64 atUs);
 
 // Player2Session is also the recovery target: it owns the pipeline/sink/demux, so it is the one
 // place that may rebuild a lost device and reopen the current media. The coordinator drives it.

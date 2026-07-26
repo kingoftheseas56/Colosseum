@@ -20,19 +20,61 @@ Item {
     signal openRequested(var item)           // completed row → host routes by world/kind
     signal openWorldRequested(string world)  // empty-lane CTA → host opens that world
     signal playArrivingRequested(var job)    // live theatre job → host streams the same url
+    signal openAudiobookRequested(var item)
 
     Theme { id: theme }
 
     // ---- read-model bindings (revision-driven refresh) ----
+    property var downloadsApi: (typeof LocalDownloads !== "undefined") ? LocalDownloads : null
+    property var audiobooksApi: (typeof Audiobooks !== "undefined") ? Audiobooks : null
     property var jobs: []
     property var jobGroups: []
     property int liveJobCount: 0
+    property int attentionCount: 0
     property var openGroups: ({})
     property var laneSeries: ({})      // world -> series list
     property var totalsMap: ({})
     property string openLedgerWorld: ""
     property string openLedgerKey: ""
     property var ledgerItems: []
+    property string mutationMessage: ""
+
+    property bool confirmationOpen: false
+    property string confirmationTitle: ""
+    property string confirmationBody: ""
+    property string confirmationLabel: ""
+    property var confirmationCallback: null
+
+    function confirmAction(title, body, label, callback) {
+        confirmationTitle = title;
+        confirmationBody = body;
+        confirmationLabel = label;
+        confirmationCallback = callback;
+        confirmationOpen = true;
+    }
+    function closeConfirmation() {
+        confirmationOpen = false;
+        confirmationCallback = null;
+    }
+    function runConfirmedAction() {
+        var callback = confirmationCallback;
+        closeConfirmation();
+        if (callback) callback();
+    }
+    function finishMutation(result, fallbackMessage) {
+        if (result && result.success === false) {
+            mutationMessage = result.message || fallbackMessage;
+            return false;
+        }
+        mutationMessage = "";
+        refresh();
+        return true;
+    }
+    function isLiveState(state) {
+        return state === "queued" || state === "resolving"
+                || state === "downloading" || state === "paused"
+                || state === "extracting";
+    }
 
     // ---- source-cooldown visibility (Task 11) ----
     // MangaDownloader (exposed to QML as `Downloads`) emits paused(chapterId,
@@ -50,20 +92,22 @@ Item {
     property var abActive: ({})        // pairKey -> { state: "resolving"|"downloading"|"failed", pct }
     property var abDone: []            // downloadedAudiobooks() snapshot: {id,title,author,bytes,addedAt,missing,fileCount}
     function abRefresh() {
-        abDone = (typeof Audiobooks !== "undefined") ? Audiobooks.downloadedAudiobooks() : [];
-        // SEED the live map from the engine's own job list — a job started BEFORE this
-        // page existed emitted its signals into the void (the 2026-07-20 invisible-
-        // download gap). Ground truth comes from the engine; signals keep it live after.
-        // Failed entries are signal-only stickies (the engine drops failed jobs), so
-        // carry them over — they'd vanish on every refresh otherwise.
+        abDone = audiobooksApi ? audiobooksApi.downloadedAudiobooks() : [];
         var m = {};
-        for (var k in abActive)
-            if (abActive[k] && abActive[k].state === "failed") m[k] = abActive[k];
-        if (typeof Audiobooks !== "undefined" && Audiobooks.activeDownloads) {
-            var act = Audiobooks.activeDownloads() || [];
-            for (var i = 0; i < act.length; i++)
-                m[act[i].id] = { state: act[i].state,
-                                 pct: act[i].total > 0 ? act[i].received / act[i].total : 0 };
+        if (audiobooksApi && audiobooksApi.activeDownloads) {
+            var act = audiobooksApi.activeDownloads() || [];
+            for (var i = 0; i < act.length; i++) {
+                var item = act[i];
+                m[item.id] = {
+                    state: item.state,
+                    title: item.title || "",
+                    author: item.author || "",
+                    error: item.error || "",
+                    received: item.received || 0,
+                    total: item.total || 0,
+                    pct: item.total > 0 ? item.received / item.total : 0
+                };
+            }
         }
         abActive = m;
     }
@@ -72,11 +116,13 @@ Item {
         return p[0] ? p[0] : String(key || "");
     }
     Connections {
-        target: typeof Audiobooks !== "undefined" ? Audiobooks : null
-        function onResolving(key)          { var m = root.abActive; m[key] = { state: "resolving", pct: 0 }; root.abActive = m }
-        function onProgress(key, rcv, tot) { var m = root.abActive; m[key] = { state: "downloading", pct: tot > 0 ? rcv / tot : 0 }; root.abActive = m }
+        target: root.audiobooksApi
+        ignoreUnknownSignals: true
+        function onResolving(key)          { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "resolving", title: old.title || "", author: old.author || "", error: "", received: 0, total: 0, pct: 0 }; root.abActive = m }
+        function onProgress(key, rcv, tot) { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "downloading", title: old.title || "", author: old.author || "", error: "", received: rcv, total: tot, pct: tot > 0 ? rcv / tot : 0 }; root.abActive = m }
         function onFinished(key, path)     { var m = root.abActive; delete m[key]; root.abActive = m; root.abRefresh() }
-        function onFailed(key, why)        { var m = root.abActive; m[key] = { state: "failed", pct: 0 }; root.abActive = m }
+        function onFailed(key, why)        { var m = Object.assign({}, root.abActive); var old = m[key] || ({}); m[key] = { state: "failed", title: old.title || "", author: old.author || "", error: why || "download failed", received: old.received || 0, total: old.total || 0, pct: old.pct || 0 }; root.abActive = m }
+        function onFailuresChanged()       { root.abRefresh() }
     }
     property double nowTick: Date.now()     // bumped 1/s while anything cools, drives the countdown
     readonly property bool anyCooling: {
@@ -93,13 +139,20 @@ Item {
 
     function refresh() {
         abRefresh();                       // audiobooks ride their own engine, not LocalDownloads
-        if (typeof LocalDownloads === "undefined") return;
-        jobs = LocalDownloads.activeJobs();
+        if (!downloadsApi) return;
+        jobs = downloadsApi.activeJobs();
         jobGroups = groupJobs(jobs);
         var live = 0;
+        var attention = 0;
         for (var k = 0; k < jobs.length; k++)
-            if (jobs[k].state !== "done") live++;
+            if (isLiveState(jobs[k].state)) live++;
+            else if (jobs[k].state === "failed") attention++;
+        for (var abKey in abActive) {
+            if (isLiveState(abActive[abKey].state)) live++;
+            else if (abActive[abKey].state === "failed") attention++;
+        }
         liveJobCount = live;
+        attentionCount = attention;
         // drop cooldowns whose job left the queue without a terminal signal
         // (e.g. cancelled) so a stale countdown never lingers.
         var present = {};
@@ -107,13 +160,25 @@ Item {
         var pruned = {}, dropped = false;
         for (var ck in coolMap) { if (present[ck]) pruned[ck] = coolMap[ck]; else dropped = true; }
         if (dropped) coolMap = pruned;
-        totalsMap = LocalDownloads.totals;
+        var baseTotals = downloadsApi.totals || ({});
+        var audioBytes = 0;
+        for (var a = 0; a < abDone.length; a++) audioBytes += (abDone[a].bytes || 0);
+        totalsMap = {
+            items: (baseTotals.items || 0) + abDone.length,
+            bytes: (baseTotals.bytes || 0) + audioBytes,
+            tankoban: baseTotals.tankoban || 0,
+            biblio: baseTotals.biblio || 0,
+            theatre: baseTotals.theatre || 0,
+            audiobook: abDone.length,
+            active: live,
+            attention: attention
+        };
         var lanes = {};
         for (var i = 0; i < worlds.length; i++)
-            lanes[worlds[i].key] = LocalDownloads.series(worlds[i].key);
+            lanes[worlds[i].key] = downloadsApi.series(worlds[i].key);
         laneSeries = lanes;
         if (openLedgerKey.length) {
-            ledgerItems = LocalDownloads.items(openLedgerWorld, openLedgerKey);
+            ledgerItems = downloadsApi.items(openLedgerWorld, openLedgerKey);
             computeLedgerSeasons();
         }
     }
@@ -126,8 +191,7 @@ Item {
         }
         openLedgerWorld = world;
         openLedgerKey = key;
-        ledgerItems = (typeof LocalDownloads !== "undefined")
-                      ? LocalDownloads.items(world, key) : [];
+        ledgerItems = downloadsApi ? downloadsApi.items(world, key) : [];
         openSeasons = ({});
         computeLedgerSeasons();
     }
@@ -257,15 +321,17 @@ Item {
             if (!g) {
                 g = { key: key, world: j.world || "theatre", rows: [],
                       doneCount: 0, liveCount: 0, received: 0, total: 0,
-                      speed: 0, eta: -1, ratioSum: 0 };
+                      speed: 0, eta: -1 };
                 byKey[key] = g;
                 groups.push(g);
             }
             g.rows.push(j);
-            if (j.state === "done") { g.doneCount++; g.ratioSum += 1; }
-            else { g.liveCount++; g.ratioSum += (j.ratio || 0); }
-            g.received += (j.received || 0);
-            g.total += (j.total || 0);
+            if (j.state === "done") g.doneCount++;
+            else if (isLiveState(j.state)) g.liveCount++;
+            if ((j.total || 0) > 0) {
+                g.received += (j.received || 0);
+                g.total += j.total;
+            }
             if (j.state === "downloading") g.speed += (j.speed || 0);
             var eta = (j.etaSec === undefined || j.etaSec === null) ? -1 : j.etaSec;
             if (eta >= 0) g.eta = Math.max(g.eta, eta);
@@ -274,7 +340,10 @@ Item {
             var g2 = groups[k];
             g2.count = g2.rows.length;
             g2.single = g2.count === 1;
-            g2.ratio = g2.count > 0 ? g2.ratioSum / g2.count : 0;
+            g2.hasKnownTotal = g2.total > 0;
+            g2.ratio = g2.hasKnownTotal
+                    ? Math.max(0, Math.min(1, g2.received / g2.total))
+                    : 0;
             var first = g2.rows[0];
             g2.season = first.season || 0;
             g2.seriesTitle = first.seriesTitle || "";
@@ -295,7 +364,8 @@ Item {
     Component.onCompleted: refresh()
     onVisibleChanged: if (visible) refresh()
     Connections {
-        target: typeof LocalDownloads !== "undefined" ? LocalDownloads : null
+        target: root.downloadsApi
+        ignoreUnknownSignals: true
         function onChanged() { root.refresh() }
     }
     // Cooldown feed — `Downloads` (MangaDownloader) is the only backbone that
@@ -384,9 +454,21 @@ Item {
                     parts.push("Tankoban <font color='#c9c8d0'>" + (t.tankoban || 0) + "</font>");
                     parts.push("Biblio <font color='#c9c8d0'>" + (t.biblio || 0) + "</font>");
                     parts.push("Theatre <font color='#c9c8d0'>" + (t.theatre || 0) + "</font>");
+                    parts.push("Audiobooks <font color='#c9c8d0'>" + (t.audiobook || 0) + "</font>");
                     if (t.active) parts.push("<b><font color='#f0c44a'>" + t.active + " arriving</font></b>");
+                    if (t.attention) parts.push("<b><font color='#c98b8b'>" + t.attention + " need attention</font></b>");
                     return parts.join("  ·  ");
                 }
+            }
+            Text {
+                visible: root.mutationMessage.length > 0
+                topPadding: 10
+                width: parent.width
+                text: root.mutationMessage
+                color: "#c98b8b"
+                font.family: theme.ui
+                font.pixelSize: 13
+                wrapMode: Text.Wrap
             }
 
             // ============ NOW ARRIVING — the manager zone ============
@@ -396,7 +478,7 @@ Item {
             // ETA, size — our files arrive over plain HTTP from our own engine.
             Column {
                 width: col.width
-                visible: root.jobGroups.length > 0
+                visible: root.jobGroups.length > 0 || Object.keys(root.abActive).length > 0
                 topPadding: 40
                 spacing: 16
 
@@ -406,7 +488,7 @@ Item {
                            font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
                     Text { anchors.baseline: parent.children[0].baseline
                            text: root.liveJobCount + (root.liveJobCount === 1 ? " live job" : " live jobs")
-                                 + " — this zone leaves when the last one lands"
+                                 + (root.attentionCount > 0 ? " · " + root.attentionCount + " need attention" : "")
                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
                 }
 
@@ -539,9 +621,7 @@ Item {
                                             // watched now — only once it's actually downloading
                                             // with a resolved url (never queued/resolving).
                                             visible: grp.modelData.single
-                                                     && grp.modelData.world === "theatre"
-                                                     && grp.modelData.rows[0].state === "downloading"
-                                                     && String(grp.modelData.rows[0].url || "").length > 0
+                                                     && grp.modelData.rows[0].canPlay === true
                                             text: "Play"
                                             color: hPlayMa.containsMouse ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
@@ -551,30 +631,29 @@ Item {
                                         }
                                         Text {
                                             visible: grp.modelData.single
-                                                     && grp.modelData.rows[0].state === "failed"
+                                                     && grp.modelData.rows[0].canRetry === true
                                             text: "Retry"
                                             color: hRetryMa.containsMouse ? "#ffd968" : theme.gold
                                             font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                                             MouseArea { id: hRetryMa; anchors.fill: parent; hoverEnabled: true
                                                         cursorShape: Qt.PointingHandCursor
-                                                        onClicked: LocalDownloads.retry(grp.modelData.world, grp.modelData.rows[0].id) }
+                                                        onClicked: root.downloadsApi.retry(grp.modelData.world, grp.modelData.rows[0].id) }
                                         }
                                         Text {
                                             id: hPauseT
                                             readonly property bool anyRunning: {
                                                 var rows = grp.modelData.rows;
                                                 for (var i = 0; i < rows.length; i++)
-                                                    if (rows[i].state === "downloading" || rows[i].state === "resolving"
-                                                        || rows[i].state === "queued") return true;
+                                                    if (rows[i].canPause === true) return true;
                                                 return false;
                                             }
                                             readonly property bool anyPaused: {
                                                 var rows = grp.modelData.rows;
                                                 for (var i = 0; i < rows.length; i++)
-                                                    if (rows[i].state === "paused") return true;
+                                                    if (rows[i].canResume === true) return true;
                                                 return false;
                                             }
-                                            visible: grp.modelData.world === "theatre" && (anyRunning || anyPaused)
+                                            visible: anyRunning || anyPaused
                                             text: anyRunning
                                                   ? (grp.modelData.single ? "Pause" : "Pause season")
                                                   : (grp.modelData.single ? "Resume" : "Resume season")
@@ -591,28 +670,56 @@ Item {
                                                             // and the live session url — takes the slot first).
                                                             for (var k = 0; k < rows.length; k++) {
                                                                 var i = pausing ? rows.length - 1 - k : k;
-                                                                if (pausing && (rows[i].state === "downloading"
-                                                                        || rows[i].state === "resolving" || rows[i].state === "queued"))
-                                                                    LocalDownloads.pause(grp.modelData.world, rows[i].id);
-                                                                else if (!pausing && rows[i].state === "paused")
-                                                                    LocalDownloads.resume(grp.modelData.world, rows[i].id);
+                                                                if (pausing && rows[i].canPause === true)
+                                                                    root.downloadsApi.pause(grp.modelData.world, rows[i].id);
+                                                                else if (!pausing && rows[i].canResume === true)
+                                                                    root.downloadsApi.resume(grp.modelData.world, rows[i].id);
                                                             }
                                                         } }
                                         }
                                         Text {
-                                            visible: grp.modelData.liveCount > 0
-                                            text: grp.modelData.single
-                                                  ? (grp.modelData.rows[0].state === "failed" ? "Remove" : "Cancel")
-                                                  : "Cancel season"
+                                            visible: grp.modelData.single
+                                                     && grp.modelData.rows[0].state === "failed"
+                                                     && grp.modelData.rows[0].canRetry !== true
+                                            text: grp.modelData.world === "biblio" ? "Open Biblio" : "Open Tankoban"
+                                            color: hSourceMa.containsMouse ? "#ffd968" : theme.gold
+                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            MouseArea { id: hSourceMa; anchors.fill: parent; hoverEnabled: true
+                                                        cursorShape: Qt.PointingHandCursor
+                                                        onClicked: root.openWorldRequested(grp.modelData.world) }
+                                        }
+                                        Text {
+                                            readonly property bool anyCancelable: {
+                                                var rows = grp.modelData.rows;
+                                                for (var i = 0; i < rows.length; i++)
+                                                    if (rows[i].canCancel === true) return true;
+                                                return false;
+                                            }
+                                            visible: anyCancelable
+                                                     || (grp.modelData.single
+                                                         && grp.modelData.rows[0].canDismiss === true)
+                                            text: grp.modelData.single && grp.modelData.rows[0].canDismiss === true
+                                                  ? "Dismiss"
+                                                  : (grp.modelData.single ? "Cancel" : "Cancel season")
                                             color: hCancelMa.containsMouse ? theme.ink : theme.inkDimmer
                                             font.family: theme.ui; font.pixelSize: 12
                                             MouseArea { id: hCancelMa; anchors.fill: parent; hoverEnabled: true
                                                         cursorShape: Qt.PointingHandCursor
                                                         onClicked: {
                                                             var rows = grp.modelData.rows;
-                                                            for (var i = rows.length - 1; i >= 0; i--)
-                                                                if (rows[i].state !== "done")
-                                                                    LocalDownloads.cancel(grp.modelData.world, rows[i].id);
+                                                            if (grp.modelData.single && rows[0].canDismiss === true) {
+                                                                root.downloadsApi.dismissFailure(grp.modelData.world, rows[0].id);
+                                                                return;
+                                                            }
+                                                            root.confirmAction(
+                                                                grp.modelData.single ? "Cancel download?" : "Cancel season?",
+                                                                "Partial files will be deleted.",
+                                                                "Cancel download",
+                                                                function() {
+                                                                    for (var i = rows.length - 1; i >= 0; i--)
+                                                                        if (rows[i].canCancel === true)
+                                                                            root.downloadsApi.cancel(grp.modelData.world, rows[i].id);
+                                                                });
                                                         } }
                                         }
                                     }
@@ -620,7 +727,7 @@ Item {
                                         anchors.left: parent.left; anchors.bottom: parent.bottom
                                         width: parent.width * grp.modelData.ratio
                                         height: 3; color: theme.gold
-                                        visible: grp.modelData.liveCount > 0
+                                        visible: grp.modelData.liveCount > 0 && grp.modelData.hasKnownTotal
                                     }
                                 }
 
@@ -689,9 +796,10 @@ Item {
                                                     var parts = [];
                                                     var sp = root.fmtSpeed(m.speed || 0);
                                                     if (sp.length) parts.push("<font color='#f0c44a'><b>" + sp + "</b></font>");
-                                                    parts.push(Math.round((m.ratio || 0) * 100) + "%");
-                                                    if (m.total > 0)
+                                                    if (m.total > 0) {
+                                                        parts.push(Math.round((m.ratio || 0) * 100) + "%");
                                                         parts.push(root.fmtBytes(m.received || 0) + " of " + root.fmtBytes(m.total));
+                                                    }
                                                     return parts.join(" · ");
                                                 }
                                                 if (m.state === "done" && m.total > 0) return root.fmtBytes(m.total);
@@ -714,9 +822,7 @@ Item {
                                             Text {
                                                 // play-while-arriving (2026-07-20): same gate as the
                                                 // single card — downloading + resolved url only.
-                                                visible: epRow.modelData.world === "theatre"
-                                                         && epRow.modelData.state === "downloading"
-                                                         && String(epRow.modelData.url || "").length > 0
+                                                visible: epRow.modelData.canPlay === true
                                                 text: "Play"
                                                 color: rPlayMa.containsMouse ? "#ffd968" : theme.gold
                                                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
@@ -725,39 +831,47 @@ Item {
                                                             onClicked: root.playArrivingRequested(epRow.modelData) }
                                             }
                                             Text {
-                                                visible: epRow.modelData.world === "theatre"
-                                                         && (epRow.modelData.state === "downloading"
-                                                             || epRow.modelData.state === "resolving"
-                                                             || epRow.modelData.state === "queued"
-                                                             || epRow.modelData.state === "paused")
-                                                text: epRow.modelData.state === "paused" ? "Resume" : "Pause"
+                                                visible: epRow.modelData.canPause === true
+                                                         || epRow.modelData.canResume === true
+                                                text: epRow.modelData.canResume === true ? "Resume" : "Pause"
                                                 color: rPauseMa.containsMouse ? "#ffd968" : theme.gold
                                                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                                                 MouseArea { id: rPauseMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: epRow.modelData.state === "paused"
-                                                                       ? LocalDownloads.resume(epRow.modelData.world, epRow.modelData.id)
-                                                                       : LocalDownloads.pause(epRow.modelData.world, epRow.modelData.id) }
+                                                            onClicked: epRow.modelData.canResume === true
+                                                                       ? root.downloadsApi.resume(epRow.modelData.world, epRow.modelData.id)
+                                                                       : root.downloadsApi.pause(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
-                                                visible: epRow.modelData.state === "failed"
+                                                visible: epRow.modelData.canRetry === true
                                                 text: "Retry"
                                                 color: rRetryMa.containsMouse ? "#ffd968" : theme.gold
                                                 font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
                                                 MouseArea { id: rRetryMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: LocalDownloads.retry(epRow.modelData.world, epRow.modelData.id) }
+                                                            onClicked: root.downloadsApi.retry(epRow.modelData.world, epRow.modelData.id) }
                                             }
                                             Text {
-                                                visible: epRow.modelData.state !== "done"
-                                                text: epRow.modelData.state === "failed" ? "Remove"
-                                                    : epRow.modelData.state === "downloading"
-                                                      || epRow.modelData.state === "resolving" ? "Cancel" : "Remove"
+                                                visible: epRow.modelData.canCancel === true
+                                                         || epRow.modelData.canDismiss === true
+                                                text: epRow.modelData.canDismiss === true ? "Dismiss" : "Cancel"
                                                 color: rCancelMa.containsMouse ? theme.ink : theme.inkDimmer
                                                 font.family: theme.ui; font.pixelSize: 12
                                                 MouseArea { id: rCancelMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: LocalDownloads.cancel(epRow.modelData.world, epRow.modelData.id) }
+                                                            onClicked: {
+                                                                if (epRow.modelData.canDismiss === true) {
+                                                                    root.downloadsApi.dismissFailure(epRow.modelData.world, epRow.modelData.id);
+                                                                    return;
+                                                                }
+                                                                root.confirmAction(
+                                                                    "Cancel download?",
+                                                                    "The partial file will be deleted.",
+                                                                    "Cancel download",
+                                                                    function() {
+                                                                        root.downloadsApi.cancel(epRow.modelData.world, epRow.modelData.id);
+                                                                    });
+                                                            } }
                                             }
                                         }
                                         Rectangle { // per-row progress on the bottom edge
@@ -766,6 +880,81 @@ Item {
                                             width: (parent.width - 78) * (epRow.modelData.ratio || 0)
                                             height: 2; color: theme.gold
                                             visible: epRow.modelData.state === "downloading"
+                                                     && (epRow.modelData.total || 0) > 0
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        Repeater {
+                            model: Object.keys(root.abActive)
+                            delegate: Item {
+                                id: managerAudioRow
+                                required property var modelData
+                                readonly property var st: root.abActive[modelData] || ({})
+                                width: groupsCol.width
+                                height: 58
+
+                                Rectangle {
+                                    anchors.left: parent.left; anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    height: 1; color: Qt.rgba(1, 1, 1, 0.06)
+                                }
+                                Column {
+                                    anchors.left: parent.left; anchors.leftMargin: 52
+                                    anchors.right: managerAudioAction.left; anchors.rightMargin: 18
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    spacing: 3
+                                    Text {
+                                        width: parent.width
+                                        text: managerAudioRow.st.title || root.abTitleOf(managerAudioRow.modelData)
+                                        color: theme.ink
+                                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: {
+                                            if (managerAudioRow.st.state === "failed")
+                                                return "Audiobook · failed — " + (managerAudioRow.st.error || "download failed");
+                                            if (managerAudioRow.st.state === "resolving")
+                                                return "Audiobook · resolving";
+                                            if (managerAudioRow.st.total > 0)
+                                                return "Audiobook · " + root.fmtBytes(managerAudioRow.st.received)
+                                                        + " of " + root.fmtBytes(managerAudioRow.st.total);
+                                            return "Audiobook · downloading";
+                                        }
+                                        color: managerAudioRow.st.state === "failed" ? "#c98b8b" : theme.inkDimmer
+                                        font.family: theme.ui; font.pixelSize: 12
+                                        elide: Text.ElideRight
+                                    }
+                                }
+                                Text {
+                                    id: managerAudioAction
+                                    anchors.right: parent.right; anchors.rightMargin: 26
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: managerAudioRow.st.state === "failed" ? "Dismiss" : "Cancel"
+                                    color: managerAudioMa.containsMouse ? theme.ink : theme.inkDimmer
+                                    font.family: theme.ui; font.pixelSize: 12
+                                    MouseArea {
+                                        id: managerAudioMa
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            if (managerAudioRow.st.state === "failed") {
+                                                root.audiobooksApi.dismissFailure(managerAudioRow.modelData);
+                                                root.abRefresh();
+                                                return;
+                                            }
+                                            root.confirmAction(
+                                                "Cancel audiobook download?",
+                                                "The partial files will be deleted.",
+                                                "Cancel download",
+                                                function() {
+                                                    root.audiobooksApi.cancelDownload(managerAudioRow.modelData);
+                                                });
                                         }
                                     }
                                 }
@@ -1021,6 +1210,7 @@ Item {
             Column {
                 id: abLane
                 width: col.width
+                visible: root.abDone.length > 0 || Object.keys(root.abActive).length === 0
                 topPadding: 48
                 spacing: 16
                 readonly property var abKeys: Object.keys(root.abActive)
@@ -1068,51 +1258,14 @@ Item {
                             }
                             Text {
                                 text: "Open a book in Biblio and pick a release ›"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
-                            }
-                        }
-
-                        // active downloads first — mirrored live from the engine's signals
-                        Repeater {
-                            model: abLane.abKeys
-                            delegate: Item {
-                                id: abJobRow
-                                required property var modelData
-                                readonly property var st: root.abActive[modelData] || ({})
-                                width: abShelfCol.width; height: 54
-                                Column {
-                                    anchors.left: parent.left; anchors.right: abJobAct.left; anchors.rightMargin: 16
-                                    anchors.verticalCenter: parent.verticalCenter
-                                    spacing: 3
-                                    Text {
-                                        width: parent.width
-                                        text: root.abTitleOf(abJobRow.modelData)
-                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 15
-                                        font.weight: Font.Medium; font.capitalization: Font.Capitalize
-                                        elide: Text.ElideRight
-                                    }
-                                    Text {
-                                        text: abJobRow.st.state === "resolving" ? "resolving…"
-                                            : abJobRow.st.state === "queued" ? "queued"
-                                            : abJobRow.st.state === "failed" ? "failed — retry from the book's page"
-                                            : ("downloading — " + Math.round((abJobRow.st.pct || 0) * 100) + "%")
-                                        color: abJobRow.st.state === "failed" ? theme.inkDimmer : theme.gold
-                                        font.family: theme.ui; font.pixelSize: 12
-                                    }
-                                }
-                                Text {
-                                    id: abJobAct
-                                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    text: abJobRow.st.state === "failed" ? "Dismiss" : "Cancel"
-                                    color: abCancelMa.containsMouse ? theme.ink : theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 13
-                                    MouseArea { id: abCancelMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (abJobRow.st.state !== "failed" && typeof Audiobooks !== "undefined")
-                                                Audiobooks.cancelDownload(abJobRow.modelData)
-                                            var m = root.abActive; delete m[abJobRow.modelData]; root.abActive = m
-                                        } }
+                                color: emptyAudioMa.containsMouse ? "#ffd968" : theme.inkDimmer
+                                font.family: theme.ui; font.pixelSize: 14
+                                MouseArea {
+                                    id: emptyAudioMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: root.openWorldRequested("audiobook")
                                 }
                             }
                         }
@@ -1134,7 +1287,7 @@ Item {
                                 }
                                 Column {
                                     anchors.left: abMark.right; anchors.leftMargin: 14
-                                    anchors.right: abDelT.left; anchors.rightMargin: 16
+                                    anchors.right: abDoneActions.left; anchors.rightMargin: 16
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 3
                                     Text {
@@ -1155,26 +1308,53 @@ Item {
                                             if (b) parts.push(b);
                                             var w = root.fmtWhen(abDoneRow.modelData.addedAt || 0);
                                             if (w) parts.push(w);
-                                            parts.push("listen from the book's page in Biblio");
+                                            if (abDoneRow.modelData.bookPath)
+                                                parts.push("ready to listen");
+                                            else
+                                                parts.push("the paired book is not available locally");
                                             return parts.join(" · ");
                                         }
                                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                                         elide: Text.ElideRight
                                     }
                                 }
-                                Text {
-                                    id: abDelT
+                                Row {
+                                    id: abDoneActions
                                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                                    text: "Delete"
-                                    color: abDelMa.containsMouse ? theme.ink : theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 13
-                                    MouseArea { id: abDelMa; anchors.fill: parent; hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            if (typeof Audiobooks !== "undefined")
-                                                Audiobooks.deleteAudiobook(abDoneRow.modelData.id)
-                                            root.abRefresh()
-                                        } }
+                                    spacing: 20
+                                    Text {
+                                        visible: !abDoneRow.modelData.missing
+                                                 && String(abDoneRow.modelData.bookPath || "").length > 0
+                                        text: "Open book"
+                                        color: abOpenMa.containsMouse ? "#ffd968" : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        MouseArea {
+                                            id: abOpenMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.openAudiobookRequested(abDoneRow.modelData)
+                                        }
+                                    }
+                                    Text {
+                                        text: "Delete local copy"
+                                        color: abDelMa.containsMouse ? theme.ink : theme.inkDimmer
+                                        font.family: theme.ui; font.pixelSize: 13
+                                        MouseArea {
+                                            id: abDelMa
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: root.confirmAction(
+                                                "Delete local audiobook?",
+                                                "The downloaded audiobook files will be deleted.",
+                                                "Delete local copy",
+                                                function() {
+                                                    var result = root.audiobooksApi.deleteAudiobook(abDoneRow.modelData.id);
+                                                    root.finishMutation(result, "The audiobook could not be deleted.");
+                                                })
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1187,6 +1367,97 @@ Item {
     }
 
     ScrollGlide { flick: page }
+
+    Rectangle {
+        anchors.fill: parent
+        visible: root.confirmationOpen
+        z: 100
+        color: Qt.rgba(0, 0, 0, 0.72)
+        MouseArea { anchors.fill: parent }
+
+        Rectangle {
+            anchors.centerIn: parent
+            width: Math.min(480, root.width - 48)
+            height: confirmContent.implicitHeight + 48
+            radius: 16
+            color: "#171820"
+            border.width: 1
+            border.color: theme.edge
+
+            Column {
+                id: confirmContent
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 24
+                spacing: 14
+
+                Text {
+                    width: parent.width
+                    text: root.confirmationTitle
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 22
+                    wrapMode: Text.Wrap
+                }
+                Text {
+                    width: parent.width
+                    text: root.confirmationBody
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 13
+                    wrapMode: Text.Wrap
+                }
+                Row {
+                    anchors.right: parent.right
+                    spacing: 10
+                    Rectangle {
+                        width: cancelConfirmText.implicitWidth + 28
+                        height: 34
+                        radius: 17
+                        color: cancelConfirmMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07)
+                        Text {
+                            id: cancelConfirmText
+                            anchors.centerIn: parent
+                            text: "Go back"
+                            color: theme.ink
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                        }
+                        MouseArea {
+                            id: cancelConfirmMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.closeConfirmation()
+                        }
+                    }
+                    Rectangle {
+                        width: confirmActionText.implicitWidth + 28
+                        height: 34
+                        radius: 17
+                        color: confirmActionMa.containsMouse ? "#ffd968" : theme.gold
+                        Text {
+                            id: confirmActionText
+                            anchors.centerIn: parent
+                            text: root.confirmationLabel
+                            color: "#111217"
+                            font.family: theme.ui
+                            font.pixelSize: 13
+                            font.weight: Font.DemiBold
+                        }
+                        MouseArea {
+                            id: confirmActionMa
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.runConfirmedAction()
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // ---- fixed back / system controls (mirrors GenrePage) ----
     Item {
@@ -1250,7 +1521,7 @@ Item {
                 width: parent.width
                 text: {
                     if (row.rowData.missing)
-                        return "the file left the disk outside the app — remove the entry or fetch it again";
+                        return "the file left the disk outside the app — dismiss the entry or fetch it again";
                     var parts = [];
                     if (row.rowData.subtitle) parts.push(row.rowData.subtitle);
                     var b = root.fmtBytes(row.rowData.bytes || 0);
@@ -1277,14 +1548,24 @@ Item {
                             onClicked: root.openRequested(row.rowData) }
             }
             Text {
-                text: "Remove"
+                text: row.rowData.missing ? "Dismiss missing entry" : "Delete local copy"
                 color: rmMa.containsMouse ? theme.ink : theme.inkDimmer
                 font.family: theme.ui; font.pixelSize: 13
                 MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                LocalDownloads.remove(row.rowData.world, row.rowData.id)
-                                root.refresh()
+                                var world = row.rowData.world;
+                                var id = row.rowData.id;
+                                root.confirmAction(
+                                    row.rowData.missing ? "Dismiss missing entry?" : "Delete local copy?",
+                                    row.rowData.missing
+                                        ? "This removes the stale Downloads entry."
+                                        : "The downloaded file will be deleted from this device.",
+                                    row.rowData.missing ? "Dismiss entry" : "Delete local copy",
+                                    function() {
+                                        var result = root.downloadsApi.remove(world, id);
+                                        root.finishMutation(result, "The local copy could not be deleted.");
+                                    });
                             } }
             }
         }

@@ -55,7 +55,7 @@ public:
 
     // ── downloaded-videos library ──
     Q_INVOKABLE QVariantList downloadedVideos() const;
-    Q_INVOKABLE void removeVideo(const QString &id);
+    Q_INVOKABLE QVariantMap removeVideo(const QString &id);
 
     // dev harness: COLOSSEUM_VIDEOQ_SELFTEST="exactrow" (later: "group"|"speed"|"pause")
     // logs [videoq-selftest] PASS/FAIL lines at startup; test jobs self-clean.
@@ -64,6 +64,7 @@ public:
 signals:
     void changed();          // active-job status and/or queue shape changed
     void libraryChanged();   // the persisted downloaded-videos set changed
+    void removed(const QString &id);
     void needResolve(const QString &id, const QString &streamId, const QString &mediaType);
 
 private:

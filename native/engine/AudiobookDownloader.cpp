@@ -1,4 +1,5 @@
 #include "AudiobookDownloader.h"
+#include "DownloadFileOps.h"
 
 #include "../AudioPairingStore.h"
 #include "../player/streamserver.h"
@@ -121,6 +122,8 @@ void AudiobookDownloader::loadIndex()
         e.dir     = o.value(QStringLiteral("dir")).toString();
         e.title   = o.value(QStringLiteral("title")).toString();
         e.author  = o.value(QStringLiteral("author")).toString();
+        e.bookId  = o.value(QStringLiteral("bookId")).toString();
+        e.bookPath = o.value(QStringLiteral("bookPath")).toString();
         e.bytes   = static_cast<qint64>(o.value(QStringLiteral("bytes")).toDouble());
         e.addedAt = static_cast<qint64>(o.value(QStringLiteral("addedAt")).toDouble());
         const QJsonArray fa = o.value(QStringLiteral("files")).toArray();
@@ -140,6 +143,8 @@ void AudiobookDownloader::saveIndex() const
         o[QStringLiteral("dir")]     = it.value().dir;
         o[QStringLiteral("title")]   = it.value().title;
         o[QStringLiteral("author")]  = it.value().author;
+        o[QStringLiteral("bookId")]  = it.value().bookId;
+        o[QStringLiteral("bookPath")] = it.value().bookPath;
         o[QStringLiteral("bytes")]   = static_cast<double>(it.value().bytes);
         o[QStringLiteral("addedAt")] = static_cast<double>(it.value().addedAt);
         QJsonArray fa;
@@ -219,6 +224,8 @@ QVariantList AudiobookDownloader::activeDownloads() const
                                                                 : QStringLiteral("downloading")));
     for (const Job* q : m_queue)
         out.append(describe(q, QStringLiteral("queued")));
+    for (const QVariantMap &failure : m_failures)
+        out.append(failure);
     return out;
 }
 
@@ -235,6 +242,8 @@ QVariantList AudiobookDownloader::downloadedAudiobooks() const
             {QStringLiteral("fileCount"), e.files.size()},
             {QStringLiteral("bytes"), e.bytes},
             {QStringLiteral("addedAt"), e.addedAt},
+            {QStringLiteral("bookId"), e.bookId},
+            {QStringLiteral("bookPath"), e.bookPath},
             {QStringLiteral("missing"), e.files.isEmpty() || !QFile::exists(e.files.first())}
         });
     }
@@ -266,12 +275,19 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
 {
     const QString infoHash = infoHashIn.trimmed().toLower();
     if (pairKey.isEmpty()) { emit failed(pairKey, QStringLiteral("empty pairKey")); return; }
+    if (m_failures.remove(pairKey))
+        emit failuresChanged();
     // Remember the reader's bookId (and ebook path) for the auto-attach at finished().
     // Only overwrite with a real value — a later empty call (e.g. the 4-arg selfTest
     // path) must not clobber what a prior call already bound to this pairKey.
     if (!bookId.isEmpty()) m_bookIdFor.insert(pairKey, bookId);
     if (!bookPath.isEmpty()) m_bookPathFor.insert(pairKey, bookPath);
-    if (infoHash.size() != 40) { emit failed(pairKey, QStringLiteral("bad infoHash")); return; }
+    if (infoHash.size() != 40) {
+        const QString reason = QStringLiteral("bad infoHash");
+        rememberFailure(pairKey, title, author, reason);
+        emit failed(pairKey, reason);
+        return;
+    }
     if (isDownloaded(pairKey)) {
         const QString dir = localAudiobook(pairKey);
         attachToBook(pairKey, dir);           // idempotent re-emit still attaches
@@ -279,7 +295,12 @@ void AudiobookDownloader::downloadAudiobook(const QString& pairKey, const QStrin
         return;
     }
     if (isActive(pairKey)) return;
-    if (!m_stream) { emit failed(pairKey, QStringLiteral("stream engine unavailable")); return; }
+    if (!m_stream) {
+        const QString reason = QStringLiteral("stream engine unavailable");
+        rememberFailure(pairKey, title, author, reason);
+        emit failed(pairKey, reason);
+        return;
+    }
 
     Job* job = new Job;
     job->pairKey = pairKey; job->infoHash = infoHash; job->title = title; job->author = author;
@@ -517,6 +538,8 @@ void AudiobookDownloader::finalizeJob(Job* job)
     Entry e;
     e.dir = dirFor(job->pairKey);
     e.title = job->title; e.author = job->author;
+    e.bookId = m_bookIdFor.value(job->pairKey);
+    e.bookPath = m_bookPathFor.value(job->pairKey);
     e.bytes = job->doneBytes;
     e.addedAt = QDateTime::currentMSecsSinceEpoch();
     for (const FileJob& fj : job->files) e.files << fj.finalPath;
@@ -560,6 +583,8 @@ void AudiobookDownloader::failJob(Job* job, const QString& reason)
 {
     cleanupInFlight(job);
     const QString pk = job->pairKey;
+    rememberFailure(pk, job->title, job->author, reason,
+                    job->doneBytes + job->fileReceived, job->totalBytes);
     qWarning() << "[AudiobookDownloader] FAILED" << pk << reason;
     emit failed(pk, reason);
     if (m_active == job) {
@@ -570,6 +595,22 @@ void AudiobookDownloader::failJob(Job* job, const QString& reason)
         delete job;
     }
     emit activeCountChanged();
+}
+
+void AudiobookDownloader::rememberFailure(const QString& pairKey, const QString& title,
+                                          const QString& author, const QString& reason,
+                                          qint64 received, qint64 total)
+{
+    m_failures.insert(pairKey, QVariantMap{
+        {QStringLiteral("id"), pairKey},
+        {QStringLiteral("title"), title},
+        {QStringLiteral("author"), author},
+        {QStringLiteral("state"), QStringLiteral("failed")},
+        {QStringLiteral("error"), reason.simplified().left(240)},
+        {QStringLiteral("received"), static_cast<double>(received)},
+        {QStringLiteral("total"), static_cast<double>(total)}
+    });
+    emit failuresChanged();
 }
 
 void AudiobookDownloader::promoteQueue()
@@ -598,28 +639,76 @@ void AudiobookDownloader::cleanupInFlight(Job* job)
 void AudiobookDownloader::cancelDownload(const QString& pairKey)
 {
     if (m_active && m_active->pairKey == pairKey) {
-        failJob(m_active, QStringLiteral("cancelled by user"));
+        cancelJob(m_active);
         return;
     }
     for (int i = 0; i < m_queue.size(); ++i) {
         if (m_queue[i]->pairKey == pairKey) {
             Job* j = m_queue.takeAt(i);
-            emit failed(pairKey, QStringLiteral("cancelled by user (queued)"));
-            delete j;
+            const auto result = DownloadFileOps::removeTree(dirFor(pairKey));
             emit activeCountChanged();
+            if (!result.success) {
+                qWarning() << "[downloads] cancel cleanup failed" << pairKey << result.message;
+                rememberFailure(pairKey, j->title, j->author, result.message,
+                                j->doneBytes + j->fileReceived, j->totalBytes);
+                delete j;
+                emit failed(pairKey, result.message);
+                return;
+            }
+            delete j;
+            emit removed(pairKey);
             return;
         }
     }
 }
 
-void AudiobookDownloader::deleteAudiobook(const QString& pairKey)
+QVariantMap AudiobookDownloader::deleteAudiobook(const QString& pairKey)
 {
     auto it = m_index.find(pairKey);
-    if (it == m_index.end()) return;
-    QDir(it.value().dir).removeRecursively();
+    if (it == m_index.end())
+        return DownloadFileOps::toMap({true, QString()});
+    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << pairKey << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.erase(it);
+    m_failures.remove(pairKey);
     saveIndex();
     emit removed(pairKey);
+    return DownloadFileOps::toMap(result);
+}
+
+void AudiobookDownloader::cancelJob(Job* job)
+{
+    cleanupInFlight(job);
+    const auto result = DownloadFileOps::removeTree(dirFor(job->pairKey));
+    const QString pairKey = job->pairKey;
+    const QString title = job->title;
+    const QString author = job->author;
+    const qint64 received = job->doneBytes + job->fileReceived;
+    const qint64 total = job->totalBytes;
+    if (m_active == job) {
+        delete m_active; m_active = nullptr;
+        promoteQueue();
+    } else {
+        m_queue.removeOne(job);
+        delete job;
+        emit activeCountChanged();
+    }
+    if (!result.success) {
+        qWarning() << "[downloads] cancel cleanup failed" << pairKey << result.message;
+        rememberFailure(pairKey, title, author, result.message, received, total);
+        emit failed(pairKey, result.message);
+        return;
+    }
+    emit removed(pairKey);
+}
+
+void AudiobookDownloader::dismissFailure(const QString& pairKey)
+{
+    if (m_failures.remove(pairKey))
+        emit failuresChanged();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

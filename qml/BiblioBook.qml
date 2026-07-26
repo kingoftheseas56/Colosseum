@@ -725,7 +725,8 @@ Item {
                                             var bookId = (detail.localPath && typeof Reader2Bridge !== 'undefined')
                                                 ? Reader2Bridge.bookKey(detail.localPath) : ""
                                             Audiobooks.downloadAudiobook(detail.pairKey, d.infoHash,
-                                                detail.book.title || "", detail.book.author || "", bookId)
+                                                detail.book.title || "", detail.book.author || "", bookId,
+                                                detail.localPath || "")
                                             Collection.add("biblio", detail.collectionEntry())
                                         })
                                     }

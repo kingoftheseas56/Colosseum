@@ -98,6 +98,16 @@ Item {
     // Crossing + close/shutdown record IMMEDIATELY (they must not wait for the timer). Test-tunable.
     property int recordDebounceMs: 600
 
+    // ---- cursor auto-hide (3s, both references: TB2 ComicReader.cpp ~424-434, Reader 1's
+    // cursorIdle/cursorHidden) — neither reference leaves an arrow parked on the page. Blanked
+    // after cursorIdleMs of stillness while the chrome is away; held while the chrome is up (a
+    // pointer resting on a HUD pill must not vanish out from under it). Test-tunable, like
+    // recordDebounceMs above.
+    property int cursorIdleMs: 3000
+    property bool _cursorIdle: false
+    function _pokeCursor() { _cursorIdle = false; cursorIdleTimer.restart() }
+    Timer { id: cursorIdleTimer; interval: reader.cursorIdleMs; onTriggered: reader._cursorIdle = true }
+
     // ================= internal reading state (exposed for surfaces / HUD later) =================
     property var  _pages: []                    // resolved local pages [{index,url,group}] for the open entry
     readonly property int pageCount: _pages.length
@@ -353,6 +363,20 @@ Item {
         var span = stripSurface.contentHeight - stripSurface.height
         if (span > 0) stripSurface.contentY = f * span
     }
+    // What page a scrub fraction actually lands on. In Strip that is a GEOMETRY question — pages
+    // have different heights, so a linear pages*fraction estimate lies about where you'd land — so
+    // ask the backend (core.stripPageAtCenter, over the real strip viewport) rather than re-derive
+    // it. The HUD's scrub bubble reads THIS while hovering/dragging instead of recomputing its own
+    // estimate (FIX 2).
+    function pageAtFraction(frac) {
+        var f = Math.max(0, Math.min(1, frac))
+        if (mode === "long_strip" && core && core.stripPageAtCenter) {
+            var span = Math.max(0, stripSurface.contentHeight - stripSurface.height)
+            var p = core.stripPageAtCenter(f * span, stripSurface.height)
+            if (p >= 0) return p + 1
+        }
+        return Math.max(1, Math.round(f * (Math.max(1, max) - 1)) + 1)
+    }
     function firstPageNav() { currentPage = 1; if (mode === "long_strip") stripSurface.contentY = 0 }
     function lastPageNav() {
         goToPageIndex(max)
@@ -564,6 +588,7 @@ Item {
         _applyGlobalPrefs()
         _ready = true
         _resumeArmed = true
+        cursorIdleTimer.restart()
         if (chapterId.length) {
             if (curChapterId === chapterId) { load(); recordProgress() }   // handler didn't fire during construction
             else curChapterId = chapterId                                  // -> onCurChapterIdChanged -> load() + record
@@ -835,9 +860,9 @@ Item {
         onToggleLoupe: reader.loupeRequested()
         onCloseTop: reader.closeTopRequested()
         onOpenContextMenu: function (x, y) { reader._onContextMenu(x, y) }
-        // reveal-zone hover keeps the HUD alive
-        onRevealRequested: hud.reveal()
-        onActivity: hud.notifyActivity()
+        // reveal-zone hover keeps the HUD alive; both also count as cursor activity (FIX 1)
+        onRevealRequested: { hud.reveal(); reader._pokeCursor() }
+        onActivity: { hud.notifyActivity(); reader._pokeCursor() }
     }
 
     ComicReaderHud {
@@ -864,6 +889,36 @@ Item {
         onMinimizeRequested: reader.minimizeRequested()
         onFullscreenRequested: reader.fullscreenRequested()
         onCloseRequested: reader.closeRequested()
+    }
+
+    // ---- cursor auto-hide overlay (FIX 1): topmost and click-transparent — it ONLY sets the
+    // cursor shape, it must never eat input. acceptedButtons:Qt.NoButton means a press is never
+    // grabbed here, so it falls straight through to the surfaces/input beneath (the codebase's own
+    // click-swallower pattern, ComicReaderHud.qml's footer MouseArea, is the deliberate OPPOSITE:
+    // real buttons + an empty onClicked). Wheel is untouched too: ComicReaderInput's own plain
+    // MouseArea already sits above the strip surface with no onWheel handler and the smooth-wheel
+    // strip scroll (F1) still works through it today — proof a bare MouseArea here cannot swallow
+    // the wheel either.
+    //
+    // `enabled` (not just the cursorShape expression) gates chrome/modal away: QQuickItem's own
+    // docs warn "another cursor shape may be displayed if an OVERLAPPING item has a valid cursor"
+    // — being topmost (z:998), this item would otherwise contest every PointingHandCursor the HUD
+    // pills / settings-sheet rows set on hover (grep confirms EVERY cursorShape elsewhere in this
+    // reader lives inside ComicReaderHud.qml or ComicReaderSettingsSheet.qml, i.e. only exists
+    // while chrome/a modal is up). MouseArea.enabled "holds whether the item accepts mouse events"
+    // — disabled, it drops out of that contest entirely — so it only has anything to say in the
+    // one state that has no competing cursor of its own: the bare reading surface, chrome away, no
+    // modal. (`visible` would do the same job, but both `visible` AND `enabled` flow DOWN onto
+    // every descendant — and this offscreen harness's own root is `visible:false` by design, which
+    // would force this item's `visible` false unconditionally and make it untestable; `enabled` is
+    // the one of the pair the harness never touches.)
+    MouseArea {
+        objectName: "cursorHideArea"
+        anchors.fill: parent
+        z: 998
+        acceptedButtons: Qt.NoButton
+        enabled: !reader.chromeVisible && !reader.modalOpen
+        cursorShape: reader._cursorIdle ? Qt.BlankCursor : Qt.ArrowCursor
     }
 
     // ---- overlays (Task 12) — mounted ABOVE the HUD so they own input while open ----

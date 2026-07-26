@@ -881,6 +881,37 @@ int main(int argc, char** argv) {
               "T21 pageInfo agrees — the page never decoded");
     }
 
+    // ── Test 22: stripPageAtCenter resolves the page whose band holds the
+    //    viewport's vertical centre — the geometry-honest answer the FIX 2 scrub
+    //    bubble needs in strip mode (a linear pages*fraction estimate lies once
+    //    pages have different heights). A degenerate/empty viewport never crashes. ──
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t22"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+        QAbstractListModel* m = core.stripModel();
+        const double top3 = m->data(m->index(3, 0), ComicReaderStripModel::TopRole).toDouble();
+        // a small viewport centred just inside page 3's band must resolve to page 3
+        CHECK(core.stripPageAtCenter(top3, 10.0) == 3,
+              "T22 stripPageAtCenter resolves the band holding the viewport centre (page 3)");
+        const double top0 = m->data(m->index(0, 0), ComicReaderStripModel::TopRole).toDouble();
+        CHECK(core.stripPageAtCenter(top0, 10.0) == 0,
+              "T22 stripPageAtCenter resolves the first page's band too");
+
+        // degenerate viewport (zero/negative height) must never crash — just answers *some*
+        // in-range page for the given top.
+        const int deg = core.stripPageAtCenter(top3, 0.0);
+        CHECK(deg >= 0 && deg < core.pageCount(), "T22 a zero-height viewport never crashes");
+        const int negDeg = core.stripPageAtCenter(-50.0, -10.0);
+        CHECK(negDeg >= 0 && negDeg < core.pageCount(), "T22 a negative top/height never crashes");
+    }
+    {
+        // an entry-less core (no pages at all) must answer -1, never crash.
+        ComicReaderCore emptyCore;
+        CHECK(emptyCore.stripPageAtCenter(0.0, 100.0) == -1,
+              "T22 an entry-less core's stripPageAtCenter is -1, never a crash");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

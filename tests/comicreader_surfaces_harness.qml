@@ -160,7 +160,8 @@ Item {
     FakeCore { id: coreFresh }
     FakeCore { id: coreScale }     // MISMATCHED pair, sizes from the backend (pageInfo)
     FakeCore { id: coreShort }     // pair SHORTER than the viewport (centring + gutter)
-    FakeCore { id: coreDecoded }   // no backend sizes: real data: URL pixels drive implicitWidth
+    FakeCore { id: coreZoomPan }   // TALL pair: real headroom on BOTH pan axes at every zoom
+    FakeCore { id: coreDecoded }   // no backend sizes: the file fixtures' pixels drive implicitWidth
 
     property var stripComp: null
     property var doubleComp: null
@@ -698,35 +699,167 @@ Item {
         dbl.destroy()
     }
 
-    // ---- FALLBACK path, then the OVERRIDE. Two data: URL PNG fixtures with genuinely different
-    // dimensions (200x300 and 150x300) that the Image really loads offscreen, so the fallback runs
-    // on the decoder's own implicitWidth/implicitHeight rather than on numbers this harness injected.
+    // A ZOOM STEP MUST KEEP YOUR PLACE. setZoom() used to slam both pan axes to 0, so panning across
+    // to read a panel at 200% and pressing Ctrl+= once more teleported you to the corner of the
+    // spread — in RTL manga, the far end of the page you were reading. Both lineage readers clamp the
+    // existing pan into the new bounds and never zero it (Tankoban 2 ComicReader.cpp applyPan, which
+    // only ever clamps; Colosseum Reader 1 MangaReader.qml zoomBy, which calls clampPan() and nothing
+    // else). Pan is reset by a UNIT CHANGE — a new spread — not by a zoom step; that contract is
+    // asserted in runDouble() and stays.
+    //
+    // The fixture is a TALL mismatched pair with real backend geometry, so BOTH axes have genuine
+    // headroom and neither assertion can pass by accident. That matters for panY especially: since
+    // the geometry rework, panYMax is the DRAWN unit's overflow, so it scales with zoom AND stays
+    // above zero at 100% for any spread taller than the viewport. A pair with no backend geometry
+    // (the older double fixtures) falls back to _rightH == the viewport height, which makes panYMax
+    // identically 0 at every zoom and would make the vertical half of this test vacuous.
+    function runDoubleZoomKeepsPan() {
+        // 800x480 viewport; both halves 2200 tall -> at 100% the pair draws 567.74 tall and OVERFLOWS.
+        coreZoomPan.units[50] = { rightIndex: 50, leftIndex: 51, spread: false, coverAlone: false }
+        coreZoomPan.pageSizes[50] = { w: 1550, h: 2200 }
+        coreZoomPan.pageSizes[51] = { w: 1500, h: 2200 }
+        var dbl = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 51, "rtl": true, "core": coreZoomPan
+        })
+        if (!dbl) { failures.push("zoom-pan: createObject returned null"); return }
+        ck(dbl.isPair, "zoom-pan: fixture must be a PAIR")
+
+        // --- read a panel at 200%, then take one more zoom step IN (the bounds GROW) ---
+        dbl.setZoom(200)
+        dbl.panBy(120, 80)
+        var keepX = dbl.panX, keepY = dbl.panY
+        ck(keepX > 0 && keepY > 0,
+           "zoom-pan precondition: a pan must apply on BOTH axes at 200%, got x=" + keepX + " y=" + keepY)
+
+        dbl.setZoom(220)
+        ck(dbl.panX > 0 && approx(dbl.panX, Math.min(keepX, dbl.panXMax), 1e-9),
+           "zoom-pan: a zoom step must KEEP the horizontal pan (clamped into the new bounds), want "
+           + Math.min(keepX, dbl.panXMax) + " got " + dbl.panX
+           + " — zeroing it teleports you to the corner of the spread mid-panel")
+        ck(dbl.panY > 0 && approx(dbl.panY, Math.min(keepY, dbl.panYMax), 1e-9),
+           "zoom-pan: a zoom step must KEEP the vertical pan too (clamped into the new bounds), want "
+           + Math.min(keepY, dbl.panYMax) + " got " + dbl.panY)
+
+        // --- now zoom OUT from the far corner: this is where the clamp actually has to bite, and
+        // where "keep it" would otherwise leave the pan outside the smaller bounds ---
+        dbl.panBy(99999, 99999)
+        var farX = dbl.panX, farY = dbl.panY
+        ck(approx(farX, dbl.panXMax, 1e-9) && approx(farY, dbl.panYMax, 1e-9),
+           "zoom-pan precondition: parked at the far corner of the 220% spread, got x=" + farX + " y=" + farY)
+
+        dbl.setZoom(120)
+        ck(dbl.panX > 0 && dbl.panX < farX && approx(dbl.panX, dbl.panXMax, 1e-9),
+           "zoom-pan: zooming OUT must CLAMP the kept horizontal pan down to the smaller panXMax ("
+           + dbl.panXMax + "), not zero it and not leave it out of bounds at " + farX + ", got " + dbl.panX)
+        ck(dbl.panY > 0 && dbl.panY < farY && approx(dbl.panY, dbl.panYMax, 1e-9),
+           "zoom-pan: zooming OUT must CLAMP the kept vertical pan down to the smaller panYMax ("
+           + dbl.panYMax + "), not zero it, got " + dbl.panY)
+
+        // --- back to 100%. panX lands on 0, but it must land there BECAUSE the clamp has nowhere
+        // left to go, not because setZoom zeroes anything: at 100% the content is exactly the
+        // viewport width, so panXMax IS 0. panY is the proof that nothing is being zeroed — this
+        // spread is still taller than the viewport at 100%, so vertical headroom REMAINS and the
+        // kept pan must survive, clamped. ---
+        dbl.setZoom(100)
+        ck(approx(dbl.panXMax, 0, 1e-9),
+           "zoom-pan: at 100% the content is exactly the viewport width, so panXMax must be 0 (this is "
+           + "WHY panX lands on 0 below), got " + dbl.panXMax)
+        ck(dbl.panX === 0,
+           "zoom-pan: back at 100% the clamp alone must take panX to 0 (panXMax is 0 there), got " + dbl.panX)
+        ck(dbl.panYMax > 0,
+           "zoom-pan precondition: this pair is TALLER than the viewport at 100% (drawn "
+           + dbl.unitHeight.toFixed(2) + " vs " + dbl.height + "), so vertical headroom must REMAIN, got panYMax "
+           + dbl.panYMax)
+        ck(dbl.panY > 0 && approx(dbl.panY, dbl.panYMax, 1e-9),
+           "zoom-pan: back at 100% a spread that still overflows must KEEP its vertical pan, clamped to "
+           + "panYMax (" + dbl.panYMax + ") — landing on 0 here is the tell that setZoom is zeroing "
+           + "rather than clamping, got " + dbl.panY)
+
+        // --- and the reset that MUST still happen: a new unit ---
+        dbl.setZoom(200)
+        dbl.panBy(120, 80)
+        coreZoomPan.units[52] = { rightIndex: 52, leftIndex: 53, spread: false, coverAlone: false }
+        dbl.currentPage = 53
+        ck(dbl.panX === 0 && dbl.panY === 0,
+           "zoom-pan: a UNIT change must still reset pan to the origin (only zoom survives a turn), got x="
+           + dbl.panX + " y=" + dbl.panY)
+        dbl.destroy()
+    }
+
+    // ---- FALLBACK path, then the OVERRIDE. Two PNG fixtures with genuinely different dimensions
+    // (200x300 and 150x300) that the Image really loads, so the fallback runs on the decoder's own
+    // implicitWidth/implicitHeight rather than on numbers this harness injected.
+    //
+    // WHY THE FIXTURES ARE FILES, PRE-WARMED BY warmRight/warmLeft, AND WHY THIS PHASE IS
+    // SYNCHRONOUS. This used to hand the surface two data: URLs and poll for the decode, and it was
+    // the flakiest thing in the suite — two brothers hit it independently, one 2 failures in 3.
+    // MEASURED 2026-07-26, because the obvious reads were all wrong: the decode is not slow, data:
+    // URLs are not unreliable, the decode cap's upscale is not the cost, and the poll interval was
+    // not the cause either (each was ruled out by its own controlled run). Qt loads an
+    // `asynchronous: true` Image on the shared QQuickPixmapReader thread, and Qt runs that thread at
+    // LOW priority — so on a machine with other work on it, it simply does not get scheduled. The
+    // failing runs showed `progress` still 0 after NINE seconds, i.e. the job had never been picked
+    // up at all, and a plain control Image in the same process stalled in the same millisecond, so
+    // the stall is process-wide rather than anything about these two images. Re-running this very
+    // gate with nothing changed but the process priority raised to High turned "292-2100ms, or never"
+    // into a flat 190-240ms. A harness cannot fix that thread, and no budget is safe against it —
+    // raising it (3s -> 6s) was already tried and the gate still failed 6 runs in 10 under load.
+    //
+    // So the wall clock is designed out rather than tuned. A local FILE fixture loaded by an
+    // `asynchronous: false` Image is decoded synchronously on THIS thread, and it lands in the same
+    // QQuickPixmapCache the surface reads from: same url, same sourceSize (the surface's srcCapW is
+    // 1400 at 100%) and same PreserveAspectFit make the same cache key, so the surface's own
+    // `asynchronous: true` Images hit the cache and report their implicit size immediately, with the
+    // reader thread never involved. Measured: the whole phase is ~15ms, and 10/10 under the same
+    // load that failed 6/10 before. Do NOT reintroduce a poll or a budget here. If someone changes
+    // srcCapW or the fillMode the key stops matching, the images go asynchronous again and the
+    // precondition below fails loudly — by name — instead of flaking.
     //
     // MEASURED HERE, and the reason the backend's geometry is the PRIMARY source: with the surface's
     // decode cap in play these two visibly different pages do NOT report their own widths — the
-    // loader hands back both normalised to the cap. So the fallback keeps the unit drawable and
-    // flush, but it cannot recover the two pages' true RELATIVE size. Part 2 proves the backend's
-    // header geometry overrides a fully decoded Image and restores it.
-    readonly property string png200x300: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAEsCAAAAACjkaNiAAAAUUlEQVR42u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4NeuMAAEvmkSLAAAAAElFTkSuQmCC"
-    readonly property string png150x300: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAAEsCAAAAAAETBWZAAAAQ0lEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACARwOw9AABWDaRwQAAAABJRU5ErkJggg=="
-    property var decodedSurface: null
-    property int decodedTries: 0
+    // loader hands back both normalised to the cap (1400x2100 and 1400x2800). So the fallback keeps
+    // the unit drawable and flush, but it cannot recover the two pages' true RELATIVE size. Part 2
+    // proves the backend's header geometry overrides a fully decoded Image and restores it.
+    readonly property url png200x300: Qt.resolvedUrl("comicreader_fixtures/page-200x300.png")
+    readonly property url png150x300: Qt.resolvedUrl("comicreader_fixtures/page-150x300.png")
 
-    function startDecodedPair() {
+    // The synchronous pre-warm. `asynchronous: false` on a local file decodes on the GUI thread;
+    // every other property here exists ONLY to mirror the surface's own page Images, because the
+    // QQuickPixmap cache key is (url, requestSize, aspect-ratio options) — miss any of them and the
+    // surface re-requests through the reader thread and the determinism is gone.
+    Image {
+        id: warmRight
+        source: harness.png200x300
+        asynchronous: false; cache: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 1400          // ComicReaderDoubleSurface.srcCapW at zoomPercent 100
+        visible: false
+    }
+    Image {
+        id: warmLeft
+        source: harness.png150x300
+        asynchronous: false; cache: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 1400
+        visible: false
+    }
+
+    function runDoubleDecodedPair() {
+        ck(warmRight.status === Image.Ready && warmLeft.status === Image.Ready,
+           "double-decoded precondition: the two file fixtures must decode SYNCHRONOUSLY into the "
+           + "pixmap cache (asynchronous: false on a local file), so this phase never waits on Qt's "
+           + "low-priority reader thread — got warm status right " + warmRight.status
+           + " left " + warmLeft.status)
+
         coreDecoded.units[40] = { rightIndex: 40, leftIndex: 41, spread: false, coverAlone: false }
         coreDecoded.pageUrls[40] = png200x300
         coreDecoded.pageUrls[41] = png150x300
         // NOTE: coreDecoded.pageSizes stays EMPTY — the backend knows no geometry here, which is
         // exactly the fallback under test.
-        decodedSurface = doubleComp.createObject(harness, {
+        var dbl = doubleComp.createObject(harness, {
             "width": 800, "height": 480, "active": true, "currentPage": 41, "rtl": true, "core": coreDecoded
         })
-        if (!decodedSurface) { failures.push("double-decoded: createObject returned null"); report(); return }
-        decodedPoll.start()
-    }
-
-    function runDoubleDecodedPair() {
-        var dbl = decodedSurface
+        if (!dbl) { failures.push("double-decoded: createObject returned null"); return }
 
         // --- part 1: no backend geometry -> the Image's own decoded size carries the layout ---
         ck(dbl.rightNaturalWidth > 0 && dbl.rightNaturalHeight > 0 &&
@@ -760,25 +893,7 @@ Item {
         ck(approx(dbl.rightPageHeight, dbl.leftPageHeight, 0.01),
            "double-decoded: with the true sizes both halves must be drawn at the SAME height, got "
            + dbl.rightPageHeight + " vs " + dbl.leftPageHeight)
-    }
-
-    Timer {
-        id: decodedPoll; interval: 25; repeat: true; running: false
-        onTriggered: {
-            harness.decodedTries += 1
-            var d = harness.decodedSurface
-            if (d && d.rightNaturalWidth > 0 && d.leftNaturalWidth > 0) {
-                decodedPoll.stop()
-                try { harness.runDoubleDecodedPair() }
-                catch (e) { harness.failures.push("exception in the decoded-pair phase: " + e.message) }
-                harness.report()
-            } else if (harness.decodedTries > 240) {     // 6s — a loaded machine took >3s once here
-                decodedPoll.stop()
-                harness.failures.push("double-decoded: the data: URL fixtures never decoded (right nat="
-                    + (d ? d.rightNaturalWidth : "<null>") + " left nat=" + (d ? d.leftNaturalWidth : "<null>") + ")")
-                harness.report()
-            }
-        }
+        dbl.destroy()
     }
 
     Timer { id: phaseTimer; interval: 30; running: false; onTriggered: harness.runPhaseTwo() }
@@ -791,12 +906,14 @@ Item {
             runDoubleFreshOpen()
             runDoubleUnifiedScale()
             runDoubleCentring()
+            runDoubleZoomKeepsPan()
+            runDoubleDecodedPair()   // synchronous: the fixtures are pre-warmed into the pixmap cache
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
             report()
             return
         }
-        startDecodedPair()      // async: the report happens once the two fixtures decode
+        report()
     }
 
     function runChecks() {
@@ -822,8 +939,8 @@ Item {
     }
 
     // safety net — a true hang (not a thrown error) still fails loudly instead of stalling CI.
-    // Sits above the decoded-pair poll budget (6s), the one phase that waits on real wall-clock
-    // image decodes, so a slow machine reports the honest "never decoded" message rather than this.
+    // No phase waits on wall-clock any more (the decoded-pair fixtures are pre-warmed into the
+    // pixmap cache and asserted synchronously), so this should never fire on any machine.
     Timer {
         interval: 15000; running: true
         onTriggered: { console.log("COMICREADER_SURFACES_FAIL: timeout"); Qt.exit(1) }

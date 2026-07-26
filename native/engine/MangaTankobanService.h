@@ -126,7 +126,7 @@ public:
     Q_INVOKABLE void downloadNyaa(QString volumeId, QString infoHash);
     Q_INVOKABLE void compileWeebCentral(QString volumeId);
     Q_INVOKABLE void cancel(QString volumeId);
-    Q_INVOKABLE void remove(QString volumeId);
+    Q_INVOKABLE QVariantMap remove(QString volumeId);
     Q_INVOKABLE QVariantMap statusOf(QString volumeId) const;
     Q_INVOKABLE QVariantList localPages(QString volumeId) const;
 

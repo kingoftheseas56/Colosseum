@@ -1017,3 +1017,9 @@ add_executable(comicreader_core_harness
     comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
 target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+
+add_executable(download_file_ops_harness
+    ../tests/download_file_ops_harness.cpp
+)
+target_include_directories(download_file_ops_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(download_file_ops_harness PRIVATE Qt6::Core)

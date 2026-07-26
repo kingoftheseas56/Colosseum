@@ -110,6 +110,31 @@ $output = & $qmlExe -platform offscreen -I $mockPath $harness 2>&1 | Out-String
 $code = $LASTEXITCODE
 $ErrorActionPreference = $prevEAP
 
+# --- a binding loop means the geometry is feeding itself, so it fails the gate ---
+# Both surfaces size a page from a natural size that the page's own Image can supply
+# (_naturalSize()'s implicitWidth/implicitHeight fallback), and that natural size drives the very
+# width/height those Images are given. That is one deleted binding away from a cycle: QQuickImage
+# with fillMode: PreserveAspectFit recomputes its implicit size FROM the explicit dimension it was
+# given whenever the OTHER dimension is left unset (Qt's updatePaintedGeometry: iHeight =
+# widthValid && !heightValid ? paintedHeight : pix.height()). Measured 2026-07-26: with BOTH width
+# and height bound - which is how both surfaces bind them today - the implicit size stays the
+# pixmap's own size across 40 different drawn geometries, so the cycle is currently OPEN. Drop
+# either binding and Qt says "QML Image: Binding loop detected for property "width"" and then STOPS
+# re-evaluating: the page freezes at whatever half-computed size it had reached.
+# Qt announces this on stderr and nobody was watching. Same rationale as the chrome gate's
+# positioner-anchor guard: a runtime warning that means something is broken must not scroll past a
+# green suite.
+if ($output -match "Binding loop detected") {
+    Write-Host "FAIL: a QML binding loop was detected - a property is feeding itself, so Qt has"
+    Write-Host "      ABANDONED that binding and the value it holds is whatever the loop reached"
+    Write-Host "      before it was cut. In these surfaces that is almost always page geometry:"
+    Write-Host "      _naturalSize()'s implicit-size fallback driving the width/height of the very"
+    Write-Host "      Image it reads. The behavioural assertions can still pass while the page is"
+    Write-Host "      drawn at a frozen, wrong size."
+    Write-Host $output
+    exit 1
+}
+
 if ($code -ne 0 -or ($output -notmatch "COMICREADER_SURFACES_OK")) {
     Write-Host "FAIL: comic reader surfaces offscreen harness (exit $code)"
     Write-Host $output

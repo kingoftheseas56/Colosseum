@@ -128,12 +128,21 @@ function subtitleBitmapLayout(cue, layerWidth, layerHeight) {
     var cw = Number(cue ? cue.canvasWidth : 0), ch = Number(cue ? cue.canvasHeight : 0)
     if (!isFinite(cw) || !isFinite(ch) || cw <= 0 || ch <= 0)
         return { x: 0, y: 0, width: 0, height: 0 }
-    var sx = Number(layerWidth) / cw, sy = Number(layerHeight) / ch
+    // Map the cue onto the LETTERBOXED PICTURE, not the window. PGS regions are authored against
+    // the video frame; stretching them across the full window put Tenet's subtitles into the black
+    // bar and at the wrong scale (his 2026-07-26 finding: "subtitle height seems to be wrong").
+    // The picture rect is the aspect-fit of the canvas into the layer - correct for the default Fit
+    // mode; the non-Fit fill modes shift the picture and are a recorded follow-up, not silently
+    // wrong-er than before (the old mapping was wrong in EVERY mode).
+    var lw = Number(layerWidth), lh = Number(layerHeight)
+    var scale = Math.min(lw / cw, lh / ch)
+    var vw = cw * scale, vh = ch * scale
+    var ox = (lw - vw) / 2, oy = (lh - vh) / 2
     return {
-        x: Number(cue.x) * sx,
-        y: Number(cue.y) * sy,
-        width: Number(cue.width) * sx,
-        height: Number(cue.height) * sy
+        x: ox + Number(cue.x) * scale,
+        y: oy + Number(cue.y) * scale,
+        width: Number(cue.width) * scale,
+        height: Number(cue.height) * scale
     }
 }
 

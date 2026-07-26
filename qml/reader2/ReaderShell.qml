@@ -1295,4 +1295,8 @@ FocusScope {
         shell.healAudioPairing()           // repair a missed auto-attach before the panel binds
         if (paper.glueUp) shell.openAtResume(path)
     }
+
+    function openAudioPanel() {
+        chrome.openPanelTo("audio")
+    }
 }

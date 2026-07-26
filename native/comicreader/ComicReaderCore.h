@@ -143,6 +143,11 @@ public:
     // switching into Strip, a go-to-page, a chapter jump — and it cannot compute it itself: the
     // ListView only realizes delegates near the viewport, so anything off-screen has no y to read.
     Q_INVOKABLE double stripPageTop(int page) const;
+    // The page whose band holds the viewport's vertical CENTRE — the geometry-honest answer the
+    // scrub bubble needs while hovering in Long Strip: pages have different heights, so a linear
+    // pages*fraction estimate lies about where a fraction actually lands. -1 when there is no open
+    // entry (never a crash on a degenerate/empty viewport). Mirrors stripPageTop's guard shape.
+    Q_INVOKABLE int stripPageAtCenter(double top, double viewportHeight) const;
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
     // Bookmarks (0-based page). Toggling an in-range page inserts it (kept sorted)
     // or removes it if already present; out-of-range pages are ignored. bookmarks()

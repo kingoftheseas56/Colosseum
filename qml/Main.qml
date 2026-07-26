@@ -902,8 +902,19 @@ Window {
     function routeDownloadWorld(worldKey) {
         win.closeDownloadsPage()
         var medium = worldKey === "tankoban" ? "Tankoban"
-                   : worldKey === "biblio" ? "Biblio" : "Theatre"
+                   : (worldKey === "biblio" || worldKey === "audiobook") ? "Biblio" : "Theatre"
         win.openWorld(medium)
+    }
+    function routeDownloadedAudiobook(item) {
+        if (!item || !String(item.bookPath || "").length) return
+        win.closeDownloadsPage()
+        win.openBookSession(item.bookPath, {
+            "id": item.bookId || item.bookPath,
+            "title": item.title || "Book",
+            "author": item.author || "",
+            "pairKey": item.id || "",
+            "openAudio": true
+        })
     }
 
     function openPlayer(infoHash, fileIdx, title, backdrop, subType, subId, streamCandidates, playbackContext) {
@@ -1284,6 +1295,10 @@ Window {
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
                 bookReaderLayer.item.openBook(t.path)
+                if (bookReaderLayer.bookMeta.openAudio)
+                    Qt.callLater(function() {
+                        if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
+                    })
             } else bookReaderLayer.active = true
             // book precision: the reader restores its own saved position on reopen (resume seam).
         }
@@ -2078,6 +2093,10 @@ Window {
             item.audioSession = audioSession   // the ONE shared audiobook engine → read-along Audio tab
             item.bookMeta = bookReaderLayer.bookMeta   // catalog identity → the pairing self-heal
             item.openBook(bookReaderLayer.bookPath)
+            if (bookReaderLayer.bookMeta.openAudio)
+                Qt.callLater(function() {
+                    if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
+                })
             item.closed.connect(win.closeBookReaderSession)
             item.minimized.connect(win.minimizeBookReader)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2170,6 +2189,7 @@ Window {
             item.openRequested.connect(win.routeDownloadItem)
             item.openWorldRequested.connect(win.routeDownloadWorld)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
+            item.openAudiobookRequested.connect(win.routeDownloadedAudiobook)
         }
     }
 

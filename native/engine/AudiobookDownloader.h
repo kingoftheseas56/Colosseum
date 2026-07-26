@@ -92,7 +92,8 @@ public:
     Q_INVOKABLE QVariantList activeDownloads() const;
     int activeCount() const { return (m_active ? 1 : 0) + m_queue.size(); }
     Q_INVOKABLE void cancelDownload(const QString& pairKey);
-    Q_INVOKABLE void deleteAudiobook(const QString& pairKey);
+    Q_INVOKABLE QVariantMap deleteAudiobook(const QString& pairKey);
+    Q_INVOKABLE void dismissFailure(const QString& pairKey);
 
     // Dev smoke (env COLOSSEUM_ABB_DLTEST="<pairKey>|<infoHash>"): resolve +
     // download headlessly, logging the manifest + final paths. Mirrors BookDownloader::selfTest.
@@ -100,6 +101,7 @@ public:
 
 signals:
     void activeCountChanged();
+    void failuresChanged();
     void resolving(const QString& pairKey);
     void progress(const QString& pairKey, double received, double total);  // aggregate across files
     void finished(const QString& pairKey, const QString& dirPath);
@@ -146,6 +148,10 @@ private:
     void onFileFinished();
     void finalizeJob(Job* job);
     void failJob(Job* job, const QString& reason);
+    void rememberFailure(const QString& pairKey, const QString& title,
+                         const QString& author, const QString& reason,
+                         qint64 received = 0, qint64 total = 0);
+    void cancelJob(Job* job);
     void cleanupInFlight(Job* job);
     void promoteQueue();                       // active done → start next queued
 
@@ -167,6 +173,7 @@ private:
         QString dir;
         QStringList files;         // ordered absolute paths
         QString title, author;
+        QString bookId, bookPath;
         qint64  bytes = 0, addedAt = 0;
     };
 
@@ -175,6 +182,7 @@ private:
     Job* m_active = nullptr;
     QList<Job*> m_queue;
     QHash<QString, Entry> m_index;             // pairKey → entry
+    QHash<QString, QVariantMap> m_failures;
     AudioPairingStore* m_pairing = nullptr;    // read-along attach target (not owned)
     QHash<QString, QString> m_bookIdFor;       // pairKey → reader bookId (for auto-attach)
     QHash<QString, QString> m_bookPathFor;     // pairKey → ebook local path (stamped into pairing)

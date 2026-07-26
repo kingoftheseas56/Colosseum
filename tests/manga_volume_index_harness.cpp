@@ -228,6 +228,17 @@ int main(int argc, char** argv)
     // ── remove() deletes the pages dir + entry, and is idempotent ─────────────
     const QString wcDir = QFileInfo(pageLocalFile(wcPages[0].toMap())).absolutePath();
     require(QDir(wcDir).exists(), "published volume has an on-disk pages dir");
+
+    // A filesystem failure must preserve the real ledger row. The removable
+    // operation is injected at the filesystem boundary so this remains
+    // deterministic on Windows filesystems with different sharing semantics.
+    MangaVolumeIndex deniedIndex(root.path(), [](const QString&) { return false; });
+    require(!deniedIndex.remove(wc.id), "failed removal reports failure");
+    require(deniedIndex.statusOf(wc.id).value(QStringLiteral("state")).toString()
+                == QStringLiteral("ready"),
+            "failed removal preserves the ready ledger row");
+    require(QDir(wcDir).exists(), "failed removal preserves the pages dir");
+
     require(index.remove(wc.id), "remove() reports it removed the volume");
     require(!QDir(wcDir).exists(), "remove() deleted the pages dir");
     require(index.statusOf(wc.id).value(QStringLiteral("state")).toString()
