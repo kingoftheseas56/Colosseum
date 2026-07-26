@@ -34,6 +34,10 @@ TARGETS = {
     "torrentscsv":   "https://torrents-csv.com",
     "knaben":        "https://knaben.org",
     "applebooks":    "https://www.apple.com/apple-books/",
+    # A house CATALOGUE, not a well — the manga search and series artwork behind
+    # Tankoban. Same rule applies: it is a real site with real iconography, so it gets
+    # its own mark rather than a letter square. (Hemanth, 2026-07-26.)
+    "anilist":       "https://anilist.co",
 }
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "

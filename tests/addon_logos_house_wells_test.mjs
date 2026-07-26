@@ -33,12 +33,11 @@ console.log("house wells and catalogues resolve to their site mark");
 // [ id, display name, expected file ]
 const cases = [
   ["colosseum.well.weebcentral.pages",  "WeebCentral",       "weebcentral.png"],
-  ["colosseum.catalogue.weebcentral",   "WeebCentral",       "weebcentral.png"],
   ["colosseum.well.getcomics.issues",   "GetComics",         "getcomics.png"],
-  ["colosseum.catalogue.getcomics",     "GetComics",         "getcomics.png"],
   ["colosseum.well.libgen",             "LibGen",            "libgen.ico"],
   ["colosseum.well.audiobookbay",       "AudioBookBay",      "audiobookbay.png"],
   ["colosseum.catalogue.applebooks",    "Apple Books",       "applebooks.ico"],
+  ["colosseum.catalogue.anilist",       "AniList",           "anilist.png"],
   ["colosseum.well.nyaa",               "Nyaa",              "nyaa.png"],
   ["piratebay",                         "PirateBay",         "thepiratebay.png"],
   ["knaben",                            "Knaben",            "knaben.ico"],
@@ -51,13 +50,34 @@ for (const [id, name, want] of cases) {
   ok(`${name.padEnd(13)} -> ${want}`);
 }
 
-console.log("a two-role site shares ONE mark across both roles");
+console.log("the mark follows the SITE, whatever role id it is asked under");
+// Since 2026-07-26 WeebCentral and GetComics hold only the well role — they were never
+// our catalogues, just catalogues of what is downloadable. The matcher is still keyed on
+// the site inside the id, so it must answer the same mark under either role's id shape.
 const pairs = [["colosseum.catalogue.weebcentral", "colosseum.well.weebcentral.pages", "WeebCentral"],
                ["colosseum.catalogue.getcomics",   "colosseum.well.getcomics.issues",  "GetComics"]];
 for (const [a, b, n] of pairs) {
   const la = mod.logoFor(a, n), lb = mod.logoFor(b, n);
-  if (la && la === lb) ok(`${n}: catalogue row and well row draw the same mark`);
+  if (la && la === lb) ok(`${n}: the same mark under either role id`);
   else bad(`${n}: roles disagree — ${la || "(letter)"} vs ${lb || "(letter)"}`);
+}
+
+console.log("the one mark we do not borrow, because we own it");
+{
+  const got = mod.logoFor("colosseum.catalogue.vault", "Colosseum Grand Database");
+  const want = "colosseum-grand-database.png";
+  if (!got) bad(`Grand Database got the letter square, expected ${want}`);
+  else if (path.basename(got) !== want) bad(`Grand Database -> ${path.basename(got)}, expected ${want}`);
+  else if (!onDisk(got)) bad(`Grand Database -> ${want} but that file is not on disk`);
+  else ok(`Grand Database -> ${want} (the house arch, same mark as the app)`);
+  // and the narrow matcher must not swallow our other colosseum.* rows
+  for (const [id, n] of [["colosseum.well.indexers", "Torrent Indexers"],
+                         ["colosseum.catalogue.applebooks", "Apple Books"]]) {
+    const g = mod.logoFor(id, n);
+    (g && path.basename(g) === want)
+      ? bad(`${n} wrongly picked up the house arch`)
+      : ok(`${n.padEnd(17)} did not pick up the house arch`);
+  }
 }
 
 console.log("the deliberate letter squares stay letters (never a wrong-site logo)");

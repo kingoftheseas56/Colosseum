@@ -2,8 +2,8 @@
 // are discovered, browsed, installed, toggled, ordered and removed.
 // Ratified design: agents/colosseum-extensions-mock.html (2026-07-05, "we can go
 // for it"), spec: docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
-// Serves all three worlds — Theatre live in v1; Tankoban and Biblio get honest
-// designed empty states, never a blank. Data = `Extensions` (the C++ registry)
+// Serves all three worlds, all live as of stage 1a — Tankoban and Biblio carry real
+// catalogues and wells now. Data = `Extensions` (the C++ registry)
 // + ExtensionsCatalog.js (curated rails, community registry, adult wall).
 pragma ComponentBehavior: Bound
 import QtQuick
@@ -23,6 +23,73 @@ Item {
 
     // ---- registry bindings ----
     property var installedList: []
+
+    // ---- worlds (spec §3.2): derived from each manifest's own `types`, never stored.
+    //      One extension can serve two worlds — Torrent Indexers feeds comics AND books
+    //      AND audiobooks from a single install — so these are filters, not partitions.
+    function inWorld(entry, world) { return Catalog.inWorld(entry, world) }
+    function installedIn(world) {
+        var out = [];
+        for (var i = 0; i < installedList.length; i++)
+            if (Catalog.inWorld(installedList[i], world)) out.push(installedList[i]);
+        return out;
+    }
+    function countIn(world) { return installedIn(world).length }
+
+    // Grouped by job: Catalogue (what fills the shelves) then Wells (what fetches),
+    // then anything that is neither — e.g. Anime Kitsu, a non-core catalog provider,
+    // and OpenSubtitles, which answers subtitles only.
+    function installedRowsFor(world) {
+        var rows = installedIn(world), cat = [], wells = [], other = [];
+        for (var i = 0; i < rows.length; i++) {
+            if (Catalog.isCatalogue(rows[i])) cat.push(rows[i]);
+            else if (Catalog.isWell(rows[i])) wells.push(rows[i]);
+            else other.push(rows[i]);
+        }
+        return cat.concat(wells).concat(other);
+    }
+
+    readonly property var worldTitles: ({ theatre: "Theatre", tankoban: "Tankoban",
+                                          biblio: "Biblio", universes: "Universes" })
+    // Removing a well that serves two worlds removes it from BOTH. Say which, by name,
+    // and require a second press — an unnamed one-click removal would silently empty a
+    // world the user wasn't looking at.
+    property string pendingRemoveId: ""
+    function askRemove(entry) {
+        var ws = Catalog.worldsFor(entry);
+        var name = (entry.manifest && entry.manifest.name) || entry.id;
+        if (ws.length > 1 && pendingRemoveId !== entry.id) {
+            var names = [];
+            for (var i = 0; i < ws.length; i++) names.push(worldTitles[ws[i]] || ws[i]);
+            pendingRemoveId = entry.id;
+            notice = name + " feeds " + names.join(" and ")
+                   + ". Removing it takes it out of both — press Remove again to confirm.";
+            noticeTimer.restart();
+            return;
+        }
+        pendingRemoveId = "";
+        Extensions.remove(entry.id);
+    }
+    // Reorder a well within the world the user is actually looking at. The arrows are
+    // world-relative and the stored array is global, so the destination has to be resolved
+    // against this world's own well list — see Catalog.moveDestination for why a global
+    // ±1 both failed to move Tankoban and silently reordered Biblio.
+    // moveDestination returns { id, index } or null — `id` is not always the clicked row,
+    // because a swap may be cheaper to perform by moving its neighbour instead.
+    function moveWell(id, delta) {
+        var m = Catalog.moveDestination(installedList, world, id, delta);
+        if (m) Extensions.moveTo(m.id, m.index);
+    }
+    // A world's rank for a well is its index among that world's wells — which is how one
+    // stored row ranks 4th in Tankoban and 2nd in Biblio without storing a rank at all.
+    function wellRank(entry, world) {
+        var w = installedIn(world), n = 0;
+        for (var i = 0; i < w.length; i++) {
+            if (Catalog.isWell(w[i])) n++;
+            if (w[i].id === entry.id) return n;
+        }
+        return 0;
+    }
     property var installedKeys: ({})          // id AND transportUrl → true
     property var pendingUrls: ({})            // url → true while an install is in flight
     property string notice: ""                // one quiet line for install results
@@ -49,6 +116,14 @@ Item {
     function carried(item) {
         return installedKeys[item.id] === true || installedKeys[item.url] === true;
     }
+    // Is this row one the house locks? Read off the installed entry rather than trusted
+    // from the curated data, because the curated rails carry no `core` field at all —
+    // which is how the featured slab came to print "built-in" over a removable add-on.
+    function coreOf(item) {
+        for (var i = 0; i < installedList.length; i++)
+            if (installedList[i].id === item.id) return installedList[i].core === true;
+        return false;
+    }
     function hit(name) {
         return !query.length || name.toLowerCase().indexOf(query.toLowerCase()) !== -1;
     }
@@ -64,7 +139,14 @@ Item {
         communityLoading = true;
         var mySort = sort, myQuery = query;
         Catalog.browse(mySort, myQuery, function(rows) {
-            if (mySort !== root.sort || myQuery !== root.query) return; // stale answer
+            // A stale answer is discarded, but the flag it set is NOT its to keep: the
+            // newer request owns it, and if none is coming this must still fall to false
+            // or Browse sits on "Asking the registry…" forever with the re-entry guard
+            // (!communityLoading) refusing to try again. (A5's audit P0-1.)
+            if (mySort !== root.sort || myQuery !== root.query) {
+                if (!queryDebounce.running) root.communityLoading = false;
+                return;
+            }
             root.communityRows = rows || [];
             root.communityLoading = false;
             root.communityLoaded = true;
@@ -90,15 +172,70 @@ Item {
     }
     Timer { id: noticeTimer; interval: 6000; onTriggered: root.notice = "" }
 
-    // community loads when Browse first opens, and reloads on sort/search change
-    onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading) loadCommunity()
+    // The page's eased wheel-scroll. It was nested INSIDE the installed-row delegate
+    // (the brace defect at the old :781-786), so it was instantiated once per row —
+    // 4 competing NumberAnimations on page.contentY before stage 1a, 13 after. One
+    // instance, at page level, is the whole point of the component.
+    ScrollGlide { flick: page }
+
+    // ---- which panes this world actually has ----------------------------------
+    // Hemanth's ruling 2026-07-26: "remove discover and browser for the other worlds."
+    // Both were Theatre surfaces wearing a world tab. Discover renders a hardcoded
+    // curated rail list — Netflix Catalog and Marvel Universe, under the Tankoban tab —
+    // and Browse queries a community registry that is entirely video add-ons, so a
+    // world-filtered Browse would be permanently empty in Tankoban and Biblio. Rather
+    // than invent per-world catalogue data to justify two panes, the other worlds have
+    // the one pane that was ever true for them: what is installed.
+    //
+    // This also retires A5's P0-6 ("world tabs are decorative in two of three panes")
+    // at the root instead of patching it: the decorative panes are gone.
+    readonly property bool hasStore: world === "theatre"
+    readonly property var paneModel: hasStore
+        ? [ { key: "discover",  label: "Discover" },
+            { key: "browse",    label: "Browse everything" },
+            { key: "installed", label: "Installed · " } ]
+        : [ { key: "installed", label: "Installed · " } ]
+    // Compare `world` DIRECTLY, never the hasStore binding derived from it: inside this
+    // handler that binding can still hold its previous value, so `!hasStore` read false
+    // and the pane never moved. Clicking Tankoban from Theatre's Discover left Theatre's
+    // Discover on screen under a Tankoban header. (Found on eyes-on, 2026-07-26.)
+    //
+    // The handler keeps the pane tab honest, but it is NOT what makes this safe — the
+    // pane visibility below is gated on the world too, so a store pane cannot render
+    // outside Theatre whatever `pane` happens to say.
+    onWorldChanged: if (world !== "theatre" && pane !== "installed") pane = "installed"
+
+    // community loads when Browse first opens, and reloads on sort/search change.
+    // Skipped while a search debounce is pending — that timer owns the fetch, and
+    // firing both sends the same request twice on the first search from Discover.
+    onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading
+                       && !queryDebounce.running) loadCommunity()
     onSortChanged: if (pane === "browse") loadCommunity()
     Timer {
         id: queryDebounce
         interval: 450
         onTriggered: if (root.pane === "browse") root.loadCommunity()
     }
-    onQueryChanged: queryDebounce.restart()
+
+    // ---- a search goes where the answers are -----------------------------------
+    // Hemanth 2026-07-26: "when I search for something in theatre, it does nothing
+    // because the results show up in browse but if the page is in discover it doesn't
+    // turn to browse." Exactly right. Discover's matcher only tests curated card NAMES,
+    // so nearly every real query matched nothing and the pane went silently blank while
+    // the actual results sat unfetched one tab over. Typing is a request for results, so
+    // it now moves to the pane that has them — and clearing the box gives Discover back,
+    // so the search never costs you your place.
+    property bool _searchDroveThePane: false
+    onQueryChanged: {
+        if (hasStore && query !== "" && pane === "discover") {
+            _searchDroveThePane = true;
+            pane = "browse";
+        } else if (query === "" && _searchDroveThePane) {
+            _searchDroveThePane = false;
+            if (pane === "browse") pane = "discover";
+        }
+        queryDebounce.restart();
+    }
 
     MouseArea { anchors.fill: parent }
     Rectangle { anchors.fill: parent; color: "#000000" }
@@ -159,11 +296,18 @@ Item {
                     var on = 0;
                     for (var i = 0; i < root.installedList.length; i++)
                         if (root.installedList[i].enabled) on++;
+                    // Real per-world counts. These were hardcoded as "Theatre = every
+                    // install, Tankoban —, Biblio —", which was true only while the other
+                    // two worlds were dead tabs. A world total can exceed the sum of the
+                    // three, because one install may serve two worlds.
+                    var w = function (k) {
+                        return "<font color='#c9c8d0'>" + root.countIn(k) + "</font>";
+                    };
                     return "<b><font color='#f7f7f5'>" + n + "</font></b> installed"
                          + "  ·  " + (on === n ? "all carrying" : on + " carrying")
-                         + "  ·  Theatre <font color='#c9c8d0'>" + n + "</font>"
-                         + "  ·  Tankoban <font color='#c9c8d0'>—</font>"
-                         + "  ·  Biblio <font color='#c9c8d0'>—</font>";
+                         + "  ·  Theatre " + w("theatre")
+                         + "  ·  Tankoban " + w("tankoban")
+                         + "  ·  Biblio " + w("biblio");
                 }
             }
 
@@ -172,10 +316,13 @@ Item {
                 topPadding: 34
                 spacing: 34
                 Repeater {
+                    // All three worlds are live as of stage 1 — Tankoban and Biblio now
+                    // carry real catalogues and wells, so the "arrives later" tag and both
+                    // hand-written empty states are gone.
                     model: [
                         { key: "theatre", title: "Theatre", live: true },
-                        { key: "tankoban", title: "Tankoban", live: false },
-                        { key: "biblio", title: "Biblio", live: false }
+                        { key: "tankoban", title: "Tankoban", live: true },
+                        { key: "biblio", title: "Biblio", live: true }
                     ]
                     delegate: Item {
                         id: worldTab
@@ -216,10 +363,11 @@ Item {
                 }
             }
 
-            // =================== THEATRE — the live store ===================
+            // =================== THE LIVE STORE — all three worlds ===================
+            // Was gated to Theatre only. Every world is live as of stage 1; the pane's
+            // own rows filter by root.world.
             Column {
                 width: col.width
-                visible: root.world === "theatre"
                 spacing: 0
 
                 // ---- pane tabs + ONE global search + install-from-link ----
@@ -231,11 +379,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 26
                         Repeater {
-                            model: [
-                                { key: "discover", label: "Discover" },
-                                { key: "browse", label: "Browse everything" },
-                                { key: "installed", label: "Installed · " }
-                            ]
+                            model: root.paneModel
                             delegate: Item {
                                 id: paneTab
                                 required property var modelData
@@ -243,8 +387,11 @@ Item {
                                 implicitHeight: paneLabel.implicitHeight + 9
                                 Text {
                                     id: paneLabel
+                                    // Count THIS world, not the whole app. The pane below
+                                    // draws installedRowsFor(world), so a global total read
+                                    // "Installed · 13" above 4 Biblio rows. (A5's P0-7.)
                                     text: paneTab.modelData.key === "installed"
-                                          ? paneTab.modelData.label + root.installedList.length
+                                          ? paneTab.modelData.label + root.countIn(root.world)
                                           : paneTab.modelData.label
                                     color: root.pane === paneTab.modelData.key ? theme.ink
                                          : paneMa.containsMouse ? theme.inkDim : theme.inkDimmer
@@ -326,13 +473,16 @@ Item {
                 // ============ DISCOVER ============
                 Column {
                     width: col.width
-                    visible: root.pane === "discover"
+                    // Gated on the world, not just the pane. This is what actually
+                    // guarantees Theatre's rails cannot appear under the Tankoban tab —
+                    // an imperative pane fix-up can be skipped, a binding cannot.
+                    visible: root.pane === "discover" && root.hasStore
                     spacing: 0
 
                     // featured slab — steps aside while a search is on
                     Rectangle {
                         width: col.width
-                        height: 168
+                        height: 156
                         visible: !root.query.length
                         radius: 20
                         border.width: 1; border.color: theme.edge
@@ -369,36 +519,57 @@ Item {
                                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
                                 Text { text: Catalog.featured().name; color: theme.ink
                                        font.family: theme.display; font.pixelSize: 32 }
-                                Text {
-                                    width: parent.width
-                                    text: Catalog.featured().line
-                                    color: theme.inkDim
-                                    font.family: theme.display; font.italic: true; font.pixelSize: 16
-                                    wrapMode: Text.WordWrap
-                                }
-                                Text {
-                                    width: parent.width
-                                    text: Catalog.featured().facts
-                                    color: theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
-                                    elide: Text.ElideRight
-                                }
                             }
+                            // Derived, never asserted. This slab hardcoded "Installed" and
+                            // "built-in": remove Torrentio and the largest element on the page
+                            // went on claiming it was installed AND built in, while offering no
+                            // control to install it back. Torrentio is core:false and removable,
+                            // so the second line was false even before you touched anything.
+                            // (A5's audit P0-5 — three of his four lenses reported it.)
+                            //
+                            // Same four-state verb the Discover cards carry, in TEXT not colour,
+                            // and clickable in the one state where clicking means something.
                             Column {
+                                id: featuredVerb
                                 width: 180
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 5
-                                Text {
-                                    anchors.right: parent.right
-                                    text: "Installed"
-                                    color: theme.gold
-                                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                }
-                                Text {
-                                    anchors.right: parent.right
-                                    text: "built-in"
-                                    color: theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
+                                readonly property var item: Catalog.featured()
+                                readonly property bool isCore: root.coreOf(featuredVerb.item)
+                                readonly property bool isOn: root.carried(featuredVerb.item)
+                                readonly property bool isPending:
+                                    root.pendingUrls[featuredVerb.item.url] === true
+                                // An explicit 44px-tall hit box, not a MouseArea hung off a
+                                // Text's implicit size — the first version never received a
+                                // click at all, proven by a probe that never fired.
+                                Item {
+                                    width: parent.width
+                                    height: 44
+                                    Text {
+                                        id: featuredVerbLabel
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: featuredVerb.isCore ? "Built-in"
+                                            : featuredVerb.isOn ? "Installed"
+                                            : featuredVerb.isPending ? "Installing…"
+                                            : "Install"
+                                        color: featuredVerb.isCore || featuredVerb.isOn || featuredVerb.isPending
+                                               ? theme.inkDimmer
+                                               : featuredMa.containsMouse ? "#ffd968" : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 14
+                                        font.weight: featuredVerb.isOn ? Font.Normal : Font.DemiBold
+                                    }
+                                    MouseArea {
+                                        id: featuredMa
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: Math.max(88, featuredVerbLabel.implicitWidth + 28)
+                                        height: 44
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        enabled: !featuredVerb.isCore && !featuredVerb.isOn
+                                                 && !featuredVerb.isPending
+                                        onClicked: root.installFromCard(featuredVerb.item)
+                                    }
                                 }
                             }
                         }
@@ -451,7 +622,7 @@ Item {
                                             id: card
                                             required property var modelData
                                             visible: root.hit(card.modelData.name)
-                                            width: 236; height: 188
+                                            width: 236; height: 132
                                             radius: 16
                                             color: cardMa.containsMouse ? Qt.rgba(0.06, 0.065, 0.09, 0.65)
                                                                         : Qt.rgba(0.04, 0.045, 0.065, 0.55)
@@ -472,19 +643,6 @@ Item {
                                                 Item { width: 1; height: 12 }
                                                 Text { text: card.modelData.name; color: theme.ink
                                                        font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
-                                                Item { width: 1; height: 5 }
-                                                Text {
-                                                    width: parent.width
-                                                    text: card.modelData.desc
-                                                    color: theme.inkDimmer
-                                                    font.family: theme.ui; font.pixelSize: 12
-                                                    wrapMode: Text.WordWrap
-                                                    maximumLineCount: 2
-                                                    elide: Text.ElideRight
-                                                }
-                                                Item { width: 1; height: 9 }
-                                                Text { text: card.modelData.kind; color: theme.inkDim
-                                                       font.family: theme.ui; font.pixelSize: 12 }
                                             }
                                             MouseArea {
                                                 id: cardMa
@@ -528,7 +686,7 @@ Item {
                 // ============ BROWSE ============
                 Column {
                     width: col.width
-                    visible: root.pane === "browse"
+                    visible: root.pane === "browse" && root.hasStore
                     spacing: 0
 
                     Row {
@@ -617,7 +775,7 @@ Item {
                                     required property var modelData
                                     required property int index
                                     width: communityCol.width
-                                    height: 72
+                                    height: 60
                                     Rectangle {
                                         anchors.bottom: parent.bottom
                                         width: parent.width; height: 1
@@ -652,14 +810,6 @@ Item {
                                             Text { text: crow.modelData.name; color: theme.ink
                                                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                                    elide: Text.ElideRight; width: parent.width }
-                                            Text {
-                                                width: parent.width
-                                                text: crow.modelData.kind
-                                                      + (crow.modelData.desc ? " · " + crow.modelData.desc : "")
-                                                color: theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 12
-                                                elide: Text.ElideRight
-                                            }
                                         }
                                         Text {
                                             width: 120
@@ -708,7 +858,9 @@ Item {
                 // ============ INSTALLED ============
                 Column {
                     width: col.width
-                    visible: root.pane === "installed"
+                    // The only pane the other worlds have, so it renders whenever there
+                    // is no store — never a blank page because `pane` lagged behind.
+                    visible: root.pane === "installed" || !root.hasStore
                     spacing: 0
 
                     Rectangle {
@@ -728,7 +880,10 @@ Item {
                             anchors.rightMargin: 28
 
                             Repeater {
-                                model: root.installedList
+                                // World-filtered AND job-ordered, so the pane reads
+                                // Catalogue-then-Wells without needing name suffixes to
+                                // tell WeebCentral's two roles apart.
+                                model: root.installedRowsFor(root.world)
                                 delegate: Item {
                                     id: irow
                                     required property var modelData
@@ -737,15 +892,71 @@ Item {
                                     property bool isCore: irow.modelData.core === true
                                     property bool isOn: irow.modelData.enabled === true
                                     property bool configurable: (irow.manifest.behaviorHints || {}).configurable === true
+                                    // Role (spec §3.1): a catalogue fills the shelves — locked,
+                                    // unranked, never removable. A well fetches — ranked, removable.
+                                    property bool isCatalogue: Catalog.isCatalogue(irow.modelData)
+                                    // Rank is this world's filtered well index, so one shared row
+                                    // reads 4 in Tankoban and 2 in Biblio with nothing stored.
+                                    property int rank: irow.isCatalogue ? 0
+                                                     : root.wellRank(irow.modelData, root.world)
+                                    // An arrow is live only when it has somewhere to go IN THIS
+                                    // WORLD. Asking the same resolver the click uses means the
+                                    // control can never be offered for a move that won't happen —
+                                    // the old arrows were always lit and silently did nothing.
+                                    readonly property bool canMoveUp:
+                                        !irow.isCatalogue && Catalog.moveDestination(
+                                            root.installedList, root.world, irow.modelData.id, -1) !== null
+                                    readonly property bool canMoveDown:
+                                        !irow.isCatalogue && Catalog.moveDestination(
+                                            root.installedList, root.world, irow.modelData.id, 1) !== null
+                                    // A house well lives in-app and has no web page to open, so it
+                                    // gets Settings; a remote addon keeps Configure ↗ (stage 4 builds
+                                    // the sheet — until then only remote rows offer anything).
+                                    property bool isHouse: String(irow.modelData.transportUrl || "")
+                                                           .indexOf("colosseum://") === 0
+                                    // The model is ordered Catalogue-then-Wells-then-rest, so a row
+                                    // knows it opens a group when its job differs from the row above.
+                                    // Drawing the header here keeps one Repeater and one delegate.
+                                    readonly property string group: irow.isCatalogue ? "catalogue"
+                                                                  : (Catalog.isWell(irow.modelData) ? "wells" : "rest")
+                                    readonly property bool startsGroup: {
+                                        var rows = root.installedRowsFor(root.world);
+                                        if (irow.index <= 0) return true;
+                                        var p = rows[irow.index - 1];
+                                        if (!p) return true;
+                                        var pg = Catalog.isCatalogue(p) ? "catalogue"
+                                               : (Catalog.isWell(p) ? "wells" : "rest");
+                                        return pg !== irow.group;
+                                    }
+                                    readonly property string groupTitle:
+                                        irow.group === "catalogue" ? "Catalogue"
+                                      : irow.group === "wells" ? "Wells" : "Also installed"
+                                    // The model is already world-filtered and job-ordered;
+                                    // only the search filter remains here.
                                     visible: root.hit(irow.manifest.name || irow.modelData.id)
                                     width: installedCol.width
-                                    height: 82
+                                    height: 82 + (irow.startsGroup ? 30 : 0)
+
+                                    // ---- job header, drawn by the row that opens the group ----
+                                    // The label alone. Its explanatory subtitle is gone by the
+                                    // same ruling that took the row descriptions: the grouping
+                                    // is legible without being narrated. (Hemanth, 2026-07-26.)
+                                    Text {
+                                        visible: irow.startsGroup
+                                        anchors.top: parent.top
+                                        anchors.topMargin: 12
+                                        anchors.left: parent.left
+                                        text: irow.groupTitle.toUpperCase()
+                                        color: theme.gold
+                                        font.family: theme.ui; font.pixelSize: 10
+                                        font.letterSpacing: 2.4; font.bold: true
+                                    }
 
                                     Rectangle {
                                         anchors.bottom: parent.bottom
                                         width: parent.width; height: 1
                                         color: Qt.rgba(1, 1, 1, 0.06)
-                                        visible: irow.index < root.installedList.length - 1
+                                        visible: irow.index < root.installedRowsFor(root.world).length - 1
                                     }
                                     MouseArea {
                                         id: irowMa
@@ -756,34 +967,55 @@ Item {
 
                                     Row {
                                         anchors.verticalCenter: parent.verticalCenter
+                                        // sit below the job header when this row opens a group
+                                        anchors.verticalCenterOffset: irow.startsGroup ? 15 : 0
                                         width: parent.width
                                         spacing: 18
 
-                                        // move up / down — the ask-order controls
+                                        // rank + move up/down — the ask-order controls. Only wells
+                                        // are ever ranked or reordered, which is what finally makes
+                                        // this pane's own printed ordering law below true.
+                                        Item {
+                                            width: 18; height: 30
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            visible: !irow.isCatalogue
+                                            Text {
+                                                anchors.horizontalCenter: parent.horizontalCenter
+                                                anchors.top: parent.top
+                                                text: irow.rank
+                                                color: theme.gold
+                                                font.family: theme.ui; font.pixelSize: 12
+                                                font.weight: Font.Bold
+                                                opacity: irow.isOn ? 1 : 0.4
+                                            }
+                                        }
                                         Column {
                                             width: 18
+                                            visible: !irow.isCatalogue
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 4
                                             opacity: irowMa.containsMouse ? 1 : 0.25
                                             Text {
                                                 text: "▲"; font.pixelSize: 10
                                                 color: upMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                opacity: irow.canMoveUp ? 1 : 0.3
                                                 MouseArea { id: upMa; anchors.fill: parent; hoverEnabled: true
+                                                            enabled: irow.canMoveUp
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: Extensions.move(irow.modelData.id, -1) }
+                                                            onClicked: root.moveWell(irow.modelData.id, -1) }
                                             }
                                             Text {
                                                 text: "▼"; font.pixelSize: 10
                                                 color: downMa.containsMouse ? theme.ink : theme.inkDimmer
+                                                opacity: irow.canMoveDown ? 1 : 0.3
                                                 MouseArea { id: downMa; anchors.fill: parent; hoverEnabled: true
+                                                            enabled: irow.canMoveDown
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: Extensions.move(irow.modelData.id, 1) }
-        }
-    }
+                                                            onClicked: root.moveWell(irow.modelData.id, 1) }
+                                            }
+                                        }
 
-    ScrollGlide { flick: page }
-
-    AddonLogo {
+                                        AddonLogo {
                                             anchors.verticalCenter: parent.verticalCenter
                                             opacity: irow.isOn ? 1 : 0.45
                                             addonId: irow.manifest.id || irow.modelData.id
@@ -793,10 +1025,17 @@ Item {
                                         }
 
                                         Column {
-                                            width: parent.width - 18 - 44 - 300 - 18 * 3
+                                            // Row omits invisible children from layout, so a
+                                            // catalogue row (no rank, no grip) reclaims their
+                                            // 18+18 widths and their two gaps.
+                                            width: parent.width - 44 - 300 - 18 * 2
+                                                   - (irow.isCatalogue ? 0 : 18 + 18 + 18 * 2)
                                             anchors.verticalCenter: parent.verticalCenter
                                             spacing: 4
                                             opacity: irow.isOn ? 1 : 0.45
+                                            // The name carries the row. Hemanth's ruling 2026-07-26:
+                                            // these need no explaining, and every line we wrote was
+                                            // either obvious or wrong.
                                             Row {
                                                 spacing: 10
                                                 Text { text: irow.manifest.name || irow.modelData.id
@@ -809,13 +1048,6 @@ Item {
                                                     color: theme.inkDimmer
                                                     font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 0.6
                                                 }
-                                            }
-                                            Text {
-                                                width: parent.width
-                                                text: irow.manifest.description || irow.modelData.transportUrl
-                                                color: theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 12
-                                                elide: Text.ElideRight
                                             }
                                         }
 
@@ -856,19 +1088,43 @@ Item {
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 MouseArea { id: rmMa; anchors.fill: parent; hoverEnabled: true
                                                             cursorShape: Qt.PointingHandCursor
-                                                            onClicked: Extensions.remove(irow.modelData.id) }
+                                                            onClicked: root.askRemove(irow.modelData) }
+                                            }
+                                            // A catalogue says plainly why there is no Remove, rather
+                                            // than leaving an unexplained gap where every other row
+                                            // has a verb.
+                                            Text {
+                                                visible: irow.isCore
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                text: "Locked"
+                                                color: theme.inkDimmer
+                                                opacity: 0.7
+                                                font.family: theme.ui; font.pixelSize: 13
                                             }
                                             Text {
                                                 visible: irow.configurable
                                                 anchors.verticalCenter: parent.verticalCenter
-                                                text: "Configure"
+                                                // A house well has no web page; Configure would silently
+                                                // leave the app. The ↗ marks the outbound one, matching
+                                                // the convention already at BiblioBook.qml:590.
+                                                text: irow.isHouse ? "Settings" : "Configure ↗"
                                                 color: cfgMa.containsMouse ? theme.ink : theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
                                                 MouseArea {
                                                     id: cfgMa; anchors.fill: parent; hoverEnabled: true
                                                     cursorShape: Qt.PointingHandCursor
-                                                    onClicked: Qt.openUrlExternally(
-                                                        irow.modelData.transportUrl.replace(/manifest\.json$/i, "configure"))
+                                                    onClicked: {
+                                                        if (irow.isHouse) {
+                                                            // Stage 4 builds the in-app sheet. Until then
+                                                            // say so rather than opening a dead URL.
+                                                            root.notice = (irow.manifest.name || "This well")
+                                                                        + " settings arrive with the indexer sheet."
+                                                            noticeTimer.restart()
+                                                        } else {
+                                                            Qt.openUrlExternally(irow.modelData.transportUrl
+                                                                .replace(/manifest\.json$/i, "configure"))
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -887,48 +1143,6 @@ Item {
                 }
             }
 
-            // =================== TANKOBAN / BIBLIO — honest empty ===================
-            Rectangle {
-                width: col.width
-                visible: root.world !== "theatre"
-                radius: 18
-                color: Qt.rgba(0.04, 0.045, 0.065, 0.48)
-                border.width: 1; border.color: theme.edge
-                height: emptyCol.implicitHeight + 76
-                Column {
-                    id: emptyCol
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.margins: 38
-                    spacing: 12
-                    Text {
-                        text: root.world === "tankoban"
-                              ? "No extensions live in Tankoban yet."
-                              : "No extensions live in Biblio yet."
-                        color: theme.inkDim
-                        font.family: theme.display; font.italic: true; font.pixelSize: 20
-                    }
-                    Text {
-                        width: parent.width * 0.7
-                        text: root.world === "tankoban"
-                              ? "The store opens with Theatre first. When the comics lane is ready for guests, its sources — catalogs, download wells, metadata — will install from this same page, the same way."
-                              : "Books keep their one trusted source for now. When Biblio is ready to take recommendations, new shelves and download wells will arrive here."
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
-                        wrapMode: Text.WordWrap
-                        lineHeight: 1.35
-                    }
-                    Text {
-                        text: "See what Theatre’s store looks like ›"
-                        color: goMa.containsMouse ? "#ffd968" : theme.gold
-                        font.family: theme.ui; font.pixelSize: 14
-                        MouseArea { id: goMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: root.world = "theatre" }
-                    }
-                }
-            }
         }
     }
 
