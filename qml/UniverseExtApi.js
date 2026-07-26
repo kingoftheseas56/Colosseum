@@ -29,7 +29,7 @@ function _entryOk(kind, e) {
     return !!e.id;
 }
 
-// Returns { title, logo, background, sections: [...] } with everything invalid removed.
+// Returns { id, title, logo, background, sections: [...] } with everything invalid removed.
 function validate(payload) {
     var u = (payload && payload.universe) || {};
     var out = { id: u.id || "", title: u.title || "", logo: u.logo || "",
@@ -48,22 +48,33 @@ function validate(payload) {
     return out;
 }
 
-var _cache = {};   // extensionId → validated payload
+// extensionId → validated payload. Never invalidated: today's payloads are read-only
+// bundled files, so a hit is a hit forever. That stops being true once §5.5's HTTPS
+// server can push a revision — this cache becomes a real policy question then, not now.
+var _cache = {};
 
+// The payload reader. QML installs the C++ one at startup; tests inject a fake.
+var _reader = null;
+function setReader(fn) { _reader = fn; }
+
+// Transport is C++'s (ExtensionsStore.universePayload): Qt blocks XMLHttpRequest on
+// file:// by default, and house doctrine keeps transport off the GUI thread's JS. The
+// callback shape is kept so the HTTPS end state (§5.5) can go async again without
+// touching any caller.
 function load(extensionId, done) {
     if (_cache[extensionId]) { done(_cache[extensionId]); return; }
     var file = fileFor(extensionId);
     if (!file) { done(null); return; }
-    var xhr = new XMLHttpRequest();
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState !== XMLHttpRequest.DONE) return;
-        var parsed = null;
-        try { parsed = JSON.parse(xhr.responseText); } catch (e) { parsed = null; }
-        if (!parsed) { done(null); return; }
-        var v = validate(parsed);
-        _cache[extensionId] = v;
-        done(v);
-    };
-    xhr.open("GET", "../assets/universes/" + file + ".json");
-    xhr.send();
+    var text = _reader ? _reader(file) : "";
+    var parsed = null;
+    try { parsed = text ? JSON.parse(text) : null; } catch (e) { parsed = null; }
+    if (!parsed) { done(null); return; }        // failures are NOT cached — next call retries
+    var v = validate(parsed);
+    _cache[extensionId] = v;
+    done(v);
 }
+
+// NOT wired yet — a later task installs the real reader at startup, in QML, as:
+//   UniverseApi.setReader(function (f) { return Extensions.universePayload(f) })
+// "Extensions" is the ExtensionsStore singleton's QML context-property name
+// (native/main.cpp: engine.rootContext()->setContextProperty("Extensions", extensions)).

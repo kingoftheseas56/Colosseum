@@ -4,7 +4,9 @@
 import { readFileSync } from 'node:fs';
 let src = readFileSync('qml/UniverseExtApi.js', 'utf8').replace(/^\.pragma library\s*$/m, '');
 const mod = {};
-new Function('module', 'XMLHttpRequest', src + '\nmodule.validate=validate;module.fileFor=fileFor;')(mod, function(){});
+new Function('module', 'XMLHttpRequest',
+  src + '\nmodule.validate=validate;module.fileFor=fileFor;module.load=load;module.setReader=setReader;'
+)(mod, function(){});
 
 let failed = 0;
 const ok  = m => console.log('  ok   ' + m);
@@ -77,6 +79,110 @@ console.log('\nextension id maps to its bundled payload');
 eq(mod.fileFor('com.colosseum.universe.onepiece'), 'one-piece', 'One Piece file');
 eq(mod.fileFor('com.colosseum.universe.dcau'), 'dcau', 'DCAU file');
 eq(mod.fileFor('com.example.other'), '', 'unknown extension has no payload');
+
+// load() carries the reader seam + cache policy. Each scenario below gets its own fresh
+// module instance so one test's cache never bleeds into the next.
+function freshMod() {
+  const m = {};
+  new Function('module', 'XMLHttpRequest',
+    src + '\nmodule.validate=validate;module.fileFor=fileFor;module.load=load;module.setReader=setReader;'
+  )(m, function(){});
+  return m;
+}
+const okPayload = JSON.stringify({ universe: { title: 'X', sections: [
+  { id: 's', title: 'S', kind: 'video', entries: [{ id: 'tt1', type: 'movie', title: 't' }] }
+]}});
+
+console.log('\nload(): done is called exactly once on success');
+{
+  const m = freshMod();
+  let calls = 0;
+  m.setReader(function (f) { return okPayload; });
+  m.load('com.colosseum.universe.onepiece', function () { calls++; });
+  eq(calls, 1, 'done called once');
+}
+
+console.log('\nload(): missing file (reader returns "") → done(null)');
+{
+  const m = freshMod();
+  let got = 'unset';
+  m.setReader(function (f) { return ''; });
+  m.load('com.colosseum.universe.onepiece', function (p) { got = p; });
+  eq(got, null, 'done(null) on empty reader text');
+}
+
+console.log('\nload(): malformed JSON → done(null)');
+{
+  const m = freshMod();
+  let got = 'unset';
+  m.setReader(function (f) { return '{not json'; });
+  m.load('com.colosseum.universe.onepiece', function (p) { got = p; });
+  eq(got, null, 'done(null) on malformed JSON');
+}
+
+console.log('\nload(): a failed load is NOT cached — a retry with a now-good reader succeeds');
+{
+  const m = freshMod();
+  let readerCalls = 0;
+  let bad = true;
+  m.setReader(function (f) { readerCalls++; return bad ? '' : okPayload; });
+  let first = 'unset';
+  m.load('com.colosseum.universe.onepiece', function (p) { first = p; });
+  eq(first, null, 'first load fails (reader returned empty text)');
+  bad = false;
+  let second = 'unset';
+  m.load('com.colosseum.universe.onepiece', function (p) { second = p; });
+  eq(second && second.sections.length, 1, 'retry succeeds — failure was never cached');
+  eq(readerCalls, 2, 'reader invoked again on retry');
+}
+
+console.log('\nload(): a cache hit never calls the reader again');
+{
+  const m = freshMod();
+  let readerCalls = 0;
+  m.setReader(function (f) { readerCalls++; return okPayload; });
+  m.load('com.colosseum.universe.onepiece', function () {});
+  m.load('com.colosseum.universe.onepiece', function () {});
+  eq(readerCalls, 1, 'reader called once despite two loads');
+}
+
+console.log('\nload(): unknown extension id → done(null), reader never called');
+{
+  const m = freshMod();
+  let readerCalls = 0;
+  let got = 'unset';
+  m.setReader(function (f) { readerCalls++; return ''; });
+  m.load('com.example.other', function (p) { got = p; });
+  eq(got, null, 'done(null) for unknown extension id');
+  eq(readerCalls, 0, 'reader never invoked for an id with no bundled file');
+}
+
+console.log('\nload(): real bundled payloads survive end-to-end through the reader seam');
+{
+  const m = freshMod();
+  const texts = {
+    'one-piece': readFileSync('assets/universes/one-piece.json', 'utf8'),
+    'dcau': readFileSync('assets/universes/dcau.json', 'utf8')
+  };
+  m.setReader(function (f) { return texts[f] || ''; });
+
+  const rawOnePieceN = JSON.parse(texts['one-piece']).universe.sections
+    .reduce((a, s) => a + s.entries.length, 0);
+  const rawDcauN = JSON.parse(texts['dcau']).universe.sections
+    .reduce((a, s) => a + s.entries.length, 0);
+
+  let onePieceResult = null;
+  m.load('com.colosseum.universe.onepiece', function (p) { onePieceResult = p; });
+  let dcauResult = null;
+  m.load('com.colosseum.universe.dcau', function (p) { dcauResult = p; });
+
+  const onePieceN = onePieceResult.sections.reduce((a, s) => a + s.entries.length, 0);
+  const dcauN = dcauResult.sections.reduce((a, s) => a + s.entries.length, 0);
+  eq(onePieceN, rawOnePieceN, 'one-piece entries survive through the reader seam');
+  eq(dcauN, rawDcauN, 'dcau entries survive through the reader seam');
+  eq(onePieceN, 54, 'one-piece = 54 entries');
+  eq(dcauN, 31, 'dcau = 31 entries');
+}
 
 console.log(failed ? `\n${failed} FAILED` : '\nall green');
 process.exit(failed ? 1 : 0);

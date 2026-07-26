@@ -48,6 +48,12 @@ public:
     // True if a transportUrl (any form) or manifest id is already carried.
     Q_INVOKABLE bool isInstalled(const QString& urlOrId) const;
 
+    // The bundled universe payload for an installed universe extension. C++ owns this read
+    // because Qt blocks XMLHttpRequest on file:// by default (QML_XHR_ALLOW_FILE_READ) —
+    // and because house doctrine keeps transport out of the GUI thread's JS. Returns the
+    // raw JSON text; validation stays in UniverseExtApi.js. Empty string on any failure.
+    Q_INVOKABLE QString universePayload(const QString& file) const;
+
     // Paste-a-link step 1: fetch + validate the manifest, emit previewReady with
     // the slimmed manifest so the sheet can show what it offers BEFORE anything
     // is added. Adult manifests are refused here (previewFailed).

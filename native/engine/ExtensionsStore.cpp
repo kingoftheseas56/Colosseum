@@ -2,6 +2,7 @@
 
 #include "ExtensionsStore.h"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -12,6 +13,7 @@
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
+#include <QRegularExpression>
 #include <QSaveFile>
 #include <QStandardPaths>
 #include <QUrl>
@@ -351,6 +353,32 @@ bool ExtensionsStore::isInstalled(const QString& urlOrId) const
             return true;
     }
     return false;
+}
+
+QString ExtensionsStore::universePayload(const QString& file) const
+{
+    // `file` is a bare stem (e.g. "one-piece") from UniverseExtApi.fileFor(), never a path
+    // and never an extension id. Reject anything else before it touches a path — this is
+    // the only thing standing between an installed extension id and path traversal.
+    static const QRegularExpression kStem(QStringLiteral("^[a-z0-9-]+$"));
+    if (!kStem.match(file).hasMatch())
+        return QString();
+
+    // Same resolution order as MalCatalog: the relative path first (true when the
+    // argless launch has anchored CWD on the repo root), then applicationDirPath()
+    // + "/../../" (true for a dev/test harness launch that left CWD elsewhere — the
+    // exe sits at <repo>/native/build-msvc/, so two hops up is the repo root).
+    QString path = QStringLiteral("assets/universes/") + file + QStringLiteral(".json");
+    if (!QFileInfo::exists(path)) {
+        const QString beside = QCoreApplication::applicationDirPath()
+                               + QStringLiteral("/../../") + path;
+        if (QFileInfo::exists(beside)) path = beside;
+    }
+
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly | QIODevice::Text))
+        return QString();
+    return QString::fromUtf8(f.readAll());
 }
 
 // ------------------------------------------------------------------ mutations
