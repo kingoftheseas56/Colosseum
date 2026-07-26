@@ -54,6 +54,10 @@ class Player2Session final : public QObject, public IRecoverableTarget
     // and start playback before seekCompleted lands). So the state alone cannot tell the chrome that
     // a wait is in progress — this flag can. Always false for local files: no source, no callback.
     Q_PROPERTY(bool networkStalled READ networkStalled NOTIFY networkStalledChanged)
+    // How far the stream is buffered, in seconds on the timeline, or -1 when the question does not
+    // apply (local file, or an origin that never declared its length). The seek bar's cache strip
+    // binds to this; -1 hides the strip instead of inventing a fill.
+    Q_PROPERTY(double bufferedSeconds READ bufferedSeconds NOTIFY bufferedSecondsChanged)
     Q_PROPERTY(QString audioDevice READ audioDevice NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(QString audioFormat READ audioFormat NOTIFY audioDiagnosticsChanged)
     Q_PROPERTY(double audioQueueMs READ audioQueueMs NOTIFY audioDiagnosticsChanged)
@@ -90,6 +94,7 @@ public:
     QVariantList chapters() const;
     quint64 generation() const noexcept;
     bool networkStalled() const noexcept;
+    double bufferedSeconds() const noexcept;
     void setVideoPipeline(D3D11VideoPipeline *pipeline);
     QString audioDevice() const;
     QString audioFormat() const;
@@ -148,6 +153,7 @@ signals:
     void chaptersChanged();
     void generationChanged();
     void networkStalledChanged();
+    void bufferedSecondsChanged();
     void errorOccurred(const Player2Error &error);
     void demuxEnded(DemuxEndReason reason);
     void packetAccepted(quint64 generation, const DemuxPacketInfo &packet);
@@ -185,6 +191,7 @@ private:
     PlaybackRequest m_lastRequest;
     std::atomic_bool m_shuttingDown{false};
     bool m_networkStalled = false;
+    double m_bufferedSeconds = -1.0;
     int m_recoveryAttempts = 0;
     double m_position = 0.0;
     double m_duration = 0.0;

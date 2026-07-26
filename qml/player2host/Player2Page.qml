@@ -291,6 +291,9 @@ Item {
     function sessionDuration() { return backend.session ? backend.session.duration : -1 }
     function sessionPosition() { return backend.session ? backend.session.position : -1 }
     function sessionNetworkStalled() { return backend.session ? backend.session.networkStalled : false }
+    // -1 when the stream never declared a length, or for a local file: the seek bar draws no cache
+    // strip for either, which is the shipped player's behaviour too.
+    function sessionBufferedSeconds() { return backend.session ? backend.session.bufferedSeconds : -1 }
     function statusText() { return page._statusText() }
     // Is the full-screen loading surface up? A stalled seek must answer FALSE - the picture stays.
     function loadingActive() { return page._starting || page.errored }

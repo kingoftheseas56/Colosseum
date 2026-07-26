@@ -7,6 +7,7 @@
 #include <QtCore/QVariantMap>
 
 #include <algorithm>
+#include <cmath>
 
 #ifdef min
 #undef min
@@ -70,6 +71,16 @@ Player2Session::Player2Session(QObject *parent)
         if (seconds > m_position) {
             m_position = seconds;
             emit positionChanged();
+        }
+        // Refresh the streaming cache frontier on the same cadence as position. Only publish a
+        // MEANINGFUL move: this fires per packet, and a binding re-evaluated tens of times a second
+        // for a sub-pixel change is pure cost on a 60Hz repaint the CPU gate is already watching.
+        const qint64 bufferedUs = m_demux.bufferedEndUs();
+        const double buffered = bufferedUs < 0 ? -1.0 : bufferedUs / 1'000'000.0;
+        if ((buffered < 0.0) != (m_bufferedSeconds < 0.0)
+            || std::abs(buffered - m_bufferedSeconds) >= 0.25) {
+            m_bufferedSeconds = buffered;
+            emit bufferedSecondsChanged();
         }
         emit packetAccepted(generation, packet);
         emit audioDiagnosticsChanged();
@@ -215,6 +226,7 @@ QVariantList Player2Session::subtitleTracks() const
 }
 quint64 Player2Session::generation() const noexcept { return m_generation.current(); }
 bool Player2Session::networkStalled() const noexcept { return m_networkStalled; }
+double Player2Session::bufferedSeconds() const noexcept { return m_bufferedSeconds; }
 QString Player2Session::audioDevice() const { return m_audioPipeline.deviceName(); }
 QString Player2Session::audioFormat() const
 {
@@ -632,6 +644,11 @@ void Player2Session::resetMediaProperties()
     // open() and close() both land here, so a stall never survives the media that produced it —
     // a local file opened after a stalled stream starts honestly un-stalled.
     setNetworkStalled(false);
+    // Same reason: a local file must not inherit the previous stream's cache strip.
+    if (m_bufferedSeconds != -1.0) {
+        m_bufferedSeconds = -1.0;
+        emit bufferedSecondsChanged();
+    }
     if (m_position != 0.0) {
         m_position = 0.0;
         emit positionChanged();

@@ -45,6 +45,7 @@ Window {
     property int presentedAtPress: -1
     property double seekPressedAtMs: 0
     property bool finished: false
+    property bool bufferProven: false
     // Time from the press to the PICTURE moving again. This is deliberately NOT the sub-second
     // requirement: it also contains the engine's audio-readiness barrier (the clock is held until
     // the sound is genuinely audible), which T2d neither causes nor controls, and which measured
@@ -110,6 +111,18 @@ Window {
                 return
             }
 
+            // The seek bar's cache strip must be fed REAL numbers while streaming: buffered ahead of
+            // where we are playing. His finding, 2026-07-26: "no buffering tint on the seek
+            // bar/timeline bar" - the rect and its property existed, nothing ever filled them.
+            if (!probe.bufferProven) {
+                var buffered = page.sessionBufferedSeconds()
+                if (buffered > pos + 0.5) {
+                    probe.bufferProven = true
+                    console.log("FRONTIER SEEK PROBE: cache strip fed — buffered to "
+                                + buffered.toFixed(1) + "s while playing " + pos.toFixed(1) + "s")
+                }
+            }
+
             // --- 2. wait for the frontier: the PICTURE must freeze, not just the transport flag ----
             if (!probe.seeked) {
                 if (Math.abs(pos - probe.lastPos) < 0.02)
@@ -142,6 +155,12 @@ Window {
             var newFrames = presented - probe.presentedAtPress
             var movedBack = pos < probe.stallPos - 5.0
             if (newFrames > 0 && movedBack && state === 3) {
+                if (!probe.bufferProven) {
+                    probe.finish(false, "NO CACHE STRIP — session.bufferedSeconds never reported a "
+                                        + "buffer ahead of the playhead, so the seek bar's tint "
+                                        + "would stay empty on a streaming source")
+                    return
+                }
                 probe.finish(elapsed <= probe.budgetMs,
                              (elapsed <= probe.budgetMs ? "" : "TOO SLOW — ")
                              + "picture moving again " + elapsed + "ms after the press (budget "
