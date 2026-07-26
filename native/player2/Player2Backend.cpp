@@ -5,6 +5,7 @@
 
 #include <QtCore/QMetaEnum>
 #include <QtCore/QTimer>
+#include <QtCore/QtGlobal>
 #include <QtCore/QUrl>
 #include <QtCore/QVariant>
 #include <QtQml/QQmlEngine>
@@ -180,7 +181,11 @@ void Player2Backend::pump()
     const D3D11VideoPipeline::Diagnostics d = m_pipeline.diagnostics();
     const bool warmingUp = m_hasPending || !d.adapterMatch || d.presented == 0;
     const bool framesInFlight = d.submitted != m_lastSubmitted || d.submitted > d.presented;
-    if (warmingUp || framesInFlight)
+    // P2_PUMP_ALWAYS restores the old unconditional repaint - an A/B lever, kept because the trim
+    // gates the exact path that initialises the pipeline, and a wrong gate here looks like "video
+    // never starts", not like a performance change.
+    static const bool pumpAlways = qEnvironmentVariableIsSet("P2_PUMP_ALWAYS");
+    if (warmingUp || framesInFlight || pumpAlways)
         m_item->update();
     m_lastSubmitted = d.submitted;
 
