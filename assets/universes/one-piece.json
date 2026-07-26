@@ -1,0 +1,76 @@
+{
+  "universe": {
+    "id": "one-piece",
+    "title": "One Piece",
+    "logo": "https://images.metahub.space/logo/medium/tt0388629/img",
+    "background": "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg",
+    "sections": [
+      { "id": "tv", "title": "TV Shows", "kind": "video", "entries": [
+        { "id": "tt0388629",  "type": "series", "title": "One Piece", "year": "1999" },
+        { "id": "tt11737520", "type": "series", "title": "One Piece (live action)", "year": "2023" },
+        { "id": "tt33992229", "type": "series", "title": "One Piece Log: Fish-Man Island Saga", "year": "2024",
+          "poster": "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg" },
+        { "id": "tt36600601", "type": "series", "title": "One Piece in Love", "year": "2025" },
+        { "id": "tt30476502", "type": "series", "title": "THE ONE PIECE", "year": "2027", "note": "Wit remake" }
+      ]},
+      { "id": "movies", "title": "Movies", "kind": "video", "entries": [
+        { "id": "tt0814243",  "type": "movie", "title": "One Piece: The Movie", "year": "2000" },
+        { "id": "tt0832449",  "type": "movie", "title": "Clockwork Island Adventure", "year": "2001" },
+        { "id": "tt0997084",  "type": "movie", "title": "Chopper's Kingdom on the Island of Strange Animals", "year": "2002" },
+        { "id": "tt1006926",  "type": "movie", "title": "Dead End Adventure", "year": "2003" },
+        { "id": "tt1010435",  "type": "movie", "title": "The Cursed Holy Sword", "year": "2004" },
+        { "id": "tt1018764",  "type": "movie", "title": "Baron Omatsuri and the Secret Island", "year": "2005" },
+        { "id": "tt1059950",  "type": "movie", "title": "Giant Mechanical Soldier of Karakuri Castle", "year": "2006" },
+        { "id": "tt1037116",  "type": "movie", "title": "Episode of Alabasta: The Desert Princess and the Pirates", "year": "2007" },
+        { "id": "tt1206326",  "type": "movie", "title": "Episode of Chopper Plus: Bloom in Winter, Miracle Sakura", "year": "2008" },
+        { "id": "tt1485763",  "type": "movie", "title": "One Piece Film: Strong World", "year": "2009" },
+        { "id": "tt1865467",  "type": "movie", "title": "One Piece 3D: Straw Hat Chase", "year": "2011" },
+        { "id": "tt2375379",  "type": "movie", "title": "One Piece Film: Z", "year": "2012" },
+        { "id": "tt5251328",  "type": "movie", "title": "One Piece Film: Gold", "year": "2016" },
+        { "id": "tt9430698",  "type": "movie", "title": "One Piece: Stampede", "year": "2019" },
+        { "id": "tt16183464", "type": "movie", "title": "One Piece Film: Red", "year": "2022" }
+      ]},
+      { "id": "specials", "title": "Specials", "kind": "video", "entries": [
+        { "id": "tt1012788", "type": "movie", "title": "Defeat the Pirate Ganzak!", "year": "1998" },
+        { "id": "tt0975705", "type": "movie", "title": "Adventure in the Ocean's Navel", "year": "2000" },
+        { "id": "tt1003286", "type": "movie", "title": "Open Upon the Great Sea! A Father's Huge, HUGE Dream!", "year": "2003" },
+        { "id": "tt1010037", "type": "movie", "title": "Protect! The Last Great Stage", "year": "2003" },
+        { "id": "tt1012787", "type": "movie", "title": "Luffy's Detective Story", "year": "2005" },
+        { "id": "tt7947592", "type": "movie", "title": "Strong World Episode 0", "year": "2010" },
+        { "id": "tt2598466", "type": "movie", "title": "Episode of Nami", "year": "2012" },
+        { "id": "tt3354344", "type": "movie", "title": "Episode of Luffy: Adventure on Hand Island", "year": "2012" },
+        { "id": "tt3354352", "type": "movie", "title": "Episode of Merry", "year": "2013" },
+        { "id": "tt2893336", "type": "movie", "title": "Dream 9 Toriko x One Piece x Dragon Ball Z", "year": "2013" },
+        { "id": "tt5098548", "type": "movie", "title": "3D2Y", "year": "2014" },
+        { "id": "tt6597356", "type": "movie", "title": "Episode of Sabo", "year": "2015" },
+        { "id": "tt6609162", "type": "movie", "title": "Adventure of Nebulandia", "year": "2015" },
+        { "id": "tt6425816", "type": "movie", "title": "Heart of Gold", "year": "2016" },
+        { "id": "tt11757066", "type": "movie", "title": "Episode of East Blue", "year": "2017" },
+        { "id": "tt11744496", "type": "movie", "title": "Episode of Skypiea", "year": "2018" },
+        { "id": "tt33998607", "type": "movie", "title": "One Piece Fan Letter", "year": "2024" }
+      ]},
+      { "id": "manga", "title": "Manga", "kind": "manga", "entries": [
+        { "id": "30013",  "provider": "anilist", "title": "One Piece", "year": "1997" },
+        { "manual": true, "title": "One Piece — digitally coloured edition",
+          "note": "No provider entry — kept beside the main manga by ruling" },
+        { "id": "44414",  "provider": "anilist", "title": "One Piece Log Book Omake", "year": "1999" },
+        { "id": "47152",  "provider": "anilist", "title": "ONE PIECE: STRONG WORLD (Chapter 0)", "year": "2009" },
+        { "id": "82353",  "provider": "anilist", "title": "Chopperman", "year": "2010" },
+        { "id": "102533", "provider": "anilist", "title": "One Piece Party", "year": "2014" },
+        { "id": "110258", "provider": "anilist", "title": "CHIN PIECE", "year": "2018" },
+        { "id": "110233", "provider": "anilist", "title": "Koisuru ONE PIECE", "year": "2018" },
+        { "id": "103252", "provider": "anilist", "title": "One Piece: Shokugeki no Sanji", "year": "2018" },
+        { "id": "110232", "provider": "anilist", "title": "Kobiyama Who Looks Like Koby", "year": "2018" },
+        { "id": "110715", "provider": "anilist", "title": "ONE PIECE Gakuen!!", "year": "2019" },
+        { "id": "117802", "provider": "anilist", "title": "One Piece: Ace's Story — The Manga", "year": "2020" },
+        { "id": "154266", "provider": "anilist", "title": "One Piece 1000-wa Kinen! Tokubetsu Bangai-hen", "year": "2021" }
+      ]},
+      { "id": "novels", "title": "Novels", "kind": "book", "entries": [
+        { "id": "1509329459", "provider": "applebooks", "title": "One Piece: Ace's Story, Vol. 1", "edition": "novel" },
+        { "id": "1528233153", "provider": "applebooks", "title": "One Piece: Ace's Story, Vol. 2", "edition": "novel" },
+        { "id": "6741084754", "provider": "applebooks", "title": "One Piece: Law's Story", "edition": "novel" },
+        { "id": "6736634886", "provider": "applebooks", "title": "One Piece: Heroines, Vol. 2", "edition": "novel" }
+      ]}
+    ]
+  }
+}
