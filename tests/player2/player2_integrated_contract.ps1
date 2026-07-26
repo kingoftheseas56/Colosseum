@@ -78,8 +78,11 @@ foreach ($name in @('backRequested', 'minimizeRequested', 'fullscreenRequested',
 
 # 3. Opt-in only, and never routable into a binary that lacks the backend.
 # NOTE: the option's description itself contains parentheses, so this must not stop at the first ')'.
-if ($cmake -notmatch 'option\(COLOSSEUM_PLAYER2_IN_APP.*OFF\)') {
-    $violations += 'COLOSSEUM_PLAYER2_IN_APP must exist and default to OFF (a stock build links nothing new)'
+# TASK 18: the flag now defaults ON - the app ships and boots the new engine. What must still hold is
+# that the OLD player is reachable, because that is the whole basis on which the flip was approved:
+# one environment variable back to mpv, and the choice remains a BOOT choice both ways.
+if ($cmake -notmatch 'option\(COLOSSEUM_PLAYER2_IN_APP.*ON\)') {
+    $violations += 'COLOSSEUM_PLAYER2_IN_APP must exist (Task 18: it defaults ON - the app ships the new engine)'
 }
 if ($main_cpp -notmatch '#ifdef COLOSSEUM_PLAYER2') {
     $violations += 'main.cpp must guard every Player 2 reference behind #ifdef COLOSSEUM_PLAYER2'
@@ -126,6 +129,9 @@ if (Test-Path (Join-Path $root 'qml/player2/ColosseumHostServices.qml')) {
 #    opt-in-setting-plus-runtime-fallback shape does not creep back in.
 if ($main_qml -match 'playerBackendSettings') {
     $violations += 'qml/Main.qml must not reference playerBackendSettings - the backend is a boot fact, not a saved setting'
+}
+if ($main_cpp -notmatch 'COLOSSEUM_PLAYER1') {
+    $violations += 'the mpv escape hatch (COLOSSEUM_PLAYER1) must exist - the default flip was approved on the condition that the old player stays one boot away'
 }
 if ($main_qml -match 'player2FallbackActive') {
     $violations += 'qml/Main.qml must not reference player2FallbackActive - there is no runtime fallback in a Player 2 boot'

@@ -425,7 +425,21 @@ int main(int argc, char *argv[]) {
     // so the two video backends can never coexist in one running app, and the backend choice is a
     // BOOT choice, not a runtime one. Env var (not the ini) because this must be decided before any
     // Qt object exists. Default stays OpenGL: a normal launch is unchanged.
-    const bool bootPlayer2 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2");
+    // TASK 18 - THE DEFAULT FLIP (Hemanth's explicit go, 2026-07-26: "let's do it"). Player 2 is now
+    // the default engine when it is compiled in, and mpv is the ESCAPE HATCH rather than the default.
+    // He keeps a one-click way back: COLOSSEUM_PLAYER1=1 boots the old player, and there is a Desktop
+    // launcher for it. This is deliberately still a BOOT choice both ways - the RHI is process-wide,
+    // so it can never be a switch inside the running app.
+    //
+    // COLOSSEUM_PLAYER2 is still honoured as an explicit opt-IN so every existing launcher, probe and
+    // gate keeps working unchanged; it simply is no longer required.
+    const bool forcePlayer1 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER1")
+                              || qEnvironmentVariableIsSet("COLOSSEUM_MPV");
+    bool bootPlayer2 = !forcePlayer1;
+#ifndef COLOSSEUM_PLAYER2
+    // Not compiled in: there is nothing to boot, and the old player is the only engine present.
+    bootPlayer2 = false;
+#endif
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
 #ifdef COLOSSEUM_PLAYER2
     if (bootPlayer2)
