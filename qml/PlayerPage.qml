@@ -2818,7 +2818,7 @@ Item {
             root.hoverThumbUrl = imageUrl
         }
     }
-    MpvItem {
+    PlayerEngine {
         id: mpv
         anchors.fill: parent
         z: 0
