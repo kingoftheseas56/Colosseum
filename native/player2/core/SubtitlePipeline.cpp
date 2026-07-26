@@ -150,6 +150,21 @@ bool SubtitlePipeline::decode(const AVPacket *packet, quint64 generation, int st
         if (!cue.text.isEmpty() || cue.bitmap)
             out->push_back(std::move(cue));
     }
+    // A PGS "clear" segment: a successful decode with ZERO rects. It is not an empty result - it IS
+    // the end marker for whatever is on screen, because PGS never states a duration up front
+    // (end_display_time arrives as UINT32_MAX, "until replaced or cleared"). The per-rect loop above
+    // silently swallowed these, so every PGS cue kept its ~49-day window and lingered until the next
+    // line was spoken (measured on Hemanth's own trace, 2026-07-26: span=4294967.295s on every cue).
+    // Emit it as a zero-size bitmap marker; the session caps the open cue's end with it.
+    if (subtitle.num_rects == 0) {
+        SubtitleCue clearCue;
+        clearCue.generation = generation;
+        clearCue.streamIndex = streamIndex;
+        clearCue.bitmap = true;
+        clearCue.startUs = baseUs;
+        clearCue.endUs = baseUs;
+        out->push_back(std::move(clearCue));
+    }
     avsubtitle_free(&subtitle);
     return true;
 }

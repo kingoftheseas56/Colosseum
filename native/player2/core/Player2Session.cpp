@@ -190,6 +190,17 @@ Player2Session::Player2Session(QObject *parent)
         // Cues decode seconds AHEAD of playback (read-ahead), so buffer them; the subtitle tick shows
         // each one only when the playback clock reaches its window. Displaying on arrival ran the
         // subtitles early. Text and bitmap cues both flow through the same clock-gated path.
+        // A zero-size bitmap cue is a PGS CLEAR MARKER - the authored end time of whatever is
+        // showing. Apply it to the buffer and stop; it must never be buffered or painted itself.
+        if (shifted.bitmap && shifted.width <= 0 && shifted.height <= 0) {
+            capOpenBitmapCues(&m_cueBuffer, shifted.startUs);
+            return;
+        }
+        // A NEW composition replaces the screen in PGS, so it also closes any still-open one - that
+        // keeps ends honest even in muxes whose clear segments are sparse, and stops open-ended
+        // cues from living in the buffer forever.
+        if (shifted.bitmap)
+            capOpenBitmapCues(&m_cueBuffer, shifted.startUs);
         const bool renderable = shifted.bitmap
             ? (shifted.width > 0 && shifted.height > 0 && !shifted.rgba.isEmpty())
             : !shifted.text.isEmpty();
@@ -297,6 +308,18 @@ QImage subtitleImageFromRgba(const QByteArray &rgba, int width, int height)
     return QImage(reinterpret_cast<const uchar *>(rgba.constData()), width, height,
                   QImage::Format_ARGB32)
         .copy();
+}
+
+// PGS end semantics: a composition stays up "until replaced or cleared", so its decoded window is
+// open-ended (FFmpeg says end_display_time = UINT32_MAX). This applies the close: every open bitmap
+// cue that began before `atUs` and claims to outlive it gets its end capped to `atUs`. Called for a
+// clear segment (the authored end) and for a newer composition (PGS replaces the whole screen).
+// Text cues are untouched - overlapping text (two speakers) is legitimate and carries real ends.
+void capOpenBitmapCues(std::vector<SubtitleCue> *cues, qint64 atUs)
+{
+    for (SubtitleCue &cue : *cues)
+        if (cue.bitmap && cue.startUs < atUs && cue.endUs > atUs)
+            cue.endUs = atUs;
 }
 
 qsizetype activeSubtitleCueIndex(const std::vector<SubtitleCue> &cues, qint64 nowUs)
