@@ -607,7 +607,9 @@ Item {
     }
 
     Rectangle {
-        visible: root.selectedPick && root.selectedPick.image_url
+        // Coerced: the bare && yields the image_url STRING (or undefined), and QML warns
+        // "Unable to assign [undefined] to bool" on every evaluation with nothing selected.
+        visible: !!(root.selectedPick && root.selectedPick.image_url)
         width: 360
         height: 142
         radius: 18
