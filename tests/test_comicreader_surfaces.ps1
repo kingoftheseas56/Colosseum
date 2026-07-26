@@ -76,6 +76,20 @@ foreach ($pair in @(@("strip", $strip), @("double", $dbl))) {
     }
 }
 
+# --- static: the decode cap must not move when the WINDOW does ---
+# sourceSize is part of an Image's cache key, so any change to the cap re-decodes every visible
+# page. Deriving it from the viewport made entering fullscreen re-decode the whole column, and
+# leaving it do so again - "going in and out of fullscreen looks incredibly rough" (Hemanth,
+# 2026-07-26). It must derive from the SCREEN, which is the widest a page can ever be shown AND
+# holds still while the window moves. No behavioural harness can see this: offscreen fixtures
+# never change size.
+if ($strip -notmatch "srcCapW[\s\S]{0,80}Screen\.width") {
+    Write-Host "FAIL: the strip's srcCapW must derive from Screen.width, not the viewport."
+    Write-Host "      A cap that tracks the window re-decodes every visible page on a resize,"
+    Write-Host "      which is what made fullscreen transitions stutter."
+    exit 1
+}
+
 # --- static: every page image KEEPS the pixmap cache ---
 # The provider (ComicReaderProvider.cpp) re-runs a full-res scaledToWidth/SmoothTransformation on
 # EVERY fetch because sourceSize only shrinks the decode for file-backed sources, not a provider's.

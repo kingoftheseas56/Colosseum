@@ -33,6 +33,7 @@
 // apply -> scroll loop).
 
 import QtQuick
+import QtQuick.Window   // Screen — the decode cap must not move when the WINDOW does
 
 Item {
     id: root
@@ -51,12 +52,17 @@ Item {
     // fresh page comes into view. The reader this one replaced capped its strip at 1100px.
     //
     // DELIBERATE DEVIATION from that flat 1100: it would be visibly soft on a large display, where
-    // a page is shown wider than that. This caps to the VIEWPORT width instead — never smaller than
+    // a page is shown wider than that. This caps to the SCREEN width instead — never smaller than
     // the lineage's 1100, never more than 2048 — so it can't be soft and can't be wasteful.
-    // Quantised to 256px steps, and taken from the viewport rather than the page's own width, so
-    // neither a drag-resize nor a Page-width chip re-decodes the whole column over a few pixels.
+    //
+    // The SCREEN, emphatically not the viewport. sourceSize is part of an Image's cache key, so
+    // every change to this number re-decodes every visible page — each one paying a full-resolution
+    // downscale in the provider. Tying it to the window meant entering fullscreen re-decoded the
+    // whole visible column, and leaving it did so again: Hemanth's "going in and out of fullscreen
+    // looks incredibly rough" (2026-07-26). The screen is the widest a page can ever be displayed,
+    // so it is the correct upper bound AND it holds still while the window moves.
     readonly property int srcCapW:
-        Math.max(1100, Math.min(2048, Math.ceil(Math.max(320, width) / 256) * 256))
+        Math.max(1100, Math.min(2048, Math.ceil(Math.max(320, Screen.width) / 256) * 256))
 
     // ---- outputs consumed by the shell / HUD (Task 11) ----
     // These three are PROVENANCE-BLIND: they fire for any non-programmatic move — wheel, keyboard,
