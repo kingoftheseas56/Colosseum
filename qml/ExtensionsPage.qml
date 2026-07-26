@@ -116,6 +116,14 @@ Item {
     function carried(item) {
         return installedKeys[item.id] === true || installedKeys[item.url] === true;
     }
+    // Is this row one the house locks? Read off the installed entry rather than trusted
+    // from the curated data, because the curated rails carry no `core` field at all —
+    // which is how the featured slab came to print "built-in" over a removable add-on.
+    function coreOf(item) {
+        for (var i = 0; i < installedList.length; i++)
+            if (installedList[i].id === item.id) return installedList[i].core === true;
+        return false;
+    }
     function hit(name) {
         return !query.length || name.toLowerCase().indexOf(query.toLowerCase()) !== -1;
     }
@@ -474,7 +482,7 @@ Item {
                     // featured slab — steps aside while a search is on
                     Rectangle {
                         width: col.width
-                        height: 168
+                        height: 156
                         visible: !root.query.length
                         radius: 20
                         border.width: 1; border.color: theme.edge
@@ -511,36 +519,57 @@ Item {
                                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.2 }
                                 Text { text: Catalog.featured().name; color: theme.ink
                                        font.family: theme.display; font.pixelSize: 32 }
-                                Text {
-                                    width: parent.width
-                                    text: Catalog.featured().line
-                                    color: theme.inkDim
-                                    font.family: theme.display; font.italic: true; font.pixelSize: 16
-                                    wrapMode: Text.WordWrap
-                                }
-                                Text {
-                                    width: parent.width
-                                    text: Catalog.featured().facts
-                                    color: theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
-                                    elide: Text.ElideRight
-                                }
                             }
+                            // Derived, never asserted. This slab hardcoded "Installed" and
+                            // "built-in": remove Torrentio and the largest element on the page
+                            // went on claiming it was installed AND built in, while offering no
+                            // control to install it back. Torrentio is core:false and removable,
+                            // so the second line was false even before you touched anything.
+                            // (A5's audit P0-5 — three of his four lenses reported it.)
+                            //
+                            // Same four-state verb the Discover cards carry, in TEXT not colour,
+                            // and clickable in the one state where clicking means something.
                             Column {
+                                id: featuredVerb
                                 width: 180
                                 anchors.verticalCenter: parent.verticalCenter
-                                spacing: 5
-                                Text {
-                                    anchors.right: parent.right
-                                    text: "Installed"
-                                    color: theme.gold
-                                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                }
-                                Text {
-                                    anchors.right: parent.right
-                                    text: "built-in"
-                                    color: theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
+                                readonly property var item: Catalog.featured()
+                                readonly property bool isCore: root.coreOf(featuredVerb.item)
+                                readonly property bool isOn: root.carried(featuredVerb.item)
+                                readonly property bool isPending:
+                                    root.pendingUrls[featuredVerb.item.url] === true
+                                // An explicit 44px-tall hit box, not a MouseArea hung off a
+                                // Text's implicit size — the first version never received a
+                                // click at all, proven by a probe that never fired.
+                                Item {
+                                    width: parent.width
+                                    height: 44
+                                    Text {
+                                        id: featuredVerbLabel
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: featuredVerb.isCore ? "Built-in"
+                                            : featuredVerb.isOn ? "Installed"
+                                            : featuredVerb.isPending ? "Installing…"
+                                            : "Install"
+                                        color: featuredVerb.isCore || featuredVerb.isOn || featuredVerb.isPending
+                                               ? theme.inkDimmer
+                                               : featuredMa.containsMouse ? "#ffd968" : theme.gold
+                                        font.family: theme.ui; font.pixelSize: 14
+                                        font.weight: featuredVerb.isOn ? Font.Normal : Font.DemiBold
+                                    }
+                                    MouseArea {
+                                        id: featuredMa
+                                        anchors.right: parent.right
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: Math.max(88, featuredVerbLabel.implicitWidth + 28)
+                                        height: 44
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        enabled: !featuredVerb.isCore && !featuredVerb.isOn
+                                                 && !featuredVerb.isPending
+                                        onClicked: root.installFromCard(featuredVerb.item)
+                                    }
                                 }
                             }
                         }
@@ -593,7 +622,7 @@ Item {
                                             id: card
                                             required property var modelData
                                             visible: root.hit(card.modelData.name)
-                                            width: 236; height: 188
+                                            width: 236; height: 132
                                             radius: 16
                                             color: cardMa.containsMouse ? Qt.rgba(0.06, 0.065, 0.09, 0.65)
                                                                         : Qt.rgba(0.04, 0.045, 0.065, 0.55)
@@ -614,19 +643,6 @@ Item {
                                                 Item { width: 1; height: 12 }
                                                 Text { text: card.modelData.name; color: theme.ink
                                                        font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
-                                                Item { width: 1; height: 5 }
-                                                Text {
-                                                    width: parent.width
-                                                    text: card.modelData.desc
-                                                    color: theme.inkDimmer
-                                                    font.family: theme.ui; font.pixelSize: 12
-                                                    wrapMode: Text.WordWrap
-                                                    maximumLineCount: 2
-                                                    elide: Text.ElideRight
-                                                }
-                                                Item { width: 1; height: 9 }
-                                                Text { text: card.modelData.kind; color: theme.inkDim
-                                                       font.family: theme.ui; font.pixelSize: 12 }
                                             }
                                             MouseArea {
                                                 id: cardMa
@@ -759,7 +775,7 @@ Item {
                                     required property var modelData
                                     required property int index
                                     width: communityCol.width
-                                    height: 72
+                                    height: 60
                                     Rectangle {
                                         anchors.bottom: parent.bottom
                                         width: parent.width; height: 1
@@ -794,14 +810,6 @@ Item {
                                             Text { text: crow.modelData.name; color: theme.ink
                                                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
                                                    elide: Text.ElideRight; width: parent.width }
-                                            Text {
-                                                width: parent.width
-                                                text: crow.modelData.kind
-                                                      + (crow.modelData.desc ? " · " + crow.modelData.desc : "")
-                                                color: theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 12
-                                                elide: Text.ElideRight
-                                            }
                                         }
                                         Text {
                                             width: 120

@@ -63,6 +63,16 @@ mustNot(/"what actually fetches[^"]*"/,  'no WELLS subtitle rendered');
 mustNot(/groupSub/,                      'the groupSub property is gone entirely');
 mustNot(/irow\.manifest\.description/,   'installed rows draw no description line');
 
+console.log('\nthe featured slab derives its state, never asserts it');
+mustNot(/text: "built-in"/, 'the false "built-in" line is gone');
+must(/featuredVerb\.isCore \? "Built-in"/, 'the slab carries the four-state verb in TEXT');
+must(/readonly property bool isCore: root\.coreOf\(featuredVerb\.item\)/,
+     'core is read off the installed entry, not the curated data that has no core field');
+must(/readonly property bool isOn: root\.carried\(featuredVerb\.item\)/,
+     'installed state is derived from carried()');
+must(/onClicked: root\.installFromCard\(featuredVerb\.item\)/,
+     'the slab offers a real install when the featured add-on is absent');
+
 console.log('\nthe world-scoped count stays world-scoped');
 must(/paneTab\.modelData\.label \+ root\.countIn\(root\.world\)/,
      'the Installed tab counts its own world, not the whole app');
