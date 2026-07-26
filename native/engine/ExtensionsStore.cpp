@@ -23,9 +23,10 @@ constexpr int kDescriptionCap = 400;
 // Tankoban and Biblio catalogues and wells, so those two worlds stop being empty
 // tabs. 3 retired the WeebCentral/GetComics catalogue rows and emptied the house
 // descriptions. 4 renamed the vault row to "Colosseum Grand Database".
+// 7 gave the universes their real names and artwork.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 6;
+constexpr int kHouseDefaultsVersion = 7;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -250,12 +251,28 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // The spec's end state is remote manifests fetched over HTTPS (§5.5); seeding them here
     // is the honest interim — the roster is where every other house row already lives, and
     // it means the fourth row is real without inventing a server we have not built.
+    //
+    // Artwork is verified in each plan §2. One Piece's logo is a transparent wordmark;
+    // DCAU has no metahub entry of its own so its identity art is anchored to BTAS, the
+    // origin work. The page renders the NAME as Fraunces text, so `logo` is used only by
+    // the Home carousel tile.
+    auto universe = [&manifest](const char* id, const char* name,
+                                const char* logo, const char* background) {
+        QVariantMap m = manifest(id, name, "",
+                                 { QStringLiteral("universe") },
+                                 { QStringLiteral("universe") }, {}, false);
+        m.insert(QStringLiteral("logo"), QString::fromLatin1(logo));
+        m.insert(QStringLiteral("background"), QString::fromLatin1(background));
+        return m;
+    };
     add("com.colosseum.universe.onepiece", "colosseum://universe/onepiece", false,
-        manifest("com.colosseum.universe.onepiece", "One Piece", "",
-                 { QStringLiteral("universe") }, { QStringLiteral("universe") }, {}, false));
+        universe("com.colosseum.universe.onepiece", "One Piece",
+                 "https://images.metahub.space/logo/medium/tt0388629/img",
+                 "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg"));
     add("com.colosseum.universe.dcau", "colosseum://universe/dcau", false,
-        manifest("com.colosseum.universe.dcau", "DCAU", "",
-                 { QStringLiteral("universe") }, { QStringLiteral("universe") }, {}, false));
+        universe("com.colosseum.universe.dcau", "DC Animated Universe",
+                 "https://images.metahub.space/logo/medium/tt0103359/img",
+                 "https://images.metahub.space/background/medium/tt0103359/img"));
 
     return touched;
 }
