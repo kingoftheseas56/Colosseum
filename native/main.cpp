@@ -433,9 +433,18 @@ int main(int argc, char *argv[]) {
     //
     // COLOSSEUM_PLAYER2 is still honoured as an explicit opt-IN so every existing launcher, probe and
     // gate keeps working unchanged; it simply is no longer required.
+    // DEFAULT REVERTED to mpv, 2026-07-26 late evening - the Task 18 flip was PREMATURE and this is
+    // the honest walk-back, on the day's own evidence: his first evenings on the flipped default hit
+    // dead hotkeys (the rebuilt chrome never carried production's focus wiring), silent progress
+    // tracking, a bare pause banner and seek-time frame drops. The ENGINE measured well all along;
+    // the integration shell around it is what is not finished. So his daily driver goes back to the
+    // player that is COMPLETE, and Player 2 stays fully built one launcher away (COLOSSEUM_PLAYER2=1,
+    // the same opt-in it always honoured) while the shell is ported - not patched - to parity.
+    // Re-flipping the default is Task 18 again, and it happens when HE cannot tell the two apart in
+    // an evening of use - not when a ledger says so.
     const bool forcePlayer1 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER1")
                               || qEnvironmentVariableIsSet("COLOSSEUM_MPV");
-    bool bootPlayer2 = !forcePlayer1;
+    bool bootPlayer2 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2") && !forcePlayer1;
 #ifndef COLOSSEUM_PLAYER2
     // Not compiled in: there is nothing to boot, and the old player is the only engine present.
     bootPlayer2 = false;
