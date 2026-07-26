@@ -26,6 +26,7 @@
 #include <QUrl>
 #include <QDebug>
 #include <QDirIterator>
+#include <QFile>
 #include <QFileInfo>
 #include <QFileSystemWatcher>
 #include <QThread>
@@ -251,10 +252,13 @@ protected:
             r.setRawHeader("Accept-Encoding", "gzip");
             QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
             watch(host, inner);   // watch the INNER reply: GunzipReply doesn't forward attributes
+            evictOnFailure(inner, r.url());
             return new GunzipReply(inner);
         }
         QNetworkReply *reply = QNetworkAccessManager::createRequest(op, r, outgoing);
         watch(host, reply);
+        // The key is the url AFTER any pin rewrite — that is what the cache stored under.
+        evictOnFailure(reply, r.url());
         return reply;
     }
 
@@ -279,6 +283,44 @@ private:
             const qint64 bytes = clen.isValid() ? clen.toLongLong() : reply->bytesAvailable();
             scoreboard->record(host, status, ct, bytes,
                                reply->error() != QNetworkReply::NoError);
+        });
+    }
+
+    // Self-heal: never let a bad answer become a permanent one.
+    //
+    // The disk cache below is what made a transient outage look like a broken app. During
+    // the dead-AAAA ISP stall the wallpaper and cover requests failed, those failures were
+    // written into the cache, and every launch afterwards served them back with NO network
+    // request and NO error — so the KDE Plasma shelf and the comics covers stayed blank for
+    // days while the URLs, the CDN, the proxy, the pin and the delegate were all provably
+    // fine. Found 2026-07-26 by parking the cache directory and watching the shelf return.
+    //
+    // So: anything that does not classify as Arrived is evicted on the spot, and the next
+    // load refetches. The reply's own bytes are untouched — this only stops the failure
+    // being remembered. Bound to `this` deliberately, unlike watch() above: remove() runs
+    // on the NAM's own thread, where its cache lives.
+    void evictOnFailure(QNetworkReply *reply, const QUrl &cacheKey) {
+        if (!m_useCache)
+            return;
+        const bool webp = m_scoreboard && m_scoreboard->webpDecoderPresent();
+        QObject::connect(reply, &QNetworkReply::finished, this, [this, reply, cacheKey, webp] {
+            const int status =
+                reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
+            const bool netErr = reply->error() != QNetworkReply::NoError;
+            const bool bad = PosterScoreboard::classify(status, ct, netErr, webp)
+                             != PosterScoreboard::Bucket::Arrived;
+            // A 200 that declares an EMPTY body is the case classify() cannot see: it is
+            // not a transport error and not an undecodable format, so it scores as Arrived
+            // — and then gets cached as zero bytes and served back forever as a blank tile.
+            // Judged only from a valid Content-Length; bytesAvailable() is unreliable here
+            // because the image loader may already have drained the reply.
+            const QVariant clen = reply->header(QNetworkRequest::ContentLengthHeader);
+            const bool emptyBody = status == 200 && clen.isValid() && clen.toLongLong() <= 0;
+            if (!bad && !emptyBody)
+                return;
+            if (QAbstractNetworkCache *c = cache())
+                c->remove(cacheKey);
         });
     }
 };
@@ -604,6 +646,34 @@ int main(int argc, char *argv[]) {
         else
             qWarning("[img] webp decoder MISSING -> every image/webp poster is UNDECODABLE "
                      "(run native/deploy-runtime.bat to bundle qwebp.dll)");
+    }
+    // Sweep zero-byte entries out of the image cache before any NAM can read them.
+    //
+    // A zero-byte cache file is served as a HIT: no request, no error, blank tile, forever.
+    // That is what kept the KDE Plasma shelf and the comics covers empty for days while the
+    // URLs, CDN, proxy, pin and delegates were all provably fine — found 2026-07-26 by
+    // parking the cache directory and watching the shelf come back. The parked copy held
+    // 168 sub-kilobyte entries out of 6029, many of them exactly 0 bytes.
+    //
+    // evictOnFailure() above stops us WRITING new ones. This heals what is already there,
+    // including files truncated by a hard kill mid-write, which no reply handler can catch
+    // because there is no reply. Cheap: a stat per file, once, before the UI exists.
+    {
+        const QString imgCacheDir =
+            QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
+            + QStringLiteral("/colosseum-images");
+        int swept = 0;
+        QDirIterator it(imgCacheDir, QDir::Files, QDirIterator::Subdirectories);
+        while (it.hasNext()) {
+            it.next();
+            if (it.fileInfo().size() > 0)
+                continue;
+            if (QFile::remove(it.filePath()))
+                ++swept;
+        }
+        if (swept > 0)
+            qInfo("[img] swept %d empty entries from the image cache (they render as blank "
+                  "tiles and never re-fetch)", swept);
     }
     engine.setNetworkAccessManagerFactory(
         new CachingNamFactory(namPinnedHosts, ipv4ByHost, scoreboard));
