@@ -1,5 +1,9 @@
 # Colosseum Downloads Page Repair Implementation Plan
 
+> **SUPERSEDED after Task 1 by Hemanth's minimal-scope ruling.** Do not execute
+> Tasks 2–9. Continue from
+> `docs/superpowers/plans/2026-07-26-colosseum-downloads-essential-fixes.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn Downloads into an honest, deletion-safe, keyboard-operable recovery surface for manga, comics, books, audiobooks, and video.

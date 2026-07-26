@@ -1,6 +1,6 @@
 # Colosseum Downloads Page Repair — Design
 
-**Status:** approved for implementation
+**Status:** superseded in part by Hemanth's minimal-scope ruling below
 
 **Date:** 2026-07-26
 
@@ -11,6 +11,24 @@
 **Approved by Hemanth:** 2026-07-26
 
 ---
+
+## 0. Scope revision — Hemanth, 2026-07-26
+
+Hemanth explicitly narrowed the implementation after Task 1:
+
+- no keyboard or remote functions;
+- no reusable Downloads control framework;
+- no context-menu system;
+- no state-restoration framework;
+- no virtualization or visual-polish pass;
+- no generalized request-id mutation architecture;
+- do only the truth-and-safety essentials required for the page to stop lying
+  or destroying data silently.
+
+The active implementation plan is
+`docs/superpowers/plans/2026-07-26-colosseum-downloads-essential-fixes.md`.
+Where the earlier sections below conflict with this ruling, this section
+governs.
 
 ## 1. Outcome
 
