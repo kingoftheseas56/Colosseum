@@ -355,14 +355,51 @@ Item {
     }
 
     // Stats overlay persists (toggled with D / overflow) independent of the chrome fade.
-    StatsOverlay {
+    // The card is the SHIPPED player's, ported verbatim (his directive 2026-07-26); this block only
+    // feeds it. Same id, so the D-key and overflow toggles did not change.
+    PlaybackStatsCard {
         id: statsOverlay
-        anchors.left: parent.left
-        anchors.top: parent.top
-        anchors.leftMargin: 40
-        anchors.topMargin: 120
-        session: shell.session
         theme: shell.theme
+        stats: shell._playbackStats
+    }
+    property var _playbackStats: ({})
+    Timer {
+        // Production's cadence (playbackStatsTimer, 1Hz, only while open).
+        interval: 1000; repeat: true; running: statsOverlay.open; triggeredOnStart: true
+        onTriggered: {
+            var s = shell.session
+            var d = s && s.diagnostics ? s.diagnostics() : ({})
+            var res = ""
+            var m = String(d.inputFormat || "").match(/(\d{2,5})\s*x\s*(\d{2,5})/)
+            function trackLabel(type, index) {
+                var rows = (s && s.tracks) ? s.tracks : []
+                for (var i = 0; i < rows.length; i++) {
+                    var t = rows[i] || ({})
+                    if (t.type === type && Number(t.index) === Number(index))
+                        return t.title || t.language || t.codec || String(t.index)
+                }
+                return index >= 0 ? String(index) : ""
+            }
+            shell._playbackStats = {
+                "width": m ? Number(m[1]) : 0, "height": m ? Number(m[2]) : 0,
+                "videoCodec": d.videoCodec || "",
+                "hwdec": d.hardwareFormat || "",
+                // Bitrates and fps are not measured by this engine yet; the card renders "--"
+                // for them, exactly as the shipped card renders an absent mpv property.
+                "frameDropDecoder": Number(d.dropped || 0),
+                "frameDropOutput": Number(d.scheduledLateDrops || 0),
+                "audioTrack": trackLabel("audio", transportBar.currentAudioIndex),
+                "subtitleTrack": trackLabel("subtitle", transportBar.currentSubtitleIndex),
+                "speed": s ? s.speed : 1,
+                "volume": s ? s.volume * 100 : 0,
+                "muted": s ? s.muted : false
+            }
+            // The audio CODEC itself lives on the track row, same source the label came from.
+            var rows = (s && s.tracks) ? s.tracks : []
+            for (var i = 0; i < rows.length; i++)
+                if (rows[i].type === "audio" && Number(rows[i].index) === Number(transportBar.currentAudioIndex))
+                    shell._playbackStats.audioCodec = rows[i].codec || ""
+        }
     }
 
     // All interactive chrome fades together on auto-hide.
