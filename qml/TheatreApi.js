@@ -108,8 +108,11 @@ function normalizeArtUrl(url) {
         return "";
     var out = String(url)
         .replace("https://images.metahub.space/", "https://live.metahub.space/")
-        .replace("/poster/small/", "/poster/medium/")
-        .replace("/poster/large/", "/poster/medium/");
+        // Posters: force `small` — the ONLY size metahub reliably has. Upscaling small→medium
+        // 404'd the long tail (metahub lacks a medium for many titles, e.g. tt2431250) → permanent
+        // blank tiles; `small` also matches the Top-list tile size. (Hemanth eyes-on 2026-07-25.)
+        .replace("/poster/medium/", "/poster/small/")
+        .replace("/poster/large/", "/poster/small/");
     return out;
 }
 
