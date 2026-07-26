@@ -73,10 +73,25 @@ Item {
     // in NO seek path and NO mid-playback buffer path. It keeps the picture on screen through a
     // buffer and never throws the Stremio backdrop over it. So a stalled seek keeps the picture too
     // and speaks through the transport line instead. Do not "fix" this by adding _stalledSeek here.
+    // ...and mid-playback Buffering/Recovering are NOT in it either, for the same reason. That was
+    // the defect he saw on 2026-07-26: "the loading/bufferig screen is shaky. it alternates between
+    // the slick per-show custom font to genric font in a blinking fashion." Every buffer hiccup
+    // re-raised this whole full-screen surface, and because the hero Image clears its source when
+    // the screen goes inactive, each raise showed the plain-text title first and snapped to the
+    // show's logotype a moment later - the "blink" between a custom face and a generic one is the
+    // LOGO being replaced by its text fallback, over and over.
+    //
+    // The shipped player does not do this because its `starting` is a latched flag, not a live read
+    // of session state: it goes false once playback begins (PlayerPage.qml:917/1066/1077) and only
+    // comes back for a stream retry/reconnect. `_hasPlayed` gives this page the same latch, so the
+    // loader owns the screen until the first frame and never again for this playback - after that,
+    // buffering speaks through the transport line, exactly as production does.
+    property bool _hasPlayed: false
     readonly property bool _starting: !page.errored
                                       && (page._awaitingStream
-                                          || page._state === 1 || page._state === 2
-                                          || page._state === 7)
+                                          || (!page._hasPlayed
+                                              && (page._state === 1 || page._state === 2
+                                                  || page._state === 7)))
 
     function _statusText() {
         if (page.errored)
@@ -147,6 +162,18 @@ Item {
         statusText: page._statusText()
         errorText: page._statusText()
         onCancelRequested: page.closeRequested()
+    }
+
+    // The latch that retires the loader: the first moment this playback is genuinely Playing (3).
+    // A Binding with RestoreNone rather than a signal handler, because the change-signal name for an
+    // underscore-prefixed property is ambiguous in QML and a handler that silently never fires would
+    // leave the loader raised forever. _reset() clears it for the next playback.
+    Binding {
+        target: page
+        property: "_hasPlayed"
+        value: true
+        when: page._state === 3
+        restoreMode: Binding.RestoreNone
     }
 
     ColosseumHostServices {
@@ -304,6 +331,8 @@ Item {
     function _reset() {
         page.pendingSeekSec = 0
         page.errorText = ""
+        // A new playback earns the loader again from scratch.
+        page._hasPlayed = false
         // Drop any torrent still warming up for the PREVIOUS media, so its late streamReady cannot
         // open the wrong thing over what we are about to play.
         page._awaitingStream = false

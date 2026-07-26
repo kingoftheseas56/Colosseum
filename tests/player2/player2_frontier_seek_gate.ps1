@@ -36,6 +36,8 @@ $env:COLOSSEUM_DEV = '1'
 $env:QSG_NO_VSYNC = '1'
 $env:QT_FORCE_STDERR_LOGGING = '1'
 $env:QTFRAMEWORK_BYPASS_LICENSE_CHECK = '1'
+# The transport timeline is where the sub-second requirement actually lives, so the gate reads it.
+$env:COLOSSEUM_PLAYER2_NET_TRACE = '1'
 $env:PATH = 'C:\Qt\6.11.1\msvc2022_64\bin;C:\tools\mpvqt-feasibility\mpvqt-msvc-install\bin;' +
             'C:\tools\mpvqt-feasibility\libmpv-prefix\bin;' +
             'C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin;' + $env:PATH
@@ -96,9 +98,27 @@ for ($run = 1; $run -le $Runs; $run++) {
             $fixture.WaitForExit(5000) | Out-Null
         }
     }
+    # THE sub-second requirement, read off the engine's own transport timeline: from the parked read
+    # being abandoned to the fetch thread having a connection open at the new byte offset. This is
+    # what T2d actually fixed (it used to be "never"), and it is the number that must stay under a
+    # second - not the visible-picture time, which also carries the audio-readiness barrier.
+    $traceLines = @(Select-String -Path @($runLog, "$runLog.err") -Pattern 'player2\.net t=(\d+)ms (READ INTERRUPTED|SEEK opened)' -ErrorAction SilentlyContinue)
+    $interruptAt = ($traceLines | Where-Object { $_.Line -match 'READ INTERRUPTED' } | Select-Object -First 1)
+    $openedAt = ($traceLines | Where-Object { $_.Line -match 'SEEK opened' } | Select-Object -First 1)
+    $transportMs = -1
+    if ($interruptAt -and $openedAt) {
+        $a = [int]([regex]::Match($interruptAt.Line, 't=(\d+)ms').Groups[1].Value)
+        $b = [int]([regex]::Match($openedAt.Line, 't=(\d+)ms').Groups[1].Value)
+        $transportMs = $b - $a
+    }
+    if ($code -eq 0 -and ($transportMs -lt 0 -or $transportMs -gt 1000)) {
+        Write-Host "player2_frontier_seek_gate: run $run - the probe passed but the seek reached the transport in ${transportMs}ms (requirement: under 1000ms, and it must be traced at all)"
+        $code = 1
+    }
     if ($code -eq 0) { $passes++ }
-    $verdict = (Select-String -Path $runLog -Pattern 'FRONTIER SEEK PROBE: (PASS|FAIL) .*' -ErrorAction SilentlyContinue |
+    $verdict = (Select-String -Path @($runLog, "$runLog.err") -Pattern 'FRONTIER SEEK PROBE: (PASS|FAIL) .*' -ErrorAction SilentlyContinue |
                 Select-Object -Last 1).Line
+    $verdict = "[transport ${transportMs}ms] $verdict"
     $results += "run ${run}: exit $code  $verdict"
     Write-Host "player2_frontier_seek_gate: run $run of $Runs -> exit $code  $verdict"
 }
