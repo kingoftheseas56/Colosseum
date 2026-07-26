@@ -37,6 +37,7 @@ const cases = [
   ["colosseum.well.libgen",             "LibGen",            "libgen.ico"],
   ["colosseum.well.audiobookbay",       "AudioBookBay",      "audiobookbay.png"],
   ["colosseum.catalogue.applebooks",    "Apple Books",       "applebooks.ico"],
+  ["colosseum.catalogue.anilist",       "AniList",           "anilist.png"],
   ["colosseum.well.nyaa",               "Nyaa",              "nyaa.png"],
   ["piratebay",                         "PirateBay",         "thepiratebay.png"],
   ["knaben",                            "Knaben",            "knaben.ico"],

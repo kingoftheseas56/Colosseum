@@ -65,6 +65,7 @@ var TABLE = [
     { file: "libgen.ico",       m: function (id, n) { return id.indexOf("libgen") >= 0 || /lib.?gen/i.test(n); } },
     { file: "audiobookbay.png", m: function (id, n) { return id.indexOf("audiobookbay") >= 0 || /audio.?book.?bay/i.test(n); } },
     { file: "applebooks.ico",   m: function (id, n) { return id.indexOf("applebooks") >= 0 || /apple ?books/i.test(n); } },
+    { file: "anilist.png",      m: function (id, n) { return id.indexOf("anilist") >= 0 || /ani.?list/i.test(n); } },
     // The one row whose mark we do not borrow because we own it: the Grand Database is
     // ours, so it wears the house arch (rasterised from assets/icons/colosseum.ico, the
     // same mark as the app). Matched narrowly on the vault id so no other colosseum.*

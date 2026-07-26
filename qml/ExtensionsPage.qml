@@ -74,9 +74,11 @@ Item {
     // world-relative and the stored array is global, so the destination has to be resolved
     // against this world's own well list — see Catalog.moveDestination for why a global
     // ±1 both failed to move Tankoban and silently reordered Biblio.
+    // moveDestination returns { id, index } or null — `id` is not always the clicked row,
+    // because a swap may be cheaper to perform by moving its neighbour instead.
     function moveWell(id, delta) {
-        var dest = Catalog.moveDestination(installedList, world, id, delta);
-        if (dest >= 0) Extensions.moveTo(id, dest);
+        var m = Catalog.moveDestination(installedList, world, id, delta);
+        if (m) Extensions.moveTo(m.id, m.index);
     }
     // A world's rank for a well is its index among that world's wells — which is how one
     // stored row ranks 4th in Tankoban and 2nd in Biblio without storing a rank at all.
@@ -185,7 +187,15 @@ Item {
             { key: "browse",    label: "Browse everything" },
             { key: "installed", label: "Installed · " } ]
         : [ { key: "installed", label: "Installed · " } ]
-    onWorldChanged: if (!hasStore && pane !== "installed") pane = "installed"
+    // Compare `world` DIRECTLY, never the hasStore binding derived from it: inside this
+    // handler that binding can still hold its previous value, so `!hasStore` read false
+    // and the pane never moved. Clicking Tankoban from Theatre's Discover left Theatre's
+    // Discover on screen under a Tankoban header. (Found on eyes-on, 2026-07-26.)
+    //
+    // The handler keeps the pane tab honest, but it is NOT what makes this safe — the
+    // pane visibility below is gated on the world too, so a store pane cannot render
+    // outside Theatre whatever `pane` happens to say.
+    onWorldChanged: if (world !== "theatre" && pane !== "installed") pane = "installed"
 
     // community loads when Browse first opens, and reloads on sort/search change.
     // Skipped while a search debounce is pending — that timer owns the fetch, and
@@ -455,7 +465,10 @@ Item {
                 // ============ DISCOVER ============
                 Column {
                     width: col.width
-                    visible: root.pane === "discover"
+                    // Gated on the world, not just the pane. This is what actually
+                    // guarantees Theatre's rails cannot appear under the Tankoban tab —
+                    // an imperative pane fix-up can be skipped, a binding cannot.
+                    visible: root.pane === "discover" && root.hasStore
                     spacing: 0
 
                     // featured slab — steps aside while a search is on
@@ -657,7 +670,7 @@ Item {
                 // ============ BROWSE ============
                 Column {
                     width: col.width
-                    visible: root.pane === "browse"
+                    visible: root.pane === "browse" && root.hasStore
                     spacing: 0
 
                     Row {
@@ -837,7 +850,9 @@ Item {
                 // ============ INSTALLED ============
                 Column {
                     width: col.width
-                    visible: root.pane === "installed"
+                    // The only pane the other worlds have, so it renders whenever there
+                    // is no store — never a blank page because `pane` lagged behind.
+                    visible: root.pane === "installed" || !root.hasStore
                     spacing: 0
 
                     Rectangle {
@@ -882,10 +897,10 @@ Item {
                                     // the old arrows were always lit and silently did nothing.
                                     readonly property bool canMoveUp:
                                         !irow.isCatalogue && Catalog.moveDestination(
-                                            root.installedList, root.world, irow.modelData.id, -1) >= 0
+                                            root.installedList, root.world, irow.modelData.id, -1) !== null
                                     readonly property bool canMoveDown:
                                         !irow.isCatalogue && Catalog.moveDestination(
-                                            root.installedList, root.world, irow.modelData.id, 1) >= 0
+                                            root.installedList, root.world, irow.modelData.id, 1) !== null
                                     // A house well lives in-app and has no web page to open, so it
                                     // gets Settings; a remote addon keeps Configure ↗ (stage 4 builds
                                     // the sheet — until then only remote rows offer anything).
@@ -908,37 +923,25 @@ Item {
                                     readonly property string groupTitle:
                                         irow.group === "catalogue" ? "Catalogue"
                                       : irow.group === "wells" ? "Wells" : "Also installed"
-                                    readonly property string groupSub:
-                                        irow.group === "catalogue"
-                                            ? "what fills the shelves · always asked first · not ranked"
-                                      : irow.group === "wells"
-                                            ? "what actually fetches · asked in this order, top first"
-                                      : "details and subtitles — neither a shelf nor a source"
                                     // The model is already world-filtered and job-ordered;
                                     // only the search filter remains here.
                                     visible: root.hit(irow.manifest.name || irow.modelData.id)
                                     width: installedCol.width
-                                    height: 82 + (irow.startsGroup ? 48 : 0)
+                                    height: 82 + (irow.startsGroup ? 30 : 0)
 
                                     // ---- job header, drawn by the row that opens the group ----
-                                    Column {
+                                    // The label alone. Its explanatory subtitle is gone by the
+                                    // same ruling that took the row descriptions: the grouping
+                                    // is legible without being narrated. (Hemanth, 2026-07-26.)
+                                    Text {
                                         visible: irow.startsGroup
                                         anchors.top: parent.top
                                         anchors.topMargin: 12
                                         anchors.left: parent.left
-                                        anchors.right: parent.right
-                                        spacing: 3
-                                        Text {
-                                            text: irow.groupTitle.toUpperCase()
-                                            color: theme.gold
-                                            font.family: theme.ui; font.pixelSize: 10
-                                            font.letterSpacing: 2.4; font.bold: true
-                                        }
-                                        Text {
-                                            text: irow.groupSub
-                                            color: theme.inkDimmer
-                                            font.family: theme.ui; font.pixelSize: 12
-                                        }
+                                        text: irow.groupTitle.toUpperCase()
+                                        color: theme.gold
+                                        font.family: theme.ui; font.pixelSize: 10
+                                        font.letterSpacing: 2.4; font.bold: true
                                     }
 
                                     Rectangle {
@@ -957,7 +960,7 @@ Item {
                                     Row {
                                         anchors.verticalCenter: parent.verticalCenter
                                         // sit below the job header when this row opens a group
-                                        anchors.verticalCenterOffset: irow.startsGroup ? 24 : 0
+                                        anchors.verticalCenterOffset: irow.startsGroup ? 15 : 0
                                         width: parent.width
                                         spacing: 18
 
