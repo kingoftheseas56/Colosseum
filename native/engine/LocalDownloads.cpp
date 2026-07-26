@@ -6,11 +6,20 @@
 #include "MangaTankobanService.h"
 #include "../player/downloadstore.h"
 
+#include <QRegularExpression>
 #include <QTimer>
 
 namespace {
 QString seriesKeyForEpisodeShow(const QString &seriesTitle) {
     return QStringLiteral("show:") + seriesTitle.toLower().simplified();
+}
+
+QString boundedError(const QString &reason) {
+    QString out = reason;
+    out.remove(QChar::Null);
+    out.replace(QRegularExpression(QStringLiteral("[\\x00-\\x08\\x0b\\x0c\\x0e-\\x1f]")),
+                QStringLiteral(" "));
+    return out.simplified().left(240);
 }
 } // namespace
 
@@ -31,39 +40,129 @@ LocalDownloads::LocalDownloads(MangaDownloader *manga, BookDownloader *books,
     auto arm = [coalesce]() { if (!coalesce->isActive()) coalesce->start(); };
 
     if (m_manga) {
-        connect(m_manga, &MangaDownloader::progress, this, arm);
-        connect(m_manga, &MangaDownloader::finished, this, arm);
-        connect(m_manga, &MangaDownloader::failed, this, arm);
-        connect(m_manga, &MangaDownloader::removed, this, arm);
+        connect(m_manga, &MangaDownloader::progress, this,
+                [this, arm](const QString &id, int, int) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
+        connect(m_manga, &MangaDownloader::finished, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
+        connect(m_manga, &MangaDownloader::failed, this,
+                [this, arm](const QString &id, const QString &reason) {
+                    rememberFailure(QStringLiteral("tankoban"), id, reason); arm();
+                });
+        connect(m_manga, &MangaDownloader::removed, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
     }
     if (m_books) {
         connect(m_books, &BookDownloader::resolving, this, arm);
-        connect(m_books, &BookDownloader::progress, this, arm);
-        connect(m_books, &BookDownloader::finished, this, arm);
-        connect(m_books, &BookDownloader::failed, this, arm);
-        connect(m_books, &BookDownloader::removed, this, arm);
+        connect(m_books, &BookDownloader::progress, this,
+                [this, arm](const QString &id, double, double) {
+                    clearFailure(QStringLiteral("biblio"), id); arm();
+                });
+        connect(m_books, &BookDownloader::finished, this,
+                [this, arm](const QString &id, const QString &) {
+                    clearFailure(QStringLiteral("biblio"), id); arm();
+                });
+        connect(m_books, &BookDownloader::failed, this,
+                [this, arm](const QString &id, const QString &reason) {
+                    rememberFailure(QStringLiteral("biblio"), id, reason); arm();
+                });
+        connect(m_books, &BookDownloader::removed, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("biblio"), id); arm();
+                });
     }
     if (m_comics) {
-        connect(m_comics, &ComicDownloader::progress, this, arm);
-        connect(m_comics, &ComicDownloader::finished, this, arm);
-        connect(m_comics, &ComicDownloader::failed, this, arm);
-        connect(m_comics, &ComicDownloader::removed, this, arm);
+        connect(m_comics, &ComicDownloader::progress, this,
+                [this, arm](const QString &id, double, double) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
+        connect(m_comics, &ComicDownloader::finished, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
+        connect(m_comics, &ComicDownloader::failed, this,
+                [this, arm](const QString &id, const QString &reason) {
+                    rememberFailure(QStringLiteral("tankoban"), id, reason); arm();
+                });
+        connect(m_comics, &ComicDownloader::removed, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
     }
     if (m_videos) {
         connect(m_videos, &DownloadStore::changed, this, arm);
         connect(m_videos, &DownloadStore::libraryChanged, this, arm);
     }
     if (m_volumes) {
-        connect(m_volumes, &MangaTankobanService::progress, this, arm);
-        connect(m_volumes, &MangaTankobanService::finished, this, arm);
-        connect(m_volumes, &MangaTankobanService::failed, this, arm);
-        connect(m_volumes, &MangaTankobanService::removed, this, arm);
+        connect(m_volumes, &MangaTankobanService::progress, this,
+                [this, arm](const QString &id, double, double) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
+        connect(m_volumes, &MangaTankobanService::finished, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
+        connect(m_volumes, &MangaTankobanService::failed, this,
+                [this, arm](const QString &id, const QString &reason) {
+                    rememberFailure(QStringLiteral("tankoban"), id, reason); arm();
+                });
+        connect(m_volumes, &MangaTankobanService::removed, this,
+                [this, arm](const QString &id) {
+                    clearFailure(QStringLiteral("tankoban"), id); arm();
+                });
     }
 }
 
 void LocalDownloads::bump() {
     ++m_revision;
     emit changed();
+}
+
+QString LocalDownloads::failureKey(const QString &world, const QString &id) {
+    return world + QLatin1Char(':') + id;
+}
+
+void LocalDownloads::rememberFailure(const QString &world, const QString &id,
+                                     const QString &reason) {
+    QVariantMap row;
+    const QVariantList current = activeJobs();
+    for (const QVariant &value : current) {
+        const QVariantMap candidate = value.toMap();
+        if (candidate.value(QStringLiteral("world")).toString() == world
+                && candidate.value(QStringLiteral("id")).toString() == id
+                && candidate.value(QStringLiteral("state")).toString()
+                    != QStringLiteral("failed")) {
+            row = candidate;
+            break;
+        }
+    }
+    row.insert(QStringLiteral("world"), world);
+    row.insert(QStringLiteral("id"), id);
+    if (row.value(QStringLiteral("title")).toString().isEmpty())
+        row.insert(QStringLiteral("title"), id);
+    row.insert(QStringLiteral("state"), QStringLiteral("failed"));
+    row.insert(QStringLiteral("error"), boundedError(reason));
+    row.insert(QStringLiteral("canPlay"), false);
+    row.insert(QStringLiteral("canRetry"), false);
+    row.insert(QStringLiteral("canPause"), false);
+    row.insert(QStringLiteral("canResume"), false);
+    row.insert(QStringLiteral("canCancel"), false);
+    row.insert(QStringLiteral("canDismiss"), true);
+    m_failures.insert(failureKey(world, id), row);
+}
+
+void LocalDownloads::clearFailure(const QString &world, const QString &id) {
+    m_failures.remove(failureKey(world, id));
+}
+
+void LocalDownloads::dismissFailure(const QString &world, const QString &id) {
+    if (m_failures.remove(failureKey(world, id)))
+        bump();
 }
 
 // ── item normalization: every backend row becomes the same shape ──
@@ -356,6 +455,24 @@ QVariantList LocalDownloads::activeJobs() const {
             });
         }
     }
+    for (int i = 0; i < out.size(); ++i) {
+        QVariantMap row = out[i].toMap();
+        const QString world = row.value(QStringLiteral("world")).toString();
+        const QString state = row.value(QStringLiteral("state")).toString();
+        const bool theatre = world == QStringLiteral("theatre");
+        row.insert(QStringLiteral("canPlay"), theatre
+            && !row.value(QStringLiteral("url")).toString().isEmpty()
+            && state != QStringLiteral("failed"));
+        row.insert(QStringLiteral("canRetry"), theatre && state == QStringLiteral("failed"));
+        row.insert(QStringLiteral("canPause"), theatre && state == QStringLiteral("downloading"));
+        row.insert(QStringLiteral("canResume"), theatre && state == QStringLiteral("paused"));
+        row.insert(QStringLiteral("canCancel"),
+                   state != QStringLiteral("failed") && state != QStringLiteral("done"));
+        row.insert(QStringLiteral("canDismiss"), false);
+        out[i] = row;
+    }
+    for (const QVariantMap &failure : m_failures)
+        out.append(failure);
     return out;
 }
 

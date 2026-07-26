@@ -13,6 +13,7 @@
 // and silently omitted every volume it ingested (Hemanth eyes-on).
 
 #include <QObject>
+#include <QHash>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -46,6 +47,7 @@ public:
     Q_INVOKABLE void retry(const QString &world, const QString &id);   // theatre only in v1
     Q_INVOKABLE void pause(const QString &world, const QString &id);    // theatre only in v1
     Q_INVOKABLE void resume(const QString &world, const QString &id);   // theatre only in v1
+    Q_INVOKABLE void dismissFailure(const QString &world, const QString &id);
 
 signals:
     void changed();
@@ -56,11 +58,15 @@ private:
     QVariantList biblioItems() const;
     QVariantList theatreItems() const;
     QVariantList itemsForWorld(const QString &world) const;
+    void rememberFailure(const QString &world, const QString &id, const QString &reason);
+    void clearFailure(const QString &world, const QString &id);
+    static QString failureKey(const QString &world, const QString &id);
 
     MangaDownloader *m_manga = nullptr;
     BookDownloader *m_books = nullptr;
     ComicDownloader *m_comics = nullptr;
     DownloadStore *m_videos = nullptr;
     MangaTankobanService *m_volumes = nullptr;   // Tankoban volume mode
+    QHash<QString, QVariantMap> m_failures;
     int m_revision = 0;
 };
