@@ -56,7 +56,9 @@ Item {
     function updateEndsAt() {
         shell.nowClock = Browser.fmtWallClock(Date.now())
         shell.endsAtClock = shell.session
-            ? Browser.endsAtLabel(Date.now(), shell.session.position, shell.session.duration, 1)
+            // Rate-aware, as production is: at 1.5x the finish time is not the 1x finish time.
+            ? Browser.endsAtLabel(Date.now(), shell.session.position, shell.session.duration,
+                                  shell.session.speed > 0 ? shell.session.speed : 1)
             : ""
     }
     // Progress cadence (Task 14): the player tells the host where you are so the host can persist a
@@ -93,8 +95,15 @@ Item {
     property string mediaYear: ""
     property bool pauseCardShown: false
     readonly property bool paused: shell.session && shell.session.state === 4   // Player2State::Paused
+    // Production also refuses the card while the player is starting, errored, or mid-seek, and until
+    // the file is ready (its `fileReady` gate). Without those, a paused-but-buffering engine could
+    // raise a details card over a player that has nothing to show yet.
     readonly property bool pauseCardEligible: shell.paused && !shell.menusOpen
                                               && shell.session && shell.session.duration > 0
+                                              && shell.session.state !== 1   // Opening
+                                              && shell.session.state !== 2   // Buffering
+                                              && shell.session.state !== 5   // Seeking
+                                              && shell.session.state !== 8   // Error
     onPauseCardEligibleChanged: {
         if (shell.pauseCardEligible) pauseCardDelay.restart()
         else { pauseCardDelay.stop(); shell.pauseCardShown = false }
@@ -114,6 +123,46 @@ Item {
     // shell forwards; the app drives the actual (re)play — the same seam pattern as fullscreenRequested.
     signal playEpisodeRequested(string episodeId)
     signal switchSourceRequested(int index, string sourceId)
+
+    // --- HUD download button state (parity with the shipped player, PlayerPage.qml:1634-1701) ------
+    // The host reports "queued" / "active" / "ready" / "failed"; the button speaks the shipped
+    // player's vocabulary, so translate once here rather than at the paint site.
+    property string downloadKind: "idle"   // idle | queued | downloading | done | failed
+    property real downloadProgress: 0
+    property string downloadPath: ""
+    property string downloadError: ""
+
+    function downloadTooltip() {
+        if (shell.downloadKind === "queued")
+            return "Preparing download"
+        if (shell.downloadKind === "downloading")
+            return "Downloading " + Math.round((shell.downloadProgress || 0) * 100)
+                   + "% - click to cancel"
+        if (shell.downloadKind === "done")
+            return "Saved to " + (shell.downloadPath.length ? shell.downloadPath : "Downloads")
+        if (shell.downloadKind === "failed")
+            return "Failed: " + (shell.downloadError.length ? shell.downloadError : "Download failed")
+        return "Download video"
+    }
+
+    // Same decision table as the shipped player's handleDownloadAction(): a click means "start" when
+    // idle and "get out of this state" otherwise.
+    function handleDownloadAction() {
+        if (!shell.hostServices)
+            return
+        if (shell.downloadKind === "downloading" || shell.downloadKind === "queued") {
+            if (shell.hostServices.cancelDownload)
+                shell.hostServices.cancelDownload(shell.rootMediaId)
+            shell.downloadKind = "idle"
+        } else if (shell.downloadKind === "done" || shell.downloadKind === "failed") {
+            shell.downloadKind = "idle" // acknowledge and re-arm, as production's reset does
+        } else {
+            // An empty sourceId is deliberate: the host falls back to the URL actually playing,
+            // which is exactly what production's currentCastUrl() resolves to first.
+            shell.hostServices.requestDownload(shell.rootMediaId, "")
+        }
+        shell.wakeChrome()
+    }
 
     focus: true
 
@@ -187,6 +236,19 @@ Item {
         target: shell.hostServices
         ignoreUnknownSignals: true
         function onSkipSegmentsResolved(mediaId, segments) { shell.skipSegments = segments }
+        function onDownloadStateChanged(mediaId, state) {
+            if (mediaId !== shell.rootMediaId)
+                return
+            var s = state || ({})
+            var kind = String(s.state || "")
+            shell.downloadProgress = Number(s.progress || 0)
+            shell.downloadPath = String(s.path || "")
+            shell.downloadError = String(s.error || "")
+            shell.downloadKind = kind === "active" ? "downloading"
+                                 : kind === "ready" ? "done"
+                                 : kind === "failed" ? "failed"
+                                 : kind.length ? "queued" : "idle"
+        }
         function onAdjacentEpisodeResolved(mediaId, direction, episode) {
             if (mediaId !== shell.currentEpisodeId)
                 return
@@ -354,8 +416,22 @@ Item {
                 hasPrevEpisode: shell.prevEpisodeId.length > 0
                 hasNextEpisode: shell.nextEpisodeId.length > 0
                 windowed: shell.windowed
+                canSwitchSource: sourceDrawer.sources.length > 1
+                canDownload: shell.hostServices
+                             && String(shell.hostServices.currentPlaybackUrl || "").length > 0
+                downloadKind: shell.downloadKind
+                downloadTooltip: shell.downloadTooltip()
                 onFullscreenRequested: shell.fullscreenRequested()
                 onBrowseRequested: { sourceDrawer.open = true; shell.wakeChrome() }
+                // His ruling: the drawer KEEPS ownership of switching, so the HUD button is a
+                // shortcut straight to its Sources tab, not a second switcher that could disagree
+                // with it.
+                onSwitchSourceRequested: {
+                    sourceDrawer.tab = "sources"
+                    sourceDrawer.open = true
+                    shell.wakeChrome()
+                }
+                onDownloadRequested: shell.handleDownloadAction()
                 onPrevEpisodeRequested: shell.playAdjacentEpisode(-1)
                 onNextEpisodeRequested: shell.playAdjacentEpisode(1)
             }

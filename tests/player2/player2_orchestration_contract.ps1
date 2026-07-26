@@ -24,6 +24,12 @@ $files = Get-ChildItem -Path $roots -Recurse -Include *.cpp,*.h,*.qml,*.js -File
 $violations = @()
 foreach ($file in $files) {
     $text = Get-Content -Raw $file.FullName
+    # Comments stripped before the forbidden-surface scan, for the same reason the shell contract
+    # does it: the rule is that Player 2 must not TOUCH production surfaces, and a comment citing
+    # the shipped player's file and line is parity provenance - the record of what a copied element
+    # was copied FROM. A real use is code and still fails here.
+    $text = [regex]::Replace($text, '(?m)//.*$', '')
+    $text = [regex]::Replace($text, '(?s)/\*.*?\*/', '')
     foreach ($pattern in $forbidden) {
         if ($text -match $pattern) {
             $violations += "$($file.Name): names production surface '$pattern' (the host owns it, not Player 2)"

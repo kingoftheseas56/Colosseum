@@ -15,12 +15,25 @@ Item {
                                         || speedMenu.open
     property bool hasPrevEpisode: false
     property bool hasNextEpisode: false
+    // Host-fed, because the shell owns orchestration and this bar only paints. Production gates the
+    // same two buttons on "there is more than one candidate" and "there is a URL to download"
+    // (PlayerPage.qml:4611, 4620), which is also why neither appears for a local file.
+    property bool canSwitchSource: false
+    property bool canDownload: false
+    property string downloadKind: "idle"   // idle | queued | downloading | done | failed
+    property string downloadTooltip: "Download video"
     property bool windowed: true   // host-fed window state; drives the fullscreen/exit icon (parity)
     // Playback-speed presets (parity with the current player's speedChoices).
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
     readonly property real currentSpeed: session ? session.speed : 1.0
     signal fullscreenRequested()
     signal browseRequested()
+    // The HUD's own source switch: his 2026-07-26 ruling kept the drawer as the full switching
+    // surface AND asked for this button back ("I would still like the source switch button, if for
+    // nothing else, for how cool that lucide icon looks"), so it is a shortcut INTO the drawer's
+    // Sources tab rather than a second, competing switcher.
+    signal switchSourceRequested()
+    signal downloadRequested()
     signal prevEpisodeRequested()
     signal nextEpisodeRequested()
 
@@ -300,6 +313,35 @@ Item {
             spacing: 6
             VolumeControl {
                 anchors.verticalCenter: parent.verticalCenter
+            }
+            // Order matches the shipped player's leftUtilityRow: volume, [retry], stream, download,
+            // fill (PlayerPage.qml:4588-4642). Size is 40 to match this bar's own cluster rather
+            // than production's 48 — every sibling here is 40, and a lone 48 would read as a
+            // mistake. That size gap is a pre-existing, separate drift and is logged as one.
+            RoundButton {
+                id: sourceButton
+                size: 40
+                // "stream" maps to Lucide `replace` in Player2Icon, the SAME glyph the shipped
+                // player uses (PlayerIcon.qml:39). His words: no substitute.
+                icon: "stream"
+                tooltip: "Pick another stream"
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.canSwitchSource
+                onTapped: root.switchSourceRequested()
+            }
+            RoundButton {
+                id: downloadButton
+                size: 40
+                // Same four-state glyph vocabulary as the shipped player (PlayerPage.qml:1651-1662).
+                icon: root.downloadKind === "downloading" ? "cancel"
+                      : root.downloadKind === "done" ? "check"
+                      : root.downloadKind === "failed" ? "warning" : "download"
+                // Gold while a download is anything but idle, exactly as production tints it.
+                active: root.downloadKind !== "idle"
+                tooltip: root.downloadTooltip
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.canDownload
+                onTapped: root.downloadRequested()
             }
             RoundButton {
                 id: fillButton

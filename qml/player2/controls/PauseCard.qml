@@ -21,6 +21,13 @@ Item {
     property string endsAtClock: ""
     property var tracks: []
 
+    // Width breakpoints, mirroring the shipped player's `tight` (< 680) so the card lifts and pulls
+    // in with the dock instead of floating at fixed margins. `barTiny` there is derived from spare
+    // room in the utility row, which this card has no visibility into; the narrow-window intent is
+    // the same and 520 is where this card starts crowding the frame.
+    readonly property bool tight: card.width < 680
+    readonly property bool barTiny: card.width < 520
+
     readonly property color ink: theme ? theme.ink : "#f7f7f5"
     readonly property color inkDim: theme ? theme.inkDim : "#c9c8d0"
     readonly property color inkDimmer: theme ? theme.inkDimmer : "#9a99a5"
@@ -40,8 +47,10 @@ Item {
         id: panel
         anchors.left: parent.left
         anchors.bottom: parent.bottom
-        anchors.leftMargin: 40
-        anchors.bottomMargin: 152   // clears the transport dock
+        // Both margins fold with the dock in production; fixed values left the card floating too
+        // high and too far in on a narrow window.
+        anchors.leftMargin: card.barTiny ? 28 : 40
+        anchors.bottomMargin: (card.tight ? 116 : 126) + 26   // clears the transport dock
         width: Math.min(card.width - 80, 520)
         height: col.implicitHeight + 40
         radius: 12
@@ -81,7 +90,10 @@ Item {
                 width: parent.width
                 text: card.mediaTitle
                 color: card.ink
-                font.family: "Segoe UI Variable Display"; font.pixelSize: 24; font.weight: Font.DemiBold
+                // The shipped card renders this in the HUD face at 26 (qml/PlayerPage… :4246). A
+                // second typeface here was the one thing that made this card read as "not quite the
+                // same card" beside production.
+                font.family: "Segoe UI"; font.pixelSize: 26; font.weight: Font.DemiBold
                 font.capitalization: Font.AllUppercase; font.letterSpacing: 4
                 elide: Text.ElideRight
             }
@@ -100,6 +112,7 @@ Item {
                 visible: text.length > 0
                 color: card.inkDimmer
                 font.family: "Segoe UI"; font.pixelSize: 11; font.letterSpacing: 2
+                font.features: ({ "tnum": 1 })   // parity: production sets it on this row as well
                 elide: Text.ElideRight
             }
             Text {

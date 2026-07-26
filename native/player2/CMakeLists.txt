@@ -139,8 +139,12 @@ qt_add_resources(player2_harness player2_harness_qml
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Shortcuts.js"
 )
 
+# Hand-maintained: a glyph missing here resolves to circle-alert (or blank) in a qrc build while
+# looking perfect from disk, which is exactly how the transport icons shipped blank once already.
+# replace/download/circle-check/triangle-alert/x are the source-switch and download buttons.
 set(_player2_shell_icons play pause volume-2 volume-x rotate-ccw rotate-cw maximize minimize
-    circle-alert skip-back skip-forward languages captions gauge list-video sliders-horizontal)
+    circle-alert skip-back skip-forward languages captions gauge list-video sliders-horizontal
+    replace download circle-check triangle-alert x)
 set(_player2_shell_icon_files "")
 foreach(_icon IN LISTS _player2_shell_icons)
     list(APPEND _player2_shell_icon_files
