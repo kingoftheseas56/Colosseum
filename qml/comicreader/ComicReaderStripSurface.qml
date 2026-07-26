@@ -237,7 +237,10 @@ Item {
             // mounting or restoring never clobbers the shell's page.
             if (!root._programmatic) root._scheduleEmit()
         }
-        onWidthChanged: root._scheduleReport()
+        // A WIDTH change reflows the whole column, so it is reported SYNCHRONOUSLY — never through
+        // the throttle. See _flushViewportReportNow: deferring this by even one frame is what made
+        // Hemanth's fullscreen transition shake.
+        onWidthChanged: root._flushViewportReportNow()
         onHeightChanged: root._scheduleReport()
     }
 
@@ -251,6 +254,28 @@ Item {
         if (!active) return
         _reportPending = true
         if (!reportTimer.running) reportTimer.start()
+    }
+    // Report NOW, in this same beat, bypassing the 16ms throttle.
+    //
+    // WHY (measured, tests/comicreader_fullscreen_timing_probe.qml, 2026-07-26). Every fullscreen
+    // flip in the app goes through the shared FullscreenTransitionShield: cover fades in, the window
+    // mode flips behind it, and the cover lifts on the window's very NEXT frameSwapped. That is
+    // honest for Player 2 — one textured quad that letterboxes to the new size within that same
+    // frame, which is exactly why Hemanth calls its transition the smooth one. The strip does not
+    // settle in one frame: the width change rescales the entire page column and scales contentY to
+    // hold the reading position. Routed through the throttle, that landed 2 frames after the cover
+    // began lifting entering fullscreen and 5 frames after it leaving — the probe recorded contentY
+    // jumping 12000 -> 17067 in full view. The settle was happening in FRONT of the cover instead of
+    // behind it. That is the shake, and it is why the earlier decode-cap fix (a real but separate
+    // cost) did not cure it.
+    //
+    // The throttle exists to coalesce SCROLL reports, which arrive at 60Hz while reading. A width
+    // change is rare and must never be coalesced, so only the width path is made synchronous; the
+    // scroll and height paths keep the throttle exactly as before.
+    function _flushViewportReportNow() {
+        if (!active) return
+        reportTimer.stop()
+        _flushViewportReport()
     }
     function _flushViewportReport() {
         _reportPending = false
