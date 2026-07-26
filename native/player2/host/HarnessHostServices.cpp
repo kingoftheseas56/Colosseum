@@ -6,6 +6,7 @@
 #include <QtCore/QDateTime>
 #include <QtCore/QDir>
 #include <QtCore/QFile>
+#include <QtCore/QJsonArray>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonParseError>
@@ -15,6 +16,7 @@
 #include <QtCore/QStandardPaths>
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 
 // The D3D11 header chain (via HarnessHostServices.h -> D3D11VideoPipeline.h) drags in windows.h,
@@ -37,7 +39,7 @@ HarnessHostServices::HarnessHostServices(QObject *parent)
     connect(&m_frameTimer, &QTimer::timeout, this, &HarnessHostServices::produceFrame);
     m_watchdog.setSingleShot(true);
     connect(&m_watchdog, &QTimer::timeout, this, [this] {
-        finish(false, QStringLiteral("Player 2 lab gate did not complete in 20 seconds"), 2);
+        finish(false, QStringLiteral("Player 2 lab gate watchdog expired before completion"), 2);
     });
     connect(&m_session, &Player2Session::stateChanged, this, [this] {
         if (m_session.state() == Player2State::Playing)
@@ -52,15 +54,213 @@ HarnessHostServices::HarnessHostServices(QObject *parent)
             [this](const Player2Error &error) { finish(false, error.message, 2); });
 }
 
+// --- Deterministic orchestration fixtures (Task 14) -----------------------------------------------
+// The lab host answers every seam from these builders; it never touches a real catalog/source/store.
+// Requests are recorded (appendEvent) AND resolved exactly once via the base signal after a short
+// async hop, so the shell's request->render flow is exercised the same as against a live host.
+namespace {
+
+constexpr int kResolveDelayMs = 15; // one async hop: proves the shell handles non-immediate results
+
+QVariantMap fixtureEpisode(const QString &mediaId, int direction)
+{
+    if (mediaId == QStringLiteral("series-head") && direction < 0)
+        return QVariantMap{{QStringLiteral("dead"), true}}; // real series boundary, not an error
+    if (mediaId == QStringLiteral("boom"))
+        return QVariantMap{{QStringLiteral("error"), QStringLiteral("episode lookup failed")}};
+    const QString suffix = direction >= 0 ? QStringLiteral("#next") : QStringLiteral("#prev");
+    return QVariantMap{
+        {QStringLiteral("mediaId"), mediaId + suffix},
+        {QStringLiteral("title"), (direction >= 0 ? QStringLiteral("Next Episode")
+                                                  : QStringLiteral("Previous Episode"))},
+        {QStringLiteral("season"), 1},
+        {QStringLiteral("episode"), direction >= 0 ? 6 : 4},
+        {QStringLiteral("durationSeconds"), 2640.0},
+        {QStringLiteral("poster"), QStringLiteral("qrc:/player2/fixtures/poster.png")}};
+}
+
+QVariantList fixtureSources(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    return QVariantList{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("src-2160")},
+                    {QStringLiteral("title"), QStringLiteral("2160p HDR · WEB")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/2160")},
+                    {QStringLiteral("quality"), QStringLiteral("2160p")},
+                    {QStringLiteral("sizeBytes"), 8'000'000'000.0},
+                    {QStringLiteral("seeders"), 240},
+                    {QStringLiteral("current"), true}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("src-1080")},
+                    {QStringLiteral("title"), QStringLiteral("1080p · BluRay")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/1080")},
+                    {QStringLiteral("quality"), QStringLiteral("1080p")},
+                    {QStringLiteral("sizeBytes"), 3'000'000'000.0},
+                    {QStringLiteral("seeders"), 512},
+                    {QStringLiteral("current"), false}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("src-720")},
+                    {QStringLiteral("title"), QStringLiteral("720p · WEB")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/720")},
+                    {QStringLiteral("quality"), QStringLiteral("720p")},
+                    {QStringLiteral("sizeBytes"), 1'200'000'000.0},
+                    {QStringLiteral("seeders"), 90},
+                    {QStringLiteral("dead"), true}}};
+}
+
+QVariantList fixtureSubtitles(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    return QVariantList{
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("os-en-1")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/en.srt")},
+                    {QStringLiteral("lang"), QStringLiteral("en")},
+                    {QStringLiteral("langName"), QStringLiteral("English")},
+                    {QStringLiteral("provider"), QStringLiteral("OpenSubtitles")},
+                    {QStringLiteral("downloads"), 4210},
+                    {QStringLiteral("external"), true}},
+        QVariantMap{{QStringLiteral("id"), QStringLiteral("os-es-1")},
+                    {QStringLiteral("url"), QStringLiteral("http://lab.invalid/es.srt")},
+                    {QStringLiteral("lang"), QStringLiteral("es")},
+                    {QStringLiteral("langName"), QStringLiteral("Spanish")},
+                    {QStringLiteral("provider"), QStringLiteral("OpenSubtitles")},
+                    {QStringLiteral("downloads"), 1180},
+                    {QStringLiteral("external"), true}}};
+}
+
+QVariantList fixtureSegments(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    return QVariantList{
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("intro")},
+                    {QStringLiteral("startSeconds"), 62.0},
+                    {QStringLiteral("endSeconds"), 152.0},
+                    {QStringLiteral("autoSkip"), false}},
+        QVariantMap{{QStringLiteral("kind"), QStringLiteral("credits")},
+                    {QStringLiteral("startSeconds"), 2520.0},
+                    {QStringLiteral("endSeconds"), 2640.0},
+                    {QStringLiteral("autoSkip"), true}}};
+}
+
+QVariantMap fixtureMetadata(const QString &mediaId)
+{
+    if (mediaId == QStringLiteral("boom"))
+        return QVariantMap{{QStringLiteral("error"), QStringLiteral("metadata hydration failed")}};
+    return QVariantMap{
+        {QStringLiteral("mediaId"), mediaId},
+        {QStringLiteral("title"), QStringLiteral("Lab Title")},
+        // No logo/backdrop art ships in the lab, so these resolve empty — the card falls back to the
+        // title in caps (production hands over real URLs). Empty, not a fake path, keeps the run clean.
+        {QStringLiteral("logo"), QString()},
+        {QStringLiteral("backdrop"), QString()},
+        {QStringLiteral("seasons"), 4},
+        {QStringLiteral("year"), QStringLiteral("2006")},
+        {QStringLiteral("plot"), QStringLiteral("With the mayoral race in full swing, the detail's "
+            "investigation into the Barksdale crew collides with City Hall politics while four West "
+            "Baltimore boys start eighth grade.")},
+        {QStringLiteral("resumeSeconds"), 305.0}};
+}
+
+QVariantList fixtureSeasonEpisodes(const QString &mediaId, int season)
+{
+    if (mediaId == QStringLiteral("empty"))
+        return {};
+    // A believable season: the first episode fully watched, the second mid-progress, the rest fresh —
+    // so the browser's watched-dim / progress-bar / fresh states all have something to render.
+    static const char *const kTitles[] = {"The Target", "Old Cases", "Amsterdam", "Hard Cases",
+                                          "Bad Dreams", "The Wire"};
+    const int total = 6;
+    QVariantList episodes;
+    for (int number = 1; number <= total; ++number) {
+        const double frac = number == 1 ? 1.0 : (number == 2 ? 0.42 : 0.0);
+        episodes.append(QVariantMap{
+            {QStringLiteral("mediaId"),
+             QStringLiteral("%1:%2:%3").arg(mediaId).arg(season).arg(number)},
+            {QStringLiteral("title"), QString::fromLatin1(kTitles[(number - 1) % 6])},
+            {QStringLiteral("season"), season},
+            {QStringLiteral("episode"), number},
+            {QStringLiteral("durationSeconds"), 3120.0},
+            {QStringLiteral("progressFraction"), frac},
+            {QStringLiteral("watched"), number == 1}});
+    }
+    return episodes;
+}
+
+} // namespace
+
 void HarnessHostServices::requestAdjacentEpisode(const QString &mediaId, int direction)
 {
     appendEvent(QStringLiteral("adjacent-episode"),
                 QStringLiteral("%1:%2").arg(mediaId).arg(direction));
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId, direction] {
+        emit adjacentEpisodeResolved(mediaId, direction, fixtureEpisode(mediaId, direction));
+    });
+}
+
+void HarnessHostServices::requestSeasonEpisodes(const QString &mediaId, int season)
+{
+    appendEvent(QStringLiteral("season-episodes"),
+                QStringLiteral("%1:%2").arg(mediaId).arg(season));
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId, season] {
+        emit seasonEpisodesResolved(mediaId, season, fixtureSeasonEpisodes(mediaId, season));
+    });
 }
 
 void HarnessHostServices::requestAlternateSources(const QString &mediaId)
 {
     appendEvent(QStringLiteral("alternate-sources"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit alternateSourcesResolved(mediaId, fixtureSources(mediaId));
+    });
+}
+
+void HarnessHostServices::requestOnlineSubtitles(const QString &mediaId)
+{
+    appendEvent(QStringLiteral("online-subtitles"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit onlineSubtitlesResolved(mediaId, fixtureSubtitles(mediaId));
+    });
+}
+
+void HarnessHostServices::requestSkipSegments(const QString &mediaId)
+{
+    appendEvent(QStringLiteral("skip-segments"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit skipSegmentsResolved(mediaId, fixtureSegments(mediaId));
+    });
+}
+
+void HarnessHostServices::requestDownload(const QString &mediaId, const QString &sourceId)
+{
+    appendEvent(QStringLiteral("download"), QStringLiteral("%1:%2").arg(mediaId, sourceId));
+    // A monotonic STATE STREAM, not resolve-once: queued -> active -> (ready | failed).
+    const auto emitState = [this, mediaId](const QString &state, double progress,
+                                           const QString &error) {
+        QVariantMap s{{QStringLiteral("state"), state}, {QStringLiteral("progress"), progress}};
+        if (!error.isEmpty())
+            s.insert(QStringLiteral("error"), error);
+        emit downloadStateChanged(mediaId, s);
+    };
+    QTimer::singleShot(kResolveDelayMs, this, [emitState] { emitState(QStringLiteral("queued"), 0.0, {}); });
+    QTimer::singleShot(kResolveDelayMs * 2, this,
+                       [emitState] { emitState(QStringLiteral("active"), 0.5, {}); });
+    if (sourceId == QStringLiteral("no")) {
+        QTimer::singleShot(kResolveDelayMs * 3, this, [emitState] {
+            emitState(QStringLiteral("failed"), 0.5, QStringLiteral("source is dead"));
+        });
+    } else {
+        QTimer::singleShot(kResolveDelayMs * 3, this,
+                           [emitState] { emitState(QStringLiteral("ready"), 1.0, {}); });
+    }
+}
+
+void HarnessHostServices::requestMetadata(const QString &mediaId)
+{
+    appendEvent(QStringLiteral("metadata"), mediaId);
+    QTimer::singleShot(kResolveDelayMs, this, [this, mediaId] {
+        emit metadataResolved(mediaId, fixtureMetadata(mediaId));
+    });
 }
 
 void HarnessHostServices::reportProgress(const QString &mediaId, double position, double duration)
@@ -98,6 +298,116 @@ double HarnessHostServices::duration() const { return m_session.duration(); }
 int HarnessHostServices::trackCount() const { return m_session.tracks().size(); }
 
 void HarnessHostServices::setReportPath(const QString &path) { m_reportPath = path; }
+
+void HarnessHostServices::setSeekScript(int count, int intervalMs)
+{
+    m_seekTarget = std::max(0, count);
+    if (m_seekTarget == 0)
+        return;
+    m_seekTimer.setInterval(std::max(200, intervalMs));
+    connect(&m_seekTimer, &QTimer::timeout, this, &HarnessHostServices::runSeekScript,
+            Qt::UniqueConnection);
+    m_seekTimer.start();
+}
+
+void HarnessHostServices::setCycleScript(int cycles, int dwellSeconds)
+{
+    m_cycleTarget = std::max(0, cycles);
+    if (m_cycleTarget == 0)
+        return;
+    m_cycleTimer.setInterval(std::max(1, dwellSeconds) * 1'000);
+    connect(&m_cycleTimer, &QTimer::timeout, this, &HarnessHostServices::runCycleScript,
+            Qt::UniqueConnection);
+    m_cycleTimer.start();
+}
+
+void HarnessHostServices::runSeekScript()
+{
+    if (m_finished || !m_fileOpened || m_session.duration() <= 15.0)
+        return;
+    if (m_cycleReopenPending)
+        return; // never seek across a close/reopen boundary
+    // Issue AND judge only from Playing — a seek fired during Opening/Buffering is rejected by the
+    // state machine and would strand the script waiting on a landing that never comes.
+    if (m_session.state() != Player2State::Playing)
+        return;
+    if (m_seekPendingTarget >= 0.0) {
+        // A landed seek keeps PLAYING from where it landed, so judge against the EXPECTED position:
+        // target plus the playback time since issue (±5s absorbs keyframe snap + decode-to-target).
+        // Judging against the static target was the first version's bug — a correct landing walked
+        // straight out of the window (measured in the event ledger, 2026-07-25).
+        const double sinceIssueSeconds =
+            (m_runTimer.elapsed() - m_seekIssuedAtMs) / 1000.0 * m_session.speed();
+        const double expected = m_seekPendingTarget + sinceIssueSeconds;
+        if (std::abs(m_session.position() - expected) < 5.0) {
+            ++m_seeksCompleted;
+            appendEvent(QStringLiteral("seek-landed"),
+                        QStringLiteral("target=%1 pos=%2 done=%3/%4")
+                            .arg(m_seekPendingTarget, 0, 'f', 1)
+                            .arg(m_session.position(), 0, 'f', 1)
+                            .arg(m_seeksCompleted).arg(m_seekTarget));
+            m_seekPendingTarget = -1.0;
+            m_seekStallTicks = 0;
+        } else if (++m_seekStallTicks >= 6) {
+            // Bounded self-heal: re-issue the same target (a seek raced a state transition and was
+            // dropped). The watchdog still bounds the whole run.
+            appendEvent(QStringLiteral("seek-reissued"),
+                        QStringLiteral("target=%1 pos=%2")
+                            .arg(m_seekPendingTarget, 0, 'f', 1)
+                            .arg(m_session.position(), 0, 'f', 1));
+            m_seekIssuedAtMs = m_runTimer.elapsed();
+            m_session.seekExact(m_seekPendingTarget);
+            m_seekStallTicks = 0;
+        }
+        return; // one seek in flight at a time
+    }
+    if (m_seeksIssued >= m_seekTarget)
+        return;
+    // Deterministic forward/backward pattern — reproducible runs, no wall-clock randomness.
+    static constexpr double kPattern[] = {0.15, 0.70, 0.30, 0.80, 0.45, 0.10, 0.60, 0.25};
+    const double fraction = kPattern[m_seeksIssued % 8];
+    const double target = std::clamp(fraction * m_session.duration(), 1.0,
+                                     m_session.duration() - 5.0);
+    m_seekPendingTarget = target;
+    m_seekIssuedAtMs = m_runTimer.elapsed();
+    ++m_seeksIssued;
+    m_session.seekExact(target);
+}
+
+void HarnessHostServices::runCycleScript()
+{
+    if (m_finished || !hasMedia() || !m_url.isEmpty())
+        return; // file mode only
+    appendEvent(QStringLiteral("cycle-tick"),
+                QStringLiteral("state=%1 opened=%2 pending=%3 done=%4/%5")
+                    .arg(static_cast<int>(m_session.state()))
+                    .arg(m_fileOpened).arg(m_cycleReopenPending)
+                    .arg(m_cyclesCompleted).arg(m_cycleTarget));
+    if (m_cycleReopenPending) {
+        // The reopened session must climb all the way back to Playing to count.
+        if (m_session.state() == Player2State::Playing) {
+            ++m_cyclesCompleted;
+            m_cycleReopenPending = false;
+            appendEvent(QStringLiteral("cycle-completed"),
+                        QStringLiteral("%1/%2").arg(m_cyclesCompleted).arg(m_cycleTarget));
+        }
+        return;
+    }
+    if (m_cyclesCompleted >= m_cycleTarget || !m_fileOpened)
+        return;
+    if (m_session.state() != Player2State::Playing)
+        return; // only cycle from a healthy playing state
+    appendEvent(QStringLiteral("cycle-closing"), QString::number(m_cyclesCompleted + 1));
+    m_session.close();
+    m_fileOpened = false;        // produceFrame reopens the same file on its next tick
+    m_cycleReopenPending = true;
+}
+
+bool HarnessHostServices::scriptsComplete() const
+{
+    return (m_seekTarget == 0 || m_seeksCompleted >= m_seekTarget) &&
+           (m_cycleTarget == 0 || m_cyclesCompleted >= m_cycleTarget);
+}
 void HarnessHostServices::setMinimumRunSeconds(int seconds)
 {
     m_minimumRunSeconds = std::max(0, seconds);
@@ -140,8 +450,15 @@ bool HarnessHostServices::startFile(const QString &path, QString *error)
     m_runTimer.start();
     appendEvent(QStringLiteral("file-started"), QFileInfo(path).fileName());
     m_frameTimer.start();
-    if (!m_reportPath.isEmpty())
-        m_watchdog.start((m_minimumRunSeconds + 30) * 1'000);
+    if (!m_reportPath.isEmpty()) {
+        // Watchdog budget grows with the scripted work: each seek needs its interval (plus landing
+        // slack), each cycle its dwell plus a reopen allowance.
+        const int seekBudget = m_seekTarget > 0
+            ? (m_seekTarget * (m_seekTimer.interval() * 3) / 1'000 + 30) : 0;
+        const int cycleBudget = m_cycleTarget > 0
+            ? (m_cycleTarget * (m_cycleTimer.interval() / 1'000 * 2 + 10)) : 0;
+        m_watchdog.start((m_minimumRunSeconds + 30 + seekBudget + cycleBudget) * 1'000);
+    }
     emit metricsChanged();
     return true;
 }
@@ -207,6 +524,19 @@ void HarnessHostServices::produceFrame()
     refreshMetrics();
     m_maxAudioQueueMs = std::max(m_maxAudioQueueMs, m_session.audioQueueMs());
     m_sawAudioClock = m_sawAudioClock || m_session.audioClock().valid;
+    if (hasMedia() && m_fileOpened) {
+        // Anchored playback sample: the accumulator measures rates from the first valid audio clock,
+        // never from run start — so device init + loudnorm priming can't manufacture a low fps.
+        PlaybackMetricSample sample;
+        sample.monotonicMs = m_runTimer.isValid() ? m_runTimer.elapsed() : 0;
+        sample.decoded = m_metrics.decoded;
+        sample.presented = m_metrics.presented;
+        sample.audioQueueMs = m_session.audioQueueMs();
+        sample.audioClockValid = m_session.audioClock().valid;
+        sample.avErrorUs = m_metrics.lastAvErrorUs;
+        sample.audioUnderruns = m_session.audioUnderruns();
+        m_playbackMetrics.add(sample);
+    }
     if (!m_metrics.adapterMatch) {
         m_item->update();
         return;
@@ -264,7 +594,7 @@ void HarnessHostServices::produceFrame()
         // A streamed source may report an unknown duration (live/no-length), so it is not required.
         const bool durationReady = !m_url.isEmpty() || m_session.duration() > 0.0;
         if ((hasMedia() && minimumRunMet && m_metrics.presented >= target && m_sawPlaying &&
-             durationReady && !m_session.tracks().isEmpty() && audioReady) ||
+             durationReady && !m_session.tracks().isEmpty() && audioReady && scriptsComplete()) ||
             (!hasMedia() && m_metrics.presented >= target)) {
             finish(true, !hasMedia() ? QStringLiteral("Synthetic D3D11 gate passed")
                                      : (m_url.isEmpty() ? QStringLiteral("Local file gate passed")
@@ -288,6 +618,8 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
     m_finished = true;
     m_frameTimer.stop();
     m_watchdog.stop();
+    m_seekTimer.stop();
+    m_cycleTimer.stop();
     if (hasMedia()) {
         m_reportDuration = m_session.duration();
         m_reportTrackCount = m_session.tracks().size();
@@ -320,6 +652,16 @@ void HarnessHostServices::finish(bool passed, const QString &message, int exitCo
 
 bool HarnessHostServices::writeReport(bool passed, const QString &message) const
 {
+    // Playback-anchored truth: fps measured from the first valid audio clock, plus the signals that
+    // map to Hemanth's symptoms — low-water audio queue (crackle) and signed A/V drift (sync).
+    const PlaybackMetricsReport playback = m_playbackMetrics.report();
+    QJsonArray windowFps;
+    for (const PlaybackMetricWindow &window : playback.windows) {
+        windowFps.append(QJsonObject{
+            {QStringLiteral("startSeconds"), window.startSeconds},
+            {QStringLiteral("fps"), window.fps},
+            {QStringLiteral("minAudioQueueMs"), window.minAudioQueueMs}});
+    }
     const QJsonObject report{
         {QStringLiteral("scenario"), !hasMedia() ? QStringLiteral("synthetic")
                                     : (m_url.isEmpty() ? QStringLiteral("file")
@@ -333,6 +675,7 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         {QStringLiteral("adapterMatch"), m_metrics.adapterMatch},
         {QStringLiteral("sharedFences"), m_metrics.sharedFences},
         {QStringLiteral("generated"), static_cast<qint64>(m_metrics.submitted)},
+        {QStringLiteral("decoded"), static_cast<qint64>(m_metrics.decoded)},
         {QStringLiteral("presented"), static_cast<qint64>(m_metrics.presented)},
         {QStringLiteral("dropped"), static_cast<qint64>(m_metrics.producerStarved)},
         {QStringLiteral("scheduledLateDrops"), static_cast<qint64>(m_metrics.scheduledLateDrops)},
@@ -352,6 +695,20 @@ bool HarnessHostServices::writeReport(bool passed, const QString &message) const
         ,{QStringLiteral("maxAudioQueueMs"), m_maxAudioQueueMs}
         ,{QStringLiteral("finalAudioQueueMs"), m_finalAudioQueueMs}
         ,{QStringLiteral("elapsedSeconds"), m_runTimer.isValid() ? m_runTimer.elapsed() / 1000.0 : 0.0}
+        ,{QStringLiteral("seeksRequested"), m_seekTarget}
+        ,{QStringLiteral("seeksCompleted"), m_seeksCompleted}
+        ,{QStringLiteral("cyclesRequested"), m_cycleTarget}
+        ,{QStringLiteral("cyclesCompleted"), m_cyclesCompleted}
+        ,{QStringLiteral("playbackAnchored"), playback.anchored}
+        ,{QStringLiteral("playbackSeconds"), playback.playbackSeconds}
+        ,{QStringLiteral("sustainedFps"), playback.sustainedFps}
+        ,{QStringLiteral("decodedFps"), playback.decodedFps}
+        ,{QStringLiteral("minAudioQueueMs"), playback.minAudioQueueMs}
+        ,{QStringLiteral("avDriftMinMs"), playback.avErrorMinUs / 1000.0}
+        ,{QStringLiteral("avDriftMaxMs"), playback.avErrorMaxUs / 1000.0}
+        ,{QStringLiteral("avDriftMaxAbsMs"), playback.avErrorMaxAbsUs / 1000.0}
+        ,{QStringLiteral("avDriftMeanMs"), playback.avErrorMeanUs / 1000.0}
+        ,{QStringLiteral("windowFps"), windowFps}
         ,{QStringLiteral("finalState"), sessionState()}
         ,{QStringLiteral("normalization"), m_reportNormalization}
         ,{QStringLiteral("normalizationLatencyMs"), m_reportNormalizationLatencyMs}

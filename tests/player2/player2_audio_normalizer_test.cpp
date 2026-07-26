@@ -90,6 +90,29 @@ void modesPreserveEndpointFormat(const AudioFormat &format, NormalizationMode mo
     require(normalizer.reportedLatencyUs() >= 0, label + " reported negative latency");
 }
 
+void fullOutputPtsRemainMicroseconds(const AudioFormat &format)
+{
+    AudioNormalizer normalizer;
+    QString error;
+    require(normalizer.configure(format, NormalizationMode::Full, &error),
+            "full timestamp configure failed: " + error.toStdString());
+
+    std::vector<AudioBuffer> outputs;
+    qint64 inputPtsUs = 0;
+    for (int i = 0; i < 240 && outputs.size() < 2; ++i) {
+        require(normalizer.process(makeSine(format, 1024, inputPtsUs), &outputs, &error),
+                "full timestamp process failed: " + error.toStdString());
+        inputPtsUs += static_cast<qint64>(1024) * 1'000'000 / format.sampleRate;
+    }
+    require(outputs.size() >= 2, "full timestamp test did not reach filter output");
+
+    const qint64 expectedDeltaUs =
+        static_cast<qint64>(outputs[0].frameCount) * 1'000'000 / format.sampleRate;
+    const qint64 actualDeltaUs = outputs[1].ptsUs - outputs[0].ptsUs;
+    require(std::llabs(actualDeltaUs - expectedDeltaUs) <= 2,
+            "full output PTS used the filter sample time-base instead of microseconds");
+}
+
 void liveModeChangeIsClean(const AudioFormat &format)
 {
     AudioNormalizer normalizer;
@@ -124,6 +147,7 @@ int main()
         smoothIsBitTransparent(format);
         modesPreserveEndpointFormat(format, NormalizationMode::Light, "light");
         modesPreserveEndpointFormat(format, NormalizationMode::Full, "full");
+        fullOutputPtsRemainMicroseconds(format);
         liveModeChangeIsClean(format);
     } catch (const std::exception &error) {
         std::cerr << "player2_audio_normalizer_test: FAIL: " << error.what() << '\n';

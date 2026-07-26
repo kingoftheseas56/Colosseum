@@ -23,13 +23,24 @@ struct AudioBuffer
     QByteArray bytes;
     int frameCount = 0;
     qint64 ptsUs = 0;
+    // Playback speed the samples were time-stretched to (1.0 = normal). The sink advances the media
+    // clock within a buffer at this rate, so a sped-up buffer (fewer samples, same media span) reports
+    // media advancing faster — keeping the audio-master clock honest under atempo. Travels with the
+    // buffer so the render thread needs no shared speed state.
+    double speed = 1.0;
 };
 
 struct AudioClockSnapshot
 {
     qint64 mediaPositionUs = 0;
     qint64 qpcTimestamp = 0;
+    quint64 generation = 0;
     bool valid = false;
+
+    bool isValidForGeneration(quint64 expectedGeneration) const noexcept
+    {
+        return valid && generation == expectedGeneration;
+    }
 };
 
 class IAudioSink
@@ -56,7 +67,8 @@ public:
 
     bool enqueue(const AudioBuffer &buffer, quint64 generation);
     bool enqueueBlocking(const AudioBuffer &buffer, quint64 generation);
-    int read(float *destination, int requestedFrames, int channels);
+    int read(float *destination, int requestedFrames, int channels,
+             qint64 *mediaPositionUs = nullptr, quint64 *generation = nullptr);
     void flush(quint64 generation);
     int depthFrames() const;
     quint64 generation() const;

@@ -122,6 +122,36 @@ void flushKeepsDisplayedTextureAliveUntilConsumerRetiresIt()
             "first new-generation frame must retire the old display");
 }
 
+// The seek-freeze regression: a seek advances the ring's generation (flush), but the QML
+// item kept presenting with the generation it was born with — so after the first seek the
+// ring rejected every acquire and the picture froze on the last pre-seek frame while audio
+// played on. The self-generation acquire presents whatever generation the ring currently
+// owns; the consumer never needs to be told about seeks.
+void consumerFollowsRingGenerationAcrossSeeks()
+{
+    D3D11TextureRing ring(1);
+    const auto preSeek = ring.claimForProducer();
+    require(preSeek.has_value(), "pre-seek producer slot missing");
+    require(ring.publishProduced(*preSeek, token(1, 1, 10'000)), "pre-seek publish failed");
+    require(ring.acquireLatestForConsumer(1).has_value(), "pre-seek display failed");
+
+    ring.flush(2); // the seek: generation advances, Ready slots are cleared
+    const auto postSeek = ring.claimForProducer();
+    require(postSeek.has_value(), "post-seek producer slot missing");
+    require(ring.publishProduced(*postSeek, token(2, 1, 60'000'000)),
+            "post-seek publish failed");
+
+    // The frozen-picture bug, preserved as documentation: a stale-generation consumer
+    // acquires nothing, forever.
+    require(!ring.acquireLatestForConsumer(1).has_value(),
+            "stale-generation consumer must still be rejected");
+    // The fix: the self-generation acquire follows the ring across the seek.
+    const auto selection = ring.acquireLatestForConsumer();
+    require(selection.has_value(), "self-generation consumer must see the post-seek frame");
+    require(selection->token.generation == 2 && selection->token.ptsUs == 60'000'000,
+            "the presented frame must be the post-seek frame");
+}
+
 void invalidOperationsDoNotCorruptOwnership()
 {
     D3D11TextureRing ring(4);
@@ -151,6 +181,7 @@ int main()
         consumerFenceControlsRetiringSlotReuse();
         flushInvalidatesOldGenerationWithoutReusingInFlightSlots();
         flushKeepsDisplayedTextureAliveUntilConsumerRetiresIt();
+        consumerFollowsRingGenerationAcrossSeeks();
         invalidOperationsDoNotCorruptOwnership();
     } catch (const std::exception &error) {
         std::cerr << "player2_texture_ring_test: FAIL: " << error.what() << '\n';

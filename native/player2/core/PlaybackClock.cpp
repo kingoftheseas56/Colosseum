@@ -1,5 +1,7 @@
 #include "PlaybackClock.h"
 
+#include "player2/audio/WASAPIAudioSink.h"
+
 #include <algorithm>
 #include <cmath>
 
@@ -131,5 +133,30 @@ qint64 PlaybackClock::correctToward(qint64 masterMediaUs, qint64 qpcNow,
 }
 
 qint64 PlaybackClock::qpcFrequency() const noexcept { return m_qpcFrequency; }
+
+ClockResync decideClockResync(bool audioWasValid, qint64 discontinuityUs, qint64 hardResetThresholdUs)
+{
+    if (!audioWasValid && std::llabs(discontinuityUs) > hardResetThresholdUs)
+        return ClockResync::HardReset;
+    return ClockResync::Slew;
+}
+
+bool shouldDropVideoBacklog(const AudioClockSnapshot &audioClock,
+                            quint64 expectedGeneration,
+                            qint64 oldestVideoPtsUs,
+                            qint64 qpcNow,
+                            qint64 qpcFrequency,
+                            qint64 lateThresholdUs) noexcept
+{
+    if (!audioClock.isValidForGeneration(expectedGeneration) || qpcFrequency <= 0)
+        return false;
+    const long double elapsedUs =
+        static_cast<long double>(qpcNow - audioClock.qpcTimestamp) *
+        1'000'000.0L / static_cast<long double>(qpcFrequency);
+    const long double audiblePositionUs =
+        static_cast<long double>(audioClock.mediaPositionUs) + elapsedUs;
+    return audiblePositionUs - static_cast<long double>(oldestVideoPtsUs) >
+        static_cast<long double>(std::max<qint64>(0, lateThresholdUs));
+}
 
 } // namespace Colosseum::Player2

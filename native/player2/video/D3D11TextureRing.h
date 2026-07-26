@@ -43,6 +43,10 @@ public:
     bool cancelProducer(std::size_t slot);
     bool publishProduced(std::size_t slot, VideoFrameToken token);
     std::optional<ConsumerSelection> acquireLatestForConsumer(quint64 generation);
+    // Consumer follows the ring: presents the latest Ready frame of the ring's CURRENT
+    // generation, whatever seeks/track-switches have advanced it to. The paint item uses
+    // this so it never needs to be told about generation changes (the seek-freeze fix).
+    std::optional<ConsumerSelection> acquireLatestForConsumer();
     bool retireAfterConsumerSubmission(std::size_t slot, quint64 consumerFenceValue);
     void markConsumerFenceComplete(quint64 completedValue);
     void flush(quint64 nextGeneration);
@@ -52,6 +56,8 @@ public:
     quint64 producerStarvationCount() const;
 
 private:
+    std::optional<ConsumerSelection> acquireLatestForConsumerLocked(quint64 generation);
+
     struct Slot
     {
         TextureSlotState state = TextureSlotState::Free;

@@ -898,6 +898,20 @@ if(COLOSSEUM_BUILD_PLAYER2)
     add_subdirectory(player2)
 endif()
 
+# ── Player 2 in-app backend (Task 17, spec 2026-07-21-colosseum-player2) ──
+# APPEND-ONLY and OFF by default: a stock build links nothing new and behaves exactly as before.
+# Deliberately a SECOND target_link_libraries call rather than an edit to the shared link line above,
+# so this cannot collide with another agent's change there. Declared in Brotherhood agents/chat.md
+# before the touch, per the plan's shared-file rule.
+option(COLOSSEUM_PLAYER2_IN_APP "Link the Player 2 backend into the app (opt-in at runtime)" OFF)
+if(COLOSSEUM_PLAYER2_IN_APP)
+    if(NOT TARGET player2_core)
+        add_subdirectory(player2)
+    endif()
+    target_link_libraries(colosseum PRIVATE player2_core)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_PLAYER2=1)
+endif()
+
 # --- Comic Reader (Agent 1, plan 2026-07-23): engine + backend harnesses ---
 # ── Comic Reader (Agent 1, plan 2026-07-23): pure canonical pairing + typed model.
 #    The from-scratch reader's combinatorial core — no Qt GUI, no decode, no cache,

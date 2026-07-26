@@ -1,0 +1,1 @@
+{"at":"2026-07-25T06:08:35.1305651+05:30","cpu":"Intel(R) Core(TM) i5-8365U CPU @ 1.60GHz","gpus":"Intel(R) UHD Graphics 620","soakSeconds":30,"gates":["av_sync_1x","av_sync_1.5x","seek_soak_25"],"passed":true}

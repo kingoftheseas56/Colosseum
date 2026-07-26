@@ -31,6 +31,7 @@ public:
     int read(char *dst, int maxLen) override;
     void close() override;
     void cancel() override;
+    void setStallTimeoutMs(int milliseconds) override;
 
 private:
     bool connectSocket(const QUrl &url, QString *error);
@@ -38,6 +39,7 @@ private:
                      QString *error);
     bool readHeaderBlock(QByteArray *block, QString *error);
     bool waitReadable(int timeoutMs);
+    int stallTimeoutMs() const;
     bool readChunkLine(QByteArray *line);
     int readChunked(char *dst, int maxLen);
     int readIdentity(char *dst, int maxLen);
@@ -45,6 +47,9 @@ private:
 
     std::unique_ptr<QTcpSocket> m_socket;
     std::atomic_bool m_cancelled{false};
+    // Patience for a connected-but-silent origin, set by HttpMediaSource. Written from the fetch
+    // thread and also from seek() (any thread), hence atomic.
+    std::atomic<int> m_stallTimeoutMs{20'000};
     QByteArray m_leftover;         // body bytes already pulled off the socket while parsing headers
     qint64 m_bodyRemaining = -1;   // Content-Length countdown; -1 means read until the peer closes
     bool m_chunked = false;        // Transfer-Encoding: chunked

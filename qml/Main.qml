@@ -198,6 +198,17 @@ Window {
     }
 
     Component.onCompleted: {
+        // Efficiency gate: play a given local file through the real player as soon as the shell is
+        // up, so both backends can be measured under identical conditions.
+        if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
+            var abbaPath = String(DevAbbaClip)
+            abbaTimer.path = abbaPath
+            abbaTimer.start()
+        }
+        // Which video backend this launch will use. Announced at startup so a run can be diagnosed
+        // without playing anything (Task 17).
+        console.log("[player] startup backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
+                    + "  (booted=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
         if (typeof WindowMode !== "undefined")
@@ -663,6 +674,26 @@ Window {
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
+
+    // Gives the shell a moment to finish coming up before the player is opened on top of it.
+    Timer {
+        id: abbaTimer
+        property string path: ""
+        interval: 2500
+        repeat: false
+        onTriggered: {
+            console.log("[abba] auto-playing " + abbaTimer.path)
+            win.openLocalVideoSession({ "id": "abba:clip", "title": "ABBA measurement clip",
+                                        "path": abbaTimer.path })
+        }
+    }
+
+    // The backend is a BOOT fact: COLOSSEUM_PLAYER2 selects the D3D11 RHI in C++, and
+    // Player2Available reports what this process actually booted on. There is no runtime
+    // fallback in a Player 2 boot - mpv cannot render on D3D11 - so failures surface on the
+    // player page's error screen instead of swapping engines.
+    readonly property bool usePlayer2: Player2Available === true
+
     // Every reader/player surface that must suppress the OS-shell taskbar. There are THREE
     // comic/manga reader lanes (all share the reader chrome — see minimizeComicReader):
     // seriesLayer=manga, westernLayer=western comics, comicSeriesLayer=the LOCG catalogue.
@@ -1977,13 +2008,30 @@ Window {
         z: 60
         active: false
         visible: win.playerOpen
-        source: "PlayerPage.qml"
+        // The ONE production line that selects the backend. Player2Page.qml deliberately exposes the
+        // same interface as PlayerPage.qml, so every playerLayer.item.* call site below stays as-is.
+        source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
         onLoaded: {
+            // Say which engine is driving, every time the player opens. Without this, telling the two
+            // apart means reading process paths after the fact - which is exactly what happened on the
+            // first swap attempt (2026-07-25).
+            console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
+                        + "  (booted=" + Player2Available + ")")
             item.backdrop = wall
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(win.closePlayerSession)
+            // Player-2-only seams; absent on the mpv page, hence the guards. Log only: there is
+            // no backend to swap to in this boot, so the page itself shows the failure.
+            if (item.backendFallback)
+                item.backendFallback.connect(function(reason) {
+                    console.warn("[player2] declined/failed before first frame: " + reason)
+                })
+            if (item.backendRestartRequired)
+                item.backendRestartRequired.connect(function(reason) {
+                    console.warn("[player2] failed after first frame: " + reason)
+                })
         }
     }
 

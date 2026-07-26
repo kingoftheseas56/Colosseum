@@ -40,8 +40,9 @@ bool AudioPipeline::open(const AudioFormat &format, QString *error)
     if (!m_sink->open(format, error))
         return false;
     m_outputFormat = format;
-    // Fresh normalization graph for this session's endpoint format (worker thread).
+    // Fresh normalization + tempo graphs for this session's endpoint format (worker thread).
     m_normalizer.configure(format, m_mode, nullptr);
+    m_tempo.configure(format, m_speed, nullptr);
     m_open = true;
     return true;
 }
@@ -56,12 +57,36 @@ void AudioPipeline::configureNormalization(NormalizationMode mode)
 void AudioPipeline::flushFilters()
 {
     m_normalizer.flush();
+    m_tempo.flush();
 }
+
+void AudioPipeline::configureTempo(double speed)
+{
+    m_speed = speed;
+    if (m_open)
+        m_tempo.configure(m_outputFormat, speed, nullptr);
+}
+
+double AudioPipeline::tempoSpeed() const noexcept { return m_tempo.speed(); }
 
 NormalizationMode AudioPipeline::normalizationMode() const noexcept { return m_mode; }
 qint64 AudioPipeline::normalizationLatencyUs() const noexcept
 {
     return m_normalizer.reportedLatencyUs();
+}
+
+// Route one normalized buffer through the tempo stage (atempo may buffer, emitting zero or more), then
+// write each time-stretched buffer to the endpoint in order.
+bool AudioPipeline::writeThroughTempo(const AudioBuffer &buffer, quint64 generation, QString *error)
+{
+    std::vector<AudioBuffer> stretched;
+    if (!m_tempo.process(buffer, &stretched, error))
+        return false;
+    for (const AudioBuffer &out : stretched) {
+        if (!writeNormalized(out, generation, error))
+            return false;
+    }
+    return true;
 }
 
 bool AudioPipeline::writeNormalized(const AudioBuffer &buffer, quint64 generation, QString *error)
@@ -137,7 +162,7 @@ bool AudioPipeline::writeConverted(uint8_t **input, int inputFrames, qint64 ptsU
     if (!m_normalizer.process(output, &normalized, error))
         return false;
     for (const AudioBuffer &buffer : normalized) {
-        if (!writeNormalized(buffer, generation, error))
+        if (!writeThroughTempo(buffer, generation, error))
             return false;
     }
     return true;
@@ -161,11 +186,19 @@ bool AudioPipeline::drain(quint64 generation, QString *error)
         if (m_lastConvertedFrames == 0)
             break;
     }
-    // Flush audio buffered inside the normalization filter (loudnorm/dynaudnorm lookahead).
+    // Flush audio buffered inside the normalization filter (loudnorm/dynaudnorm lookahead), through
+    // the tempo stage, then flush the tempo filter's own tail to the endpoint.
     std::vector<AudioBuffer> tail;
     if (!m_normalizer.drain(&tail, error))
         return false;
     for (const AudioBuffer &buffer : tail) {
+        if (!writeThroughTempo(buffer, generation, error))
+            return false;
+    }
+    std::vector<AudioBuffer> tempoTail;
+    if (!m_tempo.drain(&tempoTail, error))
+        return false;
+    for (const AudioBuffer &buffer : tempoTail) {
         if (!writeNormalized(buffer, generation, error))
             return false;
     }

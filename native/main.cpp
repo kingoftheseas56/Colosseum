@@ -74,6 +74,12 @@
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
+// Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
+// old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
+#ifdef COLOSSEUM_PLAYER2
+#include "player2/Player2Backend.h"
+#include "player2/video/Player2VideoItem.h"
+#endif
 
 // gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
 // Strip the header, raw-inflate with miniz's tinfl. Empty on any malformation.
@@ -372,8 +378,19 @@ int main(int argc, char *argv[]) {
     // Colosseum's frosted glass survives this — the player path's one prerequisite.
     // WebEngine (the foliate EPUB reader) also rides OpenGL: share contexts + init it
     // before the QGuiApplication, alongside the RHI pick. All three must precede app.
+    // Player 2 draws through D3D11 texture sharing and REFUSES to initialise on any other RHI, while
+    // mpvqt and WebEngine require OpenGL. Qt picks the RHI once per PROCESS, before QGuiApplication -
+    // so the two video backends can never coexist in one running app, and the backend choice is a
+    // BOOT choice, not a runtime one. Env var (not the ini) because this must be decided before any
+    // Qt object exists. Default stays OpenGL: a normal launch is unchanged.
+    const bool bootPlayer2 = qEnvironmentVariableIsSet("COLOSSEUM_PLAYER2");
     QCoreApplication::setAttribute(Qt::AA_ShareOpenGLContexts);
-    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+#ifdef COLOSSEUM_PLAYER2
+    if (bootPlayer2)
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::Direct3D11);
+    else
+#endif
+        QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
     QtWebEngineQuick::initialize();
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
@@ -431,6 +448,12 @@ int main(int argc, char *argv[]) {
     // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#ifdef COLOSSEUM_PLAYER2
+    // The Player 2 backend, opt-in (build flag COLOSSEUM_PLAYER2_IN_APP). Registering the types costs
+    // nothing at runtime — the engine is only constructed if QML instantiates Player2Page.
+    qmlRegisterType<Colosseum::Player2::Player2VideoItem>("Colosseum.Player2", 1, 0, "Player2VideoItem");
+    qmlRegisterType<Colosseum::Player2::Player2Backend>("Colosseum.Player2", 1, 0, "Player2Backend");
+#endif
 
     QNetworkProxyFactory::setUseSystemConfiguration(false);
     QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
@@ -866,6 +889,25 @@ int main(int argc, char *argv[]) {
     // OS/display sleep prevention.
     auto *power = new PowerStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Power"), power);
+
+    // Efficiency gate: auto-play this local file through the app's REAL player on startup. Both
+    // backends are then measured inside the same application, playing the same file, through the
+    // same session machinery - the only difference being which engine draws. That removes every
+    // asymmetry a synthetic side-by-side introduces (the previous attempt compared a bare lab
+    // harness against a probe window that decoded without ever painting).
+    engine.rootContext()->setContextProperty(QStringLiteral("DevAbbaClip"),
+                                             qEnvironmentVariable("COLOSSEUM_ABBA_CLIP"));
+
+    // Whether THIS PROCESS actually booted on D3D11 - a boot fact, not a build flag or a saved
+    // setting. False in a stock build (nothing linked in) and false whenever COLOSSEUM_PLAYER2 was
+    // unset at launch, so QML can never route playback into a backend this process cannot render.
+#ifdef COLOSSEUM_PLAYER2
+    // Available only when the process ACTUALLY booted on D3D11. Reporting true on an OpenGL boot is
+    // what made Player 2 take a playback it could never render (2026-07-25).
+    engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), bootPlayer2);
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
+#endif
 
     // Continue / resume backbone exposed to QML as `Progress`. The player and the
     // manga reader write watch/read progress; every Continue row reads it back.

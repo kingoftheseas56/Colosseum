@@ -22,6 +22,7 @@ class D3D11VideoPipeline;
 class AudioPipeline;
 class FrameScheduler;
 class PlaybackClock;
+class PacketQueue;
 
 enum class DemuxEndReason
 {
@@ -72,6 +73,8 @@ struct SubtitleCue
     int y = 0;
     int width = 0;
     int height = 0;
+    int canvasWidth = 0;   // bitmap cues: the video-frame size the x/y/w/h are composed against
+    int canvasHeight = 0;
     QByteArray rgba;   // bitmap cues only, tightly packed width*height*4
 };
 
@@ -101,11 +104,22 @@ public:
     void requestSelectAudioTrack(int streamIndex, quint64 generation);
     void requestSelectSubtitleTrack(int streamIndex); // does not flush A/V, so keeps the generation
     void requestNormalizationMode(int mode);
+    void requestSpeed(double speed);
     void requestPause();
     void requestResume();
     // Live A/V offset (mpv audio-delay parity): shifts the audio buffer pts reported to the master
     // clock, so video is scheduled against the offset. Positive delays audio relative to video.
     void setAudioDelay(qint64 delayUs) noexcept;
+    // How far the STREAM is buffered, as an absolute timestamp, or -1 when that is not a meaningful
+    // question: a local file (no network source) or an origin that never told us its length. -1 is
+    // the honest answer and the seek bar hides its cache strip for it, exactly as the shipped player
+    // hides that strip for local playback rather than painting a phantom fill over a file that is
+    // already entirely on disk (his eyes-on ruling, 2026-07-20).
+    //
+    // It is a byte-range converted to time, because bytes are what the transport actually knows.
+    // That makes it an approximation on a variable-bitrate file - which is what a cache strip is
+    // everywhere, including mpv's.
+    qint64 bufferedEndUs() const;
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
     void setAudioPipeline(AudioPipeline *pipeline) noexcept;
     void setTiming(PlaybackClock *clock, FrameScheduler *scheduler) noexcept;
@@ -126,7 +140,7 @@ signals:
 
 private:
     enum class CommandType {
-        Seek, FrameStep, SelectAudioTrack, SelectSubtitleTrack, Normalization, Pause, Resume
+        Seek, FrameStep, SelectAudioTrack, SelectSubtitleTrack, Normalization, Speed, Pause, Resume
     };
     struct Command
     {
@@ -135,9 +149,20 @@ private:
         int frames = 0;
         int streamIndex = -1;
         int normalizationMode = 0;
+        double speed = 1.0;
         quint64 generation = 0;
         bool resumePlaying = true;
     };
+
+    // Does this command reposition the stream (and therefore re-establish a known-good read
+    // position by itself)? Only these may abandon a parked network read. Cutting a read off
+    // mid-packet can leave the container's private cursor advanced past a sample, and NOTHING but a
+    // seek puts that right — so a Pause or a track swap that interrupted a read would corrupt the
+    // stream with no repair to follow. Both of these apply a seek.
+    static constexpr bool repositions(CommandType type) noexcept
+    {
+        return type == CommandType::Seek || type == CommandType::FrameStep;
+    }
 
     static int interrupt(void *opaque);
     // Custom AVIO callbacks routing FFmpeg's byte reads/seeks through an HttpMediaSource.
@@ -159,8 +184,15 @@ private:
     std::atomic_bool m_cancelled{false};
     std::atomic_bool m_running{false};
     std::atomic_bool m_commandPending{false};
+    // How many QUEUED-but-unprocessed commands reposition the stream. This, not m_commandPending, is
+    // what may abandon a parked network read: it is exact (incremented on enqueue, decremented the
+    // instant the worker takes the command off the queue), so it can never be left true for a
+    // command that was already handled — which would abort a read with no seek behind it to repair
+    // the container. It is a COUNT rather than a flag so two seeks in flight cannot cancel to zero.
+    std::atomic<int> m_pendingRepositions{0};
     std::atomic_bool m_paused{false};
     std::atomic<qint64> m_audioDelayUs{0};
+    std::atomic<qint64> m_durationUs{0}; // published once the container is open; 0 = unknown
     std::atomic<quint64> m_activeGeneration{0};
     std::atomic<D3D11VideoPipeline *> m_videoPipeline{nullptr};
     std::atomic<AudioPipeline *> m_audioPipeline{nullptr};
@@ -173,8 +205,18 @@ private:
     std::thread m_worker;
     // Active streaming source (null for local files). Held as a shared_ptr so cancel() can unblock a
     // blocked AVIO read from the GUI thread while the worker still owns the object.
-    std::mutex m_httpMutex;
+    mutable std::mutex m_httpMutex; // mutable: bufferedEndUs() is a const observer of the source
     std::shared_ptr<HttpMediaSource> m_httpSource;
+    // The run-local audio packet queue, exposed so cancel()/enqueueCommand() (called off the demux
+    // thread) can interrupt a demux BLOCKED pushing into a full audio queue — otherwise a Pause/Seek/
+    // Cancel arriving while the queue is full (e.g. audio worker back-pressured on a paused sink) would
+    // never be serviced. Null except while a run owns the queue.
+    std::mutex m_audioQueueMutex;
+    PacketQueue *m_audioQueueForInterrupt = nullptr;
+    // The video queue normally backpressures too; expose its run-local interrupt handle so
+    // Pause/Seek/Cancel cannot strand the demux while waiting for consumer progress.
+    std::mutex m_videoQueueMutex;
+    PacketQueue *m_videoQueueForInterrupt = nullptr;
 };
 
 } // namespace Colosseum::Player2

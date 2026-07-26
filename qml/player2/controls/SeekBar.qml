@@ -8,7 +8,15 @@ Item {
 
     property var session
     property QtObject theme
-    property real bufferedFraction: 0 // 0 until the streaming cache fraction is surfaced to the shell
+    // The streaming cache strip. The session reports how far the transport has actually buffered, in
+    // seconds, and -1 when the question does not apply — a local file, or an origin that never
+    // declared its length. -1 collapses this to 0 width, which is how the shipped player behaves for
+    // local playback: it hides the strip rather than painting a phantom fill over a file that is
+    // already on disk (his ruling, 2026-07-20). So no local-path plumbing is needed here; the engine
+    // answers honestly and the bar just draws what it is told.
+    property real bufferedFraction: (session && session.bufferedSeconds >= 0 && root.dur > 0)
+                                    ? Math.max(0, Math.min(1, session.bufferedSeconds / root.dur))
+                                    : 0
     property bool seeking: false
     property real previewSeconds: 0
 

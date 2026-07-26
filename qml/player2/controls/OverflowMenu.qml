@@ -10,6 +10,8 @@ Item {
     property var session
     property bool open: false
     signal toggleStatsRequested()
+    signal showShortcutsRequested()
+    signal pipRequested()
 
     readonly property color panelColor: theme ? theme.panel : Qt.rgba(0.04, 0.05, 0.07, 0.94)
     readonly property color ink: theme ? theme.ink : "#f7f7f5"
@@ -17,24 +19,8 @@ Item {
     readonly property color gold: theme ? theme.gold : "#f0c44a"
 
     readonly property var normalizationNames: ["Smooth", "Light", "Full (EBU R128)"]
-    property int fillIndex: 0
-    readonly property var fillModes: [
-        { name: "Fit",   aspect: "",     panscan: 0.0, zoom: 0.0 },
-        { name: "Fill",  aspect: "",     panscan: 1.0, zoom: 0.0 },
-        { name: "Zoom",  aspect: "",     panscan: 0.0, zoom: 0.35 },
-        { name: "16:9",  aspect: "16:9", panscan: 0.0, zoom: 0.0 },
-        { name: "4:3",   aspect: "4:3",  panscan: 0.0, zoom: 0.0 }
-    ]
 
-    function applyFill(i) {
-        fillIndex = i
-        var m = fillModes[i]
-        if (session) {
-            session.setVideoAspect(m.aspect)
-            session.setPanscan(m.panscan)
-            session.setVideoZoom(m.zoom)
-        }
-    }
+    // Aspect/fill lives in the bottom HUD now (TransportBar), matching the current player — not here.
     function cycleLoudness() {
         if (session)
             session.setNormalizationMode((session.normalizationMode + 1) % 3)
@@ -96,11 +82,8 @@ Item {
                 value: menu.session ? menu.normalizationNames[menu.session.normalizationMode] : ""
                 onTapped: menu.cycleLoudness()
             }
-            MenuRow {
-                label: "Aspect ratio"
-                value: menu.fillModes[menu.fillIndex].name
-                onTapped: menu.applyFill((menu.fillIndex + 1) % menu.fillModes.length)
-            }
+            MenuRow { label: "Picture-in-picture"; onTapped: menu.pipRequested() }
+            MenuRow { label: "Keyboard shortcuts"; value: "?"; onTapped: menu.showShortcutsRequested() }
         }
     }
 }

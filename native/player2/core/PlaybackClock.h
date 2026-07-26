@@ -6,6 +6,8 @@
 
 namespace Colosseum::Player2 {
 
+struct AudioClockSnapshot;
+
 class PlaybackClock
 {
 public:
@@ -36,5 +38,28 @@ private:
     bool m_paused = false;
     bool m_valid = false;
 };
+
+enum class ClockResync
+{
+    Slew,      // absorb the reading smoothly over several frames
+    HardReset  // snap the epoch to the reading in one step
+};
+
+// Policy for how the video master clock absorbs a fresh audio-master reading once audio is already
+// the master. On RECOVERY from a gap — a pause or underrun that invalidated the audio clock, so
+// `audioWasValid` is false — a discontinuity larger than `hardResetThresholdUs` must SNAP: crawling a
+// few ms/frame across a multi-hundred-ms jump is exactly the visible "audio ahead of video" drift.
+// In steady state (`audioWasValid`) we always slew, so a lone noisy reading can never jolt the picture.
+ClockResync decideClockResync(bool audioWasValid, qint64 discontinuityUs, qint64 hardResetThresholdUs);
+
+// A full video queue is not itself distress: with independent audio/video workers it is normal
+// coordinated read-ahead. Authorize a GOP drop only when a valid clock from the active audio
+// generation proves that the oldest queued video packet is late beyond the scheduler threshold.
+bool shouldDropVideoBacklog(const AudioClockSnapshot &audioClock,
+                            quint64 expectedGeneration,
+                            qint64 oldestVideoPtsUs,
+                            qint64 qpcNow,
+                            qint64 qpcFrequency,
+                            qint64 lateThresholdUs) noexcept;
 
 } // namespace Colosseum::Player2

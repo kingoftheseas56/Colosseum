@@ -32,6 +32,8 @@ int Colosseum::Player2::buildMarker() noexcept
 add_library(player2_core STATIC
     audio/AudioNormalizer.cpp
     audio/AudioNormalizer.h
+    audio/AudioTempo.cpp
+    audio/AudioTempo.h
     audio/AudioPipeline.cpp
     audio/AudioPipeline.h
     audio/WASAPIAudioSink.cpp
@@ -44,10 +46,16 @@ add_library(player2_core STATIC
     core/PlaybackGeneration.h
     core/DemuxSession.cpp
     core/DemuxSession.h
+    core/PacketQueue.cpp
+    core/PacketQueue.h
     core/FrameScheduler.cpp
     core/FrameScheduler.h
     core/PlaybackClock.cpp
     core/PlaybackClock.h
+    core/PlaybackMetrics.cpp
+    core/PlaybackMetrics.h
+    core/AudioWorker.cpp
+    core/AudioWorker.h
     core/TrackPolicy.cpp
     core/TrackPolicy.h
     core/SubtitlePipeline.cpp
@@ -65,6 +73,10 @@ add_library(player2_core STATIC
     host/Player2HostServices.h
     host/HarnessHostServices.cpp
     host/HarnessHostServices.h
+    PlayerBackendRouter.cpp
+    PlayerBackendRouter.h
+    Player2Backend.cpp
+    Player2Backend.h
     video/D3D11TextureRing.cpp
     video/D3D11TextureRing.h
     video/ColorHdrPolicy.cpp
@@ -92,6 +104,7 @@ target_link_libraries(player2_core
     dxgi
     ole32
     uuid
+    avrt
 )
 
 add_executable(player2_harness
@@ -116,10 +129,22 @@ qt_add_resources(player2_harness player2_harness_qml
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/OverflowMenu.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SubtitleLayer.qml"
         "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/StatsOverlay.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SourceDrawer.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/EpisodeBrowser.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/SkipButton.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/PauseCard.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/ShortcutsSheet.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/CloseConfirm.qml"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Browser.js"
+        "${CMAKE_CURRENT_SOURCE_DIR}/../../qml/player2/controls/Player2Shortcuts.js"
 )
 
+# Hand-maintained: a glyph missing here resolves to circle-alert (or blank) in a qrc build while
+# looking perfect from disk, which is exactly how the transport icons shipped blank once already.
+# replace/download/circle-check/triangle-alert/x are the source-switch and download buttons.
 set(_player2_shell_icons play pause volume-2 volume-x rotate-ccw rotate-cw maximize minimize
-    circle-alert skip-back skip-forward languages captions gauge)
+    circle-alert skip-back skip-forward languages captions gauge list-video sliders-horizontal
+    replace download circle-check triangle-alert x)
 set(_player2_shell_icon_files "")
 foreach(_icon IN LISTS _player2_shell_icons)
     list(APPEND _player2_shell_icon_files
@@ -150,6 +175,47 @@ set_target_properties(player2_texture_ring_test PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
 )
 add_test(NAME player2_texture_ring_test COMMAND player2_texture_ring_test)
+
+# Task 14 — orchestration seam contract (headless: HarnessHostServices with no GPU/render path).
+add_executable(player2_host_services_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_host_services_test.cpp"
+)
+target_link_libraries(player2_host_services_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_host_services_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_host_services_test COMMAND player2_host_services_test)
+
+# Task 17 — backend routing: which player plays this, and what a mid-flight Player 2 failure may do.
+# Pure decision logic, so this runs with no window, device or media.
+add_executable(player2_backend_router_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_backend_router_test.cpp"
+)
+target_link_libraries(player2_backend_router_test PRIVATE player2_core Qt6::Core)
+set_target_properties(player2_backend_router_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_backend_router_test COMMAND player2_backend_router_test)
+
+# Task: PGS/bitmap subtitle image conversion — pins the RGBA byte order (invisible on white subs).
+add_executable(player2_subtitle_image_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_subtitle_image_test.cpp"
+)
+target_link_libraries(player2_subtitle_image_test PRIVATE player2_core Qt6::Core Qt6::Gui)
+set_target_properties(player2_subtitle_image_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_subtitle_image_test COMMAND player2_subtitle_image_test)
+
+# Task: subtitle cue scheduling — display gated on the playback clock, not decode-arrival.
+add_executable(player2_subtitle_schedule_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_subtitle_schedule_test.cpp"
+)
+target_link_libraries(player2_subtitle_schedule_test PRIVATE player2_core Qt6::Core Qt6::Gui)
+set_target_properties(player2_subtitle_schedule_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_subtitle_schedule_test COMMAND player2_subtitle_schedule_test)
 
 set(_player2_fixture_dir "${CMAKE_BINARY_DIR}/player2-fixtures")
 set(_player2_fixture_script
@@ -274,6 +340,24 @@ set_target_properties(player2_device_recovery_test PROPERTIES
 )
 add_test(NAME player2_device_recovery_test COMMAND player2_device_recovery_test)
 
+add_executable(player2_packet_queue_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_packet_queue_test.cpp"
+)
+target_link_libraries(player2_packet_queue_test PRIVATE player2_core player2_ffmpeg Qt6::Core)
+set_target_properties(player2_packet_queue_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_packet_queue_test COMMAND player2_packet_queue_test)
+
+add_executable(player2_playback_metrics_test
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/player2/player2_playback_metrics_test.cpp"
+)
+target_link_libraries(player2_playback_metrics_test PRIVATE player2_core)
+set_target_properties(player2_playback_metrics_test PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
+)
+add_test(NAME player2_playback_metrics_test COMMAND player2_playback_metrics_test)
+
 add_custom_target(player2_unit_tests DEPENDS
     player2_state_machine_test
     player2_texture_ring_test
@@ -286,4 +370,6 @@ add_custom_target(player2_unit_tests DEPENDS
     player2_subtitle_timing_test
     player2_http_media_test
     player2_device_recovery_test
+    player2_packet_queue_test
+    player2_playback_metrics_test
 )

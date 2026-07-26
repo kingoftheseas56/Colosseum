@@ -93,7 +93,11 @@ QSGNode *Player2VideoItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData
                                   Qt::QueuedConnection);
         return node;
     }
-    if (const auto frame = m_pipeline->acquirePresentationFrame(m_generation)) {
+    // Present the ring's CURRENT generation: seeks and track switches advance the ring's
+    // generation under the item, and the frozen m_generation=1 this once passed made every
+    // post-seek acquire fail — the picture froze on the last pre-seek frame while audio
+    // played on (the seek-freeze bug).
+    if (const auto frame = m_pipeline->acquirePresentationFrame()) {
         if (m_pipeline->waitForProducer(frame->token.sequence)) {
             node->setTexture(m_textures[frame->slot].get());
             m_pendingRetire = frame->retiringSlot;

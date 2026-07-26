@@ -12,7 +12,6 @@ namespace Colosseum::Player2 {
 namespace {
 
 constexpr int kConnectTimeoutMs = 15'000;
-constexpr int kReadTimeoutMs = 20'000;
 constexpr int kPollMs = 100;        // cancellation granularity for the blocking waits
 constexpr int kMaxRedirects = 5;
 
@@ -62,6 +61,16 @@ void QtHttpTransport::close()
 void QtHttpTransport::cancel()
 {
     m_cancelled.store(true, std::memory_order_release);
+}
+
+void QtHttpTransport::setStallTimeoutMs(int milliseconds)
+{
+    m_stallTimeoutMs.store(milliseconds, std::memory_order_release);
+}
+
+int QtHttpTransport::stallTimeoutMs() const
+{
+    return m_stallTimeoutMs.load(std::memory_order_acquire);
 }
 
 bool QtHttpTransport::waitReadable(int timeoutMs)
@@ -197,7 +206,7 @@ bool QtHttpTransport::readHeaderBlock(QByteArray *block, QString *error)
             block->truncate(marker);
             return true;
         }
-        if (!waitReadable(kReadTimeoutMs)) {
+        if (!waitReadable(stallTimeoutMs())) {
             if (error)
                 *error = m_cancelled.load(std::memory_order_acquire)
                     ? QStringLiteral("cancelled") : QStringLiteral("timed out reading headers");
@@ -314,7 +323,7 @@ bool QtHttpTransport::readChunkLine(QByteArray *line)
             m_leftover.remove(0, newline + 1);
             return true;
         }
-        if (!waitReadable(kReadTimeoutMs))
+        if (!waitReadable(stallTimeoutMs()))
             return false;
         m_leftover.append(m_socket->readAll());
         if (m_leftover.size() > 64 * 1024)
@@ -354,7 +363,7 @@ int QtHttpTransport::readChunked(char *dst, int maxLen)
         m_leftover.remove(0, take);
         copied = take;
     } else {
-        if (!waitReadable(kReadTimeoutMs))
+        if (!waitReadable(stallTimeoutMs()))
             return -1;
         copied = static_cast<int>(m_socket->read(dst, want));
         if (copied <= 0)
@@ -379,7 +388,7 @@ int QtHttpTransport::readIdentity(char *dst, int maxLen)
             m_bodyRemaining -= take;
         return take;
     }
-    if (!waitReadable(kReadTimeoutMs)) {
+    if (!waitReadable(stallTimeoutMs())) {
         if (m_cancelled.load(std::memory_order_acquire))
             return -1;
         // No more data: a clean EOF for a length-unknown body, otherwise a premature disconnect.

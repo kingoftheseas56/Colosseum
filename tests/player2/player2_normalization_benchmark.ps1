@@ -40,12 +40,20 @@ foreach ($mode in $modes) {
     $dropped = [int]$data.dropped + [int]$data.scheduledLateDrops
     $rows += [PSCustomObject]@{
         mode            = $mode
-        elapsedSeconds  = $data.elapsedSeconds
+        # Playback-anchored fps (from the first valid audio clock) is the honest throughput number;
+        # elapsedSeconds is wall time INCLUDING device init + loudnorm priming and must not be used
+        # to derive fps (that manufactured a ~17 fps ghost from a real 24 fps stream).
+        sustainedFps    = [math]::Round([double]$data.sustainedFps, 2)
+        decodedFps      = [math]::Round([double]$data.decodedFps, 2)
+        playbackSec     = [math]::Round([double]$data.playbackSeconds, 1)
         presented       = $data.presented
+        decoded         = $data.decoded
         droppedFrames   = $dropped
         scheduledLate   = $data.scheduledLateDrops
         ringStarved     = $data.dropped
         avP95Ms         = $data.avP95Ms
+        avDriftMaxAbsMs = $data.avDriftMaxAbsMs
+        minAudioQueueMs = [math]::Round([double]$data.minAudioQueueMs, 0)
         maxAudioQueueMs = $data.maxAudioQueueMs
         audioUnderruns  = $data.audioUnderruns
         normLatencyMs   = $data.normalizationLatencyMs
@@ -88,5 +96,11 @@ Write-Output ''
 Write-Output "AGENDA ANSWER - do frames drop under normalization on this hardware/clip:"
 Write-Output "  Light: $($answer.lightVerdict)  (A/V p95 $($light.avP95Ms) ms)"
 Write-Output "  Full : $($answer.fullVerdict)  (A/V p95 $($full.avP95Ms) ms)"
+Write-Output ''
+Write-Output "ANCHORED TRUTH (fps from first valid audio clock, not wall time):"
+foreach ($r in $rows) {
+    Write-Output ("  {0,-6} sustained {1,5} fps | decoded {2,5} fps | underruns {3,4} | audioQ low {4,5} ms | A/V drift max {5} ms" -f `
+        $r.mode, $r.sustainedFps, $r.decodedFps, $r.audioUnderruns, $r.minAudioQueueMs, $r.avDriftMaxAbsMs)
+}
 Write-Output "summary: $summaryPath"
 Write-Output 'player2_normalization_benchmark: DONE'

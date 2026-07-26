@@ -69,6 +69,12 @@ public:
     virtual void close() = 0;
     // Unblock any in-flight start()/read() so it returns promptly. Idempotent and thread-safe.
     virtual void cancel() = 0;
+    // How long a CONNECTED but silent origin may say nothing before start()/read() calls it a
+    // failure. The SOURCE owns this number, not the socket: how patient to be with a progressive
+    // origin is a policy decision. A genuinely dropped connection does not depend on it at all —
+    // the socket goes Unconnected and the wait ends immediately — so this only ever governs an
+    // origin that is alive and still fetching. Default no-op: fakes need nothing.
+    virtual void setStallTimeoutMs(int /*milliseconds*/) {}
 };
 
 // Bounds and reconnect policy. Injectable so tests exercise buffering and reconnect without real
@@ -79,7 +85,25 @@ struct HttpSourcePolicy
     int highWaterBytes = 8 * 1024 * 1024;  // stop fetching above this (backpressure; one cache)
     int lowWaterBytes = 64 * 1024;         // resume fetching below this
     int resumeBytes = 512 * 1024;          // leave Buffering once the ring refills to here
-    int maxReconnectAttempts = 5;          // bounded reconnect before a terminal Failed
+    // Bounded reconnect attempts for a FLAPPING origin (one that accepts, dribbles a little and
+    // drops, over and over). This is a per-incident budget, not a session lifetime one: it is reset
+    // once a connection has demonstrably recovered by refilling the whole read-ahead below.
+    int maxReconnectAttempts = 5;
+    // Bounded retries for a SEEK whose target the origin does not hold yet (a torrent still
+    // downloading). Separate budget from mid-stream reconnects: nothing is broken, the bytes just
+    // have not arrived, so this is deliberately more patient.
+    int maxSeekOpenAttempts = 8;
+    // How long a connected-but-silent origin may stall a normal read before it counts as a
+    // mid-stream failure. Handed to the transport at open().
+    int stallTimeoutMs = 20'000;
+    // TOTAL wall-clock patience for one stall where the origin is alive but is not sending the bytes
+    // we need — whether that is a seek target it has not downloaded yet, or the download frontier
+    // reached during ordinary playback. Both are the same situation and get the same ceiling,
+    // because the Stremio sidecar answers either with SILENCE, not a refusal: an attempt COUNT
+    // multiplied by a socket timeout is not a budget anyone can reason about. Measured 2026-07-25:
+    // the mid-stream path had only the count, and 5 attempts x (a silent open + a silent read +
+    // backoff) spent 233 s against this 90 s promise.
+    int stallBudgetMs = 90'000;
     std::function<int(int)> reconnectDelayMs; // delay before attempt N; nullptr => capped backoff
 };
 
@@ -118,7 +142,28 @@ public:
     // Wake and stop everything; a blocked read() returns promptly.
     void cancel();
 
+    // --- Command responsiveness while parked (the T2d seam) ---------------------------------------
+    // read() parks on an underrun, and at the download frontier that park can last the whole stall
+    // budget. The demux thread is the ONLY thread that services transport commands, so while it is
+    // parked here a viewer's seek is queued to a loop nobody is running. These three let its owner
+    // abort a park that has nothing to give, WITHOUT the park becoming terminal.
+    //
+    // The predicate answers "is a command waiting right now?". It is evaluated on the demux thread
+    // with the source's mutex held, so it must be non-blocking and must not re-enter the source (the
+    // demux passes a plain atomic load). Clearing the pending flag is the OWNER's job before it reads
+    // again — that is what stops an interrupted read from immediately interrupting itself.
+    void setInterruptPredicate(std::function<bool()> predicate);
+    // Wake a parked read so the predicate is re-evaluated. Called when a command is enqueued.
+    void wakeRead();
+    // True once, for a read that returned because the predicate said a command was waiting. It tells
+    // the caller "this negative code is NOT a failure" — the source is healthy and still usable.
+    bool consumeReadInterrupt() noexcept;
+
     NetworkState state() const noexcept;
+    // Why the source went terminal, in the transport's own words. Empty unless state() is Failed.
+    // The layer above reports THIS instead of FFmpeg's generic AVERROR_EXIT string, so a network
+    // stall is never announced to the viewer as a decode failure.
+    QString terminalError() const;
     // Invoked on the fetch/demux thread whenever the network state changes; the caller marshals to
     // the GUI thread. Set before open().
     void setStateCallback(std::function<void(NetworkState)> callback);
@@ -133,6 +178,9 @@ public:
 private:
     void fetchLoop();
     void setState(NetworkState next);
+    // Go terminal WITH a cause. Every Failed transition goes through here so the reason always
+    // reaches the demuxer; setState(Failed) alone would leave it to guess.
+    void setFailed(const QString &reason);
     int reconnectDelayFor(int attempt) const;
     qint64 knownSize() const; // total bytes if known, else -1 (call with m_mutex held)
 
@@ -142,6 +190,7 @@ private:
 
     SourceCapabilities m_capabilities;
     std::function<void(NetworkState)> m_stateCallback;
+    std::function<bool()> m_interruptPredicate; // set before open(); see setInterruptPredicate
 
     mutable std::mutex m_mutex;
     std::condition_variable m_dataReady;    // demux read waits here on underrun
@@ -150,6 +199,7 @@ private:
     bool m_openResolved = false;            // the fetch thread has attempted the first connection
     bool m_openOk = false;                  // the first connection succeeded
     QString m_openError;                    // failure detail for open()
+    QString m_terminalError;                // why the source went Failed (guarded by m_mutex)
     std::deque<QByteArray> m_ring;          // buffered body chunks, in order
     qint64 m_ringBytes = 0;                 // sum of chunk sizes still unread
     int m_frontOffset = 0;                  // bytes already consumed from m_ring.front()
@@ -162,6 +212,7 @@ private:
 
     std::atomic<NetworkState> m_state{NetworkState::Idle};
     std::atomic_bool m_cancelled{false};
+    std::atomic_bool m_readWasInterrupted{false}; // set when a park ended on the interrupt predicate
     std::atomic<int> m_reconnectCount{0};
 
     std::thread m_fetch;

@@ -34,8 +34,15 @@ foreach ($file in $files) {
         if ($text -match $pattern) { $violations += "${name}: touches production surface '$pattern'" }
     }
 
-    # 3. No importing the production player or the mpv item.
-    if ($text -match 'PlayerPage' -or $text -match '\bMpvItem\b') {
+    # 3. No importing the production player or the mpv item. Checked against the CODE with comments
+    #    stripped: the rule is "the isolated shell must not DEPEND on production QML", and a comment
+    #    citing `PlayerPage.qml:4611` is the opposite of a dependency - it is the parity provenance
+    #    that lets the next brother verify a copied element against its source. Deleting those
+    #    citations to satisfy a text grep would make the shell less auditable, not more isolated.
+    #    Any real reference (import, instantiation, property access) still fails, because it is code.
+    $code = [regex]::Replace($text, '(?m)//.*$', '')
+    $code = [regex]::Replace($code, '(?s)/\*.*?\*/', '')
+    if ($code -match 'PlayerPage' -or $code -match '\bMpvItem\b') {
         $violations += "${name}: references the production player (PlayerPage/MpvItem)"
     }
 

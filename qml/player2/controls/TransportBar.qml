@@ -8,14 +8,62 @@ Item {
     property var session
     property QtObject theme
     property bool showRemaining: false
+    property string endsAtClock: ""   // "11:42 PM" wall-clock finish time (computed by the shell)
     property int currentAudioIndex: -1
     property int currentSubtitleIndex: -1
-    readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open
+    readonly property bool anyMenuOpen: audioMenu.open || subtitleMenu.open || fillMenu.open
+                                        || speedMenu.open
+    property bool hasPrevEpisode: false
+    property bool hasNextEpisode: false
+    // Host-fed, because the shell owns orchestration and this bar only paints. Production gates the
+    // same two buttons on "there is more than one candidate" and "there is a URL to download"
+    // (PlayerPage.qml:4611, 4620), which is also why neither appears for a local file.
+    property bool canSwitchSource: false
+    property bool canDownload: false
+    property string downloadKind: "idle"   // idle | queued | downloading | done | failed
+    property string downloadTooltip: "Download video"
+    property bool windowed: true   // host-fed window state; drives the fullscreen/exit icon (parity)
+    // Playback-speed presets (parity with the current player's speedChoices).
+    readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
+    readonly property real currentSpeed: session ? session.speed : 1.0
     signal fullscreenRequested()
+    signal browseRequested()
+    // The HUD's own source switch: his 2026-07-26 ruling kept the drawer as the full switching
+    // surface AND asked for this button back ("I would still like the source switch button, if for
+    // nothing else, for how cool that lucide icon looks"), so it is a shortcut INTO the drawer's
+    // Sources tab rather than a second, competing switcher.
+    signal switchSourceRequested()
+    signal downloadRequested()
+    signal prevEpisodeRequested()
+    signal nextEpisodeRequested()
 
     function closeMenus() {
         audioMenu.open = false
         subtitleMenu.open = false
+        fillMenu.open = false
+        speedMenu.open = false
+    }
+
+    // Aspect / fill modes — a first-class bottom-bar control (parity: the current player keeps this as a
+    // HUD chip, folding it into the overflow only when the bar is too narrow). Applying a mode sends the
+    // three typed session commands; C++ owns the actual scaling.
+    property int fillIndex: 0
+    readonly property var fillModes: [
+        { name: "Fit",  aspect: "",     panscan: 0.0, zoom: 0.0 },
+        { name: "Fill", aspect: "",     panscan: 1.0, zoom: 0.0 },
+        { name: "Zoom", aspect: "",     panscan: 0.0, zoom: 0.35 },
+        { name: "16:9", aspect: "16:9", panscan: 0.0, zoom: 0.0 },
+        { name: "4:3",  aspect: "4:3",  panscan: 0.0, zoom: 0.0 }
+    ]
+    function applyFill(i) {
+        fillIndex = i
+        var m = fillModes[i]
+        if (session) {
+            session.setVideoAspect(m.aspect)
+            session.setPanscan(m.panscan)
+            session.setVideoZoom(m.zoom)
+        }
+        fillMenu.open = false
     }
 
     Connections {
@@ -29,12 +77,23 @@ Item {
 
     readonly property int seekStepSeconds: 10
     readonly property bool playing: session && session.state === 3 // Player2State::Playing
-    readonly property bool buffering: session && session.state === 2 // Player2State::Buffering
+    // Waiting on bytes. Two shapes, one meaning: the session sat down in Buffering(2), OR it is in
+    // Seeking(5) and the source says it is stalled. A seek into a torrent's not-yet-downloaded bytes
+    // is the second shape - the engine waits on purpose and the state never leaves Seeking, so
+    // without networkStalled the whole wait rendered as the PREVIOUS play/pause state, i.e. nothing.
+    readonly property bool buffering: session
+        && (session.state === 2 // Player2State::Buffering
+            || (session.state === 5 && session.networkStalled)) // Seeking, waiting on the origin
     readonly property bool paused: session && session.state === 4 // Player2State::Paused
     readonly property real dur: session && session.duration > 0 ? session.duration : 0
     readonly property real pos: session ? session.position : 0
 
     function fmt(s) { return seekBar.fmtTime(s) }
+    // During a stalled seek `buffering` is true, so this button renders as a live Pause - and the
+    // press IS honoured: Player2Session::pause() sees the Seeking state and steers m_postSeekState,
+    // so the seek completes paused. play() is symmetric. Neither takes the Seeking -> Playing
+    // transition directly, which is legal but would start playback before seekCompleted lands and
+    // race the seek's own completion. The press lands; it just lands when the seek does.
     function togglePlayPause() {
         if (!session) return
         if (playing || buffering) session.pause()
@@ -151,22 +210,36 @@ Item {
         }
     }
 
-    // ---- state line --------------------------------------------------------------------------------
-    Text {
-        id: stateLine
+    // ---- state row: left = what the player is doing, right = the wall-clock finish time -----------
+    Item {
+        id: stateRow
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.leftMargin: 54
         anchors.rightMargin: 54
         height: 22
-        verticalAlignment: Text.AlignVCenter
-        color: root.theme ? root.theme.ink : "#f7f7f5"
-        font.family: "Segoe UI"
-        font.pixelSize: 14
-        font.weight: Font.DemiBold
-        text: root.buffering ? "Buffering" : (root.paused ? "Paused"
-              : (seekBar.seeking ? "Seek  " + root.fmt(seekBar.previewSeconds) : ""))
+        Text {
+            id: stateLine
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            color: root.theme ? root.theme.ink : "#f7f7f5"
+            font.family: "Segoe UI"
+            font.pixelSize: 14
+            font.weight: Font.DemiBold
+            text: root.buffering ? "Buffering" : (root.paused ? "Paused"
+                  : (seekBar.seeking ? "Seek  " + root.fmt(seekBar.previewSeconds) : ""))
+        }
+        Text {
+            id: endsLabel
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            visible: root.endsAtClock.length > 0
+            text: "ENDS  " + root.endsAtClock
+            color: root.theme ? root.theme.inkDim : "#c9c8d0"
+            font.family: "Segoe UI"; font.pixelSize: 12; font.letterSpacing: 1.5
+            font.features: ({ "tnum": 1 })
+        }
     }
 
     // ---- seek row: elapsed  [seek bar]  duration/remaining ---------------------------------------
@@ -174,7 +247,7 @@ Item {
         id: seekRow
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: stateLine.bottom
+        anchors.top: stateRow.bottom
         anchors.leftMargin: 54
         anchors.rightMargin: 54
         height: 42
@@ -231,14 +304,67 @@ Item {
         anchors.topMargin: 4
         height: 56
 
-        VolumeControl {
+        // LEFT cluster: volume, then aspect/fill — fill's home is the LEFT side per the current
+        // player's approved placement ("Main HUD icon (Hemanth 2026-07-18), LEFT cluster").
+        Row {
+            id: leftCluster
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+            VolumeControl {
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            // Order matches the shipped player's leftUtilityRow: volume, [retry], stream, download,
+            // fill (PlayerPage.qml:4588-4642). Size is 40 to match this bar's own cluster rather
+            // than production's 48 — every sibling here is 40, and a lone 48 would read as a
+            // mistake. That size gap is a pre-existing, separate drift and is logged as one.
+            RoundButton {
+                id: sourceButton
+                size: 40
+                // "stream" maps to Lucide `replace` in Player2Icon, the SAME glyph the shipped
+                // player uses (PlayerIcon.qml:39). His words: no substitute.
+                icon: "stream"
+                tooltip: "Pick another stream"
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.canSwitchSource
+                onTapped: root.switchSourceRequested()
+            }
+            RoundButton {
+                id: downloadButton
+                size: 40
+                // Same four-state glyph vocabulary as the shipped player (PlayerPage.qml:1651-1662).
+                icon: root.downloadKind === "downloading" ? "cancel"
+                      : root.downloadKind === "done" ? "check"
+                      : root.downloadKind === "failed" ? "warning" : "download"
+                // Gold while a download is anything but idle, exactly as production tints it.
+                active: root.downloadKind !== "idle"
+                tooltip: root.downloadTooltip
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.canDownload
+                onTapped: root.downloadRequested()
+            }
+            RoundButton {
+                id: fillButton
+                size: 40; icon: "fit"
+                active: fillMenu.open || root.fillIndex !== 0
+                tooltip: "Aspect ratio"
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: {
+                    audioMenu.open = false; subtitleMenu.open = false; speedMenu.open = false
+                    fillMenu.open = !fillMenu.open
+                }
+            }
         }
 
         Row {
             anchors.centerIn: parent
             spacing: 8
+            RoundButton {
+                visible: root.hasPrevEpisode
+                size: 40; icon: "prevEpisode"; tooltip: "Previous episode"
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: root.prevEpisodeRequested()
+            }
             RoundButton {
                 size: 40; icon: "seekBack"; seconds: String(root.seekStepSeconds)
                 tooltip: "Skip back"
@@ -258,6 +384,12 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 onTapped: if (root.session) root.session.seekRelative(root.seekStepSeconds)
             }
+            RoundButton {
+                visible: root.hasNextEpisode
+                size: 40; icon: "nextEpisode"; tooltip: "Next episode"
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: root.nextEpisodeRequested()
+            }
         }
 
         Row {
@@ -266,6 +398,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             RoundButton {
+                size: 40; icon: "episodes"; tooltip: "Episodes & sources (E)"
+                onTapped: { root.closeMenus(); root.browseRequested() }
+            }
+            RoundButton {
                 size: 40; icon: "audio"; active: audioMenu.open; tooltip: "Audio track"
                 onTapped: { subtitleMenu.open = false; audioMenu.open = !audioMenu.open }
             }
@@ -273,8 +409,43 @@ Item {
                 size: 40; icon: "subtitle"; active: subtitleMenu.open; tooltip: "Subtitles"
                 onTapped: { audioMenu.open = false; subtitleMenu.open = !subtitleMenu.open }
             }
+            // Playback speed — icon button with a small gold badge showing the rate when non-default,
+            // exactly like the current player's SpeedMenuButton (speed portion; sleep/skip not ported).
+            Item {
+                id: speedButton
+                width: 40; height: 40
+                anchors.verticalCenter: parent.verticalCenter
+                readonly property bool nonDefault: Math.abs(root.currentSpeed - 1) > 0.001
+                RoundButton {
+                    anchors.fill: parent
+                    size: 40; icon: "speed"
+                    active: speedMenu.open || speedButton.nonDefault
+                    tooltip: "Speed"
+                    onTapped: {
+                        audioMenu.open = false; subtitleMenu.open = false; fillMenu.open = false
+                        speedMenu.open = !speedMenu.open
+                    }
+                }
+                Rectangle {
+                    visible: speedButton.nonDefault
+                    anchors.right: parent.right; anchors.bottom: parent.bottom
+                    anchors.rightMargin: 1; anchors.bottomMargin: 3
+                    width: spdVal.implicitWidth + 6; height: 13; radius: 6.5
+                    color: root.theme ? root.theme.gold : "#f0c44a"
+                    Text {
+                        id: spdVal
+                        anchors.centerIn: parent
+                        text: (Math.round(root.currentSpeed * 100) / 100) + "×"
+                        color: "#101014"
+                        font.family: "Segoe UI"; font.features: ({ "tnum": 1 })
+                        font.pixelSize: 8; font.weight: Font.DemiBold
+                    }
+                }
+            }
             RoundButton {
-                size: 40; icon: "fullscreen"; tooltip: "Fullscreen"
+                size: 40
+                icon: root.windowed ? "fullscreen" : "fullscreenExit"
+                tooltip: root.windowed ? "Enter fullscreen (F)" : "Exit fullscreen (F)"
                 onTapped: root.fullscreenRequested()
             }
         }
@@ -312,6 +483,158 @@ Item {
                 subtitleMenu.open = false
             }
             onSyncChanged: function(seconds) { if (root.session) root.session.setSubDelay(seconds) }
+        }
+
+        // Fill/aspect popover — ported from the current player's FillMenuButton panel: a "Video" title,
+        // centred mode rows (selected in gold), and a little arrow pointer, centred directly above the
+        // fill button.
+        Rectangle {
+            id: fillMenu
+            property bool open: false
+            width: 188
+            height: 56 + root.fillModes.length * 34
+            // Centred over the fill button in the LEFT cluster — bound to the button's real geometry
+            // (clamped to the bar), not a hand-tuned offset that rots when the roster changes.
+            x: Math.max(10, leftCluster.x + fillButton.x + fillButton.width / 2 - width / 2)
+            anchors.bottom: leftCluster.top
+            anchors.bottomMargin: 12
+            visible: open
+            opacity: open ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+            radius: 14
+            color: root.theme ? root.theme.panel : Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            MouseArea { anchors.fill: parent; hoverEnabled: true } // absorb background clicks
+
+            Rectangle {
+                width: 8; height: 8; rotation: 45
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            Text {
+                x: 18; y: 15
+                text: "Video"
+                color: root.theme ? root.theme.ink : "#f7f7f5"
+                font.family: "Segoe UI"; font.pixelSize: 14; font.weight: Font.DemiBold
+            }
+
+            Repeater {
+                model: root.fillModes
+                Rectangle {
+                    required property int index
+                    required property var modelData
+                    x: 8; y: 48 + index * 34
+                    width: parent.width - 16; height: 32; radius: 8
+                    readonly property bool selected: root.fillIndex === index
+                    color: selected ? Qt.rgba(1, 1, 1, 0.10)
+                         : (fillRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    Text {
+                        anchors.centerIn: parent
+                        text: modelData.name
+                        color: parent.selected ? (root.theme ? root.theme.gold : "#f0c44a")
+                                               : (root.theme ? root.theme.ink : "#f7f7f5")
+                        font.family: "Segoe UI"; font.pixelSize: 13; font.weight: Font.DemiBold
+                    }
+                    MouseArea {
+                        id: fillRowArea
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.applyFill(index)
+                    }
+                }
+            }
+        }
+
+        // Speed popover — ported from the current player's SpeedMenuButton panel (speed column only;
+        // sleep timer + skip step are accepted exceptions): uppercase "PLAYBACK SPEED" eyebrow,
+        // left-aligned rows (selected = gold + border), a DEFAULT hint on the Normal row, arrow pointer.
+        Rectangle {
+            id: speedMenu
+            property bool open: false
+            width: 210
+            height: 46 + root.speedChoices.length * 38 + 8
+            // Centred over the speed button — bound to the button's real geometry, clamped to the bar.
+            x: Math.min(parent.width - width - 10,
+                        rightCluster.x + speedButton.x + speedButton.width / 2 - width / 2)
+            anchors.bottom: rightCluster.top
+            anchors.bottomMargin: 12
+            visible: open
+            opacity: open ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 120 } }
+            radius: 14
+            color: root.theme ? root.theme.panel : Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.14)
+
+            MouseArea { anchors.fill: parent; hoverEnabled: true } // absorb background clicks
+
+            Rectangle {
+                width: 8; height: 8; rotation: 45
+                anchors.horizontalCenter: parent.horizontalCenter
+                anchors.verticalCenter: parent.bottom
+                color: parent.color
+                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.14)
+            }
+
+            // Harbor's exact section title (uppercase eyebrow) — matches the current player.
+            Text {
+                x: 18; y: 16
+                text: "Playback speed"
+                color: root.theme ? root.theme.inkDimmer : "#9a99a5"
+                font.family: "Segoe UI"; font.pixelSize: 11; font.weight: Font.DemiBold
+                font.capitalization: Font.AllUppercase
+                font.letterSpacing: 1.6
+            }
+
+            Repeater {
+                model: root.speedChoices
+                Rectangle {
+                    required property int index
+                    required property real modelData
+                    x: 8; y: 46 + index * 38
+                    width: parent.width - 16; height: 36; radius: 9
+                    readonly property bool selected: Math.abs(root.currentSpeed - modelData) < 0.01
+                    color: selected ? Qt.rgba(1, 1, 1, 0.10)
+                         : (speedRowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent")
+                    border.width: selected ? 1 : 0
+                    border.color: Qt.rgba(1, 1, 1, 0.10)
+                    // "Normal" for 1×, else "1.25×" — left-aligned (current-player parity).
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: Math.abs(modelData - 1) < 0.01 ? "Normal"
+                              : ((Math.round(modelData * 100) / 100) + "×")
+                        color: parent.selected ? (root.theme ? root.theme.gold : "#f0c44a")
+                                               : (root.theme ? root.theme.ink : "#f7f7f5")
+                        font.family: "Segoe UI"; font.pixelSize: 14
+                        font.weight: parent.selected ? Font.DemiBold : Font.Medium
+                    }
+                    Text {
+                        visible: Math.abs(modelData - 1) < 0.01
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "DEFAULT"
+                        color: root.theme ? root.theme.inkDimmer : "#9a99a5"
+                        font.family: "Segoe UI"; font.pixelSize: 10; font.letterSpacing: 1.4
+                    }
+                    MouseArea {
+                        id: speedRowArea
+                        anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (root.session) root.session.speed = modelData
+                            speedMenu.open = false
+                        }
+                    }
+                }
+            }
         }
     }
 }
