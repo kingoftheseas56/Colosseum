@@ -40,7 +40,9 @@ $migrated = @(
     "qml/GenrePage.qml", "qml/GenreIndex.qml", "qml/TheatreGenrePage.qml",
     "qml/TheatreGenreIndex.qml", "qml/BiblioGenrePage.qml", "qml/BiblioGenreIndex.qml",
     "qml/UniversePage.qml", "qml/ExtensionsPage.qml",
-    "qml/MangaReader.qml"
+    # The reader's back control moved at the Task 13 cutover: qml/MangaReader.qml is now a thin
+    # ComicReaderShell wrapper and owns no chrome. The reader HUD is where the back control lives.
+    "qml/comicreader/ComicReaderHud.qml"
 )
 foreach ($f in $migrated) {
     Assert-Contains (Read-File $f) 'BackAction {' "$f must use the shared BackAction component."

@@ -227,6 +227,26 @@ add_executable(colosseum
     anime/AnimeOrderIndex.h
     anime/AnimeOrderService.cpp
     anime/AnimeOrderService.h
+    # ── Comic Reader (Agent 1, plan 2026-07-23): from-scratch native reader.
+    #    ComicReaderCore is the app-facing backend (QML `ComicReaderCore` context
+    #    property, registered in main.cpp) orchestrating the five pure engine
+    #    units; ComicReaderProvider is the read-only image://comicreader/ seam. ──
+    comicreader/ComicReaderTypes.cpp
+    comicreader/ComicReaderTypes.h
+    comicreader/ComicReaderPairing.cpp
+    comicreader/ComicReaderPairing.h
+    comicreader/ComicReaderCoupling.cpp
+    comicreader/ComicReaderCoupling.h
+    comicreader/ComicReaderPageCache.cpp
+    comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderDecode.cpp
+    comicreader/ComicReaderDecode.h
+    comicreader/ComicReaderStripModel.cpp
+    comicreader/ComicReaderStripModel.h
+    comicreader/ComicReaderProvider.cpp
+    comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderCore.cpp
+    comicreader/ComicReaderCore.h
 )
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 target_link_libraries(colosseum PRIVATE Qt6::Quick Qt6::Network Qt6::Qml Qt6::Gui Qt6::Sql Qt6::Concurrent MpvQt::MpvQt
@@ -891,3 +911,85 @@ if(COLOSSEUM_PLAYER2_IN_APP)
     target_link_libraries(colosseum PRIVATE player2_core)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_PLAYER2=1)
 endif()
+
+# --- Comic Reader (Agent 1, plan 2026-07-23): engine + backend harnesses ---
+# ── Comic Reader (Agent 1, plan 2026-07-23): pure canonical pairing + typed model.
+#    The from-scratch reader's combinatorial core — no Qt GUI, no decode, no cache,
+#    no I/O. Every comicreader/ unit builds on these value types + the pairing walk.
+#    QString/QVector/QSize/QVariantMap all live in Qt6::Core, so Core alone links. ──
+add_executable(comicreader_pairing_harness
+    ../tests/comicreader_pairing_harness.cpp
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h
+    comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h)
+target_include_directories(comicreader_pairing_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_pairing_harness PRIVATE Qt6::Core)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): pinned, budgeted LRU page cache.
+#    Keyed by (generation, page); a mutex-guarded QHash + LRU list, never held
+#    while doing image work. Depends only on QImage (Gui) — no other
+#    comicreader/ unit, no decode, no I/O. ──
+add_executable(comicreader_cache_harness
+    ../tests/comicreader_cache_harness.cpp
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h)
+target_include_directories(comicreader_cache_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_cache_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): generation-safe decode coordinator.
+#    The concurrency crux — a QThreadPool (max 2) decodes off-thread with
+#    QImageReader; every result is re-checked against the live generation on the
+#    owning thread before it can touch the cache or fire a signal, so a fast
+#    entry switch never paints a stale page. QThreadPool/QRunnable are Core;
+#    QImage/QImageReader are Gui. Depends on the types + page cache units. ──
+add_executable(comicreader_decode_harness
+    ../tests/comicreader_decode_harness.cpp
+    comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_decode_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_decode_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): auto-coupling probe (Task 5).
+#    Pure scoring + decision: edgeContinuityCost samples the touching inner
+#    edges of a displayed pair (8x96 luminance strip); chooseCouplingPhase picks
+#    Normal vs Shifted from the summed per-pair costs under each phase. Depends
+#    only on QImage (Gui) + Task 1's CouplingPhase enum — no other comicreader/
+#    unit, no decode, no I/O. ──
+add_executable(comicreader_coupling_harness
+    ../tests/comicreader_coupling_harness.cpp
+    comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_coupling_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_coupling_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): strip geometry model (Task 6).
+#    Pure QAbstractListModel over PageMeta: estimated-vs-real page sizing,
+#    running tops with a gap, the ±marginScreens decode window, pageAtCenter's
+#    binary search, and TB2/QTGW's anti-jump scroll compensation. QObject ->
+#    AUTOMOC (enabled project-wide above). No QImage/decode/IO here; Gui is
+#    linked alongside Core to mirror this comicreader/ family's other harnesses. ──
+add_executable(comicreader_strip_harness
+    ../tests/comicreader_strip_harness.cpp
+    comicreader/ComicReaderStripModel.cpp comicreader/ComicReaderStripModel.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_strip_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_strip_harness PRIVATE Qt6::Core Qt6::Gui)
+
+# ── Comic Reader (Agent 1, plan 2026-07-23): the app-facing backend + provider
+#    (Task 7). ComicReaderCore orchestrates ALL five engine units behind the
+#    QML `ComicReaderCore` context property; ComicReaderProvider is the read-only
+#    image://comicreader/ seam. The harness drives that orchestration over real
+#    decoded PNGs, pumping a QCoreApplication event loop for the decode
+#    coordinator's queued report-backs. QQuickImageProvider lives in Qt6::Quick;
+#    QImage/QImageReader in Qt6::Gui; the coordinator's QThreadPool in Qt6::Core. ──
+add_executable(comicreader_core_harness
+    ../tests/comicreader_core_harness.cpp
+    comicreader/ComicReaderCore.cpp comicreader/ComicReaderCore.h
+    comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderStripModel.cpp comicreader/ComicReaderStripModel.h
+    comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
+    comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)

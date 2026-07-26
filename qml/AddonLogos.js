@@ -56,6 +56,30 @@ var TABLE = [
     { file: "meteor.png",      m: function (id, n) { return id.indexOf("meteor") >= 0 || /\bmeteor\b/i.test(n); } },
     { file: "anime-kitsu.png", m: function (id, n) { return id.indexOf("anime-kitsu") >= 0 || /anime.?kitsu/i.test(n); } },
 
+    // ---- house wells + house catalogues (site marks, pulled by scripts/fetch_site_marks.py) ----
+    // Matched on the SITE name, deliberately, so both of a site's roles share one mark:
+    // WeebCentral appears twice in Tankoban (locked catalogue + removable chapter-pages
+    // well) and GetComics twice in comics — same logo, different job. (2026-07-25)
+    { file: "weebcentral.png",  m: function (id, n) { return id.indexOf("weebcentral") >= 0 || /weeb.?central/i.test(n); } },
+    { file: "getcomics.png",    m: function (id, n) { return id.indexOf("getcomics") >= 0 || /get.?comics/i.test(n); } },
+    { file: "libgen.ico",       m: function (id, n) { return id.indexOf("libgen") >= 0 || /lib.?gen/i.test(n); } },
+    { file: "audiobookbay.png", m: function (id, n) { return id.indexOf("audiobookbay") >= 0 || /audio.?book.?bay/i.test(n); } },
+    { file: "applebooks.ico",   m: function (id, n) { return id.indexOf("applebooks") >= 0 || /apple ?books/i.test(n); } },
+    { file: "anilist.png",      m: function (id, n) { return id.indexOf("anilist") >= 0 || /ani.?list/i.test(n); } },
+    // The one row whose mark we do not borrow because we own it: the Grand Database is
+    // ours, so it wears the house arch (rasterised from assets/icons/colosseum.ico, the
+    // same mark as the app). Matched narrowly on the vault id so no other colosseum.*
+    // row picks it up by accident.
+    { file: "colosseum-grand-database.png",
+      m: function (id, n) { return id.indexOf("catalogue.vault") >= 0 || /grand ?database/i.test(n); } },
+    // Tankorent wears the Tankoban 2 app mark — a film strip whose three frames are video,
+    // books and manga, which is exactly the three worlds it searches. Ours, so recolouring it
+    // to read on a dark plate is honest; a third-party mark would not be. (Hemanth 2026-07-26.)
+    { file: "tankorent.png",    m: function (id, n) { return id.indexOf("indexers") >= 0 || /tankorent/i.test(n); } },
+    // NOT listed: ExtTorrents and Torrents-CSV, which publish no square mark —
+    // ExtTorrents and Torrents-CSV publish no square mark either (ExtTorrents' only
+    // logo is a 73x29 wordmark); they keep letters inside the Settings sheet.
+
     // ---- local / built-in ----
     { file: "local-files.png", m: function (id, n) { return id === "org.stremio.local" || /local.?files/i.test(id) || /^local files\b/i.test(n); } }
 ];

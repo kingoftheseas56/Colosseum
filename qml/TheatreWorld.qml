@@ -6,6 +6,7 @@ import QtQuick
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "Torrentio.js" as Torrentio
+import "AddonClient.js" as AddonClient
 import "EpisodeBrowser.js" as EpisodeBrowser
 import "NextUp.js" as NextUp
 import "LibraryApi.js" as LibraryApi
@@ -84,7 +85,7 @@ WorldPage {
     function playNextUp(item) {
         var showId = item.resume.showId
         var detail = { "id": showId, "type": "series", "title": item.title, "cover": item.cover }
-        Torrentio.loadStreams("series", item.id, function(rows) {
+        var onRows = function(rows) {
             if (!rows || !rows.length) { theatre.theatreItemRequested(detail); return }
             var meta = theatre._nextUpMeta[showId]
             var ctx = (meta && meta.videos)
@@ -94,7 +95,28 @@ WorldPage {
             var epTitle = item.title + " - S" + item.resume.season + "E" + item.resume.episode
             theatre.playRequested(rows[0].infoHash || "", rows[0].fileIdx || 0, epTitle,
                                   item.cover || "", "series", item.id, rows, ctx || ({}))
-        })
+        }
+        // Same source ladder as the player and the picker. This path used to call
+        // Torrentio.js directly with no idea the store existed, so removing Torrentio
+        // did nothing here and any well ranked above it was ignored. No source at all
+        // falls through to onRows([]) — the series page, its own honest fallback.
+        // (2026-07-25, A5 — Torrentio-honesty fix.)
+        var installed = (typeof Extensions !== "undefined") ? Extensions.installed() : []
+        var exts = AddonClient.streamExtensions(installed, "series", item.id)
+        var lastResort = function() {
+            if (AddonClient.torrentioEnabled(installed))
+                Torrentio.loadStreams("series", item.id, onRows)
+            else
+                onRows([])
+        }
+        if (exts.length) {
+            AddonClient.loadStreams(exts, "series", item.id, function() {}, function(rows) {
+                if (rows && rows.length) onRows(rows)
+                else lastResort()
+            })
+        } else {
+            lastResort()
+        }
     }
 
     function idFromArt(item) {

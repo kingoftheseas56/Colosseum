@@ -59,6 +59,8 @@
 #include "anime/AnimeOrderService.h"
 #include "reader/BookBridge.h"
 #include "reader2/Reader2Bridge.h"
+#include "comicreader/ComicReaderCore.h"
+#include "comicreader/ComicReaderProvider.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
@@ -654,6 +656,20 @@ int main(int argc, char *argv[]) {
     // BookBridge stays constructed above for the remaining callers (audiobook strip).
     auto *reader2Bridge = new Reader2Bridge(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
+
+    // From-scratch native Comic Reader backend (Agent 1, plan 2026-07-23, Task 7)
+    // exposed to QML as `ComicReaderCore`: the ONE orchestrator over the five pure
+    // comicreader/ engine units (types+pairing, pinned LRU cache, generation-safe
+    // decode coordinator, auto-coupling probe, strip geometry). Its read-only
+    // image://comicreader/ provider serves decoded pages from the pinned cache and
+    // returns null for a superseded generation. The engine takes ownership of the
+    // provider (addImageProvider); the core (parented to app) owns the cache + the
+    // live-generation the provider reads. Registered now so the seam is live and
+    // boot-tested; the QML surfaces (Task 9+) are what consume it. Scheme is
+    // `comicreader`, distinct from Reader2's Biblio book reader.
+    auto *comicReaderCore = new comicreader::ComicReaderCore(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("ComicReaderCore"), comicReaderCore);
+    engine.addImageProvider(QStringLiteral("comicreader"), comicReaderCore->createProvider());
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.

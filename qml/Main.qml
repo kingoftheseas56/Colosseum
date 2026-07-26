@@ -734,7 +734,7 @@ Window {
             Stream.prefetch(pin.infoHash, pin.fileIdx)
             return
         }
-        Torrentio.loadStreams(mediaType, streamId, function(rows) {
+        var onRows = function(rows) {
             if (!rows || !rows.length) {
                 Download.failJob(id, "No stream found for this episode.")
                 return
@@ -760,7 +760,28 @@ Window {
             var key = (best.infoHash || "").toLowerCase() + ":" + (best.fileIdx || 0)
             win.pendingFeeds[key] = id
             Stream.prefetch(best.infoHash, best.fileIdx || 0)
-        })
+        }
+        // Same source ladder as the player and the picker: every installed stream
+        // extension in ask-order first, Torrentio only if it is still installed AND
+        // enabled. This path used to call Torrentio.js directly and never look at the
+        // store at all, so removing Torrentio did nothing here and a well ranked above
+        // it was ignored outright. (2026-07-25, A5 — Torrentio-honesty fix.)
+        var installed = (typeof Extensions !== "undefined") ? Extensions.installed() : []
+        var exts = AddonClient.streamExtensions(installed, mediaType, streamId)
+        var lastResort = function() {
+            if (AddonClient.torrentioEnabled(installed))
+                Torrentio.loadStreams(mediaType, streamId, onRows)
+            else
+                Download.failJob(id, "No source installed for this. Add one in Extensions.")
+        }
+        if (exts.length) {
+            AddonClient.loadStreams(exts, mediaType, streamId, function() {}, function(rows) {
+                if (rows && rows.length) onRows(rows)
+                else lastResort()
+            })
+        } else {
+            lastResort()
+        }
     }
     Connections {
         target: typeof Stream !== "undefined" ? Stream : null
