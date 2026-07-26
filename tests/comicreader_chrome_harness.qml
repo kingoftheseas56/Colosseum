@@ -98,6 +98,21 @@ Item {
             persistedMode = (rm === "strip") ? "long_strip" : "double_page"
             persistedDirection = (rm === "manga") ? "rtl" : "ltr"
         }
+        // FIX 2 spy: the scrub bubble must CONSULT this resolver rather than recompute its own
+        // estimate. Fixed return (42) so the assertion proves consultation, not coincidence.
+        // The counter lives INSIDE a `property var` container (mirrors this file's own sig/bump
+        // pattern) rather than as its own `property int`: this function is called live from a QML
+        // property binding (the bubble's `text:`), and a plain `property int` that reads-then-
+        // writes ITSELF from inside that call gets captured as the binding's own dependency —
+        // every increment then re-triggers the binding, which increments again: an infinite
+        // "Binding loop detected" storm. Mutating a field on an already-referenced `property var`
+        // never emits a change notification, so it never re-enters the binding.
+        property var pageAtFractionSpy: ({ calls: 0, lastArg: -1 })
+        function pageAtFraction(f) {
+            pageAtFractionSpy.calls += 1
+            pageAtFractionSpy.lastArg = f
+            return 42
+        }
     }
 
     FakeCore  { id: coreA }
@@ -275,6 +290,43 @@ Item {
         ck(shellA.chromeVisible === false, "hud: _autoHide() must hide chrome once modalOpen is false again")
         shellA.chromeVisible = true
 
+        // ----- FIX 2: the scrub bubble follows the POINTER (hover/drag), consulting
+        // reader.pageAtFraction() (geometry-honest in Strip) instead of recomputing its own
+        // estimate; the knob grows on that same interaction; the whole block hides for a
+        // one-page entry. HoverHandler.hovered can't be driven from this offscreen harness (no
+        // synthetic pointer injection — the file's own hover-quirk note documents that gap), so
+        // this drives the DRAG arm of the shared (_scrubbing || scrubHover.hovered) condition;
+        // the hover arm is the identical code path, just a different trigger.
+        shellA.max = 230; shellA.mode = "long_strip"; shellA.stripFraction = 0; shellA.currentPage = 1
+        var scrubTrack = byName(hud, "hudScrubTrack")
+        var knob = byName(hud, "hudKnob")
+        var bubbleText = byName(hud, "hudBubbleText")
+        ck(scrubTrack !== null, "hud: the scrub track must be reachable (objectName 'hudScrubTrack')")
+        ck(knob !== null, "hud: the scrub knob must be reachable (objectName 'hudKnob')")
+        ck(bubbleText !== null, "hud: the scrub bubble text must be reachable (objectName 'hudBubbleText')")
+        if (knob) harness._restKnobWidth = knob.width
+        harness._knob = knob
+
+        shellA.pageAtFractionSpy = { calls: 0, lastArg: -1 }
+        hud._scrubbing = true
+        hud._scrubRatio = 0.9   // far from stripFraction=0 — proves the DISPLAY follows the pointer, not the position
+        ck(bubbleText === null || String(bubbleText.text).indexOf("42") >= 0,
+           "hud: the scrub bubble text must show the resolver's answer (42), got '" + (bubbleText ? bubbleText.text : "<none>") + "'")
+        ck(shellA.pageAtFractionSpy.calls > 0,
+           "hud: the scrub bubble must CONSULT reader.pageAtFraction (not recompute its own estimate), got " + shellA.pageAtFractionSpy.calls)
+        // the knob's width grows via a real `Behavior` (100ms) — qml.exe never ticks the animation
+        // clock mid-script (same reason the toast fade is asserted in the DEFERRED phase below), so
+        // the grow check itself is deferred; _scrubbing stays true until then.
+
+        // ----- scrub block hides for a one-page entry -----
+        var scrubBlock = byName(hud, "hudScrub")
+        ck(scrubBlock !== null, "hud: the scrub block must be reachable (objectName 'hudScrub')")
+        shellA.max = 230
+        ck(scrubBlock === null || scrubBlock.visible === true, "hud: the scrub block must be visible for a multi-page entry")
+        shellA.max = 1
+        ck(scrubBlock === null || scrubBlock.visible === false, "hud: the scrub block must be HIDDEN for a one-page entry (max===1)")
+        shellA.max = 230
+
         // ----- toast: the one transient-feedback surface (zoom, pairing, bookmarks) -----
         // The fade is a real `Behavior on opacity` (140ms) — a synchronous read right after calling
         // showToast() still observes the PRE-animation value (qml.exe never ticks the animation
@@ -289,6 +341,8 @@ Item {
     // ============================ TOAST (deferred: animated opacity) ============================
     property var _toast: null
     property var _toastText: null
+    property var _restKnobWidth: undefined
+    property var _knob: null
     function runToastDeferred() {
         ck(harness._toast.opacity === 1, "toast: showToast presents it")
         ck(harness._toastText.text === "Zoom 160%", "toast: the message shows verbatim")
@@ -550,6 +604,11 @@ Item {
         ck(hudAuto && shellAuto.chromeVisible === false, "hud: chrome must AUTO-HIDE after the (pinned) inactivity interval, chromeVisible=" + (hudAuto ? shellAuto.chromeVisible : "<null>"))
         ck(cnt("toggleChrome") === 1, "input: a lone center single click must toggle chrome after the (pinned) 220ms disambiguation, got " + cnt("toggleChrome"))
         try { runToastDeferred() } catch (e) { failures.push("exception in runToastDeferred: " + e.message) }
+        // FIX 2 (deferred): the knob's `Behavior on width` (100ms) has now settled.
+        ck(harness._knob === null || harness._restKnobWidth === undefined || harness._knob.width > harness._restKnobWidth,
+           "hud: the knob must GROW while scrubbing (dragging), got width "
+           + (harness._knob ? harness._knob.width : "<none>") + " (rest was " + harness._restKnobWidth + ")")
+        if (hud) hud._scrubbing = false
         report()
     }
 

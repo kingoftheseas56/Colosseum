@@ -466,8 +466,11 @@ Item {
             MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
             // ------- gold scrub thread -------
+            // hidden for a one-page entry (Reader 1 ~:1492) — there is nowhere to scrub to.
             Item {
                 id: scrub
+                objectName: "hudScrub"
+                visible: hud.max > 1
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.leftMargin: 22
@@ -478,6 +481,7 @@ Item {
 
                 Rectangle {
                     id: scrubTrack
+                    objectName: "hudScrubTrack"
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -485,7 +489,11 @@ Item {
                     radius: 2
                     color: hud.cScrubTrack
 
-                    readonly property real knobRatio: hud._scrubbing ? hud._scrubRatio : hud.fillRatio()
+                    // the bubble/knob DISPLAY position follows the POINTER while hovering OR
+                    // dragging (FIX 2 — it used to repeat fillRatio(), i.e. your CURRENT position,
+                    // until you committed and dragged); otherwise it shows the real read position.
+                    readonly property bool pointerActive: hud._scrubbing || scrubHover.hovered
+                    readonly property real knobRatio: pointerActive ? hud._scrubRatio : hud.fillRatio()
 
                     // gold fill to the current position
                     Rectangle {
@@ -508,7 +516,8 @@ Item {
                         }
                     }
 
-                    // gold knob + glow
+                    // gold knob + glow — the knob GROWS while hovering/dragging (a scaled-up TB2's
+                    // 4->5px-radius grow, applied to our approved-mock rest size: 12->15px width)
                     Rectangle {
                         id: knobGlow
                         width: 20; height: 20; radius: 10
@@ -518,7 +527,11 @@ Item {
                     }
                     Rectangle {
                         id: knob
-                        width: 12; height: 12; radius: 6
+                        objectName: "hudKnob"
+                        width: scrubTrack.pointerActive ? 15 : 12
+                        height: width
+                        radius: width / 2
+                        Behavior on width { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
                         color: theme.gold
                         x: scrubTrack.width * scrubTrack.knobRatio - width / 2
                         anchors.verticalCenter: parent.verticalCenter
@@ -527,7 +540,7 @@ Item {
                     // page bubble above the knob (on hover / drag)
                     Rectangle {
                         id: bubble
-                        visible: hud._scrubbing || scrubHover.hovered
+                        visible: scrubTrack.pointerActive
                         height: 20
                         width: bubbleText.implicitWidth + 18
                         radius: 6
@@ -539,8 +552,14 @@ Item {
                                     scrubTrack.width * scrubTrack.knobRatio - width / 2))
                         Text {
                             id: bubbleText
+                            objectName: "hudBubbleText"
                             anchors.centerIn: parent
-                            text: hud.pageForRatio(scrubTrack.knobRatio)
+                            // consults the shell's geometry-honest resolver (FIX 2) instead of
+                            // recomputing its own estimate — degrades to the old pure math if the
+                            // seam is absent (a harness fake, or an older shell).
+                            text: (hud.reader && hud.reader.pageAtFraction)
+                                  ? hud.reader.pageAtFraction(scrubTrack.knobRatio)
+                                  : hud.pageForRatio(scrubTrack.knobRatio)
                             color: theme.gold
                             font.family: theme.hud
                             font.pixelSize: 11
@@ -554,6 +573,7 @@ Item {
                     anchors.fill: parent
                     anchors.topMargin: -6
                     anchors.bottomMargin: -6
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     function _ratioAt(mx) {
                         return scrubTrack.width > 0 ? hud._clamp01(mx / scrubTrack.width) : 0
@@ -562,7 +582,13 @@ Item {
                     // long book for >3s fires _autoHide -> chromeVisible=false -> this MouseArea
                     // (inside the opacity-gated chromeLayer) vanishes under the cursor mid-drag.
                     onPressed: function (m) { autoHideTimer.stop(); hud._scrubbing = true; hud._scrubRatio = _ratioAt(m.x); hud._emitScrub(hud._scrubRatio) }
-                    onPositionChanged: function (m) { if (hud._scrubbing) { hud._scrubRatio = _ratioAt(m.x); hud._emitScrub(hud._scrubRatio) } }
+                    // hoverEnabled now delivers this on a plain hover move too (no button down) —
+                    // track the pointer's ratio regardless, but only EMIT the navigation while an
+                    // actual drag (_scrubbing) is in progress; a hover must only move the bubble.
+                    onPositionChanged: function (m) {
+                        hud._scrubRatio = _ratioAt(m.x)
+                        if (hud._scrubbing) hud._emitScrub(hud._scrubRatio)
+                    }
                     onReleased: { hud._scrubbing = false; hud.notifyActivity() }
                 }
             }

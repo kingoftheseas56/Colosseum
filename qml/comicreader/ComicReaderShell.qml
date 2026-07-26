@@ -363,6 +363,20 @@ Item {
         var span = stripSurface.contentHeight - stripSurface.height
         if (span > 0) stripSurface.contentY = f * span
     }
+    // What page a scrub fraction actually lands on. In Strip that is a GEOMETRY question — pages
+    // have different heights, so a linear pages*fraction estimate lies about where you'd land — so
+    // ask the backend (core.stripPageAtCenter, over the real strip viewport) rather than re-derive
+    // it. The HUD's scrub bubble reads THIS while hovering/dragging instead of recomputing its own
+    // estimate (FIX 2).
+    function pageAtFraction(frac) {
+        var f = Math.max(0, Math.min(1, frac))
+        if (mode === "long_strip" && core && core.stripPageAtCenter) {
+            var span = Math.max(0, stripSurface.contentHeight - stripSurface.height)
+            var p = core.stripPageAtCenter(f * span, stripSurface.height)
+            if (p >= 0) return p + 1
+        }
+        return Math.max(1, Math.round(f * (Math.max(1, max) - 1)) + 1)
+    }
     function firstPageNav() { currentPage = 1; if (mode === "long_strip") stripSurface.contentY = 0 }
     function lastPageNav() {
         goToPageIndex(max)

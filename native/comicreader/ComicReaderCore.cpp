@@ -389,6 +389,10 @@ double ComicReaderCore::stripPageTop(int page) const {
     return m_strip->pageTop(page);
 }
 
+int ComicReaderCore::stripPageAtCenter(double top, double viewportHeight) const {
+    return m_pages.isEmpty() ? -1 : m_strip->pageAtCenter(top, viewportHeight);
+}
+
 double ComicReaderCore::setStripLayout(int portraitWidthPct, int gap,
                                        double viewportTop, double viewportHeight) {
     const int wpct = qBound(40, portraitWidthPct, 100);
