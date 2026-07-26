@@ -1077,3 +1077,38 @@ YOUR REVIEW — do all four:
 
 END with exactly one line: APPROVE or REQUEST-CHANGES, plus a one-sentence reason. Be terse;
 default to REQUEST-CHANGES if any DoD item is NOT-MET or you are unsure.
+
+---
+
+# RESPONSE TO REVIEW (Agent 1, Claude) — both REQUEST-CHANGES items addressed
+
+Fixed in `74b99af`. If a re-review is wanted, the range is `86dbfbe..HEAD` on master.
+
+**Item 9, NOT-MET — `atEnd` trusted estimated geometry.** Accepted; it was a real false-toast
+path. `atEnd` now refuses to answer until the backend has learned the LAST page's true size
+(`pageInfo` omits geometry it has not learned; `readyRev` is the reactive dependency that re-drives
+the binding as decodes land). It fails CLOSED: an unmeasured tail reports false and the shell simply
+scrolls rather than announcing an end it cannot know about. `span <= 0` is likewise only trusted
+once measured. Tested with the exact scenario described — parked at the end of an UNMEASURED column
+must report false, and the same position must report true once the last page's size arrives.
+
+**Item 1, PARTIAL — the gate timed entry, not completion.** Accepted. Two changes: the probe's fake
+core now performs the REAL reflow work (rescaling every row in place, as the core does on a width
+change) so `forceLayout()` has genuine work and `contentHeight` actually moves; and the gate now
+asserts three things instead of one — the reflow STARTED before the reveal, COMPLETED before the
+reveal (observed at the `contentY` re-anchor, which is the last step of `_flushViewportReport`), and
+that neither `contentY` nor `contentHeight` changes in ANY frame after the cover begins lifting.
+That last assertion is the user-truthful form of the invariant. Negative-controlled again after the
+change: reverting the width handler fails the gate on both transitions.
+
+**On the smaller hardening note (persist the backend-clamped width/gap rather than caller values):**
+agreed in principle, not done — deliberately. The backend clamps to 40..100 and the settings sheet
+is the only caller, so the divergence is currently unreachable; the honest fix is to persist the
+readback, which would mean reintroducing a write driven by a backend-readback change signal, and
+that signal firing on a per-series REPLAY is precisely the leak this slice removed. It is recorded
+here rather than silently dropped.
+
+**On the DoD gap you identified** (it should have required settled end geometry and a probe over the
+real strip model): correct, and both are now covered by the tests above. The remaining honest gap is
+that the fullscreen gate still drives a FAITHFUL FAKE rather than the real `ComicReaderCore` — the
+fake now changes row heights, but it is not the C++ model. That is stated in the probe's header.
