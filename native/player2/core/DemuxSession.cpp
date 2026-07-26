@@ -322,6 +322,26 @@ void DemuxSession::setAudioDelay(qint64 delayUs) noexcept
     m_audioDelayUs.store(delayUs, std::memory_order_release);
 }
 
+qint64 DemuxSession::pendingBytes() const
+{
+    std::shared_ptr<HttpMediaSource> source;
+    {
+        std::scoped_lock lock(m_httpMutex);
+        source = m_httpSource;
+    }
+    return source ? source->bufferedBytes() : -1;
+}
+
+qint64 DemuxSession::consumedBytes() const
+{
+    std::shared_ptr<HttpMediaSource> source;
+    {
+        std::scoped_lock lock(m_httpMutex);
+        source = m_httpSource;
+    }
+    return source ? source->position() : -1;
+}
+
 void DemuxSession::setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept
 {
     m_videoPipeline.store(pipeline, std::memory_order_release);
