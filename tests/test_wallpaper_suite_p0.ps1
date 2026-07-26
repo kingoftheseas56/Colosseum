@@ -126,8 +126,21 @@ if ($api -notmatch 'native:lowpoly[\s\S]{0,80}LowPoly\.qml') { throw 'nativeScen
 if ($main -notmatch 'native:lowpoly[\s\S]{0,80}LowPoly\.qml') { throw 'Main runtime map does not route lowpoly to its scene' }
 if ($api -notmatch '"Low Poly"') { throw 'nativePicks lost the Low Poly tile' }
 
+# 4i. NoirFlow (2026-07-25, Hemanth): our SECOND original shader wallpaper - a domain-warped
+# monochrome flow. Same shader path/gates as LowPoly; leads the Colosseum Animated shelf.
+$nf = Get-Content (Join-Path $root 'qml/wallpapers/NoirFlow.qml') -Raw
+if ($nf -notmatch 'property bool running') { throw 'NoirFlow lost its running gate - it could never freeze' }
+if ($nf -notmatch 'ShaderEffect') { throw 'NoirFlow must render through a ShaderEffect' }
+if ($nf -notmatch 'FrameAnimation') { throw 'NoirFlow must drive iTime from a freeze-gated FrameAnimation clock' }
+if ($nf -notmatch 'noirflow\.frag\.qsb') { throw 'NoirFlow must reference the compiled shader' }
+if (!(Test-Path (Join-Path $root 'qml/wallpapers/shaders/noirflow.frag.qsb'))) { throw 'the compiled shader (noirflow.frag.qsb) is missing' }
+if (!(Test-Path (Join-Path $root 'qml/wallpapers/shaders/noirflow.frag'))) { throw 'the shader source (noirflow.frag) is missing' }
+if ($api -notmatch 'native:noirflow[\s\S]{0,80}NoirFlow\.qml') { throw 'nativeSceneFor does not route noirflow to its scene' }
+if ($main -notmatch 'native:noirflow[\s\S]{0,80}NoirFlow\.qml') { throw 'Main runtime map does not route noirflow to its scene' }
+if ($api -notmatch '"Noir Flow"') { throw 'nativeAnimatedPicks lost the Noir Flow tile' }
+
 # 5. every native scene actually instantiates (offscreen, 4s each, then killed).
-foreach ($scene in @('AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'LowPoly')) {
+foreach ($scene in @('NoirFlow', 'AuroraFlow', 'MeshGradient', 'MeshTwilight', 'MeshEmber', 'MeshMint', 'LowPoly')) {
     $errFile = Join-Path $env:TEMP "$($scene)_err.txt"
     $p = Start-Process -FilePath $qmlExe -ArgumentList @((Join-Path $root "qml/wallpapers/$scene.qml")) `
             -PassThru -RedirectStandardError $errFile -WindowStyle Hidden

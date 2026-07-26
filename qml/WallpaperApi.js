@@ -28,6 +28,19 @@ var PAGE_LIMIT = 24;   // Wallhaven serves 24/page
 // Colosseum Animated — the living, moving scenes.
 function nativeAnimatedPicks() {
     return [{
+        // Our second original shader wallpaper (2026-07-25): domain-warped monochrome flow.
+        source: "Colosseum Animated",
+        source_id: "native:noirflow",
+        source_url: "",
+        image_url: "native:noirflow",
+        thumb_url: "",
+        w: 0, h: 0,
+        aspect: "any",
+        attribution: "Colosseum original (GLSL shader)",
+        query: "",
+        title: "Noir Flow",
+        spec: "Slow silver flow - Colosseum shader (QML)"
+    }, {
         // Ported from a real KDE Plasma QML wallpaper plugin (2026-07-20), LGPL-2.1;
         // KDE deps stripped for our Qt6 build. See THIRD_PARTY_NOTICES.md.
         source: "Colosseum Animated",
@@ -54,7 +67,7 @@ function nativeAnimatedPicks() {
         attribution: "Colosseum original (GLSL shader)",
         query: "",
         title: "Low Poly",
-        spec: "Slow-morphing low-poly - Colosseum shader (QML)"
+        spec: "Slow-morphing silver low-poly - Colosseum shader (QML)"
     }];
 }
 
@@ -114,6 +127,7 @@ function isNativePick(url) {
 // tiles — resolves through here, so a new living wallpaper is added in exactly one place.
 // (Main mirrors this in nativeWallpaperFile(); keep the two in sync when adding a scene.)
 function nativeSceneFor(url) {
+    if (url === "native:noirflow") return "wallpapers/NoirFlow.qml";
     if (url === "native:aurora-flow") return "wallpapers/AuroraFlow.qml";
     if (url === "native:mesh-twilight") return "wallpapers/MeshTwilight.qml";
     if (url === "native:mesh-ember") return "wallpapers/MeshEmber.qml";
