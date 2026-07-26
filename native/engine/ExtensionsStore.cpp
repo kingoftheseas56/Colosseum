@@ -25,7 +25,7 @@ constexpr int kDescriptionCap = 400;
 // descriptions. 4 renamed the vault row to "Colosseum Grand Database".
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 4;
+constexpr int kHouseDefaultsVersion = 5;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -221,12 +221,14 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
         manifest("colosseum.well.libgen", "LibGen", "",
                  { QStringLiteral("stream") }, { QStringLiteral("book") }, {}, false));
     // One well, two worlds. Hemanth overrode the four-separate-extensions recommendation,
-    // so it carries a Configure sheet (stage 4).
+    // so it carries a Configure sheet (stage 4). Named "Tankorent" on his word 2026-07-26 —
+    // which is what the engine has called it all along (native/torrent/TankorentSearchService).
+    // The id stays `colosseum.well.indexers`: renaming it would orphan the row in his profile.
     // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
     // search is only ever asked for "books" and "comics", never audiobooks. Left in place
     // rather than silently changed, because dropping it changes Biblio's roster.
     add("colosseum.well.indexers", "colosseum://well/indexers", false,
-        manifest("colosseum.well.indexers", "Torrent Indexers", "",
+        manifest("colosseum.well.indexers", "Tankorent", "",
                  { QStringLiteral("stream") },
                  { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
                  {}, true));

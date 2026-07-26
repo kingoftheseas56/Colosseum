@@ -72,8 +72,11 @@ var TABLE = [
     // row picks it up by accident.
     { file: "colosseum-grand-database.png",
       m: function (id, n) { return id.indexOf("catalogue.vault") >= 0 || /grand ?database/i.test(n); } },
-    // NOT listed: "Torrent Indexers". It is OUR composite of four sites, not a site, so
-    // it has no official iconography to borrow — it keeps the honest letter square.
+    // Tankorent wears the Tankoban 2 app mark — a film strip whose three frames are video,
+    // books and manga, which is exactly the three worlds it searches. Ours, so recolouring it
+    // to read on a dark plate is honest; a third-party mark would not be. (Hemanth 2026-07-26.)
+    { file: "tankorent.png",    m: function (id, n) { return id.indexOf("indexers") >= 0 || /tankorent/i.test(n); } },
+    // NOT listed: ExtTorrents and Torrents-CSV, which publish no square mark —
     // ExtTorrents and Torrents-CSV publish no square mark either (ExtTorrents' only
     // logo is a 73x29 wordmark); they keep letters inside the Settings sheet.
 

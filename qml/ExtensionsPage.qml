@@ -96,7 +96,7 @@ Item {
 
     // ---- page state ----
     property string world: "theatre"          // "theatre" | "tankoban" | "biblio"
-    property string pane: "discover"          // "discover" | "browse" | "installed"
+    property string pane: "sources"           // "sources" | "browse" | "installed"
     property string query: ""
     property string sort: "top"               // "top" | "new" | "rising"
     property var communityRows: []
@@ -189,53 +189,32 @@ Item {
     //
     // This also retires A5's P0-6 ("world tabs are decorative in two of three panes")
     // at the root instead of patching it: the decorative panes are gone.
-    readonly property bool hasStore: world === "theatre"
-    readonly property var paneModel: hasStore
-        ? [ { key: "discover",  label: "Discover" },
-            { key: "browse",    label: "Browse everything" },
-            { key: "installed", label: "Installed · " } ]
-        : [ { key: "installed", label: "Installed · " } ]
-    // Compare `world` DIRECTLY, never the hasStore binding derived from it: inside this
-    // handler that binding can still hold its previous value, so `!hasStore` read false
-    // and the pane never moved. Clicking Tankoban from Theatre's Discover left Theatre's
-    // Discover on screen under a Tankoban header. (Found on eyes-on, 2026-07-26.)
-    //
-    // The handler keeps the pane tab honest, but it is NOT what makes this safe — the
-    // pane visibility below is gated on the world too, so a store pane cannot render
-    // outside Theatre whatever `pane` happens to say.
-    onWorldChanged: if (world !== "theatre" && pane !== "installed") pane = "installed"
+    // Sources is world-agnostic — every world in one page, in rows — so the world tabs
+    // are no longer page chrome. They belong to Installed, which is the one pane that
+    // still filters by world, and Hemanth's ruling was that Browse and Installed "remain
+    // just as they are". Showing the tabs anywhere else is what made them decorative in
+    // two of three panes (A5's audit P0-6).
+    readonly property bool worldTabsApply: pane === "installed"
+    readonly property var paneModel: [
+        { key: "sources",   label: "Sources" },
+        { key: "browse",    label: "Browse everything" },
+        { key: "installed", label: "Installed · " }
+    ]
 
-    // community loads when Browse first opens, and reloads on sort/search change.
-    // Skipped while a search debounce is pending — that timer owns the fetch, and
-    // firing both sends the same request twice on the first search from Discover.
-    onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading
-                       && !queryDebounce.running) loadCommunity()
+    // Browse loads when it first opens, and reloads on a sort or search change.
+    onPaneChanged: if (pane === "browse" && !communityLoaded && !communityLoading) loadCommunity()
     onSortChanged: if (pane === "browse") loadCommunity()
+
+    // A search filters whichever pane you are on. Sources and Installed match in place;
+    // only Browse asks the registry, and only when you are already there. The earlier
+    // jump-to-Browse behaviour existed because Discover could not answer a query at all —
+    // Sources can, so the jump is gone rather than kept out of habit.
     Timer {
         id: queryDebounce
         interval: 450
         onTriggered: if (root.pane === "browse") root.loadCommunity()
     }
-
-    // ---- a search goes where the answers are -----------------------------------
-    // Hemanth 2026-07-26: "when I search for something in theatre, it does nothing
-    // because the results show up in browse but if the page is in discover it doesn't
-    // turn to browse." Exactly right. Discover's matcher only tests curated card NAMES,
-    // so nearly every real query matched nothing and the pane went silently blank while
-    // the actual results sat unfetched one tab over. Typing is a request for results, so
-    // it now moves to the pane that has them — and clearing the box gives Discover back,
-    // so the search never costs you your place.
-    property bool _searchDroveThePane: false
-    onQueryChanged: {
-        if (hasStore && query !== "" && pane === "discover") {
-            _searchDroveThePane = true;
-            pane = "browse";
-        } else if (query === "" && _searchDroveThePane) {
-            _searchDroveThePane = false;
-            if (pane === "browse") pane = "discover";
-        }
-        queryDebounce.restart();
-    }
+    onQueryChanged: queryDebounce.restart()
 
     MouseArea { anchors.fill: parent }
     Rectangle { anchors.fill: parent; color: "#000000" }
@@ -300,20 +279,16 @@ Item {
                     // install, Tankoban —, Biblio —", which was true only while the other
                     // two worlds were dead tabs. A world total can exceed the sum of the
                     // three, because one install may serve two worlds.
-                    var w = function (k) {
-                        return "<font color='#c9c8d0'>" + root.countIn(k) + "</font>";
-                    };
                     return "<b><font color='#f7f7f5'>" + n + "</font></b> installed"
-                         + "  ·  " + (on === n ? "all carrying" : on + " carrying")
-                         + "  ·  Theatre " + w("theatre")
-                         + "  ·  Tankoban " + w("tankoban")
-                         + "  ·  Biblio " + w("biblio");
+                         + "  ·  " + (on === n ? "all carrying" : on + " carrying");
                 }
             }
 
-            // ---- worlds row: the three houses this store serves ----
+            // ---- worlds row: Installed's filter, not page chrome ----
             Row {
-                topPadding: 34
+                visible: root.worldTabsApply
+                height: visible ? implicitHeight : 0
+                topPadding: root.worldTabsApply ? 34 : 0
                 spacing: 34
                 Repeater {
                     // All three worlds are live as of stage 1 — Tankoban and Biblio now
@@ -387,11 +362,14 @@ Item {
                                 implicitHeight: paneLabel.implicitHeight + 9
                                 Text {
                                     id: paneLabel
-                                    // Count THIS world, not the whole app. The pane below
-                                    // draws installedRowsFor(world), so a global total read
-                                    // "Installed · 13" above 4 Biblio rows. (A5's P0-7.)
+                                    // Count what the pane will actually draw. Installed is
+                                    // world-filtered, so it counts its world — but only while
+                                    // a world is selectable; from Sources there is no world
+                                    // in play and the honest number is the whole roster.
                                     text: paneTab.modelData.key === "installed"
-                                          ? paneTab.modelData.label + root.countIn(root.world)
+                                          ? paneTab.modelData.label
+                                            + (root.worldTabsApply ? root.countIn(root.world)
+                                                                   : root.installedList.length)
                                           : paneTab.modelData.label
                                     color: root.pane === paneTab.modelData.key ? theme.ink
                                          : paneMa.containsMouse ? theme.inkDim : theme.inkDimmer
@@ -471,12 +449,25 @@ Item {
                 Item { width: 1; height: 26 }
 
                 // ============ DISCOVER ============
+                // ── SOURCES — the world-agnostic pane (Hemanth 2026-07-26) ──────────
+                // Every world in one page, in rows. Replaces Discover, whose curated rails
+                // were a hardcoded Theatre list that appeared under every world tab.
+                ExtensionsSources {
+                    width: col.width
+                    visible: root.pane === "sources"
+                    installedList: root.installedList
+                    query: root.query
+                    onRemoveRequested: function (entry) { root.askRemove(entry) }
+                    onConfigureRequested: function (entry) {
+                        var url = String(entry.transportUrl || "");
+                        if (url.indexOf("colosseum://") !== 0) Qt.openUrlExternally(url);
+                    }
+                }
+
+                // ── the retired Discover rails, kept off the page ───────────────────
                 Column {
                     width: col.width
-                    // Gated on the world, not just the pane. This is what actually
-                    // guarantees Theatre's rails cannot appear under the Tankoban tab —
-                    // an imperative pane fix-up can be skipped, a binding cannot.
-                    visible: root.pane === "discover" && root.hasStore
+                    visible: false
                     spacing: 0
 
                     // featured slab — steps aside while a search is on
@@ -686,7 +677,7 @@ Item {
                 // ============ BROWSE ============
                 Column {
                     width: col.width
-                    visible: root.pane === "browse" && root.hasStore
+                    visible: root.pane === "browse"
                     spacing: 0
 
                     Row {
@@ -858,9 +849,7 @@ Item {
                 // ============ INSTALLED ============
                 Column {
                     width: col.width
-                    // The only pane the other worlds have, so it renders whenever there
-                    // is no store — never a blank page because `pane` lagged behind.
-                    visible: root.pane === "installed" || !root.hasStore
+                    visible: root.pane === "installed"
                     spacing: 0
 
                     Rectangle {

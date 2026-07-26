@@ -38,6 +38,7 @@ const cases = [
   ["colosseum.well.audiobookbay",       "AudioBookBay",      "audiobookbay.png"],
   ["colosseum.catalogue.applebooks",    "Apple Books",       "applebooks.ico"],
   ["colosseum.catalogue.anilist",       "AniList",           "anilist.png"],
+  ["colosseum.well.indexers",           "Tankorent",         "tankorent.png"],
   ["colosseum.well.nyaa",               "Nyaa",              "nyaa.png"],
   ["piratebay",                         "PirateBay",         "thepiratebay.png"],
   ["knaben",                            "Knaben",            "knaben.ico"],
@@ -71,7 +72,7 @@ console.log("the one mark we do not borrow, because we own it");
   else if (!onDisk(got)) bad(`Grand Database -> ${want} but that file is not on disk`);
   else ok(`Grand Database -> ${want} (the house arch, same mark as the app)`);
   // and the narrow matcher must not swallow our other colosseum.* rows
-  for (const [id, n] of [["colosseum.well.indexers", "Torrent Indexers"],
+  for (const [id, n] of [["colosseum.well.indexers", "Tankorent"],
                          ["colosseum.catalogue.applebooks", "Apple Books"]]) {
     const g = mod.logoFor(id, n);
     (g && path.basename(g) === want)
@@ -81,11 +82,10 @@ console.log("the one mark we do not borrow, because we own it");
 }
 
 console.log("the deliberate letter squares stay letters (never a wrong-site logo)");
-// Our own composite is not a website and has no iconography to borrow. ExtTorrents
+// ExtTorrents
 // publishes only a 73x29 wordmark, Torrents-CSV publishes nothing — a banner squeezed
 // into a square plate reads worse than a letter, so the shape gate rejects them.
-for (const [id, name] of [["colosseum.well.torrentindexers", "Torrent Indexers"],
-                          ["exttorrents", "ExtTorrents"],
+for (const [id, name] of [["exttorrents", "ExtTorrents"],
                           ["torrentscsv", "Torrents-CSV"]]) {
   const got = mod.logoFor(id, name);
   if (got) bad(`${name} unexpectedly matched ${path.basename(got)} — a wrong-site logo is worse than a letter`);
