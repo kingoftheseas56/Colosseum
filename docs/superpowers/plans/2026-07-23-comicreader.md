@@ -138,7 +138,7 @@ enum class CouplingPhase { Normal, Shifted };
 
 struct PageMeta {
     int index = -1; QString localPath; QSize sourceSize; bool decoded = false;
-    bool detectedSpread = false;           // sourceSize.w/h >= 1.08 or w > h; index 0 never
+    bool detectedSpread = false;           // sourceSize.w/h >= 1.08 or w > h (all indices incl. 0)
     std::optional<bool> spreadOverride;    // manual override beats detection
     PageError error = PageError::None;
 };
@@ -146,8 +146,9 @@ struct PairUnit {
     int rightIndex = -1; int leftIndex = -1;   // -1 = absent
     bool spread = false; bool coverAlone = false;
 };
-// Cover (index 0) rides alone. A spread is one full-width unit consuming one parity slot.
-// phase Shifted adds +1 to parity. Never pair across a spread. Deterministic, pure.
+// Cover (index 0) rides alone UNLESS page 0 is itself a confirmed spread (then it's a spread unit).
+// A spread is one full-width unit consuming one parity slot. phase Shifted adds +1 to parity.
+// A forced single (partner is a spread / out of range) does NOT consume a slot. Deterministic, pure.
 QVector<PairUnit> buildUnits(const QVector<PageMeta>& pages, CouplingPhase phase);
 int unitForPage(const QVector<PairUnit>& units, int pageIndex);   // clamped position
 bool isSpread(const PageMeta& m);                                  // override > detection; 0 never
@@ -155,19 +156,29 @@ bool isSpread(const PageMeta& m);                                  // override >
 ```
 
 - [ ] **Step 1: Write fixtures first** in `comicreader_pairing_harness.cpp` (plain `main()`, house
-  `CHECK(cond, label)` macro, prints `COMICREADER_PAIRING_OK`):
+  `CHECK(cond, label)` macro, prints `COMICREADER_PAIRING_OK`). **The pairing ORACLE is the proven
+  lineage — TB2 `buildTwoPagePairs` (`~/Desktop/Tankoban 2/src/ui/readers/ComicReader.h:203-283`)
+  and QTGroundWork `_build_canonical_pairing_units_for_phase`, verified 2026-07-23 to agree exactly.
+  A forced single does NOT consume a compensating parity slot; only spreads increment extraSlots.
+  Derive every expectation by running that algorithm, never by intuition.** Fixtures:
   - 5 normal pages → `[cover 0][1+2][3+4]`
-  - spread at 2 → `[cover 0][single 1][spread 2][3+4]`
+  - spread at 2 → `[cover 0][single 1][spread 2][single 3][single 4]` (parity shift after the spread
+    leaves 3 and 4 unpaired — lineage-true; the nudge/auto-coupling are the fix for misalignment)
+  - spread at 1 (5 pages) → derive from the algorithm and assert exactly
   - spread at 0 → `[spread 0][1+2]` (spread beats cover-alone when page 0 IS a confirmed spread)
-  - override page 3 forced-spread (portrait) → 3 is a full-width unit
-  - override landscape page forced-normal → participates in ordinary pairing
-  - phase Shifted → `[cover 0][single 1][2+3]…`
+  - override page 3 forced-spread (5 pages, others portrait) → `[cover 0][1+2][spread 3][single 4]`
+  - override landscape page forced-normal → participates in ordinary pairing (isSpread false)
+  - phase Shifted (6 normal pages) → `[cover 0][single 1][2+3][4+5]`
   - `unitForPage` returns the containing unit for every page in every fixture
 - [ ] **Step 2: Build to confirm failure.** `native\build-msvc.bat comicreader_pairing_harness` —
   expected: link failure (functions absent).
-- [ ] **Step 3: Implement** `buildUnits` (port the parity-slot walk: cover unit, then for each
-  idx: spread → own unit + extraSlots++; else parity = (idx + extraSlots + nudge) % 2 pairs
-  idx with idx+1 when idx+1 exists and isn't a spread; else unpaired single).
+- [ ] **Step 3: Implement** `buildUnits` (port TB2's exact walk, chapterOrigin fixed at 0 — we open
+  one entry at a time and never stitch chapters into a single page list, so `isChapterStart` is out
+  of scope): cover unit first (coverAlone unless page 0 is a confirmed spread → spread unit); then
+  for each idx: spread → own unit + `extraSlots++`; else `parity = (idx + extraSlots + nudge) % 2`
+  where `nudge = phase==Shifted?1:0` — `parity==1` pairs idx with idx+1 when idx+1 exists and isn't
+  a spread, otherwise unpaired single; `parity==0` is an unpaired single. A forced single never
+  adjusts extraSlots.
 - [ ] **Step 4: Run green.** `native\build-msvc\comicreader_pairing_harness.exe` →
   `COMICREADER_PAIRING_OK`.
 - [ ] **Step 5: Commit** `-- native/comicreader/ComicReaderTypes.* native/comicreader/ComicReaderPairing.* tests/comicreader_pairing_harness.cpp native/CMakeLists.txt`
@@ -244,6 +255,13 @@ double edgeContinuityCost(const QImage& left, const QImage& right);   // 96×8 s
 struct CouplingVerdict { CouplingPhase phase; double confidence; };   // conf 0..1
 // Score both phases over up to 4 sample pairs from the first 8 pages; adopt Shifted only
 // when it wins with confidence >= 0.12 (QTGroundWork's floor). Pure — caller decodes.
+// AGGREGATE BY MEAN, not sum (QTGroundWork's `_score_auto_coupling_phase` returns the MEAN of
+// each phase's per-pair costs, then `_choose_auto_coupling_phase` compares those two scalar
+// means). Mean is the faithful aggregation boundary: the two phases routinely have DIFFERENT
+// sample counts (`_auto_phase_sample_indexes` derives indices from each phase's own units), and
+// summing would give a different decision than the lineage on unequal-length inputs. If EITHER
+// vector is empty (a phase had no decodable samples), return {Normal, 0.0} — the reference guards
+// `if normal_samples<=0 or shifted_samples<=0` and bails to Normal/retry, never deciding.
 CouplingVerdict chooseCouplingPhase(const QVector<double>& normalCosts,
                                     const QVector<double>& shiftedCosts);
 }
@@ -252,7 +270,15 @@ CouplingVerdict chooseCouplingPhase(const QVector<double>& normalCosts,
 - [ ] **Step 1: Tests first** (`COMICREADER_COUPLING_OK`): synthetic continuity — image A ends in a
   black-to-white gradient column, image B starts with the same column → cost < 0.08; B
   reversed → cost > 0.3; verdict picks Shifted when shifted costs are clearly lower, Normal
-  on a tie (confidence below floor), confidence formula `|nΣ−sΣ| / (nΣ+sΣ)` clamped 0..1.
+  on a tie (confidence below floor); confidence formula uses per-phase **means** `|n̄−s̄| / (n̄+s̄)`
+  clamped 0..1 (n̄=mean(normalCosts), s̄=mean(shiftedCosts)). REQUIRED fixtures that pin the two
+  behaviors that actually differ from a naive port: (a) an **unequal-length** case —
+  normal=[0.5,0.5,0.5,0.5], shifted=[0.4,0.4,0.4] → means 0.5 vs 0.4, confidence 0.111 < 0.12 →
+  **Normal** (a sum-based impl would wrongly pick Shifted); (b) a **horizontally-distinct**
+  edge-cost fixture (left bright only in its RIGHT-most columns, right bright only in its
+  LEFT-most columns → low cost when the correct touching columns are compared; a wrong-column /
+  transposition bug would score high) so the tests can actually detect reading the wrong edge;
+  (c) one-empty vector → {Normal, 0.0}.
 - [ ] **Steps 2–5:** fail → implement → green → commit, as above.
 
 ### Task 6: Strip geometry model
@@ -270,17 +296,27 @@ public:
     void rebuild(const QVector<PageMeta>& pages, const Options& opt);
     void updatePage(const PageMeta& meta);            // real size arrives → height changes
     QVector<int> window(double top, double vpHeight, double marginScreens) const; // ±1.5
-    int pageAtCenter(double top, double vpHeight) const;   // binary search
+    int pageAtCenter(double top, double vpHeight) const;   // binary search; -1 when empty
     double pageTop(int page) const;
-    double compensation(int page, double oldH) const;  // scroll delta when a page above grows
+    // Anti-jump: ACCUMULATE-AND-CLEAR. Every updatePage() whose height changed records (oldTop,
+    // delta). takePendingCompensation(viewportTop) returns the SUM of deltas for recorded pages
+    // whose oldTop < viewportTop (the ones above the fold), then CLEARS the accumulator. Robust to
+    // Task 7 batching several updatePage() calls before one query. (Replaces the plan's earlier
+    // single-shot compensation(page,oldH) sketch — oldH lives in model state; the caller can't pass
+    // a stale value.) The model itself stays viewport-agnostic.
+    double takePendingCompensation(double viewportTop);
 };
 ```
+`rebuild()` MUST assert (or clearly document) the invariant `pages[i].index == i` — `updatePage`
+keys the entry by `meta.index` while window/pageAtCenter/geometry key by array position, so a
+sparse/reordered feed would silently write the wrong row.
 
 - [ ] **Step 1: Tests first** (`COMICREADER_STRIP_OK`): unknown pages use estimate 1600×2400 scaled
   to portrait width; spread pages span full viewport width; exact gap between tops;
   `window(...)` returns exactly the ±1.5-screen set; `pageAtCenter` matches a hand-computed
-  layout; `updatePage` on a page ABOVE the anchor yields `compensation == newH − oldH`, on a
-  page below yields 0; eviction (ready=false) never changes geometry.
+  layout; `updatePage` on a page ABOVE the fold contributes `newH − oldH` and a page below
+  contributes 0 to `takePendingCompensation`; **a BATCH of updatePage() calls before one query
+  sums all above-fold deltas then clears**; eviction (ready=false) never changes geometry.
 - [ ] **Steps 2–5:** fail → implement → green → commit.
 
 ### Task 7: Backend + provider into the app

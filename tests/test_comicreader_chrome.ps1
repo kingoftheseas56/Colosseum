@@ -1,0 +1,95 @@
+# Comic Reader — FAMILY GRADIENT HUD + INPUT gate (Task 11).
+#
+# Drives qml/comicreader/ComicReaderHud.qml + ComicReaderInput.qml (+ ComicReaderIcon.qml) offscreen
+# through comicreader_chrome_harness.qml and asserts the HUD + input LOGIC: scrub ratio<->page
+# mapping (double unit-snap / strip fraction), bookmark ticks, pair-aware counter, mode/direction
+# chips writing the persisted seams, prev/next boundary gating, 3s auto-hide, the semantic key map,
+# direction-aware click zones, the 220ms single-vs-double disambiguation, and the magnified drag
+# cancel. The pixel look is Hemanth's eyes-on (Task 14); this pins BEHAVIOR.
+#
+# Plus STATIC guards PowerShell can do that qml.exe cannot reliably:
+#   * no guided import/reference in any of the three chrome QML files (Guided is frozen elsewhere);
+#   * every vendored icon SVG under assets/icons/comicreader/ has stroke="#ffffff" (MultiEffect
+#     colorization law — a black-stroke SVG colorizes to black = invisible);
+#   * the HUD carries NO text-glyph chips: no arrow/chevron GLYPH characters as text (the
+#     semantic-icon-audit law — every navigational glyph must be a ComicReaderIcon).
+#
+# qml.exe is located exactly as every sibling tests/test_*.ps1 does (hardcoded Qt path); -I
+# tests/qmlmock mirrors the sibling harnesses.
+
+$ErrorActionPreference = "Stop"
+
+$qmlExe = "C:/Qt/6.11.1/msvc2022_64/bin/qml.exe"
+if (!(Test-Path -LiteralPath $qmlExe)) {
+    Write-Host "FAIL: qml.exe not found at $qmlExe"
+    exit 1
+}
+
+$chromeFiles = @(
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderHud.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderInput.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderIcon.qml")
+)
+
+# --- static: files exist + NO guided import/reference anywhere in the chrome ---
+foreach ($f in $chromeFiles) {
+    if (!(Test-Path -LiteralPath $f)) {
+        Write-Host "FAIL: chrome file not found at $f"
+        exit 1
+    }
+    $guidedHits = Select-String -LiteralPath $f -Pattern "guided" -SimpleMatch -CaseSensitive:$false
+    if ($guidedHits) {
+        Write-Host "FAIL: $f must contain NO guided reference; found:"
+        $guidedHits | ForEach-Object { Write-Host ("  line " + $_.LineNumber + ": " + $_.Line.Trim()) }
+        exit 1
+    }
+}
+
+# --- static: every vendored comicreader icon SVG must have stroke="#ffffff" ---
+$iconDir = Join-Path $PSScriptRoot "../assets/icons/comicreader"
+if (!(Test-Path -LiteralPath $iconDir)) {
+    Write-Host "FAIL: comicreader icon dir not found at $iconDir"
+    exit 1
+}
+$svgs = Get-ChildItem -LiteralPath $iconDir -Filter *.svg -File
+if ($svgs.Count -lt 8) {
+    Write-Host ("FAIL: expected >=8 vendored comicreader icons, found " + $svgs.Count)
+    exit 1
+}
+foreach ($svg in $svgs) {
+    $white = Select-String -LiteralPath $svg.FullName -Pattern 'stroke="#ffffff"' -SimpleMatch -CaseSensitive:$false
+    if (-not $white) {
+        Write-Host ("FAIL: " + $svg.Name + " must carry stroke=""#ffffff"" (MultiEffect colorization law)")
+        exit 1
+    }
+}
+
+# --- static: the HUD carries NO text-glyph chips (arrow/chevron GLYPH chars as text) ---
+$hud = $chromeFiles[0]
+# guillemets, angle-bracket glyphs, unicode arrows, triangles used as nav glyphs
+$arrowGlyphs = @([char]0x2039, [char]0x203A, [char]0x00AB, [char]0x00BB, [char]0x2190, [char]0x2192, [char]0x2191, [char]0x2193, [char]0x25B6, [char]0x25C0, [char]0x27E8, [char]0x27E9)
+$hudText = Get-Content -LiteralPath $hud -Raw
+foreach ($g in $arrowGlyphs) {
+    if ($hudText.Contains([string]$g)) {
+        Write-Host ("FAIL: ComicReaderHud.qml contains a text arrow glyph U+{0:X4} - every nav glyph must be a ComicReaderIcon (semantic-icon-audit law)" -f [int]$g)
+        exit 1
+    }
+}
+
+$env:QT_FORCE_STDERR_LOGGING = "1"
+$harness  = Join-Path $PSScriptRoot "comicreader_chrome_harness.qml"
+$mockPath = Join-Path $PSScriptRoot "qmlmock"
+
+$prevEAP = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$output = & $qmlExe -platform offscreen -I $mockPath $harness 2>&1 | Out-String
+$code = $LASTEXITCODE
+$ErrorActionPreference = $prevEAP
+
+if ($code -ne 0 -or ($output -notmatch "COMICREADER_CHROME_OK")) {
+    Write-Host "FAIL: comic reader chrome offscreen harness (exit $code)"
+    Write-Host $output
+    exit 1
+}
+
+Write-Host "COMICREADER_CHROME_OK"

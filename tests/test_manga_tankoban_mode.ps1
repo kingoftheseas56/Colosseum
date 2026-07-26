@@ -33,7 +33,10 @@ function Assert-Contains([string]$text, [string]$needle, [string]$message) {
 $series  = Read-RepoFile "qml/MangaSeries.qml"
 $library = Read-RepoFile "qml/MangaTankobanLibrary.qml"
 $page    = Read-RepoFile "qml/MangaTankobanSourcesPage.qml"
-$reader  = Read-RepoFile "qml/MangaReader.qml"
+# The reader's implementation moved behind the Task 13 cutover: qml/MangaReader.qml is now a thin
+# ComicReaderShell wrapper, so these contract strings are asserted where they actually live. The
+# guarantees are unchanged - only their address is.
+$reader  = Read-RepoFile "qml/comicreader/ComicReaderShell.qml"
 $main    = Read-RepoFile "qml/Main.qml"
 
 Assert-Contains $series 'text: "TANKOBAN MODE"' "series-level mode label missing"
@@ -52,10 +55,13 @@ Assert-Contains $page 'downloadNyaa' "a Nyaa pick must call downloadNyaa"
 Assert-Contains $page 'compileWeebCentral' "a WeebCentral pick must call compileWeebCentral"
 
 # --- Task 10: the generalized reader contract (chapter reading must NOT regress) ---
-Assert-Contains $reader 'property var pageStore: null' "reader must accept an injected page store"
+Assert-Contains $reader 'pageStore: null' "reader must accept an injected page store"
 Assert-Contains $reader 'property string entryKind: "manga"' "reader must default entryKind to manga"
 Assert-Contains $reader 'readonly property var store: pageStore ? pageStore' "injected store must win, else the existing default store"
-Assert-Contains $reader 'readonly property string progressKind: entryKind' "progress must namespace on entryKind"
+# the shell delegates the namespace rule to the pure library instead of inlining it; the RULE is
+# the same (manga|comic|tankoban off entryKind+western) and is proved behaviourally by the shell
+# and migration harnesses.
+Assert-Contains $reader 'progressKind: ComicReaderState.progressKind(entryKind, western)' "progress must namespace on entryKind"
 Assert-Contains $reader 'signal sourceRequested(string entryId)' "reader must ask the series page for a not-ready volume's source"
 # --- Task 10: the series page wires the volume open + the source-request escape ---
 Assert-Contains $series 'onOpenVolumeRequested' "library Open action must reach the reader"
