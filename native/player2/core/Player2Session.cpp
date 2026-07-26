@@ -193,6 +193,12 @@ Player2Session::Player2Session(QObject *parent)
         const bool renderable = shifted.bitmap
             ? (shifted.width > 0 && shifted.height > 0 && !shifted.rgba.isEmpty())
             : !shifted.text.isEmpty();
+        if (qEnvironmentVariableIsSet("P2_SUB_TRACE"))
+            std::fprintf(stderr, "p2sub ARRIVE %s start=%.3f end=%.3f span=%.3f renderable=%d rects(px)=%dx%d\n",
+                         shifted.bitmap ? "bitmap" : "text",
+                         shifted.startUs / 1e6, shifted.endUs / 1e6,
+                         (shifted.endUs - shifted.startUs) / 1e6, renderable ? 1 : 0,
+                         shifted.width, shifted.height);
         if (renderable) {
             m_cueBuffer.push_back(std::move(shifted));
             if (m_cueBuffer.size() > 1024)
@@ -310,6 +316,17 @@ void Player2Session::evaluateSubtitles()
         return;
     const qint64 nowUs = m_playbackClock.positionAt(sessionQpcNow());
     const qsizetype idx = activeSubtitleCueIndex(m_cueBuffer, nowUs);
+    if (qEnvironmentVariableIsSet("P2_SUB_TRACE")) {
+        static int tickCount = 0;
+        static bool wasShowing = false;
+        const bool showing = idx >= 0;
+        ++tickCount;
+        if (showing != wasShowing || tickCount % 25 == 0)
+            std::fprintf(stderr, "p2sub TICK n=%d clock=%.3f active=%lld buffered=%zu %s\n",
+                         tickCount, nowUs / 1e6, static_cast<long long>(idx), m_cueBuffer.size(),
+                         showing != wasShowing ? (showing ? "SHOW" : "CLEAR") : "");
+        wasShowing = showing;
+    }
     applyActiveSubtitle(idx >= 0 ? &m_cueBuffer[static_cast<size_t>(idx)] : nullptr);
     // Prune cues fully in the past (the active cue always has endUs > now, so it is never pruned).
     m_cueBuffer.erase(std::remove_if(m_cueBuffer.begin(), m_cueBuffer.end(),
