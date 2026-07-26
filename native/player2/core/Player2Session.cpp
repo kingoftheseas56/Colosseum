@@ -199,6 +199,7 @@ Player2Session::Player2Session(QObject *parent)
                          shifted.startUs / 1e6, shifted.endUs / 1e6,
                          (shifted.endUs - shifted.startUs) / 1e6, renderable ? 1 : 0,
                          shifted.width, shifted.height);
+        if (qEnvironmentVariableIsSet("P2_SUB_TRACE")) std::fflush(stderr);
         if (renderable) {
             m_cueBuffer.push_back(std::move(shifted));
             if (m_cueBuffer.size() > 1024)
@@ -312,6 +313,14 @@ qsizetype activeSubtitleCueIndex(const std::vector<SubtitleCue> &cues, qint64 no
 // drop cues fully in the past. No-ops until the clock is valid (no timeline yet / not playing).
 void Player2Session::evaluateSubtitles()
 {
+    if (qEnvironmentVariableIsSet("P2_SUB_TRACE")) {
+        static int preCount = 0;
+        if (++preCount % 25 == 0) {
+            std::fprintf(stderr, "p2sub PRE n=%d clockValid=%d buffered=%zu\n",
+                         preCount, m_playbackClock.valid() ? 1 : 0, m_cueBuffer.size());
+            std::fflush(stderr);
+        }
+    }
     if (!m_playbackClock.valid())
         return;
     const qint64 nowUs = m_playbackClock.positionAt(sessionQpcNow());
@@ -325,6 +334,7 @@ void Player2Session::evaluateSubtitles()
             std::fprintf(stderr, "p2sub TICK n=%d clock=%.3f active=%lld buffered=%zu %s\n",
                          tickCount, nowUs / 1e6, static_cast<long long>(idx), m_cueBuffer.size(),
                          showing != wasShowing ? (showing ? "SHOW" : "CLEAR") : "");
+            std::fflush(stderr);
         wasShowing = showing;
     }
     applyActiveSubtitle(idx >= 0 ? &m_cueBuffer[static_cast<size_t>(idx)] : nullptr);
