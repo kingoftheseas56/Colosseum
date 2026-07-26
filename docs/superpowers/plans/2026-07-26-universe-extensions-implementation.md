@@ -322,6 +322,44 @@ console.log(n, 'total', p.sections.reduce((a,s)=>a+s.entries.length,0));
 ```
 Expected: `{ tv: 8, shorts: 2, movies: 7, comics: 14 } total 31`
 
+- [x] **Step 2b: Every comic post ID resolves to its intended series — DONE 2026-07-26**
+
+Hemanth's ruling: *"we have to confirm if the posts linked connect to the particular comic series."* Each ID was fetched live at `https://getcomics.org/?p=<id>` and its page title read. **All 14 resolve, and all 14 match.** Re-run with:
+
+```bash
+while IFS='|' read -r id exp; do
+  t=$(curl -s -L --max-time 40 "https://getcomics.org/?p=$id" \
+      | grep -oiE "<title>[^<]*</title>" | head -1 | sed -e 's/<[^>]*>//g' -e 's/&#8211;/-/g')
+  printf "%-8s %-34s => %s\n" "$id" "$exp" "${t:-FAILED}"; sleep 1
+done < <(node -e "
+JSON.parse(require('fs').readFileSync('assets/universes/dcau.json','utf8'))
+  .universe.sections.find(s=>s.id==='comics').entries
+  .forEach(e=>e.posts.forEach(p=>console.log(p+'|'+e.title)));")
+```
+
+Verified result — every row landed on its own series:
+
+| post | payload title | GetComics page title |
+|---|---|---|
+| 11366 | The Batman Adventures | Batman Adventures (Collection) (1992-2004) |
+| 153724 | The Batman Adventures: Mad Love | Batman Adventures - Mad Love #1 (1994) |
+| 80956 | Mad Love Deluxe Edition | The Batman Adventures - Mad Love Deluxe Edition (2015) |
+| 50187 | Batman & Robin Adventures | Batman and Robin Adventures #1 - 25 + Annuals + Sub-Zero (1995-1997) |
+| 14615 | Superman Adventures | Superman Adventures #1 - 66 + Extras (1966-2002) |
+| 48881 | Adventures in the DC Universe | Adventures In the DC Universe #1 - 19 + Annual (1997-1998) |
+| 15941 | Batman: Gotham Adventures | Batman Gotham Adventures #1 - 60 (1998-2003) |
+| 190572 | Batman Beyond | Batman Beyond #1 - 24 (1999-2001) |
+| 163954 | Batman Beyond (TV tie-ins) | Batman Beyond (TV Tie-ins) (2000-2002) |
+| 282726 | Batman Beyond: Return of the Joker | Batman Beyond - Return of the Joker (2001) |
+| 10563 | Justice League Adventures | Justice League Adventures #1 - 34 (2002-2004) |
+| 10470 | Gotham Girls | Gotham Girls #1 - 5 (2002-2003) |
+| 183948 | Batman Adventures Vol. 2 | Batman Adventures Vol. 2 #1 - 17 (2003-2004) |
+| 8823 | Justice League Unlimited | Justice League Unlimited #1 - 46 (2004-2008) |
+
+**Two observations recorded rather than silently fixed — both are Hemanth's call:**
+- **Post 11366 is a *collection* spanning 1992-2004**, not only the 1992 series. Its range therefore overlaps post 183948 (*Batman Adventures Vol. 2*, 2003-2004), so those two rows can offer the same books twice. Leaving both is defensible (one is the omnibus, one the individual run); it is a curation choice, not a data error.
+- **Post 14615's own page title reads "(1966-2002)"** — a typo on GetComics' side; *Superman Adventures* began in 1996. Our payload says `"year": "1996"`, which is correct. Nothing to change here; noted so a future reader does not "correct" our right value to match their wrong one.
+
 - [ ] **Step 3: Commit**
 
 ```bash
@@ -1136,11 +1174,115 @@ git push origin master
 
 ---
 
-## Open questions for Hemanth — ask, do not guess
+## Task 11: The comics route — post IDs, not a tag
 
-1. **DCAU's display name.** The plan says *DC Animated Universe*; he has been saying *DCAU*. Task 1 uses the plan's name. One word changes it.
-2. **Comic destination.** A DCAU comic entry pins GetComics post IDs. `openComicArchive` currently expects a tag-shaped payload — if it cannot take `posts[]`, the comics row needs its own route and that is a separate task.
-3. **Icons beyond the two.** Both universes use verified metahub art for logo and background. There is no per-universe icon in `assets/addon-logos/`, so the Extensions row draws the honest letter square. Say if you want real marks there.
+**Files:**
+- Modify: `qml/Main.qml`
+
+Ruling 2. `openComicArchive` (`Main.qml:649`) is **tag-shaped**: it sets `boxTitle`, `tagSlug`, `boxCount`, `tagId` and the index layer resolves from `tagId`. A DCAU comic entry has none of those — it has verified `posts[]`. Wiring it to that route would open an empty archive.
+
+The seam that *does* fit already exists: **`openGcdSeries` injects an explicit `releases[]` array** into `westernLayer.baked` and opens `ComicSeriesPage` with no tag at all (`tagSlug = ""`, `tagId = 0`). A pinned post list is the same shape as a baked release list. That is the route to mirror.
+
+- [ ] **Step 1: Read the existing injection before writing anything**
+
+Read `openGcdSeries` in full (`qml/Main.qml`, from ~`:571`) **and** the `westernLayer` Loader's `onLoaded`. Mirror its exact property names — `bakedReleases`, `seriesTitle`, `poster`, `openChapterId` and any others it sets. **Do not infer them from this plan**; the list here is illustrative and the file is the truth. Also read `ComicSeriesPage.qml:47` and `:433` to confirm which release fields are actually consumed (`url` feeds `postUrl` feeds `Comics.downloadIssue`).
+
+- [ ] **Step 2: Add the route**
+
+Add beside `openGcdSeries`, mirroring whatever Step 1 found:
+
+```qml
+    // ---- a universe's comic row: the entry pins VERIFIED GetComics post IDs, so there is
+    //      no tag to resolve. This mirrors openGcdSeries' baked injection — an explicit
+    //      release list, tagSlug/tagId deliberately empty. `?p=<id>` is GetComics' canonical
+    //      permalink and redirects to the post, which is what downloadIssue consumes.
+    //      d: { title, posts: [Number], year? } ----
+    function openUniverseComic(d) {
+        var posts = (d && d.posts) || []
+        if (!posts.length) return
+        var rel = []
+        for (var i = 0; i < posts.length; i++)
+            rel.push({ id: String(posts[i]),
+                       url: "https://getcomics.org/?p=" + posts[i],
+                       name: d.title || "", cover: "",
+                       year: Number(d.year || 0), sizeMB: 0, synopsis: "",
+                       date: "", collection: true })
+        // ... then set westernLayer.baked / .title / .tagSlug="" / .tagId=0 and activate,
+        // exactly as openGcdSeries does. Match its live-vs-reinject branch too.
+    }
+```
+
+- [ ] **Step 3: Repoint the connection made in Task 9**
+
+In `universeLayer.onLoaded`, change `item.comicsArchiveRequested.connect(win.openComicArchive)` to `item.comicsArchiveRequested.connect(win.openUniverseComic)`. `UniverseExtensionPage.openEntry` already emits `{ title, posts }` — extend it to pass `year` as well.
+
+- [ ] **Step 4: Prove one post actually reaches a download**
+
+Launch, open DC Animated Universe, click **Justice League Unlimited** in the Comics row. Expected: `ComicSeriesPage` opens with a release list, not an empty archive. **This is the one step that cannot be proven headlessly** — a redirect that `Comics.downloadIssue` fails to follow would look identical to success until download time, so watch one issue actually start.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add qml/Main.qml qml/UniverseExtensionPage.qml
+git commit -m "feat(universes): comics open by pinned post ID, mirroring the baked release route"
+```
+
+---
+
+## Task 12: Real marks for both universes
+
+**Files:**
+- Create: `assets/addon-logos/one-piece.png`
+- Modify: `qml/AddonLogos.js`
+
+Ruling 3: One Piece takes the **One Pace** add-on's mark; DC Animated Universe takes the **DC Universe** add-on's mark. `dc.png` already ships — only One Piece's is missing.
+
+- [ ] **Step 1: Fetch the One Pace mark and normalise it**
+
+Its URL is the live manifest's own logo, read from the installed profile — not a guess:
+
+```bash
+node -e "
+const j=JSON.parse(require('fs').readFileSync(process.env.APPDATA+'/Brotherhood/Colosseum/extensions/installed.json','utf8'));
+console.log(j.extensions.find(e=>e.id==='com.onepace.fedew').manifest.logo);"
+# → https://i.pinimg.com/originals/4c/46/ee/4c46ee47e0710a6d928454f68fc4ee17.png  (verified 200, 40 KB)
+curl -sL -o assets/addon-logos/one-piece.png "<that url>"
+python -c "from PIL import Image; im=Image.open('assets/addon-logos/one-piece.png').convert('RGBA'); im.thumbnail((256,256)); im.save('assets/addon-logos/one-piece.png')"
+```
+
+256 is the house cap — these tiles draw at 96px max, and an oversized logo is what cost 115 MB of decode earlier this arc.
+
+- [ ] **Step 2: Map both, matched on extension ID**
+
+In `qml/AddonLogos.js`, add to the catalogs block **above** the existing `marvel.png` / `dc.png` rules:
+
+```javascript
+    // ---- universes: an installed universe wears the mark of the add-on it grew out of
+    //      (Hemanth, 2026-07-26). Matched on ID, not name: "DC Animated Universe" does not
+    //      match the dc.png rule's /\bdc universe\b/, and matching loosely on "one pace"
+    //      vs "One Piece" would cross the two.
+    { file: "one-piece.png", m: function (id, n) { return id === "com.colosseum.universe.onepiece"; } },
+    { file: "dc.png",        m: function (id, n) { return id === "com.colosseum.universe.dcau"; } },
+```
+
+- [ ] **Step 3: Extend the logo harness and run it**
+
+Add both rows to `tests/addon_logos_harness.qml`'s table beside the existing `["com.tapframe.dcaddon", "DC Universe", "dc.png"]`, then run the logo suite. Confirm the existing `com.tapframe.dcaddon` row still resolves to `dc.png` — a **negative control** proving the new ID rules did not shadow it.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add assets/addon-logos/one-piece.png qml/AddonLogos.js tests/addon_logos_harness.qml
+git commit -m "feat(universes): both universes wear their add-on marks in the Extensions row"
+```
+
+---
+
+## Rulings — answered by Hemanth 2026-07-26, no longer open
+
+1. **DCAU's display name → "DC Animated Universe".** Task 1 already writes exactly that; no change. The short form is chat shorthand only and must not reach a surface.
+2. **Comic destination → confirm the posts first, then route.** All 14 post IDs were fetched and verified (Task 3 Step 2). `openComicArchive` is confirmed **tag-shaped** (`Main.qml:649` sets `tagSlug`/`tagId` only) and cannot take `posts[]` — so the comics row gets its own route, **Task 11**.
+3. **Icons → reuse the two existing add-on marks.** One Piece takes the **One Pace** add-on's mark; DC Animated Universe takes the **DC Universe** add-on's mark, which already ships as `assets/addon-logos/dc.png`. **Task 12.**
 
 ---
 
