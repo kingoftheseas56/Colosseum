@@ -161,10 +161,13 @@ Item {
         if (!hud) { failures.push("hud: createObject returned null"); return }
 
         // ----- every HUD glyph is a ComicReaderIcon (its kind is enumerable) -----
+        // "back" is EXEMPT: icBack is now the shared BackAction component (back-navigation
+        // unification law), which owns its own vector chevron and has no glyphKind — it isn't
+        // part of the per-icon audit, so it's absent from iconKinds by design.
         var kinds = hud.iconKinds
-        ck(kinds !== undefined && kinds.length >= 9,
-           "hud: expected >=9 ComicReaderIcon glyphs, got " + (kinds ? kinds.length : "<none>"))
-        var needed = ["back", "prev", "next", "chapters", "thumbnails", "settings", "minimize", "fullscreen", "close"]
+        ck(kinds !== undefined && kinds.length >= 8,
+           "hud: expected >=8 ComicReaderIcon glyphs, got " + (kinds ? kinds.length : "<none>"))
+        var needed = ["prev", "next", "chapters", "thumbnails", "settings", "minimize", "fullscreen", "close"]
         for (var n = 0; n < needed.length; n++)
             ck(kinds && kinds.indexOf(needed[n]) >= 0, "hud: glyph '" + needed[n] + "' must be a ComicReaderIcon in the HUD, got " + JSON.stringify(kinds))
 

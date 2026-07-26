@@ -174,9 +174,11 @@ Item {
         else        { if (rtl) retreatPageRequested(); else advancePageRequested() }
     }
 
-    // enumerable glyph inventory — every HUD glyph is a ComicReaderIcon (semantic-icon-audit oracle)
+    // enumerable glyph inventory — every HUD glyph is a ComicReaderIcon (semantic-icon-audit oracle).
+    // icBack is EXEMPT: it's the shared BackAction component now (back-navigation unification law),
+    // which owns its own vector chevron and carries no glyphKind — it isn't part of the per-icon audit.
     readonly property var iconKinds: [
-        icBack.glyphKind, icPrev.glyphKind, icNext.glyphKind,
+        icPrev.glyphKind, icNext.glyphKind,
         icChapters.glyphKind, icThumbs.glyphKind, icSettings.glyphKind,
         icMin.glyphKind, icFull.glyphKind, icClose.glyphKind
     ]
@@ -318,35 +320,24 @@ Item {
         }
 
         // ---- back to Library (top-left) — bright glyph + label on the scrim, no glass box ----
-        Row {
+        // Shared BackAction component (back-navigation unification law). raisedLabel:true opts
+        // into the black drop-shadow under both the chevron and the label — Hemanth's legibility
+        // ruling for a control with no chrome behind it, sitting directly on bright manga art.
+        BackAction {
             id: icBack
-            x: 18; y: 16
-            spacing: 7
-            property alias glyphKind: backGlyph.kind   // enumerated by iconKinds (audit)
-            ComicReaderIcon {
-                id: backGlyph
-                anchors.verticalCenter: parent.verticalCenter
-                kind: "back"
-                width: 20; height: 20
-                ink: backMa.containsMouse ? theme.gold : theme.ink
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Library"
-                color: backMa.containsMouse ? theme.gold : theme.ink
-                font.family: theme.hud
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.5)
-            }
-            MouseArea {
-                id: backMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: hud.backRequested()
-            }
+            objectName: "hudBackAction"
+            // BackAction's implicitHeight is a fixed 34px (all variants) and vertically centers its
+            // Row inside that box; the old hand-built Row sat directly at y:16 with no such box. y:9
+            // compensates so the visible chevron+label land at the SAME screen position as before
+            // (measured offscreen: root height 34, Row offset 7px within it -> 9+7=16).
+            x: 18; y: 9
+            variant: "plain"
+            label: "Library"
+            raisedLabel: true
+            labelSize: 14
+            idleColor: theme.ink
+            hoverColor: theme.gold
+            onTriggered: hud.backRequested()
         }
 
         // ---- window verbs (top-right) — transparent RoundButtons on the scrim, bright ink ----
