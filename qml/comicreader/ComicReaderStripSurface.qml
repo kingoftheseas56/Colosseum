@@ -86,6 +86,14 @@ Item {
     property alias contentY: list.contentY
     readonly property int rowCount: list.count
     readonly property real contentHeight: list.contentHeight
+    // Is the column parked at the bottom — or already gliding into it? The shell asks this to decide
+    // whether a page-down should scroll or announce the end of the volume. It counts the IN-FLIGHT
+    // backlog deliberately: without that, a second Space pressed while the first is still gliding
+    // would read the not-yet-arrived position and announce the end while the page is still moving.
+    readonly property bool atEnd: {
+        var span = Math.max(0, list.contentHeight - list.height)
+        return span <= 0 || (list.contentY + _pendingWheelPx) >= span - 1
+    }
     function itemAt(i) { return list.itemAtIndex(i) }
     function forceRelayout() { list.forceLayout() }
 

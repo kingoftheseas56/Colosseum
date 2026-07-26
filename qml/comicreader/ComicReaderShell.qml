@@ -335,11 +335,25 @@ Item {
         }
         return [idx0, idx0]
     }
+    // F5: the end of a volume ANNOUNCES itself instead of going quiet. Pressing forward at the last
+    // page used to do nothing at all, which is indistinguishable from a dropped input — you press
+    // again, harder, and wonder if the reader is stuck. If there is a next entry the toast says how
+    // to reach it, using the binding that actually exists (Alt+Right / the next pill), never an
+    // invented one.
+    function _endOfVolumeToast() {
+        hud.showToast(hasNext ? "End of volume — Alt+Right for the next" : "End of volume")
+    }
     function pageNext() {
         if (mode === "double_page") {
             var t = _unitBoundsForIndex(currentPage - 1)[1] + 1
-            if (t < max) currentPage = _unitBoundsForIndex(t)[0] + 1
-        } else _stripScroll(0.9)
+            if (t < max) { currentPage = _unitBoundsForIndex(t)[0] + 1; return }
+            _endOfVolumeToast()
+        } else {
+            // Strip only announces when the column is genuinely parked at (or gliding into) the
+            // bottom, so a normal page-down mid-book stays silent.
+            if (!stripSurface.atEnd) { _stripScroll(0.9); return }
+            _endOfVolumeToast()
+        }
     }
     function pagePrev() {
         if (mode === "double_page") {

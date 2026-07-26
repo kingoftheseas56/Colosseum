@@ -424,6 +424,34 @@ Item {
            + harness.stripManualNavCount + " vs " + (manualBefore + 1))
         stripSurface.haltScrollAt(0)
 
+        // --- F5 seam: atEnd, the shell's "is there anything left to scroll" question ---
+        // The span is re-read immediately before every step, never cached: contentHeight moves as
+        // the ListView relayouts, and haltScrollAt does NOT clamp — caching it once parked the
+        // column 97,000px past the end of the book and made the first draft of this test fail for
+        // its own reasons rather than the code's.
+        function spanNowF5() {
+            stripSurface.forceRelayout()
+            return stripSurface.contentHeight - stripSurface.height
+        }
+
+        stripSurface.haltScrollAt(0)
+        ck(spanNowF5() > 0, "atEnd: fixture must have a scrollable span to test against, got " + spanNowF5())
+        ck(stripSurface.atEnd === false, "atEnd: must be false at the top of a long book")
+
+        stripSurface.haltScrollAt(spanNowF5())
+        ck(stripSurface.atEnd === true, "atEnd: must be true once parked at the bottom (contentY="
+           + stripSurface.contentY + " span=" + spanNowF5() + ")")
+
+        // It counts the IN-FLIGHT backlog: a second key pressed while the first is still gliding
+        // toward the bottom must not read the not-yet-arrived position and announce the end early.
+        stripSurface.haltScrollAt(spanNowF5() - 2000)
+        ck(stripSurface.atEnd === false, "atEnd: must be false 2000px short of the bottom (contentY="
+           + stripSurface.contentY + " span=" + spanNowF5() + ")")
+        stripSurface.smoothScrollBy(5000)                 // a glide that will land past the bottom
+        ck(stripSurface.atEnd === true,
+           "atEnd: a glide already heading past the bottom must count as at-the-end (backlog aware)")
+        stripSurface.haltScrollAt(0)
+
         // --- RESTORE (B2): the surface is a PAINTER. It restores nothing itself — the shell puts the
         // column somewhere by CALLING seekToPage()/haltScrollAt(). This replaces the old bound
         // `resumeFraction` + `_resumeApplied` latch, which was a feedback loop (the surface's own

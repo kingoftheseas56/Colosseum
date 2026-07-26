@@ -86,7 +86,19 @@ Item {
         property var lastVisible: null
         function setVisible(pages) { lastVisible = pages }
         property var fakeUnit: null   // when set, unitForPage returns THIS regardless of page (B5 RTL test)
-        function unitForPage(page) { return fakeUnit !== null ? fakeUnit : { rightIndex: page - 1, leftIndex: -1, spread: false } }
+        // NOTE on the default: it answers `rightIndex: page - 1`, which is NOT what the real core
+        // answers for an unpaired page (ComicReaderCore returns rightIndex == page). The existing
+        // checks that use this fake only care that SOME unit comes back, so the shift is harmless to
+        // them and is left alone rather than changed underneath them. It is not harmless to anything
+        // doing forward unit arithmetic: with the shift, "the unit after this one" walks backwards,
+        // so pageNext could never advance and an end-of-book test read as a code bug for an hour.
+        // unitIdentity opts into the real core's contract for tests that need honest unit math.
+        property bool unitIdentity: false
+        function unitForPage(page) {
+            if (fakeUnit !== null) return fakeUnit
+            if (unitIdentity) return { rightIndex: page, leftIndex: -1, spread: false }
+            return { rightIndex: page - 1, leftIndex: -1, spread: false }
+        }
         // spread override spy (B5): pageInfo reports the override as absent/true/false (matches the
         // real core's PageMeta::toVariantMap — absence IS the auto state, never a third "auto" value).
         property var fakePageInfo: ({})
@@ -955,6 +967,70 @@ Item {
             harness._csShell = csShell
             harness._csArea = csArea
 
+            // -- 13. F5 END OF VOLUME: pressing forward on the last page ANNOUNCES the end instead
+            // of going silent. Silence there is indistinguishable from a dropped input — you press
+            // again, harder, and wonder whether the reader is stuck. --
+            var f5Store = fakeStoreF5
+            f5Store.pages = fivePages()
+            fakeCoreF5.unitIdentity = true      // honest unit math — see the FakeCore note
+            var f5Shell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-f5", "seriesTitle": "EndOfVolume", "seriesCover": "file:///f/f5.png",
+                "core": fakeCoreF5, "progress": fakeProgF5, "pageStore": f5Store,
+                "persistedMode": "double_page",
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],     // ONLY chapter -> no next
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            var f5Toast = byName(f5Shell, "hudToastText")
+            ck(f5Toast !== null, "F5: the HUD toast text must be reachable (objectName 'hudToastText')")
+            ck(f5Shell.hasNext === false, "F5: a single-chapter fixture must report hasNext=false, got " + f5Shell.hasNext)
+
+            ck(f5Shell.mode === "double_page",
+               "F5: fixture must mount in double_page, got '" + f5Shell.mode + "' (max=" + f5Shell.max + ")")
+
+            // mid-book: a normal page turn must stay SILENT
+            f5Shell.currentPage = 1
+            var f5Before = f5Toast ? f5Toast.text : ""
+            f5Shell.pageNext()
+            ck(f5Shell.currentPage > 1, "F5: a mid-book pageNext must actually turn the page, got "
+               + f5Shell.currentPage + " (mode=" + f5Shell.mode + " max=" + f5Shell.max + ")")
+            ck(!f5Toast || f5Toast.text === f5Before,
+               "F5: a mid-book page turn must NOT toast, got '" + (f5Toast ? f5Toast.text : "") + "'")
+
+            // last page: announce, and with no next entry say only that
+            f5Shell.currentPage = f5Shell.max
+            f5Shell.pageNext()
+            ck(f5Shell.currentPage === f5Shell.max,
+               "F5: pageNext at the end must not move past the last page, got " + f5Shell.currentPage)
+            ck(f5Toast && f5Toast.text === "End of volume",
+               "F5: the end of a volume with no next entry must toast 'End of volume', got '"
+               + (f5Toast ? f5Toast.text : "") + "'")
+
+            // ...and when there IS a next entry, it names the binding that actually exists.
+            var f5bStore = fakeStoreF5b
+            f5bStore.pages = fivePages()
+            fakeCoreF5b.unitIdentity = true
+            var f5bShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-f5b", "seriesTitle": "EndOfVolumeNext", "seriesCover": "file:///f/f5b.png",
+                "core": fakeCoreF5b, "progress": fakeProgF5b, "pageStore": f5bStore,
+                "persistedMode": "double_page",
+                "entryKind": "manga", "western": false,
+                // chapters are NEWEST-FIRST (see the crossing checks above): "next" means index-1,
+                // toward the newest. The open entry must therefore sit LAST for a next to exist.
+                "chapters": [{ "id": "ch2", "number": "2", "name": "" },
+                             { "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            var f5bToast = byName(f5bShell, "hudToastText")
+            ck(f5bShell.hasNext === true, "F5: a two-chapter fixture on the first must report hasNext=true, got " + f5bShell.hasNext)
+            f5bShell.currentPage = f5bShell.max
+            f5bShell.pageNext()
+            ck(f5bToast && f5bToast.text === "End of volume — Alt+Right for the next",
+               "F5: with a next entry the toast must name the REAL binding (Alt+Right, per "
+               + "ComicReaderInput's nextEntry), got '" + (f5bToast ? f5bToast.text : "") + "'")
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -1073,6 +1149,8 @@ Item {
     FakeCore { id: fakeCoreB6 }  FakeProgress { id: fakeProgB6 }  FakePageStore { id: fakeStoreB6 }
     FakeCore { id: fakeCoreVP }  FakeProgress { id: fakeProgVP }  FakePageStore { id: fakeStoreVP }
     FakeCore { id: fakeCoreCS }  FakeProgress { id: fakeProgCS }  FakePageStore { id: fakeStoreCS }
+    FakeCore { id: fakeCoreF5 }  FakeProgress { id: fakeProgF5 }  FakePageStore { id: fakeStoreF5 }
+    FakeCore { id: fakeCoreF5b } FakeProgress { id: fakeProgF5b } FakePageStore { id: fakeStoreF5b }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
