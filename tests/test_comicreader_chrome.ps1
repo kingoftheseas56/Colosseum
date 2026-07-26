@@ -86,6 +86,21 @@ $output = & $qmlExe -platform offscreen -I $mockPath $harness 2>&1 | Out-String
 $code = $LASTEXITCODE
 $ErrorActionPreference = $prevEAP
 
+# --- a positioner warning means a control is silently DEAD, so it fails the gate ---
+# Qt refuses fill/centerIn anchors on a child of a Row/Column and says so, then gives that child
+# ZERO size. A MouseArea that loses its size stops receiving clicks while still looking perfect on
+# screen: exactly how the reader shipped a "Back to Library" button that did nothing for a day
+# (Hemanth, 2026-07-26 — Escape worked, the button never had). Qt printed this warning on every
+# run the whole time and it scrolled past, because the behavioural assertions were all green.
+# It is not noise. It is a control that does not work.
+if ($output -match "Cannot specify left, right, horizontalCenter, fill or centerIn anchors for items inside (Row|Column)") {
+    Write-Host "FAIL: a positioner-anchor warning was emitted - some item inside a Row/Column has"
+    Write-Host "      fill/centerIn anchors. Qt gives that item ZERO size, so if it is a MouseArea"
+    Write-Host "      the control it belongs to is dead to clicks while still rendering fine."
+    Write-Host $output
+    exit 1
+}
+
 if ($code -ne 0 -or ($output -notmatch "COMICREADER_CHROME_OK")) {
     Write-Host "FAIL: comic reader chrome offscreen harness (exit $code)"
     Write-Host $output
