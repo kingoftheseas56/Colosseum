@@ -4,9 +4,9 @@
 import { readFileSync } from 'node:fs';
 let src = readFileSync('qml/UniverseExtApi.js', 'utf8').replace(/^\.pragma library\s*$/m, '');
 const mod = {};
-new Function('module', 'XMLHttpRequest',
+new Function('module',
   src + '\nmodule.validate=validate;module.fileFor=fileFor;module.load=load;module.setReader=setReader;'
-)(mod, function(){});
+)(mod);
 
 let failed = 0;
 const ok  = m => console.log('  ok   ' + m);
@@ -84,9 +84,9 @@ eq(mod.fileFor('com.example.other'), '', 'unknown extension has no payload');
 // module instance so one test's cache never bleeds into the next.
 function freshMod() {
   const m = {};
-  new Function('module', 'XMLHttpRequest',
+  new Function('module',
     src + '\nmodule.validate=validate;module.fileFor=fileFor;module.load=load;module.setReader=setReader;'
-  )(m, function(){});
+  )(m);
   return m;
 }
 const okPayload = JSON.stringify({ universe: { title: 'X', sections: [
@@ -144,6 +144,36 @@ console.log('\nload(): a cache hit never calls the reader again');
   m.load('com.colosseum.universe.onepiece', function () {});
   m.load('com.colosseum.universe.onepiece', function () {});
   eq(readerCalls, 1, 'reader called once despite two loads');
+}
+
+console.log('\nload(): no reader installed → done(null) once, nothing cached');
+{
+  const m = freshMod();
+  let calls = 0;
+  m.load('com.colosseum.universe.onepiece', function (p) { calls++; eq(p, null, 'done(null) with no reader'); });
+  eq(calls, 1, 'done called exactly once with no reader');
+  // a later setReader + load must still succeed — the missing-reader case was NOT cached
+  m.setReader(function (f) { return okPayload; });
+  let after = 'unset';
+  m.load('com.colosseum.universe.onepiece', function (p) { after = p; });
+  eq(after && after.sections.length, 1, 'load succeeds once a reader is installed');
+}
+
+console.log('\nload(): a payload that validates to zero sections is a failure, not cached');
+{
+  const m = freshMod();
+  const emptyPayload = JSON.stringify({ universe: { title: 'X', sections: [
+    { id: 'e', title: 'E', kind: 'video', entries: [{ id: 'x', title: 'no type' }] }
+  ]}});
+  let bad = true;
+  m.setReader(function (f) { return bad ? emptyPayload : okPayload; });
+  let first = 'unset';
+  m.load('com.colosseum.universe.onepiece', function (p) { first = p; });
+  eq(first, null, 'done(null) when validation empties every section');
+  bad = false;
+  let second = 'unset';
+  m.load('com.colosseum.universe.onepiece', function (p) { second = p; });
+  eq(second && second.sections.length, 1, 'a subsequent good payload for the same id loads fine');
 }
 
 console.log('\nload(): unknown extension id → done(null), reader never called');

@@ -65,11 +65,19 @@ function load(extensionId, done) {
     if (_cache[extensionId]) { done(_cache[extensionId]); return; }
     var file = fileFor(extensionId);
     if (!file) { done(null); return; }
-    var text = _reader ? _reader(file) : "";
+    if (!_reader) {
+        console.warn("UniverseExtApi: no reader installed — call setReader() at startup; "
+                     + "every universe will render empty until you do.");
+        done(null); return;
+    }
+    var text = _reader(file) || "";
     var parsed = null;
     try { parsed = text ? JSON.parse(text) : null; } catch (e) { parsed = null; }
     if (!parsed) { done(null); return; }        // failures are NOT cached — next call retries
     var v = validate(parsed);
+    // A payload that parses but validates to nothing is a FAILURE, not an empty success:
+    // caching it would blank the universe for the process lifetime with no way back.
+    if (!v.sections.length) { done(null); return; }
     _cache[extensionId] = v;
     done(v);
 }
