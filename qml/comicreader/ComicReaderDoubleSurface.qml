@@ -190,7 +190,13 @@ Item {
 
     function setZoom(pct) {
         zoomPercent = Math.max(100, Math.min(260, Math.round(pct)))
-        panX = 0; panY = 0
+        // Keep the reader's place: clamp the existing pan into the new bounds rather than zeroing it.
+        // A zoom step used to teleport you to the corner of the spread — in RTL manga, the far end of
+        // the page you were reading. Both lineage readers clamp and never zero (Tankoban 2
+        // ComicReader.cpp applyPan; Reader 1 MangaReader.qml zoomBy -> clampPan()). Pan is reset by a
+        // UNIT change, in _onUnitShown() — a new spread, not a zoom step.
+        panX = Math.max(0, Math.min(panXMax, panX))
+        panY = Math.max(0, Math.min(panYMax, panY))
     }
     function zoomIn()  { setZoom(clampedZoom + 20) }
     function zoomOut() { setZoom(clampedZoom - 20) }

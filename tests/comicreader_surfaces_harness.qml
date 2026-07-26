@@ -160,7 +160,8 @@ Item {
     FakeCore { id: coreFresh }
     FakeCore { id: coreScale }     // MISMATCHED pair, sizes from the backend (pageInfo)
     FakeCore { id: coreShort }     // pair SHORTER than the viewport (centring + gutter)
-    FakeCore { id: coreDecoded }   // no backend sizes: real data: URL pixels drive implicitWidth
+    FakeCore { id: coreZoomPan }   // TALL pair: real headroom on BOTH pan axes at every zoom
+    FakeCore { id: coreDecoded }   // no backend sizes: the file fixtures' pixels drive implicitWidth
 
     property var stripComp: null
     property var doubleComp: null
@@ -698,6 +699,93 @@ Item {
         dbl.destroy()
     }
 
+    // A ZOOM STEP MUST KEEP YOUR PLACE. setZoom() used to slam both pan axes to 0, so panning across
+    // to read a panel at 200% and pressing Ctrl+= once more teleported you to the corner of the
+    // spread — in RTL manga, the far end of the page you were reading. Both lineage readers clamp the
+    // existing pan into the new bounds and never zero it (Tankoban 2 ComicReader.cpp applyPan, which
+    // only ever clamps; Colosseum Reader 1 MangaReader.qml zoomBy, which calls clampPan() and nothing
+    // else). Pan is reset by a UNIT CHANGE — a new spread — not by a zoom step; that contract is
+    // asserted in runDouble() and stays.
+    //
+    // The fixture is a TALL mismatched pair with real backend geometry, so BOTH axes have genuine
+    // headroom and neither assertion can pass by accident. That matters for panY especially: since
+    // the geometry rework, panYMax is the DRAWN unit's overflow, so it scales with zoom AND stays
+    // above zero at 100% for any spread taller than the viewport. A pair with no backend geometry
+    // (the older double fixtures) falls back to _rightH == the viewport height, which makes panYMax
+    // identically 0 at every zoom and would make the vertical half of this test vacuous.
+    function runDoubleZoomKeepsPan() {
+        // 800x480 viewport; both halves 2200 tall -> at 100% the pair draws 567.74 tall and OVERFLOWS.
+        coreZoomPan.units[50] = { rightIndex: 50, leftIndex: 51, spread: false, coverAlone: false }
+        coreZoomPan.pageSizes[50] = { w: 1550, h: 2200 }
+        coreZoomPan.pageSizes[51] = { w: 1500, h: 2200 }
+        var dbl = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 51, "rtl": true, "core": coreZoomPan
+        })
+        if (!dbl) { failures.push("zoom-pan: createObject returned null"); return }
+        ck(dbl.isPair, "zoom-pan: fixture must be a PAIR")
+
+        // --- read a panel at 200%, then take one more zoom step IN (the bounds GROW) ---
+        dbl.setZoom(200)
+        dbl.panBy(120, 80)
+        var keepX = dbl.panX, keepY = dbl.panY
+        ck(keepX > 0 && keepY > 0,
+           "zoom-pan precondition: a pan must apply on BOTH axes at 200%, got x=" + keepX + " y=" + keepY)
+
+        dbl.setZoom(220)
+        ck(dbl.panX > 0 && approx(dbl.panX, Math.min(keepX, dbl.panXMax), 1e-9),
+           "zoom-pan: a zoom step must KEEP the horizontal pan (clamped into the new bounds), want "
+           + Math.min(keepX, dbl.panXMax) + " got " + dbl.panX
+           + " — zeroing it teleports you to the corner of the spread mid-panel")
+        ck(dbl.panY > 0 && approx(dbl.panY, Math.min(keepY, dbl.panYMax), 1e-9),
+           "zoom-pan: a zoom step must KEEP the vertical pan too (clamped into the new bounds), want "
+           + Math.min(keepY, dbl.panYMax) + " got " + dbl.panY)
+
+        // --- now zoom OUT from the far corner: this is where the clamp actually has to bite, and
+        // where "keep it" would otherwise leave the pan outside the smaller bounds ---
+        dbl.panBy(99999, 99999)
+        var farX = dbl.panX, farY = dbl.panY
+        ck(approx(farX, dbl.panXMax, 1e-9) && approx(farY, dbl.panYMax, 1e-9),
+           "zoom-pan precondition: parked at the far corner of the 220% spread, got x=" + farX + " y=" + farY)
+
+        dbl.setZoom(120)
+        ck(dbl.panX > 0 && dbl.panX < farX && approx(dbl.panX, dbl.panXMax, 1e-9),
+           "zoom-pan: zooming OUT must CLAMP the kept horizontal pan down to the smaller panXMax ("
+           + dbl.panXMax + "), not zero it and not leave it out of bounds at " + farX + ", got " + dbl.panX)
+        ck(dbl.panY > 0 && dbl.panY < farY && approx(dbl.panY, dbl.panYMax, 1e-9),
+           "zoom-pan: zooming OUT must CLAMP the kept vertical pan down to the smaller panYMax ("
+           + dbl.panYMax + "), not zero it, got " + dbl.panY)
+
+        // --- back to 100%. panX lands on 0, but it must land there BECAUSE the clamp has nowhere
+        // left to go, not because setZoom zeroes anything: at 100% the content is exactly the
+        // viewport width, so panXMax IS 0. panY is the proof that nothing is being zeroed — this
+        // spread is still taller than the viewport at 100%, so vertical headroom REMAINS and the
+        // kept pan must survive, clamped. ---
+        dbl.setZoom(100)
+        ck(approx(dbl.panXMax, 0, 1e-9),
+           "zoom-pan: at 100% the content is exactly the viewport width, so panXMax must be 0 (this is "
+           + "WHY panX lands on 0 below), got " + dbl.panXMax)
+        ck(dbl.panX === 0,
+           "zoom-pan: back at 100% the clamp alone must take panX to 0 (panXMax is 0 there), got " + dbl.panX)
+        ck(dbl.panYMax > 0,
+           "zoom-pan precondition: this pair is TALLER than the viewport at 100% (drawn "
+           + dbl.unitHeight.toFixed(2) + " vs " + dbl.height + "), so vertical headroom must REMAIN, got panYMax "
+           + dbl.panYMax)
+        ck(dbl.panY > 0 && approx(dbl.panY, dbl.panYMax, 1e-9),
+           "zoom-pan: back at 100% a spread that still overflows must KEEP its vertical pan, clamped to "
+           + "panYMax (" + dbl.panYMax + ") — landing on 0 here is the tell that setZoom is zeroing "
+           + "rather than clamping, got " + dbl.panY)
+
+        // --- and the reset that MUST still happen: a new unit ---
+        dbl.setZoom(200)
+        dbl.panBy(120, 80)
+        coreZoomPan.units[52] = { rightIndex: 52, leftIndex: 53, spread: false, coverAlone: false }
+        dbl.currentPage = 53
+        ck(dbl.panX === 0 && dbl.panY === 0,
+           "zoom-pan: a UNIT change must still reset pan to the origin (only zoom survives a turn), got x="
+           + dbl.panX + " y=" + dbl.panY)
+        dbl.destroy()
+    }
+
     // ---- FALLBACK path, then the OVERRIDE. Two PNG fixtures with genuinely different dimensions
     // (200x300 and 150x300) that the Image really loads, so the fallback runs on the decoder's own
     // implicitWidth/implicitHeight rather than on numbers this harness injected.
@@ -818,6 +906,7 @@ Item {
             runDoubleFreshOpen()
             runDoubleUnifiedScale()
             runDoubleCentring()
+            runDoubleZoomKeepsPan()
             runDoubleDecodedPair()   // synchronous: the fixtures are pre-warmed into the pixmap cache
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
