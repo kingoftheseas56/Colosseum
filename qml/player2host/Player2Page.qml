@@ -133,6 +133,8 @@ Item {
             // assuming one (the shell defaults to windowed and had never been told otherwise).
             windowed: (typeof WindowMode !== "undefined") ? WindowMode.shellWindowed : true
             mediaSubtitle: page.mediaSubtitle
+            // Production's pause-card gate excludes `starting` and `errored`; the page owns both.
+            loaderActive: page._starting || page.errored
 
             // These two were declared by the shell and connected to NOTHING (cross-model review,
             // 2026-07-26, P0). Every source pick in the drawer, and the HUD's new switch button,
@@ -364,6 +366,15 @@ Item {
 
     // --- internals ----------------------------------------------------------------------------
 
+    // A retry or reconnect re-arms the loader, because the shipped player raises `starting` again in
+    // exactly those two places (its "Retrying stream..." and "Reconnecting stream..." paths) even
+    // after playback has begun. The latch alone only covered the FIRST open, which the cross-model
+    // review flagged: without this, a re-resolve after first play would show a frozen picture with
+    // no indication anything was happening.
+    function _rearmLoader() {
+        page._hasPlayed = false
+    }
+
     function _reset() {
         page.pendingSeekSec = 0
         page.errorText = ""
@@ -408,6 +419,7 @@ Item {
         hostServices.currentStreamIndex = i
         page.errorText = ""
         page._awaitingStream = false
+        page._rearmLoader()   // a re-resolve shows the loader again, as production's retry does
         if (row.url && String(row.url).length) {
             hostServices.mediaResumeHash = String(row.infoHash || "")
             hostServices.mediaResumeFileIdx = Number(row.fileIdx || 0)

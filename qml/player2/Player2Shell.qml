@@ -98,7 +98,10 @@ Item {
     // Production also refuses the card while the player is starting, errored, or mid-seek, and until
     // the file is ready (its `fileReady` gate). Without those, a paused-but-buffering engine could
     // raise a details card over a player that has nothing to show yet.
-    readonly property bool pauseCardEligible: shell.paused && !shell.menusOpen
+    // Host-fed: the page owns the loading/error surface, and production's pause-card gate excludes
+    // `starting` and `errored` outright. Without this the card could sit under a loading screen.
+    property bool loaderActive: false
+    readonly property bool pauseCardEligible: shell.paused && !shell.menusOpen && !shell.loaderActive
                                               && shell.session && shell.session.duration > 0
                                               && shell.session.state !== 1   // Opening
                                               && shell.session.state !== 2   // Buffering
@@ -446,6 +449,7 @@ Item {
     PauseCard {
         anchors.fill: parent
         theme: shell.theme
+        barTiny: transportBar.barTiny   // fold with the dock, on the dock's own measure
         shown: shell.pauseCardShown
         mediaTitle: shell.mediaTitle
         mediaLogo: shell.mediaLogo
