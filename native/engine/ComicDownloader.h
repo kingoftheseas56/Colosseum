@@ -33,6 +33,8 @@
 
 #pragma once
 
+#include "DownloadFileOps.h"
+
 #include <QHash>
 #include <QList>
 #include <QObject>
@@ -152,7 +154,7 @@ public:
     Q_INVOKABLE QVariantList activeIssueJobs() const;
 
     Q_INVOKABLE void cancelDownload(const QString& issueId);
-    Q_INVOKABLE void deleteIssue(const QString& issueId);
+    Q_INVOKABLE QVariantMap deleteIssue(const QString& issueId);
 
     // Headless smoke (COLOSSEUM_COMIC_DLTEST=<postUrl>): resolve → download →
     // extract a real post, log OK/FAILED + the page count. Drive-harness food.
@@ -253,6 +255,9 @@ private:
     void retryOrFailover(InFlight& f, const QString& reason);
     void startNextUrlOrFail(InFlight& f);
     void failAndCleanup(InFlight& f, const QString& reason);
+    void cancelAndCleanup(InFlight& f);
+    DownloadFileOps::Result cleanupCancelledPayload(InFlight& f);
+    void closePart(InFlight& f);
     void closeAndDeletePart(InFlight& f);
     void startNextQueued();
 

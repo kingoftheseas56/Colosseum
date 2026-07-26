@@ -24,6 +24,7 @@
 // report a broken volume as ready.
 
 #include "engine/MangaTankobanTypes.h"
+#include "engine/DownloadFileOps.h"
 
 #include <QHash>
 #include <QList>
@@ -56,6 +57,8 @@ class MangaVolumeIndex : public QObject
 public:
     // rootDir is injected so the ledger never touches real AppData in tests.
     explicit MangaVolumeIndex(const QString& rootDir, QObject* parent = nullptr);
+    MangaVolumeIndex(const QString& rootDir, DownloadFileOps::Remover treeRemover,
+                     QObject* parent = nullptr);
 
     // <rootDir>/manga-volumes — the base for the ledger and all page dirs.
     QString baseDir() const { return m_baseDir; }
@@ -90,8 +93,8 @@ public:
     // with one shape.
     Q_INVOKABLE QVariantList downloadedVolumes() const;
 
-    // Delete the pages dir + ledger row. Idempotent: returns false (no-op) when
-    // the id is unknown.
+    // Delete the pages dir + ledger row. Returns false when the id is unknown
+    // or the pages directory could not be removed.
     Q_INVOKABLE bool remove(const QString& volumeId);
 
     // Re-read the ledger from disk (proves atomic persistence across a restart).
@@ -126,6 +129,7 @@ private:
     bool entryIntact(const Entry& e) const;
 
     QString m_baseDir;
+    DownloadFileOps::Remover m_treeRemover;
     QHash<QString, Entry> m_index;
 };
 

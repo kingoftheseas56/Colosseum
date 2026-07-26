@@ -1,4 +1,5 @@
 #include "ComicDownloader.h"
+#include "DownloadFileOps.h"
 
 #include "ComicDlsParse.h"
 #include "torrent/ComicTorrents.h"
@@ -646,7 +647,7 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
             QNetworkReply* r = it.key();
             m_resolving.erase(it);
             if (r) { r->disconnect(this); r->abort(); r->deleteLater(); }
-            emit failed(id, QStringLiteral("cancelled by user"));
+            emit removed(id);
             return;
         }
     }
@@ -658,32 +659,45 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
             m_proc->deleteLater();
             m_proc = nullptr;
         }
-        failAndCleanup(*m_active, QStringLiteral("cancelled by user"));
+        cancelAndCleanup(*m_active);
         return;
     }
     for (int i = 0; i < m_queue.size(); ++i) {
         if (m_queue[i].id == id) {
+            DownloadFileOps::Result result{true, QString()};
             if (m_queue[i].localArchive && !m_queue[i].archivePath.isEmpty())
-                QFile::remove(m_queue[i].archivePath);
-            if (m_queue[i].assembledIngest && !m_queue[i].assembledStagingDir.isEmpty())
-                QDir(m_queue[i].assembledStagingDir).removeRecursively();
+                result = DownloadFileOps::removeFile(m_queue[i].archivePath);
+            if (result.success && m_queue[i].assembledIngest
+                && !m_queue[i].assembledStagingDir.isEmpty())
+                result = DownloadFileOps::removeTree(m_queue[i].assembledStagingDir);
             m_queue.removeAt(i);
-            emit failed(id, QStringLiteral("cancelled by user (queued)"));
+            if (!result.success) {
+                qWarning() << "[downloads] cancel cleanup failed" << id << result.message;
+                emit failed(id, result.message);
+                return;
+            }
+            emit removed(id);
             return;
         }
     }
     if (m_torrents) m_torrents->cancel(id);
 }
 
-void ComicDownloader::deleteIssue(const QString& issueIdIn)
+QVariantMap ComicDownloader::deleteIssue(const QString& issueIdIn)
 {
     const QString id = issueIdIn.trimmed();
     auto it = m_index.find(id);
-    if (it == m_index.end()) return;
-    QDir(it.value().dir).removeRecursively();
+    if (it == m_index.end())
+        return DownloadFileOps::toMap({true, QString()});
+    const auto result = DownloadFileOps::removeTree(it.value().dir);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << id << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.erase(it);
     saveIndex();
     emit removed(id);
+    return DownloadFileOps::toMap(result);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -902,7 +916,47 @@ void ComicDownloader::failAndCleanup(InFlight& f, const QString& reason)
     startNextQueued();
 }
 
+void ComicDownloader::cancelAndCleanup(InFlight& f)
+{
+    // Cancellation has a user-visible removal contract. Close live handles,
+    // then let the checked helper own every delete so a failure cannot be
+    // silently converted into a successful "removed" event.
+    closePart(f);
+    const auto result = cleanupCancelledPayload(f);
+    f.extracting = false;
+    const QString id = f.id;
+    delete m_active; m_active = nullptr;
+    if (!result.success) {
+        qWarning() << "[downloads] cancel cleanup failed" << id << result.message;
+        emit failed(id, result.message);
+    } else {
+        emit removed(id);
+    }
+    startNextQueued();
+}
+
+DownloadFileOps::Result ComicDownloader::cleanupCancelledPayload(InFlight& f)
+{
+    auto result = DownloadFileOps::removeFile(f.partPath);
+    if (result.success)
+        result = DownloadFileOps::removeFile(f.archivePath);
+    if (result.success)
+        result = DownloadFileOps::removeTree(f.extractTmp);
+    if (result.success && f.assembledIngest)
+        result = DownloadFileOps::removeTree(f.assembledStagingDir);
+    return result;
+}
+
 void ComicDownloader::closeAndDeletePart(InFlight& f)
+{
+    closePart(f);
+    if (!f.partPath.isEmpty() && QFile::exists(f.partPath))
+        QFile::remove(f.partPath);
+    if (!f.archivePath.isEmpty() && QFile::exists(f.archivePath))
+        QFile::remove(f.archivePath);
+}
+
+void ComicDownloader::closePart(InFlight& f)
 {
     if (f.reply) {
         QNetworkReply* r = f.reply.data();
@@ -911,14 +965,8 @@ void ComicDownloader::closeAndDeletePart(InFlight& f)
     }
     if (f.file) {
         f.file->close();
-        const QString path = f.file->fileName();
         delete f.file; f.file = nullptr;
-        QFile::remove(path);
-    } else if (!f.partPath.isEmpty() && QFile::exists(f.partPath)) {
-        QFile::remove(f.partPath);
     }
-    if (!f.archivePath.isEmpty() && QFile::exists(f.archivePath))
-        QFile::remove(f.archivePath);
 }
 
 void ComicDownloader::startNextQueued()

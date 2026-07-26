@@ -1,4 +1,5 @@
 #include "MangaDownloader.h"
+#include "DownloadFileOps.h"
 #include "WeebCentralScraper.h"
 
 #include <QCryptographicHash>
@@ -296,17 +297,23 @@ QVariantList MangaDownloader::activeChapterJobs() const
 // ---------------------------------------------------------------------------
 // delete / cancel
 // ---------------------------------------------------------------------------
-void MangaDownloader::deleteChapter(const QString& chapterId)
+QVariantMap MangaDownloader::deleteChapter(const QString& chapterId)
 {
     const auto it = m_index.constFind(chapterId);
-    if (it == m_index.constEnd()) return;
+    if (it == m_index.constEnd())
+        return DownloadFileOps::toMap({true, QString()});
     const QString dir = it.value().dir;
-    if (!dir.isEmpty()) QDir(dir).removeRecursively();
+    const auto result = DownloadFileOps::removeTree(dir);
+    if (!result.success) {
+        qWarning() << "[downloads] delete failed" << chapterId << result.message;
+        return DownloadFileOps::toMap(result);
+    }
     m_index.remove(chapterId);
     m_thumbCache.remove(chapterId);
     saveIndex();
     qInfo("[downloads] deleted '%s'", qUtf8Printable(chapterId));
     emit removed(chapterId);
+    return DownloadFileOps::toMap(result);
 }
 
 void MangaDownloader::cancelDownload(const QString& chapterId)
