@@ -111,7 +111,7 @@ successful removal. Do not expand it further.
 **Produces:**
 
 - One inline confirmation popup.
-- One pending mutation key and one status/error line.
+- One status/error line.
 - Capability-gated actions.
 - Audiobooks included in the existing manager/summary.
 - Byte-weighted known-size group progress.
@@ -155,9 +155,9 @@ successful removal. Do not expand it further.
   completed-row deletion, completed-audiobook deletion, and group/season
   cancellation. Backdrop clicks never confirm.
 
-- [ ] Replace `Remove` with `Delete local copy`. Keep only one
-  `pendingMutationKey`; disable the triggering action until the backend result
-  or next relevant revision. For deletion, inspect `{success,message}`:
+- [ ] Replace `Remove` with `Delete local copy`. Deletion is a synchronous
+  invokable, so do not add pending-operation state with no observable waiting
+  interval. Inspect `{success,message}`:
   success refreshes; failure shows the bounded message and leaves the row.
 
 - [ ] Make the audiobook empty nudge call

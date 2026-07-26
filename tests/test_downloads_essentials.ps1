@@ -22,6 +22,7 @@ function Reject-Pattern($text, $pattern, $message) {
 
 # Native truth seams.
 Require-Text $localH 'dismissFailure' 'LocalDownloads must retain and dismiss terminal non-Theatre failures.'
+Require-Text $localH 'Q_INVOKABLE QVariantMap remove' 'LocalDownloads must return deletion success or failure to QML.'
 foreach ($field in @('canRetry', 'canPause', 'canResume', 'canPlay', 'canDismiss')) {
     Require-Text $localC "QStringLiteral(`"$field`")" "LocalDownloads active rows are missing $field."
 }

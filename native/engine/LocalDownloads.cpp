@@ -545,25 +545,25 @@ void LocalDownloads::cancel(const QString &world, const QString &id) {
     }
 }
 
-void LocalDownloads::remove(const QString &world, const QString &id) {
+QVariantMap LocalDownloads::remove(const QString &world, const QString &id) {
     if (world == QStringLiteral("tankoban")) {
         if (m_volumes && id.startsWith(QStringLiteral("tankoban:"))) {
-            m_volumes->remove(id);
-            bump();
-            return;
+            return m_volumes->remove(id);
         }
         if (m_manga && m_manga->isDownloaded(id)) {
-            m_manga->deleteChapter(id);
-            return;
+            return m_manga->deleteChapter(id);
         }
         if (m_comics)
-            m_comics->deleteIssue(id);
+            return m_comics->deleteIssue(id);
     } else if (world == QStringLiteral("biblio")) {
         if (m_books)
-            m_books->deleteBook(id);
+            return m_books->deleteBook(id);
     } else if (world == QStringLiteral("theatre")) {
         if (m_videos)
-            m_videos->removeVideo(id);
+            return m_videos->removeVideo(id);
     }
-    bump();
+    return {
+        {QStringLiteral("success"), false},
+        {QStringLiteral("message"), QStringLiteral("This download could not be found.")}
+    };
 }

@@ -43,7 +43,7 @@ public:
     Q_INVOKABLE QVariantList activeJobs() const;    // cross-world, for the Now-Arriving strip
 
     Q_INVOKABLE void cancel(const QString &world, const QString &id);
-    Q_INVOKABLE void remove(const QString &world, const QString &id);
+    Q_INVOKABLE QVariantMap remove(const QString &world, const QString &id);
     Q_INVOKABLE void retry(const QString &world, const QString &id);   // theatre only in v1
     Q_INVOKABLE void pause(const QString &world, const QString &id);    // theatre only in v1
     Q_INVOKABLE void resume(const QString &world, const QString &id);   // theatre only in v1
