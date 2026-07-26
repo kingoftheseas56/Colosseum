@@ -262,6 +262,14 @@ function inWorld(entry, world) {
 
 // Is this row a catalogue (what fills the shelves) or a well (what fetches)?
 // Catalogues are core+catalog; wells provide `stream`.  (spec §3.1)
+// A universe gathers one IP across every medium it lives in. It is classified by ROLE and
+// checked FIRST, exactly as worldsFor does — a universe declares types across all three
+// media worlds, so deriving from content would scatter One Piece into manga AND anime AND
+// film AND its own row, four rows sharing one enabled flag. (Universes design §5.1a.)
+// It is neither a catalogue nor a well: it fills no shelf and fetches no file.
+function isUniverse(entry) {
+    return _hasResource((entry && entry.manifest) || entry, "universe");
+}
 function isCatalogue(entry) {
     return entry && entry.core === true && _hasResource(entry.manifest || entry, "catalog");
 }

@@ -12,7 +12,8 @@ let src = fs.readFileSync('qml/ExtensionsCatalog.js', 'utf8').replace(/^\.pragma
 const mod = {};
 new Function('module', 'XMLHttpRequest', src +
   '\nmodule.worldsFor=worldsFor;module.inWorld=inWorld;module.isCatalogue=isCatalogue;' +
-  'module.isWell=isWell;module.jobFor=jobFor;module.WORLD_TYPES=WORLD_TYPES;'
+  'module.isWell=isWell;module.isUniverse=isUniverse;module.jobFor=jobFor;' +
+  'module.WORLD_TYPES=WORLD_TYPES;'
 )(mod, function () {});
 
 let failures = 0;
@@ -94,6 +95,34 @@ console.log('every well in the roster has a job line');
 const jobless = wells(roster).filter(e => !mod.jobFor(e.id) && e.id.startsWith('colosseum.'));
 jobless.length ? bad('house wells missing a job: ' + jobless.map(e => e.id).join(', '))
                : ok('all house wells have a job line');
+
+// ── universes: the two the house auto-installs (Hemanth 2026-07-26) ──────────────
+// Seeded in ExtensionsStore.cpp with resources ["universe"]. They exist to prove the
+// role-first rule under real data, not as a hypothetical: One Piece spans manga, anime
+// and film, so a content-first derivation would scatter it across three media worlds
+// plus its own — four rows sharing one enabled flag.
+console.log('universes: the auto-installed pair lands in exactly one world');
+const UNI = ['universe'];
+const onepiece = E('com.colosseum.universe.onepiece', false, UNI, UNI);
+const dcau     = E('com.colosseum.universe.dcau',     false, UNI, UNI);
+
+for (const [u, label] of [[onepiece, 'One Piece'], [dcau, 'DCAU']]) {
+  eq(mod.worldsFor(u), ['universes'], `${label} worlds`);
+  eq([mod.inWorld(u, 'theatre'), mod.inWorld(u, 'tankoban'), mod.inWorld(u, 'biblio')],
+     [false, false, false], `${label} is in no media world`);
+  eq(mod.isUniverse(u), true, `${label} is a universe`);
+  // Neither role applies: it fills no shelf and fetches no file, so it can never acquire
+  // a rank or be asked for a source. That is what makes an ask-order framing wrong for it.
+  eq([mod.isCatalogue(u), mod.isWell(u)], [false, false],
+     `${label} is neither catalogue nor well`);
+}
+
+console.log('a universe never enters an ask ladder');
+const withUniverses = roster.concat([onepiece, dcau]);
+eq(wells(withUniverses).filter(mod.isUniverse).length, 0,
+   'no universe appears among the wells of any world');
+eq(withUniverses.filter(e => mod.isUniverse(e) && mod.worldsFor(e).length !== 1).length, 0,
+   'every universe belongs to exactly one world');
 
 console.log(failures ? `\n${failures} FAILED` : '\nall green');
 process.exit(failures ? 1 : 0);

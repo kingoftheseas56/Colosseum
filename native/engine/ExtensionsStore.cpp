@@ -25,7 +25,7 @@ constexpr int kDescriptionCap = 400;
 // descriptions. 4 renamed the vault row to "Colosseum Grand Database".
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 5;
+constexpr int kHouseDefaultsVersion = 6;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -235,6 +235,27 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     add("colosseum.well.audiobookbay", "colosseum://well/audiobookbay", false,
         manifest("colosseum.well.audiobookbay", "AudioBookBay", "",
                  { QStringLiteral("stream") }, { QStringLiteral("audiobook") }, {}, false));
+
+    // ---- Universes: an IP gathered across every medium it lives in ---------
+    // A universe is classified by ROLE, not content: the `universe` resource is checked
+    // BEFORE the type derivation, so One Piece lands in exactly one place instead of
+    // appearing four times (manga + anime + film + its own). Universes design §5.1a, and
+    // already guarded by tests/extension_worlds_derivation_test.mjs.
+    //
+    // They fetch nothing and are never ranked — Hemanth caught that an ask-order framing
+    // breaks for them, which is why ExtensionsSources gives them a section with no ranks
+    // and keeps them out of the chain entirely.
+    //
+    // Auto-installed for now on his word 2026-07-26 ("the 2 being auto-installed for now").
+    // The spec's end state is remote manifests fetched over HTTPS (§5.5); seeding them here
+    // is the honest interim — the roster is where every other house row already lives, and
+    // it means the fourth row is real without inventing a server we have not built.
+    add("com.colosseum.universe.onepiece", "colosseum://universe/onepiece", false,
+        manifest("com.colosseum.universe.onepiece", "One Piece", "",
+                 { QStringLiteral("universe") }, { QStringLiteral("universe") }, {}, false));
+    add("com.colosseum.universe.dcau", "colosseum://universe/dcau", false,
+        manifest("com.colosseum.universe.dcau", "DCAU", "",
+                 { QStringLiteral("universe") }, { QStringLiteral("universe") }, {}, false));
 
     return touched;
 }

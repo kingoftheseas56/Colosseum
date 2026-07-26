@@ -31,6 +31,7 @@ Item {
 
     signal removeRequested(var entry)
     signal configureRequested(var entry)
+    signal universeActivated(var entry)
 
     Theme { id: theme }
 
@@ -252,8 +253,13 @@ Item {
                         anchors.left: worldName.right
                         anchors.leftMargin: 16
                         anchors.baseline: worldName.baseline
-                        text: section.modelData.rows.length
-                              + (section.modelData.rows.length === 1 ? " source" : " sources")
+                        // A universe supplies no sources, so it is never counted in them.
+                        text: {
+                            var n = section.modelData.rows.length;
+                            if (section.modelData.key === "universes")
+                                return n + (n === 1 ? " universe" : " universes");
+                            return n + (n === 1 ? " source" : " sources");
+                        }
                         color: theme.inkDimmer
                         font.family: theme.ui; font.pixelSize: 12
                     }
@@ -264,8 +270,23 @@ Item {
                     }
                 }
 
+                // Universes are not rows of controls — there is nothing to rank, nothing to
+                // order, nothing to configure. They render through the SAME component the
+                // see-all page uses, in its carousel form, so the two surfaces can never
+                // drift apart. (Hemanth 2026-07-26: "use the same QML for the carasel and
+                // the list of universes sub page".)
+                UniversesShelf {
+                    width: parent.width
+                    visible: section.modelData.key === "universes"
+                    height: visible ? implicitHeight + 20 : 0
+                    form: "carousel"
+                    installedList: root.installedList
+                    includeDisabled: true
+                    onUniverseActivated: function (entry) { root.universeActivated(entry) }
+                }
+
                 Repeater {
-                    model: section.modelData.rows
+                    model: section.modelData.key === "universes" ? [] : section.modelData.rows
                     delegate: Item {
                         id: row
                         required property var modelData
