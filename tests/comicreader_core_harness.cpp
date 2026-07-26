@@ -950,6 +950,54 @@ int main(int argc, char** argv) {
               "T23 an explicit user override beats a remembered detected spread");
     }
 
+    // ── Test 24: a MissingFile page HEALS on a later request — it is a cooldown,
+    // not a life sentence. The real case is a page that vanishes or is unreadable at
+    // decode time (typically still being written), which used to latch for the life of
+    // the generation with no cure but closing and reopening the book. Corrupt and
+    // unsupported pages stay latched, because re-decoding garbage heals nothing. (C6)
+    //
+    // SCOPE, stated honestly: the file must have EXISTED at openEntry. parsePages leaves
+    // localPath empty for a file that is absent at open, so such a page has no path to
+    // retry with and the cooldown cannot reach it - self-healing an at-open absence would
+    // mean changing what an empty localPath means, which is a different task than this one.
+    {
+        const QString flaky = dir.filePath(QStringLiteral("flaky.png"));
+        CHECK(writeSolidPng(flaky, 90), "T24 setup: the page exists when the book opens");
+        const QVariantList pages =
+            pagesFromPaths(QStringList() << plain[0] << plain[1] << flaky);
+
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t24"), pages, QStringLiteral("ltr"), manualNormal());
+
+        // it vanishes before the first request — the decode reports MissingFile
+        CHECK(QFile::remove(flaky), "T24 setup: the page vanishes before it is ever requested");
+        core.setVisible(QVariantList{ 2 });
+        const bool failed = waitFor([&] { return core.pageInfo(2)
+                                            .value(QStringLiteral("error")).toString()
+                                            == QLatin1String("missing_file"); });
+        CHECK(failed, "T24 a vanished page reports missing_file");
+
+        // Back on disk, but INSIDE the cooldown: no re-attempt yet. This is also what stops
+        // a per-frame stat storm against a file that genuinely is not there.
+        CHECK(writeSolidPng(flaky, 90), "T24 setup: the file comes back");
+        core.setVisible(QVariantList{ 2 });
+        QThread::msleep(250);
+        CHECK(core.pageInfo(2).value(QStringLiteral("error")).toString()
+                  == QLatin1String("missing_file"),
+              "T24 a request INSIDE the cooldown must not re-attempt the page");
+
+        // ...and once the cooldown elapses, one fresh attempt succeeds and the page heals.
+        QThread::msleep(2000);                       // kMissingRetryMs = 2000
+        core.setVisible(QVariantList{ 2 });
+        // NB: PageError::None serialises to the STRING "none", never "". An earlier draft asserted
+        // isEmpty() here, which no healthy page can ever satisfy - the check could only fail.
+        const bool healed = waitFor([&] {
+            return core.pageInfo(2).value(QStringLiteral("error")).toString()
+                       == QLatin1String("none");
+        });
+        CHECK(healed, "T24 the page decodes once the file is back - MissingFile is not a life sentence");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

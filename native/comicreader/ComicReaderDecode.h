@@ -110,6 +110,15 @@ private:
     QHash<int, PageMeta> m_pageByIndex;         // current generation's pages, by index
     QSet<int> m_inflight;                       // pages inflight for the current generation
     QSet<int> m_failed;                         // pages that failed under the current generation
+    // MissingFile is NOT latched like the others (C6). A corrupt or unsupported page will fail the
+    // same way every time, so re-decoding garbage heals nothing and the latch is correct. A MISSING
+    // file is different: the usual cause is a page touched while the volume is still being written
+    // to disk, and it appears moments later. Latching that showed "Page missing" for the life of
+    // the generation - the only cure was closing and reopening the book. Instead the page cools
+    // down and gets exactly one fresh attempt per cooldown window, which self-heals without a
+    // per-frame stat storm against a file that genuinely is not there.
+    QHash<int, qint64> m_missingRetryAt;        // page -> earliest ms-since-epoch to try again
+    static constexpr qint64 kMissingRetryMs = 2000;
     std::function<void(quint64, int)> m_testOnWorkerEnter;
     std::function<void(quint64, int)> m_testOnWorkerExit;
 };

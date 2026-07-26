@@ -5,6 +5,7 @@
 
 #include <QBuffer>
 #include <QByteArray>
+#include <QDateTime>
 #include <QDebug>
 #include <QFile>
 #include <QFileInfo>
@@ -215,6 +216,7 @@ void ComicReaderDecode::openGeneration(quint64 gen, const QVector<PageMeta>& pag
     // under the old generation gets one fresh chance under the new one.
     m_inflight.clear();
     m_failed.clear();
+    m_missingRetryAt.clear();
 
     if (oldGen != gen)
         m_cache->clearGeneration(oldGen);
@@ -226,6 +228,14 @@ void ComicReaderDecode::request(int page, int priority) {
         return;                              // unknown page in this generation → ignore
     if (m_failed.contains(page))
         return;                              // already failed this generation → don't retry
+    // A MissingFile page is cooling down, not condemned (C6): once the window passes it gets one
+    // fresh attempt, so a page that was still being written to disk heals itself.
+    const auto retryIt = m_missingRetryAt.constFind(page);
+    if (retryIt != m_missingRetryAt.constEnd()) {
+        if (QDateTime::currentMSecsSinceEpoch() < retryIt.value())
+            return;                          // still cooling down — no per-frame stat storm
+        m_missingRetryAt.erase(retryIt);     // cooldown over: allow exactly one fresh attempt
+    }
     if (m_inflight.contains(page))
         return;                              // already decoding (currentGen, page)
     if (m_cache->get(m_currentGen, page).has_value())
@@ -274,7 +284,14 @@ void ComicReaderDecode::onWorkerResult(quint64 gen, int page, const QImage& imag
         // Memoize the failure for this generation so a re-request (e.g. Task 7's
         // strip re-request storm) doesn't re-decode a page that will just fail
         // again. Reset happens on the next openGeneration.
-        m_failed.insert(page);
+        //
+        // EXCEPT MissingFile (C6), which is a timing condition rather than a verdict about the
+        // bytes: the page is typically still being written. It cools down instead of latching, so
+        // a later request can succeed on its own.
+        if (error == PageError::MissingFile)
+            m_missingRetryAt.insert(page, QDateTime::currentMSecsSinceEpoch() + kMissingRetryMs);
+        else
+            m_failed.insert(page);
         emit pageFailed(gen, page, error);
         return;
     }
