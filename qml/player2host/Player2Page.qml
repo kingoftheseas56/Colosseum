@@ -134,6 +134,16 @@ Item {
             windowed: (typeof WindowMode !== "undefined") ? WindowMode.shellWindowed : true
             mediaSubtitle: page.mediaSubtitle
 
+            // These two were declared by the shell and connected to NOTHING (cross-model review,
+            // 2026-07-26, P0). Every source pick in the drawer, and the HUD's new switch button,
+            // reached a dead end in the integrated build: the signal fired and the app ignored it.
+            // A control that appears to work is worse than one that is absent.
+            onSwitchSourceRequested: function(index, sourceId) {
+                page._switchToSource(index)
+            }
+            onPlayEpisodeRequested: function(episodeId) {
+                page._playEpisode(String(episodeId))
+            }
             onFullscreenRequested: page.fullscreenRequested()
             onCloseRequested: page.closeRequested()
             onBackRequested: page.backRequested()
@@ -174,6 +184,29 @@ Item {
         value: true
         when: page._state === 3
         restoreMode: Binding.RestoreNone
+    }
+
+    // The episode the drawer asked for: its sources come back here, and the top-ranked one plays.
+    // Guarded on the id we asked for, so a late answer for an episode the viewer moved off cannot
+    // hijack what is playing now.
+    Connections {
+        target: hostServices
+        ignoreUnknownSignals: true
+        function onAlternateSourcesResolved(mediaId, sources) {
+            if (!page._pendingEpisodeId.length || String(mediaId) !== page._pendingEpisodeId)
+                return
+            const episodeId = page._pendingEpisodeId
+            page._pendingEpisodeId = ""
+            const rows = sources || []
+            if (!rows.length) {
+                page._failPlayback("No playable source found for that episode.")
+                return
+            }
+            page.mediaId = episodeId   // the shell's currentEpisodeId binds to this
+            page.pendingSeekSec = 0        // a different episode starts at its own resume point
+            hostServices.streamCandidates = rows
+            page._switchToSource(0)
+        }
     }
 
     ColosseumHostServices {
@@ -358,6 +391,50 @@ Item {
         page.mediaLoadingArt = ctx.episodeStill || ctx.loaderBackdrop || posterUrl || ""
         page.mediaLoadingLine = ctx.episodeLine || ""
         page.mediaSubtitle = ctx.episodeLine || ""
+    }
+
+    // Switch to another already-ranked source for the SAME media, carrying the position across so
+    // the viewer resumes where they were — the shipped player's switch-in-place behaviour. The
+    // candidate list is the one the door handed us; picking row N means playing row N's transport,
+    // which is a direct URL for debrid/HTTP and the torrent sidecar otherwise.
+    function _switchToSource(index) {
+        var rows = hostServices.streamCandidates || []
+        var i = Number(index)
+        if (!(i >= 0 && i < rows.length))
+            return
+        var row = rows[i] || ({})
+        page.pendingSeekSec = (backend.session && backend.session.position > 0)
+                              ? backend.session.position : 0
+        hostServices.currentStreamIndex = i
+        page.errorText = ""
+        page._awaitingStream = false
+        if (row.url && String(row.url).length) {
+            hostServices.mediaResumeHash = String(row.infoHash || "")
+            hostServices.mediaResumeFileIdx = Number(row.fileIdx || 0)
+            page._open(String(row.url))
+            return
+        }
+        if (String(row.infoHash || "").length) {
+            // Same asynchronous rule as the first open: the sidecar's URL only exists once it is
+            // listening, so ask Stream.play and wait for streamReady rather than formatting a URL.
+            hostServices.mediaResumeHash = String(row.infoHash)
+            hostServices.mediaResumeFileIdx = Number(row.fileIdx || 0)
+            page._awaitingStream = true
+            hostServices.currentPlaybackUrl = ""
+            Stream.play(String(row.infoHash), Number(row.fileIdx || 0))
+            return
+        }
+        page._failPlayback("That source has nothing playable attached.")
+    }
+
+    // Play another episode chosen in the drawer. Its sources are resolved through the SAME host seam
+    // the drawer itself uses, then the best one is played — no second ranking policy.
+    property string _pendingEpisodeId: ""
+    function _playEpisode(episodeId) {
+        if (!episodeId.length || !hostServices)
+            return
+        page._pendingEpisodeId = episodeId
+        hostServices.requestAlternateSources(episodeId)
     }
 
     function _directUrlFor(candidates, infoHash) {

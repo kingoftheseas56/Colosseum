@@ -1,4 +1,25 @@
 # Contract for the Player 2 QML shell. It enforces the house doctrine — the shell PAINTS and sends
+    # Strip line comments ONLY where the "//" is genuinely a comment. A naive s|//.*|| also erases
+    # real code - `"qrc:///qml/PlayerPage.qml"`, any https:// URL - which turned this gate into a
+    # false negative (cross-model review, 2026-07-26: it PASSED files that referenced production in
+    # a string literal). So walk each line and honour quotes: a "//" inside a string is code.
+    function Remove-QmlComments([string]$Source) {
+        $out = New-Object System.Text.StringBuilder
+        foreach ($line in ($Source -split "`n")) {
+            $inSingle = $false; $inDouble = $false; $cut = -1
+            for ($i = 0; $i -lt $line.Length; $i++) {
+                $ch = $line[$i]
+                $prev = if ($i -gt 0) { $line[$i - 1] } else { [char]0 }
+                if ($ch -eq "'" -and -not $inDouble -and $prev -ne '`\`') { $inSingle = -not $inSingle; continue }
+                if ($ch -eq '"' -and -not $inSingle -and $prev -ne '`\`') { $inDouble = -not $inDouble; continue }
+                if (-not $inSingle -and -not $inDouble -and $ch -eq '/' -and $i + 1 -lt $line.Length -and $line[$i + 1] -eq '/') { $cut = $i; break }
+            }
+            $kept = if ($cut -ge 0) { $line.Substring(0, $cut) } else { $line }
+            [void]$out.AppendLine($kept)
+        }
+        return $out.ToString()
+    }
+
 # typed intent; C++ DECIDES. So the shell must never advance playback position with a Timer, read raw
 # FFmpeg/mpv property strings, touch production stores/catalogues, or import the production player.
 # Run: powershell -NoProfile -File tests/player2/player2_shell_contract.ps1
@@ -40,8 +61,7 @@ foreach ($file in $files) {
     #    that lets the next brother verify a copied element against its source. Deleting those
     #    citations to satisfy a text grep would make the shell less auditable, not more isolated.
     #    Any real reference (import, instantiation, property access) still fails, because it is code.
-    $code = [regex]::Replace($text, '(?m)//.*$', '')
-    $code = [regex]::Replace($code, '(?s)/\*.*?\*/', '')
+    $code = Remove-QmlComments ([regex]::Replace($text, '(?s)/\*.*?\*/', ''))
     if ($code -match 'PlayerPage' -or $code -match '\bMpvItem\b') {
         $violations += "${name}: references the production player (PlayerPage/MpvItem)"
     }

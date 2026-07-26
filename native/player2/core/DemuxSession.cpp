@@ -322,26 +322,6 @@ void DemuxSession::setAudioDelay(qint64 delayUs) noexcept
     m_audioDelayUs.store(delayUs, std::memory_order_release);
 }
 
-qint64 DemuxSession::bufferedEndUs() const
-{
-    std::shared_ptr<HttpMediaSource> source;
-    {
-        std::scoped_lock lock(m_httpMutex);
-        source = m_httpSource;
-    }
-    if (!source)
-        return -1; // local file: there is no network cache to describe
-    const SourceCapabilities caps = source->capabilities();
-    const qint64 durationUs = m_durationUs.load(std::memory_order_acquire);
-    if (!caps.knownDuration || caps.totalBytes <= 0 || durationUs <= 0)
-        return -1; // an origin that hid its length cannot be mapped from bytes to time
-    // position() is what the demuxer has CONSUMED; the ring is what is fetched beyond it. Their sum
-    // is the frontier of what we hold.
-    const qint64 heldTo = source->position() + source->bufferedBytes();
-    const double fraction = static_cast<double>(heldTo) / static_cast<double>(caps.totalBytes);
-    return static_cast<qint64>(std::clamp(fraction, 0.0, 1.0) * static_cast<double>(durationUs));
-}
-
 void DemuxSession::setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept
 {
     m_videoPipeline.store(pipeline, std::memory_order_release);
@@ -487,8 +467,6 @@ void DemuxSession::run(PlaybackRequest request, quint64 generation)
 
     DemuxMetadata metadata;
     metadata.durationUs = format->duration == AV_NOPTS_VALUE ? 0 : format->duration;
-    // Publish it for bufferedEndUs(), which maps the transport's byte frontier onto the timeline.
-    m_durationUs.store(metadata.durationUs, std::memory_order_release);
     metadata.chapterCount = static_cast<int>(format->nb_chapters);
     AVDictionaryEntry *tag = nullptr;
     while ((tag = av_dict_get(format->metadata, "", tag, AV_DICT_IGNORE_SUFFIX)))

@@ -72,11 +72,19 @@ Player2Session::Player2Session(QObject *parent)
             m_position = seconds;
             emit positionChanged();
         }
-        // Refresh the streaming cache frontier on the same cadence as position. Only publish a
-        // MEANINGFUL move: this fires per packet, and a binding re-evaluated tens of times a second
-        // for a sub-pixel change is pure cost on a 60Hz repaint the CPU gate is already watching.
-        const qint64 bufferedUs = m_demux.bufferedEndUs();
-        const double buffered = bufferedUs < 0 ? -1.0 : bufferedUs / 1'000'000.0;
+        // The streaming cache frontier, in MEDIA TIME, taken from the packets themselves: the
+        // furthest timestamp the demuxer has actually produced is, by definition, how far ahead we
+        // hold playable data. The previous version extrapolated a byte percentage onto the duration,
+        // which is a guess on variable-bitrate or heavily-indexed containers - a cache bar that
+        // lies confidently (cross-model review, 2026-07-26). This also removes three per-packet
+        // mutex snapshots of the network source from the GUI thread.
+        //
+        // -1 for local files: production hides the strip there rather than painting a fill over a
+        // file already on disk, and a local read-ahead is not a network cache.
+        const bool streamed = !m_lastRequest.source.isLocalFile();
+        if (streamed && seconds > m_bufferedFrontierSec)
+            m_bufferedFrontierSec = seconds;
+        const double buffered = streamed ? m_bufferedFrontierSec : -1.0;
         if ((buffered < 0.0) != (m_bufferedSeconds < 0.0)
             || std::abs(buffered - m_bufferedSeconds) >= 0.25) {
             m_bufferedSeconds = buffered;
@@ -108,6 +116,11 @@ Player2Session::Player2Session(QObject *parent)
             return;
         // A seek is the one path allowed to move position backward.
         m_position = actualSeconds;
+        // The read-ahead starts again from the landing point; carrying the old frontier would claim
+        // a cache we no longer hold.
+        m_bufferedFrontierSec = actualSeconds;
+        m_bufferedSeconds = -1.0;
+        emit bufferedSecondsChanged();
         emit positionChanged();
         flushSubtitles(); // drop the painted cue AND buffered upcoming cues from the old position
         transition(m_postSeekState);
@@ -645,6 +658,7 @@ void Player2Session::resetMediaProperties()
     // a local file opened after a stalled stream starts honestly un-stalled.
     setNetworkStalled(false);
     // Same reason: a local file must not inherit the previous stream's cache strip.
+    m_bufferedFrontierSec = 0.0;
     if (m_bufferedSeconds != -1.0) {
         m_bufferedSeconds = -1.0;
         emit bufferedSecondsChanged();

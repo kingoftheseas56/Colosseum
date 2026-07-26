@@ -110,16 +110,6 @@ public:
     // Live A/V offset (mpv audio-delay parity): shifts the audio buffer pts reported to the master
     // clock, so video is scheduled against the offset. Positive delays audio relative to video.
     void setAudioDelay(qint64 delayUs) noexcept;
-    // How far the STREAM is buffered, as an absolute timestamp, or -1 when that is not a meaningful
-    // question: a local file (no network source) or an origin that never told us its length. -1 is
-    // the honest answer and the seek bar hides its cache strip for it, exactly as the shipped player
-    // hides that strip for local playback rather than painting a phantom fill over a file that is
-    // already entirely on disk (his eyes-on ruling, 2026-07-20).
-    //
-    // It is a byte-range converted to time, because bytes are what the transport actually knows.
-    // That makes it an approximation on a variable-bitrate file - which is what a cache strip is
-    // everywhere, including mpv's.
-    qint64 bufferedEndUs() const;
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
     void setAudioPipeline(AudioPipeline *pipeline) noexcept;
     void setTiming(PlaybackClock *clock, FrameScheduler *scheduler) noexcept;
@@ -192,7 +182,6 @@ private:
     std::atomic<int> m_pendingRepositions{0};
     std::atomic_bool m_paused{false};
     std::atomic<qint64> m_audioDelayUs{0};
-    std::atomic<qint64> m_durationUs{0}; // published once the container is open; 0 = unknown
     std::atomic<quint64> m_activeGeneration{0};
     std::atomic<D3D11VideoPipeline *> m_videoPipeline{nullptr};
     std::atomic<AudioPipeline *> m_audioPipeline{nullptr};
@@ -205,7 +194,7 @@ private:
     std::thread m_worker;
     // Active streaming source (null for local files). Held as a shared_ptr so cancel() can unblock a
     // blocked AVIO read from the GUI thread while the worker still owns the object.
-    mutable std::mutex m_httpMutex; // mutable: bufferedEndUs() is a const observer of the source
+    std::mutex m_httpMutex;
     std::shared_ptr<HttpMediaSource> m_httpSource;
     // The run-local audio packet queue, exposed so cancel()/enqueueCommand() (called off the demux
     // thread) can interrupt a demux BLOCKED pushing into a full audio queue — otherwise a Pause/Seek/

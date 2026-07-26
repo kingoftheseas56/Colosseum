@@ -341,11 +341,32 @@ QtObject {
         })
         host._downloadSourceId = String(sourceId)
         host._downloadMediaId = String(mediaId)
+        host._downloadPeakProgress = 0
         host.downloadStateChanged(mediaId, { "sourceId": sourceId, "state": "queued", "progress": 0 })
+    }
+
+    // Cancel the in-flight download. This did NOT exist while the HUD button was already calling it
+    // behind a truthiness check (cross-model review, 2026-07-26, P0): the button said "click to
+    // cancel", the call silently evaluated to undefined, and nothing happened. A control that lies
+    // is worse than a control that is absent.
+    function cancelDownload(mediaId) {
+        if (typeof Download === "undefined" || !host._downloadMediaId.length)
+            return
+        if (mediaId && String(mediaId) !== host._downloadMediaId)
+            return
+        Download.cancelDownload()
+        const cancelled = host._downloadMediaId
+        host._downloadMediaId = ""
+        host._downloadSourceId = ""
+        host.downloadStateChanged(cancelled, { "sourceId": "", "state": "idle", "progress": 0 })
     }
 
     property string _downloadSourceId: ""
     property string _downloadMediaId: ""
+    // Highest progress seen for the in-flight job. The store PRUNES a job the moment it succeeds, so
+    // "the job vanished" is the only signal a completion ever gives us; without remembering that we
+    // saw it running, a vanished job is indistinguishable from one that never started.
+    property real _downloadPeakProgress: 0
 
     // The store's per-job view is the only place "done"/"failed" appear; its `status` property never
     // emits them (native/player/downloadstore.cpp:34). So the stream is driven from jobs().
@@ -360,6 +381,8 @@ QtObject {
                 var j = jobs[i] || ({})
                 if (String(j.id) !== host._downloadMediaId)
                     continue
+                host._downloadPeakProgress = Math.max(host._downloadPeakProgress,
+                                                      Number(j.ratio || 0))
                 host.downloadStateChanged(host._downloadMediaId, {
                     "sourceId": host._downloadSourceId,
                     "state": host._downloadState(String(j.state || "")),
@@ -367,6 +390,20 @@ QtObject {
                     "error": String(j.error || "")
                 })
                 return
+            }
+            // The job is GONE. The store prunes on success, so a job we watched running and can no
+            // longer find has finished - and if we never reported that, the HUD sits on "cancel"
+            // forever for a download that is already on disk (cross-model review 2026-07-26, P0).
+            // Guarded on having actually seen progress, so a job pruned for any other reason before
+            // it ever ran is not announced as a success.
+            if (host._downloadPeakProgress > 0) {
+                const finished = host._downloadMediaId
+                const sourceId = host._downloadSourceId
+                host._downloadMediaId = ""
+                host._downloadSourceId = ""
+                host._downloadPeakProgress = 0
+                host.downloadStateChanged(finished, { "sourceId": sourceId, "state": "done",
+                                                      "progress": 1 })
             }
         }
     }

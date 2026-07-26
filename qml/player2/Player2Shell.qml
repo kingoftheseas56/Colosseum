@@ -417,8 +417,12 @@ Item {
                 hasNextEpisode: shell.nextEpisodeId.length > 0
                 windowed: shell.windowed
                 canSwitchSource: sourceDrawer.sources.length > 1
+                // A local file must not offer Download - production gates on a STREAM url existing,
+                // and a file already on disk has nothing to fetch (cross-model review, P0: checking
+                // only for a nonempty URL exposed the button on local playback).
                 canDownload: shell.hostServices
                              && String(shell.hostServices.currentPlaybackUrl || "").length > 0
+                             && String(shell.hostServices.mediaLocalPath || "").length === 0
                 downloadKind: shell.downloadKind
                 downloadTooltip: shell.downloadTooltip()
                 onFullscreenRequested: shell.fullscreenRequested()

@@ -192,6 +192,7 @@ private:
     std::atomic_bool m_shuttingDown{false};
     bool m_networkStalled = false;
     double m_bufferedSeconds = -1.0;
+    double m_bufferedFrontierSec = 0.0; // furthest packet timestamp demuxed since the last seek
     int m_recoveryAttempts = 0;
     double m_position = 0.0;
     double m_duration = 0.0;
