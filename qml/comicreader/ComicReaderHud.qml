@@ -146,11 +146,14 @@ Item {
         autoHideTimer.restart()
     }
     function notifyActivity() { if (chromeVisible) autoHideTimer.restart() }
-    function _autoHide() { if (reader) reader.chromeVisible = false }
+    // chrome is HELD while a modal is up or the pointer rests ON the chrome — reaching for a pill
+    // and pausing to aim must not fade the pill out from under your cursor (Reader 1 ~:826-830).
+    readonly property bool _holdChrome: modalOpen || chromeHover.hovered
+    function _autoHide() {
+        if (_holdChrome) { autoHideTimer.restart(); return }
+        if (reader) reader.chromeVisible = false
+    }
 
-    // Task 12 CARRY: PAUSE auto-hide while `modalOpen` once overlays land, else the footer fades
-    // under an open settings sheet / navigator after 3s. Guard _autoHide (or stop the timer) on
-    // modalOpen then. No overlay exists yet, so nothing to pause today.
     Timer {
         id: autoHideTimer
         interval: hud.autoHideMs
@@ -174,9 +177,11 @@ Item {
         else        { if (rtl) retreatPageRequested(); else advancePageRequested() }
     }
 
-    // enumerable glyph inventory — every HUD glyph is a ComicReaderIcon (semantic-icon-audit oracle)
+    // enumerable glyph inventory — every HUD glyph is a ComicReaderIcon (semantic-icon-audit oracle).
+    // icBack is EXEMPT: it's the shared BackAction component now (back-navigation unification law),
+    // which owns its own vector chevron and carries no glyphKind — it isn't part of the per-icon audit.
     readonly property var iconKinds: [
-        icBack.glyphKind, icPrev.glyphKind, icNext.glyphKind,
+        icPrev.glyphKind, icNext.glyphKind,
         icChapters.glyphKind, icThumbs.glyphKind, icSettings.glyphKind,
         icMin.glyphKind, icFull.glyphKind, icClose.glyphKind
     ]
@@ -302,6 +307,10 @@ Item {
         visible: opacity > 0.001
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
+        // a pointer resting anywhere on the chrome (pill, scrim, footer) holds auto-hide — see
+        // hud._holdChrome. chromeLayer is a plain Item (not a Row/Column), so this anchors legally.
+        HoverHandler { id: chromeHover }
+
         // ---- top gradient scrim: darkens the top edge so the back + window verbs read on ANY page,
         //      mirroring the footer gradient (and the player's playerTopScrim). The page still owns
         //      the screen — this is a soft visitor, not a bar. ----
@@ -318,35 +327,24 @@ Item {
         }
 
         // ---- back to Library (top-left) — bright glyph + label on the scrim, no glass box ----
-        Row {
+        // Shared BackAction component (back-navigation unification law). raisedLabel:true opts
+        // into the black drop-shadow under both the chevron and the label — Hemanth's legibility
+        // ruling for a control with no chrome behind it, sitting directly on bright manga art.
+        BackAction {
             id: icBack
-            x: 18; y: 16
-            spacing: 7
-            property alias glyphKind: backGlyph.kind   // enumerated by iconKinds (audit)
-            ComicReaderIcon {
-                id: backGlyph
-                anchors.verticalCenter: parent.verticalCenter
-                kind: "back"
-                width: 20; height: 20
-                ink: backMa.containsMouse ? theme.gold : theme.ink
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Library"
-                color: backMa.containsMouse ? theme.gold : theme.ink
-                font.family: theme.hud
-                font.pixelSize: 14
-                font.weight: Font.DemiBold
-                style: Text.Raised
-                styleColor: Qt.rgba(0, 0, 0, 0.5)
-            }
-            MouseArea {
-                id: backMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: hud.backRequested()
-            }
+            objectName: "hudBackAction"
+            // BackAction's implicitHeight is a fixed 34px (all variants) and vertically centers its
+            // Row inside that box; the old hand-built Row sat directly at y:16 with no such box. y:9
+            // compensates so the visible chevron+label land at the SAME screen position as before
+            // (measured offscreen: root height 34, Row offset 7px within it -> 9+7=16).
+            x: 18; y: 9
+            variant: "plain"
+            label: "Library"
+            raisedLabel: true
+            labelSize: 14
+            idleColor: theme.ink
+            hoverColor: theme.gold
+            onTriggered: hud.backRequested()
         }
 
         // ---- window verbs (top-right) — transparent RoundButtons on the scrim, bright ink ----
@@ -468,8 +466,11 @@ Item {
             MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
             // ------- gold scrub thread -------
+            // hidden for a one-page entry (Reader 1 ~:1492) — there is nowhere to scrub to.
             Item {
                 id: scrub
+                objectName: "hudScrub"
+                visible: hud.max > 1
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.leftMargin: 22
@@ -480,6 +481,7 @@ Item {
 
                 Rectangle {
                     id: scrubTrack
+                    objectName: "hudScrubTrack"
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
@@ -487,7 +489,11 @@ Item {
                     radius: 2
                     color: hud.cScrubTrack
 
-                    readonly property real knobRatio: hud._scrubbing ? hud._scrubRatio : hud.fillRatio()
+                    // the bubble/knob DISPLAY position follows the POINTER while hovering OR
+                    // dragging (FIX 2 — it used to repeat fillRatio(), i.e. your CURRENT position,
+                    // until you committed and dragged); otherwise it shows the real read position.
+                    readonly property bool pointerActive: hud._scrubbing || scrubHover.hovered
+                    readonly property real knobRatio: pointerActive ? hud._scrubRatio : hud.fillRatio()
 
                     // gold fill to the current position
                     Rectangle {
@@ -510,7 +516,8 @@ Item {
                         }
                     }
 
-                    // gold knob + glow
+                    // gold knob + glow — the knob GROWS while hovering/dragging (a scaled-up TB2's
+                    // 4->5px-radius grow, applied to our approved-mock rest size: 12->15px width)
                     Rectangle {
                         id: knobGlow
                         width: 20; height: 20; radius: 10
@@ -520,7 +527,11 @@ Item {
                     }
                     Rectangle {
                         id: knob
-                        width: 12; height: 12; radius: 6
+                        objectName: "hudKnob"
+                        width: scrubTrack.pointerActive ? 15 : 12
+                        height: width
+                        radius: width / 2
+                        Behavior on width { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
                         color: theme.gold
                         x: scrubTrack.width * scrubTrack.knobRatio - width / 2
                         anchors.verticalCenter: parent.verticalCenter
@@ -529,7 +540,7 @@ Item {
                     // page bubble above the knob (on hover / drag)
                     Rectangle {
                         id: bubble
-                        visible: hud._scrubbing || scrubHover.hovered
+                        visible: scrubTrack.pointerActive
                         height: 20
                         width: bubbleText.implicitWidth + 18
                         radius: 6
@@ -541,8 +552,14 @@ Item {
                                     scrubTrack.width * scrubTrack.knobRatio - width / 2))
                         Text {
                             id: bubbleText
+                            objectName: "hudBubbleText"
                             anchors.centerIn: parent
-                            text: hud.pageForRatio(scrubTrack.knobRatio)
+                            // consults the shell's geometry-honest resolver (FIX 2) instead of
+                            // recomputing its own estimate — degrades to the old pure math if the
+                            // seam is absent (a harness fake, or an older shell).
+                            text: (hud.reader && hud.reader.pageAtFraction)
+                                  ? hud.reader.pageAtFraction(scrubTrack.knobRatio)
+                                  : hud.pageForRatio(scrubTrack.knobRatio)
                             color: theme.gold
                             font.family: theme.hud
                             font.pixelSize: 11
@@ -556,6 +573,7 @@ Item {
                     anchors.fill: parent
                     anchors.topMargin: -6
                     anchors.bottomMargin: -6
+                    hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     function _ratioAt(mx) {
                         return scrubTrack.width > 0 ? hud._clamp01(mx / scrubTrack.width) : 0
@@ -564,7 +582,13 @@ Item {
                     // long book for >3s fires _autoHide -> chromeVisible=false -> this MouseArea
                     // (inside the opacity-gated chromeLayer) vanishes under the cursor mid-drag.
                     onPressed: function (m) { autoHideTimer.stop(); hud._scrubbing = true; hud._scrubRatio = _ratioAt(m.x); hud._emitScrub(hud._scrubRatio) }
-                    onPositionChanged: function (m) { if (hud._scrubbing) { hud._scrubRatio = _ratioAt(m.x); hud._emitScrub(hud._scrubRatio) } }
+                    // hoverEnabled now delivers this on a plain hover move too (no button down) —
+                    // track the pointer's ratio regardless, but only EMIT the navigation while an
+                    // actual drag (_scrubbing) is in progress; a hover must only move the bubble.
+                    onPositionChanged: function (m) {
+                        hud._scrubRatio = _ratioAt(m.x)
+                        if (hud._scrubbing) hud._emitScrub(hud._scrubRatio)
+                    }
                     onReleased: { hud._scrubbing = false; hud.notifyActivity() }
                 }
             }

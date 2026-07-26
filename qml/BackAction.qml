@@ -21,6 +21,12 @@ Item {
     property color hoverColor: theme.gold     // Biblio passes white; TopBar Home passes ink
     property int labelSize: 15
     property string tip: ""                   // tooltip — required when icon-only
+    // Opt-in drop shadow under the chevron and label. Default OFF, so every existing caller
+    // renders exactly as before. The reader HUD needs it: its back control sits directly on
+    // bright manga artwork with no chrome behind it, where flat white on white vanishes —
+    // Hemanth's legibility ruling. Without this the reader could not adopt the shared
+    // component at all, which is why its back control was hand-built and out of law.
+    property bool raisedLabel: false
     readonly property bool iconOnly: variant !== "plain"
     readonly property bool hovered: ma.containsMouse
     signal triggered()
@@ -53,23 +59,53 @@ Item {
         anchors.leftMargin: root.iconOnly ? 0 : 2
         spacing: 9
 
-        // the canonical chevron — vector, currentColor, round caps (never a font glyph)
-        Shape {
+        // the canonical chevron — vector, currentColor, round caps (never a font glyph).
+        // Wrapped in a plain Item (not directly in the Row) so the raisedLabel shadow Shape
+        // below can sit in the same layout cell, offset by 1px, without the Row's positioner
+        // fighting over two siblings' x/y — the Row only ever sees one child here, unchanged.
+        Item {
             id: chevron
             width: root._chev; height: root._chev
             anchors.verticalCenter: parent.verticalCenter
-            preferredRendererType: Shape.CurveRenderer
-            ShapePath {
-                strokeColor: root._c
-                strokeWidth: 2.5 * root._chev / 24
-                fillColor: "transparent"
-                capStyle: ShapePath.RoundCap
-                joinStyle: ShapePath.RoundJoin
-                startX: 14.5 * root._chev / 24; startY: 5.5 * root._chev / 24
-                PathLine { x: 8.0 * root._chev / 24; y: 12.0 * root._chev / 24 }
-                PathLine { x: 14.5 * root._chev / 24; y: 18.5 * root._chev / 24 }
+
+            // raisedLabel drop shadow for the chevron — a second Shape, offset 1px, stroked in
+            // translucent black, painted BEHIND the real chevron below. Shape/ShapePath has no
+            // styleColor (that's a Text-only property), so a duplicate offset stroke is the
+            // only way to fake the same drop shadow the label gets. Default invisible, opt-in.
+            Shape {
+                id: chevronShadow
+                visible: root.raisedLabel
+                x: 1; y: 1
+                width: root._chev; height: root._chev
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: Qt.rgba(0, 0, 0, 0.5)
+                    strokeWidth: 2.5 * root._chev / 24
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+                    startX: 14.5 * root._chev / 24; startY: 5.5 * root._chev / 24
+                    PathLine { x: 8.0 * root._chev / 24; y: 12.0 * root._chev / 24 }
+                    PathLine { x: 14.5 * root._chev / 24; y: 18.5 * root._chev / 24 }
+                }
             }
-            Behavior on opacity { NumberAnimation { duration: 120 } }
+
+            Shape {
+                id: chevronShape
+                anchors.fill: parent
+                preferredRendererType: Shape.CurveRenderer
+                ShapePath {
+                    strokeColor: root._c
+                    strokeWidth: 2.5 * root._chev / 24
+                    fillColor: "transparent"
+                    capStyle: ShapePath.RoundCap
+                    joinStyle: ShapePath.RoundJoin
+                    startX: 14.5 * root._chev / 24; startY: 5.5 * root._chev / 24
+                    PathLine { x: 8.0 * root._chev / 24; y: 12.0 * root._chev / 24 }
+                    PathLine { x: 14.5 * root._chev / 24; y: 18.5 * root._chev / 24 }
+                }
+                Behavior on opacity { NumberAnimation { duration: 120 } }
+            }
         }
 
         Text {
@@ -79,6 +115,8 @@ Item {
             color: root._c
             font.family: theme.ui
             font.pixelSize: root.labelSize
+            style: root.raisedLabel ? Text.Raised : Text.Normal
+            styleColor: Qt.rgba(0, 0, 0, 0.5)
             anchors.verticalCenter: parent.verticalCenter
             Behavior on color { ColorAnimation { duration: 120 } }
         }

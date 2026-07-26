@@ -253,6 +253,8 @@ Item {
     property int _recBefore: 0
     property var _expectPageRec: null
     property var _mB6Records: null
+    property var _csShell: null
+    property var _csArea: null
 
     function runChecks() {
         try {
@@ -934,6 +936,25 @@ Item {
                    "strip pinning: the strip surface's visiblePages must reach core.setVisible, got " + JSON.stringify(fakeCoreVP.lastVisible))
             }
 
+            // -- 12. CURSOR AUTO-HIDE: neither reference leaves an arrow parked on the page.
+            // Blanks after cursorIdleMs of stillness while the chrome is away; a poke (real
+            // activity) clears it; the chrome being up holds the arrow regardless of idle time. --
+            var csStore = fakeStoreCS
+            csStore.pages = fivePages()
+            var csShell = makeShell({
+                "width": 640, "height": 480, "cursorIdleMs": 25,
+                "seriesId": "s-cursor", "seriesTitle": "Cursor", "seriesCover": "file:///f/cs.png",
+                "core": fakeCoreCS, "progress": fakeProgCS, "pageStore": csStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(csShell._cursorIdle === false, "cursor: _cursorIdle must start false, got " + csShell._cursorIdle)
+            var csArea = byName(csShell, "cursorHideArea")
+            ck(csArea !== null, "cursor: a click-transparent cursor overlay (objectName 'cursorHideArea') must be mounted")
+            harness._csShell = csShell
+            harness._csArea = csArea
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -976,6 +997,53 @@ Item {
         } catch (e) {
             failures.push("exception during bookmark-deferred checks: " + e.message)
         }
+        cursorDeferredTimer.start()
+    }
+
+    // CURSOR-DEFERRED phase — after cursorIdleMs (pinned to 25ms) has elapsed with the chrome
+    // away: the arrow must have blanked. Then a poke (real activity) must clear it immediately,
+    // and — separately — the chrome being up must hold the arrow even while idle.
+    function runCursorDeferred() {
+        try {
+            var s = harness._csShell, area = harness._csArea
+            ck(s !== null, "cursor: the pinned-interval shell must have been stashed")
+            if (s) {
+                s.chromeVisible = false
+                ck(s._cursorIdle === true,
+                   "cursor: _cursorIdle must go true after cursorIdleMs of stillness (chrome away), got " + s._cursorIdle)
+                if (area) {
+                    ck(area.enabled === true, "cursor: the overlay must be enabled while the chrome is away, got " + area.enabled)
+                    ck(area.cursorShape === Qt.BlankCursor,
+                       "cursor: the overlay must show BlankCursor once idle with the chrome away, got " + area.cursorShape)
+                }
+                s._pokeCursor()
+                ck(s._cursorIdle === false, "cursor: _pokeCursor() must clear _cursorIdle immediately, got " + s._cursorIdle)
+                if (area) ck(area.cursorShape === Qt.ArrowCursor,
+                   "cursor: a poke must restore the ArrowCursor immediately, got " + area.cursorShape)
+
+                // chrome visible: even once idle, the arrow must NOT blank — the overlay must step
+                // OUT of the cursor contest entirely (never override the HUD's own PointingHandCursors)
+                s.chromeVisible = true
+                s._cursorIdle = true
+                ck(area === null || area.enabled === false,
+                   "cursor: with chromeVisible=true the overlay must go DISABLED (never contest the HUD's cursors), got enabled=" + (area ? area.enabled : "<no area>"))
+
+                // an open modal (settings sheet) also takes the overlay out of the contest
+                s.chromeVisible = false
+                s.settingsRequested()
+                ck(s.modalOpen === true, "cursor: settingsRequested must open the settings sheet (modalOpen), got " + s.modalOpen)
+                ck(area === null || area.enabled === false,
+                   "cursor: with a modal open the overlay must also go DISABLED, got enabled=" + (area ? area.enabled : "<no area>"))
+                s.closeTopRequested()
+                ck(s.modalOpen === false, "cursor: closeTopRequested must close the sheet again")
+
+                // click-transparency: the overlay must never accept a mouse button
+                if (area) ck(area.acceptedButtons === Qt.NoButton,
+                   "cursor: the overlay must be acceptedButtons:Qt.NoButton (click/wheel transparent), got " + area.acceptedButtons)
+            }
+        } catch (e) {
+            failures.push("exception during cursor-deferred checks: " + e.message)
+        }
         report()
     }
 
@@ -1004,11 +1072,14 @@ Item {
     FakeCore { id: fakeCoreB5 }  FakeProgress { id: fakeProgB5 }  FakePageStore { id: fakeStoreB5 }
     FakeCore { id: fakeCoreB6 }  FakeProgress { id: fakeProgB6 }  FakePageStore { id: fakeStoreB6 }
     FakeCore { id: fakeCoreVP }  FakeProgress { id: fakeProgVP }  FakePageStore { id: fakeStoreVP }
+    FakeCore { id: fakeCoreCS }  FakeProgress { id: fakeProgCS }  FakePageStore { id: fakeStoreCS }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
     // fires after entrySave's fixed 800ms debounce interval elapses
     Timer { id: bookmarkDebounceTimer; interval: 900; running: false; onTriggered: harness.runBookmarkDeferred() }
+    // fires after the pinned 25ms cursorIdleMs has elapsed
+    Timer { id: cursorDeferredTimer; interval: 60; running: false; onTriggered: harness.runCursorDeferred() }
 
     Component.onCompleted: {
         try {

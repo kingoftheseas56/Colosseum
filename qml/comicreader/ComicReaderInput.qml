@@ -74,6 +74,8 @@ Item {
             if (chromeVisible) { toggleChrome(); return "toggleChrome" }
             back(); return "back"
         }
+        // an open overlay owns the keyboard — everything except Escape is gated (Reader 1 :875)
+        if (modalOpen) return ""
         if (ctrl && key === Qt.Key_G) { goToPage(); return "goToPage" }
         if (ctrl && (key === Qt.Key_Plus || key === Qt.Key_Equal)) { zoomBy(20); return "zoomBy" }
         if (ctrl && (key === Qt.Key_Minus || key === Qt.Key_Underscore)) { zoomBy(-20); return "zoomBy" }
@@ -115,8 +117,15 @@ Item {
         // within itself (clamped by the surface, stops at the edge); a spread that fits swallows the
         // key. Page turns are Left/Right, Space, and click zones only.
         if (key === Qt.Key_Up || key === Qt.Key_Down) {
-            if (zoomed || vScrollMax > 0) { panBy(0, key === Qt.Key_Up ? -panKeyStep : panKeyStep); return "panBy" }
-            return ""   // nothing to scroll -> swallow (never flips)
+            if (dbl) {
+                // double-page: vertical is PAN, never a page flip (the strict Tankoban-Max model)
+                if (zoomed || vScrollMax > 0) { panBy(0, key === Qt.Key_Up ? -panKeyStep : panKeyStep); return "panBy" }
+                return ""   // nothing to scroll -> swallow (never flips)
+            }
+            // strip: the most instinctive fine-scroll key in a vertical reader (Reader 1: 12%, Shift 25%)
+            var shiftHeld = (mods & Qt.ShiftModifier) !== 0
+            scrollBy((key === Qt.Key_Down ? 1 : -1) * (shiftHeld ? 0.25 : 0.12))
+            return "scrollBy"
         }
         return ""
     }
@@ -177,6 +186,12 @@ Item {
         if (mode === "double_page") {
             var zone = zoneForX(x, w)
             if (zone === "left" || zone === "right") return navByZone(zone)
+        } else {
+            // strip: a side-zone click fine-scrolls (Reader 1's third-click step, ~line 1268-1270)
+            // instead of falling through to the chrome toggle.
+            var zStrip = zoneForX(x, w)
+            if (zStrip === "left")  { scrollBy(-0.82); return "scrollBy" }
+            if (zStrip === "right") { scrollBy(0.82);  return "scrollBy" }
         }
         singleClickTimer.restart()          // center (double) or any click (strip): chrome toggle after 220ms
         return "pendingSingle"
