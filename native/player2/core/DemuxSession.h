@@ -110,6 +110,12 @@ public:
     // Live A/V offset (mpv audio-delay parity): shifts the audio buffer pts reported to the master
     // clock, so video is scheduled against the offset. Positive delays audio relative to video.
     void setAudioDelay(qint64 delayUs) noexcept;
+    // How many bytes are held but NOT yet demuxed (the network read-ahead), and the byte offset the
+    // demuxer has consumed to. -1 for a local file, where there is no network cache to describe.
+    // The caller converts bytes to time using the bitrate it has actually observed, because only it
+    // knows how much media time those consumed bytes produced.
+    qint64 pendingBytes() const;
+    qint64 consumedBytes() const;
     void setVideoPipeline(D3D11VideoPipeline *pipeline) noexcept;
     void setAudioPipeline(AudioPipeline *pipeline) noexcept;
     void setTiming(PlaybackClock *clock, FrameScheduler *scheduler) noexcept;
@@ -194,7 +200,7 @@ private:
     std::thread m_worker;
     // Active streaming source (null for local files). Held as a shared_ptr so cancel() can unblock a
     // blocked AVIO read from the GUI thread while the worker still owns the object.
-    std::mutex m_httpMutex;
+    mutable std::mutex m_httpMutex; // mutable: the byte observers above are const
     std::shared_ptr<HttpMediaSource> m_httpSource;
     // The run-local audio packet queue, exposed so cancel()/enqueueCommand() (called off the demux
     // thread) can interrupt a demux BLOCKED pushing into a full audio queue — otherwise a Pause/Seek/

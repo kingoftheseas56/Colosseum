@@ -84,7 +84,25 @@ Player2Session::Player2Session(QObject *parent)
         const bool streamed = !m_lastRequest.source.isLocalFile();
         if (streamed && seconds > m_bufferedFrontierSec)
             m_bufferedFrontierSec = seconds;
-        const double buffered = streamed ? m_bufferedFrontierSec : -1.0;
+        // The demuxed frontier alone is NOT the answer: this demux is paced by playback, so it sits
+        // barely ahead of the playhead even while the transport holds half a minute of data. What we
+        // actually hold is the un-demuxed byte ring on top of it. Converting those bytes needs a
+        // bitrate, and the honest one is the rate OBSERVED SO FAR (bytes consumed / media time
+        // produced) rather than file-size-over-duration, which is a whole-file average that says
+        // nothing about the stretch being played. Sampled, not polled per packet, so the GUI thread
+        // does not take the transport's locks tens of times a second.
+        double buffered = -1.0;
+        if (streamed && m_bufferedSampleTick++ % 15 == 0) {
+            const qint64 consumed = m_demux.consumedBytes();
+            const qint64 pending = m_demux.pendingBytes();
+            if (consumed > 0 && pending >= 0 && m_bufferedFrontierSec > 0.5) {
+                const double bytesPerSec = static_cast<double>(consumed) / m_bufferedFrontierSec;
+                if (bytesPerSec > 1.0)
+                    m_bufferedAheadSec = static_cast<double>(pending) / bytesPerSec;
+            }
+        }
+        if (streamed)
+            buffered = m_bufferedFrontierSec + m_bufferedAheadSec;
         if ((buffered < 0.0) != (m_bufferedSeconds < 0.0)
             || std::abs(buffered - m_bufferedSeconds) >= 0.25) {
             m_bufferedSeconds = buffered;
@@ -119,6 +137,7 @@ Player2Session::Player2Session(QObject *parent)
         // The read-ahead starts again from the landing point; carrying the old frontier would claim
         // a cache we no longer hold.
         m_bufferedFrontierSec = actualSeconds;
+        m_bufferedAheadSec = 0.0;
         m_bufferedSeconds = -1.0;
         emit bufferedSecondsChanged();
         emit positionChanged();
@@ -659,6 +678,7 @@ void Player2Session::resetMediaProperties()
     setNetworkStalled(false);
     // Same reason: a local file must not inherit the previous stream's cache strip.
     m_bufferedFrontierSec = 0.0;
+    m_bufferedAheadSec = 0.0;
     if (m_bufferedSeconds != -1.0) {
         m_bufferedSeconds = -1.0;
         emit bufferedSecondsChanged();
