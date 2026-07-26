@@ -105,7 +105,14 @@ Item {
         property var lastSpreadOverride: null
         function pageInfo(page) { return fakePageInfo }
         function setSpreadOverride(page, state) { lastSpreadOverride = { page: page, state: String(state) } }
-        function nudgeCoupling() {}
+        // The real core FLIPS the phase and republishes couplingState; F3 reads that string back to
+        // learn which phase the nudge landed on, so a no-op fake would make the test vacuous.
+        property int nudgeCalls: 0
+        function nudgeCoupling() {
+            nudgeCalls += 1
+            couplingState = (couplingState.split(":")[1] === "shifted")
+                ? "manual:normal:1.0" : "manual:shifted:1.0"
+        }
         // settings-seam surface (Task 12): the shell pushes taste in and reads it back out
         property int stripWidthPct: 78
         property int stripGap: 0
@@ -114,7 +121,8 @@ Item {
         property var blob: ({})        // what persistedState() hands back to the shell's saver
         function setMemorySaver(on) { memorySaver = (on === true) }
         function setStripLayout(w, g) { stripWidthPct = w; stripGap = g; lastStripLayout = { w: w, g: g } }
-        function resetCoupling() {}
+        property int resetCalls: 0
+        function resetCoupling() { resetCalls += 1; couplingState = "auto:normal:1.0" }
         function persistedState() { return JSON.parse(JSON.stringify(blob)) }
         // bookmarks (B6): a REAL toggle over a JS array — not a stub — so the shell's live-list
         // wiring is actually exercised, not merely assumed. Mirrors the real backend's contract:
@@ -1135,6 +1143,62 @@ Item {
                "E6 hide: precondition - the shell must actually BE visible, otherwise hiding it "
                + "fires no change and this check would pass vacuously")
 
+            // -- 16. F3 COUPLING PHASE SEEDS FROM THE SERIES: a chapter you have never opened
+            // inherits the phase you set by hand on this series. Without it every new chapter
+            // re-ran the auto probe and could land on the opposite phase, so reading a series in
+            // order meant re-nudging at nearly every chapter. --
+            var f3Records = freshRecords('{"s-f3":{"rm":"manga","cp":"shifted"}}')
+            var f3Entries = freshRecords()
+            var f3Store = fakeStoreF3
+            f3Store.pages = fivePages()
+            var f3Shell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-f3", "seriesTitle": "Coupling", "seriesCover": "file:///f/c.png",
+                "core": fakeCoreF3, "progress": fakeProgF3, "pageStore": f3Store,
+                "seriesRecords": f3Records, "entryRecords": f3Entries,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch9", "number": "9", "name": "" }],
+                "chapterId": "ch9", "chapterLabel": "Chapter 9"
+            })
+            var f3Open = fakeCoreF3.lastOpenEntry
+            ck(f3Open && f3Open.persisted && f3Open.persisted.couplingMode === "manual"
+               && f3Open.persisted.couplingPhase === "shifted",
+               "F3: a never-opened chapter must inherit the series' hand-set phase, got "
+               + JSON.stringify(f3Open ? f3Open.persisted : null))
+
+            // ...but an entry that already has its OWN coupling record keeps it - the series value
+            // is a seed, not an override.
+            var f3bEntries = freshRecords('{"ch8":{"couplingMode":"manual","couplingPhase":"normal"}}')
+            var f3bStore = fakeStoreF3b
+            f3bStore.pages = fivePages()
+            var f3bShell = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-f3", "seriesTitle": "Coupling", "seriesCover": "file:///f/c.png",
+                "core": fakeCoreF3b, "progress": fakeProgF3b, "pageStore": f3bStore,
+                "seriesRecords": f3Records, "entryRecords": f3bEntries,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch8", "number": "8", "name": "" }],
+                "chapterId": "ch8", "chapterLabel": "Chapter 8"
+            })
+            ck(fakeCoreF3b.lastOpenEntry.persisted.couplingPhase === "normal",
+               "F3: an entry with its own coupling record must NOT be overridden by the series seed, got "
+               + JSON.stringify(fakeCoreF3b.lastOpenEntry.persisted))
+
+            // a hand nudge records the landed phase onto the SERIES
+            fakeCoreF3.couplingState = "auto:normal:1.0"
+            f3Shell.nudgeCoupling()
+            ck(fakeCoreF3.nudgeCalls === 1, "F3: nudgeCoupling must reach the backend")
+            ck(JSON.parse(f3Records.all)["s-f3"].cp === "shifted",
+               "F3: a nudge must record the landed phase on the series, got "
+               + JSON.stringify(JSON.parse(f3Records.all)["s-f3"]))
+
+            // ...and reset FORGETS it, so the next chapter cannot re-apply what you just reset
+            f3Shell.resetCoupling()
+            ck(fakeCoreF3.resetCalls === 1, "F3: resetCoupling must reach the backend")
+            ck(JSON.parse(f3Records.all)["s-f3"].cp === undefined,
+               "F3: reset must DELETE the series phase seed, not store a falsy one, got "
+               + JSON.stringify(JSON.parse(f3Records.all)["s-f3"]))
+
             hfShell.visible = false
             var hfSaved = JSON.parse(hfRecords.all)["ch1"]
             ck(hfSaved !== undefined && hfSaved.couplingPhase === "shifted",
@@ -1265,6 +1329,8 @@ Item {
     FakeCore { id: fakeCoreF2a } FakeProgress { id: fakeProgF2a } FakePageStore { id: fakeStoreF2a }
     FakeCore { id: fakeCoreF2b } FakeProgress { id: fakeProgF2b } FakePageStore { id: fakeStoreF2b }
     FakeCore { id: fakeCoreHF }  FakeProgress { id: fakeProgHF }  FakePageStore { id: fakeStoreHF }
+    FakeCore { id: fakeCoreF3 }  FakeProgress { id: fakeProgF3 }  FakePageStore { id: fakeStoreF3 }
+    FakeCore { id: fakeCoreF3b } FakeProgress { id: fakeProgF3b } FakePageStore { id: fakeStoreF3b }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }

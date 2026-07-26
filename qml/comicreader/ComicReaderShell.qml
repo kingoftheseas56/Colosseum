@@ -451,7 +451,14 @@ Item {
     property var liveBookmarks: []
     function _refreshBookmarks() { liveBookmarks = (core && core.bookmarks) ? core.bookmarks() : [] }
 
-    function nudgeCoupling() { if (core && core.nudgeCoupling) core.nudgeCoupling() }
+    // A hand nudge is a statement about the SERIES, not just this chapter (F3): the phase is a
+    // property of how the volume was scanned, so the next chapter should open already phased.
+    function nudgeCoupling() {
+        if (!core || !core.nudgeCoupling) return
+        core.nudgeCoupling()
+        var phase = core.couplingState ? String(core.couplingState).split(":")[1] : ""
+        if (phase) _saveSeriesPrefs({ cp: phase })
+    }
     // Fix ONE page's pairing without re-phasing the book (that is what nudgeCoupling/P does). Cycle
     // auto -> spread -> single -> auto, matching Reader 1's cycleSpreadOverride. pageInfo reports the
     // override as absent / true / false (ComicReaderTypes.cpp PageMeta::toVariantMap), so absence IS
@@ -490,7 +497,12 @@ Item {
         else settingsRequested()
     }
     // Hand the double-page phase back to the auto-coupling probe (the settings sheet's Auto chip).
-    function resetCoupling() { if (core && core.resetCoupling) core.resetCoupling() }
+    // Reset means FORGET, including the series-wide seed (F3). Leaving `cp` behind would let the
+    // next chapter re-apply the exact phase you just reset, which reads as the reset not working.
+    function resetCoupling() {
+        if (core && core.resetCoupling) core.resetCoupling()
+        _saveSeriesPrefs({ cp: null })          // null = delete the key, see _saveSeriesPrefs
+    }
     // Long-strip taste: portrait page width % + inter-page gap px. The core owns the strip geometry,
     // so these read straight off it; ONE setter carries both so changing either preserves the other.
     // Route through the strip surface while it is the live one: rescaling the column moves every
@@ -714,6 +726,18 @@ Item {
     // on the way in and stripped on the way out — see _saveEntryBlob.
     function _applyEntryPrefs() {
         var blob = ComicReaderState.storeGet(entryRecords.all, curChapterId) || ({})
+        // F3: a chapter you have never opened inherits the SERIES' hand-set pairing phase. Without
+        // this, every new chapter re-ran the auto probe from scratch and could land on the opposite
+        // phase from the one you just fixed by hand — so a series read in order made you re-nudge
+        // at nearly every chapter. Only ever a SEED: an entry that already carries its own coupling
+        // record keeps it, because that is a decision made about this specific book.
+        if (blob.couplingMode === undefined) {
+            var srec = ComicReaderState.storeGet(seriesRecords.all, seriesId)
+            if (srec && srec.cp) {
+                blob.couplingMode = "manual"
+                blob.couplingPhase = srec.cp
+            }
+        }
         blob.memorySaver = globalPrefs.memorySaver
         persistedState = blob
     }
@@ -728,8 +752,15 @@ Item {
         if (!seriesId.length) return
         var rec = ComicReaderState.storeGet(seriesRecords.all, seriesId) || ({})
         rec.rm = readingMode
-        if (extra)
-            for (var k in extra) rec[k] = extra[k]
+        // A null VALUE means "delete this key", which is how resetCoupling drops the series-wide
+        // pairing seed. Storing an explicit null instead would survive the JSON round-trip and read
+        // back as a real (falsy but present) value on the next open.
+        if (extra) {
+            for (var k in extra) {
+                if (extra[k] === null || extra[k] === undefined) delete rec[k]
+                else rec[k] = extra[k]
+            }
+        }
         seriesRecords.all = ComicReaderState.storePut(seriesRecords.all, seriesId, rec)
     }
     function _saveEntryBlob() {
