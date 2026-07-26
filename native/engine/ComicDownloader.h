@@ -33,6 +33,8 @@
 
 #pragma once
 
+#include "DownloadFileOps.h"
+
 #include <QHash>
 #include <QList>
 #include <QObject>
@@ -254,6 +256,8 @@ private:
     void startNextUrlOrFail(InFlight& f);
     void failAndCleanup(InFlight& f, const QString& reason);
     void cancelAndCleanup(InFlight& f);
+    DownloadFileOps::Result cleanupCancelledPayload(InFlight& f);
+    void closePart(InFlight& f);
     void closeAndDeletePart(InFlight& f);
     void startNextQueued();
 

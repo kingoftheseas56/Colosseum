@@ -605,10 +605,15 @@ void AudiobookDownloader::cancelDownload(const QString& pairKey)
     for (int i = 0; i < m_queue.size(); ++i) {
         if (m_queue[i]->pairKey == pairKey) {
             Job* j = m_queue.takeAt(i);
-            DownloadFileOps::removeTree(dirFor(pairKey));
+            const auto result = DownloadFileOps::removeTree(dirFor(pairKey));
             delete j;
-            emit removed(pairKey);
             emit activeCountChanged();
+            if (!result.success) {
+                qWarning() << "[downloads] cancel cleanup failed" << pairKey << result.message;
+                emit failed(pairKey, result.message);
+                return;
+            }
+            emit removed(pairKey);
             return;
         }
     }
@@ -633,7 +638,7 @@ QVariantMap AudiobookDownloader::deleteAudiobook(const QString& pairKey)
 void AudiobookDownloader::cancelJob(Job* job)
 {
     cleanupInFlight(job);
-    DownloadFileOps::removeTree(dirFor(job->pairKey));
+    const auto result = DownloadFileOps::removeTree(dirFor(job->pairKey));
     const QString pairKey = job->pairKey;
     if (m_active == job) {
         delete m_active; m_active = nullptr;
@@ -642,6 +647,11 @@ void AudiobookDownloader::cancelJob(Job* job)
         m_queue.removeOne(job);
         delete job;
         emit activeCountChanged();
+    }
+    if (!result.success) {
+        qWarning() << "[downloads] cancel cleanup failed" << pairKey << result.message;
+        emit failed(pairKey, result.message);
+        return;
     }
     emit removed(pairKey);
 }

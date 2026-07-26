@@ -64,6 +64,7 @@ public:
 signals:
     void changed();          // active-job status and/or queue shape changed
     void libraryChanged();   // the persisted downloaded-videos set changed
+    void removed(const QString &id);
     void needResolve(const QString &id, const QString &streamId, const QString &mediaType);
 
 private:

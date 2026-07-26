@@ -11,6 +11,8 @@
 #include <QSaveFile>
 #include <QUrl>
 
+#include <utility>
+
 namespace MangaTankoban {
 namespace {
 
@@ -41,8 +43,18 @@ QString hash10(const QString& v)
 } // namespace
 
 MangaVolumeIndex::MangaVolumeIndex(const QString& rootDir, QObject* parent)
+    : MangaVolumeIndex(rootDir,
+                       [](const QString& path) { return QDir(path).removeRecursively(); },
+                       parent)
+{
+}
+
+MangaVolumeIndex::MangaVolumeIndex(const QString& rootDir,
+                                   DownloadFileOps::Remover treeRemover,
+                                   QObject* parent)
     : QObject(parent)
     , m_baseDir(QDir::cleanPath(rootDir) + QStringLiteral("/manga-volumes"))
+    , m_treeRemover(std::move(treeRemover))
 {
     load();
 }
@@ -245,8 +257,11 @@ bool MangaVolumeIndex::remove(const QString& volumeId)
 {
     auto it = m_index.find(volumeId.trimmed());
     if (it == m_index.end()) return false;
-    if (!it.value().dir.isEmpty())
-        QDir(it.value().dir).removeRecursively();
+    if (!it.value().dir.isEmpty()) {
+        const auto result = DownloadFileOps::removeTree(it.value().dir, m_treeRemover);
+        if (!result.success)
+            return false;
+    }
     m_index.erase(it);
     save();
     emit changed();

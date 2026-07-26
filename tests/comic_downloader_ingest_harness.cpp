@@ -23,6 +23,10 @@
 
 #include <cstdio>
 
+#ifdef Q_OS_WIN
+#include <windows.h>
+#endif
+
 namespace {
 bool makeCbz(const QString& root, const QString& name, QString* archivePath)
 {
@@ -167,11 +171,14 @@ bool runAssembledIngestCancelScenario(QNetworkAccessManager* nam)
     const QString stagingDir = buildAssembledStaging(stagingRoot, id, names);
 
     bool sawFinished = false;
-    bool sawCancelled = false;
+    bool sawFailed = false;
+    bool sawRemoved = false;
     QObject::connect(&comics, &ComicDownloader::finished, &comics,
         [&](const QString& fid) { if (fid == id) sawFinished = true; });
     QObject::connect(&comics, &ComicDownloader::failed, &comics,
-        [&](const QString& fid, const QString&) { if (fid == id) sawCancelled = true; });
+        [&](const QString& fid, const QString&) { if (fid == id) sawFailed = true; });
+    QObject::connect(&comics, &ComicDownloader::removed, &comics,
+        [&](const QString& fid) { if (fid == id) sawRemoved = true; });
 
     // Occupies the single lane: beginExtract() starts a real bsdtar QProcess
     // asynchronously and returns immediately, still "extracting" — since we
@@ -184,7 +191,7 @@ bool runAssembledIngestCancelScenario(QNetworkAccessManager* nam)
                                   QList<int>{});
     comics.cancelDownload(id);
 
-    if (sawFinished || !sawCancelled) {
+    if (sawFinished || sawFailed || !sawRemoved) {
         std::printf("FAIL: queued assembled ingest was not cleanly cancelled\n");
         return false;
     }
@@ -206,6 +213,72 @@ bool runAssembledIngestCancelScenario(QNetworkAccessManager* nam)
     comics.deleteIssue(blockerId);
     std::printf("OK: cancelled/queued assembled ingest leaves no index record or partial dir\n");
     return true;
+}
+
+// A cancelled queued job may fail to delete its staging payload.  On Windows a
+// file handle which omits FILE_SHARE_DELETE is a deterministic, real-world
+// deletion denial (the same shape as a previewer or scanner holding a file).
+// The downloader must report that failure and must not claim the item was
+// removed while payload remains on disk.
+bool runAssembledIngestCancelFailureScenario(QNetworkAccessManager* nam)
+{
+#ifndef Q_OS_WIN
+    Q_UNUSED(nam);
+    return true;
+#else
+    const QString blockerId = QStringLiteral("assembled-ingest-failure-blocker");
+    const QString id = QStringLiteral("assembled-ingest-cancel-failure");
+    ComicDownloader comics(nam);
+    comics.deleteIssue(blockerId);
+    comics.deleteIssue(id);
+
+    QTemporaryDir archiveRoot;
+    QString blockerArchive;
+    QTemporaryDir stagingRoot;
+    if (!archiveRoot.isValid() || !stagingRoot.isValid()
+        || !makeCbz(archiveRoot.path(), QStringLiteral("failure-blocker"), &blockerArchive)) {
+        std::printf("FAIL: could not create cancellation-failure fixtures\n");
+        return false;
+    }
+
+    const QStringList names = { QStringLiteral("page_000.jpg"), QStringLiteral("page_001.jpg") };
+    const QString stagingDir = buildAssembledStaging(stagingRoot, id, names);
+    const std::wstring lockedPath = (stagingDir + QStringLiteral("/page_000.jpg")).toStdWString();
+    const HANDLE lockedFile = CreateFileW(lockedPath.c_str(), GENERIC_READ,
+        FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (lockedFile == INVALID_HANDLE_VALUE) {
+        std::printf("FAIL: could not lock staged page for cancellation-failure scenario\n");
+        return false;
+    }
+
+    bool sawFailed = false;
+    bool sawRemoved = false;
+    QObject::connect(&comics, &ComicDownloader::failed, &comics,
+        [&](const QString& fid, const QString&) { if (fid == id) sawFailed = true; });
+    QObject::connect(&comics, &ComicDownloader::removed, &comics,
+        [&](const QString& fid) { if (fid == id) sawRemoved = true; });
+
+    comics.ingestLocalArchive(blockerId, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                              QStringLiteral("Failure Blocker"), blockerArchive);
+    comics.ingestAssembledEdition(id, QStringLiteral("gc:test"), QStringLiteral("Test Series"),
+                                  QStringLiteral("Assembled Edition Cancel Failure"), stagingDir, names,
+                                  QList<int>{});
+    comics.cancelDownload(id);
+    CloseHandle(lockedFile);
+
+    const bool ok = sawFailed && !sawRemoved && !comics.isDownloaded(id)
+        && QDir(stagingDir).exists();
+    if (!ok)
+        std::printf("FAIL: cancellation deletion failure was not surfaced truthfully\n");
+
+    QDir(stagingDir).removeRecursively();
+    comics.cancelDownload(blockerId);
+    comics.deleteIssue(id);
+    comics.deleteIssue(blockerId);
+    if (!ok) return false;
+    std::printf("OK: failed cancellation preserves payload and emits failure, not removed\n");
+    return true;
+#endif
 }
 } // namespace
 
@@ -266,6 +339,7 @@ int main(int argc, char** argv)
     // signal handlers wired up for the scenario above.
     if (!runAssembledIngestSuccessScenario(&nam)) return 1;
     if (!runAssembledIngestCancelScenario(&nam)) return 1;
+    if (!runAssembledIngestCancelFailureScenario(&nam)) return 1;
 
     return 0;
 }

@@ -658,6 +658,7 @@ QVariantMap DownloadStore::removeVideo(const QString &id) {
     m_index.remove(id);
     saveIndex();
     emit libraryChanged();
+    emit removed(id);
     return DownloadFileOps::toMap(result);
 }
 
