@@ -5,6 +5,10 @@
 //
 //   * spread / coverAlone / single (leftIndex<0) -> ONE full-viewport-width image
 //     (core.imageUrl(rightIndex)); an intact page, NEVER a fabricated crop.
+//   * ONE SCALE for the whole displayed unit (both lineage readers), so a pair of unevenly trimmed
+//     scans keeps its true relative size, meets FLUSH at the spine, and centres vertically as one
+//     block instead of hanging off the top. Natural size comes from the BACKEND's header geometry,
+//     not the Image's implicitWidth — see the unitScale block for why that distinction is the fix.
 //   * a real pair -> TWO images side by side, and the PHYSICAL x-order flips with direction:
 //       RTL (manga)  — the rightIndex page sits on the physical RIGHT, leftIndex on the LEFT.
 //       LTR (western)— mirrored (rightIndex page on the physical LEFT).
@@ -109,9 +113,80 @@ Item {
     // page costs what it is DISPLAYED at, not its full scan resolution — but raise the cap as you
     // zoom in, or magnification would just be showing you a bigger blur.
     readonly property int srcCapW: clampedZoom >= 180 ? 2800 : (clampedZoom > 100 ? 2048 : 1400)
-    readonly property real _maxImgH: Math.max(rightImg.visible ? rightImg.height : 0,
-                                              leftImg.visible ? leftImg.height : 0)
-    readonly property real panYMax: Math.max(0, _maxImgH - height)
+
+    // ================= ONE scale for the whole displayed unit =================
+    // Scanned volumes are trimmed page by page — 1550x2200 next to 1500x2200 is routine. Sizing each
+    // half to the SAME half-width draws one page visibly larger than the other: tops aligned, bottoms
+    // ragged, art scale jumping across the gutter, the spread reading as a collage rather than as one
+    // piece of paper. Both lineage readers compute ONE scale for the displayed unit and apply it to
+    // both halves (Reader 1 ReaderEngine.js computeSpreadLayout — `Math.min` over the two halves'
+    // fits, called with fitWidth:true; Tankoban 2 ComicReader.cpp "B2: Unified pair scale — both
+    // pages at identical heights"). Fit is by WIDTH, exactly as both of them do it: the unit fills
+    // the viewport width and vertical overflow is what pan is for.
+    //
+    // NATURAL SIZE = the page's TRUE, UNCAPPED source geometry, from the BACKEND — pageInfo()'s
+    // sourceWidth/sourceHeight (PageMeta::sourceSize, learned from the file HEADER ahead of the
+    // decode). NOT the Image's implicitWidth: `sourceSize.width: srcCapW` makes
+    // ComicReaderProvider::requestImage hand back every page already scaled to that same capped
+    // width, so two differently-trimmed scans BOTH report implicitWidth == 1400 and a shared scale
+    // computed off that is arithmetically identical to sizing each half on its own — a fix that
+    // fixes nothing on exactly the books it is for. (Same reason the strip sizes its column from the
+    // model's displayWidth/displayHeight rather than from the loaded Image.) The Image's implicit
+    // size stays as the FALLBACK, for a core that reports no geometry.
+    function _naturalSize(index, img) {
+        var w = 0, h = 0
+        if (index >= 0 && core && core.pageInfo) {
+            var info = core.pageInfo(index)
+            if (info) {
+                w = info.sourceWidth  > 0 ? info.sourceWidth  : 0
+                h = info.sourceHeight > 0 ? info.sourceHeight : 0
+            }
+        }
+        if (!(w > 0 && h > 0)) { w = img.implicitWidth; h = img.implicitHeight }
+        return { w: (w > 0 ? w : 0), h: (h > 0 ? h : 0) }
+    }
+    // readyRev/entryRev are the same refresh dependencies the `source`/`unit` bindings carry:
+    // pageInfo() is a plain call, so without them the geometry would never pick up a size the
+    // backend learned after this binding first ran.
+    readonly property var _rightNat: (root.readyRev, root.entryRev,
+                                      _naturalSize(root.unit.rightIndex, rightImg))
+    readonly property var _leftNat:  (root.readyRev, root.entryRev,
+                                      _naturalSize(root.unit.leftIndex, leftImg))
+
+    // THE one scale. A half whose size is not known yet contributes nothing — when only ONE half has
+    // decoded we fit that one alone rather than collapsing the whole unit to zero.
+    readonly property real unitScale: {
+        if (isPair) {
+            var sr = _rightNat.w > 0 ? _halfW / _rightNat.w : 0
+            var sl = _leftNat.w  > 0 ? _halfW / _leftNat.w  : 0
+            if (sr > 0 && sl > 0) return Math.min(sr, sl)
+            return sr > 0 ? sr : sl
+        }
+        return _rightNat.w > 0 ? _contentW / _rightNat.w : 0
+    }
+
+    // Drawn geometry. With no natural size at all (nothing decoded, no backend geometry) each half
+    // falls back to its full box — the same placeholder the surface has always drawn.
+    readonly property real _rightW: _rightNat.w > 0 ? _rightNat.w * unitScale : (isPair ? _halfW : _contentW)
+    readonly property real _rightH: _rightNat.h > 0 ? _rightNat.h * unitScale : height
+    readonly property real _leftW:  _leftNat.w  > 0 ? _leftNat.w  * unitScale : _halfW
+    readonly property real _leftH:  _leftNat.h  > 0 ? _leftNat.h  * unitScale : height
+
+    // The unit as ONE block: its height, and its top in viewport coords. It CENTRES when it fits —
+    // pinned to the top with all the black below reads as a layout bug — and pan owns the offset
+    // once it is taller than the viewport (where the centring term is 0 anyway).
+    readonly property real unitHeight: isPair ? Math.max(_rightH, _leftH) : (isSingle ? _rightH : 0)
+    readonly property real unitTop: Math.max(0, (height - unitHeight) / 2) - panY
+    readonly property real panYMax: Math.max(0, unitHeight - height)
+
+    // Flush at the spine: both inner edges land on the centre line. The PHYSICAL side flips with
+    // direction — RTL (manga) puts the rightIndex page on the physical RIGHT, LTR mirrors it.
+    readonly property real _spineX: _halfW
+    readonly property real _rightX: isPair ? (rtl ? _spineX : _spineX - _rightW) : 0
+    readonly property real _leftX:  rtl ? _spineX - _leftW : _spineX
+    // ...and each half centres inside the pair's band, so a shorter page sits mid-height.
+    readonly property real _rightY: unitTop + (unitHeight - _rightH) / 2
+    readonly property real _leftY:  unitTop + (unitHeight - _leftH) / 2
 
     function setZoom(pct) {
         zoomPercent = Math.max(100, Math.min(260, Math.round(pct)))
@@ -126,10 +201,22 @@ Item {
     function next()     { manualNavigation(); nextRequested() }
     function previous() { manualNavigation(); previousRequested() }
 
-    // ================= physical x-order (viewport coords) — for direction assert + HUD =================
-    // rightIndex page: physical RIGHT in RTL, physical LEFT in LTR; leftIndex page mirrors it.
-    readonly property real rightIndexX: content.x + (isPair ? (rtl ? _halfW : 0) : 0)
-    readonly property real leftIndexX:  content.x + (isPair ? (rtl ? 0 : _halfW) : 0)
+    // ================= drawn geometry (viewport coords) — for direction assert + HUD =================
+    // These READ THE ITEMS rather than re-deriving the math, so they cannot drift from what is
+    // actually on screen. rightIndex page: physical RIGHT in RTL, physical LEFT in LTR; leftIndex
+    // page mirrors it — unchanged meaning, the shell's right-click page mapping depends on it.
+    readonly property real rightIndexX: content.x + rightImg.x
+    readonly property real leftIndexX:  content.x + leftImg.x
+    readonly property real rightIndexY: content.y + rightImg.y
+    readonly property real leftIndexY:  content.y + leftImg.y
+    readonly property real rightPageWidth:  rightImg.width
+    readonly property real rightPageHeight: rightImg.height
+    readonly property real leftPageWidth:   leftImg.width
+    readonly property real leftPageHeight:  leftImg.height
+    readonly property real rightNaturalWidth:  _rightNat.w
+    readonly property real rightNaturalHeight: _rightNat.h
+    readonly property real leftNaturalWidth:   _leftNat.w
+    readonly property real leftNaturalHeight:  _leftNat.h
     readonly property real singleImageWidth: rightImg.width
     readonly property alias gutterShadowItem: gutterShadow
     readonly property bool gutterVisible: gutterShadow.visible
@@ -184,13 +271,16 @@ Item {
                            // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
                            // SmoothTransformation downscale — the "scroll back up and it stutters" cost.
             retainWhileLoading: true
+            // Still PreserveAspectFit even though width/height are now exact-ratio: it is the safety
+            // net for the one case where they are not — the backend's header geometry disagreeing
+            // with the decoded pixels. Letterboxed inside its box beats stretched.
             fillMode: Image.PreserveAspectFit
             sourceSize.width: root.srcCapW
             mipmap: true
-            width: root.isPair ? root._halfW : root._contentW
-            height: implicitWidth > 0 ? width * implicitHeight / implicitWidth : root.height
-            x: root.isPair ? (root.rtl ? root._halfW : 0) : 0
-            y: -root.panY
+            width: root._rightW
+            height: root._rightH
+            x: root._rightX
+            y: root._rightY
         }
 
         // leftIndex page (only for a real pair)
@@ -207,20 +297,22 @@ Item {
             fillMode: Image.PreserveAspectFit
             sourceSize.width: root.srcCapW
             mipmap: true
-            width: root._halfW
-            height: implicitWidth > 0 ? width * implicitHeight / implicitWidth : root.height
-            x: root.rtl ? 0 : root._halfW
-            y: -root.panY
+            width: root._leftW
+            height: root._leftH
+            x: root._leftX
+            y: root._leftY
         }
 
         // gutter shadow — soft spine, only for a real pair
         Rectangle {
             id: gutterShadow
+            // Follows the PAGES, not the viewport: a shadow the full window height darkens empty
+            // black above and below the spread instead of shading the spine.
             visible: root.isPair && root.gutterStrength > 0
             width: 18
-            height: root.height
-            x: root._halfW - width / 2
-            y: 0
+            height: root.unitHeight
+            x: root._spineX - width / 2
+            y: root.unitTop
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.00; color: Qt.rgba(0, 0, 0, 0.10 * root.gutterStrength) }

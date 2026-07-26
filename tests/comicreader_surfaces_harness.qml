@@ -35,6 +35,13 @@
 //     * the maxSeen pair-anchor contract (shell Task 9, onCurrentPageChanged): showing a unit emits
 //       unitShown(highestPage) with the reading-HIGHEST page of the unit (max(rightIndex,leftIndex),
 //       1-based) so a pair-terminated entry can reach `finished`.
+//     * ONE shared scale for the whole displayed unit: a MISMATCHED pair (1550x2200 next to
+//       1500x2200 — routine in scanned volumes) is drawn at a single scale, so both halves keep
+//       their true relative size and land at the same height; the two inner edges meet flush on the
+//       centre line in BOTH directions; a unit shorter than the viewport centres as a block with
+//       each half centred in its band; and the gutter shadow is the DRAWN PAIR's height/offset, not
+//       the window's. The natural size behind that scale is the backend's header geometry
+//       (pageInfo), with the Image's own decoded size as the fallback — both paths covered below.
 //
 // The fake core exposes the exact API surface the surfaces touch: stripModel (a QML ListModel with
 // the Task-6 roles), imageUrl(p), unitForPage(p), pageInfo(p), setVisible/setStripViewport/
@@ -60,6 +67,9 @@ Item {
     property var failures: []
     function ck(cond, msg) { if (!cond) failures.push(msg) }
     function approx(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 1e-6 : eps) }
+    // number formatter that survives an ABSENT property — a failure message must never throw, or the
+    // first missing property masks every other assertion in the run.
+    function fx(v, n) { return (typeof v === "number" && isFinite(v)) ? v.toFixed(n) : String(v) }
 
     // ---- fake backend core: the ComicReaderCore QML-facing API (Task 7) the surfaces drive ----
     component FakeCore: QtObject {
@@ -80,6 +90,15 @@ Item {
         // the binding -> no binding loop). The ONLY thing that re-drives `source` is the surface's
         // own readyRev counter — which is the fix under test.
         property var pageRevs: ({})
+        // TRUE source geometry per page, exactly as the real core's pageInfo() reports it
+        // (sourceWidth/sourceHeight — learned from the file HEADER ahead of the decode,
+        // ComicReaderDecode::onWorkerDimensions -> ComicReaderCore::onMetaReady). EMPTY by default,
+        // so every pre-existing scenario keeps taking the "the backend knows no size yet" path.
+        property var pageSizes: ({})
+        // per-page imageUrl override. Used by the decoded-pair scenario to serve REAL data: URL
+        // fixtures whose pixel dimensions differ, so the Image's implicitWidth/implicitHeight are
+        // genuinely mismatched rather than injected.
+        property var pageUrls: ({})
         // whether an entry is loaded — before openEntry, unitForPage returns a degenerate empty unit
         // (mirrors the real core with no entry). loadEntry() flips it + fires the load signals.
         property bool loaded: true
@@ -91,6 +110,7 @@ Item {
         signal pairingChanged()    // ...and this (ComicReaderCore.cpp:202), + on every rebuildUnits
         function loadEntry() { loaded = true; entryChanged(); pairingChanged() }
         function imageUrl(page) {
+            if (pageUrls[page] !== undefined) return pageUrls[page]
             var r = (pageRevs[page] !== undefined) ? pageRevs[page] : 0
             return "image://comicreader/1/" + page + "?rev=" + r
         }
@@ -104,7 +124,12 @@ Item {
             if (units[page] !== undefined) return units[page]
             return { rightIndex: page, leftIndex: -1, spread: false, coverAlone: false }
         }
-        function pageInfo(page) { return { error: "" } }
+        function pageInfo(page) {
+            var s = pageSizes[page]
+            if (s !== undefined)
+                return { error: "", sourceWidth: s.w, sourceHeight: s.h }
+            return { error: "" }        // the real core also omits geometry it has not learned yet
+        }
         function setVisible(pages) { setVisibleCalls += 1; lastVisible = pages }
         function setStripViewport(top, height) {
             setStripViewportCalls += 1; lastViewportTop = top; lastViewportHeight = height
@@ -133,6 +158,9 @@ Item {
     FakeCore { id: coreFail }
     FakeCore { id: coreDouble }
     FakeCore { id: coreFresh }
+    FakeCore { id: coreScale }     // MISMATCHED pair, sizes from the backend (pageInfo)
+    FakeCore { id: coreShort }     // pair SHORTER than the viewport (centring + gutter)
+    FakeCore { id: coreDecoded }   // no backend sizes: real data: URL pixels drive implicitWidth
 
     property var stripComp: null
     property var doubleComp: null
@@ -552,6 +580,207 @@ Item {
         ck(coreFresh.setVisibleCalls >= 1, "double-fresh: the load must drive core.setVisible so the cover decodes (else no request), got " + coreFresh.setVisibleCalls)
     }
 
+    // ===================== UNIFIED PAIR SCALE / SPINE / CENTRING =====================
+    //
+    // Scanned volumes are trimmed page by page: 1550x2200 next to 1500x2200 is routine. Sizing each
+    // half to the SAME half-width renders one page visibly larger than the other — tops aligned,
+    // bottoms ragged, art scale jumping across the gutter. Both lineage readers compute ONE scale
+    // for the whole displayed unit (Reader 1's computeSpreadLayout: `Math.min` over the two halves'
+    // fits, called with fitWidth:true; TB2 ComicReader.cpp "B2: Unified pair scale — both pages at
+    // identical heights") and apply it to both halves, so the pages keep their true relative size
+    // and meet flush at the spine.
+    //
+    // WHERE THE NATURAL SIZE COMES FROM, and why this fixture supplies it through pageInfo():
+    // the surface caps its decode with `sourceSize.width: srcCapW` (1400 at 100%), and
+    // ComicReaderProvider::requestImage answers with the page ALREADY scaled to that width, then
+    // reports that scaled size back. So in production BOTH halves of a real pair report
+    // implicitWidth == 1400 — a "shared scale" computed off implicitWidth is arithmetically
+    // IDENTICAL to sizing each half on its own, i.e. a fix that fixes nothing. The true, uncapped
+    // geometry lives in the backend (PageMeta::sourceSize, learned from the file header ahead of
+    // the decode) and reaches QML through pageInfo().sourceWidth/sourceHeight — the same source the
+    // strip already sizes its column from. The Image's implicit size stays as the FALLBACK, and is
+    // covered by runDoubleDecodedPair() below with real pixels.
+    function runDoubleUnifiedScale() {
+        // 800x480 viewport at 100% -> each half box is 400 wide.
+        coreScale.units[20] = { rightIndex: 20, leftIndex: 21, spread: false, coverAlone: false }
+        coreScale.pageSizes[20] = { w: 1550, h: 2200 }     // the WIDER trim
+        coreScale.pageSizes[21] = { w: 1500, h: 2200 }     // the narrower trim, same height
+        var dbl = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 21, "rtl": true, "core": coreScale
+        })
+        if (!dbl) { failures.push("double-scale: createObject returned null"); return }
+        if (!dbl.isPair) { failures.push("double-scale: fixture must be a PAIR"); return }
+
+        var rScale = dbl.rightPageWidth / dbl.rightNaturalWidth
+        var lScale = dbl.leftPageWidth / dbl.leftNaturalWidth
+        ck(approx(rScale, lScale, 1e-9),
+           "double-scale: BOTH halves of a mismatched pair must be drawn at ONE shared scale "
+           + "(right " + fx(rScale, 6) + " vs left " + fx(lScale, 6) + ") — sizing each half "
+           + "to the same half-width renders one page bigger than the other")
+        ck(approx(dbl.rightPageHeight, dbl.leftPageHeight, 0.01),
+           "double-scale: two pages of the SAME source height must be drawn at the same height under "
+           + "one scale (right " + fx(dbl.rightPageHeight, 2) + " vs left "
+           + fx(dbl.leftPageHeight, 2) + ") — this is the ragged-bottom tell")
+        // the wider page still fills its half — the shared scale must be the MIN of the two fits,
+        // never a shrink of the whole spread
+        ck(approx(Math.max(dbl.rightPageWidth, dbl.leftPageWidth), 400, 0.01),
+           "double-scale: the WIDER page must still fill its 400px half, got "
+           + Math.max(dbl.rightPageWidth, dbl.leftPageWidth))
+        ck(dbl.leftPageWidth < dbl.rightPageWidth - 1,
+           "double-scale: the narrower-trim page must be drawn genuinely NARROWER (it is 1500 wide "
+           + "next to 1550), got left=" + dbl.leftPageWidth + " right=" + dbl.rightPageWidth)
+
+        // --- flush at the spine, in BOTH directions (the centre line is _contentW/2 = 400) ---
+        ck(approx(dbl.rightIndexX, 400, 0.01),
+           "double-spine RTL: the rightIndex page's INNER edge must sit on the centre line 400, got " + dbl.rightIndexX)
+        ck(approx(dbl.leftIndexX + dbl.leftPageWidth, 400, 0.01),
+           "double-spine RTL: the leftIndex page's INNER (right) edge must meet the centre line 400, got "
+           + (dbl.leftIndexX + dbl.leftPageWidth))
+        dbl.rtl = false
+        ck(approx(dbl.rightIndexX + dbl.rightPageWidth, 400, 0.01),
+           "double-spine LTR: mirrored — the rightIndex page's INNER (right) edge must meet 400, got "
+           + (dbl.rightIndexX + dbl.rightPageWidth))
+        ck(approx(dbl.leftIndexX, 400, 0.01),
+           "double-spine LTR: the leftIndex page's INNER edge must sit on the centre line 400, got " + dbl.leftIndexX)
+        dbl.rtl = true
+
+        // --- panYMax is the DRAWN unit's overflow (the shell binds it to vScrollMax to decide
+        // whether Up/Down pan). 2200 * (400/1550) = 567.74 in a 480 viewport. ---
+        ck(dbl.unitHeight > dbl.height,
+           "double-scale precondition: this pair must overflow the viewport (unitHeight " + dbl.unitHeight + ")")
+        ck(approx(dbl.panYMax, dbl.unitHeight - dbl.height, 0.01),
+           "double-scale: panYMax must be the DRAWN unit's overflow (" + (dbl.unitHeight - dbl.height).toFixed(2)
+           + "), got " + dbl.panYMax)
+        dbl.destroy()
+    }
+
+    // A pair SHORTER than the viewport: the block centres instead of hanging off the top with all
+    // the black below, each half centres inside the pair's band, and the gutter shadow rides the
+    // pages rather than running the full window height through empty black.
+    function runDoubleCentring() {
+        coreShort.units[30] = { rightIndex: 30, leftIndex: 31, spread: false, coverAlone: false }
+        coreShort.pageSizes[30] = { w: 1550, h: 600 }      // tallest half:  600 * (400/1550) = 154.8
+        coreShort.pageSizes[31] = { w: 1500, h: 400 }      // shorter half:  400 * (400/1550) = 103.2
+        var dbl = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 31, "rtl": true, "core": coreShort
+        })
+        if (!dbl) { failures.push("double-centre: createObject returned null"); return }
+        ck(dbl.unitHeight < dbl.height,
+           "double-centre precondition: this pair must FIT the viewport (unitHeight " + dbl.unitHeight
+           + " vs height " + dbl.height + ")")
+        ck(dbl.unitTop > 0,
+           "double-centre: a pair shorter than the viewport must be VERTICALLY CENTRED, not pinned to "
+           + "the top with all the black below, got unitTop " + dbl.unitTop)
+        ck(approx(dbl.unitTop, (dbl.height - dbl.unitHeight) / 2, 0.01),
+           "double-centre: the block's top offset must be half the slack, got " + dbl.unitTop
+           + " want " + ((dbl.height - dbl.unitHeight) / 2))
+        ck(approx(dbl.panYMax, 0, 1e-9),
+           "double-centre: a pair that FITS has no vertical pan headroom (the shell's vScrollMax), got " + dbl.panYMax)
+
+        // each half centres inside the pair's band — a shorter page sits mid-height, not top-aligned
+        ck(approx(dbl.rightIndexY, dbl.unitTop, 0.01),
+           "double-centre: the TALLEST half fills the band, so it starts at the block top " + dbl.unitTop
+           + ", got " + dbl.rightIndexY)
+        ck(dbl.leftIndexY > dbl.unitTop + 1,
+           "double-centre: the SHORTER half must sit mid-height inside the pair's band, not top-aligned "
+           + "(y " + dbl.leftIndexY + " vs block top " + dbl.unitTop + ")")
+        ck(approx(dbl.leftIndexY, dbl.unitTop + (dbl.unitHeight - dbl.leftPageHeight) / 2, 0.01),
+           "double-centre: the shorter half must be centred in the band, got " + dbl.leftIndexY
+           + " want " + (dbl.unitTop + (dbl.unitHeight - dbl.leftPageHeight) / 2))
+
+        // --- the gutter shadow follows the PAGES, not the viewport ---
+        ck(approx(dbl.gutterShadowItem.height, dbl.unitHeight, 0.01),
+           "double-gutter: the spine shadow's height must be the DRAWN PAIR height " + dbl.unitHeight
+           + ", not the viewport height " + dbl.height + ", got " + dbl.gutterShadowItem.height)
+        ck(approx(dbl.gutterShadowItem.y, dbl.unitTop, 0.01),
+           "double-gutter: the spine shadow must ride the pair's vertical offset " + dbl.unitTop
+           + " (else it darkens empty black above and below the pages), got " + dbl.gutterShadowItem.y)
+        dbl.destroy()
+    }
+
+    // ---- FALLBACK path, then the OVERRIDE. Two data: URL PNG fixtures with genuinely different
+    // dimensions (200x300 and 150x300) that the Image really loads offscreen, so the fallback runs
+    // on the decoder's own implicitWidth/implicitHeight rather than on numbers this harness injected.
+    //
+    // MEASURED HERE, and the reason the backend's geometry is the PRIMARY source: with the surface's
+    // decode cap in play these two visibly different pages do NOT report their own widths — the
+    // loader hands back both normalised to the cap. So the fallback keeps the unit drawable and
+    // flush, but it cannot recover the two pages' true RELATIVE size. Part 2 proves the backend's
+    // header geometry overrides a fully decoded Image and restores it.
+    readonly property string png200x300: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAEsCAAAAACjkaNiAAAAUUlEQVR42u3BAQ0AAADCoPdPbQ43oAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAB4NeuMAAEvmkSLAAAAAElFTkSuQmCC"
+    readonly property string png150x300: "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJYAAAEsCAAAAAAETBWZAAAAQ0lEQVR42u3BMQEAAADCoPVPbQ0PoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACARwOw9AABWDaRwQAAAABJRU5ErkJggg=="
+    property var decodedSurface: null
+    property int decodedTries: 0
+
+    function startDecodedPair() {
+        coreDecoded.units[40] = { rightIndex: 40, leftIndex: 41, spread: false, coverAlone: false }
+        coreDecoded.pageUrls[40] = png200x300
+        coreDecoded.pageUrls[41] = png150x300
+        // NOTE: coreDecoded.pageSizes stays EMPTY — the backend knows no geometry here, which is
+        // exactly the fallback under test.
+        decodedSurface = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 41, "rtl": true, "core": coreDecoded
+        })
+        if (!decodedSurface) { failures.push("double-decoded: createObject returned null"); report(); return }
+        decodedPoll.start()
+    }
+
+    function runDoubleDecodedPair() {
+        var dbl = decodedSurface
+
+        // --- part 1: no backend geometry -> the Image's own decoded size carries the layout ---
+        ck(dbl.rightNaturalWidth > 0 && dbl.rightNaturalHeight > 0 &&
+           dbl.leftNaturalWidth > 0 && dbl.leftNaturalHeight > 0,
+           "double-decoded: with no backend geometry the natural size must FALL BACK to the Image's "
+           + "own decoded implicit size, got right " + dbl.rightNaturalWidth + "x" + dbl.rightNaturalHeight
+           + " left " + dbl.leftNaturalWidth + "x" + dbl.leftNaturalHeight)
+        var rScale = dbl.rightPageWidth / dbl.rightNaturalWidth
+        var lScale = dbl.leftPageWidth / dbl.leftNaturalWidth
+        ck(approx(rScale, lScale, 1e-9),
+           "double-decoded: on the fallback path the two REAL Images must still be drawn at one shared "
+           + "scale (right " + rScale + " vs left " + lScale + ")")
+        ck(approx(dbl.rightIndexX, 400, 0.01) && approx(dbl.leftIndexX + dbl.leftPageWidth, 400, 0.01),
+           "double-decoded: both halves must still meet the spine at 400, got right " + dbl.rightIndexX
+           + " left-inner " + (dbl.leftIndexX + dbl.leftPageWidth))
+
+        // --- part 2: the backend learns the pages' TRUE header geometry. It must OVERRIDE the
+        // implicit size of an Image that is already fully decoded — that is the whole point: the
+        // decoded size is capped/normalised by `sourceSize.width`, the header size is not. ---
+        coreDecoded.pageSizes[40] = { w: 1550, h: 2200 }
+        coreDecoded.pageSizes[41] = { w: 1500, h: 2200 }
+        coreDecoded.emitPageReady(40)          // the same signal the real core fires; bumps readyRev
+        ck(approx(dbl.rightNaturalWidth, 1550) && approx(dbl.leftNaturalWidth, 1500),
+           "double-decoded: the BACKEND's header geometry must beat a decoded Image's implicit size "
+           + "(the decoded size is normalised by the decode cap, so two differently-trimmed scans both "
+           + "report the same width and their true relative size is lost), got right "
+           + dbl.rightNaturalWidth + " left " + dbl.leftNaturalWidth)
+        ck(approx(dbl.rightPageWidth, 400, 0.01) && approx(dbl.leftPageWidth, 1500 * 400 / 1550, 0.01),
+           "double-decoded: with the true sizes the halves must be drawn 400 and "
+           + (1500 * 400 / 1550).toFixed(2) + " wide, got " + dbl.rightPageWidth + " and " + dbl.leftPageWidth)
+        ck(approx(dbl.rightPageHeight, dbl.leftPageHeight, 0.01),
+           "double-decoded: with the true sizes both halves must be drawn at the SAME height, got "
+           + dbl.rightPageHeight + " vs " + dbl.leftPageHeight)
+    }
+
+    Timer {
+        id: decodedPoll; interval: 25; repeat: true; running: false
+        onTriggered: {
+            harness.decodedTries += 1
+            var d = harness.decodedSurface
+            if (d && d.rightNaturalWidth > 0 && d.leftNaturalWidth > 0) {
+                decodedPoll.stop()
+                try { harness.runDoubleDecodedPair() }
+                catch (e) { harness.failures.push("exception in the decoded-pair phase: " + e.message) }
+                harness.report()
+            } else if (harness.decodedTries > 240) {     // 6s — a loaded machine took >3s once here
+                decodedPoll.stop()
+                harness.failures.push("double-decoded: the data: URL fixtures never decoded (right nat="
+                    + (d ? d.rightNaturalWidth : "<null>") + " left nat=" + (d ? d.leftNaturalWidth : "<null>") + ")")
+                harness.report()
+            }
+        }
+    }
+
     Timer { id: phaseTimer; interval: 30; running: false; onTriggered: harness.runPhaseTwo() }
 
     function runPhaseTwo() {
@@ -560,10 +789,14 @@ Item {
             runDouble()
             runDoubleMaxSeen()
             runDoubleFreshOpen()
+            runDoubleUnifiedScale()
+            runDoubleCentring()
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
+            report()
+            return
         }
-        report()
+        startDecodedPair()      // async: the report happens once the two fixtures decode
     }
 
     function runChecks() {
@@ -588,9 +821,11 @@ Item {
         }
     }
 
-    // safety net — a true hang (not a thrown error) still fails loudly instead of stalling CI
+    // safety net — a true hang (not a thrown error) still fails loudly instead of stalling CI.
+    // Sits above the decoded-pair poll budget (6s), the one phase that waits on real wall-clock
+    // image decodes, so a slow machine reports the honest "never decoded" message rather than this.
     Timer {
-        interval: 8000; running: true
+        interval: 15000; running: true
         onTriggered: { console.log("COMICREADER_SURFACES_FAIL: timeout"); Qt.exit(1) }
     }
 }
