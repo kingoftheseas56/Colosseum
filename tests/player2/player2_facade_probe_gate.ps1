@@ -20,7 +20,8 @@
 #   powershell -NoProfile -File tests/player2/player2_facade_probe_gate.ps1 `
 #       -Media <one file> -Mode transport            # single case, for development
 #
-# Exit 0 only if every case passed AND no case emitted a forbidden warning.
+# Exit 0 only if every case reports its expected final probe verdict, exits as expected, and emits
+# no unexpected QML/Qt runtime diagnostic.
 
 param(
     # Directory holding the built fixtures: av.mkv, chaptered.mkv, tracks-long.mkv.
@@ -31,12 +32,18 @@ param(
     [string]$Media = '',
     [string]$Mode = 'auto',
     # The mpv-boot regression is a control, not a P2 test: skip it only if mpv cannot run here.
-    [switch]$SkipMpvBoot
+    [switch]$SkipMpvBoot,
+    # Test seam: a contract harness supplies a disposable child so it can prove this script's
+    # process/exit/output policy without launching the app. Empty keeps the production executable.
+    [string]$ProbeExecutable = '',
+    # Test seam: keep harness logs out of the user's artifacts directory. Empty keeps production logs.
+    [string]$LogDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
 $repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$exePath = Join-Path $repoRoot 'native\build-msvc\colosseum.exe'
+$exePath = if ($ProbeExecutable) { (Resolve-Path -LiteralPath $ProbeExecutable).Path }
+           else { Join-Path $repoRoot 'native\build-msvc\colosseum.exe' }
 $probePath = Join-Path $repoRoot 'tests\player2\player2_facade_probe.qml'
 foreach ($required in @($exePath, $probePath)) {
     if (-not (Test-Path -LiteralPath $required)) { throw "facade gate: missing $required" }
@@ -54,24 +61,10 @@ $env:QTFRAMEWORK_BYPASS_LICENSE_CHECK = '1'
 # nothing at all (cost hours on 2026-07-25; do not remove).
 $env:QSG_NO_VSYNC = '1'
 
-# The failure vocabulary. Every one of these is the QML engine reporting that something the code
-# asked for does not exist or did not happen - never a diagnostic about the media.
-#   TypeError / ReferenceError / is not a function - a member that is not there (THE bug above)
-#   Unable to assign / Cannot assign                - a type or property mismatch in a binding
-#   binding loop                                    - a property fighting itself
-#   Detected function / non-existent signal         - a Connections handler wired to nothing, which
-#                                                     is the silently-dead-relay failure this whole
-#                                                     port was written to avoid
-#
-# Two of these were NEGATIVE-CONTROLLED rather than assumed, by breaking the code on purpose and
-# checking the gate turned red (2026-07-27):
-#   * a dead _adopt call site  -> "TypeError: Property '_adoptSubDelay' ... is not a function"
-#   * a handler for a signal that does not exist
-#       -> 'QML Connections: Detected function "onX" ... no signal of the target matches the name'
-# "Detected function" is the wording Qt 6.11 actually uses; "non-existent signal" is the older form,
-# kept so the gate does not go quiet on a Qt upgrade. In BOTH controls the probe itself reported
-# RESULT PASS with zero failed assertions - which is the entire reason this file exists.
-$forbidden = @(
+# Diagnostics emitted under `qml:` (except the probe's own structured progress/result lines) and
+# Qt's QML/Quick categories are failures by default. The old vocabulary-only list let a new runtime
+# warning pass merely because its wording was unfamiliar.
+$runtimeErrorFragments = @(
     'TypeError',
     'ReferenceError',
     'is not a function',
@@ -87,29 +80,46 @@ $forbidden = @(
     'mpvProperty has no mapping'
 )
 
-# NO ALLOWLIST, and that is a measured claim rather than an omission: all five cases below were run
-# clean on 2026-07-27 and produced ZERO hits in every category above. The real stderr noise on this
-# path is "No QSGTexture provided from updateSampledImage.", FFmpeg's analyzeduration advice, a
-# QSqlDatabase-without-QCoreApplication line at teardown and the app's own [net]/[img] logging -
-# none of which match anything in $forbidden.
-# If that ever changes: allowlist the exact line, narrowly, with a comment saying why it is not a
-# defect. Do NOT drop a whole category to silence one line - the category IS the safety net.
-$allowlist = @()
+# Measured on the five original facade runs (2026-07-27). These are exact strings, deliberately
+# not patterns: an adjacent/new scenegraph or SQL diagnostic must fail for inspection instead of
+# inheriting a blanket "renderer noise" pardon.
+$benignRuntimeLines = @(
+    'No QSGTexture provided from updateSampledImage(). This is wrong.',
+    'qt.sql.qsqldatabase: QSqlDatabase requires a QCoreApplication'
+)
 
-$logDir = Join-Path $repoRoot 'artifacts'
+function Test-BenignRuntimeLine([string]$line) {
+    return $benignRuntimeLines -ccontains $line.Trim()
+}
+
+function Test-QmlQtRuntimeDiagnostic([string]$line) {
+    $text = $line.Trim()
+    if (-not $text.Length -or (Test-BenignRuntimeLine $text)) { return $false }
+    # Probe logging is expected output; every other qml: line is a QML diagnostic until proven safe.
+    if ($text -match '^qml:(?!\s*FACADE PROBE:)') { return $true }
+    # Category prefixes emitted by Qt's QML, Quick and scenegraph subsystems.
+    if ($text -cmatch '^(qt\.(qml|quick|scenegraph)|QML\b|QQml\b|Qt\.)') { return $true }
+    foreach ($fragment in $runtimeErrorFragments) {
+        if ($text -like "*$fragment*") { return $true }
+    }
+    return $false
+}
+
+$logDir = if ($LogDir) { $LogDir } else { Join-Path $repoRoot 'artifacts' }
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 
 # Build the case matrix.
 $cases = @()
 if ($Media) {
-    $cases += @{ Name = 'single'; Media = $Media; Mode = $Mode; Player2 = $true; ExpectFail = @() }
+    $cases += @{ Name = 'single'; Media = $Media; Mode = $Mode; Player2 = $true; ExpectFail = @()
+                 ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
 } else {
     if (-not $Fixtures) { throw 'facade gate: -Fixtures (or -Media) is required' }
     if (-not $LongMedia) { throw 'facade gate: -LongMedia is required (the transport sequence needs runway)' }
-    $cases += @{ Name = 'eof-av';        Media = (Join-Path $Fixtures 'av.mkv');          Mode = 'eof';       Player2 = $true;  ExpectFail = @() }
-    $cases += @{ Name = 'eof-chaptered'; Media = (Join-Path $Fixtures 'chaptered.mkv');   Mode = 'eof';       Player2 = $true;  ExpectFail = @() }
-    $cases += @{ Name = 'transport';     Media = $LongMedia;                              Mode = 'transport'; Player2 = $true;  ExpectFail = @() }
-    $cases += @{ Name = 'tracks';        Media = (Join-Path $Fixtures 'tracks-long.mkv'); Mode = 'tracks';    Player2 = $true;  ExpectFail = @() }
+    $cases += @{ Name = 'eof-av';        Media = (Join-Path $Fixtures 'av.mkv');          Mode = 'eof';       Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
+    $cases += @{ Name = 'eof-chaptered'; Media = (Join-Path $Fixtures 'chaptered.mkv');   Mode = 'eof';       Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
+    $cases += @{ Name = 'transport';     Media = $LongMedia;                              Mode = 'transport'; Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
+    $cases += @{ Name = 'tracks';        Media = (Join-Path $Fixtures 'tracks-long.mkv'); Mode = 'tracks';    Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
     # $LongMedia, NOT a built fixture, and that is a measured choice rather than convenience. The
     # stats sequence is the first thing in this suite that needs a frame to have been PRESENTED
     # (width/height are published off the decoded frame), and tracks-long.mkv never presents one on
@@ -128,7 +138,8 @@ if ($Media) {
         # P2-only by construction and are expected to fail there; a THIRD failure means the port
         # broke the shipped player, which is the regression this case exists to catch.
         $cases += @{ Name = 'mpv-boot'; Media = $LongMedia; Mode = 'transport'; Player2 = $false
-                     ExpectFail = @('booted on the Player 2 branch', 'capture capability is off on Player 2') }
+                     ExpectFail = @('booted on the Player 2 branch', 'capture capability is off on Player 2')
+                     ExpectedExit = 1; ExpectedResult = 'RESULT FAIL' }
     }
 }
 
@@ -162,7 +173,7 @@ foreach ($case in $cases) {
         if (Test-Path -LiteralPath $f) { $lines += Get-Content -LiteralPath $f }
     }
 
-    # --- 1. the probe's own verdict ---------------------------------------------------------
+    # --- 1. the probe's own verdict and process termination ---------------------------------
     $reported = @($lines | Where-Object { $_ -match 'FACADE PROBE: FAIL ' } |
                   ForEach-Object { ($_ -replace '^.*FACADE PROBE: FAIL ', '').Trim() })
     $unexpected = @()
@@ -173,6 +184,21 @@ foreach ($case in $cases) {
     }
     $passCount = @($lines | Where-Object { $_ -match 'FACADE PROBE: PASS ' }).Count
     Write-Host ("  passes={0} reportedFailures={1} exit={2}" -f $passCount, $reported.Count, $code)
+    if ($code -ne $case.ExpectedExit) {
+        $failures += "$($case.Name): unexpected process exit $code (expected $($case.ExpectedExit))"
+        Write-Host "  UNEXPECTED PROCESS EXIT: $code (expected $($case.ExpectedExit))"
+    }
+    $finalResults = @($lines | Where-Object { $_ -match 'FACADE PROBE: .*RESULT (PASS|FAIL)\s*$' })
+    if ($finalResults.Count -eq 0) {
+        $failures += "$($case.Name): missing final $($case.ExpectedResult)"
+        Write-Host "  MISSING FINAL $($case.ExpectedResult)"
+    } elseif ($finalResults.Count -ne 1) {
+        $failures += "$($case.Name): expected one final probe result, found $($finalResults.Count)"
+        Write-Host "  AMBIGUOUS FINAL RESULT: $($finalResults.Count)"
+    } elseif ($finalResults[0] -notmatch [regex]::Escape($case.ExpectedResult) + '\s*$') {
+        $failures += "$($case.Name): final probe result was not $($case.ExpectedResult): $($finalResults[0].Trim())"
+        Write-Host "  WRONG FINAL RESULT: $($finalResults[0].Trim())"
+    }
     foreach ($e in $case.ExpectFail) {
         if (-not ($reported | Where-Object { $_.StartsWith($e) })) {
             $failures += "$($case.Name): expected failure never happened - '$e' (this case is a control; if it now passes, update the gate)"
@@ -190,26 +216,22 @@ foreach ($case in $cases) {
         Write-Host '  THE PROBE PRODUCED NO OUTPUT'
     }
 
-    # --- 2. Qt runtime warnings -------------------------------------------------------------
+    # --- 2. QML/Qt runtime diagnostics -------------------------------------------------------
     # Reported per LINE, verbatim and with its number: a warning you cannot locate is nearly as
-    # useless as one you never saw.
+    # useless as one you never saw. Non-QML process noise is outside this classifier; QML/Qt is
+    # fail-closed except the two exact measured lines above.
     $hits = @()
     for ($i = 0; $i -lt $lines.Count; $i++) {
         $line = $lines[$i]
-        foreach ($pattern in $forbidden) {
-            if ($line -like "*$pattern*") {
-                $excused = $false
-                foreach ($a in $allowlist) { if ($line -like $a) { $excused = $true } }
-                if (-not $excused) { $hits += ("line {0}: {1}" -f ($i + 1), $line.Trim()) }
-                break
-            }
+        if (Test-QmlQtRuntimeDiagnostic $line) {
+            $hits += ("line {0}: {1}" -f ($i + 1), $line.Trim())
         }
     }
     if ($hits.Count) {
         Write-Host ("  QT WARNINGS: {0}" -f $hits.Count)
         foreach ($h in $hits) {
             Write-Host "    $h"
-            $failures += "$($case.Name): qt runtime warning - $h"
+            $failures += "$($case.Name): unexpected QML/Qt runtime diagnostic - $h"
         }
     } else {
         Write-Host '  qt warnings: none'
