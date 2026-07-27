@@ -611,6 +611,37 @@ Window {
         } else westernLayer.active = true
     }
 
+    // ---- a universe's comic row: the entry pins VERIFIED GetComics post IDs, so there is
+    //      no tag to resolve and no catalogue series. Mirrors openGcdSeries' baked injection
+    //      (Main.qml:578) — an explicit release list, tagSlug/tagId deliberately empty.
+    //      `?p=<id>` is GetComics' permalink; ComicSeries.qml:531 feeds it to downloadIssue.
+    //      d: { title, posts:[Number], year? } ----
+    function openUniverseComic(d) {
+        var posts = (d && d.posts) || []
+        if (!posts.length) { console.warn("universes: openUniverseComic — no posts for", (d && d.title) || "(untitled)"); return }
+        var rel = []
+        for (var i = 0; i < posts.length; i++)
+            rel.push({ id: String(posts[i]),
+                       url: "https://getcomics.org/?p=" + posts[i],
+                       name: d.title || "", cover: "",
+                       year: Number(d.year || 0), sizeMB: 0, synopsis: "",
+                       date: "", collection: true })
+        westernLayer.baked = { gcdId: 0, releases: rel, cover: "" }
+        westernLayer.title = (d.title || "") + (d.year ? " (" + d.year + ")" : "")
+        westernLayer.tagSlug = ""; westernLayer.tagId = 0
+        westernLayer.resumeChapterId = ""
+        if (westernLayer.active && westernLayer.item) {
+            var it = westernLayer.item
+            it.bakedReleases = null                 // reset first so re-injection repaints
+            it.openChapterId = ""
+            it.seriesTitle = westernLayer.title
+            it.poster = ""
+            it.gcdId = 0
+            it.bakedReleases = westernLayer.baked.releases   // triggers paint (bakedReleases now non-null)
+            it.tagId = 0; it.tagSlug = ""                    // reset LAST — resolve() guard is true, no stray live lookup
+        } else westernLayer.active = true
+    }
+
     // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
     //      Opened from search (data.locg), the world Top-Comics row, or a publisher grid. ----
     // catalog lookup with on-demand ingest: Main never imports the multi-MB
@@ -2400,10 +2431,9 @@ Window {
             item.watchRequested.connect(win.openTheatreSeries)
             item.seriesRequested.connect(win.openSeries)
             item.bookRequested.connect(win.openBook)
-            // KNOWN WRONG, deliberately: openComicArchive is tag-shaped (a GetComics tag box)
-            // and a universe comic entry carries post IDs. Wired anyway so the route is whole;
-            // a later task replaces this with openUniverseComic.
-            item.comicsArchiveRequested.connect(win.openComicArchive)
+            // A universe comic entry carries VERIFIED post IDs (no tag) → openUniverseComic
+            // mirrors openGcdSeries' baked-release injection (Task 11).
+            item.comicsArchiveRequested.connect(win.openUniverseComic)
         }
     }
     Loader {
