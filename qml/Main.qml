@@ -2433,9 +2433,14 @@ Window {
             // Their Esc checks sit before closeUniverse, so back closes the work first, then the
             // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
             item.watchRequested.connect(win.openTheatreSeries)
-            item.seriesRequested.connect(win.openSeries)
             item.bookRequested.connect(win.openBook)
             item.comicsArchiveRequested.connect(win.openUniverseComic)
+            // manga → Tankoban. A weebcentral-sourced entry (One Piece digital-coloured) opens its
+            // own series by ID; an anilist entry opens by title, as before.
+            item.seriesRequested.connect(function(e) {
+                if (e && e.provider === "weebcentral" && e.id) win.openSeriesAt(e.title || "", e.id)
+                else win.openSeries((e && e.title) || e || "")
+            })
         }
     }
     Loader {

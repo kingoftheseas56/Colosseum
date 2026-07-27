@@ -32,7 +32,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal watchRequested(var payload)     // video → Theatre
-    signal seriesRequested(string name)    // manga → Tankoban
+    signal seriesRequested(var entry)      // manga → Tankoban (entry carries provider/id for a sourced series)
     signal bookRequested(var payload)      // book → Biblio
     signal comicsArchiveRequested(var payload)
 
@@ -71,7 +71,7 @@ Item {
             root.watchRequested({ id: entry.id, type: entry.type,
                                   title: entry.title, cover: "" })
         else if (kind === "manga")
-            root.seriesRequested(entry.title)
+            root.seriesRequested(entry)          // entry: a weebcentral source routes to its own series
         else if (kind === "book")
             root.bookRequested({ id: entry.id, title: entry.title })
         else if (kind === "comic")

@@ -278,6 +278,11 @@ function coverFor(entry, kind, done) {
         });
         return;
     }
+    if (provider === "weebcentral" && e.id) {
+        // WeebCentral's cover CDN is a constructible URL (no fetch) — same source the reader uses.
+        done("https://temp.compsci88.com/cover/fallback/" + e.id + ".jpg");
+        return;
+    }
     if (provider === "getcomics" || kind === "comic") {
         // Comics aren't iTunes ebooks (posterFor returns nothing for them) — use the GetComics
         // post's own og_image, the SAME source ComicSeries uses (ComicsApi.postsById). The first

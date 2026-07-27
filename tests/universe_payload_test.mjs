@@ -51,12 +51,12 @@ console.log('One Piece — plan section 4 (ids pinned by value, transcribed from
       'tt3354344', 'tt3354352', 'tt2893336', 'tt5098548', 'tt6597356', 'tt6609162', 'tt6425816',
       'tt11757066', 'tt11744496', 'tt33998607'],
      'special ids, in plan §4.3 order');
-  // Row 2 has no id by design (the manual coloured edition) — sentinel keeps the array
-  // aligned with the plan's 13 rows so a position shift still names itself in the diff.
+  // Row 2 is the digital-coloured edition — now a real WeebCentral source (Hemanth 2026-07-28:
+  // use the WeebCentral series for poster/name/contents, distinct from the main One Piece manga).
   eq(sect(v, 'manga').entries.map(e => e.id || '(manual)'),
-     ['30013', '(manual)', '44414', '47152', '82353', '102533', '110258', '110233',
+     ['30013', '01J76XYAQSGEJPXCSCVPQ3MHZM', '44414', '47152', '82353', '102533', '110258', '110233',
       '103252', '110232', '110715', '117802', '154266'],
-     'manga ids, in plan §4.4 order — position 2 (Hemanth\'s ruling) is the manual coloured edition');
+     'manga ids, in plan §4.4 order — position 2 is the WeebCentral digital-coloured series');
   eq(sect(v, 'novels').entries.map(e => e.id),
      ['1509329459', '1528233153', '6741084754', '6736634886'],
      'novel ids, in plan §4.5 order');
