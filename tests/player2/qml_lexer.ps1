@@ -48,6 +48,7 @@ function Remove-QmlComments([string]$Source) {
 # `property string x: "readonly property ..."` cannot satisfy a declaration regex, while a real
 # object key/value pair can still be matched through Get-QmlStringToken(). This scanner is also
 # comment-aware before it ever recognizes a quote, unlike the older comment-only view above.
+# Template interpolation remains opaque: it is string content, not QML code for these contracts.
 function Get-QmlStringToken([string]$Value) {
     $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Value))
     return "__QML_STRING_${encoded}__"
@@ -75,7 +76,7 @@ function ConvertTo-QmlCodeView([string]$Source) {
             if ($i + 1 -lt $length) { $i += 2 }
             continue
         }
-        if ($ch -eq "'" -or $ch -eq '"') {
+        if ($ch -eq "'" -or $ch -eq '"' -or $ch -eq [char]96) {
             $quote = $ch
             $value = New-Object System.Text.StringBuilder
             $i++

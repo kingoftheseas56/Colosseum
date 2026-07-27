@@ -43,6 +43,27 @@ function Assert-CodeViewRejectsDecoys() {
     if ($guardString -match 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return') {
         $script:violations += 'QML code view must reject capability-guard string literals'
     }
+
+    $templateDeclaration = ConvertTo-QmlCodeView @'
+property string decoy: `readonly property bool supportsCapture: !engine.p2`
+'@
+    if ($templateDeclaration -match 'readonly\s+property\s+bool\s+supportsCapture\s*:\s*!engine\.p2') {
+        $script:violations += 'QML code view must reject declaration template literals'
+    }
+
+    $escapedBacktickGuard = ConvertTo-QmlCodeView @'
+property string decoy: `safe \` if (!mpv.supportsExternalSubs) return`
+'@
+    if ($escapedBacktickGuard -match 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return') {
+        $script:violations += 'QML code view must keep escaped backticks inside template literals'
+    }
+
+    $interpolationGuard = ConvertTo-QmlCodeView @'
+property string decoy: `safe ${if (!mpv.supportsExternalSubs) return}`
+'@
+    if ($interpolationGuard -match 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return') {
+        $script:violations += 'QML code view must not expose template interpolation as code'
+    }
 }
 Assert-CodeViewRejectsDecoys
 
