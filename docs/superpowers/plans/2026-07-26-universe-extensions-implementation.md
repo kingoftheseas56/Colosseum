@@ -1052,6 +1052,17 @@ git commit -m "feat(universes): the one universe renderer — header band, serve
 
 ## Task 8: Revert the wrongly-restored bespoke pages
 
+> **⚠ ORDERING CORRECTED (2026-07-26): run Task 9 BEFORE Task 8.** `Main.qml:860-864` still
+> references all four pages through `universeSourceFor()`. Deleting them first would break the
+> app between commits *and* fail this task's own grep check. Task 9 is what removes the
+> dispatcher, so it must land first; this task then deletes files that are genuinely orphaned.
+>
+> **Orphan sweep, wider than this task's four.** `universeSourceFor()` also routes to
+> `SagaUniversePage`, `GalaxyUniversePage`, `EraUniversePage`, `StudioUniversePage` and
+> `UniversePage`. Removing the dispatcher orphans those too. This task's scope stays the
+> stated four; the rest are checked in Task 10's final sweep and reported, **not** deleted on
+> assumption — `SagaUniversePage` in particular may still be reachable from elsewhere.
+
 **Files:**
 - Delete: `qml/OnePieceUniversePage.qml`, `qml/CosmereUniversePage.qml`, `qml/DragonBallUniversePage.qml`, `qml/MagazineUniversePage.qml`
 
@@ -1153,7 +1164,10 @@ And the layer:
         property string universeName: ""
         source: "UniverseExtensionPage.qml"
         onLoaded: {
-            item.backdrop = wall
+            // ⚠ NO `item.backdrop = wall` HERE. Main.qml sets that for the seven bespoke
+            // pages, but UniverseExtensionPage has no `backdrop` property — it paints the
+            // mock's flat #0c0e11 rather than carrying the wallpaper block. Assigning it
+            // would throw on a non-existent property. Verified during Task 7.
             item.extensionId = universeLayer.extensionId
             item.universeName = universeLayer.universeName
             item.backRequested.connect(win.closeUniverse)
