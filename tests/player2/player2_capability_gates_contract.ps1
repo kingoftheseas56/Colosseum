@@ -10,7 +10,7 @@ $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 function Read-Qml([string]$relative) {
     $path = Join-Path $root $relative
     if (-not (Test-Path -LiteralPath $path)) { throw "missing QML file: $relative" }
-    return Remove-QmlComments (Get-Content -Raw -LiteralPath $path)
+    return ConvertTo-QmlCodeView (Get-Content -Raw -LiteralPath $path)
 }
 
 function Function-Section([string]$text, [string]$name, [string]$nextName) {
@@ -26,9 +26,39 @@ $page = Read-Qml 'qml/PlayerPage.qml'
 $menu = Read-Qml 'qml/SubtitleMenu.qml'
 $violations = @()
 
+function Assert-CodeViewRejectsDecoys() {
+    $code = ConvertTo-QmlCodeView 'readonly property bool supportsCapture: !engine.p2'
+    if ($code -notmatch 'readonly\s+property\s+bool\s+supportsCapture\s*:\s*!engine\.p2') {
+        $script:violations += 'QML code view must retain real declarations'
+    }
+    $comment = ConvertTo-QmlCodeView '// readonly property bool supportsCapture: !engine.p2'
+    if ($comment -match 'readonly\s+property\s+bool\s+supportsCapture\s*:\s*!engine\.p2') {
+        $script:violations += 'QML code view must reject declaration comments'
+    }
+    $string = ConvertTo-QmlCodeView 'property string decoy: "readonly property bool supportsCapture: !engine.p2"'
+    if ($string -match 'readonly\s+property\s+bool\s+supportsCapture\s*:\s*!engine\.p2') {
+        $script:violations += 'QML code view must reject declaration string literals'
+    }
+    $guardString = ConvertTo-QmlCodeView 'property string decoy: "if (!mpv.supportsExternalSubs) return"'
+    if ($guardString -match 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return') {
+        $script:violations += 'QML code view must reject capability-guard string literals'
+    }
+}
+Assert-CodeViewRejectsDecoys
+
 function Require-Match([string]$text, [string]$pattern, [string]$message) {
     if ($text -notmatch $pattern) { $script:violations += $message }
 }
+
+function Require-LeadingCapabilityGuard([string]$section, [string]$capability, [string]$message) {
+    Require-Match $section ('\Afunction\s+\w+\s*\([^)]*\)\s*\{\s*if\s*\(\s*!' + [regex]::Escape($capability) + '\s*\)\s*return\s*;?') $message
+}
+
+$keyLabel = [regex]::Escape((Get-QmlStringToken 'label'))
+$keyKind = [regex]::Escape((Get-QmlStringToken 'kind'))
+$keyWhen = [regex]::Escape((Get-QmlStringToken 'when'))
+$screenshot = [regex]::Escape((Get-QmlStringToken 'Screenshot'))
+$gif = [regex]::Escape((Get-QmlStringToken 'gif'))
 
 # The three flags must be BOOT facts, so each backend sees a stable, truthful capability answer.
 Require-Match $engine 'readonly\s+property\s+bool\s+supportsCapture\s*:\s*!engine\.p2\b' 'supportsCapture must be !engine.p2'
@@ -36,10 +66,10 @@ Require-Match $engine 'readonly\s+property\s+bool\s+supportsLive\s*:\s*!engine\.
 Require-Match $engine 'readonly\s+property\s+bool\s+supportsExternalSubs\s*:\s*!engine\.p2\b' 'supportsExternalSubs must be !engine.p2'
 
 # Capture/live overflow controls are absent on Player 2, not visible-but-dead.
-Require-Match $page '"label"\s*:\s*"Screenshot"[\s\S]{0,160}"when"\s*:\s*mpv\.supportsCapture\b' 'Screenshot must gate on supportsCapture'
-Require-Match $page '"kind"\s*:\s*"gif"[\s\S]{0,120}"when"\s*:\s*mpv\.supportsCapture\b' 'GIF must gate on supportsCapture'
+Require-Match $page ($keyLabel + '\s*:\s*' + $screenshot + '[\s\S]{0,160}' + $keyWhen + '\s*:\s*mpv\.supportsCapture\b') 'Screenshot must gate on supportsCapture'
+Require-Match $page ($keyKind + '\s*:\s*' + $gif + '[\s\S]{0,120}' + $keyWhen + '\s*:\s*mpv\.supportsCapture\b') 'GIF must gate on supportsCapture'
 foreach ($kind in @('liveGuide', 'dvr', 'liveEdge')) {
-    Require-Match $page ('"kind"\s*:\s*"' + $kind + '"[\s\S]{0,180}mpv\.supportsLive\b') "$kind must gate on supportsLive"
+    Require-Match $page ($keyKind + '\s*:\s*' + [regex]::Escape((Get-QmlStringToken $kind)) + '[\s\S]{0,180}mpv\.supportsLive\b') "$kind must gate on supportsLive"
 }
 
 # External-subtitle controls need both a visible gate and path guards: a P2 boot must neither
@@ -52,7 +82,7 @@ Require-Match $page 'readonly\s+property\s+var\s+subRows\s*:\s*\{[\s\S]{0,900}if
 $fetch = Function-Section $page 'fetchSubtitles' 'pickSubtitle'
 Require-Match $fetch 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return\s*;?' 'fetchSubtitles must return before requesting unsupported external subtitles'
 $pick = Function-Section $page 'pickSubtitle' 'addOnlineSubtitle'
-Require-Match $pick 'indexOf\("ext:"\)[\s\S]{0,140}if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return\s*;?' 'pickSubtitle must reject an external row when unsupported'
+Require-Match $pick ('indexOf\(' + [regex]::Escape((Get-QmlStringToken 'ext:')) + '\)[\s\S]{0,140}if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return\s*;?') 'pickSubtitle must reject an external row when unsupported'
 $online = Function-Section $page 'addOnlineSubtitle' 'loadSubtitleFile'
 Require-Match $online 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return\s*;?' 'addOnlineSubtitle must return when unsupported'
 $file = Function-Section $page 'loadSubtitleFile' 'isSubtitleFile'
@@ -60,6 +90,22 @@ Require-Match $file 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return\s+false\
 $auto = Function-Section $page 'maybeAutoSub' 'currentShowKey'
 Require-Match $auto 'if\s*\(\s*!mpv\.supportsExternalSubs\s*\)\s*return\s*;?' 'maybeAutoSub must not auto-load an unsupported external subtitle'
 Require-Match $page 'DropArea\s*\{[\s\S]{0,160}enabled\s*:\s*mpv\.supportsExternalSubs\b' 'Subtitle drop target must be disabled when external subtitles are unsupported'
+
+# A visible gate is not a safety boundary: callable functions remain reachable from automation,
+# tests, or a future UI. The first action in each must decline unsupported backend work before it
+# mutates state or reaches the external service/engine.
+Require-LeadingCapabilityGuard (Function-Section $page 'configureLiveChannel' 'openLiveGuide') 'mpv.supportsLive' 'configureLiveChannel must reject unsupported live setup'
+Require-LeadingCapabilityGuard (Function-Section $page 'openLiveGuide' 'switchLiveChannel') 'mpv.supportsLive' 'openLiveGuide must reject unsupported live setup'
+Require-LeadingCapabilityGuard (Function-Section $page 'switchLiveChannel' 'startDvrRecording') 'mpv.supportsLive' 'switchLiveChannel must reject unsupported live setup'
+Require-LeadingCapabilityGuard (Function-Section $page 'startDvrRecording' 'stopDvrRecording') 'mpv.supportsLive' 'startDvrRecording must reject unsupported DVR work'
+Require-LeadingCapabilityGuard (Function-Section $page 'stopDvrRecording' 'goLiveEdge') 'mpv.supportsLive' 'stopDvrRecording must reject unsupported DVR work'
+Require-LeadingCapabilityGuard (Function-Section $page 'goLiveEdge' 'handleWindowMinimize') 'mpv.supportsLive' 'goLiveEdge must reject unsupported live seeking'
+Require-LeadingCapabilityGuard (Function-Section $page 'captureFrameGrab' 'showGifToast') 'mpv.supportsCapture' 'captureFrameGrab must reject unsupported capture'
+Require-LeadingCapabilityGuard (Function-Section $page 'startGifRecording' 'stopGifRecording') 'mpv.supportsCapture' 'startGifRecording must reject unsupported capture'
+Require-LeadingCapabilityGuard (Function-Section $page 'stopGifRecording' 'abortGifRecording') 'mpv.supportsCapture' 'stopGifRecording must reject unsupported capture'
+Require-LeadingCapabilityGuard (Function-Section $page 'abortGifRecording' 'recordProgress') 'mpv.supportsCapture' 'abortGifRecording must reject unsupported capture'
+Require-LeadingCapabilityGuard (Function-Section $menu 'runSearch' 'clampX') 'menu.supportsExternalSubs' 'runSearch must reject unsupported external subtitles before mutating search state'
+Require-LeadingCapabilityGuard (Function-Section $menu 'pickOnline' 'resolvePending') 'menu.supportsExternalSubs' 'pickOnline must reject unsupported external subtitles before mutating pending state'
 
 if ($violations.Count) {
     $violations | ForEach-Object { Write-Host "  - $_" }

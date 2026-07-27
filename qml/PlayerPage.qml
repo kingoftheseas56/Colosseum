@@ -1572,6 +1572,8 @@ Item {
     }
 
     function configureLiveChannel(channel) {
+        if (!mpv.supportsLive)
+            return
         if (typeof Live === "undefined")
             return
         var ch = channel || ({})
@@ -1583,6 +1585,8 @@ Item {
     }
 
     function openLiveGuide() {
+        if (!mpv.supportsLive)
+            return
         if (typeof Live !== "undefined" && !Live.isLive)
             root.configureLiveChannel({})
         root.liveGuideOpen = true
@@ -1590,12 +1594,16 @@ Item {
     }
 
     function switchLiveChannel(channel) {
+        if (!mpv.supportsLive)
+            return
         if (typeof Live === "undefined")
             return
         Live.switchChannel(channel || ({}))
     }
 
     function startDvrRecording() {
+        if (!mpv.supportsLive)
+            return
         if (typeof Live === "undefined" || !Live.isLive)
             return
         root.currentDvrId = Live.startRecording({
@@ -1609,6 +1617,8 @@ Item {
     }
 
     function stopDvrRecording() {
+        if (!mpv.supportsLive)
+            return
         if (typeof Live === "undefined" || !root.currentDvrId.length)
             return
         Live.stopRecording(root.currentDvrId)
@@ -1617,6 +1627,8 @@ Item {
     }
 
     function goLiveEdge() {
+        if (!mpv.supportsLive)
+            return
         if (mpv.duration > 0)
             root.seekTo(Math.max(0, mpv.duration - 1))
         root.wakeChrome()
@@ -1727,6 +1739,8 @@ Item {
     }
 
     function captureFrameGrab() {
+        if (!mpv.supportsCapture)
+            return
         try {
             var path = mpv.captureFrame(root.mediaTitle || mpv.mediaTitle || "Video",
                                         root.mediaSubtitle || root.fmtTime(mpv.position))
@@ -1757,6 +1771,8 @@ Item {
         root.wakeChrome()
     }
     function startGifRecording() {
+        if (!mpv.supportsCapture)
+            return
         if (root.gifState !== "idle")
             return
         if (!mpv.startGifRecording()) {
@@ -1771,6 +1787,8 @@ Item {
     // Encode runs off the UI thread now: this only kicks it off. The "encoding" pill
     // stays up until mpv's gifSaved/gifFailed signal lands (handlers on the MpvItem).
     function stopGifRecording() {
+        if (!mpv.supportsCapture)
+            return
         if (root.gifState !== "recording")
             return
         gifElapsedTimer.stop()
@@ -1780,6 +1798,8 @@ Item {
                              root.mediaSubtitle || root.fmtTime(mpv.position))
     }
     function abortGifRecording() {
+        if (!mpv.supportsCapture)
+            return
         if (root.gifState === "idle")
             return
         gifElapsedTimer.stop()

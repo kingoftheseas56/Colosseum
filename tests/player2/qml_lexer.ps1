@@ -42,3 +42,60 @@ function Remove-QmlComments([string]$Source) {
     }
     return $out.ToString()
 }
+
+# A contract that searches QML must not let a quoted decoy manufacture code. Preserve the fact
+# that a real string literal exists, but encode its whole value as one opaque token. Thus
+# `property string x: "readonly property ..."` cannot satisfy a declaration regex, while a real
+# object key/value pair can still be matched through Get-QmlStringToken(). This scanner is also
+# comment-aware before it ever recognizes a quote, unlike the older comment-only view above.
+function Get-QmlStringToken([string]$Value) {
+    $encoded = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Value))
+    return "__QML_STRING_${encoded}__"
+}
+
+function ConvertTo-QmlCodeView([string]$Source) {
+    $out = New-Object System.Text.StringBuilder
+    $length = $Source.Length
+    for ($i = 0; $i -lt $length;) {
+        $ch = $Source[$i]
+
+        # Line comments: retain the line break so nearby constructs cannot merge into one match.
+        if ($ch -eq '/' -and $i + 1 -lt $length -and $Source[$i + 1] -eq '/') {
+            $i += 2
+            while ($i -lt $length -and $Source[$i] -ne "`n") { $i++ }
+            continue
+        }
+        # Block comments: retain every line break for the same structural reason.
+        if ($ch -eq '/' -and $i + 1 -lt $length -and $Source[$i + 1] -eq '*') {
+            $i += 2
+            while ($i -lt $length -and -not ($Source[$i] -eq '*' -and $i + 1 -lt $length -and $Source[$i + 1] -eq '/')) {
+                if ($Source[$i] -eq "`n") { [void]$out.Append("`n") }
+                $i++
+            }
+            if ($i + 1 -lt $length) { $i += 2 }
+            continue
+        }
+        if ($ch -eq "'" -or $ch -eq '"') {
+            $quote = $ch
+            $value = New-Object System.Text.StringBuilder
+            $i++
+            while ($i -lt $length) {
+                $current = $Source[$i]
+                if ($current -eq '\' -and $i + 1 -lt $length) {
+                    # The decoded spelling is only a token key; contracts never execute it.
+                    [void]$value.Append($Source[$i + 1])
+                    $i += 2
+                    continue
+                }
+                if ($current -eq $quote) { $i++; break }
+                [void]$value.Append($current)
+                $i++
+            }
+            [void]$out.Append((Get-QmlStringToken $value.ToString()))
+            continue
+        }
+        [void]$out.Append($ch)
+        $i++
+    }
+    return $out.ToString()
+}

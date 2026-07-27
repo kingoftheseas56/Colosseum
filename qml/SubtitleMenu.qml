@@ -122,6 +122,8 @@ Item {
     }
 
     function runSearch() {
+        if (!menu.supportsExternalSubs)
+            return;
         if (!searchId.length || searchLoading)
             return;
         searchLoading = true;
@@ -156,6 +158,8 @@ Item {
         resolvePending();
     }
     function pickOnline(fileUrl, title, lang) {
+        if (!menu.supportsExternalSubs)
+            return;
         selectionError = "";
         pendingBaseId = selectedId;
         pendingOnline = true; pendingId = ""; pendingOff = false;
