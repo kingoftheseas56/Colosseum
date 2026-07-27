@@ -7,9 +7,9 @@
     "sections": [
       { "id": "tv", "title": "TV Shows", "kind": "video", "entries": [
         { "id": "tt0388629",  "type": "series", "title": "One Piece", "year": "1999" },
-        { "id": "tt11737520", "type": "series", "title": "One Piece (live action)", "year": "2023" },
+        { "id": "tt11737520", "type": "series", "title": "One Piece", "year": "2023" },
         { "id": "tt33992229", "type": "series", "title": "One Piece Log: Fish-Man Island Saga", "year": "2024",
-          "poster": "https://s4.anilist.co/file/anilistcdn/media/manga/banner/30013-hbbRZqC5MjYh.jpg" },
+          "poster": "https://m.media-amazon.com/images/M/MV5BYzRiYTcwM2YtMTE1OC00MGFkLTlmZjctMjI0YjQ5MWY1MTAwXkEyXkFqcGc@._V1_SX250.jpg" },
         { "id": "tt36600601", "type": "series", "title": "One Piece in Love", "year": "2025" },
         { "id": "tt30476502", "type": "series", "title": "THE ONE PIECE", "year": "2027", "note": "Wit remake" }
       ]},
