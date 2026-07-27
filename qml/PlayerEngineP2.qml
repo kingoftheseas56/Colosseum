@@ -75,7 +75,7 @@ Item {
     property real audioDelay: 0
     // External subtitles ride PlaybackRequest.externalSubtitles on the OPEN in Player 2 - there is
     // no add-while-playing slot to forward to. Task 4 owns that. Declared because PlayerEngine
-    // calls it unguarded (PlayerEngine.qml:177).
+    // calls it unguarded (PlayerEngine.qml:199).
     function addSubtitle(url, title, lang, select) {
         console.warn("PlayerEngineP2: addSubtitle is not wired yet (Task 4) - ignored:", url)
     }
@@ -86,7 +86,7 @@ Item {
     // (Player2Backend.cpp:126-135). A bare Windows path parses as scheme "c", so it would be
     // opened as a STREAM - the file:/// form is not cosmetic. mpv accepted bare paths, and
     // PlayerPage still hands it one (root.mediaLocalPath, PlayerPage.qml:1990).
-    function __toUrl(value) {
+    function _toUrl(value) {
         var v = String(value || "")
         if (!v.length)
             return ""
@@ -96,12 +96,12 @@ Item {
     }
 
     function loadFile(url) {
-        var u = p2.__toUrl(url)
+        var u = p2._toUrl(url)
         if (!u.length)
             return
         p2.currentUrl = u
-        p2.__awaitingLoad = true
-        p2.__endedFired = false
+        p2._awaitingLoad = true
+        p2._endedFired = false
         // play() RETURNS a decision map; ignoring it makes a decline look like a hang.
         var decision = backend.play({
             "url": u,
@@ -116,7 +116,7 @@ Item {
         // Player 2 declined outright. Nothing has been shown, and there is no second backend in
         // this PROCESS (the RHI is a boot choice), so PlayerPage's own error surface is the only
         // honest destination.
-        p2.__awaitingLoad = false
+        p2._awaitingLoad = false
         p2.playbackError("declined", String((decision && decision.reason) || "Player 2 declined this playback"))
     }
 
@@ -136,10 +136,10 @@ Item {
     }
 
     // ---- state PlayerPage ASSIGNS ------------------------------------------------------------
-    // Every push below is guarded by __applying, which is raised only while this file is writing
+    // Every push below is guarded by _applying, which is raised only while this file is writing
     // the ENGINE's value back into itself. Without it each adopt-back would be re-pushed into the
     // session as a fresh command.
-    property bool __applying: false
+    property bool _applying: false
 
     // play() from Idle, Ended or Error is an ILLEGAL transition, and a rejected transition emits
     // errorOccurred(InvalidCommand) (Player2Session.cpp:686-692) - which reaches PlayerPage as a
@@ -148,7 +148,7 @@ Item {
     // KNOWN LIMITATION, not a workaround: pressing play once playback has ENDED does nothing here.
     // Ended only accepts Opening / Seeking / Idle, so replay-from-EOF needs a real re-open; mpv
     // restarted the file instead. Left visible for the arc to answer, not papered over.
-    function __transportLive() {
+    function _transportLive() {
         if (!p2.s)
             return false
         var st = p2.s.state
@@ -158,7 +158,7 @@ Item {
 
     property bool pause: false
     onPauseChanged: {
-        if (p2.__applying || !p2.__transportLive())
+        if (p2._applying || !p2._transportLive())
             return
         if (p2.pause)
             p2.s.pause()
@@ -166,7 +166,7 @@ Item {
             p2.s.play()
     }
 
-    // THE CLAMP TRAP PlayerEngine.qml:55-64 warns about, and Player 2 is where it is real:
+    // THE CLAMP TRAP PlayerEngine.qml:55-69 warns about, and Player 2 is where it is real:
     // PlayerPage clamps speed to 0.25..3 (PlayerPage.qml:2590-2591, and 3025 pushes >=2), while
     // Player2Session clamps to 0.5..2.0 and RETURNS SILENTLY when the clamped value equals the one
     // it already holds (Player2Session.cpp:656-665). Push 3 while the session is already at 2.0
@@ -174,52 +174,52 @@ Item {
     // engine's real value after every push is what closes that.
     property real speed: 1
     onSpeedChanged: {
-        if (p2.__applying || !p2.s)
+        if (p2._applying || !p2.s)
             return
         p2.s.setSpeed(p2.speed)
-        p2.__adoptSpeed()
+        p2._adoptSpeed()
     }
-    function __adoptSpeed() {
+    function _adoptSpeed() {
         if (!p2.s || p2.speed === p2.s.speed)
             return
-        p2.__applying = true
+        p2._applying = true
         p2.speed = p2.s.speed
-        p2.__applying = false
+        p2._applying = false
     }
 
     // mpv's surface is 0..100 (an int). The session's volume is a linear float 0..1.
     property int volume: 100
     onVolumeChanged: {
-        if (p2.__applying || !p2.s)
+        if (p2._applying || !p2.s)
             return
         p2.s.setVolume(p2.volume / 100)
-        p2.__adoptVolume()
+        p2._adoptVolume()
     }
-    function __adoptVolume() {
+    function _adoptVolume() {
         if (!p2.s)
             return
         var v = Math.round(p2.s.volume * 100)
         if (p2.volume === v)
             return
-        p2.__applying = true
+        p2._applying = true
         p2.volume = v
-        p2.__applying = false
+        p2._applying = false
     }
 
     // The session's property is `muted`; mpv's surface member is `mute`. Not the same name.
     property bool mute: false
-    onMuteChanged: { if (!p2.__applying && p2.s) p2.s.setMuted(p2.mute) }
+    onMuteChanged: { if (!p2._applying && p2.s) p2.s.setMuted(p2.mute) }
 
     // panscan, videoZoom and videoAspect all report through ONE signal on the session, exactly as
     // they do on MpvItem - hence the explicit signal below rather than the three generated ones,
-    // which is what PlayerEngine's relay connects to (PlayerEngine.qml:140).
+    // which is what PlayerEngine's relay connects to (PlayerEngine.qml:167).
     property real panscan: 0
     property real videoZoom: 0
     property string videoAspect: ""
     signal videoFillChanged()
-    onPanscanChanged: { if (!p2.__applying && p2.s) p2.s.setPanscan(p2.panscan) }
-    onVideoZoomChanged: { if (!p2.__applying && p2.s) p2.s.setVideoZoom(p2.videoZoom) }
-    onVideoAspectChanged: { if (!p2.__applying && p2.s) p2.s.setVideoAspect(p2.videoAspect) }
+    onPanscanChanged: { if (!p2._applying && p2.s) p2.s.setPanscan(p2.panscan) }
+    onVideoZoomChanged: { if (!p2._applying && p2.s) p2.s.setVideoZoom(p2.videoZoom) }
+    onVideoAspectChanged: { if (!p2._applying && p2.s) p2.s.setVideoAspect(p2.videoAspect) }
 
     // ---- the lifecycle -----------------------------------------------------------------------
     // Player2Session emits NONE of these. They are synthesized from its state machine below, and
@@ -238,14 +238,14 @@ Item {
     signal gifSaved(string path)
     signal gifFailed()
 
-    property int __prevState: -1
-    property bool __awaitingLoad: false
-    property bool __endedFired: false
+    property int _prevState: -1
+    property bool _awaitingLoad: false
+    property bool _endedFired: false
 
     // Player2ErrorCode (Player2Types.h:37) -> the strings PlayerPage's handlePlaybackIssue
     // branches on (PlayerPage.qml:1253-1262): "network" and "decode"/"codec" drive its retry
     // ladder, everything else falls through to the message.
-    function __errorCode(code) {
+    function _errorCode(code) {
         switch (Number(code)) {
         case 1: return "cancelled"          // Cancelled
         case 2: return "open"               // OpenFailed
@@ -264,23 +264,23 @@ Item {
 
         function onStateChanged() {
             var st = p2.s.state
-            var prev = p2.__prevState
-            p2.__prevState = st
+            var prev = p2._prevState
+            p2._prevState = st
             if (st === prev)
                 return
 
             if (st === p2.stOpening) {
-                p2.__awaitingLoad = true
-                p2.__endedFired = false
+                p2._awaitingLoad = true
+                p2._endedFired = false
                 p2.fileStarted()
-            } else if (p2.__awaitingLoad && (st === p2.stPlaying || st === p2.stPaused)) {
+            } else if (p2._awaitingLoad && (st === p2.stPlaying || st === p2.stPaused)) {
                 // "loaded" = the pipeline is RUNNING, with duration and tracks settled.
                 // NOT keyed on `generation`, despite what the plan assumed: seekExact() advances
                 // the generation too (Player2Session.cpp:549), so a per-generation gate would
                 // re-fire fileLoaded on every seek - and PlayerPage's onFileLoaded re-applies the
                 // pending resume seek and re-runs track automation. Keyed on "the last thing this
                 // engine did was OPEN" instead, which is what mpv's fileLoaded actually means.
-                p2.__awaitingLoad = false
+                p2._awaitingLoad = false
                 p2.fileLoaded()
             }
 
@@ -290,19 +290,19 @@ Item {
                 // (DemuxSession.h:27, Player2Types.cpp), so its value across the QML boundary is
                 // not something to bet the Up Next / progress path on. The state transition it
                 // causes IS typed, observable, and already deduplicated by the state machine.
-                if (!p2.__endedFired) {
-                    p2.__endedFired = true
+                if (!p2._endedFired) {
+                    p2._endedFired = true
                     p2.endFile("eof")       // PlayerPage branches on exactly this string
                 }
             } else if (st === p2.stError) {
-                if (!p2.__endedFired) {
-                    p2.__endedFired = true
-                    p2.__awaitingLoad = false
+                if (!p2._endedFired) {
+                    p2._endedFired = true
+                    p2._awaitingLoad = false
                     p2.endFile("error")     // not "eof": must NOT record progress or start Up Next
                 }
             } else {
                 // Left the terminal states - a seek back out of EOF must be able to end again.
-                p2.__endedFired = false
+                p2._endedFired = false
             }
 
             // The transport button mirrors only the two states that ARE a pause decision. Opening,
@@ -311,34 +311,34 @@ Item {
             if (st === p2.stPlaying || st === p2.stPaused) {
                 var wantPause = (st === p2.stPaused)
                 if (p2.pause !== wantPause) {
-                    p2.__applying = true
+                    p2._applying = true
                     p2.pause = wantPause
-                    p2.__applying = false
+                    p2._applying = false
                 }
             }
         }
 
         function onErrorOccurred(error) {
-            p2.playbackError(p2.__errorCode(error ? error.code : 0),
+            p2.playbackError(p2._errorCode(error ? error.code : 0),
                              String((error && error.message) || ""))
         }
 
         function onTracksChanged() { p2.trackListChanged() }
-        function onSpeedChanged() { p2.__adoptSpeed() }
-        function onVolumeChanged() { p2.__adoptVolume() }
+        function onSpeedChanged() { p2._adoptSpeed() }
+        function onVolumeChanged() { p2._adoptVolume() }
         function onMutedChanged() {
             if (p2.mute === p2.s.muted)
                 return
-            p2.__applying = true
+            p2._applying = true
             p2.mute = p2.s.muted
-            p2.__applying = false
+            p2._applying = false
         }
         function onVideoFillChanged() {
-            p2.__applying = true
+            p2._applying = true
             if (p2.panscan !== p2.s.panscan) p2.panscan = p2.s.panscan
             if (p2.videoZoom !== p2.s.videoZoom) p2.videoZoom = p2.s.videoZoom
             if (p2.videoAspect !== p2.s.videoAspect) p2.videoAspect = p2.s.videoAspect
-            p2.__applying = false
+            p2._applying = false
             p2.videoFillChanged()
         }
     }

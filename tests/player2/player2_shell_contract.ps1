@@ -1,16 +1,16 @@
 # Contract for the Player 2 QML shell. It enforces the house doctrine — the shell PAINTS and sends
-    # Remove-QmlComments moved to tests/player2/qml_lexer.ps1 so this contract and the facade
-    # contract share ONE lexer (a second copy is a second place for it to rot). The lift also fixed
-    # a dead escape arm here: the old `$prev -ne '`\`'` compared a char to a 3-character literal, so
-    # a line holding an escaped quote before a "//" - `return "a\"b//c"` - was truncated as if the
-    # string had ended. Behaviour is otherwise identical; this file's PASS output is unchanged.
-. (Join-Path $PSScriptRoot 'qml_lexer.ps1')
-
 # typed intent; C++ DECIDES. So the shell must never advance playback position with a Timer, read raw
 # FFmpeg/mpv property strings, touch production stores/catalogues, or import the production player.
 # Run: powershell -NoProfile -File tests/player2/player2_shell_contract.ps1
+#
+# Remove-QmlComments now lives in tests/player2/qml_lexer.ps1 so this contract and the facade
+# contract share ONE lexer (a second copy is a second place for it to rot). The lift also fixed a
+# dead escape arm that used to live here: it compared a [char] against a 3-character literal no char
+# can equal, so a line holding an escaped quote before a "//" was truncated as if the string had
+# ended. Behaviour is otherwise identical; this file's PASS output is unchanged.
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'qml_lexer.ps1')
 $root = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $shellDir = Join-Path $root 'qml/player2'
 
@@ -47,7 +47,7 @@ foreach ($file in $files) {
     #    that lets the next brother verify a copied element against its source. Deleting those
     #    citations to satisfy a text grep would make the shell less auditable, not more isolated.
     #    Any real reference (import, instantiation, property access) still fails, because it is code.
-    $code = Remove-QmlComments ([regex]::Replace($text, '(?s)/\*.*?\*/', ''))
+    $code = Remove-QmlComments $text     # the shared lexer strips block comments too
     if ($code -match 'PlayerPage' -or $code -match '\bMpvItem\b') {
         $violations += "${name}: references the production player (PlayerPage/MpvItem)"
     }

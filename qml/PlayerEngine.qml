@@ -52,16 +52,21 @@ Item {
     // is what stops the two directions fighting: a pull assigns the engine's exact value, so the
     // push that follows sees no difference and stops.
     //
-    // INVARIANT THIS RELAY DEPENDS ON - read before writing PlayerEngineP2.qml:
+    // INVARIANT THIS RELAY DEPENDS ON - read before writing another branch:
     //   the engine must either ACCEPT a pushed value or EMIT a change signal.
-    // The engine's change signal is the relay's ONLY re-sync. An engine that silently clamps a
-    // pushed value onto the value it already holds emits nothing, so the facade keeps the number it
-    // was given and the two diverge permanently (measured: facade=4, inner=3, no recovery). That is
-    // currently UNREACHABLE through PlayerPage - every writer clamps inside mpv's accepted range
-    // (speed 0.25..3 vs qBound(0.25,3), volume 0..100 vs qBound(0,600), the fill modes' panscan and
-    // zoom inside qBound(0,1)/qBound(-2,2)) - so there is no live bug and nothing to fix here.
-    // It is a constraint on the OTHER branch: Player 2 clamps on its own ranges, and if any of them
-    // is tighter than what PlayerPage sends, that member needs an explicit re-read after the push.
+    // The engine's change signal is the relay's ONLY re-sync. An engine that silently CLAMPS, ROUNDS
+    // or REMAPS a pushed value onto the value it already holds emits nothing, so the facade keeps
+    // the number it was given and the two diverge permanently (measured: facade=4, inner=3, no
+    // recovery). All three shapes are live on MpvItem - it clamps (setPanscan qBound(0,1)), rounds
+    // (setSpeed and the delays to 2dp, mpvitem.cpp:583-591 / :633-645) and remaps (setVideoAspect
+    // "" -> "-1", :672-675) - so do not check the range alone.
+    // On THIS branch it is unreachable: every PlayerPage writer already goes through root.round2 and
+    // stays inside mpv's accepted range (speed 0.25..3 vs qBound(0.25,3), volume 0..100 vs
+    // qBound(0,600)), and videoAspect is write-only with the fill modes passing the literal "-1".
+    // On the OTHER branch it is REAL and Task 3 measured it: Player2Session clamps speed to 0.5..2.0
+    // against PlayerPage's 0.25..3 and returns silently when the clamp lands on the value it already
+    // holds, so PlayerEngineP2 re-reads the session after every speed/volume push. Any branch whose
+    // accepted range, rounding or remapping is tighter than what PlayerPage sends must do the same.
     //
     // TYPES ARE THE ENGINE'S, NOT THE PLAN'S: audioTrack/subtitleTrack are STRINGS on MpvItem
     // ("" means off, and MpvItem maps "" -> aid/sid "no"), and volume is an INT.
@@ -77,49 +82,69 @@ Item {
     property string videoAspect: ""
     property real panscan: 0
 
-    // Nothing may be pushed into the engine until we have first adopted its real values.
-    // Without this, the facade's own initial values would be written into a freshly built MpvItem
-    // at startup - and MpvItem::setAudioTrack("") means `aid=no`, i.e. the app would boot silent.
-    // MpvItem's delay/panscan/zoom/aspect setters have no no-op guard either, so those pushes
-    // would be real mpv commands on a player that had asked for nothing.
-    property bool __linked: false
+    // The relayed members, in one place. _adopt walks this list, and the contract's P2 section
+    // checks the same names against the other branch.
+    readonly property var relayedMembers: ["pause", "speed", "volume", "mute", "audioTrack",
+                                           "subtitleTrack", "subDelay", "audioDelay", "videoZoom",
+                                           "videoAspect", "panscan"]
 
-    function __adopt() {
-        if (engine.__linked || !engine.inner)
+    // ONE implementation of each direction, keyed by name. The explicit form this replaces named
+    // each member four times across 22 near-identical lines, so a transposition
+    // (`inner.subDelay !== engine.audioDelay`) was valid QML that compiled and half-worked, and
+    // nothing checked it - the contract verifies declaration, never wiring. Bracket access is not
+    // an assumption: it was probed against the real C++ MpvItem for all 11 relayed members plus the
+    // 9 readonly forwards, read and write, before the collapse.
+    function _push(k) { if (engine._linked && engine.inner && engine.inner[k] !== engine[k]) engine.inner[k] = engine[k] }
+    function _pull(k) { if (engine.inner && engine[k] !== engine.inner[k]) engine[k] = engine.inner[k] }
+
+    // Nothing may be pushed into the engine until we have first adopted its real values.
+    // The null-`inner` test in _push already blocks the startup push on its own (Loader.item is null
+    // until the Loader's componentComplete, which runs after these initialisers), so this is defence
+    // in depth rather than the only guard - but it is cheap and it states the ordering the relay
+    // needs: MpvItem::setAudioTrack("") means `aid=no`, and its delay/panscan/zoom/aspect setters
+    // have no no-op early-return, so a push of the facade's own initial values would be real mpv
+    // commands on a player that had asked for nothing.
+    property bool _linked: false
+
+    function _adopt() {
+        if (engine._linked || !engine.inner)
             return
-        var e = engine.inner
-        engine.pause = e.pause
-        engine.speed = e.speed
-        engine.volume = e.volume
-        engine.mute = e.mute
-        engine.audioTrack = e.audioTrack
-        engine.subtitleTrack = e.subtitleTrack
-        engine.subDelay = e.subDelay
-        engine.audioDelay = e.audioDelay
-        engine.videoZoom = e.videoZoom
-        engine.videoAspect = e.videoAspect
-        engine.panscan = e.panscan
-        engine.__linked = true      // set LAST: the assignments above must not push back down
+        for (var i = 0; i < engine.relayedMembers.length; i++) {
+            var k = engine.relayedMembers[i]
+            engine[k] = engine.inner[k]
+        }
+        engine._linked = true      // set LAST: the assignments above must not push back down
     }
 
     // Whichever of these lands first arms the relay. A Loader with a static source builds its item
-    // during its own completion, so by the facade's Component.onCompleted `inner` is already set
-    // and onInnerChanged may never fire - hence both, and __adopt() is idempotent.
-    onInnerChanged: engine.__adopt()
-    Component.onCompleted: engine.__adopt()
+    // during its own completion, so by the facade's Component.onCompleted `inner` is already set and
+    // onInnerChanged may never fire - hence both. The `_linked = false` is what makes a REPLACED
+    // inner get adopted instead of pushed into: the early return in _adopt() is a re-entry guard,
+    // not an "already done forever" flag. Unreachable today (`source` keys off a boot constant), but
+    // a reader must not be reassured by the very thing that would break under a Loader reload.
+    onInnerChanged: { engine._linked = false; engine._adopt() }
+    Component.onCompleted: engine._adopt()
 
     // --- push: facade -> engine ---
-    onPauseChanged: if (engine.__linked && engine.inner && engine.inner.pause !== engine.pause) engine.inner.pause = engine.pause
-    onSpeedChanged: if (engine.__linked && engine.inner && engine.inner.speed !== engine.speed) engine.inner.speed = engine.speed
-    onVolumeChanged: if (engine.__linked && engine.inner && engine.inner.volume !== engine.volume) engine.inner.volume = engine.volume
-    onMuteChanged: if (engine.__linked && engine.inner && engine.inner.mute !== engine.mute) engine.inner.mute = engine.mute
-    onAudioTrackChanged: if (engine.__linked && engine.inner && engine.inner.audioTrack !== engine.audioTrack) engine.inner.audioTrack = engine.audioTrack
-    onSubtitleTrackChanged: if (engine.__linked && engine.inner && engine.inner.subtitleTrack !== engine.subtitleTrack) engine.inner.subtitleTrack = engine.subtitleTrack
-    onSubDelayChanged: if (engine.__linked && engine.inner && engine.inner.subDelay !== engine.subDelay) engine.inner.subDelay = engine.subDelay
-    onAudioDelayChanged: if (engine.__linked && engine.inner && engine.inner.audioDelay !== engine.audioDelay) engine.inner.audioDelay = engine.audioDelay
-    onVideoZoomChanged: if (engine.__linked && engine.inner && engine.inner.videoZoom !== engine.videoZoom) engine.inner.videoZoom = engine.videoZoom
-    onVideoAspectChanged: if (engine.__linked && engine.inner && engine.inner.videoAspect !== engine.videoAspect) engine.inner.videoAspect = engine.videoAspect
-    onPanscanChanged: if (engine.__linked && engine.inner && engine.inner.panscan !== engine.panscan) engine.inner.panscan = engine.panscan
+    onPauseChanged: engine._push("pause")
+    onSpeedChanged: engine._push("speed")
+    onVolumeChanged: engine._push("volume")
+    onMuteChanged: engine._push("mute")
+    onAudioTrackChanged: engine._push("audioTrack")
+    onSubtitleTrackChanged: engine._push("subtitleTrack")
+    onSubDelayChanged: engine._push("subDelay")
+    onAudioDelayChanged: engine._push("audioDelay")
+    onVideoZoomChanged: engine._push("videoZoom")
+    onVideoAspectChanged: engine._push("videoAspect")
+    onPanscanChanged: engine._push("panscan")
+
+    signal fileStarted()
+    signal fileLoaded()
+    signal playbackError(string code, string message)
+    signal endFile(string reason)
+    signal gifSaved(string path)
+    signal gifFailed()
+    signal trackListChanged()
 
     // --- pull: engine -> facade ---
     // Deliberately NOT `ignoreUnknownSignals` - if a branch stops emitting one of these, Qt says so
@@ -127,20 +152,22 @@ Item {
     Connections {
         target: engine.inner
 
-        function onPauseChanged() { if (engine.pause !== engine.inner.pause) engine.pause = engine.inner.pause }
-        function onSpeedChanged() { if (engine.speed !== engine.inner.speed) engine.speed = engine.inner.speed }
-        function onVolumeChanged() { if (engine.volume !== engine.inner.volume) engine.volume = engine.inner.volume }
-        function onMuteChanged() { if (engine.mute !== engine.inner.mute) engine.mute = engine.inner.mute }
-        function onAudioTrackChanged() { if (engine.audioTrack !== engine.inner.audioTrack) engine.audioTrack = engine.inner.audioTrack }
-        function onSubtitleTrackChanged() { if (engine.subtitleTrack !== engine.inner.subtitleTrack) engine.subtitleTrack = engine.inner.subtitleTrack }
-        function onSubDelayChanged() { if (engine.subDelay !== engine.inner.subDelay) engine.subDelay = engine.inner.subDelay }
-        function onAudioDelayChanged() { if (engine.audioDelay !== engine.inner.audioDelay) engine.audioDelay = engine.inner.audioDelay }
-        // panscan, videoZoom and videoAspect all report through MpvItem's single videoFillChanged -
-        // there is no panscanChanged/videoZoomChanged/videoAspectChanged to connect to.
+        function onPauseChanged() { engine._pull("pause") }
+        function onSpeedChanged() { engine._pull("speed") }
+        function onVolumeChanged() { engine._pull("volume") }
+        function onMuteChanged() { engine._pull("mute") }
+        function onAudioTrackChanged() { engine._pull("audioTrack") }
+        function onSubtitleTrackChanged() { engine._pull("subtitleTrack") }
+        function onSubDelayChanged() { engine._pull("subDelay") }
+        function onAudioDelayChanged() { engine._pull("audioDelay") }
+        // panscan, videoZoom and videoAspect all report through ONE videoFillChanged - on MpvItem
+        // because that is its NOTIFY for all three, and on PlayerEngineP2 because it declares the
+        // same signal to match. There is no panscanChanged/videoZoomChanged/videoAspectChanged on
+        // either branch to connect to.
         function onVideoFillChanged() {
-            if (engine.panscan !== engine.inner.panscan) engine.panscan = engine.inner.panscan
-            if (engine.videoZoom !== engine.inner.videoZoom) engine.videoZoom = engine.inner.videoZoom
-            if (engine.videoAspect !== engine.inner.videoAspect) engine.videoAspect = engine.inner.videoAspect
+            engine._pull("panscan")
+            engine._pull("videoZoom")
+            engine._pull("videoAspect")
         }
 
         // --- signal relay: engine -> PlayerPage ---
@@ -154,14 +181,6 @@ Item {
         function onGifFailed() { engine.gifFailed() }
         function onTrackListChanged() { engine.trackListChanged() }
     }
-
-    signal fileStarted()
-    signal fileLoaded()
-    signal playbackError(string code, string message)
-    signal endFile(string reason)
-    signal gifSaved(string path)
-    signal gifFailed()
-    signal trackListChanged()
 
     // ---- commands - one forwarder per member PlayerPage (or SubStyleBar) calls ----
     // Arities and RETURN VALUES match the engine exactly. captureFrame returns the saved path and

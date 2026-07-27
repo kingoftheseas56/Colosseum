@@ -12,8 +12,15 @@
 # truncated at the "//" because the escaped quote closed the string. Verified empirically before
 # and after. Both contracts now dot-source this, so the lexer cannot drift between them again.
 #
-# Known limit (unreachable in these inputs, recorded so the next reader does not re-derive it): the
-# block-comment pass is a plain regex, so a literal "/*" inside a string would be eaten with it.
+# SURVIVES TASK 9: the shell contract dies with the isolated shell, the FACADE contract does not -
+# it is the port's definition of done and outlives the whole lab. This file must not be swept away
+# with the rest of tests/player2/.
+#
+# Known limits, unreachable in every current input, recorded so the next reader does not re-derive
+# them: (1) the block-comment pass is a plain regex, so a literal "/*" inside a string is eaten with
+# it; (2) a regex literal holding an unbalanced quote - /["']/ - leaves the quote state wrong for
+# the rest of that line, which would hide a trailing comment. Same class, same fix if either lands:
+# the walk would need to track regex-literal context, not just quotes.
 
 function Remove-QmlComments([string]$Source) {
     # Block comments first: they span lines, so the per-line walk below cannot see them.
