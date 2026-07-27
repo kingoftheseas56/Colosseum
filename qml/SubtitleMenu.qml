@@ -25,6 +25,11 @@ Item {
     property string title: ""
     property string emptyText: ""
     property bool offRow: true
+    // External subs (OpenSubtitles search + .srt file load) need an engine seam mpv has and
+    // Player 2 does not (PlayerEngine.supportsExternalSubs = !p2). Default true keeps the mpv
+    // boot byte-identical; PlayerPage passes mpv.supportsExternalSubs so a P2 boot hides the
+    // footer entirely instead of offering controls that silently warn and do nothing.
+    property bool supportsExternalSubs: true
     property bool active: selectedId !== ""
     property string searchType: ""
     property string searchId: ""
@@ -489,6 +494,7 @@ Item {
 
                 Row {
                     id: footer
+                    visible: menu.supportsExternalSubs
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom

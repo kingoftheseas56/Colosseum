@@ -262,9 +262,11 @@ Item {
         rows = []
         for (var t = 0; t < rawRows.length; t++)
             rows.push(root.subtitleRow(rawRows[t]))
-        for (var i = 0; i < root.onlineSubs.length; i++) {
-            var s = root.onlineSubs[i]
-            if (!root.addedOnlineUrls[s.url]) rows.push(root.onlineSubtitleRow(s))
+        if (mpv.supportsExternalSubs) {
+            for (var i = 0; i < root.onlineSubs.length; i++) {
+                var s = root.onlineSubs[i]
+                if (!root.addedOnlineUrls[s.url]) rows.push(root.onlineSubtitleRow(s))
+            }
         }
         return rows
     }
@@ -283,6 +285,8 @@ Item {
         root.autoSubDone = false
         root.userTouchedSubs = false
         root.subsLoading = false
+        if (!mpv.supportsExternalSubs)
+            return
         if (!root.subStreamType.length || !root.subStreamId.length)
             return
         root.subsLoading = true
@@ -299,6 +303,8 @@ Item {
     // Route a subtitle pick: online → download/add into mpv; embedded → just select.
     function pickSubtitle(id) {
         if (("" + id).indexOf("ext:") === 0) {
+            if (!mpv.supportsExternalSubs)
+                return
             for (var i = 0; i < root.onlineSubs.length; i++) {
                 if (root.onlineSubs[i].id === id) {
                     var s = root.onlineSubs[i]
@@ -314,6 +320,8 @@ Item {
     }
 
     function addOnlineSubtitle(url, title, lang) {
+        if (!mpv.supportsExternalSubs)
+            return
         if (!url || !url.length)
             return
         root.userTouchedSubs = true
@@ -323,6 +331,8 @@ Item {
     }
 
     function loadSubtitleFile(fileUrl) {
+        if (!mpv.supportsExternalSubs)
+            return false
         if (!fileUrl)
             return false
         root.userTouchedSubs = true
@@ -477,6 +487,8 @@ Item {
     // Harbor default: auto-load the preferred-language (English) sub once the file is open,
     // unless something is already selected or the user turned subs off/picked one.
     function maybeAutoSub() {
+        if (!mpv.supportsExternalSubs)
+            return
         if (root.autoSubDone || root.userTouchedSubs || !root.fileReady)
             return
         // Feature 6: the language-ranked automation (maybeAutoSelectTracks) owns subtitle
@@ -3084,6 +3096,7 @@ Item {
     DropArea {
         anchors.fill: parent
         z: 7
+        enabled: mpv.supportsExternalSubs
         onEntered: function(drag) {
             root.wakeChrome()
         }
@@ -4770,6 +4783,7 @@ Item {
                         autoStatusText: root.subtitleAutoStatusText()
                         emptyText: root.subsLoading ? "Finding subtitles…" : "No subtitles found for this title."
                         offRow: true
+                        supportsExternalSubs: mpv.supportsExternalSubs
                         syncValue: mpv.subDelay
                         active: mpv.subtitleTrack !== ""
                         onTrackPicked: function(trackId) { root.pickSubtitleTrack(trackId) }
