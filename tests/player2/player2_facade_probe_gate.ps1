@@ -97,8 +97,9 @@ function Test-QmlQtRuntimeDiagnostic([string]$line) {
     if (-not $text.Length -or (Test-BenignRuntimeLine $text)) { return $false }
     # Probe logging is expected output; every other qml: line is a QML diagnostic until proven safe.
     if ($text -match '^qml:(?!\s*FACADE PROBE:)') { return $true }
-    # Category prefixes emitted by Qt's QML, Quick and scenegraph subsystems.
-    if ($text -cmatch '^(qt\.(qml|quick|scenegraph)|QML\b|QQml\b|Qt\.)') { return $true }
+    # Every Qt category is fail-closed after the exact measured exceptions above. A new qt.sql,
+    # qt.network, or renderer warning is evidence to inspect, not noise inherited from qml/quick.
+    if ($text -cmatch '^(qt\.|QML\b|QQml\b|Qt\.)') { return $true }
     foreach ($fragment in $runtimeErrorFragments) {
         if ($text -like "*$fragment*") { return $true }
     }

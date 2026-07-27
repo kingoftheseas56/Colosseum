@@ -17,6 +17,7 @@ if "%PLAYER2_GATE_CONTRACT_CASE%"=="missing-result" goto done
 echo qml: FACADE PROBE: mode=contract RESULT PASS
 if "%PLAYER2_GATE_CONTRACT_CASE%"=="nonzero" goto nonzero
 if "%PLAYER2_GATE_CONTRACT_CASE%"=="unexpected-qml" goto unexpectedQml
+if "%PLAYER2_GATE_CONTRACT_CASE%"=="unexpected-qt" goto unexpectedQt
 if "%PLAYER2_GATE_CONTRACT_CASE%"=="measured-benign" goto measuredBenign
 :done
 exit /b 0
@@ -24,6 +25,9 @@ exit /b 0
 exit /b 7
 :unexpectedQml
 echo qml: unexpected QML runtime diagnostic 1>&2
+exit /b 0
+:unexpectedQt
+echo qt.sql.qsqldatabase: unexpected warning 1>&2
 exit /b 0
 :measuredBenign
 echo No QSGTexture provided from updateSampledImage^(^). This is wrong. 1>&2
@@ -64,6 +68,7 @@ try {
     Invoke-GateCase 'nonzero' $false 'unexpected process exit 7'
     Invoke-GateCase 'missing-result' $false 'missing final RESULT PASS'
     Invoke-GateCase 'unexpected-qml' $false 'unexpected QML/Qt runtime diagnostic'
+    Invoke-GateCase 'unexpected-qt' $false 'unexpected QML/Qt runtime diagnostic'
     Invoke-GateCase 'measured-benign' $true 'FACADE PROBE GATE: PASS'
     if ($failures.Count) {
         $failures | ForEach-Object { Write-Host "  - $_" }
