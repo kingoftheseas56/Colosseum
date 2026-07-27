@@ -241,9 +241,9 @@ Item {
                         boundsBehavior: Flickable.StopAtBounds
                         reuseItems: true
                         // NO wheel hijack. The mock's row is `overflow-x: auto`, where the
-                        // vertical wheel scrolls the PAGE — and both house rails
-                        // (SagaUniversePage's AdaptationRow, OnePieceUniversePage) do the
-                        // same. Rows fill nearly the whole viewport, so a row that ate the
+                        // vertical wheel scrolls the PAGE — and the house rail
+                        // (SagaUniversePage's AdaptationRow) does the same. Rows fill
+                        // nearly the whole viewport, so a row that ate the
                         // vertical wheel would leave the page unscrollable by wheel.
                         // Measured: Qt lets the vertical wheel through to the page, and
                         // scrolls the rail on horizontal delta, with no handler at all.
