@@ -42,6 +42,12 @@ var TABLE = [
     { file: "netflix-catalog.png", m: function (id, n) { return id.indexOf("netflix") >= 0 || /netflix/i.test(n); } },
     { file: "flixpatrol.png",  m: function (id, n) { return id.indexOf("flixpatrol") >= 0 || /flixpatrol/i.test(n); } },
     { file: "aiolists.png",    m: function (id, n) { return id.indexOf("aiolists") >= 0 || /aio.?lists/i.test(n); } },
+    // ---- universes: an installed universe wears the mark of the add-on it grew out of
+    //      (Hemanth, 2026-07-26). Matched on ID, not name: "DC Animated Universe" does not
+    //      match the dc.png rule's /\bdc universe\b/, and matching loosely on "one pace"
+    //      vs "One Piece" would cross the two.
+    { file: "one-piece.png", m: function (id, n) { return id === "com.colosseum.universe.onepiece"; } },
+    { file: "dc.png",        m: function (id, n) { return id === "com.colosseum.universe.dcau"; } },
     { file: "marvel.png",      m: function (id, n) { return id.indexOf("marvel") >= 0 || /marvel/i.test(n); } },
     { file: "dc.png",          m: function (id, n) { return id.indexOf("dcaddon") >= 0 || /\bdc universe\b/i.test(n); } },
     { file: "morelikethis.png", m: function (id, n) { return id.indexOf("morelikethis") >= 0 || /more.?like.?this/i.test(n); } },

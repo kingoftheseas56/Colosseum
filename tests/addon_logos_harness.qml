@@ -26,6 +26,9 @@ Item {
             ["org.stremio.aiolists", "AIOLists", "aiolists.png"],
             ["com.joaogonp.marveladdon", "Marvel Universe", "marvel.png"],
             ["com.tapframe.dcaddon", "DC Universe", "dc.png"],
+            // --- universes: an installed universe wears the mark of the add-on it grew out of (Task 12) ---
+            ["com.colosseum.universe.onepiece", "One Piece", "one-piece.png"],
+            ["com.colosseum.universe.dcau", "DC Animated Universe", "dc.png"],
             ["community.morelikethis", "More Like This", "morelikethis.png"],
             ["community.subsource.subtitles", "SubSource", "subsource.png"],
             ["community.subdl.subtitles", "SubDL", "subdl.jpg"],
