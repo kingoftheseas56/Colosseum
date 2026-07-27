@@ -3444,13 +3444,16 @@ Item {
 
                 Repeater {
                     model: [
-                        { "label": "Screenshot", "kind": "screenshot", "when": true },
-                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": true },
+                        // capture + live are mpv-only (PlayerEngine.supportsCapture/supportsLive are
+                        // !p2). On the mpv boot both flags are true, so these rows are unchanged; on
+                        // a Player 2 boot they are absent, not present-and-dead ("no control may lie").
+                        { "label": "Screenshot", "kind": "screenshot", "when": mpv.supportsCapture },
+                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": mpv.supportsCapture },
                         { "label": "Playback stats", "kind": "stats", "when": true },
                         { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": true },
-                        { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
+                        { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive && mpv.supportsLive) },
+                        { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive && mpv.supportsLive) },
+                        { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive && mpv.supportsLive) },
                         { "label": "Episodes & sources", "kind": "browser", "when": root.barTiny && root.mediaId.indexOf("iptv:") !== 0 },
                         { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
