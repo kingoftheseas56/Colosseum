@@ -789,6 +789,25 @@ git add qml/UniverseTile.qml
 git commit -m "feat(universes): the universe tile, inheriting the saga visual contract"
 ```
 
+### AMENDMENT (2026-07-26, after code review) — four corrections to the block above
+
+1. **`property int index` → `property int order`** (and `text: tile.order + 1`). As a `ListView` delegate, a tile that re-declares `index` gets the model index written into a *shadow* property, while the numeral binding — compiled inside `UniverseTile.qml` under `pragma ComponentBehavior: Bound` — still resolves to the tile's own `index`, which nothing writes. **Every tile in every row renders "1"**, with no error, no warning and no binding-loop message. All three plausible delegate forms were measured; all three failed. The house already solved this: `qml/OnePieceUniversePage.qml:454` uses `property int order: 0` with `order: index` at the call site. Task 7's delegate is corrected accordingly.
+2. **Two `Image` elements → one.** The block declared a hidden second `Image` purely so the fallback `Text` could read `.status`, doubling network + decode on every tile. The real image now carries an id and the fallback reads it.
+3. **Guard `entry`.** The `({})` default only covers never-assigned; an `entry` binding that *evaluates* to `undefined` throws 7 TypeErrors per tile per re-evaluation (~600 on a full page). Normalise once with `readonly property var e: entry || ({})` and read through it.
+4. **Caption geometry + house fade.** Two-line title + year overflowed the declared 292 by 3px (`topMargin` 10 → 6). Art now cross-fades at 220ms like all four house sibling tiles, rather than snapping `visible`.
+
+### ⚠ TRAP — `qml.exe` on Windows reports nothing unless you tell it to
+
+`qml.exe` is a GUI-subsystem binary: a run with real errors can print **absolutely nothing** and exit 0, which reads as "clean". This produced a false pass in this very task. Always run QML checks as:
+
+```bash
+PATH="/c/Qt/6.11.1/msvc2022_64/bin:$PATH" QT_ASSUME_STDERR_HAS_CONSOLE=1 QT_FORCE_STDERR_LOGGING=1 \
+  QT_QPA_FONTDIR=C:/Windows/Fonts \
+  /c/Qt/6.11.1/msvc2022_64/bin/qml.exe -platform offscreen -I qml <harness.qml> 2>&1 | head -60
+```
+
+Empty output is only meaningful once you have proven the harness *can* print — negative-control it.
+
 ---
 
 ## Task 7: `UniverseExtensionPage.qml` — the one renderer
@@ -971,12 +990,17 @@ Item {
                                     parent.contentX - d))
                             }
                         }
+                        // `order: index`, NOT `index: index` — see the Task 6 amendment. A
+                        // delegate that re-declares `index` shadows the tile's own property,
+                        // and the tile's numeral binding (compiled under ComponentBehavior:
+                        // Bound) still resolves to the tile's own — so every tile silently
+                        // renders "1", with no error and no warning. Measured, not theorised.
                         delegate: UniverseTile {
                             required property var modelData
                             required property int index
                             entry: modelData
                             kind: section.modelData.kind
-                            index: index
+                            order: index
                             onActivated: root.openEntry(section.modelData.kind, modelData)
                         }
                     }
