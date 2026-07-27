@@ -18,8 +18,12 @@ Item {
     id: root
     anchors.fill: parent
 
-    property Item backdrop: null          // shell contract (mirrors SagaUniversePage); the mock's
-                                          // page sits on flat #0c0e11, so nothing samples it here
+    // NOTE for the routing task: this page has NO `backdrop` property, unlike the seven
+    // bespoke universe pages. Those float over the shared wallpaper via
+    // `ShaderEffectSource { sourceItem: root.backdrop }`; this one paints the mock's flat
+    // #0c0e11 and never samples a wallpaper, so a `backdrop` property here would be a
+    // contract the shell satisfies for nothing. Do NOT add `item.backdrop = wall` when
+    // wiring the route — it would throw on a non-existent property.
     property string extensionId: ""
     property string universeName: ""
 
@@ -35,9 +39,14 @@ Item {
     Theme { id: theme }
 
     property var payload: null
+    // No `Component.onCompleted: reload()`. Setting `extensionId` at construction — the only
+    // way this page is ever opened — already fires onExtensionIdChanged, so the pair issued
+    // TWO loads per open. Harmless while the payload is a cached local file; two in-flight
+    // requests per open once §5.5 serves it over HTTPS.
     onExtensionIdChanged: root.reload()
-    Component.onCompleted: root.reload()
     function reload() {
+        // A shorter universe must not open mid-page: contentY survives the swap otherwise.
+        page.contentY = 0
         if (!root.extensionId) { root.payload = null; return }
         UniverseApi.load(root.extensionId, function (p) { root.payload = p })
     }
@@ -139,6 +148,21 @@ Item {
             // (`.sec { margin-bottom: 40 }`), not 84.
             Item { width: 1; height: 44 }
 
+            // ---- nothing arrived ----
+            // This feature has shipped blank three times. A universe that cannot load says so,
+            // rather than looking identical to one that is merely still loading. One condition
+            // covers all three silent cases, because each ends at payload === null: no reader
+            // installed yet, an extensionId with no bundled file, and a payload that validates
+            // down to zero sections. A Column skips invisible children, so this costs no space
+            // once a payload does arrive.
+            Text {
+                visible: root.payload === null && root.extensionId !== ""
+                x: theme.margin
+                text: "This universe isn't installed yet."
+                color: theme.inkDimmer
+                font.family: theme.ui; font.pixelSize: 14
+            }
+
             // ---- the served sections ----
             Repeater {
                 model: root.payload ? root.payload.sections : []
@@ -148,6 +172,37 @@ Item {
                     x: theme.margin
                     width: page.width - theme.margin * 2
                     spacing: 0
+
+                    // ---- the two bounds on how many tiles this page can hold at once ----
+                    // The rails grow on TWO axes and only one of them is a rail's own model.
+                    //
+                    // itemLimit is the house cap (qml/PosterRail.qml:13-20). 60, not
+                    // PosterRail's 20: the largest curated section today is 17 (One Piece
+                    // Specials) and this page has no "See all" door, so a cap that could bite
+                    // a real universe would hide works — the same lie validate() refuses when
+                    // it drops empty rows. 60 is a safety valve against a malformed payload
+                    // (contentWidth, the model copy), not a display policy.
+                    readonly property int itemLimit: 60
+                    //
+                    // nearFold is the bound that actually holds resident textures down, and
+                    // it is the measured one. A 20-section payload built 220 live tiles
+                    // (~122 MB of decoded poster) on this page: the outer Column + Repeater
+                    // has no vertical virtualization, so EVERY rail builds its ~11 visible
+                    // delegates even a full screen below the fold. itemLimit alone did not
+                    // move that number at all — rail model 17, live 11 either way. Gating the
+                    // model on proximity to the fold is what does. Rail height is a constant
+                    // 302 whatever the model holds, so section.y can never depend on this
+                    // gate: no binding loop.
+                    readonly property bool nearFold:
+                        section.y < page.contentY + page.height * 2
+                        && section.y + section.height > page.contentY - page.height * 0.5
+                    readonly property var railModel: {
+                        if (!section.nearFold) return []
+                        var src = section.modelData.entries, out = []
+                        var n = Math.min(src.length, section.itemLimit)
+                        for (var i = 0; i < n; i++) out.push(src[i])
+                        return out
+                    }
 
                     Text {
                         text: section.modelData.title
@@ -174,7 +229,6 @@ Item {
                     Item { width: 1; height: 18 }
 
                     ListView {
-                        id: rail
                         width: section.width
                         // the tile's own 236 art + 56 caption, plus the mock's 10px gutter
                         // under the row (`.row { padding-bottom: 10 }`). The mock's 246 is a
@@ -183,7 +237,7 @@ Item {
                         orientation: ListView.Horizontal
                         spacing: 22
                         clip: true
-                        model: section.modelData.entries
+                        model: section.railModel
                         boundsBehavior: Flickable.StopAtBounds
                         reuseItems: true
                         // NO wheel hijack. The mock's row is `overflow-x: auto`, where the
@@ -213,8 +267,58 @@ Item {
         }
     }
 
+    // ---- the house page chrome, reproduced from SagaUniversePage.qml:348-394 ----
+    // The mock draws only a back arrow, but the mock is a page-BODY mock and depicts no
+    // window chrome at all — that is not a conflict with the house block. This page fills
+    // the window, so without this row there is no way to minimise, unmaximise or close the
+    // app while standing on it; all seven bespoke universe pages carry it, which is why the
+    // three signals were declared in the first place. ChromeScrim belongs to the same block:
+    // light glyphs over a bright banner need the top scrim to stay legible.
+    ChromeScrim { z: 16 }
     BackAction {
         x: theme.margin; y: 28; z: 20
         onTriggered: root.backRequested()
+    }
+    Row {
+        z: 30
+        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        spacing: 20
+        Item {
+            width: 22; height: 22
+            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
+                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
+                opacity: minMa.containsMouse ? 1.0 : 0.72 }
+            MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: root.minimizeRequested() }
+        }
+        Item {
+            width: 22
+            height: 22
+            Image {
+                anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg"
+                        : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22
+                sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: fsMa.containsMouse ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: fsMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.fullscreenRequested()
+            }
+        }
+        Item {
+            width: 22; height: 22
+            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
+                sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
+                opacity: clMa.containsMouse ? 1.0 : 0.72 }
+            MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                onClicked: root.closeRequested() }
+        }
     }
 }
