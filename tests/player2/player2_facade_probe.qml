@@ -317,6 +317,55 @@ Window {
         probe.engine.audioDelay = 0
     }
 
+    // SubStyleBar hands the ENGINE each of its keys as a string (SubStyleBar.qml:52-58), so a
+    // mistyped case in the branch's setSubOption() is a control that moves and does nothing, with no
+    // error anywhere - the exact failure this port exists to kill. Driven through the facade's own
+    // forwarder, and read back off the inner engine's style properties, which are what the QML
+    // subtitle renderer binds to. The RENDERING itself is not asserted here: it is a QML paint on an
+    // uncapturable D3D surface, so it stays owed to a human's eyes.
+    function checkSubStyle() {
+        var inner = probe.engine.inner
+        var before = { "subScale": inner.subScale, "subColor": String(inner.subColor),
+                       "subBorderSize": inner.subBorderSize,
+                       "subBorderColor": String(inner.subBorderColor), "subPos": inner.subPos }
+        var cases = [["sub-scale", 1.5, "subScale", 1.5],
+                     ["sub-color", "#f0c44a", "subColor", "#f0c44a"],
+                     ["sub-border-size", 4.5, "subBorderSize", 4.5],
+                     ["sub-border-color", "#20314a", "subBorderColor", "#20314a"],
+                     ["sub-pos", 40, "subPos", 40]]
+        for (var i = 0; i < cases.length; i++) {
+            var key = cases[i][0], prop = cases[i][2]
+            probe.engine.setSubOption(key, cases[i][1])
+            var got = inner[prop]
+            var want = cases[i][3]
+            var same = (typeof want === "string")
+                     ? String(got).toLowerCase() === String(want).toLowerCase()
+                     : Number(got) === Number(want)
+            if (same)
+                probe.ok("setSubOption('" + key + "') reaches the engine", prop + "=" + got)
+            else
+                probe.bad("setSubOption('" + key + "') reaches the engine",
+                          prop + "=" + got + " want " + want)
+        }
+        // The one key with nothing to implement must be ABSENT from the bar, not inert in it.
+        if (probe.engine.supportsSubAssOverride === false)
+            probe.ok("sub-ass-override is capability-gated off on Player 2")
+        else
+            probe.bad("sub-ass-override is capability-gated off on Player 2",
+                      "supportsSubAssOverride=" + probe.engine.supportsSubAssOverride)
+        if (probe.engine.supportsExternalSubs === false)
+            probe.ok("external subtitles are capability-gated off on Player 2")
+        else
+            probe.bad("external subtitles are capability-gated off on Player 2",
+                      "supportsExternalSubs=" + probe.engine.supportsExternalSubs)
+        for (var k in before)
+            probe.engine.setSubOption(k === "subScale" ? "sub-scale"
+                                    : k === "subColor" ? "sub-color"
+                                    : k === "subBorderSize" ? "sub-border-size"
+                                    : k === "subBorderColor" ? "sub-border-color" : "sub-pos",
+                                      before[k])
+    }
+
     // Sampled every tick of the tracks sequence. The transitions - not a single reading - are the
     // evidence: a cue that appears and never clears is as wrong as one that never appears.
     function sampleSubtitle() {
@@ -510,6 +559,7 @@ Window {
                             return
                         }
                         probe.checkDelays()
+                        probe.checkSubStyle()
                         // PlayerPage's OWN writer, and its own automation latch: without
                         // userTouchedAudio a later automation pass would silently put the preferred
                         // language back and the switch would look like it never took.
