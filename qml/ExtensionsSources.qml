@@ -31,7 +31,6 @@ Item {
 
     signal removeRequested(var entry)
     signal configureRequested(var entry)
-    signal universeActivated(var entry)
 
     Theme { id: theme }
 
@@ -270,23 +269,8 @@ Item {
                     }
                 }
 
-                // Universes are not rows of controls — there is nothing to rank, nothing to
-                // order, nothing to configure. They render through the SAME component the
-                // see-all page uses, in its carousel form, so the two surfaces can never
-                // drift apart. (Hemanth 2026-07-26: "use the same QML for the carasel and
-                // the list of universes sub page".)
-                UniversesShelf {
-                    width: parent.width
-                    visible: section.modelData.key === "universes"
-                    height: visible ? implicitHeight + 20 : 0
-                    form: "carousel"
-                    installedList: root.installedList
-                    includeDisabled: true
-                    onUniverseActivated: function (entry) { root.universeActivated(entry) }
-                }
-
                 Repeater {
-                    model: section.modelData.key === "universes" ? [] : section.modelData.rows
+                    model: section.modelData.rows
                     delegate: Item {
                         id: row
                         required property var modelData
@@ -307,7 +291,10 @@ Item {
                         readonly property string group:
                             row.isCat ? "catalogue" : (row.isWell ? "sources" : "rest")
                         readonly property string groupTitle:
-                            row.group === "catalogue" ? "Catalogue"
+                            // The section header already says "Universes"; labelling them
+                            // "Also installed" underneath it would be noise.
+                            section.modelData.key === "universes" ? ""
+                          : row.group === "catalogue" ? "Catalogue"
                           : row.group === "sources" ? "Sources" : "Also installed"
                         readonly property bool startsGroup: {
                             if (row.index <= 0) return true;
@@ -333,7 +320,7 @@ Item {
                                 root.installedList, section.modelData.key, row.modelData.id, 1) !== null
 
                         Text {
-                            visible: row.startsGroup
+                            visible: row.startsGroup && row.groupTitle !== ""
                             anchors.top: parent.top
                             anchors.topMargin: 14
                             anchors.left: parent.left
