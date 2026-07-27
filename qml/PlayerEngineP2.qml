@@ -54,7 +54,30 @@ Item {
     // apply" (local file, or an origin that never declared a length), so -1 folds to 0 here.
     readonly property real cacheTime: (p2.s && p2.s.bufferedSeconds >= 0) ? p2.s.bufferedSeconds : 0
     readonly property bool coreSeeking: p2.s ? (p2.s.state === p2.stSeeking) : false
-    readonly property var chapters: p2.s ? p2.s.chapters : []
+    // MAPPED, not forwarded. The session's row is {index, start, end, title}
+    // (Player2Session.cpp:55-60); mpv's is {title, startSec} (native/player/mpvitem.cpp:186-192),
+    // and `startSec` is the ONLY field PlayerPage reads. Forwarding the session's shape raw gives
+    // undefined on every row, which fails silently and in three places at once:
+    //   * chapterAtFraction (PlayerPage.qml:2672-2684) - `(list[i].startSec || 0) <= t` is true for
+    //     every row, so the loop never breaks and the seek-hover / chapter HUD always name the LAST
+    //     chapter (measured on chaptered.mkv: "Second" at fraction 0.0, where mpv says "First"),
+    //   * the seek bar's chapter notches (PlayerPage.qml:4456-4459) - `(startSec || 0) > 1` is
+    //     false for all of them, so every notch disappears,
+    //   * SkipSegments.chaptersToSegments (qml/SkipSegments.js:33-48) - all starts read as 0.
+    // Same principle as the inert track lists below; this one has real data, so it is mapped.
+    readonly property var chapters: p2.s ? p2._mapChapters(p2.s.chapters) : []
+    function _mapChapters(rows) {
+        var out = []
+        for (var i = 0; i < (rows || []).length; i++) {
+            var c = rows[i] || ({})
+            var title = String(c.title || "").trim()
+            // mpv substitutes "Chapter" for an untitled chapter (mpvitem.cpp:187-189); matching it
+            // keeps the hover tag reading identically on both boots.
+            out.push({ "title": title.length ? title : "Chapter",
+                       "startSec": Number(c.start || 0) })
+        }
+        return out
+    }
     // The session has no title of its own - it is given one in the play request, and loadFile()
     // (mpv's signature) carries no title. PlayerPage falls back to its own root.mediaTitle.
     property string mediaTitle: ""
@@ -100,8 +123,16 @@ Item {
         if (!u.length)
             return
         p2.currentUrl = u
-        p2._awaitingLoad = true
+        // DISARMED here, armed only by the Opening transition below - not the other way round.
+        // Arming at request time is a trap: open() tears the previous playback down first
+        // (Player2Session.cpp:453-456), and close()'s resetMediaProperties emits tracksChanged
+        // while the OLD file is still in Playing and duration has already been zeroed. That
+        // satisfies the rendezvous and fires fileLoaded with duration=0 for a file that has not
+        // been opened yet (measured on a back-to-back A->B open, 2026-07-27). Opening is the only
+        // honest "this playback has begun" marker, and every successful play() reaches it.
+        p2._awaitingLoad = false
         p2._endedFired = false
+        p2._metadataReady = false
         // play() RETURNS a decision map; ignoring it makes a decline look like a hang.
         var decision = backend.play({
             "url": u,
@@ -115,8 +146,7 @@ Item {
             return
         // Player 2 declined outright. Nothing has been shown, and there is no second backend in
         // this PROCESS (the RHI is a boot choice), so PlayerPage's own error surface is the only
-        // honest destination.
-        p2._awaitingLoad = false
+        // honest destination. Nothing to disarm: a decline never reaches Opening.
         p2.playbackError("declined", String((decision && decision.reason) || "Player 2 declined this playback"))
     }
 
@@ -148,6 +178,12 @@ Item {
     // KNOWN LIMITATION, not a workaround: pressing play once playback has ENDED does nothing here.
     // Ended only accepts Opening / Seeking / Idle, so replay-from-EOF needs a real re-open; mpv
     // restarted the file instead. Left visible for the arc to answer, not papered over.
+    //
+    // RELATED, and worse (measured 2026-07-27, engine-side, NOT caused by this file): rewinding a
+    // clip whose demux has already reached EOF strands playback - the session says Playing and
+    // position never moves. It then reaches Ended a SECOND time, so endFile("eof") fires twice and
+    // PlayerPage starts Up Next twice (endFiles=[eof|eof]). Reproduces on the 2s av.mkv fixture;
+    // does NOT reproduce on real-length media. Task 7 owns verifying the progress/Up Next path.
     function _transportLive() {
         if (!p2.s)
             return false
@@ -241,6 +277,36 @@ Item {
     property int _prevState: -1
     property bool _awaitingLoad: false
     property bool _endedFired: false
+    // Metadata has landed for THIS open. The session publishes duration, tracks and chapters and
+    // THEN transitions to Playing, all in one slot (Player2Session.cpp:40-64), so tracksChanged is
+    // a reliable "the media is described" marker that arrives strictly before the open's Playing.
+    // It is what stops a Playing that is NOT the open from consuming the one-shot fileLoaded gate:
+    // Opening -> Playing is a legal transition, so a pause=false push during Opening would fire
+    // fileLoaded with duration=0 and then never re-arm for the real open (measured). Not reachable
+    // through PlayerPage today - togglePlayPause is gated on !root.starting (PlayerPage.qml:2478)
+    // and every other pause writer needs root.fileReady - but the gate costs one boolean.
+    // Chosen over a duration>0 test on purpose: a live or lengthless stream has no duration and
+    // would never load at all under that check.
+    property bool _metadataReady: false
+
+    // fileLoaded is a RENDEZVOUS of two facts - "the media is described" and "the transport is
+    // running" - and either can land first, so it is evaluated from both sides instead of from the
+    // state change alone. Ordering the normal way round (metadata, then Playing) is not something
+    // this file may assume: if something drives Opening -> Playing early, the session's own
+    // transition(Playing) that follows the metadata is a no-op and emits NOTHING (transition()
+    // only signals when result.changed, Player2Session.cpp:686-703), so a state-only check would
+    // never fire fileLoaded at all - the loading screen would sit there forever over a playing
+    // file. Measured both ways: without the metadata half it fires early with duration=0 and never
+    // re-arms; with the metadata half but no rendezvous it never fires (2026-07-27).
+    function _maybeFileLoaded() {
+        if (!p2._awaitingLoad || !p2._metadataReady || !p2.s)
+            return
+        var st = p2.s.state
+        if (st !== p2.stPlaying && st !== p2.stPaused)
+            return
+        p2._awaitingLoad = false
+        p2.fileLoaded()
+    }
 
     // Player2ErrorCode (Player2Types.h:37) -> the strings PlayerPage's handlePlaybackIssue
     // branches on (PlayerPage.qml:1253-1262): "network" and "decode"/"codec" drive its retry
@@ -272,24 +338,34 @@ Item {
             if (st === p2.stOpening) {
                 p2._awaitingLoad = true
                 p2._endedFired = false
+                // Cleared HERE and not only in loadFile(): open() calls resetMediaProperties()
+                // first, which itself emits tracksChanged (Player2Session.cpp:734-737) - that one
+                // must not pre-arm the gate for the open that follows it.
+                p2._metadataReady = false
                 p2.fileStarted()
-            } else if (p2._awaitingLoad && (st === p2.stPlaying || st === p2.stPaused)) {
+            } else {
                 // "loaded" = the pipeline is RUNNING, with duration and tracks settled.
                 // NOT keyed on `generation`, despite what the plan assumed: seekExact() advances
                 // the generation too (Player2Session.cpp:549), so a per-generation gate would
                 // re-fire fileLoaded on every seek - and PlayerPage's onFileLoaded re-applies the
                 // pending resume seek and re-runs track automation. Keyed on "the last thing this
                 // engine did was OPEN" instead, which is what mpv's fileLoaded actually means.
-                p2._awaitingLoad = false
-                p2.fileLoaded()
+                p2._maybeFileLoaded()
             }
 
             if (st === p2.stEnded) {
                 // ENTERING Ended is end-of-file. demuxEnded(DemuxEndReason) carries the same fact,
-                // but DemuxEndReason is neither Q_ENUM_NS'd nor registered as a metatype
-                // (DemuxSession.h:27, Player2Types.cpp), so its value across the QML boundary is
-                // not something to bet the Up Next / progress path on. The state transition it
-                // causes IS typed, observable, and already deduplicated by the state machine.
+                // but DemuxEndReason has no Q_ENUM_NS (DemuxSession.h:27) - it IS a registered
+                // metatype (Q_DECLARE_METATYPE at DemuxSession.h:219, qRegisterMetaType at
+                // DemuxSession.cpp:116), so it crosses to C++ fine; what it lacks is the enum
+                // registration that would make its VALUE meaningful in QML. The state transition
+                // it causes is typed, observable, and already deduplicated by the state machine,
+                // so that is what this rides.
+                //
+                // ⚠ FOR TASK 7: PlayerPage runs BOTH recordProgress() and startUpNextCountdown()
+                // on every "eof" (PlayerPage.qml:2876-2881). See the eof-rewind note on
+                // _transportLive below - a stranded rewind reaches Ended twice, so Up Next fires
+                // TWICE. Verifying that is Task 7's, not fixed here.
                 if (!p2._endedFired) {
                     p2._endedFired = true
                     p2.endFile("eof")       // PlayerPage branches on exactly this string
@@ -323,7 +399,11 @@ Item {
                              String((error && error.message) || ""))
         }
 
-        function onTracksChanged() { p2.trackListChanged() }
+        function onTracksChanged() {
+            p2._metadataReady = true
+            p2.trackListChanged()
+            p2._maybeFileLoaded()   // the other half of the rendezvous
+        }
         function onSpeedChanged() { p2._adoptSpeed() }
         function onVolumeChanged() { p2._adoptVolume() }
         function onMutedChanged() {

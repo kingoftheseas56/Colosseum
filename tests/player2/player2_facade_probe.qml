@@ -109,6 +109,52 @@ Window {
 
     function toPhase(next) { probe.phase = next; probe.phaseTicks = 0 }
 
+    // Chapters are the one forwarded list whose SHAPE PlayerPage silently depends on: it reads
+    // `startSec` and nothing else, and an undefined there does not throw - it makes
+    // chapterAtFraction's loop never break (so every lookup names the LAST chapter), erases every
+    // seek-bar notch, and zeroes SkipSegments' chapter starts. So this asserts through PlayerPage's
+    // OWN chapterAtFraction, not through the raw list: the wrong shape has to fail here.
+    // Needs a chaptered file - the built fixture chaptered.mkv has "First" at 0s and "Second" at 1s
+    // (tests/player2/fixtures/make_media_fixtures.ps1:54-71).
+    function checkChapters() {
+        var list = probe.engine.chapters || []
+        if (list.length < 2) {
+            probe.skip("chapter shape + chapterAtFraction",
+                       "media has " + list.length + " chapter(s); run against the chaptered.mkv fixture")
+            return
+        }
+        var shapeOk = true
+        for (var i = 0; i < list.length; i++) {
+            if (typeof list[i].startSec !== "number" || isNaN(list[i].startSec))
+                shapeOk = false
+        }
+        if (shapeOk)
+            probe.ok("chapter rows carry a numeric startSec", "n=" + list.length)
+        else
+            probe.bad("chapter rows carry a numeric startSec",
+                      "PlayerPage reads .startSec; got " + JSON.stringify(list[0]))
+
+        var first = page.chapterAtFraction(0.0)
+        if (first.idx === 0)
+            probe.ok("chapterAtFraction(0) names the FIRST chapter",
+                     "idx=0 title=" + first.title)
+        else
+            probe.bad("chapterAtFraction(0) names the FIRST chapter",
+                      "got " + JSON.stringify(first) + " - the loop never broke")
+
+        // ...and the last one still resolves, so a mapping that simply zeroed everything would not
+        // sneak past the check above.
+        var lastStart = Number(list[list.length - 1].startSec || 0)
+        var last = page.chapterAtFraction(lastStart + 0.01)
+        if (last.idx === list.length - 1)
+            probe.ok("chapterAtFraction(lastStart) names the LAST chapter",
+                     "idx=" + last.idx + " title=" + last.title)
+        else
+            probe.bad("chapterAtFraction(lastStart) names the LAST chapter",
+                      "got " + JSON.stringify(last))
+        console.log("FACADE PROBE: chapters=" + JSON.stringify(list))
+    }
+
     function finish() {
         console.log("FACADE PROBE: --- passes (" + probe.passes.length + ") ---")
         for (var i = 0; i < probe.passes.length; i++)
@@ -221,6 +267,7 @@ Window {
                         probe.ok("currentUrl is published", String(probe.engine.currentUrl))
                     else
                         probe.bad("currentUrl is published", "empty - seek thumbnails key off it")
+                    probe.checkChapters()
 
                     probe.mode = probe.modeArg !== "auto" ? probe.modeArg
                                : (probe.engine.duration <= 60 ? "eof" : "transport")
