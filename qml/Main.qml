@@ -2428,12 +2428,15 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
-            item.watchRequested.connect(win.openTheatreSeries)
-            item.seriesRequested.connect(win.openSeries)
-            item.bookRequested.connect(win.openBook)
+            // Clicking a work NAVIGATES to it — close this overlay first so the destination
+            // (series / theatre / western / book layers, all z ≤ this overlay's 52) isn't left
+            // hidden behind us. Mirrors routeWorldSearchItem's close-then-open (Main.qml:1053).
+            item.watchRequested.connect(function(d) { win.closeUniverse(); win.openTheatreSeries(d) })
+            item.seriesRequested.connect(function(d) { win.closeUniverse(); win.openSeries(d) })
+            item.bookRequested.connect(function(d) { win.closeUniverse(); win.openBook(d) })
             // A universe comic entry carries VERIFIED post IDs (no tag) → openUniverseComic
             // mirrors openGcdSeries' baked-release injection (Task 11).
-            item.comicsArchiveRequested.connect(win.openUniverseComic)
+            item.comicsArchiveRequested.connect(function(d) { win.closeUniverse(); win.openUniverseComic(d) })
         }
     }
     Loader {
