@@ -23,7 +23,7 @@
 |---|---|
 | `qml/PlayerEngine.qml` (create) | The facade: one component, two internal branches (mpv / Player 2), exposing the enumerated mpv surface |
 | `qml/PlayerPage.qml` (modify :2821 + capability gates) | `MpvItem {` → `PlayerEngine {`; ~6 `visible:` gates on capture/live rows |
-| `qml/Main.qml` (modify :2013) | The player Loader always loads `PlayerPage.qml`; the Player2Page branch dies |
+| `qml/Main.qml` (modify :2185) | The player Loader always loads `PlayerPage.qml`; the Player2Page branch dies |
 | `qml/player2/controls/SubtitleLayer.qml` (keep, re-parent) | Mounted inside PlayerEngine's P2 branch, over the video item |
 | `qml/player2/controls/OverflowMenu.qml` (keep) | Replaces PlayerPage's overflowPanel (both boots) — Hemanth's exception |
 | `qml/player2/controls/Player2Icon.qml` (keep) | Needed by OverflowMenu |
@@ -53,9 +53,22 @@ git log --oneline -1   # note the base SHA in the first commit message
 
 ```bash
 cd native
-cmd //c "$(pwd -W)/_reconf2.bat"   # if _reconf2.bat is untracked, copy it from the main tree first
+cmd //c "$(pwd -W)/_reconf2.bat"   # _reconf2.bat IS untracked — copy it from the main tree first
 # Expected: CONFIGURED then BUILD_OK; grep CMakeCache.txt for COLOSSEUM_PLAYER2_IN_APP:BOOL=ON
 ```
+
+**MEASURED 2026-07-27 — a fresh worktree inherits NO CMake settings**, so the main tree's
+`_reconf2.bat` does not pick the generator or Qt on its own. The configure line needs these flags
+added (verified to produce a cache matching the main tree's on generator, build type, Qt prefix,
+compiler 14.44.35207, `COLOSSEUM_PLAYER2_IN_APP=ON`, `COLOSSEUM_BUILD_PLAYER2=OFF`):
+
+```
+-G Ninja -DCMAKE_MAKE_PROGRAM="C:\Qt\Tools\Ninja\ninja.exe" -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="C:/Qt/6.11.1/msvc2022_64"
+```
+
+Cold configure + build is ~90 minutes. Run it in the background and poll; a timed-out foreground
+call leaves a half-built tree that looks like a failure but is only incomplete (check `.ninja_log`'s
+last entry for an error before assuming the worse).
 
 - [ ] **Step 3: Commit a marker so the branch base is recorded**
 
@@ -241,6 +254,53 @@ git commit -m "feat(player2): PlayerEngine facade — mpv branch forwards 1:1, P
 
 ### Task 3: The Player 2 branch — core transport
 
+> **CONTROLLER FINDINGS 2026-07-27 — verified against the real headers. These override this plan's
+> prose wherever they disagree.**
+>
+> **Session API (`native/player2/core/Player2Session.h`) — the plan's guesses were right, now pinned:**
+> `play()` `pause()` `seekExact(double)` `seekRelative(double)` `frameStep(int)`
+> `selectAudioTrack(QString)` `selectSubtitleTrack(QString)` `setSpeed(double)` `setVolume(float linear)`
+> `setMuted(bool)` `setSubDelay(double)` `setAudioDelay(double)` `setVideoAspect(QString)`
+> `setPanscan(double)` `setVideoZoom(double)`; `Q_INVOKABLE QVariantMap diagnostics()`.
+> Properties incl. `position duration tracks audioTracks subtitleTracks chapters bufferedSeconds
+> volume muted speed subDelay audioDelay videoAspect panscan videoZoom subtitleText subtitleBitmap`.
+> **`audioTracks`/`subtitleTracks` ALREADY EXIST** — do not derive them by filtering `tracks`.
+> **`panscan`/`videoZoom`/`videoAspect` all NOTIFY `videoFillChanged`** — same shape as MpvItem.
+>
+> **`Player2State` (`Player2Types.h:15`) is: Idle=0 Opening=1 Buffering=2 Playing=3 Paused=4
+> Seeking=5 Ended=6 Recovering=7 Error=8.** The plan's Paused=4 / Seeking=5 are CORRECT.
+>
+> **`Player2Backend`:** `Q_INVOKABLE QVariantMap play(QVariantMap)` — keys are `url mediaId title
+> resumeSeconds live headers` (`Player2Backend.cpp:126-135`; `headers` is the debrid seam).
+> **`Q_INVOKABLE attachVideoItem(QObject*)` MUST be called** — the plan's skeleton omits it. Working
+> reference: `qml/player2host/Player2Page.qml:255` does it in `Component.onCompleted`.
+>
+> **GAP 1 — SIGNAL SYNTHESIS IS THE HARD PART, AND THIS PLAN OMITS IT ENTIRELY.**
+> Player2Session emits NONE of the lifecycle signals PlayerPage's handlers are bound to. The P2
+> branch must synthesize all of them from what the session does emit, or PlayerPage's entire
+> lifecycle is silently dead — loader never dismisses, resume-seek never fires, auto-subtitle and
+> skip-segments never run, and **`recordProgress()` never fires on end-of-file (which is Task 7's
+> whole proof)**. Required mapping:
+> | PlayerPage expects | Synthesize from |
+> |---|---|
+> | `fileStarted` | `stateChanged` → Opening(1) |
+> | `fileLoaded` | `stateChanged` → first Playing(3) for a generation (duration + tracks settled) |
+> | `endFile(reason)` | `demuxEnded(DemuxEndReason)` → map to `"eof"` vs other |
+> | `playbackError(code, message)` | `errorOccurred(Player2Error)` |
+> | `trackListChanged` | `tracksChanged` |
+> | `currentUrlChanged` | facade sets `currentUrl` in `loadFile()` |
+> | `gifSaved` / `gifFailed` | never — capability is false (Task 6 gates the controls) |
+> Use `generation` to avoid re-firing `fileLoaded` on every pause/resume.
+>
+> **GAP 2 — subtitle STYLING has no engine seam on P2.** `Player2Session` exposes no
+> `setSubOption` equivalent (grep for scale/color/border/pos/ass-override: zero hits). `SubStyleBar`
+> drives six controls through `player.setSubOption(...)`. On a P2 boot those would silently do
+> nothing — which the plan's own "no control may lie" doctrine forbids. **`SubtitleLayer` renders the
+> cue as a QML `Text` item**, so scale / colour / outline / position are implementable there directly.
+> Task 4 owns this: implement the styling in `SubtitleLayer`, or — only if that proves unclean —
+> add a `supportsSubStyling` capability flag and gate `SubStyleBar` on it (Task 6 pattern). Do not
+> leave the controls present and dead.
+
 **Files:**
 - Create: `qml/PlayerEngineP2.qml`
 
@@ -312,6 +372,19 @@ git commit -m "feat(player2): facade P2 branch — core transport under PlayerPa
 ```
 
 ---
+
+> **⚠ CRITICAL, FOUND 2026-07-27 BY TASK 3's QUALITY REVIEW — was UNOWNED by any task.**
+> **`command(["stop"])` has no Player 2 answer, so closing the player leaves the engine running.**
+> `PlayerPage.stop()` (`PlayerPage.qml:2125-2133`) ends with `mpv.command(["stop"])`.
+> `PlayerEngine.command()` is guarded on `inner.command` existing, and `PlayerEngineP2.qml` declares
+> no `command` — so on a P2 boot the call evaporates silently. The callers are real closes, not edge
+> cases: `Main.qml:956` (`closePlayer`) and `Main.qml:1179`, whose own comment reads *"a real close
+> ends the stream for good — minimize keeps the movie warm, close does not."* **Result on a P2 boot:
+> a closed player with a live session — audio keeps playing, demux/decode/pump keep burning GPU.**
+> The fix is one hop away and already `Q_INVOKABLE`: `Player2Backend::stop()`
+> (`Player2Backend.h:47`) does `m_pump.stop(); m_session.close();`. **Assigned to Task 3** (teardown
+> is the counterpart of open). Not user-reachable until Task 7 flips the route — but it must be
+> closed before then.
 
 ### Task 4: Tracks, subtitles, delays — and the SubtitleLayer mount
 
@@ -409,7 +482,13 @@ git add qml/PlayerPage.qml && git commit -m "feat(player2): capability gates —
 ### Task 7: Main.qml routes both boots to PlayerPage — and progress is inherited
 
 **Files:**
-- Modify: `qml/Main.qml:2013` (the Loader source line)
+- Modify: `qml/Main.qml` — the player `Loader`'s `source:` line. **Locate it by content, not line number**
+  (`grep -n 'usePlayer2 ?' qml/Main.qml`); it has drifted twice already (2013 → 2185 → 2077 as other
+  lanes edit the file). It reads
+  `source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"`.
+  **Until this task lands, a Player 2 boot routes to the OLD shell and `PlayerEngineP2.qml` is never
+  constructed** — which is why a plain P2 launch shows no sign of the facade and why Task 3's work
+  needed a direct probe. That is expected pre-Task-7 state, not a defect.
 - Modify: `tests/player2/player2_integrated_contract.ps1` (repin: the check demanding the Player2Page branch inverts)
 
 - [ ] **Step 1: The Loader always loads PlayerPage**
@@ -455,6 +534,10 @@ git commit -m "feat(player2): P2's context menu replaces the old panel on both b
 - Move: `qml/player2/controls/SubtitleLayer.qml`, `OverflowMenu.qml`, `Player2Icon.qml`, `Player2Browser.js` → `qml/` (next to PlayerEngine; update imports)
 - Delete: the rest of `qml/player2/`, all of `qml/player2host/`
 - Delete: `tests/player2/player2_shell_contract.ps1`, `player2_shortcuts_contract.ps1`, `player2_shortcuts_harness.qml`, `player2_browser_logic_contract.ps1`, `player2_browser_logic_harness.qml`, and every probe that instantiates the deleted shell (enumerate: `grep -rln "player2host\|Player2Shell" tests/`)
+- ⚠ **DO NOT DELETE `tests/player2/qml_lexer.ps1`** (added Task 2, `9cad899`). It is the shared
+  quote-aware comment stripper dot-sourced by BOTH `player2_shell_contract.ps1` (deleted here) and
+  `player2_engine_facade_contract.ps1` (survives). Deleting the shell contract must not take the
+  lexer with it, or the facade contract breaks on a missing dot-source.
 - Modify: `native/CMakeLists.txt` qrc lists that bundle deleted QML (grep-verify: shared file — check `tasklist` and announce in `agents/chat.md` if other brothers are active)
 
 - [ ] **Step 1: Move the four survivors; fix their imports; build.**
@@ -474,6 +557,38 @@ Only after the port, because every measurement before it confounds engine cost w
 - [ ] **Step 1: ABBA re-run** (`tests/player2/player2_efficiency_abba.ps1`), both engines through the SAME PlayerPage. Record GPU and CPU against the 2026-07-25 numbers (GPU 21.0% vs 57.7%; CPU 17.9% vs 15.6%). The pump trim (`c73695c`) should move CPU — state the new number either way.
 - [ ] **Step 2: Seek-stutter measurement**: extend the frontier probe to record `dropped` deltas across 10 seeks; acceptance = post-seek recovery without a visible stall (his eyes on Tenet's opera scene is the real gate; the counter delta is the regression guard).
 - [ ] **Step 3: Engine seams for the five dead stats rows** (fps + observed bitrates in DemuxSession; buffering % from ring fill) — each lands with its facade key flipping from `""` to a real value and the row coming alive.
+
+- [ ] **Step 3a: THE PLAYHEAD IS THE FRONTIER, NOT THE PICTURE — the biggest user-visible P2 defect
+      the chrome was hiding.** `Player2Session::position` (`Player2Session.cpp:66-73`) reports the
+      **demuxed-packet frontier**, not the presentation clock. Measured by the Task 3 probe
+      (2026-07-27): `seekExact(7.05)` reads back **11.24** 250 ms later, then advances at exactly
+      1.0×. The same point on the mpv boot reads **0.25**. **Consequence for Hemanth: on a Player 2
+      boot the seek bar and the time readout sit up to ~4 s AHEAD of the picture, and a seek appears
+      to land past where he dropped it.** This is the same defect the 2026-07-26 wake hit from the
+      other side — `PlaybackClock` is wall-clock extrapolation and ran to 118.96 s on a 90 s clip
+      during a stall, so playhead-from-clock was reverted twice on evidence. **Neither source is
+      right: the fix is a presented-frame-timestamp seam** (the engine must publish the PTS of the
+      frame actually on screen). Until it lands, every seek/scrub judgement on a P2 boot is being
+      made against a lying number — do not tune seek feel before fixing this.
+
+- [ ] **Step 3b: Two narrower engine findings from the Task 3 probe** — (i) rewinding a clip whose
+      demux already hit EOF strands playback: on the 2 s fixture, pause at 1.98 → seek to 1.02 →
+      resume goes `Playing` but position never moves and `Ended` never returns (does NOT reproduce on
+      real media). (ii) Pressing play at end-of-file does nothing on P2 — `Ended` accepts only
+      `Opening`/`Seeking`/`Idle`, whereas mpv restarted the file. Both are documented in
+      `PlayerEngineP2.qml` rather than papered over.
+
+- [ ] **Step 3c: A probe that "never reaches Playing" may be a PATH failure, not an engine failure.**
+      `./native/build-msvc/colosseum.exe` exits **127** with `error while loading shared libraries:
+      avfilter-11.dll` unless Qt's bin dir leads `PATH` (as `Colosseum (Player 2).bat` does). It is
+      silent, instant, and looks exactly like the never-root-caused 2026-07-26 probe failure. Not
+      proven to be that failure's cause, but check it first next time.
+
+- [ ] **Step 3d: Relay divergence is REAL on the P2 branch** (Task 2 flagged it as theoretical).
+      PlayerPage clamps speed to `0.25..3`; the session clamps to `0.5..2.0` and returns **silently**
+      when a clamped push equals what it holds. Measured: `speed push 3.0 → facade=2 session=2` only
+      because `PlayerEngineP2` re-reads after pushing — without that it would sit at 3 forever.
+      Any new setter on either branch must re-read or notify.
 - [ ] **Step 4: Merge = Hemanth's evening test.** Both boots, same film, stats card closed: if he cannot tell which player he is on until he opens the card, Task 18 (the default flip) may be proposed again. Not before.
 
 ---
