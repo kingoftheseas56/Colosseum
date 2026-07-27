@@ -5,11 +5,13 @@
 // universe page must sit in the same family as SagaUniversePage.
 //
 // Art by kind: video → metahub poster/small (ONLY /small is reliable; /medium 404s across
-// the long tail and Cinemeta URLs must never be upscaled — house doctrine). Non-video
-// kinds have no universal art endpoint, so they degrade to the honest lettered plate
-// rather than borrowing a stand-in.
+// the long tail and Cinemeta URLs must never be upscaled — house doctrine). Non-video kinds
+// resolve their cover ASYNC from the entry's {provider,id} via UniverseApi.coverFor — anilist
+// (GraphQL by ID), applebooks (iTunes lookup by store ID), comic (ComicsApi.posterFor). The
+// lettered plate is the fallback only while a cover loads or is unreachable.
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseApi.js" as UniverseApi
 
 Item {
     id: tile
@@ -19,6 +21,11 @@ Item {
     property int order: 0               // NOT "index" — a delegate's own `index` would shadow it
                                          // under ComponentBehavior: Bound and freeze every tile at "1"
     signal activated()
+    property string coverUrl: ""   // async-resolved cover for non-video kinds (UniverseApi.coverFor)
+    Component.onCompleted: {
+        if (tile.kind !== "video")
+            UniverseApi.coverFor(tile.e, tile.kind, function(u) { if (u) tile.coverUrl = u })
+    }
 
     width: 150
     height: 236 + 56
@@ -42,7 +49,7 @@ Item {
         Image {
             id: artImage
             anchors.fill: parent
-            source: tile.art
+            source: tile.art !== "" ? tile.art : tile.coverUrl
             fillMode: Image.PreserveAspectCrop
             asynchronous: true
             cache: true
@@ -58,7 +65,7 @@ Item {
         Text {
             anchors.fill: parent
             anchors.margins: 12
-            opacity: (tile.art === "" || artImage.status !== Image.Ready) ? 1 : 0
+            opacity: ((tile.art === "" && tile.coverUrl === "") || artImage.status !== Image.Ready) ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 220 } }
             text: tile.e.title || ""
             color: theme.inkDimmer

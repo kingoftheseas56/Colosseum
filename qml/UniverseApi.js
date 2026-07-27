@@ -21,6 +21,7 @@
 // place wouldn't).
 .pragma library
 .import "Universes.js" as UDB
+.import "ComicsApi.js" as ComicsApi
 
 var CINEMETA = "https://v3-cinemeta.strem.io";
 var ANILIST  = "https://graphql.anilist.co";
@@ -247,4 +248,39 @@ function imageUrls(u) {
             if (groups[g][i].cover && urls.indexOf(groups[g][i].cover) === -1)
                 urls.push(groups[g][i].cover);
     return urls;
+}
+
+// Resolve a cover URL for a payload entry by its {provider, id} (or kind for comics). The
+// static universe payload carries routable IDs but no art — the arc's thesis was "every tile
+// BORN with a real ID"; this fetches the cover BACK from that ID so manga/novels/comics aren't
+// left on the honest lettered plate. By-ID (precise), never by-title search (which mismatches).
+//   anilist    → AniList GraphQL Media(id) coverImage.extraLarge/large
+//   applebooks → iTunes lookup?id=<store trackId> artwork (upscaled 100→600)
+//   comic      → ComicsApi.posterFor(title + " comic") — the same call ComicSeries makes
+function coverFor(entry, kind, done) {
+    var e = entry || ({});
+    if (e.cover) { done(e.cover); return; }                   // curated / already resolved
+    var provider = e.provider || (kind === "comic" ? "getcomics" : "");
+    if (provider === "anilist" && e.id) {
+        var gql = "query($id:Int){Media(id:$id,type:MANGA){coverImage{extraLarge large}}}";
+        postJson(ANILIST, { query: gql, variables: { id: Number(e.id) } }, function(json) {
+            var ci = json && json.data && json.data.Media && json.data.Media.coverImage;
+            done(ci ? (ci.extraLarge || ci.large || "") : "");
+        });
+        return;
+    }
+    if (provider === "applebooks" && e.id) {
+        requestJson("https://itunes.apple.com/lookup?id=" + encodeURIComponent(e.id), function(json) {
+            var r = json && json.results && json.results[0];
+            var art = r ? (r.artworkUrl100 || r.artworkUrl60 || "") : "";
+            if (art) art = String(art).replace(/100x100bb/, "600x600bb").replace(/100x100/, "600x600");
+            done(art);
+        });
+        return;
+    }
+    if (provider === "getcomics" || kind === "comic") {
+        ComicsApi.posterFor((e.title || "") + " comic", done);
+        return;
+    }
+    done("");
 }
