@@ -279,7 +279,15 @@ function coverFor(entry, kind, done) {
         return;
     }
     if (provider === "getcomics" || kind === "comic") {
-        ComicsApi.posterFor((e.title || "") + " comic", done);
+        // Comics aren't iTunes ebooks (posterFor returns nothing for them) — use the GetComics
+        // post's own og_image, the SAME source ComicSeries uses (ComicsApi.postsById). The first
+        // post's cover stands in for the series.
+        var posts = e.posts || [];
+        if (!posts.length) { done(""); return; }
+        var key = String(posts[0]);
+        ComicsApi.postsById([posts[0]], function(map) {
+            done((map && map[key] && map[key].cover) || "");
+        });
         return;
     }
     done("");
