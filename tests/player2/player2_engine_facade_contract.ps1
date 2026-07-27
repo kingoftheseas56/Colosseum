@@ -148,6 +148,15 @@ if (Test-Path $p2Path) {
             $violations += "PlayerEngineP2 does not declare '$m' (PlayerEngine forwards it to every branch)"
         }
     }
+    # setSubOption is forwarded GUARDED, so the loop above cannot demand it - but as of Task 4 the P2
+    # branch really implements it (SubStyleBar's five live style controls are that function plus the
+    # SubtitleLayer it drives), and losing it would put all five back to moving and doing nothing
+    # with no error anywhere. Named by hand, exactly like the facade's own indirect check above.
+    foreach ($m in @('setSubOption', 'addSubtitle')) {
+        if (-not (Test-Member $p2 $m)) {
+            $violations += "PlayerEngineP2 does not declare '$m' (reached indirectly - see comment)"
+        }
+    }
     # `function on<X>(` appears ONLY inside the facade's Connections block - its own handlers use
     # property syntax (`onPauseChanged:`), so this scan is exactly the set of signals the facade
     # connects to on `inner`. videoFillChanged is the one that is easy to miss: it is not a property

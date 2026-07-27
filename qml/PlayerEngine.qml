@@ -26,9 +26,24 @@ Item {
         source: engine.p2 ? "PlayerEngineP2.qml" : "PlayerEngineMpv.qml"
     }
 
-    // ---- capability flags (Task 6 gates PlayerPage's capture/live rows on these) ----
+    // ---- capability flags (Task 6 gates PlayerPage's rows on these) ----
+    // Keyed off the BOOT, not asked of the branch, and deliberately so: the mpv branch is a bare
+    // MpvItem (a C++ type that cannot declare a QML capability property), so an `inner ? inner.x`
+    // forward would read undefined there and switch the mpv boot's own features off.
     readonly property bool supportsCapture: !engine.p2   // screenshot / GIF / frame grab
     readonly property bool supportsLive: !engine.p2      // live guide / DVR panels
+    // Loading a subtitle FILE or an OpenSubtitles download into a running playback. mpv has sub-add;
+    // Player 2 has no external-subtitle path at all - PlaybackRequest.externalSubtitles
+    // (Player2Types.h:87) is declared and read by nothing. Task 6 gates the OpenSubtitles list,
+    // subtitle drag-and-drop and pickSubtitle's "ext:" route on this. EMBEDDED subtitle tracks are
+    // unaffected: those work on both boots.
+    readonly property bool supportsExternalSubs: !engine.p2
+    // SubStyleBar's `sub-ass-override` cluster. The other five style controls are real on both
+    // boots (mpv's sub-* options / PlayerEngineP2's SubtitleLayer). This one is not: Player 2 strips
+    // every ASS override block in C++ before a cue reaches QML (SubtitlePipeline.cpp:26-42), so
+    // there is no embedded styling left to keep, scale or force. SubStyleBar hides the cluster
+    // rather than cycling a value nothing reads.
+    readonly property bool supportsSubAssOverride: !engine.p2
 
     // ---- state PlayerPage only READS - plain forwarding bindings ----
     // These stay `readonly` on purpose: a writable property's initialiser would be a binding that

@@ -142,7 +142,13 @@ Item {
                 }
             }
 
+            // The one style control an engine can genuinely fail to honour: it asks what to do with
+            // a subtitle's EMBEDDED ASS styling, and the Player 2 boot has already stripped that
+            // styling in C++ before the cue reaches QML. Hidden there rather than left cycling a
+            // value nothing reads. `!== false` on purpose - anything handed to SubStyleBar that has
+            // no opinion (a harness, a mock player) keeps the control.
             SelectCluster {
+                visible: !bar.player || bar.player.supportsSubAssOverride !== false
                 label: "ASS"
                 valueText: prefs.assOverride
                 onCycle: {

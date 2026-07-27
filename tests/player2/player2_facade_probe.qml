@@ -11,9 +11,9 @@ import "../../qml"
 // PlayerPage's child list is what proves the object PLAYERPAGE built is the one asserted against.
 //
 // Usage (from the worktree root):
-//   colosseum.exe tests/player2/player2_facade_probe.qml <media> [auto|eof|transport]
+//   colosseum.exe tests/player2/player2_facade_probe.qml <media> [auto|eof|transport|tracks]
 //
-// TWO SEQUENCES, because no single clip can carry both:
+// THREE SEQUENCES, because no single clip can carry them all:
 //   eof       - runs the clip to its end untouched: fileStarted, ONE fileLoaded, endFile("eof").
 //               endFile("eof") is what calls recordProgress() and starts Up Next (PlayerPage.qml:
 //               2871-2879), i.e. exactly what Task 7 exists to prove.
@@ -29,6 +29,22 @@ import "../../qml"
 //               not a miss (measured 2026-07-27: seekExact(7.05) read 11.24 250ms later, then
 //               advanced at exactly 1.0x). Paused, the frontier IS the landing point and the same
 //               seek lands to the centisecond, so this is the assertion that can actually fail.
+//   tracks    - (chrome-port Task 4) the track lists, track SELECTION and the subtitle renderer.
+//               Asserts through PLAYERPAGE'S OWN row builders - page.audioRows / page.subRows, not
+//               the raw engine lists - because the whole risk here is a shape mismatch that reads
+//               as `undefined` inside audioRow()/subtitleRow() and fails silently, exactly as the
+//               raw chapter forward did. Then it switches the audio track and enables the subtitle
+//               track through PlayerPage's own writers and waits for the DEMUX to report back, so
+//               a control that moved without reaching the engine cannot pass.
+//               Needs tests/player2/fixtures/make_media_fixtures.ps1's tracks-long.mkv: 60s, two
+//               audio tracks (eng "English" / fra "French") and an eng subrip track whose cues sit
+//               at 10-13s and 25-28s. NO OTHER FIXTURE WORKS, and the LENGTH is load-bearing twice
+//               over: a subtitle track can only be selected once the session reports active media
+//               (so a 2s clip's cues are demuxed and gone before anything can arm - an unselected
+//               subtitle stream is never decoded), and the demux is only paced by playback while
+//               its queues are full, so a short clip is read to the end in a couple of seconds and
+//               the frontier laps every cue. A 12s cut of this same fixture lost its first cue on
+//               one run in two (measured 2026-07-27).
 //   auto      - picks eof for a clip <= 60s, transport otherwise. Run BOTH to cover both.
 //
 // Environment, all load-bearing:
@@ -75,6 +91,17 @@ Window {
 
     property real mark: -1
     property real seekTarget: -1
+
+    // ---- tracks sequence state -------------------------------------------------------------
+    property string switchAudioTo: ""
+    property string subTrackId: ""
+    property int armTick: -1              // the tick the subtitle track was armed on
+    property int subShowCount: 0
+    property int showsAtOff: -1
+    property bool subWasShowing: false
+    property string subCueSeen: ""
+    property real subCueFirstPos: -1
+    property bool subCleared: false
 
     function ok(name, detail) { probe.passes.push(name + (detail ? " (" + detail + ")" : "")) }
     function bad(name, detail) { probe.failures.push(name + (detail ? " (" + detail + ")" : "")) }
@@ -155,6 +182,205 @@ Window {
         console.log("FACADE PROBE: chapters=" + JSON.stringify(list))
     }
 
+    // ---- tracks sequence ----------------------------------------------------------------------
+    function rowById(rows, id) {
+        for (var i = 0; i < (rows || []).length; i++)
+            if (String(rows[i].id) === String(id))
+                return rows[i]
+        return null
+    }
+
+    function field(label, row, key, want) {
+        var got = row[key]
+        if (String(got) === String(want))
+            probe.ok(label + "." + key, String(got))
+        else
+            probe.bad(label + "." + key, "got " + JSON.stringify(got) + " want " + JSON.stringify(want))
+    }
+
+    // Everything here reads PLAYERPAGE'S rows, never the engine's list. audioRow()/subtitleRow()
+    // are where a shape mismatch actually bites: they read `id`, `lang`, `title`, `codec`,
+    // `default`, `forced`, `selected` off the raw engine row and quietly return undefined-derived
+    // junk for any key that is named differently, which is precisely how the chapter forward failed.
+    function checkTrackShape() {
+        var a = page.audioRows || []
+        if (a.length !== 2) {
+            probe.bad("audioRows has both fixture tracks", "n=" + a.length
+                      + " - run against tracks-long.mkv")
+            return false
+        }
+        probe.ok("audioRows has both fixture tracks", "n=2")
+        var eng = probe.rowById(a, "1")
+        var fra = probe.rowById(a, "2")
+        if (!eng || !fra) {
+            probe.bad("audio rows carry the stream index as `id`",
+                      "ids=" + JSON.stringify(a.map(function(r) { return r.id })))
+            return false
+        }
+        probe.ok("audio rows carry the stream index as `id`", "ids=1,2")
+        // `label`, not `title`: audioRow() emits no title key at all (PlayerPage.qml:414-427) - it
+        // folds title/lang into `label`. Asserting a `title` here failed on the first run, and the
+        // mapping was right; the assertion was wrong. This is the exact reason these checks read
+        // PlayerPage's builders instead of the engine's list.
+        probe.field("audioRow(eng)", eng, "lang", "eng")
+        probe.field("audioRow(eng)", eng, "label", "English")
+        probe.field("audioRow(eng)", eng, "codec", "aac")
+        probe.field("audioRow(eng)", eng, "default", true)
+        probe.field("audioRow(fra)", fra, "lang", "fra")
+        probe.field("audioRow(fra)", fra, "label", "French")
+        probe.field("audioRow(fra)", fra, "default", false)
+        // trackTech() is built from the raw row too - codec only on this branch, because
+        // DemuxStreamInfo carries no channel count and no bitrate. "AAC · " would mean a mapping
+        // invented empty strings that read as present.
+        probe.field("audioRow(eng)", eng, "tech", "AAC")
+
+        // Exactly one tick, and it must be the track the ENGINE says is decoding - the demux reports
+        // that unprompted at open, so a `selected` derived from anything else shows here.
+        var sel = a.filter(function(r) { return r.selected })
+        if (sel.length === 1)
+            probe.ok("exactly one audio row is selected", "id=" + sel[0].id)
+        else
+            probe.bad("exactly one audio row is selected", "n=" + sel.length)
+        if (sel.length === 1 && String(sel[0].id) === String(probe.engine.audioTrack)
+                && String(probe.engine.audioTrack).length > 0)
+            probe.ok("selected audio row matches the engine's reported track",
+                     "audioTrack=" + probe.engine.audioTrack)
+        else
+            probe.bad("selected audio row matches the engine's reported track",
+                      "audioTrack=" + JSON.stringify(probe.engine.audioTrack))
+        var selRow = page.selectedAudioRow()
+        if (selRow)
+            probe.ok("PlayerPage.selectedAudioRow() resolves", "id=" + selRow.id)
+        else
+            probe.bad("PlayerPage.selectedAudioRow() resolves",
+                      "null - the chip and the saved-track pref both read this")
+        if (page.audioChipValue === "ENG")
+            probe.ok("audio chip reads the track language", page.audioChipValue)
+        else
+            probe.bad("audio chip reads the track language", "got " + page.audioChipValue)
+
+        var sub = probe.rowById(page.subRows, "3")
+        if (!sub) {
+            probe.bad("subRows carries the embedded subtitle track",
+                      "ids=" + JSON.stringify((page.subRows || []).map(function(r) { return r.id })))
+            return false
+        }
+        probe.ok("subRows carries the embedded subtitle track", "id=3")
+        probe.subTrackId = "3"
+        probe.field("subtitleRow", sub, "lang", "eng")
+        probe.field("subtitleRow", sub, "title", "English subs")
+        probe.field("subtitleRow", sub, "label", "English subs")
+        probe.field("subtitleRow", sub, "codec", "subrip")
+        probe.field("subtitleRow", sub, "external", false)
+        probe.field("subtitleRow", sub, "forced", false)
+        probe.field("subtitleRow", sub, "tech", "SUBRIP · embedded")
+        // NOT asserted as false: PlayerPage's own maybeAutoSelectTracks() may already have picked
+        // this track by language before the probe got a look in (it does, on a default profile -
+        // measured 2026-07-27, which is itself proof that the automation reaches this engine). What
+        // must hold either way is that the tick agrees with the track the ENGINE says is decoding.
+        if (!!sub.selected === (String(sub.id) === String(probe.engine.subtitleTrack)))
+            probe.ok("subtitle row tick agrees with the engine's reported track",
+                     "selected=" + sub.selected + " subtitleTrack="
+                     + JSON.stringify(probe.engine.subtitleTrack))
+        else
+            probe.bad("subtitle row tick agrees with the engine's reported track",
+                      "selected=" + sub.selected + " subtitleTrack="
+                      + JSON.stringify(probe.engine.subtitleTrack))
+        console.log("FACADE PROBE: PlayerPage's own automation left subtitleTrack="
+                    + JSON.stringify(probe.engine.subtitleTrack))
+
+        probe.switchAudioTo = String(probe.engine.audioTrack) === "1" ? "2" : "1"
+        return true
+    }
+
+    // The delays have no visible surface to read back through, so they are asserted against the
+    // SESSION's own value - the engine's, not the facade's echo of what was pushed.
+    function checkDelays() {
+        probe.engine.subDelay = 0.25
+        probe.engine.audioDelay = -0.5
+        var s = probe.engine.inner.s
+        if (Math.abs(s.subDelay - 0.25) < 1e-9)
+            probe.ok("subDelay reaches the session", "s.subDelay=" + s.subDelay)
+        else
+            probe.bad("subDelay reaches the session", "s.subDelay=" + s.subDelay)
+        if (Math.abs(s.audioDelay + 0.5) < 1e-9)
+            probe.ok("audioDelay reaches the session", "s.audioDelay=" + s.audioDelay)
+        else
+            probe.bad("audioDelay reaches the session", "s.audioDelay=" + s.audioDelay)
+        // ...and the facade did not drift off the value the engine actually took.
+        if (probe.engine.subDelay === s.subDelay && probe.engine.audioDelay === s.audioDelay)
+            probe.ok("facade delays match the engine after the push")
+        else
+            probe.bad("facade delays match the engine after the push",
+                      "facade=" + probe.engine.subDelay + "/" + probe.engine.audioDelay)
+        probe.engine.subDelay = 0
+        probe.engine.audioDelay = 0
+    }
+
+    // Sampled every tick of the tracks sequence. The transitions - not a single reading - are the
+    // evidence: a cue that appears and never clears is as wrong as one that never appears.
+    function sampleSubtitle() {
+        if (!probe.engine || !probe.engine.inner || !probe.engine.inner.s)
+            return
+        var text = String(probe.engine.inner.s.subtitleText || "")
+        var showing = text.length > 0
+        if (showing && !probe.subWasShowing) {
+            probe.subShowCount += 1
+            if (probe.subCueFirstPos < 0) {
+                probe.subCueFirstPos = probe.engine.position
+                probe.subCueSeen = text
+            }
+            console.log("FACADE PROBE: subtitle SHOW \"" + text + "\" pos="
+                        + probe.engine.position.toFixed(2))
+        } else if (!showing && probe.subWasShowing) {
+            probe.subCleared = true
+            console.log("FACADE PROBE: subtitle CLEAR pos=" + probe.engine.position.toFixed(2))
+        }
+        probe.subWasShowing = showing
+    }
+
+    function reportTracks() {
+        if (probe.subShowCount >= 1)
+            probe.ok("session.subtitleText becomes non-empty inside the cue window",
+                     "\"" + probe.subCueSeen + "\" at pos=" + probe.subCueFirstPos.toFixed(2))
+        else
+            probe.bad("session.subtitleText becomes non-empty inside the cue window",
+                      "never - subtitleTrack=" + JSON.stringify(probe.engine.subtitleTrack))
+        if (probe.subCueSeen === "Player 2 subtitle fixture")
+            probe.ok("the painted cue is the fixture's own text")
+        else
+            probe.bad("the painted cue is the fixture's own text",
+                      "got " + JSON.stringify(probe.subCueSeen))
+        // One-sided by construction, and honest about it: `position` is the DEMUX FRONTIER, which is
+        // always >= the playback clock, so a cue painted before its 10s window must read < 10.0 here
+        // while a correctly-clocked one cannot. It catches a display-on-arrival regression (cues
+        // decode seconds ahead); it cannot catch a small late paint.
+        if (probe.subCueFirstPos >= 10.0)
+            probe.ok("the cue was not painted before its window opened",
+                     "frontier=" + probe.subCueFirstPos.toFixed(2))
+        else
+            probe.bad("the cue was not painted before its window opened",
+                      "frontier=" + probe.subCueFirstPos.toFixed(2) + " < 10.0 (cue starts at 10s)")
+        if (probe.subCleared)
+            probe.ok("session.subtitleText goes empty again after the cue window")
+        else
+            probe.bad("session.subtitleText goes empty again after the cue window",
+                      "still showing \"" + probe.subCueSeen + "\"")
+    }
+
+    // The strongest thing this sequence can say about Off, and it needs the fixture's SECOND cue to
+    // say it: subtitles are turned off after the first cue has come and gone, and the clip then runs
+    // through the 25-28s cue. If Off had not reached the engine, that cue would paint. Nothing about
+    // the facade's own value can fake this - it is measured on the session's published text.
+    function reportSubsOff() {
+        if (probe.subShowCount === probe.showsAtOff)
+            probe.ok("after Off, the fixture's second cue never paints",
+                     "shows=" + probe.subShowCount + " (cue 2 is at 25-28s)")
+        else
+            probe.bad("after Off, the fixture's second cue never paints",
+                      "shows went " + probe.showsAtOff + " -> " + probe.subShowCount)
+    }
+
     function finish() {
         console.log("FACADE PROBE: --- passes (" + probe.passes.length + ") ---")
         for (var i = 0; i < probe.passes.length; i++)
@@ -211,6 +437,8 @@ Window {
         onTriggered: {
             probe.ticks += 1
             probe.phaseTicks += 1
+            if (probe.mode === "tracks")
+                probe.sampleSubtitle()
             if (probe.ticks % 8 === 0)
                 console.log("FACADE PROBE: tick=" + probe.ticks + " phase=" + probe.phase + " " + probe.diag())
 
@@ -272,6 +500,25 @@ Window {
                     probe.mode = probe.modeArg !== "auto" ? probe.modeArg
                                : (probe.engine.duration <= 60 ? "eof" : "transport")
                     console.log("FACADE PROBE: sequence=" + probe.mode)
+                    if (probe.mode === "tracks") {
+                        probe.skip("seek / pause-freeze / resume-advance",
+                                   "sequence 'tracks' leaves the transport alone; run mode 'transport'")
+                        probe.skip("endFile(\"eof\")",
+                                   "sequence 'tracks' reports before the end; run mode 'eof' on a short clip")
+                        if (!probe.checkTrackShape()) {
+                            probe.toPhase("report")
+                            return
+                        }
+                        probe.checkDelays()
+                        // PlayerPage's OWN writer, and its own automation latch: without
+                        // userTouchedAudio a later automation pass would silently put the preferred
+                        // language back and the switch would look like it never took.
+                        page.userTouchedAudio = true
+                        console.log("FACADE PROBE: switching audio to " + probe.switchAudioTo)
+                        probe.engine.audioTrack = probe.switchAudioTo
+                        probe.toPhase("audio-switch")
+                        return
+                    }
                     if (probe.mode === "eof") {
                         probe.skip("seek / pause-freeze / resume-advance",
                                    "sequence 'eof' leaves the clip untouched; run mode 'transport' on media > 60s")
@@ -305,6 +552,124 @@ Window {
                 }
                 if (probe.phaseTicks > 100) {
                     probe.bad("endFile(\"eof\") fires at end of file", "never fired; " + probe.diag())
+                    probe.toPhase("report")
+                }
+                return
+            }
+
+            // ---- sequence: tracks -------------------------------------------------------------
+            case "audio-switch": {
+                // The pass condition is the DEMUX's report, not our own push: audioTrack only holds
+                // what audioTrackChanged(gen, streamIndex) said is decoding now, so a select that
+                // never reached the engine cannot satisfy this.
+                if (String(probe.engine.audioTrack) === probe.switchAudioTo) {
+                    probe.ok("audio track switch reaches the engine and is reported back",
+                             "audioTrack=" + probe.engine.audioTrack)
+                    var row = probe.rowById(page.audioRows, probe.switchAudioTo)
+                    if (row && row.selected)
+                        probe.ok("the tick moves with it in PlayerPage's audioRows",
+                                 "selected id=" + row.id)
+                    else
+                        probe.bad("the tick moves with it in PlayerPage's audioRows",
+                                  "row=" + JSON.stringify(row))
+                    // Latch PlayerPage's automation so it cannot re-pick underneath the assertions,
+                    // then make sure the track is on. If its own language automation already chose
+                    // it, this is a no-op and the wait below passes on the automation's work -
+                    // which is the honest reading either way.
+                    page.userTouchedSubs = true
+                    probe.armTick = probe.ticks
+                    console.log("FACADE PROBE: enabling subtitle track " + probe.subTrackId)
+                    // PlayerPage's own subtitle router (PlayerPage.qml:299-313) - the same call its
+                    // menu makes - so the assignment path under test is the shipped one.
+                    page.pickSubtitle(probe.subTrackId)
+                    probe.toPhase("subs-arm")
+                    return
+                }
+                if (probe.phaseTicks > 24) {
+                    probe.bad("audio track switch reaches the engine and is reported back",
+                              "wanted " + probe.switchAudioTo + ", engine still says "
+                              + JSON.stringify(probe.engine.audioTrack))
+                    probe.toPhase("report")
+                }
+                return
+            }
+
+            case "subs-arm": {
+                if (String(probe.engine.subtitleTrack) === probe.subTrackId) {
+                    probe.ok("subtitle track selection reaches the engine and is reported back",
+                             "subtitleTrack=" + probe.engine.subtitleTrack)
+                    var srow = probe.rowById(page.subRows, probe.subTrackId)
+                    if (srow && srow.selected)
+                        probe.ok("the tick moves with it in PlayerPage's subRows", "selected id=" + srow.id)
+                    else
+                        probe.bad("the tick moves with it in PlayerPage's subRows",
+                                  "row=" + JSON.stringify(srow))
+                    if (page.subsChipValue === "ENG")
+                        probe.ok("subs chip reads the track language", page.subsChipValue)
+                    else
+                        probe.bad("subs chip reads the track language", "got " + page.subsChipValue)
+                    probe.toPhase("subs-watch")
+                    return
+                }
+                if (probe.phaseTicks > 24) {
+                    probe.bad("subtitle track selection reaches the engine and is reported back",
+                              "wanted " + probe.subTrackId + ", engine still says "
+                              + JSON.stringify(probe.engine.subtitleTrack))
+                    probe.toPhase("report")
+                }
+                return
+            }
+
+            case "subs-watch": {
+                // Wait for the FIRST cue to come AND go - sampleSubtitle() has been recording every
+                // tick since before arming - then, with a whole cue observed and the second one
+                // still ahead at 25-28s, turn subtitles off and let the clip run into it.
+                if ((probe.subShowCount >= 1 && probe.subCleared) || probe.phaseTicks > 140) {
+                    probe.reportTracks()
+                    probe.showsAtOff = probe.subShowCount
+                    console.log("FACADE PROBE: turning subtitles OFF at pos="
+                                + probe.engine.position.toFixed(2))
+                    // Exactly what PlayerPage's turnSubtitlesOff() writes to the engine
+                    // (PlayerPage.qml:670-674); the surrounding saveTrackPreference() is skipped on
+                    // purpose so a probe run does not leave a subtitles-off preference behind.
+                    probe.engine.subtitleTrack = ""
+                    probe.toPhase("subs-off")
+                }
+                return
+            }
+
+            case "subs-off": {
+                if (String(probe.engine.subtitleTrack) === "") {
+                    probe.ok("Off reaches the engine and is reported back",
+                             "subtitleTrack=\"\" (the session's own -1)")
+                    var offRow = probe.rowById(page.subRows, probe.subTrackId)
+                    if (offRow && !offRow.selected)
+                        probe.ok("the tick clears in PlayerPage's subRows")
+                    else
+                        probe.bad("the tick clears in PlayerPage's subRows",
+                                  "row=" + JSON.stringify(offRow))
+                    if (page.subsChipValue === "OFF")
+                        probe.ok("subs chip reads OFF", page.subsChipValue)
+                    else
+                        probe.bad("subs chip reads OFF", "got " + page.subsChipValue)
+                    probe.toPhase("subs-after-off")
+                    return
+                }
+                if (probe.phaseTicks > 24) {
+                    probe.bad("Off reaches the engine and is reported back",
+                              "engine still says " + JSON.stringify(probe.engine.subtitleTrack))
+                    probe.toPhase("report")
+                }
+                return
+            }
+
+            case "subs-after-off": {
+                // 80 ticks = 20s of wall clock, and playback runs at 1.0x, so this carries the clock
+                // from ~13s (where cue 1 ended) well past cue 2's 25-28s window. Bounded by ticks
+                // rather than by `position`, which is the demux frontier and says nothing about
+                // where the playback clock - the thing that gates a cue - has got to.
+                if (probe.endReasons.length || probe.phaseTicks > 80) {
+                    probe.reportSubsOff()
                     probe.toPhase("report")
                 }
                 return
