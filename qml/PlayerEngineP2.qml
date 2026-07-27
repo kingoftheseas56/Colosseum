@@ -187,7 +187,8 @@ Item {
     // Player2Session::hasActiveMedia (Player2Session.cpp:527-539) - every selection slot returns
     // early and silently when this is false. Mirrored rather than inferred from a timeout: it is a
     // pure function of the state this file already watches, so the answer is exact and synchronous.
-    // NOT the same set as _transportLive(): Opening and Recovering have no media to select on.
+    // A third distinct set, alongside _transportAcceptsPlay/_transportAcceptsPause below: Opening
+    // and Recovering have no media to select on, and Ended still does.
     function _mediaActive() {
         if (!p2.s)
             return false
@@ -197,7 +198,12 @@ Item {
     }
 
     // Write the ENGINE's value into one of our own properties without pushing it back down.
-    function _adoptString(key, value) {
+    // THE one adopt-back in this file - every re-sync goes through here. It exists for the same
+    // reason PlayerEngine collapsed its relay to _push/_pull: a hand-written `_applying = true;
+    // x = v; _applying = false` sandwich per member is a transposition waiting to happen, and the
+    // one that held _applying across three paired assignments at once (the video-fill adopt) was
+    // the widest such window in the file.
+    function _adopt(key, value) {
         if (p2[key] === value)
             return
         p2._applying = true
@@ -214,7 +220,7 @@ Item {
         // audio-off command on this engine, so the honest answer is to walk the facade back to the
         // track that is really decoding rather than let it claim audio is off.
         if (!p2._mediaActive() || !/^-?\d+$/.test(String(p2.audioTrack).trim())) {
-            p2._adoptString("audioTrack", p2._appliedAudioTrack)
+            p2._adopt("audioTrack", p2._appliedAudioTrack)
             return
         }
         p2.s.selectAudioTrack(String(p2.audioTrack))
@@ -228,7 +234,7 @@ Item {
         // (turnSubtitlesOff, PlayerPage.qml:670-674), so the string passes straight through with no
         // mapping invented on top. Only the hasActiveMedia guard can refuse it.
         if (!p2._mediaActive()) {
-            p2._adoptString("subtitleTrack", p2._appliedSubtitleTrack)
+            p2._adopt("subtitleTrack", p2._appliedSubtitleTrack)
             return
         }
         p2.s.selectSubtitleTrack(String(p2.subtitleTrack))
@@ -253,27 +259,13 @@ Item {
         if (p2._applying || !p2.s)
             return
         p2.s.setSubDelay(p2.subDelay)
-        p2._adoptSubDelay()
+        p2._adopt("subDelay", p2.s.subDelay)
     }
     onAudioDelayChanged: {
         if (p2._applying || !p2.s)
             return
         p2.s.setAudioDelay(p2.audioDelay)
-        p2._adoptAudioDelay()
-    }
-    function _adoptSubDelay() {
-        if (!p2.s || p2.subDelay === p2.s.subDelay)
-            return
-        p2._applying = true
-        p2.subDelay = p2.s.subDelay
-        p2._applying = false
-    }
-    function _adoptAudioDelay() {
-        if (!p2.s || p2.audioDelay === p2.s.audioDelay)
-            return
-        p2._applying = true
-        p2.audioDelay = p2.s.audioDelay
-        p2._applying = false
+        p2._adopt("audioDelay", p2.s.audioDelay)
     }
 
     // ---- external subtitles: NOT SUPPORTED, and said so out loud --------------------------------
@@ -326,14 +318,71 @@ Item {
     // Player2Backend::play builds a QUrl from the "url" key and sets stream = !isLocalFile()
     // (Player2Backend.cpp:126-135). A bare Windows path parses as scheme "c", so it would be
     // opened as a STREAM - the file:/// form is not cosmetic. mpv accepted bare paths, and
-    // PlayerPage still hands it one (root.mediaLocalPath, PlayerPage.qml:1990).
+    // PlayerPage still hands it one (root.mediaLocalPath, PlayerPage.qml:1991).
+    //
+    // This is a STRING transform, which is the wrong tool for the job and is here only because QML
+    // has no QUrl::fromLocalFile. The proper fix is to let C++ build the QUrl - Player2Backend::play
+    // is one hop away and already holds the string - and this should move there when the request map
+    // next changes (Task 8 carries headers through the same call). Until then it handles the three
+    // shapes PlayerPage actually produces - drive-letter path, UNC path, already-schemed URL - and
+    // percent-escapes the two characters QUrl would otherwise read as syntax:
+    //   * `#` in a filename becomes a FRAGMENT and silently truncates the path,
+    //   * `?` becomes a QUERY and does the same.
+    // Both are legal in Windows filenames. They are escaped only on the local-path branch, never on
+    // an already-schemed URL, where a real query string must survive intact.
     function _toUrl(value) {
         var v = String(value || "")
         if (!v.length)
             return ""
         if (/^[a-zA-Z][a-zA-Z0-9+.\-]*:/.test(v) && !/^[a-zA-Z]:[\\\/]/.test(v))
             return v                                   // already carries a scheme (file:, https:, ...)
-        return "file:///" + v.replace(/\\/g, "/")
+        var p = v.replace(/\\/g, "/").replace(/#/g, "%23").replace(/\?/g, "%3F")
+        // UNC: \\server\share\file -> file://server/share/file. The host belongs BEFORE the path,
+        // so the usual three slashes would turn the server name into a directory.
+        if (p.indexOf("//") === 0)
+            return "file:" + p
+        return "file:///" + p
+    }
+
+    // mpv's raw command channel. Only TWO verbs reach here through PlayerEngine - grepped every
+    // `.command(` call site in qml/ - and they are answered separately because only one of them
+    // means anything on this engine:
+    //
+    //   ["stop"]  - PlayerPage.stop() (PlayerPage.qml:2129), reached by Main.qml's closePlayer
+    //               (Main.qml:955) and its close-a-session path (Main.qml:1179, whose own comment
+    //               is "a real close ends the stream for good"). This is NOT optional: without it a
+    //               closed player leaves a LIVE session behind - audio still playing, demux, decode
+    //               and the pump still burning GPU on a window that is gone. Player2Backend::stop
+    //               (Q_INVOKABLE, Player2Backend.h:47) stops the pump and closes the session, which
+    //               is exactly mpv's stop.
+    //
+    //   ["set", "aid", ...] - healAudio() (PlayerPage.qml:1639-1646), which drops and re-picks the
+    //               SAME audio track to force a fresh device connection. It exists for a documented
+    //               mpv defect ("audio-stream-silence in mpvitem.cpp"): Windows kills mpv's idle
+    //               audio stream while the app is parked. Player 2 does not share that stack - it
+    //               has its own WASAPI sink and a DeviceRecoveryCoordinator that handles
+    //               AudioDeviceLost - so replaying mpv's workaround here would be inventing a cure
+    //               for a disease this engine has not been shown to have. Recognised and refused on
+    //               purpose, not unhandled. ⚠ OPEN, for the arc: whether P2's own recovery covers
+    //               the park-and-resume case is UNVERIFIED, and it needs a real un-minimize soak.
+    //
+    // Anything else is a verb nobody has considered on this branch, and it says so out loud rather
+    // than evaporating - which is precisely how the stop above went missing until review.
+    function command(args) {
+        var a = args || []
+        var verb = String(a[0] || "")
+        if (verb === "stop") {
+            if (p2.s)
+                backend.stop()
+            // mpv clears its path on stop, so re-opening the SAME file afterwards still counts as a
+            // new url. Without this, currentUrl would not change and PlayerPage would keep the
+            // previous playback's seek thumbnails (its onCurrentUrlChanged is the reset).
+            p2.currentUrl = ""
+            return
+        }
+        if (verb === "set" && String(a[1] || "") === "aid")
+            return                                     // see healAudio above - refused deliberately
+        console.warn("PlayerEngineP2: unhandled engine command ignored:", JSON.stringify(a))
     }
 
     function loadFile(url) {
@@ -349,8 +398,9 @@ Item {
         // been opened yet (measured on a back-to-back A->B open, 2026-07-27). Opening is the only
         // honest "this playback has begun" marker, and every successful play() reaches it.
         p2._awaitingLoad = false
-        p2._endedFired = false
         p2._metadataReady = false
+        // (_endedFired is not touched here or at Opening: the state handler's terminal-state chain
+        // is its single owner, and every non-terminal state reaches it.)
         // play() RETURNS a decision map; ignoring it makes a decline look like a hang.
         var decision = backend.play({
             "url": u,
@@ -389,10 +439,14 @@ Item {
     // session as a fresh command.
     property bool _applying: false
 
-    // play() from Idle, Ended or Error is an ILLEGAL transition, and a rejected transition emits
-    // errorOccurred(InvalidCommand) (Player2Session.cpp:686-692) - which reaches PlayerPage as a
-    // playbackError and starts its recovery ladder over a button press. So the push is gated on
-    // the transport actually being able to take the command.
+    // `pause` is ONE facade property driving TWO different engine commands, and the two do not
+    // accept the same states - so there are two gates, each mirroring its own slot exactly.
+    //
+    // PLAY direction. play() from Idle, Ended or Error is an ILLEGAL transition, and a rejected
+    // transition emits errorOccurred(InvalidCommand) (Player2Session.cpp:686-692) - which reaches
+    // PlayerPage as a playbackError and starts its recovery ladder over a button press. Everything
+    // else is legal: Opening/Buffering/Paused/Recovering all transition to Playing, and Seeking is
+    // steered through m_postSeekState instead (Player2Session.cpp:496-499).
     // KNOWN LIMITATION, not a workaround: pressing play once playback has ENDED does nothing here.
     // Ended only accepts Opening / Seeking / Idle, so replay-from-EOF needs a real re-open; mpv
     // restarted the file instead. Left visible for the arc to answer, not papered over.
@@ -402,7 +456,7 @@ Item {
     // position never moves. It then reaches Ended a SECOND time, so endFile("eof") fires twice and
     // PlayerPage starts Up Next twice (endFiles=[eof|eof]). Reproduces on the 2s av.mkv fixture;
     // does NOT reproduce on real-length media. Task 7 owns verifying the progress/Up Next path.
-    function _transportLive() {
+    function _transportAcceptsPlay() {
         if (!p2.s)
             return false
         var st = p2.s.state
@@ -410,14 +464,47 @@ Item {
                || st === p2.stPaused || st === p2.stSeeking || st === p2.stRecovering
     }
 
+    // PAUSE direction - a STRICTLY smaller set, read straight off Player2Session::pause
+    // (Player2Session.cpp:509-525): Seeking steers m_postSeekState, Playing and Buffering
+    // transition, and EVERY OTHER STATE IS A SILENT `return`.
+    // Recovering is the one that matters and it is why this is split rather than shared: during a
+    // torrent rebuffer the session sits in Recovering while root.fileReady is still true, so
+    // togglePlayPause (PlayerPage.qml:2478-2481) is NOT gated - the viewer presses pause, the
+    // button latches, nothing pauses, and when the stall clears the state mirror below sees
+    // Playing and un-presses the button by itself. Same path for suspendForMinimize
+    // (PlayerPage.qml:2139-2141), which pauses specifically to STOP consuming resources during a
+    // minimize. The C++ reasoned about exactly this for Seeking - "a control that looks active and
+    // ignores the viewer" - and the old shared gate simply let Recovering through instead.
+    // Opening leaves with it: pause there was never accepted either.
+    function _transportAcceptsPause() {
+        if (!p2.s)
+            return false
+        var st = p2.s.state
+        return st === p2.stPlaying || st === p2.stBuffering || st === p2.stSeeking
+    }
+
+    // The engine's own answer for "is it paused". There is no `paused` property on the session -
+    // Paused IS a state - so this is the whole of it.
+    function _adoptPause() { p2._adopt("pause", p2.s ? (p2.s.state === p2.stPaused) : false) }
+
     property bool pause: false
     onPauseChanged: {
-        if (p2._applying || !p2._transportLive())
+        if (p2._applying || !p2.s)
             return
-        if (p2.pause)
-            p2.s.pause()
-        else
-            p2.s.play()
+        if (p2.pause) {
+            if (p2._transportAcceptsPause()) { p2.s.pause(); return }
+        } else {
+            if (p2._transportAcceptsPlay()) { p2.s.play(); return }
+        }
+        // The engine cannot take this command in the state it is in, and would drop it in silence.
+        // PlayerEngine.qml:55-69's invariant is that the engine either ACCEPTS a pushed value or
+        // EMITS a change signal; a dropped write does neither, so the facade has to be walked back
+        // here or it holds a pause that is not happening. This is the ONE relay in this file whose
+        // engine-side truth is a state rather than a property, which is why it was the one missing
+        // an adopt-back. Deliberately NOT reached when the push was accepted: a pause taken during
+        // Seeking is honoured through m_postSeekState with no state change at all, and snapping
+        // back there would undo the very press the C++ went out of its way to keep.
+        p2._adoptPause()
     }
 
     // THE CLAMP TRAP PlayerEngine.qml:55-69 warns about, and Player 2 is where it is real:
@@ -431,14 +518,7 @@ Item {
         if (p2._applying || !p2.s)
             return
         p2.s.setSpeed(p2.speed)
-        p2._adoptSpeed()
-    }
-    function _adoptSpeed() {
-        if (!p2.s || p2.speed === p2.s.speed)
-            return
-        p2._applying = true
-        p2.speed = p2.s.speed
-        p2._applying = false
+        p2._adopt("speed", p2.s.speed)
     }
 
     // mpv's surface is 0..100 (an int). The session's volume is a linear float 0..1.
@@ -447,22 +527,17 @@ Item {
         if (p2._applying || !p2.s)
             return
         p2.s.setVolume(p2.volume / 100)
-        p2._adoptVolume()
-    }
-    function _adoptVolume() {
-        if (!p2.s)
-            return
-        var v = Math.round(p2.s.volume * 100)
-        if (p2.volume === v)
-            return
-        p2._applying = true
-        p2.volume = v
-        p2._applying = false
+        p2._adopt("volume", Math.round(p2.s.volume * 100))
     }
 
     // The session's property is `muted`; mpv's surface member is `mute`. Not the same name.
     property bool mute: false
-    onMuteChanged: { if (!p2._applying && p2.s) p2.s.setMuted(p2.mute) }
+    onMuteChanged: {
+        if (p2._applying || !p2.s)
+            return
+        p2.s.setMuted(p2.mute)
+        p2._adopt("mute", p2.s.muted)
+    }
 
     // panscan, videoZoom and videoAspect all report through ONE signal on the session, exactly as
     // they do on MpvItem - hence the explicit signal below rather than the three generated ones,
@@ -555,7 +630,6 @@ Item {
 
             if (st === p2.stOpening) {
                 p2._awaitingLoad = true
-                p2._endedFired = false
                 // Cleared HERE and not only in loadFile(): open() calls resetMediaProperties()
                 // first, which itself emits tracksChanged (Player2Session.cpp:734-737) - that one
                 // must not pre-arm the gate for the open that follows it.
@@ -563,11 +637,11 @@ Item {
                 // The previous file's stream indices mean nothing in the new one. Cleared here so a
                 // stale id cannot tick a row of the NEW track list (they are plain integers, so
                 // "1" from the last file happily matches a different "1" in this one) - and cleared
-                // through _adoptString so PlayerPage is told, rather than left holding it.
+                // through _adopt so PlayerPage is told, rather than left holding it.
                 p2._appliedAudioTrack = ""
                 p2._appliedSubtitleTrack = ""
-                p2._adoptString("audioTrack", "")
-                p2._adoptString("subtitleTrack", "")
+                p2._adopt("audioTrack", "")
+                p2._adopt("subtitleTrack", "")
                 p2.fileStarted()
             } else {
                 // "loaded" = the pipeline is RUNNING, with duration and tracks settled.
@@ -590,8 +664,8 @@ Item {
                 //
                 // ⚠ FOR TASK 7: PlayerPage runs BOTH recordProgress() and startUpNextCountdown()
                 // on every "eof" (PlayerPage.qml:2876-2881). See the eof-rewind note on
-                // _transportLive below - a stranded rewind reaches Ended twice, so Up Next fires
-                // TWICE. Verifying that is Task 7's, not fixed here.
+                // _transportAcceptsPlay ABOVE - a stranded rewind reaches Ended twice, so Up Next
+                // fires TWICE. Verifying that is Task 7's, not fixed here.
                 if (!p2._endedFired) {
                     p2._endedFired = true
                     p2.endFile("eof")       // PlayerPage branches on exactly this string
@@ -599,11 +673,19 @@ Item {
             } else if (st === p2.stError) {
                 if (!p2._endedFired) {
                     p2._endedFired = true
+                    // Spent here but NOT in the Ended branch above, and the asymmetry is load
+                    // bearing: Error is reachable straight from Opening, i.e. BEFORE the rendezvous
+                    // has fired, so the gate has to be closed by hand or a later stray Playing (a
+                    // recovery reopen, say) would announce fileLoaded for a playback that failed.
+                    // Ended is only reachable from a transport that was already running, which
+                    // means the rendezvous has necessarily already spent the gate.
                     p2._awaitingLoad = false
                     p2.endFile("error")     // not "eof": must NOT record progress or start Up Next
                 }
             } else {
-                // Left the terminal states - a seek back out of EOF must be able to end again.
+                // THE single owner of this flag's reset - every non-terminal state passes through
+                // here, Opening included, so nothing else needs to clear it. A seek back out of EOF
+                // lands here too, which is what lets a rewound file end again.
                 p2._endedFired = false
             }
 
@@ -639,32 +721,24 @@ Item {
         // these on m_generation.accepts() before re-emitting (Player2Session.cpp:159-179).
         function onAudioTrackChanged(generation, streamIndex) {
             p2._appliedAudioTrack = streamIndex >= 0 ? String(streamIndex) : ""
-            p2._adoptString("audioTrack", p2._appliedAudioTrack)
+            p2._adopt("audioTrack", p2._appliedAudioTrack)
         }
         // -1 here is a real answer, not an absence: it is what the demux reports when subtitles were
         // turned OFF and when the chosen subtitle decoder failed to open (DemuxSession.cpp:1060-1070).
         // Either way "" is what PlayerPage reads as off, which is what is true.
         function onSubtitleTrackChanged(generation, streamIndex) {
             p2._appliedSubtitleTrack = streamIndex >= 0 ? String(streamIndex) : ""
-            p2._adoptString("subtitleTrack", p2._appliedSubtitleTrack)
+            p2._adopt("subtitleTrack", p2._appliedSubtitleTrack)
         }
-        function onSubDelayChanged() { p2._adoptSubDelay() }
-        function onAudioDelayChanged() { p2._adoptAudioDelay() }
-        function onSpeedChanged() { p2._adoptSpeed() }
-        function onVolumeChanged() { p2._adoptVolume() }
-        function onMutedChanged() {
-            if (p2.mute === p2.s.muted)
-                return
-            p2._applying = true
-            p2.mute = p2.s.muted
-            p2._applying = false
-        }
+        function onSubDelayChanged() { p2._adopt("subDelay", p2.s.subDelay) }
+        function onAudioDelayChanged() { p2._adopt("audioDelay", p2.s.audioDelay) }
+        function onSpeedChanged() { p2._adopt("speed", p2.s.speed) }
+        function onVolumeChanged() { p2._adopt("volume", Math.round(p2.s.volume * 100)) }
+        function onMutedChanged() { p2._adopt("mute", p2.s.muted) }
         function onVideoFillChanged() {
-            p2._applying = true
-            if (p2.panscan !== p2.s.panscan) p2.panscan = p2.s.panscan
-            if (p2.videoZoom !== p2.s.videoZoom) p2.videoZoom = p2.s.videoZoom
-            if (p2.videoAspect !== p2.s.videoAspect) p2.videoAspect = p2.s.videoAspect
-            p2._applying = false
+            p2._adopt("panscan", p2.s.panscan)
+            p2._adopt("videoZoom", p2.s.videoZoom)
+            p2._adopt("videoAspect", p2.s.videoAspect)
             p2.videoFillChanged()
         }
     }

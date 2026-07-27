@@ -16,7 +16,7 @@ import "../../qml"
 // THREE SEQUENCES, because no single clip can carry them all:
 //   eof       - runs the clip to its end untouched: fileStarted, ONE fileLoaded, endFile("eof").
 //               endFile("eof") is what calls recordProgress() and starts Up Next (PlayerPage.qml:
-//               2871-2879), i.e. exactly what Task 7 exists to prove.
+//               2876-2881), i.e. exactly what Task 7 exists to prove.
 //   transport - pause freezes position, seekExact lands, resume advances again, and fileLoaded
 //               STILL fired only once (seekExact advances the session's generation, so a
 //               generation-keyed fileLoaded would re-fire here and re-apply the resume seek).
@@ -67,9 +67,12 @@ Window {
     title: "PlayerEngine facade probe"
 
     // arguments: [exe, this.qml, media, mode]
+    // REQUIRED, with no default. The obvious default - the built fixture - lives in a SIBLING
+    // WORKTREE's build directory, which is one machine's layout and nobody else's; committing it
+    // would make this probe pass or fail on where the checkout happens to sit. An absent argument
+    // is a setup error and says so.
     readonly property string media: Qt.application.arguments.length > 2
-        ? Qt.application.arguments[2]
-        : String(Qt.resolvedUrl("../../../player2-task1-isolation/native/build-player2/player2-fixtures/av.mkv"))
+                                    ? Qt.application.arguments[2] : ""
     readonly property string modeArg: Qt.application.arguments.length > 3
                                       ? Qt.application.arguments[3] : "auto"
 
@@ -107,7 +110,7 @@ Window {
     function bad(name, detail) { probe.failures.push(name + (detail ? " (" + detail + ")" : "")) }
     function skip(name, why) { probe.skips.push(name + " - " + why) }
 
-    // PlayerEngine is a direct child of PlayerPage's root Item (PlayerPage.qml:2820). QML ids are
+    // PlayerEngine is a direct child of PlayerPage's root Item (PlayerPage.qml:2821). QML ids are
     // not reachable from outside, so identify it by the surface it is contracted to expose.
     function findEngine(item) {
         var kids = item.children
@@ -135,6 +138,14 @@ Window {
     }
 
     function toPhase(next) { probe.phase = next; probe.phaseTicks = 0 }
+
+    property real stopMark: -1
+    function armStop() {
+        console.log("FACADE PROBE: closing the player via PlayerPage.stop() " + probe.diag())
+        page.stop()
+        probe.stopMark = -1
+        probe.toPhase("stop")
+    }
 
     // Chapters are the one forwarded list whose SHAPE PlayerPage silently depends on: it reads
     // `startSec` and nothing else, and an undefined there does not throw - it makes
@@ -459,7 +470,10 @@ Window {
 
     Connections {
         target: probe.engine
-        ignoreUnknownSignals: true
+        // No ignoreUnknownSignals, deliberately - the same choice PlayerEngine.qml:150-153 makes
+        // and for the same reason. Every handler below names a signal PlayerEngine declares, so if
+        // one is ever renamed this probe must say so out loud instead of quietly watching nothing.
+        // A null target (before the engine is found) connects nothing and warns about nothing.
         function onFileStarted() {
             probe.sawFileStarted += 1
             console.log("FACADE PROBE: signal fileStarted " + probe.diag())
@@ -501,6 +515,12 @@ Window {
             switch (probe.phase) {
 
             case "find-engine": {
+                if (!probe.media.length) {
+                    probe.bad("media argument supplied",
+                              "usage: colosseum.exe <this.qml> <media> [auto|eof|transport|tracks]")
+                    probe.finish()
+                    return
+                }
                 var e = probe.findEngine(page)
                 if (!e) {
                     if (probe.phaseTicks > 8) {
@@ -525,6 +545,33 @@ Window {
                     probe.bad("capture capability is off on Player 2", "supportsCapture=true")
                 else
                     probe.ok("capture capability is off on Player 2")
+                // A pause the ENGINE cannot take must not stick to the facade. With no media open
+                // the session is Idle, where Player2Session::pause() is a silent `return`
+                // (Player2Session.cpp:509-525) - the same shape as the reachable case, a pause
+                // pressed during a torrent rebuffer while the session sits in Recovering and
+                // PlayerPage's own gate (root.fileReady) is wide open. Deterministic here, where
+                // Recovering is not; the mechanism under test is identical either way. Without the
+                // adopt-back the button latches, nothing pauses, and the state mirror un-presses it
+                // by itself when the stall clears.
+                // Player 2 only: mpv's `pause` is a plain property it accepts at any time, with no
+                // file open, and starts the next load paused - so on that boot holding the value is
+                // CORRECT and this would both fail spuriously and leave the transport parked for
+                // every assertion after it.
+                if (e.p2) {
+                    e.pause = true
+                    if (!e.pause)
+                        probe.ok("a pause the engine refuses does not stick to the facade",
+                                 "state=" + probe.sessionState() + " (Idle)")
+                    else
+                        probe.bad("a pause the engine refuses does not stick to the facade",
+                                  "facade holds pause=true while the engine never paused; state="
+                                  + probe.sessionState())
+                    e.pause = false     // never leave the transport parked, whatever the outcome
+                } else {
+                    probe.skip("a pause the engine refuses does not stick to the facade",
+                               "mpv accepts a pause with no file open - the refusal path is Player 2's")
+                }
+
                 console.log("FACADE PROBE: opening " + probe.media)
                 page.playLocalFile({ "id": "probe:facade", "title": "facade probe",
                                      "localPath": probe.media })
@@ -554,6 +601,8 @@ Window {
                                    "sequence 'tracks' leaves the transport alone; run mode 'transport'")
                         probe.skip("endFile(\"eof\")",
                                    "sequence 'tracks' reports before the end; run mode 'eof' on a short clip")
+                        probe.skip("stop() teardown",
+                                   "sequence 'tracks' must not close the player; run mode 'transport'")
                         if (!probe.checkTrackShape()) {
                             probe.toPhase("report")
                             return
@@ -572,6 +621,8 @@ Window {
                     if (probe.mode === "eof") {
                         probe.skip("seek / pause-freeze / resume-advance",
                                    "sequence 'eof' leaves the clip untouched; run mode 'transport' on media > 60s")
+                        probe.skip("stop() teardown",
+                                   "sequence 'eof' watches the clip end on its own; run mode 'transport'")
                         probe.toPhase("eof")
                     } else {
                         probe.skip("endFile(\"eof\")",
@@ -731,10 +782,23 @@ Window {
                 if (probe.phaseTicks < 3)
                     return
                 if (probe.mark < 0) {
-                    if (probe.engine.pause)
-                        probe.ok("pause reaches the engine")
-                    else
-                        probe.bad("pause reaches the engine", "facade pause still false; " + probe.diag())
+                    // Asserted against the SESSION's state, not the facade's own property. Reading
+                    // back `engine.pause` only proves nobody overwrote what this probe just wrote -
+                    // it is true even when the push was dropped in silence, which is exactly the
+                    // failure it is supposed to catch. Player2State::Paused is the engine's answer.
+                    // mpv has no session to ask, so on that boot the freeze below IS the check.
+                    if (probe.engine.p2) {
+                        if (probe.sessionState() === 4)
+                            probe.ok("pause reaches the engine", "session state=Paused(4)")
+                        else
+                            probe.bad("pause reaches the engine",
+                                      "engine did not pause; " + probe.diag())
+                    } else {
+                        probe.skip("pause reaches the engine",
+                                   "mpv exposes no session state; the freeze assertion is the behavioural check there")
+                    }
+                    if (!probe.engine.pause)
+                        probe.bad("facade agrees it is paused", "facade pause=false; " + probe.diag())
                     probe.mark = probe.engine.position
                     return
                 }
@@ -782,7 +846,7 @@ Window {
                 if (probe.engine.position > probe.mark + 0.3) {
                     probe.ok("resume advances position again",
                              "from=" + probe.mark.toFixed(2) + " to=" + probe.engine.position.toFixed(2))
-                    probe.toPhase("report")
+                    probe.armStop()
                     return
                 }
                 if (probe.phaseTicks > 40) {
@@ -790,6 +854,41 @@ Window {
                               "stuck at " + probe.mark.toFixed(2) + "; " + probe.diag())
                     probe.toPhase("report")
                 }
+                return
+            }
+
+            // Closing the player must actually END the playback. PlayerPage.stop()
+            // (PlayerPage.qml:2124-2133) reaches the engine ONLY through command(["stop"]), and
+            // PlayerEngine guards that call on the branch declaring `command` - so a branch without
+            // it leaves a closed player with a live session: audio still playing, demux and decode
+            // and the pump still running. Driven through PlayerPage.stop(), the real caller
+            // (Main.qml:955 closePlayer, Main.qml:1179 close-a-session), and asserted on the
+            // SESSION - Idle, and a position that has genuinely stopped moving. "The function was
+            // called" would prove nothing here.
+            case "stop": {
+                if (probe.phaseTicks < 3)
+                    return
+                if (probe.stopMark < 0) {
+                    if (probe.engine.p2) {
+                        if (probe.sessionState() === 0)
+                            probe.ok("stop() tears the session down", "session state=Idle(0)")
+                        else
+                            probe.bad("stop() tears the session down",
+                                      "session still alive; " + probe.diag())
+                    } else {
+                        probe.skip("stop() tears the session down",
+                                   "mpv exposes no session state; the advance assertion is the behavioural check there")
+                    }
+                    probe.stopMark = probe.engine.position
+                    return
+                }
+                var moved = Math.abs(probe.engine.position - probe.stopMark)
+                if (moved < 0.05)
+                    probe.ok("stop() stops playback advancing", "drift=" + moved.toFixed(3))
+                else
+                    probe.bad("stop() stops playback advancing",
+                              "position still moving by " + moved.toFixed(3) + "s; " + probe.diag())
+                probe.toPhase("report")
                 return
             }
 
