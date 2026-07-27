@@ -11,6 +11,8 @@ import QtQuick.Controls
 import QtCore
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
+import "UniverseExtApi.js" as UniverseApi
+import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
@@ -196,6 +198,12 @@ Window {
     }
 
     Component.onCompleted: {
+        // C++ owns the payload read (Qt blocks file:// XHR by default, and house doctrine keeps
+        // transport off the GUI thread's JS). Installed once, here, because a .pragma library
+        // holds one shared instance per QML engine. FIRST in this handler on purpose: the dev
+        // harnesses below can `return` early, and a universe with no reader renders empty.
+        if (typeof Extensions !== "undefined")
+            UniverseApi.setReader(function (f) { return Extensions.universePayload(f) })
         // Efficiency gate: play a given local file through the real player as soon as the shell is
         // up, so both backends can be measured under identical conditions.
         if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
@@ -847,21 +855,36 @@ Window {
     property var installedExtensions:
         (typeof Extensions !== "undefined") ? Extensions.installed() : []
 
-    // A universe is opened BY NAME: the extension supplies identity, and the payload is
-    // looked up from the curation point. That join is what makes an installed universe a
-    // real page instead of a row in a list. (Universes design §5.3 — a universe supplies
-    // identity and ordering, never sources.)
-    property string openUniverseName: ""
-    function openUniverse(name) {
-        if (!name) return
-        win.openUniverseName = name
-        // Opening a SECOND universe while the page is already up must retarget the live
-        // item — onLoaded only fires once, so without this the second open silently shows
-        // the first universe. (The page reacts to universeName; it has no default, on
-        // purpose: a "One Piece" default made every fresh open construct AS One Piece and
-        // then rename, which is the stale flash Hemanth caught on 2026-07-12.)
-        if (universeLayer.active && universeLayer.item)
-            universeLayer.item.universeName = name
+    // The carousel and the Hall both derive from the ROSTER, so installing or removing a
+    // universe is the only way either surface changes. Replaces the five baked universes.
+    readonly property var installedUniverses: {
+        var out = []
+        for (var i = 0; i < win.installedExtensions.length; i++) {
+            var e = win.installedExtensions[i]
+            if (!ExtCatalog.isUniverse(e)) continue
+            if (e.enabled !== true) continue
+            var m = e.manifest || ({})
+            out.push({ extensionId: e.id, name: m.name || e.id,
+                       banner: m.background || "", logo: m.logo || "" })
+        }
+        return out
+    }
+
+    // A universe is opened BY EXTENSION ID: the extension supplies identity, and the payload
+    // is looked up from the curation point by that id. That join is what makes an installed
+    // universe a real page instead of a row in a list. (Universes design §5.3 — a universe
+    // supplies identity and ordering, never sources.) The name rides along only as a label,
+    // for the header band before the payload lands.
+    // One renderer for every universe. The per-category dispatcher is gone: it existed to
+    // pick between bespoke per-IP pages, and those are being deleted (next task).
+    function openUniverse(extensionId, name) {
+        if (!extensionId) return
+        universeLayer.extensionId = extensionId
+        universeLayer.universeName = name || ""
+        if (universeLayer.item) {
+            universeLayer.item.extensionId = extensionId
+            universeLayer.item.universeName = name || ""
+        }
         universeLayer.active = true
     }
     function closeUniverse() { universeLayer.active = false }
@@ -1498,25 +1521,126 @@ Window {
             topPadding: 10
             spacing: 30
 
-            // ---- 0. UNIVERSES (2026-07-26): the installed universe extensions, as a row.
-            //      Model is the live roster, not a baked list, and the row hides itself
-            //      when none are installed — so this costs nothing until you own one.
-            Column {
-                width: parent.width
-                spacing: 14
-                visible: homeUniverses.count > 0
-                WidgetHeader {
-                    width: parent.width; title: "Universes"
-                    moreLabel: "See all"
-                    onMoreClicked: win.openUniverseHall()
+            // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
+            //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
+            //      how it was initially"). What STAYS ratified-out from the redesign round:
+            //      NO dots, NO tabs, NO timer bar, NO media-count chips. A pure carousel —
+            //      auto-turns (6.5s) + native swipe. Spec trail: haven docs/superpowers/specs/
+            //      2026-07-12-colosseum-universe-exhibit-hero-design.md (+ this final rev).
+            Glass {
+                id: hero
+                backdrop: wall
+                track: page.contentY
+                width: parent.width; height: 340; radius: 20
+                tint: 0.06
+
+                SwipeView {
+                    id: heroView
+                    anchors.fill: parent
+                    clip: true
+                    Repeater {
+                        model: win.installedUniverses
+                        delegate: Item {
+                            id: slide
+                            required property var modelData
+
+                            // banner key-art full-bleed; a neutral plate stands in while it
+                            // loads, then the left-weighted scrim keeps the words legible
+                            // (proven look). The per-IP accent colour the baked list carried is
+                            // gone with it — an installed universe supplies art, not a palette.
+                            Rectangle {
+                                anchors.fill: parent; radius: hero.radius; clip: true
+                                color: "#1a1410"
+                                Image {
+                                    anchors.fill: parent
+                                    source: slide.modelData.banner
+                                    asynchronous: true; cache: true
+                                    fillMode: Image.PreserveAspectCrop
+                                    opacity: status === Image.Ready ? 1 : 0
+                                    Behavior on opacity { NumberAnimation { duration: 300 } }
+                                }
+                                Rectangle {
+                                    anchors.fill: parent
+                                    gradient: Gradient {
+                                        orientation: Gradient.Horizontal
+                                        GradientStop { position: 0.0; color: Qt.rgba(0,0,0,0.86) }
+                                        GradientStop { position: 0.52; color: Qt.rgba(0,0,0,0.42) }
+                                        GradientStop { position: 1.0; color: Qt.rgba(0,0,0,0.06) }
+                                    }
+                                }
+                            }
+
+                            // content over the scrim (chips row retired — ratified 2026-07-12)
+                            Column {
+                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
+                                spacing: 12
+                                Text { text: "UNIVERSE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
+                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                // (the blurb line went with the baked list — the roster carries
+                                // identity and art, no prose, and a faked one would be a lie)
+                                Row {
+                                    spacing: 12; topPadding: 6
+                                    Rectangle {
+                                        radius: 12; height: 46; width: exploreRow.implicitWidth + 44
+                                        gradient: Gradient {
+                                            GradientStop { position: 0; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.23) : Qt.rgba(1,1,1,0.14) }
+                                            GradientStop { position: 1; color: exMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05) }
+                                        }
+                                        border.width: 1
+                                        border.color: exMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.85) : Qt.rgba(1,1,1,0.26)
+                                        Behavior on border.color { ColorAnimation { duration: 160 } }
+                                        Row {
+                                            id: exploreRow; anchors.centerIn: parent; spacing: 10
+                                            Text { text: "Explore the universe"; color: theme.ink
+                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                anchors.verticalCenter: parent.verticalCenter }
+                                            Text { text: "→"; color: theme.gold; font.pixelSize: 16
+                                                anchors.verticalCenter: parent.verticalCenter
+                                                transform: Translate { x: exMa.containsMouse ? 3 : 0 } }
+                                        }
+                                        MouseArea {
+                                            id: exMa; anchors.fill: parent
+                                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                            onClicked: win.openUniverse(slide.modelData.extensionId,
+                                                                        slide.modelData.name)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-                UniversesShelf {
-                    id: homeUniverses
-                    width: parent.width
-                    form: "carousel"
-                    installedList: win.installedExtensions
-                    onUniverseActivated: function (entry) {
-                        win.openUniverse((entry.manifest && entry.manifest.name) || "")
+
+                // gentle auto-advance through the collection (not visualized — ratified)
+                Timer {
+                    interval: 6500; running: true; repeat: true
+                    // guarded: an empty roster would turn the modulo into NaN
+                    onTriggered: if (heroView.count > 0)
+                                     heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
+                }
+
+                // the door to the Hall of Worlds — quiet, top-right, gold on hover
+                Item {
+                    z: 5
+                    anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
+                    width: hallRow.implicitWidth + 8; height: 28
+                    Row {
+                        id: hallRow
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        spacing: 7
+                        Text { text: win.installedUniverses.length + " worlds"
+                               color: hallMa.containsMouse ? theme.gold : theme.inkDim
+                               font.family: theme.display; font.pixelSize: 16
+                               Behavior on color { ColorAnimation { duration: 120 } } }
+                        Text { text: "›"
+                               color: hallMa.containsMouse ? theme.gold : theme.inkDimmer
+                               font.family: theme.display; font.pixelSize: 19
+                               anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    MouseArea {
+                        id: hallMa; anchors.fill: parent
+                        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                        onClicked: win.openUniverseHall()
                     }
                 }
             }
@@ -2253,37 +2377,49 @@ Window {
         }
     }
 
-    // ---- Universes: the page for one IP, and the hall listing every installed one ----
+    // ---- Universes: the ONE extension-driven page + the Hall of Worlds ----
     Loader {
         id: universeLayer
         anchors.fill: parent
         z: 52
         active: false
         visible: active
-        asynchronous: true          // it builds a row per medium; never on the click's frame
-        source: "UniversePage.qml"
+        asynchronous: true
+        property string extensionId: ""
+        property string universeName: ""
+        source: "UniverseExtensionPage.qml"
         onLoaded: {
-            item.backdrop = wall
-            item.universeName = win.openUniverseName
+            // NO item.backdrop — UniverseExtensionPage has no such property; it paints its
+            // own flat #0c0e11 instead of sampling the shared wallpaper.
+            item.extensionId = universeLayer.extensionId
+            item.universeName = universeLayer.universeName
             item.backRequested.connect(win.closeUniverse)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
+            item.watchRequested.connect(win.openTheatreSeries)
+            item.seriesRequested.connect(win.openSeries)
+            item.bookRequested.connect(win.openBook)
+            // KNOWN WRONG, deliberately: openComicArchive is tag-shaped (a GetComics tag box)
+            // and a universe comic entry carries post IDs. Wired anyway so the route is whole;
+            // a later task replaces this with openUniverseComic.
+            item.comicsArchiveRequested.connect(win.openComicArchive)
         }
     }
     Loader {
         id: universeHallLayer
         anchors.fill: parent
-        z: 52
+        z: 51
         active: false
         visible: active
         asynchronous: true
         source: "UniverseHallPage.qml"
         onLoaded: {
             item.backdrop = wall
+            item.universes = win.installedUniverses
             item.backRequested.connect(win.closeUniverseHall)
-            item.exploreRequested.connect(function (name) {
-                win.closeUniverseHall(); win.openUniverse(name)
+            item.exploreRequested.connect(function (extensionId, name) {
+                win.closeUniverseHall(); win.openUniverse(extensionId, name)
             })
         }
     }

@@ -6,10 +6,11 @@
 // breathes a bar taller to reveal the kicker, blurb, media ledger and "Enter →"; a straight
 // click enters the world untouched (hover stays an enhancement). The pile scrolls DOWN like
 // every other page — HouseScrollBar gold sliver + ScrollGlide — and scales forever.
-// Not a tile grid (standing constraint). Data: Universes.universes, verbatim.
+// Not a tile grid (standing constraint). Data: the INSTALLED ROSTER, handed down by the
+// shell ({extensionId, name, banner, logo} per universe) — the baked Universes.js list is
+// gone, so installing or removing a universe is the only thing that changes this pile.
 import QtQuick
 import QtQuick.Controls
-import "Universes.js" as Universes
 
 Item {
     id: root
@@ -17,11 +18,13 @@ Item {
 
     // shell contract (mirrors the genre-page layers)
     property Item backdrop: null
+    // handed down from Main.qml's installedUniverses — never read from a baked list here
+    property var universes: []
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
     signal closeRequested()
-    signal exploreRequested(string name)   // a bar → win.openUniverse
+    signal exploreRequested(string extensionId, string name)   // a bar → win.openUniverse
 
     Theme { id: theme }
 
@@ -71,7 +74,7 @@ Item {
             spacing: 14
             Text { text: "Hall of Worlds"; color: theme.ink
                    font.family: theme.display; font.pixelSize: 34 }
-            Text { text: Universes.universes.length + " universes"
+            Text { text: root.universes.length + " universes"
                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                    anchors.baseline: parent.children[0].baseline }
         }
@@ -146,10 +149,14 @@ Item {
         // geometry: a bar rests slim; the hovered one breathes open (heights, not widths —
         // the whole collection stays one flick away, nothing ever walks sideways)
         readonly property int restH: 64
-        readonly property int openH: 176
+        // was 176, sized for the baked list's blurb + media ledger. The roster carries
+        // identity and art, not prose or counts, so the breathe now reveals the kicker and
+        // the "Enter the universe →" affordance and is sized to exactly that — a taller bar
+        // would be an empty hole where copy we do not have used to sit.
+        readonly property int openH: 98
 
         Repeater {
-            model: Universes.universes
+            model: root.universes
             delegate: Item {
                 id: bar
                 required property var modelData
@@ -162,7 +169,7 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 14; clip: true
-                    color: bar.modelData.c1 || "#14161d"
+                    color: "#14161d"   // the per-IP accent went with the baked list
                     border.width: 1
                     border.color: bar.open ? Qt.rgba(0.94, 0.77, 0.29, 0.65)
                                            : Qt.rgba(0.97, 0.97, 0.96, 0.10)
@@ -230,30 +237,13 @@ Item {
                         opacity: bar.open ? 1 : 0
                         visible: opacity > 0.01
                         Behavior on opacity { NumberAnimation { duration: 260 } }
+                        // the kicker is derived from the pile's own order, not from the row —
+                        // the blurb and the media ledger below it are GONE with the baked
+                        // list, because the roster supplies neither and faking either would
+                        // put words in a universe's mouth.
                         Text { text: "UNIVERSE  ·  " + ((bar.index + 1 < 10 ? "0" : "") + (bar.index + 1))
                                color: theme.gold; font.family: theme.ui
                                font.pixelSize: 10; font.letterSpacing: 3 }
-                        Text {
-                            width: parent.width
-                            text: bar.modelData.blurb
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                            lineHeight: 1.4
-                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
-                        }
-                        // the ledger line: bright count · dim medium (the house rule)
-                        Text {
-                            width: parent.width
-                            textFormat: Text.StyledText
-                            font.family: theme.ui; font.pixelSize: 13
-                            elide: Text.ElideRight
-                            text: (bar.modelData.chips || []).map(function(c) {
-                                var s = String(c.t), i = s.indexOf(" ")
-                                var first = i < 0 ? s : s.substring(0, i)
-                                if (!/^\d/.test(first)) return "<font color='#c9c8d0'>" + s + "</font>"
-                                return "<b><font color='#f7f7f5'>" + first + "</font></b> <font color='#c9c8d0'>"
-                                       + s.substring(i + 1) + "</font>"
-                            }).join("<font color='#8b8a94'>   ·   </font>")
-                        }
                     }
                 }
 
@@ -263,7 +253,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onEntered: if (!root.walking) root.hovered = bar.index
                     onExited: if (root.hovered === bar.index) root.hovered = -1
-                    onClicked: root.exploreRequested(bar.modelData.name)
+                    onClicked: root.exploreRequested(bar.modelData.extensionId, bar.modelData.name)
                 }
             }
         }
