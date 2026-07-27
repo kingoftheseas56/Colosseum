@@ -166,7 +166,11 @@ if (-not (Test-Path (Join-Path $root 'qml/PlayerEngineMpv.qml'))) {
     $violations += 'qml/PlayerEngineMpv.qml missing (PlayerEngine loads it on the mpv boot)'
 }
 
-if ($violations.Count) { $violations | ForEach-Object { Write-Error $_ -ErrorAction Continue }
+# Violations print via Write-Host, NOT Write-Error: PowerShell wraps Write-Error at console width and
+# interleaves CategoryInfo/FullyQualifiedErrorId noise, which shreds each message across several lines
+# and makes a multi-violation failure genuinely unreadable. exit 1 is the machine signal; these lines
+# are for the human reading why.
+if ($violations.Count) { $violations | ForEach-Object { Write-Host "  - $_" }
     Write-Host "FACADE CONTRACT: FAIL ($($violations.Count))"; exit 1 }
 
 # A deferral is not a clean pass. The bare string 'FACADE CONTRACT: PASS' is reserved for the run
