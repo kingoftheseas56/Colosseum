@@ -22,6 +22,11 @@ struct PlaybackDiagnostics
     QString hardwareFormat;
     QString inputFormat;
     QString colorConversion;
+    // The source video's own dimensions, off the decoded frame. 0 until a frame has been presented.
+    // `inputFormat` above is a DXGI PIXEL format ("NV12"/"P010"), never a resolution - reading a
+    // size out of it is impossible, which is why these two exist.
+    int sourceWidth = 0;
+    int sourceHeight = 0;
     QString adapter;
     bool adapterMatch = false;
 

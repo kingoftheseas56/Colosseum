@@ -418,6 +418,124 @@ Item {
         p2.playbackError("declined", String((decision && decision.reason) || "Player 2 declined this playback"))
     }
 
+    // ---- mpvProperty: the twelve keys PlayerPage asks the engine by NAME (Task 5) --------------
+    //
+    // On the mpv boot libmpv answers these itself. Player 2 has no property bag by design
+    // (PlaybackDiagnostics.h:9-12 says so out loud), so this is the whole translation, and it is
+    // held to one rule: every value is either MEASURED or "". A plausible number here would read
+    // as an instrument, and the stats card, the pause card and the recovery watchdog all believe
+    // it. PlayerPage renders "" as "--" (statsValue, PlayerPage.qml:2439) - honest absence.
+    //
+    // TWO of the twelve are not stats rows at all, which is why they are sourced first and hardest:
+    //   width/height        - tickRecoveryWatch (PlayerPage.qml:1277-1288) latches recoverySawVideo
+    //                         off these; a permanent 0 makes a HEALTHY stream fail "no video" after
+    //                         noVideoGraceSeconds. They also print the pause card's "1080p"
+    //                         (pauseQualityLine, PlayerPage.qml:2757). NOT derivable from
+    //                         `inputFormat`: that field is the DXGI PIXEL format - "NV12", "P010",
+    //                         "DXGI_<n>" (D3D11VideoPipeline.cpp formatName) - and never a
+    //                         resolution, so the size had to be published from the decoded frame
+    //                         itself (diagnostics sourceWidth/sourceHeight).
+    //   cache-buffering-state - the live "Buffering N%" state line (PlayerPage.qml:220-225).
+    //                         Answered "" deliberately; see the case below.
+    function mpvProperty(name) {
+        var d = (p2.s && p2.s.diagnostics) ? p2.s.diagnostics() : ({})
+        switch (String(name)) {
+
+        // --- measured ---------------------------------------------------------------------
+        case "video-codec":
+            return String(d.videoCodec || "")
+        // mpv names the active hwdec ("d3d11va"); PlaybackDiagnostics.hardwareFormat carries
+        // exactly that string for the decode path (D3D11VideoPipeline.cpp submitDecodedFrame).
+        case "hwdec-current":
+            return String(d.hardwareFormat || "")
+        // The two drop counters PlayerPage prints as "decoder / output"
+        // (statsValue "Dropped frames", PlayerPage.qml:2460). `dropped` is producer starvation -
+        // decoded frames that never reached the ring; `scheduledLateDrops` is the frame scheduler
+        // discarding a frame that arrived too late to present, which is the output-side drop.
+        case "frame-drop-count":
+            return Number(d.dropped || 0)
+        case "vo-drop-frame-count":
+            return Number(d.scheduledLateDrops || 0)
+        // 0 until a frame has actually been presented, and back to 0 across a flush - report that
+        // as ABSENT, not as "0x0" (statsValue reads 0 as absent too, but the watchdog reads the
+        // raw value and mpvClean() would print a literal "0" into the pause card).
+        case "width":
+            return Number(d.sourceWidth || 0) > 0 ? Number(d.sourceWidth) : ""
+        case "height":
+            return Number(d.sourceHeight || 0) > 0 ? Number(d.sourceHeight) : ""
+        // mpv reports the codec of the track that is PLAYING. diagnostics.videoCodec is already
+        // resolved that way for video; audio has a selectable track, so resolve it against the
+        // index the DEMUX reported as decoding (p2.audioTrack), never against "the first audio
+        // stream" - on a two-language file that names the wrong codec the moment he switches.
+        // Empty until the demux has reported, which is a fact and not a gap to paper over.
+        case "audio-codec": {
+            var rows = (p2.s && p2.s.audioTracks) ? p2.s.audioTracks : []
+            for (var i = 0; i < rows.length; i++) {
+                var t = rows[i] || ({})
+                if (String(t.index) === String(p2.audioTrack))
+                    return String(t.codec || "")
+            }
+            return ""
+        }
+
+        // --- honest absences: the engine has no seam for these yet (Task 10 follow-ups) --------
+        // Each one is a REAL missing measurement, not a mapping this file declined to write.
+        //   container-fps      - the container's declared frame rate. DemuxStreamInfo
+        //                        (DemuxSession.h:34-43) carries index/type/codec/language/title/
+        //                        default/forced and nothing else; avg_frame_rate is read by nobody.
+        //   estimated-vf-fps   - the OBSERVED output rate. The pipeline counts `presented` but
+        //                        stamps no wall-clock interval, so there is no rate to divide.
+        //   video/audio-bitrate- observed bitrates. DemuxSession knows every packet's size and pts
+        //                        (it already sums consumedBytes for the buffer estimate) but keeps
+        //                        no per-stream windowed total.
+        // Deriving any of them here would mean inventing the denominator, and the invented number
+        // would look exactly like a measured one. "" prints "--".
+        case "container-fps":
+        case "estimated-vf-fps":
+        case "video-bitrate":
+        case "audio-bitrate":
+            return ""
+        // cache-buffering-state is mpv's INITIAL-FILL percentage: bytes held against the cache
+        // target mpv itself sets. Player 2 publishes `bufferedSeconds` (a timeline POSITION, which
+        // is why it maps to cacheTime above) and `networkStalled` (a boolean). A percentage needs a
+        // target to be a percentage OF, and this engine declares none - so any number here would be
+        // a denominator this file made up, moving smoothly and meaning nothing. Returning ""
+        // matches what PlayerPage's own guard is written for (PlayerPage.qml:223-225): the branch
+        // is skipped and the state line falls through to Paused/Seek/speed.
+        // The cost is real and is written down for Task 10: a P2 viewer sees no percentage during a
+        // stall where an mpv viewer does.
+        case "cache-buffering-state":
+            return ""
+        // The pause card's quality line asks for two MORE keys, and it asks through mpvClean() with
+        // a string literal - so the facade contract's `mpv.` scan is structurally blind to them and
+        // the port plan listed twelve where PlayerPage uses fourteen. Found by the warning at the
+        // bottom of this function firing on a real run (2026-07-27); the contract now derives its
+        // list from PlayerPage instead of carrying a hand-written one.
+        //   audio-params/channel-count - the "5.1"/"2.0" badge (channelLabel, PlayerPage.qml:2770).
+        //       diagnostics.audioFormat DOES carry a channel count ("48000 Hz / 2 ch / float32")
+        //       but it is the WASAPI SINK's OUTPUT format (Player2Session.cpp:280-284) - a 5.1
+        //       source downmixed to stereo reads 2 there, and the badge would then call a 5.1 film
+        //       "2.0". The SOURCE track's channel count is genuinely absent: DemuxStreamInfo
+        //       carries none, which is the same hole that leaves `channels` empty in _mapTracks.
+        //   video-params/transfer - the HDR/HLG badge. resolveColorConversion() is HANDED the
+        //       AVCOL_TRC value (ColorHdrPolicy.h:42) and collapses it to a boolean `hdrSource`, so
+        //       diagnostics.colorConversion can say "HDR tone-mapped to SDR" but can never tell PQ
+        //       from HLG - and those are the two different badges PlayerPage prints. Picking one
+        //       would be a coin flip wearing a measurement's clothes.
+        //       ⚠ ALSO A PRODUCT QUESTION for the arc, not a mapping one: this engine tone-maps HDR
+        //       to SDR (there is no passthrough, ColorHdrPolicy.h:21-22), so whether a P2 boot
+        //       should show an "HDR" badge over an SDR picture at all is HIS call.
+        case "audio-params/channel-count":
+        case "video-params/transfer":
+            return ""
+        }
+        // An unknown key is not a value of "". Say so - a new mpv.mpvProperty() in PlayerPage would
+        // otherwise read as a permanently blank row with nothing anywhere to explain it. (The
+        // facade contract enumerates the keys statically; this catches the one added mid-flight.)
+        console.warn("PlayerEngineP2: mpvProperty has no mapping for", String(name))
+        return ""
+    }
+
     function seekExact(sec) { if (p2.s) p2.s.seekExact(sec) }
     // mpv's seekStep is RELATIVE. seekRelative() is the session's own equivalent and it clamps at
     // zero inside seekExact (Player2Session.cpp:551), so no arithmetic belongs here.

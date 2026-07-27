@@ -79,7 +79,12 @@ $forbidden = @(
     'Cannot assign',
     'binding loop',
     'non-existent signal',
-    'Detected function'
+    'Detected function',
+    # PlayerEngineP2 warning that PlayerPage asked it for a property key it has no case for. Same
+    # class as the rest: the code asked for something that is not there. It is how the two keys the
+    # port plan missed (audio-params/channel-count, video-params/transfer) were found at all - they
+    # were spamming this line once a second while the probe reported PASS (2026-07-27).
+    'mpvProperty has no mapping'
 )
 
 # NO ALLOWLIST, and that is a measured claim rather than an omission: all five cases below were run
@@ -105,6 +110,19 @@ if ($Media) {
     $cases += @{ Name = 'eof-chaptered'; Media = (Join-Path $Fixtures 'chaptered.mkv');   Mode = 'eof';       Player2 = $true;  ExpectFail = @() }
     $cases += @{ Name = 'transport';     Media = $LongMedia;                              Mode = 'transport'; Player2 = $true;  ExpectFail = @() }
     $cases += @{ Name = 'tracks';        Media = (Join-Path $Fixtures 'tracks-long.mkv'); Mode = 'tracks';    Player2 = $true;  ExpectFail = @() }
+    # $LongMedia, NOT a built fixture, and that is a measured choice rather than convenience. The
+    # stats sequence is the first thing in this suite that needs a frame to have been PRESENTED
+    # (width/height are published off the decoded frame), and tracks-long.mkv never presents one on
+    # this machine: 485 frames decode, ZERO submit, 484 device errors, hardwareFormat and
+    # inputFormat both empty. Bisected 2026-07-27 against six purpose-built clips - it is NOT the
+    # resolution (320x180 presents fine), NOT the stream count (2 audio + subtitle presents fine).
+    # The trigger is the LANGUAGE/TITLE METADATA on those tracks: byte-identical files differing
+    # only in `-metadata:s:a:0 language=eng ...` pass without it and fail with it, which points at
+    # PlayerPage's own maybeAutoSelectTracks() firing a track selection at open. Video never
+    # recovers; audio plays on. Written up for Task 10 - it is an ENGINE defect, not a probe one,
+    # and the tracks case above passes straight through it because nothing there asserts a frame.
+    # Repro pair kept in the Task 5 report: 2-audio+subtitle WITH metadata fails, WITHOUT passes.
+    $cases += @{ Name = 'stats';         Media = $LongMedia;                              Mode = 'stats';     Player2 = $true;  ExpectFail = @() }
     if (-not $SkipMpvBoot) {
         # The mpv boot is a CONTROL: the same probe against the daily driver. Two assertions are
         # P2-only by construction and are expected to fail there; a THIRD failure means the port

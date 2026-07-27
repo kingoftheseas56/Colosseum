@@ -107,14 +107,24 @@ foreach ($k in $relayed) {
     if ($engine -notmatch [regex]::Escape("_pull(`"$k`")")) { $violations += "relayed member '$k' has no _pull call site" }
 }
 
-# --- 4. The stats card's mpv property keys ----------------------------------------------------
+# --- 4. The property keys PlayerPage asks the engine BY NAME ----------------------------------
 # On the mpv boot libmpv answers these natively through the forwarded mpvProperty(), so there is
 # nothing for the facade to translate. The Player 2 boot has no mpv, so ITS branch must map every
 # key by hand - which is why the check targets PlayerEngineP2.qml and arms itself the moment
 # Task 3 creates that file. Nothing here needs a human to re-enable it.
-$statKeys = @('video-bitrate','audio-bitrate','frame-drop-count','vo-drop-frame-count',
-              'estimated-vf-fps','container-fps','video-codec','audio-codec','hwdec-current',
-              'cache-buffering-state','width','height')
+#
+# DERIVED FROM PLAYERPAGE, never hand-listed - same rule as section 1, and for a reason that cost a
+# real miss: the list here used to be twelve names typed out by hand, and PlayerPage asks for
+# FOURTEEN. The two extras (`audio-params/channel-count`, `video-params/transfer`) are reached
+# through mpvClean(), which wraps mpvProperty() - so they never appear as `mpv.mpvProperty(...)` and
+# nothing in this file could see them. They were found by a console.warn in the P2 branch during a
+# probe run on 2026-07-27, not by this gate. Deriving both spellings closes that class of drift:
+# add a new key to PlayerPage in either form and this fails until the branch answers it.
+$statKeys = [regex]::Matches($page, '\bmpv(?:Property|Clean)\(\s*"([^"]+)"') |
+            ForEach-Object { $_.Groups[1].Value } | Sort-Object -Unique
+if ($statKeys.Count -lt 12) {
+    $violations += "stat-key scan found only $($statKeys.Count) keys in PlayerPage (expected >= 12) - the scan is broken, not the facade"
+}
 $p2Path = Join-Path $root 'qml/PlayerEngineP2.qml'
 if (Test-Path $p2Path) {
     $p2 = Remove-QmlComments (Get-Content -Raw $p2Path)

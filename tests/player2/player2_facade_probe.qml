@@ -11,7 +11,7 @@ import "../../qml"
 // PlayerPage's child list is what proves the object PLAYERPAGE built is the one asserted against.
 //
 // Usage (from the worktree root):
-//   colosseum.exe tests/player2/player2_facade_probe.qml <media> [auto|eof|transport|tracks]
+//   colosseum.exe tests/player2/player2_facade_probe.qml <media> [auto|eof|transport|tracks|stats]
 //
 // THREE SEQUENCES, because no single clip can carry them all:
 //   eof       - runs the clip to its end untouched: fileStarted, ONE fileLoaded, endFile("eof").
@@ -45,6 +45,16 @@ import "../../qml"
 //               its queues are full, so a short clip is read to the end in a couple of seconds and
 //               the frontier laps every cue. A 12s cut of this same fixture lost its first cue on
 //               one run in two (measured 2026-07-27).
+//   stats     - (chrome-port Task 5) the twelve keys PlayerPage asks the engine BY NAME through
+//               mpvProperty(). Two of them are not stats rows: width/height are what
+//               tickRecoveryWatch() latches recoverySawVideo off, so this sequence ticks THE REAL
+//               WATCHDOG and asserts the latch - a mapping that returns "" there does not look
+//               broken, it makes a healthy stream declare "no video" 20s in. The rest is asserted
+//               through PlayerPage's OWN statsValue()/pauseQualityLine(), because a value that is
+//               present but the wrong shape ("0x0", "NaN%") is the failure mode a raw read misses.
+//               Needs a clip with a video stream and runway: tracks-long.mkv (320x180 h264 + aac,
+//               60s) is the one used by the gate, so the sizes below are checkable against a known
+//               fixture rather than merely non-zero.
 //   auto      - picks eof for a clip <= 60s, transport otherwise. Run BOTH to cover both.
 //
 // Environment, all load-bearing:
@@ -191,6 +201,188 @@ Window {
             probe.bad("chapterAtFraction(lastStart) names the LAST chapter",
                       "got " + JSON.stringify(last))
         console.log("FACADE PROBE: chapters=" + JSON.stringify(list))
+    }
+
+    // ---- stats sequence (chrome-port Task 5) --------------------------------------------------
+    // Every key is checked for the RIGHT KIND of answer, not merely for "something". A measured key
+    // that came back "" is a dead row; an absent key that came back 0 is worse - it is a number the
+    // card will print as though it were an instrument reading.
+    function statMeasured(key, kind) {
+        var v = probe.engine.mpvProperty(key)
+        if (kind === "number") {
+            if (typeof v === "number" && isFinite(v) && v >= 0)
+                probe.ok("mpvProperty(\"" + key + "\") is measured", String(v))
+            else
+                probe.bad("mpvProperty(\"" + key + "\") is measured",
+                          "got " + JSON.stringify(v) + " (want a finite number)")
+            return v
+        }
+        if (typeof v === "string" && v.length)
+            probe.ok("mpvProperty(\"" + key + "\") is measured", v)
+        else
+            probe.bad("mpvProperty(\"" + key + "\") is measured",
+                      "got " + JSON.stringify(v) + " - the row is dead")
+        return v
+    }
+
+    // The recorded absences. `""` EXACTLY: undefined would slip past PlayerPage's
+    // `buf !== undefined` guard differently, and a 0 would print "0%" / "0 bps" as a reading.
+    function statAbsent(key) {
+        var v = probe.engine.mpvProperty(key)
+        if (v === "")
+            probe.ok("mpvProperty(\"" + key + "\") is an honest absence", "\"\" -> \"--\"")
+        else
+            probe.bad("mpvProperty(\"" + key + "\") is an honest absence",
+                      "got " + JSON.stringify(v) + " - either a fake reading or the wrong empty")
+    }
+
+    // THE ONE THAT IS NOT A STATS ROW. tickRecoveryWatch (PlayerPage.qml:1266-1299) reads
+    // mpvProperty("width")/("height") and latches recoverySawVideo; if they never answer, a
+    // perfectly healthy stream is failed as "no video" after noVideoGraceSeconds and the recovery
+    // ladder fires on nothing.
+    // The probe plays a LOCAL file, and recoveryExcluded() returns true for those - so the watchdog
+    // is skipped in a probe run and asserting on the periodic tick would prove nothing. This lifts
+    // the exclusion for exactly one call of the REAL function and puts it back. resetRecoveryWatch()
+    // first (PlayerPage's own reset) so the other two escalations in that function - "source did not
+    // start" and "position frozen" - cannot fire off stale timestamps while the exclusion is down.
+    function checkRecoveryWatchdog() {
+        if (!page.fileReady || probe.engine.pause || page.starting || page.errored) {
+            probe.bad("recovery watchdog latches recoverySawVideo",
+                      "preconditions not met: fileReady=" + page.fileReady
+                      + " pause=" + probe.engine.pause + " starting=" + page.starting
+                      + " errored=" + page.errored)
+            return
+        }
+        var savedLocal = page.mediaLocalPath
+        page.resetRecoveryWatch()
+        page.mediaLocalPath = ""            // lift recoveryExcluded() for this one tick
+        page.tickRecoveryWatch()
+        var latched = page.recoverySawVideo
+        var noVideoSince = page.recoveryNoVideoSince
+        var stillErrored = page.errored
+        page.mediaLocalPath = savedLocal    // restore BEFORE asserting, whatever the outcome
+        page.resetRecoveryWatch()
+        if (latched && noVideoSince === 0)
+            probe.ok("recovery watchdog latches recoverySawVideo",
+                     "recoverySawVideo=true, noVideoSince=0 - the 'no video' ladder is disarmed")
+        else
+            probe.bad("recovery watchdog latches recoverySawVideo",
+                      "recoverySawVideo=" + latched + " noVideoSince=" + noVideoSince
+                      + " - a healthy stream would be failed as 'no video' after "
+                      + page.noVideoGraceSeconds + "s")
+        if (!stillErrored)
+            probe.ok("the watchdog tick raised no failure of its own")
+        else
+            probe.bad("the watchdog tick raised no failure of its own",
+                      "errored=true - " + page.lastPlaybackErrorMessage)
+    }
+
+    function checkStats() {
+        var e = probe.engine
+
+        // --- width/height: the watchdog's input, and the pause card's "1080p" -----------------
+        var w = e.mpvProperty("width")
+        var h = e.mpvProperty("height")
+        if (typeof w === "number" && w > 0 && typeof h === "number" && h > 0)
+            probe.ok("mpvProperty width/height report the SOURCE size", w + "x" + h)
+        else
+            probe.bad("mpvProperty width/height report the SOURCE size",
+                      "got " + JSON.stringify(w) + "x" + JSON.stringify(h)
+                      + " - the recovery watchdog reads these")
+        // Not the ring's fixed output surface. D3D11VideoPipeline::textureSize() is a CONSTANT
+        // 1920x1080 (OutputWidth/OutputHeight), so a mapping that reached for it would look
+        // perfectly healthy on every file and be a lie on all but one. The gate's fixture is
+        // 320x180, which is the cheapest possible way to tell those two apart.
+        if (w === 1920 && h === 1080)
+            console.log("FACADE PROBE: NOTE width/height read 1920x1080 - if the media is not "
+                        + "1080p this is the ring's OutputWidth/OutputHeight leaking through")
+        probe.checkRecoveryWatchdog()
+
+        // --- the measured stats-card keys ------------------------------------------------------
+        probe.statMeasured("video-codec", "string")
+        probe.statMeasured("hwdec-current", "string")
+        probe.statMeasured("audio-codec", "string")
+        probe.statMeasured("frame-drop-count", "number")
+        probe.statMeasured("vo-drop-frame-count", "number")
+
+        // audio-codec must name the track that is DECODING, not "the first audio stream" - the two
+        // agree on a one-track file and disagree the moment he switches language.
+        var selRow = page.selectedAudioRow()
+        var codec = String(e.mpvProperty("audio-codec"))
+        if (selRow && String(selRow.codec) === codec)
+            probe.ok("audio-codec names the SELECTED audio track",
+                     "audioTrack=" + e.audioTrack + " codec=" + codec)
+        else
+            probe.bad("audio-codec names the SELECTED audio track",
+                      "mpvProperty said " + JSON.stringify(codec) + ", the selected row says "
+                      + JSON.stringify(selRow ? selRow.codec : null))
+
+        // --- the five recorded absences --------------------------------------------------------
+        probe.statAbsent("container-fps")
+        probe.statAbsent("estimated-vf-fps")
+        probe.statAbsent("video-bitrate")
+        probe.statAbsent("audio-bitrate")
+        probe.statAbsent("cache-buffering-state")
+        // The two the port plan and the contract both missed - PlayerPage reaches them through
+        // mpvClean() with a literal, so no `mpv.` scan could see them. Absent for a reason, not
+        // unmapped: the sink's channel count is not the SOURCE track's, and the colour policy
+        // collapses the transfer characteristic to a boolean before anyone can read it.
+        probe.statAbsent("audio-params/channel-count")
+        probe.statAbsent("video-params/transfer")
+
+        // --- and how PLAYERPAGE renders all of it ----------------------------------------------
+        // The raw reads above cannot see a value of the wrong shape. These can: statsValue turns an
+        // absence into "--" and a present-but-zero into "0x0" / "0%".
+        page.refreshPlaybackStats()
+        var res = page.statsValue("Resolution")
+        if (res === (w + "x" + h))
+            probe.ok("statsValue(\"Resolution\") prints the real size", res)
+        else
+            probe.bad("statsValue(\"Resolution\") prints the real size",
+                      "got " + JSON.stringify(res))
+        var vcodec = page.statsValue("Video codec")
+        if (vcodec !== "--" && vcodec.length)
+            probe.ok("statsValue(\"Video codec\")", vcodec)
+        else
+            probe.bad("statsValue(\"Video codec\")", "got " + JSON.stringify(vcodec))
+        var hw = page.statsValue("HW decode")
+        if (hw !== "--" && hw.length)
+            probe.ok("statsValue(\"HW decode\")", hw)
+        else
+            probe.bad("statsValue(\"HW decode\")", "got " + JSON.stringify(hw))
+        var drops = page.statsValue("Dropped frames")
+        if (/^\d+ \/ \d+$/.test(drops))
+            probe.ok("statsValue(\"Dropped frames\") reads decoder / output", drops)
+        else
+            probe.bad("statsValue(\"Dropped frames\") reads decoder / output",
+                      "got " + JSON.stringify(drops))
+        // The absences must reach the CARD as a dash, never as "NaN%" or "0 bps".
+        var dashRows = ["Frame rate", "Video bitrate", "Audio bitrate", "Cache buffering"]
+        for (var i = 0; i < dashRows.length; i++) {
+            var got = page.statsValue(dashRows[i])
+            if (got === "--")
+                probe.ok("statsValue(\"" + dashRows[i] + "\") is a dash, not a fake reading", "--")
+            else
+                probe.bad("statsValue(\"" + dashRows[i] + "\") is a dash, not a fake reading",
+                          "got " + JSON.stringify(got))
+        }
+        // The pause card's quality line reads height through mpvClean(), which strips anything that
+        // is not a clean value - so this is a second, independent reader of the same mapping.
+        var quality = page.pauseQualityLine()
+        if (String(quality).indexOf(h + "p") >= 0)
+            probe.ok("pauseQualityLine() carries the resolution", quality)
+        else
+            probe.bad("pauseQualityLine() carries the resolution",
+                      "got " + JSON.stringify(quality) + " - expected it to contain " + h + "p")
+        // cache-buffering-state answering "" must fall THROUGH PlayerPage's guard rather than
+        // sticking the state line on a permanent "Buffering NaN%".
+        var line = String(page.stateLineText)
+        if (line.indexOf("Buffering") < 0)
+            probe.ok("stateLineText does not claim to be buffering",
+                     line.length ? line : "(empty)")
+        else
+            probe.bad("stateLineText does not claim to be buffering", line)
+        console.log("FACADE PROBE: playbackStats=" + JSON.stringify(page.playbackStats))
     }
 
     // ---- tracks sequence ----------------------------------------------------------------------
@@ -572,6 +764,25 @@ Window {
                                "mpv accepts a pause with no file open - the refusal path is Player 2's")
                 }
 
+                // NEGATIVE CONTROL for the size mapping, and it only exists here: with NO media
+                // open there is no video, so width/height must be absent. A mapping wired to a
+                // constant - the ring's 1920x1080 textureSize(), say - passes every assertion in
+                // the stats sequence and fails this one. Run on every P2 case, not just `stats`.
+                if (e.p2) {
+                    var w0 = e.mpvProperty("width")
+                    var h0 = e.mpvProperty("height")
+                    if (w0 === "" && h0 === "")
+                        probe.ok("with no media open the engine reports no video size",
+                                 "width=\"\" height=\"\"")
+                    else
+                        probe.bad("with no media open the engine reports no video size",
+                                  "got " + JSON.stringify(w0) + "x" + JSON.stringify(h0)
+                                  + " - a size that exists before a frame does is a constant")
+                } else {
+                    probe.skip("with no media open the engine reports no video size",
+                               "mpv answers its own properties; this control is the P2 mapping's")
+                }
+
                 console.log("FACADE PROBE: opening " + probe.media)
                 page.playLocalFile({ "id": "probe:facade", "title": "facade probe",
                                      "localPath": probe.media })
@@ -618,6 +829,16 @@ Window {
                         probe.toPhase("audio-switch")
                         return
                     }
+                    if (probe.mode === "stats") {
+                        probe.skip("seek / pause-freeze / resume-advance",
+                                   "sequence 'stats' leaves the transport alone; run mode 'transport'")
+                        probe.skip("endFile(\"eof\")",
+                                   "sequence 'stats' reports before the end; run mode 'eof' on a short clip")
+                        probe.skip("stop() teardown",
+                                   "sequence 'stats' must not close the player; run mode 'transport'")
+                        probe.toPhase("stats-wait")
+                        return
+                    }
                     if (probe.mode === "eof") {
                         probe.skip("seek / pause-freeze / resume-advance",
                                    "sequence 'eof' leaves the clip untouched; run mode 'transport' on media > 60s")
@@ -653,6 +874,39 @@ Window {
                 }
                 if (probe.phaseTicks > 100) {
                     probe.bad("endFile(\"eof\") fires at end of file", "never fired; " + probe.diag())
+                    probe.toPhase("report")
+                }
+                return
+            }
+
+            // ---- sequence: stats --------------------------------------------------------------
+            case "stats-wait": {
+                // Two things have to be true before the twelve keys mean anything, and they are
+                // NOT the same thing: the demux has to have reported the track list (audio-codec
+                // resolves against the selected track), and a video frame has to have been
+                // PRESENTED (width/height are published from the frame, not from the container).
+                // Waiting on position alone would sample audio-only-so-far and read as a dead
+                // mapping. `position` past 1s additionally keeps the watchdog's OTHER two
+                // escalations off during checkRecoveryWatchdog().
+                var wReady = Number(probe.engine.mpvProperty("width") || 0) > 0
+                if (wReady && probe.engine.position > 1.0 && page.fileReady
+                        && String(probe.engine.audioTrack).length > 0) {
+                    probe.checkStats()
+                    probe.toPhase("report")
+                    return
+                }
+                if (probe.phaseTicks > 80) {
+                    // Report what was missing rather than a bare timeout - "no frame yet" and "no
+                    // track report yet" are different defects with different owners. The raw
+                    // diagnostics say WHICH: decoded=0 is a decode failure, decoded>0 with
+                    // submitted=0 is the pipeline, submitted>0 with sourceWidth=0 is this mapping.
+                    if (probe.engine.inner && probe.engine.inner.s)
+                        console.log("FACADE PROBE: diagnostics="
+                                    + JSON.stringify(probe.engine.inner.s.diagnostics()))
+                    probe.bad("the stats sequence reached a measurable playback",
+                              "width>0=" + wReady + " pos=" + probe.engine.position.toFixed(2)
+                              + " fileReady=" + page.fileReady
+                              + " audioTrack=" + JSON.stringify(probe.engine.audioTrack))
                     probe.toPhase("report")
                 }
                 return

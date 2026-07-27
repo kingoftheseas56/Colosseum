@@ -406,6 +406,11 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
         m_hardwareFormat = QStringLiteral("d3d11va");
         m_inputFormat = formatName(inputDescriptor.Format);
         m_colorConversion = conversion.describe();
+        // Published only after the frame really reached the ring, so "width > 0" means "video is
+        // being presented" - which is exactly the question PlayerPage's recovery watchdog asks of
+        // mpv's `width`/`height` before it declares "no video".
+        m_sourceWidth = frame->width;
+        m_sourceHeight = frame->height;
     }
     ++m_submitted;
     return true;
@@ -511,6 +516,17 @@ void D3D11VideoPipeline::flush(quint64 nextGeneration)
     m_ring.flush(nextGeneration);
     m_scheduledLateDrops.store(0, std::memory_order_release);
     m_lastAvErrorUs.store(0, std::memory_order_release);
+    {
+        // Forget the source size with the frames it described. flush() runs on open, seek and
+        // recovery; carrying the OLD file's dimensions into the next one would report a resolution
+        // for media that has not decoded a frame yet - and would let the recovery watchdog latch
+        // "saw video" on a file that has none. Between a seek and its first new frame this reads 0
+        // again, which is correct: nothing is being presented at that instant.
+        // (Separate scope, not nested with m_timingMutex - nothing else ever holds both.)
+        std::scoped_lock sizeLock(m_mutex);
+        m_sourceWidth = 0;
+        m_sourceHeight = 0;
+    }
     std::scoped_lock lock(m_timingMutex);
     m_schedulingAbsoluteErrorsUs.clear();
 }
@@ -556,6 +572,7 @@ D3D11VideoPipeline::Diagnostics D3D11VideoPipeline::diagnostics() const
                        m_lastAvErrorUs.load(), 0,
                        m_deviceErrors.load(),
                        m_hardwareFormat, m_inputFormat, m_colorConversion,
+                       m_sourceWidth, m_sourceHeight,
                        m_deviceLost.load(), m_error};
 }
 

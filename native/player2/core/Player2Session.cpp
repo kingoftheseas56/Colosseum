@@ -816,6 +816,8 @@ PlaybackDiagnostics Player2Session::diagnosticsSnapshot() const
         snapshot.hardwareFormat = video.hardwareFormat;
         snapshot.inputFormat = video.inputFormat;
         snapshot.colorConversion = video.colorConversion;
+        snapshot.sourceWidth = video.sourceWidth;
+        snapshot.sourceHeight = video.sourceHeight;
         snapshot.adapter = video.qtAdapter;
         snapshot.adapterMatch = video.adapterMatch;
         snapshot.decoded = video.decoded;

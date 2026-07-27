@@ -48,6 +48,12 @@ public:
         QString hardwareFormat;
         QString inputFormat;
         QString colorConversion;
+        // The SOURCE frame's dimensions, taken off the decoded AVFrame - not the ring's fixed
+        // OutputWidth/OutputHeight (textureSize(), which is a constant 1920x1080 and would read as
+        // a resolution for every file). Zero until a frame has actually been published, which is
+        // the honest answer: "no video yet".
+        int sourceWidth = 0;
+        int sourceHeight = 0;
         bool deviceLost = false;
         QString error;
     };
@@ -134,6 +140,11 @@ private:
     QString m_hardwareFormat;
     QString m_inputFormat;
     QString m_colorConversion;
+    // Guarded by m_mutex, alongside m_inputFormat: m_videoWidth/m_videoHeight above are the video
+    // processor's cached input size and are touched only on the producer thread, so diagnostics()
+    // (GUI thread) must not read them directly.
+    int m_sourceWidth = 0;
+    int m_sourceHeight = 0;
     QString m_error;
     std::atomic<quint64> m_decoded{0};
     std::atomic<quint64> m_submitted{0};
