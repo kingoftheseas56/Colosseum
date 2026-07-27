@@ -345,13 +345,13 @@ Window {
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
         else if (downloadsLayer.active) win.closeDownloadsPage()
+        else if (theatreSeriesLayer.active) win.closeTheatreSeries()
+        else if (seriesLayer.active) win.closeSeries()
+        else if (westernLayer.active) win.closeWestern()
         else if (universeLayer.active) win.closeUniverse()
         else if (universeHallLayer.active) win.closeUniverseHall()
         else if (extensionsLayer.active) win.closeExtensionsPage()
-        else if (theatreSeriesLayer.active) win.closeTheatreSeries()
-        else if (seriesLayer.active) win.closeSeries()
         else if (comicSeriesLayer.active) win.closeComicSeries()
-        else if (westernLayer.active) win.closeWestern()
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
         else if (comicIndexLayer.active) win.closeComicArchive()
@@ -2001,7 +2001,7 @@ Window {
     Loader {
         id: seriesLayer
         anchors.fill: parent
-        z: 50
+        z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
         property string title: ""
@@ -2030,7 +2030,7 @@ Window {
     Loader {
         id: westernLayer
         anchors.fill: parent
-        z: 50
+        z: 53     // above the universe overlay (z:52): a comic opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
         property string title: ""
@@ -2203,7 +2203,7 @@ Window {
     Loader {
         id: theatreSeriesLayer
         anchors.fill: parent
-        z: 50
+        z: 53     // above the universe overlay (z:52): a film/show opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
         property var pendingItem: ({})
@@ -2428,15 +2428,14 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
-            // Clicking a work NAVIGATES to it — close this overlay first so the destination
-            // (series / theatre / western / book layers, all z ≤ this overlay's 52) isn't left
-            // hidden behind us. Mirrors routeWorldSearchItem's close-then-open (Main.qml:1053).
-            item.watchRequested.connect(function(d) { win.closeUniverse(); win.openTheatreSeries(d) })
-            item.seriesRequested.connect(function(d) { win.closeUniverse(); win.openSeries(d) })
-            item.bookRequested.connect(function(d) { win.closeUniverse(); win.openBook(d) })
-            // A universe comic entry carries VERIFIED post IDs (no tag) → openUniverseComic
-            // mirrors openGcdSeries' baked-release injection (Task 11).
-            item.comicsArchiveRequested.connect(function(d) { win.closeUniverse(); win.openUniverseComic(d) })
+            // Works open ABOVE this overlay — series/theatre/western are z:53 (> this layer's 52),
+            // book is z:53 — so a clicked work paints on top and the overlay stays loaded beneath.
+            // Their Esc checks sit before closeUniverse, so back closes the work first, then the
+            // universe. (Replaces an earlier close-on-click that broke back-nav to the universe.)
+            item.watchRequested.connect(win.openTheatreSeries)
+            item.seriesRequested.connect(win.openSeries)
+            item.bookRequested.connect(win.openBook)
+            item.comicsArchiveRequested.connect(win.openUniverseComic)
         }
     }
     Loader {
