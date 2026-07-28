@@ -256,9 +256,12 @@ try {
         }
         $result = Test-ProbeResult $parsedResult $MeasureSeconds
 
-        Write-Output ("run {0}: decoder={1}->{2} (delta {3}), output={4}->{5} (delta {6}), " +
-            "hwdec={7}, avsync={8}->{9}, position={10}->{11}, policy={12}/interpolation={13}" -f
-            $run, $result.decoderStart, $result.decoderEnd, $result.decoderDelta,
+        # NOTE: -f binds tighter than +, so applying it to a concatenated literal only formats
+        # the second half (the placeholders in the first half print unresolved). Hoist the whole
+        # format string into one variable, then apply -f to it with all fourteen args.
+        $summary = "run {0}: decoder={1}->{2} (delta {3}), output={4}->{5} (delta {6}), " +
+                   "hwdec={7}, avsync={8}->{9}, position={10}->{11}, policy={12}/interpolation={13}"
+        Write-Output ($summary -f $run, $result.decoderStart, $result.decoderEnd, $result.decoderDelta,
             $result.outputStart, $result.outputEnd, $result.outputDelta,
             $result.hwdec, $result.avsyncStart, $result.avsyncEnd,
             $result.positionStart, $result.positionEnd,
