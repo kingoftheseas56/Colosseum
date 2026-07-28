@@ -93,7 +93,8 @@ MpvItem::MpvItem(QQuickItem *parent)
         m_dropProbeMeasureSeconds = dropProbeParts.at(1).toInt(&measureOk);
     }
     m_dropProbeArmed = warmupOk && measureOk
-        && m_dropProbeWarmupSeconds > 0 && m_dropProbeMeasureSeconds > 0;
+        && m_dropProbeWarmupSeconds > 0 && m_dropProbeWarmupSeconds <= 86400
+        && m_dropProbeMeasureSeconds > 0 && m_dropProbeMeasureSeconds <= 86400;
     if (!dropProbeSpec.isEmpty() && !m_dropProbeArmed)
         qWarning() << "MPV_DROP_PROBE INVALID" << dropProbeSpec;
 
@@ -125,13 +126,13 @@ QVariantMap MpvItem::dropProbeSnapshot() const
 {
     auto *self = const_cast<MpvItem *>(this);
     return {
-        {QStringLiteral("decoder"), self->getProperty(QStringLiteral("frame-drop-count")).toLongLong()},
-        {QStringLiteral("output"), self->getProperty(QStringLiteral("vo-drop-frame-count")).toLongLong()},
-        {QStringLiteral("hwdec"), self->getProperty(QStringLiteral("hwdec-current")).toString()},
-        {QStringLiteral("avsync"), self->getProperty(QStringLiteral("avsync")).toDouble()},
-        {QStringLiteral("position"), self->getProperty(QStringLiteral("time-pos")).toDouble()},
-        {QStringLiteral("videoSync"), self->getProperty(QStringLiteral("video-sync")).toString()},
-        {QStringLiteral("interpolation"), self->getProperty(QStringLiteral("interpolation")).toBool()},
+        {QStringLiteral("decoder"), self->getProperty(QStringLiteral("decoder-frame-drop-count"))},
+        {QStringLiteral("output"), self->getProperty(QStringLiteral("frame-drop-count"))},
+        {QStringLiteral("hwdec"), self->getProperty(QStringLiteral("hwdec-current"))},
+        {QStringLiteral("avsync"), self->getProperty(QStringLiteral("avsync"))},
+        {QStringLiteral("position"), self->getProperty(QStringLiteral("time-pos"))},
+        {QStringLiteral("videoSync"), self->getProperty(QStringLiteral("video-sync"))},
+        {QStringLiteral("interpolation"), self->getProperty(QStringLiteral("interpolation"))},
     };
 }
 

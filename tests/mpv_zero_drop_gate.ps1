@@ -1,9 +1,7 @@
 param(
-    [Parameter(Mandatory = $true)]
-    [string]$Exe,
+    [string]$Exe = '',
 
-    [Parameter(Mandatory = $true)]
-    [string]$Clip,
+    [string]$Clip = '',
 
     [ValidateRange(1, 86400)]
     [int]$WarmupSeconds = 30,
@@ -12,7 +10,9 @@ param(
     [int]$MeasureSeconds = 300,
 
     [ValidateRange(1, 100)]
-    [int]$Runs = 2
+    [int]$Runs = 2,
+
+    [string]$ValidateResultJson = ''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +23,121 @@ function Resolve-InputPath([string]$Path, [string]$BasePath) {
         return (Resolve-Path -LiteralPath $Path).Path
     }
     return (Resolve-Path -LiteralPath (Join-Path $BasePath $Path)).Path
+}
+
+function Get-RequiredValue([object]$Result, [string]$Name) {
+    $property = $Result.PSObject.Properties[$Name]
+    if ($null -eq $property -or $null -eq $property.Value) {
+        throw "$Name is missing or null"
+    }
+    return $property.Value
+}
+
+function Get-RequiredFiniteNumber([object]$Result, [string]$Name) {
+    $value = Get-RequiredValue $Result $Name
+    $numericTypeCodes = @(
+        [System.TypeCode]::SByte, [System.TypeCode]::Byte,
+        [System.TypeCode]::Int16, [System.TypeCode]::UInt16,
+        [System.TypeCode]::Int32, [System.TypeCode]::UInt32,
+        [System.TypeCode]::Int64, [System.TypeCode]::UInt64,
+        [System.TypeCode]::Single, [System.TypeCode]::Double,
+        [System.TypeCode]::Decimal
+    )
+    if ($numericTypeCodes -notcontains [System.Type]::GetTypeCode($value.GetType())) {
+        throw "$Name must be a finite number"
+    }
+    [double]$number = $value
+    if ([double]::IsNaN($number) -or [double]::IsInfinity($number)) {
+        throw "$Name must be a finite number"
+    }
+    return $number
+}
+
+function Get-RequiredCounter([object]$Result, [string]$Name) {
+    [double]$number = Get-RequiredFiniteNumber $Result $Name
+    if ($number -lt 0 -or [math]::Truncate($number) -ne $number -or
+        $number -gt [long]::MaxValue) {
+        throw "$Name must be a non-negative integer counter"
+    }
+    return [long]$number
+}
+
+function Get-RequiredString([object]$Result, [string]$Name) {
+    $value = Get-RequiredValue $Result $Name
+    if ($value -isnot [string] -or [string]::IsNullOrWhiteSpace($value)) {
+        throw "$Name must be a non-empty string"
+    }
+    return [string]$value
+}
+
+function Test-ProbeResult([object]$Result, [int]$RequiredMeasureSeconds) {
+    # Validate every value before counter/progress arithmetic; JSON null must never coerce to zero.
+    [long]$decoderStart = Get-RequiredCounter $Result 'decoderStart'
+    [long]$decoderEnd = Get-RequiredCounter $Result 'decoderEnd'
+    [long]$outputStart = Get-RequiredCounter $Result 'outputStart'
+    [long]$outputEnd = Get-RequiredCounter $Result 'outputEnd'
+    [double]$avsyncStart = Get-RequiredFiniteNumber $Result 'avsyncStart'
+    [double]$avsyncEnd = Get-RequiredFiniteNumber $Result 'avsyncEnd'
+    [double]$positionStart = Get-RequiredFiniteNumber $Result 'positionStart'
+    [double]$positionEnd = Get-RequiredFiniteNumber $Result 'positionEnd'
+    [string]$hwdec = Get-RequiredString $Result 'hwdec'
+    [string]$videoSync = Get-RequiredString $Result 'videoSync'
+    $interpolation = Get-RequiredValue $Result 'interpolation'
+    if ($interpolation -isnot [bool]) {
+        throw 'interpolation must be a JSON boolean'
+    }
+    if ($videoSync -ne 'display-resample' -or $interpolation -ne $true) {
+        throw "did not use the approved mpv policy: videoSync=$videoSync, interpolation=$interpolation"
+    }
+
+    [long]$decoderDelta = $decoderEnd - $decoderStart
+    [long]$outputDelta = $outputEnd - $outputStart
+    [double]$progress = $positionEnd - $positionStart
+    if ($decoderDelta -ne 0 -or $outputDelta -ne 0) {
+        throw "dropped frames: decoder=$decoderDelta, output=$outputDelta"
+    }
+    [double]$requiredProgress = $RequiredMeasureSeconds * 0.9
+    if ($progress -lt $requiredProgress) {
+        throw "insufficient playback progress: $progress seconds (required at least $requiredProgress)"
+    }
+
+    return [pscustomobject]@{
+        decoderStart = $decoderStart
+        decoderEnd = $decoderEnd
+        decoderDelta = $decoderDelta
+        outputStart = $outputStart
+        outputEnd = $outputEnd
+        outputDelta = $outputDelta
+        hwdec = $hwdec
+        avsyncStart = $avsyncStart
+        avsyncEnd = $avsyncEnd
+        positionStart = $positionStart
+        positionEnd = $positionEnd
+        progress = $progress
+        videoSync = $videoSync
+        interpolation = [bool]$interpolation
+    }
+}
+
+if (-not [string]::IsNullOrWhiteSpace($ValidateResultJson)) {
+    try {
+        $validationJson = if (Test-Path -LiteralPath $ValidateResultJson -PathType Leaf) {
+            Get-Content -Raw -LiteralPath $ValidateResultJson
+        } else {
+            $ValidateResultJson
+        }
+        $validationInput = $validationJson | ConvertFrom-Json
+    }
+    catch {
+        throw "invalid probe JSON: $($_.Exception.Message)"
+    }
+    [void](Test-ProbeResult $validationInput $MeasureSeconds)
+    Write-Output 'MPV ZERO DROP RESULT VALIDATION: PASS'
+    return
+}
+
+if ([string]::IsNullOrWhiteSpace($Exe) -or [string]::IsNullOrWhiteSpace($Clip)) {
+    throw 'Exe and Clip are required unless ValidateResultJson is supplied'
 }
 
 $exePath = Resolve-InputPath $Exe $root
@@ -110,13 +225,13 @@ try {
             throw "run $run expected exactly one structured probe result; found $($matches.Count) (process exit $exitCode)"
         }
 
-        $result = $matches[0].Groups[1].Value | ConvertFrom-Json
-        if ([int64]$result.decoderDelta -ne 0 -or [int64]$result.outputDelta -ne 0) {
-            throw "run $run dropped frames: decoder=$($result.decoderDelta), output=$($result.outputDelta)"
+        try {
+            $parsedResult = $matches[0].Groups[1].Value | ConvertFrom-Json
         }
-        if ($result.videoSync -ne 'display-resample' -or $result.interpolation -ne $true) {
-            throw "run $run did not use the approved mpv policy: videoSync=$($result.videoSync), interpolation=$($result.interpolation)"
+        catch {
+            throw "run $run emitted invalid probe JSON: $($_.Exception.Message)"
         }
+        $result = Test-ProbeResult $parsedResult $MeasureSeconds
 
         Write-Output ("run {0}: decoder={1}->{2} (delta {3}), output={4}->{5} (delta {6}), " +
             "hwdec={7}, avsync={8}->{9}, position={10}->{11}, policy={12}/interpolation={13}" -f

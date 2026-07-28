@@ -21,4 +21,26 @@ if ($header -notmatch 'void startDropProbe\(\);' -or
     throw 'MpvItem must expose private start/snapshot probe seams.'
 }
 
+$snapshotMatch = [regex]::Match(
+    $source,
+    'QVariantMap MpvItem::dropProbeSnapshot\(\) const(?s).*?(?=void MpvItem::startDropProbe\(\))')
+if (-not $snapshotMatch.Success) {
+    throw 'MpvItem drop-probe snapshot implementation is missing.'
+}
+$snapshot = $snapshotMatch.Value
+Require-Literal $snapshot 'getProperty(QStringLiteral("decoder-frame-drop-count"))' `
+    'The probe decoder counter must use mpv decoder-frame-drop-count.'
+Require-Literal $snapshot 'getProperty(QStringLiteral("frame-drop-count"))' `
+    'The probe output counter must use mpv frame-drop-count.'
+if ($snapshot.Contains('vo-drop-frame-count')) {
+    throw 'The probe must not query removed mpv property vo-drop-frame-count.'
+}
+if ($snapshot -match 'getProperty\([^\r\n]+\)\.to(?:LongLong|Double|String|Bool)\(') {
+    throw 'The probe snapshot must preserve invalid mpv values as JSON null.'
+}
+if ($source -notmatch 'm_dropProbeWarmupSeconds\s*<=\s*86400' -or
+    $source -notmatch 'm_dropProbeMeasureSeconds\s*<=\s*86400') {
+    throw 'The native probe must bound both timer values before converting seconds to milliseconds.'
+}
+
 Write-Output 'test_player_mpv_smoothness_p0: PASS'
