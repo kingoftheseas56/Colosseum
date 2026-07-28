@@ -26,6 +26,7 @@
 - Modify `native/player/mpvitem.h`: hold the probe timers, baseline snapshot, and private probe methods.
 - Create `tests/test_player_mpv_smoothness_p0.ps1`: lock the two mpv properties and the opt-in probe boundary.
 - Create `tests/mpv_zero_drop_gate.ps1`: launch the real app twice, preserve logs, parse structured results, and enforce zero deltas.
+- Create `tests/test_mpv_zero_drop_gate_parser.ps1`: prove missing/invalid telemetry, drops, and stalls fail closed.
 - Create `docs/superpowers/specs/2026-07-28-colosseum-mpv-zero-drop-report.md`: record exact build identity, both runs, and the eyes-on verdict.
 
 ---
@@ -117,7 +118,7 @@ git commit -m "fix(player): synchronize mpv to display cadence"
 - Consumes:
   - `COLOSSEUM_MPV_DROP_PROBE=30,300` (`warmupSeconds,measureSeconds`).
   - Existing `COLOSSEUM_ABBA_CLIP` real-player autoplay route.
-  - mpv properties `frame-drop-count`, `vo-drop-frame-count`, `hwdec-current`, `avsync`, `video-sync`, and `interpolation`.
+  - mpv properties `decoder-frame-drop-count`, `frame-drop-count`, `hwdec-current`, `avsync`, `video-sync`, and `interpolation`.
 - Produces:
   - One stderr line beginning `MPV_DROP_PROBE RESULT ` followed by compact JSON.
   - JSON keys `decoderStart`, `decoderEnd`, `decoderDelta`, `outputStart`, `outputEnd`,
@@ -188,7 +189,8 @@ constructor, parse only the exact two-positive-integer format:
         m_dropProbeMeasureSeconds = dropProbeParts.at(1).toInt(&measureOk);
     }
     m_dropProbeArmed = warmupOk && measureOk
-        && m_dropProbeWarmupSeconds > 0 && m_dropProbeMeasureSeconds > 0;
+        && m_dropProbeWarmupSeconds > 0 && m_dropProbeWarmupSeconds <= 86'400
+        && m_dropProbeMeasureSeconds > 0 && m_dropProbeMeasureSeconds <= 86'400;
     if (!dropProbeSpec.isEmpty() && !m_dropProbeArmed)
         qWarning() << "MPV_DROP_PROBE INVALID" << dropProbeSpec;
 
@@ -210,8 +212,10 @@ QVariantMap MpvItem::dropProbeSnapshot() const
 {
     auto *self = const_cast<MpvItem *>(this);
     return {
-        {QStringLiteral("decoder"), self->getProperty(QStringLiteral("frame-drop-count")).toLongLong()},
-        {QStringLiteral("output"), self->getProperty(QStringLiteral("vo-drop-frame-count")).toLongLong()},
+        // Keep the raw QVariant values. An unavailable property must reach the gate as JSON null,
+        // never coerce to the same numeric zero as a healthy counter.
+        {QStringLiteral("decoder"), self->getProperty(QStringLiteral("decoder-frame-drop-count"))},
+        {QStringLiteral("output"), self->getProperty(QStringLiteral("frame-drop-count"))},
         {QStringLiteral("hwdec"), self->getProperty(QStringLiteral("hwdec-current")).toString()},
         {QStringLiteral("avsync"), self->getProperty(QStringLiteral("avsync")).toDouble()},
         {QStringLiteral("position"), self->getProperty(QStringLiteral("time-pos")).toDouble()},
@@ -289,30 +293,45 @@ fail. Parse the final stderr line using:
 $match = [regex]::Match($text, 'MPV_DROP_PROBE RESULT\s+(\{[^\r\n]+\})')
 if (-not $match.Success) { throw "run $run has no structured probe result" }
 $result = $match.Groups[1].Value | ConvertFrom-Json
-if ([int64]$result.decoderDelta -ne 0 -or [int64]$result.outputDelta -ne 0) {
-    throw "run $run dropped frames: decoder=$($result.decoderDelta), output=$($result.outputDelta)"
-}
-if ($result.videoSync -ne 'display-resample' -or $result.interpolation -ne $true) {
-    throw "run $run did not use the approved mpv policy"
+$validated = Test-MpvProbeResult -Result $result -MeasureSeconds $MeasureSeconds
+if ($validated.DecoderDelta -ne 0 -or $validated.OutputDelta -ne 0) {
+    throw "run $run dropped frames: decoder=$($validated.DecoderDelta), output=$($validated.OutputDelta)"
 }
 ```
 
-Preserve both logs under `artifacts/mpv-zero-drop/<timestamp>/`. Restore/remove all three
-environment variables in a `finally` block. Print one summary line per run and a final
+`Test-MpvProbeResult` must reject null/non-numeric counters and positions, non-finite A/V sync,
+missing hardware decode/policy fields, a policy other than `display-resample` + boolean `true`,
+emitted deltas that disagree with recomputed start/end deltas, and playback progress below 90% of
+the requested measurement window.
+
+Preserve both logs under `artifacts/mpv-zero-drop/<timestamp>/`. Restore every changed environment
+variable, including `PATH`, in a `finally` block. Print one summary line per run and a final
 `MPV ZERO DROP GATE: PASS`.
 
-- [ ] **Step 7: Prove the contract and compile**
+- [ ] **Step 7: Prove the parser fails closed**
+
+Create `tests/test_mpv_zero_drop_gate_parser.ps1`. Invoke the gate's validation-only file path with
+fixture JSON for:
+
+- a valid zero-drop result with at least 90% playback progress (must pass);
+- a missing or null counter (must fail);
+- a non-zero decoder or output delta (must fail);
+- insufficient playback progress (must fail);
+- non-finite A/V synchronization (must fail).
+
+- [ ] **Step 8: Prove the contract and compile**
 
 Run:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File tests\test_player_mpv_smoothness_p0.ps1
+powershell -NoProfile -ExecutionPolicy Bypass -File tests\test_mpv_zero_drop_gate_parser.ps1
 cmd /c native\_reconf2.bat
 ```
 
 Expected: contract `PASS`; build contains `BUILD_OK`.
 
-- [ ] **Step 8: Run a short instrumentation smoke**
+- [ ] **Step 9: Run a short instrumentation smoke**
 
 Run with a 2-second warm-up and 5-second measurement:
 
@@ -327,11 +346,12 @@ Expected: one structured result is parsed. A non-zero drop delta is allowed to f
 smoke; the required proof comes from the full two-run gate. Inspect the log to confirm the backend
 line says `mpv (player 1)` and the Tenet path auto-opened.
 
-- [ ] **Step 9: Commit only the measurement gate**
+- [ ] **Step 10: Commit only the measurement gate**
 
 ```powershell
 git add -- native/player/mpvitem.h native/player/mpvitem.cpp `
-  tests/test_player_mpv_smoothness_p0.ps1 tests/mpv_zero_drop_gate.ps1
+  tests/test_player_mpv_smoothness_p0.ps1 tests/mpv_zero_drop_gate.ps1 `
+  tests/test_mpv_zero_drop_gate_parser.ps1
 git diff --cached --check
 git commit -m "test(player): measure integrated mpv drop deltas"
 ```
