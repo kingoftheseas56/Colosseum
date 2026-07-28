@@ -42,6 +42,41 @@ function Require-Fail([string]$name, [string]$json, [string]$messagePattern) {
     }
 }
 
+# --- -QmlEntry forwarding is verified WITHOUT launching a process, via the gate's
+# --- -ResolveQmlEntry side-mode (same no-launch pattern as -ValidateResultJson).
+function Invoke-EntryResolution([string]$qmlEntry) {
+    $savedErrorAction = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
+    try {
+        if ([string]::IsNullOrWhiteSpace($qmlEntry)) {
+            $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $gate `
+                -ResolveQmlEntry 2>&1 | Out-String
+        } else {
+            $output = & powershell -NoProfile -ExecutionPolicy Bypass -File $gate `
+                -ResolveQmlEntry -QmlEntry $qmlEntry 2>&1 | Out-String
+        }
+    }
+    finally {
+        $ErrorActionPreference = $savedErrorAction
+    }
+    return [pscustomobject]@{
+        ExitCode = $LASTEXITCODE
+        Output = $output
+    }
+}
+
+function Require-Entry([string]$name, [string]$qmlEntry, [string]$expected) {
+    $run = Invoke-EntryResolution $qmlEntry
+    $line = ($run.Output -split "`r?`n" | Where-Object { $_ -like 'QML_ENTRY=*' } | Select-Object -First 1)
+    if ([string]::IsNullOrEmpty($line)) {
+        throw "$name did not emit a QML_ENTRY line; exit=$($run.ExitCode) output=$($run.Output)"
+    }
+    $resolved = $line.Substring('QML_ENTRY='.Length)
+    if ($resolved -cne $expected) {
+        throw "$name resolved QmlEntry '$resolved', expected '$expected'"
+    }
+}
+
 $valid = '{"decoderStart":4,"decoderEnd":4,"decoderDelta":0,"outputStart":2,"outputEnd":2,"outputDelta":0,"hwdec":"d3d11va-copy","avsyncStart":0.001,"avsyncEnd":-0.002,"positionStart":20.0,"positionEnd":29.1,"videoSync":"display-resample","interpolation":true}'
 Require-Pass 'valid zero-drop result with sufficient progress' $valid
 
@@ -64,5 +99,14 @@ Require-Fail 'stalled playback' `
 Require-Fail 'invalid avsync' `
     '{"decoderStart":4,"decoderEnd":4,"outputStart":2,"outputEnd":2,"hwdec":"d3d11va-copy","avsyncStart":"Infinity","avsyncEnd":0.002,"positionStart":20.0,"positionEnd":29.1,"videoSync":"display-resample","interpolation":true}' `
     'avsyncStart.*finite number'
+
+# --- -QmlEntry: the default full-app entry is preserved and the optional probe entry is
+# --- forwarded safely (blank falls back to the default; forward slashes normalize to back
+# --- slashes, matching the existing 'qml\Main.qml' argument form on Windows).
+Require-Entry 'default QmlEntry is qml/Main.qml' '' 'qml\Main.qml'
+Require-Entry 'explicit default forwards unchanged' 'qml/Main.qml' 'qml\Main.qml'
+Require-Entry 'optional probe entry forwarded with slash normalization' `
+    'tests/mpv_qtquick_tenet_probe.qml' 'tests\mpv_qtquick_tenet_probe.qml'
+Require-Entry 'blank QmlEntry falls back to the default (safe)' '   ' 'qml\Main.qml'
 
 Write-Output 'test_mpv_zero_drop_gate_parser: PASS'

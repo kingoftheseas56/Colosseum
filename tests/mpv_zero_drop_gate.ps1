@@ -3,6 +3,10 @@ param(
 
     [string]$Clip = '',
 
+    # QML entry point passed to colosseum.exe. Defaults to the full app so existing
+    # behavior is unchanged; the bare-MpvItem isolation probe overrides this.
+    [string]$QmlEntry = 'qml/Main.qml',
+
     [ValidateRange(1, 86400)]
     [int]$WarmupSeconds = 30,
 
@@ -12,7 +16,11 @@ param(
     [ValidateRange(1, 100)]
     [int]$Runs = 2,
 
-    [string]$ValidateResultJson = ''
+    [string]$ValidateResultJson = '',
+
+    # Side mode for tests: print the resolved QML entry and exit without launching a
+    # process. Mirrors the -ValidateResultJson no-launch side-mode pattern.
+    [switch]$ResolveQmlEntry
 )
 
 $ErrorActionPreference = 'Stop'
@@ -23,6 +31,16 @@ function Resolve-InputPath([string]$Path, [string]$BasePath) {
         return (Resolve-Path -LiteralPath $Path).Path
     }
     return (Resolve-Path -LiteralPath (Join-Path $BasePath $Path)).Path
+}
+
+function Resolve-QmlEntry([string]$Entry) {
+    # A blank/whitespace entry must never launch the app with an empty argument; fall back to
+    # the full-app default. Normalize forward slashes to back slashes to match the existing
+    # 'qml\Main.qml' argument form on Windows.
+    if ([string]::IsNullOrWhiteSpace($Entry)) {
+        return 'qml\Main.qml'
+    }
+    return ($Entry -replace '/', '\')
 }
 
 function Get-RequiredValue([object]$Result, [string]$Name) {
@@ -136,8 +154,13 @@ if (-not [string]::IsNullOrWhiteSpace($ValidateResultJson)) {
     return
 }
 
+if ($ResolveQmlEntry) {
+    Write-Output ("QML_ENTRY=" + (Resolve-QmlEntry $QmlEntry))
+    return
+}
+
 if ([string]::IsNullOrWhiteSpace($Exe) -or [string]::IsNullOrWhiteSpace($Clip)) {
-    throw 'Exe and Clip are required unless ValidateResultJson is supplied'
+    throw 'Exe and Clip are required unless ValidateResultJson or ResolveQmlEntry is supplied'
 }
 
 $exePath = Resolve-InputPath $Exe $root
@@ -178,7 +201,7 @@ try {
         $stderrLog = Join-Path $artifactDir "run-$run.stderr.log"
         $startInfo = New-Object System.Diagnostics.ProcessStartInfo
         $startInfo.FileName = $exePath
-        $startInfo.Arguments = 'qml\Main.qml'
+        $startInfo.Arguments = (Resolve-QmlEntry $QmlEntry)
         $startInfo.WorkingDirectory = $root
         $startInfo.UseShellExecute = $false
         $startInfo.CreateNoWindow = $false
