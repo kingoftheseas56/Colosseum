@@ -1779,7 +1779,15 @@ Item {
 
     // Write the current watch position to the Continue store. Called on a ticking timer
     // while playing and once more on stop, so the resume bar reflects where you really are.
-    function recordProgress() {
+    // Pass silent=true (the 5s playback tick) to persist for crash-resume WITHOUT emitting
+    // changed() — re-rendering the Continue row every 5s was the proven stutter source
+    // (2026-07-29 A/B: +100 -> +3 output drops/60s). No-arg calls (the lifecycle sites: stop,
+    // stream-death, playback-failure, episode-advance, EOF) still notify via record(), so the
+    // row refreshes when you actually leave the player or move on. NOTE: seek and pause do NOT
+    // call recordProgress at all (pre-existing, intentional — scrubbing fires often, and a
+    // notify-per-seek would re-introduce a smaller cascade); their position is picked up by the
+    // next 5s tick or the next lifecycle write.
+    function recordProgress(silent) {
         if (root.mediaId === "" || mpv.duration <= 0 || mpv.position <= 0)
             return
         // Anti-clutter floor (matches Tankoban 2's MIN_POSITION_SEC = 10): an accidental
@@ -1793,7 +1801,7 @@ Item {
         var m = root.parseSubtitleMeta()
         var epPrefix = (m.type === "series" && m.season !== undefined && m.episode !== undefined)
                        ? ("S" + m.season + " · E" + m.episode + " · ") : ""
-        Progress.record({
+        var entry = {
             "id": root.mediaId,
             "kind": "video",
             "caption": root.mediaTitle,
@@ -1808,14 +1816,21 @@ Item {
                         "subType": root.subStreamType,
                         "subId": root.subStreamId,
                         "position": mpv.position }
-        })
+        }
+        if (silent) Progress.recordSilent(entry)
+        else Progress.record(entry)
     }
 
     // Tick the watch position into the store every few seconds while actually playing.
+    // Silent: persists for crash-resume via recordSilent() without emitting changed(), so the
+    // Continue row is not re-rendered every 5s (that cascade was the proven video-stutter
+    // source, 2026-07-29). Lifecycle writes (stop / stream-death / playback-failure /
+    // episode-advance / EOF) still notify via recordProgress(); seek and pause intentionally do
+    // not (see recordProgress above).
     Timer {
         interval: 5000; repeat: true
         running: !root.starting && !root.errored && !mpv.pause && mpv.duration > 0
-        onTriggered: root.recordProgress()
+        onTriggered: root.recordProgress(true)
     }
 
     Timer {

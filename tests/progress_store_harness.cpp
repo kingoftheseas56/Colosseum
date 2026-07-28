@@ -103,7 +103,13 @@ void runSuite()
     require(!hasIdContaining(afterMovie, QStringLiteral("tt1234567")), "movie removed one-for-one");
     require(afterMovie.size() == 1, "only manga remains");
 
-    // Persistence: a fresh store over the same INI reflects the removals.
+    // Persistence: a fresh store over the same INI reflects the removals. The background writer
+    // is asynchronous (the worker thread serializes + syncs on its own thread, off the GUI/render
+    // thread — that is the whole point of the 2026-07-29 video-stutter fix), so flush() is the
+    // explicit read-your-writes barrier: it posts the current map and blocks until every queued
+    // writeSnapshot has run. Without it, a reload could race an in-flight forget and read stale
+    // data. This is the deterministic contract the async conversion requires.
+    store.flush();
     ProgressStore reloaded(path);
     const QVariantList persisted = reloaded.recent();
     require(persisted.size() == 1, "removals persist across reload");
