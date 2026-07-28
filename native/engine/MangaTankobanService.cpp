@@ -122,6 +122,10 @@ MangaTankobanService::MangaTankobanService(QNetworkAccessManager* searchNam,
         this);
 
     m_index    = new MangaVolumeIndex(base, this);
+    // Startup is the recovery boundary: reconcile durable sidecars, repair
+    // legacy ledger drift from each volume's manifest, and migrate every valid
+    // loose-page Tankoban payload to the canonical CBZ-only layout.
+    m_index->heal();
     m_ingestor = new MangaVolumeArchiveIngestor(m_index, this);
     // Synopsis lookups (Apple Books / Open Library) MUST ride the IPv4-pinned searchNam,
     // not the bare dlNam — those hosts publish a dead AAAA on this ISP, so an unpinned

@@ -22,6 +22,7 @@
 // Async note: fetchPages fires synchronously (deterministic in-flight replies for
 // the cancel case), image downloads are real & async, so the harness owns a
 // QCoreApplication and a waitFor() event-loop pump.
+#include "engine/CbzArchive.h"
 #include "engine/MangaResult.h"
 #include "engine/MangaScraper.h"
 #include "engine/MangaSeriesDetail.h"
@@ -178,16 +179,16 @@ private:
     QString     m_imagesDir;
 };
 
-QString pageLocalFile(const QVariantMap& page)
+QByteArray pageBytes(const QVariantMap& page)
 {
-    return page.value(QStringLiteral("url")).toUrl().toLocalFile();
+    return CbzArchive::readEntry(
+        page.value(QStringLiteral("archive")).toString(),
+        page.value(QStringLiteral("entry")).toString());
 }
 
-bool startsWithJpegMagic(const QString& localFile)
+bool startsWithJpegMagic(const QVariantMap& page)
 {
-    QFile f(localFile);
-    if (!f.open(QIODevice::ReadOnly)) return false;
-    const QByteArray head = f.read(3);
+    const QByteArray head = pageBytes(page).left(3);
     return head.size() == 3
         && static_cast<unsigned char>(head[0]) == 0xFF
         && static_cast<unsigned char>(head[1]) == 0xD8
@@ -267,7 +268,11 @@ int main(int argc, char** argv)
                 && lp[2].toMap().value(QStringLiteral("group")).toInt() == 1,
             "localPages groups preserved as {0,0,1}");
     // Anti-stub: the published page is a REAL downloaded JPEG, not a placeholder.
-    require(startsWithJpegMagic(pageLocalFile(lp[0].toMap())),
+    require(lp[0].toMap().value(QStringLiteral("archive")).toString()
+                    .endsWith(QStringLiteral(".cbz"))
+                && lp[0].toMap().value(QStringLiteral("url")).toUrl().isEmpty(),
+            "WeebCentral packer publishes CBZ-only descriptors");
+    require(startsWithJpegMagic(lp[0].toMap()),
             "published page is a real downloaded JPEG");
 
     // ── Fix 3: provenance stores the SERIES title, not the volume title ───────────

@@ -2,26 +2,26 @@
 
 // Durable, atomic on-disk index of downloaded Tankoban volumes.
 //
-// One volume = one loose page directory (page_000.<ext> …) plus one row in a
-// single JSON ledger written with QSaveFile, so a crash mid-write can never
+// One volume = one canonical CBZ plus an atomic recovery sidecar and one row in
+// a single JSON ledger written with QSaveFile, so a crash mid-write can never
 // corrupt the ledger (the temp file is renamed into place or discarded whole).
 // The ledger row carries the volume's canonical id, series metadata, source
 // provenance (nyaa infohash / weebcentral chapter ids, uploader, release title),
 // the naturally-ordered page filenames, per-page chapter-group ordinals, the
 // payload byte count and the added-time.
 //
-// localPages() returns the exact reader shape MangaReader consumes —
-//   [{index, url: QUrl(file://…/page_000.ext), group}]
-// — so a Tankoban volume reads through the same machinery as a downloaded manga
-// chapter or western issue.
+// localPages() returns direct archive descriptors:
+//   [{index, archive, entry, group}]
+// The comic reader decodes these entries without extracting them.
 //
 // Layout (root is injected — the app passes AppDataLocation, tests a temp dir):
 //   <root>/manga-volumes/volume-index.json          (the ledger)
-//   <root>/manga-volumes/pages/<series>/vol-<n>-<hash>/page_000.ext …
+//   <root>/manga-volumes/archives/<series>/vol-<n>-<hash>.cbz
+//   <root>/manga-volumes/archives/<series>/vol-<n>-<hash>.cbz.json
 //
-// Self-heal doctrine (repair-then-prune): heal() drops any row whose final dir
-// or a recorded page file is missing rather than letting statusOf silently
-// report a broken volume as ready.
+// Self-heal doctrine (repair-then-prune): sidecars and legacy per-volume
+// manifests repair the ledger first. Valid loose legacy payloads migrate to CBZ;
+// only an unrecoverable lookup row is pruned, never unvalidated payload bytes.
 
 #include "engine/MangaTankobanTypes.h"
 #include "engine/DownloadFileOps.h"
@@ -67,6 +67,7 @@ public:
     // on-disk layout truth, so the ingestor and the index agree on where a
     // volume's pages live.
     QString pagesDirFor(const VolumeProvenance& record) const;
+    QString archivePathFor(const VolumeProvenance& record) const;
 
     // Atomically record a finalized volume. `finalDir` already holds the
     // page_NNN files; `orderedFiles` are those names in natural page order;
@@ -74,10 +75,12 @@ public:
     // `bytes` the payload byte count. Overwrites any prior row for record.id.
     bool publish(const VolumeProvenance& record, const QString& finalDir,
                  const QStringList& orderedFiles, const QList<int>& groups, qint64 bytes);
+    bool publishArchive(const VolumeProvenance& record, const QString& archivePath,
+                        const QStringList& orderedFiles, const QList<int>& groups,
+                        qint64 bytes);
 
-    // Reader shape: one map per page {index, url(QUrl file://…), group}, index
-    // ascending from 0. Pages missing on disk are skipped; the index stays
-    // contiguous. Returns [] for an unknown volume.
+    // Reader shape: one map per page {index, archive, entry, group}, index
+    // ascending from 0. Returns [] unless the archive and ordered members verify.
     Q_INVOKABLE QVariantList localPages(const QString& volumeId) const;
 
     // {state: "none"|"ready", progress, + provenance/dir/pages/bytes/addedAt}.
@@ -93,14 +96,15 @@ public:
     // with one shape.
     Q_INVOKABLE QVariantList downloadedVolumes() const;
 
-    // Delete the pages dir + ledger row. Returns false when the id is unknown
-    // or the pages directory could not be removed.
+    // Delete the CBZ, recovery sidecar, and ledger row. Legacy loose directories
+    // remain supported only so pre-migration data can be retired safely.
     Q_INVOKABLE bool remove(const QString& volumeId);
 
     // Re-read the ledger from disk (proves atomic persistence across a restart).
     void reload();
 
-    // Prune every row whose final dir or any recorded page file is missing.
+    // Reconcile sidecars, migrate legacy loose pages, then prune only
+    // unrecoverable ledger rows.
     void heal();
 
 signals:
@@ -112,6 +116,7 @@ private:
         QString seriesTitle;
         QString volumeNumber;
         QString dir;
+        QString archive;
         QStringList files;
         QList<int> groups;
         qint64 bytes = 0;
@@ -125,8 +130,11 @@ private:
 
     QString indexPath() const;
     void load();
-    void save() const;
+    bool save() const;
     bool entryIntact(const Entry& e) const;
+    bool writeSidecar(const QString& id, const Entry& e) const;
+    bool reconcileSidecar(const QString& id, Entry& e) const;
+    bool migrateLegacy(const QString& id, Entry& e);
 
     QString m_baseDir;
     DownloadFileOps::Remover m_treeRemover;

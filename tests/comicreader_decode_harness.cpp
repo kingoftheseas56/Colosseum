@@ -13,6 +13,7 @@
 #include "comicreader/ComicReaderDecode.h"
 #include "comicreader/ComicReaderPageCache.h"
 #include "comicreader/ComicReaderTypes.h"
+#include "engine/CbzArchive.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -489,6 +490,61 @@ int main(int argc, char** argv) {
                   "T10 a recognized-but-unhandled format maps to UnsupportedImage");
             CHECK(log.ready.isEmpty(), "T10 no pageReady for an unsupported format");
         }
+    }
+
+    // Test 11: a page decodes directly from a CBZ entry (no extraction).
+    {
+        const QString cbzPath = dir.filePath(QStringLiteral("reader.cbz"));
+        QString archiveError;
+        CHECK(MangaTankoban::CbzArchive::writeImagesAtomic(
+                  cbzPath, dir.path(),
+                  QStringList{QStringLiteral("portrait.png"),
+                              QStringLiteral("landscape.png")},
+                  &archiveError),
+              "T11 setup: reader CBZ written");
+
+        PageMeta archived;
+        archived.index = 0;
+        archived.sourceKind = PageSourceKind::CbzEntry;
+        archived.archivePath = cbzPath;
+        archived.archiveEntry = QStringLiteral("portrait.png");
+
+        ComicReaderPageCache cache;
+        SignalLog log;
+        ComicReaderDecode decode(&cache);
+        log.wire(decode);
+        decode.openGeneration(700, {archived});
+        decode.request(0, 100);
+
+        const bool got = waitFor([&] { return !log.ready.isEmpty(); });
+        CHECK(got, "T11 a CBZ entry emits pageReady");
+        const auto cached = cache.get(700, 0);
+        CHECK(cached.has_value() && cached->size() == QSize(900, 1400),
+              "T11 the directly decoded CBZ entry has the original dimensions");
+        CHECK(log.failed.isEmpty(), "T11 no failure for a valid CBZ entry");
+    }
+
+    // Test 12: a missing CBZ member is a precise MissingFile failure.
+    {
+        PageMeta archived;
+        archived.index = 0;
+        archived.sourceKind = PageSourceKind::CbzEntry;
+        archived.archivePath = dir.filePath(QStringLiteral("reader.cbz"));
+        archived.archiveEntry = QStringLiteral("not-in-archive.png");
+
+        ComicReaderPageCache cache;
+        SignalLog log;
+        ComicReaderDecode decode(&cache);
+        log.wire(decode);
+        decode.openGeneration(701, {archived});
+        decode.request(0, 100);
+
+        const bool got = waitFor([&] { return !log.failed.isEmpty(); });
+        CHECK(got, "T12 a missing CBZ member emits pageFailed");
+        CHECK(!log.failed.isEmpty()
+                  && std::get<2>(log.failed[0]) == PageError::MissingFile,
+              "T12 a missing CBZ member maps to MissingFile");
+        CHECK(log.ready.isEmpty(), "T12 no pageReady for a missing CBZ member");
     }
 
     if (g_failures == 0) {

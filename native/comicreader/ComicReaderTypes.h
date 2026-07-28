@@ -17,6 +17,7 @@ namespace comicreader {
 enum class Mode { LongStrip, DoublePage };
 enum class Direction { Ltr, Rtl };
 enum class PageError { None, MissingFile, DecodeFailed, UnsupportedImage };
+enum class PageSourceKind { LocalFile, CbzEntry };
 enum class CouplingMode { Auto, Manual };
 enum class CouplingPhase { Normal, Shifted };
 
@@ -25,7 +26,10 @@ enum class CouplingPhase { Normal, Shifted };
 // mark and always beats detection. Pairing consumes these; it never decodes.
 struct PageMeta {
     int index = -1;
+    PageSourceKind sourceKind = PageSourceKind::LocalFile;
     QString localPath;
+    QString archivePath;
+    QString archiveEntry;
     QSize sourceSize;
     bool decoded = false;
     bool detectedSpread = false;       // width >= 1.08 * height (or override)

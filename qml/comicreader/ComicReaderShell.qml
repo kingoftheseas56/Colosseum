@@ -994,25 +994,24 @@ Item {
     // strip scroll (F1) still works through it today — proof a bare MouseArea here cannot swallow
     // the wheel either.
     //
-    // `enabled` (not just the cursorShape expression) gates chrome/modal away: QQuickItem's own
-    // docs warn "another cursor shape may be displayed if an OVERLAPPING item has a valid cursor"
-    // — being topmost (z:998), this item would otherwise contest every PointingHandCursor the HUD
-    // pills / settings-sheet rows set on hover (grep confirms EVERY cursorShape elsewhere in this
-    // reader lives inside ComicReaderHud.qml or ComicReaderSettingsSheet.qml, i.e. only exists
-    // while chrome/a modal is up). MouseArea.enabled "holds whether the item accepts mouse events"
-    // — disabled, it drops out of that contest entirely — so it only has anything to say in the
-    // one state that has no competing cursor of its own: the bare reading surface, chrome away, no
-    // modal. (`visible` would do the same job, but both `visible` AND `enabled` flow DOWN onto
-    // every descendant — and this offscreen harness's own root is `visible:false` by design, which
-    // would force this item's `visible` false unconditionally and make it untestable; `enabled` is
-    // the one of the pair the harness never touches.)
+    // Keep this item enabled across the hidden→visible chrome transition. On
+    // Windows, disabling the item while it owns BlankCursor can leave that
+    // cursor installed even though the HUD has returned. An explicit
+    // BlankCursor→ArrowCursor property transition restores the system cursor
+    // immediately. Modals still disable the overlay so their own cursors win.
     MouseArea {
         objectName: "cursorHideArea"
         anchors.fill: parent
         z: 998
         acceptedButtons: Qt.NoButton
-        enabled: !reader.chromeVisible && !reader.modalOpen
-        cursorShape: reader._cursorIdle ? Qt.BlankCursor : Qt.ArrowCursor
+        hoverEnabled: true
+        enabled: !reader.modalOpen
+        cursorShape: reader.chromeVisible || !reader._cursorIdle
+                     ? Qt.ArrowCursor : Qt.BlankCursor
+        onPositionChanged: {
+            reader._pokeCursor()
+            hud.reveal()
+        }
     }
 
     // ---- overlays (Task 12) — mounted ABOVE the HUD so they own input while open ----

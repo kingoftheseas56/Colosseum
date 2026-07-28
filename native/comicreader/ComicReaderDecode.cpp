@@ -2,6 +2,7 @@
 #include "comicreader/ComicReaderDecode.h"
 
 #include "comicreader/ComicReaderPageCache.h"
+#include "engine/CbzArchive.h"
 
 #include <QBuffer>
 #include <QByteArray>
@@ -52,8 +53,9 @@ bool looksLikeKnownImageContainer(const QByteArray& bytes) {
     return false;
 }
 
-// The pool worker: PURE over its captured (gen, page, localPath). It reads the
-// file, decodes it, and posts the result back to the coordinator's thread via a
+// The pool worker is pure over its captured generation, page, and source. It
+// reads either a local file or one named CBZ member, decodes it, and posts the
+// result back to the coordinator's thread via a
 // queued invocation. It never touches the cache, the inflight set, or any
 // coordinator state — the only thing it does with the coordinator pointer is use
 // it as the receiver/context of the queued post, which Qt marshals safely and
@@ -61,13 +63,13 @@ bool looksLikeKnownImageContainer(const QByteArray& bytes) {
 class DecodeRunnable final : public QRunnable {
 public:
     DecodeRunnable(ComicReaderDecode* coordinator, quint64 gen, int page,
-                   QString localPath,
+                   PageMeta meta,
                    std::function<void(quint64, int)> onEnter,
                    std::function<void(quint64, int)> onExit)
         : m_coordinator(coordinator),
           m_gen(gen),
           m_page(page),
-          m_localPath(std::move(localPath)),
+          m_meta(std::move(meta)),
           m_onEnter(std::move(onEnter)),
           m_onExit(std::move(onExit)) {}
 
@@ -78,22 +80,37 @@ public:
         QImage image;
         PageError error = PageError::None;
 
-        if (m_localPath.isEmpty() || !QFileInfo::exists(m_localPath)) {
+        QByteArray bytes;
+        if (m_meta.sourceKind == PageSourceKind::CbzEntry) {
+            QString archiveError;
+            bytes = MangaTankoban::CbzArchive::readEntry(
+                m_meta.archivePath, m_meta.archiveEntry, &archiveError);
+            if (bytes.isEmpty()) {
+                error = PageError::MissingFile;
+                qWarning() << "ComicReaderDecode: CBZ read failed"
+                           << "generation" << m_gen << "page" << m_page
+                           << "archive" << m_meta.archivePath
+                           << "entry" << m_meta.archiveEntry
+                           << "reason" << archiveError;
+            }
+        } else if (m_meta.localPath.isEmpty()
+                   || !QFileInfo::exists(m_meta.localPath)) {
             error = PageError::MissingFile;
             qWarning() << "ComicReaderDecode: missing file for page" << m_page
-                       << "-" << m_localPath;
+                       << "-" << m_meta.localPath;
         } else {
-            QFile file(m_localPath);
+            QFile file(m_meta.localPath);
             if (!file.open(QIODevice::ReadOnly)) {
-                // Present on disk but unreadable (permissions, vanished mid-read):
-                // treat as missing rather than a decode fault.
                 error = PageError::MissingFile;
                 qWarning() << "ComicReaderDecode: unreadable file for page" << m_page
-                           << "-" << m_localPath << "-" << file.errorString();
+                           << "-" << m_meta.localPath << "-" << file.errorString();
             } else {
-                QByteArray bytes = file.readAll();
+                bytes = file.readAll();
                 file.close();
+            }
+        }
 
+        if (error == PageError::None) {
                 // EARLY DIMENSION HINT (TB2 DecodeTask parity). The header names
                 // the page's true size for a fraction of the decode's cost, so
                 // the strip column can snap to real geometry — and pairing can
@@ -138,12 +155,14 @@ public:
                     error = unsupported ? PageError::UnsupportedImage
                                         : PageError::DecodeFailed;
                     qWarning() << "ComicReaderDecode: decode failed for page" << m_page
-                               << "-" << m_localPath << "-" << reader.errorString();
+                               << "-" << (m_meta.sourceKind == PageSourceKind::CbzEntry
+                                              ? m_meta.archiveEntry
+                                              : m_meta.localPath)
+                               << "-" << reader.errorString();
                 } else {
                     image = decoded;
                     error = PageError::None;
                 }
-            }
         }
 
         if (m_onExit)
@@ -169,7 +188,7 @@ private:
     ComicReaderDecode* m_coordinator;
     quint64 m_gen;
     int m_page;
-    QString m_localPath;
+    PageMeta m_meta;
     std::function<void(quint64, int)> m_onEnter;
     std::function<void(quint64, int)> m_onExit;
 };
@@ -242,7 +261,7 @@ void ComicReaderDecode::request(int page, int priority) {
         return;                              // already decoded and cached (get bumps LRU recency)
 
     m_inflight.insert(page);
-    auto* runnable = new DecodeRunnable(this, m_currentGen, page, it->localPath,
+    auto* runnable = new DecodeRunnable(this, m_currentGen, page, *it,
                                         m_testOnWorkerEnter, m_testOnWorkerExit);
     m_pool.start(runnable, priority);
 }
@@ -257,10 +276,10 @@ void ComicReaderDecode::onWorkerDimensions(quint64 gen, int page, const QSize& d
         return;
 
     PageMeta meta;
-    meta.index = page;
     const auto it = m_pageByIndex.constFind(page);
     if (it != m_pageByIndex.constEnd())
-        meta.localPath = it->localPath;
+        meta = *it;
+    meta.index = page;
     meta.sourceSize = dims;
     // A hint carries geometry, never pixels: `decoded` stays false so every
     // consumer of "is this page ready to paint" keeps telling the truth.
@@ -299,10 +318,10 @@ void ComicReaderDecode::onWorkerResult(quint64 gen, int page, const QImage& imag
     m_cache->insert(gen, page, image);
 
     PageMeta meta;
-    meta.index = page;
     const auto it = m_pageByIndex.constFind(page);
     if (it != m_pageByIndex.constEnd())
-        meta.localPath = it->localPath;
+        meta = *it;
+    meta.index = page;
     meta.sourceSize = image.size();
     meta.decoded = true;
     // Raw geometry verdict only. Index-0 pairing-cover handling and manual

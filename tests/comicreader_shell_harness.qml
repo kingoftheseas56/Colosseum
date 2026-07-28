@@ -1276,8 +1276,10 @@ Item {
                 // OUT of the cursor contest entirely (never override the HUD's own PointingHandCursors)
                 s.chromeVisible = true
                 s._cursorIdle = true
-                ck(area === null || area.enabled === false,
-                   "cursor: with chromeVisible=true the overlay must go DISABLED (never contest the HUD's cursors), got enabled=" + (area ? area.enabled : "<no area>"))
+                ck(area === null || area.enabled === true,
+                   "cursor: with chromeVisible=true the overlay must remain enabled so it can restore the cursor, got enabled=" + (area ? area.enabled : "<no area>"))
+                ck(area === null || area.cursorShape === Qt.ArrowCursor,
+                   "cursor: with chromeVisible=true the overlay must explicitly show ArrowCursor, got " + (area ? area.cursorShape : "<no area>"))
 
                 // an open modal (settings sheet) also takes the overlay out of the contest
                 s.chromeVisible = false

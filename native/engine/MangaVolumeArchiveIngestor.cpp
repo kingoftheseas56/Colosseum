@@ -1,4 +1,5 @@
 #include "engine/MangaVolumeArchiveIngestor.h"
+#include "engine/CbzArchive.h"
 
 #include <QCollator>
 #include <QDir>
@@ -110,13 +111,80 @@ void MangaVolumeArchiveIngestor::ingestArchive(const VolumeProvenance& record,
     job.record.id = id;
     job.archivePath = archive.absoluteFilePath();
     m_queue.enqueue(job);
-    startNext();
+    QMetaObject::invokeMethod(this, [this]() { startNext(); }, Qt::QueuedConnection);
 }
 
 void MangaVolumeArchiveIngestor::startNext()
 {
     if (m_active || m_queue.isEmpty()) return;
     m_active = new Job(m_queue.dequeue());
+
+    const QString suffix = QFileInfo(m_active->archivePath).suffix().toLower();
+    if (suffix == QLatin1String("cbz") || suffix == QLatin1String("zip")) {
+        QString archiveError;
+        const QVector<CbzPageEntry> sourceEntries =
+            CbzArchive::imageEntries(m_active->archivePath, &archiveError);
+        if (sourceEntries.isEmpty()) {
+            failActive(QStringLiteral("CBZ validation failed: %1").arg(archiveError));
+            return;
+        }
+
+        const QString finalPath = m_index->archivePathFor(m_active->record);
+        const QString partPath = finalPath + QStringLiteral(".part");
+        if (QFileInfo::exists(finalPath)) {
+            failActive(QStringLiteral("canonical CBZ already exists"));
+            return;
+        }
+        QDir().mkpath(QFileInfo(finalPath).absolutePath());
+        QFile::remove(partPath);
+        if (!QFile::copy(m_active->archivePath, partPath)) {
+            failActive(QStringLiteral("cannot stage downloaded CBZ"));
+            return;
+        }
+        const QVector<CbzPageEntry> stagedEntries =
+            CbzArchive::imageEntries(partPath, &archiveError);
+        bool stagedMatches = stagedEntries.size() == sourceEntries.size();
+        for (int i = 0; stagedMatches && i < stagedEntries.size(); ++i) {
+            stagedMatches = stagedEntries.at(i).name == sourceEntries.at(i).name
+                            && stagedEntries.at(i).uncompressedBytes
+                                == sourceEntries.at(i).uncompressedBytes;
+        }
+        if (!stagedMatches) {
+            QFile::remove(partPath);
+            failActive(QStringLiteral("staged CBZ validation differs from source: %1")
+                           .arg(archiveError));
+            return;
+        }
+        if (!QFile::rename(partPath, finalPath)) {
+            QFile::remove(partPath);
+            failActive(QStringLiteral("cannot atomically finalize downloaded CBZ"));
+            return;
+        }
+
+        QStringList files;
+        QList<int> groups;
+        qint64 bytes = 0;
+        for (const CbzPageEntry& entry : stagedEntries) {
+            files.append(entry.name);
+            groups.append(0);
+            bytes += static_cast<qint64>(entry.uncompressedBytes);
+        }
+        if (!m_index->publishArchive(m_active->record, finalPath, files, groups, bytes)) {
+            QFile::remove(finalPath);
+            QFile::remove(finalPath + QStringLiteral(".json"));
+            failActive(QStringLiteral("index publish rejected the CBZ"));
+            return;
+        }
+
+        const QString id = m_active->record.id;
+        QFile::remove(m_active->archivePath);
+        delete m_active;
+        m_active = nullptr;
+        emit finished(id);
+        startNext();
+        return;
+    }
+
     m_active->extractTmp = m_index->pagesDirFor(m_active->record) + QStringLiteral(".extract");
     QDir(m_active->extractTmp).removeRecursively();
     if (!QDir().mkpath(m_active->extractTmp)) {
@@ -260,29 +328,19 @@ QString MangaVolumeArchiveIngestor::finalizeInto(const VolumeProvenance& record,
         return coll.compare(a, b) < 0;
     });
 
-    // 4. Assemble a fresh staging dir of page_NNN files (never recompressed —
-    //    only moved). staging/final live side-by-side under the same volume so
-    //    the staging → final rename is atomic.
-    const QString finalDir   = m_index->pagesDirFor(record);
-    const QString stagingDir = finalDir + QStringLiteral(".staging");
-    QDir(stagingDir).removeRecursively();
-    if (!QDir().mkpath(stagingDir))
-        return QStringLiteral("cannot create staging dir");
+    // 4. Write the naturally ordered source pages into a same-directory .part
+    //    archive without recompression, reopen it, then atomically rename it.
+    const QString finalArchive = m_index->archivePathFor(record);
+    if (QFileInfo::exists(finalArchive))
+        return QStringLiteral("canonical CBZ already exists");
+    QString archiveError;
+    if (!CbzArchive::writeImagesAtomic(finalArchive, sourceDir, rel, &archiveError))
+        return QStringLiteral("CBZ publish failed: %1").arg(archiveError);
 
-    QStringList files;
-    qint64      bytes = 0;
-    for (int i = 0; i < rel.size(); ++i) {
-        const QString srcPath = sourceDir + QChar('/') + rel[i];
-        const QString ext     = QFileInfo(rel[i]).suffix().toLower();
-        const QString name    = QStringLiteral("page_%1.%2").arg(i, 3, 10, QChar('0')).arg(ext);
-        const QString dstPath = stagingDir + QChar('/') + name;
-        if (!QFile::rename(srcPath, dstPath)) {
-            QDir(stagingDir).removeRecursively();
-            return QStringLiteral("failed placing page %1").arg(i);
-        }
-        files.append(name);
-        bytes += QFileInfo(dstPath).size();
-    }
+    const QStringList files = rel;
+    qint64 bytes = 0;
+    for (const QString& name : files)
+        bytes += QFileInfo(QDir(sourceDir).absoluteFilePath(name)).size();
 
     // Per-page chapter-group ordinals. A caller-supplied list (WeebCentral's
     // multi-chapter volume) is honored only when it matches the final page count
@@ -294,36 +352,11 @@ QString MangaVolumeArchiveIngestor::finalizeInto(const VolumeProvenance& record,
     else
         groups = QList<int>(files.size(), 0);
 
-    // 5. Per-volume manifest (rides inside the payload, atomic with the rename).
-    QJsonObject manifest;
-    manifest[QStringLiteral("volumeId")]     = record.id;
-    manifest[QStringLiteral("seriesId")]     = record.seriesId;
-    manifest[QStringLiteral("volumeNumber")] = record.volumeNumber;
-    manifest[QStringLiteral("sourceKind")]   = record.sourceKind;
-    manifest[QStringLiteral("bytes")]        = static_cast<double>(bytes);
-    QJsonArray manifestFiles;
-    for (const QString& n : files) manifestFiles.append(n);
-    manifest[QStringLiteral("files")] = manifestFiles;
-    QFile mf(stagingDir + QStringLiteral("/index.json"));
-    if (mf.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        mf.write(QJsonDocument(manifest).toJson(QJsonDocument::Indented));
-        mf.close();
-    }
-
-    // 6. Atomically swap the fully-formed staging dir into its final home.
-    QDir(finalDir).removeRecursively();
-    if (!QDir().mkpath(QFileInfo(finalDir).absolutePath())) {
-        QDir(stagingDir).removeRecursively();
-        return QStringLiteral("cannot create pages parent dir");
-    }
-    if (!QDir().rename(stagingDir, finalDir)) {
-        QDir(stagingDir).removeRecursively();
-        return QStringLiteral("atomic finalize (staging → final) failed");
-    }
-
-    // 7. Publish into the durable ledger.
-    if (!m_index->publish(record, finalDir, files, groups, bytes)) {
-        QDir(finalDir).removeRecursively();
+    // Publish recovery metadata beside the validated archive, then commit the
+    // durable ledger row. A ledger failure removes the just-created payload.
+    if (!m_index->publishArchive(record, finalArchive, files, groups, bytes)) {
+        QFile::remove(finalArchive);
+        QFile::remove(finalArchive + QStringLiteral(".json"));
         return QStringLiteral("index publish rejected the volume");
     }
     return QString();

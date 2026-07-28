@@ -15,6 +15,7 @@
 #include "comicreader/ComicReaderProvider.h"
 #include "comicreader/ComicReaderStripModel.h"   // T14 reads the strip geometry roles
 #include "comicreader/ComicReaderTypes.h"
+#include "engine/CbzArchive.h"
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
@@ -996,6 +997,47 @@ int main(int argc, char** argv) {
                        == QLatin1String("none");
         });
         CHECK(healed, "T24 the page decodes once the file is back - MissingFile is not a life sentence");
+    }
+
+    // Test 25: the app-facing descriptor accepts archive+entry and decodes it
+    // directly, proving the CBZ source survives the QML/core boundary.
+    {
+        const QString cbzPath = dir.filePath(QStringLiteral("core-reader.cbz"));
+        QString archiveError;
+        CHECK(MangaTankoban::CbzArchive::writeImagesAtomic(
+                  cbzPath, dir.path(),
+                  QStringList{QStringLiteral("plain0.png"),
+                              QStringLiteral("plain1.png")},
+                  &archiveError),
+              "T25 setup: core reader CBZ written");
+
+        QVariantList pages;
+        for (int i = 0; i < 2; ++i) {
+            QVariantMap page;
+            page.insert(QStringLiteral("index"), i);
+            page.insert(QStringLiteral("archive"), cbzPath);
+            page.insert(QStringLiteral("entry"),
+                        QStringLiteral("plain%1.png").arg(i));
+            page.insert(QStringLiteral("group"), 0);
+            pages.append(page);
+        }
+
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t25-cbz"), pages,
+                       QStringLiteral("ltr"), manualNormal());
+        CHECK(core.pageCount() == 2,
+              "T25 archive descriptors populate the reader page model");
+        CHECK(core.pageInfo(0).value(QStringLiteral("error")).toString()
+                  == QLatin1String("none"),
+              "T25 a valid archive descriptor is analyzable");
+        core.setVisible(QVariantList{0});
+        const bool decoded = waitFor([&] {
+            return core.pageInfo(0).value(QStringLiteral("decoded")).toBool();
+        });
+        CHECK(decoded, "T25 core decodes a CBZ page without extracting it");
+        CHECK(core.pageInfo(0).value(QStringLiteral("sourceKind")).toString()
+                  == QLatin1String("cbz_entry"),
+              "T25 pageInfo preserves the CBZ source kind");
     }
 
     if (g_failures == 0) {

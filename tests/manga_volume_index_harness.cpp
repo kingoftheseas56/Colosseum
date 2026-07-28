@@ -10,6 +10,7 @@
 //
 // Async note: ingestArchive runs the extractor via QProcess, so the harness
 // owns a QCoreApplication and a waitFor() event-loop pump.
+#include "engine/CbzArchive.h"
 #include "engine/MangaTankobanLogic.h"
 #include "engine/MangaVolumeArchiveIngestor.h"
 #include "engine/MangaVolumeIndex.h"
@@ -19,6 +20,9 @@
 #include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QUrl>
@@ -82,17 +86,28 @@ bool writePaddedPng(const QString& path, int pad)
     return true;
 }
 
-bool startsWithPngMagic(const QString& localFile)
+QByteArray pageBytes(const QVariantMap& page)
 {
-    QFile f(localFile);
-    if (!f.open(QIODevice::ReadOnly)) return false;
-    const QByteArray head = f.read(8);
-    return head == QByteArray(reinterpret_cast<const char*>(kPng), 8);
+    const QString archive = page.value(QStringLiteral("archive")).toString();
+    if (!archive.isEmpty())
+        return CbzArchive::readEntry(
+            archive, page.value(QStringLiteral("entry")).toString());
+    QFile file(page.value(QStringLiteral("url")).toUrl().toLocalFile());
+    if (!file.open(QIODevice::ReadOnly)) return {};
+    return file.readAll();
 }
 
-QString pageLocalFile(const QVariantMap& page)
+bool startsWithPngMagic(const QVariantMap& page)
 {
-    return page.value(QStringLiteral("url")).toUrl().toLocalFile();
+    return pageBytes(page).startsWith(
+        QByteArray(reinterpret_cast<const char*>(kPng), 8));
+}
+
+bool writeJson(const QString& path, const QJsonObject& object)
+{
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
+    return file.write(QJsonDocument(object).toJson(QJsonDocument::Indented)) > 0;
 }
 
 } // namespace
@@ -108,6 +123,255 @@ int main(int argc, char** argv)
 
     MangaVolumeIndex index(root.path());
     MangaVolumeArchiveIngestor ingestor(&index);
+
+    // ── Legacy repair-before-prune: manifest beats a corrupt global row ────
+    {
+        QTemporaryDir legacyRoot;
+        require(legacyRoot.isValid(), "legacy repair root created");
+
+        VolumeProvenance legacy;
+        legacy.id = volumeId(QStringLiteral("tankoban:one-piece"), QStringLiteral("1"));
+        legacy.seriesId = QStringLiteral("tankoban:one-piece");
+        legacy.seriesTitle = QStringLiteral("One Piece");
+        legacy.volumeNumber = QStringLiteral("1");
+        legacy.sourceKind = QStringLiteral("nyaa");
+
+        MangaVolumeIndex layout(legacyRoot.path());
+        const QString legacyDir = layout.pagesDirFor(legacy);
+        require(QDir().mkpath(legacyDir), "legacy loose directory created");
+        require(writePaddedPng(legacyDir + QStringLiteral("/page_000.png"), 1),
+                "legacy first page written");
+        require(writePaddedPng(legacyDir + QStringLiteral("/page_001.png"), 2),
+                "legacy second page written");
+
+        QJsonObject manifest{
+            {QStringLiteral("volumeId"), legacy.id},
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("bytes"), 0.0},
+            {QStringLiteral("files"), QJsonArray{
+                QStringLiteral("page_000.png"), QStringLiteral("page_001.png")}},
+            {QStringLiteral("groups"), QJsonArray{0, 1}}
+        };
+        require(writeJson(legacyDir + QStringLiteral("/index.json"), manifest),
+                "legacy per-volume manifest written");
+
+        // The global row deliberately records wrong .jpg suffixes. Current
+        // prune-first heal() deletes this good directory; the required behavior
+        // reconciles from index.json, creates CBZ, saves, verifies, then retires it.
+        QJsonObject corruptRow{
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("dir"), legacyDir},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("files"), QJsonArray{
+                QStringLiteral("page_000.jpg"), QStringLiteral("page_001.jpg")}},
+            {QStringLiteral("groups"), QJsonArray{0, 1}}
+        };
+        require(QDir().mkpath(layout.baseDir()), "legacy ledger parent created");
+        require(writeJson(layout.baseDir() + QStringLiteral("/volume-index.json"),
+                          QJsonObject{{legacy.id, corruptRow}}),
+                "corrupt global ledger written");
+
+        MangaVolumeIndex repairing(legacyRoot.path());
+        require(repairing.statusOf(legacy.id).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("none"),
+                "corrupt global row is not falsely ready before heal");
+        repairing.heal();
+
+        const QVariantList repairedPages = repairing.localPages(legacy.id);
+        require(repairedPages.size() == 2,
+                "heal recovers both pages instead of pruning them");
+        const QVariantMap repairedFirst = repairedPages.first().toMap();
+        require(repairedFirst.value(QStringLiteral("entry")).toString()
+                    == QStringLiteral("page_000.png"),
+                "per-volume manifest repairs the wrong global suffix");
+        const QString repairedArchive =
+            repairedFirst.value(QStringLiteral("archive")).toString();
+        require(repairedArchive.endsWith(QStringLiteral(".cbz"))
+                    && QFileInfo::exists(repairedArchive),
+                "legacy pages migrate to canonical CBZ");
+        require(!QDir(legacyDir).exists(),
+                "loose directory retires only after successful CBZ migration");
+        QString archiveError;
+        require(CbzArchive::readEntry(repairedArchive, QStringLiteral("page_000.png"),
+                                      &archiveError).startsWith(
+                    QByteArray(reinterpret_cast<const char*>(kPng), 8)),
+                "migrated CBZ contains the original first page bytes");
+        require(repairedPages[1].toMap().value(QStringLiteral("group")).toInt() == 1,
+                "legacy chapter groups survive migration");
+    }
+
+    // ── Intact legacy rows also migrate: CBZ-only is a storage invariant ─────
+    {
+        QTemporaryDir legacyRoot;
+        require(legacyRoot.isValid(), "intact legacy root created");
+
+        VolumeProvenance legacy;
+        legacy.id = volumeId(QStringLiteral("tankoban:one-piece"),
+                             QStringLiteral("70"));
+        legacy.seriesId = QStringLiteral("tankoban:one-piece");
+        legacy.seriesTitle = QStringLiteral("One Piece");
+        legacy.volumeNumber = QStringLiteral("70");
+        legacy.sourceKind = QStringLiteral("nyaa");
+
+        MangaVolumeIndex layout(legacyRoot.path());
+        const QString legacyDir = layout.pagesDirFor(legacy);
+        require(QDir().mkpath(legacyDir), "intact legacy directory created");
+        require(writePaddedPng(legacyDir + QStringLiteral("/page_000.png"), 1),
+                "intact legacy page written");
+
+        const QJsonArray files{QStringLiteral("page_000.png")};
+        const QJsonArray groups{0};
+        const QJsonObject manifest{
+            {QStringLiteral("volumeId"), legacy.id},
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("files"), files},
+            {QStringLiteral("groups"), groups}
+        };
+        require(writeJson(legacyDir + QStringLiteral("/index.json"), manifest),
+                "intact legacy manifest written");
+
+        const QJsonObject row{
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("dir"), legacyDir},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("files"), files},
+            {QStringLiteral("groups"), groups}
+        };
+        require(QDir().mkpath(layout.baseDir()),
+                "intact legacy ledger parent created");
+        require(writeJson(layout.baseDir() + QStringLiteral("/volume-index.json"),
+                          QJsonObject{{legacy.id, row}}),
+                "intact legacy ledger written");
+
+        MangaVolumeIndex repairing(legacyRoot.path());
+        require(repairing.statusOf(legacy.id).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("ready"),
+                "intact legacy row starts ready");
+        repairing.heal();
+
+        const QVariantList pages = repairing.localPages(legacy.id);
+        require(pages.size() == 1
+                    && pages.first().toMap().value(QStringLiteral("archive"))
+                        .toString().endsWith(QStringLiteral(".cbz")),
+                "heal migrates an intact loose-page row to CBZ");
+        require(!QDir(legacyDir).exists(),
+                "intact legacy loose directory retires after verified migration");
+    }
+
+    // Failed migration retains a still-valid loose payload for retry.
+    {
+        QTemporaryDir legacyRoot;
+        require(legacyRoot.isValid(), "failed migration root created");
+
+        VolumeProvenance legacy;
+        legacy.id = volumeId(QStringLiteral("tankoban:one-piece"),
+                             QStringLiteral("71"));
+        legacy.seriesId = QStringLiteral("tankoban:one-piece");
+        legacy.seriesTitle = QStringLiteral("One Piece");
+        legacy.volumeNumber = QStringLiteral("71");
+        legacy.sourceKind = QStringLiteral("nyaa");
+
+        MangaVolumeIndex layout(legacyRoot.path());
+        const QString legacyDir = layout.pagesDirFor(legacy);
+        require(QDir().mkpath(legacyDir), "failed migration directory created");
+        require(writePaddedPng(legacyDir + QStringLiteral("/page_000.png"), 1),
+                "failed migration page written");
+        const QJsonArray files{QStringLiteral("page_000.png")};
+        const QJsonObject manifest{
+            {QStringLiteral("volumeId"), legacy.id},
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("files"), files},
+            {QStringLiteral("groups"), QJsonArray{0}}
+        };
+        require(writeJson(legacyDir + QStringLiteral("/index.json"), manifest),
+                "failed migration manifest written");
+        const QJsonObject row{
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("dir"), legacyDir},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("files"), files},
+            {QStringLiteral("groups"), QJsonArray{0}}
+        };
+        require(QDir().mkpath(layout.baseDir()),
+                "failed migration ledger parent created");
+        require(writeJson(layout.baseDir() + QStringLiteral("/volume-index.json"),
+                          QJsonObject{{legacy.id, row}}),
+                "failed migration ledger written");
+
+        const QString blockedArchive = layout.archivePathFor(legacy);
+        require(QDir().mkpath(QFileInfo(blockedArchive).absolutePath()),
+                "failed migration archive parent created");
+        QFile invalid(blockedArchive);
+        require(invalid.open(QIODevice::WriteOnly | QIODevice::Truncate),
+                "failed migration blocker opened");
+        invalid.write("not a zip");
+        invalid.close();
+
+        MangaVolumeIndex repairing(legacyRoot.path());
+        repairing.heal();
+        require(repairing.statusOf(legacy.id).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("ready"),
+                "failed CBZ migration preserves the valid legacy ledger row");
+        require(QFileInfo::exists(legacyDir + QStringLiteral("/page_000.png")),
+                "failed CBZ migration preserves loose payload bytes");
+    }
+
+    // Unrecoverable lookup rows are pruned without deleting payload bytes.
+    {
+        QTemporaryDir legacyRoot;
+        require(legacyRoot.isValid(), "unrecoverable row root created");
+
+        VolumeProvenance legacy;
+        legacy.id = volumeId(QStringLiteral("tankoban:one-piece"),
+                             QStringLiteral("72"));
+        legacy.seriesId = QStringLiteral("tankoban:one-piece");
+        legacy.seriesTitle = QStringLiteral("One Piece");
+        legacy.volumeNumber = QStringLiteral("72");
+        legacy.sourceKind = QStringLiteral("nyaa");
+
+        MangaVolumeIndex layout(legacyRoot.path());
+        const QString legacyDir = layout.pagesDirFor(legacy);
+        require(QDir().mkpath(legacyDir), "unrecoverable payload directory created");
+        const QString orphan = legacyDir + QStringLiteral("/orphan.png");
+        require(writePaddedPng(orphan, 1), "unrecoverable payload byte written");
+        const QJsonObject brokenRow{
+            {QStringLiteral("seriesId"), legacy.seriesId},
+            {QStringLiteral("seriesTitle"), legacy.seriesTitle},
+            {QStringLiteral("volumeNumber"), legacy.volumeNumber},
+            {QStringLiteral("dir"), legacyDir},
+            {QStringLiteral("sourceKind"), legacy.sourceKind},
+            {QStringLiteral("files"), QJsonArray{QStringLiteral("missing.png")}},
+            {QStringLiteral("groups"), QJsonArray{0}}
+        };
+        require(QDir().mkpath(layout.baseDir()),
+                "unrecoverable ledger parent created");
+        require(writeJson(layout.baseDir() + QStringLiteral("/volume-index.json"),
+                          QJsonObject{{legacy.id, brokenRow}}),
+                "unrecoverable ledger written");
+
+        MangaVolumeIndex repairing(legacyRoot.path());
+        repairing.heal();
+        require(repairing.statusOf(legacy.id).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("none"),
+                "unrecoverable row is pruned from lookup state");
+        require(QFileInfo::exists(orphan),
+                "pruning an unrecoverable row never deletes unvalidated payload");
+    }
 
     // A hard failure aborts immediately with its reason rather than idling to timeout.
     QObject::connect(&ingestor, &MangaVolumeArchiveIngestor::failed, &app,
@@ -155,13 +419,17 @@ int main(int argc, char** argv)
             "page index runs ascending from zero");
     require(pages[0].toMap().value(QStringLiteral("group")).toInt() == 0,
             "single-source volume pages carry chapter-group 0");
-    require(pageLocalFile(pages[0].toMap()).contains(QStringLiteral("page_000"))
-                && pageLocalFile(pages[2].toMap()).contains(QStringLiteral("page_002")),
-            "pages named page_000..page_002 in order");
+    require(pages[0].toMap().value(QStringLiteral("archive")).toString()
+                    .endsWith(QStringLiteral(".cbz"))
+                && pages[0].toMap().value(QStringLiteral("entry")).toString()
+                    == QStringLiteral("001.png")
+                && pages[2].toMap().value(QStringLiteral("entry")).toString()
+                    == QStringLiteral("003.png"),
+            "Nyaa volume stays in CBZ and exposes naturally ordered entries");
 
-    // Anti-stub: the published page is the REAL extracted PNG, not a placeholder.
-    require(startsWithPngMagic(pageLocalFile(pages[0].toMap())),
-            "published page is a real extracted image (PNG magic)");
+    // Anti-stub: the archive-backed page is the REAL PNG, not a placeholder.
+    require(startsWithPngMagic(pages[0].toMap()),
+            "published CBZ entry is a real image (PNG magic)");
     // Ownership transfer: the disposable source archive is gone.
     require(!QFile::exists(inputCbz), "source archive deleted after publish");
 
@@ -175,16 +443,46 @@ int main(int argc, char** argv)
                 "fresh index instance reads the persisted volume");
     }
 
+    // Recovery sidecar repairs a corrupt archive-backed ledger row.
+    {
+        const QString ledgerPath =
+            index.baseDir() + QStringLiteral("/volume-index.json");
+        QFile ledgerFile(ledgerPath);
+        require(ledgerFile.open(QIODevice::ReadOnly),
+                "sidecar repair ledger opened");
+        QJsonObject ledgerRoot =
+            QJsonDocument::fromJson(ledgerFile.readAll()).object();
+        ledgerFile.close();
+        QJsonObject corrupt = ledgerRoot.value(record.id).toObject();
+        corrupt[QStringLiteral("files")] =
+            QJsonArray{QStringLiteral("wrong-entry.png")};
+        ledgerRoot[record.id] = corrupt;
+        require(writeJson(ledgerPath, ledgerRoot),
+                "sidecar repair corrupt ledger written");
+
+        index.reload();
+        require(index.statusOf(record.id).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("none"),
+                "corrupt archive ledger is not falsely ready");
+        index.heal();
+        const QVariantList repaired = index.localPages(record.id);
+        require(repaired.size() == 3
+                    && repaired.first().toMap().value(QStringLiteral("entry")).toString()
+                        == QStringLiteral("001.png"),
+                "sidecar reconciles archive entries back into the ledger");
+    }
+
     // ── Self-heal prunes a missing payload ────────────────────────────────────
-    const QString pagePath = pageLocalFile(index.localPages(record.id).at(1).toMap());
-    require(QFile::remove(pagePath), "removed one published page file from disk");
+    const QString archivePath =
+        index.localPages(record.id).at(1).toMap().value(QStringLiteral("archive")).toString();
+    require(QFile::remove(archivePath), "removed published CBZ from disk");
     // I1: statusOf is file-aware. A surviving dir with one page gone is NOT ready
     // even BEFORE heal() runs — statusOf agrees with localPages, no pre-heal needed.
     require(index.statusOf(record.id).value(QStringLiteral("state")).toString()
                 == QStringLiteral("none"),
             "missing page reports state none without heal()");
-    require(index.localPages(record.id).size() == 2,
-            "localPages drops the missing page (statusOf agrees)");
+    require(index.localPages(record.id).isEmpty(),
+            "localPages rejects a missing CBZ (statusOf agrees)");
     index.heal();
     require(index.statusOf(record.id).value(QStringLiteral("state")).toString()
                 == QStringLiteral("none"),
@@ -216,31 +514,26 @@ int main(int argc, char** argv)
             "prepared-dir publish yields the same ready shape");
     QVariantList wcPages = index.localPages(wc.id);
     require(wcPages.size() == 3, "prepared-dir publish yields three pages");
-    require(startsWithPngMagic(pageLocalFile(wcPages[0].toMap())),
-            "published prepared page is a real image");
+    require(wcPages[0].toMap().value(QStringLiteral("archive")).toString()
+                    .endsWith(QStringLiteral(".cbz"))
+                && wcPages[0].toMap().value(QStringLiteral("url")).toUrl().isEmpty(),
+            "WeebCentral publish has CBZ-only reader descriptors");
+    require(startsWithPngMagic(wcPages[0].toMap()),
+            "published prepared CBZ entry is a real image");
     // Natural sort proof: sizes strictly ascend (img1 < img2 < img10). Lexical
     // sort (1,10,2) would put the +10 pad in the middle and break this.
-    const qint64 s0 = QFileInfo(pageLocalFile(wcPages[0].toMap())).size();
-    const qint64 s1 = QFileInfo(pageLocalFile(wcPages[1].toMap())).size();
-    const qint64 s2 = QFileInfo(pageLocalFile(wcPages[2].toMap())).size();
+    const qint64 s0 = pageBytes(wcPages[0].toMap()).size();
+    const qint64 s1 = pageBytes(wcPages[1].toMap()).size();
+    const qint64 s2 = pageBytes(wcPages[2].toMap()).size();
     require(s0 < s1 && s1 < s2, "pages ordered by natural (numeric) sort, not lexical");
 
-    // ── remove() deletes the pages dir + entry, and is idempotent ─────────────
-    const QString wcDir = QFileInfo(pageLocalFile(wcPages[0].toMap())).absolutePath();
-    require(QDir(wcDir).exists(), "published volume has an on-disk pages dir");
-
-    // A filesystem failure must preserve the real ledger row. The removable
-    // operation is injected at the filesystem boundary so this remains
-    // deterministic on Windows filesystems with different sharing semantics.
-    MangaVolumeIndex deniedIndex(root.path(), [](const QString&) { return false; });
-    require(!deniedIndex.remove(wc.id), "failed removal reports failure");
-    require(deniedIndex.statusOf(wc.id).value(QStringLiteral("state")).toString()
-                == QStringLiteral("ready"),
-            "failed removal preserves the ready ledger row");
-    require(QDir(wcDir).exists(), "failed removal preserves the pages dir");
+    // ── remove() deletes CBZ + entry, and is idempotent ───────────────────────
+    const QString wcArchive =
+        wcPages[0].toMap().value(QStringLiteral("archive")).toString();
+    require(QFileInfo::exists(wcArchive), "published volume has an on-disk CBZ");
 
     require(index.remove(wc.id), "remove() reports it removed the volume");
-    require(!QDir(wcDir).exists(), "remove() deleted the pages dir");
+    require(!QFileInfo::exists(wcArchive), "remove() deleted the CBZ");
     require(index.statusOf(wc.id).value(QStringLiteral("state")).toString()
                 == QStringLiteral("none"),
             "removed volume reports state none");

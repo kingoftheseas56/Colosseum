@@ -212,6 +212,8 @@ add_executable(colosseum
     torrent/MangaVolumeFilePicker.h
     engine/MangaVolumeIndex.cpp
     engine/MangaVolumeIndex.h
+    engine/CbzArchive.cpp
+    engine/CbzArchive.h
     engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaVolumeArchiveIngestor.h
     torrent/MangaVolumeTorrentDownloader.cpp
@@ -739,22 +741,35 @@ target_link_libraries(knaben_indexer_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(manga_volume_index_harness
     ../tests/manga_volume_index_harness.cpp
+    engine/CbzArchive.cpp
     engine/MangaVolumeIndex.cpp
     engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaTankobanLogic.cpp
+    third_party/miniz/miniz.c
 )
 target_include_directories(manga_volume_index_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_volume_index_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_volume_index_harness PRIVATE Qt6::Core)
 
+add_executable(cbz_archive_harness
+    ../tests/cbz_archive_harness.cpp
+    engine/CbzArchive.cpp
+    engine/CbzArchive.h
+    third_party/miniz/miniz.c
+)
+target_include_directories(cbz_archive_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(cbz_archive_harness PRIVATE Qt6::Core)
+
 add_executable(manga_volume_packer_harness
     ../tests/manga_volume_packer_harness.cpp
+    engine/CbzArchive.cpp
     engine/MangaVolumePacker.cpp
     engine/MangaScraper.h
     engine/MangaVolumeIndex.cpp
     engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaTankobanLogic.cpp
+    third_party/miniz/miniz.c
 )
 target_include_directories(manga_volume_packer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_volume_packer_harness PRIVATE
@@ -781,6 +796,7 @@ target_link_libraries(torrent_engine_link_harness PRIVATE colosseum_libtorrent)
 # ctor compile out, and the DI ctor drives the real index/ingestor/enricher.
 add_executable(manga_tankoban_service_harness
     ../tests/manga_tankoban_service_harness.cpp
+    engine/CbzArchive.cpp
     engine/MangaTankobanService.cpp
     engine/MangaTankobanService.h
     engine/MangaTankobanLogic.cpp
@@ -793,6 +809,7 @@ add_executable(manga_tankoban_service_harness
     torrent/MangaVolumeTorrentDownloader.cpp
     torrent/MangaVolumeRequestLedger.cpp
     torrent/MangaVolumeFilePicker.cpp
+    third_party/miniz/miniz.c
 )
 target_include_directories(manga_tankoban_service_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(manga_tankoban_service_harness PRIVATE
@@ -968,7 +985,9 @@ add_executable(comicreader_decode_harness
     ../tests/comicreader_decode_harness.cpp
     comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
     comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
-    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h
+    engine/CbzArchive.cpp engine/CbzArchive.h
+    third_party/miniz/miniz.c)
 target_include_directories(comicreader_decode_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_decode_harness PRIVATE Qt6::Core Qt6::Gui)
 
@@ -1014,7 +1033,9 @@ add_executable(comicreader_core_harness
     comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
     comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
     comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h
-    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h)
+    comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h
+    engine/CbzArchive.cpp engine/CbzArchive.h
+    third_party/miniz/miniz.c)
 target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
 

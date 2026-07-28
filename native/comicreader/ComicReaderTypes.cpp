@@ -33,7 +33,13 @@ PageError pageErrorFromString(const QString& code) {
 QVariantMap PageMeta::toVariantMap() const {
     QVariantMap m;
     m.insert(QStringLiteral("index"), index);
+    m.insert(QStringLiteral("sourceKind"),
+             sourceKind == PageSourceKind::CbzEntry
+                 ? QStringLiteral("cbz_entry")
+                 : QStringLiteral("local_file"));
     m.insert(QStringLiteral("localPath"), localPath);
+    m.insert(QStringLiteral("archivePath"), archivePath);
+    m.insert(QStringLiteral("archiveEntry"), archiveEntry);
     m.insert(QStringLiteral("sourceWidth"), sourceSize.width());
     m.insert(QStringLiteral("sourceHeight"), sourceSize.height());
     m.insert(QStringLiteral("decoded"), decoded);
@@ -49,7 +55,13 @@ QVariantMap PageMeta::toVariantMap() const {
 PageMeta PageMeta::fromVariantMap(const QVariantMap& map) {
     PageMeta p;
     p.index = map.value(QStringLiteral("index"), -1).toInt();
+    p.sourceKind =
+        map.value(QStringLiteral("sourceKind")).toString() == QLatin1String("cbz_entry")
+            ? PageSourceKind::CbzEntry
+            : PageSourceKind::LocalFile;
     p.localPath = map.value(QStringLiteral("localPath")).toString();
+    p.archivePath = map.value(QStringLiteral("archivePath")).toString();
+    p.archiveEntry = map.value(QStringLiteral("archiveEntry")).toString();
     p.sourceSize = QSize(map.value(QStringLiteral("sourceWidth"), 0).toInt(),
                          map.value(QStringLiteral("sourceHeight"), 0).toInt());
     p.decoded = map.value(QStringLiteral("decoded"), false).toBool();

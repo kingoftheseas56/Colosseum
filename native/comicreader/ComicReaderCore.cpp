@@ -122,6 +122,19 @@ void ComicReaderCore::parsePages(const QVariantList& pages) {
         const QVariantMap pm = pages[i].toMap();
         PageMeta meta;
         meta.index = i;   // authoritative dense index (the strip model asserts pages[i].index==i)
+        const QString archive = pm.value(QStringLiteral("archive")).toString();
+        const QString entry = pm.value(QStringLiteral("entry")).toString();
+        if (!archive.isEmpty() && !entry.isEmpty()) {
+            if (QFileInfo::exists(archive)) {
+                meta.sourceKind = PageSourceKind::CbzEntry;
+                meta.archivePath = archive;
+                meta.archiveEntry = entry;
+            } else {
+                meta.error = PageError::MissingFile;
+            }
+            m_pages.append(meta);
+            continue;
+        }
         const QString url = pm.value(QStringLiteral("url")).toString();
         const QUrl u(url);
         if (u.isLocalFile()) {
@@ -239,7 +252,11 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
 
     m_analyzable = false;
     for (const PageMeta& m : m_pages) {
-        if (m.error == PageError::None && !m.localPath.isEmpty()) {
+        const bool hasSource =
+            (m.sourceKind == PageSourceKind::LocalFile && !m.localPath.isEmpty())
+            || (m.sourceKind == PageSourceKind::CbzEntry
+                && !m.archivePath.isEmpty() && !m.archiveEntry.isEmpty());
+        if (m.error == PageError::None && hasSource) {
             m_analyzable = true;
             break;
         }

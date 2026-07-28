@@ -2,11 +2,11 @@
 
 // Lossless archive → volume ingestion for Tankoban volume mode.
 //
-// A downloaded cbz/cbr/cb7/cbt (the nyaa transport's payload) is extracted by
-// the OS archiver, its pages are naturally ordered and renamed page_NNN, then
-// the whole payload is ATOMICALLY moved into place and published into the shared
-// MangaVolumeIndex. Images are never recompressed — only moved/renamed. A
-// partial or failed extraction never publishes a ready volume.
+// A downloaded CBZ/ZIP is validated, copied atomically into canonical storage,
+// and published without extraction. Other supported comic archives use the OS
+// archiver only as a conversion step, then become a validated canonical CBZ.
+// Images are never recompressed. A partial or failed conversion never publishes
+// a ready volume.
 //
 // This is a focused fork of ComicDownloader's proven extraction lifecycle
 // (bsdtar-first, 7-Zip fallback, recursive QCollator natural sort, page_%03d
@@ -14,8 +14,8 @@
 // provenance + the two-phase staging→final atomic rename, so the lifecycle is
 // lifted here rather than shared through the western-comics object.
 //
-// publish() is the WeebCentral packer's entry (Task 7): an already-prepared
-// loose-image directory is finalized the same way, minus the extraction step.
+// publish() is the WeebCentral packer's entry: its temporary downloaded images
+// are naturally ordered and packed into one canonical CBZ before publication.
 
 #include "engine/MangaVolumeIndex.h"
 
@@ -35,13 +35,12 @@ public:
     explicit MangaVolumeArchiveIngestor(MangaVolumeIndex* index, QObject* parent = nullptr);
     ~MangaVolumeArchiveIngestor() override;
 
-    // Async. Extract `archivePath`, natural-sort, atomically publish into the
-    // index, THEN delete the source archive. Emits finished(volumeId) on success
-    // or failed(volumeId, reason). Queues if a job is already running.
+    // Async. Preserve CBZ/ZIP inputs directly; convert other supported formats;
+    // atomically publish, THEN delete the source archive.
     void ingestArchive(const VolumeProvenance& record, const QString& archivePath);
 
-    // Sync. Publish an already-prepared loose-image directory (no archive step,
-    // same finalize + atomic-rename + publish). Consumes (removes) preparedDir.
+    // Sync. Pack an already-prepared loose-image directory into canonical CBZ.
+    // Consumes (removes) preparedDir after successful publication.
     // Returns true on success; a failure also emits failed(volumeId, reason).
     // `groups` carries a per-page chapter-group ordinal in natural-sorted page
     // order (Task 7's WeebCentral packer hands over a multi-chapter volume). It is
@@ -67,10 +66,9 @@ private:
     void finishActiveSuccess();
     void failActive(const QString& reason);
 
-    // Shared finalize: collect images recursively from sourceDir, validate at
-    // least one decodable image, natural-sort (QCollator numeric, case-insensitive),
-    // move them into a fresh staging dir as page_NNN, write the per-volume
-    // index.json, atomically rename staging → final, and publish into the index.
+    // Shared finalize: collect images recursively, validate, natural-sort,
+    // write a canonical CBZ through a same-directory .part file, reopen it,
+    // publish its sidecar + ledger row, and leave no loose page payload.
     // Returns an empty string on success, otherwise a failure reason. Never
     // deletes sourceDir (the caller owns that). `groups` (per-page, natural-sorted
     // order) is stored when its size matches the final page count; otherwise every
