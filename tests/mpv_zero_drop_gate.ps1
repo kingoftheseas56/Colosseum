@@ -61,20 +61,53 @@ try {
     for ($run = 1; $run -le $Runs; $run++) {
         $stdoutLog = Join-Path $artifactDir "run-$run.stdout.log"
         $stderrLog = Join-Path $artifactDir "run-$run.stderr.log"
-        $process = Start-Process -FilePath $exePath -ArgumentList @('qml\Main.qml') `
-            -WorkingDirectory $root -PassThru `
-            -RedirectStandardOutput $stdoutLog -RedirectStandardError $stderrLog
+        $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $startInfo.FileName = $exePath
+        $startInfo.Arguments = 'qml\Main.qml'
+        $startInfo.WorkingDirectory = $root
+        $startInfo.UseShellExecute = $false
+        $startInfo.CreateNoWindow = $false
+        $startInfo.WindowStyle = [System.Diagnostics.ProcessWindowStyle]::Normal
+        $startInfo.RedirectStandardOutput = $true
+        $startInfo.RedirectStandardError = $true
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $startInfo
+        if (-not $process.Start()) {
+            $process.Dispose()
+            throw "run $run could not start the Colosseum process"
+        }
+        $stdoutRead = $process.StandardOutput.ReadToEndAsync()
+        $stderrRead = $process.StandardError.ReadToEndAsync()
 
         if (-not $process.WaitForExit($timeoutMilliseconds)) {
-            Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+            # Kill only the exact process instance launched above; never target by image name.
+            $process.Kill()
             $process.WaitForExit()
+            [System.IO.File]::WriteAllText($stdoutLog, $stdoutRead.GetAwaiter().GetResult())
+            [System.IO.File]::WriteAllText($stderrLog, $stderrRead.GetAwaiter().GetResult())
+            $process.Dispose()
             throw "run $run timed out after $($WarmupSeconds + $MeasureSeconds + 60) seconds"
         }
+
+        # Complete redirected-stream draining, then inspect the exact process we launched before
+        # disposing its native handle. Start-Process on Windows PowerShell loses this exit code for
+        # GUI-subsystem executables, so the gate owns System.Diagnostics.Process directly.
+        $process.WaitForExit()
+        $process.Refresh()
+        [int]$exitCode = $process.ExitCode
+        [System.IO.File]::WriteAllText($stdoutLog, $stdoutRead.GetAwaiter().GetResult())
+        [System.IO.File]::WriteAllText($stderrLog, $stderrRead.GetAwaiter().GetResult())
+        $process.Dispose()
+        if ($exitCode -ne 0) {
+            throw "run $run process exited with code $exitCode"
+        }
+        Write-Output "run $run process exit: 0"
 
         [string]$text = Get-Content -Raw -LiteralPath $stderrLog
         $matches = [regex]::Matches($text, 'MPV_DROP_PROBE RESULT\s+(\{[^\r\n]+\})')
         if ($matches.Count -ne 1) {
-            throw "run $run expected exactly one structured probe result; found $($matches.Count) (process exit $($process.ExitCode))"
+            throw "run $run expected exactly one structured probe result; found $($matches.Count) (process exit $exitCode)"
         }
 
         $result = $matches[0].Groups[1].Value | ConvertFrom-Json
