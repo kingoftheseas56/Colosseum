@@ -8,6 +8,8 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QLoggingCategory>
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
@@ -81,6 +83,27 @@ MpvItem::MpvItem(QQuickItem *parent)
     getPropertyAsync(MpvProperties::self()->Volume, static_cast<int>(MpvItem::AsyncIds::GetVolume));
     m_gifTimer.setInterval(200);
     connect(&m_gifTimer, &QTimer::timeout, this, &MpvItem::gifCaptureFrame);
+
+    const QString dropProbeSpec = qEnvironmentVariable("COLOSSEUM_MPV_DROP_PROBE");
+    const QStringList dropProbeParts = dropProbeSpec.split(QLatin1Char(','));
+    bool warmupOk = false;
+    bool measureOk = false;
+    if (dropProbeParts.size() == 2) {
+        m_dropProbeWarmupSeconds = dropProbeParts.at(0).toInt(&warmupOk);
+        m_dropProbeMeasureSeconds = dropProbeParts.at(1).toInt(&measureOk);
+    }
+    m_dropProbeArmed = warmupOk && measureOk
+        && m_dropProbeWarmupSeconds > 0 && m_dropProbeMeasureSeconds > 0;
+    if (!dropProbeSpec.isEmpty() && !m_dropProbeArmed)
+        qWarning() << "MPV_DROP_PROBE INVALID" << dropProbeSpec;
+
+    m_dropProbeWarmupTimer.setSingleShot(true);
+    m_dropProbeMeasureTimer.setSingleShot(true);
+    connect(this, &MpvItem::fileLoaded, this, &MpvItem::startDropProbe);
+    connect(&m_dropProbeWarmupTimer, &QTimer::timeout,
+            this, &MpvItem::captureDropProbeBaseline);
+    connect(&m_dropProbeMeasureTimer, &QTimer::timeout,
+            this, &MpvItem::finishDropProbe);
 }
 
 MpvItem::~MpvItem()
@@ -96,6 +119,59 @@ MpvItem::~MpvItem()
             QFile::remove(m_gifEncodeOutPath);        // never leave a truncated gif posing as a saved clip
         cleanGifTemp();
     }
+}
+
+QVariantMap MpvItem::dropProbeSnapshot() const
+{
+    auto *self = const_cast<MpvItem *>(this);
+    return {
+        {QStringLiteral("decoder"), self->getProperty(QStringLiteral("frame-drop-count")).toLongLong()},
+        {QStringLiteral("output"), self->getProperty(QStringLiteral("vo-drop-frame-count")).toLongLong()},
+        {QStringLiteral("hwdec"), self->getProperty(QStringLiteral("hwdec-current")).toString()},
+        {QStringLiteral("avsync"), self->getProperty(QStringLiteral("avsync")).toDouble()},
+        {QStringLiteral("position"), self->getProperty(QStringLiteral("time-pos")).toDouble()},
+        {QStringLiteral("videoSync"), self->getProperty(QStringLiteral("video-sync")).toString()},
+        {QStringLiteral("interpolation"), self->getProperty(QStringLiteral("interpolation")).toBool()},
+    };
+}
+
+void MpvItem::startDropProbe()
+{
+    if (!m_dropProbeArmed)
+        return;
+    m_dropProbeArmed = false;
+    m_dropProbeWarmupTimer.start(m_dropProbeWarmupSeconds * 1000);
+}
+
+void MpvItem::captureDropProbeBaseline()
+{
+    m_dropProbeStart = dropProbeSnapshot();
+    m_dropProbeMeasureTimer.start(m_dropProbeMeasureSeconds * 1000);
+}
+
+void MpvItem::finishDropProbe()
+{
+    const QVariantMap end = dropProbeSnapshot();
+    const QVariantMap result = {
+        {QStringLiteral("decoderStart"), m_dropProbeStart.value(QStringLiteral("decoder"))},
+        {QStringLiteral("decoderEnd"), end.value(QStringLiteral("decoder"))},
+        {QStringLiteral("decoderDelta"), end.value(QStringLiteral("decoder")).toLongLong()
+                                         - m_dropProbeStart.value(QStringLiteral("decoder")).toLongLong()},
+        {QStringLiteral("outputStart"), m_dropProbeStart.value(QStringLiteral("output"))},
+        {QStringLiteral("outputEnd"), end.value(QStringLiteral("output"))},
+        {QStringLiteral("outputDelta"), end.value(QStringLiteral("output")).toLongLong()
+                                        - m_dropProbeStart.value(QStringLiteral("output")).toLongLong()},
+        {QStringLiteral("hwdec"), end.value(QStringLiteral("hwdec"))},
+        {QStringLiteral("avsyncStart"), m_dropProbeStart.value(QStringLiteral("avsync"))},
+        {QStringLiteral("avsyncEnd"), end.value(QStringLiteral("avsync"))},
+        {QStringLiteral("positionStart"), m_dropProbeStart.value(QStringLiteral("position"))},
+        {QStringLiteral("positionEnd"), end.value(QStringLiteral("position"))},
+        {QStringLiteral("videoSync"), end.value(QStringLiteral("videoSync"))},
+        {QStringLiteral("interpolation"), end.value(QStringLiteral("interpolation"))},
+    };
+    qInfo().noquote() << "MPV_DROP_PROBE RESULT "
+                      << QJsonDocument::fromVariant(result).toJson(QJsonDocument::Compact);
+    QTimer::singleShot(0, QCoreApplication::instance(), &QCoreApplication::quit);
 }
 
 void MpvItem::setupConnections()

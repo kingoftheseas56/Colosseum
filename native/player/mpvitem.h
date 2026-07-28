@@ -10,6 +10,7 @@
 #include <MpvAbstractItem>
 #include <QTimer>
 #include <QVariantList>
+#include <QVariantMap>
 
 class QProcess;
 
@@ -172,6 +173,10 @@ private:
     void gifCaptureFrame();
     QString gifOutputDirectory() const;
     void cleanGifTemp();
+    void startDropProbe();
+    QVariantMap dropProbeSnapshot() const;
+    void captureDropProbeBaseline();
+    void finishDropProbe();
 
 public:
     static QString findFfmpeg();   // shared with SeekThumbnailer (exe dir -> tools/ -> PATH)
@@ -195,6 +200,12 @@ private:
     bool m_gifEncoding{false};
     QProcess *m_gifEncodeProc = nullptr;
     QString m_gifEncodeOutPath;
+    QTimer m_dropProbeWarmupTimer;
+    QTimer m_dropProbeMeasureTimer;
+    QVariantMap m_dropProbeStart;
+    int m_dropProbeWarmupSeconds = 0;
+    int m_dropProbeMeasureSeconds = 0;
+    bool m_dropProbeArmed = false;
 };
 
 #endif // COLOSSEUM_MPVITEM_H
