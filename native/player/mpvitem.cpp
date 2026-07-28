@@ -72,6 +72,10 @@ MpvItem::MpvItem(QQuickItem *parent)
     setProperty(QStringLiteral("embeddedfonts"), QStringLiteral("yes"));
     setProperty(QStringLiteral("sub-font-provider"), QStringLiteral("auto"));
     setProperty(QStringLiteral("hwdec"), QStringLiteral("auto-safe"));
+    // Match the standalone mpv policy that sustained a zero-drop five-minute Tenet interval:
+    // lock video to the real display cadence and synthesize the in-between presentation samples.
+    setProperty(QStringLiteral("video-sync"), QStringLiteral("display-resample"));
+    setProperty(QStringLiteral("interpolation"), QStringLiteral("yes"));
 
     setPropertyAsync(QStringLiteral("volume"), 100, static_cast<int>(MpvItem::AsyncIds::SetVolume));
     getPropertyAsync(MpvProperties::self()->Volume, static_cast<int>(MpvItem::AsyncIds::GetVolume));
