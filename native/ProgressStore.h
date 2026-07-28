@@ -7,13 +7,29 @@
 // bookmark file. Persisted via QSettings (the same lightweight-state mechanism the
 // manga reader already uses for prefs), so it survives a restart.
 //
+// PERSISTENCE THREADING (2026-07-29 video-stutter fix). Serializing the whole Continue map
+// and calling QSettings::sync() cost ~11ms on the GUI/render thread every 5s — enough to drop
+// frames during playback (the +25/60s residual measured after the reactive changed() cascade
+// was removed). Both now run on a dedicated background writer (ProgressDiskWriter): the GUI
+// thread only mutates the in-memory map and posts a snapshot; the worker serializes + syncs on
+// its own thread, coalescing bursts so only the latest snapshot is written. The latest snapshot
+// is flushed synchronously at shutdown (aboutToQuit) so the final resume point always lands.
+//
+// WRITE POLICY (Option B — 5s off-thread writes, retained 2026-07-29). The 5s playback tick
+// persists via the off-thread writer (crash-resume within 5s). A lifecycle-only variant (Option
+// A, memory-only tick) was built and measured but gave no smoothness gain: once the changed()
+// cascade is silenced, residual output drops are variance-dominated by background poster
+// fetching / system load (same-window runs spanned 0-112 regardless of write policy), not by the
+// disk path. Option B is therefore kept for its better crash-resume granularity at equal cost.
+//
 // QML side (the only contract):
 //   Progress.record({ id, kind, caption, title, sub, cover, c1, c2, progress, resume })
+//   Progress.recordSilent({...})    // 5s playback tick: persist WITHOUT refreshing the row
 //   Progress.recent(kind, limit)   // kind "" = all (the unified home row); newest first
 //   Progress.forget(kind, id)   // drops the whole Continue tile: for a series, every
 //                               //   episode of that show, not just the id passed in
 //   Progress.revision              // bump on every change — name it in a binding to make
-//                                  //   recent()-based bindings re-evaluate reactively.
+//                                  // recent()-based bindings re-evaluate reactively.
 
 #include <QObject>
 #include <QSettings>
@@ -23,11 +39,66 @@
 #include <QVariant>
 #include <QVariantList>
 #include <QVariantMap>
+#include <QVariantHash>
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QDateTime>
+#include <QThread>
+#include <QCoreApplication>
+#include <memory>
 #include <algorithm>
+
+// Background disk writer for the Continue map. Owns the QSettings that persists `continue/
+// entries` and performs ALL JSON serialization + QSettings::sync() on its OWN thread, so the
+// GUI/render thread is never blocked by disk during playback. Each posted snapshot is written
+// directly on the worker thread (there is NO debounce/coalescing: every scheduleSave() enqueues
+// one full snapshot; the cost is a cheap shared QVariantHash copy, and bursts are rare because
+// the player ticks at 5s and lifecycle writes are user-driven).
+//
+// THREAD AFFINITY: the QSettings is created LAZILY inside writeSnapshot() (the worker slot),
+// NOT in this constructor. This object is constructed on the GUI thread and then moveToThread()'d
+// to the worker; a QSettings constructed as a member here would pin GUI-thread affinity (member
+// objects do not move with moveToThread — only the QObject itself and its QObject children do),
+// and then be touched from the worker slot, which is a cross-thread QObject violation. By
+// deferring construction to the first slot invocation, the QSettings is born on the worker thread
+// and stays there. (Qt: "QObject affinity follows construction unless the object or its parent is
+// moved" — https://doc.qt.io/qt-6/threads-qobject.html.)
+class ProgressDiskWriter : public QObject {
+    Q_OBJECT
+public:
+    explicit ProgressDiskWriter(const QString &org, const QString &app, QObject *parent = nullptr)
+        : QObject(parent), m_org(org), m_app(app), m_useIni(false) {}
+    explicit ProgressDiskWriter(const QString &iniPath, QObject *parent = nullptr)
+        : QObject(parent), m_iniPath(iniPath), m_useIni(true) {}
+
+public slots:
+    void writeSnapshot(const QVariantHash &snapshot) {
+        ensureSettings();   // created on the worker thread on first use (correct affinity)
+        QJsonObject obj;
+        for (auto it = snapshot.constBegin(); it != snapshot.constEnd(); ++it)
+            obj.insert(it.key(), QJsonObject::fromVariantMap(it.value().toMap()));
+        m_settings->setValue(QStringLiteral("continue/entries"),
+                             QJsonDocument(obj).toJson(QJsonDocument::Compact));
+        m_settings->sync();
+    }
+    void flushSync() {}   // shutdown/flush barrier (see ProgressStore::flush)
+
+private:
+    // Constructed lazily inside a worker slot (see ensureSettings) so its thread affinity is the
+    // worker thread, never the GUI thread that built this object.
+    void ensureSettings() {
+        if (m_settings)
+            return;
+        if (m_useIni)
+            m_settings = std::make_unique<QSettings>(m_iniPath, QSettings::IniFormat);
+        else
+            m_settings = std::make_unique<QSettings>(m_org, m_app);
+    }
+    std::unique_ptr<QSettings> m_settings;
+    QString m_org, m_app, m_iniPath;
+    bool m_useIni = false;
+};
 
 class ProgressStore : public QObject {
     Q_OBJECT
@@ -37,6 +108,8 @@ public:
         : QObject(parent),
           m_settings(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum")) {
         load();
+        m_writer = new ProgressDiskWriter(QStringLiteral("Brotherhood"), QStringLiteral("Colosseum"));
+        setupWriter();
     }
 
     // Test/diagnostic constructor: back the store with an explicit INI file instead of
@@ -46,42 +119,59 @@ public:
         : QObject(parent),
           m_settings(iniPath, QSettings::IniFormat) {
         load();
+        m_writer = new ProgressDiskWriter(iniPath);
+        setupWriter();
+    }
+
+    ~ProgressStore() {
+        // aboutToQuit usually flushed + stopped the writer thread first. If it did not (e.g. a
+        // test with no app event loop, or an early tear-down), flush once more so destruction
+        // implies a persisted disk (deterministic for tests that reload over the same INI), then
+        // stop the thread. BlockingQueuedConnection inside flush() would deadlock against a
+        // stopped thread, so flush() guards on isRunning(); the stop is separate and unconditional.
+        flush();
+        if (m_writerThread.isRunning()) {
+            m_writerThread.quit();
+            m_writerThread.wait();
+        }
+    }
+
+    // Synchronously drain every queued write so the on-disk state reflects the current in-memory
+    // map. Used by shutdown (aboutToQuit), the destructor, and any caller that needs read-your-
+    // writes consistency against a fresh store over the same persistence location (e.g. tests).
+    // No-op when the writer is absent or the thread is already stopped (post-shutdown teardown).
+    void flush() {
+        if (!m_writer || !m_writerThread.isRunning())
+            return;
+        // Post the latest in-memory map, then block until every queued writeSnapshot (FIFO,
+        // this one included) has run on the worker thread. flushSync is an empty slot whose only
+        // purpose is to be the BlockingQueuedConnection drain point after the queued writes.
+        scheduleSave();
+        QMetaObject::invokeMethod(m_writer, "flushSync", Qt::BlockingQueuedConnection);
     }
 
     int revision() const { return m_revision; }
 
-    // Upsert one resume entry. `entry` is a plain JS object from QML; `id` + `kind`
-    // identify it, the rest is the latest display/resume payload. A video watched to
-    // the end (>= 0.97) is dropped so Continue never shows finished films; reading
-    // progress is per-chapter and never auto-dropped (finishing a chapter ≠ finishing
-    // the series — use forget() for an explicit "remove from Continue").
+    // Upsert one resume entry, persist it, and refresh the Continue row. Use for lifecycle
+    // writes (open / stop / forget, and the player's stop / stream-death / playback-failure /
+    // episode-advance / EOF sites) where the visible Continue data genuinely changes. The payload
+    // comes from QML as a plain JS object; `id` + `kind` identify it. Reading progress is
+    // per-chapter and never auto-dropped (finishing a chapter ≠ finishing the series — use
+    // forget() for an explicit "remove from Continue").
     Q_INVOKABLE void record(const QVariantMap &entry) {
-        const QString kind = entry.value(QStringLiteral("kind")).toString();
-        const QString id   = entry.value(QStringLiteral("id")).toString();
-        if (id.isEmpty() || kind.isEmpty())
-            return;
-        const QString key = mapKey(kind, id);
-
-        // Finished threshold matches Tankoban 2's proven StreamProgress::isFinished (>= 90%):
-        // a film watched past 90% is "done" and drops off Continue. (TB2 advances series to the
-        // next episode instead of dropping — a future enhancement here; for now we drop.)
-        const double progress = entry.value(QStringLiteral("progress")).toDouble();
-        const bool isSeriesEpisode =
-            kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
-        if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
-            if (m_map.remove(key)) { save(); bump(); }
-            return;
-        }
-
-        QVariantMap rec = entry;
-        rec.insert(QStringLiteral("id"), id);
-        rec.insert(QStringLiteral("kind"), kind);
-        if (isSeriesEpisode && progress >= 0.90)
-            rec.insert(QStringLiteral("watched"), true);
-        rec.insert(QStringLiteral("updatedAt"), QDateTime::currentMSecsSinceEpoch());
-        m_map.insert(key, rec);
-        save();
-        bump();
+        if (persist(entry))
+            bump();
+    }
+    // Persist progress for crash-resume WITHOUT refreshing the Continue row. The player's 5s
+    // playback tick calls this: emitting changed() every 5s re-rendered every Continue tile
+    // (recent() re-sorts/re-dedupes the whole map on each revision bump) and was the proven
+    // video-stutter source (2026-07-29 ProgressStore isolation A/B: +100 output drops/60s with
+    // changed() firing -> +3 with it suppressed, eyes smooth). The Continue row refreshes on the
+    // next lifecycle write (stop / stream-death / playback-failure / episode-advance / EOF), which
+    // is when its visible data actually moves.
+    // The write itself runs on the background writer thread (see WRITE POLICY above).
+    Q_INVOKABLE void recordSilent(const QVariantMap &entry) {
+        persist(entry);
     }
 
     // Recent entries, newest first. kind "" → all kinds; limit <= 0 → no cap.
@@ -150,7 +240,7 @@ public:
             m_map.remove(key);
         m_settings.remove(QStringLiteral("video/watchedMark/")
                           + seriesRootId(id));
-        save();
+        scheduleSave();
         bump();
     }
 
@@ -229,6 +319,69 @@ private:
     }
     void bump() { ++m_revision; emit changed(); }
 
+    // Post the current map to the background writer (non-blocking on this thread). The worker
+    // serializes + syncs on its own thread. There is NO debounce/coalescing: every call enqueues
+    // one full snapshot (a cheap shared QVariantHash copy). Bursts are rare (5s player tick + a
+    // few user-driven lifecycle writes), so the cost is acceptable and each write is independent.
+    // The GUI/render thread does no serialization and no QSettings::sync().
+    void scheduleSave() {
+        if (m_writer) {
+            QMetaObject::invokeMethod(m_writer, "writeSnapshot", Qt::QueuedConnection,
+                                      Q_ARG(QVariantHash, m_map));
+        }
+    }
+
+    // Move the writer onto its thread and arrange a final synchronous flush at shutdown so the
+    // latest resume point always lands on disk before the process dies.
+    void setupWriter() {
+        m_writer->moveToThread(&m_writerThread);
+        connect(&m_writerThread, &QThread::finished, m_writer, &QObject::deleteLater);
+        if (qApp) {
+            connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
+                // Drain every queued write (and post the latest map first) so the final resume
+                // point lands on disk, then stop the worker thread. flush() is a no-op if the
+                // thread is already stopped, so this composes safely with the destructor's flush().
+                flush();
+                if (m_writerThread.isRunning()) {
+                    m_writerThread.quit();
+                    m_writerThread.wait();
+                }
+            });
+        }
+        m_writerThread.start();
+    }
+
+    // Mutate the map + schedule a background persist. Returns true if anything changed (the
+    // caller decides whether to emit changed() — record() notifies, recordSilent() does not).
+    // No signal here. Finished threshold matches Tankoban 2's proven StreamProgress::isFinished
+    // (>= 90%): a film watched past 90% is "done" and drops off Continue. (TB2 advances a series
+    // to the next episode instead of dropping — a future enhancement here; for now we drop.)
+    bool persist(const QVariantMap &entry) {
+        const QString kind = entry.value(QStringLiteral("kind")).toString();
+        const QString id   = entry.value(QStringLiteral("id")).toString();
+        if (id.isEmpty() || kind.isEmpty())
+            return false;
+        const QString key = mapKey(kind, id);
+
+        const double progress = entry.value(QStringLiteral("progress")).toDouble();
+        const bool isSeriesEpisode =
+            kind == QStringLiteral("video") && id.count(QLatin1Char(':')) >= 2;
+        if (kind == QStringLiteral("video") && progress >= 0.90 && !isSeriesEpisode) {
+            if (m_map.remove(key)) { scheduleSave(); return true; }
+            return false;
+        }
+
+        QVariantMap rec = entry;
+        rec.insert(QStringLiteral("id"), id);
+        rec.insert(QStringLiteral("kind"), kind);
+        if (isSeriesEpisode && progress >= 0.90)
+            rec.insert(QStringLiteral("watched"), true);
+        rec.insert(QStringLiteral("updatedAt"), QDateTime::currentMSecsSinceEpoch());
+        m_map.insert(key, rec);
+        scheduleSave();
+        return true;
+    }
+
     void load() {
         m_map.clear();
         const QByteArray blob =
@@ -240,16 +393,13 @@ private:
                 m_map.insert(it.key(), it.value().toObject().toVariantMap());
         }
     }
-    void save() {
-        QJsonObject obj;
-        for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it)
-            obj.insert(it.key(), QJsonObject::fromVariantMap(it.value().toMap()));
-        m_settings.setValue(QStringLiteral("continue/entries"),
-                            QJsonDocument(obj).toJson(QJsonDocument::Compact));
-        m_settings.sync();
-    }
 
+    // GUI-thread QSettings: used ONLY for load() at startup and for the infrequent
+    // lastSeason / watchedMark keys (rare user actions, never the 5s playback tick). The hot
+    // continue/entries path is owned by the background writer's own QSettings instance.
     QSettings m_settings;
     QHash<QString, QVariant> m_map;   // "kind\x1fid" → entry map
     int m_revision = 0;
+    ProgressDiskWriter *m_writer = nullptr;
+    QThread m_writerThread;
 };
