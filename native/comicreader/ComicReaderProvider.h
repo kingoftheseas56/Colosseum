@@ -9,7 +9,9 @@
 // only reads the cache and consults the ONE live-generation value the backend
 // publishes. A request tagged with a superseded generation (a stale QML Image
 // still bound to the previous entry) resolves to nothing, so a fast entry
-// switch can never repaint the old chapter's pixels.
+// switch can never repaint the old chapter's pixels. That guard is now checked
+// on the worker thread rather than inline, which makes it strictly more
+// conservative than the synchronous version — see ComicReaderImageResponse.h.
 //
 // Why async: the synchronous requestImage() ran the cache copy and the
 // SmoothTransformation downscale on Qt's image thread with NO way to cancel, so

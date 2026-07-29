@@ -17,7 +17,10 @@ ComicReaderImageResponse::ComicReaderImageResponse(ComicReaderPageCache* cache,
     : m_cache(cache),
       m_liveGeneration(liveGeneration),
       m_requestedWidth(requestedSize.width()) {
-    setAutoDelete(false); // the pool never owns this; see the header's lifetime note
+    // The pool must not delete this — the owner does, after finished(). It does
+    // still read autoDelete() back off the object once run() returns; see the
+    // header's lifetime note for why that sharp edge is accepted, not absent.
+    setAutoDelete(false);
 
     // Strip any "?rev=N" cache-buster before parsing "<generation>/<page>".
     QString key = id;

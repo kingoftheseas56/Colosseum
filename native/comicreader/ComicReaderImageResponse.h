@@ -14,6 +14,14 @@
 // resolves to NOTHING, so a QML Image still bound to a retired volume can never
 // repaint the old chapter's pixels.
 //
+// That stale guard is NOT byte-for-byte the old behaviour, and the difference
+// is worth stating: the synchronous provider read the atomic inline, at request
+// time; this reads it on the pool thread at some later moment. So a generation
+// that retires between the request and the worker now nulls a request the old
+// code would have served. It can never go the other way — a retired generation
+// can never start serving again — so the delta is strictly MORE conservative,
+// which is the safe direction and is inherent to going async.
+//
 // Threading + lifetime:
 //  - Constructed on the caller's thread (Qt's image thread / the GUI thread);
 //    that thread is the response's thread for the rest of its life.
@@ -24,9 +32,16 @@
 //    thread is strictly ORDERED AHEAD of it — cancel never races publication,
 //    it simply wins. That is what makes the cancel path deterministic rather
 //    than best-effort.
-//  - autoDelete is off: the pool never deletes the response. Whoever asked for
-//    it owns it — the QML engine deletes it after finished(), which can only be
-//    emitted from the publication that run() has already queued.
+//  - autoDelete is off, so the pool never DELETES the response — whoever asked
+//    for it owns it, and the QML engine deletes it after finished(). But note
+//    the pool still READS autoDelete() off the object just after run() returns,
+//    and run() returns immediately after queueing publication. An owner that
+//    deletes the instant finished() arrives therefore leaves a narrow
+//    post-run() dereference window. Queueing publication rather than emitting
+//    from the worker already puts two event-loop hops in the way, which is why
+//    this is not a live problem; it is Qt's own documented
+//    QQuickAsyncImageProvider idiom, and it is a KNOWN, accepted sharp edge
+//    rather than a question the design avoids.
 #pragma once
 
 #include <QImage>

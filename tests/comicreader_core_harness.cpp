@@ -114,7 +114,9 @@ int main(int argc, char** argv) {
     // QGuiApplication, not QCoreApplication: since the overhaul plan's Task 1 the
     // provider is async, and reading what a response SERVED means asking it for a
     // QQuickTextureFactory — which resolves the scenegraph adaptation backend and
-    // needs a GUI application. No window is ever shown.
+    // needs a GUI application. No window is ever shown, but this harness now needs
+    // a QPA platform where it previously needed none: headless runs want
+    // QT_QPA_PLATFORM=offscreen.
     QGuiApplication app(argc, argv);
 
     QTemporaryDir dir;

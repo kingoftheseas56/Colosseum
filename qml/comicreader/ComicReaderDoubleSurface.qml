@@ -127,7 +127,7 @@ Item {
     // NATURAL SIZE = the page's TRUE, UNCAPPED source geometry, from the BACKEND — pageInfo()'s
     // sourceWidth/sourceHeight (PageMeta::sourceSize, learned from the file HEADER ahead of the
     // decode). NOT the Image's implicitWidth: `sourceSize.width: srcCapW` makes
-    // ComicReaderProvider::requestImage hand back every page already scaled to that same capped
+    // ComicReaderProvider's response hand back every page already scaled to that same capped
     // width, so two differently-trimmed scans BOTH report implicitWidth == 1400 and a shared scale
     // computed off that is arithmetically identical to sizing each half on its own — a fix that
     // fixes nothing on exactly the books it is for. (Same reason the strip sizes its column from the

@@ -21,11 +21,44 @@
 // thread — before the harness pumps — is strictly ordered ahead of it no matter
 // how fast the worker finished.
 //
+// F1-F5 go through the provider and its pool (the integration path). F6-F8 hold
+// the worker by driving one response's run() BY HAND — QRunnable::run() and the
+// constructor are both public Qt surface, so this buys determinism without
+// adding a single line of production code for testing's sake. Held that way,
+// "the worker had not started yet" and "the volume closed while this worker was
+// pending" are facts rather than timing hopes.
+//
+// Where the three cancel checkpoints land:
+//   F6 pins the one BEFORE the cache fetch — and proves the fetch really was
+//      skipped, using the cache's own LRU as the witness rather than trusting a
+//      null result, which every cancelled response produces anyway.
+//   F8 pins the one AT PUBLICATION. This is the checkpoint carrying the
+//      correctness guarantee: whatever the worker already computed, a cancelled
+//      response shows QML nothing.
+//   The middle one — after the fetch, before the scale — is deliberately NOT
+//      pinned. It has no externally observable effect: a cancel caught there
+//      and a cancel caught at publication both serve nothing, so all it ever
+//      does is save CPU. Pinning a cancel mid-run() would need a production
+//      test hook, which is not worth buying for an unobservable optimisation.
+//      (Note it does NOT cover "cancelled mid-scaledToWidth" either — nothing
+//      interrupts a running scale; that case is caught at publication, by F8.)
+//
 // QGuiApplication, not QCoreApplication like this family's other harnesses:
 // QQuickTextureFactory::textureFactoryForImage() resolves the scenegraph
 // adaptation backend and crashes without a GUI application. Asserting on the
 // factory a real request produces is the only way to check what was actually
-// served, so the harness pays for a QGuiApplication. No window is ever shown.
+// served, so the harness pays for a QGuiApplication. No window is ever shown —
+// but it does now need a QPA platform, so a headless run wants
+// QT_QPA_PLATFORM=offscreen where this harness family previously needed nothing.
+//
+// No Qt6::Test, despite the plan's snippet: QVERIFY/QTRY_COMPARE expand to
+// QTEST_FAIL_ACTION (a bare `return`) and depend on QTest::runningTest(), so
+// they only work inside a void QTest slot — not in a main() that collects
+// failures, which is the house idiom this file was asked to match. That leaves
+// only QSignalSpy, which FinishedCounter below covers in six lines. Linking it
+// IS available (native/player2/CMakeLists.txt already does, and find_package is
+// re-callable with extra components, so no shared line needs touching) — it is
+// declined on merit, not availability.
 //
 // House CHECK idiom: collect every failure (never abort), print each FAIL, then
 // print exactly COMICREADER_PROVIDER_OK iff zero failures, else return 1.
@@ -95,6 +128,13 @@ static ComicReaderImageResponse* request(ComicReaderProvider& provider, const QS
                                          const QSize& requestedSize) {
     return static_cast<ComicReaderImageResponse*>(
         provider.requestImageResponse(id, requestedSize));
+}
+
+// 1024x1024 ARGB32 — exactly 4 MiB, so a budget can be stated in whole pages.
+static QImage squarePage(QRgb color) {
+    QImage img(1024, 1024, QImage::Format_ARGB32);
+    img.fill(color);
+    return img;
 }
 
 // A full-resolution page: 2400px wide, the width the reader actually caches.
@@ -259,6 +299,94 @@ int main(int argc, char** argv) {
         CHECK(serveAndTakeSize(unsized) == QSize(600, 400),
               "F5 a request with no width is served at full cached resolution");
         delete unsized;
+    }
+
+    // ── Fixture 6: a cancel that beats the worker skips the cache entirely ───
+    // Cancel checkpoint ONE. The worker is HELD — run() is called by hand, so
+    // "the cancel landed before the worker started" is a fact. A null result
+    // alone would prove nothing (every cancelled response is null), so the
+    // cache's own LRU is the witness: get() marks a page most-recently-used, so
+    // if page 0 was never fetched it stays the OLDEST and is the one evicted
+    // when a fourth page arrives. Had the worker fetched it, page 1 would go
+    // instead. Same technique as comicreader_cache_harness Fixture 1, read
+    // backwards.
+    {
+        constexpr qint64 kPageBytes = 4LL * 1024 * 1024; // one squarePage()
+        ComicReaderPageCache cache(3 * kPageBytes);      // exactly three fit
+        std::atomic<quint64> live{kLiveGen};
+        cache.insert(kLiveGen, 0, squarePage(qRgb(1, 0, 0))); // oldest
+        cache.insert(kLiveGen, 1, squarePage(qRgb(0, 1, 0)));
+        cache.insert(kLiveGen, 2, squarePage(qRgb(0, 0, 1)));
+
+        ComicReaderImageResponse response(&cache, &live, QStringLiteral("%1/0").arg(kLiveGen),
+                                          QSize(900, 0));
+        FinishedCounter finished(&response);
+
+        response.cancel(); // lands before the worker body — that is the whole point
+        response.run();
+
+        CHECK(waitFor([&] { return finished.count() > 0; }), "F6 a worker cancelled before it ran still finishes");
+        CHECK(finished.count() == 1, "F6 exactly one finished()");
+        CHECK(response.textureFactory() == nullptr, "F6 it serves NULL");
+
+        cache.insert(kLiveGen, 3, squarePage(qRgb(1, 1, 0))); // forces one eviction
+        CHECK(!cache.get(kLiveGen, 0).has_value(),
+              "F6 page 0 was never fetched — it stayed least-recently-used and took the eviction");
+        CHECK(cache.get(kLiveGen, 1).has_value(),
+              "F6 page 1 survives (it is the one that would have gone had the worker touched page 0)");
+    }
+
+    // ── Fixture 7: the generation retires WHILE a worker is held ─────────────
+    // The request is built against a live generation 7, the volume then closes,
+    // and only afterwards does the worker run. This is the case a real fast
+    // entry switch produces, and the reason the guard cannot be hoisted back to
+    // request time: Fixture 3 covers the generation already being dead when the
+    // request arrives; this covers it dying in flight.
+    {
+        ComicReaderPageCache cache;
+        std::atomic<quint64> live{kLiveGen};
+        cache.insert(kLiveGen, kPage, fullResPage(qRgb(70, 70, 70)));
+
+        ComicReaderImageResponse held(&cache, &live,
+                                      QStringLiteral("%1/%2?rev=1").arg(kLiveGen).arg(kPage),
+                                      QSize(900, 0));
+        FinishedCounter finished(&held);
+
+        live.store(kLiveGen + 1); // the volume closes with this worker still pending
+        held.run();
+
+        CHECK(waitFor([&] { return finished.count() > 0; }), "F7 the held worker finishes once released");
+        CHECK(finished.count() == 1, "F7 exactly one finished()");
+        CHECK(!held.wasCancelled(), "F7 a retired generation is not a cancellation");
+        CHECK(held.textureFactory() == nullptr,
+              "F7 a generation retired AFTER the request serves NULL — the guard runs at WORK time");
+    }
+
+    // ── Fixture 8: a cancel landing after the work, before publication ───────
+    // Cancel checkpoint THREE, pinned exactly. The worker has already fetched
+    // AND scaled a real image; the cancel still wins, because publication is
+    // queued behind it. This is the checkpoint that carries the correctness
+    // guarantee — and the one that catches a cancel arriving mid-scale, since
+    // nothing interrupts a running scaledToWidth.
+    {
+        ComicReaderPageCache cache;
+        std::atomic<quint64> live{kLiveGen};
+        cache.insert(kLiveGen, kPage, fullResPage(qRgb(90, 90, 90)));
+
+        ComicReaderImageResponse response(&cache, &live,
+                                          QStringLiteral("%1/%2").arg(kLiveGen).arg(kPage),
+                                          QSize(900, 0));
+        FinishedCounter finished(&response);
+
+        response.run();    // the full fetch + 2400px -> 900px scale really happens
+        CHECK(finished.count() == 0, "F8 publication is still queued when run() returns");
+        response.cancel(); // ...and only now does the cancel land
+
+        CHECK(waitFor([&] { return finished.count() > 0; }), "F8 the response finishes");
+        CHECK(finished.count() == 1, "F8 exactly one finished()");
+        CHECK(response.wasCancelled(), "F8 the response reports itself cancelled");
+        CHECK(response.textureFactory() == nullptr,
+              "F8 a scaled image already in hand is STILL withheld from a cancelled response");
     }
 
     if (g_failures == 0) {

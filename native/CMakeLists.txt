@@ -1050,8 +1050,11 @@ target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Q
 #    guard, and unservable requests still finishing exactly once. Publication is
 #    queued back to the response's thread, so an event loop is pumped to deliver
 #    it — a QGuiApplication one, because QQuickTextureFactory needs a GUI app to
-#    resolve the scenegraph adaptation backend. QQuickImageResponse and
-#    QQuickTextureFactory live in Qt6::Quick; QImage scaling in Qt6::Gui. ──
+#    resolve the scenegraph adaptation backend (so a headless run of this and of
+#    comicreader_core_harness wants QT_QPA_PLATFORM=offscreen). QQuickImageResponse
+#    and QQuickTextureFactory live in Qt6::Quick; QImage scaling in Qt6::Gui.
+#    No Qt6::Test: QVERIFY/QTRY_COMPARE only compile inside a void QTest slot,
+#    not in this family's failure-collecting main(). See the harness header. ──
 add_executable(comicreader_provider_harness
     ../tests/comicreader_provider_harness.cpp
     comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
