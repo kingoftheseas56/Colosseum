@@ -41,6 +41,11 @@ namespace {
 
 int g_contracts = 0;
 int g_failures = 0;
+// A missing fixture is not a pass. The two recorded payloads carry THE MIRROR — the
+// most valuable assertion in this file — so a machine without them must say so in the
+// verdict line rather than printing a clean PASS for the contracts that did run.
+int g_fixtureSkips = 0;
+bool g_mirrorVerified = false;
 
 // Every case prints its own verdict and a failure does NOT stop the run: the blocks
 // below are independent, so one broken rule should still report every other rule's
@@ -73,6 +78,13 @@ void requireEqual(const QString& actual, const QString& expected, const QString&
 void note(const QString& message)
 {
     std::cout << "  note: " << message.toStdString() << '\n';
+}
+
+void skipFixture(const QString& message)
+{
+    ++g_fixtureSkips;
+    std::cout << "SKIP: " << message.toStdString() << '\n';
+    std::cerr << "SKIP: " << message.toStdString() << '\n';
 }
 
 // "1:1-7.5,2:8-17.5,..." — one comparable string for a whole shelf, whichever side
@@ -183,6 +195,61 @@ const char* const kQuirkRecord = R"json(
   ],
   "weebCentral": { "seriesId": "01FAKEQUIRK" },
   "numberingQuirk": true,
+  "complete": true,
+  "qualified": true,
+  "gateReason": ""
+}
+)json";
+
+// Claims qualified, and the volume NUMBERS read perfectly — but the last two spans are
+// blank, the shape an interrupted batch write leaves behind. The gate skips a span it
+// cannot parse rather than judging it, so checks 1-5 pass and this would ship a shelf
+// with two tiles that have no chapters behind them.
+const char* const kBlankTailRecord = R"json(
+{
+  "seriesTitle": "Blank Tail Series",
+  "volumes": [
+    { "number": 1, "chapterStart": "1",  "chapterEnd": "10" },
+    { "number": 2, "chapterStart": "11", "chapterEnd": "20" },
+    { "number": 3, "chapterStart": "",   "chapterEnd": "" },
+    { "number": 4, "chapterStart": "",   "chapterEnd": "" }
+  ],
+  "weebCentral": { "seriesId": "01FAKEBLANKTAIL" },
+  "numberingQuirk": false,
+  "complete": true,
+  "qualified": true,
+  "gateReason": ""
+}
+)json";
+
+// The degenerate form: nothing parseable at all. gateVolumes answers {true, ""} for
+// this, because every span is skipped and it never reaches an overlap comparison.
+const char* const kAllBlankRecord = R"json(
+{
+  "seriesTitle": "All Blank Series",
+  "volumes": [
+    { "number": 1, "chapterStart": "", "chapterEnd": "" },
+    { "number": 2, "chapterStart": "", "chapterEnd": "" }
+  ],
+  "weebCentral": { "seriesId": "01FAKEALLBLANK" },
+  "numberingQuirk": false,
+  "complete": true,
+  "qualified": true,
+  "gateReason": ""
+}
+)json";
+
+// Claims qualified, one volume, and no `number` key at all. toInt() would land it on 0
+// — a LEGAL first volume — so a single-entry run would qualify on a number the record
+// never carried.
+const char* const kNoNumberRecord = R"json(
+{
+  "seriesTitle": "No Number Series",
+  "volumes": [
+    { "chapterStart": "1", "chapterEnd": "10" }
+  ],
+  "weebCentral": { "seriesId": "01FAKENONUMBER" },
+  "numberingQuirk": false,
   "complete": true,
   "qualified": true,
   "gateReason": ""
@@ -327,6 +394,41 @@ int main()
                 QStringLiteral("the refusal names the quirk: %1").arg(rec.gateReason));
     }
 
+    // ── 4b. Blank chapter spans are refused BEFORE the gate sees them ──────────
+    // The gate skips an unparseable span instead of judging it, and answers
+    // {true, ""} when every span is unparseable — safe on the live path, where the
+    // only spans it ever sees are formatChapterKey's own output, but a published
+    // record is the first thing to hand it strings written somewhere else. Caught in
+    // parseDbRecord, deliberately NOT in ComickVolumeGrouper, which is mirrored
+    // line-for-line against the Python and must not drift.
+    {
+        const ParsedRecord rec = parseDbRecord(QByteArray(kBlankTailRecord));
+        require(rec.ok, "the blank-tail record is well-formed JSON (ok)");
+        require(!rec.qualified,
+                "a record whose last volumes carry BLANK spans is refused — an "
+                "interrupted batch write must not ship tiles with no chapters behind them");
+        require(rec.volumes.isEmpty(), "the blank-tail record emits nothing");
+        require(rec.gateReason.contains(QStringLiteral("volume 3 carries no usable chapter range")),
+                QStringLiteral("the refusal names the first bad volume: %1").arg(rec.gateReason));
+    }
+    {
+        const ParsedRecord rec = parseDbRecord(QByteArray(kAllBlankRecord));
+        require(rec.ok, "the all-blank record is well-formed JSON (ok)");
+        require(!rec.qualified,
+                "a record with NO parseable span at all is refused (the gate alone says "
+                "qualified here, because it skips every span and compares nothing)");
+        require(rec.volumes.isEmpty(), "the all-blank record emits nothing");
+    }
+    {
+        const ParsedRecord rec = parseDbRecord(QByteArray(kNoNumberRecord));
+        require(rec.ok, "the no-number record is well-formed JSON (ok)");
+        require(!rec.qualified,
+                "a volume entry with no `number` is refused — it would fall to 0, and 0 "
+                "is a legal first volume, so a one-entry record would qualify on nothing");
+        require(rec.gateReason.contains(QStringLiteral("no whole `number`")),
+                QStringLiteral("the refusal names the missing number: %1").arg(rec.gateReason));
+    }
+
     // ── 5. An honestly unqualified record keeps its own reason ─────────────────
     {
         const ParsedRecord rec = parseDbRecord(QByteArray(kHonestlyUnqualifiedRecord));
@@ -430,7 +532,8 @@ int main()
         QByteArray bytes;
         QString found;
         if (!readFirst(candidates, &bytes, &found)) {
-            note(QStringLiteral("published MHA record: SKIPPED — not on this machine"));
+            skipFixture(QStringLiteral("published MHA record not on this machine — case 12 "
+                                       "did NOT run"));
         } else {
             // ── 12. The real published record parses to 42 qualified volumes ───
             const ParsedRecord rec = parseDbRecord(bytes);
@@ -456,7 +559,8 @@ int main()
         QByteArray bytes;
         QString found;
         if (!readFirst(candidates, &bytes, &found)) {
-            note(QStringLiteral("raw MHA chapter pull: SKIPPED — not on this machine"));
+            skipFixture(QStringLiteral("raw MHA chapter pull not on this machine — case 11 "
+                                       "did NOT run"));
         } else {
             const QList<ChapterRow> rows = parseChapterRows(bytes);
             require(rows.size() == 2714,
@@ -473,22 +577,37 @@ int main()
                     QStringLiteral("the live path qualifies MHA for tankoban mode: %1")
                         .arg(verdict.reason));
             if (publishedRender.isEmpty()) {
-                note(QStringLiteral("live-vs-published comparison: SKIPPED — the published "
+                note(QStringLiteral("live-vs-published comparison did NOT run — the published "
                                     "record is not on this machine"));
             } else {
                 requireEqual(renderRanges(vols), publishedRender,
                              "THE MIRROR: the live scrape and the published record agree on "
                              "all 42 volumes, every boundary label");
+                g_mirrorVerified = (renderRanges(vols) == publishedRender);
                 note(QStringLiteral("live path: %1").arg(renderRanges(vols)));
             }
         }
     }
 
+    // The verdict has to carry the skips: a run that never reached THE MIRROR is not
+    // the same result as one that did, and printing a bare PASS for it would hide the
+    // single assertion this file exists for.
+    QString qualifier;
+    if (g_fixtureSkips > 0) {
+        qualifier = QStringLiteral(", %1 fixture(s) SKIPPED").arg(g_fixtureSkips);
+        if (!g_mirrorVerified)
+            qualifier += QStringLiteral(" — mirror NOT verified");
+    }
+
     if (g_failures > 0) {
-        std::cout << "comick_catalog_parse_harness: FAIL (" << g_failures << " of "
-                  << g_contracts << " contracts)\n";
+        const QString line = QStringLiteral("comick_catalog_parse_harness: FAIL (%1 of %2 "
+                                            "contracts%3)")
+                                 .arg(g_failures).arg(g_contracts).arg(qualifier);
+        std::cout << line.toStdString() << '\n';
         return 1;
     }
-    std::cout << "comick_catalog_parse_harness: PASS (" << g_contracts << " contracts)\n";
+    const QString line = QStringLiteral("comick_catalog_parse_harness: PASS (%1 contracts%2)")
+                             .arg(g_contracts).arg(qualifier);
+    std::cout << line.toStdString() << '\n';
     return 0;
 }

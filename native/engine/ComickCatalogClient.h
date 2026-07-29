@@ -22,6 +22,14 @@
 // Threading: pure QNetworkAccessManager + QObject::connect lambdas, all on the main
 // thread; each fetch carries its own PendingFetch via shared_ptr, so concurrent calls
 // never share state (same shape as MangaDexCatalogClient).
+//
+// ACCEPTED LIMIT, written down rather than left to be discovered: there is no
+// destructor and no in-flight abort. Destroying the client with a request outstanding
+// severs the connection, so that call emits NEITHER signal and its reply is never
+// deleteLater'd. That is exact parity with MangaDexCatalogClient and unreachable while
+// MangaEngine owns the client for the app's lifetime — but anything that starts
+// creating and destroying these per-page has to fix it first, because a dropped call
+// hangs the page-reveal gate that waits on the one-signal-per-call promise.
 
 #pragma once
 
@@ -73,7 +81,8 @@ private:
     void stepChapters(PendingFetchPtr pending);
 
     void emitReady(PendingFetchPtr pending, const QVariantList& volumes, const QString& line);
-    void emitFailure(PendingFetchPtr pending, const QString& reason);
+    void emitFailure(PendingFetchPtr pending, const QString& reason,
+                     const QString& line = QString());
 
     QNetworkAccessManager* m_nam = nullptr;
 };
