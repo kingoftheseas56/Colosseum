@@ -99,6 +99,8 @@ add_executable(colosseum
     engine/MangaSeriesDetail.h
     engine/MangaDexCatalogClient.cpp
     engine/MangaDexCatalogClient.h
+    engine/ComickVolumeGrouper.cpp
+    engine/ComickVolumeGrouper.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
     engine/BookDownloader.cpp
@@ -825,6 +827,16 @@ add_executable(mangadex_volume_fold_harness
 )
 target_include_directories(mangadex_volume_fold_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(mangadex_volume_fold_harness PRIVATE Qt6::Core Qt6::Network)
+
+# Pure-logic contract for Comick grouping + the tankoban completeness gate:
+# mirrors colosseum-volume-db's volume_builder tests case-for-case.
+add_executable(comick_volume_grouper_harness
+    ../tests/comick_volume_grouper_harness.cpp
+    engine/ComickVolumeGrouper.cpp
+    engine/ComickVolumeGrouper.h
+)
+target_include_directories(comick_volume_grouper_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comick_volume_grouper_harness PRIVATE Qt6::Core)
 
 add_executable(torrent_engine_download_harness
     ../tests/torrent_engine_download_harness.cpp
