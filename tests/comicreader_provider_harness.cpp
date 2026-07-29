@@ -11,18 +11,24 @@
 //      the result only lands once the response's thread pumps its event loop.
 //   2. CANCELLABLE — a cancel() that arrives before publication wins, and still
 //      produces exactly ONE finished() so QML's own bookkeeping never dangles.
-//   3. STALE-SAFE — the read-only generation guard the synchronous provider had
-//      is unchanged: a request tagged with a retired generation resolves null,
-//      so a QML Image still bound to a closed volume can never repaint its
-//      pixels.
+//   3. STALE-SAFE — a request tagged with a retired generation resolves null, so
+//      a QML Image still bound to a closed volume can never repaint its pixels.
+//      Not quite the synchronous provider's behaviour: the guard is now read on
+//      the worker thread, so a generation that retires in flight also nulls
+//      (F7). Strictly more conservative, never less — see
+//      ComicReaderImageResponse.h.
 //
 // Cancellation here is DETERMINISTIC, not timing-raced: publication is queued
 // back onto the response's own thread, so a cancel() issued from that same
 // thread — before the harness pumps — is strictly ordered ahead of it no matter
 // how fast the worker finished.
 //
-// F1-F5 go through the provider and its pool (the integration path). F6-F8 hold
-// the worker by driving one response's run() BY HAND — QRunnable::run() and the
+// F1-F5 go through the provider and its pool (the integration path), and F1
+// pins the property the whole task exists for: the work ran on a DIFFERENT
+// thread from the one that asked for it. Nothing else here would catch a
+// provider that dropped its pool and ran inline, since queued publication alone
+// satisfies every other timing assertion. F6-F8 hold the worker by driving one
+// response's run() BY HAND — QRunnable::run() and the
 // constructor are both public Qt surface, so this buys determinism without
 // adding a single line of production code for testing's sake. Held that way,
 // "the worker had not started yet" and "the volume closed while this worker was
@@ -73,6 +79,7 @@
 #include <QEventLoop>
 #include <QGuiApplication>
 #include <QImage>
+#include <QMetaObject>
 #include <QObject>
 #include <QQuickImageProvider>
 #include <QSize>
@@ -111,13 +118,21 @@ static bool waitFor(const std::function<bool()>& pred, int timeoutMs = 5000) {
 // dragging Qt6::Test into a tree whose harnesses have never linked it).
 class FinishedCounter {
 public:
-    explicit FinishedCounter(QQuickImageResponse* response) {
-        QObject::connect(response, &QQuickImageResponse::finished,
-                         [this] { ++m_count; });
-    }
+    explicit FinishedCounter(QQuickImageResponse* response)
+        : m_connection(QObject::connect(response, &QQuickImageResponse::finished,
+                                        [this] { ++m_count; })) {}
+    // The lambda captures `this`, so the connection must not outlive the
+    // counter. Today it never would (every fixture outlives its counter), but
+    // later tasks extend this file and should not have to notice that.
+    ~FinishedCounter() { QObject::disconnect(m_connection); }
+
+    FinishedCounter(const FinishedCounter&) = delete;
+    FinishedCounter& operator=(const FinishedCounter&) = delete;
+
     int count() const { return m_count; }
 
 private:
+    QMetaObject::Connection m_connection;
     int m_count = 0;
 };
 
@@ -183,6 +198,11 @@ int main(int argc, char** argv) {
         CHECK(waitFor([&] { return finished.count() > 0; }), "F1 the response finishes");
         CHECK(finished.count() == 1, "F1 exactly one finished()");
         CHECK(!response->wasCancelled(), "F1 an uncancelled response reports so");
+        // THE point of Task 1. Without this the whole suite would still pass
+        // with the pool deleted and run() called inline, because queued
+        // publication alone satisfies every other timing assertion here.
+        CHECK(response->servedOn() != nullptr && response->servedOn() != QThread::currentThread(),
+              "F1 the cache read and the scale ran OFF the requesting thread");
         CHECK(serveAndTakeSize(response) == QSize(900, 600),
               "F1 the served page is the cached 2400px page scaled to the requested 900px width");
         delete response;
@@ -213,7 +233,8 @@ int main(int argc, char** argv) {
               "F2 a cancelled response publishes NOTHING even though the page was cached");
 
         // And it stays finished exactly once — no late second emission.
-        waitFor([] { return false; }, 60);
+        QThread::msleep(60);
+        QCoreApplication::processEvents();
         CHECK(finished.count() == 1, "F2 no second finished() arrives later");
         delete response;
     }
@@ -256,8 +277,15 @@ int main(int argc, char** argv) {
             QStringLiteral("not-a-real-id"),        // no slash at all
             QStringLiteral("/4"),                   // empty generation
             QStringLiteral("%1/abc").arg(kLiveGen), // unparseable page
+            QStringLiteral("%1/-1").arg(kLiveGen),  // negative page (see note below)
             QStringLiteral(""),                     // empty id
         };
+        // On "-1": parseKey rejects it outright, but that rejection is NOT what
+        // this fixture observes — a negative page could never be in the cache
+        // either, so the miss path produces the same null. The check earns its
+        // place defensively (it makes the guard say what it means, and keeps a
+        // negative index away from any future keying); this case only pins that
+        // the id resolves cleanly instead of crashing.
         for (const QString& id : ids) {
             const QByteArray tag = QStringLiteral("F4 id \"%1\": ").arg(id).toUtf8();
             ComicReaderImageResponse* response = request(provider, id, QSize(900, 0));
@@ -310,6 +338,18 @@ int main(int argc, char** argv) {
     // when a fourth page arrives. Had the worker fetched it, page 1 would go
     // instead. Same technique as comicreader_cache_harness Fixture 1, read
     // backwards.
+    //
+    // TWO ASSUMPTIONS THIS WITNESS RIDES ON, both pinned rather than trusted:
+    //  (a) squarePage() is exactly 4 MiB with no row padding, so three of them
+    //      fill the budget precisely and a fourth forces exactly one eviction.
+    //      The bytesUsed() CHECK below pins that (as comicreader_cache_harness
+    //      does); without it an image-format change would silently turn this
+    //      fixture into a pass-by-accident.
+    //  (b) ComicReaderPageCache::get() promotes to most-recently-used. If a
+    //      future task adds a non-promoting peek to that unit — Task 2 is
+    //      scheduled to — and the response is moved onto it, this fixture will
+    //      start failing for a reason that has nothing to do with cancellation.
+    //      That is the diagnosis, not a mystery: re-express the witness.
     {
         constexpr qint64 kPageBytes = 4LL * 1024 * 1024; // one squarePage()
         ComicReaderPageCache cache(3 * kPageBytes);      // exactly three fit
@@ -317,6 +357,8 @@ int main(int argc, char** argv) {
         cache.insert(kLiveGen, 0, squarePage(qRgb(1, 0, 0))); // oldest
         cache.insert(kLiveGen, 1, squarePage(qRgb(0, 1, 0)));
         cache.insert(kLiveGen, 2, squarePage(qRgb(0, 0, 1)));
+        CHECK(cache.bytesUsed() == 3 * kPageBytes,
+              "F6 setup: three pages exactly fill the budget (pins squarePage() at 4 MiB, unpadded)");
 
         ComicReaderImageResponse response(&cache, &live, QStringLiteral("%1/0").arg(kLiveGen),
                                           QSize(900, 0));
@@ -366,8 +408,9 @@ int main(int argc, char** argv) {
     // Cancel checkpoint THREE, pinned exactly. The worker has already fetched
     // AND scaled a real image; the cancel still wins, because publication is
     // queued behind it. This is the checkpoint that carries the correctness
-    // guarantee — and the one that catches a cancel arriving mid-scale, since
-    // nothing interrupts a running scaledToWidth.
+    // guarantee. It is also where a cancel arriving mid-scale would land — not
+    // because this fixture stages one, but because nothing interrupts a running
+    // scaledToWidth, so no earlier checkpoint could ever catch it.
     {
         ComicReaderPageCache cache;
         std::atomic<quint64> live{kLiveGen};

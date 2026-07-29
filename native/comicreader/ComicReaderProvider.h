@@ -19,6 +19,13 @@
 // is now a ComicReaderImageResponse scheduled on this provider's own pool, and
 // QML can cancel one the moment the page leaves the window.
 //
+// Who parses the URL: the RESPONSE does, in its constructor — not this provider,
+// which only dispatches. Two reasons, and Task 2's author (adding `tier`/`dpr`
+// to the grammar) should know them before moving it: the parse then happens on
+// the requesting thread rather than burning pool time, and the response stays
+// self-contained enough to construct and drive directly, which is what lets the
+// harness hold a worker without any production test hook.
+//
 // Threading: Qt calls requestImageResponse() off the GUI thread. That is safe —
 // ComicReaderPageCache is mutex-guarded and the live generation is read through
 // a std::atomic. Both are owned by ComicReaderCore and outlive the QML engine
@@ -56,9 +63,16 @@ public:
 private:
     ComicReaderPageCache* m_cache;                 // not owned
     const std::atomic<quint64>* m_liveGeneration;  // not owned
-    // Serves this provider's responses only. Destroying it waits for every
-    // queued and running response, so no worker can outlive the cache and
-    // live-generation pointers above.
+    // Serves this provider's responses only. Destroying it drains every queued
+    // and running response, so no worker survives the provider itself — nothing
+    // is left running against a half-torn-down engine.
+    //
+    // Its thread count is set DELIBERATELY narrow in the constructor rather than
+    // inherited from idealThreadCount(): this pool runs alongside the two-lane
+    // decoder on the same machine whose stutter is the reason for this arc, and
+    // a full-width pool can put one smooth scale per core in contention with
+    // decode and the GUI — costing more than the wasted scales cancellation
+    // saves. Task 2's metrics are what should actually tune this.
     QThreadPool m_pool;
 };
 

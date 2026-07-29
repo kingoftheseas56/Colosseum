@@ -9,6 +9,36 @@
 #include <optional>
 
 namespace comicreader {
+namespace {
+
+// "<generation>/<page>", ignoring any query the QML side appended purely to
+// bust its own image cache ("?rev=3"). Leaves the outputs untouched and returns
+// false for anything that is not a well-formed, non-negative pair.
+bool parseKey(const QString& id, quint64& generation, int& page) {
+    QStringView key(id);
+    const qsizetype query = key.indexOf(QLatin1Char('?'));
+    if (query >= 0)
+        key = key.left(query);
+
+    const qsizetype slash = key.indexOf(QLatin1Char('/'));
+    if (slash <= 0)
+        return false;
+
+    bool okGeneration = false;
+    bool okPage = false;
+    const quint64 parsedGeneration = key.left(slash).toULongLong(&okGeneration);
+    const int parsedPage = key.mid(slash + 1).toInt(&okPage);
+    // toInt() accepts "-1" happily. A negative page is never a real request, so
+    // reject it here rather than letting a later cache miss hide it.
+    if (!okGeneration || !okPage || parsedPage < 0)
+        return false;
+
+    generation = parsedGeneration;
+    page = parsedPage;
+    return true;
+}
+
+} // namespace
 
 ComicReaderImageResponse::ComicReaderImageResponse(ComicReaderPageCache* cache,
                                                    const std::atomic<quint64>* liveGeneration,
@@ -17,31 +47,12 @@ ComicReaderImageResponse::ComicReaderImageResponse(ComicReaderPageCache* cache,
     : m_cache(cache),
       m_liveGeneration(liveGeneration),
       m_requestedWidth(requestedSize.width()) {
-    // The pool must not delete this — the owner does, after finished(). It does
-    // still read autoDelete() back off the object once run() returns; see the
-    // header's lifetime note for why that sharp edge is accepted, not absent.
+    // The pool must not delete this — the owner does, after finished(). Safe to
+    // set here: the pool reads the flag before dispatch and never revisits the
+    // object once run() returns (see the header's lifetime note).
     setAutoDelete(false);
 
-    // Strip any "?rev=N" cache-buster before parsing "<generation>/<page>".
-    QString key = id;
-    const int q = key.indexOf(QLatin1Char('?'));
-    if (q >= 0)
-        key.truncate(q);
-
-    const int slash = key.indexOf(QLatin1Char('/'));
-    if (slash <= 0)
-        return;
-
-    bool okGen = false;
-    bool okPage = false;
-    const quint64 gen = QStringView(key).left(slash).toULongLong(&okGen);
-    const int page = QStringView(key).mid(slash + 1).toInt(&okPage);
-    if (!okGen || !okPage)
-        return;
-
-    m_generation = gen;
-    m_page = page;
-    m_idParsed = true;
+    m_idParsed = parseKey(id, m_generation, m_page);
 }
 
 void ComicReaderImageResponse::cancel() {
@@ -57,7 +68,13 @@ QQuickTextureFactory* ComicReaderImageResponse::textureFactory() const {
                              : QQuickTextureFactory::textureFactoryForImage(m_result);
 }
 
+QThread* ComicReaderImageResponse::servedOn() const {
+    return m_servedOn.load(std::memory_order_relaxed);
+}
+
 void ComicReaderImageResponse::run() {
+    m_servedOn.store(QThread::currentThread(), std::memory_order_relaxed);
+
     QImage served;
 
     // An unparseable id, a provider wired to nothing, or a cancel that beat the

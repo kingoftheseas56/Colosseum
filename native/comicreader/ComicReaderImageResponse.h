@@ -32,16 +32,16 @@
 //    thread is strictly ORDERED AHEAD of it — cancel never races publication,
 //    it simply wins. That is what makes the cancel path deterministic rather
 //    than best-effort.
-//  - autoDelete is off, so the pool never DELETES the response — whoever asked
-//    for it owns it, and the QML engine deletes it after finished(). But note
-//    the pool still READS autoDelete() off the object just after run() returns,
-//    and run() returns immediately after queueing publication. An owner that
-//    deletes the instant finished() arrives therefore leaves a narrow
-//    post-run() dereference window. Queueing publication rather than emitting
-//    from the worker already puts two event-loop hops in the way, which is why
-//    this is not a live problem; it is Qt's own documented
-//    QQuickAsyncImageProvider idiom, and it is a KNOWN, accepted sharp edge
-//    rather than a question the design avoids.
+//  - autoDelete is off, so the pool never deletes the response — whoever asked
+//    for it owns it, and the QML engine deletes it after finished(). The pool
+//    captures that flag BEFORE dispatch (qtbase 6.11's QThreadPoolThread::run()
+//    reads autoDelete() into a local, then calls run(), then acts on the local,
+//    precisely so an autoDelete(false) runnable may be destroyed during or
+//    after run()), so it never revisits the object once run() has returned.
+//    Qt's image reader then disposes of the response with deleteLater() on the
+//    reader thread. Net guarantee: an owner may destroy the response the
+//    instant finished() arrives, with NO window — which is exactly what both
+//    harnesses do with a bare delete.
 #pragma once
 
 #include <QImage>
@@ -49,6 +49,7 @@
 #include <QRunnable>
 #include <QSize>
 #include <QString>
+#include <QThread>
 
 #include <atomic>
 
@@ -85,6 +86,14 @@ public:
 
     bool wasCancelled() const;
 
+    // The thread that ran the work; nullptr until run() starts. Getting the
+    // cache copy and the SmoothTransformation scale OFF the requesting thread
+    // is the entire reason this class exists, so which thread actually did the
+    // work is part of what a response reports about itself — not a test-only
+    // detail. Read it after finished(); the queued publication is what
+    // synchronises it with the response's thread.
+    QThread* servedOn() const;
+
     // QRunnable body — provider's pool thread. Never call directly except from
     // a test that wants the work done inline.
     void run() override;
@@ -100,7 +109,12 @@ private:
     int m_page = -1;
     bool m_idParsed = false;
     int m_requestedWidth = 0;
+    // Guards only itself — no companion data rides across threads on it, and
+    // m_result is touched on the response thread alone. The acquire/release
+    // tags are conventional, not load-bearing: the cancel path's determinism
+    // comes from the queued publication hop, not from this flag's ordering.
     std::atomic<bool> m_cancelled{false};
+    std::atomic<QThread*> m_servedOn{nullptr};
     QImage m_result;
 };
 
