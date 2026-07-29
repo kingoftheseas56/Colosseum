@@ -254,12 +254,50 @@ function imageUrls(u) {
 // static universe payload carries routable IDs but no art — the arc's thesis was "every tile
 // BORN with a real ID"; this fetches the cover BACK from that ID so manga/novels/comics aren't
 // left on the honest lettered plate. By-ID (precise), never by-title search (which mismatches).
-//   anilist    → AniList GraphQL Media(id) coverImage.extraLarge/large
-//   applebooks → iTunes lookup?id=<store trackId> artwork (upscaled 100→600)
-//   comic      → ComicsApi.posterFor(title + " comic") — the same call ComicSeries makes
+// Providers are listed on _resolveCover below; coverFor is the cached front door.
+//
+// Resolved covers, keyed by provider:id. Load-bearing, not an optimisation: the tile re-resolves
+// on every delegate REBIND (ListView reuse) and rails empty/refill as they cross the fold, so a
+// single scroll pass would otherwise re-hit AniList/iTunes/GetComics once per tile per pass.
+// Only SUCCESSES are cached — a transient failure must not blank a cover for the process lifetime
+// (the same policy UniverseExtApi.load uses). `_coverWaiters` coalesces requests already in
+// flight for the same key, so fast scrolling cannot stack duplicate calls for one entry.
+var _coverCache = {};
+var _coverWaiters = {};
+
+function _coverKey(e, kind) {
+    if (e.provider && e.id) return e.provider + ":" + e.id;
+    if (kind === "comic" && e.posts && e.posts.length) return "getcomics:" + e.posts[0];
+    return e.id ? (kind + ":" + e.id) : "";
+}
+
 function coverFor(entry, kind, done) {
     var e = entry || ({});
     if (e.cover) { done(e.cover); return; }                   // curated / already resolved
+
+    var key = _coverKey(e, kind);
+    if (key) {
+        if (_coverCache[key] !== undefined) { done(_coverCache[key]); return; }
+        if (_coverWaiters[key]) { _coverWaiters[key].push(done); return; }   // one already in flight
+        _coverWaiters[key] = [done];
+        var settle = function (url) {
+            var waiting = _coverWaiters[key] || [];
+            delete _coverWaiters[key];
+            if (url) _coverCache[key] = url;                  // failures are NOT cached
+            for (var i = 0; i < waiting.length; i++) waiting[i](url);
+        };
+        _resolveCover(e, kind, settle);
+        return;
+    }
+    _resolveCover(e, kind, done);
+}
+
+// The uncached resolution itself, by provider. By-ID (precise), never by-title search.
+//   anilist    → AniList GraphQL Media(id) coverImage.extraLarge/large
+//   applebooks → iTunes lookup?id=<store trackId> artwork (upscaled 100→600)
+//   weebcentral→ constructible cover CDN URL, no fetch
+//   getcomics  → the post's own og_image via ComicsApi.postsById
+function _resolveCover(e, kind, done) {
     var provider = e.provider || (kind === "comic" ? "getcomics" : "");
     if (provider === "anilist" && e.id) {
         var gql = "query($id:Int){Media(id:$id,type:MANGA){coverImage{extraLarge large}}}";

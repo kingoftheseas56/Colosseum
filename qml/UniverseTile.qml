@@ -21,11 +21,29 @@ Item {
     property int order: 0               // NOT "index" — a delegate's own `index` would shadow it
                                          // under ComponentBehavior: Bound and freeze every tile at "1"
     signal activated()
-    property string coverUrl: ""   // async-resolved cover for non-video kinds (UniverseApi.coverFor)
-    Component.onCompleted: {
-        if (tile.kind !== "video")
-            UniverseApi.coverFor(tile.e, tile.kind, function(u) { if (u) tile.coverUrl = u })
+
+    // Async-resolved cover for non-video kinds (UniverseApi.coverFor). Unlike `art`, this is
+    // IMPERATIVE state, not a binding — so it does NOT refresh itself when the view recycles
+    // this delegate onto a different entry. Two guards, both load-bearing:
+    //
+    //  1. ListView.onReused — the rail sets `reuseItems: true`, and on reuse Qt re-assigns the
+    //     delegate's model data but does NOT re-run Component.onCompleted. Measured: scrolling a
+    //     13-entry rail left 3 of 5 live tiles painting an earlier entry's cover under the correct
+    //     title. onReused is the only hook that fires on rebind.
+    //  2. the `forEntry` identity check — a reply can land AFTER this tile has been recycled onto
+    //     something else, which would paint the wrong cover a second way. Only accept a reply that
+    //     still belongs to the entry that asked for it.
+    property string coverUrl: ""
+    function resolveCover() {
+        tile.coverUrl = ""                       // drop the previous entry's art immediately
+        if (tile.kind === "video") return
+        var forEntry = tile.e
+        UniverseApi.coverFor(forEntry, tile.kind, function (u) {
+            if (u && tile.e === forEntry) tile.coverUrl = u
+        })
     }
+    Component.onCompleted: tile.resolveCover()
+    ListView.onReused: tile.resolveCover()
 
     width: 150
     height: 236 + 56
