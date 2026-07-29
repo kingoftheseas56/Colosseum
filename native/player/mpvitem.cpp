@@ -340,7 +340,15 @@ QVariant MpvItem::mpvProperty(const QString &name)
     static const QSet<QString> allowedStatsProperties = {
         QStringLiteral("video-bitrate"),
         QStringLiteral("audio-bitrate"),
+        // The two drop counters the stats card prints as "decoder / output". mpv's naming is a
+        // trap: `frame-drop-count` is the OUTPUT (VO) drop count, and the decoder's own drops are
+        // `decoder-frame-drop-count` — exactly the mapping statsPayload() above uses. There is no
+        // `vo-drop-frame-count` property in mpv; asking for it returns an ErrorReturn QVariant,
+        // which reaches QML as a non-null object and renders as "NaN" (2026-07-29). It is kept in
+        // the allowlist only because PlayerEngineP2 uses that string as its own internal key for
+        // the Player-2 scheduler's late-drop count; the mpv path must never request it.
         QStringLiteral("frame-drop-count"),
+        QStringLiteral("decoder-frame-drop-count"),
         QStringLiteral("vo-drop-frame-count"),
         QStringLiteral("estimated-vf-fps"),
         QStringLiteral("container-fps"),
