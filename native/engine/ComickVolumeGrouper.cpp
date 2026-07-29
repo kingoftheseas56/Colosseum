@@ -40,10 +40,22 @@ bool isAsciiDigit(QChar c)
 // which shows up as overlapping spans — and the gate refuses those, so it can never
 // reach the shelf.
 //
-// Note the deliberate asymmetry, mirrored from the Python: `before` is read from the
-// running `settled` map (so a correction can cascade forward down a run) while
-// `after` is read from the ORIGINAL `assign` (so a correction never justifies itself
-// from the chapter ahead that has already been moved).
+// Note the deliberate asymmetry, mirrored from the Python — and note that only ONE
+// half of it carries behaviour:
+//
+//   * `before` reads the RUNNING `settled` map, so a correction cascades forward down
+//     a run. This half is LOAD-BEARING. Pointing it at `assign` instead looks like a
+//     harmless tidy-up and silently moves book boundaries: rows 1->vol 1, 2->vol 2,
+//     3->vol 1, 4->vol 2 group as vol 1 = 1-3, vol 2 = 4-4 here, and as vol 1 = 1-2,
+//     vol 2 = 3-4 once "tidied". The harness pins exactly that shape.
+//   * `after` reads the ORIGINAL `assign`, but iteration i only ever writes
+//     settled[keys[i]], so by the time it is read keys[i+1] has never been touched and
+//     settled[next] == assign[next] holds always. This half is INERT: it mirrors the
+//     Python's shape, it is not protecting anything. (Measured 2026-07-29: swapping it
+//     changed 0 of 20,000 random assignments, against 3,098 for the `before` half.)
+//
+// So do not "symmetrise" the two — they are not doing the same job, and the one that
+// looks redundant is the one that isn't.
 QMap<ChapterKey, int> fixStrayTags(const QMap<ChapterKey, int>& assign)
 {
     const QList<ChapterKey> keys = assign.keys();   // QMap::keys() is ascending == Python's sorted()
@@ -78,12 +90,19 @@ bool ChapterKey::operator==(const ChapterKey& other) const
 // Mirrors the Python `^-?\d+(?:\.\d+)?$` against the stripped label, hand-rolled so a
 // pure-logic module needs no regex engine.
 //
-// Two knowingly narrower edges versus Python, neither reachable from Comick data:
+// Two knowingly narrower edges versus Python, neither reachable from Comick data
+// (largest real label is 3 digits). Both are pinned by contracts in the harness:
 //   * digits are ASCII only. Python's `re` `\d` and `int()` both accept other Unicode
 //     decimal digits (Arabic-Indic, etc.); QString::toInt does not, so accepting them
 //     in the pattern would only move the failure. ASCII-only is the honest line.
 //   * a label whose number overflows a 32-bit int is rejected here and accepted by
-//     Python's arbitrary-precision int. The largest label in the corpus is 3 digits.
+//     Python's arbitrary-precision int.
+// A rejected label casts no vote, which is the conservative direction in every case
+// but ONE, and that one is worth knowing: an ordinal past int32 ("1.99999999999")
+// rejects the whole label, so a series whose EARLIEST chapter carries such an ordinal
+// loses its fractional origin here. Python calls that a numbering quirk and withholds
+// the shelf; this shows one. That is the only place a narrowing is permissive rather
+// than conservative — recorded, not fixed, because it cannot arise from Comick data.
 bool parseChapterKey(const QString& raw, ChapterKey* out)
 {
     const QString label = raw.trimmed();

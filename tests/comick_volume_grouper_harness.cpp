@@ -402,6 +402,82 @@ int main(int argc, char** argv)
         }
     }
 
+    // ── 1b. The two DECLARED narrowings versus the Python ──────────────────────
+    //
+    // parseChapterKey is deliberately narrower than Python's `^-?\d+(?:\.\d+)?$` +
+    // int() in two ways. Both are real divergences from the batch pipeline, so they are
+    // pinned here rather than left to a header comment: a narrowing nobody tests is
+    // just an undocumented bug waiting for the corpus to change.
+    {
+        // (a) DIGITS ARE ASCII ONLY. Python's `\d` and int() both accept other Unicode
+        //     decimal digits, so U+0667 (Arabic-Indic seven) and U+FF17 (fullwidth
+        //     seven) parse to 7 there and are rejected here. Built from code points so
+        //     the contract cannot be broken by a source-encoding accident.
+        //     CONSERVATIVE: the row simply does not vote, exactly as an absent label.
+        const QString arabicIndicSeven(QChar(0x0667));
+        const QString fullwidthSeven(QChar(0xFF17));
+        require(!parseChapterKey(arabicIndicSeven, nullptr),
+                "ACCEPTED NARROWING: U+0667 parses as 7 in Python, rejected here "
+                "(ASCII-only digits; QString::toInt would refuse it anyway)");
+        require(!parseChapterKey(fullwidthSeven, nullptr),
+                "ACCEPTED NARROWING: U+FF17 parses as 7 in Python, rejected here");
+        Rows rows;
+        rows.add(arabicIndicSeven, QStringLiteral("1"))
+            .add(QStringLiteral("8"), QStringLiteral("1"));
+        require(labelled(majorityAssign(rows.list)).size() == 1,
+                "a non-ASCII-digit label casts no vote, like an absent one");
+    }
+    {
+        // (b) LABELS ARE 32-BIT. Python's int is arbitrary precision. INT_MAX still
+        //     parses; one past it does not. Largest label in the corpus is 3 digits.
+        require(parseChapterKey(QStringLiteral("2147483647"), nullptr),
+                "INT_MAX parses — the narrowing starts one past it");
+        require(!parseChapterKey(QStringLiteral("2147483648"), nullptr),
+                "ACCEPTED NARROWING: INT_MAX+1 parses in Python, rejected here");
+        require(!parseChapterKey(QStringLiteral("99999999999"), nullptr),
+                "ACCEPTED NARROWING: an 11-digit whole label is rejected here");
+        require(!parseChapterKey(QStringLiteral("1.99999999999"), nullptr),
+                "ACCEPTED NARROWING: an ordinal past int32 rejects the WHOLE label");
+
+        // A volume label past int32: Python mints a volume numbered 99999999999 and
+        // puts chapter 1 in it; here the row casts no vote and chapter 1 is left
+        // unassigned. Both refuse to invent — they refuse differently.
+        Rows rows;
+        rows.add(QStringLiteral("1"), QStringLiteral("99999999999"))
+            .add(QStringLiteral("2"), QStringLiteral("1"));
+        requireEqual(render(groupVolumes(rows.list)), QStringLiteral("1:2-2"),
+                     "ACCEPTED NARROWING: a >int32 VOLUME label casts no vote here, "
+                     "where Python mints volume 99999999999");
+    }
+    {
+        // (c) THE ONE NARROWING THAT IS NOT CONSERVATIVE — pinned because it ADDS a
+        //     shelf rather than withholding one, which is the direction that matters.
+        //
+        //     "1.99999999999" is a side chapter to Python (whole 1, ordinal
+        //     99999999999), and it is the earliest chapter, so Python reads a
+        //     fractional origin, calls it a numbering quirk and REFUSES the shelf.
+        //     Here the ordinal will not fit an int, the whole row is dropped, the
+        //     origin looks like a clean integer 2 — and the gate QUALIFIES.
+        //
+        //     Unreachable from Comick data (largest real label is 3 digits), so this is
+        //     recorded, not fixed. If it ever becomes reachable this contract is the
+        //     thing that goes red.
+        Rows rows;
+        rows.add(QStringLiteral("1.99999999999"), QStringLiteral("1"))
+            .span(2, 5, QStringLiteral("1"))
+            .span(6, 10, QStringLiteral("2"));
+        const bool quirk = numberingIsOddball(rows.list);
+        require(!quirk,
+                "the >int32 ordinal is dropped, so the origin reads as a clean integer "
+                "(Python sees a fractional origin here)");
+        const QList<VolumeRange> vols = groupVolumes(rows.list);
+        requireEqual(render(vols), QStringLiteral("1:2-5,2:6-10"),
+                     "the unparseable label is simply absent from the shelf");
+        require(gateVolumes(vols, quirk, rows.list).qualified,
+                "ACCEPTED NARROWING (not conservative): this shows a shelf the Python "
+                "would withhold — recorded, unreachable from Comick data");
+    }
+
     // ── 2. Sub-chapters are ORDINALS, not fractions ────────────────────────────
     // Real Bleach rows: 315.1-315.9 are volume 36, 315.10-315.12 are volume 37.
     // Read as floats, "315.10" == "315.1" — the two pool into one vote and one of
@@ -544,6 +620,33 @@ int main(int argc, char** argv)
             .add(QStringLiteral("3"), QStringLiteral("2"));
         require(labelled(majorityAssign(rows.list)).value(QStringLiteral("2")) == 2,
                 "the middle chapter moves on position, not on vote weight");
+    }
+    {
+        // THE ASYMMETRY GUARD — and the only contract here that catches it.
+        //
+        // fixStrayTags reads `before` from the RUNNING map and `after` from the
+        // ORIGINAL. Pointing `before` at the original too is the obvious-looking
+        // tidy-up, and it is wrong: it moves book boundaries. Mutation-testing that one
+        // line passed every OTHER contract in this file and all six real corpora — only
+        // a differential fuzz against the Python caught it. So this shape is pinned
+        // deliberately, ranges and all, to fail loudly instead.
+        //
+        // Chapters alternate 1,2,1,2 across two volumes. Chapter 2 is flanked by two
+        // volume-1 chapters and joins them; the cascade then means chapter 3 is compared
+        // against an ALREADY-CORRECTED chapter 2, so it stays in volume 1 as well.
+        // Python: {1:1, 2:1, 3:1, 4:2} -> vol 1 = 1-3, vol 2 = 4-4.
+        // Tidied: {1:1, 2:1, 3:2, 4:2} -> vol 1 = 1-2, vol 2 = 3-4.  Different books.
+        Rows rows;
+        rows.add(QStringLiteral("1"), QStringLiteral("1"))
+            .add(QStringLiteral("2"), QStringLiteral("2"))
+            .add(QStringLiteral("3"), QStringLiteral("1"))
+            .add(QStringLiteral("4"), QStringLiteral("2"));
+        const QMap<QString, int> assign = labelled(majorityAssign(rows.list));
+        require(assign.value(QStringLiteral("2")) == 1 && assign.value(QStringLiteral("3")) == 1,
+                "the correction cascades forward: 2 AND 3 both settle into volume 1");
+        requireEqual(render(groupVolumes(rows.list)), QStringLiteral("1:1-3,2:4-4"),
+                     "the cascade sets the book boundary — reading `before` from the "
+                     "original map would hand back 1:1-2,2:3-4");
     }
     {
         // Correcting a stray must never conjure an assignment for a chapter nobody
