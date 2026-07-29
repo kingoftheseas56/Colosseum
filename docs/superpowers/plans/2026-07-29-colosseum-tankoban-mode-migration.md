@@ -53,6 +53,30 @@
 | Live-scrape `lang=en` | Live-scrape **all languages** + majority dedupe | Verified fact 2/3 — en-only is what broke MHA. |
 | Oddball numbering normalized in Phase 1 | Quirk-flagged titles **fail the gate** (chapter list) in v1 | Smallest honest version; normalization is a follow-up, not a blocker. Berserk falls back to chapters until then. |
 
+## Task-1 review amendments (2026-07-29, found by code review against live data)
+
+Task 1 shipped, then two Critical defects surfaced in review. The corrected Python in
+`colosseum-volume-db` is now the **normative reference** — Tasks 2 and 3 mirror THAT, not the
+original draft code blocks below. Re-read `comick_volume_db/volume_builder.py` before writing
+the C++.
+
+1. **Sub-chapter labels are ORDINALS, not decimals.** `float("315.10") == float("315.1")`, so
+   two distinct chapters pooled into one vote and Bleach's chapter 315.10 was silently deleted.
+   Parse `"315.10"` as `(315, 10)` so `315.9 < 315.10 < 315.11`. `_fmt` must round-trip labels
+   exactly (`"110.30"` stays `"110.30"`) — the app joins these against WeebCentral chapter labels.
+2. **The gate grew from 4 conditions to 6.** The original checked only volume-number
+   contiguity, so Vinland Saga passed while claiming "volume 29 = ch 219–220" with chapters
+   210–218 carrying no volume tag in any language. Added: (5) adjacent volume spans must not
+   overlap; (6) no known chapter may sit unmapped BETWEEN two volume spans. The gate therefore
+   needs the chapter-assignment map, not just the collapsed volume list.
+3. **Assignment must be monotonic.** Physical tankōbon are strictly sequential, so a later
+   chapter is never in an earlier book. One stray uploader row put Naruto's ch 459.3 in vol 50
+   while its neighbours 454–463 are vol 49. Contradictory assignments resolve toward the
+   surrounding consensus. This corrects EXISTING assignments only — an unassigned chapter stays
+   unassigned so the gate can see the hole.
+4. **A genuine tie leaves the chapter unassigned** (was: tie → smaller volume). A tie means the
+   sources contradict each other; inventing a winner is the estimation this project forbids.
+
 ## File structure
 
 **Repo `colosseum-volume-db`** (`~/Desktop/colosseum-volume-db`, own git remote):
