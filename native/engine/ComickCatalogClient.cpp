@@ -50,9 +50,9 @@ void applyHeaders(QNetworkRequest& req, int timeoutMs)
                      QNetworkRequest::NoLessSafeRedirectPolicy);
 }
 
-// lowercase alphanumerics only — the same normalization MangaDexCatalogClient uses to
-// beat relevance order, so "One Piece" doesn't match "One Piece Academy". This is one
-// half of the shared series-resolution rule; see the note at the best-match loop in
+// Lowercase alphanumerics only — strip everything else so an exact title hit can beat
+// relevance order, and "One Piece" doesn't match "One Piece Academy". This is one half
+// of the shared series-resolution rule; see the note at the best-match loop in
 // stepSearch for the other half and for why the two implementations have to agree.
 QString matchKey(const QString& raw)
 {

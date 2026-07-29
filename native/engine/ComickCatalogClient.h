@@ -1,8 +1,8 @@
 // ComickCatalogClient.h
 //
-// Volume-structure source for tankoban mode. Replaces MangaDexCatalogClient behind
-// the IDENTICAL catalogReady/catalogFailed contract, so MangaEngine and QML barely
-// change. Two steps:
+// Volume-structure source for tankoban mode. It is the only one: MangaEngine and QML
+// see nothing but the catalogReady/catalogFailed contract below — exactly one of the
+// two per call, carrying the title back so a caller can match it. Two steps:
 //   1. DB read  — raw.githubusercontent.com/kingoftheseas56/colosseum-volume-db/
 //                 main/db/<weebcentral-ulid>.json, unauthenticated, kept warm by our
 //                 batch job. The record carries volumes plus its own gate verdict.
@@ -21,12 +21,12 @@
 //
 // Threading: pure QNetworkAccessManager + QObject::connect lambdas, all on the main
 // thread; each fetch carries its own PendingFetch via shared_ptr, so concurrent calls
-// never share state (same shape as MangaDexCatalogClient).
+// never share state — there is no per-client mutable request state at all.
 //
 // ACCEPTED LIMIT, written down rather than left to be discovered: there is no
 // destructor and no in-flight abort. Destroying the client with a request outstanding
 // severs the connection, so that call emits NEITHER signal and its reply is never
-// deleteLater'd. That is exact parity with MangaDexCatalogClient and unreachable while
+// deleteLater'd. That is an accepted limit, not a regression, and unreachable while
 // MangaEngine owns the client for the app's lifetime — but anything that starts
 // creating and destroying these per-page has to fix it first, because a dropped call
 // hangs the page-reveal gate that waits on the one-signal-per-call promise.

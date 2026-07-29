@@ -39,7 +39,14 @@ $page    = Read-RepoFile "qml/MangaTankobanSourcesPage.qml"
 $reader  = Read-RepoFile "qml/comicreader/ComicReaderShell.qml"
 $main    = Read-RepoFile "qml/Main.qml"
 
-Assert-Contains $series 'text: "TANKOBAN MODE"' "series-level mode label missing"
+# The mode used to be an Off/On toggle, and this line used to assert its "TANKOBAN MODE" label.
+# The 2026-07-30 migration deleted the toggle: the completeness gate emits a complete volume list
+# or nothing, so volumes.length IS the verdict and there is nothing left for a user to choose.
+# The assertion is re-pointed, not dropped - the page still HAS a tankoban mode, it is just derived
+# now, and the volume surface is still gated on it. Those are the two properties the old label was
+# standing in for. (The label's absence is contracted separately, in test_tankoban_migration_p0.)
+Assert-Contains $series 'property bool tankobanMode: volumes.length > 0' "series mode must be DERIVED from the gated volume list, never stored"
+Assert-Contains $series 'visible: page.tankobanMode' "the volume surface must be revealed by the derived mode"
 Assert-Contains $series 'TankobanVolumes.prepareSeries' "dynamic snapshot is not handed off"
 Assert-Contains $series 'MangaTankobanLibrary {' "volume-first surface missing"
 Assert-Contains $series 'MangaTankobanSourcesPage {' "full-screen sources page must be hosted"
