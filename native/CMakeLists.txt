@@ -101,6 +101,8 @@ add_executable(colosseum
     engine/MangaDexCatalogClient.h
     engine/ComickVolumeGrouper.cpp
     engine/ComickVolumeGrouper.h
+    engine/ComickCatalogClient.cpp
+    engine/ComickCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
     engine/BookDownloader.cpp
@@ -837,6 +839,17 @@ add_executable(comick_volume_grouper_harness
 )
 target_include_directories(comick_volume_grouper_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comick_volume_grouper_harness PRIVATE Qt6::Core)
+
+# Pure-parse contract for the Comick catalog client (DB record + live chapters).
+add_executable(comick_catalog_parse_harness
+    ../tests/comick_catalog_parse_harness.cpp
+    engine/ComickCatalogClient.cpp
+    engine/ComickCatalogClient.h
+    engine/ComickVolumeGrouper.cpp
+    engine/ComickVolumeGrouper.h
+)
+target_include_directories(comick_catalog_parse_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comick_catalog_parse_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(torrent_engine_download_harness
     ../tests/torrent_engine_download_harness.cpp
