@@ -135,11 +135,22 @@ public:
     // behaviour (budget/LRU alone), which is what Single and Pair still do until
     // Task 8 wires the viewport up.
     //
-    // Margins: decoded pages are kept ±2 around the visible run, which is what
-    // the Long Strip decode window (1.5 screens either side, ≈1.5 pages at the
-    // default 78% portrait width) actually asks for, so the sweep does not fight
-    // the prefetch. Scaled pages are kept from 1 behind to 2 ahead — tighter
-    // behind, because a scale is cheap to redo and the reader is going forward.
+    // Margins: decoded pages are kept ±2 around the visible run, comfortably
+    // wider than the Long Strip decode window actually asks for (1.5 screens
+    // either side, and a page is ≈2 screens at the default 78% portrait width),
+    // so the sweep can never fight the prefetch. Scaled pages are kept from 1
+    // behind to 2 ahead — tighter behind, because a scale is cheap to redo and
+    // the reader is going forward — and that scaled window is also what sets the
+    // scaled tier's capacity, so the range you ask for is literally the number
+    // of scales kept.
+    //
+    // ⚠ COST, for whoever wires this up (Task 8): a call whose clamped range
+    // DIFFERS from the last one walks both cache hashes under both mutexes and
+    // frees QImages ON THE CALLING (GUI) THREAD, and the decoded walk contends
+    // the same mutex every provider worker takes for every page fetch. A repeat
+    // of the same range is a two-integer compare and returns immediately, so
+    // driving this from a per-frame scroll signal is safe but wasteful at the
+    // edges — debounce or send it on settle, and send PAGE indices, not pixels.
     Q_INVOKABLE void requestRange(int firstVisible, int lastVisible);
     Q_INVOKABLE void setStripViewport(double top, double height); // drive strip decode window
     Q_INVOKABLE void setStripViewportWidth(int width);            // Task 10: strip geometry width
@@ -193,24 +204,36 @@ public:
     Q_INVOKABLE qulonglong cacheBudget() const { return static_cast<qulonglong>(m_cacheBudget); }
     Q_INVOKABLE QVariantMap couplingProbeDebug() const;
     // What the image delivery path actually did — scaled-tier reuse, scales
-    // computed, cancellations, stale drops, worst dispatch/response times, and
-    // the high-water resident ENTRY counts of both tiers. Read-only and never
-    // reset by reading, so two readers can never disagree about what happened.
-    // Task 12's performance gate is the consumer.
+    // computed, cancellations, stale drops, worst dispatch/response times, the
+    // high-water resident ENTRY counts of both tiers, and the scaled tier's live
+    // bytes / evictions / current derived ceiling. Reading never resets, so two
+    // readers can never disagree about what happened; openEntry DOES reset,
+    // because these describe the delivery of one volume. Task 12's performance
+    // gate is the consumer.
+    //
+    // On reading maxScaledResident: it is a monotone maximum, so it pins to the
+    // tier's ceiling once the ceiling is touched once and cannot distinguish a
+    // held window from a thrashing one. For "is the tier earning its memory",
+    // use the reuse ratio scaledHits / (scaledHits + scaleJobs) together with
+    // scaledEvictions.
     Q_INVOKABLE QVariantMap deliveryMetrics() const;
 
     // Build a read-only provider wired to this core's two image tiers, live
     // generation, render revision and metrics. The caller (main.cpp ->
-    // engine.addImageProvider) takes ownership.
+    // engine.addImageProvider) takes ownership. It reads the members directly —
+    // the accessors below are not involved.
     ComicReaderProvider* createProvider();
 
-    // Owned units, handed out for the provider factory and for observation; all
-    // outlive the QML engine. Neither accessor mutates anything.
-    ComicReaderPageCache* pageCache() { return &m_cache; }
-    ComicReaderScaleCache* scaleCache() { return &m_scaleCache; }
     const std::atomic<quint64>* liveGenerationAtomic() const { return &m_liveGeneration; }
 
     // ---- Test seam (no production caller) -----------------------------------
+    // The two image tiers, handed out so a harness can seed them and observe
+    // what a sweep left behind. Non-const on purpose: the fixtures insert
+    // through them. Nothing in production calls these — createProvider() takes
+    // the members directly — so they grant a harness reach, not a second owner.
+    ComicReaderPageCache* pageCache() { return &m_cache; }
+    ComicReaderScaleCache* scaleCache() { return &m_scaleCache; }
+
     // Forwards straight to ComicReaderDecode::setWorkerHooksForTest, so a harness
     // driving THIS object can hold the two decode lanes busy and then observe the
     // ORDER queued work is dequeued — the only way to test decode priority from
@@ -262,6 +285,13 @@ private:
     // there invalidates the scaled tier for free. Constant today — there is no
     // render profile yet, and this task does not build one.
     std::atomic<quint64> m_renderRevision{0};
+
+    // The last window requestRange actually swept, POST-clamp, so a repeat can
+    // return without touching either cache. -1/-1 means "nothing swept yet" and
+    // is restored on every entry open/close, so a new book always sweeps even if
+    // it opens on the page numbers the last one closed at.
+    int m_rangeFirst = -1;
+    int m_rangeLast = -1;
     quint64 m_generation = 0;
 
     // ── current entry ──

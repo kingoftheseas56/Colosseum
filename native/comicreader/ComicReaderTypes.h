@@ -10,9 +10,25 @@
 #include <QString>
 #include <QVariantMap>
 
+#include <atomic>
 #include <optional>
 
 namespace comicreader {
+
+// Raise `target` to `value` if `value` is larger. Lock-free, and safe when
+// several writers race — compare_exchange_weak reloads `seen` with whatever the
+// winner stored, so the loop re-tests against the new truth.
+//
+// Lives in this neutral foundation header because BOTH image tiers publish a
+// high-water mark through it, and the lower one (ComicReaderPageCache) must not
+// have to depend on the higher one (ComicReaderScaleCache) for four lines of
+// generic arithmetic that has nothing to do with scaling.
+inline void raiseMax(std::atomic<quint64>& target, quint64 value) {
+    quint64 seen = target.load(std::memory_order_relaxed);
+    while (value > seen
+           && !target.compare_exchange_weak(seen, value, std::memory_order_relaxed)) {
+    }
+}
 
 enum class Mode { LongStrip, DoublePage };
 enum class Direction { Ltr, Rtl };

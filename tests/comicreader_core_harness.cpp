@@ -1126,6 +1126,37 @@ int main(int argc, char** argv) {
         CHECK(!scaledAt(18), "T26 scaled 18 is outside the tighter scaled window");
         CHECK(!scaledAt(25), "T26 scaled 25 is beyond the prefetch");
 
+        // The scaled tier's capacity is DRIVEN by the window, not a guess: the
+        // scaled range here is [19, 24], six pages, at two entries per page.
+        // This is the assertion that keeps the rework honest — if the capacity
+        // ever stops following the window, the tier silently goes back to being
+        // sized by something unrelated to where the reader is.
+        CHECK(core.scaleCache()->capacity() == 12,
+              "T26 the scaled capacity IS the retained window (6 pages x 2 entries)");
+        core.requestRange(20, 20);
+        CHECK(core.scaleCache()->capacity() == 8,
+              "T26 a narrower window narrows the capacity with it (4 pages x 2)");
+
+        // ⚠ The repeat-call guard. Task 8 wires this to a per-frame scroll
+        // signal, and an unguarded call walks both cache hashes under both
+        // mutexes and frees QImages on the GUI thread — contending the very
+        // mutex every provider worker takes for every page fetch. A repeat of an
+        // identical clamped range must be a two-integer compare and nothing
+        // else. Nothing asserted this before, which is how a per-frame cascade
+        // gets into a build (it is what the video player's stutter turned out to
+        // be earlier this month).
+        core.requestRange(20, 22);
+        const int capacityAfterFirst = core.scaleCache()->capacity();
+        core.pageCache()->insert(gen, 26, QImage(8, 8, QImage::Format_ARGB32));
+        core.requestRange(20, 22);   // byte-identical repeat
+        CHECK(core.pageCache()->get(gen, 26).has_value(),
+              "T26 a REPEATED identical range returns early — it did not sweep again");
+        CHECK(core.scaleCache()->capacity() == capacityAfterFirst,
+              "T26 and it left the capacity alone");
+        core.requestRange(21, 23);   // a real move must still sweep
+        CHECK(!core.pageCache()->get(gen, 26).has_value(),
+              "T26 a CHANGED range sweeps normally — the guard is not a lock-out");
+
         // Degenerate input must clamp, never index out of the book.
         core.requestRange(-40, 9999);
         core.requestRange(28, 3);   // inverted

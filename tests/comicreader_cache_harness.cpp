@@ -283,6 +283,15 @@ int main() {
         CHECK(!scaled.get({9, 10, QSize(900, 1400), 100, 1, ScaleTier::Preview}).has_value(),
               "F9 a different TIER is a different key (a preview is not an hq)");
         CHECK(scaled.entryCount() == 1, "F9 all those misses inserted nothing");
+
+        // Every miss above proves operator== separates the fields. It does NOT
+        // prove qHash does: a hash that silently ignored a field would still
+        // compare unequal and still return the right answer, just from one
+        // colliding bucket — correct, slower, and invisible. Assert the hash
+        // moves for the field this task added.
+        const ScaleKey hq{9, 10, QSize(900, 1400), 100, 1, ScaleTier::Hq};
+        const ScaleKey preview{9, 10, QSize(900, 1400), 100, 1, ScaleTier::Preview};
+        CHECK(qHash(hq) != qHash(preview), "F9 qHash actually mixes the tier, not just operator==");
     }
 
     // ── Fixture 10: retainRange is the scaled tier's ownership rule ──────────
@@ -311,28 +320,91 @@ int main() {
     // ── Fixture 11: the scaled tier is bounded even with NOBODY driving it ───
     // This is the memory guard that matters. QML drives requestRange in Long
     // Strip (Task 8); a surface that never calls it must still not grow a second
-    // unbounded image cache. Two independent ceilings: entry count and bytes.
+    // unbounded image cache. Until then the tier runs on kDefaultCapacity.
     {
         ComicReaderScaleCache scaled;   // house defaults
         for (int p = 0; p < 12; ++p)
             scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 0, 0)));
-        CHECK(scaled.entryCount() == ComicReaderScaleCache::kMaxEntries,
-              "F11 the entry cap holds with no range sweep at all");
+        CHECK(scaled.entryCount() == ComicReaderScaleCache::kDefaultCapacity,
+              "F11 the capacity holds with no range sweep at all");
         CHECK(!scaled.get({1, 0, QSize(900, 1400), 100, 0}).has_value(),
               "F11 the oldest scale is the one dropped");
         CHECK(scaled.get({1, 11, QSize(900, 1400), 100, 0}).has_value(),
               "F11 the newest scale survives");
     }
     {
-        // Byte ceiling, isolated: 8 MiB holds exactly two 4 MiB images, so the
-        // third evicts on bytes long before the entry cap could bite.
+        // Hard ceiling, isolated: 8 MiB holds exactly two 4 MiB images, so the
+        // third evicts on bytes long before the capacity could bite.
         ComicReaderScaleCache scaled(8 * kMiB);
         for (int p = 0; p < 3; ++p)
             scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 1, 0)));
-        CHECK(scaled.entryCount() == 2, "F11 the byte budget evicts before the entry cap");
+        CHECK(scaled.entryCount() == 2, "F11 the hard ceiling evicts before the capacity");
         CHECK(scaled.bytesUsed() == 2 * kImageBytes, "F11 bytesUsed tracks the survivors");
         CHECK(!scaled.get({1, 0, QSize(900, 1400), 100, 0}).has_value(),
-              "F11 the byte budget drops the least-recently-used first");
+              "F11 the hard ceiling drops the least-recently-used first");
+    }
+
+    // ── Fixture 11b: BOTH bounds live at once — the fixture that was missing ─
+    // F11 tests each bound with the other one slack, which is exactly how the
+    // first cut of this tier shipped a false premise: its header claimed the
+    // entry cap was "the bound that actually bites" while a fixed 64 MiB byte
+    // budget was silently the operative one, holding TWO real 24 MB colour
+    // pages instead of eight. Every fixture used 4 MiB or 24 KB images, regimes
+    // where the cap really does bite, so nothing could see it. These two blocks
+    // put both bounds in play together and pin WHICH ONE WINS in each
+    // direction — the only assertion that would have caught that bug.
+    {
+        // Ceiling tighter than capacity: 3 pages asked for, 8 MiB of room.
+        // The window does NOT lift the ceiling — a ceiling a wide window could
+        // raise would not be a ceiling.
+        DeliveryMetrics metrics;
+        ComicReaderScaleCache scaled(8 * kMiB, 8);
+        scaled.setMetricsSink(&metrics);
+        scaled.setCapacity(3);
+        for (int p = 0; p < 3; ++p)
+            scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 2, 0)));
+        scaled.retainRange(1, 0, 2);   // every page is in the window
+        CHECK(scaled.entryCount() == 2,
+              "F11b the hard ceiling still wins over an in-window entry");
+        CHECK(scaled.bytesUsed() <= 8 * kMiB, "F11b residency stays under the ceiling");
+        CHECK(metrics.scaledEvictions.load() == 1,
+              "F11b the eviction the ceiling forced is COUNTED, so Task 12 can see it");
+        CHECK(metrics.scaledBytesUsed.load() == quint64(2 * kImageBytes),
+              "F11b the live byte level is published, not just the peak");
+    }
+    {
+        // Capacity tighter than ceiling — the NORMAL production case, and the
+        // whole point of the rework: the retained window governs residency.
+        DeliveryMetrics metrics;
+        ComicReaderScaleCache scaled(1024 * kMiB, 8);   // ceiling nowhere near
+        scaled.setMetricsSink(&metrics);
+        scaled.setCapacity(2);
+        for (int p = 0; p < 4; ++p)
+            scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 3, 0)));
+        CHECK(scaled.entryCount() == 2, "F11b the capacity governs when it is the tighter bound");
+        CHECK(scaled.bytesUsed() == 2 * kImageBytes, "F11b and bytes follow the count");
+        CHECK(metrics.scaledEvictions.load() == 2, "F11b both capacity evictions counted");
+    }
+
+    // ── Fixture 11c: capacity tracks the window, and shrinking bites at once ─
+    // ComicReaderCore::requestRange sizes the capacity from the page range it
+    // retains, so a reader that narrows its window must release the memory
+    // immediately rather than at the next insert. Growing must NOT resurrect
+    // what a narrower window already dropped.
+    {
+        ComicReaderScaleCache scaled(1024 * kMiB, 8);
+        for (int p = 0; p < 6; ++p)
+            scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 4, 0)));
+        CHECK(scaled.entryCount() == 6, "F11c six scales fit the default capacity");
+        scaled.setCapacity(2);
+        CHECK(scaled.entryCount() == 2, "F11c shrinking the window evicts immediately");
+        CHECK(scaled.get({1, 5, QSize(900, 1400), 100, 0}).has_value(),
+              "F11c the most recent survivors are the ones kept");
+        scaled.setCapacity(6);
+        CHECK(scaled.entryCount() == 2, "F11c widening again does not resurrect dropped scales");
+        scaled.setCapacity(0);
+        CHECK(scaled.capacity() == 1 && scaled.entryCount() == 1,
+              "F11c capacity clamps to at least one — the page on screen");
     }
 
     // ── Fixture 12: the DECODED tier's retainRange, and what outranks it ─────
@@ -382,18 +454,19 @@ int main() {
     // shrinking back down must not erase the peak the gate is trying to catch.
     {
         std::atomic<quint64> decodedMark{0};
-        std::atomic<quint64> scaledMark{0};
+        DeliveryMetrics metrics;
         ComicReaderPageCache cache(1024 * kMiB);
-        ComicReaderScaleCache scaled;
+        ComicReaderScaleCache scaled(1024 * kMiB, 8);
         cache.setResidentHighWaterSink(&decodedMark);
-        scaled.setResidentHighWaterSink(&scaledMark);
+        scaled.setMetricsSink(&metrics);
 
         for (int p = 0; p < 5; ++p)
             cache.insert(9, p, synthetic(qRgb(p, 0, 0)));
         for (int p = 0; p < 3; ++p)
             scaled.insert({9, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 0, 0)));
         CHECK(decodedMark.load() == 5, "F13 the decoded mark counts resident entries");
-        CHECK(scaledMark.load() == 3, "F13 the scaled mark counts resident entries");
+        CHECK(metrics.maxScaledResident.load() == 3, "F13 the scaled mark counts resident entries");
+        const std::atomic<quint64>& scaledMark = metrics.maxScaledResident;
 
         cache.retainRange(9, 0, 0, QVector<int>{});
         scaled.retainRange(9, 0, 0);

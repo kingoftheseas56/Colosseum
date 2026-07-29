@@ -7,6 +7,20 @@
 
 namespace comicreader {
 
+void DeliveryMetrics::reset() {
+    sourceHits.store(0, std::memory_order_relaxed);
+    scaledHits.store(0, std::memory_order_relaxed);
+    scaleJobs.store(0, std::memory_order_relaxed);
+    cancelledJobs.store(0, std::memory_order_relaxed);
+    staleDrops.store(0, std::memory_order_relaxed);
+    maxDispatchUs.store(0, std::memory_order_relaxed);
+    maxResponseMs.store(0, std::memory_order_relaxed);
+    maxDecodedResident.store(0, std::memory_order_relaxed);
+    maxScaledResident.store(0, std::memory_order_relaxed);
+    scaledBytesUsed.store(0, std::memory_order_relaxed);
+    scaledEvictions.store(0, std::memory_order_relaxed);
+}
+
 size_t qHash(const ScaleKey& key, size_t seed) noexcept {
     // Fold every field that participates in operator==. QtPrivate::QHashCombine
     // is the house way to chain these; ::qHash on each part keeps QSize's own
@@ -37,13 +51,31 @@ QString tierToString(ScaleTier tier) {
     return QStringLiteral("hq");
 }
 
-ComicReaderScaleCache::ComicReaderScaleCache(qint64 budget, int maxEntries)
-    : m_budget(budget), m_maxEntries(qMax(1, maxEntries)) {}
+ComicReaderScaleCache::ComicReaderScaleCache(qint64 hardCeiling, int capacity)
+    : m_hardCeiling(hardCeiling), m_capacity(qMax(1, capacity)) {}
 
-void ComicReaderScaleCache::setBudget(qint64 bytes) {
+void ComicReaderScaleCache::setCapacity(int entries) {
     QMutexLocker lock(&m_mutex);
-    m_budget = bytes;
+    m_capacity = qMax(1, entries);
     evictLocked();
+    publishLocked();
+}
+
+int ComicReaderScaleCache::capacity() const {
+    QMutexLocker lock(&m_mutex);
+    return m_capacity;
+}
+
+void ComicReaderScaleCache::setHardCeiling(qint64 bytes) {
+    QMutexLocker lock(&m_mutex);
+    m_hardCeiling = bytes;
+    evictLocked();
+    publishLocked();
+}
+
+qint64 ComicReaderScaleCache::hardCeiling() const {
+    QMutexLocker lock(&m_mutex);
+    return m_hardCeiling;
 }
 
 std::optional<QImage> ComicReaderScaleCache::get(const ScaleKey& key) {
@@ -59,6 +91,11 @@ std::optional<QImage> ComicReaderScaleCache::get(const ScaleKey& key) {
 }
 
 void ComicReaderScaleCache::insert(const ScaleKey& key, const QImage& image) {
+    // A null image is not an answer. Seating one would cost a slot against the
+    // capacity forever: every reader rejects it as a miss and re-inserts it.
+    if (image.isNull())
+        return;
+
     QMutexLocker lock(&m_mutex);
 
     auto existing = m_entries.find(key);
@@ -68,15 +105,17 @@ void ComicReaderScaleCache::insert(const ScaleKey& key, const QImage& image) {
         m_entries.erase(existing);
     }
 
+    const qint64 bytes = image.sizeInBytes();
+
     Entry entry;
     entry.image = image;
     m_lru.push_back(key);
     entry.lruIt = std::prev(m_lru.end());
-    m_bytesUsed += image.sizeInBytes();
+    m_bytesUsed += bytes;
     m_entries.insert(key, entry);
 
     evictLocked();
-    noteResidentLocked();
+    publishLocked();
 }
 
 void ComicReaderScaleCache::retainRange(quint64 gen, int first, int last) {
@@ -91,6 +130,7 @@ void ComicReaderScaleCache::retainRange(quint64 gen, int first, int last) {
             ++it;
         }
     }
+    publishLocked();
 }
 
 void ComicReaderScaleCache::clear() {
@@ -98,6 +138,7 @@ void ComicReaderScaleCache::clear() {
     m_entries.clear();
     m_lru.clear();
     m_bytesUsed = 0;
+    publishLocked();
 }
 
 int ComicReaderScaleCache::entryCount() const {
@@ -110,20 +151,24 @@ qint64 ComicReaderScaleCache::bytesUsed() const {
     return m_bytesUsed;
 }
 
-void ComicReaderScaleCache::setResidentHighWaterSink(std::atomic<quint64>* sink) {
+void ComicReaderScaleCache::setMetricsSink(DeliveryMetrics* sink) {
     QMutexLocker lock(&m_mutex);
-    m_residentSink = sink;
+    m_metrics = sink;
 }
 
 void ComicReaderScaleCache::evictLocked() {
-    // Both ceilings, least-recently-used first. Nothing here is pinnable: a lost
-    // scale costs one rescale of a page that is still in the decoded tier, so
-    // there is no case where holding an entry beats holding the ceiling. The
-    // last entry is never dropped — evicting the thing just inserted would make
-    // insert() a no-op for an oversized image, and serving it once is better
-    // than looping.
+    // The capacity is what governs; the ceiling is the stop, and it can only
+    // fire when the entries are big enough that the window would not have fit
+    // (see the header). Least-recently-used first, and nothing here is pinnable:
+    // a lost scale costs a rescale (the header has the honest version of what
+    // that can cost), and holding one would mean holding scaled bytes past the
+    // window the reader actually asked to keep.
+    //
+    // The last entry is never dropped — evicting the thing just inserted would
+    // make insert() a no-op for an image bigger than the whole ceiling, and
+    // serving it once is better than looping.
     while (m_entries.size() > 1
-           && (m_entries.size() > m_maxEntries || m_bytesUsed > m_budget)) {
+           && (m_entries.size() > m_capacity || m_bytesUsed > m_hardCeiling)) {
         const ScaleKey oldest = m_lru.front();
         auto it = m_entries.find(oldest);
         m_lru.pop_front();
@@ -131,12 +176,19 @@ void ComicReaderScaleCache::evictLocked() {
             continue;   // shouldn't happen: list and map stay in sync
         m_bytesUsed -= it->image.sizeInBytes();
         m_entries.erase(it);
+        if (m_metrics)
+            m_metrics->scaledEvictions.fetch_add(1, std::memory_order_relaxed);
     }
 }
 
-void ComicReaderScaleCache::noteResidentLocked() {
-    if (m_residentSink)
-        raiseMax(*m_residentSink, static_cast<quint64>(m_entries.size()));
+void ComicReaderScaleCache::publishLocked() {
+    if (!m_metrics)
+        return;
+    raiseMax(m_metrics->maxScaledResident, static_cast<quint64>(m_entries.size()));
+    // A level, not a maximum: it has to be able to fall, or it could not show a
+    // sweep working.
+    m_metrics->scaledBytesUsed.store(static_cast<quint64>(m_bytesUsed),
+                                     std::memory_order_relaxed);
 }
 
 } // namespace comicreader

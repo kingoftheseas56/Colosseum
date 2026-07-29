@@ -3,8 +3,10 @@
 // Pinned, budgeted LRU page cache for the Comic Reader (Agent 1, plan
 // 2026-07-23). Later tasks feed decoded pages in here (Task 4's decode
 // coordinator) and pin the visible/neighbor pages so the on-screen frame never
-// blanks under memory pressure (Task 7's backend). Standalone: depends only on
-// Qt Core/Gui (QImage) plus std — no other comicreader/ unit.
+// blanks under memory pressure (Task 7's backend). Depends only on Qt Core/Gui
+// (QImage), std, and ComicReaderTypes.h — the reader's neutral foundation
+// header, for the shared lock-free raiseMax() this publishes its high-water mark
+// through. It knows nothing of the scaled tier, the decoder, or the provider.
 //
 // Keyed by (generation, page). `generation` is a monotonic counter the caller
 // bumps each time a new entry (chapter/volume) opens, so a stale generation's

@@ -1,7 +1,7 @@
 // native/comicreader/ComicReaderPageCache.cpp
 #include "comicreader/ComicReaderPageCache.h"
 
-#include "comicreader/ComicReaderScaleCache.h"   // raiseMax — the shared high-water helper
+#include "comicreader/ComicReaderTypes.h"   // raiseMax — the shared high-water helper
 
 #include <QMutexLocker>
 

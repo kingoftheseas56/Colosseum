@@ -430,6 +430,10 @@ int main(int argc, char** argv) {
         CHECK(!held.wasCancelled(), "F7 a retired generation is not a cancellation");
         CHECK(held.textureFactory() == nullptr,
               "F7 a generation retired AFTER the request serves NULL — the guard runs at WORK time");
+        CHECK(bench.metrics.staleDrops.load() == 1,
+              "F7 a retire-in-flight counts as a stale drop too, not just a request-time one");
+        CHECK(bench.metrics.scaleJobs.load() == 0,
+              "F7 and it costs no scale — the guard fires before any work");
     }
 
     // ── Fixture 8: a cancel landing after the work, before publication ───────

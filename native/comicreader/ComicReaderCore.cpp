@@ -34,19 +34,30 @@ constexpr qint64 kBudgetSaver  = 256LL * 1024 * 1024;
 
 // requestRange's retention margins, in pages either side of the visible run.
 //
-// The decode margin is ±2 because that is roughly what the Long Strip decode
-// window already asks for: it loads 1.5 screens past each edge of the viewport,
-// and at the default 78% portrait width a screen is a little over one page. A
-// tighter margin would sweep away pages the strip's own prefetch just queued;
-// a looser one would stop bounding anything.
+// The decode margin is ±2 because the Long Strip decode window asks for less
+// than that, so the sweep can never fight the strip's own prefetch: the strip
+// loads 1.5 screens past each edge of the viewport, and at the default 78%
+// portrait width a PAGE is roughly two screens tall — so 1.5 screens is well
+// under one page either side. ±2 is therefore comfortably conservative; a
+// looser margin would stop bounding anything.
 //
 // The scaled margins are deliberately ASYMMETRIC — one behind, two ahead. A
 // scale is cheap to redo from a page that is still decoded, and the reader is
-// travelling forward, so spending the tier's small entry budget behind the
-// viewport buys less than spending it in front.
+// travelling forward, so spending the tier's entry budget behind the viewport
+// buys less than spending it in front.
 constexpr int kDecodeKeepMargin = 2;
 constexpr int kScaleKeepBehind  = 1;
 constexpr int kScaleKeepAhead   = 2;
+
+// Scaled entries to allow per retained PAGE. The scaled tier is keyed finer than
+// a page — target width and tier are part of the key — so one page can hold more
+// than one entry at once, and sizing the capacity at the page count alone would
+// make the tier evict a live in-window scale every time a second one appeared.
+// Two, because both ways that happens are the same shape, "the live scale plus
+// the one replacing it": the double-page surface changes srcCapW with zoom
+// (1400/2048/2800), and Task 8 stacks a preview under its hq at the same width.
+// Anything beyond that pair is genuinely stale and LRU is the right answer.
+constexpr int kScaledEntriesPerPage = 2;
 
 // Decode priorities (higher runs sooner in QThreadPool). kPrioVisible and kPrioStripBase live
 // in the header (not here) so stripDecodePriority() is directly unit-testable. The visible
@@ -66,7 +77,7 @@ ComicReaderCore::ComicReaderCore(QObject* parent) : QObject(parent) {
     // metrics struct. Wired here, before anything can reach either cache, so no
     // worker ever races the sink being installed.
     m_cache.setResidentHighWaterSink(&m_delivery.maxDecodedResident);
-    m_scaleCache.setResidentHighWaterSink(&m_delivery.maxScaledResident);
+    m_scaleCache.setMetricsSink(&m_delivery);
 
     // m_cache is declared before m_decode, so &m_cache is fully constructed here.
     // The decode coordinator is a child of this object and lives on this thread —
@@ -260,12 +271,21 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
 
     m_cacheBudget = m_memorySaver ? kBudgetSaver : kBudgetNormal;
     m_cache.setBudget(m_cacheBudget);
-    m_scaleCache.setBudget(m_memorySaver ? ComicReaderScaleCache::kBudgetSaver
-                                         : ComicReaderScaleCache::kBudgetNormal);
+    m_scaleCache.setHardCeiling(m_memorySaver ? ComicReaderScaleCache::kHardCeilingSaver
+                                              : ComicReaderScaleCache::kHardCeilingNormal);
     // Every scale in the tier belongs to a generation that is now dead — only
     // one is ever live — so the whole tier goes rather than being swept page by
     // page. (The decoded tier's equivalent is openGeneration's clearGeneration.)
     m_scaleCache.clear();
+    // The retained window belongs to the book that just closed; the next
+    // requestRange must actually run even if the new book opens on the same
+    // page numbers.
+    m_rangeFirst = -1;
+    m_rangeLast = -1;
+    // These describe the delivery of ONE volume. Carrying a cold-open outlier
+    // across an entry-open would leave maxResponseMs reporting a number from a
+    // book nobody is reading any more.
+    m_delivery.reset();
 
     // Becomes the live generation; drops the previous generation's cached pages.
     m_decode->openGeneration(m_generation, m_pages);
@@ -310,8 +330,11 @@ void ComicReaderCore::closeEntry() {
     m_liveGeneration.store(m_generation);
     m_cacheBudget = kBudgetNormal;
     m_cache.setBudget(m_cacheBudget);
-    m_scaleCache.setBudget(ComicReaderScaleCache::kBudgetNormal);
+    m_scaleCache.setHardCeiling(ComicReaderScaleCache::kHardCeilingNormal);
+    m_scaleCache.setCapacity(ComicReaderScaleCache::kDefaultCapacity);
     m_scaleCache.clear();
+    m_rangeFirst = -1;
+    m_rangeLast = -1;
     m_decode->openGeneration(m_generation, {});
 
     ComicReaderStripModel::Options opt;
@@ -369,6 +392,16 @@ QVariantMap ComicReaderCore::deliveryMetrics() const {
         {QStringLiteral("maxResponseMs"), qulonglong(m_delivery.maxResponseMs.load())},
         {QStringLiteral("maxDecodedResident"), qulonglong(m_delivery.maxDecodedResident.load())},
         {QStringLiteral("maxScaledResident"), qulonglong(m_delivery.maxScaledResident.load())},
+        {QStringLiteral("scaledBytesUsed"), qulonglong(m_delivery.scaledBytesUsed.load())},
+        {QStringLiteral("scaledEvictions"), qulonglong(m_delivery.scaledEvictions.load())},
+        // Not counters — the two bounds the scaled tier is working to right now,
+        // reported because a bound nobody can read is a bound nobody can size,
+        // and Task 12 has to size this one. Read them WITH scaledBytesUsed and
+        // scaledEvictions: evictions climbing while bytes sit far under the
+        // ceiling means the capacity is the thing that is too small, and the
+        // other way round means the ceiling is.
+        {QStringLiteral("scaledCapacity"), m_scaleCache.capacity()},
+        {QStringLiteral("scaledCeilingBytes"), qulonglong(m_scaleCache.hardCeiling())},
     };
 }
 
@@ -594,10 +627,38 @@ void ComicReaderCore::requestRange(int first, int last) {
     first = qBound(0, first, lastPage);
     last = qBound(first, last, lastPage);
 
+    // Change detection, and it is not an optimisation — it is what makes this
+    // safe to wire to a scroll signal. Every real call walks two hashes under
+    // two mutexes and bulk-frees QImages on the GUI thread, and the decoded walk
+    // takes the very mutex every provider worker blocks on for every page fetch.
+    // Task 8 drives this from the strip viewport, which moves per frame; without
+    // this line that is a per-frame GUI-thread sweep, the same shape of
+    // steady-state cost that turned out to be the player's stutter this month.
+    // Post-clamp so the many raw ranges that clamp to the same window collapse
+    // into one.
+    //
+    // What the early-out gives up, stated so it is a decision and not a
+    // surprise: the decoded sweep also consumes m_lastPinned, so if the pin set
+    // changes while the range does not, a page that has just been UNPINNED
+    // outside the window keeps its decoded entry until the next range change.
+    // That is retention only — the tier's budget/LRU still bounds it — so the
+    // cost is one page held a little longer, against a per-frame sweep.
+    if (first == m_rangeFirst && last == m_rangeLast)
+        return;
+    m_rangeFirst = first;
+    m_rangeLast = last;
+
     const int decodeFirst = qMax(0, first - kDecodeKeepMargin);
     const int decodeLast = qMin(lastPage, last + kDecodeKeepMargin);
     const int scaleFirst = qMax(0, first - kScaleKeepBehind);
     const int scaleLast = qMin(lastPage, last + kScaleKeepAhead);
+
+    // The window IS what bounds the scaled tier: the reader keeps the scales for
+    // the pages it just said it wants, instead of however many a fixed byte
+    // guess happens to allow. See ComicReaderScaleCache.h — a fixed 64 MiB
+    // budget was the first cut's mistake, and it held two entries where it
+    // claimed eight.
+    m_scaleCache.setCapacity((scaleLast - scaleFirst + 1) * kScaledEntriesPerPage);
 
     // Retention only. Nothing is requested and no priority moves — setVisible
     // and setStripViewport own that half, and this owns what may stay.
@@ -633,10 +694,11 @@ void ComicReaderCore::setMemorySaver(bool on) {
     m_memorySaver = on;
     m_cacheBudget = on ? kBudgetSaver : kBudgetNormal;
     m_cache.setBudget(m_cacheBudget);
-    // The scaled tier halves with the decoded one — "memory saver" that saved on
-    // one of the two image caches would be telling half the truth.
-    m_scaleCache.setBudget(on ? ComicReaderScaleCache::kBudgetSaver
-                              : ComicReaderScaleCache::kBudgetNormal);
+    // The scaled tier's safety net halves with the decoded tier's budget — a
+    // "memory saver" that saved on one of the two image caches would be telling
+    // half the truth. The window still governs; this only lowers the stop.
+    m_scaleCache.setHardCeiling(on ? ComicReaderScaleCache::kHardCeilingSaver
+                                   : ComicReaderScaleCache::kHardCeilingNormal);
     emit cacheChanged();
 }
 
