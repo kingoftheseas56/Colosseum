@@ -247,6 +247,8 @@ add_executable(colosseum
     comicreader/ComicReaderStripModel.h
     comicreader/ComicReaderProvider.cpp
     comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderImageResponse.cpp
+    comicreader/ComicReaderImageResponse.h
     comicreader/ComicReaderCore.cpp
     comicreader/ComicReaderCore.h
 )
@@ -1028,6 +1030,7 @@ add_executable(comicreader_core_harness
     ../tests/comicreader_core_harness.cpp
     comicreader/ComicReaderCore.cpp comicreader/ComicReaderCore.h
     comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderImageResponse.cpp comicreader/ComicReaderImageResponse.h
     comicreader/ComicReaderStripModel.cpp comicreader/ComicReaderStripModel.h
     comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
     comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
@@ -1038,6 +1041,24 @@ add_executable(comicreader_core_harness
     third_party/miniz/miniz.c)
 target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+
+# ── Comic Reader overhaul (plan 2026-07-28, Task 1): the image-provider seam on
+#    its own. Isolates ComicReaderProvider + ComicReaderImageResponse against a
+#    hand-filled page cache and a bare live-generation atomic — no core, no
+#    decode coordinator, no archive IO — so the response LIFECYCLE is what gets
+#    tested: async publication, cancel-before-publish, the retired-generation
+#    guard, and unservable requests still finishing exactly once. Publication is
+#    queued back to the response's thread, so an event loop is pumped to deliver
+#    it — a QGuiApplication one, because QQuickTextureFactory needs a GUI app to
+#    resolve the scenegraph adaptation backend. QQuickImageResponse and
+#    QQuickTextureFactory live in Qt6::Quick; QImage scaling in Qt6::Gui. ──
+add_executable(comicreader_provider_harness
+    ../tests/comicreader_provider_harness.cpp
+    comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
+    comicreader/ComicReaderImageResponse.cpp comicreader/ComicReaderImageResponse.h
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h)
+target_include_directories(comicreader_provider_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comicreader_provider_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
 
 add_executable(download_file_ops_harness
     ../tests/download_file_ops_harness.cpp

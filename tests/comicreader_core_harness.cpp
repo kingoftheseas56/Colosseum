@@ -21,6 +21,7 @@
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
+#include <QGuiApplication>
 #include <QImage>
 #include <QMutex>
 #include <QSemaphore>
@@ -60,6 +61,22 @@ static bool waitFor(const std::function<bool()>& pred, int timeoutMs = 5000) {
     return true;
 }
 
+// Ask the (now async) provider for `id` and report what it finally SERVED:
+// true when a real image landed, false when it resolved to nothing — a retired
+// generation, an uncached page, or an id that does not parse. Pumps this
+// thread's event loop, because the response publishes back onto it.
+static bool providerServes(comicreader::ComicReaderProvider* provider, const QString& id) {
+    QQuickImageResponse* response = provider->requestImageResponse(id, QSize());
+    bool done = false;
+    QObject::connect(response, &QQuickImageResponse::finished, [&done] { done = true; });
+    const bool finished = waitFor([&] { return done; });
+    QQuickTextureFactory* factory = finished ? response->textureFactory() : nullptr;
+    const bool served = factory != nullptr;
+    delete factory;
+    delete response;
+    return served;
+}
+
 // Write a solid-gray PNG (portrait by default) whose edge luminance is `lum`,
 // so edgeContinuityCost between two solid pages is |lumA - lumB| / 255.
 static bool writeSolidPng(const QString& path, int lum, int w = 400, int h = 600) {
@@ -94,7 +111,11 @@ static QVariantMap manualNormal() {
 }
 
 int main(int argc, char** argv) {
-    QCoreApplication app(argc, argv);
+    // QGuiApplication, not QCoreApplication: since the overhaul plan's Task 1 the
+    // provider is async, and reading what a response SERVED means asking it for a
+    // QQuickTextureFactory — which resolves the scenegraph adaptation backend and
+    // needs a GUI application. No window is ever shown.
+    QGuiApplication app(argc, argv);
 
     QTemporaryDir dir;
     if (!dir.isValid()) {
@@ -372,9 +393,8 @@ int main(int argc, char** argv) {
         const quint64 genA = core.generation();
 
         ComicReaderProvider* provider = core.createProvider();
-        QSize sz;
-        QImage liveA = provider->requestImage(QStringLiteral("%1/0").arg(genA), &sz, QSize());
-        CHECK(!liveA.isNull(), "T9 provider returns the live image for gen A page 0");
+        CHECK(providerServes(provider, QStringLiteral("%1/0").arg(genA)),
+              "T9 provider serves the live image for gen A page 0");
 
         // imageUrl encodes the current generation + a rev token.
         CHECK(core.imageUrl(0).startsWith(
@@ -386,21 +406,20 @@ int main(int argc, char** argv) {
         const quint64 genB = core.generation();
         CHECK(genB > genA, "T9 opening a new entry bumps the generation");
 
-        QImage deadA = provider->requestImage(QStringLiteral("%1/0").arg(genA), &sz, QSize());
-        CHECK(deadA.isNull(),
-              "T9 provider returns NULL for the superseded generation A (dead imageUrl)");
+        CHECK(!providerServes(provider, QStringLiteral("%1/0").arg(genA)),
+              "T9 provider serves NOTHING for the superseded generation A (dead imageUrl)");
 
         core.setVisible(QVariantList{0});
         const bool dB0 = waitFor([&] {
             return core.pageInfo(0).value(QStringLiteral("decoded")).toBool();
         });
         CHECK(dB0, "T9 entry B page 0 decodes under the new generation");
-        QImage liveB = provider->requestImage(QStringLiteral("%1/0").arg(genB), &sz, QSize());
-        CHECK(!liveB.isNull(), "T9 provider returns the live image for gen B page 0");
+        CHECK(providerServes(provider, QStringLiteral("%1/0").arg(genB)),
+              "T9 provider serves the live image for gen B page 0");
 
-        // A malformed id returns null, never crashes.
-        QImage bogus = provider->requestImage(QStringLiteral("not-a-real-id"), &sz, QSize());
-        CHECK(bogus.isNull(), "T9 provider returns NULL for a malformed id");
+        // A malformed id serves nothing, never crashes.
+        CHECK(!providerServes(provider, QStringLiteral("not-a-real-id")),
+              "T9 provider serves NOTHING for a malformed id");
 
         delete provider;
     }
@@ -416,13 +435,12 @@ int main(int argc, char** argv) {
         CHECK(d0, "T10 page 0 decodes before close");
         const quint64 gen = core.generation();
         ComicReaderProvider* provider = core.createProvider();
-        QSize sz;
-        CHECK(!provider->requestImage(QStringLiteral("%1/0").arg(gen), &sz, QSize()).isNull(),
+        CHECK(providerServes(provider, QStringLiteral("%1/0").arg(gen)),
               "T10 provider serves the page while the entry is open");
         core.closeEntry();
         CHECK(core.pageCount() == 0, "T10 closeEntry clears the page count");
-        CHECK(provider->requestImage(QStringLiteral("%1/0").arg(gen), &sz, QSize()).isNull(),
-              "T10 provider returns NULL after closeEntry (generation retired)");
+        CHECK(!providerServes(provider, QStringLiteral("%1/0").arg(gen)),
+              "T10 provider serves NOTHING after closeEntry (generation retired)");
         delete provider;
     }
 
