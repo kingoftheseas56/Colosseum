@@ -13,6 +13,7 @@
 
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
+#include "comicreader/ComicReaderScaleCache.h"   // T26 reads the scaled tier's residents
 #include "comicreader/ComicReaderStripModel.h"   // T14 reads the strip geometry roles
 #include "comicreader/ComicReaderTypes.h"
 #include "engine/CbzArchive.h"
@@ -24,6 +25,9 @@
 #include <QGuiApplication>
 #include <QImage>
 #include <QMutex>
+#include <QQmlComponent>
+#include <QQmlContext>
+#include <QQmlEngine>
 #include <QSemaphore>
 #include <QString>
 #include <QTemporaryDir>
@@ -162,6 +166,14 @@ int main(int argc, char** argv) {
     for (int i = 0; i < 16; ++i) wave << dir.filePath(QStringLiteral("wave%1.png").arg(i));
     for (int i = 0; i < 16; ++i) CHECK(writeSolidPng(wave[i], 140), "setup: wave page");
     const QVariantList wavePages = pagesFromPaths(wave);
+
+    // ── Window fixture (T26): 32 plain portrait pages — long enough that a
+    //    viewport around page 20 has real book on BOTH sides of it, so an
+    //    eviction window has something to be wrong about in either direction.
+    QStringList win;
+    for (int i = 0; i < 32; ++i) win << dir.filePath(QStringLiteral("win%1.png").arg(i));
+    for (int i = 0; i < 32; ++i) CHECK(writeSolidPng(win[i], 150), "setup: window page");
+    const QVariantList winPages = pagesFromPaths(win);
 
     // ── Spread-discovery fixture: 5 pages, page 2 is LANDSCAPE (1200x600) so it
     //    decodes as a detected spread; the rest are portrait. ─────────────────
@@ -1058,6 +1070,144 @@ int main(int argc, char** argv) {
         CHECK(core.pageInfo(0).value(QStringLiteral("sourceKind")).toString()
                   == QLatin1String("cbz_entry"),
               "T25 pageInfo preserves the CBZ source kind");
+    }
+
+    // ══ Task 2 (overhaul plan 2026-07-28): windowed delivery ══════════════════
+
+    // ── Test 26: requestRange makes the reader OWN a moving neighbourhood ────
+    // Before this, both tiers held whatever LRU happened to keep — on a 1,452
+    // page volume that is an arbitrary set with no relationship to where the
+    // reader is. requestRange says it outright: keep the decoded pages within
+    // ±2 of the viewport and the scaled pages from one behind to two ahead,
+    // drop the rest, and never drop a pinned page (it is on screen).
+    //
+    // Asserted through the caches themselves rather than through a getter for
+    // the window bounds: what matters is which pages SURVIVE, not what two
+    // integers say.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t26"), winPages, QStringLiteral("ltr"), manualNormal());
+        const quint64 gen = core.generation();
+
+        // A real pin, far outside the window we are about to declare.
+        core.setVisible(QVariantList{5});
+        CHECK(waitFor([&] {
+            return core.pageInfo(5).value(QStringLiteral("decoded")).toBool();
+        }), "T26 the pinned page decodes so there is a real entry to protect");
+
+        QImage tile(64, 96, QImage::Format_ARGB32);
+        tile.fill(qRgb(30, 30, 30));
+        for (const int p : {16, 17, 18, 20, 24, 25, 26})
+            core.pageCache()->insert(gen, p, tile);
+        for (const int p : {18, 19, 20, 24, 25})
+            core.scaleCache()->insert({gen, p, QSize(400, 0), 100, 0}, tile);
+
+        core.requestRange(20, 22);
+
+        // Decoded retention: 18..24 (visible ±2).
+        CHECK(core.pageCache()->get(gen, 18).has_value(), "T26 decoded 18 (first in window) retained");
+        CHECK(core.pageCache()->get(gen, 20).has_value(), "T26 decoded 20 (visible) retained");
+        CHECK(core.pageCache()->get(gen, 24).has_value(), "T26 decoded 24 (last in window) retained");
+        CHECK(!core.pageCache()->get(gen, 17).has_value(), "T26 decoded 17 is one page too far behind");
+        CHECK(!core.pageCache()->get(gen, 16).has_value(), "T26 decoded 16 is further behind still");
+        CHECK(!core.pageCache()->get(gen, 25).has_value(), "T26 decoded 25 is one page too far ahead");
+        CHECK(!core.pageCache()->get(gen, 26).has_value(), "T26 decoded 26 is further ahead still");
+        CHECK(core.pageCache()->get(gen, 5).has_value(),
+              "T26 the PINNED page survives the sweep from far outside the window");
+
+        // Scaled retention: 19..24 (one behind, two ahead) — tighter behind,
+        // because a scale is cheap to redo and the reader is going forward.
+        const auto scaledAt = [&](int page) {
+            return core.scaleCache()->get({gen, page, QSize(400, 0), 100, 0}).has_value();
+        };
+        CHECK(scaledAt(19), "T26 scaled 19 (one behind the viewport) retained");
+        CHECK(scaledAt(20), "T26 scaled 20 (visible) retained");
+        CHECK(scaledAt(24), "T26 scaled 24 (two ahead) retained");
+        CHECK(!scaledAt(18), "T26 scaled 18 is outside the tighter scaled window");
+        CHECK(!scaledAt(25), "T26 scaled 25 is beyond the prefetch");
+
+        // Degenerate input must clamp, never index out of the book.
+        core.requestRange(-40, 9999);
+        core.requestRange(28, 3);   // inverted
+        CHECK(core.pageCount() == 32, "T26 a degenerate range never disturbs the entry");
+    }
+    {
+        // An entry-less core has no range to own and must not crash on one.
+        ComicReaderCore empty;
+        empty.requestRange(0, 4);
+        CHECK(empty.pageCount() == 0, "T26 requestRange on an entry-less core is a no-op, never a crash");
+    }
+
+    // ── Test 27: imageUrl carries a TIER, and QML can still call it one-armed ─
+    // Three live QML call sites use the single-argument form. The tier rides on
+    // a default argument, which only works if Qt's meta-object system really
+    // registers BOTH arities — so this asks QML itself rather than trusting it.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t27"), plainPages, QStringLiteral("ltr"), manualNormal());
+
+        CHECK(core.imageUrl(0).contains(QStringLiteral("tier=hq")),
+              "T27 the default tier is hq");
+        CHECK(core.imageUrl(0, QStringLiteral("preview")).contains(QStringLiteral("tier=preview")),
+              "T27 preview is carried in the url");
+        CHECK(core.imageUrl(0, QStringLiteral("thumbnail")).contains(QStringLiteral("tier=thumbnail")),
+              "T27 thumbnail is carried in the url");
+        CHECK(core.imageUrl(0, QStringLiteral("nonsense")).contains(QStringLiteral("tier=hq")),
+              "T27 an unknown tier normalises to hq rather than emitting a url nothing can parse");
+        CHECK(core.imageUrl(0).startsWith(QStringLiteral("image://comicreader/%1/0?rev=")
+                                              .arg(core.generation())),
+              "T27 the existing grammar is unchanged ahead of the new query key");
+
+        QQmlEngine engine;
+        engine.rootContext()->setContextProperty(QStringLiteral("core"), &core);
+        QQmlComponent component(&engine);
+        component.setData(QByteArrayLiteral(
+                              "import QtQml\n"
+                              "QtObject {\n"
+                              "    property string oneArg: core.imageUrl(0)\n"
+                              "    property string twoArg: core.imageUrl(0, \"preview\")\n"
+                              "}\n"),
+                          QUrl());
+        QObject* probe = component.create();
+        if (!probe)
+            std::fprintf(stderr, "  T27 QML error: %s\n",
+                         component.errorString().toUtf8().constData());
+        CHECK(probe != nullptr, "T27 the QML probe builds");
+        if (probe) {
+            CHECK(probe->property("oneArg").toString() == core.imageUrl(0),
+                  "T27 QML CAN call the one-argument form — the default argument is registered");
+            CHECK(probe->property("twoArg").toString()
+                      == core.imageUrl(0, QStringLiteral("preview")),
+                  "T27 QML can call the two-argument form too");
+            delete probe;
+        }
+    }
+
+    // ── Test 28: deliveryMetrics reports, and reporting does not reset ───────
+    // Task 12's performance gate reads these. A counter that cleared itself on
+    // read would make two gates disagree for no reason anybody could find.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t28"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setVisible(QVariantList{0});
+        CHECK(waitFor([&] {
+            return core.pageInfo(0).value(QStringLiteral("decoded")).toBool();
+        }), "T28 a page decodes so there is something to measure");
+
+        const QVariantMap first = core.deliveryMetrics();
+        for (const char* key : {"sourceHits", "scaledHits", "scaleJobs", "cancelledJobs",
+                                "staleDrops", "maxDispatchUs", "maxResponseMs",
+                                "maxDecodedResident", "maxScaledResident"}) {
+            CHECK(first.contains(QLatin1String(key)),
+                  QByteArray("T28 deliveryMetrics reports ").append(key).constData());
+        }
+        CHECK(first.value(QStringLiteral("maxDecodedResident")).toULongLong() >= 1,
+              "T28 maxDecodedResident counts resident ENTRIES (what Task 12's gate reads), not bytes");
+
+        const QVariantMap second = core.deliveryMetrics();
+        CHECK(second.value(QStringLiteral("maxDecodedResident")).toULongLong()
+                  >= first.value(QStringLiteral("maxDecodedResident")).toULongLong(),
+              "T28 reading the metrics does not reset them");
     }
 
     if (g_failures == 0) {

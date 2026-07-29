@@ -241,6 +241,8 @@ add_executable(colosseum
     comicreader/ComicReaderCoupling.h
     comicreader/ComicReaderPageCache.cpp
     comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderScaleCache.cpp
+    comicreader/ComicReaderScaleCache.h
     comicreader/ComicReaderDecode.cpp
     comicreader/ComicReaderDecode.h
     comicreader/ComicReaderStripModel.cpp
@@ -973,7 +975,8 @@ target_link_libraries(comicreader_pairing_harness PRIVATE Qt6::Core)
 #    comicreader/ unit, no decode, no I/O. ──
 add_executable(comicreader_cache_harness
     ../tests/comicreader_cache_harness.cpp
-    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h)
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderScaleCache.cpp comicreader/ComicReaderScaleCache.h)
 target_include_directories(comicreader_cache_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_cache_harness PRIVATE Qt6::Core Qt6::Gui)
 
@@ -1035,12 +1038,16 @@ add_executable(comicreader_core_harness
     comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
     comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
     comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderScaleCache.cpp comicreader/ComicReaderScaleCache.h
     comicreader/ComicReaderPairing.cpp comicreader/ComicReaderPairing.h
     comicreader/ComicReaderTypes.cpp comicreader/ComicReaderTypes.h
     engine/CbzArchive.cpp engine/CbzArchive.h
     third_party/miniz/miniz.c)
 target_include_directories(comicreader_core_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
+# Qt6::Qml is named explicitly (not leaned on through Qt6::Quick) because T27
+# builds a real QQmlComponent to prove QML can still call imageUrl() with one
+# argument now that the tier rides on a default argument.
+target_link_libraries(comicreader_core_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
 
 # ── Comic Reader overhaul (plan 2026-07-28, Task 1): the image-provider seam on
 #    its own. Isolates ComicReaderProvider + ComicReaderImageResponse against a
@@ -1059,7 +1066,8 @@ add_executable(comicreader_provider_harness
     ../tests/comicreader_provider_harness.cpp
     comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
     comicreader/ComicReaderImageResponse.cpp comicreader/ComicReaderImageResponse.h
-    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h)
+    comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
+    comicreader/ComicReaderScaleCache.cpp comicreader/ComicReaderScaleCache.h)
 target_include_directories(comicreader_provider_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comicreader_provider_harness PRIVATE Qt6::Core Qt6::Gui Qt6::Quick)
 

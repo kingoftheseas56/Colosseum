@@ -72,6 +72,7 @@
 #include "comicreader/ComicReaderImageResponse.h"
 #include "comicreader/ComicReaderPageCache.h"
 #include "comicreader/ComicReaderProvider.h"
+#include "comicreader/ComicReaderScaleCache.h"
 
 #include <QByteArray>
 #include <QCoreApplication>
@@ -136,6 +137,22 @@ private:
     int m_count = 0;
 };
 
+// The read-only stores a provider and its responses serve from. Bundled here so
+// a fixture declares ONE line instead of five, and so every fixture's context is
+// built the same way. Declaration order is load-bearing: `ctx` holds pointers to
+// the members declared above it, so they are alive before it is initialised.
+struct Bench {
+    ComicReaderPageCache cache;
+    ComicReaderScaleCache scaled;
+    std::atomic<quint64> live;
+    DeliveryMetrics metrics;
+    DeliveryContext ctx;
+
+    explicit Bench(quint64 generation, qint64 pageBudget = 512LL * 1024 * 1024)
+        : cache(pageBudget), live(generation),
+          ctx{&cache, &scaled, &live, nullptr, &metrics} {}
+};
+
 // requestImageResponse() returns Qt's base type; this provider only ever builds
 // ComicReaderImageResponse, and the harness needs the concrete type to read
 // wasCancelled().
@@ -182,10 +199,9 @@ int main(int argc, char** argv) {
     // the event loop runs — and what finally lands is the SCALED image, which
     // is the whole point of moving the scale off the GUI thread.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
-        cache.insert(kLiveGen, kPage, fullResPage(qRgb(200, 40, 40)));
-        ComicReaderProvider provider(&cache, &live);
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(200, 40, 40)));
+        ComicReaderProvider provider(bench.ctx);
 
         ComicReaderImageResponse* response = request(
             provider, QStringLiteral("%1/%2?rev=1&dpr=1").arg(kLiveGen).arg(kPage), QSize(900, 0));
@@ -215,10 +231,9 @@ int main(int argc, char** argv) {
     // one finished() must still arrive (QML unblocks its Image either way) and
     // it must carry NOTHING.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
-        cache.insert(kLiveGen, kPage, fullResPage(qRgb(40, 200, 40)));
-        ComicReaderProvider provider(&cache, &live);
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(40, 200, 40)));
+        ComicReaderProvider provider(bench.ctx);
 
         ComicReaderImageResponse* response = request(
             provider, QStringLiteral("%1/%2?rev=1&dpr=1").arg(kLiveGen).arg(kPage), QSize(900, 0));
@@ -244,12 +259,11 @@ int main(int argc, char** argv) {
     // the live generation, then ask for the old one. The page is STILL sitting
     // in the cache, so only the guard can make this null.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
-        cache.insert(kLiveGen, kPage, fullResPage(qRgb(40, 40, 200)));
-        ComicReaderProvider provider(&cache, &live);
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(40, 40, 200)));
+        ComicReaderProvider provider(bench.ctx);
 
-        live.store(kLiveGen + 1); // the volume closed; generation 7 is retired
+        bench.live.store(kLiveGen + 1); // the volume closed; generation 7 is retired
 
         ComicReaderImageResponse* stale = request(
             provider, QStringLiteral("%1/%2?rev=1&dpr=1").arg(kLiveGen).arg(kPage), QSize(900, 0));
@@ -260,6 +274,9 @@ int main(int argc, char** argv) {
         CHECK(stale->textureFactory() == nullptr,
               "F3 a superseded generation serves NULL even though its page is still cached");
         CHECK(!stale->wasCancelled(), "F3 stale is not the same as cancelled");
+        CHECK(bench.metrics.staleDrops.load() == 1,
+              "F3 the drop is COUNTED — staleDrops is how a gate sees this happening at all");
+        CHECK(bench.metrics.scaleJobs.load() == 0, "F3 a stale request never scales anything");
         delete stale;
     }
 
@@ -267,10 +284,9 @@ int main(int argc, char** argv) {
     // A page the decoder has not published yet, and ids that do not parse at
     // all. None may hang, none may crash, all resolve to a null result.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
-        cache.insert(kLiveGen, kPage, fullResPage(qRgb(120, 120, 120)));
-        ComicReaderProvider provider(&cache, &live);
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(120, 120, 120)));
+        ComicReaderProvider provider(bench.ctx);
 
         const QString ids[] = {
             QStringLiteral("%1/99").arg(kLiveGen),  // live generation, page never decoded
@@ -304,12 +320,11 @@ int main(int argc, char** argv) {
     // The synchronous provider only ever scaled DOWN; upscaling a decoded page
     // to a bigger requested width would be pure waste. Same rule, async path.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
+        Bench bench(kLiveGen);
         QImage small(600, 400, QImage::Format_ARGB32);
         small.fill(qRgb(10, 10, 10));
-        cache.insert(kLiveGen, kPage, small);
-        ComicReaderProvider provider(&cache, &live);
+        bench.cache.insert(kLiveGen, kPage, small);
+        ComicReaderProvider provider(bench.ctx);
 
         ComicReaderImageResponse* response = request(
             provider, QStringLiteral("%1/%2").arg(kLiveGen).arg(kPage), QSize(900, 0));
@@ -327,6 +342,15 @@ int main(int argc, char** argv) {
         CHECK(serveAndTakeSize(unsized) == QSize(600, 400),
               "F5 a request with no width is served at full cached resolution");
         delete unsized;
+
+        // Nothing was scaled, so nothing belongs in the scaled tier: caching a
+        // "scale" that is byte-identical to the source would spend a slot (and
+        // the entry cap) to save no work at all.
+        CHECK(bench.metrics.scaleJobs.load() == 0, "F5 no scale ran for either request");
+        CHECK(bench.scaled.entryCount() == 0,
+              "F5 an unscaled serve stores NOTHING in the scaled tier");
+        CHECK(bench.metrics.sourceHits.load() == 2,
+              "F5 both requests read the full-resolution source directly");
     }
 
     // ── Fixture 6: a cancel that beats the worker skips the cache entirely ───
@@ -346,21 +370,23 @@ int main(int argc, char** argv) {
     //      does); without it an image-format change would silently turn this
     //      fixture into a pass-by-accident.
     //  (b) ComicReaderPageCache::get() promotes to most-recently-used. If a
-    //      future task adds a non-promoting peek to that unit — Task 2 is
-    //      scheduled to — and the response is moved onto it, this fixture will
-    //      start failing for a reason that has nothing to do with cancellation.
-    //      That is the diagnosis, not a mystery: re-express the witness.
+    //      future task adds a non-promoting peek to that unit and moves the
+    //      response onto it, this fixture will start failing for a reason that
+    //      has nothing to do with cancellation. That is the diagnosis, not a
+    //      mystery: re-express the witness. (Task 2 was expected to add such a
+    //      peek and did not — its scaled tier is consulted BEFORE the source, so
+    //      no non-promoting read was ever needed. get() is untouched.)
     {
         constexpr qint64 kPageBytes = 4LL * 1024 * 1024; // one squarePage()
-        ComicReaderPageCache cache(3 * kPageBytes);      // exactly three fit
-        std::atomic<quint64> live{kLiveGen};
+        Bench bench(kLiveGen, 3 * kPageBytes);           // exactly three fit
+        ComicReaderPageCache& cache = bench.cache;
         cache.insert(kLiveGen, 0, squarePage(qRgb(1, 0, 0))); // oldest
         cache.insert(kLiveGen, 1, squarePage(qRgb(0, 1, 0)));
         cache.insert(kLiveGen, 2, squarePage(qRgb(0, 0, 1)));
         CHECK(cache.bytesUsed() == 3 * kPageBytes,
               "F6 setup: three pages exactly fill the budget (pins squarePage() at 4 MiB, unpadded)");
 
-        ComicReaderImageResponse response(&cache, &live, QStringLiteral("%1/0").arg(kLiveGen),
+        ComicReaderImageResponse response(bench.ctx, QStringLiteral("%1/0").arg(kLiveGen),
                                           QSize(900, 0));
         FinishedCounter finished(&response);
 
@@ -376,6 +402,9 @@ int main(int argc, char** argv) {
               "F6 page 0 was never fetched — it stayed least-recently-used and took the eviction");
         CHECK(cache.get(kLiveGen, 1).has_value(),
               "F6 page 1 survives (it is the one that would have gone had the worker touched page 0)");
+        CHECK(bench.metrics.cancelledJobs.load() == 1, "F6 the cancellation is counted");
+        CHECK(bench.metrics.sourceHits.load() == 0 && bench.metrics.scaleJobs.load() == 0,
+              "F6 neither tier was read and nothing was scaled");
     }
 
     // ── Fixture 7: the generation retires WHILE a worker is held ─────────────
@@ -385,16 +414,15 @@ int main(int argc, char** argv) {
     // request time: Fixture 3 covers the generation already being dead when the
     // request arrives; this covers it dying in flight.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
-        cache.insert(kLiveGen, kPage, fullResPage(qRgb(70, 70, 70)));
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(70, 70, 70)));
 
-        ComicReaderImageResponse held(&cache, &live,
+        ComicReaderImageResponse held(bench.ctx,
                                       QStringLiteral("%1/%2?rev=1").arg(kLiveGen).arg(kPage),
                                       QSize(900, 0));
         FinishedCounter finished(&held);
 
-        live.store(kLiveGen + 1); // the volume closes with this worker still pending
+        bench.live.store(kLiveGen + 1); // the volume closes with this worker still pending
         held.run();
 
         CHECK(waitFor([&] { return finished.count() > 0; }), "F7 the held worker finishes once released");
@@ -412,11 +440,10 @@ int main(int argc, char** argv) {
     // because this fixture stages one, but because nothing interrupts a running
     // scaledToWidth, so no earlier checkpoint could ever catch it.
     {
-        ComicReaderPageCache cache;
-        std::atomic<quint64> live{kLiveGen};
-        cache.insert(kLiveGen, kPage, fullResPage(qRgb(90, 90, 90)));
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(90, 90, 90)));
 
-        ComicReaderImageResponse response(&cache, &live,
+        ComicReaderImageResponse response(bench.ctx,
                                           QStringLiteral("%1/%2").arg(kLiveGen).arg(kPage),
                                           QSize(900, 0));
         FinishedCounter finished(&response);
@@ -430,6 +457,129 @@ int main(int argc, char** argv) {
         CHECK(response.wasCancelled(), "F8 the response reports itself cancelled");
         CHECK(response.textureFactory() == nullptr,
               "F8 a scaled image already in hand is STILL withheld from a cancelled response");
+        CHECK(bench.metrics.cancelledJobs.load() == 1,
+              "F8 a cancel landing after the work is still counted once");
+        CHECK(bench.metrics.scaleJobs.load() == 1,
+              "F8 ...and the scale it wasted is honestly reported as having run");
+    }
+
+    // ══ Task 2: the scaled tier ═══════════════════════════════════════════════
+
+    // ── Fixture 9: THE POINT OF TASK 2 ───────────────────────────────────────
+    // Scroll one page down and back and the reader asks for exactly the same
+    // page at exactly the same size again. Before the scaled tier, that request
+    // re-ran a full SmoothTransformation downscale of a 2400px page from
+    // scratch. Now it is a memory read.
+    //
+    // The assertion that carries the whole task: the second request raises
+    // scaledHits WITHOUT raising scaleJobs. Serving the right pixels twice is
+    // not evidence — the old code did that too, expensively; only the counters
+    // can tell the difference between reuse and recomputation.
+    {
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(60, 60, 60)));
+        ComicReaderProvider provider(bench.ctx);
+        const QString id = QStringLiteral("%1/%2?rev=1").arg(kLiveGen).arg(kPage);
+
+        ComicReaderImageResponse* first = request(provider, id, QSize(900, 0));
+        FinishedCounter firstFinished(first);
+        CHECK(waitFor([&] { return firstFinished.count() > 0; }), "F9 the first request finishes");
+        CHECK(serveAndTakeSize(first) == QSize(900, 600), "F9 the first request serves 900px");
+        CHECK(bench.metrics.scaleJobs.load() == 1, "F9 the first request really did scale");
+        CHECK(bench.metrics.sourceHits.load() == 1,
+              "F9 ...reading the full-resolution source to do it");
+        CHECK(bench.metrics.scaledHits.load() == 0, "F9 there was nothing to reuse yet");
+        CHECK(bench.scaled.entryCount() == 1, "F9 the scale was published to the tier");
+        delete first;
+
+        ComicReaderImageResponse* second = request(provider, id, QSize(900, 0));
+        FinishedCounter secondFinished(second);
+        CHECK(waitFor([&] { return secondFinished.count() > 0; }), "F9 the repeat finishes");
+        CHECK(serveAndTakeSize(second) == QSize(900, 600),
+              "F9 the repeat serves the same 900px page");
+        CHECK(bench.metrics.scaledHits.load() == 1,
+              "F9 the repeat was served from the scaled tier");
+        CHECK(bench.metrics.scaleJobs.load() == 1,
+              "F9 THE POINT: scaledHits rose and scaleJobs did NOT — no second scale ran");
+        CHECK(bench.metrics.sourceHits.load() == 1,
+              "F9 the full-resolution source was not re-read either");
+        delete second;
+
+        // A DIFFERENT size is a different question and must cost a real scale —
+        // otherwise the tier would be serving the wrong pixels to save work.
+        ComicReaderImageResponse* narrower = request(provider, id, QSize(600, 0));
+        FinishedCounter narrowerFinished(narrower);
+        CHECK(waitFor([&] { return narrowerFinished.count() > 0; }), "F9 the resize finishes");
+        CHECK(serveAndTakeSize(narrower) == QSize(600, 400), "F9 the resize serves 600px");
+        CHECK(bench.metrics.scaleJobs.load() == 2, "F9 a new target size costs a new scale");
+        CHECK(bench.metrics.scaledHits.load() == 1, "F9 ...and is NOT counted as a reuse");
+        delete narrower;
+    }
+
+    // ── Fixture 10: the three tiers are three different answers ──────────────
+    // Task 8 stacks a preview under an hq image at the SAME size in the same
+    // delegate. If the tier were not part of the key, whichever landed first
+    // would be served to both — the reader would keep the fast, aliased preview
+    // and never see the hq replace it, or worse, see hq downgrade to preview on
+    // a re-request. Each tier caches and reuses on its own.
+    {
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(80, 80, 80)));
+        ComicReaderProvider provider(bench.ctx);
+        const QString base = QStringLiteral("%1/%2?rev=1").arg(kLiveGen).arg(kPage);
+
+        const QString tiers[] = {QStringLiteral("&tier=preview"), QStringLiteral("&tier=hq")};
+        for (const QString& suffix : tiers) {
+            ComicReaderImageResponse* response = request(provider, base + suffix, QSize(900, 0));
+            FinishedCounter finished(response);
+            CHECK(waitFor([&] { return finished.count() > 0; }), "F10 a tiered request finishes");
+            CHECK(serveAndTakeSize(response) == QSize(900, 600),
+                  "F10 every tier honours the requested width");
+            delete response;
+        }
+        CHECK(bench.metrics.scaleJobs.load() == 2,
+              "F10 preview and hq at the SAME size are two separate scales");
+        CHECK(bench.metrics.scaledHits.load() == 0, "F10 neither was served from the other");
+        CHECK(bench.scaled.entryCount() == 2, "F10 both live in the tier at once");
+
+        // ...and each reuses its own entry.
+        for (const QString& suffix : tiers) {
+            ComicReaderImageResponse* response = request(provider, base + suffix, QSize(900, 0));
+            FinishedCounter finished(response);
+            CHECK(waitFor([&] { return finished.count() > 0; }), "F10 the tiered repeat finishes");
+            delete response;
+        }
+        CHECK(bench.metrics.scaledHits.load() == 2, "F10 each tier reuses its OWN scale");
+        CHECK(bench.metrics.scaleJobs.load() == 2, "F10 and neither scales again");
+    }
+
+    // ── Fixture 11: thumbnail is capped to the filmstrip's size ──────────────
+    // A filmstrip thumbnail has no business holding a 2400px scale — a hundred
+    // of those is the memory bug this task is supposed to prevent, not cause.
+    // The cap applies even when the caller asks for no size at all, which is the
+    // request shape a plain `Image { source: ... }` produces.
+    {
+        Bench bench(kLiveGen);
+        bench.cache.insert(kLiveGen, kPage, fullResPage(qRgb(110, 110, 110)));
+        ComicReaderProvider provider(bench.ctx);
+        const QString id =
+            QStringLiteral("%1/%2?rev=1&tier=thumbnail").arg(kLiveGen).arg(kPage);
+
+        ComicReaderImageResponse* unsized = request(provider, id, QSize());
+        FinishedCounter unsizedFinished(unsized);
+        CHECK(waitFor([&] { return unsizedFinished.count() > 0; }), "F11 the thumbnail finishes");
+        CHECK(serveAndTakeSize(unsized).width() == ComicReaderImageResponse::kThumbnailMaxWidth,
+              "F11 an unsized thumbnail request is capped, not served at 2400px");
+        delete unsized;
+
+        // A caller asking for LESS than the cap gets what it asked for; the cap
+        // is a ceiling, not a size.
+        ComicReaderImageResponse* small = request(provider, id, QSize(120, 0));
+        FinishedCounter smallFinished(small);
+        CHECK(waitFor([&] { return smallFinished.count() > 0; }), "F11 the small thumbnail finishes");
+        CHECK(serveAndTakeSize(small).width() == 120,
+              "F11 the cap is a ceiling — a smaller request is honoured as asked");
+        delete small;
     }
 
     if (g_failures == 0) {

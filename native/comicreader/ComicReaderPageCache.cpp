@@ -1,6 +1,8 @@
 // native/comicreader/ComicReaderPageCache.cpp
 #include "comicreader/ComicReaderPageCache.h"
 
+#include "comicreader/ComicReaderScaleCache.h"   // raiseMax — the shared high-water helper
+
 #include <QMutexLocker>
 
 #include <iterator> // std::prev(m_lru.end()) — only transitively available on MSVC otherwise
@@ -38,6 +40,7 @@ void ComicReaderPageCache::insert(quint64 gen, int page, const QImage& img) {
     m_entries.insert(key, entry);
 
     evictLocked();
+    noteResidentLocked();
 }
 
 std::optional<QImage> ComicReaderPageCache::get(quint64 gen, int page) {
@@ -82,9 +85,44 @@ void ComicReaderPageCache::clearGeneration(quint64 gen) {
     m_pinnedPages.remove(gen);
 }
 
+void ComicReaderPageCache::retainRange(quint64 gen, int first, int last,
+                                       const QVector<int>& pinned) {
+    QMutexLocker lock(&m_mutex);
+    for (auto it = m_entries.begin(); it != m_entries.end(); ) {
+        const Key key = it.key();
+        const bool sameGeneration = key.first == gen;
+        const bool inRange = key.second >= first && key.second <= last;
+        // Either witness of "on screen" saves the page: the flag this cache
+        // already holds, or the list the caller just handed over.
+        const bool onScreen = it->pinned || pinned.contains(key.second);
+        if (sameGeneration && !inRange && !onScreen) {
+            m_bytesUsed -= it->image.sizeInBytes();
+            m_lru.erase(it->lruIt);
+            it = m_entries.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 qint64 ComicReaderPageCache::bytesUsed() const {
     QMutexLocker lock(&m_mutex);
     return m_bytesUsed;
+}
+
+int ComicReaderPageCache::entryCount() const {
+    QMutexLocker lock(&m_mutex);
+    return m_entries.size();
+}
+
+void ComicReaderPageCache::setResidentHighWaterSink(std::atomic<quint64>* sink) {
+    QMutexLocker lock(&m_mutex);
+    m_residentSink = sink;
+}
+
+void ComicReaderPageCache::noteResidentLocked() {
+    if (m_residentSink)
+        raiseMax(*m_residentSink, static_cast<quint64>(m_entries.size()));
 }
 
 void ComicReaderPageCache::evictLocked() {

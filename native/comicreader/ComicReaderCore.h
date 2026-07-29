@@ -40,6 +40,7 @@
 
 #include "comicreader/ComicReaderCoupling.h"
 #include "comicreader/ComicReaderPageCache.h"
+#include "comicreader/ComicReaderScaleCache.h"
 #include "comicreader/ComicReaderTypes.h"
 
 #include <QAbstractListModel>   // full type: the stripModel Q_PROPERTY needs its metatype
@@ -118,6 +119,28 @@ public:
     // entry-open.
     Q_INVOKABLE void resetCoupling();
     Q_INVOKABLE void setVisible(QVariantList pageIndices);         // pin(+neighbors) + priorities
+    // The reader's viewport, as a page range, and what the two image tiers are
+    // therefore allowed to hold. Task 2 (overhaul plan 2026-07-28).
+    //
+    // This does NOT replace setVisible, and the two are not competing owners:
+    //   setVisible    owns WHAT GETS DECODED and in what order — the pin set and
+    //                 the latest-wins decode priority wave. It asks for work.
+    //   requestRange  owns WHAT MAY STAY RESIDENT — the retention window on both
+    //                 caches. It releases memory. It requests nothing, decodes
+    //                 nothing, and changes no priority.
+    // They meet at exactly one place: the pin set setVisible records is what
+    // requestRange hands retainRange as the never-evict list, so a page on
+    // screen survives even when the range moves off it. A surface may call
+    // either, both, or neither; calling only setVisible is the pre-Task-2
+    // behaviour (budget/LRU alone), which is what Single and Pair still do until
+    // Task 8 wires the viewport up.
+    //
+    // Margins: decoded pages are kept ±2 around the visible run, which is what
+    // the Long Strip decode window (1.5 screens either side, ≈1.5 pages at the
+    // default 78% portrait width) actually asks for, so the sweep does not fight
+    // the prefetch. Scaled pages are kept from 1 behind to 2 ahead — tighter
+    // behind, because a scale is cheap to redo and the reader is going forward.
+    Q_INVOKABLE void requestRange(int firstVisible, int lastVisible);
     Q_INVOKABLE void setStripViewport(double top, double height); // drive strip decode window
     Q_INVOKABLE void setStripViewportWidth(int width);            // Task 10: strip geometry width
     // Long Strip taste: portrait page width as a % of the viewport (clamped
@@ -138,7 +161,15 @@ public:
     Q_INVOKABLE double setStripLayout(int portraitWidthPct, int gap,
                                       double viewportTop = 0.0,
                                       double viewportHeight = 0.0);
-    Q_INVOKABLE QString imageUrl(int page) const;                 // image://comicreader/<gen>/<page>?rev=N
+    // image://comicreader/<gen>/<page>?rev=N&tier=<tier>
+    //
+    // `tier` is "preview" (fast transform, first pixels on screen), "hq" (the
+    // reader's real page) or "thumbnail" (capped to the filmstrip size); an
+    // unrecognised value normalises to hq rather than emitting a url nothing can
+    // parse. It rides on a DEFAULT ARGUMENT so the three existing QML call sites
+    // keep working unchanged — Qt's meta-object system registers both arities,
+    // which the core harness proves by asking QML itself rather than assuming.
+    Q_INVOKABLE QString imageUrl(int page, QString tier = QLatin1String("hq")) const;
     // The strip Y a page starts at. The QML surface needs this to land a page-accurate seek —
     // switching into Strip, a go-to-page, a chapter jump — and it cannot compute it itself: the
     // ListView only realizes delegates near the viewport, so anything off-screen has no y to read.
@@ -161,13 +192,22 @@ public:
     Q_INVOKABLE QVariantList pinnedPages() const;      // the pin set from the last setVisible()
     Q_INVOKABLE qulonglong cacheBudget() const { return static_cast<qulonglong>(m_cacheBudget); }
     Q_INVOKABLE QVariantMap couplingProbeDebug() const;
+    // What the image delivery path actually did — scaled-tier reuse, scales
+    // computed, cancellations, stale drops, worst dispatch/response times, and
+    // the high-water resident ENTRY counts of both tiers. Read-only and never
+    // reset by reading, so two readers can never disagree about what happened.
+    // Task 12's performance gate is the consumer.
+    Q_INVOKABLE QVariantMap deliveryMetrics() const;
 
-    // Build a read-only provider wired to this core's cache + live generation.
-    // The caller (main.cpp -> engine.addImageProvider) takes ownership.
+    // Build a read-only provider wired to this core's two image tiers, live
+    // generation, render revision and metrics. The caller (main.cpp ->
+    // engine.addImageProvider) takes ownership.
     ComicReaderProvider* createProvider();
 
-    // For the provider factory in main.cpp; both outlive the QML engine.
+    // Owned units, handed out for the provider factory and for observation; all
+    // outlive the QML engine. Neither accessor mutates anything.
     ComicReaderPageCache* pageCache() { return &m_cache; }
+    ComicReaderScaleCache* scaleCache() { return &m_scaleCache; }
     const std::atomic<quint64>* liveGenerationAtomic() const { return &m_liveGeneration; }
 
     // ---- Test seam (no production caller) -----------------------------------
@@ -208,11 +248,20 @@ private:
     void finalizeProbe();
 
     // ── owned engine units ──
-    ComicReaderPageCache m_cache;                 // declared FIRST: decode captures &m_cache
+    // m_delivery is declared before the caches so it is destroyed AFTER them:
+    // both publish their resident high-water mark into it, and the sink must not
+    // outlive the thing it points at.
+    DeliveryMetrics m_delivery;
+    ComicReaderPageCache m_cache;                 // declared before m_decode: decode captures &m_cache
+    ComicReaderScaleCache m_scaleCache;           // the delivery-side scaled tier (Task 2)
     ComicReaderDecode* m_decode = nullptr;        // owned (child); this-thread affinity
     ComicReaderStripModel* m_strip = nullptr;     // owned (child)
 
     std::atomic<quint64> m_liveGeneration{0};     // read by the provider off-thread
+    // Task 7's seam, stubbed: every scaled entry is keyed on this, so bumping it
+    // there invalidates the scaled tier for free. Constant today — there is no
+    // render profile yet, and this task does not build one.
+    std::atomic<quint64> m_renderRevision{0};
     quint64 m_generation = 0;
 
     // ── current entry ──

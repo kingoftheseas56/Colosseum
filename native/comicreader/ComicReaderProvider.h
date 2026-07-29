@@ -32,6 +32,8 @@
 // that owns this provider (the engine takes ownership via addImageProvider()).
 #pragma once
 
+#include "comicreader/ComicReaderScaleCache.h"
+
 #include <QQuickImageProvider>
 #include <QThreadPool>
 
@@ -45,24 +47,24 @@ class ComicReaderPageCache;
 
 class ComicReaderProvider final : public QQuickAsyncImageProvider {
 public:
-    // `cache` and `liveGeneration` are owned by ComicReaderCore; the provider
-    // keeps raw/observer pointers only (never owns, never deletes).
-    ComicReaderProvider(ComicReaderPageCache* cache,
-                        const std::atomic<quint64>* liveGeneration);
+    // Everything in `ctx` is owned by ComicReaderCore; the provider keeps
+    // observer pointers only (never owns, never deletes).
+    explicit ComicReaderProvider(const DeliveryContext& ctx);
 
-    // id == "<generation>/<page>" (any "?..." query is ignored — it exists
-    // solely to bust QML's own image cache when a page re-decodes). The
-    // returned response resolves, on a pool thread, to the cached image for
-    // (generation, page) scaled to requestedSize.width() when a smaller width
-    // is asked; to nothing when the generation is retired, the page is not
+    // id == "<generation>/<page>" plus an optional query: "?rev=N" busts QML's
+    // own image cache when a page re-decodes, "&tier=" picks
+    // preview/hq/thumbnail (absent means hq), "&dpr=" carries the device pixel
+    // ratio. The returned response resolves, on a pool thread, to the scaled
+    // image for that request — from the scaled tier when it is already there,
+    // otherwise scaled from the decoded page and published to the tier. It
+    // resolves to nothing when the generation is retired, the page is not
     // cached, the id does not parse, or the response was cancelled first.
     // Ownership passes to the caller (the QML engine).
     QQuickImageResponse* requestImageResponse(const QString& id,
                                               const QSize& requestedSize) override;
 
 private:
-    ComicReaderPageCache* m_cache;                 // not owned
-    const std::atomic<quint64>* m_liveGeneration;  // not owned
+    DeliveryContext m_ctx;   // observer pointers, nothing owned
     // Serves this provider's responses only. Destroying it drains every queued
     // and running response, so no worker survives the provider itself — nothing
     // is left running against a half-torn-down engine.

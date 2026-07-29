@@ -20,6 +20,7 @@
 #include <QPair>
 #include <QVector>
 
+#include <atomic>
 #include <list>
 #include <optional>
 
@@ -56,8 +57,38 @@ public:
     // untouched.
     void clearGeneration(quint64 gen);
 
+    // Explicit viewport ownership (overhaul plan 2026-07-28, Task 2). Drops
+    // every entry for `gen` whose page falls outside [first, last], regardless
+    // of how recently it was used — that is the point: budget/LRU keeps
+    // whatever happened to be touched last, which on a 1,452-page volume bears
+    // no relation to where the reader is. Other generations are untouched.
+    //
+    // TWO things outrank the range, and both mean "this page is on screen": the
+    // pin flag this cache already holds (from setPinned) and `pinned`, the
+    // caller's explicit list. Either one saves a page. In production they are
+    // the same set — setVisible() records the flag and requestRange() passes the
+    // list — and keeping both means no ordering between those two calls can ever
+    // blank a visible page.
+    //
+    // Range eviction only ever removes MORE. Being inside the range does not
+    // protect an entry from the standing byte budget; the budget is the memory
+    // ceiling and it wins (see ComicReaderScaleCache.h for the same rule stated
+    // once for both tiers).
+    void retainRange(quint64 gen, int first, int last, const QVector<int>& pinned);
+
     // Sum of QImage::sizeInBytes() over every live entry.
     qint64 bytesUsed() const;
+
+    // Number of live entries across all generations. The COUNT, not the bytes,
+    // is what Task 12's residency gate reads — a synthetic gate runs tiny
+    // fixtures where a byte figure could not tell a held window from a broken
+    // one.
+    int entryCount() const;
+
+    // Where to publish the resident-entry high-water mark (a
+    // DeliveryMetrics::maxDecodedResident). Observer pointer, may be null; set
+    // once by the owner before any worker can reach this cache.
+    void setResidentHighWaterSink(std::atomic<quint64>* sink);
 
 private:
     using Key = QPair<quint64, int>; // (generation, page); QPair<->QHash via QtCore's qHash
@@ -74,12 +105,16 @@ private:
     // hold m_mutex.
     void evictLocked();
 
+    // Caller must hold m_mutex.
+    void noteResidentLocked();
+
     mutable QMutex m_mutex;
     qint64 m_budget;
     qint64 m_bytesUsed = 0;
     QHash<Key, Entry> m_entries;
     QHash<quint64, QVector<int>> m_pinnedPages; // gen -> pinned page indices
     std::list<Key> m_lru; // front = least recently used, back = most recently used
+    std::atomic<quint64>* m_residentSink = nullptr;
 };
 
 } // namespace comicreader

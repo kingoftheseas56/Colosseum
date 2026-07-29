@@ -42,8 +42,36 @@
 //    reader thread. Net guarantee: an owner may destroy the response the
 //    instant finished() arrives, with NO window — which is exactly what both
 //    harnesses do with a bare delete.
+//
+// ── Task 2: two tiers, and where the work actually goes ──────────────────────
+// The worker now asks the SCALED tier first (ComicReaderScaleCache) and only
+// falls through to the full-resolution page on a miss. That is the whole point
+// of Task 2: scrolling back one page used to recompute an identical
+// SmoothTransformation downscale of a 2400px page; now it is a memory read.
+//
+// Reading and writing the scaled tier does NOT make this a writer of reader
+// state. The scaled tier is a delivery-side store: nothing the reader DECIDES
+// (decode priority, pairing, coupling, the strip window) ever reads it. The
+// same test passes the metrics counters — they are observation, and no decision
+// consults them.
+//
+// The three tiers, and what each is FOR:
+//   preview   — a FastTransformation at the requested size. Cheap, and queued
+//               ahead of hq work in the provider's pool, so the frame gets
+//               pixels first. That is a strong bias, not a guarantee: with two
+//               lanes an hq already running keeps running.
+//   hq        — SmoothTransformation, the reader's real page. The default, and
+//               what every existing caller gets. Task 7's render profile is
+//               what will make "the selected quality" mean more than this.
+//   thumbnail — SmoothTransformation, but clamped to kThumbnailMaxWidth. A
+//               filmstrip entry has no business holding a viewport-sized scale;
+//               a hundred of those is the memory bug this task exists to avoid
+//               causing.
 #pragma once
 
+#include "comicreader/ComicReaderScaleCache.h"
+
+#include <QElapsedTimer>
 #include <QImage>
 #include <QQuickImageProvider>
 #include <QRunnable>
@@ -63,13 +91,23 @@ class ComicReaderImageResponse final : public QQuickImageResponse, public QRunna
     Q_OBJECT
 
 public:
-    // `cache` and `liveGeneration` are owned by ComicReaderCore and outlive the
-    // QML engine; the response keeps observer pointers only. `id` is
-    // "<generation>/<page>" plus any query the QML side appends purely to bust
-    // its own image cache (e.g. "?rev=3") — everything from the first '?' on is
-    // ignored. `requestedSize` is honoured on width only, and only downward.
-    ComicReaderImageResponse(ComicReaderPageCache* cache,
-                             const std::atomic<quint64>* liveGeneration,
+    // A filmstrip thumbnail's ceiling in device pixels. Chosen against the
+    // overlay the plan describes (a centred strip of page thumbnails), where a
+    // wider scale buys nothing anybody can see and costs a scaled-tier slot.
+    static constexpr int kThumbnailMaxWidth = 240;
+
+    // `ctx` bundles the stores this response reads; ComicReaderCore owns all of
+    // them and outlives the QML engine, so the response keeps observer pointers
+    // only. `id` is "<generation>/<page>" plus a query the QML side appends:
+    // "?rev=N" busts QML's own image cache, "&tier=" picks preview/hq/thumbnail,
+    // "&dpr=" carries the device pixel ratio into the scale key. Unknown query
+    // keys are ignored, and an absent tier means hq — which is what keeps the
+    // pre-Task-2 url grammar valid.
+    //
+    // `requestedSize` is honoured on width only, and only downward (Task 1's
+    // rule, unchanged): a page is fitted to a column and its height follows, and
+    // upscaling a decoded page is pure waste.
+    ComicReaderImageResponse(const DeliveryContext& ctx,
                              const QString& id,
                              const QSize& requestedSize);
 
@@ -94,6 +132,10 @@ public:
     // synchronises it with the response's thread.
     QThread* servedOn() const;
 
+    // Which tier this request asked for, read from the id at construction. The
+    // provider consults it to queue previews ahead of hq work.
+    ScaleTier tier() const { return m_tier; }
+
     // QRunnable body — provider's pool thread. Never call directly except from
     // a test that wants the work done inline.
     void run() override;
@@ -103,12 +145,17 @@ private:
     // emits finished() — the single place finished() is ever emitted.
     void publish(const QImage& image);
 
-    ComicReaderPageCache* m_cache;                 // not owned
-    const std::atomic<quint64>* m_liveGeneration;  // not owned
+    DeliveryContext m_ctx;                         // observer pointers, nothing owned
     quint64 m_generation = 0;
     int m_page = -1;
     bool m_idParsed = false;
     int m_requestedWidth = 0;
+    int m_dpr100 = 100;
+    ScaleTier m_tier = ScaleTier::Hq;
+    // Construction -> published image. Started in the constructor, on the
+    // requesting thread, so it measures what QML actually waits for: the queue
+    // wait as well as the work.
+    QElapsedTimer m_age;
     // Guards only itself — no companion data rides across threads on it, and
     // m_result is touched on the response thread alone. The acquire/release
     // tags are conventional, not load-bearing: the cancel path's determinism

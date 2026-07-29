@@ -38,14 +38,74 @@ bool parseKey(const QString& id, quint64& generation, int& page) {
     return true;
 }
 
+// The raw value of `key` in the id's "?a=1&b=2" query, or a null view when the
+// key is absent. Deliberately tolerant: an unknown key is ignored and a missing
+// one falls back to the caller's default, which is what lets a pre-Task-2 url
+// ("<gen>/<page>?rev=1") stay valid.
+QStringView queryValue(const QString& id, QLatin1String key) {
+    const qsizetype start = id.indexOf(QLatin1Char('?'));
+    if (start < 0)
+        return {};
+    QStringView query = QStringView(id).mid(start + 1);
+    while (!query.isEmpty()) {
+        const qsizetype amp = query.indexOf(QLatin1Char('&'));
+        const QStringView pair = amp >= 0 ? query.left(amp) : query;
+        const qsizetype eq = pair.indexOf(QLatin1Char('='));
+        if (eq > 0 && pair.left(eq) == key)
+            return pair.mid(eq + 1);
+        if (amp < 0)
+            break;
+        query = query.mid(amp + 1);
+    }
+    return {};
+}
+
+// Absent, "hq", or anything unrecognised all mean hq — tierFromString owns that
+// rule so the writer and the reader of the url cannot drift apart.
+ScaleTier parseTier(const QString& id) {
+    return tierFromString(queryValue(id, QLatin1String("tier")));
+}
+
+// Device pixel ratio as hundredths, so it can key exactly. 100 (1.0x) whenever
+// the caller says nothing or says something unparseable.
+int parseDpr100(const QString& id) {
+    const QStringView value = queryValue(id, QLatin1String("dpr"));
+    if (value.isEmpty())
+        return 100;
+    bool ok = false;
+    const double dpr = value.toDouble(&ok);
+    if (!ok || dpr <= 0.0)
+        return 100;
+    return qRound(dpr * 100.0);
+}
+
+// The width this tier will actually scale to, given what the caller asked for.
+// Only the thumbnail tier overrides the caller, and only downward — the cap is
+// a ceiling, not a size, so a smaller request is honoured as asked. A thumbnail
+// asked for with NO width still gets the cap, which is the request shape a plain
+// `Image { source: ... }` produces.
+int targetWidthFor(ScaleTier tier, int requestedWidth) {
+    if (tier != ScaleTier::Thumbnail)
+        return requestedWidth;
+    return requestedWidth > 0
+               ? qMin(requestedWidth, ComicReaderImageResponse::kThumbnailMaxWidth)
+               : ComicReaderImageResponse::kThumbnailMaxWidth;
+}
+
+Qt::TransformationMode transformFor(ScaleTier tier) {
+    // Preview trades quality for speed on purpose — it exists to put pixels on
+    // screen and be replaced. Thumbnails are smooth: scaling a 2400px page down
+    // to 240 with a fast transform aliases badly, and a thumbnail is looked at,
+    // not glanced past.
+    return tier == ScaleTier::Preview ? Qt::FastTransformation : Qt::SmoothTransformation;
+}
+
 } // namespace
 
-ComicReaderImageResponse::ComicReaderImageResponse(ComicReaderPageCache* cache,
-                                                   const std::atomic<quint64>* liveGeneration,
+ComicReaderImageResponse::ComicReaderImageResponse(const DeliveryContext& ctx,
                                                    const QString& id,
                                                    const QSize& requestedSize)
-    : m_cache(cache),
-      m_liveGeneration(liveGeneration),
+    : m_ctx(ctx),
       m_requestedWidth(requestedSize.width()) {
     // The pool must not delete this — the owner does, after finished(). Safe to
     // set here: the pool reads the flag before dispatch and never revisits the
@@ -53,6 +113,9 @@ ComicReaderImageResponse::ComicReaderImageResponse(ComicReaderPageCache* cache,
     setAutoDelete(false);
 
     m_idParsed = parseKey(id, m_generation, m_page);
+    m_tier = parseTier(id);
+    m_dpr100 = parseDpr100(id);
+    m_age.start();
 }
 
 void ComicReaderImageResponse::cancel() {
@@ -78,19 +141,60 @@ void ComicReaderImageResponse::run() {
     QImage served;
 
     // An unparseable id, a provider wired to nothing, or a cancel that beat the
-    // worker to the start: all exit without ever touching the cache.
-    if (m_idParsed && m_cache && m_liveGeneration && !wasCancelled()) {
+    // worker to the start: all exit without ever touching a cache.
+    if (m_idParsed && m_ctx.pageCache && m_ctx.liveGeneration && !wasCancelled()) {
         // Stale guard: anything but the live generation resolves to nothing, so
         // a QML Image still bound to a retired entry never repaints old pixels.
-        if (m_generation == m_liveGeneration->load()) {
-            const std::optional<QImage> cached = m_cache->get(m_generation, m_page);
+        if (m_generation != m_ctx.liveGeneration->load()) {
+            if (m_ctx.metrics)
+                m_ctx.metrics->staleDrops.fetch_add(1, std::memory_order_relaxed);
+        } else {
+            const quint64 renderRevision =
+                m_ctx.renderRevision ? m_ctx.renderRevision->load() : 0;
+            const int targetWidth = targetWidthFor(m_tier, m_requestedWidth);
+            const ScaleKey key{m_generation, m_page, QSize(targetWidth, 0),
+                               m_dpr100, renderRevision, m_tier};
 
-            // Cancelled while the cache lookup ran — skip the scale, which is
-            // the expensive half and the whole reason this is off-thread.
-            if (cached.has_value() && !cached->isNull() && !wasCancelled()) {
-                served = *cached;
-                if (m_requestedWidth > 0 && m_requestedWidth < served.width())
-                    served = served.scaledToWidth(m_requestedWidth, Qt::SmoothTransformation);
+            // The scaled tier FIRST. On a hit this is the whole request: no
+            // full-resolution read, no scale, no allocation beyond the implicit
+            // share — which is the entire point of Task 2.
+            std::optional<QImage> reused;
+            if (m_ctx.scaleCache)
+                reused = m_ctx.scaleCache->get(key);
+
+            if (reused.has_value() && !reused->isNull()) {
+                served = *reused;
+                if (m_ctx.metrics)
+                    m_ctx.metrics->scaledHits.fetch_add(1, std::memory_order_relaxed);
+            } else {
+                const std::optional<QImage> source = m_ctx.pageCache->get(m_generation, m_page);
+                if (source.has_value() && !source->isNull()) {
+                    if (m_ctx.metrics)
+                        m_ctx.metrics->sourceHits.fetch_add(1, std::memory_order_relaxed);
+
+                    // Cancelled while the source lookup ran — skip the scale,
+                    // which is the expensive half and the whole reason this is
+                    // off-thread.
+                    if (!wasCancelled()) {
+                        if (targetWidth > 0 && targetWidth < source->width()) {
+                            if (m_ctx.metrics)
+                                m_ctx.metrics->scaleJobs.fetch_add(1, std::memory_order_relaxed);
+                            served = source->scaledToWidth(targetWidth, transformFor(m_tier));
+
+                            // Publish AFTER a fresh generation check: a volume
+                            // that closed while this scale ran must not seed the
+                            // tier for the volume that replaced it.
+                            if (m_ctx.scaleCache
+                                && m_generation == m_ctx.liveGeneration->load())
+                                m_ctx.scaleCache->insert(key, served);
+                        } else {
+                            // No scale to do — the source IS the answer. Nothing
+                            // goes in the scaled tier: an entry byte-identical
+                            // to the source would spend a slot to save no work.
+                            served = *source;
+                        }
+                    }
+                }
             }
         }
     }
@@ -102,8 +206,26 @@ void ComicReaderImageResponse::run() {
 }
 
 void ComicReaderImageResponse::publish(const QImage& image) {
-    if (!wasCancelled())
+    const bool cancelled = wasCancelled();
+    if (!cancelled)
         m_result = image;
+
+    if (m_ctx.metrics) {
+        // Counted HERE, not in run(): this is the one place that sees every
+        // cancellation, including one that lands after the work finished (the
+        // checkpoint F8 pins). Counting it in the worker would miss those and
+        // double-count nothing.
+        if (cancelled) {
+            m_ctx.metrics->cancelledJobs.fetch_add(1, std::memory_order_relaxed);
+        } else if (!image.isNull()) {
+            // Only a request that actually delivered a page contributes to the
+            // latency figure. A cancelled or stale response resolves to nothing,
+            // and folding its lifetime in would make maxResponseMs report how
+            // long a cancel took rather than how long a page took.
+            raiseMax(m_ctx.metrics->maxResponseMs, static_cast<quint64>(m_age.elapsed()));
+        }
+    }
+
     emit finished();
 }
 

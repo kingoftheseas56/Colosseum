@@ -1,17 +1,29 @@
 // tests/comicreader_cache_harness.cpp
 //
-// Comic Reader (Agent 1, plan 2026-07-23) — Task 3 fixtures.
-// The pinned, budgeted LRU page cache: (generation, page) keyed, bytesUsed is
-// the exact sum of QImage::sizeInBytes() over live entries, LRU eviction never
-// touches a pinned (visible) page even if that leaves the cache over budget.
+// Comic Reader (Agent 1, plan 2026-07-23) — Task 3 fixtures, extended by the
+// overhaul plan 2026-07-28 Task 2.
+//
+// Task 3 (F1-F8): the pinned, budgeted LRU page cache — (generation, page)
+// keyed, bytesUsed is the exact sum of QImage::sizeInBytes() over live entries,
+// LRU eviction never touches a pinned (visible) page even if that leaves the
+// cache over budget.
+//
+// Task 2 (F9-F13): the SCALED tier and explicit range ownership. The decoded
+// tier answers "what does this page look like"; the scaled tier answers "what
+// does this page look like AT THIS SIZE", so scrolling back one page reuses a
+// scale instead of recomputing it. And both tiers gain retainRange, which
+// replaces "whatever LRU happened to keep" with a tight moving neighbourhood.
+//
 // House CHECK idiom: collect every failure (never abort), print each FAIL, then
 // print exactly COMICREADER_CACHE_OK iff zero failures, else return 1.
 
 #include "comicreader/ComicReaderPageCache.h"
+#include "comicreader/ComicReaderScaleCache.h"
 
 #include <QImage>
 #include <QVector>
 
+#include <atomic>
 #include <cstdio>
 
 using namespace comicreader;
@@ -238,6 +250,157 @@ int main() {
     {
         ComicReaderPageCache cache; // default ctor argument
         CHECK(cache.bytesUsed() == 0, "F8 fresh cache starts empty");
+    }
+
+    // ══ Task 2: the scaled tier ═══════════════════════════════════════════════
+
+    // ── Fixture 9: EVERY field of ScaleKey discriminates ─────────────────────
+    // The whole point of the tier is that an identical request is served from
+    // memory. "Identical" therefore has to mean identical in every way that
+    // changes the pixels: same volume, same page, same target size, same device
+    // pixel ratio, same render revision (Task 7's look), same tier (a preview is
+    // a FAST transform of the same page at the same size — serving one where hq
+    // was asked would be a visible quality regression, not a cache hit).
+    {
+        ComicReaderScaleCache scaled;
+        const QImage img = synthetic(qRgb(1, 2, 3));
+        const ScaleKey base{9, 10, QSize(900, 1400), 100, 1};
+        scaled.insert(base, img);
+
+        CHECK(scaled.get(base).has_value(), "F9 a scaled image is gettable by its own key");
+        CHECK(scaled.get(base).has_value() && *scaled.get(base) == img,
+              "F9 what comes back is the image that went in");
+        CHECK(!scaled.get({8, 10, QSize(900, 1400), 100, 1}).has_value(),
+              "F9 a different GENERATION is a different key");
+        CHECK(!scaled.get({9, 11, QSize(900, 1400), 100, 1}).has_value(),
+              "F9 a different PAGE is a different key");
+        CHECK(!scaled.get({9, 10, QSize(901, 1400), 100, 1}).has_value(),
+              "F9 a different TARGET SIZE is a different key");
+        CHECK(!scaled.get({9, 10, QSize(900, 1400), 200, 1}).has_value(),
+              "F9 a different DPR is a different key");
+        CHECK(!scaled.get({9, 10, QSize(900, 1400), 100, 2}).has_value(),
+              "F9 a different RENDER REVISION is a different key");
+        CHECK(!scaled.get({9, 10, QSize(900, 1400), 100, 1, ScaleTier::Preview}).has_value(),
+              "F9 a different TIER is a different key (a preview is not an hq)");
+        CHECK(scaled.entryCount() == 1, "F9 all those misses inserted nothing");
+    }
+
+    // ── Fixture 10: retainRange is the scaled tier's ownership rule ──────────
+    // The plan's snippet, verbatim in intent: the reader owns a moving window,
+    // and a scale for a page far outside it is dead weight no matter how
+    // recently it was touched.
+    {
+        ComicReaderScaleCache scaled;
+        const QImage img = synthetic(qRgb(4, 5, 6));
+        scaled.insert({9, 10, QSize(900, 1400), 100, 1}, img);
+        scaled.insert({9, 40, QSize(900, 1400), 100, 1}, img);
+        scaled.retainRange(9, 8, 14);
+        CHECK(scaled.get({9, 10, QSize(900, 1400), 100, 1}).has_value(), "in-range scale retained");
+        CHECK(!scaled.get({9, 40, QSize(900, 1400), 100, 1}).has_value(), "far scale evicted");
+
+        // Range ownership is per generation: a sweep for the live volume must not
+        // touch another one's entries (the core clears those wholesale instead).
+        scaled.insert({7, 40, QSize(900, 1400), 100, 1}, img);
+        scaled.retainRange(9, 8, 14);
+        CHECK(scaled.get({7, 40, QSize(900, 1400), 100, 1}).has_value(),
+              "F10 retainRange(gen 9) leaves another generation's entries alone");
+        scaled.clear();
+        CHECK(scaled.entryCount() == 0, "F10 clear() empties the whole tier");
+    }
+
+    // ── Fixture 11: the scaled tier is bounded even with NOBODY driving it ───
+    // This is the memory guard that matters. QML drives requestRange in Long
+    // Strip (Task 8); a surface that never calls it must still not grow a second
+    // unbounded image cache. Two independent ceilings: entry count and bytes.
+    {
+        ComicReaderScaleCache scaled;   // house defaults
+        for (int p = 0; p < 12; ++p)
+            scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 0, 0)));
+        CHECK(scaled.entryCount() == ComicReaderScaleCache::kMaxEntries,
+              "F11 the entry cap holds with no range sweep at all");
+        CHECK(!scaled.get({1, 0, QSize(900, 1400), 100, 0}).has_value(),
+              "F11 the oldest scale is the one dropped");
+        CHECK(scaled.get({1, 11, QSize(900, 1400), 100, 0}).has_value(),
+              "F11 the newest scale survives");
+    }
+    {
+        // Byte ceiling, isolated: 8 MiB holds exactly two 4 MiB images, so the
+        // third evicts on bytes long before the entry cap could bite.
+        ComicReaderScaleCache scaled(8 * kMiB);
+        for (int p = 0; p < 3; ++p)
+            scaled.insert({1, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 1, 0)));
+        CHECK(scaled.entryCount() == 2, "F11 the byte budget evicts before the entry cap");
+        CHECK(scaled.bytesUsed() == 2 * kImageBytes, "F11 bytesUsed tracks the survivors");
+        CHECK(!scaled.get({1, 0, QSize(900, 1400), 100, 0}).has_value(),
+              "F11 the byte budget drops the least-recently-used first");
+    }
+
+    // ── Fixture 12: the DECODED tier's retainRange, and what outranks it ─────
+    // Same moving-window rule on the source tier, with one exception that is not
+    // negotiable: a pinned page is on screen. It survives being outside the
+    // range, because the alternative is blanking the frame the reader is looking
+    // at — the exact failure the pin set exists to prevent.
+    {
+        ComicReaderPageCache cache(1024 * kMiB);   // budget wide open: range is the only policy here
+        for (int p = 16; p <= 26; ++p)
+            cache.insert(9, p, synthetic(qRgb(p, 0, 0)));
+        cache.insert(8, 40, synthetic(qRgb(0, 8, 0)));   // a retired generation's page
+
+        cache.retainRange(9, 18, 24, QVector<int>{5, 26});
+
+        CHECK(!cache.get(9, 16).has_value(), "F12 a page below the range is evicted");
+        CHECK(!cache.get(9, 17).has_value(), "F12 the page just below the range is evicted");
+        CHECK(cache.get(9, 18).has_value(), "F12 the first in-range page is retained");
+        CHECK(cache.get(9, 21).has_value(), "F12 a mid-range page is retained");
+        CHECK(cache.get(9, 24).has_value(), "F12 the last in-range page is retained");
+        CHECK(cache.get(9, 26).has_value(),
+              "F12 a PINNED page outside the range survives — it is on screen");
+        CHECK(!cache.get(9, 25).has_value(),
+              "F12 ...but an unpinned page one closer to the range does not");
+        CHECK(cache.get(8, 40).has_value(),
+              "F12 another generation is untouched by a range sweep");
+    }
+    {
+        // The pin FLAG the cache already holds counts too, not just the vector
+        // the caller passes — setVisible() records the flag, requestRange()
+        // passes the vector, and they are the same set in production. Whichever
+        // one says "pinned" wins.
+        ComicReaderPageCache cache(1024 * kMiB);
+        cache.setPinned(9, {30});
+        cache.insert(9, 30, synthetic(qRgb(30, 0, 0)));
+        cache.insert(9, 31, synthetic(qRgb(31, 0, 0)));
+        cache.retainRange(9, 0, 5, QVector<int>{});
+        CHECK(cache.get(9, 30).has_value(), "F12 the cache's own pin flag also survives a sweep");
+        CHECK(!cache.get(9, 31).has_value(), "F12 its unpinned neighbour does not");
+    }
+
+    // ── Fixture 13: resident high-water marks, in ENTRIES ────────────────────
+    // Task 12's performance gate reads maxDecodedResident / maxScaledResident as
+    // COUNTS of resident entries, not bytes — a synthetic gate runs tiny
+    // fixtures, where a byte figure would say nothing about whether the window
+    // held. So the mark has to be a count, and it must be a high-WATER mark:
+    // shrinking back down must not erase the peak the gate is trying to catch.
+    {
+        std::atomic<quint64> decodedMark{0};
+        std::atomic<quint64> scaledMark{0};
+        ComicReaderPageCache cache(1024 * kMiB);
+        ComicReaderScaleCache scaled;
+        cache.setResidentHighWaterSink(&decodedMark);
+        scaled.setResidentHighWaterSink(&scaledMark);
+
+        for (int p = 0; p < 5; ++p)
+            cache.insert(9, p, synthetic(qRgb(p, 0, 0)));
+        for (int p = 0; p < 3; ++p)
+            scaled.insert({9, p, QSize(900, 1400), 100, 0}, synthetic(qRgb(p, 0, 0)));
+        CHECK(decodedMark.load() == 5, "F13 the decoded mark counts resident entries");
+        CHECK(scaledMark.load() == 3, "F13 the scaled mark counts resident entries");
+
+        cache.retainRange(9, 0, 0, QVector<int>{});
+        scaled.retainRange(9, 0, 0);
+        CHECK(cache.bytesUsed() == kImageBytes && scaled.entryCount() == 1,
+              "F13 the sweep really did shrink both tiers");
+        CHECK(decodedMark.load() == 5 && scaledMark.load() == 3,
+              "F13 a high-water mark does not fall back with the tier");
     }
 
     if (g_failures == 0) {

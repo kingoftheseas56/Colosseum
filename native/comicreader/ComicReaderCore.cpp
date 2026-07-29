@@ -32,6 +32,22 @@ static_assert(kOffNext1 < kVisibleWaveStep && kOffNext2 < kVisibleWaveStep
 constexpr qint64 kBudgetNormal = 512LL * 1024 * 1024;
 constexpr qint64 kBudgetSaver  = 256LL * 1024 * 1024;
 
+// requestRange's retention margins, in pages either side of the visible run.
+//
+// The decode margin is ±2 because that is roughly what the Long Strip decode
+// window already asks for: it loads 1.5 screens past each edge of the viewport,
+// and at the default 78% portrait width a screen is a little over one page. A
+// tighter margin would sweep away pages the strip's own prefetch just queued;
+// a looser one would stop bounding anything.
+//
+// The scaled margins are deliberately ASYMMETRIC — one behind, two ahead. A
+// scale is cheap to redo from a page that is still decoded, and the reader is
+// travelling forward, so spending the tier's small entry budget behind the
+// viewport buys less than spending it in front.
+constexpr int kDecodeKeepMargin = 2;
+constexpr int kScaleKeepBehind  = 1;
+constexpr int kScaleKeepAhead   = 2;
+
 // Decode priorities (higher runs sooner in QThreadPool). kPrioVisible and kPrioStripBase live
 // in the header (not here) so stripDecodePriority() is directly unit-testable. The visible
 // band's forward/backward prefetch priorities are no longer fixed constants: they are offsets
@@ -46,6 +62,12 @@ int stripDecodePriority(int page, int centrePage) {
 }
 
 ComicReaderCore::ComicReaderCore(QObject* parent) : QObject(parent) {
+    // Both tiers publish their resident-entry high-water mark into the one
+    // metrics struct. Wired here, before anything can reach either cache, so no
+    // worker ever races the sink being installed.
+    m_cache.setResidentHighWaterSink(&m_delivery.maxDecodedResident);
+    m_scaleCache.setResidentHighWaterSink(&m_delivery.maxScaledResident);
+
     // m_cache is declared before m_decode, so &m_cache is fully constructed here.
     // The decode coordinator is a child of this object and lives on this thread —
     // satisfying its construct-and-destroy-on-owning-thread affinity invariant.
@@ -238,6 +260,12 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
 
     m_cacheBudget = m_memorySaver ? kBudgetSaver : kBudgetNormal;
     m_cache.setBudget(m_cacheBudget);
+    m_scaleCache.setBudget(m_memorySaver ? ComicReaderScaleCache::kBudgetSaver
+                                         : ComicReaderScaleCache::kBudgetNormal);
+    // Every scale in the tier belongs to a generation that is now dead — only
+    // one is ever live — so the whole tier goes rather than being swept page by
+    // page. (The decoded tier's equivalent is openGeneration's clearGeneration.)
+    m_scaleCache.clear();
 
     // Becomes the live generation; drops the previous generation's cached pages.
     m_decode->openGeneration(m_generation, m_pages);
@@ -282,6 +310,8 @@ void ComicReaderCore::closeEntry() {
     m_liveGeneration.store(m_generation);
     m_cacheBudget = kBudgetNormal;
     m_cache.setBudget(m_cacheBudget);
+    m_scaleCache.setBudget(ComicReaderScaleCache::kBudgetNormal);
+    m_scaleCache.clear();
     m_decode->openGeneration(m_generation, {});
 
     ComicReaderStripModel::Options opt;
@@ -317,11 +347,29 @@ QVariantMap ComicReaderCore::unitForPage(int page) const {
     return m_units[u].toVariantMap();
 }
 
-QString ComicReaderCore::imageUrl(int page) const {
-    return QStringLiteral("image://comicreader/%1/%2?rev=%3")
+QString ComicReaderCore::imageUrl(int page, QString tier) const {
+    // Normalised, not passed through: two different misspellings must not become
+    // two different scaled-cache entries for the same picture.
+    const QString normalised = tierToString(tierFromString(tier));
+    return QStringLiteral("image://comicreader/%1/%2?rev=%3&tier=%4")
         .arg(m_generation)
         .arg(page)
-        .arg(m_pageRev.value(page, 0));
+        .arg(m_pageRev.value(page, 0))
+        .arg(normalised);
+}
+
+QVariantMap ComicReaderCore::deliveryMetrics() const {
+    return {
+        {QStringLiteral("sourceHits"), qulonglong(m_delivery.sourceHits.load())},
+        {QStringLiteral("scaledHits"), qulonglong(m_delivery.scaledHits.load())},
+        {QStringLiteral("scaleJobs"), qulonglong(m_delivery.scaleJobs.load())},
+        {QStringLiteral("cancelledJobs"), qulonglong(m_delivery.cancelledJobs.load())},
+        {QStringLiteral("staleDrops"), qulonglong(m_delivery.staleDrops.load())},
+        {QStringLiteral("maxDispatchUs"), qulonglong(m_delivery.maxDispatchUs.load())},
+        {QStringLiteral("maxResponseMs"), qulonglong(m_delivery.maxResponseMs.load())},
+        {QStringLiteral("maxDecodedResident"), qulonglong(m_delivery.maxDecodedResident.load())},
+        {QStringLiteral("maxScaledResident"), qulonglong(m_delivery.maxScaledResident.load())},
+    };
 }
 
 QVariantMap ComicReaderCore::persistedState() const {
@@ -536,6 +584,27 @@ void ComicReaderCore::setVisible(QVariantList pageIndices) {
     }
 }
 
+void ComicReaderCore::requestRange(int first, int last) {
+    // No book, no range to own. qBound would be handed min > max here, which is
+    // undefined — the guard is the reason there is one.
+    if (m_pages.isEmpty())
+        return;
+
+    const int lastPage = m_pages.size() - 1;
+    first = qBound(0, first, lastPage);
+    last = qBound(first, last, lastPage);
+
+    const int decodeFirst = qMax(0, first - kDecodeKeepMargin);
+    const int decodeLast = qMin(lastPage, last + kDecodeKeepMargin);
+    const int scaleFirst = qMax(0, first - kScaleKeepBehind);
+    const int scaleLast = qMin(lastPage, last + kScaleKeepAhead);
+
+    // Retention only. Nothing is requested and no priority moves — setVisible
+    // and setStripViewport own that half, and this owns what may stay.
+    m_cache.retainRange(m_generation, decodeFirst, decodeLast, m_lastPinned);
+    m_scaleCache.retainRange(m_generation, scaleFirst, scaleLast);
+}
+
 void ComicReaderCore::setStripViewport(double top, double height) {
     m_stripViewportTop = top;
     m_stripViewportHeight = height;
@@ -564,6 +633,10 @@ void ComicReaderCore::setMemorySaver(bool on) {
     m_memorySaver = on;
     m_cacheBudget = on ? kBudgetSaver : kBudgetNormal;
     m_cache.setBudget(m_cacheBudget);
+    // The scaled tier halves with the decoded one — "memory saver" that saved on
+    // one of the two image caches would be telling half the truth.
+    m_scaleCache.setBudget(on ? ComicReaderScaleCache::kBudgetSaver
+                              : ComicReaderScaleCache::kBudgetNormal);
     emit cacheChanged();
 }
 
@@ -779,7 +852,13 @@ void ComicReaderCore::finalizeProbe() {
 // ── provider factory ────────────────────────────────────────────────────────
 
 ComicReaderProvider* ComicReaderCore::createProvider() {
-    return new ComicReaderProvider(&m_cache, &m_liveGeneration);
+    DeliveryContext ctx;
+    ctx.pageCache = &m_cache;
+    ctx.scaleCache = &m_scaleCache;
+    ctx.liveGeneration = &m_liveGeneration;
+    ctx.renderRevision = &m_renderRevision;
+    ctx.metrics = &m_delivery;
+    return new ComicReaderProvider(ctx);
 }
 
 } // namespace comicreader
