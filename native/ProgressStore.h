@@ -7,13 +7,16 @@
 // bookmark file. Persisted via QSettings (the same lightweight-state mechanism the
 // manga reader already uses for prefs), so it survives a restart.
 //
-// PERSISTENCE THREADING (2026-07-29 video-stutter fix). Serializing the whole Continue map
-// and calling QSettings::sync() cost ~11ms on the GUI/render thread every 5s — enough to drop
-// frames during playback (the +25/60s residual measured after the reactive changed() cascade
-// was removed). Both now run on a dedicated background writer (ProgressDiskWriter): the GUI
-// thread only mutates the in-memory map and posts a snapshot; the worker serializes + syncs on
-// its own thread, coalescing bursts so only the latest snapshot is written. The latest snapshot
-// is flushed synchronously at shutdown (aboutToQuit) so the final resume point always lands.
+// PERSISTENCE THREADING (2026-07-29 video-stutter fix). Serializing the whole Continue map and
+// calling QSettings::sync() ran on the GUI/render thread every 5s — blocking disk work on the
+// thread that paints frames, which is a hazard on principle. Both now run on a dedicated
+// background writer (ProgressDiskWriter): the GUI thread only mutates the in-memory map and posts
+// a snapshot; the worker serializes + syncs on its own thread. Every posted snapshot is written
+// (there is no coalescing — see ProgressDiskWriter). The latest snapshot is flushed synchronously
+// at shutdown (aboutToQuit) so the final resume point always lands.
+// NOT claimed: that moving the disk write off-thread measurably reduced dropped frames. It did
+// not — see WRITE POLICY below. The cascade fix (recordSilent) is the change that moved the
+// needle; this one removes a GUI-thread block that should not have been there regardless.
 //
 // WRITE POLICY (Option B — 5s off-thread writes, retained 2026-07-29). The 5s playback tick
 // persists via the off-thread writer (crash-resume within 5s). A lifecycle-only variant (Option
