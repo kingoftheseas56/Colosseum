@@ -2453,8 +2453,16 @@ Item {
         root.playbackStats = {
             "videoBitrate": mpv.mpvProperty("video-bitrate"),
             "audioBitrate": mpv.mpvProperty("audio-bitrate"),
-            "frameDropDecoder": mpv.mpvProperty("frame-drop-count"),
-            "frameDropOutput": mpv.mpvProperty("vo-drop-frame-count"),
+            // "decoder / output" — mpv's property naming is inverted from the plain reading:
+            // `frame-drop-count` is the OUTPUT (VO) drop count and `decoder-frame-drop-count` is
+            // the decoder's. This pair used to read frame-drop-count into the DECODER slot and
+            // ask for a `vo-drop-frame-count` that mpv does not have, so the card showed the
+            // output count under the decoder label and "NaN" under the output label (the invalid
+            // property comes back as an ErrorReturn object, and Number(object) is NaN). Fixed
+            // 2026-07-29 to match native/player/mpvitem.cpp statsPayload(), which is the mapping
+            // the zero-drop gate measures against.
+            "frameDropDecoder": mpv.mpvProperty("decoder-frame-drop-count"),
+            "frameDropOutput": mpv.mpvProperty("frame-drop-count"),
             "estimatedFps": mpv.mpvProperty("estimated-vf-fps"),
             "containerFps": mpv.mpvProperty("container-fps"),
             "videoCodec": mpv.mpvProperty("video-codec"),
