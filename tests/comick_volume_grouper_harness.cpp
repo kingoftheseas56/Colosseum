@@ -630,11 +630,15 @@ int main(int argc, char** argv)
                 "a shelf that opens at volume 0 qualifies");
     }
     {
+        // The reason strings are part of the contract, not debug text: the app logs
+        // them, and the batch pipeline writes them into the published record's
+        // `gateReason`. So they are pinned VERBATIM against the Python's wording, not
+        // merely searched for a keyword — a reworded reason is a divergence.
         require(!gateVolumes(spanVolumes(1, 1), true, {}).qualified,
                 "a numbering quirk fails the gate outright");
-        require(gateVolumes(spanVolumes(1, 1), true, {}).reason.contains(
-                    QStringLiteral("numbering quirk")),
-                "the quirk rejection says so");
+        requireEqual(gateVolumes(spanVolumes(1, 1), true, {}).reason,
+                     QStringLiteral("numbering quirk (fractional chapter origin)"),
+                     "the quirk reason matches the Python verbatim");
         require(!gateVolumes({}, false, {}).qualified, "no mapped volumes fails the gate");
         require(gateVolumes({}, false, {}).reason == QStringLiteral("no mapped volumes"),
                 "the empty rejection says so");
@@ -645,14 +649,16 @@ int main(int argc, char** argv)
              << VolumeRange{19, QStringLiteral("190"), QStringLiteral("199")}
              << VolumeRange{38, QStringLiteral("380"), QStringLiteral("389")};
         const GateVerdict verdict = gateVolumes(vols, false, rowsFor(vols));
-        require(!verdict.qualified && verdict.reason.contains(QStringLiteral("gap")),
-                "a mid-run volume gap fails the gate");
+        require(!verdict.qualified, "a mid-run volume gap fails the gate");
+        requireEqual(verdict.reason, QStringLiteral("gap after volume 1"),
+                     "the gap reason names the volume the run broke after, verbatim");
     }
     {
         const QList<VolumeRange> vols = spanVolumes(25, 38);
         const GateVerdict verdict = gateVolumes(vols, false, rowsFor(vols));
-        require(!verdict.qualified && verdict.reason.contains(QStringLiteral("25")),
-                "a shelf that opens at volume 25 is not a shelf");
+        require(!verdict.qualified, "a shelf that opens at volume 25 is not a shelf");
+        requireEqual(verdict.reason, QStringLiteral("first mapped volume is 25, not 0/1"),
+                     "the late-start reason matches the Python verbatim");
     }
     {
         // Naruto shape: a stray row dragged volume 50's start back inside volume 49's
@@ -664,9 +670,9 @@ int main(int argc, char** argv)
         Rows rows;
         rows.append(rowsFor(clean)).span(490, 509, QStringLiteral("49"));
         const GateVerdict verdict = gateVolumes(vols, false, rows.list);
-        require(!verdict.qualified && verdict.reason.contains(QStringLiteral("overlap"))
-                    && verdict.reason.contains(QStringLiteral("49")),
-                "overlapping spans fail the gate");
+        require(!verdict.qualified, "overlapping spans fail the gate");
+        requireEqual(verdict.reason, QStringLiteral("volume 49 span overlaps volume 50"),
+                     "the overlap reason names both volumes, verbatim");
     }
     {
         // Two adjacent mis-tags are not a lone stray, so nothing corrects them. The
@@ -697,11 +703,12 @@ int main(int argc, char** argv)
             .span(204, 212, QString(), 4)                          // untagged, 4 languages
             .span(213, 214, QStringLiteral("29"));
         const GateVerdict verdict = gateVolumes(vols, false, rows.list);
-        require(!verdict.qualified && verdict.reason.contains(QStringLiteral("no volume")),
+        require(!verdict.qualified,
                 "chapters stranded at the seam between volumes fail the gate");
-        require(verdict.reason.contains(QStringLiteral("9 chapter"))
-                    && verdict.reason.contains(QStringLiteral("204")),
-                "the count is CHAPTERS not ROWS (9, not 36) and names the first hole");
+        requireEqual(verdict.reason,
+                     QStringLiteral("9 chapter(s) in no volume (first: 204)"),
+                     "the seam reason counts CHAPTERS not ROWS (9, not 36) and names "
+                     "the first hole, verbatim");
     }
     {
         // The sparse-anchor case, which is exactly the interpolation this gate exists
@@ -718,11 +725,12 @@ int main(int argc, char** argv)
         require(render(vols) == QStringLiteral("1:1-10,2:11-20,3:21-30"),
                 "the sparse-anchor spans look flawless");
         const GateVerdict verdict = gateVolumes(vols, false, rows.list);
-        require(!verdict.qualified && verdict.reason.contains(QStringLiteral("no volume")),
+        require(!verdict.qualified,
                 "chapters swallowed inside a stretched span fail the gate");
-        require(verdict.reason.contains(QStringLiteral("8 chapter"))
-                    && verdict.reason.contains(QStringLiteral("12")),
-                "the count is CHAPTERS not ROWS (8, not 40)");
+        requireEqual(verdict.reason,
+                     QStringLiteral("8 chapter(s) in no volume (first: 12)"),
+                     "the sparse-anchor reason counts CHAPTERS not ROWS (8, not 40), "
+                     "verbatim");
     }
     {
         // Real Bleach: volume 19 is 159-168 and volume 20 is 169-178 — back to back,
