@@ -80,6 +80,7 @@
 #ifdef COLOSSEUM_PLAYER2
 #include "player2/Player2Backend.h"
 #include "player2/video/Player2VideoItem.h"
+#include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 #endif
 
 // gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
@@ -467,7 +468,11 @@ int main(int argc, char *argv[]) {
     // QtCore) so no QuickControls2 C++ module needs linking; must precede the QML engine.
     qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
 
-    QGuiApplication app(argc, argv);
+    // Diagnostic only (2026-07-29 stutter investigation): ProbedGuiApplication IS a QGuiApplication
+    // and behaves identically unless COLOSSEUM_GUI_STALL_PROBE is set, in which case it times every
+    // GUI-thread event and ranks what blocks the thread. Frame pacing proved the stutter is a
+    // GUI-thread stall, not the video engine; this names the work. See native/GuiStallProbe.h.
+    ProbedGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
     // App identity on the Windows taskbar / alt-tab / title: the amphitheatre glyph on a
     // dark tile (embedded via app_resources.qrc). The .exe file icon comes from app_icon.rc.
