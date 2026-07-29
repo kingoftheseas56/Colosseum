@@ -97,8 +97,6 @@ add_executable(colosseum
     engine/MangaScraper.h
     engine/MangaResult.h
     engine/MangaSeriesDetail.h
-    engine/MangaDexCatalogClient.cpp
-    engine/MangaDexCatalogClient.h
     engine/ComickVolumeGrouper.cpp
     engine/ComickVolumeGrouper.h
     engine/ComickCatalogClient.cpp
@@ -819,16 +817,6 @@ target_include_directories(manga_tankoban_service_harness PRIVATE ${CMAKE_CURREN
 target_compile_definitions(manga_tankoban_service_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network)
-
-# Pure-logic contract for the MangaDex phantom-volume fold (the Berserk finding):
-# compiles the client for foldPhantomCoverVolumes; Network only for its includes.
-add_executable(mangadex_volume_fold_harness
-    ../tests/mangadex_volume_fold_harness.cpp
-    engine/MangaDexCatalogClient.cpp
-    engine/MangaDexCatalogClient.h
-)
-target_include_directories(mangadex_volume_fold_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mangadex_volume_fold_harness PRIVATE Qt6::Core Qt6::Network)
 
 # Pure-logic contract for Comick grouping + the tankoban completeness gate:
 # mirrors colosseum-volume-db's volume_builder tests case-for-case.

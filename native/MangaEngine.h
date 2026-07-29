@@ -7,7 +7,7 @@
 
 #include "WeebCentralScraper.h"
 #include "MangaSeriesDetail.h"
-#include "MangaDexCatalogClient.h"
+#include "ComickCatalogClient.h"
 
 #include <QObject>
 #include <QHash>
@@ -31,20 +31,19 @@ public:
     explicit MangaEngine(QObject *parent = nullptr) : QObject(parent) {
         m_nam = new QNetworkAccessManager(this);
         m_wc = new WeebCentralScraper(m_nam, this);
-        m_mf = new tankoban::manga::mangadex::MangaDexCatalogClient(m_nam, this);
+        m_comick = new tankoban::manga::comick::ComickCatalogClient(m_nam, this);
 
-        // MangaDex is the VOLUME-structure source: real per-volume tankōbon covers,
-        // plus chapter ranges where MangaDex knows them (partial for big licensed
-        // titles — a rangeless volume ships chapterStart="" and QML shows the flat
-        // list). MangaFire, the old source, killed volumes in its 2026-07 relaunch.
-        // Best-effort: any failure → empty list, and the volume selector hides.
-        connect(m_mf, &tankoban::manga::mangadex::MangaDexCatalogClient::catalogReady,
-                this, [this](const QString &, const QVariantList &volumes) {
+        // Volume structure comes from our Comick-sourced volume DB (live scrape on a
+        // miss), completeness-gated. A gate refusal or any failure emits an EMPTY list
+        // -> QML shows the flat WeebCentral chapter list. Same volumesResult contract
+        // as ever, so the page's reveal gate never hangs.
+        connect(m_comick, &tankoban::manga::comick::ComickCatalogClient::catalogReady,
+                this, [this](const QString&, const QVariantList& volumes) {
                     emit volumesResult(QVariantMap{{"volumes", volumes}});
                 });
-        connect(m_mf, &tankoban::manga::mangadex::MangaDexCatalogClient::catalogFailed,
-                this, [this](const QString &title, const QString &reason) {
-                    qInfo("[mangadex] volumes failed for '%s': %s",
+        connect(m_comick, &tankoban::manga::comick::ComickCatalogClient::catalogFailed,
+                this, [this](const QString& title, const QString& reason) {
+                    qInfo("[comick] volumes unavailable for '%s': %s",
                           qUtf8Printable(title), qUtf8Printable(reason));
                     emit volumesResult(QVariantMap{{"volumes", QVariantList{}}});
                 });
@@ -137,10 +136,10 @@ public:
         });
     }
 
-    // VOLUME structure — delegated to the MangaDex client (search → covers → aggregate).
-    // Result arrives on volumesResult as {volumes: [{number, cover, chapterStart, chapterEnd}]};
-    // empty chapterStart/chapterEnd = range unknown (covers-first).
-    Q_INVOKABLE void volumes(const QString &title) { m_mf->fetchByTitle(title); }
+    // VOLUME structure — volume DB by WeebCentral id, live Comick scrape on a miss,
+    // completeness-gated. {volumes:[]} = not qualified -> the flat chapter list.
+    Q_INVOKABLE void volumes(const QString& seriesId, const QString& title)
+    { m_comick->fetchSeries(seriesId, title); }
 
     // Dev self-test: resolve a title end-to-end and log the chapter count, so we can
     // confirm the in-app C++ path matches the curl de-risk.
@@ -233,6 +232,6 @@ signals:
 private:
     QNetworkAccessManager *m_nam;
     WeebCentralScraper *m_wc;
-    tankoban::manga::mangadex::MangaDexCatalogClient *m_mf;
+    tankoban::manga::comick::ComickCatalogClient *m_comick;
     QHash<QString, QString> m_pins;   // host → IPv4 (dead-IPv6 machine; see setIpv4Pins)
 };
