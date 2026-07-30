@@ -370,6 +370,65 @@ QVariantMap ComicReaderCore::unitForPage(int page) const {
     return m_units[u].toVariantMap();
 }
 
+QVariantMap ComicReaderCore::presentationForPage(int page) const {
+    // Guard the EMPTY case before anything else. comicreader::unitForPage answers
+    // "which unit", and for an empty walk that answer is 0 — a value, not an index
+    // — so indexing straight off it reads past the end of an empty vector on every
+    // book in the window between openEntry and the first rebuildUnits. (Pinned in
+    // comicreader_pairing_harness's clamping block; unitForPage() above guards it
+    // the same way.)
+    if (m_units.isEmpty())
+        return {};
+    const int unitIndex = comicreader::unitForPage(m_units, page);
+    if (unitIndex < 0 || unitIndex >= m_units.size())
+        return {};
+    const PairUnit unit = m_units[unitIndex];
+
+    // The members are READ off the canonical unit — this function has no opinion
+    // about who pairs with whom. A -1 is "absent", never a page: it is the cover's
+    // missing partner, and m_pages[-1] would be a read off the front of the vector.
+    QVector<int> members;
+    if (unit.rightIndex >= 0 && unit.rightIndex < m_pages.size())
+        members.append(unit.rightIndex);
+    if (unit.leftIndex >= 0 && unit.leftIndex < m_pages.size())
+        members.append(unit.leftIndex);
+
+    QVariantMap out = unit.toVariantMap();
+    // Always present, so QML reads .state/.errorCode without first testing for the key.
+    out.insert(QStringLiteral("errorCode"), pageErrorToString(PageError::None));
+
+    // A unit with nothing in it has nothing to show — waiting, never "ready with
+    // no pages" (which would tell the surface to paint an empty spread).
+    if (members.isEmpty()) {
+        out.insert(QStringLiteral("state"), QStringLiteral("waiting"));
+        return out;
+    }
+
+    // ERROR FIRST. A member that can never arrive must stop the unit waiting for
+    // it, even if the other half is sitting there decoded: the reader gets one
+    // deliberate "this page is broken" instead of a half-painted spread that never
+    // completes. (A page that heals clears its error in onMetaReady before
+    // onPageReady lands, so a healed page passes this loop, not gets stuck in it.)
+    for (int p : members) {
+        if (m_pages[p].error != PageError::None) {
+            out.insert(QStringLiteral("state"), QStringLiteral("error"));
+            out.insert(QStringLiteral("errorCode"), pageErrorToString(m_pages[p].error));
+            return out;
+        }
+    }
+    // ...then WAITING while any member still has no pixels. m_readyPages is
+    // "has decoded at least once", not "is resident", so a cache eviction does
+    // not throw a read spread back to a placeholder mid-page-turn.
+    for (int p : members) {
+        if (!m_readyPages.contains(p)) {
+            out.insert(QStringLiteral("state"), QStringLiteral("waiting"));
+            return out;
+        }
+    }
+    out.insert(QStringLiteral("state"), QStringLiteral("ready"));
+    return out;
+}
+
 QString ComicReaderCore::imageUrl(int page, QString tier) const {
     // Normalised, not passed through: two different misspellings must not become
     // two different scaled-cache entries for the same picture.

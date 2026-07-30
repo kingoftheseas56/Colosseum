@@ -72,6 +72,13 @@ Item {
     signal pageInView(int page)              // 1-based page at the vertical center
     signal visiblePages(var indices)         // 0-based indices currently on screen
     signal scrolled(real fraction)           // 0..1 scroll fraction
+    // The page whose pixels are ACTUALLY on screen, and how far down that page the viewport centre
+    // sits (0 at its top edge, 1 at its bottom). Task 4's cross-surface seam: all three reading
+    // surfaces speak this one shape so Task 11 can gate progress-saving on real presentation with a
+    // single handler. In Long Strip the fraction is the only one of the three that is ever non-zero —
+    // you genuinely stop part way down a page here — which is why it is in the signature at all.
+    // Nothing consumes it yet; that is Task 11.
+    signal presented(int anchorPage, real withinPageFraction)
     // Unlike the three above this one IS wheel-only — it means "a real gesture happened", not
     // "the position changed". NOTE: currently has no consumer; kept for a HUD/record consumer that
     // needs to tell a gesture from a programmatic move. Delete it if that never arrives.
@@ -507,8 +514,21 @@ Item {
         var span = list.contentHeight - list.height
         var frac = span > 0 ? (list.contentY / span) : 0
         root.scrolled(Math.max(0, Math.min(1, frac)))
-        var idx = list.indexAt(list.width / 2, list.contentY + list.height / 2)
-        if (idx >= 0) root.pageInView(idx + 1)     // 1-based (shell currentPage scale)
+        var centreY = list.contentY + list.height / 2
+        var idx = list.indexAt(list.width / 2, centreY)
+        if (idx >= 0) {
+            root.pageInView(idx + 1)               // 1-based (shell currentPage scale)
+            // ...and the same page, reported as PRESENTED with the viewport's position within it.
+            // A page whose delegate is realized under the viewport centre is on screen by definition
+            // — except when it is showing its typed failure placard, where what the reader is looking
+            // at is the placard, not the page, and Task 11 must not bank progress for it.
+            if (root.failedPages[idx] === undefined) {
+                var it = list.itemAt(list.width / 2, centreY)
+                var withinFrac = (it && it.height > 0)
+                    ? Math.max(0, Math.min(1, (centreY - it.y) / it.height)) : 0
+                root.presented(idx + 1, withinFrac)
+            }
+        }
         var lo = list.indexAt(list.width / 2, list.contentY + 1)
         var hi = list.indexAt(list.width / 2, list.contentY + list.height - 1)
         if (lo >= 0 && hi >= 0) {

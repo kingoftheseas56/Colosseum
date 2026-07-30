@@ -110,6 +110,31 @@ public:
 
     Q_INVOKABLE QVariantMap pageInfo(int page) const;
     Q_INVOKABLE QVariantMap unitForPage(int page) const;
+    // THE UNIT AS ONE THING (Task 4, overhaul plan 2026-07-28). unitForPage says
+    // WHAT a unit is; this says whether that whole unit may be painted yet.
+    //
+    // A paired spread is one piece of paper. Painting the half that decoded first
+    // and leaving the other half black is the defect this exists to kill
+    // (Hemanth: "A paired spread appears as one complete unit. We never flash the
+    // left page first and leave the right half black."). So the answer is the
+    // unit's, never a page's:
+    //   "waiting" — some member still has no pixels. Nothing of the unit paints.
+    //   "error"   — a member has a TERMINAL error. Checked FIRST, because a unit
+    //               whose partner can never arrive must stop waiting and say so.
+    //   "ready"   — every member has pixels. Only now does the unit paint.
+    // The map is unitForPage()'s (rightIndex/leftIndex/spread/coverAlone) plus
+    // `state` and `errorCode` (the snake_case PageError wire code; "none" unless
+    // the state is "error"). Empty — exactly like unitForPage() — when there is
+    // no entry, so QML normalises both through one path.
+    //
+    // It READS the canonical pairing walk (m_units) and re-derives nothing: the
+    // membership question was already answered by ComicReaderPairing::buildUnits
+    // and this must never be a second, weaker opinion about it.
+    //
+    // NOT for Single Page. There the reader sees one page, and gating page 5 on
+    // its pair partner would make a layout that shows one page wait for two. The
+    // single surface asks pageInfo() per page instead.
+    Q_INVOKABLE QVariantMap presentationForPage(int page) const;
     Q_INVOKABLE void setSpreadOverride(int page, QString state);   // "spread"|"single"|"clear"
     Q_INVOKABLE void nudgeCoupling();                              // -> Manual + flipped phase
     // The other half of the settings sheet's Coupling row: hand the phase back to

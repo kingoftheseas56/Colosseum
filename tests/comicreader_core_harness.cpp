@@ -1241,6 +1241,174 @@ int main(int argc, char** argv) {
               "T28 reading the metrics does not reset them");
     }
 
+    // ══ Task 4 (overhaul plan 2026-07-28): the unit as ONE presentation ═══════
+
+    // ── Test 29: presentationForPage NEVER re-derives the pairing law ────────
+    // The whole risk of a second unit-shaped query is that it becomes a second,
+    // weaker opinion about what a unit is. It must read m_units and nothing else,
+    // so for EVERY page the two queries have to agree on all four unit fields —
+    // and the law itself (cover alone, page 1 alone, pairing from index 2, a
+    // spread standing alone with no pair straddling it) has to survive the trip.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t29"), plainPages, QStringLiteral("ltr"), manualNormal());
+
+        auto agrees = [&](int page) {
+            const QVariantMap u = core.unitForPage(page);
+            const QVariantMap p = core.presentationForPage(page);
+            for (const char* key : {"rightIndex", "leftIndex", "spread", "coverAlone"}) {
+                if (u.value(QLatin1String(key)) != p.value(QLatin1String(key)))
+                    return false;
+            }
+            return true;
+        };
+        bool allAgree = true;
+        for (int page = 0; page < core.pageCount(); ++page)
+            allAgree = allAgree && agrees(page);
+        CHECK(allAgree, "T29 presentationForPage reports the CANONICAL unit for every page");
+
+        // The law, read back through the new query (Hemanth's pairing rule).
+        const QVariantMap cover = core.presentationForPage(0);
+        CHECK(cover.value(QStringLiteral("rightIndex")).toInt() == 0
+                  && cover.value(QStringLiteral("leftIndex")).toInt() == -1
+                  && cover.value(QStringLiteral("coverAlone")).toBool(),
+              "T29 the cover is one page, alone");
+        const QVariantMap first = core.presentationForPage(1);
+        CHECK(first.value(QStringLiteral("rightIndex")).toInt() == 1
+                  && first.value(QStringLiteral("leftIndex")).toInt() == -1,
+              "T29 page 1 is one page, alone (the lone recto facing the inside cover)");
+        const QVariantMap pair = core.presentationForPage(2);
+        CHECK(pair.value(QStringLiteral("rightIndex")).toInt() == 2
+                  && pair.value(QStringLiteral("leftIndex")).toInt() == 3,
+              "T29 pairing begins at index 2");
+        CHECK(core.presentationForPage(3).value(QStringLiteral("rightIndex")).toInt() == 2,
+              "T29 either page of a pair describes the SAME unit");
+
+        // A spread interrupts the walk: it stands alone and nothing pairs across it.
+        core.setSpreadOverride(2, QStringLiteral("spread"));
+        const QVariantMap spread = core.presentationForPage(2);
+        CHECK(spread.value(QStringLiteral("spread")).toBool()
+                  && spread.value(QStringLiteral("leftIndex")).toInt() == -1,
+              "T29 a spread is one full-width unit, never half of a pair");
+        CHECK(core.presentationForPage(3).value(QStringLiteral("rightIndex")).toInt() == 3
+                  && core.presentationForPage(3).value(QStringLiteral("leftIndex")).toInt() == 4,
+              "T29 the pages AFTER a spread re-pair among themselves, never across it");
+
+        // Shape: the map always carries the two presentation fields, so QML can
+        // read `state` without first testing whether the key exists.
+        CHECK(pair.contains(QStringLiteral("state")) && pair.contains(QStringLiteral("errorCode")),
+              "T29 every presentation carries state + errorCode");
+
+        // No entry: the SAME empty answer unitForPage gives, so QML normalises once.
+        ComicReaderCore empty;
+        CHECK(empty.presentationForPage(0).isEmpty(),
+              "T29 with no entry open the presentation is empty, exactly like unitForPage");
+        CHECK(empty.unitForPage(0).isEmpty(), "T29 precondition: unitForPage is empty with no entry");
+    }
+
+    // ── Test 30: a pair is WHOLE or it is nothing ────────────────────────────
+    // The defect: the double surface paints whichever half decoded first, so a
+    // spread arrives as one page plus a black rectangle. The unit must stay
+    // "waiting" while EITHER member is still without pixels, and flip to "ready"
+    // as one thing.
+    //
+    // Both decode lanes are held on a gate — but ONLY for the two pages under
+    // test, so the prefetched neighbours run free and nothing is left blocked at
+    // teardown. (Declared before `core` so the pool tears down while the capture
+    // is still alive — the decode harness's house rule.)
+    {
+        QSemaphore decodeGate;
+        ComicReaderCore waitingCore;
+        waitingCore.setDecodeWorkerHooksForTest(
+            [&](quint64, int page) { if (page == 2 || page == 3) decodeGate.acquire(); },
+            std::function<void(quint64, int)>());
+        waitingCore.openEntry(QStringLiteral("pair-wait"), plainPages, QStringLiteral("ltr"),
+                              manualNormal());
+        waitingCore.setVisible(QVariantList{2, 3});
+
+        CHECK(waitingCore.presentationForPage(2).value(QStringLiteral("state"))
+                  == QLatin1String("waiting"),
+              "T30 a pair remains whole while either page waits");
+
+        // Let ONE half through and hold the other: the half that landed must NOT
+        // promote the unit on its own. This is the assertion the defect breaks.
+        decodeGate.release(1);
+        const bool oneLanded = waitFor([&] {
+            return waitingCore.pageInfo(2).value(QStringLiteral("decoded")).toBool()
+                   || waitingCore.pageInfo(3).value(QStringLiteral("decoded")).toBool();
+        });
+        CHECK(oneLanded, "T30 setup: one half of the pair decodes while the other is held");
+        CHECK(waitingCore.presentationForPage(2).value(QStringLiteral("state"))
+                  == QLatin1String("waiting"),
+              "T30 one decoded half does NOT make the unit paintable (this is the half-black bug)");
+
+        decodeGate.release(1);
+        CHECK(waitFor([&] {
+                  return waitingCore.presentationForPage(2).value(QStringLiteral("state"))
+                         == QLatin1String("ready");
+              }),
+              "T30 the pair becomes ready as one unit");
+        CHECK(waitingCore.presentationForPage(3).value(QStringLiteral("state"))
+                  == QLatin1String("ready"),
+              "T30 both pages of the pair report the SAME unit state");
+        // (No assertion here that a FARTHER unit is still waiting: setVisible pins
+        // visible+neighbours, so the (4,5) unit is prefetched by this very call and
+        // is legitimately ready. An earlier draft asserted otherwise and failed —
+        // the prefetch is the feature, not the bug.)
+        decodeGate.release(8);   // nothing should be parked, but never leave a lane held
+    }
+
+    // ── Test 31: one failed partner is ONE deliberate error, not a half-paint ─
+    // A page that can never arrive must stop the unit waiting forever — and the
+    // verdict belongs to the unit, so the good half does not quietly paint alone
+    // as if the spread were complete.
+    {
+        const QString corruptPath = dir.filePath(QStringLiteral("corrupt.png"));
+        QFile corrupt(corruptPath);
+        CHECK(corrupt.open(QIODevice::WriteOnly), "T31 setup: corrupt fixture opened");
+        corrupt.write("not an image");
+        corrupt.close();
+
+        QStringList errorPaths = plain;
+        errorPaths[3] = corruptPath;             // the LEFT half of the (2,3) pair
+        ComicReaderCore errorCore;
+        errorCore.openEntry(QStringLiteral("pair-error"), pagesFromPaths(errorPaths),
+                            QStringLiteral("ltr"), manualNormal());
+        errorCore.setVisible(QVariantList{2, 3});
+
+        CHECK(waitFor([&] {
+                  return errorCore.presentationForPage(2).value(QStringLiteral("state"))
+                         == QLatin1String("error");
+              }),
+              "T31 one failed partner yields one deliberate error unit");
+        const QString code = errorCore.presentationForPage(2)
+                                 .value(QStringLiteral("errorCode")).toString();
+        CHECK(!code.isEmpty() && code != QLatin1String("none"),
+              QByteArray("T31 the error unit names WHY, got '")
+                  .append(code.toUtf8()).append("'").constData());
+        CHECK(errorCore.presentationForPage(3).value(QStringLiteral("state"))
+                  == QLatin1String("error"),
+              "T31 both pages of a broken pair report the unit's error");
+        // Now let the GOOD half land, so "error" is proved to be the UNIT's verdict
+        // overriding a ready member rather than an artefact of nothing having decoded
+        // yet. (The error verdict arrives first — a corrupt file fails faster than a
+        // real page decodes — so this has to be waited for, not assumed.)
+        CHECK(waitFor([&] {
+                  return errorCore.pageInfo(2).value(QStringLiteral("decoded")).toBool();
+              }),
+              "T31 setup: the surviving half of the broken pair decodes");
+        CHECK(errorCore.presentationForPage(2).value(QStringLiteral("state"))
+                  == QLatin1String("error"),
+              "T31 a decoded half NEVER promotes a broken unit to paintable");
+        // A healthy unit in the SAME book is unaffected: the failure is this unit's.
+        errorCore.setVisible(QVariantList{4, 5});
+        CHECK(waitFor([&] {
+                  return errorCore.presentationForPage(4).value(QStringLiteral("state"))
+                         == QLatin1String("ready");
+              }),
+              "T31 a broken pair does not poison the rest of the book");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_CORE_OK");
         return 0;

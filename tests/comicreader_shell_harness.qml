@@ -1339,9 +1339,46 @@ Item {
                "single page: the layout must persist per series, got " + JSON.stringify(JSON.parse(t3cRecords.all)["s-ortho"]))
             ck(t3c.mode === "single_page",
                "single page: the compat alias must report itself, never pretend to be a pair, got " + t3c.mode)
+
+            // 17f-2 (Task 4). The layout now has a SURFACE. All three mounts are keyed on `layout` —
+            // the persisted truth — not on the derived `mode` alias, so exactly one surface paints for
+            // any layout and the rule is the same for all three.
             var t3cPair = byName(t3c, "doubleSurface")
-            ck(t3cPair && t3cPair.visible === false,
-               "single page: the PAIRED surface must not paint a single-page layout (Task 4 mounts the real one)")
+            var t3cSingle = byName(t3c, "singleSurface")
+            var t3cStrip = byName(t3c, "stripSurface")
+            ck(t3cSingle !== null, "single page: the Single Page surface must be mounted in the shell")
+            ck(t3cPair !== null && t3cStrip !== null,
+               "single page: all three surfaces must be mounted (pair=" + (t3cPair !== null)
+               + " strip=" + (t3cStrip !== null) + ")")
+            // The mount contract is read off activeSurface, the ONE property that owns the layout ->
+            // surface mapping. NOT off the surfaces' visible: this harness roots its tree invisible,
+            // so every child reports visible=false whichever surface is actually mounted.
+            ck(t3c.activeSurface === "singleSurface",
+               "single page: layout single_page must mount the SINGLE surface, got " + t3c.activeSurface)
+            ck(t3cSingle && t3cSingle.currentPage === t3c.currentPage,
+               "single page: the surface must be handed the shell page, got " + (t3cSingle ? t3cSingle.currentPage : "<null>"))
+
+            // ...and a page turn WALKS ONE PAGE, snapping to no unit. Before Task 4 this fell through
+            // to the strip branch and scrolled an unmounted ListView, so the page never turned at all.
+            var t3cBefore = t3c.currentPage
+            t3c.pageNext()
+            ck(t3c.currentPage === t3cBefore + 1,
+               "single page: forward must advance exactly ONE page, got " + t3c.currentPage
+               + " from " + t3cBefore)
+            t3c.pagePrev()
+            ck(t3c.currentPage === t3cBefore,
+               "single page: back must step exactly ONE page, got " + t3c.currentPage)
+
+            // the other two layouts still resolve to exactly one surface each through the same rule
+            t3c.setLayout("paired_pages")
+            ck(t3c.activeSurface === "doubleSurface",
+               "mounts: layout paired_pages must mount the PAIR, got " + t3c.activeSurface)
+            t3c.setLayout("long_strip")
+            ck(t3c.activeSurface === "stripSurface",
+               "mounts: layout long_strip must mount the STRIP, got " + t3c.activeSurface)
+            t3c.setLayout("single_page")
+            ck(t3c.activeSurface === "singleSurface",
+               "mounts: layout single_page must mount SINGLE, got " + t3c.activeSurface)
 
             // 17g. An unknown layout/order is REFUSED, never stored, never wedges the reader.
             t3c.setLayout("guided")

@@ -1,13 +1,16 @@
-# Comic Reader — READING SURFACES gate (Task 10).
+# Comic Reader — READING SURFACES gate (Task 10; Single Page + pair presentation added Task 4).
 #
-# Drives qml/comicreader/ComicReaderStripSurface.qml + ComicReaderDoubleSurface.qml offscreen
-# through comicreader_surfaces_harness.qml and asserts the geometry/direction/feel logic the two
-# surfaces own: strip virtualization + model-authoritative delegate height + coalesced viewport
-# report + anti-jump compensation + the Tankoban-Max float wheel accumulator + per-page failure
-# placards; double-page direction-aware x-order flip + spread-as-one-image + gutter shadow on pairs
-# + zoom/pan clamp+reset + the unit-highest maxSeen mechanism.
+# Drives qml/comicreader/ComicReaderStripSurface.qml + ComicReaderDoubleSurface.qml +
+# ComicReaderSingleSurface.qml offscreen through comicreader_surfaces_harness.qml and asserts the
+# geometry/direction/feel logic the three surfaces own: strip virtualization +
+# model-authoritative delegate height + coalesced viewport report + anti-jump compensation + the
+# Tankoban-Max float wheel accumulator + per-page failure placards; double-page direction-aware
+# x-order flip + spread-as-one-image + gutter shadow on pairs + zoom/pan clamp+reset + the
+# unit-highest maxSeen mechanism + THE PAIR PAINTING AS ONE UNIT (never one decoded half beside a
+# black rectangle); single-page contain fit + the preview/hq tier stack + centroid-preserving zoom.
+# Plus presented(page, withinPageFraction) from all three — the Task 11 seam.
 #
-# Plus a STATIC guard: neither surface may import anything under guided/ or reference a guided
+# Plus a STATIC guard: no surface may import anything under guided/ or reference a guided
 # service (Guided is frozen and owned elsewhere). PowerShell can read the files directly, which
 # qml.exe cannot do reliably — so the "no guided" assertion is a grep here, the behavior is the
 # harness.
@@ -23,10 +26,13 @@ if (!(Test-Path -LiteralPath $qmlExe)) {
     exit 1
 }
 
-# --- static assertion: NO guided import/reference in either surface ---
+# --- static assertion: NO guided import/reference in any surface ---
 $surfaces = @(
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderStripSurface.qml"),
-    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderDoubleSurface.qml")
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderDoubleSurface.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderSingleSurface.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderUnitPlaceholder.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderUnitError.qml")
 )
 foreach ($s in $surfaces) {
     if (!(Test-Path -LiteralPath $s)) {
@@ -68,10 +74,25 @@ if ($strip -match "contentY\s*=\s*Math\.round") {
 # felt as smooth-but-occasionally-laggy rather than uniformly harsh, so a behavioural harness with
 # fake 1x1 fixtures will never catch it. The lineage capped both surfaces; this reader did not.
 $dbl = Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) "qml/comicreader/ComicReaderDoubleSurface.qml")
-foreach ($pair in @(@("strip", $strip), @("double", $dbl))) {
+$sgl = Get-Content -Raw -LiteralPath (Join-Path (Split-Path -Parent $PSScriptRoot) "qml/comicreader/ComicReaderSingleSurface.qml")
+foreach ($pair in @(@("strip", $strip), @("double", $dbl), @("single", $sgl))) {
     if (-not ($pair[1] -match "sourceSize\.width")) {
         Write-Host ("FAIL: the " + $pair[0] + " surface must cap page decode with sourceSize.width -")
         Write-Host "      otherwise every page uploads its full scan resolution to be shown small."
+        exit 1
+    }
+}
+
+# --- static: the PAGED surfaces derive their decode cap from the ZOOM, never the viewport ---
+# Same rationale as the strip's Screen.width guard above and the same bug: sourceSize is part of an
+# Image's cache key, so a cap that tracks the window re-decodes every page on a resize - which is
+# what made Hemanth's fullscreen transitions stutter. The paged surfaces' correct dependency is the
+# zoom (the only thing that legitimately changes how big a page is shown), and it holds still while
+# the window moves. Offscreen fixtures never change size, so no behavioural harness can see this.
+foreach ($pair in @(@("double", $dbl), @("single", $sgl))) {
+    if ($pair[1] -notmatch "srcCapW[\s\S]{0,120}clampedZoom") {
+        Write-Host ("FAIL: the " + $pair[0] + " surface's srcCapW must derive from clampedZoom, not the viewport.")
+        Write-Host "      A cap that tracks the window re-decodes every visible page on a resize."
         exit 1
     }
 }
@@ -96,7 +117,7 @@ if ($strip -notmatch "srcCapW[\s\S]{0,80}Screen\.width") {
 # cache: false forces that expensive downscale to re-pay on every delegate rebuild (scroll a few
 # pages away and back); the ?rev= in the url self-busts the cache key on a genuine redecode, so
 # cache: true is safe here and load-bearing for the "scroll back up and it stutters" cost.
-foreach ($pair in @(@("strip", $strip), @("double", $dbl))) {
+foreach ($pair in @(@("strip", $strip), @("double", $dbl), @("single", $sgl))) {
     if ($pair[1] -match "cache:\s*false") {
         Write-Host ("FAIL: the " + $pair[0] + " surface must keep cache: true on page Images -")
         Write-Host "      cache: false re-runs the provider's full-res downscale on every delegate rebuild."

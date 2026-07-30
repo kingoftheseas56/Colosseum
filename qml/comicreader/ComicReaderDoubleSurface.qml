@@ -20,6 +20,20 @@
 //     turn, or a magnified volume would snap back to 100% on every turn (see _onUnitShown).
 //     (Matches QTGW DoublePageCanvas: set_zoom clamps 1.0–2.6 and resets pan.)
 //
+// THE UNIT PAINTS AS ONE THING (Task 4, overhaul plan 2026-07-28). Until now this surface bound each
+// half's Image straight to the stage, so whichever half decoded first appeared and the other stayed
+// black — a spread arriving as one page plus a hole. Hemanth's approved wording is the rule: "A
+// paired spread appears as one complete unit. We never flash the left page first and leave the right
+// half black." So painting is now gated on the BACKEND's verdict for the whole unit
+// (core.presentationForPage — waiting / ready / error, computed over every member of the canonical
+// unit), and while it waits the surface shows one restrained placeholder per half, exactly where the
+// pages will land. On a terminal failure the unit stops waiting and says so: the good half paints and
+// the broken half carries a typed placard, never an indefinite blank.
+//
+// The gate DEGRADES TO PAINTING, not to blank, when the seam is absent (a fake core with no
+// presentationForPage) — same guard philosophy as every other `core.` use here: a partial core gets
+// the pre-Task-4 behaviour rather than an empty screen.
+//
 // maxSeen PAIR-ANCHOR CONTRACT (shell Task 9, onCurrentPageChanged): in double mode `currentPage`
 // is the pair ANCHOR, and a pair-terminated chapter would never reach `finished` from the anchor
 // alone. So every time a unit is shown, the surface emits unitShown(highestPage) with the
@@ -54,6 +68,12 @@ Item {
     signal nextRequested()                   // advance one UNIT (shell/core own the canonical walk)
     signal previousRequested()
     signal manualNavigation()
+    // The unit's pixels are ACTUALLY on screen now — not "was asked for", which is what unitShown
+    // reports. Fired once per unit, when the presentation is ready AND both halves have loaded.
+    // `withinPageFraction` is always 0 here (a unit is the viewport's whole travel in this layout);
+    // it rides in the signature so all three surfaces speak one shape. Task 11 is the consumer that
+    // gates progress-saving on it; until then it is emitted and unused, which is expected.
+    signal presented(int anchorPage, real withinPageFraction)
 
     // Decode-refresh dependency (same reason as the strip): imageUrl()'s ?rev= bumps C++-side on
     // pageReady, invisibly to QML, so an Image `source` bound only to {core,index} would never
@@ -68,10 +88,15 @@ Item {
     // entryChanged + pairingChanged (ComicReaderCore.cpp:201-202, and every rebuildUnits) and folded
     // into the unit binding; the same signal re-runs _onUnitShown() so setVisible() drives the decode.
     property int entryRev: 0
+    // Failure dependency, added with the presentation gate: presentationForPage()'s answer flips to
+    // "error" on a pageFailed, and that signal changes nothing else QML can see. Without this the
+    // unit would sit on its placeholder forever waiting for a page that already gave up.
+    property int failedRev: 0
     Connections {
         target: root.core
         ignoreUnknownSignals: true
         function onPageReady(page)  { root.readyRev += 1 }
+        function onPageFailed(page, code) { root.failedRev += 1 }
         function onEntryChanged()   { root.entryRev += 1; root._onUnitShown() }
         function onPairingChanged() { root.entryRev += 1; root._onUnitShown() }
     }
@@ -95,6 +120,48 @@ Item {
     readonly property bool isPair: unit.leftIndex >= 0 && unit.rightIndex >= 0 && !unit.spread && !unit.coverAlone
     readonly property bool isSingle: !isPair && (unit.rightIndex >= 0 || unit.leftIndex >= 0)
     readonly property int imageCount: isPair ? 2 : (isSingle ? 1 : 0)
+
+    // ================= the unit's PRESENTATION (Task 4) =================
+    // The backend decides whether this whole unit may be painted; the surface only obeys. readyRev /
+    // failedRev / entryRev are folded in for the usual reason — presentationForPage() is a plain call
+    // whose answer changes on signals QML cannot otherwise see.
+    readonly property var _readyPresentation: ({ state: "ready", errorCode: "none" })
+    function _normPresentation(p) {
+        // An EMPTY map is the core's "no entry / no pairing yet" answer (the same one unitForPage
+        // gives) — that is genuinely nothing to show, so it waits.
+        if (!p || p.state === undefined)
+            return { state: "waiting", errorCode: "none" }
+        return { state: String(p.state),
+                 errorCode: (p.errorCode !== undefined ? String(p.errorCode) : "none") }
+    }
+    readonly property var presentation: (root.readyRev, root.failedRev, root.entryRev,
+        (active && core && core.presentationForPage)
+            ? _normPresentation(core.presentationForPage(Math.max(0, currentPage - 1)))
+            // NO SEAM -> paint, exactly as this surface always did. A core without the query is a
+            // fake, never production; degrading to a blank screen would break the shell harness's
+            // stub for a defect that stub cannot have.
+            : _readyPresentation)
+    readonly property string presentationState: presentation.state
+    // "ready" and "error" both PAINT. Error paints because the good half is real and the reader
+    // should see it — the failure is announced beside it, not instead of the whole unit.
+    readonly property bool unitPaints: presentationState === "ready" || presentationState === "error"
+    readonly property bool unitWaiting: presentationState === "waiting"
+
+    // Per-member failure attribution. The unit-level errorCode cannot name WHICH half broke, and a
+    // pair has two, so each half asks the backend about itself. pageInfo() is also self-healing (a
+    // MissingFile page that comes back reports "none" again), which a locally cached failure map
+    // would not be.
+    function _pageErrorCode(index) {
+        if (index < 0 || !core || !core.pageInfo) return ""
+        var info = core.pageInfo(index)
+        if (!info || info.error === undefined) return ""
+        var e = String(info.error)
+        return (e === "" || e === "none") ? "" : e
+    }
+    readonly property string rightErrorCode: (root.readyRev, root.failedRev, root.entryRev,
+                                              _pageErrorCode(root.unit.rightIndex))
+    readonly property string leftErrorCode:  (root.readyRev, root.failedRev, root.entryRev,
+                                              _pageErrorCode(root.unit.leftIndex))
 
     // reading-HIGHEST page of the unit, 1-based (the shell's maxSeen scale)
     readonly property int unitHighestPage: {
@@ -257,7 +324,9 @@ Item {
         unitShown(_highestOf(u))                        // fold the unit's highest page into the shell's maxSeen
     }
     onCurrentPageChanged: _onUnitShown()               // a page turn -> a new unit
-    onActiveChanged: _onUnitShown()                    // mode switches into/out of double
+    // Becoming the mounted surface with the unit already decoded IS a presentation — the layout
+    // switched and the reader is now looking at it — so the notice is re-checked here too.
+    onActiveChanged: { _onUnitShown(); _notePresented() }
 
     // ================= the spread =================
     Item {
@@ -266,66 +335,161 @@ Item {
         height: root.height
         x: -root.panX                                  // horizontal pan slides the zoomed content
 
-        // rightIndex page (also the single/spread image, full width)
-        Image {
-            id: rightImg
-            visible: root.isPair || root.isSingle
-            source: (root.readyRev, (visible && root.core && root.core.imageUrl && root.unit.rightIndex >= 0)
-                    ? root.core.imageUrl(root.unit.rightIndex) : "")
-            asynchronous: true
-            cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
-                           // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
-                           // SmoothTransformation downscale — the "scroll back up and it stutters" cost.
-            retainWhileLoading: true
-            // Still PreserveAspectFit even though width/height are now exact-ratio: it is the safety
-            // net for the one case where they are not — the backend's header geometry disagreeing
-            // with the decoded pixels. Letterboxed inside its box beats stretched.
-            fillMode: Image.PreserveAspectFit
-            sourceSize.width: root.srcCapW
-            mipmap: true
+        // ---- THE GATE (Task 4). Everything the unit is MADE OF lives under this one Item, so the
+        // unit appears in one step or not at all - never one decoded half beside a black rectangle.
+        // It is a visibility gate ONLY: the Images below keep their own `visible` (the pair-vs-spread
+        // rule), keep loading while it is closed, and keep their geometry live, so every
+        // drawn-geometry readback and every source binding behaves exactly as it did before. ----
+        Item {
+            id: pairPages
+            anchors.fill: parent
+            visible: root.unitPaints
+
+            // rightIndex page (also the single/spread image, full width)
+            Image {
+                id: rightImg
+                // A half whose own page is terminally broken hands its box to the placard instead.
+                visible: (root.isPair || root.isSingle) && root.rightErrorCode.length === 0
+                // NOTE: the source guard is the UNIT SHAPE, not this Image's `visible`, which now
+                // also carries the error state - a failed page must keep asking for its url so a
+                // heal (MissingFile is a cooldown, not a life sentence) can still land.
+                source: (root.readyRev, ((root.isPair || root.isSingle) && root.core
+                                         && root.core.imageUrl && root.unit.rightIndex >= 0)
+                        ? root.core.imageUrl(root.unit.rightIndex) : "")
+                asynchronous: true
+                cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
+                               // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
+                               // SmoothTransformation downscale - the "scroll back up and it stutters" cost.
+                retainWhileLoading: true
+                // Still PreserveAspectFit even though width/height are now exact-ratio: it is the safety
+                // net for the one case where they are not - the backend's header geometry disagreeing
+                // with the decoded pixels. Letterboxed inside its box beats stretched.
+                fillMode: Image.PreserveAspectFit
+                sourceSize.width: root.srcCapW
+                mipmap: true
+                width: root._rightW
+                height: root._rightH
+                x: root._rightX
+                y: root._rightY
+            }
+
+            // leftIndex page (only for a real pair)
+            Image {
+                id: leftImg
+                visible: root.isPair && root.leftErrorCode.length === 0
+                source: (root.readyRev, (root.isPair && root.core && root.core.imageUrl
+                                         && root.unit.leftIndex >= 0)
+                        ? root.core.imageUrl(root.unit.leftIndex) : "")
+                asynchronous: true
+                cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
+                               // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
+                               // SmoothTransformation downscale - the "scroll back up and it stutters" cost.
+                retainWhileLoading: true
+                fillMode: Image.PreserveAspectFit
+                sourceSize.width: root.srcCapW
+                mipmap: true
+                width: root._leftW
+                height: root._leftH
+                x: root._leftX
+                y: root._leftY
+            }
+
+            // gutter shadow - soft spine, only for a real pair
+            Rectangle {
+                id: gutterShadow
+                // Follows the PAGES, not the viewport: a shadow the full window height darkens empty
+                // black above and below the spread instead of shading the spine.
+                visible: root.isPair && root.gutterStrength > 0
+                width: 18
+                height: root.unitHeight
+                x: root._spineX - width / 2
+                y: root.unitTop
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.00; color: Qt.rgba(0, 0, 0, 0.10 * root.gutterStrength) }
+                    GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.34 * root.gutterStrength) }
+                    GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.34 * root.gutterStrength) }
+                    GradientStop { position: 1.00; color: Qt.rgba(0, 0, 0, 0.10 * root.gutterStrength) }
+                }
+            }
+
+            // ---- typed placards, per HALF. The unit-level errorCode cannot say WHICH page broke and
+            // a pair has two, so each side reads its own. They sit INSIDE the gate, beside a good half
+            // that paints normally: "the good side plus an explicit error side", never a whole unit
+            // replaced by one card. ----
+            ComicReaderUnitError {
+                id: rightErrorPlacard
+                objectName: "rightUnitError"
+                visible: root.rightErrorCode.length > 0 && (root.isPair || root.isSingle)
+                code: root.rightErrorCode
+                pageIndex: root.unit.rightIndex
+                width: root._rightW
+                height: root._rightH
+                x: root._rightX
+                y: root._rightY
+            }
+            ComicReaderUnitError {
+                id: leftErrorPlacard
+                objectName: "leftUnitError"
+                visible: root.leftErrorCode.length > 0 && root.isPair
+                code: root.leftErrorCode
+                pageIndex: root.unit.leftIndex
+                width: root._leftW
+                height: root._leftH
+                x: root._leftX
+                y: root._leftY
+            }
+        }
+
+        // ---- WAITING: one restrained panel per half, laid out exactly where the pages will land, so
+        // the unit settles into place rather than jumping into it. It sits OUTSIDE the gate because it
+        // is what the gate shows INSTEAD. It fades in over 140ms, so a page that decodes fast never
+        // flashes it - see ComicReaderUnitPlaceholder. ----
+        ComicReaderUnitPlaceholder {
+            id: rightPlaceholder
+            objectName: "rightUnitPlaceholder"
+            shown: root.unitWaiting && (root.isPair || root.isSingle)
             width: root._rightW
             height: root._rightH
             x: root._rightX
             y: root._rightY
         }
-
-        // leftIndex page (only for a real pair)
-        Image {
-            id: leftImg
-            visible: root.isPair
-            source: (root.readyRev, (visible && root.core && root.core.imageUrl && root.unit.leftIndex >= 0)
-                    ? root.core.imageUrl(root.unit.leftIndex) : "")
-            asynchronous: true
-            cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
-                           // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
-                           // SmoothTransformation downscale — the "scroll back up and it stutters" cost.
-            retainWhileLoading: true
-            fillMode: Image.PreserveAspectFit
-            sourceSize.width: root.srcCapW
-            mipmap: true
+        ComicReaderUnitPlaceholder {
+            id: leftPlaceholder
+            objectName: "leftUnitPlaceholder"
+            shown: root.unitWaiting && root.isPair
             width: root._leftW
             height: root._leftH
             x: root._leftX
             y: root._leftY
         }
-
-        // gutter shadow — soft spine, only for a real pair
-        Rectangle {
-            id: gutterShadow
-            // Follows the PAGES, not the viewport: a shadow the full window height darkens empty
-            // black above and below the spread instead of shading the spine.
-            visible: root.isPair && root.gutterStrength > 0
-            width: 18
-            height: root.unitHeight
-            x: root._spineX - width / 2
-            y: root.unitTop
-            gradient: Gradient {
-                orientation: Gradient.Horizontal
-                GradientStop { position: 0.00; color: Qt.rgba(0, 0, 0, 0.10 * root.gutterStrength) }
-                GradientStop { position: 0.45; color: Qt.rgba(0, 0, 0, 0.34 * root.gutterStrength) }
-                GradientStop { position: 0.55; color: Qt.rgba(0, 0, 0, 0.34 * root.gutterStrength) }
-                GradientStop { position: 1.00; color: Qt.rgba(0, 0, 0, 0.10 * root.gutterStrength) }
-            }
-        }
     }
+
+    // ---- presented(): the unit's pixels are ACTUALLY on screen. Fired once per unit - the gate is
+    // open AND every half this unit has has resolved (loaded, or terminally failed and showing its
+    // placard). Task 11 gates progress-saving on this; nothing reads it yet, which is expected.
+    //
+    // DERIVED, not hung off each Image's onStatusChanged: right-then-left arriving is ONE state change
+    // this way, so it is one presentation rather than two, and an already-cached unit counts the
+    // instant this surface becomes the mounted one. ----
+    property int _presentedAnchor: -1
+    readonly property bool pixelsOnScreen: unitPaints
+        && (root.rightErrorCode.length > 0 || rightImg.status === Image.Ready)
+        && (!root.isPair || root.leftErrorCode.length > 0 || leftImg.status === Image.Ready)
+    function _notePresented() {
+        if (!active || !pixelsOnScreen) return
+        if (_presentedAnchor === root.currentPage) return
+        _presentedAnchor = root.currentPage
+        root.presented(root.currentPage, 0)
+    }
+    onPixelsOnScreenChanged: _notePresented()
+
+    // ---- readbacks the gate added, for the harness. They READ THE ITEMS rather than re-deriving
+    // the conditions, so a test cannot pass against a rule the screen does not actually follow. ----
+    readonly property bool pairVisible: pairPages.visible
+    readonly property bool rightImageVisible: rightImg.visible
+    readonly property bool leftImageVisible: leftImg.visible
+    readonly property bool rightErrorVisible: rightErrorPlacard.visible
+    readonly property bool leftErrorVisible: leftErrorPlacard.visible
+    readonly property bool placeholdersShown: rightPlaceholder.shown || leftPlaceholder.shown
 }

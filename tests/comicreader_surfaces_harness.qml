@@ -25,6 +25,11 @@
 //       state, so nothing can loop (surface scroll -> shell fraction -> surface applies -> scroll).
 //
 //   DOUBLE (ComicReaderDoubleSurface):
+//     * (Task 4) the unit PAINTS AS ONE THING: with one half undecoded the pair paints NOTHING and
+//       shows a restrained placeholder; when both halves have pixels it appears in one step; a
+//       terminal failure in either half paints the good side beside a typed placard on the broken one
+//       and stops waiting; a healed page returns it to normal; and a core with no presentationForPage
+//       degrades to painting (the pre-Task-4 behaviour), never to a blank screen.
 //     * a real PAIR unit renders TWO images; RTL vs LTR FLIPS the physical x-order of the
 //       rightIndex/leftIndex pages (RTL: rightIndex on the physical right).
 //     * a spread / coverAlone / single (leftIndex<0) unit renders ONE full-width image (no second
@@ -42,6 +47,18 @@
 //       each half centred in its band; and the gutter shadow is the DRAWN PAIR's height/offset, not
 //       the window's. The natural size behind that scale is the backend's header geometry
 //       (pageInfo), with the Image's own decoded size as the fallback — both paths covered below.
+//
+//   SINGLE (ComicReaderSingleSurface, Task 4):
+//     * fit is CONTAIN, not fit-width: the WHOLE page is visible and centred at 100% zoom, with no
+//       pan headroom (the one place Single deliberately differs from Pair).
+//     * two stacked tiers — the preview tier under the hq tier, two distinct requests.
+//     * zoom PRESERVES THE CENTROID: whatever sat under the viewport centre is still there after a
+//       zoom step, from a centred AND from a panned-to-the-bottom start. A clamp-only zoom (what Pair
+//       does) fails the second case, which is what makes that assertion worth having.
+//     * zoom clamps [100,260]; pan clamps to the page's own bounds; a page turn resets pan and KEEPS
+//       zoom; the turn pins exactly that page for decode.
+//     * a failed page shows the typed placard and heals.
+//     * presented(page, 0) fires ONCE per page even though two tiers reach Ready.
 //
 // The fake core exposes the exact API surface the surfaces touch: stripModel (a QML ListModel with
 // the Task-6 roles), imageUrl(p), unitForPage(p), pageInfo(p), setVisible/setStripViewport/
@@ -109,10 +126,14 @@ Item {
         signal entryChanged()      // real core emits this on openEntry (ComicReaderCore.cpp:201)
         signal pairingChanged()    // ...and this (ComicReaderCore.cpp:202), + on every rebuildUnits
         function loadEntry() { loaded = true; entryChanged(); pairingChanged() }
-        function imageUrl(page) {
+        // Task 4: the real core's imageUrl carries a TIER (Task 2's preview/hq/thumbnail split) on a
+        // default argument. Mirrored here so the Single surface's two stacked tiers can be told apart
+        // in a url; absent/empty normalises to hq exactly as the C++ side does.
+        function imageUrl(page, tier) {
             if (pageUrls[page] !== undefined) return pageUrls[page]
             var r = (pageRevs[page] !== undefined) ? pageRevs[page] : 0
-            return "image://comicreader/1/" + page + "?rev=" + r
+            var t = (tier === undefined || tier === "") ? "hq" : String(tier)
+            return "image://comicreader/1/" + page + "?rev=" + r + "&tier=" + t
         }
         // a decode landed: bump the (invisible) rev, THEN fire pageReady — like the real core.
         function emitPageReady(page) {
@@ -124,11 +145,48 @@ Item {
             if (units[page] !== undefined) return units[page]
             return { rightIndex: page, leftIndex: -1, spread: false, coverAlone: false }
         }
+        // Task 4: per-page presentation truth, mirroring the real core's m_readyPages / PageError.
+        // A page not listed in `pageStates` is READY, so every pre-Task-4 scenario in this file keeps
+        // painting exactly as it did; the gating scenarios opt in by naming pages explicitly.
+        property var pageStates: ({})    // 0-based page -> "ready" | "waiting" | "error"
+        property var pageErrors: ({})    // 0-based page -> PageError wire code
+        function _pageState(p) {
+            return (pageStates[p] !== undefined) ? String(pageStates[p]) : "ready"
+        }
+        function _pageErrorOf(p) {
+            return (pageErrors[p] !== undefined) ? String(pageErrors[p]) : "none"
+        }
         function pageInfo(page) {
             var s = pageSizes[page]
+            var err = _pageErrorOf(page)
             if (s !== undefined)
-                return { error: "", sourceWidth: s.w, sourceHeight: s.h }
-            return { error: "" }        // the real core also omits geometry it has not learned yet
+                return { error: err, sourceWidth: s.w, sourceHeight: s.h }
+            return { error: err }       // the real core also omits geometry it has not learned yet
+        }
+        // ComicReaderCore::presentationForPage — the unit as ONE thing. Same order of verdicts as the
+        // C++ (error before waiting), same empty answer with no entry, and it reads unitForPage rather
+        // than re-deriving membership, because that is the property the real one is required to have.
+        function presentationForPage(page) {
+            if (!loaded) return ({})
+            var u = unitForPage(page)
+            var out = { rightIndex: u.rightIndex, leftIndex: u.leftIndex,
+                        spread: !!u.spread, coverAlone: !!u.coverAlone,
+                        state: "ready", errorCode: "none" }
+            var members = []
+            if (u.rightIndex >= 0) members.push(u.rightIndex)
+            if (u.leftIndex >= 0) members.push(u.leftIndex)
+            if (members.length === 0) { out.state = "waiting"; return out }
+            for (var i = 0; i < members.length; i++) {
+                if (_pageState(members[i]) === "error") {
+                    out.state = "error"
+                    out.errorCode = _pageErrorOf(members[i])
+                    return out
+                }
+            }
+            for (var j = 0; j < members.length; j++) {
+                if (_pageState(members[j]) !== "ready") { out.state = "waiting"; return out }
+            }
+            return out
         }
         function setVisible(pages) { setVisibleCalls += 1; lastVisible = pages }
         function setStripViewport(top, height) {
@@ -162,9 +220,13 @@ Item {
     FakeCore { id: coreShort }     // pair SHORTER than the viewport (centring + gutter)
     FakeCore { id: coreZoomPan }   // TALL pair: real headroom on BOTH pan axes at every zoom
     FakeCore { id: coreDecoded }   // no backend sizes: the file fixtures' pixels drive implicitWidth
+    FakeCore { id: coreGate }      // Task 4: the pair's presentation gate (waiting / ready / error)
+    FakeCore { id: coreSingle }    // Task 4: Single Page geometry, tiers, zoom centroid, pan clamp
+    FakeCore { id: coreSinglePix } // Task 4: Single Page presented(), driven by real file fixtures
 
     property var stripComp: null
     property var doubleComp: null
+    property var singleComp: null
     property var stripSurface: null
     property var stripFailSurface: null
     property var doubleSurface: null
@@ -172,6 +234,15 @@ Item {
     // ---- unitShown capture ----
     property int capturedHighest: -1
     property int unitShownCount: 0
+
+    // ---- presented() capture (Task 4). All three surfaces emit it; nothing consumes it until
+    // Task 11, so these counters are what proves it fires when — and only when — pixels are up. ----
+    property int stripPresentedCount: 0
+    property int stripPresentedPage: -1
+    property real stripPresentedFrac: -1
+    property int singlePresentedCount: 0
+    property int singlePresentedPage: -1
+    property real singlePresentedFrac: -1
 
     // ---- strip user-signal capture: a PROGRAMMATIC restore must emit none of these ----
     property int stripScrolledCount: 0
@@ -211,6 +282,11 @@ Item {
         stripSurface.scrolled.connect(function (f) { harness.stripScrolledCount += 1 })
         stripSurface.pageInView.connect(function (p) { harness.stripScrolledCount += 1 })
         stripSurface.manualNavigation.connect(function () { harness.stripManualNavCount += 1 })
+        stripSurface.presented.connect(function (p, f) {
+            harness.stripPresentedCount += 1
+            harness.stripPresentedPage = p
+            harness.stripPresentedFrac = f
+        })
         stripSurface.forceRelayout()
 
         // --- virtualization: near window has a delegate, a far page does not ---
@@ -292,10 +368,27 @@ Item {
         ck(harness.stripScrolledCount === b3Before,
            "B3 (bug 2 fix): the emit must be THROTTLED, not per-tick — a burst of plain contentY writes must produce ZERO immediate emissions, got "
            + (harness.stripScrolledCount - b3Before))
+        var presentedBefore = harness.stripPresentedCount
         stripSurface._flushEmit()      // the same entry point the 80ms throttle timer calls
         ck(harness.stripScrolledCount === b3Before + 2,
            "B3: once the throttle window elapses the scheduled emit must fire scrolled()+pageInView(), got "
            + (harness.stripScrolledCount - b3Before))
+
+        // --- PRESENTED (Task 4): the strip reports the page whose pixels are on screen AND how far
+        // down it the viewport centre sits. It rides the SAME throttled flush as pageInView (one
+        // emit per window, never per contentY tick), and the fraction is real geometry, not a
+        // pages*ratio estimate: contentY is 900 and the viewport is 480 tall, so the centre is at
+        // 1140 inside page 0 — whose delegate this scenario resized to 1700 — i.e. 0.671 down it.
+        // This is the one surface where the fraction is ever non-zero, which is why it exists. ---
+        ck(harness.stripPresentedCount === presentedBefore + 1,
+           "B3/presented: the throttled flush must emit presented() exactly ONCE, got "
+           + (harness.stripPresentedCount - presentedBefore))
+        ck(harness.stripPresentedPage === 1,
+           "B3/presented: the presented page must be the 1-based page under the viewport centre (1), got "
+           + harness.stripPresentedPage)
+        ck(approx(harness.stripPresentedFrac, 1140.0 / 1700.0, 0.01),
+           "B3/presented: withinPageFraction must be the geometric position inside that page ("
+           + fx(1140.0 / 1700.0, 3) + "), got " + fx(harness.stripPresentedFrac, 3))
         ck(stripSurface._emitPending === false,
            "B3: flushing the scheduled emit must clear _emitPending, got " + stripSurface._emitPending)
         ck(stripSurface._userInteracted === false,
@@ -527,11 +620,17 @@ Item {
 
         // a restore must NEVER masquerade as a user scroll — that is the loop, from the other side.
         var scrollsBefore = harness.stripScrolledCount
+        var presentedBeforeRestore = harness.stripPresentedCount
         stripSurface.seekToPage(20)
         stripSurface.haltScrollAt(700)
         ck(harness.stripScrolledCount === scrollsBefore,
            "restore: a programmatic restore must emit NO scrolled()/pageInView() (that is the feedback loop), got "
            + (harness.stripScrolledCount - scrollsBefore) + " emissions")
+        // presented() rides the same throttled flush, so it inherits the same silence — a restore
+        // must not tell Task 11 the reader "saw" a page the shell only just put them on.
+        ck(harness.stripPresentedCount === presentedBeforeRestore,
+           "restore: a programmatic restore must emit NO presented() either, got "
+           + (harness.stripPresentedCount - presentedBeforeRestore) + " emissions")
 
         // --- I2: a HIDDEN (inactive) strip must NOT report its viewport — both surfaces share one
         // core/pool, so a hidden strip driving decode requests would compete with the active surface. ---
@@ -957,6 +1056,17 @@ Item {
         sourceSize.width: 1400
         visible: false
     }
+    // ...and the Single surface's PREVIEW tier, which asks for half the hq cap (700 at zoom 100). A
+    // different requestSize is a different QQuickPixmap cache key, so it needs its own warm entry or
+    // the presented() scenario would wait on Qt's reader thread.
+    Image {
+        id: warmSinglePreview
+        source: harness.png200x300
+        asynchronous: false; cache: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 700
+        visible: false
+    }
 
     function runDoubleDecodedPair() {
         ck(warmRight.status === Image.Ready && warmLeft.status === Image.Ready,
@@ -1010,6 +1120,237 @@ Item {
         dbl.destroy()
     }
 
+    // ==================== PAIR PRESENTATION GATE (Task 4) ====================
+    // The defect: this surface bound each half straight to the stage, so whichever page decoded first
+    // appeared and the other stayed black — a spread arriving as one page plus a hole. The gate is the
+    // backend's verdict for the WHOLE unit, and these are the three states it can be in.
+    function runDoublePairGate() {
+        coreGate.units[2] = { rightIndex: 2, leftIndex: 3, spread: false, coverAlone: false }
+        coreGate.pageSizes[2] = { w: 1000, h: 1500 }
+        coreGate.pageSizes[3] = { w: 1000, h: 1500 }
+        // page 2 has pixels, page 3 does not: EXACTLY the half-decoded pair.
+        coreGate.pageStates[2] = "ready"
+        coreGate.pageStates[3] = "waiting"
+
+        var dbl = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 3, "rtl": true, "core": coreGate
+        })
+        if (!dbl) { failures.push("pair-gate: createObject returned null"); return }
+
+        ck(dbl.isPair === true, "pair-gate precondition: the unit under test must be a real pair")
+        ck(dbl.presentationState === "waiting",
+           "pair-gate: with one half undecoded the unit must be WAITING, got '" + dbl.presentationState + "'")
+        ck(dbl.pairVisible === false,
+           "pair-gate: THE DEFECT — a half-decoded pair must paint NOTHING (one decoded page beside a "
+           + "black rectangle is what this gate exists to prevent), got pairVisible=" + dbl.pairVisible)
+        ck(dbl.placeholdersShown === true,
+           "pair-gate: while waiting the unit must show its restrained placeholder instead");
+        ck(dbl.rightErrorVisible === false && dbl.leftErrorVisible === false,
+           "pair-gate: waiting is NOT an error — no placard while a page can still arrive")
+
+        // the second half lands: the unit becomes paintable as ONE thing
+        coreGate.pageStates[3] = "ready"
+        coreGate.emitPageReady(3)          // the only signal QML can see; the surface folds it into readyRev
+        ck(dbl.presentationState === "ready",
+           "pair-gate: once both halves have pixels the unit must be READY, got '" + dbl.presentationState + "'")
+        ck(dbl.pairVisible === true, "pair-gate: a ready unit must paint")
+        ck(dbl.placeholdersShown === false, "pair-gate: a ready unit must drop its placeholder")
+        ck(dbl.rightImageVisible === true && dbl.leftImageVisible === true,
+           "pair-gate: BOTH halves of a ready pair must be drawn")
+
+        // --- one partner fails terminally: the good side paints, the broken side says so ---
+        coreGate.units[6] = { rightIndex: 6, leftIndex: 7, spread: false, coverAlone: false }
+        coreGate.pageSizes[6] = { w: 1000, h: 1500 }
+        coreGate.pageSizes[7] = { w: 1000, h: 1500 }
+        coreGate.pageStates[6] = "ready"
+        coreGate.pageStates[7] = "error"
+        coreGate.pageErrors[7] = "decode_failed"
+        dbl.currentPage = 7
+        coreGate.pageFailed(7, "decode_failed")     // bumps failedRev, as the real core's signal does
+
+        ck(dbl.presentationState === "error",
+           "pair-gate: a terminal failure in either half must make the UNIT an error, got '" + dbl.presentationState + "'")
+        ck(dbl.pairVisible === true,
+           "pair-gate: an error unit still PAINTS — the good half is real and the reader should see it")
+        ck(dbl.placeholdersShown === false,
+           "pair-gate: a failed unit must stop waiting — an indefinite placeholder is the worst answer")
+        ck(dbl.leftErrorVisible === true,
+           "pair-gate: the FAILED half must carry the typed placard")
+        ck(dbl.leftErrorCode === "decode_failed",
+           "pair-gate: the placard must be TYPED with the backend's code, got '" + dbl.leftErrorCode + "'")
+        ck(dbl.rightErrorVisible === false && dbl.rightImageVisible === true,
+           "pair-gate: the GOOD half must keep drawing its page, not inherit its partner's placard")
+
+        // --- and it heals: a page that comes back returns the unit to normal ---
+        coreGate.pageStates[7] = "ready"
+        delete coreGate.pageErrors[7]
+        coreGate.emitPageReady(7)
+        ck(dbl.presentationState === "ready" && dbl.leftErrorVisible === false
+               && dbl.leftImageVisible === true,
+           "pair-gate: a healed page clears the unit's error and the half goes back to painting (state='"
+           + dbl.presentationState + "' placard=" + dbl.leftErrorVisible + ")")
+
+        // --- an ABSENT seam degrades to painting, never to a blank screen. Every other `core.` use in
+        // these surfaces is guarded that way, and the shell's Task-9 stub has no presentationForPage. ---
+        var stub = doubleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 3, "rtl": true, "core": coreDouble
+        })
+        if (stub) {
+            ck(stub.presentationState === "ready" && stub.pairVisible === true,
+               "pair-gate: a core WITHOUT presentationForPage must fall back to painting (the "
+               + "pre-Task-4 behaviour), never to an empty screen, got '" + stub.presentationState + "'")
+            stub.destroy()
+        } else {
+            failures.push("pair-gate: stub createObject returned null")
+        }
+        dbl.destroy()
+    }
+
+    // ==================== SINGLE PAGE (Task 4) ====================
+    // The third layout. A 1000x1500 page in an 800x480 frame: CONTAIN fits it by HEIGHT
+    // (min(800/1000, 480/1500) = 0.32), so the whole page is visible at 320x480 and centred — which
+    // is the one place Single deliberately differs from the Pair surface's fit-by-width.
+    function runSingle() {
+        coreSingle.pageSizes[3] = { w: 1000, h: 1500 }
+        var sgl = singleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 4, "core": coreSingle
+        })
+        if (!sgl) { failures.push("single: createObject returned null"); return }
+
+        // --- CONTAIN, centred, whole page on screen ---
+        ck(approx(sgl.drawnWidth, 320, 0.01) && approx(sgl.drawnHeight, 480, 0.01),
+           "single: a 1000x1500 page in 800x480 must be CONTAIN-fitted to 320x480 (the WHOLE page "
+           + "visible, not fit-to-width), got " + fx(sgl.drawnWidth, 2) + "x" + fx(sgl.drawnHeight, 2))
+        ck(approx(sgl.drawnX, 240, 0.01) && approx(sgl.drawnY, 0, 0.01),
+           "single: the page must be CENTRED in the frame, got x=" + fx(sgl.drawnX, 2) + " y=" + fx(sgl.drawnY, 2))
+        ck(approx(sgl.panXMax, 0) && approx(sgl.panYMax, 0),
+           "single: a contain-fitted page at 100% has NO pan headroom (that is what contain means), got "
+           + fx(sgl.panXMax, 2) + "/" + fx(sgl.panYMax, 2))
+
+        // --- TWO TIERS, stacked: preview lands first, hq fades over it ---
+        ck(String(sgl.previewSource).indexOf("tier=preview") >= 0,
+           "single: the under-layer must request the PREVIEW tier, got '" + sgl.previewSource + "'")
+        ck(String(sgl.hqSource).indexOf("tier=hq") >= 0,
+           "single: the over-layer must request the HQ tier, got '" + sgl.hqSource + "'")
+        ck(String(sgl.previewSource) !== String(sgl.hqSource),
+           "single: the two tiers must be two DIFFERENT requests, not the same url twice")
+
+        // --- the decode-refresh dependency, same as the other two surfaces ---
+        var rr0 = sgl.readyRev
+        coreSingle.emitPageReady(3)
+        ck(sgl.readyRev === rr0 + 1, "single: pageReady must bump readyRev, got " + sgl.readyRev)
+        ck(String(sgl.hqSource).indexOf("rev=1") >= 0,
+           "single: after pageReady the source must re-evaluate to the bumped ?rev= (page would stay "
+           + "BLANK otherwise), got '" + sgl.hqSource + "'")
+
+        // --- ZOOM PRESERVES THE CENTROID. At 200% the page is 640x960: what sat under the middle of
+        // the window is still under it, so the fit-page centre stays centred. ---
+        sgl.setZoom(200)
+        ck(sgl.zoomPercent === 200, "single: setZoom(200) must take, got " + sgl.zoomPercent)
+        ck(approx(sgl.drawnHeight, 960, 0.01) && approx(sgl.panYMax, 480, 0.01),
+           "single: at 200% the page is 960 tall so panYMax is 480, got h=" + fx(sgl.drawnHeight, 2)
+           + " panYMax=" + fx(sgl.panYMax, 2))
+        ck(approx(sgl.panY, 240, 0.01),
+           "single: zooming from a centred page must KEEP it centred (panY 240 of 480), got " + fx(sgl.panY, 2))
+
+        // ...and from a NON-centred position. Park at the bottom (panY 480 => the page point 0.75 is
+        // under the viewport centre), then zoom to 260%: the page is 1248 tall, so holding 0.75 needs
+        // panY 696. A clamp-only zoom — what the Pair surface does — would leave panY at 480, so this
+        // assertion is what actually distinguishes the two behaviours.
+        sgl.panBy(0, 99999)
+        ck(approx(sgl.panY, 480, 0.01), "single precondition: pan must clamp to panYMax 480, got " + fx(sgl.panY, 2))
+        sgl.setZoom(260)
+        ck(approx(sgl.drawnHeight, 1248, 0.01),
+           "single: at 260% the page is 1248 tall, got " + fx(sgl.drawnHeight, 2))
+        ck(approx(sgl.panY, 696, 0.5),
+           "single: zooming must hold the point under the viewport CENTRE (panY 696), not merely clamp "
+           + "the old pan (which would leave 480) — got " + fx(sgl.panY, 2))
+        // the held point really is back under the centre, read off the drawn item
+        ck(approx(sgl.drawnY + 0.75 * sgl.drawnHeight, 240, 1.0),
+           "single: the held page point must land back on the viewport centre line (240), got "
+           + fx(sgl.drawnY + 0.75 * sgl.drawnHeight, 2))
+
+        // --- zoom clamps to [100,260]; pan clamps to the page's own bounds ---
+        sgl.setZoom(400)
+        ck(sgl.zoomPercent === 260, "single: zoom must clamp to 260 (asked 400), got " + sgl.zoomPercent)
+        sgl.setZoom(50)
+        ck(sgl.zoomPercent === 100, "single: zoom must clamp to 100 (asked 50), got " + sgl.zoomPercent)
+        sgl.setZoom(200)
+        sgl.panBy(0, 99999)
+        ck(approx(sgl.panY, sgl.panYMax, 0.01), "single: pan down must clamp to panYMax, got " + fx(sgl.panY, 2))
+        sgl.panBy(0, -99999)
+        ck(approx(sgl.panY, 0, 0.01), "single: pan up must clamp to 0, got " + fx(sgl.panY, 2))
+        sgl.panBy(99999, 0)
+        ck(approx(sgl.panX, 0, 0.01),
+           "single: a page NARROWER than the frame has no horizontal headroom, so pan must stay 0, got "
+           + fx(sgl.panX, 2))
+
+        // --- a page change resets PAN, keeps ZOOM (the same law as the Pair surface: a magnified
+        // volume that snapped back to 100% every turn would be unreadable) ---
+        sgl.panBy(0, 200)
+        ck(sgl.panY > 0, "single precondition: pan applied before the page change")
+        coreSingle.pageSizes[4] = { w: 1000, h: 1500 }
+        sgl.currentPage = 5
+        ck(sgl.zoomPercent === 200, "single: a page turn must NOT reset zoom, got " + sgl.zoomPercent)
+        ck(approx(sgl.panX, 0) && approx(sgl.panY, 0),
+           "single: a page turn must RESET pan, got x=" + fx(sgl.panX, 2) + " y=" + fx(sgl.panY, 2))
+        ck(coreSingle.lastVisible.length === 1 && coreSingle.lastVisible[0] === 4,
+           "single: a page turn must pin exactly THAT page for decode, got " + JSON.stringify(coreSingle.lastVisible))
+
+        // --- a failed page shows the typed placard and hides the images; a heal clears it ---
+        coreSingle.pageErrors[4] = "missing_file"
+        coreSingle.pageFailed(4, "missing_file")
+        ck(sgl.errorCode === "missing_file",
+           "single: the surface must read the BACKEND's per-page code, got '" + sgl.errorCode + "'")
+        ck(sgl.errorVisible === true, "single: a failed page must show the typed placard")
+        delete coreSingle.pageErrors[4]
+        coreSingle.emitPageReady(4)
+        ck(sgl.errorVisible === false,
+           "single: a healed page must clear the placard (MissingFile is a cooldown, not a life sentence)")
+        sgl.destroy()
+    }
+
+    // presented() from the Single surface. It needs REAL pixels, so this scenario serves the file
+    // fixtures (pre-warmed synchronously into the pixmap cache below) rather than provider urls that
+    // resolve to nothing offscreen.
+    function runSinglePresented() {
+        ck(warmSinglePreview.status === Image.Ready,
+           "single-presented precondition: the preview-width fixture must be warm in the pixmap cache, got "
+           + warmSinglePreview.status)
+        coreSinglePix.pageUrls[3] = harness.png200x300
+        coreSinglePix.pageSizes[3] = { w: 200, h: 300 }
+        var sgl = singleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 4, "core": coreSinglePix
+        })
+        if (!sgl) { failures.push("single-presented: createObject returned null"); return }
+        sgl.presented.connect(function (p, f) {
+            harness.singlePresentedCount += 1
+            harness.singlePresentedPage = p
+            harness.singlePresentedFrac = f
+        })
+        // The fixture is warm in the pixmap cache, so an Image resolves it in this same beat even
+        // with asynchronous: true — which means the first presentation already happened before the
+        // connect above could see it. Read the surface's own dedupe marker for that one.
+        ck(sgl._presentedPage === 4,
+           "single-presented: the surface must report the page as PRESENTED once its pixels are up, "
+           + "got _presentedPage=" + sgl._presentedPage)
+        // TWO tiers reach Ready for one page; that is ONE presentation, not two.
+        harness.singlePresentedCount = 0
+        sgl.currentPage = 5
+        coreSinglePix.pageUrls[4] = harness.png200x300
+        coreSinglePix.pageSizes[4] = { w: 200, h: 300 }
+        coreSinglePix.emitPageReady(4)
+        ck(harness.singlePresentedCount === 1,
+           "single-presented: preview AND hq both reaching Ready for one page is ONE presentation, not "
+           + "two — Task 11 must not bank the same page twice, got " + harness.singlePresentedCount)
+        ck(harness.singlePresentedPage === 5,
+           "single-presented: the reported page must be the one on screen (5), got " + harness.singlePresentedPage)
+        ck(approx(harness.singlePresentedFrac, 0),
+           "single-presented: withinPageFraction is 0 in a paged layout (a page IS the unit of "
+           + "travel), got " + fx(harness.singlePresentedFrac, 3))
+        sgl.destroy()
+    }
+
     Timer { id: phaseTimer; interval: 30; running: false; onTriggered: harness.runPhaseTwo() }
 
     function runPhaseTwo() {
@@ -1022,6 +1363,9 @@ Item {
             runDoubleCentring()
             runDoubleZoomKeepsPan()
             runDoubleDecodedPair()   // synchronous: the fixtures are pre-warmed into the pixmap cache
+            runDoublePairGate()      // Task 4: the pair paints as ONE unit, or not at all
+            runSingle()              // Task 4: the Single Page layout
+            runSinglePresented()     // Task 4: presented(), on real pixels
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
             report()
@@ -1046,6 +1390,8 @@ Item {
             if (stripComp.status === Component.Error) throw new Error("strip component: " + stripComp.errorString())
             doubleComp = Qt.createComponent("../qml/comicreader/ComicReaderDoubleSurface.qml")
             if (doubleComp.status === Component.Error) throw new Error("double component: " + doubleComp.errorString())
+            singleComp = Qt.createComponent("../qml/comicreader/ComicReaderSingleSurface.qml")
+            if (singleComp.status === Component.Error) throw new Error("single component: " + singleComp.errorString())
             Qt.callLater(runChecks)
         } catch (e) {
             console.log("COMICREADER_SURFACES_FAIL: setup: " + e.message); Qt.exit(1)

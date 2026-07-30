@@ -212,7 +212,16 @@ int main() {
         const auto u = buildUnits(p, CouplingPhase::Normal);
         CHECK(unitForPage(u, -7) == 0, "clamp below → first unit");
         CHECK(unitForPage(u, 9999) == u.size() - 1, "clamp above → last unit");
-        CHECK(unitForPage(QVector<PairUnit>{}, 3) == 0, "empty units → 0");
+        // ⚠ THE TRAP every caller has to know about: with NO units the answer is
+        // still 0, and 0 is NOT an index into an empty vector. unitForPage returns
+        // "which unit" and cannot return "there is no unit" — so a caller that goes
+        // straight from this to units[k] reads off the end of an empty vector on
+        // any book that has not paired yet (which is every book, for the moments
+        // between openEntry and the first rebuildUnits). Both callers in
+        // ComicReaderCore — unitForPage() and presentationForPage() — test
+        // m_units.isEmpty() FIRST for exactly this reason.
+        CHECK(unitForPage(QVector<PairUnit>{}, 3) == 0,
+              "empty units → 0 (a value, NOT a usable index — callers must test isEmpty first)");
     }
 
     // ── isSpread: detection, override-true, override-false ───────────────────

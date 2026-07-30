@@ -353,9 +353,15 @@ Item {
         hud.showToast(hasNext ? "End of volume — Alt+Right for the next" : "End of volume")
     }
     function pageNext() {
-        if (mode === "double_page") {
+        if (layout === "paired_pages") {
             var t = _unitBoundsForIndex(currentPage - 1)[1] + 1
             if (t < max) { currentPage = _unitBoundsForIndex(t)[0] + 1; return }
+            _endOfVolumeToast()
+        } else if (layout === "single_page") {
+            // Single Page walks ONE page at a time and snaps to no unit — that is the whole point of
+            // the layout. Without this branch a forward press fell through to the strip case below and
+            // scrolled an unmounted ListView, so the page never turned at all.
+            if (currentPage < max) { currentPage = currentPage + 1; return }
             _endOfVolumeToast()
         } else {
             // Strip only announces when the column is genuinely parked at (or gliding into) the
@@ -365,9 +371,11 @@ Item {
         }
     }
     function pagePrev() {
-        if (mode === "double_page") {
+        if (layout === "paired_pages") {
             var t = _unitBoundsForIndex(currentPage - 1)[0] - 1
             if (t >= 0) currentPage = _unitBoundsForIndex(t)[0] + 1
+        } else if (layout === "single_page") {
+            if (currentPage > 1) currentPage = currentPage - 1
         } else _stripScroll(-0.9)
     }
     function goToPageIndex(p1) {
@@ -883,10 +891,32 @@ Item {
         function onEntryChanged() { reader._refreshBookmarks() }
     }
 
-    // ================= reading surfaces (Task 10) =================
-    // The two direction/geometry surfaces mount here, toggled by `mode`, each handed the shell's
-    // `core` seam. They PAINT; the shell still owns every DECISION (page, direction, completion).
+    // ================= reading surfaces (Task 10; Single Page added Task 4) =================
+    // The THREE layouts mount here, each handed the shell's `core` seam. They PAINT; the shell still
+    // owns every DECISION (page, direction, completion).
+    //
+    // MOUNTED ON `layout`, NOT `mode` (Task 4 decision). `layout` is the persisted truth Task 3 made
+    // authoritative; `mode` is a derived compatibility alias that happens to pass "single_page"
+    // through unchanged, so keying the new surface on it would work by accident rather than by
+    // contract. The two pre-existing mounts moved with it — `mode === "long_strip"` and
+    // `layout === "long_strip"` are the same predicate by construction, so the switch is
+    // behaviour-identical and leaves one rule for all three: the layout you persisted is the surface
+    // you get. `mode` stays for the input/HUD/nav code that still speaks it.
     focus: true
+
+    // WHICH surface answers for the current layout. ONE place owns the layout -> surface mapping and
+    // all three mounts bind their `visible` to it, so two surfaces can never paint at once and there
+    // is no triplicated predicate to fall out of step. An unrecognised layout falls back to the strip
+    // rather than mounting nothing — setLayout() already refuses unknown values and the migration
+    // degrades a corrupt record to the lane default, so this is a floor, not a route, and a floor that
+    // shows a reader beats one that shows black.
+    //
+    // It is also the only READABLE form of the mount contract: an offscreen harness roots its tree
+    // invisible, so every child's `visible` reads false there whatever the mount says, and a test
+    // asserting on that would prove nothing.
+    readonly property string activeSurface: layout === "single_page" ? "singleSurface"
+                                          : layout === "paired_pages" ? "doubleSurface"
+                                          : "stripSurface"
 
     // Long Strip (manga default). It drives currentPage/stripFraction as the user scrolls — but
     // ONLY on a genuine scroll gesture, so mounting it never clobbers a resumed page/fraction.
@@ -894,7 +924,7 @@ Item {
         id: stripSurface
         objectName: "stripSurface"
         anchors.fill: parent
-        visible: reader.mode === "long_strip"
+        visible: reader.activeSurface === "stripSurface"
         active: visible
         core: reader.core
         rtl: reader.rtl
@@ -916,7 +946,7 @@ Item {
         id: doubleSurface
         objectName: "doubleSurface"
         anchors.fill: parent
-        visible: reader.mode === "double_page"
+        visible: reader.activeSurface === "doubleSurface"
         active: visible
         core: reader.core
         currentPage: reader.currentPage
@@ -924,9 +954,32 @@ Item {
         gutterStrength: reader.gutterStrength      // settings sheet -> live spine shadow
         onUnitShown: function (highestPage) { if (highestPage > reader.maxSeen) reader.maxSeen = highestPage }
     }
-    // reflect the active double surface's zoom onto the shell for the HUD/settings (Task 11); the
-    // double surface owns zoom/pan authoritatively (it resets PAN per unit; zoom persists).
+
+    // Single Page (Task 4). One page, alone, on the black stage — a LAYOUT, orthogonal to order: a
+    // manga in Single Page is still right-to-left, and the shell (not the surface) is what knows
+    // which page comes next. No unitShown here and none needed: a single page's highest page IS
+    // currentPage, which onCurrentPageChanged already folds into maxSeen.
+    ComicReaderSingleSurface {
+        id: singleSurface
+        objectName: "singleSurface"
+        anchors.fill: parent
+        visible: reader.activeSurface === "singleSurface"
+        active: visible
+        core: reader.core
+        currentPage: reader.currentPage
+    }
+
+    // The PAGED surface currently mounted (Single or Pair), or null in Long Strip. The zoom/pan verbs
+    // below used to name the double surface directly; with two paged layouts that would have zoomed
+    // an unmounted surface whenever Single Page was showing.
+    readonly property var _pagedSurface: activeSurface === "singleSurface" ? singleSurface
+                                       : activeSurface === "doubleSurface" ? doubleSurface : null
+
+    // reflect the active paged surface's zoom onto the shell for the HUD/settings (Task 11); the
+    // surfaces own zoom/pan authoritatively (they reset PAN per unit/page; zoom persists). The two
+    // `when` clauses are mutually exclusive — only one paged surface is ever active.
     Binding { target: reader; property: "zoomPercent"; value: doubleSurface.zoomPercent; when: doubleSurface.active }
+    Binding { target: reader; property: "zoomPercent"; value: singleSurface.zoomPercent; when: singleSurface.active }
 
     // ---- night veil (Task 12): a black page-dim over the reading surfaces, BELOW the chrome so
     // controls stay full-brightness + readable. A plain Rectangle intercepts no input (no MouseArea),
@@ -950,24 +1003,31 @@ Item {
         id: comicInput
         anchors.fill: parent
         // reading-state mirrors bound from the shell
-        mode: reader.mode
+        // NOT `reader.mode`: ComicReaderInput sorts input into PAGED versus STRIP, and its token for
+        // the paged case is still "double_page" because it predates Single Page. Single Page IS a
+        // paged layout — same page turns, same click zones, same zoom/pan, no scrolling column — so it
+        // takes the paged map rather than falling through to the strip branch, where Space and the
+        // side-click zones would drive a hidden ListView and do nothing at all. Renaming the token
+        // itself belongs to the Task 8 input pass, not here.
+        mode: reader.layout === "long_strip" ? "long_strip" : "double_page"
         rtl: reader.rtl
         zoomPercent: reader.zoomPercent
         modalOpen: reader.modalOpen
         chromeVisible: reader.chromeVisible
-        // double-page vertical pan headroom, so Up/Down pan a too-tall spread (never flip).
-        vScrollMax: doubleSurface.panYMax
+        // paged vertical pan headroom, so Up/Down pan a too-tall spread or a zoomed page (never flip).
+        vScrollMax: reader._pagedSurface ? reader._pagedSurface.panYMax : 0
         // within-entry navigation + surface control
         onNext: reader.pageNext()
         onPrevious: reader.pagePrev()
         onScrollBy: function (screens) { reader._stripScroll(screens) }
         onZoomBy: function (delta) {
-            if (doubleSurface) {
-                doubleSurface.setZoom(doubleSurface.clampedZoom + delta)
-                hud.showToast("Zoom " + doubleSurface.clampedZoom + "%")
+            var surf = reader._pagedSurface
+            if (surf) {
+                surf.setZoom(surf.clampedZoom + delta)
+                hud.showToast("Zoom " + surf.clampedZoom + "%")
             }
         }
-        onPanBy: function (dx, dy) { if (doubleSurface) doubleSurface.panBy(dx, dy) }
+        onPanBy: function (dx, dy) { if (reader._pagedSurface) reader._pagedSurface.panBy(dx, dy) }
         // chrome + window verbs
         onToggleChrome: reader.chromeVisible = !reader.chromeVisible
         onToggleFullscreen: reader.fullscreenRequested()
