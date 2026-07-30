@@ -604,16 +604,16 @@ int main(int argc, char *argv[]) {
         // NEVER pinned — every manga genre / Jump registry / Theatre anime call rode the
         // dead-IPv6 stall on top of whatever Jikan itself was doing. Same scar, same fix.
         QStringLiteral("api.jikan.moe"),
-        // Tankoban Mode (2026-07-15, eyes-on): per-volume MangaDex cover thumbnails ride
-        // uploads.mangadex.org (QML Image via this factory); the volume catalog rides
-        // api.mangadex.org (MangaEngine NAM, pins passed via setIpv4Pins); Apple Books +
-        // Open Library per-volume synopsis lookups ride itunes.apple.com / openlibrary.org.
-        // All publish a dead AAAA on this ISP → ~21s stall per request (covers never
-        // painted; Apple synopses trickled a scattered few). Same scar, same fix. NOTE:
-        // Open Library's IPv4 is ALSO ISP-firewalled — pinning only makes it fail fast so
-        // the Apple fallback runs sooner; it never returns data here.
+        // Tankoban Mode (2026-07-15, eyes-on): cover thumbnails ride uploads.mangadex.org
+        // (QML Image via this factory — still the source of Catalog.js's Monster tile);
+        // Apple Books + Open Library per-volume synopsis lookups ride itunes.apple.com /
+        // openlibrary.org. All publish a dead AAAA on this ISP → ~21s stall per request
+        // (covers never painted; Apple synopses trickled a scattered few). Same scar, same
+        // fix. NOTE: Open Library's IPv4 is ALSO ISP-firewalled — pinning only makes it fail
+        // fast so the Apple fallback runs sooner; it never returns data here.
+        // The MangaDex catalog API host was pinned here for the volume catalog; that client
+        // is retired (2026-07-29, ComickCatalogClient) and nothing contacts the host now.
         QStringLiteral("uploads.mangadex.org"),
-        QStringLiteral("api.mangadex.org"),
         QStringLiteral("itunes.apple.com"),
         QStringLiteral("openlibrary.org"),
         // Wallpaper CDN (WallpaperApi.js): unpinned, its requests rode the same dead-AAAA
@@ -1065,7 +1065,10 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {
         new QmlReloader(&engine, qmlPath, &app);
         manga->selfTest(QStringLiteral("Berserk"));  // log WeebCentral chapter count at startup
-        manga->volumes(QStringLiteral("One Piece"));  // DEBUG: log MangaDex volume resolution
+        // DEBUG: log volume resolution. There is no WeebCentral id at startup, so this
+        // exercises the LIVE Comick scrape + completeness gate only — the volume-DB read
+        // is keyed by the WC id and is proved by opening a real series page.
+        manga->volumes(QString(), QStringLiteral("One Piece"));
     }
 
     return app.exec();
