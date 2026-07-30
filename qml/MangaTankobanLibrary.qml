@@ -9,9 +9,11 @@
 // rail, gold number.
 //
 // The ONE adaptation that is not a copy: Theatre's still is landscape (172x96),
-// while a tankobon is a portrait object, so the artwork stands up and the row grows
-// 104 -> 128 to suit. Copying the landscape frame would make every book read as a
-// TV thumbnail.
+// while a tankobon is a portrait object, so the artwork stands up. Sizing follows
+// Theatre's PROPORTION rather than its numbers — its still fills 96 of a 104px row,
+// nearly the whole height, so the book does too: 138 of 158 (180 of 208 on the
+// Continue row). A cover scaled to Theatre's 96px height instead would be 64px wide
+// and read as a stamp next to an episode still.
 //
 // The signature: OWNERSHIP IS DRAWN AS A SPINE. The rail's hairline thickens into a
 // gold rule and the cover picks up a lit left edge once the volume is on disk, so a
@@ -39,6 +41,64 @@ Item {
     readonly property var progressObject: root.progress
         ? root.progress
         : ((typeof Progress !== "undefined") ? Progress : null)
+
+    // ── VOLUME COVERS ────────────────────────────────────────────────────────
+    // A volume's cover is the FIRST PAGE OF ITS FIRST CHAPTER — the same thing a
+    // chapter row shows, fetched the same way. Chapter thumbnails are NOT in
+    // WeebCentral's chapter-list HTML; the app scrapes each chapter's first page
+    // on demand through Downloads.fetchThumb -> thumbReady(chapterId, url). So the
+    // page hands us the live chapter list and we ask for one thumb per volume.
+    //
+    // No cover is fetched from MangaDex or Comick: MangaDex is retired, and Comick
+    // serves exactly one cover per SERIES (the latest volume), not one per volume —
+    // probed 2026-07-30 across four endpoint shapes.
+    property var chapters: []
+    property var downloader: null
+    readonly property var downloaderObject: root.downloader
+        ? root.downloader
+        : ((typeof Downloads !== "undefined") ? Downloads : null)
+    // volumeId -> scraped first-page url
+    property var coverByVolume: ({})
+    // chapterId -> volumeId, so a thumbReady can be routed back to its volume
+    property var _thumbWanted: ({})
+
+    // Ask for one thumbnail per volume: the first chapter that falls inside its
+    // range. Cheap — one request per volume, not per chapter, and only for volumes
+    // that still have no cover.
+    function requestCovers() {
+        var d = root.downloaderObject
+        if (!d || !d.fetchThumb || !root.seriesId.length) return
+        var chs = root.chapters || []
+        if (!chs.length) return
+        var rows = root.volumeRows || []
+        // ACCUMULATE, never replace: volumes and chapters land at different times, so
+        // this runs more than once per series. Rebuilding the map would orphan the
+        // requests still in flight from the previous call and those covers would
+        // never arrive.
+        var wanted = {}
+        for (var k in root._thumbWanted) wanted[k] = root._thumbWanted[k]
+        for (var i = 0; i < rows.length; i++) {
+            var vid = String(rows[i].id || "")
+            if (!vid.length || root.coverByVolume[vid]) continue
+            var cid = root._firstChapterIdIn(rows[i], chs)
+            if (!cid.length || wanted[cid] === vid) continue   // already asked
+            wanted[cid] = vid
+            d.fetchThumb(root.seriesId, cid)
+        }
+        root._thumbWanted = wanted
+    }
+    // the lowest-numbered live chapter inside [chapterStart, chapterEnd]
+    function _firstChapterIdIn(row, chs) {
+        var lo = Number(row.chapterStart), hi = Number(row.chapterEnd)
+        if (isNaN(lo) || isNaN(hi)) return ""
+        var bestId = "", bestNum = Infinity
+        for (var i = 0; i < chs.length; i++) {
+            var n = Number(chs[i].number)
+            if (isNaN(n) || n < lo || n > hi) continue
+            if (n < bestNum) { bestNum = n; bestId = String(chs[i].id || "") }
+        }
+        return bestId
+    }
 
     // The reader records ONE record per series under kind "tankoban", carrying the
     // volume it was left in (chapterId) plus page/max — so "where am I" is a single
@@ -78,8 +138,42 @@ Item {
     implicitHeight: listCol.height
     height: listCol.height
 
-    Component.onCompleted: { root.refresh(); root.refreshResume() }
-    onSeriesIdChanged: { root.refresh(); root.refreshResume() }
+    Component.onCompleted: { root.refresh(); root.refreshResume(); root.requestCovers() }
+    onSeriesIdChanged: {
+        root.coverByVolume = ({})       // covers belong to the OLD series — drop them
+        root._thumbWanted = ({})
+        root.refresh(); root.refreshResume(); root.requestCovers()
+    }
+    // volumes and chapters arrive from different sources at different times; ask
+    // again whenever either lands, since a cover needs both.
+    onVolumeRowsChanged: root.requestCovers()
+    onChaptersChanged: root.requestCovers()
+
+    // route a scraped first-page url back to the volume that asked for it
+    Connections {
+        target: root.downloaderObject
+        ignoreUnknownSignals: true
+        function onThumbReady(chapterId, url) {
+            var vid = root._thumbWanted[String(chapterId)]
+            if (!vid || !url || !String(url).length) return
+            root.coverByVolume = root._reassign(root.coverByVolume, vid, String(url))
+        }
+    }
+
+    // A downloaded volume shows its OWN first page — the real book, not a stand-in.
+    // Falls back to the scraped first chapter page, then to the numbered placeholder.
+    function coverFor(row) {
+        var vid = String(row.id || "")
+        if (String(row.state) === "ready") {
+            var s = root.serviceObject
+            if (s && s.localPages) {
+                var lp = s.localPages(vid)
+                if (lp && lp.length && lp[0].url) return String(lp[0].url)
+            }
+        }
+        if (row.cover && String(row.cover).length) return String(row.cover)
+        return root.coverByVolume[vid] || ""
+    }
     // Coming back from the reader must move the Continue row, so re-read on reveal.
     onVisibleChanged: if (visible) root.refreshResume()
 
@@ -242,7 +336,7 @@ Item {
                 Item {
                     id: rowMain
                     width: parent.width
-                    height: vrow.isContinue ? 172 : 128
+                    height: vrow.isContinue ? 208 : 158
 
                     // hover / continue tint, inset to the page margins like Theatre
                     Rectangle {
@@ -302,8 +396,8 @@ Item {
                         id: cov
                         x: numberRail.x + numberRail.width + 16
                         y: (parent.height - height) / 2
-                        width: vrow.isContinue ? 92 : 66
-                        height: vrow.isContinue ? 136 : 98
+                        width: vrow.isContinue ? 122 : 94
+                        height: vrow.isContinue ? 180 : 138
                         Rectangle {
                             anchors.fill: parent; radius: 5; clip: true
                             color: "#15171f"
@@ -315,12 +409,12 @@ Item {
                                 text: vrow.modelData.number || "?"
                                 color: Qt.rgba(1, 1, 1, 0.5)
                                 font.family: theme.display
-                                font.pixelSize: vrow.isContinue ? 26 : 22
+                                font.pixelSize: vrow.isContinue ? 34 : 28
                             }
                             Image {
                                 id: coverImg
                                 anchors.fill: parent; anchors.margins: 1
-                                source: vrow.modelData.cover ? vrow.modelData.cover : ""
+                                source: root.coverFor(vrow.modelData)
                                 visible: status === Image.Ready
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true; cache: true
