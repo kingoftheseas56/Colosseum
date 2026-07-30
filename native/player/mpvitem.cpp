@@ -127,23 +127,38 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
         Q_EMIT mediaTitleChanged();
 
     } else if (property == MpvProperties::self()->Position) {
-        m_formattedPosition = formatTime(value.toDouble());
-        Q_EMIT positionChanged();
+        const double next = value.toDouble();
+        // A jump means a seek, not a playback tick: emit at once so a scrub never looks laggy.
+        const bool jumped = qAbs(next - m_cachedPosition) > 0.5;
+        m_cachedPosition = next;
+        m_formattedPosition = formatTime(next);
+        // The CACHE is always current above; only the signal is rate-limited. Re-notifying QML more
+        // than ~10x/sec re-evaluates every binding that reads mpv.position (27 of them in
+        // PlayerPage.qml) for motion no eye can see — the same needless-reactive-work shape as the
+        // Continue-row cascade that was the 2026-07-29 video stutter.
+        if (jumped || !m_positionEmitClock.isValid() || m_positionEmitClock.elapsed() >= 100) {
+            m_positionEmitClock.restart();
+            Q_EMIT positionChanged();
+        }
 
     } else if (property == MpvProperties::self()->Duration) {
-        m_formattedDuration = formatTime(value.toDouble());
+        m_cachedDuration = value.toDouble();
+        m_formattedDuration = formatTime(m_cachedDuration);
         Q_EMIT durationChanged();
 
     } else if (property == MpvProperties::self()->Pause) {
+        m_cachedPause = value.toBool();
         Q_EMIT pauseChanged();
 
     } else if (property == MpvProperties::self()->Volume) {
+        m_cachedVolume = value.toInt();
         Q_EMIT volumeChanged();
 
     } else if (property == MpvProperties::self()->Mute) {
         Q_EMIT muteChanged();
 
     } else if (property == MpvProperties::self()->Speed) {
+        m_cachedSpeed = value.toDouble();
         Q_EMIT speedChanged();
 
     } else if (property == MpvProperties::self()->TrackList) {
@@ -511,7 +526,7 @@ QString MpvItem::mediaTitle()
 
 double MpvItem::position()
 {
-    return getProperty(MpvProperties::self()->Position).toDouble();
+    return m_cachedPosition;   // cached from the observer; no blocking call into the mpv core
 }
 
 void MpvItem::setPosition(double value)
@@ -524,7 +539,7 @@ void MpvItem::setPosition(double value)
 
 double MpvItem::duration()
 {
-    return getProperty(MpvProperties::self()->Duration).toDouble();
+    return m_cachedDuration;   // cached from the observer; no blocking call into the mpv core
 }
 
 double MpvItem::cacheTime() const
@@ -544,7 +559,7 @@ bool MpvItem::gifEncoding() const
 
 bool MpvItem::pause()
 {
-    return getProperty(MpvProperties::self()->Pause).toBool();
+    return m_cachedPause;   // cached from the observer; no blocking call into the mpv core
 }
 
 void MpvItem::setPause(bool value)
@@ -557,7 +572,7 @@ void MpvItem::setPause(bool value)
 
 int MpvItem::volume()
 {
-    return getProperty(MpvProperties::self()->Volume).toInt();
+    return m_cachedVolume;   // cached from the observer; no blocking call into the mpv core
 }
 
 void MpvItem::setVolume(int value)
@@ -584,7 +599,7 @@ void MpvItem::setMute(bool value)
 
 double MpvItem::speed()
 {
-    const double value = getProperty(MpvProperties::self()->Speed).toDouble();
+    const double value = m_cachedSpeed;   // cached from the observer
     return value > 0.0 ? value : 1.0;
 }
 

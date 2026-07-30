@@ -7,6 +7,7 @@
 #ifndef COLOSSEUM_MPVITEM_H
 #define COLOSSEUM_MPVITEM_H
 
+#include <QElapsedTimer>
 #include <MpvAbstractItem>
 #include <QTimer>
 #include <QVariantList>
@@ -162,6 +163,21 @@ private:
     void setupConnections();
     QString mapEndFileErrorCode(const QString &reason) const;
     void onPropertyChanged(const QString &property, const QVariant &value);
+
+    // Latest values of the properties we already observe, so the QML-facing getters can answer from
+    // memory instead of making a blocking cross-thread call into the mpv core. position/duration/
+    // pause/volume/speed are all observed (see the observeProperty block in the constructor), so
+    // onPropertyChanged keeps these current; the getters no longer need to ask. `mpv.position` alone
+    // is referenced 27 times in PlayerPage.qml, and every one of those bindings used to take the mpv
+    // core lock on the GUI thread each time it re-evaluated. (2026-07-30)
+    double m_cachedPosition = 0.0;
+    double m_cachedDuration = 0.0;
+    bool   m_cachedPause = false;
+    int    m_cachedVolume = 100;
+    double m_cachedSpeed = 1.0;
+    // Throttles positionChanged only — the cached value above is ALWAYS current. A seek (a jump, not
+    // a tick) still emits immediately so the bar never lags a scrub.
+    QElapsedTimer m_positionEmitClock;
     void onAsyncReply(const QVariant &data, mpv_event event);
     QString formatTime(const double time) const;
     QVariantList tracksForType(const QString &type) const;
