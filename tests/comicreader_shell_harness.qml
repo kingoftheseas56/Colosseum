@@ -1445,6 +1445,64 @@ Item {
                "global: the split global last-choice must beat the lane default, got "
                + t3f.layout + "/" + t3f.order)
 
+            // -- 18. THE ONE OVERLAY COORDINATOR (Task 5, plan 2026-07-28). Hemanth's approved
+            // interaction contract: only ONE temporary surface may be open at a time, the comic
+            // never shifts to make room for it, and Escape resolves ONE layer at a time and never
+            // leaves the book. The chrome only raises intents; THIS is the single place that
+            // decides, so two surfaces can never both believe they are open. --
+            var ovShell = t3c
+            ovShell.activeOverlay = ""
+            ovShell.chromeVisible = true
+
+            ovShell.openOverlay("pages")
+            ck(ovShell.activeOverlay === "pages", "overlay: Pages must take ownership, got '" + ovShell.activeOverlay + "'")
+            // asking for a DIFFERENT surface replaces the open one — never stacks two
+            ovShell.openOverlay("image")
+            ck(ovShell.activeOverlay === "image", "overlay: a second surface must REPLACE the first, got '" + ovShell.activeOverlay + "'")
+            // re-asking for the surface that is already open closes it: the command that raised a
+            // surface is also the way back out
+            ovShell.openOverlay("image")
+            ck(ovShell.activeOverlay === "", "overlay: re-asking for the open surface must close it, got '" + ovShell.activeOverlay + "'")
+            // opening a surface always brings the chrome with it (the surface hangs off the chrome)
+            ovShell.chromeVisible = false
+            ovShell.openOverlay("layout")
+            ck(ovShell.chromeVisible === true, "overlay: opening a surface must bring the chrome back")
+
+            // Escape, layer by layer. Layer 1: the open surface.
+            ovShell.closeTop()
+            ck(ovShell.activeOverlay === "" && ovShell.chromeVisible === true,
+               "escape: layer 1 closes the surface and KEEPS the chrome, got '" + ovShell.activeOverlay
+               + "' chrome=" + ovShell.chromeVisible)
+            // Layer 2: with nothing open, Escape toggles the chrome — both ways.
+            ovShell.closeTop()
+            ck(ovShell.chromeVisible === false, "escape: layer 2 hides the chrome, got " + ovShell.chromeVisible)
+            ovShell.closeTop()
+            ck(ovShell.chromeVisible === true, "escape: layer 2 brings the chrome back, got " + ovShell.chromeVisible)
+            // Layer 3 DOES NOT EXIST. "never unexpectedly leave the book" — Back is the only
+            // reader-to-library action, and no number of Escapes may become a second one.
+            var leftTheBook = false
+            ovShell.backRequested.connect(function () { leftTheBook = true })
+            ovShell.chromeVisible = false
+            ovShell.closeTop(); ovShell.closeTop(); ovShell.closeTop()
+            ck(leftTheBook === false, "escape: Escape must NEVER exit the book, however many times it is pressed")
+
+            // The settings sheet is the TOP layer while it is up (it still exists until Task 12).
+            ovShell.settingsRequested()
+            ck(ovShell.modalOpen === true, "escape: precondition - the settings sheet must be open")
+            ovShell.activeOverlay = "pages"
+            ovShell.closeTop()
+            ck(ovShell.modalOpen === false && ovShell.activeOverlay === "pages",
+               "escape: the sheet closes FIRST and leaves the surface beneath it alone, got modal="
+               + ovShell.modalOpen + " overlay='" + ovShell.activeOverlay + "'")
+            ovShell.activeOverlay = ""
+
+            // The commands that have no surface yet are honest, not faked: they really do take
+            // ownership, so the command goes gold and Escape gives it back. Nothing pretends.
+            ovShell.openOverlay("loupe")
+            ck(ovShell.activeOverlay === "loupe", "overlay: Loupe takes ownership even before its surface lands")
+            ovShell.closeTop()
+            ck(ovShell.activeOverlay === "", "overlay: ...and Escape gives it straight back")
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -1532,9 +1590,77 @@ Item {
                 // click-transparency: the overlay must never accept a mouse button
                 if (area) ck(area.acceptedButtons === Qt.NoButton,
                    "cursor: the overlay must be acceptedButtons:Qt.NoButton (click/wheel transparent), got " + area.acceptedButtons)
+
+                // -- Task 5: ONE wake door. "Any plain mouse movement restores HUD and cursor
+                // together." There is real history here — the HUD used to come back while the
+                // cursor stayed hidden, so you could see the controls and not your pointer. --
+                s.chromeVisible = false
+                s._cursorIdle = true
+                if (area) ck(area.cursorShape === Qt.BlankCursor,
+                   "wake: precondition - the cursor must actually be blanked first, got " + area.cursorShape)
+                s.restoreCursorAndChrome()
+                ck(s._cursorIdle === false && s.chromeVisible === true,
+                   "wake: restoreCursorAndChrome must bring BOTH back, got idle=" + s._cursorIdle
+                   + " chrome=" + s.chromeVisible)
+                if (area) ck(area.cursorShape === Qt.ArrowCursor,
+                   "wake: ...and the arrow must be back immediately, got " + area.cursorShape)
+
+                // ...and the cursor must still be ABLE to sleep afterwards. This is the assertion
+                // that fences off the tempting one-line version of the fix: assigning
+                // `cursorHideArea.cursorShape = Qt.ArrowCursor` imperatively destroys the binding
+                // for good, so the pointer would show an arrow forever after the first mouse move.
+                // (The same trap already cost this file's side-scroller thumb its `y:` binding.)
+                s.chromeVisible = false
+                s._cursorIdle = true
+                if (area) ck(area.cursorShape === Qt.BlankCursor,
+                   "wake: the cursor must still be able to sleep AFTER a wake (binding intact, not "
+                   + "overwritten by an imperative assignment), got " + area.cursorShape)
+
+                // Leaving and returning: the callers HIDE this same instance on back and SHOW it
+                // again to reopen, so the cursor clock has to survive the round trip. A stop with no
+                // matching re-arm means the pointer never sleeps again for the rest of the session.
+                // The harness root is `visible: false`, so every shell it parents is ALREADY
+                // invisible and assigning visible=false fires no change at all — the assertions
+                // below would pass vacuously. Make the root visible for the length of this probe so
+                // the hide is a REAL true->false transition (same trick as the E6 hide check).
+                harness.visible = true
+                ck(s.visible === true,
+                   "wake: precondition - the reader must actually BE visible, else hiding it fires "
+                   + "no change and this check would prove nothing")
+                s._cursorIdle = true                      // the pointer had gone to sleep mid-read
+                s.visible = false
+                ck(s._cursorIdle === false, "wake: hiding the reader must hand the arrow back, got " + s._cursorIdle)
+                s._cursorIdle = true
+                s.visible = true
+                ck(s._cursorIdle === false, "wake: showing it again must leave the arrow up, got " + s._cursorIdle)
+                ck(cursorRearmTimer.running === false, "wake: precondition - the re-arm probe timer is idle")
+                harness._csRearm = s
+                cursorRearmTimer.start()
+                return                     // report() moves to the re-arm probe below
             }
         } catch (e) {
             failures.push("exception during cursor-deferred checks: " + e.message)
+        }
+        report()
+    }
+
+    // CURSOR RE-ARM probe — the second half of the hide/show round trip. After the reader comes
+    // back on screen the cursor clock must be TICKING again, not merely reset: a stopped clock
+    // looks identical to a running one at the instant you check it, and only shows itself a few
+    // seconds later when the pointer refuses to sleep. Pinned to the same 25ms cursorIdleMs.
+    property var _csRearm: null
+    function runCursorRearm() {
+        try {
+            var s = harness._csRearm
+            ck(s !== null, "wake: the re-arm shell must have been stashed")
+            if (s) {
+                s.chromeVisible = false
+                ck(s._cursorIdle === true,
+                   "wake: after a hide/show round trip the cursor clock must still be RUNNING, so "
+                   + "the pointer sleeps again after cursorIdleMs, got _cursorIdle=" + s._cursorIdle)
+            }
+        } catch (e) {
+            failures.push("exception during cursor re-arm checks: " + e.message)
         }
         report()
     }
@@ -1586,6 +1712,8 @@ Item {
     Timer { id: bookmarkDebounceTimer; interval: 900; running: false; onTriggered: harness.runBookmarkDeferred() }
     // fires after the pinned 25ms cursorIdleMs has elapsed
     Timer { id: cursorDeferredTimer; interval: 60; running: false; onTriggered: harness.runCursorDeferred() }
+    // ...and again, after the hide/show round trip, to prove the clock is still running
+    Timer { id: cursorRearmTimer; interval: 60; running: false; onTriggered: harness.runCursorRearm() }
 
     Component.onCompleted: {
         try {

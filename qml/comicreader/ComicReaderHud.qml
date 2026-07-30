@@ -1,20 +1,30 @@
-// ComicReaderHud — the Family Gradient HUD (Task 11), built EXACTLY to approved mockup surface 01
-// (docs/superpowers/mocks/2026-07-23-comicreader-visual-identity.html). "Lineage layout, player
-// soul": glass over black, Segoe UI chrome text, vendored Lucide strokes, and ONE gold thread
-// carrying the reading position. The page owns the screen; this chrome is a visitor that rises on
-// activity and auto-hides after 3s of stillness.
+// ComicReaderHud — the approved sidebar-free reading chrome (Task 5, plan 2026-07-28), replacing
+// the Family Gradient pill HUD it grew out of. Hemanth approved this shape section by section; the
+// decision ledger (docs/superpowers/specs/2026-07-28-comic-reader-overhaul-design.md) is verbatim:
+//
+//   * Thin title strip with Back and book title.
+//   * One flat top command bar: Bookmark, Pages, Loupe, Image, current Layout, and current Order.
+//   * No reader sidebar.
+//   * No permanent settings drawer.
+//   * One gold bottom rail with current position, total pages, and scrub affordance.
+//   * The comic remains visible behind temporary surfaces and never shifts to make room for them.
+//   * Toolbar, title toast, progress rail, and cursor sleep together after 2.5 seconds of inactivity.
+//   * Any plain mouse movement restores HUD and cursor together. Escape explicitly toggles chrome
+//     when no temporary surface is open.
+//
+// The shorthand the arc runs on: "Cover's calm, YACReader's flow, Colosseum's brain." Calm here is
+// ONE shallow layer, not a drawer: no pill soup, no nested control architecture, no side panel.
 //
 // PRESENTATION + INTENTS ONLY. The HUD binds the shell's read-only reading state off the `reader`
-// seam and:
-//   * WRITES only the persisted seams (persistedMode / persistedDirection) and chromeVisible — the
-//     mode/direction chips write persistedMode/persistedDirection (NOT mode/rtl) so a crossing's
-//     load() never resets the toggle (carry-forward from the Task 9 review).
-//   * EMITS semantic intents (prev/next page, seek, openNavigator/openThumbnails/openSettings/
-//     toggleBookmark, and the window verbs) that the shell / Task 12 overlays wire.
-// gold is SPARING: only the scrub fill+knob, the active mode segment, the active direction pill.
+// seam and EMITS semantic intents (openPages / openLoupe / openImage / openLayout / toggleOrder /
+// toggleBookmark / seek / crossing / window verbs). It never writes core state: the shell's ONE
+// overlay coordinator decides what actually opens (the one-temporary-surface rule).
 //
-// Every glyph is a ComicReaderIcon (vendored white-stroke Lucide) — never a Text arrow/character
-// (the semantic-icon-audit law). The counter/mode-chip/direction are text LABELS, not glyph chips.
+// Gold is SPARING and structural: the progress rail, the scrub fill/knob, and the single active
+// command. Nothing else.
+//
+// Every glyph is a ComicReaderIcon (white-stroke SVG, tinted) — never a Text arrow/character (the
+// semantic-icon-audit law). The counter and the command names are text LABELS, not glyph chips.
 
 import QtQuick
 import "../"   // Theme (lives in qml/, the parent of qml/comicreader/)
@@ -31,8 +41,11 @@ Item {
     readonly property int    max:           reader ? reader.max           : 1
     readonly property string mode:          reader ? reader.mode          : "long_strip"
     readonly property bool   rtl:           reader ? reader.rtl           : false
-    // the single user-facing identity (Manga/Comic/Strip) — the mode chip shows + writes THIS.
-    readonly property string readingMode:   reader ? reader.readingMode   : "manga"
+    // LAYOUT + ORDER are the persisted truth (Task 3). The command bar SHOWS both, so it reads them
+    // straight rather than through the lossy combined identity the retired mode pills spoke — that
+    // identity cannot express Single Page, which is exactly why those pills are gone.
+    readonly property string layout:        reader ? reader.layout        : "long_strip"
+    readonly property string order:         reader ? reader.order         : "ltr"
     readonly property real   stripFraction: reader ? reader.stripFraction : 0
     readonly property int    zoomPercent:   reader ? reader.zoomPercent   : 100
     readonly property bool   hasNext:       reader ? reader.hasNext       : false
@@ -41,28 +54,39 @@ Item {
     readonly property string curLabel:      reader ? reader.curLabel      : ""
     readonly property bool   chromeVisible: reader ? reader.chromeVisible : true
     readonly property bool   modalOpen:     reader ? reader.modalOpen     : false
-    // bookmark 0-based page indices (Task 12 fills them; empty until then)
+    // which temporary surface the shell currently owns ("" = none). The command bar reads THIS to
+    // decide which single command is gold.
+    readonly property string activeOverlay: (reader && reader.activeOverlay !== undefined)
+                                            ? reader.activeOverlay : ""
+    // bookmark 0-based page indices — the rail's ticks and the Bookmark command's gold both read it
     property var bookmarkPages: (reader && reader.bookmarkPages !== undefined) ? reader.bookmarkPages : []
 
     readonly property bool prevEnabled: hasPrev
     readonly property bool nextEnabled: hasNext
+    readonly property bool bookmarkedHere: bookmarkPages && bookmarkPages.indexOf(currentPage - 1) >= 0
 
-    // ---- auto-hide ----
-    property int autoHideMs: 3000
+    // ---- auto-hide: 2.5s, the approved dial. Chrome and cursor sleep TOGETHER (the shell's
+    //      cursorIdleMs carries the same number). ----
+    property int autoHideMs: 2500
 
-    // ================= semantic intents (shell / Task 12 wire these) =================
-    signal seekRequested(int page)              // double-mode scrub -> snapped page
-    signal scrubFractionRequested(real fraction) // strip-mode scrub -> scroll fraction
-    signal prevRequested()
-    signal nextRequested()
-    // page-turn intents from the edge side bars (double-page). DISTINCT from prev/nextRequested,
-    // which CROSS entries — these turn one page/unit WITHIN the entry (shell to pageNext/pagePrev).
-    signal advancePageRequested()   // forward in reading order
-    signal retreatPageRequested()   // backward in reading order
-    signal openNavigator()
-    signal openThumbnails()
-    signal openSettings()
-    signal toggleBookmark()
+    // ================= semantic intents (the shell wires these) =================
+    // --- the six direct commands ---
+    signal openPages()                          // Pages    -> the temporary filmstrip (Task 6)
+    signal openLoupe()                          // Loupe    -> the temporary magnifier (Task 9)
+    signal openImage()                          // Image    -> the compact image panel (Task 7)
+    signal openLayout()                         // Layout   -> the compact anchored layout menu (Task 8)
+    signal toggleOrder()                        // Order    -> Manga RTL <-> Comic LTR, no surface
+    signal toggleBookmark()                     // Bookmark -> this page's bookmark
+    // --- the gold rail ---
+    signal seekRequested(int page)              // paged scrub -> snapped/exact page
+    signal scrubFractionRequested(real fraction) // strip scrub -> scroll fraction
+    signal prevRequested()                      // rail arrow: the PREVIOUS entry (crossing)
+    signal nextRequested()                      // rail arrow: the NEXT entry (crossing)
+    // --- page-turn intents from the edge side bars. DISTINCT from prev/nextRequested, which CROSS
+    //     entries — these turn one page/unit WITHIN the entry (shell to pageNext/pagePrev). ---
+    signal advancePageRequested()               // forward in reading order
+    signal retreatPageRequested()               // backward in reading order
+    // --- the title strip ---
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -70,31 +94,38 @@ Item {
 
     Theme { id: theme }
 
-    // mock's exact glass micro-values (surface 01 is the binding contract; finer than Theme's kit)
-    readonly property color cPillBg:      Qt.rgba(1, 1, 1, 0.07)
-    readonly property color cEdgeSoft:    Qt.rgba(1, 1, 1, 0.09)
-    readonly property color cGlass:       Qt.rgba(13 / 255, 14 / 255, 18 / 255, 0.88)
+    // chrome micro-values. The two top bars carry the approved mock's solid dark weight (it is a
+    // BAR in the mock, not a wash) and the rail carries flat gold; both still FLOAT over the comic,
+    // which never resizes to make room for them — that is the "never shifts" rule, and it is also
+    // why they can vanish whole after 2.5s and hand the screen back.
+    readonly property color cTitleBar:    Qt.rgba(5 / 255, 5 / 255, 6 / 255, 0.92)
+    readonly property color cCommandBar:  Qt.rgba(8 / 255, 8 / 255, 9 / 255, 0.90)
+    readonly property color cHairline:    Qt.rgba(1, 1, 1, 0.07)
     readonly property color cGlassDeep:   Qt.rgba(9 / 255, 10 / 255, 13 / 255, 0.94)
-    readonly property color cChipBg:      Qt.rgba(1, 1, 1, 0.06)
-    readonly property color cGoldActive:  Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.14)
-    readonly property color cGoldBorder:  Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
-    readonly property color cGoldGlow:    Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.18)
-    readonly property color cScrubTrack:  Qt.rgba(1, 1, 1, 0.22)
-    readonly property color cTick:        Qt.rgba(1, 1, 1, 0.45)
+    readonly property color cRailGold:    Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.94)
+    readonly property color cRailInk:     Qt.rgba(23 / 255, 19 / 255, 10 / 255, 1.0)
+    readonly property color cRailTrack:   Qt.rgba(23 / 255, 19 / 255, 10 / 255, 0.42)
+    readonly property color cRailTick:    Qt.rgba(23 / 255, 19 / 255, 10 / 255, 0.55)
     readonly property color cSideTrack:   Qt.rgba(1, 1, 1, 0.12)
     readonly property color cSideThumb:   Qt.rgba(1, 1, 1, 0.38)
 
     // ================= pure position math =================
     function _clamp01(v) { return Math.max(0, Math.min(1, v)) }
     function ratioForIndex(idx0, count) { return (count > 1) ? _clamp01(idx0 / (count - 1)) : 0 }
-    // the scrub fill/knob position: DOUBLE maps (page-1)/(max-1); STRIP is the raw scroll fraction.
+    // Is this a PAGED layout (Single Page or Paired Pages) rather than the continuous column? Every
+    // rail decision below turns on THIS, not on `mode === "double_page"`. Asking the old question
+    // was a real, visible bug: Single Page fell to the strip branch, so `stripFraction` (always 0
+    // in a paged layout) drove the rail and it sat dead at zero for the whole book.
+    readonly property bool paged: mode !== "long_strip"
+    // the scrub fill/knob position: PAGED maps (page-1)/(max-1); STRIP is the raw scroll fraction.
     function fillRatio() {
-        return (mode === "double_page") ? ratioForIndex(currentPage - 1, max) : _clamp01(stripFraction)
+        return paged ? ratioForIndex(currentPage - 1, max) : _clamp01(stripFraction)
     }
     // a bookmark tick sits at pageIndex/(max-1)
     function tickRatio(pageIndex0) { return ratioForIndex(pageIndex0, max) }
 
-    // scrub drag -> page: DOUBLE snaps to the containing canonical unit anchor; STRIP is idx+1.
+    // scrub drag -> page: PAIRED snaps to the containing canonical unit anchor; SINGLE and STRIP are
+    // idx+1 (Single Page snaps to no unit — that is the whole point of the layout).
     function _unitAnchorIndex0(idx0) {
         if (reader && reader.core && reader.core.unitForPage) {
             var u = reader.core.unitForPage(idx0)
@@ -115,29 +146,21 @@ Item {
         return idx0 + 1
     }
 
-    // pair-aware counter: a real pair -> "lo-hi / max"; a single/spread -> "page / max".
-    function counterText() {
-        var m = Math.max(1, max)
+    // pair-aware position readout: a real pair -> "lo-hi"; a single/spread -> "page".
+    function counterCurrentText() {
         if (mode === "double_page" && reader && reader.core && reader.core.unitForPage) {
             var u = reader.core.unitForPage(currentPage - 1)
             if (u && u.leftIndex >= 0 && u.rightIndex >= 0 && !u.spread) {
                 var lo = Math.min(u.rightIndex, u.leftIndex) + 1
                 var hi = Math.max(u.rightIndex, u.leftIndex) + 1
-                return lo + "–" + hi + " / " + m   // en dash, matching the mock "45-46 / 230"
+                return lo + "–" + hi                 // en dash, matching the approved mock
             }
         }
-        return Math.max(1, currentPage) + " / " + m
+        return String(Math.max(1, currentPage))
     }
-
-    // ================= the single Manga/Comic/Strip identity (direction baked in) =================
-    // The shell translates the identity into the internal layout+direction seams so a crossing's
-    // load() honors the choice. There is no separate RTL/LTR toggle anymore.
-    function setReadingMode(rm) { if (reader) reader.setReadingMode(rm) }
-    function cycleReadingMode() {
-        var order = ["manga", "comic", "strip"]
-        var i = order.indexOf(readingMode)
-        setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
-    }
+    function counterTotalText() { return String(Math.max(1, max)) }
+    // the same readout as ONE string, for anything that wants it whole (toasts, accessibility)
+    function counterText() { return counterCurrentText() + " / " + counterTotalText() }
 
     // ================= chrome visibility + auto-hide =================
     function toggleChrome() { if (reader) reader.chromeVisible = !reader.chromeVisible }
@@ -146,9 +169,9 @@ Item {
         autoHideTimer.restart()
     }
     function notifyActivity() { if (chromeVisible) autoHideTimer.restart() }
-    // chrome is HELD while a modal is up or the pointer rests ON the chrome — reaching for a pill
-    // and pausing to aim must not fade the pill out from under your cursor (Reader 1 ~:826-830).
-    readonly property bool _holdChrome: modalOpen || chromeHover.hovered
+    // chrome is HELD while a modal or a temporary surface is up, or the pointer rests ON the chrome
+    // — reaching for a command and pausing to aim must not fade it out from under your cursor.
+    readonly property bool _holdChrome: modalOpen || activeOverlay.length > 0 || chromeHover.hovered
     function _autoHide() {
         if (_holdChrome) { autoHideTimer.restart(); return }
         if (reader) reader.chromeVisible = false
@@ -163,74 +186,41 @@ Item {
     onChromeVisibleChanged: { if (chromeVisible) autoHideTimer.restart(); else autoHideTimer.stop() }
     Component.onCompleted: if (chromeVisible) autoHideTimer.restart()
 
-    // ================= nav pill intents (boundary-gated) =================
+    // ================= crossing intents (boundary-gated) =================
     function pressPrev() { if (hasPrev) prevRequested() }
     function pressNext() { if (hasNext) nextRequested() }
 
-    // ================= edge side bars (double-page page-turn affordance) =================
-    // Visible only in double-page (page turns don't apply to continuous Strip scroll). Direction-
-    // aware, matching the click zones + the current reader's NavBar: LEFT bar advances in RTL /
-    // retreats in LTR; RIGHT bar mirrors it. They live in the chrome layer, so they auto-hide with it.
-    readonly property bool navBarsVisible: mode === "double_page" && max > 0
+    // ================= edge side bars (page-turn affordance) =================
+    // Visible in every PAGED layout — Single Page turns pages exactly like a pair, so gating these
+    // on double-page left Single Page with no on-screen page-turn affordance at all. Direction-
+    // aware, matching the click zones: LEFT bar advances in RTL / retreats in LTR; RIGHT mirrors it.
+    // They live in the chrome layer, so they auto-hide with it.
+    readonly property bool navBarsVisible: paged && max > 0
     function navBarTap(isLeft) {
         if (isLeft) { if (rtl) advancePageRequested(); else retreatPageRequested() }
         else        { if (rtl) retreatPageRequested(); else advancePageRequested() }
     }
 
     // enumerable glyph inventory — every HUD glyph is a ComicReaderIcon (semantic-icon-audit oracle).
-    // icBack is EXEMPT: it's the shared BackAction component now (back-navigation unification law),
-    // which owns its own vector chevron and carries no glyphKind — it isn't part of the per-icon audit.
+    // icBack is EXEMPT: it's the shared BackAction component (back-navigation unification law),
+    // which owns its own vector chevron and carries no glyphKind.
     readonly property var iconKinds: [
         icPrev.glyphKind, icNext.glyphKind,
-        icChapters.glyphKind, icThumbs.glyphKind, icSettings.glyphKind,
         icMin.glyphKind, icFull.glyphKind, icClose.glyphKind
-    ]
+    ].concat(commandBar.iconKinds)
 
     // ============================================================================================
     // inline chrome vocabulary
     // ============================================================================================
-    // an icon-only glass pill / window verb
-    component IconPill: Rectangle {
-        id: pill
-        property string glyphKindProp: ""
-        property alias glyphKind: glyph.kind
-        property bool active: false
-        property bool enabledPill: true
-        property color iconInk: theme.inkDim
-        property int side: 30
-        signal tapped()
-        implicitWidth: side
-        implicitHeight: side
-        radius: 9
-        color: pill.active ? hud.cGoldActive : hud.cPillBg
-        border.width: 1
-        border.color: pill.active ? hud.cGoldBorder : hud.cEdgeSoft
-        opacity: pill.enabledPill ? 1.0 : 0.4
-        ComicReaderIcon {
-            id: glyph
-            anchors.centerIn: parent
-            kind: pill.glyphKindProp
-            width: Math.round(pill.side * 0.5)
-            height: width
-            ink: pill.active ? theme.gold : pill.iconInk
-        }
-        MouseArea {
-            anchors.fill: parent
-            enabled: pill.enabledPill
-            cursorShape: Qt.PointingHandCursor
-            onClicked: pill.tapped()
-        }
-    }
-
-    // an immersive window verb (back / minimize / fullscreen / close) — Colosseum's player-chrome
-    // pattern (PlayerPage RoundButton): a TRANSPARENT circular button with a BRIGHT ink glyph, a
-    // faint white hover chip + a subtle scale — NO persistent glass box, NO dim ink. It reads because
-    // it sits on the top gradient scrim, exactly like the footer pills sit on the footer gradient.
+    // an immersive window verb (minimize / fullscreen / close) — Colosseum's player-chrome pattern
+    // (PlayerPage RoundButton): a TRANSPARENT circular button with a BRIGHT ink glyph, a faint white
+    // hover chip + a subtle scale. No persistent glass box, no dim ink.
     component VerbButton: Item {
         id: vb
         property string glyphKindProp: ""
         property alias glyphKind: vbGlyph.kind
-        property int side: 34
+        property string verbName: ""
+        property int side: 30
         signal tapped()
         implicitWidth: side
         implicitHeight: side
@@ -245,6 +235,7 @@ Item {
             id: vbGlyph
             anchors.centerIn: parent
             kind: vb.glyphKindProp
+            accessibleName: vb.verbName
             width: Math.round(vb.side * 0.5); height: width
             ink: theme.ink
         }
@@ -257,48 +248,38 @@ Item {
         }
     }
 
-    // an icon + label glass pill (Library, Chapters)
-    component LabeledPill: Rectangle {
-        id: lp
+    // a rail arrow (crossing to the previous / next entry) — dark ink on the gold rail, no box.
+    component RailArrow: Item {
+        id: ra
         property string glyphKindProp: ""
-        property alias glyphKind: lglyph.kind
-        property string label: ""
-        property color pillColor: hud.cGlass
+        property alias glyphKind: raGlyph.kind
+        property string verbName: ""
+        property bool enabledArrow: true
         signal tapped()
+        implicitWidth: 30
         implicitHeight: 30
-        implicitWidth: lrow.implicitWidth + 24
-        radius: 8
-        color: lp.pillColor
-        border.width: 1
-        border.color: theme.edge
-        Row {
-            id: lrow
+        opacity: ra.enabledArrow ? (raMa.containsMouse ? 1.0 : 0.82) : 0.28
+        Behavior on opacity { NumberAnimation { duration: 90 } }
+        ComicReaderIcon {
+            id: raGlyph
             anchors.centerIn: parent
-            spacing: 7
-            ComicReaderIcon {
-                id: lglyph
-                anchors.verticalCenter: parent.verticalCenter
-                kind: lp.glyphKindProp
-                width: 15; height: 15
-                ink: theme.inkDim
-            }
-            Text {
-                anchors.verticalCenter: parent.verticalCenter
-                text: lp.label
-                color: theme.inkDim
-                font.family: theme.hud
-                font.pixelSize: 12
-            }
+            kind: ra.glyphKindProp
+            accessibleName: ra.verbName
+            width: 19; height: 19
+            ink: hud.cRailInk
         }
         MouseArea {
+            id: raMa
             anchors.fill: parent
+            hoverEnabled: true
+            enabled: ra.enabledArrow
             cursorShape: Qt.PointingHandCursor
-            onClicked: lp.tapped()
+            onClicked: ra.tapped()
         }
     }
 
     // ============================================================================================
-    // the chrome layer (fades whole on auto-hide)
+    // the chrome layer (fades whole on auto-hide — toolbar, title toast and rail sleep together)
     // ============================================================================================
     Item {
         id: chromeLayer
@@ -307,60 +288,118 @@ Item {
         visible: opacity > 0.001
         Behavior on opacity { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
-        // a pointer resting anywhere on the chrome (pill, scrim, footer) holds auto-hide — see
-        // hud._holdChrome. chromeLayer is a plain Item (not a Row/Column), so this anchors legally.
+        // a pointer resting anywhere on the chrome holds auto-hide — see hud._holdChrome.
         HoverHandler { id: chromeHover }
 
-        // ---- top gradient scrim: darkens the top edge so the back + window verbs read on ANY page,
-        //      mirroring the footer gradient (and the player's playerTopScrim). The page still owns
-        //      the screen — this is a soft visitor, not a bar. ----
+        // ---- the thin title strip: Back, the book title, the window verbs ----
         Rectangle {
-            id: topScrim
+            id: titleBar
+            objectName: "readerTitleBar"
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 108
+            height: 38
+            color: hud.cTitleBar
+
+            // click-swallower: an empty-strip click must not fall through and turn a page
+            MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+
+            // Shared BackAction component (back-navigation unification law). This is the ONLY
+            // reader-to-library exit — Escape never leaves the book.
+            BackAction {
+                id: icBack
+                objectName: "hudBackAction"
+                x: 14
+                anchors.verticalCenter: parent.verticalCenter
+                variant: "plain"
+                label: "Library"
+                labelSize: 13
+                idleColor: theme.inkDim
+                hoverColor: theme.gold
+                onTriggered: hud.backRequested()
+            }
+
+            Text {
+                id: bookTitle
+                objectName: "readerBookTitle"
+                anchors.left: icBack.right
+                anchors.leftMargin: 22
+                anchors.right: verbs.left
+                anchors.rightMargin: 18
+                anchors.verticalCenter: parent.verticalCenter
+                // "ONE PIECE · VOLUME 70" — series then the entry, the approved mock's title line.
+                text: hud.curLabel.length ? (hud.seriesTitle + "  ·  " + hud.curLabel) : hud.seriesTitle
+                color: theme.inkDim
+                font.family: theme.hud
+                font.pixelSize: 12
+                font.letterSpacing: 0.6
+                elide: Text.ElideRight
+            }
+
+            Row {
+                id: verbs
+                anchors.right: parent.right
+                anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 2
+                VerbButton { id: icMin;   glyphKindProp: "minimize";   verbName: "Minimize";   onTapped: hud.minimizeRequested() }
+                VerbButton { id: icFull;  glyphKindProp: "fullscreen"; verbName: "Fullscreen"; onTapped: hud.fullscreenRequested() }
+                VerbButton { id: icClose; glyphKindProp: "close";      verbName: "Close";      onTapped: hud.closeRequested() }
+            }
+        }
+
+        // ---- ONE flat command bar. No sidebar, no drawer, no pills. ----
+        Rectangle {
+            id: commandStrip
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: titleBar.bottom
+            height: 46
+            color: hud.cCommandBar
+
+            Rectangle {                                  // hairline under the bar
+                anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+                height: 1
+                color: hud.cHairline
+            }
+
+            MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
+
+            ComicReaderCommandBar {
+                id: commandBar
+                anchors.fill: parent
+                layout: hud.layout
+                order: hud.order
+                activeOverlay: hud.activeOverlay
+                bookmarked: hud.bookmarkedHere
+                // the chrome RAISES intents; the shell's coordinator decides what opens
+                onCommandTriggered: function (command) {
+                    switch (command) {
+                    case "bookmark": hud.toggleBookmark(); break
+                    case "pages":    hud.openPages();      break
+                    case "loupe":    hud.openLoupe();      break
+                    case "image":    hud.openImage();      break
+                    case "layout":   hud.openLayout();     break
+                    case "order":    hud.toggleOrder();    break
+                    }
+                }
+            }
+        }
+
+        // ---- a short fade under the command bar so it does not cut hard against bright page art ----
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: commandStrip.bottom
+            height: 26
             gradient: Gradient {
-                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.58) }
+                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.42) }
                 GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.0) }
             }
         }
 
-        // ---- back to Library (top-left) — bright glyph + label on the scrim, no glass box ----
-        // Shared BackAction component (back-navigation unification law). raisedLabel:true opts
-        // into the black drop-shadow under both the chevron and the label — Hemanth's legibility
-        // ruling for a control with no chrome behind it, sitting directly on bright manga art.
-        BackAction {
-            id: icBack
-            objectName: "hudBackAction"
-            // BackAction's implicitHeight is a fixed 34px (all variants) and vertically centers its
-            // Row inside that box; the old hand-built Row sat directly at y:16 with no such box. y:9
-            // compensates so the visible chevron+label land at the SAME screen position as before
-            // (measured offscreen: root height 34, Row offset 7px within it -> 9+7=16).
-            x: 18; y: 9
-            variant: "plain"
-            label: "Library"
-            raisedLabel: true
-            labelSize: 14
-            idleColor: theme.ink
-            hoverColor: theme.gold
-            onTriggered: hud.backRequested()
-        }
-
-        // ---- window verbs (top-right) — transparent RoundButtons on the scrim, bright ink ----
-        Row {
-            id: verbs
-            anchors.right: parent.right
-            anchors.top: parent.top
-            anchors.rightMargin: 16
-            anchors.topMargin: 14
-            spacing: 4
-            VerbButton { id: icMin;   glyphKindProp: "minimize";   onTapped: hud.minimizeRequested() }
-            VerbButton { id: icFull;  glyphKindProp: "fullscreen"; onTapped: hud.fullscreenRequested() }
-            VerbButton { id: icClose; glyphKindProp: "close";      onTapped: hud.closeRequested() }
-        }
-
-        // ---- thin side scroller (right edge) ----
+        // ---- thin side scroller (right edge) — the vertical position thumb, most useful in the
+        //      continuous column. Not a sidebar: it draws no panel and holds no commands. ----
         Rectangle {
             id: sideScroller
             width: 3
@@ -368,9 +407,9 @@ Item {
             color: hud.cSideTrack
             anchors.right: parent.right
             anchors.rightMargin: 8
-            anchors.top: parent.top
-            anchors.topMargin: 70
-            anchors.bottom: footer.top
+            anchors.top: commandStrip.bottom
+            anchors.topMargin: 30
+            anchors.bottom: progressRail.top
             anchors.bottomMargin: 24
             Rectangle {
                 id: sideThumb
@@ -394,26 +433,24 @@ Item {
                     anchors.fill: parent
                     anchors.margins: -6
                     // NO cursorShape. A resize cursor here says "drag to resize", which is not what
-                    // this does, and Tankoban 2 explicitly reverted the same SizeVerCursor for that
-                    // reason — restoring it was a lineage paraphrase, not a port. (E6)
+                    // this does, and Tankoban 2 explicitly reverted the same SizeVerCursor. (E6)
                     drag.target: sideThumb
                     drag.axis: Drag.YAxis
                     drag.minimumY: 0
                     drag.maximumY: sideThumb._span
-                    // same auto-hide pause/reset as the footer scrub — never fade the chrome mid-drag
+                    // same auto-hide pause/reset as the rail scrub — never fade the chrome mid-drag
                     onPressed: autoHideTimer.stop()
                     onReleased: hud.notifyActivity()
                     onPositionChanged: {
                         if (!pressed) return
                         var r = sideThumb._span > 0 ? hud._clamp01(sideThumb.y / sideThumb._span) : 0
-                        if (hud.mode === "double_page") hud.seekRequested(hud.pageForRatio(r))
-                        else hud.scrubFractionRequested(r)
+                        hud._emitScrub(r)
                     }
                 }
             }
         }
 
-        // ---- edge side bars: a visible, direction-aware page-turn affordance (double-page only) ----
+        // ---- edge side bars: a visible, direction-aware page-turn affordance (paged layouts) ----
         // Chevron is PHYSICAL (left bar = a left chevron, right bar = a right); the ACTION is
         // direction-aware via navBarTap(). Glyphs are ComicReaderIcon (semantic-icon-audit law).
         component NavBar: Item {
@@ -424,8 +461,7 @@ Item {
             visible: hud.navBarsVisible
             // Tankoban 2's SideNavArrow scheme: a big chevron drawn TWICE — a black drop shadow, then
             // a white foreground — so it reads on ANY page (a plain white glyph vanishes on a white
-            // manga page; gold was wrong too). No bg fill. Brighter on hover. ComicReaderIcon per the
-            // semantic-icon-audit law (TB2's QtWidget paints a Segoe UI chevron; we colorize ours).
+            // manga page; gold was wrong too). No bg fill. Brighter on hover.
             ComicReaderIcon {                       // drop shadow (TB2: QColor(0,0,0,90) offset +2,+2)
                 anchors.centerIn: parent
                 anchors.horizontalCenterOffset: 2
@@ -453,42 +489,120 @@ Item {
         NavBar { objectName: "hudNavLeft";  isLeft: true;  anchors.left: parent.left }
         NavBar { objectName: "hudNavRight"; isLeft: false; anchors.right: parent.right }
 
-        // ---- bottom gradient footer ----
-        Item {
-            id: footer
+        // ---- the title toast: the BOOK, stated big and plainly, sleeping with the rest of the
+        //      chrome. Sits just above the rail, exactly as the approved mock places it — and it
+        //      carries the SHORT form (the series alone) while the strip above carries the long one
+        //      (series + entry). Two sizes of the same fact is redundancy, not hierarchy. ----
+        Rectangle {
+            id: titleToast
+            objectName: "readerTitleToast"
+            visible: hud.seriesTitle.length > 0
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.bottom: progressRail.top
+            anchors.bottomMargin: 26
+            width: Math.min(parent.width - 120, titleToastText.implicitWidth + 44)
+            height: 42
+            color: Qt.rgba(5 / 255, 5 / 255, 6 / 255, 0.82)
+            Text {
+                id: titleToastText
+                objectName: "readerTitleToastText"
+                anchors.centerIn: parent
+                width: parent.width - 44
+                horizontalAlignment: Text.AlignHCenter
+                text: hud.seriesTitle
+                color: theme.ink
+                font.family: theme.hud
+                font.pixelSize: 19
+                elide: Text.ElideRight
+            }
+        }
+
+        // ---- a short fade above the rail, mirroring the one under the command bar ----
+        Rectangle {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.bottom: progressRail.top
+            height: 40
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: Qt.rgba(0, 0, 0, 0.0) }
+                GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.46) }
+            }
+        }
+
+        // ---- ONE gold bottom rail: where you are, how long the book is, and the way to move ----
+        Rectangle {
+            id: progressRail
+            objectName: "readerProgressRail"
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            height: 104
+            height: 54
+            color: hud.cRailGold
 
-            Rectangle {
-                anchors.fill: parent
-                gradient: Gradient {
-                    GradientStop { position: 0.00; color: Qt.rgba(0, 0, 0, 0.0) }
-                    GradientStop { position: 0.42; color: Qt.rgba(0, 0, 0, 0.62) }
-                    GradientStop { position: 1.00; color: Qt.rgba(0, 0, 0, 0.90) }
-                }
-            }
-
-            // click-swallower over the footer background (floating-panel/click-swallower house law):
-            // an empty-footer click must NOT fall through to the page input beneath (bottom-corner
-            // clicks turning pages, center-footer clicks toggling chrome). Declared BEFORE the scrub
-            // and pill rows, so those interactive children sit above it and still receive their clicks.
+            // click-swallower (floating-panel/click-swallower house law): a click on the rail's
+            // empty ground must NOT fall through to the page input beneath. Declared FIRST so the
+            // interactive children below sit above it and still receive their clicks.
             MouseArea { anchors.fill: parent; acceptedButtons: Qt.LeftButton | Qt.RightButton; onClicked: {} }
 
-            // ------- gold scrub thread -------
-            // hidden for a one-page entry (Reader 1 ~:1492) — there is nowhere to scrub to.
+            RailArrow {
+                id: icPrev
+                objectName: "railPrevEntry"
+                glyphKindProp: "prev"
+                verbName: "Previous chapter"
+                enabledArrow: hud.prevEnabled
+                anchors.left: parent.left
+                anchors.leftMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: hud.pressPrev()
+            }
+            Text {
+                id: railCurrent
+                objectName: "railCurrent"
+                anchors.left: icPrev.right
+                anchors.leftMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                text: hud.counterCurrentText()
+                color: hud.cRailInk
+                font.family: theme.hud
+                font.pixelSize: 17
+                font.bold: true
+            }
+            RailArrow {
+                id: icNext
+                objectName: "railNextEntry"
+                glyphKindProp: "next"
+                verbName: "Next chapter"
+                enabledArrow: hud.nextEnabled
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                anchors.verticalCenter: parent.verticalCenter
+                onTapped: hud.pressNext()
+            }
+            Text {
+                id: railTotal
+                objectName: "railTotal"
+                anchors.right: icNext.left
+                anchors.rightMargin: 14
+                anchors.verticalCenter: parent.verticalCenter
+                text: hud.counterTotalText()
+                color: hud.cRailInk
+                font.family: theme.hud
+                font.pixelSize: 17
+            }
+
+            // ------- the scrub affordance -------
+            // hidden for a one-page entry (there is nowhere to scrub to); the two numbers stay, so
+            // the rail still answers "where am I".
             Item {
                 id: scrub
                 objectName: "hudScrub"
                 visible: hud.max > 1
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.leftMargin: 22
-                anchors.rightMargin: 22
-                anchors.top: parent.top
-                anchors.topMargin: 30
-                height: 12
+                anchors.left: railCurrent.right
+                anchors.right: railTotal.left
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                height: 14
 
                 Rectangle {
                     id: scrubTrack
@@ -496,54 +610,49 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    height: 4
+                    height: 3
                     radius: 2
-                    color: hud.cScrubTrack
+                    color: hud.cRailTrack
 
-                    // the bubble/knob DISPLAY position follows the POINTER while hovering OR
-                    // dragging (FIX 2 — it used to repeat fillRatio(), i.e. your CURRENT position,
-                    // until you committed and dragged); otherwise it shows the real read position.
+                    // the knob/bubble DISPLAY position follows the POINTER while hovering OR
+                    // dragging; otherwise it shows the real read position.
                     readonly property bool pointerActive: hud._scrubbing || scrubHover.hovered
                     readonly property real knobRatio: pointerActive ? hud._scrubRatio : hud.fillRatio()
 
-                    // gold fill to the current position
+                    // fill to the current position
                     Rectangle {
                         anchors.left: parent.left
                         anchors.top: parent.top
                         anchors.bottom: parent.bottom
                         width: parent.width * scrubTrack.knobRatio
                         radius: 2
-                        color: theme.gold
+                        color: hud.cRailInk
                     }
 
                     // bookmark ticks
                     Repeater {
                         model: hud.bookmarkPages
                         delegate: Rectangle {
-                            width: 2; height: 10; radius: 1
-                            color: hud.cTick
-                            y: -3
+                            required property var modelData
+                            width: 2; height: 11; radius: 1
+                            color: hud.cRailTick
+                            y: -4
                             x: scrubTrack.width * hud.tickRatio(modelData) - width / 2
                         }
                     }
 
-                    // gold knob + glow — the knob GROWS while hovering/dragging (a scaled-up TB2's
-                    // 4->5px-radius grow, applied to our approved-mock rest size: 12->15px width)
-                    Rectangle {
-                        id: knobGlow
-                        width: 20; height: 20; radius: 10
-                        color: hud.cGoldGlow
-                        x: scrubTrack.width * scrubTrack.knobRatio - width / 2
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                    // the knob GROWS while hovering/dragging (TB2's 4->5px-radius grow, scaled to
+                    // the approved rest size)
                     Rectangle {
                         id: knob
                         objectName: "hudKnob"
-                        width: scrubTrack.pointerActive ? 15 : 12
+                        width: scrubTrack.pointerActive ? 20 : 16
                         height: width
                         radius: width / 2
                         Behavior on width { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
-                        color: theme.gold
+                        color: hud.cRailGold
+                        border.width: 3
+                        border.color: hud.cRailInk
                         x: scrubTrack.width * scrubTrack.knobRatio - width / 2
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -552,28 +661,27 @@ Item {
                     Rectangle {
                         id: bubble
                         visible: scrubTrack.pointerActive
-                        height: 20
-                        width: bubbleText.implicitWidth + 18
+                        height: 22
+                        width: bubbleText.implicitWidth + 20
                         radius: 6
                         color: hud.cGlassDeep
                         border.width: 1
                         border.color: theme.edge
-                        y: -32
+                        y: -36
                         x: Math.max(0, Math.min(scrubTrack.width - width,
                                     scrubTrack.width * scrubTrack.knobRatio - width / 2))
                         Text {
                             id: bubbleText
                             objectName: "hudBubbleText"
                             anchors.centerIn: parent
-                            // consults the shell's geometry-honest resolver (FIX 2) instead of
-                            // recomputing its own estimate — degrades to the old pure math if the
-                            // seam is absent (a harness fake, or an older shell).
+                            // consults the shell's geometry-honest resolver instead of recomputing
+                            // its own estimate — degrades to the pure math if the seam is absent.
                             text: (hud.reader && hud.reader.pageAtFraction)
                                   ? hud.reader.pageAtFraction(scrubTrack.knobRatio)
                                   : hud.pageForRatio(scrubTrack.knobRatio)
                             color: theme.gold
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: 12
                             font.bold: true
                         }
                     }
@@ -582,128 +690,23 @@ Item {
                 HoverHandler { id: scrubHover }
                 MouseArea {
                     anchors.fill: parent
-                    anchors.topMargin: -6
-                    anchors.bottomMargin: -6
+                    anchors.topMargin: -10
+                    anchors.bottomMargin: -10
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     function _ratioAt(mx) {
                         return scrubTrack.width > 0 ? hud._clamp01(mx / scrubTrack.width) : 0
                     }
                     // PAUSE auto-hide for the whole drag, then reset on release — else scrubbing a
-                    // long book for >3s fires _autoHide -> chromeVisible=false -> this MouseArea
+                    // long book for >2.5s fires _autoHide -> chromeVisible=false -> this MouseArea
                     // (inside the opacity-gated chromeLayer) vanishes under the cursor mid-drag.
                     onPressed: function (m) { autoHideTimer.stop(); hud._scrubbing = true; hud._scrubRatio = _ratioAt(m.x); hud._emitScrub(hud._scrubRatio) }
-                    // hoverEnabled now delivers this on a plain hover move too (no button down) —
-                    // track the pointer's ratio regardless, but only EMIT the navigation while an
-                    // actual drag (_scrubbing) is in progress; a hover must only move the bubble.
+                    // a plain hover move only moves the bubble; only a real drag EMITS navigation.
                     onPositionChanged: function (m) {
                         hud._scrubRatio = _ratioAt(m.x)
                         if (hud._scrubbing) hud._emitScrub(hud._scrubRatio)
                     }
                     onReleased: { hud._scrubbing = false; hud.notifyActivity() }
-                }
-            }
-
-            // ------- HUD row: left group (prev · counter · next) -------
-            Row {
-                id: leftGroup
-                anchors.left: parent.left
-                anchors.leftMargin: 22
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 14
-                spacing: 9
-                IconPill {
-                    id: icPrev
-                    glyphKindProp: "prev"
-                    enabledPill: hud.prevEnabled
-                    anchors.verticalCenter: parent.verticalCenter
-                    onTapped: hud.pressPrev()
-                }
-                Text {
-                    id: counter
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: hud.counterText()
-                    color: theme.ink
-                    font.family: theme.hud
-                    font.pixelSize: 13
-                    font.bold: true
-                }
-                IconPill {
-                    id: icNext
-                    glyphKindProp: "next"
-                    enabledPill: hud.nextEnabled
-                    anchors.verticalCenter: parent.verticalCenter
-                    onTapped: hud.pressNext()
-                }
-            }
-
-            // ------- HUD row: right group (chapters · thumbnails · mode chip · direction · settings) -------
-            Row {
-                id: rightGroup
-                anchors.right: parent.right
-                anchors.rightMargin: 22
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: 14
-                spacing: 9
-                LabeledPill {
-                    id: icChapters
-                    glyphKindProp: "chapters"
-                    label: "Chapters"
-                    pillColor: hud.cPillBg
-                    anchors.verticalCenter: parent.verticalCenter
-                    onTapped: hud.openNavigator()
-                }
-                IconPill {
-                    id: icThumbs
-                    glyphKindProp: "thumbnails"
-                    anchors.verticalCenter: parent.verticalCenter
-                    onTapped: hud.openThumbnails()
-                }
-
-                // ONE three-segment identity chip — Manga (RTL double, MangaPlus) / Comic (LTR
-                // double) / Strip (vertical). Active segment gold; direction is baked into the choice.
-                Rectangle {
-                    id: modeChip
-                    anchors.verticalCenter: parent.verticalCenter
-                    height: 30
-                    width: modeRow.implicitWidth
-                    radius: 9
-                    color: hud.cChipBg
-                    border.width: 1
-                    border.color: hud.cEdgeSoft
-                    clip: true
-                    component ModeSeg: Rectangle {
-                        property string rm: ""
-                        property string label: ""
-                        readonly property bool on: hud.readingMode === rm
-                        height: modeRow.height
-                        width: segText.implicitWidth + 24
-                        color: on ? hud.cGoldActive : "transparent"
-                        Text {
-                            id: segText
-                            anchors.centerIn: parent
-                            text: parent.label
-                            color: parent.on ? theme.gold : theme.inkDimmer
-                            font.family: theme.hud
-                            font.pixelSize: 12
-                            font.bold: parent.on
-                        }
-                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: hud.setReadingMode(parent.rm) }
-                    }
-                    Row {
-                        id: modeRow
-                        height: parent.height
-                        ModeSeg { objectName: "hudModeManga"; rm: "manga"; label: "Manga" }
-                        ModeSeg { objectName: "hudModeComic"; rm: "comic"; label: "Comic" }
-                        ModeSeg { objectName: "hudModeStrip"; rm: "strip"; label: "Strip" }
-                    }
-                }
-
-                IconPill {
-                    id: icSettings
-                    glyphKindProp: "settings"
-                    anchors.verticalCenter: parent.verticalCenter
-                    onTapped: hud.openSettings()
                 }
             }
         }
@@ -712,8 +715,11 @@ Item {
     // ================= scrub interaction state =================
     property bool _scrubbing: false
     property real _scrubRatio: 0
+    // PAGED layouts seek a PAGE; only the continuous column takes a scroll fraction. Asking
+    // `mode === "double_page"` here sent the strip command to Single Page, whose surface has no
+    // scrolling column at all — so dragging the rail in Single Page did nothing whatsoever.
     function _emitScrub(ratio) {
-        if (mode === "double_page") seekRequested(pageForRatio(ratio))
+        if (paged) seekRequested(pageForRatio(ratio))
         else scrubFractionRequested(_clamp01(ratio))
     }
 

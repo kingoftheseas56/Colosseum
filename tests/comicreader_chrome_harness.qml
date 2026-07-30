@@ -73,9 +73,14 @@ Item {
         property int currentPage: 1
         property int max: 1
         property int maxSeen: 0
-        property string mode: "long_strip"        // internal layout (counter/scrub read this)
-        property bool rtl: false                  // internal direction
-        property string readingMode: "manga"      // the single user-facing identity
+        // LAYOUT + ORDER are the persisted truth (Task 3); `mode`/`rtl` are DERIVED, READONLY
+        // aliases — and the fake mirrors that shape deliberately. A fake that let a test assign
+        // `mode` directly could reach states the real shell (where `mode` is readonly) never can,
+        // which is exactly how a fixture ends up written to the same wrong assumption as the code.
+        property string layout: "long_strip"       // single_page | paired_pages | long_strip
+        property string order: "ltr"               // ltr | rtl
+        readonly property string mode: layout === "paired_pages" ? "double_page" : layout
+        readonly property bool   rtl: order === "rtl"
         property real stripFraction: 0
         property int zoomPercent: 100
         property bool hasNext: false
@@ -84,20 +89,25 @@ Item {
         property string seriesTitle: ""
         property bool chromeVisible: true
         property bool modalOpen: false
-        property string persistedMode: ""
-        property string persistedDirection: ""
         property var bookmarkPages: []
         property var core: null
+        // Task 5: the ONE overlay coordinator the chrome raises intents at. The chrome never
+        // mounts or owns a surface — it only asks, and the shell decides.
+        property string activeOverlay: ""          // "" | pages | image | layout | loupe
         signal backRequested()
         signal minimizeRequested()
         signal fullscreenRequested()
         signal closeRequested()
-        // mirror the real shell: the mode selector writes the identity -> internal layout+dir seams
-        function setReadingMode(rm) {
-            readingMode = rm
-            persistedMode = (rm === "strip") ? "long_strip" : "double_page"
-            persistedDirection = (rm === "manga") ? "rtl" : "ltr"
+        // mirrors ComicReaderShell.openOverlay: same name re-asked = close (one temporary surface)
+        property var overlaySpy: ({ calls: 0, last: "" })
+        function openOverlay(name) {
+            overlaySpy.calls += 1
+            overlaySpy.last = String(name)
+            activeOverlay = (activeOverlay === String(name)) ? "" : String(name)
         }
+        function setLayout(v) { layout = String(v) }
+        function setOrder(v)  { order = String(v) }
+        function toggleOrder() { order = (order === "rtl") ? "ltr" : "rtl" }
         // FIX 2 spy: the scrub bubble must CONSULT this resolver rather than recompute its own
         // estimate. Fixed return (42) so the assertion proves consultation, not coincidence.
         // The counter lives INSIDE a `property var` container (mirrors this file's own sig/bump
@@ -187,17 +197,19 @@ Item {
         var kinds = hud.iconKinds
         ck(kinds !== undefined && kinds.length >= 8,
            "hud: expected >=8 ComicReaderIcon glyphs, got " + (kinds ? kinds.length : "<none>"))
-        var needed = ["prev", "next", "chapters", "thumbnails", "settings", "minimize", "fullscreen", "close"]
+        // Task 5: the retired inventory (chapters / thumbnails / settings pills) is replaced by the
+        // approved six commands. prev/next survive as the progress rail's crossing arrows.
+        var needed = ["prev", "next", "bookmark", "pages", "loupe", "image", "minimize", "fullscreen", "close"]
         for (var n = 0; n < needed.length; n++)
             ck(kinds && kinds.indexOf(needed[n]) >= 0, "hud: glyph '" + needed[n] + "' must be a ComicReaderIcon in the HUD, got " + JSON.stringify(kinds))
 
-        // ----- scrub ratio<->page: DOUBLE maps (page-1)/(max-1) -----
-        shellA.max = 230; shellA.mode = "double_page"; shellA.currentPage = 46; shellA.stripFraction = 0
-        ck(approx(hud.fillRatio(), 45.0 / 229.0), "hud double: fillRatio must be (46-1)/(230-1), got " + hud.fillRatio())
+        // ----- scrub ratio<->page: PAGED maps (page-1)/(max-1) -----
+        shellA.max = 230; shellA.layout = "paired_pages"; shellA.currentPage = 46; shellA.stripFraction = 0
+        ck(approx(hud.fillRatio(), 45.0 / 229.0), "hud paired: fillRatio must be (46-1)/(230-1), got " + hud.fillRatio())
         // strip maps to the scroll fraction directly
-        shellA.mode = "long_strip"; shellA.stripFraction = 0.37
+        shellA.layout = "long_strip"; shellA.stripFraction = 0.37
         ck(approx(hud.fillRatio(), 0.37), "hud strip: fillRatio must equal stripFraction 0.37, got " + hud.fillRatio())
-        shellA.mode = "double_page"
+        shellA.layout = "paired_pages"
 
         // ----- bookmark ticks at page/(max-1) -----
         ck(approx(hud.tickRatio(45), 45.0 / 229.0), "hud: tick at page index 45 must be 45/(230-1), got " + hud.tickRatio(45))
@@ -212,9 +224,9 @@ Item {
         var r45 = 45.0 / 229.0   // ratio that rounds to index 45 (inside the [44,45] unit)
         ck(hud.pageForRatio(r45) === 45, "hud double: pageForRatio must SNAP index 45 to its unit anchor page 45 (1-based), got " + hud.pageForRatio(r45))
         // strip mode: the scrub emits a fraction, not a snapped page — pageForRatio(0.5) is just idx+1
-        shellA.mode = "long_strip"
+        shellA.layout = "long_strip"
         ck(hud.pageForRatio(0.0) === 1, "hud strip: pageForRatio(0) must be page 1, got " + hud.pageForRatio(0.0))
-        shellA.mode = "double_page"
+        shellA.layout = "paired_pages"
 
         // ----- pair-aware counter -----
         shellA.currentPage = 45   // anchor into the [44,45] pair unit (0-based 44)
@@ -227,52 +239,44 @@ Item {
         coreA.units[45] = { rightIndex: 45, leftIndex: -1, spread: true, coverAlone: false }
         ck(hud.counterText() === "46 / 230", "hud: a spread counter must read its one page '46 / 230', got '" + hud.counterText() + "'")
 
-        // ----- ONE Mode selector: Manga/Comic/Strip WRITE via setReadingMode (direction baked in) -----
-        shellA.readingMode = "manga"; shellA.persistedMode = ""; shellA.persistedDirection = ""
-        hud.setReadingMode("comic")
-        ck(shellA.readingMode === "comic", "hud: mode chip must set readingMode='comic', got '" + shellA.readingMode + "'")
-        ck(shellA.persistedMode === "double_page" && shellA.persistedDirection === "ltr",
-           "hud: Comic must write double_page + LTR seams (no RTL/LTR toggle), got '" + shellA.persistedMode + "'/'" + shellA.persistedDirection + "'")
-        hud.setReadingMode("strip")
-        ck(shellA.readingMode === "strip" && shellA.persistedMode === "long_strip", "hud: Strip must set readingMode='strip' + long_strip layout")
-        // cycleReadingMode advances Manga -> Comic -> Strip -> Manga
-        shellA.readingMode = "manga"
-        hud.cycleReadingMode()
-        ck(shellA.readingMode === "comic", "hud: cycleReadingMode from manga must advance to comic, got '" + shellA.readingMode + "'")
-
-        // ----- prev/next pills honor hasPrev/hasNext -----
+        // ----- prev/next crossing arrows honor hasPrev/hasNext -----
         shellA.hasPrev = false; shellA.hasNext = false
         sig = {}
         hud.prevRequested.connect(function () { bump("prevRequested") })
         hud.nextRequested.connect(function () { bump("nextRequested") })
         hud.pressPrev(); hud.pressNext()
-        ck(cnt("prevRequested") === 0 && cnt("nextRequested") === 0, "hud: prev/next pills at a boundary must emit NO intent, got prev=" + cnt("prevRequested") + " next=" + cnt("nextRequested"))
-        ck(hud.prevEnabled === false && hud.nextEnabled === false, "hud: prev/next pills must be disabled when hasPrev/hasNext false")
+        ck(cnt("prevRequested") === 0 && cnt("nextRequested") === 0, "hud: prev/next arrows at a boundary must emit NO intent, got prev=" + cnt("prevRequested") + " next=" + cnt("nextRequested"))
+        ck(hud.prevEnabled === false && hud.nextEnabled === false, "hud: prev/next arrows must be disabled when hasPrev/hasNext false")
         shellA.hasPrev = true; shellA.hasNext = true
         hud.pressPrev(); hud.pressNext()
-        ck(cnt("prevRequested") === 1 && cnt("nextRequested") === 1, "hud: prev/next pills must emit their intent when enabled, got prev=" + cnt("prevRequested") + " next=" + cnt("nextRequested"))
+        ck(cnt("prevRequested") === 1 && cnt("nextRequested") === 1, "hud: prev/next arrows must emit their intent when enabled, got prev=" + cnt("prevRequested") + " next=" + cnt("nextRequested"))
 
-        // ----- edge SIDE NAV BARS: double-page only, direction-aware page turn -----
+        // ----- edge SIDE NAV BARS: every PAGED layout, direction-aware page turn -----
         // LEFT bar advances in RTL / retreats in LTR; RIGHT bar mirrors it (matches the click zones
         // and the current reader's NavBar). advance = pageNext (forward in reading), retreat = pagePrev.
         sig = {}
         hud.advancePageRequested.connect(function () { bump("advancePage") })
         hud.retreatPageRequested.connect(function () { bump("retreatPage") })
-        shellA.max = 230; shellA.mode = "double_page"; shellA.rtl = true
-        ck(hud.navBarsVisible === true, "hud: side nav bars must be VISIBLE in double-page mode")
+        shellA.max = 230; shellA.layout = "paired_pages"; shellA.order = "rtl"
+        ck(hud.navBarsVisible === true, "hud: side nav bars must be VISIBLE in Paired Pages")
         sig = {}; hud.navBarTap(true)   // left bar, RTL -> advance (next in reading)
         ck(cnt("advancePage") === 1 && cnt("retreatPage") === 0, "hud: LEFT bar in RTL -> advance page")
         sig = {}; hud.navBarTap(false)  // right bar, RTL -> retreat
         ck(cnt("retreatPage") === 1 && cnt("advancePage") === 0, "hud: RIGHT bar in RTL -> retreat page")
-        shellA.rtl = false
+        shellA.order = "ltr"
         sig = {}; hud.navBarTap(true)   // left bar, LTR -> retreat
         ck(cnt("retreatPage") === 1 && cnt("advancePage") === 0, "hud: LEFT bar in LTR -> retreat page")
         sig = {}; hud.navBarTap(false)  // right bar, LTR -> advance
         ck(cnt("advancePage") === 1 && cnt("retreatPage") === 0, "hud: RIGHT bar in LTR -> advance page")
+        // DEFECT 3 (Task 5): Single Page is a PAGED layout — it turns pages exactly like a pair, so
+        // the side bars must be there too. They used to be gated on `mode === "double_page"`, which
+        // left Single Page with no on-screen page-turn affordance at all.
+        shellA.layout = "single_page"
+        ck(hud.navBarsVisible === true, "hud: side nav bars must be VISIBLE in Single Page too (paged layout)")
         // hidden in Strip mode (page turns don't apply to continuous scroll)
-        shellA.mode = "long_strip"
-        ck(hud.navBarsVisible === false, "hud: side nav bars must be HIDDEN in Strip mode")
-        shellA.mode = "double_page"
+        shellA.layout = "long_strip"
+        ck(hud.navBarsVisible === false, "hud: side nav bars must be HIDDEN in Long Strip")
+        shellA.layout = "paired_pages"
 
         // ----- toggleChrome flips chromeVisible on the shell seam -----
         shellA.chromeVisible = true
@@ -297,7 +301,7 @@ Item {
         // synthetic pointer injection — the file's own hover-quirk note documents that gap), so
         // this drives the DRAG arm of the shared (_scrubbing || scrubHover.hovered) condition;
         // the hover arm is the identical code path, just a different trigger.
-        shellA.max = 230; shellA.mode = "long_strip"; shellA.stripFraction = 0; shellA.currentPage = 1
+        shellA.max = 230; shellA.layout = "long_strip"; shellA.stripFraction = 0; shellA.currentPage = 1
         var scrubTrack = byName(hud, "hudScrubTrack")
         var knob = byName(hud, "hudKnob")
         var bubbleText = byName(hud, "hudBubbleText")
@@ -336,6 +340,140 @@ Item {
         harness._toastText = byName(hud, "hudToastText")
         ck(harness._toast !== null, "toast: the HUD must mount a toast surface")
         ck(harness._toast.opacity === 0, "toast: starts hidden")
+    }
+
+    // ============ TASK 5: the approved sidebar-free command chrome ============
+    // Hemanth's approved ledger, verbatim: "Thin title strip with Back and book title. One flat top
+    // command bar: Bookmark, Pages, Loupe, Image, current Layout, and current Order. No reader
+    // sidebar. No permanent settings drawer. One gold bottom rail with current position, total
+    // pages, and scrub affordance. ... Toolbar, title toast, progress rail, and cursor sleep
+    // together after 2.5 seconds of inactivity."
+    //
+    // He corrected an earlier mock personally on two points, and these assertions are the fence
+    // around both: "colosseum does not have a side panel we can use inside the reader", and
+    // "Cover's simplicity is not 'hide everything inside a modern drawer'. It is one shallow layer:
+    // large, plainly named actions across the top; one unmistakable progress bar at the bottom; no
+    // pill soup, no nested control architecture."
+    function runCommandChrome() {
+        // ---- structure: the three approved surfaces, and the one that must NOT exist ----
+        ck(byName(hud, "readerTitleBar") !== null, "chrome: a thin title strip must exist (readerTitleBar)")
+        ck(byName(hud, "readerCommandBar") !== null, "chrome: the flat command bar must exist (readerCommandBar)")
+        ck(byName(hud, "readerProgressRail") !== null, "chrome: the gold progress rail must exist (readerProgressRail)")
+        ck(byName(hud, "readerSidebar") === null, "chrome: the reader has NO sidebar")
+        ck(byName(hud, "readerTitleToast") !== null, "chrome: the title toast must exist (readerTitleToast)")
+
+        // ---- the retired pill HUD: the mode segments encoded the lossy Manga/Comic/Strip identity
+        // that cannot express Single Page, which is exactly why they die rather than gain a 4th ----
+        ck(byName(hud, "hudModeManga") === null && byName(hud, "hudModeComic") === null
+           && byName(hud, "hudModeStrip") === null,
+           "chrome: the legacy Manga/Comic/Strip mode pills must be RETIRED, not re-skinned")
+
+        // ---- chrome sleeps after 2.5s (was 3s) ----
+        ck(hud.autoHideMs === 2500, "chrome: sleeps after 2.5 seconds, got " + hud.autoHideMs)
+
+        // ---- six direct commands, in the approved order ----
+        var bar = byName(hud, "readerCommandBar")
+        var want = ["bookmark", "pages", "loupe", "image", "layout", "order"]
+        ck(bar !== null && bar.commands !== undefined && bar.commands.length === 6,
+           "chrome: exactly SIX direct commands, got " + (bar && bar.commands ? bar.commands.length : "<none>"))
+        if (bar && bar.commands) {
+            for (var i = 0; i < want.length; i++)
+                ck(String(bar.commands[i]) === want[i],
+                   "chrome: command " + i + " must be '" + want[i] + "', got '" + bar.commands[i] + "'")
+        }
+        if (!bar) return
+
+        // ---- every command raises its semantic INTENT; none of them writes core state ----
+        sig = {}
+        hud.openPages.connect(function () { bump("openPages") })
+        hud.openLoupe.connect(function () { bump("openLoupe") })
+        hud.openImage.connect(function () { bump("openImage") })
+        hud.openLayout.connect(function () { bump("openLayout") })
+        hud.toggleOrder.connect(function () { bump("toggleOrder") })
+        hud.toggleBookmark.connect(function () { bump("toggleBookmark") })
+
+        sig = {}; bar.trigger("bookmark"); ck(cnt("toggleBookmark") === 1, "chrome: Bookmark -> toggleBookmark, got " + cnt("toggleBookmark"))
+        sig = {}; bar.trigger("pages");    ck(cnt("openPages") === 1,     "chrome: Pages -> openPages, got " + cnt("openPages"))
+        sig = {}; bar.trigger("loupe");    ck(cnt("openLoupe") === 1,     "chrome: Loupe -> openLoupe, got " + cnt("openLoupe"))
+        sig = {}; bar.trigger("image");    ck(cnt("openImage") === 1,     "chrome: Image -> openImage, got " + cnt("openImage"))
+        sig = {}; bar.trigger("layout");   ck(cnt("openLayout") === 1,    "chrome: Layout -> openLayout, got " + cnt("openLayout"))
+        sig = {}; bar.trigger("order");    ck(cnt("toggleOrder") === 1,   "chrome: Order -> toggleOrder, got " + cnt("toggleOrder"))
+        // an unknown command is inert, never a silent misfire onto its neighbour
+        sig = {}; bar.trigger("settings")
+        ck(cnt("openPages") + cnt("openImage") + cnt("openLayout") + cnt("toggleOrder") === 0,
+           "chrome: an unknown command must raise NO intent")
+
+        // ---- the Layout and Order commands SHOW the current state (they are the readout) ----
+        shellA.layout = "single_page"; shellA.order = "rtl"
+        ck(bar.labelFor("layout") === "Single page", "chrome: layout label must read 'Single page', got '" + bar.labelFor("layout") + "'")
+        ck(bar.glyphFor("layout") === "layoutSingle", "chrome: layout glyph must be layoutSingle, got '" + bar.glyphFor("layout") + "'")
+        ck(bar.labelFor("order") === "Manga order", "chrome: RTL order label must read 'Manga order', got '" + bar.labelFor("order") + "'")
+        ck(bar.glyphFor("order") === "orderRtl", "chrome: RTL order glyph must be orderRtl, got '" + bar.glyphFor("order") + "'")
+        shellA.layout = "paired_pages"; shellA.order = "ltr"
+        ck(bar.labelFor("layout") === "Paired pages", "chrome: layout label must read 'Paired pages', got '" + bar.labelFor("layout") + "'")
+        ck(bar.glyphFor("layout") === "layoutPaired", "chrome: layout glyph must be layoutPaired, got '" + bar.glyphFor("layout") + "'")
+        ck(bar.labelFor("order") === "Comic order", "chrome: LTR order label must read 'Comic order', got '" + bar.labelFor("order") + "'")
+        ck(bar.glyphFor("order") === "orderLtr", "chrome: LTR order glyph must be orderLtr, got '" + bar.glyphFor("order") + "'")
+        shellA.layout = "long_strip"
+        ck(bar.labelFor("layout") === "Long strip", "chrome: layout label must read 'Long strip', got '" + bar.labelFor("layout") + "'")
+        ck(bar.glyphFor("layout") === "layoutStrip", "chrome: layout glyph must be layoutStrip, got '" + bar.glyphFor("layout") + "'")
+
+        // ---- GOLD IS SPARING: only the ACTIVE command wears it, and only a command whose
+        // temporary surface is actually the open one is active. Order is a direct toggle with no
+        // surface, so it is NEVER gold — that would say "a panel is open" when none is. ----
+        shellA.activeOverlay = ""
+        for (var g = 0; g < want.length; g++)
+            ck(bar.activeFor(want[g]) === false,
+               "chrome: with no overlay open, '" + want[g] + "' must not be gold")
+        shellA.activeOverlay = "image"
+        ck(bar.activeFor("image") === true, "chrome: the open Image panel makes its command gold")
+        ck(bar.activeFor("pages") === false && bar.activeFor("loupe") === false
+           && bar.activeFor("layout") === false && bar.activeFor("order") === false,
+           "chrome: exactly ONE command may be gold at a time")
+        shellA.activeOverlay = ""
+        // Bookmark is gold when THIS page is bookmarked — the one non-overlay readout. It reads the
+        // LIVE list (the shell mount feeds hud.bookmarkPages from reader.liveBookmarks), which is
+        // the same list the rail's ticks bind to, so a toggle moves both together.
+        shellA.currentPage = 46; shellA.bookmarkPages = [45]
+        ck(bar.activeFor("bookmark") === true, "chrome: Bookmark reads gold on a bookmarked page")
+        shellA.bookmarkPages = [7]
+        ck(bar.activeFor("bookmark") === false, "chrome: Bookmark is not gold on an unbookmarked page")
+        shellA.bookmarkPages = []
+
+        // ---- DEFECT 1 (Task 5): the progress rail sat DEAD AT ZERO in Single Page. fillRatio()
+        // fell back to `stripFraction`, which is always 0 in a paged layout, because its condition
+        // asked `mode === "double_page"` where the real question is "is this a paged layout?". ----
+        shellA.max = 230; shellA.layout = "single_page"; shellA.currentPage = 46; shellA.stripFraction = 0
+        ck(approx(hud.fillRatio(), 45.0 / 229.0),
+           "rail: Single Page must fill to (46-1)/(230-1), NOT sit dead at 0, got " + hud.fillRatio())
+
+        // ---- DEFECT 2 (Task 5): dragging the rail in Single Page did nothing — _emitScrub sent the
+        // STRIP command (a scroll fraction) to a layout that has no scrolling column. ----
+        sig = {}
+        hud.seekRequested.connect(function () { bump("seek") })
+        hud.scrubFractionRequested.connect(function () { bump("scrubFraction") })
+        sig = {}; hud._emitScrub(0.5)
+        ck(cnt("seek") === 1 && cnt("scrubFraction") === 0,
+           "rail: a Single Page scrub must SEEK a page, got seek=" + cnt("seek") + " frac=" + cnt("scrubFraction"))
+        shellA.layout = "paired_pages"
+        sig = {}; hud._emitScrub(0.5)
+        ck(cnt("seek") === 1 && cnt("scrubFraction") === 0, "rail: a Paired Pages scrub must SEEK a page")
+        shellA.layout = "long_strip"
+        sig = {}; hud._emitScrub(0.5)
+        ck(cnt("scrubFraction") === 1 && cnt("seek") === 0,
+           "rail: a Long Strip scrub must emit a scroll FRACTION, got seek=" + cnt("seek") + " frac=" + cnt("scrubFraction"))
+
+        // ---- the rail splits the counter the way the approved mock does: current on the left of
+        // the track, total on the right. The pair-aware counter still reads as one string for
+        // anything that wants it whole. ----
+        shellA.layout = "paired_pages"; shellA.max = 230; shellA.currentPage = 45
+        coreA.units = {}
+        coreA.units[44] = { rightIndex: 44, leftIndex: 45, spread: false, coverAlone: false }
+        coreA.units[45] = { rightIndex: 44, leftIndex: 45, spread: false, coverAlone: false }
+        ck(hud.counterCurrentText() === "45–46", "rail: the current readout must be '45-46', got '" + hud.counterCurrentText() + "'")
+        ck(hud.counterTotalText() === "230", "rail: the total readout must be '230', got '" + hud.counterTotalText() + "'")
+        coreA.units = {}
+        shellA.layout = "long_strip"; shellA.currentPage = 1; shellA.stripFraction = 0
     }
 
     // ============================ TOAST (deferred: animated opacity) ============================
@@ -457,13 +595,19 @@ Item {
         ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc while modalOpen still fires its close action")
         input.modalOpen = false
 
-        // --- Esc order: overlay -> chrome -> back ---
+        // --- Esc is ONE door now: closeTop, always. The LAYERING moved to the shell's coordinator,
+        //     which is the only thing that knows what is actually open (Task 5). Approved contract:
+        //     "Escape resolves one layer at a time: close active popover, filmstrip, or Loupe;
+        //     otherwise toggle the HUD; never unexpectedly leave the book." The input used to fall
+        //     through to `back` once the chrome was already hidden — pressing Escape twice threw you
+        //     out of the volume. Back is the ONLY reader-to-library action. ---
         input.modalOpen = true; input.chromeVisible = true
         ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc (overlay up) -> closeTop")
         input.modalOpen = false; input.chromeVisible = true
-        ck(key(Qt.Key_Escape) === "toggleChrome" && cnt("toggleChrome") === 1, "Esc (no overlay, chrome up) -> hide chrome (toggleChrome)")
+        ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc (no overlay, chrome up) -> closeTop (the shell toggles the chrome)")
         input.modalOpen = false; input.chromeVisible = false
-        ck(key(Qt.Key_Escape) === "back" && cnt("back") === 1, "Esc (no overlay, chrome hidden) -> back")
+        ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1 && cnt("back") === 0,
+           "Esc (no overlay, chrome hidden) must NEVER exit the book, got '" + key(Qt.Key_Escape) + "'")
     }
 
     // ============================ INPUT (click zones + drag + dbl-click) ============================
@@ -616,6 +760,7 @@ Item {
 
     function runChecks() {
         try { runHud() } catch (e) { failures.push("exception in runHud: " + e.message) }
+        try { runCommandChrome() } catch (e) { failures.push("exception in runCommandChrome: " + e.message) }
         try { runInputKeys() } catch (e) { failures.push("exception in runInputKeys: " + e.message) }
         try { runInputClicks() } catch (e) { failures.push("exception in runInputClicks: " + e.message) }
         try { setupDeferred() } catch (e) { failures.push("exception in setupDeferred: " + e.message); report() }

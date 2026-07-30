@@ -97,15 +97,37 @@ Item {
     // Crossing + close/shutdown record IMMEDIATELY (they must not wait for the timer). Test-tunable.
     property int recordDebounceMs: 600
 
-    // ---- cursor auto-hide (3s, both references: TB2 ComicReader.cpp ~424-434, Reader 1's
+    // ---- cursor auto-hide (both references: TB2 ComicReader.cpp ~424-434, Reader 1's
     // cursorIdle/cursorHidden) — neither reference leaves an arrow parked on the page. Blanked
     // after cursorIdleMs of stillness while the chrome is away; held while the chrome is up (a
-    // pointer resting on a HUD pill must not vanish out from under it). Test-tunable, like
+    // pointer resting on a command must not vanish out from under it). Test-tunable, like
     // recordDebounceMs above.
-    property int cursorIdleMs: 3000
+    //
+    // 2500ms, and the number is NOT arbitrary: the approved ledger says "Toolbar, title toast,
+    // progress rail, and cursor sleep together after 2.5 seconds of inactivity." The HUD's
+    // autoHideMs carries the same dial; they must never drift apart, so the chrome gate pins both.
+    property int cursorIdleMs: 2500
     property bool _cursorIdle: false
     function _pokeCursor() { _cursorIdle = false; cursorIdleTimer.restart() }
     Timer { id: cursorIdleTimer; interval: reader.cursorIdleMs; onTriggered: reader._cursorIdle = true }
+
+    // THE cursor+chrome wake door. There is real history here: the HUD used to come back on mouse
+    // movement while the cursor stayed hidden, so you could see the controls and not your pointer.
+    //
+    // Note what this deliberately does NOT do. The plan sketched `cursorHideArea.cursorShape =
+    // Qt.ArrowCursor` — an imperative assignment onto a bound property, which in QML DESTROYS the
+    // binding permanently: the cursor could then never blank again for the rest of the session.
+    // (That exact trap is already documented a few hundred lines below, on the side-scroller thumb
+    // whose `y:` binding one drag wiped out.) Clearing `_cursorIdle` and raising `chromeVisible`
+    // re-evaluates the SAME binding synchronously to ArrowCursor, which is the force the fix needs,
+    // and leaves it able to blank again after the next 2.5s of stillness. The shell gate asserts
+    // both halves: Arrow now, and still blankable afterwards.
+    function restoreCursorAndChrome() {
+        _cursorIdle = false
+        chromeVisible = true
+        cursorIdleTimer.restart()
+        hud.reveal()
+    }
 
     // ================= internal reading state (exposed for surfaces / HUD later) =================
     property var  _pages: []                    // resolved local pages [{index,url,group}] for the open entry
@@ -157,8 +179,39 @@ Item {
         (core && core.stripGap !== undefined) ? core.stripGap : 0
     readonly property bool memorySaver:
         (core && core.memorySaver !== undefined) ? core.memorySaver === true : false
-    // an overlay is up (Task 12) — swallows background input + pauses auto-hide. Aggregated off the
-    // mounted overlays; more join this OR as later Task 12 slices land (navigator, thumbnails, ...).
+    // ================= the ONE overlay coordinator (Task 5) =================
+    // Hemanth's approved interaction contract: only ONE temporary surface at a time, and the comic
+    // never shifts to make room for it. The chrome only RAISES intents — this is the single place
+    // that decides what is open, so two surfaces can never both believe they are.
+    //
+    // The commands are live from Task 5 even though their surfaces land in Tasks 6-9. That is
+    // deliberate and it is the honest state: pressing Pages really does take ownership (the command
+    // goes gold, the chrome stops sleeping, Escape gives it back). It is not a fake, and it is not
+    // hidden behind a "coming soon" that would have to be removed later.
+    property string activeOverlay: ""            // "" | pages | image | layout | loupe
+    function openOverlay(name) {
+        var n = String(name)
+        // re-asking for the surface that is already open CLOSES it — one temporary surface, and the
+        // command that raised it is also the way back out.
+        activeOverlay = (activeOverlay === n) ? "" : n
+        restoreCursorAndChrome()
+        // Task 8 pauses Auto-scroll here: any temporary surface must stop the motion immediately.
+    }
+    // Escape, resolved ONE layer at a time. "never unexpectedly leave the book" is the rule that
+    // matters most: Back is the only reader-to-library action, and Escape is not a second one.
+    function closeTop() {
+        var wasVisible = chromeVisible
+        _cursorIdle = false                      // the pointer always comes back, whatever we close
+        cursorIdleTimer.restart()
+        if (settingsSheet.opened) { settingsSheet.close(); chromeVisible = true; return }
+        if (activeOverlay.length) { activeOverlay = ""; chromeVisible = true; return }
+        chromeVisible = !wasVisible
+    }
+
+    // an overlay is up — swallows background input + pauses auto-hide. Aggregated off the MOUNTED
+    // overlays only. `activeOverlay` deliberately does NOT join this OR yet: gating the whole
+    // keyboard behind a surface that has no pixels on screen would be a trap, not a contract. Each
+    // of Tasks 6-9 adds its own mount here as it lands.
     readonly property bool modalOpen: settingsSheet.opened
 
     // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
@@ -649,8 +702,19 @@ Item {
     // callers HIDE (visible:false) on back and SHOW again to reopen — flush the Continue spot but
     // KEEP the backend entry open, or reopen-same-entry would show a blank reader. The entry is torn
     // down ONLY on destruction (Component.onDestruction).
+    // Ownership of a temporary surface changing is one of the two moments the cursor could be left
+    // blanked under a surface that now owns the pointer. Restore the arrow first, every time.
+    onActiveOverlayChanged: { _cursorIdle = false; cursorIdleTimer.restart() }
+
     onVisibleChanged: {
         if (!_ready) return
+        // Arriving and leaving are both "the pointer is fresh" moments, and they get the SAME
+        // treatment — one meaning, no asymmetry to get wrong. Leaving especially: never hand the
+        // library back a hidden cursor, the reader's blank-cursor state must not outlive the reader
+        // being on screen. (An earlier draft STOPPED the clock on hide instead; the callers hide
+        // this same instance on back and show it again to reopen, so a stop with no matching re-arm
+        // meant the pointer never slept again for the rest of the session. The shell gate caught it.)
+        _pokeCursor()
         if (visible) { forceActiveFocus(); return }
         // hide = flush only, never core.closeEntry() — the entry stays open so coming back is instant.
         recordProgress()
@@ -1075,8 +1139,9 @@ Item {
         onToggleLoupe: reader.loupeRequested()
         onCloseTop: reader.closeTopRequested()
         onOpenContextMenu: function (x, y) { reader._onContextMenu(x, y) }
-        // reveal-zone hover keeps the HUD alive; both also count as cursor activity (FIX 1)
-        onRevealRequested: { hud.reveal(); reader._pokeCursor() }
+        // reveal-zone hover keeps the HUD alive; both also count as cursor activity — chrome and
+        // cursor wake TOGETHER, which is the whole point of the one wake door.
+        onRevealRequested: reader.restoreCursorAndChrome()
         onActivity: { hud.notifyActivity(); reader._pokeCursor() }
     }
 
@@ -1085,19 +1150,22 @@ Item {
         anchors.fill: parent
         reader: reader
         bookmarkPages: reader.liveBookmarks
-        // scrub -> shell navigation
+        // gold rail scrub -> shell navigation
         onSeekRequested: function (page) { reader.goToPageIndex(page) }
         onScrubFractionRequested: function (frac) { reader.scrubToFraction(frac) }
-        // prev/next PILLS cross entries (bound to hasPrev/hasNext, per the crossing note above)
+        // the rail's end arrows CROSS entries (bound to hasPrev/hasNext, per the crossing note above)
         onPrevRequested: reader.goPrev(false)
         onNextRequested: reader.goNext()
-        // edge side bars turn a PAGE/unit within the entry (double-page); direction resolved in the HUD
+        // edge side bars turn a PAGE/unit within the entry; direction resolved in the HUD
         onAdvancePageRequested: reader.pageNext()
         onRetreatPageRequested: reader.pagePrev()
-        // overlay intents
-        onOpenNavigator: reader.navigatorRequested()
-        onOpenThumbnails: reader.thumbnailsRequested()
-        onOpenSettings: reader.settingsRequested()
+        // ---- the six approved commands. Four raise a temporary surface through the ONE
+        //      coordinator; two act directly. ----
+        onOpenPages:  reader.openOverlay("pages")
+        onOpenLoupe:  reader.openOverlay("loupe")
+        onOpenImage:  reader.openOverlay("image")
+        onOpenLayout: reader.openOverlay("layout")
+        onToggleOrder: reader.setOrder(reader.order === "rtl" ? "ltr" : "rtl")
         onToggleBookmark: reader.bookmarkToggleRequested()
         // window verbs -> the shell's existing session-window signals
         onBackRequested: reader.backRequested()
@@ -1129,10 +1197,9 @@ Item {
         enabled: !reader.modalOpen
         cursorShape: reader.chromeVisible || !reader._cursorIdle
                      ? Qt.ArrowCursor : Qt.BlankCursor
-        onPositionChanged: {
-            reader._pokeCursor()
-            hud.reveal()
-        }
+        // "Any plain mouse movement restores HUD and cursor together." One door, so they can never
+        // come back separately again.
+        onPositionChanged: reader.restoreCursorAndChrome()
     }
 
     // ---- overlays (Task 12) — mounted ABOVE the HUD so they own input while open ----
@@ -1140,11 +1207,19 @@ Item {
         id: settingsSheet
         reader: reader   // sizes itself to the shell (explicit width/height binding, see the component)
     }
-    // the settings pill / right-click / S key -> open the sheet; Escape (closeTop) -> close it
+    // The approved chrome has NO permanent settings drawer, so the toolbar no longer carries a
+    // Settings command. The sheet itself survives until Task 12 retires it, reachable by the S key
+    // and by right-click outside a pairable spread — the controls it still owns move into the
+    // focused Image and Layout popovers in Tasks 7 and 8.
     Connections {
         target: reader
         function onSettingsRequested()  { settingsSheet.open() }
-        function onCloseTopRequested()  { settingsSheet.close() }
+        // Escape (from the input's one door) resolves through the shell's layered coordinator.
+        function onCloseTopRequested()  { reader.closeTop() }
+        // The keyboard and the toolbar must agree about what they open: T and the Pages command are
+        // the same door, and so are L and Loupe.
+        function onThumbnailsRequested() { reader.openOverlay("pages") }
+        function onLoupeRequested()      { reader.openOverlay("loupe") }
     }
 
     // an injected page store (or a future store) may not emit this exact progress/finished/failed

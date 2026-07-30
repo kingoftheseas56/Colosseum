@@ -27,6 +27,7 @@ if (!(Test-Path -LiteralPath $qmlExe)) {
 
 $chromeFiles = @(
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderHud.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderCommandBar.qml"),
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderInput.qml"),
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderIcon.qml")
 )
@@ -64,16 +65,43 @@ foreach ($svg in $svgs) {
     }
 }
 
-# --- static: the HUD carries NO text-glyph chips (arrow/chevron GLYPH chars as text) ---
-$hud = $chromeFiles[0]
+# --- static: the visual chrome carries NO text-glyph chips (arrow/chevron GLYPH chars as text) ---
 # guillemets, angle-bracket glyphs, unicode arrows, triangles used as nav glyphs
 $arrowGlyphs = @([char]0x2039, [char]0x203A, [char]0x00AB, [char]0x00BB, [char]0x2190, [char]0x2192, [char]0x2191, [char]0x2193, [char]0x25B6, [char]0x25C0, [char]0x27E8, [char]0x27E9)
-$hudText = Get-Content -LiteralPath $hud -Raw
-foreach ($g in $arrowGlyphs) {
-    if ($hudText.Contains([string]$g)) {
-        Write-Host ("FAIL: ComicReaderHud.qml contains a text arrow glyph U+{0:X4} - every nav glyph must be a ComicReaderIcon (semantic-icon-audit law)" -f [int]$g)
+foreach ($f in @($chromeFiles[0], $chromeFiles[1])) {
+    $vt = Get-Content -LiteralPath $f -Raw
+    foreach ($g in $arrowGlyphs) {
+        if ($vt.Contains([string]$g)) {
+            Write-Host ("FAIL: {0} contains a text arrow glyph U+{1:X4} - every nav glyph must be a ComicReaderIcon (semantic-icon-audit law)" -f (Split-Path $f -Leaf), [int]$g)
+            exit 1
+        }
+    }
+}
+
+# --- static: THE READER HAS NO SIDEBAR ---
+# Hemanth's own correction of the first flat-chrome mock, verbatim: "colosseum does not have a side
+# panel we can use inside the reader". The approved chrome is a thin title strip, one flat command
+# bar, and one gold rail; the comic runs edge to edge under them. A behavioural assertion alone
+# (byName(hud,"readerSidebar") === null) can be satisfied by a sidebar that simply omits the marker
+# objectName, so the word itself is banned from the chrome sources too.
+foreach ($f in $chromeFiles) {
+    $sideHits = Select-String -LiteralPath $f -Pattern "readerSidebar" -SimpleMatch -CaseSensitive:$false
+    if ($sideHits) {
+        Write-Host "FAIL: $f references a reader sidebar; the approved reader has none."
+        $sideHits | ForEach-Object { Write-Host ("  line " + $_.LineNumber + ": " + $_.Line.Trim()) }
         exit 1
     }
+}
+
+# --- static: the chrome sleeps after 2.5 seconds, not 3 ---
+# "Toolbar, title toast, progress rail, and cursor sleep together after 2.5 seconds of inactivity."
+# The HUD's dial and the shell's cursor dial are two separate numbers that must agree, and the
+# offscreen harness can only see the HUD's - so the shell's is pinned here.
+$shellQml = Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderShell.qml"
+$cursorDial = Select-String -LiteralPath $shellQml -Pattern "property int cursorIdleMs:\s*2500"
+if (!$cursorDial) {
+    Write-Host "FAIL: ComicReaderShell.qml must sleep the CURSOR at 2500ms, together with the chrome."
+    exit 1
 }
 
 $env:QT_FORCE_STDERR_LOGGING = "1"

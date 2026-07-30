@@ -1,0 +1,18 @@
+<!-- Colosseum original glyph (Lucide 24-grid, 2px round stroke) - Comic order: the spine sits on
+     the left and reading runs left-to-right. -->
+<svg
+  class="colosseum comicreader-order-ltr"
+  xmlns="http://www.w3.org/2000/svg"
+  width="24"
+  height="24"
+  viewBox="0 0 24 24"
+  fill="none"
+  stroke="#ffffff"
+  stroke-width="2"
+  stroke-linecap="round"
+  stroke-linejoin="round"
+>
+  <path d="M4 4v16" />
+  <path d="M8 12h12" />
+  <path d="m16 8 4 4-4 4" />
+</svg>

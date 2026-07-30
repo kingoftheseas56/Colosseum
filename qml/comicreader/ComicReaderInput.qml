@@ -68,12 +68,13 @@ Item {
         var dbl  = (mode === "double_page")
         var zoomed = dbl && zoomPercent > 100
 
-        // Escape order: close top overlay -> hide chrome -> back
-        if (key === Qt.Key_Escape) {
-            if (modalOpen) { closeTop(); return "closeTop" }
-            if (chromeVisible) { toggleChrome(); return "toggleChrome" }
-            back(); return "back"
-        }
+        // Escape is ONE door: closeTop. The LAYERING lives in the shell's overlay coordinator,
+        // which is the only thing that knows what is actually open — the input can only guess from
+        // `modalOpen`, and its guess used to fall through to `back` once the chrome was already
+        // hidden, so pressing Escape twice threw you out of the volume. The approved contract is
+        // explicit: "close active popover, filmstrip, or Loupe; otherwise toggle the HUD; never
+        // unexpectedly leave the book." Back is the ONLY reader-to-library action.
+        if (key === Qt.Key_Escape) { closeTop(); return "closeTop" }
         // an open overlay owns the keyboard — everything except Escape is gated (Reader 1 :875)
         if (modalOpen) return ""
         if (ctrl && key === Qt.Key_G) { goToPage(); return "goToPage" }
