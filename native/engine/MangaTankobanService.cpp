@@ -295,6 +295,55 @@ void MangaTankobanService::downloadNyaa(QString volumeId, QString infoHash)
                 QStringLiteral("Unknown source — infoHash is not among the cached search candidates."));
 }
 
+void MangaTankobanService::downloadNyaaBatch(QStringList volumeIds, QString infoHash)
+{
+    if (volumeIds.isEmpty())
+        return;
+    // The engine has NO range search — every search is per volume — so a batch
+    // searched exactly one volume and the candidate cache is populated for that
+    // probe volume alone. Validate the hash ONCE against it. The guard that stops
+    // QML handing in an arbitrary magnet is not weakened here; it is simply not
+    // asked N times for the one answer it already gave.
+    const QString probeId = volumeIds.first();
+    const QString wanted = infoHash.toLower();
+    MangaNyaaCandidate chosen;
+    bool found = false;
+    for (const MangaNyaaCandidate& c : m_candidates.value(probeId)) {
+        if (c.infoHash.toLower() == wanted) {
+            chosen = c;
+            found = true;
+            break;
+        }
+    }
+    if (!found) {
+        // Refuse the WHOLE batch: an unvalidated magnet must not reach the
+        // transport for any volume, and silence would look like success.
+        for (const QString& volumeId : volumeIds)
+            emit failed(volumeId,
+                        QStringLiteral("Unknown source — infoHash is not among the cached search candidates."));
+        return;
+    }
+
+    // A BATCH IS NOT A TRANSACTION (design 2026-07-30 §3): each volume keeps its
+    // own state, so one that is unknown or already acquiring reports its own
+    // reason and the rest still go. Per-volume bookkeeping is byte-identical to
+    // downloadNyaa's — the only thing shared is the one validated candidate.
+    for (const QString& volumeId : volumeIds) {
+        if (!m_volumes.contains(volumeId)) {
+            emit failed(volumeId, QStringLiteral("Unknown volume."));
+            continue;
+        }
+        if (isInFlight(volumeId)) {
+            emit failed(volumeId, QStringLiteral("Already acquiring this volume."));
+            continue;
+        }
+        m_tornDown.remove(volumeId);   // a fresh attempt clears any prior tombstone
+        m_chosen[volumeId] = chosen;
+        m_acq[volumeId] = QVariantMap{{QStringLiteral("state"), QStringLiteral("resolving")}};
+        m_transport->download(m_volumes.value(volumeId), chosen);
+    }
+}
+
 void MangaTankobanService::compileWeebCentral(QString volumeId)
 {
     if (!m_packer || !m_volumes.contains(volumeId)) {

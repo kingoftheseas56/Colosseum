@@ -135,6 +135,37 @@ Item {
         })
         page.tankobanReaderEntries = out
     }
+    // The ONE path that raises the source picker — a single tile and a batch both
+    // come through here, so the series identity is merged in exactly one place.
+    function _openSources(ctx) {
+        ctx.seriesId = page.seriesId
+        ctx.seriesTitle = page.seriesTitle
+        ctx.volumeNumber = ctx.number
+        ctx.volumeTitle = ctx.title
+        sourcesPage.show(ctx)
+    }
+
+    // A batch button was pressed: turn volume NUMBERS into volume ids and raise the
+    // picker over all of them. Ownership is re-checked HERE, at the moment of the
+    // press — the shelf may have finished a volume since the button was drawn, and
+    // an owned volume must never be re-downloaded (design 2026-07-30, constraint 2).
+    // The picker searches ids[0]: the engine has no range search.
+    function _requestBatch(numbers, label) {
+        var want = {}
+        for (var i = 0; i < numbers.length; i++) want[Number(numbers[i])] = true
+        var ids = [], nums = [], rows = tankLib.volumeRows || []
+        for (var r = 0; r < rows.length; r++)
+            if (want[Number(rows[r].number)] && String(rows[r].state) !== "ready") {
+                ids.push(String(rows[r].id))
+                nums.push(Number(rows[r].number))
+            }
+        if (!ids.length) return
+        // volumeNumbers rides along so the picker can offer only the releases that
+        // actually contain every volume asked for, without parsing volume ids.
+        page._openSources({ "volumeId": ids[0], "volumeIds": ids, "volumeNumbers": nums,
+                            "number": "", "title": String(label), "cover": "" })
+    }
+
     // Open a downloaded volume in the reader (the library's Downloaded->Open action).
     function _openVolume(volumeId) {
         var id = String(volumeId)
@@ -641,13 +672,9 @@ Item {
                 onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
                 // "Choose source" -> the full-screen picker. Merge the series identity
                 // (the library only knows the volume) and open the overlay below.
-                onSourcesRequested: (ctx) => {
-                    ctx.seriesId = page.seriesId
-                    ctx.seriesTitle = page.seriesTitle
-                    ctx.volumeNumber = ctx.number
-                    ctx.volumeTitle = ctx.title
-                    sourcesPage.show(ctx)
-                }
+                onSourcesRequested: (ctx) => page._openSources(ctx)
+                // One press, N volumes — the same picker, opened over a batch.
+                onBatchRequested: (numbers, label) => page._requestBatch(numbers, label)
             }
 
             // ── CHAPTER TABLE — the floating glass OS-widget.

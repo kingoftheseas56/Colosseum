@@ -124,6 +124,13 @@ public:
     Q_INVOKABLE void setModeEnabled(QString seriesId, bool enabled);
     Q_INVOKABLE void searchSources(QString volumeId);
     Q_INVOKABLE void downloadNyaa(QString volumeId, QString infoHash);
+    // Acquire a whole batch of volumes from ONE chosen torrent (design 2026-07-30).
+    // Measured 2026-07-30 (tests/manga_volume_pack_probe.md): on-target SINGLE-volume
+    // torrents are essentially absent — 0 in seven of eight top series — so for most
+    // series the multi-volume pack IS the torrent route, not an exotic one.
+    // The transport is already multi-intent (one Job per infoHash carrying an Intent
+    // per volume, file priorities unioned), so this adds no download machinery.
+    Q_INVOKABLE void downloadNyaaBatch(QStringList volumeIds, QString infoHash);
     Q_INVOKABLE void compileWeebCentral(QString volumeId);
     Q_INVOKABLE void cancel(QString volumeId);
     Q_INVOKABLE QVariantMap remove(QString volumeId);

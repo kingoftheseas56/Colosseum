@@ -557,6 +557,129 @@ int main(int argc, char** argv)
                 "the ledger-recovered ready volume exposes its three extracted pages");
     }
 
+    // ── BATCH: one chosen pack acquires N volumes (design 2026-07-30) ─────────
+    // Measured in tests/manga_volume_pack_probe.md: on-target single-volume
+    // torrents are essentially absent, so the pack IS the torrent route. The
+    // load-bearing claim is that a batch is ONE torrent with N intents, never N
+    // torrents — assert addMagnetCount, not just the end state.
+    {
+        QTemporaryDir bIndexRoot, bDlRoot;
+        require(bIndexRoot.isValid() && bDlRoot.isValid(), "batch temp roots created");
+        const QString bSaveRoot = bDlRoot.filePath(QStringLiteral("dl"));
+
+        FakeEngine bEngine;
+        MangaVolumeTorrentDownloader bTransport(&bEngine, bDlRoot.filePath(QStringLiteral("l.json")),
+                                                bSaveRoot);
+        MangaVolumeIndex bIndex(bIndexRoot.path());
+        MangaVolumeArchiveIngestor bIngestor(&bIndex);
+        MangaSynopsisEnricher bEnricher(nullptr, bIndexRoot.filePath(QStringLiteral("syn.json")));
+        FakeNyaaSearch bSearch;
+        MangaTankobanService bService(&bSearch, &bTransport, &bIndex, &bIngestor, &bEnricher, nullptr);
+
+        QStringList bFailures, bFinished;
+        QObject::connect(&bService, &MangaTankobanService::failed, &app,
+            [&](const QString& id, const QString& r) { bFailures << (id + QLatin1Char('|') + r); });
+        QObject::connect(&bService, &MangaTankobanService::finished, &app,
+            [&](const QString& id) { bFinished << id; });
+
+        bService.prepareSeries(descriptor, volumes, chapters);
+        const QString b1 = volumeId(QStringLiteral("s1"), QStringLiteral("1"));
+        const QString b2 = volumeId(QStringLiteral("s1"), QStringLiteral("2"));
+        const QString b3 = volumeId(QStringLiteral("s1"), QStringLiteral("3"));
+
+        // The batch searches only its FIRST volume — the engine has no range search.
+        const QString bHash(40, QLatin1Char('d'));
+        bSearch.next = {makeCandidate(bHash)};
+        bService.searchSources(b1);
+
+        // An unvalidated magnet must be refused for the WHOLE batch, loudly.
+        {
+            const int before = bFailures.size();
+            bService.downloadNyaaBatch({b1, b2, b3}, QString(40, QLatin1Char('e')));
+            require(bFailures.size() == before + 3,
+                    "an unknown infoHash fails EVERY volume of the batch, never silently");
+            require(bEngine.addMagnetCount == 0,
+                    "a rejected batch hash never reaches the transport");
+        }
+
+        // The real batch: three volumes, ONE torrent.
+        bService.downloadNyaaBatch({b1, b2, b3}, bHash);
+        require(bEngine.addMagnetCount == 1,
+                "a batch of three adds exactly ONE torrent, not three");
+        for (const QString& id : {b1, b2, b3})
+            require(bService.statusOf(id).value(QStringLiteral("state")).toString()
+                        == QStringLiteral("resolving"),
+                    "every volume in the batch enters the acquisition state");
+
+        bEngine.emitMetadata(bHash, packFiles());   // v01, v02, v03 all inside
+        require(bEngine.startedHashes.count(bHash) == 1, "the one batch torrent starts once");
+
+        const QString bSaveDir = bSaveRoot + QLatin1Char('/') + bHash;
+        require(QDir().mkpath(bSaveDir), "batch save dir created");
+        for (const char* n : {"Series v01.cbz", "Series v02.cbz", "Series v03.cbz"})
+            require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                                bSaveDir + QLatin1Char('/') + QString::fromLatin1(n)),
+                    "batch archive materialised");
+        bEngine.emitFinished(bHash);
+
+        while (bFinished.size() < 3 && waitFor(&bService, &MangaTankobanService::finished, 30000)) {}
+        require(bFinished.size() == 3,
+                "all THREE volumes of the batch finish from the one chosen pack");
+        for (const QString& id : {b1, b2, b3})
+            require(bService.statusOf(id).value(QStringLiteral("state")).toString()
+                        == QStringLiteral("ready"),
+                    "every volume of the batch becomes ready");
+    }
+
+    // ── BATCH: a pack that does NOT contain a requested volume ────────────────
+    // The honest failure. A pack covering v01-v02 asked for v03 must leave v03
+    // UN-ACQUIRED with a reason — never wrongly marked ready, which would put a
+    // tile on the shelf with nothing behind it.
+    {
+        QTemporaryDir cIndexRoot, cDlRoot;
+        require(cIndexRoot.isValid() && cDlRoot.isValid(), "short-pack temp roots created");
+        const QString cSaveRoot = cDlRoot.filePath(QStringLiteral("dl"));
+
+        FakeEngine cEngine;
+        MangaVolumeTorrentDownloader cTransport(&cEngine, cDlRoot.filePath(QStringLiteral("l.json")),
+                                                cSaveRoot);
+        MangaVolumeIndex cIndex(cIndexRoot.path());
+        MangaVolumeArchiveIngestor cIngestor(&cIndex);
+        MangaSynopsisEnricher cEnricher(nullptr, cIndexRoot.filePath(QStringLiteral("syn.json")));
+        FakeNyaaSearch cSearch;
+        MangaTankobanService cService(&cSearch, &cTransport, &cIndex, &cIngestor, &cEnricher, nullptr);
+
+        QStringList cFinished;
+        QObject::connect(&cService, &MangaTankobanService::finished, &app,
+            [&](const QString& id) { cFinished << id; });
+
+        cService.prepareSeries(descriptor, volumes, chapters);
+        const QString c1 = volumeId(QStringLiteral("s1"), QStringLiteral("1"));
+        const QString c3 = volumeId(QStringLiteral("s1"), QStringLiteral("3"));
+
+        const QString cHash(40, QLatin1Char('9'));
+        cSearch.next = {makeCandidate(cHash)};
+        cService.searchSources(c1);
+        cService.downloadNyaaBatch({c1, c3}, cHash);
+
+        // metadata carries ONLY volume 1 — volume 3 is not in this torrent
+        cEngine.emitMetadata(cHash, oneFile(QStringLiteral("Series v01.cbz")));
+        const QString cSaveDir = cSaveRoot + QLatin1Char('/') + cHash;
+        require(QDir().mkpath(cSaveDir), "short-pack save dir created");
+        require(QFile::copy(fixturePath(QStringLiteral("tiny-volume.cbz")),
+                            cSaveDir + QStringLiteral("/Series v01.cbz")),
+                "short-pack archive materialised");
+        cEngine.emitFinished(cHash);
+        require(waitFor(&cService, &MangaTankobanService::finished, 30000),
+                "the volume the pack DOES contain still finishes");
+
+        require(cService.statusOf(c3).value(QStringLiteral("state")).toString()
+                    != QStringLiteral("ready"),
+                "a volume missing from the chosen pack is NEVER marked ready");
+        require(!cFinished.contains(c3),
+                "a volume missing from the chosen pack never emits finished");
+    }
+
     std::cout << "MANGA_TANKOBAN_SERVICE_OK\n";
     return 0;
 }

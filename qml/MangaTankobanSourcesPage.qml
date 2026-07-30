@@ -34,6 +34,54 @@ Item {
 
     readonly property string identityLine: buildIdentityLine()
 
+    // ── batch mode (design 2026-07-30) ───────────────────────────────────────
+    // A batch context carries volumeIds[]; a single tile carries only volumeId.
+    // The context ALSO sets volumeId to the batch's FIRST volume, so show()'s
+    // search and the applySources/applyFailure stale-handle guards keep working
+    // byte-for-byte — the engine has no range search, every search is per volume.
+    // One volume in a batch is just a single pick, so isBatch needs > 1.
+    readonly property var batchIds: (context && context.volumeIds) ? context.volumeIds : []
+    readonly property var batchNumbers: (context && context.volumeNumbers) ? context.volumeNumbers : []
+    readonly property bool isBatch: batchIds.length > 1
+
+    // Does this release actually contain EVERY volume of the batch? The engine
+    // already parses a release title's volume span into coverageLo/coverageHi
+    // (MangaNyaaSource.cpp:71-95) and publishes it on the row, so this is a read,
+    // not a re-parse. A row that cannot cover the whole ask is not offered —
+    // picking it would leave tiles stuck with nothing behind them.
+    function coversBatch(row) {
+        var lo = Number(row.coverageLo), hi = Number(row.coverageHi)
+        if (!isFinite(lo) || !isFinite(hi)) return false
+        var ns = sheet.batchNumbers
+        if (!ns.length) return false
+        for (var i = 0; i < ns.length; i++) {
+            var n = Number(ns[i])
+            if (!isFinite(n) || n < lo || n > hi) return false
+        }
+        return true
+    }
+
+    // Batch view of the service's rows: only releases covering the whole batch,
+    // TIGHTEST COVERAGE FIRST (design §2 step 3 — a v01–v105 58 GB row must be
+    // visible and labelled, not the default). The WeebCentral card carries no
+    // coverage and is never a torrent, so it survives untouched and stays LAST:
+    // it is the route that always works.
+    function rowsForBatch(all) {
+        var nyaa = [], other = []
+        for (var i = 0; i < all.length; i++) {
+            var r = all[i]
+            if (String(r.kind) !== "nyaa") { other.push(r); continue }
+            if (sheet.coversBatch(r)) nyaa.push(r)
+        }
+        nyaa.sort(function (a, b) {
+            var sa = Number(a.coverageHi) - Number(a.coverageLo)
+            var sb = Number(b.coverageHi) - Number(b.coverageLo)
+            if (sa !== sb) return sa - sb                              // tightest first
+            return (Number(b.seeders) || 0) - (Number(a.seeders) || 0) // then best seeded
+        })
+        return nyaa.concat(other)
+    }
+
     signal closed()
 
     visible: sheet.open || sheet.opacity > 0.01
@@ -52,6 +100,11 @@ Item {
         return parts.join("      ·      ")
     }
     function titleText() {
+        // A batch names the COUNT, never a span — the volumes it covers can be
+        // non-contiguous (owned ones are skipped), so "Volumes 35–44" would be a
+        // lie the moment he already owns 38. Each row's own coverage chips say
+        // what that source contains.
+        if (sheet.isBatch) return sheet.batchIds.length + " volumes"
         if (context.volumeTitle && String(context.volumeTitle).length) return String(context.volumeTitle)
         if (context.volumeNumber !== undefined && String(context.volumeNumber).length)
             return "Vol. " + context.volumeNumber
@@ -75,7 +128,9 @@ Item {
 
     function applySources(vid, results) {
         if (String(vid) !== String(context.volumeId)) return   // stale handle
-        rows = results || []
+        // Filter HERE, so the count line, the empty state and the list all agree
+        // — a single-volume pick is untouched and still sees the service's order.
+        rows = sheet.isBatch ? sheet.rowsForBatch(results || []) : (results || [])
         loading = false; complete = true
     }
     function applyFailure(vid, reason) {
@@ -88,14 +143,27 @@ Item {
     // through the service's own `failed` reason — no auto-fallback here.
     function pickNyaa(modelData) {
         var s = sheet.serviceObject
-        if (s && modelData && modelData.infoHash) s.downloadNyaa(context.volumeId, modelData.infoHash)
+        if (!s || !modelData || !modelData.infoHash) { hide(); return }
+        if (sheet.isBatch) {
+            // A batch acquires every volume from the ONE chosen torrent. The
+            // transport is already multi-intent (one Job per infoHash holding an
+            // Intent per volume, file priorities unioned), so this is N intents on
+            // one download, not N downloads.
+            s.downloadNyaaBatch(sheet.batchIds, modelData.infoHash)
+        } else {
+            s.downloadNyaa(context.volumeId, modelData.infoHash)
+        }
         hide()
     }
     // The WeebCentral fallback: disabled cards do nothing; enabled ones compile.
+    // It needs no per-volume choice, so a batch is a loop over the existing
+    // per-volume entry point — nothing new in the engine.
     function pickWeeb(modelData) {
         if (modelData && modelData.enabled === false) return
         var s = sheet.serviceObject
-        if (s) s.compileWeebCentral(context.volumeId)
+        if (!s) { hide(); return }
+        var ids = sheet.isBatch ? sheet.batchIds : [context.volumeId]
+        for (var i = 0; i < ids.length; i++) s.compileWeebCentral(String(ids[i]))
         hide()
     }
 

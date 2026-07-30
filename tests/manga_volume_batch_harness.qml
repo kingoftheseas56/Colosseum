@@ -28,9 +28,12 @@ Item {
         property var volMap: ({})
         property var srcMap: ({})
 
-        // every dispatch, in order — this is what proves a batch is a batch
+        // every dispatch, in order — this is what proves a batch is a batch.
+        // nyaaVols and nyaaBatches are kept SEPARATE so a "batch" that quietly
+        // degrades into per-volume downloadNyaa calls cannot pass as a batch.
         property var compiledVols: []
         property var nyaaVols: []
+        property var nyaaBatches: []
         property var nyaaHashes: []
         property var searched: []
 
@@ -53,6 +56,12 @@ Item {
         }
         function downloadNyaa(vid, hash) {
             var v = nyaaVols; v.push(String(vid)); nyaaVols = v
+            var h = nyaaHashes; h.push(String(hash)); nyaaHashes = h
+        }
+        function downloadNyaaBatch(vids, hash) {
+            var ids = []
+            for (var i = 0; i < vids.length; i++) ids.push(String(vids[i]))
+            var b = nyaaBatches; b.push(ids); nyaaBatches = b
             var h = nyaaHashes; h.push(String(hash)); nyaaHashes = h
         }
         function compileWeebCentral(vid) {
@@ -80,12 +89,38 @@ Item {
     FakeService {
         id: svc
         volMap: ({ "S": harness.buildVolumes() })
+        // Deliberately imperfect coverage, mirroring what Nyaa really returns:
+        // the engine filters to releases covering the PROBE volume, so a pack can
+        // reach the probe and still fall short of the rest of the batch.
         srcMap: ({
             "vol1": [
+                // wide pack, covers 1-10 — but NOT tightest
                 { "kind": "nyaa", "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa1",
                   "releaseTitle": "Series v01-25 (Digital)", "uploader": "danke-Empire",
                   "tier": 1, "sizeBytes": 2500000000, "seeders": 88,
                   "coverageLo": "1", "coverageHi": "25", "standalone": false,
+                  "digital": true, "enabled": true },
+                // TIGHTEST pack that still covers the whole 1-10 ask
+                { "kind": "nyaa", "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa2",
+                  "releaseTitle": "Series v01-12 (Digital)", "uploader": "Stumbleine",
+                  "tier": 1, "sizeBytes": 1200000000, "seeders": 40,
+                  "coverageLo": "1", "coverageHi": "12", "standalone": false,
+                  "digital": true, "enabled": true },
+                // covers the probe volume 1, but NOT the rest of the batch
+                { "kind": "nyaa", "infoHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa3",
+                  "releaseTitle": "Series v01-03", "uploader": "LuCaZ",
+                  "tier": 2, "sizeBytes": 300000000, "seeders": 12,
+                  "coverageLo": "1", "coverageHi": "3", "standalone": false,
+                  "digital": false, "enabled": true },
+                { "kind": "weebcentral", "label": "Build from chapters", "enabled": true,
+                  "chapterCount": 5, "reason": "" }
+            ],
+            "vol20": [
+                // reaches the probe volume 20 but stops short of 21
+                { "kind": "nyaa", "infoHash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb1",
+                  "releaseTitle": "Series v15-20", "uploader": "danke-Empire",
+                  "tier": 1, "sizeBytes": 600000000, "seeders": 30,
+                  "coverageLo": "15", "coverageHi": "20", "standalone": false,
                   "digital": true, "enabled": true },
                 { "kind": "weebcentral", "label": "Build from chapters", "enabled": true,
                   "chapterCount": 5, "reason": "" }
@@ -122,6 +157,13 @@ Item {
         harness.lib.refreshResume()
     }
 
+    // volume numbers -> the ids the picker is actually handed
+    function idsFor(numbers) {
+        var out = []
+        for (var i = 0; i < numbers.length; i++) out.push("vol" + Number(numbers[i]))
+        return out
+    }
+
     function ck(cond, msg) { if (!cond) throw new Error(msg) }
     function deepEq(a, b, msg) {
         if (JSON.stringify(a) !== JSON.stringify(b))
@@ -139,6 +181,13 @@ Item {
             harness.lastBatchNumbers = numbers
             harness.lastBatchLabel = String(label)
         })
+
+        // The real full-screen picker over the SAME fake service: show() kicks the
+        // fake's searchSources, which synchronously emits sourcesReady back in.
+        var pc = Qt.createComponent("../qml/MangaTankobanSourcesPage.qml")
+        if (pc.status === Component.Error) throw new Error("page component: " + pc.errorString())
+        harness.page = pc.createObject(harness, { "service": svc, "width": 640, "height": 480 })
+        if (!harness.page) throw new Error("page createObject returned null")
     }
 
     function runChecks() {
@@ -212,6 +261,64 @@ Item {
             for (var p = 0; p < allPages.length; p++)
                 ck(harness.lib.unownedIn(allPages[p].volumes).length === 0,
                    "page " + p + " must offer nothing when all volumes are owned")
+
+            // ── Task 4: one press must reach EVERY volume, not just the first ──
+            harness.setOwned([])                       // clean slate, nothing owned
+            var batch = harness.lib.unownedIn(harness.lib.pagedRows[0].volumes)
+            deepEq(batch, range(1, 10), "page 1 now offers all ten")
+
+            // WeebCentral route: N compiles, one per volume, in order.
+            harness.page.show({ "volumeId": "vol1", "volumeIds": harness.idsFor(batch),
+                                "volumeNumbers": batch, "title": "Volumes 1–10" })
+            ck(harness.page.isBatch === true, "ten volumes is a batch")
+            ck(harness.page.titleText() === "10 volumes",
+               "a batch names its COUNT, got " + harness.page.titleText())
+            ck(svc.searched.length === 1 && svc.searched[0] === "vol1",
+               "a batch searches exactly ONE probe volume")
+            harness.page.pickWeeb({ "kind": "weebcentral", "enabled": true })
+            deepEq(svc.compiledVols, harness.idsFor(range(1, 10)),
+                   "the WeebCentral route compiles EVERY volume of the batch")
+
+            // The picker offers only releases that cover the WHOLE ask, tightest
+            // first. vol1's fixture has three packs: v01-25 and v01-12 both cover
+            // 1-10; v01-03 reaches the probe volume but not the rest.
+            svc.compiledVols = []
+            harness.page.show({ "volumeId": "vol1", "volumeIds": harness.idsFor(batch),
+                                "volumeNumbers": batch, "title": "Volumes 1–10" })
+            ck(harness.page.rows.length === 3,
+               "two covering packs + WeebCentral, got " + harness.page.rows.length)
+            ck(String(harness.page.rows[0].releaseTitle) === "Series v01-12 (Digital)",
+               "TIGHTEST covering pack first, got " + harness.page.rows[0].releaseTitle)
+            ck(String(harness.page.rows[1].releaseTitle) === "Series v01-25 (Digital)",
+               "the wider pack comes second")
+            ck(String(harness.page.rows[2].kind) === "weebcentral",
+               "the WeebCentral card stays LAST — it is the route that always works")
+            for (var z = 0; z < harness.page.rows.length; z++)
+                ck(String(harness.page.rows[z].releaseTitle) !== "Series v01-03",
+                   "a pack that reaches the probe but not the whole batch is NOT offered")
+
+            // Nyaa route: ONE call carrying all ten ids and the one infoHash.
+            harness.page.pickNyaa(harness.page.rows[0])
+            ck(svc.nyaaBatches.length === 1,
+               "the Nyaa route is ONE batch call, got " + svc.nyaaBatches.length)
+            deepEq(svc.nyaaBatches[0], harness.idsFor(range(1, 10)),
+                   "the one call carries every volume id")
+            ck(svc.nyaaVols.length === 0,
+               "a batch must NOT degrade into per-volume downloadNyaa calls")
+
+            // A release that cannot cover the whole ask is NOT offered at all.
+            harness.page.show({ "volumeId": "vol20", "volumeIds": ["vol20", "vol21"],
+                                "volumeNumbers": [20, 21], "title": "Volumes 20–21" })
+            ck(harness.page.rows.length === 1 &&
+               String(harness.page.rows[0].kind) === "weebcentral",
+               "v15-20 cannot reach volume 21, so only the WeebCentral route remains")
+
+            // A single-volume pick is untouched by any of this.
+            svc.nyaaVols = []
+            harness.page.show({ "volumeId": "vol1", "title": "Vol. 1" })
+            ck(harness.page.isBatch === false, "one volume is not a batch")
+            harness.page.pickNyaa(harness.page.rows[0])
+            deepEq(svc.nyaaVols, ["vol1"], "a single pick still dispatches downloadNyaa")
 
             console.log("MANGA_VOLUME_BATCH_OK")
             Qt.exit(0)
