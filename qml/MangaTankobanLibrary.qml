@@ -30,6 +30,7 @@
 // resolve through `serviceObject`, falling back to the context property so the
 // running app needs no wiring. `progress` is the same seam over ProgressStore.
 import QtQuick
+import "MangaVolumes.js" as Vol
 
 Item {
     id: root
@@ -129,6 +130,54 @@ Item {
 
     // inspection: how many volume rows the Repeater actually instantiated
     readonly property int renderedCount: rowsRepeater.count
+
+    // ── the shelf pages in tens (design 2026-07-30) ───────────────────────────
+    // The shelf stays ONE flat Repeater — the page header is drawn by the first
+    // row of each page instead of nesting a repeater per page. Same surface, and
+    // `renderedCount` above keeps meaning "rows actually instantiated", which
+    // manga_tankoban_page_harness.qml asserts on. pageGroups() is still the single
+    // source of paging truth (labels, bounds, per-page volume lists); only the
+    // rendering is flat.
+    readonly property int pageSize: 10
+    readonly property var pagedRows: Vol.pageGroups(root.volumeRows, root.pageSize)
+    // A batch was asked for: the volume NUMBERS it covers plus a human label.
+    signal batchRequested(var numbers, string label)
+
+    // { <volumeNumber>: true } for every volume a batch must NOT ask for: already
+    // on the device, or already coming. Owned is the hard fence (spec: never
+    // re-download); in-flight is here because the service rejects a second request
+    // for a live volume ("Already acquiring this volume."), and a button that
+    // names volumes already downloading would earn that error ten times over.
+    // Reads the SAME live progress the tiles read, so button and tiles agree.
+    readonly property var unavailableNumbers: {
+        var out = {}
+        var rows = root.volumeRows || []
+        for (var i = 0; i < rows.length; i++) {
+            var n = Number(rows[i].number)
+            if (!isFinite(n)) continue
+            var live = root.progressByVolume[String(rows[i].id)]
+            var st = (live !== undefined && live !== null)
+                     ? String(live.state || "downloading")
+                     : String(rows[i].state || "none")
+            if (st === "ready" || root._inFlight(st)) out[n] = true
+        }
+        return out
+    }
+
+    // The volume NUMBERS a batch over `rows` would actually fetch: the rows minus
+    // anything already here or already coming. Empty → that button has nothing to
+    // do and hides. A function (not a per-delegate property) so the offscreen
+    // harness can assert it without reaching inside a delegate; QML still tracks
+    // unavailableNumbers as a binding dependency through the call.
+    function unownedIn(rows) {
+        var out = []
+        var vs = rows || []
+        for (var i = 0; i < vs.length; i++) {
+            var n = Number(vs[i].number)
+            if (isFinite(n) && !root.unavailableNumbers[n]) out.push(n)
+        }
+        return out
+    }
 
     // Opening a downloaded volume in the reader is a later layer; surfaced as a
     // signal so the page can wire it without this surface knowing about readers.
@@ -274,9 +323,17 @@ Item {
             delegate: Item {
                 id: vrow
                 required property var modelData
+                required property int index
                 width: listCol.width
-                implicitHeight: rowMain.height
-                height: rowMain.height
+                // The first row of every page carries that page's header. null on
+                // every other row, so the header costs nothing to the other nine.
+                readonly property var pageInfo: (vrow.index % root.pageSize === 0)
+                    ? root.pagedRows[Math.floor(vrow.index / root.pageSize)] : null
+                // What this page's button would actually fetch (see root.unownedIn).
+                readonly property var pageUnowned:
+                    vrow.pageInfo ? root.unownedIn(vrow.pageInfo.volumes) : []
+                implicitHeight: rowMain.height + pageHeader.height
+                height: implicitHeight
 
                 readonly property string volumeId: String(modelData.id || "")
                 readonly property var prog: root.progressByVolume[volumeId]
@@ -337,9 +394,55 @@ Item {
                     }
                 }
 
+                // ── the page header: "VOLUMES 31–40      ↓ Download 31–40" ──
+                // Deliberate stretch, so he can grab a specific run rather than the
+                // next one. Wears the rail caption's voice (theme.ui, letterSpaced,
+                // inkDimmer) and sits on the same margins as the rows.
+                Item {
+                    id: pageHeader
+                    width: parent.width
+                    height: vrow.pageInfo ? 52 : 0
+                    visible: height > 0
+
+                    Text {
+                        x: theme.margin + 2
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 12
+                        text: vrow.pageInfo ? String(vrow.pageInfo.label).toUpperCase() : ""
+                        color: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 11
+                        font.letterSpacing: 1.4; font.weight: Font.DemiBold
+                    }
+
+                    Text {
+                        id: pageBtn
+                        anchors.right: parent.right
+                        anchors.rightMargin: theme.margin
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 10
+                        visible: !!vrow.pageInfo && vrow.pageUnowned.length > 0
+                        text: "↓  Download " + (vrow.pageInfo ? vrow.pageInfo.label
+                                                                  .replace("Volumes ", "") : "")
+                        color: pageMouse.containsMouse ? theme.gold : theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold
+
+                        MouseArea {
+                            id: pageMouse
+                            anchors.fill: parent
+                            anchors.margins: -8
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: root.batchRequested(vrow.pageUnowned,
+                                                           vrow.pageInfo.label)
+                        }
+                    }
+                }
+
                 // ── the row: Theatre's episode anatomy, portrait artwork ──
                 Item {
                     id: rowMain
+                    y: pageHeader.height
                     width: parent.width
                     height: vrow.isContinue ? 428 : 356
 
