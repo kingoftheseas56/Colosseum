@@ -182,6 +182,55 @@ Item {
     property var visibleChapters: loading ? []
         : (page.tankobanMode ? ((volGroups.byKey && volGroups.byKey.X) || []) : chaptersModel)
 
+    // ── the facts column beside the synopsis (Theatre's key/value stack) ─────
+    // Only facts we actually hold. Nothing is padded to fill the column: a row
+    // that has no answer simply is not there.
+    readonly property var factRows: {
+        var out = []
+        if (page.author.length) out.push({ "k": "Author", "v": page.author })
+        if (page.status.length) out.push({ "k": "Status", "v": page.status })
+        if (page.tankobanMode && tankLib.volumeRows.length) {
+            var rows = tankLib.volumeRows, owned = 0
+            for (var i = 0; i < rows.length; i++)
+                if (String(rows[i].state) === "ready") owned++
+            out.push({ "k": "Volumes", "v": String(rows.length) })
+            out.push({ "k": "On this device", "v": owned
+                       ? (owned + (owned === 1 ? " volume" : " volumes")) : "None yet" })
+        }
+        if (page.chaptersModel.length)
+            out.push({ "k": "Chapters", "v": String(page.chaptersModel.length) })
+        return out
+    }
+
+    // ── the hero's Read promise ──────────────────────────────────────────────
+    // Theatre's button names the episode it will play. Ours names the volume: the
+    // one you were part-way through, else the first you own, else the first book.
+    // Nothing here invents a target — if there is no volume at all the button
+    // falls back to the chapter list, which is what an unqualified series shows.
+    readonly property string readCtaLabel: {
+        if (!tankLib.continueVolumeId.length) return "Read"
+        var rows = tankLib.volumeRows || []
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].id) === tankLib.continueVolumeId)
+                return "Continue Vol. " + rows[i].number
+        return "Read"
+    }
+    function readPrimary() {
+        // resume beats everything — it is the only target the user already chose
+        if (tankLib.continueVolumeId.length) { page._openVolume(tankLib.continueVolumeId); return }
+        var rows = tankLib.volumeRows || []
+        for (var i = 0; i < rows.length; i++)                    // first book on disk
+            if (String(rows[i].state) === "ready") { page._openVolume(String(rows[i].id)); return }
+        if (rows.length) { tankLib.chooseSource(String(rows[0].id)); return }   // fetch volume 1
+        var chs = page.visibleChapters                          // unqualified series: first chapter
+        if (chs && chs.length) {
+            page.openEntryKind = "manga"
+            page.openChapterId = String(chs[0].id)
+            page.openChapterLabel = (chs[0].name && String(chs[0].name).length)
+                ? String(chs[0].name) : ("Chapter " + (chs[0].number || ""))
+        }
+    }
+
     function collectionEntry() {
         return { "id": page.seriesTitle, "type": "manga",
                  "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
@@ -435,7 +484,9 @@ Item {
                             text: page.genres.slice(0, 3).join(" · ")
                             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
                     }
-                    // Primary CTA — Read. (Per-volume download moved down to the chapter-table header.)
+                    // Primary CTA — Read. Theatre names the exact episode its button will
+                    // play ("Watch S1 · E3"); the same promise here names the volume, so the
+                    // button never lies about where it lands.
                     Row {
                         spacing: 12
                         topPadding: 8
@@ -443,12 +494,14 @@ Item {
                             width: readRow.implicitWidth + 40; height: 42; radius: 11; color: theme.gold
                             Row {
                                 id: readRow; anchors.centerIn: parent; spacing: 9
-                                Text { text: "▶"; color: "#1a1306"; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: "Read"; color: "#1a1306"; font.family: theme.ui; font.pixelSize: 14
+                                PlayerIcon { kind: "play"; ink: "#1a1306"; width: 16; height: 16; iconSize: 14
+                                    anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: page.readCtaLabel; color: "#1a1306"; font.family: theme.ui; font.pixelSize: 14
                                     font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                             }
                             MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onEntered: parent.opacity = 0.92; onExited: parent.opacity = 1.0 }
+                                onEntered: parent.opacity = 0.92; onExited: parent.opacity = 1.0
+                                onClicked: page.readPrimary() }
                         }
 
                         LibraryButton {
@@ -459,15 +512,67 @@ Item {
                 }
             }
 
-            // ── synopsis (inset) ──
-            Text {
-                visible: page.synopsis.length > 0
+            // ── synopsis + facts, Theatre's two-column band (56px gutter) ──
+            Row {
                 x: theme.margin
-                width: Math.min(880, parent.width - 2 * theme.margin)
-                text: page.synopsis
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15
-                lineHeight: 1.5; wrapMode: Text.WordWrap
-                topPadding: 22; bottomPadding: 6
+                spacing: 56
+                Text {
+                    visible: page.synopsis.length > 0
+                    width: 580
+                    text: page.synopsis
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15
+                    lineHeight: 1.5; wrapMode: Text.WordWrap
+                    topPadding: 22; bottomPadding: 6
+                }
+                Column {
+                    spacing: 10
+                    topPadding: 22
+                    visible: page.factRows.length > 0 && page.width > 1040
+                    Repeater {
+                        model: page.factRows
+                        Row {
+                            id: factRow
+                            required property var modelData
+                            spacing: 18
+                            Text { text: factRow.modelData.k; color: theme.inkDim; width: 104
+                                   font.family: theme.ui; font.pixelSize: 13 }
+                            Text { text: factRow.modelData.v; color: theme.ink
+                                   font.family: theme.ui; font.pixelSize: 13 }
+                        }
+                    }
+                }
+            }
+
+            // ── VOLUMES header — the shelf had none, so the page read as starting
+            //    abruptly out of the synopsis. Theatre labels its episode run; so do we. ──
+            Item {
+                width: parent.width
+                height: 60
+                visible: page.tankobanMode
+                Row {
+                    x: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 14
+                    Text {
+                        text: "Volumes"
+                        color: theme.ink; font.family: theme.display; font.pixelSize: 22
+                        font.weight: Font.DemiBold
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: {
+                            var n = tankLib.volumeRows.length
+                            if (!n) return ""
+                            var owned = 0
+                            for (var i = 0; i < n; i++)
+                                if (String(tankLib.volumeRows[i].state) === "ready") owned++
+                            return owned > 0 ? (n + " books · " + owned + " on this device")
+                                             : (n + " books")
+                        }
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
             }
 
             // ── THE VOLUME LIBRARY — the permanent surface for a gate-qualified series ──

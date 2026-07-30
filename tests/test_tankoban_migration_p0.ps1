@@ -44,13 +44,14 @@ function Read-RepoFile([string]$rel) {
     return (Get-Content -Raw -LiteralPath $p)
 }
 
-# Every hand-written runtime source under native/ and qml/. native/build-msvc is EXCLUDED on
-# purpose: it holds generated artefacts (moc output, .obj, ninja logs) that still carry the
-# deleted class's name until someone wipes the build dir, and a stale artefact must not be able
-# to fail a source contract.
+# Every hand-written runtime source under native/ and qml/. EVERY native/build-* directory is
+# EXCLUDED on purpose: they hold generated artefacts (moc output, .obj, ninja logs) that still
+# carry the deleted class's name until someone wipes the build dir, and a stale artefact must not
+# be able to fail a source contract. Matched by PREFIX, not by name: this test was first written
+# excluding only build-msvc and went red the moment a second build tree (build-onnx) appeared.
 $sources = Get-ChildItem -Path (Join-Path $repo "native"), (Join-Path $repo "qml") -Recurse -File `
     -Include *.h, *.cpp, *.qml, *.js |
-    Where-Object { $_.FullName -notlike "*\build-msvc\*" }
+    Where-Object { $_.FullName -notlike "*\build-*\*" }
 if ($sources.Count -lt 50) { throw "source sweep found only $($sources.Count) files - the glob is broken, not the tree" }
 
 # --- 1. MangaDex is retired from the runtime -------------------------------------------------
