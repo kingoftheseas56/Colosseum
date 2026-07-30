@@ -601,82 +601,13 @@ Item {
                     }
                 }
 
-                // Stop what is still coming, keep what already landed. Only exists
-                // while something is actually in flight (design 2026-07-30 §3).
-                Text {
-                    id: cancelRemaining
-                    anchors.right: primaryBatch.left
-                    anchors.rightMargin: 22
-                    anchors.verticalCenter: parent.verticalCenter
-                    visible: tankLib.inFlightIds.length > 0
-                    text: "Cancel remaining (" + tankLib.inFlightIds.length + ")"
-                    color: cancelMouse.containsMouse ? "#e6a3a3" : theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12
-
-                    MouseArea {
-                        id: cancelMouse
-                        anchors.fill: parent
-                        anchors.margins: -8
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: tankLib.cancelRemaining()
-                    }
-                }
-
-                // ── the one press (design 2026-07-30 §4) ──────────────────────
-                // Sits beside the owned count, and ALWAYS names the volumes it
-                // will fetch in text — so it can never surprise him, and a screen
-                // reader announces the target rather than a bare "Download".
-                Row {
-                    id: primaryBatch
-                    anchors.right: parent.right
-                    anchors.rightMargin: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 10
-                    visible: tankLib.volumeRows.length > 0
-                    readonly property bool armed: tankLib.nextBatch.kind !== "complete"
-
-                    Text {
-                        text: primaryBatch.armed ? "↓" : "✓"
-                        color: primaryBatch.armed
-                               ? (batchMouse.containsMouse ? theme.gold : theme.ink)
-                               : tankLib.ownedInk
-                        font.family: theme.ui; font.pixelSize: 14
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Column {
-                        spacing: 1
-                        anchors.verticalCenter: parent.verticalCenter
-                        Text {
-                            text: tankLib.nextBatch.label
-                            color: primaryBatch.armed
-                                   ? (batchMouse.containsMouse ? theme.gold : theme.ink)
-                                   : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                        }
-                        Text {
-                            visible: primaryBatch.armed
-                            text: tankLib.nextBatch.first === tankLib.nextBatch.last
-                                  ? ("volume " + tankLib.nextBatch.first)
-                                  : ("volumes " + tankLib.nextBatch.first
-                                     + "–" + tankLib.nextBatch.last)
-                            color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 11
-                        }
-                    }
-
-                    MouseArea {
-                        id: batchMouse
-                        anchors.fill: parent
-                        anchors.margins: -8
-                        enabled: primaryBatch.armed
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: tankLib.batchRequested(tankLib.nextBatch.numbers,
-                                                          tankLib.nextBatch.label)
-                    }
-                }
+                // NOTE: the batch controls used to live here, anchored to this
+                // header's right edge. They were CUT OFF by the window (eyes-on
+                // 2026-07-31) because `primaryBatch` was a Row with a MouseArea
+                // child — a positioner lays a MouseArea out as an item, inflating
+                // the Row past the viewport. The same trap TheatreSeries.qml:1186
+                // documents. They now live on the shelf's own ledger header, in
+                // Theatre's "Download season" position.
             }
 
             // ── THE VOLUME LIBRARY — the permanent surface for a gate-qualified series ──

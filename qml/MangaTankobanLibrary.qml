@@ -573,27 +573,136 @@ Item {
             }
         }
 
-        // The deliberate stretch: grab THIS page rather than the next ten.
+        // ── the ledger header — Theatre's episodeLedgerHeader (TheatreSeries.qml
+        //    :1229), one medium over. The page's name and tally on the left, the
+        //    download action as a glass tablet on the right, exactly where
+        //    "Download season" sits on a show page (Hemanth, eyes-on 2026-07-31).
         Item {
-            id: pageBatchRow
-            width: listCol.width
-            height: (root.pagedRows.length > 1 && root.activePageUnowned.length > 0) ? 40 : 0
+            id: volumeLedgerHeader
+            x: theme.margin
+            width: listCol.width - 2 * theme.margin
+            height: root.pagedRows.length ? 86 : 0
             visible: height > 0
-            Text {
-                id: pageBatchBtn
-                x: theme.margin + 2
+
+            Column {
+                anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
-                text: root.activePageInfo
-                      ? ("↓  Download " + root.activePageInfo.first
-                         + "–" + root.activePageInfo.last)
-                      : ""
-                color: pageBatchMa.containsMouse ? theme.gold : theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 12
-                font.weight: Font.DemiBold
+                spacing: 7
+                Text {
+                    text: root.activePageInfo ? root.activePageInfo.label : ""
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 25
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    text: {
+                        var vs = root.visibleRows
+                        if (!vs.length) return ""
+                        var owned = 0, coming = 0
+                        for (var i = 0; i < vs.length; i++) {
+                            var live = root.progressByVolume[String(vs[i].id)]
+                            var st = (live !== undefined && live !== null)
+                                     ? String(live.state || "downloading")
+                                     : String(vs[i].state || "none")
+                            if (st === "ready") owned++
+                            else if (root._inFlight(st)) coming++
+                        }
+                        var parts = [vs.length + (vs.length === 1 ? " book" : " books")]
+                        if (owned > 0) parts.push(owned + " on this device")
+                        if (coming > 0) parts.push(coming + " downloading")
+                        return parts.join("  /  ")
+                    }
+                    color: theme.inkDimmer
+                    font.family: theme.ui
+                    font.pixelSize: 12
+                    font.letterSpacing: 0.3
+                }
+            }
+
+            // Stop what is still coming, keep what already landed. Sits left of the
+            // download tablet and only exists while something is genuinely in flight.
+            Rectangle {
+                id: cancelRemainingAction
+                objectName: "cancelRemainingAction"   // geometry is asserted offscreen
+                visible: root.inFlightIds.length > 0
+                // Anchored to the download tablet itself, NOT to its `visible` —
+                // `visible` is inherited from ancestors, so keying layout off it
+                // makes the two actions overlap in any context where the shelf is
+                // not yet shown. The tablet is present whenever a page exists, and
+                // this control only appears when volumes are in flight.
+                anchors.right: pageDownloadAction.left
+                anchors.rightMargin: 10
+                anchors.verticalCenter: parent.verticalCenter
+                width: 168
+                height: 40
+                radius: 9
+                color: cancelMa.containsMouse ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
+                border.color: theme.edge
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 9
+                    PlayerIcon {
+                        width: 16; height: 16
+                        kind: "cancel"
+                        ink: cancelMa.containsMouse ? "#e6a3a3" : theme.inkDim
+                    }
+                    Text {
+                        text: "Cancel remaining"
+                        color: cancelMa.containsMouse ? "#e6a3a3" : theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                    }
+                }
                 MouseArea {
-                    id: pageBatchMa
+                    id: cancelMa
                     anchors.fill: parent
-                    anchors.margins: -8
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.cancelRemaining()
+                }
+            }
+
+            // Theatre's "Download season", one medium over: acquire every volume of
+            // the ACTIVE page that is not already here or already coming. It always
+            // names its range, so it can never surprise him about what it fetches.
+            Rectangle {
+                id: pageDownloadAction
+                objectName: "pageDownloadAction"   // geometry is asserted offscreen
+                visible: root.pagedRows.length > 0 && root.activePageInfo !== null
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 176
+                height: 40
+                radius: 9
+                readonly property bool armed: root.activePageUnowned.length > 0
+                color: dlPageMa.containsMouse && pageDownloadAction.armed
+                       ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
+                border.color: theme.edge
+                Row {
+                    anchors.centerIn: parent
+                    spacing: 9
+                    PlayerIcon {
+                        width: 16; height: 16
+                        kind: pageDownloadAction.armed ? "download" : "check"
+                        ink: pageDownloadAction.armed ? theme.inkDim : root.ownedInk
+                    }
+                    Text {
+                        text: !pageDownloadAction.armed ? "On this device"
+                            : ("Download " + root.activePageInfo.first
+                               + "–" + root.activePageInfo.last)
+                        color: !pageDownloadAction.armed ? theme.inkDim
+                             : (dlPageMa.containsMouse ? theme.ink : theme.inkDim)
+                        font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                    }
+                }
+                MouseArea {
+                    id: dlPageMa
+                    anchors.fill: parent
+                    enabled: pageDownloadAction.armed
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.batchRequested(root.activePageUnowned,

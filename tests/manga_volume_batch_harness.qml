@@ -175,6 +175,19 @@ Item {
         return out
     }
 
+    // Depth-first hunt for a named item — the batch actions live inside the
+    // shelf's ledger header, so geometry can only be reached this way.
+    function findByName(item, name) {
+        if (!item) return null
+        if (String(item.objectName) === name) return item
+        var kids = item.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var hit = harness.findByName(kids[i], name)
+            if (hit) return hit
+        }
+        return null
+    }
+
     function ck(cond, msg) { if (!cond) throw new Error(msg) }
     function deepEq(a, b, msg) {
         if (JSON.stringify(a) !== JSON.stringify(b))
@@ -390,6 +403,37 @@ Item {
             harness.setInFlight([])
             ck(harness.lib.inFlightIds.length === 0,
                "with nothing in flight there is nothing to cancel")
+
+            // ── the batch actions must stay INSIDE the shelf ───────────────
+            // Eyes-on 2026-07-31: the download control was clipped by the window
+            // because it was anchored inside a Row that a MouseArea child had
+            // inflated. Geometry, not shape, is what failed — so geometry is what
+            // is asserted here. Both actions are mapped into the shelf's own
+            // coordinate space and must sit fully within it.
+            harness.setInFlight([4, 5])            // so BOTH actions are visible
+            var dl = harness.findByName(harness.lib, "pageDownloadAction")
+            var cx = harness.findByName(harness.lib, "cancelRemainingAction")
+            ck(dl !== null, "the download action must exist")
+            ck(cx !== null, "the cancel action must exist")
+            // NOT asserted through `visible`: QML propagates visible DOWN from
+            // ancestors and this harness root is deliberately invisible, so every
+            // child reports false. Assert the conditions that drive it instead.
+            ck(harness.lib.inFlightIds.length === 2, "two volumes are in flight")
+            ck(harness.lib.activePageUnowned.length > 0, "the page still has volumes to fetch")
+            ck(dl.width > 0 && cx.width > 0, "both actions must be laid out")
+
+            var dlPos = harness.lib.mapFromItem(dl, 0, 0)
+            var cxPos = harness.lib.mapFromItem(cx, 0, 0)
+            ck(dlPos.x >= 0, "the download action must not start left of the shelf")
+            ck(dlPos.x + dl.width <= harness.lib.width,
+               "the download action must not be CLIPPED by the shelf's right edge (right="
+               + (dlPos.x + dl.width) + ", shelf=" + harness.lib.width + ")")
+            ck(cxPos.x >= 0 && cxPos.x + cx.width <= harness.lib.width,
+               "the cancel action must not be clipped either (right="
+               + (cxPos.x + cx.width) + ", shelf=" + harness.lib.width + ")")
+            ck(cxPos.x + cx.width <= dlPos.x,
+               "cancel must sit LEFT of download, never overlap it")
+            harness.setInFlight([])
 
             console.log("MANGA_VOLUME_BATCH_OK")
             Qt.exit(0)

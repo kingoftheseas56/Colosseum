@@ -68,7 +68,21 @@ Assert-Contains $series 'function _requestBatch' "numbers -> ids must live in on
 Assert-Contains $series 'function _openSources' "single and batch must share one picker-open path"
 Assert-Contains $series '!== "ready"' "an owned volume must never be re-downloaded"
 Assert-Contains $series 'volumeNumbers' "the picker needs the batch's numbers to filter coverage"
-Assert-Contains $series 'cancelRemaining' "the Cancel remaining control must be wired"
+
+# The batch ACTIONS live on the shelf's own ledger header, in Theatre's
+# "Download season" position (eyes-on 2026-07-31). Anchoring them to the series
+# header's right edge pushed them off the window.
+Assert-Contains $library 'volumeLedgerHeader' "the shelf needs Theatre's ledger header"
+Assert-Contains $library 'pageDownloadAction' "the download action must sit where Download season sits"
+Assert-Contains $library 'cancelRemainingAction' "the Cancel remaining control must be wired"
+Assert-Contains $library 'width: listCol.width - 2 * theme.margin' `
+    "the ledger header must be inset both sides or its right-anchored action clips"
+# The trap that caused the clipping: a MouseArea parented to a positioner is laid
+# out as an item and inflates it. Both actions must be Rectangles, not Rows.
+if ($library -match 'Row\s*\{[^}]*id:\s*(primaryBatch|pageBatchRow)') {
+    Write-Host "FAIL: a batch action must not be a positioner containing a MouseArea"
+    exit 1
+}
 
 # The picker applies ONE route across EVERY volume, and offers only covering packs.
 Assert-Contains $picker 'batchIds' "the picker must know the batch"
