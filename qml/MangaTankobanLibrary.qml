@@ -8,12 +8,12 @@
 // and circular actions on the right. Continue is Theatre's "Next up": taller, gold
 // rail, gold number.
 //
-// The ONE adaptation that is not a copy: Theatre's still is landscape (172x96),
-// while a tankobon is a portrait object, so the artwork stands up. Sizing follows
-// Theatre's PROPORTION rather than its numbers — its still fills 96 of a 104px row,
-// nearly the whole height, so the book does too: 138 of 158 (180 of 208 on the
-// Continue row). A cover scaled to Theatre's 96px height instead would be 64px wide
-// and read as a stamp next to an episode still.
+// The ONE adaptation that is not a copy: Theatre's still is LANDSCAPE (172x96) and
+// a tankobon is portrait, so Theatre is the wrong yardstick for the artwork — the
+// aspect ratios are not comparable. The right reference is the CHAPTER row on this
+// same page, which already shows a portrait first-page thumbnail: 100x140 in a 156px
+// row. The book matches it exactly, so a volume and a chapter read at the same
+// weight. Continue is the emphasised row and steps up to 126x176 in 196.
 //
 // The signature: OWNERSHIP IS DRAWN AS A SPINE. The rail's hairline thickens into a
 // gold rule and the cover picks up a lit left edge once the volume is on disk, so a
@@ -336,7 +336,7 @@ Item {
                 Item {
                     id: rowMain
                     width: parent.width
-                    height: vrow.isContinue ? 208 : 158
+                    height: vrow.isContinue ? 196 : 156
 
                     // hover / continue tint, inset to the page margins like Theatre
                     Rectangle {
@@ -396,10 +396,10 @@ Item {
                         id: cov
                         x: numberRail.x + numberRail.width + 16
                         y: (parent.height - height) / 2
-                        width: vrow.isContinue ? 122 : 94
-                        height: vrow.isContinue ? 180 : 138
+                        width: vrow.isContinue ? 126 : 100
+                        height: vrow.isContinue ? 176 : 140
                         Rectangle {
-                            anchors.fill: parent; radius: 5; clip: true
+                            anchors.fill: parent; radius: 6; clip: true
                             color: "#15171f"
                             border.width: 1
                             border.color: vrow.owned ? Qt.rgba(0.94, 0.77, 0.29, 0.45) : theme.edge
@@ -409,7 +409,7 @@ Item {
                                 text: vrow.modelData.number || "?"
                                 color: Qt.rgba(1, 1, 1, 0.5)
                                 font.family: theme.display
-                                font.pixelSize: vrow.isContinue ? 34 : 28
+                                font.pixelSize: vrow.isContinue ? 38 : 30
                             }
                             Image {
                                 id: coverImg
@@ -418,6 +418,7 @@ Item {
                                 visible: status === Image.Ready
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true; cache: true
+                                sourceSize.width: 280
                             }
                             // a book you own catches the light down its spine edge
                             Rectangle {
