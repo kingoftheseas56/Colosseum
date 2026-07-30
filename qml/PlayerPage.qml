@@ -1779,7 +1779,15 @@ Item {
 
     // Write the current watch position to the Continue store. Called on a ticking timer
     // while playing and once more on stop, so the resume bar reflects where you really are.
-    function recordProgress() {
+    // Pass silent=true (the 5s playback tick) to persist for crash-resume WITHOUT emitting
+    // changed() — re-rendering the Continue row every 5s was the proven stutter source
+    // (2026-07-29 A/B: +100 -> +3 output drops/60s). No-arg calls (the lifecycle sites: stop,
+    // stream-death, playback-failure, episode-advance, EOF) still notify via record(), so the
+    // row refreshes when you actually leave the player or move on. NOTE: seek and pause do NOT
+    // call recordProgress at all (pre-existing, intentional — scrubbing fires often, and a
+    // notify-per-seek would re-introduce a smaller cascade); their position is picked up by the
+    // next 5s tick or the next lifecycle write.
+    function recordProgress(silent) {
         if (root.mediaId === "" || mpv.duration <= 0 || mpv.position <= 0)
             return
         // Anti-clutter floor (matches Tankoban 2's MIN_POSITION_SEC = 10): an accidental
@@ -1793,7 +1801,7 @@ Item {
         var m = root.parseSubtitleMeta()
         var epPrefix = (m.type === "series" && m.season !== undefined && m.episode !== undefined)
                        ? ("S" + m.season + " · E" + m.episode + " · ") : ""
-        Progress.record({
+        var entry = {
             "id": root.mediaId,
             "kind": "video",
             "caption": root.mediaTitle,
@@ -1808,14 +1816,21 @@ Item {
                         "subType": root.subStreamType,
                         "subId": root.subStreamId,
                         "position": mpv.position }
-        })
+        }
+        if (silent) Progress.recordSilent(entry)
+        else Progress.record(entry)
     }
 
     // Tick the watch position into the store every few seconds while actually playing.
+    // Silent: persists for crash-resume via recordSilent() without emitting changed(), so the
+    // Continue row is not re-rendered every 5s (that cascade was the proven video-stutter
+    // source, 2026-07-29). Lifecycle writes (stop / stream-death / playback-failure /
+    // episode-advance / EOF) still notify via recordProgress(); seek and pause intentionally do
+    // not (see recordProgress above).
     Timer {
         interval: 5000; repeat: true
         running: !root.starting && !root.errored && !mpv.pause && mpv.duration > 0
-        onTriggered: root.recordProgress()
+        onTriggered: root.recordProgress(true)
     }
 
     Timer {
@@ -2406,8 +2421,16 @@ Item {
         root.playbackStats = {
             "videoBitrate": mpv.mpvProperty("video-bitrate"),
             "audioBitrate": mpv.mpvProperty("audio-bitrate"),
-            "frameDropDecoder": mpv.mpvProperty("frame-drop-count"),
-            "frameDropOutput": mpv.mpvProperty("vo-drop-frame-count"),
+            // "decoder / output" — mpv's property naming is inverted from the plain reading:
+            // `frame-drop-count` is the OUTPUT (VO) drop count and `decoder-frame-drop-count` is
+            // the decoder's. This pair used to read frame-drop-count into the DECODER slot and
+            // ask for a `vo-drop-frame-count` that mpv does not have, so the card showed the
+            // output count under the decoder label and "NaN" under the output label (the invalid
+            // property comes back as an ErrorReturn object, and Number(object) is NaN). Fixed
+            // 2026-07-29 to match native/player/mpvitem.cpp statsPayload(), which is the mapping
+            // the zero-drop gate measures against.
+            "frameDropDecoder": mpv.mpvProperty("decoder-frame-drop-count"),
+            "frameDropOutput": mpv.mpvProperty("frame-drop-count"),
             "estimatedFps": mpv.mpvProperty("estimated-vf-fps"),
             "containerFps": mpv.mpvProperty("container-fps"),
             "videoCodec": mpv.mpvProperty("video-codec"),
@@ -2609,6 +2632,27 @@ Item {
         }
         case "shortcuts": root.shortcutsOpen = true; return
         }
+    }
+    // Right-hand value for a "More controls" row: what that control is currently set to, so the
+    // menu reports state instead of just listing verbs. Computed per row in the delegate (NOT in the
+    // Repeater's model array) -- a model that read mpv.speed would rebuild every delegate on each
+    // speed change, which is the reactive-cascade shape that caused the 2026-07-29 video stutter.
+    function overflowValue(kind) {
+        if (kind === "loudness") return root.loudnessLabel()
+        if (kind === "speed") return (Math.round(mpv.speed * 100) / 100) + "×"
+        if (kind === "fill") {
+            var m = root.fillModes[root.fillModeIndex]
+            return m ? m.label : ""
+        }
+        if (kind === "audio") {
+            var a = root.firstSelectedTrack(root.audioRows)
+            return a ? String(a.lang || a.title || a.label || "") : ""
+        }
+        if (kind === "stats") return root.statsOverlayOpen ? "On" : ""
+        if (kind === "pip") return root.pipMode ? "On" : ""
+        if (kind === "shortcuts") return "?"
+        if (kind === "gif") return root.gifState === "recording" ? root.fmtTime(root.gifElapsedSec) : ""
+        return ""
     }
     function trackTitle(track, fallback) {
         if (track.title && ("" + track.title).trim() !== "")
@@ -3407,6 +3451,9 @@ Item {
         Rectangle {
             id: overflowPanel
             visible: root.overflowOpen
+            // Fades rather than snapping in (2026-07-30 restyle, carried from the Player 2 menu).
+            opacity: root.overflowOpen ? 1 : 0
+            Behavior on opacity { NumberAnimation { duration: 110 } }
             z: 9
             width: 300
             height: overflowColumn.implicitHeight + 30
@@ -3430,14 +3477,17 @@ Item {
                 x: 16
                 y: 15
                 width: parent.width - 32
-                spacing: 10
+                // Rows sit flush and light up on hover instead of each being its own grey slab with
+                // a 10px gutter. That gutter plus a permanent fill is what made this menu read flat.
+                spacing: 2
 
                 Text {
                     text: "More controls"
-                    color: theme.ink
+                    color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 15
+                    font.pixelSize: 12
                     font.weight: Font.DemiBold
+                    bottomPadding: 4
                 }
 
                 VolumeControl { visible: root.tight }
@@ -3456,22 +3506,47 @@ Item {
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
                         { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
                         { "label": "Speed", "kind": "speed", "when": root.barTiny },
-                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug }
+                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug },
+                        // The two rows Player 2's menu carried and this one never did. Both features
+                        // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
+                        // they were simply never offered anywhere in this menu.
+                        { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
+                          "kind": "pip", "when": true },
+                        { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
                     ]
                     delegate: Rectangle {
                         required property var modelData
+                        readonly property string rowValue: root.overflowValue(modelData.kind)
                         visible: modelData.when
                         width: overflowColumn.width
-                        height: 40
-                        radius: 9
-                        color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.04)
+                        height: 38
+                        radius: 8
+                        // Transparent at rest, lit on hover -- the row reads as a target rather than
+                        // as a permanent grey slab. Matches the Player 2 menu Hemanth preferred.
+                        color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
-                            x: 12
+                            x: 10
+                            width: parent.width - x - (valueText.width > 0 ? valueText.width + 22 : 12)
+                            elide: Text.ElideRight
                             text: modelData.label
                             color: theme.ink
                             font.family: theme.hud
                             font.pixelSize: 13
+                        }
+                        // What this control is currently set to. Gold, matching the seek bar and
+                        // volume accent, so the menu carries information and not only verbs.
+                        Text {
+                            id: valueText
+                            anchors.right: parent.right
+                            anchors.rightMargin: 10
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: parent.rowValue
+                            visible: text.length > 0
+                            color: theme.gold
+                            font.family: theme.hud
+                            font.pixelSize: 12
+                            font.weight: Font.DemiBold
                         }
                         MouseArea {
                             id: rowArea
@@ -3484,6 +3559,17 @@ Item {
                                 // the mode change and hear it apply live.
                                 if (kind === "loudness") { root.cycleLoudness(); root.wakeChrome(); return }
                                 root.closeMenus()
+                                if (kind === "shortcuts") { root.shortcutsOpen = true; return }
+                                if (kind === "pip") {
+                                    // Real toggle, not a decoration: WindowMode owns the PiP surface
+                                    // and reports back through onPipEntered/onPipExited.
+                                    if (typeof WindowMode === "undefined") return
+                                    var w = root.Window.window
+                                    if (!w) return
+                                    if (root.pipMode) WindowMode.exitPip(w)
+                                    else WindowMode.enterPip(w)
+                                    return
+                                }
                                 if (kind === "audio") audioMenu.panelOpen = true
                                 else if (kind === "speed") speedMenu.panelOpen = true
                                 else if (kind === "fill") fillMenu.panelOpen = true

@@ -97,8 +97,10 @@ add_executable(colosseum
     engine/MangaScraper.h
     engine/MangaResult.h
     engine/MangaSeriesDetail.h
-    engine/MangaDexCatalogClient.cpp
-    engine/MangaDexCatalogClient.h
+    engine/ComickVolumeGrouper.cpp
+    engine/ComickVolumeGrouper.h
+    engine/ComickCatalogClient.cpp
+    engine/ComickCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
     engine/BookDownloader.cpp
@@ -820,15 +822,26 @@ target_compile_definitions(manga_tankoban_service_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network)
 
-# Pure-logic contract for the MangaDex phantom-volume fold (the Berserk finding):
-# compiles the client for foldPhantomCoverVolumes; Network only for its includes.
-add_executable(mangadex_volume_fold_harness
-    ../tests/mangadex_volume_fold_harness.cpp
-    engine/MangaDexCatalogClient.cpp
-    engine/MangaDexCatalogClient.h
+# Pure-logic contract for Comick grouping + the tankoban completeness gate:
+# mirrors colosseum-volume-db's volume_builder tests case-for-case.
+add_executable(comick_volume_grouper_harness
+    ../tests/comick_volume_grouper_harness.cpp
+    engine/ComickVolumeGrouper.cpp
+    engine/ComickVolumeGrouper.h
 )
-target_include_directories(mangadex_volume_fold_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(mangadex_volume_fold_harness PRIVATE Qt6::Core Qt6::Network)
+target_include_directories(comick_volume_grouper_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comick_volume_grouper_harness PRIVATE Qt6::Core)
+
+# Pure-parse contract for the Comick catalog client (DB record + live chapters).
+add_executable(comick_catalog_parse_harness
+    ../tests/comick_catalog_parse_harness.cpp
+    engine/ComickCatalogClient.cpp
+    engine/ComickCatalogClient.h
+    engine/ComickVolumeGrouper.cpp
+    engine/ComickVolumeGrouper.h
+)
+target_include_directories(comick_catalog_parse_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(comick_catalog_parse_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(torrent_engine_download_harness
     ../tests/torrent_engine_download_harness.cpp

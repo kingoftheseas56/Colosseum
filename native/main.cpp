@@ -80,6 +80,7 @@
 #ifdef COLOSSEUM_PLAYER2
 #include "player2/Player2Backend.h"
 #include "player2/video/Player2VideoItem.h"
+#include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 #endif
 
 // gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
@@ -467,7 +468,11 @@ int main(int argc, char *argv[]) {
     // QtCore) so no QuickControls2 C++ module needs linking; must precede the QML engine.
     qputenv("QT_QUICK_CONTROLS_STYLE", "Basic");
 
-    QGuiApplication app(argc, argv);
+    // Diagnostic only (2026-07-29 stutter investigation): ProbedGuiApplication IS a QGuiApplication
+    // and behaves identically unless COLOSSEUM_GUI_STALL_PROBE is set, in which case it times every
+    // GUI-thread event and ranks what blocks the thread. Frame pacing proved the stutter is a
+    // GUI-thread stall, not the video engine; this names the work. See native/GuiStallProbe.h.
+    ProbedGuiApplication app(argc, argv);
     app.setApplicationName(QStringLiteral("Colosseum"));
     // App identity on the Windows taskbar / alt-tab / title: the amphitheatre glyph on a
     // dark tile (embedded via app_resources.qrc). The .exe file icon comes from app_icon.rc.
@@ -599,16 +604,16 @@ int main(int argc, char *argv[]) {
         // NEVER pinned — every manga genre / Jump registry / Theatre anime call rode the
         // dead-IPv6 stall on top of whatever Jikan itself was doing. Same scar, same fix.
         QStringLiteral("api.jikan.moe"),
-        // Tankoban Mode (2026-07-15, eyes-on): per-volume MangaDex cover thumbnails ride
-        // uploads.mangadex.org (QML Image via this factory); the volume catalog rides
-        // api.mangadex.org (MangaEngine NAM, pins passed via setIpv4Pins); Apple Books +
-        // Open Library per-volume synopsis lookups ride itunes.apple.com / openlibrary.org.
-        // All publish a dead AAAA on this ISP → ~21s stall per request (covers never
-        // painted; Apple synopses trickled a scattered few). Same scar, same fix. NOTE:
-        // Open Library's IPv4 is ALSO ISP-firewalled — pinning only makes it fail fast so
-        // the Apple fallback runs sooner; it never returns data here.
+        // Tankoban Mode (2026-07-15, eyes-on): cover thumbnails ride uploads.mangadex.org
+        // (QML Image via this factory — still the source of Catalog.js's Monster tile);
+        // Apple Books + Open Library per-volume synopsis lookups ride itunes.apple.com /
+        // openlibrary.org. All publish a dead AAAA on this ISP → ~21s stall per request
+        // (covers never painted; Apple synopses trickled a scattered few). Same scar, same
+        // fix. NOTE: Open Library's IPv4 is ALSO ISP-firewalled — pinning only makes it fail
+        // fast so the Apple fallback runs sooner; it never returns data here.
+        // The MangaDex catalog API host was pinned here for the volume catalog; that client
+        // is retired (2026-07-29, ComickCatalogClient) and nothing contacts the host now.
         QStringLiteral("uploads.mangadex.org"),
-        QStringLiteral("api.mangadex.org"),
         QStringLiteral("itunes.apple.com"),
         QStringLiteral("openlibrary.org"),
         // Wallpaper CDN (WallpaperApi.js): unpinned, its requests rode the same dead-AAAA
@@ -768,6 +773,15 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
+    // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
+    // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
+    // bootstrap + tracker announce + handshake + unchoke) at the exact moment Play was pressed, which
+    // is why one torrent play was instant and the next -- same file, same ~100 seeders -- took
+    // minutes. The 3s delay keeps it off the cold-launch critical path; adopt-first means an
+    // already-running official Stremio Service is adopted rather than clashed with. Cost accepted
+    // knowingly: a comics- or books-only session spawns a runtime it never uses, but any video
+    // session would have spawned it seconds later anyway. (2026-07-30, Theatre lane)
+    QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
 
     // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
     // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
@@ -1060,7 +1074,10 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {
         new QmlReloader(&engine, qmlPath, &app);
         manga->selfTest(QStringLiteral("Berserk"));  // log WeebCentral chapter count at startup
-        manga->volumes(QStringLiteral("One Piece"));  // DEBUG: log MangaDex volume resolution
+        // DEBUG: log volume resolution. There is no WeebCentral id at startup, so this
+        // exercises the LIVE Comick scrape + completeness gate only — the volume-DB read
+        // is keyed by the WC id and is proved by opening a real series page.
+        manga->volumes(QString(), QStringLiteral("One Piece"));
     }
 
     return app.exec();

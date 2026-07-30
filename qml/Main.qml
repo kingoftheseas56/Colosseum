@@ -1455,6 +1455,12 @@ Window {
     Item {
         id: wall
         anchors.fill: parent
+        // Not painted while the player is up. The player layer is opaque (PlayerPage draws a
+        // full-bleed black Rectangle at z:-1) and does not fade, so nothing below it is ever
+        // seen — yet Qt kept rendering all of it every frame, on a GPU the film needs. Costs
+        // nothing visually; the object and its caches stay alive, so returning from the player
+        // re-shows instantly with no re-fetch. (2026-07-29 render-load diet.)
+        visible: !win.immersiveSurfaceOpen
         // Real OS wallpaper — a placeholder PICK (Windows 11 "Captured Motion"; its translucent
         // glass-ribbon motif echoes our material, and it's dark enough for the glass to read).
         // Swap from the parked personalization gallery later. Glass composites over WHATEVER sits in
@@ -1509,6 +1515,7 @@ Window {
     TopBar {
         id: topbar
         z: 20
+        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         backdrop: wall
         activeMedium: ""
         x: theme.margin; y: 30
@@ -1532,6 +1539,7 @@ Window {
     Flickable {
         id: page
         z: 0
+        visible: !win.immersiveSurfaceOpen   // see the note on `wall` — covered by the player, never seen
         anchors.left: parent.left; anchors.right: parent.right
         y: 96
         height: win.height - 96
@@ -1644,7 +1652,10 @@ Window {
 
                 // gentle auto-advance through the collection (not visualized — ratified)
                 Timer {
-                    interval: 6500; running: true; repeat: true
+                    // Stands down while the player is up: this advances a carousel nobody can see
+                    // behind the film, and every advance is an animation plus cover work on the
+                    // GUI thread — the thread Qt Quick needs free to present video frames.
+                    interval: 6500; running: !win.immersiveSurfaceOpen; repeat: true
                     // guarded: an empty roster would turn the modulo into NaN
                     onTriggered: if (heroView.count > 0)
                                      heroView.currentIndex = (heroView.currentIndex + 1) % heroView.count
@@ -1781,7 +1792,17 @@ Window {
         repeat: true
         readonly property var targets: ["Tankoban", "Theatre", "Biblio"]
         onTriggered: {
-            if (worldStack.current !== "") return          // a world is open → yield, retry next tick
+            // Yield while a world is open OR while the player is up. The player check was missing
+            // and it was THE video stutter (2026-07-29): opening the player from Home leaves
+            // worldStack.current === "", so this kept firing every 1.8s behind the film, and each
+            // append builds a ~190-tile world page plus its cover pre-cache. Even with an async
+            // Loader, component completion, bindings and image decode land on the GUI thread — and
+            // Qt Quick cannot present a video frame while the GUI thread is busy. Measured: 130
+            // GUI-thread stalls in a 76s playback, 10.3s blocked, worst single stall 1094ms, which
+            // is exactly the hitch Hemanth reported. Everything else in this file already stands
+            // down for immersiveSurfaceOpen (wallpaper animation :1423, download reveal :2328/:2337,
+            // chrome :2345); the warmer was the one that did not.
+            if (worldStack.current !== "" || win.immersiveSurfaceOpen) return   // → yield, retry next tick
             var names = []
             for (var i = 0; i < openModes.count; i++) names.push(openModes.get(i).mode)
             var next = Warming.nextWarmMode(names, warmer.targets)

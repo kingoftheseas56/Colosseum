@@ -53,6 +53,14 @@ QString StreamServer::findRuntimeDir() const
     return {};
 }
 
+void StreamServer::warmUp()
+{
+    // Deliberately nothing but ensureStarted(): no new state and no second code path. Warming and
+    // playing must go through the SAME adopt-first probe, or a warm-up could spawn a child that then
+    // clashes with the official service on :11470 -- the silent failure diagnosed 2026-07-05.
+    ensureStarted();
+}
+
 void StreamServer::ensureStarted()
 {
     if (m_proc || m_starting || m_port > 0)

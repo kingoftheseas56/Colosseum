@@ -1,92 +1,49 @@
-// MangaVolumes.js — volume-structure adapter + chapter grouping. The native MangaDex client
-// (MangaDexCatalogClient) hands us per-volume tankōbon covers for every volume, plus chapter
-// ranges only where MangaDex's chapter DB knows them (partial for big licensed titles — MangaFire,
-// the old always-complete source, killed volumes in its 2026-07 relaunch). fromEngine() is
-// COVERS-FIRST HONEST: it interpolates range gaps BETWEEN known anchors (the old repair logic) but
-// never fabricates ranges with fewer than two anchors, and never past the last anchor — trailing
-// chapters land in group()'s existing 'X' ("Latest chapters") bucket instead. group() (ported from
-// Tankoban Electron's MangaSeries.jsx volumeGroups) still buckets the flat WeebCentral chapter list
-// into the RANGED volumes for the selector; rangeless volumes are shelf-only.
+// MangaVolumes.js — volume adapter + chapter grouping for the tankoban surface.
+// The native ComickCatalogClient hands us COMPLETE, gate-qualified volume ranges
+// (our volume DB first, live Comick scrape on a miss) — or nothing at all. There is
+// deliberately NO interpolation and NO anchor-repair here any more: a series either
+// has a real, complete volume->chapter mapping or it shows the flat WeebCentral
+// chapter list. Estimated boundaries are rejected doctrine (2026-07-29).
+// group() (ported from Tankoban Electron's MangaSeries.jsx volumeGroups) buckets the
+// flat WeebCentral chapter list into the ranged volumes; chapters past the last range
+// land in the 'X' ("Latest chapters") bucket.
 .pragma library
 
+// KNOWN LIMIT (accepted, QML side only): this parses a label to a JS Number, so the
+// ORDINAL sub-chapters "315.10" and "315.1" collapse to the same value — the exact
+// defect that WAS fixed on the C++/Python side. It only decides which bucket a side
+// chapter falls into for display; it never produces a published boundary, and the
+// volume ranges themselves arrive from the engine as already-verified strings. Do not
+// assume this matches the engine's precision.
 function chapterNum(raw) {
     var m = /-?\d+(?:\.\d+)?/.exec(String(raw || ''))
     return m ? Number(m[0]) : null
 }
 
-// engine volumes: [{ number, cover, chapterStart, chapterEnd }] (ascending; empty range strings
-// mean "range unknown") →
-//   [{ number, cover, startNum, endNum, chapterStart, chapterEnd }] — numeric ranges for group()
-//   on volumes whose range is known or safely interpolated; startNum/endNum stay null (and the
-//   range strings "") on volumes we genuinely don't know, so nothing downstream fabricates.
+// engine volumes: [{ number, cover, chapterStart, chapterEnd }] (ascending, ranges
+// complete — the gate guarantees it) →
+//   [{ number, cover, startNum, endNum, chapterStart, chapterEnd }] for group().
 function fromEngine(volumes) {
     if (!volumes || !volumes.length) return []
-    // 1. parse {number, cover, start, rawEnd}; start = the volume's first known chapter
-    var raw = []
+    var out = []
     for (var i = 0; i < volumes.length; i++) {
         var v = volumes[i]
-        var number = chapterNum(v.number)
-        if (number === null) number = Number(v.number)
-        if (number === null || isNaN(number)) continue
-        raw.push({ number: number, cover: v.cover || "",
-                   start: chapterNum(v.chapterStart), rawEnd: chapterNum(v.chapterEnd) })
+        var number = Number(v.number)
+        var s = chapterNum(v.chapterStart)
+        var e = chapterNum(v.chapterEnd)
+        if (isNaN(number) || s === null || e === null) continue   // malformed: drop, never guess
+        out.push({ number: number, cover: v.cover || "",
+                   startNum: s, endNum: Math.max(s, e),
+                   chapterStart: String(v.chapterStart), chapterEnd: String(v.chapterEnd) })
     }
-    if (!raw.length) return []
-    raw.sort(function (a, b) { return a.number - b.number })   // trust the volume ORDER
-
-    // 2. Repair starts to be STRICTLY INCREASING by volume number (sources tag stray "special"
-    //    chapters — a prologue ch 0, a .5 omake — to odd volumes, corrupting that volume's
-    //    first/last: e.g. Vinland's Vol 14 claiming ch 0..209 though it's really ~94..100).
-    //    Then interpolate gaps BETWEEN surviving anchors only. With fewer than two anchors, or
-    //    past the LAST anchor, starts stay null — covers-first honesty: an unknown range is
-    //    shipped as unknown, never invented. (Trailing chapters become group()'s 'X' bucket.)
-    var n = raw.length
-    if (n >= 2 && raw[0].start !== null && raw[1].start !== null && raw[0].start > raw[1].start)
-        raw[0].start = null                                    // corrupt FIRST (e.g. a Vol 0 of specials)
-    var runMax = -Infinity, anchors = 0
-    for (var a = 0; a < n; a++) {
-        if (raw[a].start === null || raw[a].start <= runMax) raw[a].start = null
-        else { runMax = raw[a].start; anchors++ }
-    }
-    if (anchors < 2) {
-        for (var z = 0; z < n; z++) raw[z].start = null        // shelf-only: no ranges at all
-    } else {
-        if (raw[0].start === null) raw[0].start = 0            // leading gap closes against anchor 1
-        for (var b = 1; b < n; b++) {
-            if (raw[b].start !== null) continue
-            var j = b + 1
-            while (j < n && raw[j].start === null) j++
-            if (j >= n) break                                  // tail past the last anchor: stays null
-            var prev = raw[b - 1].start
-            var step = (raw[j].start - prev) / (j - (b - 1))
-            for (var k = b; k < j; k++) raw[k].start = prev + step * (k - (b - 1))
-        }
-    }
-
-    // 3. contiguous ranges among the RANGED volumes: each owns [start, nextRangedStart); the last
-    //    ranged volume ends at its own reported last chapter — never Infinity, so chapters beyond
-    //    it fall to 'X' instead of being mis-filed under a volume that doesn't hold them.
-    var out = []
-    for (var c = 0; c < n; c++) {
-        var s = raw[c].start
-        if (s === null) {
-            out.push({ number: raw[c].number, cover: raw[c].cover,
-                       startNum: null, endNum: null, chapterStart: "", chapterEnd: "" })
-            continue
-        }
-        var ds = Math.max(0, Math.round(s))
-        var e, de
-        var nextS = (c + 1 < n) ? raw[c + 1].start : null      // nulls only trail, so c+1 covers it
-        if (nextS !== null) {
-            e = nextS - 0.001
-            de = Math.max(ds, Math.round(nextS - 1))
-        } else {
-            de = (raw[c].rawEnd !== null && raw[c].rawEnd > s) ? Math.round(raw[c].rawEnd) : ds
-            e = Math.max(s, de)
-        }
-        out.push({ number: raw[c].number, cover: raw[c].cover,
-                   startNum: s, endNum: e, chapterStart: String(ds), chapterEnd: String(de) })
-    }
+    out.sort(function (a, b) { return a.number - b.number })
+    // Contiguous handoff: each volume owns up to the next volume's start, so an
+    // untagged sub-chapter between two reported ends (a 27.5 omake) lands in the
+    // right book rather than in 'X'. Only ever EXTENDS a volume's end to just before
+    // the next volume's real start — it never moves a start or invents a boundary.
+    for (var j = 0; j + 1 < out.length; j++)
+        if (out[j + 1].startNum > out[j].endNum)
+            out[j].endNum = out[j + 1].startNum - 0.001
     return out
 }
 

@@ -112,8 +112,12 @@ Item {
     }
     Rectangle {
         id: field
+        // The field stops short of the window-chrome cluster instead of running under it: both were
+        // anchored to the same right margin, and their vertical bands overlapped by 12px, so the
+        // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
+        // chrome row's own width so it can never drift apart again. (Same fix as SearchSurface.)
         x: searchBack.x + searchBack.width + 20; y: 44
-        width: search.width - x - theme.margin; height: 62; radius: 16
+        width: search.width - x - theme.margin - winChrome.width - 24; height: 72; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
         Canvas {
@@ -477,6 +481,7 @@ Item {
     // window chrome (fullscreen rule removed 2026-07-20): the canonical
     // minimize · fullscreen-toggle · power cluster every page carries.
     Row {
+        id: winChrome
         z: 30
         anchors.right: parent.right
         anchors.rightMargin: theme.margin

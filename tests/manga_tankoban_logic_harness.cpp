@@ -144,6 +144,31 @@ int main()
     require(lsnap.volumes[0].chapterIds.isEmpty(), "lone volume has an empty chapter list");
     require(lsnap.volumes[0].id == QStringLiteral("tankoban:l1:volume:7"), "lone volume id");
 
+    // ── A WHOLE SHELF with no chapters at all is still canonical ──────────
+    // Volumes come from our own volume DB; chapters come from WeebCentral, which
+    // rate-limits (429) and can fail for an entire session. The series page
+    // therefore seeds the shelf the moment volumes land, WITHOUT waiting for
+    // chapters — which is only safe because a full volume list survives an empty
+    // chapter list intact. Pinned here because that is the assumption the page
+    // relies on: Hemanth hit a 429 on Vagabond and got a blank page while all 38
+    // volumes sat in hand (2026-07-30). Every volume must still be a row, in order.
+    {
+        QVariantList shelf;
+        for (int n = 1; n <= 38; ++n)
+            shelf.append(QVariantMap{{"number", QString::number(n)},
+                                     {"chapterStart", QString::number(n * 10 - 9)},
+                                     {"chapterEnd", QString::number(n * 10)}});
+        const auto ssnap = prepareSeries({{"seriesId", "vag"}}, shelf, QVariantList{});
+        require(ssnap.volumes.size() == 38,
+                "a 38-volume shelf survives an EMPTY chapter list");
+        require(ssnap.volumes.first().number == QStringLiteral("1")
+                    && ssnap.volumes.last().number == QStringLiteral("38"),
+                "the chapterless shelf keeps volume order 1..38");
+        for (const VolumeRecord& v : ssnap.volumes)
+            require(v.chapterIds.isEmpty() && !v.id.isEmpty(),
+                    "every chapterless volume is still a real, addressable record");
+    }
+
     // ── Fix 1: chapterMapComplete gates the WeebCentral fallback ──────────
     // A range-only volume whose whole [1,3] range exists and maps is COMPLETE:
     // chapters 1,2,3 all fall in range and all land here.

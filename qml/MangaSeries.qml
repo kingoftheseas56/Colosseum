@@ -1,11 +1,14 @@
-// MangaSeries — the manga detail page (Tankoban mode). Colosseum series-view design (mock:
-// agents/colosseum-series-mock.html, Hemanth-approved 2026-06-27): a series IS its volumes, so the
-// VOLUME SHELF of real tankōbon covers is the hero AND the navigation — pick a cover and the glass
-// chapter table below re-headers to it. Floats over the wallpaper; metadata is inline (no glass pills);
-// gold stays a sparing accent. Data is LIVE from the native engine via the `Manga` bridge:
+// MangaSeries — the manga detail page. Colosseum series-view design (mock:
+// agents/colosseum-series-mock.html, approved 2026-06-27). Floats over the wallpaper; metadata is
+// inline (no glass pills); gold stays a sparing accent. Data is LIVE from the native engine via the
+// `Manga` bridge:
 //   title → WeebCentral search → (chapters + detail)
+//                              → volumes(wcId, title) → the Comick volume DB / live scrape, gated
 //         → AniList art()      → banner / cover / synopsis / genres / year / score
-//         → MangaFire volumes()→ clean per-volume covers + chapter ranges (normalized in MangaVolumes.js)
+// THE SURFACE IS DECIDED BY THE DATA (2026-07-29 ruling, no toggle): a series whose volume list
+// passes the completeness gate gets the permanent tankoban volume library, with the glass chapter
+// table below reduced to the loose tail ("Latest chapters"); a series that does not qualify gets
+// the plain flat WeebCentral chapter list. An estimated volume boundary is never shown.
 // Opened from a Top-10 manga tile.
 
 import QtQuick
@@ -40,27 +43,42 @@ Item {
     property var chaptersModel: []
     property bool loading: true
     property string errorMsg: ""
+    // What the USER is shown. A source failing must not read as the page failing: once the
+    // volumes are in, the shelf below is complete and unaffected, so a raw transfer error
+    // (WeebCentral rate-limits with a 429) is both alarming and untrue. Derived, not baked
+    // at error time, because the failure can land BEFORE the volumes do.
+    readonly property string errorText: !errorMsg.length ? ""
+        : (volumes.length
+           ? "Couldn't reach WeebCentral just now, so the newest chapters aren't listed. The volumes below are unaffected."
+           : errorMsg)
 
-    // --- Tankoban mode (per-series; native TankobanVolumes context property) ---
-    // OFF (default) keeps the classic volume shelf + chapter table below untouched;
-    // ON hides those and shows the MangaTankobanLibrary volume-first surface.
-    property bool tankobanMode: false
+    // --- Tankoban mode ---
+    // Tankoban mode is PERMANENT for qualified series (2026-07-29 ruling): the gate in
+    // ComickCatalogClient emits a complete volume list or nothing at all, so
+    // volumes.length IS the verdict. No toggle, no per-series persistence.
+    property bool tankobanMode: volumes.length > 0
     property bool _tankobanPrepared: false
+    // Whether the seeding above already had the chapter list. Volumes and chapters arrive
+    // from DIFFERENT sources at different times (and WeebCentral can fail outright), so the
+    // shelf seeds as soon as volumes land and re-seeds once chapters show up.
+    property bool _tankobanPreparedWithChapters: false
     // A REUSED page item (openSeries/openSeriesAt switching series) must re-prepare
     // for the new series, or it would keep the old series' volumes. Reset the prepare
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
         page._tankobanPrepared = false
+        page._tankobanPreparedWithChapters = false
         page.tankobanReaderEntries = []
-        page.tankobanMode = (typeof TankobanVolumes !== "undefined" && page.seriesId.length > 0)
-            ? TankobanVolumes.modeEnabled(page.seriesId) : false
     }
 
     // --- seamless reveal gate ---
-    // The page fires WeebCentral (chapters), AniList (art) and MangaDex (volumes) in parallel,
-    // each at a different speed. We must NEVER reveal the page until ALL three are in — otherwise
-    // the user sees the flat chapter list / low-q art first and watches it reflow. _maybeReveal()
+    // The page fires AniList (art) alongside the WeebCentral search, and the volume lookup as
+    // soon as that search resolves (it is keyed by the WC id). Three sources, each at a
+    // different speed. We must NEVER reveal the page until ALL three are in — otherwise the
+    // user sees the flat chapter list / low-q art first and watches it reflow. _maybeReveal()
     // drops `loading` only when everything is ready, so the page appears once, already finished.
+    // Every path closes the gate: volumesResult always fires exactly once per volumes() call
+    // (gate-fail included); a 0-result search sets loading=false itself; revealGuard caps 12s.
     property bool chaptersReady: false
     property bool artReady: false
     property bool volumesReady: false
@@ -70,24 +88,27 @@ Item {
             page._prepareTankoban()
         }
     }
-    // Hand the fully-resolved snapshot to the native volume service ONCE, lazily —
-    // only after all three sources are in, so volumes/chapters/art are final. The
-    // volume library reads its canonical volumes back from the service.
+    // Hand the snapshot to the native volume service. Called as soon as VOLUMES land —
+    // deliberately NOT gated on the chapter list, because the two come from different
+    // sources: the shelf is built from our volume DB, while chapters come from
+    // WeebCentral, which rate-limits (429) and can fail for a whole session. Waiting on
+    // chapters meant a 429 emptied a shelf we already held in full (Vagabond: 38 volumes
+    // in hand, blank page — 2026-07-30). prepareSeries builds one record per VOLUME row
+    // and only attaches chapters afterwards, so seeding with none is safe and complete.
+    // Re-seeds once (and only once) if chapters arrive later, so downloads get their
+    // chapter ids; prepareSeries overwrites the series wholesale, so re-running is safe.
     function _prepareTankoban() {
-        if (page._tankobanPrepared) return
+        if (!page.volumes.length) return          // unqualified series: never seed the volume service
         if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
+        var haveChapters = page.chaptersModel.length > 0
+        if (page._tankobanPrepared && (page._tankobanPreparedWithChapters || !haveChapters)) return
         page._tankobanPrepared = true
+        page._tankobanPreparedWithChapters = haveChapters
         TankobanVolumes.prepareSeries({
             seriesId: page.seriesId, title: page.seriesTitle,
             author: page.author, aliases: []
         }, page.volumes, page.chaptersModel)
         page._rebuildTankobanEntries()
-    }
-    function _setTankobanMode(on) {
-        if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
-        TankobanVolumes.setModeEnabled(page.seriesId, on)
-        page.tankobanMode = on
-        if (on) page._prepareTankoban()
     }
 
     // --- reader entry kind: "manga" (chapters) or "tankoban" (volumes). The one
@@ -134,16 +155,14 @@ Item {
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
-        if (!page.tankobanMode) page._setTankobanMode(true)
         tankLib.chooseSource(String(entryId))
     }
-    // Continue/session resume of a saved tankoban record: turn Tankoban Mode ON,
-    // then open the saved volume through the shared reader.
+    // Continue/session resume of a saved tankoban record: open the saved volume through
+    // the shared reader. Mode is DERIVED now — a resumable tankoban record implies a
+    // qualified series, and if the series ever loses qualification the reader still
+    // opens the downloaded volume by id.
     function resumeTankobanVolume(volumeId) {
         if (!volumeId || !String(volumeId).length) return
-        if (typeof TankobanVolumes !== "undefined" && page.seriesId.length)
-            TankobanVolumes.setModeEnabled(page.seriesId, true)
-        page.tankobanMode = true
         page._openVolume(String(volumeId))
     }
 
@@ -154,36 +173,18 @@ Item {
         function onVolumesChanged(sid) { if (sid === page.seriesId) page._rebuildTankobanEntries() }
     }
 
-    // --- volumes (MangaDex via MangaVolumes.js; ranges partial — covers-first) ---
+    // --- volumes (Comick volume DB via MangaVolumes.js; complete ranges or none — gated) ---
     property var volumes: []                                  // [{number,cover,startNum,endNum,chapterStart,chapterEnd}]
     property var volGroups: Vol.group(chaptersModel, volumes) // { options:[{key,label}], byKey:{} }
-    // the shelf's model: every volume, plus a "Latest" tile when grouped chapters spill past the
-    // last known volume range (group()'s X bucket) — else those chapters would be unreachable.
-    property var shelfVolumes: {
-        var list = (volumes || []).slice()
-        if (list.length && volGroups.options.length && volGroups.byKey.X && volGroups.byKey.X.length)
-            list.push({ number: "X", cover: "" })
-        return list
-    }
-    property string activeVol: ""                             // user's pick (volume number as string)
-    property string shownVol: (activeVol.length && volGroups.byKey && volGroups.byKey[activeVol] !== undefined)
-                              ? activeVol
-                              : (volGroups.options.length ? volGroups.options[0].key : "")
-    // the chapters actually shown: the active volume's, or the flat list when there's no volume data
+    // qualified series: the chapter section shows ONLY the loose tail past the last
+    // volume (group()'s X bucket) — an ongoing series' "Latest chapters".
+    // unqualified series: the full flat WeebCentral list, exactly as before.
     property var visibleChapters: loading ? []
-        : (volGroups.options.length ? (volGroups.byKey[shownVol] || []) : chaptersModel)
+        : (page.tankobanMode ? ((volGroups.byKey && volGroups.byKey.X) || []) : chaptersModel)
 
     function collectionEntry() {
         return { "id": page.seriesTitle, "type": "manga",
                  "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
-    }
-
-    function volRange(volNum) {
-        for (var i = 0; i < volumes.length; i++)
-            if (String(volumes[i].number) === volNum)
-                return (volumes[i].chapterStart.length && volumes[i].chapterEnd.length)
-                       ? volumes[i].chapterStart + "–" + volumes[i].chapterEnd : ""
-        return ""
     }
 
     Theme { id: theme }
@@ -195,14 +196,13 @@ Item {
         loading = true; errorMsg = ""
         seriesId = ""; banner = ""; cover = ""; author = ""; status = ""; year = 0
         synopsis = ""; genres = []; score = 0; chaptersModel = []
-        volumes = []; activeVol = ""
+        volumes = []
         chaptersReady = false; artReady = false; volumesReady = false
         _tankobanPrepared = false
         if (seriesTitle.length) {
             revealGuard.restart()        // never hang on a dead source — reveal what we have after N s
-            Manga.search(seriesTitle)    // → chapters + WeebCentral detail
+            Manga.search(seriesTitle)    // → chapters + WeebCentral detail (then volumes, keyed by its id)
             Manga.art(seriesTitle)       // → AniList banner / cover / synopsis / genres / year
-            Manga.volumes(seriesTitle)   // → MangaDex volume structure (covers + partial ranges)
         }
     }
 
@@ -229,10 +229,17 @@ Item {
             // the source of the "low-q art that changes after a while" swap. The banner comes only
             // from AniList (hi-res), set in onArtResult.
             page.author = r.author; page.status = r.status
+            // volume structure needs the WC id (it is the volume DB's key) — fire it
+            // as soon as the search resolves
+            Manga.volumes(r.id, r.title)
             Manga.chapters(r.id)
             Manga.detail(r.id, r.url, r.title, r.cover)
         }
-        function onChaptersResults(chs) { page.chaptersModel = chs; page.chaptersReady = true; page._maybeReveal() }
+        // chapters re-seed the shelf (they carry the ids downloads need) but never gate it
+        function onChaptersResults(chs) {
+            page.chaptersModel = chs; page.chaptersReady = true
+            page._prepareTankoban(); page._maybeReveal()
+        }
         function onDetailResult(d) {
             // AniList is the source for synopsis + genres (onArtResult). WeebCentral detail only
             // contributes status + author — NOT its plainer description (AniList's reads better).
@@ -248,8 +255,21 @@ Item {
             if (a.year) page.year = a.year
             page.artReady = true; page._maybeReveal()
         }
-        function onVolumesResult(d) { page.volumes = Vol.fromEngine(d.volumes || []); page.volumesReady = true; page._maybeReveal() }
-        function onEngineError(msg) { if (page.loading) { page.errorMsg = msg; page.loading = false; revealGuard.stop() } }
+        // volumes seed the shelf IMMEDIATELY — they are the shelf, and they arrive from our
+        // own volume DB, which does not depend on WeebCentral being reachable
+        function onVolumesResult(d) {
+            page.volumes = Vol.fromEngine(d.volumes || []); page.volumesReady = true
+            page._prepareTankoban(); page._maybeReveal()
+        }
+        // A source failing must not cost the user a shelf we already hold. WeebCentral
+        // rate-limits (429) and its raw transfer error is not something to put on screen;
+        // when the volumes are in, say what it actually costs him (the chapter tail) in
+        // plain words and keep the page. Only a page with nothing to show reports hard.
+        function onEngineError(msg) {
+            if (!page.loading) return
+            page.errorMsg = msg
+            page.loading = false; revealGuard.stop()
+        }
     }
 
     // ===================== visual tree =====================
@@ -431,47 +451,6 @@ Item {
                                 onEntered: parent.opacity = 0.92; onExited: parent.opacity = 1.0 }
                         }
 
-                        // TANKOBAN MODE — the per-series switch. OFF = the classic chapter shelf
-                        // below; ON = the volume library. Gold marks the enabled state (and only it).
-                        Row {
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 12
-                            Text {
-                                text: "TANKOBAN MODE"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
-                                font.letterSpacing: 2; font.capitalization: Font.AllUppercase
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-                            Rectangle {
-                                anchors.verticalCenter: parent.verticalCenter
-                                width: modeRow.implicitWidth + 8; height: 30; radius: 8
-                                color: theme.glassTint; border.width: 1; border.color: theme.edge
-                                Row {
-                                    id: modeRow; anchors.centerIn: parent; spacing: 0
-                                    Rectangle {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: offTx.implicitWidth + 20; height: 26; radius: 6
-                                        color: page.tankobanMode ? "transparent" : theme.glassHi
-                                        Text { id: offTx; anchors.centerIn: parent; text: "Off"
-                                            color: page.tankobanMode ? theme.inkDimmer : theme.ink
-                                            font.family: theme.ui; font.pixelSize: 13 }
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                            onClicked: page._setTankobanMode(false) }
-                                    }
-                                    Rectangle {
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        width: onTx.implicitWidth + 20; height: 26; radius: 6
-                                        color: page.tankobanMode ? theme.gold : "transparent"
-                                        Text { id: onTx; anchors.centerIn: parent; text: "On"
-                                            color: page.tankobanMode ? "#1a1306" : theme.inkDim
-                                            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-                                        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                            onClicked: page._setTankobanMode(true) }
-                                    }
-                                }
-                            }
-                        }
-
                         LibraryButton {
                             world: "tankoban"
                             entry: page.collectionEntry()
@@ -491,153 +470,45 @@ Item {
                 topPadding: 22; bottomPadding: 6
             }
 
-            // ── VOLUMES — the signature shelf ──
-            Item {
-                width: parent.width; height: volumesSec.height
-                visible: !page.tankobanMode && page.volumes.length > 0
-                Column {
-                    id: volumesSec
-                    width: parent.width
-                    spacing: 0
-                    // section label + bright count (inline, never a pill)
-                    Row {
-                        x: theme.margin; spacing: 11; topPadding: 30; bottomPadding: 14
-                        Text { text: "VOLUMES"; color: theme.inkDimmer; font.family: theme.display
-                            font.pixelSize: 13; font.letterSpacing: 3 }
-                        Text { text: page.volumes.length; color: theme.ink; font.family: theme.display
-                            font.pixelSize: 15; font.weight: Font.Bold }
-                    }
-                    // the shelf: real tankōbon covers, scrollable, sitting on a ledge
-                    Item {
-                        width: parent.width; height: 214
-
-                        // the ledge the books sit on (fixed; covers scroll over it)
-                        Rectangle {
-                            anchors.left: parent.left; anchors.right: parent.right
-                            anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-                            anchors.bottom: parent.bottom; anchors.bottomMargin: 20
-                            height: 1; opacity: 0.18
-                            gradient: Gradient { orientation: Gradient.Horizontal
-                                GradientStop { position: 0.0; color: "transparent" }
-                                GradientStop { position: 0.06; color: theme.ink }
-                                GradientStop { position: 0.94; color: theme.ink }
-                                GradientStop { position: 1.0; color: "transparent" } }
-                        }
-
-                        ListView {
-                            id: shelf
-                            anchors.fill: parent
-                            orientation: ListView.Horizontal
-                            leftMargin: theme.margin; rightMargin: theme.margin
-                            spacing: 18
-                            clip: true
-                            boundsBehavior: Flickable.StopAtBounds
-                            model: page.shelfVolumes
-
-                            delegate: Item {
-                                id: vtile
-                                required property var modelData
-                                width: 116; height: 206
-                                property bool on: String(modelData.number) === page.shownVol
-                                property bool isLatest: String(modelData.number) === "X"
-                                Column {
-                                    width: parent.width; spacing: 9
-                                    Item {
-                                        width: 116; height: 166
-                                        y: vtile.on ? -12 : (vtMa.containsMouse ? -6 : 0)
-                                        Behavior on y { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                                        // frame + fallback (shows the number when a cover is missing)
-                                        Rectangle {
-                                            anchors.fill: parent
-                                            color: "#1a1c24"
-                                            border.width: vtile.on ? 2 : 1
-                                            border.color: vtile.on ? Qt.rgba(0.94,0.77,0.29,0.9) : Qt.rgba(1,1,1,0.12)
-                                            Text {
-                                                anchors.centerIn: parent
-                                                visible: cover.status !== Image.Ready
-                                                text: vtile.isLatest ? "»" : vtile.modelData.number
-                                                color: Qt.rgba(1,1,1,0.5); font.family: theme.display
-                                                font.pixelSize: 40; font.weight: Font.Bold
-                                            }
-                                        }
-                                        Image {
-                                            id: cover
-                                            anchors.fill: parent
-                                            anchors.margins: vtile.on ? 2 : 1
-                                            source: vtile.modelData.cover ? vtile.modelData.cover : ""
-                                            visible: status === Image.Ready
-                                            fillMode: Image.PreserveAspectCrop
-                                            asynchronous: true; cache: true
-                                        }
-                                    }
-                                    Column {
-                                        width: parent.width; spacing: 5
-                                        Text {
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            text: vtile.isLatest ? "Latest" : "Vol " + vtile.modelData.number
-                                            color: vtile.on ? theme.gold : theme.inkDim
-                                            font.family: theme.ui; font.pixelSize: 12
-                                            font.weight: vtile.on ? Font.DemiBold : Font.Normal
-                                        }
-                                        Rectangle {
-                                            visible: vtile.on
-                                            anchors.horizontalCenter: parent.horizontalCenter
-                                            width: 22; height: 2; radius: 2; color: theme.gold
-                                        }
-                                    }
-                                }
-                                MouseArea {
-                                    id: vtMa; anchors.fill: parent; hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: page.activeVol = String(vtile.modelData.number)
-                                }
-                            }
-                        }
-
-                        // ── sideways nav: chevrons appear when there's more shelf to scroll ──
-                        NumberAnimation { id: shelfAnim; target: shelf; property: "contentX"
-                            duration: 320; easing.type: Easing.OutCubic }
-                        Rectangle {
-                            id: navLeft
-                            visible: shelf.contentX > 2
-                            anchors.left: parent.left; anchors.leftMargin: 12
-                            y: 60; width: 44; height: 44; radius: 22
-                            color: navLeftMa.containsMouse ? Qt.rgba(0,0,0,0.66) : Qt.rgba(0,0,0,0.44)
-                            border.width: 1; border.color: theme.edge
-                            Text { anchors.centerIn: parent; text: "‹"; color: theme.ink
-                                font.family: theme.display; font.pixelSize: 28 }
-                            MouseArea {
-                                id: navLeftMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: { shelfAnim.stop(); shelfAnim.to = Math.max(shelf.contentX - shelf.width * 0.8, 0); shelfAnim.start() }
-                            }
-                        }
-                        Rectangle {
-                            id: navRight
-                            visible: shelf.contentX < shelf.contentWidth - shelf.width - 2
-                            anchors.right: parent.right; anchors.rightMargin: 12
-                            y: 60; width: 44; height: 44; radius: 22
-                            color: navRightMa.containsMouse ? Qt.rgba(0,0,0,0.66) : Qt.rgba(0,0,0,0.44)
-                            border.width: 1; border.color: theme.edge
-                            Text { anchors.centerIn: parent; text: "›"; color: theme.ink
-                                font.family: theme.display; font.pixelSize: 28 }
-                            MouseArea {
-                                id: navRightMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: { shelfAnim.stop(); shelfAnim.to = Math.min(shelf.contentX + shelf.width * 0.8, shelf.contentWidth - shelf.width); shelfAnim.start() }
-                            }
-                        }
-                    }
+            // ── THE VOLUME LIBRARY — the permanent surface for a gate-qualified series ──
+            // service defaults to the native TankobanVolumes context property. A Downloaded->Open
+            // action opens that volume through the SAME reader below (volume model + injected store).
+            MangaTankobanLibrary {
+                id: tankLib
+                width: parent.width
+                visible: page.tankobanMode
+                seriesId: page.seriesId
+                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
+                // "Choose source" -> the full-screen picker. Merge the series identity
+                // (the library only knows the volume) and open the overlay below.
+                onSourcesRequested: (ctx) => {
+                    ctx.seriesId = page.seriesId
+                    ctx.seriesTitle = page.seriesTitle
+                    ctx.volumeNumber = ctx.number
+                    ctx.volumeTitle = ctx.title
+                    sourcesPage.show(ctx)
                 }
             }
 
-            // ── CHAPTER TABLE — the floating glass OS-widget; header = selected volume ──
+            // ── CHAPTER TABLE — the floating glass OS-widget.
+            //    Qualified series: the loose tail past the last volume ("Latest chapters"),
+            //      sitting BELOW the shelf as a footnote (his ruling 2026-07-30).
+            //    Unqualified series: the whole flat run — and with no shelf above it, this
+            //      card must stay exactly where it has always sat, directly under the
+            //      synopsis. That is why the air above it is CONDITIONAL, not built in. ──
             Item {
+                id: chapterSection
                 width: parent.width
-                height: chTable.height + 24
-                visible: !page.tankobanMode && page.visibleChapters.length > 0
+                // air between the volume shelf and this card; ZERO when there is no shelf,
+                // so an unqualified series' geometry is unchanged by the reorder
+                readonly property int topGap: page.tankobanMode ? 30 : 0
+                height: chTable.height + chapterSection.topGap + 24
+                visible: page.visibleChapters.length > 0
 
                 Glass {
                     id: chTable
                     x: theme.margin
+                    y: chapterSection.topGap
                     width: parent.width - 2 * theme.margin
                     height: tableInner.height
                     radius: 18
@@ -654,10 +525,9 @@ Item {
                                 anchors.left: parent.left; anchors.leftMargin: 24
                                 anchors.verticalCenter: parent.verticalCenter; spacing: 14
                                 Text {
-                                    // honest header: a real volume, the Latest bucket, or the whole run —
-                                    // never a bare "Vol. " pretending volume data exists when it doesn't
-                                    text: page.shownVol === "X" ? "Latest"
-                                        : page.shownVol.length ? "Vol. " + page.shownVol : "All"
+                                    // honest header: on a qualified series this section is ONLY the
+                                    // tail past the last volume; otherwise it is the whole run
+                                    text: page.tankobanMode ? "Latest chapters" : "Chapters"
                                     color: theme.ink
                                     font.family: theme.display; font.pixelSize: 19; font.weight: Font.DemiBold
                                     anchors.verticalCenter: parent.verticalCenter }
@@ -674,10 +544,9 @@ Item {
                                         id: dlVolRow; anchors.centerIn: parent; spacing: 7
                                         Text { text: "↓"; color: theme.ink; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
                                         Text {
-                                            // says what it downloads: the shown volume, the Latest bucket,
-                                            // or (flat state) the whole run
-                                            text: page.shownVol === "X" ? "Download latest"
-                                                : page.shownVol.length ? "Download volume" : "Download all"
+                                            // says what it downloads: exactly what this section lists —
+                                            // the loose tail, or (flat state) the whole run
+                                            text: page.tankobanMode ? "Download latest" : "Download all"
                                             color: theme.inkDim; font.family: theme.ui
                                             font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
                                     }
@@ -696,12 +565,6 @@ Item {
                                             Collection.add("tankoban", page.collectionEntry())
                                         } }
                                 }
-                            }
-                            Text {
-                                anchors.right: parent.right; anchors.rightMargin: 24
-                                anchors.verticalCenter: parent.verticalCenter
-                                text: { var r = page.volRange(page.shownVol); return r.length ? "Ch " + r : "" }
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                             }
                             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                         }
@@ -857,32 +720,16 @@ Item {
                 }
             }
 
-            // ── TANKOBAN MODE — the volume library (replaces the shelf + chapter table when ON) ──
-            // service defaults to the native TankobanVolumes context property. A Downloaded->Open
-            // action opens that volume through the SAME reader below (volume model + injected store).
-            MangaTankobanLibrary {
-                id: tankLib
-                width: parent.width
-                visible: page.tankobanMode
-                seriesId: page.seriesId
-                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
-                // "Choose source" -> the full-screen picker. Merge the series identity
-                // (the library only knows the volume) and open the overlay below.
-                onSourcesRequested: (ctx) => {
-                    ctx.seriesId = page.seriesId
-                    ctx.seriesTitle = page.seriesTitle
-                    ctx.volumeNumber = ctx.number
-                    ctx.volumeTitle = ctx.title
-                    sourcesPage.show(ctx)
-                }
-            }
-
-            // post-reveal error (inset)
+            // post-reveal error (inset). Alarm red only when the page genuinely has nothing;
+            // a shelf that loaded fine gets a quiet dimmed note instead.
             Text {
-                visible: !page.loading && page.errorMsg.length > 0
+                visible: !page.loading && page.errorText.length > 0
                 x: theme.margin
-                text: page.errorMsg
-                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 13
+                width: Math.min(880, parent.width - 2 * theme.margin)
+                wrapMode: Text.WordWrap
+                text: page.errorText
+                color: page.volumes.length ? theme.inkDimmer : "#e6a3a3"
+                font.family: theme.ui; font.pixelSize: 13
                 topPadding: 18
             }
 
@@ -911,7 +758,7 @@ Item {
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
-            text: page.errorMsg.length ? page.errorMsg : "Loading…"
+            text: page.errorText.length ? page.errorText : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: 14
         }
