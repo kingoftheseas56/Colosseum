@@ -432,16 +432,45 @@ Item {
                 topPadding: 22; bottomPadding: 6
             }
 
-            // ── CHAPTER TABLE — the floating glass OS-widget. Qualified series: the loose
-            //    tail past the last volume ("Latest chapters"). Unqualified: the whole run. ──
-            Item {
+            // ── THE VOLUME LIBRARY — the permanent surface for a gate-qualified series ──
+            // service defaults to the native TankobanVolumes context property. A Downloaded->Open
+            // action opens that volume through the SAME reader below (volume model + injected store).
+            MangaTankobanLibrary {
+                id: tankLib
                 width: parent.width
-                height: chTable.height + 24
+                visible: page.tankobanMode
+                seriesId: page.seriesId
+                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
+                // "Choose source" -> the full-screen picker. Merge the series identity
+                // (the library only knows the volume) and open the overlay below.
+                onSourcesRequested: (ctx) => {
+                    ctx.seriesId = page.seriesId
+                    ctx.seriesTitle = page.seriesTitle
+                    ctx.volumeNumber = ctx.number
+                    ctx.volumeTitle = ctx.title
+                    sourcesPage.show(ctx)
+                }
+            }
+
+            // ── CHAPTER TABLE — the floating glass OS-widget.
+            //    Qualified series: the loose tail past the last volume ("Latest chapters"),
+            //      sitting BELOW the shelf as a footnote (his ruling 2026-07-30).
+            //    Unqualified series: the whole flat run — and with no shelf above it, this
+            //      card must stay exactly where it has always sat, directly under the
+            //      synopsis. That is why the air above it is CONDITIONAL, not built in. ──
+            Item {
+                id: chapterSection
+                width: parent.width
+                // air between the volume shelf and this card; ZERO when there is no shelf,
+                // so an unqualified series' geometry is unchanged by the reorder
+                readonly property int topGap: page.tankobanMode ? 30 : 0
+                height: chTable.height + chapterSection.topGap + 24
                 visible: page.visibleChapters.length > 0
 
                 Glass {
                     id: chTable
                     x: theme.margin
+                    y: chapterSection.topGap
                     width: parent.width - 2 * theme.margin
                     height: tableInner.height
                     radius: 18
@@ -650,26 +679,6 @@ Item {
                             }
                         }
                     }
-                }
-            }
-
-            // ── THE VOLUME LIBRARY — the permanent surface for a gate-qualified series ──
-            // service defaults to the native TankobanVolumes context property. A Downloaded->Open
-            // action opens that volume through the SAME reader below (volume model + injected store).
-            MangaTankobanLibrary {
-                id: tankLib
-                width: parent.width
-                visible: page.tankobanMode
-                seriesId: page.seriesId
-                onOpenVolumeRequested: (volumeId) => page._openVolume(volumeId)
-                // "Choose source" -> the full-screen picker. Merge the series identity
-                // (the library only knows the volume) and open the overlay below.
-                onSourcesRequested: (ctx) => {
-                    ctx.seriesId = page.seriesId
-                    ctx.seriesTitle = page.seriesTitle
-                    ctx.volumeNumber = ctx.number
-                    ctx.volumeTitle = ctx.title
-                    sourcesPage.show(ctx)
                 }
             }
 

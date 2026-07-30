@@ -29,7 +29,8 @@ constexpr const char* kComickApi = "https://api.comick.dev";
 // Comick answers 403 to anything that doesn't look like a browser — no token, no
 // account, just the User-Agent. Probed 2026-07-29: a bare Qt client is refused, this
 // string is served. Every "Comick is down" false alarm so far has been a missing UA,
-// so do not trim this to a polite library string the way the MangaDex client could.
+// so do not trim this to a polite library identifier: this host has no tolerant mode,
+// and the failure it produces reads as an outage rather than as a rejected client.
 constexpr const char* kUserAgent =
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/125.0.0.0 Safari/537.36";
@@ -400,9 +401,11 @@ void ComickCatalogClient::stepSearch(PendingFetchPtr pending)
             return;
         }
 
-        // Best match: an exact normalized hit on the slug title or any md_title beats
-        // search order, which ranks near-namesakes high (the shape comes from the
-        // MangaDex client, which searches title + altTitles the same way).
+        // Best match: THE RULE IS "an exact normalized hit on any title this comic is
+        // known by beats Comick's relevance ordering" — that ordering ranks near-
+        // namesakes high (search "One Piece" and "One Piece Academy" competes), so
+        // relevance alone picks the wrong comic. `md_titles` is searched because the
+        // known-by SET, not the one canonical `title`, is what the rule matches against.
         //
         // SHARED RULE — keep in step with colosseum-volume-db/comick_volume_db/
         // comick_client.py:pick_best(), which implements the same three parts: an
