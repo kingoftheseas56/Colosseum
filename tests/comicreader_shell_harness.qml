@@ -1491,10 +1491,19 @@ Item {
             ck(ovShell.modalOpen === true, "escape: precondition - the settings sheet must be open")
             ovShell.activeOverlay = "pages"
             ovShell.closeTop()
-            ck(ovShell.modalOpen === false && ovShell.activeOverlay === "pages",
-               "escape: the sheet closes FIRST and leaves the surface beneath it alone, got modal="
-               + ovShell.modalOpen + " overlay='" + ovShell.activeOverlay + "'")
-            ovShell.activeOverlay = ""
+            ck(ovShell.activeOverlay === "pages",
+               "escape: the sheet closes FIRST and leaves the surface beneath it alone, got overlay='"
+               + ovShell.activeOverlay + "'")
+            // ...and the reader is STILL modal, because the filmstrip beneath the sheet is a real
+            // surface now (Task 6) rather than an ownership token with no pixels. One more Escape
+            // takes that layer too and hands the keyboard back — which is the proof the first
+            // Escape consumed the SHEET layer and not this one.
+            ck(ovShell.modalOpen === true,
+               "escape: with the filmstrip still up the reader stays modal, got " + ovShell.modalOpen)
+            ovShell.closeTop()
+            ck(ovShell.activeOverlay === "" && ovShell.modalOpen === false,
+               "escape: the next Escape closes the filmstrip and hands the keyboard back, got overlay='"
+               + ovShell.activeOverlay + "' modal=" + ovShell.modalOpen)
 
             // The commands that have no surface yet are honest, not faked: they really do take
             // ownership, so the command goes gold and Escape gives it back. Nothing pretends.
@@ -1502,6 +1511,86 @@ Item {
             ck(ovShell.activeOverlay === "loupe", "overlay: Loupe takes ownership even before its surface lands")
             ovShell.closeTop()
             ck(ovShell.activeOverlay === "", "overlay: ...and Escape gives it straight back")
+
+            // -- 19. THE PAGES FILMSTRIP (Task 6) — the first of the four temporary surfaces to get
+            // real pixels. The overlay itself is pinned by tests/comicreader_overlays_harness.qml;
+            // THIS pins the shell half: that it is mounted, that it is fed the shell's own facts,
+            // and — the rule that matters most — that the SHELL is the only thing able to navigate,
+            // so every way out that is not a thumbnail leaves the reading position exactly alone. --
+            var film = byName(ovShell, "pagesOverlay")
+            ck(film !== null, "filmstrip: the Pages overlay (objectName 'pagesOverlay') must be mounted in the shell")
+
+            ovShell.activeOverlay = ""
+            ck(film.open === false, "filmstrip: closed while no surface is open, got " + film.open)
+            ck(ovShell.modalOpen === false, "filmstrip: a closed filmstrip must not hold the keyboard")
+
+            ovShell.openOverlay("pages")
+            ck(film.open === true, "filmstrip: the Pages command must open it, got " + film.open)
+            // An open filmstrip owns the keyboard (ComicReaderInput gates everything but Escape on
+            // modalOpen) and holds the chrome awake (ComicReaderHud._holdChrome) — the 2.5s sleep
+            // must never pull the strip out from under the reader's hand.
+            ck(ovShell.modalOpen === true, "filmstrip: an OPEN filmstrip must make the reader modal")
+
+            // the shell's facts, plumbed in — not re-derived inside the overlay
+            ck(film.pageCount === ovShell.max, "filmstrip: pageCount must be the shell's max, got " + film.pageCount)
+            ck(film.currentPage === ovShell.currentPage, "filmstrip: currentPage must track the shell, got " + film.currentPage)
+            ck(film.order === ovShell.order, "filmstrip: order must track the shell, got '" + film.order + "'")
+
+            // ONE bookmark list feeds BOTH marks. The HUD's rail ticks bind to reader.liveBookmarks
+            // (see the ComicReaderHud mount) and so does this; the rail's tick geometry is pinned by
+            // tests/comicreader_chrome_harness.qml. A toggle therefore moves both together.
+            ovShell.currentPage = 2
+            ovShell.bookmarkToggleRequested()
+            ck(ovShell.liveBookmarks.length === 1,
+               "filmstrip: fixture - a bookmark toggle must reach the core, got " + JSON.stringify(ovShell.liveBookmarks))
+            ck(deepEqual(film.bookmarks, ovShell.liveBookmarks),
+               "filmstrip: the filmstrip's marks must read the SAME live list as the rail's ticks, got "
+               + JSON.stringify(film.bookmarks) + " vs " + JSON.stringify(ovShell.liveBookmarks))
+
+            // T and the Pages command are the same door (the shell's thumbnailsRequested wiring)
+            ovShell.activeOverlay = ""
+            ovShell.thumbnailsRequested()
+            ck(ovShell.activeOverlay === "pages" && film.open === true,
+               "filmstrip: T must open the same surface the Pages command does, got '" + ovShell.activeOverlay + "'")
+
+            // JUMP: a thumbnail goes there and gives the screen back, in one move.
+            ovShell.currentPage = 1
+            film.activateIndex(2)
+            ck(ovShell.currentPage === 3,
+               "filmstrip: activating index 2 must move the reader to page 3, got " + ovShell.currentPage)
+            ck(ovShell.activeOverlay === "" && film.open === false,
+               "filmstrip: a jump must also dismiss, got '" + ovShell.activeOverlay + "'")
+
+            // DISMISS WITHOUT MOVING — the whole point of the surface being temporary. Three doors,
+            // all of them must leave the page exactly where it was.
+            //
+            // The page is parked at 4 ON PURPOSE, not left wherever the jump above put it. A
+            // dismissal that secretly navigates almost always navigates to page 1 or to the centred
+            // page, and starting from either of those would let the mutation pass unnoticed —
+            // measured: with the shell's onDismissRequested mutated to goToPageIndex(1), these three
+            // checks passed vacuously until this line existed.
+            ovShell.currentPage = 4
+            ovShell.openOverlay("pages")
+            var pageBeforeDismiss = ovShell.currentPage
+            ck(pageBeforeDismiss === 4, "filmstrip: fixture - park the reader off page 1 before the dismiss checks, got " + pageBeforeDismiss)
+            film.dismiss()
+            ck(ovShell.activeOverlay === "" && ovShell.currentPage === pageBeforeDismiss,
+               "filmstrip: dismiss() must close and NOT move the page, " + pageBeforeDismiss
+               + " -> " + ovShell.currentPage)
+
+            ovShell.openOverlay("pages")
+            byName(film, "pagesDismissCatcher").tap()
+            ck(ovShell.activeOverlay === "" && ovShell.currentPage === pageBeforeDismiss,
+               "filmstrip: clicking the comic must close and NOT move the page, " + pageBeforeDismiss
+               + " -> " + ovShell.currentPage)
+
+            ovShell.openOverlay("pages")
+            ovShell.chromeVisible = true
+            ovShell.closeTop()
+            ck(ovShell.activeOverlay === "" && ovShell.currentPage === pageBeforeDismiss
+               && ovShell.chromeVisible === true,
+               "filmstrip: Escape must close and NOT move the page, " + pageBeforeDismiss
+               + " -> " + ovShell.currentPage + " chrome=" + ovShell.chromeVisible)
 
         } catch (e) {
             failures.push("exception during checks: " + e.message)

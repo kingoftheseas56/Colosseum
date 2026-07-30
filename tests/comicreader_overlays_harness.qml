@@ -10,6 +10,23 @@
 //   * dismiss: the X, a scrim tap, and close() all fire dismissed() and clear `opened`.
 //   * click-swallower: a tap on the sheet BODY does not fall through to the scrim (no dismiss).
 //
+// SLICE 2 — ComicReaderPagesOverlay, the temporary Pages filmstrip (Task 6):
+//   * VIRTUALIZED: a 1,452-page volume instantiates a handful of thumbnails, not 1,452, and a
+//     CLOSED filmstrip instantiates none at all.
+//   * the current page is CENTERED (real delegate geometry against the real viewport centre, not
+//     the component's own arithmetic) and is the largest thumbnail in the strip.
+//   * RTL mirrors the VISUAL sequence only — asserted twice: through visualPageAt(), and through
+//     the laid-out delegates' actual x positions — while the printed page numbers stay truthful.
+//   * jump: exactly ONE jumpRequested(page) and exactly ONE dismissRequested(), from the delegate's
+//     own door as well as the public one; an out-of-range index emits neither.
+//   * dismiss (the canvas catcher, and dismiss()) emits dismissRequested and NEVER a jump, and
+//     leaves currentPage untouched.
+//   * thumbnails are requested on the `thumbnail` tier — never `hq` (Task 2's cap is the whole
+//     reason a filmstrip can exist without pulling full-resolution scans).
+//   * bookmarks mark the filmstrip thumbnails (the rail's other half — the progress ticks — is
+//     pinned by tests/comicreader_chrome_harness.qml's tickRatio checks, and the shell gate proves
+//     ONE list feeds both).
+//
 // HOUSE HARNESS PATTERN (mirrors comicreader_surfaces_harness.qml): a thrown error hangs qml.exe
 // offscreen, so `ck` never throws — it collects failures; prints exactly one COMICREADER_OVERLAYS_OK
 // when clean, else one COMICREADER_OVERLAYS_FAIL:<msg> per failure and Qt.exit(1).
@@ -324,9 +341,202 @@ Item {
     }
     property int dismissCount: 0
 
+    // ============================================================================================
+    // SLICE 2 — the Pages filmstrip (Task 6)
+    // ============================================================================================
+    // The overlay talks to the BACKEND, not to a reader seam: pageCount / currentPage / order /
+    // bookmarks are pushed in as plain properties and the only call it makes is imageUrl(page, tier).
+    // The fake returns "" for every url on purpose — a real "image://comicreader/..." would warn once
+    // per delegate against an engine with no such provider, and what this gate actually has to prove
+    // is WHICH TIER was asked for, which the call log answers exactly.
+    component FakePagesCore: QtObject {
+        property var calls: []                       // [{page, tier}] — every imageUrl request
+        property var bookmarksArr: []
+        signal pageReady(int page)
+        signal bookmarksChanged()
+        function imageUrl(page, tier) {
+            calls.push({ page: page, tier: String(tier) })
+            return ""
+        }
+        function bookmarks() { return bookmarksArr.slice() }
+        function tiersAsked() {
+            var seen = {}
+            for (var i = 0; i < calls.length; i++) seen[calls[i].tier] = true
+            return Object.keys(seen).sort()
+        }
+    }
+
+    FakePagesCore { id: fakePagesCore }
+
+    property var pagesComp: null
+    property var pages: null
+    property int jumpCount: 0
+    property int lastJump: -1
+    property int pagesDismissCount: 0
+
+    function runPages() {
+        pages = pagesComp.createObject(harness, {
+            "width": harness.width, "height": harness.height,
+            "core": fakePagesCore, "pageCount": 230, "currentPage": 16,
+            "order": "ltr", "bookmarks": [3, 15, 200]
+        })
+        var overlay = pages
+        if (!overlay) { failures.push("pages: createObject returned null"); return }
+        overlay.jumpRequested.connect(function (p) { harness.jumpCount += 1; harness.lastJump = p })
+        overlay.dismissRequested.connect(function () { harness.pagesDismissCount += 1 })
+
+        // --- closed by default, and a CLOSED filmstrip costs nothing ---
+        // `open` is a RULE-level property on purpose: QQuickItem.visible is EFFECTIVE visibility, so
+        // asserting on it would be reading the harness root's state as much as the overlay's.
+        ck(overlay.open === false, "pages: must start CLOSED")
+        ck(overlay.liveThumbs === 0, "pages: a closed filmstrip must instantiate ZERO thumbnails, got " + overlay.liveThumbs)
+
+        // --- open it ---
+        overlay.open = true
+        overlay.centreNow()
+        ck(overlay.open === true, "pages: open must be settable")
+
+        // --- the current page is CENTERED (index) ---
+        ck(overlay.centeredIndex === 15, "pages: current page 16 must centre index 15, got " + overlay.centeredIndex)
+        // ...and the VIEW agrees. This is the value the ListView resets to 0 by itself when the
+        // model goes 0 -> N, which is exactly what opening the surface does; a declarative binding
+        // here is destroyed by that write, so the strip would centre page 1 forever.
+        ck(overlay.flowCurrentIndex === 15,
+           "pages: the view's own currentIndex must follow the reader, got " + overlay.flowCurrentIndex)
+
+        // --- ...and centered in REAL GEOMETRY, not just in the component's own arithmetic ---
+        var cx = overlay.itemCenterX(15)
+        ck(!isNaN(cx), "pages: the centred thumbnail must be realized (got NaN centre)")
+        ck(!isNaN(cx) && Math.abs(cx - overlay.viewportCenterX) <= 2.0,
+           "pages: the current thumbnail must sit at the viewport centre, off by "
+           + (isNaN(cx) ? "NaN" : Math.abs(cx - overlay.viewportCenterX).toFixed(2)) + "px")
+
+        // --- scale grows toward the centre, and the DRAWN widths agree with the ramp ---
+        ck(overlay.scaleForIndex(15) > overlay.scaleForIndex(16), "pages: the centre must outscale its right neighbour")
+        ck(overlay.scaleForIndex(15) > overlay.scaleForIndex(14), "pages: the centre must outscale its left neighbour")
+        ck(overlay.scaleForIndex(16) > overlay.scaleForIndex(18), "pages: a nearer neighbour must outscale a farther one")
+        ck(overlay.itemWidthAt(15) > overlay.itemWidthAt(16),
+           "pages: the centre delegate must be WIDER than its neighbour, got "
+           + overlay.itemWidthAt(15) + " vs " + overlay.itemWidthAt(16))
+
+        // --- VIRTUALIZED. This reader exists because of a stutter; 1,452 delegates is a new one. ---
+        ck(overlay.liveThumbs > 0, "pages: an open filmstrip must instantiate SOME thumbnails")
+        ck(overlay.liveThumbs < 60, "pages: 230 pages must not instantiate 230 thumbnails, got " + overlay.liveThumbs)
+        overlay.pageCount = 1452
+        overlay.currentPage = 700
+        overlay.centreNow()
+        ck(overlay.liveThumbs < 60, "pages: 1452 pages must not instantiate 1452 thumbnails, got " + overlay.liveThumbs)
+        ck(overlay.centeredIndex === 699, "pages: centre must follow currentPage, got " + overlay.centeredIndex)
+        var cx2 = overlay.itemCenterX(699)
+        ck(!isNaN(cx2) && Math.abs(cx2 - overlay.viewportCenterX) <= 2.0,
+           "pages: page 700 of 1452 must also land centred, off by "
+           + (isNaN(cx2) ? "NaN" : Math.abs(cx2 - overlay.viewportCenterX).toFixed(2)) + "px")
+
+        // --- thumbnails ride the THUMBNAIL tier. hq here would pull full-resolution scans. ---
+        var tiers = fakePagesCore.tiersAsked()
+        ck(tiers.length === 1 && tiers[0] === "thumbnail",
+           "pages: every thumbnail request must use the 'thumbnail' tier, saw [" + tiers.join(",") + "]")
+
+        // --- RTL mirrors the VISUAL sequence... ---
+        overlay.pageCount = 230
+        overlay.currentPage = 16
+        overlay.order = "rtl"
+        overlay.centreNow()
+        ck(overlay.visualPageAt(0) > overlay.visualPageAt(1),
+           "pages: RTL visual order must mirror, got " + overlay.visualPageAt(0) + " then " + overlay.visualPageAt(1))
+        ck(overlay.visualPageAt(0) === 230 && overlay.visualPageAt(229) === 1,
+           "pages: RTL must put the LAST page leftmost and the first page rightmost, got "
+           + overlay.visualPageAt(0) + ".." + overlay.visualPageAt(229))
+        // ...in the LAID-OUT delegates too, so the helper above is anchored to the real ListView and
+        // is not merely restating its own arithmetic.
+        ck(overlay.itemXAt(15) > overlay.itemXAt(16),
+           "pages: under RTL the next page must be drawn to the LEFT, got x "
+           + overlay.itemXAt(15) + " vs " + overlay.itemXAt(16))
+
+        // --- ...and ONLY the visual sequence. The printed numbers never reverse their meaning. ---
+        ck(overlay.labelTextAt(15) === "16", "pages: RTL page 16 must still be LABELLED 16, got '" + overlay.labelTextAt(15) + "'")
+        ck(overlay.labelTextAt(16) === "17", "pages: RTL page 17 must still be LABELLED 17, got '" + overlay.labelTextAt(16) + "'")
+        overlay.order = "ltr"
+        overlay.centreNow()
+        ck(overlay.visualPageAt(0) === 1 && overlay.visualPageAt(1) === 2,
+           "pages: LTR visual order must run forward, got " + overlay.visualPageAt(0) + " then " + overlay.visualPageAt(1))
+        ck(overlay.itemXAt(15) < overlay.itemXAt(16),
+           "pages: under LTR the next page must be drawn to the RIGHT, got x "
+           + overlay.itemXAt(15) + " vs " + overlay.itemXAt(16))
+        ck(overlay.labelTextAt(15) === "16", "pages: LTR page 16 must be LABELLED 16, got '" + overlay.labelTextAt(15) + "'")
+
+        // --- bookmarks mark the FILMSTRIP thumbnails (the rail's ticks are the chrome gate's half) ---
+        ck(overlay.isBookmarked(15) === true, "pages: page index 15 is bookmarked")
+        ck(overlay.isBookmarked(14) === false, "pages: page index 14 is not bookmarked")
+        ck(overlay.markOpacityAt(15) > 0, "pages: a bookmarked thumbnail must SHOW its mark, got " + overlay.markOpacityAt(15))
+        ck(overlay.markOpacityAt(14) === 0, "pages: an unbookmarked thumbnail must show no mark, got " + overlay.markOpacityAt(14))
+        overlay.bookmarks = [14]
+        ck(overlay.markOpacityAt(14) > 0 && overlay.markOpacityAt(15) === 0,
+           "pages: the marks must follow a live bookmark change")
+        overlay.bookmarks = [3, 15, 200]
+
+        // --- JUMP: exactly one of each, through the PUBLIC door ---
+        harness.jumpCount = 0; harness.pagesDismissCount = 0; harness.lastJump = -1
+        overlay.activateIndex(18)
+        ck(harness.jumpCount === 1 && harness.lastJump === 19 && harness.pagesDismissCount === 1,
+           "pages: activateIndex(18) must jump ONCE to page 19 and dismiss ONCE, got jump=" + harness.jumpCount
+           + " page=" + harness.lastJump + " dismiss=" + harness.pagesDismissCount)
+
+        // --- JUMP: and through the DELEGATE's own door (the thing a click actually reaches) ---
+        harness.jumpCount = 0; harness.pagesDismissCount = 0; harness.lastJump = -1
+        ck(overlay.pressThumb(17) === true, "pages: thumbnail 17 must be realized and pressable")
+        ck(harness.jumpCount === 1 && harness.lastJump === 18 && harness.pagesDismissCount === 1,
+           "pages: a thumbnail press must jump ONCE to page 18 and dismiss ONCE, got jump=" + harness.jumpCount
+           + " page=" + harness.lastJump + " dismiss=" + harness.pagesDismissCount)
+
+        // --- an out-of-range index is inert, never a clamped jump to a page nobody asked for ---
+        harness.jumpCount = 0; harness.pagesDismissCount = 0
+        overlay.activateIndex(-1)
+        overlay.activateIndex(9999)
+        ck(harness.jumpCount === 0 && harness.pagesDismissCount === 0,
+           "pages: an out-of-range activateIndex must emit NOTHING, got jump=" + harness.jumpCount
+           + " dismiss=" + harness.pagesDismissCount)
+
+        // --- DISMISS WITHOUT MOVING: the canvas catcher and dismiss() emit no jump at all ---
+        var pageBefore = overlay.currentPage
+        harness.jumpCount = 0; harness.pagesDismissCount = 0
+        var catcher = byName(overlay, "pagesDismissCatcher")
+        ck(catcher !== null, "pages: the canvas dismiss catcher must exist")
+        if (catcher) catcher.tap()
+        ck(harness.pagesDismissCount === 1, "pages: a click on the comic must dismiss, got " + harness.pagesDismissCount)
+        ck(harness.jumpCount === 0, "pages: a click on the comic must emit NO jump, got " + harness.jumpCount)
+        ck(overlay.currentPage === pageBefore,
+           "pages: dismissal must not move the reading position, " + pageBefore + " -> " + overlay.currentPage)
+
+        harness.jumpCount = 0; harness.pagesDismissCount = 0
+        overlay.dismiss()
+        ck(harness.pagesDismissCount === 1 && harness.jumpCount === 0,
+           "pages: dismiss() must emit exactly one dismissRequested and no jump, got dismiss="
+           + harness.pagesDismissCount + " jump=" + harness.jumpCount)
+        ck(overlay.currentPage === pageBefore,
+           "pages: dismiss() must not move the reading position, " + pageBefore + " -> " + overlay.currentPage)
+
+        // --- the band swallows its own clicks: pressing the strip's empty ground is NOT a dismissal ---
+        harness.jumpCount = 0; harness.pagesDismissCount = 0
+        var band = byName(overlay, "pagesBand")
+        ck(band !== null, "pages: the filmstrip band must exist")
+        var swallow = byName(overlay, "pagesBandSwallow")
+        ck(swallow !== null, "pages: the band must carry a click-swallower (floating-panel house law)")
+        if (swallow) swallow.tap()
+        ck(harness.pagesDismissCount === 0 && harness.jumpCount === 0,
+           "pages: a tap on the band's empty ground must neither jump nor dismiss, got dismiss="
+           + harness.pagesDismissCount + " jump=" + harness.jumpCount)
+
+        // --- closing releases every delegate: a closed temporary surface holds nothing ---
+        overlay.open = false
+        ck(overlay.liveThumbs === 0, "pages: closing must release every thumbnail, got " + overlay.liveThumbs)
+    }
+
     function runChecks() {
         try { runSettings() }
         catch (e) { failures.push("exception: " + e.message) }
+        try { runPages() }
+        catch (e) { failures.push("pages exception: " + e.message) }
         report()
     }
 
@@ -334,6 +544,8 @@ Item {
         try {
             sheetComp = Qt.createComponent("../qml/comicreader/ComicReaderSettingsSheet.qml")
             if (sheetComp.status === Component.Error) throw new Error("settings component: " + sheetComp.errorString())
+            pagesComp = Qt.createComponent("../qml/comicreader/ComicReaderPagesOverlay.qml")
+            if (pagesComp.status === Component.Error) throw new Error("pages component: " + pagesComp.errorString())
             Qt.callLater(runChecks)
         } catch (e) {
             console.log("COMICREADER_OVERLAYS_FAIL: setup: " + e.message); Qt.exit(1)

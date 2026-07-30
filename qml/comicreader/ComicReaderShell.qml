@@ -209,10 +209,12 @@ Item {
     }
 
     // an overlay is up — swallows background input + pauses auto-hide. Aggregated off the MOUNTED
-    // overlays only. `activeOverlay` deliberately does NOT join this OR yet: gating the whole
+    // overlays only. `activeOverlay` deliberately does NOT join this OR wholesale: gating the whole
     // keyboard behind a surface that has no pixels on screen would be a trap, not a contract. Each
-    // of Tasks 6-9 adds its own mount here as it lands.
-    readonly property bool modalOpen: settingsSheet.opened
+    // of Tasks 6-9 adds its own mount here as it lands — Task 6 adds the Pages filmstrip, which now
+    // genuinely covers the comic, so an open filmstrip owns the keyboard (everything but Escape,
+    // ComicReaderInput's existing law) exactly like the sheet does.
+    readonly property bool modalOpen: settingsSheet.opened || pagesOverlay.open
 
     // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
     // (MangaReader.qml:165) and read by tests/manga_tankoban_page_harness.qml — the Task 1 contract
@@ -1203,6 +1205,35 @@ Item {
     }
 
     // ---- overlays (Task 12) — mounted ABOVE the HUD so they own input while open ----
+
+    // The temporary Pages filmstrip (Task 6). Raised by the Pages command and by T, through the ONE
+    // overlay coordinator; it draws OVER the comic and the comic never shifts to make room for it.
+    //
+    // It reads facts and raises intents — it cannot navigate by itself, which is what makes "Escape
+    // or clicking the comic dismisses without moving" structural rather than a promise. `bookmarks`
+    // is the SAME liveBookmarks list the HUD's rail ticks bind to, so a toggle moves the filmstrip's
+    // marks and the rail's ticks together instead of leaving two lists to drift.
+    ComicReaderPagesOverlay {
+        id: pagesOverlay
+        objectName: "pagesOverlay"
+        core: reader.core
+        pageCount: reader.max
+        currentPage: reader.currentPage
+        order: reader.order
+        bookmarks: reader.liveBookmarks
+        open: reader.activeOverlay === "pages"
+        // Selecting a thumbnail is ONE move: go there, and give the screen back. goToPageIndex is
+        // the shell's existing navigation door (it snaps to the canonical unit in Paired Pages), so
+        // the filmstrip lands on exactly what a scrub or a Ctrl+G would.
+        onJumpRequested: function (page) {
+            reader.goToPageIndex(page)
+            reader.activeOverlay = ""
+        }
+        // Dismissal is a plain assignment, never openOverlay() — openOverlay TOGGLES, so routing a
+        // dismissal through it would re-open the surface the reader just closed.
+        onDismissRequested: reader.activeOverlay = ""
+    }
+
     ComicReaderSettingsSheet {
         id: settingsSheet
         reader: reader   // sizes itself to the shell (explicit width/height binding, see the component)
