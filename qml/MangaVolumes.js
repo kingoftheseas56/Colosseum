@@ -90,3 +90,75 @@ function group(chapters, allVolumes) {
     if (byKey.X.length > 0) options.push({ key: 'X', label: "Latest chapters (" + byKey.X.length + ")" })
     return { options: options, byKey: byKey }
 }
+
+// ── shelf paging + batch selection (design 2026-07-30) ─────────────────────
+// Both are pure: no QML types, no engine calls, no I/O. Tested headless by
+// tests/manga_volume_batch_test.mjs.
+//
+// Row shape is whatever MangaTankobanService::volumeMap publishes, so `number`
+// is a STRING ("1", "10.5", "Extra" — MangaTankobanTypes.h:18). Everything
+// below reads it through Number() and refuses anything that isn't finite,
+// rather than letting a named volume leak out as NaN.
+
+// A volume's number as a display token: numeric when it parses, otherwise the
+// raw source token. Never "NaN" — that string would reach the shelf header.
+function volumeToken(row) {
+    var n = Number(row && row.number)
+    return isFinite(n) ? String(n) : String((row && row.number) || "")
+}
+
+// Page the shelf into fixed-size groups. rows: ascending volume rows with a
+// .number. → [{ key, label, first, last, volumes:[rows] }]
+function pageGroups(rows, size) {
+    var n = Number(size) || 10
+    var out = []
+    if (!rows || !rows.length) return out
+    for (var i = 0; i < rows.length; i += n) {
+        var slice = rows.slice(i, i + n)
+        var loTok = volumeToken(slice[0])
+        var hiTok = volumeToken(slice[slice.length - 1])
+        out.push({ key: loTok + "-" + hiTok,
+                   label: "Volumes " + loTok + "–" + hiTok,
+                   first: Number(slice[0].number),
+                   last: Number(slice[slice.length - 1].number),
+                   volumes: slice })
+    }
+    return out
+}
+
+// The next `size` volumes the reader does NOT own, walking FORWARD from the
+// volume he is reading. Holes BEHIND the reading position are deliberately
+// left alone — filling those is what the per-page buttons are for (Hemanth,
+// 2026-07-30: "continue forward"). An un-owned volume he is currently reading
+// counts as part of the batch.
+// rows: ascending rows with .number   owned: { <number>: true }
+// currentNumber: the volume being read, or 0 when the series was never opened.
+// → { numbers:[..], first, last, kind, label }
+//   kind: "next" | "remaining" | "all" | "complete"
+function nextBatch(rows, owned, currentNumber, size) {
+    var n = Number(size) || 10
+    var have = owned || {}
+    var from = Number(currentNumber) || 0
+    var picked = []
+    if (rows && rows.length)
+        for (var i = 0; i < rows.length && picked.length < n; i++) {
+            var num = Number(rows[i].number)
+            if (!isFinite(num)) continue    // named volume: nothing to acquire by
+            if (num < from) continue        // behind the reader: leave it alone
+            if (have[num]) continue         // already here: never re-fetch
+            picked.push(num)
+        }
+
+    if (!picked.length)
+        return { numbers: [], first: 0, last: 0, kind: "complete",
+                 label: "All volumes on this device" }
+
+    var kind = (rows && picked.length === rows.length) ? "all"
+             : (picked.length < n) ? "remaining"
+             : "next"
+    var label = kind === "all"       ? "Download all " + picked.length
+              : kind === "remaining" ? "Download remaining " + picked.length
+              :                        "Download next " + picked.length
+    return { numbers: picked, first: picked[0], last: picked[picked.length - 1],
+             kind: kind, label: label }
+}
