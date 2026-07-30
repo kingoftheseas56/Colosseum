@@ -10,10 +10,15 @@
 //
 // The ONE adaptation that is not a copy: Theatre's still is LANDSCAPE (172x96) and
 // a tankobon is portrait, so Theatre is the wrong yardstick for the artwork — the
-// aspect ratios are not comparable. The right reference is the CHAPTER row on this
-// same page, which already shows a portrait first-page thumbnail: 100x140 in a 156px
-// row. The book matches it exactly, so a volume and a chapter read at the same
-// weight. Continue is the emphasised row and steps up to 126x176 in 196.
+// aspect ratios are not comparable, and no size taken from it can be right.
+//
+// The book is the HERO of this surface, not a thumbnail of one: 220x320 in a 356px
+// row (268x390 in 428 on Continue), roughly a real tankobon's 1:1.46. Sized to be
+// looked at, on Hemanth's call — a paged shelf (10 volumes at a time) is coming, so
+// row height is no longer paying for scroll length. A chapter is
+// a fragment and wears a 100x140 thumbnail; a volume is the whole object you are
+// collecting, and it is sized to be looked at. The rail, title and blurb all scale
+// with it so nothing beside the cover reads as a footnote.
 //
 // The signature: OWNERSHIP IS DRAWN AS A SPINE. The rail's hairline thickens into a
 // gold rule and the cover picks up a lit left edge once the volume is on disk, so a
@@ -336,7 +341,7 @@ Item {
                 Item {
                     id: rowMain
                     width: parent.width
-                    height: vrow.isContinue ? 196 : 156
+                    height: vrow.isContinue ? 428 : 356
 
                     // hover / continue tint, inset to the page margins like Theatre
                     Rectangle {
@@ -361,7 +366,7 @@ Item {
                     Item {
                         id: numberRail
                         x: theme.margin + 2
-                        width: 70; height: parent.height
+                        width: 84; height: parent.height
                         Column {
                             anchors.centerIn: parent; spacing: 2
                             Text {
@@ -369,7 +374,7 @@ Item {
                                 text: vrow.modelData.number || "?"
                                 color: vrow.isContinue ? theme.gold : theme.ink
                                 font.family: theme.display
-                                font.pixelSize: vrow.isContinue ? 25 : 21
+                                font.pixelSize: vrow.isContinue ? 42 : 34
                                 font.weight: Font.DemiBold
                             }
                             Text {
@@ -396,8 +401,8 @@ Item {
                         id: cov
                         x: numberRail.x + numberRail.width + 16
                         y: (parent.height - height) / 2
-                        width: vrow.isContinue ? 126 : 100
-                        height: vrow.isContinue ? 176 : 140
+                        width: vrow.isContinue ? 268 : 220
+                        height: vrow.isContinue ? 390 : 320
                         Rectangle {
                             anchors.fill: parent; radius: 6; clip: true
                             color: "#15171f"
@@ -409,7 +414,7 @@ Item {
                                 text: vrow.modelData.number || "?"
                                 color: Qt.rgba(1, 1, 1, 0.5)
                                 font.family: theme.display
-                                font.pixelSize: vrow.isContinue ? 38 : 30
+                                font.pixelSize: vrow.isContinue ? 78 : 64
                             }
                             Image {
                                 id: coverImg
@@ -418,7 +423,8 @@ Item {
                                 visible: status === Image.Ready
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true; cache: true
-                                sourceSize.width: 280
+                                sourceSize.width: 440   // 2x the display width — past that is wasted
+                                                        // pixels, not visible sharpness
                             }
                             // a book you own catches the light down its spine edge
                             Rectangle {
@@ -451,27 +457,27 @@ Item {
                         anchors.left: cov.right; anchors.leftMargin: 18
                         anchors.right: statusBlock.left; anchors.rightMargin: 20
                         anchors.verticalCenter: parent.verticalCenter
-                        spacing: vrow.isContinue ? 8 : 5
+                        spacing: vrow.isContinue ? 12 : 9
                         Text {
                             width: parent.width
                             text: (vrow.modelData.title && String(vrow.modelData.title).length)
                                 ? vrow.modelData.title : ("Volume " + (vrow.modelData.number || ""))
                             color: theme.ink; font.family: theme.ui
-                            font.pixelSize: vrow.isContinue ? 17 : 15
+                            font.pixelSize: vrow.isContinue ? 26 : 22
                             font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
                         Text {
                             visible: vrow.chapterSpan.length > 0
                             text: vrow.chapterSpan
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 15
                         }
                         Text {
                             visible: vrow.synopsisText.length > 0
                             width: parent.width; text: vrow.synopsisText
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
-                            lineHeight: 1.35; wrapMode: Text.WordWrap
-                            maximumLineCount: vrow.isContinue ? 2 : 1
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                            lineHeight: 1.45; wrapMode: Text.WordWrap
+                            maximumLineCount: vrow.isContinue ? 5 : 4
                             elide: Text.ElideRight
                         }
                         // live download bar, only while acquiring with a known total
