@@ -22,8 +22,16 @@
 //     single page is small enough on screen that plain clamping still visibly slides the art out
 //     from under you, so this one does the arithmetic properly.
 //   * PAN CLAMPS to the zoomed page's own bounds, so you can never drag past the paper into black.
-//   * WAITING is a restrained placeholder, FAILURE is the typed placard — the same two components
-//     the Pair surface uses, so the two paged layouts behave like one reader.
+//   * FAILURE is the typed placard, and WAITING is the restrained placeholder — the same two
+//     components the Pair surface uses.
+//
+//     They do NOT behave identically on a page turn, and the difference is worth knowing: this
+//     surface keeps the OUTGOING page on screen while the next one decodes (retainWhileLoading holds
+//     the old pixmaps, and the placeholder is declared first so it sits behind them), whereas the
+//     Pair surface shows the placeholder, because its gate hides the images outright and there is
+//     nothing left to retain. So Single's placeholder is in practice only reachable on a FIRST open,
+//     or on a page whose geometry is known before any pixels exist. Which of the two feels better on
+//     a turn is Hemanth's call, not something this file should quietly decide.
 //
 // PRESENTED (the Task 4 seam, consumed by Task 11): `presented(anchorPage, withinPageFraction)`
 // fires when this surface has actually put the page's pixels on screen — not when it was asked to.
@@ -33,8 +41,15 @@
 //
 // INJECTABLE + GUARDED, exactly like the other two surfaces: `core` is injected by the shell and
 // every `core.` use is guarded, so a partial fake (the shell harness's Task-9 stub has no imageUrl)
-// degrades to drawing nothing rather than erroring. All side effects (setVisible) are gated behind
-// `active`, so an unmounted Single surface never touches the shared decode pool.
+// degrades to drawing nothing rather than erroring.
+//
+// EVERY reach for the backend is gated on `active` — the setVisible pin AND both image `source`
+// bindings. The sources matter as much as the pin: `currentPage` is bound to the shell's page
+// unconditionally, so while Long Strip is the mounted layout this surface's page number follows the
+// column as it scrolls. Ungated, that issued two provider requests per page scrolled past, at request
+// sizes the strip does not share and therefore as separate pixmap-cache entries competing with the
+// strip's own. (Measured: with active:false the urls were live and tracked currentPage. The Pair
+// surface never had this, because its sources flow through `unit`, which is already active-gated.)
 
 import QtQuick
 
@@ -69,7 +84,15 @@ Item {
         ignoreUnknownSignals: true
         function onPageReady(page)   { root.readyRev += 1 }
         function onPageFailed(page, code) { root.failedRev += 1 }
-        function onEntryChanged()    { root.entryRev += 1; root._onPageShown() }
+        function onEntryChanged()    {
+            root.entryRev += 1
+            // A NEW BOOK has to be able to present the same page number as the last one. Without this
+            // reset, opening book B on page 1 straight after reading book A page 1 emitted nothing at
+            // all, because the marker still said "page 1 is presented". (Measured: 0 emissions.)
+            root._presentedPage = -1
+            root._onPageShown()
+            root._checkPresented()
+        }
         function onPairingChanged()  { root.entryRev += 1 }
     }
 
@@ -100,7 +123,8 @@ Item {
     readonly property real zoomFactor: clampedZoom / 100.0
 
     // Decode cap, carried over from the Pair surface: cap the decoded width so a page costs what it
-    // is DISPLAYED at, but raise the cap with zoom or magnification would just show a bigger blur.
+    // is DISPLAYED at, not its full scan resolution — but raise the cap as you zoom in, or
+    // magnification would just be showing you a bigger blur.
     // It is derived from the ZOOM, never from the viewport — sourceSize is part of an Image's cache
     // key, so a cap that tracked the window would re-decode every page on entering fullscreen (the
     // exact bug the strip's Screen-derived cap fixed).
@@ -171,6 +195,13 @@ Item {
         // A new page resets the PAN to origin — never the zoom. Same law as the Pair surface: a
         // magnified volume that snapped back to 100% on every turn would be unreadable.
         panX = 0; panY = 0
+        // ...and a NEW page's hq layer genuinely has not arrived, so the M7 latch below re-arms.
+        // Deferred re-check as well as the reset, because onStatusChanged CANNOT arm it on a page
+        // whose pixmap is already cached: the status goes Ready -> Ready and never changes, so the
+        // handler never runs and the latch would stay false on exactly the pages most likely to be
+        // zoomed. (Same shape, and the same reason, as _checkPresented below.)
+        _hqEverReady = false
+        Qt.callLater(root._armHqLatch)
         if (!active) return
         // The index is computed FRESH here, not read off the `pageIndex` binding. A binding's
         // re-evaluation order versus the change handler that triggered it is NOT guaranteed, so
@@ -179,25 +210,58 @@ Item {
         var idx = Math.max(0, currentPage - 1)
         if (core && core.setVisible) core.setVisible([idx])
     }
-    onCurrentPageChanged: _onPageShown()
+    onCurrentPageChanged: { _onPageShown(); _checkPresented() }
     // Becoming the mounted surface with pixels already up IS a presentation — the layout switched and
     // the reader is now looking at that page — so the notice is re-checked here, not only on a decode.
-    onActiveChanged: { _onPageShown(); _notePresented() }
+    onActiveChanged: { _onPageShown(); _checkPresented() }
 
     // ---- presented(): fired once per page, the moment either tier has pixels up ----
     // Derived from the two Images rather than from a status handler on each, so preview-then-hq is one
-    // state change and therefore ONE presentation; and so an already-cached page counts the instant
-    // this surface becomes the mounted one.
-    readonly property bool pixelsOnScreen: previewImage.status === Image.Ready
-                                           || hqImage.status === Image.Ready
+    // state change and therefore ONE presentation.
+    // ONE RULE, shared with the other two surfaces: there is something on screen for this page when
+    // its pixels have arrived OR it failed terminally and its typed placard is the honest answer. Not
+    // named "pixelsOnScreen", because a placard is not pixels of the page and the name would be a lie
+    // — the strip and the Pair surface follow the same rule under the same reasoning: presented()
+    // means "the reader can see this position's content, or an explicit account of why not", and Task 11
+    // must not sit waiting to bank a position that can never render.
+    readonly property bool contentOnScreen: previewImage.status === Image.Ready
+                                            || hqImage.status === Image.Ready
+                                            || root.hasError
+    // M7: "the hq layer has real pixels for THIS page", which is what lets a zoom step reload it
+    // without dimming what is already on screen. Written from two places — hqImage's onStatusChanged
+    // (a cold page arriving) and this deferred arm (a warm page, whose status never changes) — and
+    // re-armed per page in _onPageShown, because a NEW page's hq genuinely has not arrived.
+    property bool _hqEverReady: false
+    function _armHqLatch() { if (hqImage.status === Image.Ready) _hqEverReady = true }
     property int _presentedPage: -1
     function _notePresented() {
-        if (!active || !pixelsOnScreen) return
+        if (!active || !contentOnScreen) return
         if (_presentedPage === root.currentPage) return
         _presentedPage = root.currentPage
         root.presented(root.currentPage, 0)
     }
-    onPixelsOnScreenChanged: _notePresented()
+    // contentOnScreen alone is NOT enough to NOTICE a presentation, and there are two holes it leaves:
+    //
+    //   * A NEW BOOK opening on the same page number the last one was left on. The marker still says
+    //     that page is presented, so nothing fires. Unconditional — no cache behaviour involved.
+    //     Handled by resetting the marker on entryChanged, above.
+    //   * A turn onto a page whose pixmaps are still in QQuickPixmapCache: Image.status goes straight
+    //     to Ready with no dip, so this property never CHANGES and nothing is emitted, while the
+    //     marker still points at the page the reader left. MEASURED 2026-07-30 at both regimes,
+    //     because two reviewers got opposite answers: at 140/280px request sizes the turn back onto a
+    //     just-left page keeps BOTH tiers Ready and fires zero times; at this surface's real caps
+    //     (700 preview + 1400 hq -> ~3 MB + ~11 MB, against QQuickPixmapStore's 10 MB desktop limit
+    //     for UNREFERENCED pixmaps) releasing the page evicts both, so the turn back genuinely
+    //     re-loads and the status does dip. In other words today's app is saved by a decoded page
+    //     being too big to cache — an undocumented limit that moves with the cap, the screen and the
+    //     Qt version, and one that a bigger cache or a smaller cap silently removes.
+    //
+    // So the page-change path re-checks too, deferred through Qt.callLater so the source/status
+    // bindings have settled by the time it reads them. Firing exactly once is the MARKER's job, not
+    // callLater's — but callLater does collapse repeats within one pass (measured: three schedules of
+    // the same method, one invocation), so a turn that also dips the status queues no extra work.
+    function _checkPresented() { Qt.callLater(root._notePresented) }
+    onContentOnScreenChanged: _notePresented()
 
     Item {
         id: pageBox
@@ -209,7 +273,9 @@ Item {
         // the unit is still coming — one quiet panel, exactly where the page will land
         ComicReaderUnitPlaceholder {
             anchors.fill: parent
-            shown: !root.hasError && !root.pixelsOnScreen
+            // No `!hasError` term: a failed page is already "content on screen" (its placard), so the
+            // one condition covers both.
+            shown: !root.contentOnScreen
         }
 
         // PREVIEW tier: fast transform, half width, first pixels on screen.
@@ -217,7 +283,8 @@ Item {
             id: previewImage
             anchors.fill: parent
             visible: !root.hasError
-            source: (root.readyRev, (root.core && root.core.imageUrl && root.pageIndex >= 0)
+            source: (root.readyRev, (root.active && root.core && root.core.imageUrl
+                                     && root.pageIndex >= 0)
                     ? root.core.imageUrl(root.pageIndex, "preview") : "")
             asynchronous: true
             cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode,
@@ -233,7 +300,8 @@ Item {
             id: hqImage
             anchors.fill: parent
             visible: !root.hasError
-            source: (root.readyRev, (root.core && root.core.imageUrl && root.pageIndex >= 0)
+            source: (root.readyRev, (root.active && root.core && root.core.imageUrl
+                                     && root.pageIndex >= 0)
                     ? root.core.imageUrl(root.pageIndex, "hq") : "")
             asynchronous: true
             cache: true
@@ -241,7 +309,24 @@ Item {
             fillMode: Image.PreserveAspectFit
             sourceSize.width: root.srcCapW
             mipmap: true
-            opacity: status === Image.Ready ? 1 : 0
+            // LATCHED, not bound to the live status. srcCapW is a step function of the zoom, so
+            // crossing 100 or 180 changes sourceSize — part of an Image's cache key — and
+            // re-requests this layer. Bound to the live status, hq then faded OUT to the retained
+            // lower-resolution pixels and back IN once the new scale landed: two soft flashes on the
+            // way from 100% to 260%. (Measured: 60ms after setZoom(200), status was Loading and
+            // opacity had fallen to 0.26.) retainWhileLoading keeps the previous pixels on screen
+            // through that reload, so holding opacity at 1 shows the page slightly soft for a moment
+            // and then sharpens — the intended feel — instead of dimming it. The latch re-arms per
+            // page, in _onPageShown, because a new page's hq really has not arrived.
+            //
+            // The rule is a NAMED property that `opacity` is bound to, because the Behavior below
+            // makes the animated value untestable: a synchronous read straight after a target flip
+            // still returns the OLD value (measured — target 1 -> 0 reads 1.000 in the same beat), so
+            // a harness asserting on `opacity` would pass against the flashing version too. The
+            // readback at the bottom exposes THIS property, which is the rule itself.
+            property real targetOpacity: (status === Image.Ready || root._hqEverReady) ? 1 : 0
+            onStatusChanged: if (status === Image.Ready) root._hqEverReady = true
+            opacity: targetOpacity
             Behavior on opacity { NumberAnimation { duration: 90 } }
         }
     }
@@ -263,4 +348,11 @@ Item {
     readonly property alias previewSource: previewImage.source
     readonly property alias hqSource: hqImage.source
     readonly property bool errorVisible: root.hasError
+    // The hq layer's opacity RULE (the value the Behavior is animating toward), so the surfaces gate
+    // can prove the latch holds it at 1 through a zoom step instead of trusting the comment. The
+    // live `opacity` is deliberately not what is exposed: an in-flight Behavior means a synchronous
+    // read cannot see a flash at all. Its `status` rides along so the fixture can prove the zoom step
+    // genuinely re-requested the layer rather than asserting against a no-op.
+    readonly property alias hqTargetOpacity: hqImage.targetOpacity
+    readonly property alias hqStatus: hqImage.status
 }

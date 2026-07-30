@@ -660,6 +660,21 @@ int main(int argc, char** argv) {
         CHECK(qAbs(core.stripPageTop(3) - top3) < 0.5, "T16 stripPageTop(3) matches the model's TopRole");
         CHECK(core.stripPageTop(-1) == 0.0 && core.stripPageTop(999) == 0.0,
               "T16 out-of-range stripPageTop is 0, never a crash");
+
+        // ...and the same for the page's HEIGHT, for the same reason. The strip reports presented()
+        // after a resume — a move that has just jumped the column thousands of pixels, so the drawn
+        // column has no item to measure — and it needs the page's height to say how far down that
+        // page the viewport centre sits. Without this the report either goes silent or carries a
+        // fraction of 0, and Task 11 would bank a worse position than the one it just restored from.
+        const double h3 = m->data(m->index(3, 0), ComicReaderStripModel::DisplayHeightRole).toDouble();
+        CHECK(h3 > 0.0, "T16 precondition: the model reports a real display height for page 3");
+        CHECK(qAbs(core.stripPageHeight(3) - h3) < 0.5,
+              "T16 stripPageHeight(3) matches the model's DisplayHeightRole");
+        CHECK(core.stripPageHeight(-1) == 0.0 && core.stripPageHeight(999) == 0.0,
+              "T16 out-of-range stripPageHeight is 0, never a crash");
+        ComicReaderCore emptyGeom;
+        CHECK(emptyGeom.stripPageHeight(0) == 0.0,
+              "T16 an entry-less core's stripPageHeight is 0, never a crash");
     }
 
     // ── Test 17: toggleBookmark writes, sorts, de-dupes, persists ────────────────

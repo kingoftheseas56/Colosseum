@@ -365,6 +365,54 @@ Item {
         _emitPending = false
         _emitUserScroll()
     }
+    // presented(), on its own. Split out from _emitUserScroll because the two have DIFFERENT rules
+    // about provenance: scrolled()/pageInView() are suppressed for a programmatic move, because they
+    // write back into the shell's page/fraction and a restore that emitted them would clobber the very
+    // spot it was restoring to. presented() writes back into nothing — it is an outbound notice that
+    // the reader can now see this position — so a restore SHOULD emit it. Without that, the landing
+    // page of a resumed book was never reported at all, and Task 11 banks progress on this signal.
+    //
+    // A page showing its typed failure placard COUNTS: the one rule all three surfaces now follow is that
+    // presented() means "the reader can see this position's content, or an explicit account of why
+    // not". Task 11 must not sit waiting to bank a position that can never render; whether to offer a
+    // retry is a separate question from where the reader is.
+    //
+    // GATED ON `active`, like the other two surfaces' _notePresented(). An UNMOUNTED strip still holds
+    // a laid-out column and still receives seekToPage/haltScrollAt from the shell across a layout
+    // switch; reporting from there would tell Task 11 the reader saw a page that is not on screen.
+    //
+    // IT ASKS THE BACKEND, NOT THE DRAWN COLUMN, and that is the difference between a report that
+    // works on a restore and one that does not. A resume or a layout switch jumps contentY thousands
+    // of pixels in one write, and the ListView only holds items around where it WAS: measured
+    // 2026-07-30, indexAt() and itemAtIndex() both answer nothing at the new position, and neither
+    // forceLayout() nor a later event-loop pass brought them back in the offscreen harness. This is
+    // the SAME trap seekToPage documents on the way in ("the ListView only realizes delegates near
+    // the viewport, so a page you are switching TO has no y to read yet"), and the shell already
+    // answers this exact question the same way (core.stripPageAtCenter, for the scrub bubble).
+    // The drawn column stays as the FALLBACK, for a partial core that has no strip geometry seam.
+    function _emitPresented() {
+        if (!active) return
+        if (list.count <= 0) return
+        var centreY = list.contentY + list.height / 2
+        var idx = -1
+        var frac = -1
+        if (core && core.stripPageAtCenter) {
+            idx = core.stripPageAtCenter(list.contentY, list.height)
+            if (idx >= 0 && core.stripPageHeight && core.stripPageTop) {
+                var h = core.stripPageHeight(idx)
+                if (h > 0) frac = (centreY - core.stripPageTop(idx)) / h
+            }
+        }
+        if (idx < 0) {
+            idx = list.indexAt(list.width / 2, centreY)
+            if (idx < 0) return
+        }
+        if (frac < 0) {
+            var it = list.itemAt(list.width / 2, centreY)
+            frac = (it && it.height > 0) ? (centreY - it.y) / it.height : 0
+        }
+        root.presented(idx + 1, Math.max(0, Math.min(1, frac)))
+    }
     // Change the strip's page width / gap WITHOUT losing the reader's place. The backend owns the
     // geometry (QML paints, C++ decides): it anchors the page under the viewport centre across the
     // relayout and hands back the top to land on. forceLayout settles the new contentHeight first,
@@ -383,9 +431,13 @@ Item {
         _programmatic = false
     }
 
-    // becoming active (mode switched back to strip) — push the current viewport once so the backend
-    // resumes decoding the right window (geometry changes while hidden were intentionally ignored).
-    onActiveChanged: if (active) _scheduleReport()
+    // Becoming active (mode switched back to strip) — push the current viewport once so the backend
+    // resumes decoding the right window (geometry changes while hidden were intentionally ignored)...
+    // ...and report the position the reader is now looking at. Mounting a surface onto a position the
+    // column is already parked at IS a presentation, and it is the same rule the two paged surfaces
+    // follow in their own onActiveChanged. Without it, switching layout back to Long Strip left the
+    // landing page unreported until the reader happened to scroll.
+    onActiveChanged: if (active) { _scheduleReport(); Qt.callLater(root._emitPresented) }
 
     // ================= smooth-wheel float accumulator (Tankoban-Max / QTGW SmoothScrollArea) =================
     property real _pendingWheelPx: 0         // bounded backlog of intake still to drain
@@ -496,6 +548,11 @@ Item {
         _programmatic = true
         list.contentY = y
         _programmatic = false
+        // The reader is now looking at wherever this put them, so report it — presented() only, never
+        // the tracking pair (see _emitPresented). Deferred through Qt.callLater so it lands after the
+        // caller's own bindings settle; callLater collapses repeats within one pass (measured), so a
+        // seekToPage — which comes through here — reports once, not twice.
+        Qt.callLater(root._emitPresented)
     }
 
     WheelHandler {
@@ -516,19 +573,9 @@ Item {
         root.scrolled(Math.max(0, Math.min(1, frac)))
         var centreY = list.contentY + list.height / 2
         var idx = list.indexAt(list.width / 2, centreY)
-        if (idx >= 0) {
+        if (idx >= 0)
             root.pageInView(idx + 1)               // 1-based (shell currentPage scale)
-            // ...and the same page, reported as PRESENTED with the viewport's position within it.
-            // A page whose delegate is realized under the viewport centre is on screen by definition
-            // — except when it is showing its typed failure placard, where what the reader is looking
-            // at is the placard, not the page, and Task 11 must not bank progress for it.
-            if (root.failedPages[idx] === undefined) {
-                var it = list.itemAt(list.width / 2, centreY)
-                var withinFrac = (it && it.height > 0)
-                    ? Math.max(0, Math.min(1, (centreY - it.y) / it.height)) : 0
-                root.presented(idx + 1, withinFrac)
-            }
-        }
+        _emitPresented()
         var lo = list.indexAt(list.width / 2, list.contentY + 1)
         var hi = list.indexAt(list.width / 2, list.contentY + list.height - 1)
         if (lo >= 0 && hi >= 0) {

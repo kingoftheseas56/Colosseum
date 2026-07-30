@@ -972,14 +972,30 @@ Item {
     // The PAGED surface currently mounted (Single or Pair), or null in Long Strip. The zoom/pan verbs
     // below used to name the double surface directly; with two paged layouts that would have zoomed
     // an unmounted surface whenever Single Page was showing.
+    //
+    // DUCK-TYPED, and nothing enforces it: whatever this returns must carry setZoom(pct), clampedZoom,
+    // panBy(dx, dy) and panYMax. Both paged surfaces do; a rename in either one fails here as a runtime
+    // TypeError with no compile-time warning, so that list is the contract. (Long Strip is deliberately
+    // absent: it owns scrolling, not zoom/pan, and the callers below already guard against null.)
     readonly property var _pagedSurface: activeSurface === "singleSurface" ? singleSurface
                                        : activeSurface === "doubleSurface" ? doubleSurface : null
 
-    // reflect the active paged surface's zoom onto the shell for the HUD/settings (Task 11); the
-    // surfaces own zoom/pan authoritatively (they reset PAN per unit/page; zoom persists). The two
-    // `when` clauses are mutually exclusive — only one paged surface is ever active.
-    Binding { target: reader; property: "zoomPercent"; value: doubleSurface.zoomPercent; when: doubleSurface.active }
-    Binding { target: reader; property: "zoomPercent"; value: singleSurface.zoomPercent; when: singleSurface.active }
+    // Reflect the mounted paged surface's zoom onto the shell for the HUD/settings (Task 11); the
+    // surfaces own zoom/pan authoritatively (they reset PAN per unit/page; zoom persists).
+    //
+    // ONE Binding, through _pagedSurface. An earlier draft used two with mutually exclusive `when`
+    // clauses, which raised a fair question: under Qt 6's default RestoreBindingOrValue, a layout switch
+    // deactivates one and activates the other in a single dependency pass, so does the deactivating
+    // one's restore clobber the activating one's value? Measured against the real shape (both `when`
+    // clauses driven off one predicate, flipped in one assignment): it does not — 180 -> 240 -> 180 in
+    // both directions, correct every time. But binding evaluation order is not a documented guarantee,
+    // and one Binding cannot have an ordering question at all, so this is the version that ships.
+    Binding {
+        target: reader
+        property: "zoomPercent"
+        value: reader._pagedSurface ? reader._pagedSurface.zoomPercent : 100
+        when: reader._pagedSurface !== null
+    }
 
     // ---- night veil (Task 12): a black page-dim over the reading surfaces, BELOW the chrome so
     // controls stay full-brightness + readable. A plain Rectangle intercepts no input (no MouseArea),

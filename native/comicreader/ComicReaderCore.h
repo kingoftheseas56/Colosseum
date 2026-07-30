@@ -215,6 +215,13 @@ public:
     // pages*fraction estimate lies about where a fraction actually lands. -1 when there is no open
     // entry (never a crash on a degenerate/empty viewport). Mirrors stripPageTop's guard shape.
     Q_INVOKABLE int stripPageAtCenter(double top, double viewportHeight) const;
+    // ...and how TALL that page's band is, so the surface can say how far down a page the viewport
+    // centre sits without a realized delegate to measure. Same reason as stripPageTop: after a resume
+    // or a layout switch the column has just been jumped thousands of pixels and the ListView has no
+    // item there yet, so the drawn column cannot answer. setStripLayout already computes exactly this
+    // fraction internally (pageAtCenter + pageTop + pageHeight) to anchor a relayout — this exposes
+    // the one piece of it QML was missing. 0 for an out-of-range page, never a crash.
+    Q_INVOKABLE double stripPageHeight(int page) const;
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
     // Bookmarks (0-based page). Toggling an in-range page inserts it (kept sorted)
     // or removes it if already present; out-of-range pages are ignored. bookmarks()

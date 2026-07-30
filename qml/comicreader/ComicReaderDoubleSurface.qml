@@ -24,15 +24,25 @@
 // half's Image straight to the stage, so whichever half decoded first appeared and the other stayed
 // black — a spread arriving as one page plus a hole. Hemanth's approved wording is the rule: "A
 // paired spread appears as one complete unit. We never flash the left page first and leave the right
-// half black." So painting is now gated on the BACKEND's verdict for the whole unit
-// (core.presentationForPage — waiting / ready / error, computed over every member of the canonical
-// unit), and while it waits the surface shows one restrained placeholder per half, exactly where the
-// pages will land. On a terminal failure the unit stops waiting and says so: the good half paints and
-// the broken half carries a typed placard, never an indefinite blank.
+// half black."
 //
-// The gate DEGRADES TO PAINTING, not to blank, when the seam is absent (a fake core with no
-// presentationForPage) — same guard philosophy as every other `core.` use here: a partial core gets
-// the pre-Task-4 behaviour rather than an empty screen.
+// THE PAINT RULE IS WHAT THE SCREEN HAS, not what the backend has. A half is RESOLVED when its pixels
+// are up, or when it has failed terminally and its typed placard is the honest answer for it; the
+// unit paints when every half it has is resolved, and not one beat sooner. While it waits, one
+// restrained placeholder per half stands exactly where that page will land.
+//
+// It is deliberately NOT gated on core.presentationForPage. The first version of this task was, and
+// that left the defect open in two shapes — see the unitPaints block below for the measurements. The
+// backend verdict is strictly EARLIER than the pixels (each half comes back through its own async
+// provider round trip, and the very pageReady that flips the verdict to "ready" is what re-points the
+// second half's Image at its bumped url), so it can report a unit ready in the beat the second half
+// starts loading. presentationForPage stays as the backend's unit-level verdict + reason — exposed
+// here as presentationState, and what Task 11's retry needs in order to say WHY a unit is not
+// showing — but it decides no painting.
+//
+// A core WITHOUT presentationForPage (a fake, never production) therefore changes nothing about the
+// paint: the gate reads its own Images either way, and such a core paints exactly when its pages are
+// on screen.
 //
 // maxSeen PAIR-ANCHOR CONTRACT (shell Task 9, onCurrentPageChanged): in double mode `currentPage`
 // is the pair ANCHOR, and a pair-terminated chapter would never reach `finished` from the anchor
@@ -68,8 +78,9 @@ Item {
     signal nextRequested()                   // advance one UNIT (shell/core own the canonical walk)
     signal previousRequested()
     signal manualNavigation()
-    // The unit's pixels are ACTUALLY on screen now — not "was asked for", which is what unitShown
-    // reports. Fired once per unit, when the presentation is ready AND both halves have loaded.
+    // The unit is ACTUALLY on screen now — not "was asked for", which is what unitShown reports.
+    // Fired once per unit, the moment every half it has is resolved (pixels up, or a terminal failure
+    // showing its typed placard). Same predicate as the paint gate, by construction.
     // `withinPageFraction` is always 0 here (a unit is the viewport's whole travel in this layout);
     // it rides in the signature so all three surfaces speak one shape. Task 11 is the consumer that
     // gates progress-saving on it; until then it is emitted and unused, which is expected.
@@ -97,7 +108,16 @@ Item {
         ignoreUnknownSignals: true
         function onPageReady(page)  { root.readyRev += 1 }
         function onPageFailed(page, code) { root.failedRev += 1 }
-        function onEntryChanged()   { root.entryRev += 1; root._onUnitShown() }
+        function onEntryChanged()   {
+            root.entryRev += 1
+            // A NEW BOOK has to be able to present the same anchor page as the last one. Without this
+            // reset, opening book B on page 1 straight after book A page 1 emitted nothing at all,
+            // because the marker still said "1 is presented". Measured: 0 emissions — and unlike the
+            // warm-pixmap case below, this one does not depend on any cache behaviour.
+            root._presentedAnchor = -1
+            root._onUnitShown()
+            root._checkPresented()
+        }
         function onPairingChanged() { root.entryRev += 1; root._onUnitShown() }
     }
 
@@ -122,13 +142,19 @@ Item {
     readonly property int imageCount: isPair ? 2 : (isSingle ? 1 : 0)
 
     // ================= the unit's PRESENTATION (Task 4) =================
-    // The backend decides whether this whole unit may be painted; the surface only obeys. readyRev /
-    // failedRev / entryRev are folded in for the usual reason — presentationForPage() is a plain call
-    // whose answer changes on signals QML cannot otherwise see.
+    //
+    // TWO different questions, and conflating them was the bug this block now separates:
+    //   presentationState  — what the BACKEND has (every member decoded, or one terminally failed).
+    //   unitPaints         — what the SCREEN has. This is the paint rule.
+    //
+    // readyRev / failedRev / entryRev are folded into the backend read for the usual reason:
+    // presentationForPage() is a plain call whose answer changes on signals QML cannot otherwise see.
+
+    // ---- the backend's verdict (presentationForPage) ----
     readonly property var _readyPresentation: ({ state: "ready", errorCode: "none" })
     function _normPresentation(p) {
         // An EMPTY map is the core's "no entry / no pairing yet" answer (the same one unitForPage
-        // gives) — that is genuinely nothing to show, so it waits.
+        // gives) — genuinely nothing to show, so it waits.
         if (!p || p.state === undefined)
             return { state: "waiting", errorCode: "none" }
         return { state: String(p.state),
@@ -137,15 +163,62 @@ Item {
     readonly property var presentation: (root.readyRev, root.failedRev, root.entryRev,
         (active && core && core.presentationForPage)
             ? _normPresentation(core.presentationForPage(Math.max(0, currentPage - 1)))
-            // NO SEAM -> paint, exactly as this surface always did. A core without the query is a
-            // fake, never production; degrading to a blank screen would break the shell harness's
-            // stub for a defect that stub cannot have.
+            // A core without the query is a fake, never production. It reads "ready" so the exposed
+            // state is not a misleading "waiting"; it no longer decides anything, because the paint
+            // gate below does not consult the verdict at all.
             : _readyPresentation)
     readonly property string presentationState: presentation.state
-    // "ready" and "error" both PAINT. Error paints because the good half is real and the reader
-    // should see it — the failure is announced beside it, not instead of the whole unit.
-    readonly property bool unitPaints: presentationState === "ready" || presentationState === "error"
-    readonly property bool unitWaiting: presentationState === "waiting"
+
+    // ---- WHAT THE SCREEN HAS. This is the paint rule. ----
+    // A half is RESOLVED when there is something real to show for it: its pixels arrived, or it failed
+    // terminally and its typed placard is the honest answer. The unit paints when EVERY half it has is
+    // resolved, and not one beat sooner.
+    //
+    // Gating on the backend verdict instead was wrong in two ways that look different and are the same
+    // bug — the verdict is strictly EARLIER than the pixels:
+    //
+    //   * Each half's pixels come back through a SEPARATE async provider round trip, and the very
+    //     pageReady that flips the verdict to "ready" is also what re-points the second half's Image at
+    //     its bumped ?rev= url. So the gate opened in the beat the second half STARTED loading, over a
+    //     solid black stage: one page beside a black rectangle, the exact thing this task exists to
+    //     prevent. (Measured: same beat as pageReady, pairVisible=true with the second half's pixels
+    //     30-40ms away — and that was with 200x300 fixtures; real scans go through the provider's full
+    //     SmoothTransformation downscale and take longer.)
+    //   * "error" also opens the verdict, so the instant EITHER member failed both placeholders
+    //     vanished while the SURVIVING half might still be decoding — an error placard beside a black
+    //     rectangle, and worse than the frame before it, because the restrained panel standing in for
+    //     that page disappeared. A corrupt page fails on a header read and a healthy one takes an order
+    //     of magnitude longer, and one setVisible dispatches both, so that ordering is the LIKELY one.
+    //     (Measured: state=error, pairVisible=true, placeholdersShown=false, good half with no pixels.)
+    //
+    // One rule fixes both, and it makes the paint rule and presented() the SAME predicate instead of two
+    // that disagree about when a unit is on screen.
+    readonly property bool rightHalfResolved: root.rightErrorCode.length > 0
+                                              || rightImg.status === Image.Ready
+    readonly property bool leftHalfResolved: root.leftErrorCode.length > 0
+                                             || leftImg.status === Image.Ready
+    readonly property bool unitResolved: (root.isPair || root.isSingle)
+                                         && rightHalfResolved
+                                         && (!root.isPair || leftHalfResolved)
+
+    // ONE term, not two. An earlier draft also ANDed the backend verdict in, reasoning that on a turn
+    // onto a not-yet-decoded unit the verdict goes "waiting" in the same pass that moves the geometry,
+    // whereas an Image still holding the OUTGOING unit's pixels (retainWhileLoading) might read Ready
+    // for a beat longer and paint the old pages at the new unit's size. Measured: it does not — the
+    // source binding re-evaluates in that same pass and Qt drops the status out of Ready synchronously,
+    // so rightHalfResolved was already false in the beat of the turn. The extra term bought nothing, so
+    // it is gone.
+    //
+    // Which leaves presentationForPage OUT of the paint path, and that is worth saying plainly rather
+    // than hiding: pixels-up implies decoded (the provider can only serve what the backend decoded), so
+    // the verdict is a strictly EARLIER and weaker signal than the screen's and cannot be the paint
+    // rule. It stays as the backend's unit-level verdict + reason — exposed as presentationState,
+    // tested by the core harness (T29-T31), and what Task 11's retry needs in order to say WHY a unit
+    // is not showing.
+    //
+    // An ABSENT unit (no entry, no pairing yet) resolves to false through the isPair/isSingle term, so
+    // a reader with no book open paints nothing rather than an empty spread.
+    readonly property bool unitPaints: unitResolved
 
     // Per-member failure attribution. The unit-level errorCode cannot name WHICH half broke, and a
     // pair has two, so each half asks the backend about itself. pageInfo() is also self-healing (a
@@ -292,7 +365,10 @@ Item {
     readonly property real leftNaturalHeight:  _leftNat.h
     readonly property real singleImageWidth: rightImg.width
     readonly property alias gutterShadowItem: gutterShadow
-    readonly property bool gutterVisible: gutterShadow.visible
+    // The gutter's OWN rule (pair, and gutterStrength > 0), not its effective visibility — see the
+    // two-level note on the readbacks at the bottom of this file. A spread with the gate open and a
+    // pair with the gate shut must give different answers here, and `.visible` cannot.
+    readonly property bool gutterVisible: gutterShadow.ownVisible
     readonly property alias rightSource: rightImg.source   // exposed so the decode-refresh test sees the source re-evaluate
     readonly property alias leftSource: leftImg.source
 
@@ -323,10 +399,10 @@ Item {
         }
         unitShown(_highestOf(u))                        // fold the unit's highest page into the shell's maxSeen
     }
-    onCurrentPageChanged: _onUnitShown()               // a page turn -> a new unit
+    onCurrentPageChanged: { _onUnitShown(); _checkPresented() }   // a page turn -> a new unit
     // Becoming the mounted surface with the unit already decoded IS a presentation — the layout
     // switched and the reader is now looking at it — so the notice is re-checked here too.
-    onActiveChanged: { _onUnitShown(); _notePresented() }
+    onActiveChanged: { _onUnitShown(); _checkPresented() }
 
     // ================= the spread =================
     Item {
@@ -334,6 +410,35 @@ Item {
         width: root._contentW
         height: root.height
         x: -root.panX                                  // horizontal pan slides the zoomed content
+
+        // ---- WAITING: one restrained panel per half, laid out exactly where that page will land, so
+        // the unit settles into place rather than jumping into it. Declared BEFORE the gate so it sits
+        // UNDERNEATH the pages: a panel fading out over a page that has just arrived would dim it for
+        // 140ms, which is the artefact this ordering avoids.
+        //
+        // Shown for the whole time the unit is not paintable — NOT per half. The gate is
+        // all-or-nothing, so a half whose pixels landed early is hidden anyway and must keep its
+        // stand-in; a per-half condition would have taken one panel away and shown black in its place.
+        // It fades in over 140ms, so a unit that decodes fast never flashes it - see
+        // ComicReaderUnitPlaceholder. ----
+        ComicReaderUnitPlaceholder {
+            id: rightPlaceholder
+            objectName: "rightUnitPlaceholder"
+            shown: (root.isPair || root.isSingle) && !root.unitPaints
+            width: root._rightW
+            height: root._rightH
+            x: root._rightX
+            y: root._rightY
+        }
+        ComicReaderUnitPlaceholder {
+            id: leftPlaceholder
+            objectName: "leftUnitPlaceholder"
+            shown: root.isPair && !root.unitPaints
+            width: root._leftW
+            height: root._leftH
+            x: root._leftX
+            y: root._leftY
+        }
 
         // ---- THE GATE (Task 4). Everything the unit is MADE OF lives under this one Item, so the
         // unit appears in one step or not at all - never one decoded half beside a black rectangle.
@@ -349,7 +454,16 @@ Item {
             Image {
                 id: rightImg
                 // A half whose own page is terminally broken hands its box to the placard instead.
-                visible: (root.isPair || root.isSingle) && root.rightErrorCode.length === 0
+                //
+                // The rule is a NAMED property that `visible` is then bound to, and every other item
+                // under this gate does the same. QQuickItem.visible READS BACK EFFECTIVE visibility —
+                // a child of a hidden parent reports false whatever its own binding says — so once
+                // this Item became a gate, a readback of `.visible` stopped being able to express
+                // "this half's own rule" at all and started reporting the gate. Naming the rule keeps
+                // the readbacks at the bottom honest without re-deriving anything: they read the very
+                // property the binding uses, so they cannot drift from what is drawn.
+                property bool ownVisible: (root.isPair || root.isSingle) && root.rightErrorCode.length === 0
+                visible: ownVisible
                 // NOTE: the source guard is the UNIT SHAPE, not this Image's `visible`, which now
                 // also carries the error state - a failed page must keep asking for its url so a
                 // heal (MissingFile is a cooldown, not a life sentence) can still land.
@@ -376,7 +490,8 @@ Item {
             // leftIndex page (only for a real pair)
             Image {
                 id: leftImg
-                visible: root.isPair && root.leftErrorCode.length === 0
+                property bool ownVisible: root.isPair && root.leftErrorCode.length === 0
+                visible: ownVisible
                 source: (root.readyRev, (root.isPair && root.core && root.core.imageUrl
                                          && root.unit.leftIndex >= 0)
                         ? root.core.imageUrl(root.unit.leftIndex) : "")
@@ -399,7 +514,8 @@ Item {
                 id: gutterShadow
                 // Follows the PAGES, not the viewport: a shadow the full window height darkens empty
                 // black above and below the spread instead of shading the spine.
-                visible: root.isPair && root.gutterStrength > 0
+                property bool ownVisible: root.isPair && root.gutterStrength > 0
+                visible: ownVisible
                 width: 18
                 height: root.unitHeight
                 x: root._spineX - width / 2
@@ -420,7 +536,8 @@ Item {
             ComicReaderUnitError {
                 id: rightErrorPlacard
                 objectName: "rightUnitError"
-                visible: root.rightErrorCode.length > 0 && (root.isPair || root.isSingle)
+                property bool ownVisible: root.rightErrorCode.length > 0 && (root.isPair || root.isSingle)
+                visible: ownVisible
                 code: root.rightErrorCode
                 pageIndex: root.unit.rightIndex
                 width: root._rightW
@@ -431,7 +548,8 @@ Item {
             ComicReaderUnitError {
                 id: leftErrorPlacard
                 objectName: "leftUnitError"
-                visible: root.leftErrorCode.length > 0 && root.isPair
+                property bool ownVisible: root.leftErrorCode.length > 0 && root.isPair
+                visible: ownVisible
                 code: root.leftErrorCode
                 pageIndex: root.unit.leftIndex
                 width: root._leftW
@@ -441,55 +559,78 @@ Item {
             }
         }
 
-        // ---- WAITING: one restrained panel per half, laid out exactly where the pages will land, so
-        // the unit settles into place rather than jumping into it. It sits OUTSIDE the gate because it
-        // is what the gate shows INSTEAD. It fades in over 140ms, so a page that decodes fast never
-        // flashes it - see ComicReaderUnitPlaceholder. ----
-        ComicReaderUnitPlaceholder {
-            id: rightPlaceholder
-            objectName: "rightUnitPlaceholder"
-            shown: root.unitWaiting && (root.isPair || root.isSingle)
-            width: root._rightW
-            height: root._rightH
-            x: root._rightX
-            y: root._rightY
-        }
-        ComicReaderUnitPlaceholder {
-            id: leftPlaceholder
-            objectName: "leftUnitPlaceholder"
-            shown: root.unitWaiting && root.isPair
-            width: root._leftW
-            height: root._leftH
-            x: root._leftX
-            y: root._leftY
-        }
     }
 
-    // ---- presented(): the unit's pixels are ACTUALLY on screen. Fired once per unit - the gate is
-    // open AND every half this unit has has resolved (loaded, or terminally failed and showing its
-    // placard). Task 11 gates progress-saving on this; nothing reads it yet, which is expected.
+    // ---- presented(): the unit is ACTUALLY on screen. THE SAME PREDICATE THE GATE USES, so the two
+    // cannot drift apart again — which they had, the gate trusting the backend while presented()
+    // correctly waited for pixels.
+    //
+    // A terminally failed half COUNTS as presented, and that is the one rule all three surfaces now
+    // follow: presented() means "the reader can see this position's content, or an explicit account of
+    // why not". Task 11 must not sit waiting to bank a position that can never render — the reader is
+    // there either way, and whether to offer a retry is a separate question from where they are.
     //
     // DERIVED, not hung off each Image's onStatusChanged: right-then-left arriving is ONE state change
-    // this way, so it is one presentation rather than two, and an already-cached unit counts the
-    // instant this surface becomes the mounted one. ----
+    // this way, so it is one presentation rather than two.
+    //
+    // But a derived property alone is NOT enough to NOTICE one, and that hole is why the unit-change
+    // path re-checks explicitly:
+    //
+    //   * A NEW BOOK opening on the same page number the last one was left on. The marker still says
+    //     that page is presented, so nothing fires, and no cache behaviour is involved — this one is
+    //     unconditional. Handled by resetting the marker on entryChanged, above.
+    //   * A turn onto a unit whose pixmaps are still in QQuickPixmapCache: both Images go straight to
+    //     Ready with no dip, the property never CHANGES, and nothing is emitted. MEASURED 2026-07-30,
+    //     because two reviewers got opposite answers on it. Both were right about their own run: at
+    //     140/280px request sizes the turn back onto a just-left page keeps status Ready and the
+    //     derived property fires ZERO times; at this surface's real cap (srcCapW 1400 -> a 1400x2100
+    //     pixmap, ~11 MB, against QQuickPixmapStore's 10 MB desktop limit for UNREFERENCED pixmaps)
+    //     the page is evicted the moment you turn away, so the turn back genuinely re-loads and the
+    //     status does dip. So today the app is saved by a pixmap being too big to cache — an
+    //     undocumented limit that moves with the cap, the screen and the Qt version. A signal Task 11
+    //     banks progress on does not get to rest on that.
+    //
+    // The re-check is deferred through Qt.callLater so the source/status bindings have settled before
+    // it reads them. Firing exactly once is the MARKER's job, not callLater's — but callLater does
+    // collapse repeats within one pass (measured: three schedules of the same method, one invocation),
+    // so a turn that also dips a status does not even queue redundant work. ----
     property int _presentedAnchor: -1
-    readonly property bool pixelsOnScreen: unitPaints
-        && (root.rightErrorCode.length > 0 || rightImg.status === Image.Ready)
-        && (!root.isPair || root.leftErrorCode.length > 0 || leftImg.status === Image.Ready)
+    // Literally the paint rule, aliased for readability — if the reader can see it, it is presented,
+    // and the two cannot drift apart again.
+    readonly property bool contentOnScreen: unitPaints
     function _notePresented() {
-        if (!active || !pixelsOnScreen) return
+        if (!active || !contentOnScreen) return
         if (_presentedAnchor === root.currentPage) return
         _presentedAnchor = root.currentPage
         root.presented(root.currentPage, 0)
     }
-    onPixelsOnScreenChanged: _notePresented()
+    function _checkPresented() { Qt.callLater(root._notePresented) }
+    onContentOnScreenChanged: _notePresented()
 
-    // ---- readbacks the gate added, for the harness. They READ THE ITEMS rather than re-deriving
-    // the conditions, so a test cannot pass against a rule the screen does not actually follow. ----
+    // ---- readbacks the gate added, for the harness. ----
+    //
+    // TWO LEVELS, and keeping them apart is the whole point. `pairVisible` is THE GATE — pairPages is
+    // a direct child of the always-visible `content`, so its `visible` is its own binding and reading
+    // it reads the paint rule. Everything else under the gate exposes that item's OWN rule
+    // (`ownVisible`), NOT its effective visibility, because QQuickItem.visible reads back EFFECTIVE
+    // visibility: once the gate closes, every child reports false regardless of its binding, and a
+    // readback of `.visible` would silently stop testing the pair-vs-spread / which-half-failed rules
+    // and start re-testing the gate. (That is not hypothetical — it turned the gutter-shadow
+    // assertions green-then-red the moment the gate started depending on pixels.) What is actually
+    // ON SCREEN is `pairVisible && <ownVisible>`, and both terms are asserted.
+    //
+    // They still READ THE ITEMS rather than re-deriving the conditions: `ownVisible` is the very
+    // property each item's `visible` is bound to, so a test cannot pass against a rule the screen does
+    // not follow.
     readonly property bool pairVisible: pairPages.visible
-    readonly property bool rightImageVisible: rightImg.visible
-    readonly property bool leftImageVisible: leftImg.visible
-    readonly property bool rightErrorVisible: rightErrorPlacard.visible
-    readonly property bool leftErrorVisible: leftErrorPlacard.visible
+    readonly property bool rightImageVisible: rightImg.ownVisible
+    readonly property bool leftImageVisible: leftImg.ownVisible
+    readonly property bool rightErrorVisible: rightErrorPlacard.ownVisible
+    readonly property bool leftErrorVisible: leftErrorPlacard.ownVisible
     readonly property bool placeholdersShown: rightPlaceholder.shown || leftPlaceholder.shown
+    // ...and each panel on its own, so a test can pin that a half whose pixels landed EARLY keeps its
+    // stand-in while the gate is shut. Dropping it there is not a smaller version of the bug — it is
+    // the same bug, drawn by the stand-in instead of by the page.
+    readonly property bool rightPlaceholderShown: rightPlaceholder.shown
+    readonly property bool leftPlaceholderShown: leftPlaceholder.shown
 }

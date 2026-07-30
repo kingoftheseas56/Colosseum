@@ -205,6 +205,24 @@ Item {
             if (!stripModel || page < 0 || page >= stripModel.count) return 0
             return page * 1220
         }
+        // The other two halves of the backend's strip geometry (ComicReaderCore::stripPageAtCenter /
+        // stripPageHeight). The surface asks THESE rather than the drawn column for presented(),
+        // because after a restore the ListView has no item at the new position — so a fake that
+        // lacked them would make that path untestable, which is exactly how the gap survived.
+        // Both read the MODEL, which is what the real backend's strip geometry is.
+        function stripPageHeight(page) {
+            if (!stripModel || page < 0 || page >= stripModel.count) return 0
+            return stripModel.get(page).displayHeight
+        }
+        function stripPageAtCenter(top, viewportHeight) {
+            if (!stripModel || stripModel.count <= 0) return -1
+            var centre = top + viewportHeight / 2
+            for (var i = 0; i < stripModel.count; i++) {
+                var r = stripModel.get(i)
+                if (centre >= r.top && centre < r.top + r.displayHeight) return i
+            }
+            return -1
+        }
         function setStripViewportWidth(w) { setStripViewportWidthCalls += 1; lastViewportWidth = w }
     }
 
@@ -221,8 +239,37 @@ Item {
     FakeCore { id: coreZoomPan }   // TALL pair: real headroom on BOTH pan axes at every zoom
     FakeCore { id: coreDecoded }   // no backend sizes: the file fixtures' pixels drive implicitWidth
     FakeCore { id: coreGate }      // Task 4: the pair's presentation gate (waiting / ready / error)
+    // A core that genuinely does NOT have presentationForPage. It has to be a SEPARATE component, not
+    // a flag on FakeCore: a QML function property is always truthy, so a FakeCore that merely returned
+    // undefined would still pass the surface's `core.presentationForPage` guard and exercise the
+    // empty-answer path instead of the absent-seam path.
+    component FakeCoreNoPresentation: QtObject {
+        property var pageSizes: ({})
+        property var pageUrls: ({})
+        property var units: ({})
+        signal pageReady(int page)
+        signal pageFailed(int page, string code)
+        signal entryChanged()
+        signal pairingChanged()
+        function imageUrl(page, tier) {
+            if (pageUrls[page] !== undefined) return pageUrls[page]
+            return "image://comicreader/1/" + page + "?rev=0&tier=" + ((tier === undefined) ? "hq" : tier)
+        }
+        function unitForPage(page) {
+            if (units[page] !== undefined) return units[page]
+            return { rightIndex: page, leftIndex: -1, spread: false, coverAlone: false }
+        }
+        function pageInfo(page) {
+            var s = pageSizes[page]
+            if (s !== undefined) return { error: "none", sourceWidth: s.w, sourceHeight: s.h }
+            return { error: "none" }
+        }
+        function setVisible(pages) {}
+    }
+    FakeCoreNoPresentation { id: coreStub }
     FakeCore { id: coreSingle }    // Task 4: Single Page geometry, tiers, zoom centroid, pan clamp
     FakeCore { id: coreSinglePix } // Task 4: Single Page presented(), driven by real file fixtures
+    FakeCore { id: coreSingleDefer } // Task 4: the DEFERRED re-check, asserted in phase three
 
     property var stripComp: null
     property var doubleComp: null
@@ -243,6 +290,11 @@ Item {
     property int singlePresentedCount: 0
     property int singlePresentedPage: -1
     property real singlePresentedFrac: -1
+    property int doublePresentedCount: 0
+    property int doublePresentedPage: -1
+    property real doublePresentedFrac: -1
+    property int deferredPresentedCount: 0
+    property int deferredPresentedPage: -1
 
     // ---- strip user-signal capture: a PROGRAMMATIC restore must emit none of these ----
     property int stripScrolledCount: 0
@@ -626,11 +678,42 @@ Item {
         ck(harness.stripScrolledCount === scrollsBefore,
            "restore: a programmatic restore must emit NO scrolled()/pageInView() (that is the feedback loop), got "
            + (harness.stripScrolledCount - scrollsBefore) + " emissions")
-        // presented() rides the same throttled flush, so it inherits the same silence — a restore
-        // must not tell Task 11 the reader "saw" a page the shell only just put them on.
+        // presented() is the OPPOSITE case, and an earlier version of this gate had it backwards.
+        // scrolled()/pageInView() write back into the shell's page and fraction, so a restore that
+        // emitted them would clobber the very spot it was restoring TO. presented() writes back into
+        // nothing — it is an outbound notice that the reader can now see this position — and after a
+        // resume the reader genuinely IS looking at that page. Suppressing it meant the landing page of
+        // every resumed book went unreported, which Task 11 (which banks progress on this signal) would
+        // have inherited as a silence it could not tell apart from "never seen".
+        //
+        // It is DEFERRED (Qt.callLater in haltScrollAt) so it lands after the caller's own bindings
+        // settle. So: nothing synchronous here, and then the same entry point callLater will reach,
+        // invoked directly (the house pattern this file uses for _flushEmit / _flushViewportReport,
+        // so no phase waits on a wall clock).
         ck(harness.stripPresentedCount === presentedBeforeRestore,
-           "restore: a programmatic restore must emit NO presented() either, got "
-           + (harness.stripPresentedCount - presentedBeforeRestore) + " emissions")
+           "restore: presented() must be DEFERRED past the restore, not fired against the position the "
+           + "reader was on before it, got " + (harness.stripPresentedCount - presentedBeforeRestore))
+        stripSurface._emitPresented()
+        ck(harness.stripPresentedCount === presentedBeforeRestore + 1,
+           "restore: the deferred report must then fire exactly ONCE for the landing page, got "
+           + (harness.stripPresentedCount - presentedBeforeRestore))
+        // AND IT MUST NAME THE LANDING PAGE rather than fall silent. This is the assertion that
+        // catches the real trap: the column has just been jumped from 24400 to 700, so the ListView
+        // holds no item anywhere near the new centre — measured, indexAt() and itemAtIndex() both
+        // answer nothing there, and neither forceLayout() nor a later event-loop pass brings them
+        // back — so a delegate-derived report emits NOTHING AT ALL. The surface has to ask the
+        // BACKEND (stripPageAtCenter / stripPageTop / stripPageHeight), which knows the column's
+        // geometry whether or not it has been drawn. contentY 700 + half of a 480 viewport = 940,
+        // inside page 0 (top 0, height 1700 after this scenario resized it) -> page 1, frac 940/1700.
+        ck(harness.stripPresentedPage === 1,
+           "restore: the report must NAME the landing page (1), got " + harness.stripPresentedPage)
+        ck(approx(harness.stripPresentedFrac, 940.0 / 1700.0, 0.01),
+           "restore: ...and carry the position INSIDE that page (" + fx(940.0 / 1700.0, 3)
+           + "), so a resume cannot bank a worse fraction than the one it restored from, got "
+           + fx(harness.stripPresentedFrac, 3))
+        ck(harness.stripScrolledCount === scrollsBefore,
+           "restore: and it must STILL not have emitted scrolled()/pageInView() — those are the "
+           + "feedback loop, presented() is not")
 
         // --- I2: a HIDDEN (inactive) strip must NOT report its viewport — both surfaces share one
         // core/pool, so a hidden strip driving decode requests would compete with the active surface. ---
@@ -639,7 +722,25 @@ Item {
         stripSurface.contentY = 3000
         stripSurface._flushViewportReport()
         ck(coreStrip.setStripViewportCalls === 0, "strip: an INACTIVE strip must NOT report its viewport, got " + coreStrip.setStripViewportCalls + " calls")
+
+        // ...and it must not report a PRESENTATION either. An unmounted strip still holds a laid-out
+        // column and still takes seekToPage/haltScrollAt from the shell across a layout switch; a
+        // report from there tells Task 11 the reader saw a page that is not on screen.
+        var presentedInactive = harness.stripPresentedCount
+        stripSurface.haltScrollAt(2400)
+        stripSurface._emitPresented()
+        ck(harness.stripPresentedCount === presentedInactive,
+           "strip: an INACTIVE strip must NOT emit presented() — it is not what the reader is looking "
+           + "at, got " + (harness.stripPresentedCount - presentedInactive) + " emissions")
+
+        // ...and MOUNTING it onto that position IS a presentation: the same rule the two paged
+        // surfaces follow in their own onActiveChanged. Without it, switching layout back to Long
+        // Strip left the landing page unreported until the reader happened to scroll.
         stripSurface.active = true
+        stripSurface._emitPresented()          // the same entry point onActiveChanged's callLater reaches
+        ck(harness.stripPresentedCount === presentedInactive + 1,
+           "strip: becoming the MOUNTED surface must report the position the reader is now looking at, "
+           + "got " + (harness.stripPresentedCount - presentedInactive) + " emissions")
     }
 
     // ---- page failure isolation (its own surface + model so it never disturbs the strip asserts) ----
@@ -1067,6 +1168,17 @@ Item {
         sourceSize.width: 700
         visible: false
     }
+    // ...and the same fixture at the OTHER preview width, so a Single page turn between the two files
+    // is a pure cache hit at both request sizes — which is what makes the cached-navigation assertion
+    // in runSinglePresented test the case it claims to.
+    Image {
+        id: warmSinglePreviewB
+        source: harness.png150x300
+        asynchronous: false; cache: true
+        fillMode: Image.PreserveAspectFit
+        sourceSize.width: 700
+        visible: false
+    }
 
     function runDoubleDecodedPair() {
         ck(warmRight.status === Image.Ready && warmLeft.status === Image.Ready,
@@ -1122,88 +1234,221 @@ Item {
 
     // ==================== PAIR PRESENTATION GATE (Task 4) ====================
     // The defect: this surface bound each half straight to the stage, so whichever page decoded first
-    // appeared and the other stayed black — a spread arriving as one page plus a hole. The gate is the
-    // backend's verdict for the WHOLE unit, and these are the three states it can be in.
+    // appeared and the other stayed black — a spread arriving as one page plus a hole.
+    //
+    // THIS SCENARIO SERVES REAL FILE FIXTURES, and that is the point. An earlier version drove the gate
+    // with provider urls that never resolve offscreen, so no half ever had pixels and the assertions
+    // could only ever see the BACKEND's verdict. That is exactly the blind spot that let the real
+    // defect survive: the C++ verdict flips to "ready" a beat BEFORE either half has pixels, because
+    // each half's pixels come back through a separate async provider round trip and the very pageReady
+    // that flips the verdict is what re-points the second half's Image at its bumped url. A test that
+    // cannot tell "decoded" from "on screen" cannot see that window at all.
     function runDoublePairGate() {
+        ck(warmRight.status === Image.Ready && warmLeft.status === Image.Ready,
+           "pair-gate precondition: both file fixtures must be warm in the pixmap cache")
+
         coreGate.units[2] = { rightIndex: 2, leftIndex: 3, spread: false, coverAlone: false }
-        coreGate.pageSizes[2] = { w: 1000, h: 1500 }
-        coreGate.pageSizes[3] = { w: 1000, h: 1500 }
-        // page 2 has pixels, page 3 does not: EXACTLY the half-decoded pair.
+        coreGate.pageSizes[2] = { w: 200, h: 300 }
+        coreGate.pageSizes[3] = { w: 150, h: 300 }
+        // page 2 has real pixels; page 3 has a provider url that never resolves offscreen, which is
+        // precisely "this half has not come back yet".
+        coreGate.pageUrls[2] = harness.png200x300
         coreGate.pageStates[2] = "ready"
         coreGate.pageStates[3] = "waiting"
 
-        var dbl = doubleComp.createObject(harness, {
-            "width": 800, "height": 480, "active": true, "currentPage": 3, "rtl": true, "core": coreGate
-        })
+        var dbl = makeGate({ "currentPage": 3 })
         if (!dbl) { failures.push("pair-gate: createObject returned null"); return }
+        dbl.presented.connect(function (pg, f) {
+            harness.doublePresentedCount += 1
+            harness.doublePresentedPage = pg
+            harness.doublePresentedFrac = f
+        })
 
         ck(dbl.isPair === true, "pair-gate precondition: the unit under test must be a real pair")
+        ck(dbl.rightHalfResolved === true && dbl.leftHalfResolved === false,
+           "pair-gate precondition: exactly ONE half has pixels (right=" + dbl.rightHalfResolved
+           + " left=" + dbl.leftHalfResolved + ")")
         ck(dbl.presentationState === "waiting",
-           "pair-gate: with one half undecoded the unit must be WAITING, got '" + dbl.presentationState + "'")
+           "pair-gate: with one half undecoded the BACKEND says waiting, got '" + dbl.presentationState + "'")
         ck(dbl.pairVisible === false,
            "pair-gate: THE DEFECT — a half-decoded pair must paint NOTHING (one decoded page beside a "
            + "black rectangle is what this gate exists to prevent), got pairVisible=" + dbl.pairVisible)
         ck(dbl.placeholdersShown === true,
-           "pair-gate: while waiting the unit must show its restrained placeholder instead");
+           "pair-gate: while the unit is unpaintable it must show its restrained placeholder instead")
         ck(dbl.rightErrorVisible === false && dbl.leftErrorVisible === false,
            "pair-gate: waiting is NOT an error — no placard while a page can still arrive")
 
-        // the second half lands: the unit becomes paintable as ONE thing
+        // ---- THE WINDOW THE VERDICT LEFT OPEN. The backend now reports the WHOLE unit ready — but
+        // the second half's pixels have not arrived, because that is a separate provider round trip.
+        // Gated on the verdict, this is the frame that paints one page beside a black rectangle. ----
         coreGate.pageStates[3] = "ready"
-        coreGate.emitPageReady(3)          // the only signal QML can see; the surface folds it into readyRev
+        coreGate.emitPageReady(3)
         ck(dbl.presentationState === "ready",
-           "pair-gate: once both halves have pixels the unit must be READY, got '" + dbl.presentationState + "'")
-        ck(dbl.pairVisible === true, "pair-gate: a ready unit must paint")
-        ck(dbl.placeholdersShown === false, "pair-gate: a ready unit must drop its placeholder")
+           "pair-gate precondition: the backend verdict must now be ready, got '" + dbl.presentationState + "'")
+        ck(dbl.leftHalfResolved === false,
+           "pair-gate precondition: ...while the second half still has NO pixels, got leftHalfResolved="
+           + dbl.leftHalfResolved)
+        ck(dbl.pairVisible === false,
+           "pair-gate: THE VERDICT IS NOT THE PAINT RULE — the backend saying 'ready' must NOT open the "
+           + "gate while a half is still without pixels, or the reader gets one page beside black in the "
+           + "beat before they arrive, got pairVisible=" + dbl.pairVisible)
+        ck(dbl.placeholdersShown === true,
+           "pair-gate: and the placeholder must still be standing in for the unit, got "
+           + dbl.placeholdersShown)
+        ck(harness.doublePresentedCount === 0,
+           "pair-gate: nothing is presented while the unit is not on screen, got "
+           + harness.doublePresentedCount)
+
+        // ---- BOTH placeholders, not just the unresolved half's. This is the one place a reviewer
+        // prescription and the gate pull in opposite directions, so it is pinned rather than assumed:
+        // driving each half's panel off THAT half's own resolution — which is right if each half
+        // paints independently — is WRONG under an all-or-nothing gate. The right half here HAS
+        // pixels and is still hidden by the gate, so taking its panel away leaves its box as bare
+        // black stage: the exact artefact the gate exists to prevent, reintroduced by the stand-in
+        // instead of by the page. The panels are the UNIT's stand-in, so they live and die with it. ----
+        ck(dbl.rightHalfResolved === true && dbl.leftHalfResolved === false,
+           "pair-gate precondition: exactly one half is resolved here (right=" + dbl.rightHalfResolved
+           + " left=" + dbl.leftHalfResolved + ") — otherwise the per-half check below is vacuous")
+        ck(dbl.rightPlaceholderShown === true,
+           "pair-gate: the RESOLVED half must KEEP its placeholder while the unit is gated shut — the "
+           + "gate hides its page, so dropping the panel shows bare black in its place")
+        ck(dbl.leftPlaceholderShown === true,
+           "pair-gate: ...and the unresolved half keeps its own, got " + dbl.leftPlaceholderShown)
+
+        // ---- the second half's pixels arrive: NOW it paints, as one thing ----
+        coreGate.pageUrls[3] = harness.png150x300
+        coreGate.emitPageReady(3)
+        ck(dbl.leftHalfResolved === true,
+           "pair-gate precondition: the second half now has real pixels, got " + dbl.leftHalfResolved)
+        ck(dbl.pairVisible === true, "pair-gate: a unit whose every half is on screen must paint")
+        ck(dbl.placeholdersShown === false, "pair-gate: a painted unit must drop its placeholder")
         ck(dbl.rightImageVisible === true && dbl.leftImageVisible === true,
-           "pair-gate: BOTH halves of a ready pair must be drawn")
+           "pair-gate: BOTH halves of a painted pair must be drawn")
+        // presented() is deferred on the change path; the status change itself notices it immediately.
+        ck(harness.doublePresentedCount === 1,
+           "pair-gate: the unit becoming visible must report presented() exactly once, got "
+           + harness.doublePresentedCount)
+        ck(harness.doublePresentedPage === 3 && approx(harness.doublePresentedFrac, 0),
+           "pair-gate: presented() must carry the unit's ANCHOR page and a 0 fraction, got page "
+           + harness.doublePresentedPage + " frac " + fx(harness.doublePresentedFrac, 2))
 
-        // --- one partner fails terminally: the good side paints, the broken side says so ---
+        // ---- A CACHED TURN. Both halves of the next unit are already warm, so neither Image.status
+        // dips and the derived predicate never changes — only the explicit re-check on the unit-change
+        // path can notice this, which is the hole the first review round found. ----
         coreGate.units[6] = { rightIndex: 6, leftIndex: 7, spread: false, coverAlone: false }
-        coreGate.pageSizes[6] = { w: 1000, h: 1500 }
-        coreGate.pageSizes[7] = { w: 1000, h: 1500 }
+        coreGate.pageSizes[6] = { w: 200, h: 300 }
+        coreGate.pageSizes[7] = { w: 150, h: 300 }
+        coreGate.pageUrls[6] = harness.png200x300
+        coreGate.pageUrls[7] = harness.png150x300
         coreGate.pageStates[6] = "ready"
-        coreGate.pageStates[7] = "error"
-        coreGate.pageErrors[7] = "decode_failed"
+        coreGate.pageStates[7] = "ready"
+        harness.doublePresentedCount = 0
         dbl.currentPage = 7
-        coreGate.pageFailed(7, "decode_failed")     // bumps failedRev, as the real core's signal does
-
-        ck(dbl.presentationState === "error",
-           "pair-gate: a terminal failure in either half must make the UNIT an error, got '" + dbl.presentationState + "'")
         ck(dbl.pairVisible === true,
-           "pair-gate: an error unit still PAINTS — the good half is real and the reader should see it")
-        ck(dbl.placeholdersShown === false,
-           "pair-gate: a failed unit must stop waiting — an indefinite placeholder is the worst answer")
-        ck(dbl.leftErrorVisible === true,
-           "pair-gate: the FAILED half must carry the typed placard")
+           "pair-gate precondition: a fully warm unit paints immediately on the turn, got "
+           + dbl.pairVisible)
+        ck(harness.doublePresentedCount === 0,
+           "pair-gate: the re-check is DEFERRED, so nothing fires synchronously on the turn, got "
+           + harness.doublePresentedCount)
+        dbl._notePresented()     // the same entry point callLater reaches
+        ck(harness.doublePresentedCount === 1 && harness.doublePresentedPage === 7,
+           "pair-gate: a turn onto an ALREADY-CACHED unit must still report presented() — no status "
+           + "dips, so nothing else can notice it, got count=" + harness.doublePresentedCount
+           + " page=" + harness.doublePresentedPage)
+
+        // ---- ONE PARTNER FAILS TERMINALLY. The unit must stop waiting — but NOT before the surviving
+        // half has pixels, which is the second face of the same bug: "error" opens the backend verdict,
+        // so gating on it took BOTH placeholders away the instant either member failed, leaving an error
+        // placard beside a plain black rectangle. ----
+        coreGate.units[10] = { rightIndex: 10, leftIndex: 11, spread: false, coverAlone: false }
+        coreGate.pageSizes[10] = { w: 200, h: 300 }
+        coreGate.pageSizes[11] = { w: 150, h: 300 }
+        coreGate.pageStates[10] = "ready"          // the good half, pixels NOT yet served
+        coreGate.pageStates[11] = "error"
+        coreGate.pageErrors[11] = "decode_failed"
+        dbl.currentPage = 11
+        coreGate.pageFailed(11, "decode_failed")
+        ck(dbl.presentationState === "error",
+           "pair-gate: a terminal failure in either half makes the UNIT an error, got '"
+           + dbl.presentationState + "'")
+        ck(dbl.leftHalfResolved === true,
+           "pair-gate: a terminally failed half IS resolved — its placard is the honest answer")
+        ck(dbl.rightHalfResolved === false,
+           "pair-gate precondition: the surviving half has no pixels yet, got " + dbl.rightHalfResolved)
+        ck(dbl.pairVisible === false,
+           "pair-gate: an error verdict must NOT open the gate while the SURVIVING half is still "
+           + "decoding — that paints a placard beside black, got pairVisible=" + dbl.pairVisible)
+        ck(dbl.placeholdersShown === true,
+           "pair-gate: and the placeholder must NOT be taken away by a failure in the other half — "
+           + "losing it is what made that frame worse than the one before it, got "
+           + dbl.placeholdersShown)
+
+        // ...and once the good half is on screen, the unit paints: good page + explicit error side.
+        coreGate.pageUrls[10] = harness.png200x300
+        coreGate.emitPageReady(10)
+        ck(dbl.pairVisible === true,
+           "pair-gate: with the surviving half on screen the error unit paints, got " + dbl.pairVisible)
+        ck(dbl.placeholdersShown === false, "pair-gate: ...and drops the placeholder")
+        ck(dbl.leftErrorVisible === true, "pair-gate: the FAILED half must carry the typed placard")
         ck(dbl.leftErrorCode === "decode_failed",
            "pair-gate: the placard must be TYPED with the backend's code, got '" + dbl.leftErrorCode + "'")
         ck(dbl.rightErrorVisible === false && dbl.rightImageVisible === true,
-           "pair-gate: the GOOD half must keep drawing its page, not inherit its partner's placard")
+           "pair-gate: the GOOD half keeps drawing its page, never inherits its partner's placard")
 
-        // --- and it heals: a page that comes back returns the unit to normal ---
-        coreGate.pageStates[7] = "ready"
-        delete coreGate.pageErrors[7]
-        coreGate.emitPageReady(7)
+        // ---- and it heals: a page that comes back returns the unit to normal ----
+        coreGate.pageStates[11] = "ready"
+        delete coreGate.pageErrors[11]
+        coreGate.pageUrls[11] = harness.png150x300
+        coreGate.emitPageReady(11)
         ck(dbl.presentationState === "ready" && dbl.leftErrorVisible === false
-               && dbl.leftImageVisible === true,
+               && dbl.leftImageVisible === true && dbl.pairVisible === true,
            "pair-gate: a healed page clears the unit's error and the half goes back to painting (state='"
-           + dbl.presentationState + "' placard=" + dbl.leftErrorVisible + ")")
+           + dbl.presentationState + "' placard=" + dbl.leftErrorVisible + " paints=" + dbl.pairVisible + ")")
 
-        // --- an ABSENT seam degrades to painting, never to a blank screen. Every other `core.` use in
-        // these surfaces is guarded that way, and the shell's Task-9 stub has no presentationForPage. ---
+        // ---- A NEW BOOK opening on the anchor the last one was left on. Same hole as the Single
+        // surface's, and the one that depends on NO cache behaviour: the marker still names this
+        // anchor, so without a reset on entryChanged the first unit of book B is never reported. ----
+        harness.doublePresentedCount = 0
+        ck(dbl._presentedAnchor === 11,
+           "pair-gate precondition: the marker must be parked on the current anchor before the new "
+           + "book, got " + dbl._presentedAnchor)
+        coreGate.entryChanged()               // exactly what the real core emits from openEntry
+        ck(dbl._presentedAnchor === -1 || harness.doublePresentedCount > 0,
+           "pair-gate: entryChanged must clear the presented marker, got _presentedAnchor="
+           + dbl._presentedAnchor)
+        dbl._notePresented()                  // the same entry point callLater reaches
+        ck(harness.doublePresentedCount === 1 && harness.doublePresentedPage === 11,
+           "pair-gate: a NEW BOOK opening on the same anchor must still report presented() — the "
+           + "marker is per-book, not for all time, got count=" + harness.doublePresentedCount
+           + " page=" + harness.doublePresentedPage)
+
+        // ---- an ABSENT seam no longer decides anything: the gate reads PIXELS, so a core without
+        // presentationForPage paints exactly when its pages are on screen. ----
+        coreStub.units[2] = { rightIndex: 2, leftIndex: 3, spread: false, coverAlone: false }
+        coreStub.pageSizes[2] = { w: 200, h: 300 }
+        coreStub.pageSizes[3] = { w: 150, h: 300 }
+        coreStub.pageUrls[2] = harness.png200x300
+        coreStub.pageUrls[3] = harness.png150x300
         var stub = doubleComp.createObject(harness, {
-            "width": 800, "height": 480, "active": true, "currentPage": 3, "rtl": true, "core": coreDouble
+            "width": 800, "height": 480, "active": true, "currentPage": 3, "rtl": true, "core": coreStub
         })
         if (stub) {
-            ck(stub.presentationState === "ready" && stub.pairVisible === true,
-               "pair-gate: a core WITHOUT presentationForPage must fall back to painting (the "
-               + "pre-Task-4 behaviour), never to an empty screen, got '" + stub.presentationState + "'")
+            ck(stub.presentationState === "ready",
+               "pair-gate: a core WITHOUT presentationForPage must read as ready rather than a "
+               + "misleading 'waiting', got '" + stub.presentationState + "'")
+            ck(stub.pairVisible === true,
+               "pair-gate: ...and it must paint, because both halves have pixels, got " + stub.pairVisible)
             stub.destroy()
         } else {
             failures.push("pair-gate: stub createObject returned null")
         }
         dbl.destroy()
+    }
+
+    function makeGate(cfg) {
+        var base = { "width": 800, "height": 480, "active": true, "rtl": true, "core": coreGate }
+        for (var k in cfg) base[k] = cfg[k]
+        return doubleComp.createObject(harness, base)
     }
 
     // ==================== SINGLE PAGE (Task 4) ====================
@@ -1285,6 +1530,12 @@ Item {
            "single: a page NARROWER than the frame has no horizontal headroom, so pan must stay 0, got "
            + fx(sgl.panX, 2))
 
+        // (M7 — the hq layer's opacity across a zoom step — lives in runSinglePresented(), because it
+        // is only meaningful on a surface that has REAL pixels up. This core serves provider urls that
+        // never resolve offscreen, so nothing here could tell a held layer from a dimmed one.)
+
+        sgl.setZoom(200)
+
         // --- a page change resets PAN, keeps ZOOM (the same law as the Pair surface: a magnified
         // volume that snapped back to 100% every turn would be unreadable) ---
         sgl.panBy(0, 200)
@@ -1334,22 +1585,152 @@ Item {
         ck(sgl._presentedPage === 4,
            "single-presented: the surface must report the page as PRESENTED once its pixels are up, "
            + "got _presentedPage=" + sgl._presentedPage)
-        // TWO tiers reach Ready for one page; that is ONE presentation, not two.
+        // ---- THE CACHED TURN. The url and geometry for the next page are in place BEFORE the turn,
+        // and both of its request sizes are pre-warmed, so this is a pure pixmap-cache hit: Image.status
+        // goes straight to Ready with no dip. That is the case the previous version of this fixture did
+        // NOT test — it assigned pageUrls AFTER moving currentPage, so the turn transiently pointed at
+        // a provider url that fails offscreen and forced a status dip the cached case never has. The
+        // assertion passed on the strength of that dip, certifying a guarantee the code did not have.
+        //
+        // With the ordering fixed, the ONLY thing that can notice this presentation is the explicit
+        // re-check on the page-change path. Two tiers reaching Ready is still ONE presentation.
         harness.singlePresentedCount = 0
+        coreSinglePix.pageUrls[4] = harness.png150x300
+        coreSinglePix.pageSizes[4] = { w: 150, h: 300 }
         sgl.currentPage = 5
-        coreSinglePix.pageUrls[4] = harness.png200x300
-        coreSinglePix.pageSizes[4] = { w: 200, h: 300 }
-        coreSinglePix.emitPageReady(4)
+        ck(harness.singlePresentedCount === 0,
+           "single-presented: the re-check is DEFERRED (Qt.callLater), so nothing fires synchronously "
+           + "on the turn, got " + harness.singlePresentedCount)
+        sgl._notePresented()      // the same entry point callLater reaches
         ck(harness.singlePresentedCount === 1,
-           "single-presented: preview AND hq both reaching Ready for one page is ONE presentation, not "
-           + "two — Task 11 must not bank the same page twice, got " + harness.singlePresentedCount)
+           "single-presented: a turn onto an ALREADY-CACHED page must still report presented() exactly "
+           + "once — Image.status never dips, so nothing else can notice it, got "
+           + harness.singlePresentedCount)
         ck(harness.singlePresentedPage === 5,
            "single-presented: the reported page must be the one on screen (5), got " + harness.singlePresentedPage)
         ck(approx(harness.singlePresentedFrac, 0),
            "single-presented: withinPageFraction is 0 in a paged layout (a page IS the unit of "
            + "travel), got " + fx(harness.singlePresentedFrac, 3))
+
+        // ---- A NEW BOOK, opening on the page number the last one was left on. This is the OTHER
+        // hole in a marker-based presented(), and unlike the cached-turn one it depends on no cache
+        // behaviour at all: the marker still says page 5, so without a reset on entryChanged the
+        // first page of book B is never reported. Task 11 would read that silence as "never seen". ----
+        harness.singlePresentedCount = 0
+        coreSinglePix.entryChanged()          // exactly what the real core emits from openEntry
+        ck(sgl._presentedPage === -1 || harness.singlePresentedCount > 0,
+           "single-presented: entryChanged must clear the presented marker, got _presentedPage="
+           + sgl._presentedPage)
+        sgl._notePresented()                  // the same entry point callLater reaches
+        ck(harness.singlePresentedCount === 1 && harness.singlePresentedPage === 5,
+           "single-presented: a NEW BOOK opening on the same page number must still report "
+           + "presented() — the marker is per-book, not for all time, got count="
+           + harness.singlePresentedCount + " page=" + harness.singlePresentedPage)
+
+        // ---- M7: A ZOOM STEP MUST NOT FADE THE PAGE OUT. srcCapW is a step function of the zoom, so
+        // crossing 100 (and again at 180) changes sourceSize — part of an Image's cache key — and
+        // re-requests the hq layer. Bound to the LIVE status, its opacity fell away to the retained
+        // lower-resolution pixels and came back: two soft flashes on the way from 100% to 260%.
+        //
+        // The assertion reads hqTargetOpacity, the value the Behavior animates TOWARD, not the live
+        // opacity — measured 2026-07-30: a synchronous read straight after a target flip still
+        // returns the OLD value (1.000), so an assertion on `opacity` would pass against the flashing
+        // version too and prove nothing. hqStatus is asserted alongside it so the step is known to
+        // have genuinely re-requested the layer rather than been a no-op. ----
+        sgl._armHqLatch()                     // the same entry point callLater reaches
+        var capAt100 = sgl.srcCapW
+        ck(sgl.hqStatus === Image.Ready && sgl._hqEverReady === true,
+           "single M7 precondition: the hq layer must be UP and latched at zoom 100 (status="
+           + sgl.hqStatus + " latched=" + sgl._hqEverReady + ")")
+        ck(sgl.hqTargetOpacity === 1,
+           "single M7 precondition: ...and therefore fully opaque, got " + fx(sgl.hqTargetOpacity, 2))
+        sgl.setZoom(200)
+        ck(sgl.srcCapW !== capAt100,
+           "single M7 precondition: crossing 100 must actually change the decode cap (was " + capAt100
+           + ", now " + sgl.srcCapW + ") — otherwise this assertion proves nothing")
+        ck(sgl.hqStatus !== Image.Ready,
+           "single M7 precondition: the new cap must actually re-request the layer (status must leave "
+           + "Ready), got " + sgl.hqStatus + " — if it did not, the flash under test cannot occur here")
+        ck(sgl.hqTargetOpacity === 1,
+           "single M7: the hq layer must stay fully opaque across a zoom step — retainWhileLoading is "
+           + "holding real pixels, so dimming them is a flash for nothing, got "
+           + fx(sgl.hqTargetOpacity, 2))
+        sgl.setZoom(260)
+        ck(sgl.hqTargetOpacity === 1,
+           "single M7: ...and across the second cap step at 180 too, got " + fx(sgl.hqTargetOpacity, 2))
         sgl.destroy()
     }
+
+    // ==================== PHASE THREE: LET GO ====================
+    // The one thing that CANNOT be proved synchronously — that the page-change path actually REACHES
+    // the presented() re-check. Every other presented() assertion in this file drives _notePresented()
+    // by hand (the house pattern, so no phase waits on a wall clock), which proves what the function
+    // does but NOT that anything calls it: deleting the re-check from onCurrentPageChanged leaves all
+    // of them green (measured — that mutation was the one survivor of nine).
+    //
+    // So it turns onto a page that is warm at BOTH request sizes — no status dip, therefore nothing
+    // derived can notice it — and then simply lets go. The report has to arrive through the surface's
+    // own Qt.callLater, or not at all.
+    //
+    // It takes THREE phases, not two, and the reason is a trap worth naming: the surface schedules a
+    // re-check from onActiveChanged too, and mounting it in phase two leaves that one pending. It
+    // fires after phase two returns — by which time currentPage has already moved — so it reports the
+    // NEW page and a two-phase version passes with the page-change wiring deleted (measured: that is
+    // exactly how the first draft of this phase gave a false green). So phase three DRAINS the
+    // activation report first (and asserts it, which pins that path too), and only then turns.
+    function setUpDeferredCheck() {
+        coreSingleDefer.pageUrls[3] = harness.png200x300
+        coreSingleDefer.pageSizes[3] = { w: 200, h: 300 }
+        coreSingleDefer.pageUrls[4] = harness.png150x300
+        coreSingleDefer.pageSizes[4] = { w: 150, h: 300 }
+        deferredSingle = singleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 4, "core": coreSingleDefer
+        })
+        if (!deferredSingle) { failures.push("deferred: createObject returned null"); return }
+        deferredSingle.presented.connect(function (p, f) {
+            harness.deferredPresentedCount += 1
+            harness.deferredPresentedPage = p
+        })
+        ck(deferredSingle.contentOnScreen === true,
+           "deferred precondition: page 4's fixtures must be warm, so the surface starts with content "
+           + "on screen (got " + deferredSingle.contentOnScreen + ")")
+    }
+    property var deferredSingle: null
+
+    function runPhaseThree() {
+        if (!deferredSingle) { report(); return }
+        // DRAIN first. The mount's own presentation was noticed synchronously during construction —
+        // the fixtures are warm, so contentOnScreen went true inside createObject, before the connect
+        // above could see the signal — and the activation path ALSO scheduled a deferred re-check,
+        // which has landed by now. Either way the marker is parked on page 4, and both are out of the
+        // way before the turn below, which is the whole point of splitting these phases.
+        ck(deferredSingle._presentedPage === 4,
+           "deferred precondition: the mounted page must already be marked presented before the turn, "
+           + "got _presentedPage=" + deferredSingle._presentedPage)
+
+        harness.deferredPresentedCount = 0
+        deferredSingle.currentPage = 5      // warm at 700 AND 1400 -> Image.status never leaves Ready
+        ck(deferredSingle.contentOnScreen === true,
+           "deferred precondition: THE POINT — the turn must NOT dip the status, or the derived "
+           + "property would notice it on its own and this phase would prove nothing (got "
+           + deferredSingle.contentOnScreen + ")")
+        ck(harness.deferredPresentedCount === 0,
+           "deferred: nothing may fire synchronously on the turn, got " + harness.deferredPresentedCount)
+        phaseFourTimer.start()
+    }
+    function runPhaseFour() {
+        ck(harness.deferredPresentedCount === 1,
+           "deferred: the PAGE-CHANGE path must reach the presented() re-check on its own — nobody "
+           + "called _notePresented() here and no status dipped, so a turn onto an already-cached "
+           + "page is reported only if onCurrentPageChanged really schedules it, got "
+           + harness.deferredPresentedCount)
+        ck(harness.deferredPresentedPage === 5,
+           "deferred: ...for the page turned TO (5), got " + harness.deferredPresentedPage)
+        if (deferredSingle) deferredSingle.destroy()
+        report()
+    }
+    Timer { id: phaseThreeTimer; interval: 40; running: false; onTriggered: harness.runPhaseThree() }
+    Timer { id: phaseFourTimer;  interval: 40; running: false; onTriggered: harness.runPhaseFour() }
 
     Timer { id: phaseTimer; interval: 30; running: false; onTriggered: harness.runPhaseTwo() }
 
@@ -1366,12 +1747,13 @@ Item {
             runDoublePairGate()      // Task 4: the pair paints as ONE unit, or not at all
             runSingle()              // Task 4: the Single Page layout
             runSinglePresented()     // Task 4: presented(), on real pixels
+            setUpDeferredCheck()     // ...and arm the one check that has to let go (phase three)
         } catch (e) {
             failures.push("exception during phase two: " + e.message)
             report()
             return
         }
-        report()
+        phaseThreeTimer.start()
     }
 
     function runChecks() {

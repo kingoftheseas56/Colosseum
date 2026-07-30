@@ -10,11 +10,14 @@
 // stage, and nothing else. No spinner, no percentage, no pulsing — a reader waiting a beat for a
 // page should feel like paper that has not turned yet, not like software thinking.
 //
-// The FADE is what keeps it from being a flicker: a page that decodes in 40ms only ever reaches
-// about a third of this opacity before it is told to go away again, so a fast turn shows a barely
-// perceptible settle rather than a grey flash. That is the whole reason `shown` is a property and
-// `visible` is derived from the animated opacity — the caller states intent, the component decides
-// when it is actually worth drawing.
+// The FADE is what keeps it from being a flicker, and the EASING is the load-bearing half of that.
+// It has to be ease-IN (slow at the start): a page that decodes in 40ms then only reaches t^2 = 0.08
+// of full opacity before it is told to go away again, which is imperceptible. An earlier draft used
+// OutQuad, which is fastest at the start — exactly backwards for suppressing a flash: at the same
+// 40ms it reached t(2-t) = 0.49, so a fast turn showed a ~50% grey panel and faded it back out. (The
+// comment there also claimed "about a third", which was wrong about its own curve.) That is the whole
+// reason `shown` is a property and `visible` is derived from the animated opacity — the caller states
+// intent, the component decides when it is actually worth drawing.
 //
 // GEOMETRY IS THE CALLER'S: this fills whatever box it is given. The paged surfaces put it exactly
 // where the page (or each half of the pair) will land, so the unit does not jump when it arrives.
@@ -35,7 +38,9 @@ Item {
     property color edgeColor: "#1b1b21"
 
     opacity: shown ? 1 : 0
-    Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutQuad } }
+    // InQuad, NOT OutQuad — see the fade note in the header. Slow at the start is what makes a fast
+    // decode never show this.
+    Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.InQuad } }
     // Below 1% it is not on screen in any meaningful sense, so it stops costing a node.
     visible: opacity > 0.01
 

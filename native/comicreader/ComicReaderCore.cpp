@@ -372,11 +372,17 @@ QVariantMap ComicReaderCore::unitForPage(int page) const {
 
 QVariantMap ComicReaderCore::presentationForPage(int page) const {
     // Guard the EMPTY case before anything else. comicreader::unitForPage answers
-    // "which unit", and for an empty walk that answer is 0 — a value, not an index
-    // — so indexing straight off it reads past the end of an empty vector on every
-    // book in the window between openEntry and the first rebuildUnits. (Pinned in
-    // comicreader_pairing_harness's clamping block; unitForPage() above guards it
-    // the same way.)
+    // "which unit", and for an empty walk that answer is 0 — a value, not an index —
+    // so indexing straight off it reads past the end of an empty vector.
+    //
+    // Three reachable ways to get here with no units: no entry has been opened yet
+    // (T29), the entry was CLOSED (closeEntry -> resetEntryState clears m_units, and
+    // the shell calls it on close), and a zero-page entry (buildUnits returns empty
+    // for n == 0). NOT "between openEntry and the first rebuildUnits" — an earlier
+    // draft of this comment claimed that window and it does not exist: openEntry
+    // calls rebuildUnits() synchronously before it returns, and openEntry is what
+    // QML invokes. (Pinned in comicreader_pairing_harness's clamping block;
+    // unitForPage() above guards it the same way.)
     if (m_units.isEmpty())
         return {};
     const int unitIndex = comicreader::unitForPage(m_units, page);
@@ -385,8 +391,16 @@ QVariantMap ComicReaderCore::presentationForPage(int page) const {
     const PairUnit unit = m_units[unitIndex];
 
     // The members are READ off the canonical unit — this function has no opinion
-    // about who pairs with whom. A -1 is "absent", never a page: it is the cover's
-    // missing partner, and m_pages[-1] would be a read off the front of the vector.
+    // about who pairs with whom. A -1 is "absent", never a page, and m_pages[-1]
+    // would be a read off the front of the vector.
+    //
+    // Only LEFTINDEX actually reaches that: it is -1 on every cover-alone, spread
+    // and odd-tail unit, which is most of a book. rightIndex is set on every unit
+    // buildUnits appends and m_units is populated from nowhere else, so its guard
+    // is symmetry hardening against a future producer, not a bug that was found —
+    // stating it as a second crash-class defect would be an overclaim. Both bounds
+    // stay; the upper bound is the one that would matter if a unit ever outlived
+    // the page vector it indexes.
     QVector<int> members;
     if (unit.rightIndex >= 0 && unit.rightIndex < m_pages.size())
         members.append(unit.rightIndex);
@@ -578,6 +592,14 @@ double ComicReaderCore::stripPageTop(int page) const {
 
 int ComicReaderCore::stripPageAtCenter(double top, double viewportHeight) const {
     return m_pages.isEmpty() ? -1 : m_strip->pageAtCenter(top, viewportHeight);
+}
+
+double ComicReaderCore::stripPageHeight(int page) const {
+    // Same guard shape as stripPageTop above, and the same reason it exists: the drawn
+    // column cannot be asked about a page it has not realized yet.
+    if (page < 0 || page >= m_pages.size())
+        return 0.0;
+    return m_strip->pageHeight(page);
 }
 
 double ComicReaderCore::setStripLayout(int portraitWidthPct, int gap,

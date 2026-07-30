@@ -8,8 +8,10 @@
 // strip's own colours and wording carried over verbatim, two consumers today.
 //
 // (The strip's copy is deliberately left alone this task — it lives inside a ListView delegate and
-// re-plumbing it is a change to a surface Task 4 has no other reason to touch. Its values are the
-// ones reproduced here, so the two cannot look different; folding it in is a later tidy.)
+// re-plumbing it is a change to a surface Task 4 has no other reason to touch. Its colours, sizes and
+// wording are the ones reproduced here, so for the three real codes the two are identical. They DO
+// differ on an unrecognised code, by design: the strip draws no card at all, this draws an honest
+// fallback — see the note below. Folding the strip's copy in is a later tidy.)
 //
 // TYPED, not generic: the codes are the backend's snake_case PageError wire codes
 // (ComicReaderTypes.h — none / missing_file / decode_failed / unsupported_image), so the reader is
