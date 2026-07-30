@@ -43,6 +43,14 @@ Item {
     property var chaptersModel: []
     property bool loading: true
     property string errorMsg: ""
+    // What the USER is shown. A source failing must not read as the page failing: once the
+    // volumes are in, the shelf below is complete and unaffected, so a raw transfer error
+    // (WeebCentral rate-limits with a 429) is both alarming and untrue. Derived, not baked
+    // at error time, because the failure can land BEFORE the volumes do.
+    readonly property string errorText: !errorMsg.length ? ""
+        : (volumes.length
+           ? "Couldn't reach WeebCentral just now, so the newest chapters aren't listed. The volumes below are unaffected."
+           : errorMsg)
 
     // --- Tankoban mode ---
     // Tankoban mode is PERMANENT for qualified series (2026-07-29 ruling): the gate in
@@ -50,11 +58,16 @@ Item {
     // volumes.length IS the verdict. No toggle, no per-series persistence.
     property bool tankobanMode: volumes.length > 0
     property bool _tankobanPrepared: false
+    // Whether the seeding above already had the chapter list. Volumes and chapters arrive
+    // from DIFFERENT sources at different times (and WeebCentral can fail outright), so the
+    // shelf seeds as soon as volumes land and re-seeds once chapters show up.
+    property bool _tankobanPreparedWithChapters: false
     // A REUSED page item (openSeries/openSeriesAt switching series) must re-prepare
     // for the new series, or it would keep the old series' volumes. Reset the prepare
     // latch + the reader's volume model whenever the id changes.
     onSeriesIdChanged: {
         page._tankobanPrepared = false
+        page._tankobanPreparedWithChapters = false
         page.tankobanReaderEntries = []
     }
 
@@ -75,14 +88,22 @@ Item {
             page._prepareTankoban()
         }
     }
-    // Hand the fully-resolved snapshot to the native volume service ONCE, lazily —
-    // only after all three sources are in, so volumes/chapters/art are final. The
-    // volume library reads its canonical volumes back from the service.
+    // Hand the snapshot to the native volume service. Called as soon as VOLUMES land —
+    // deliberately NOT gated on the chapter list, because the two come from different
+    // sources: the shelf is built from our volume DB, while chapters come from
+    // WeebCentral, which rate-limits (429) and can fail for a whole session. Waiting on
+    // chapters meant a 429 emptied a shelf we already held in full (Vagabond: 38 volumes
+    // in hand, blank page — 2026-07-30). prepareSeries builds one record per VOLUME row
+    // and only attaches chapters afterwards, so seeding with none is safe and complete.
+    // Re-seeds once (and only once) if chapters arrive later, so downloads get their
+    // chapter ids; prepareSeries overwrites the series wholesale, so re-running is safe.
     function _prepareTankoban() {
-        if (page._tankobanPrepared) return
         if (!page.volumes.length) return          // unqualified series: never seed the volume service
         if (typeof TankobanVolumes === "undefined" || !page.seriesId.length) return
+        var haveChapters = page.chaptersModel.length > 0
+        if (page._tankobanPrepared && (page._tankobanPreparedWithChapters || !haveChapters)) return
         page._tankobanPrepared = true
+        page._tankobanPreparedWithChapters = haveChapters
         TankobanVolumes.prepareSeries({
             seriesId: page.seriesId, title: page.seriesTitle,
             author: page.author, aliases: []
@@ -214,7 +235,11 @@ Item {
             Manga.chapters(r.id)
             Manga.detail(r.id, r.url, r.title, r.cover)
         }
-        function onChaptersResults(chs) { page.chaptersModel = chs; page.chaptersReady = true; page._maybeReveal() }
+        // chapters re-seed the shelf (they carry the ids downloads need) but never gate it
+        function onChaptersResults(chs) {
+            page.chaptersModel = chs; page.chaptersReady = true
+            page._prepareTankoban(); page._maybeReveal()
+        }
         function onDetailResult(d) {
             // AniList is the source for synopsis + genres (onArtResult). WeebCentral detail only
             // contributes status + author — NOT its plainer description (AniList's reads better).
@@ -230,8 +255,21 @@ Item {
             if (a.year) page.year = a.year
             page.artReady = true; page._maybeReveal()
         }
-        function onVolumesResult(d) { page.volumes = Vol.fromEngine(d.volumes || []); page.volumesReady = true; page._maybeReveal() }
-        function onEngineError(msg) { if (page.loading) { page.errorMsg = msg; page.loading = false; revealGuard.stop() } }
+        // volumes seed the shelf IMMEDIATELY — they are the shelf, and they arrive from our
+        // own volume DB, which does not depend on WeebCentral being reachable
+        function onVolumesResult(d) {
+            page.volumes = Vol.fromEngine(d.volumes || []); page.volumesReady = true
+            page._prepareTankoban(); page._maybeReveal()
+        }
+        // A source failing must not cost the user a shelf we already hold. WeebCentral
+        // rate-limits (429) and its raw transfer error is not something to put on screen;
+        // when the volumes are in, say what it actually costs him (the chapter tail) in
+        // plain words and keep the page. Only a page with nothing to show reports hard.
+        function onEngineError(msg) {
+            if (!page.loading) return
+            page.errorMsg = msg
+            page.loading = false; revealGuard.stop()
+        }
     }
 
     // ===================== visual tree =====================
@@ -682,12 +720,16 @@ Item {
                 }
             }
 
-            // post-reveal error (inset)
+            // post-reveal error (inset). Alarm red only when the page genuinely has nothing;
+            // a shelf that loaded fine gets a quiet dimmed note instead.
             Text {
-                visible: !page.loading && page.errorMsg.length > 0
+                visible: !page.loading && page.errorText.length > 0
                 x: theme.margin
-                text: page.errorMsg
-                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 13
+                width: Math.min(880, parent.width - 2 * theme.margin)
+                wrapMode: Text.WordWrap
+                text: page.errorText
+                color: page.volumes.length ? theme.inkDimmer : "#e6a3a3"
+                font.family: theme.ui; font.pixelSize: 13
                 topPadding: 18
             }
 
@@ -716,7 +758,7 @@ Item {
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
-            text: page.errorMsg.length ? page.errorMsg : "Loading…"
+            text: page.errorText.length ? page.errorText : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
             font.family: theme.ui; font.pixelSize: 14
         }

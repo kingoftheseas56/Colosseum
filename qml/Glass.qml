@@ -25,6 +25,18 @@ Item {
 
     default property alias content: holder.data
 
+    // GPU TEXTURE CEILING. The blur costs TWO textures the size of this whole item (the
+    // backdrop grab and the rounded-rect mask layer). Ask for one bigger than the driver
+    // allows and it does not degrade — it refuses, and the card renders as garbage:
+    //   QSGRhiLayer: Unsupported size requested: [1758, 54375]. Maximum texture size: 16384
+    // (hit live 2026-07-30 by a 232-chapter list inside a Glass card). Content-sized panels
+    // can exceed any ceiling, so past a safe bound we stop allocating and fall back to the
+    // tint + scrim + border below, which always draw. The card keeps its material identity;
+    // it just loses the blur, which is invisible on a panel that tall anyway.
+    // 8192 is comfortably under every desktop GPU's limit and far above any blurrable panel.
+    readonly property bool blurAffordable: width > 0 && height > 0
+                                           && width <= 8192 && height <= 8192
+
     // this panel's top-left expressed in backdrop coordinates (reactive to x/y AND scroll)
     readonly property point _origin: {
         root.track;   // dependency: re-evaluate when the bound scroll offset changes
@@ -35,23 +47,26 @@ Item {
         id: grab
         anchors.fill: parent
         visible: false
-        live: true
+        live: root.blurAffordable
         hideSource: false
-        sourceItem: root.backdrop
+        // null source frees the texture outright — `visible: false` would not, since a
+        // ShaderEffectSource is a texture provider and allocates regardless.
+        sourceItem: root.blurAffordable ? root.backdrop : null
         sourceRect: Qt.rect(root._origin.x, root._origin.y, root.width, root.height)
     }
     Item {
         id: maskItem
         anchors.fill: parent
         visible: false
-        layer.enabled: true
+        layer.enabled: root.blurAffordable
         Rectangle { anchors.fill: parent; radius: root.radius; color: "white" }
     }
     MultiEffect {
         anchors.fill: parent
+        visible: root.blurAffordable
         source: grab
         autoPaddingEnabled: false
-        blurEnabled: true
+        blurEnabled: root.blurAffordable
         blur: root.blurAmount
         blurMax: 48
         maskEnabled: true
