@@ -67,7 +67,8 @@ Item {
         function compileWeebCentral(vid) {
             var c = compiledVols; c.push(String(vid)); compiledVols = c
         }
-        function cancel(vid) {}
+        property var cancelled: []
+        function cancel(vid) { var c = cancelled; c.push(String(vid)); cancelled = c }
         function remove(vid) { return {} }
     }
 
@@ -151,6 +152,16 @@ Item {
         svc.volumesChanged("S")
     }
 
+    // Mark volumes as mid-acquisition through the LIVE progress map — the same
+    // channel the real service uses, so the shelf sees them exactly as it would
+    // during a real download rather than through a test-only back door.
+    function setInFlight(list) {
+        var m = {}
+        for (var i = 0; i < list.length; i++)
+            m["vol" + Number(list[i])] = { "state": "downloading", "done": 1, "total": 10 }
+        harness.lib.progressByVolume = m
+    }
+
     // Put the reader inside a volume, then make the shelf re-read the record.
     function setResume(volumeId) {
         prog.rec = { "chapterId": String(volumeId), "page": 5, "max": 20 }
@@ -192,10 +203,16 @@ Item {
 
     function runChecks() {
         try {
-            // ── Task 2: the shelf pages in tens ────────────────────────────
+            // ── Task 2: the shelf shows ONE page at a time ─────────────────
+            // Hemanth, 2026-07-30: "these batches are supposed to be like seasons
+            // in theatre's tv show view where I see only 10 volumes at a time."
+            // So the load-bearing assertion is that 25 volumes put TEN rows on
+            // screen, not 25 — a header-per-ten inside one long scroll is exactly
+            // what this replaced.
             ck(harness.lib.volumeRows.length === 25, "the series must expose 25 volumes")
-            ck(harness.lib.renderedCount === 25,
-               "ALL 25 rows must still render, got " + harness.lib.renderedCount)
+            ck(harness.lib.renderedCount === 10,
+               "ONLY the active page's ten rows may render, got " + harness.lib.renderedCount)
+            ck(harness.lib.visibleRows.length === 10, "the active page holds ten volumes")
 
             var pages = harness.lib.pagedRows
             ck(pages.length === 3, "25 volumes must page into 3 groups, got " + pages.length)
@@ -218,6 +235,36 @@ Item {
                    [11, 13, 14, 15, 16, 17, 18, 19, 20], "page 2 must skip the owned 12")
             deepEq(harness.lib.unownedIn(pages[2].volumes), range(21, 25),
                    "page 3 offers all five")
+
+            // ── switching pages, the way Theatre switches seasons ──────────
+            ck(harness.lib.activePage === 0, "a never-opened series starts on page 1")
+            ck(Number(harness.lib.visibleRows[0].number) === 1, "page 1 starts at volume 1")
+            harness.lib.activePage = 2
+            ck(harness.lib.renderedCount === 5,
+               "the short final page renders FIVE rows, got " + harness.lib.renderedCount)
+            ck(Number(harness.lib.visibleRows[0].number) === 21, "page 3 starts at volume 21")
+            deepEq(harness.lib.activePageUnowned, range(21, 25),
+                   "the page button follows the active page")
+            harness.lib.activePage = 1
+            ck(Number(harness.lib.visibleRows[0].number) === 11, "page 2 starts at volume 11")
+            deepEq(harness.lib.activePageUnowned,
+                   [11, 13, 14, 15, 16, 17, 18, 19, 20],
+                   "the active page's button skips the volume already owned")
+            harness.lib.activePage = 0
+
+            // The shelf opens on the page he is READING — Theatre resumes on the
+            // season you were watching. Only ONCE: a background refresh must never
+            // yank him off the page he chose.
+            harness.setResume("vol23")
+            harness.lib._pageHomed = false
+            harness.lib._homeActivePage()
+            ck(harness.lib.activePage === 2,
+               "reading volume 23 opens page 3, got " + harness.lib.activePage)
+            harness.lib.activePage = 0                  // he browses back to page 1
+            svc.volumesChanged("S")                     // a background refresh lands
+            ck(harness.lib.activePage === 0,
+               "a refresh must NOT yank him off the page he chose")
+            harness.setResume("")
 
             // ── Task 3: the primary button, walked against spec §6 ─────────
             // The series was never opened, so it starts at the first volume it
@@ -319,6 +366,30 @@ Item {
             ck(harness.page.isBatch === false, "one volume is not a batch")
             harness.page.pickNyaa(harness.page.rows[0])
             deepEq(svc.nyaaVols, ["vol1"], "a single pick still dispatches downloadNyaa")
+
+            // ── Acceptance 11: Cancel remaining ────────────────────────────
+            // The load-bearing claim is NOT that it cancels — it is that it
+            // leaves the volumes that already landed completely alone.
+            harness.setOwned([1, 2, 3])                 // three finished
+            harness.setInFlight([4, 5, 6])              // three still coming
+            deepEq(harness.lib.inFlightIds, ["vol4", "vol5", "vol6"],
+                   "only the unfinished volumes count as remaining")
+            ck(harness.lib.ownedCount === 3, "three volumes are already on the device")
+
+            svc.cancelled = []
+            harness.lib.cancelRemaining()
+            deepEq(svc.cancelled, ["vol4", "vol5", "vol6"],
+                   "cancel remaining stops exactly the volumes still in flight")
+            for (var c = 1; c <= 3; c++)
+                ck(svc.cancelled.indexOf("vol" + c) === -1,
+                   "a volume already on the device is NEVER cancelled (vol" + c + ")")
+            ck(harness.lib.ownedCount === 3,
+               "the three finished volumes are still owned after the cancel")
+
+            // Nothing in flight -> the control has nothing to do and is not shown.
+            harness.setInFlight([])
+            ck(harness.lib.inFlightIds.length === 0,
+               "with nothing in flight there is nothing to cancel")
 
             console.log("MANGA_VOLUME_BATCH_OK")
             Qt.exit(0)

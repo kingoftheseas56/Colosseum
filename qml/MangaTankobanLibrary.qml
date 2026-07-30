@@ -132,14 +132,50 @@ Item {
     readonly property int renderedCount: rowsRepeater.count
 
     // ── the shelf pages in tens (design 2026-07-30) ───────────────────────────
-    // The shelf stays ONE flat Repeater — the page header is drawn by the first
-    // row of each page instead of nesting a repeater per page. Same surface, and
-    // `renderedCount` above keeps meaning "rows actually instantiated", which
-    // manga_tankoban_page_harness.qml asserts on. pageGroups() is still the single
-    // source of paging truth (labels, bounds, per-page volume lists); only the
-    // rendering is flat.
+    // A PAGE IS A SEASON. Theatre shows one season of episodes at a time and
+    // switches with a selector; a 115-volume series is exactly that problem, so
+    // the shelf shows ONE page of ten and switches the same way — pills up to ten
+    // pages, a dropdown beyond, Theatre's own threshold (TheatreSeries.qml:1077,
+    // :1168). Only the active page's rows are ever instantiated, so `renderedCount`
+    // means "rows on screen now" — which is what it always measured.
     readonly property int pageSize: 10
     readonly property var pagedRows: Vol.pageGroups(root.volumeRows, root.pageSize)
+    property int activePage: 0
+    property bool pageMenuOpen: false
+    readonly property var activePageInfo:
+        (root.activePage >= 0 && root.activePage < root.pagedRows.length)
+            ? root.pagedRows[root.activePage] : null
+    readonly property var visibleRows:
+        root.activePageInfo ? root.activePageInfo.volumes : []
+    // What the active page's own button would fetch (see root.unownedIn).
+    readonly property var activePageUnowned:
+        root.activePageInfo ? root.unownedIn(root.activePageInfo.volumes) : []
+
+    // Which page holds a given volume number, or -1.
+    function pageIndexOf(number) {
+        var n = Number(number)
+        if (!isFinite(n)) return -1
+        for (var i = 0; i < root.pagedRows.length; i++) {
+            var vs = root.pagedRows[i].volumes
+            for (var j = 0; j < vs.length; j++)
+                if (Number(vs[j].number) === n) return i
+        }
+        return -1
+    }
+
+    // Open on the page he is READING, once — the same instinct as Theatre resuming
+    // on the season you were watching. Only on the first load of a series: after
+    // that the page is HIS choice and a background refresh must never yank him
+    // back (volumeRows re-publishes on every progress tick).
+    property bool _pageHomed: false
+    function _homeActivePage() {
+        if (root._pageHomed || !root.pagedRows.length) return
+        var idx = root.pageIndexOf(root.currentNumber)
+        root.activePage = idx >= 0 ? idx : 0
+        root._pageHomed = true
+    }
+    // (the handlers that drive this live with the other lifecycle handlers below —
+    //  QML allows exactly one onXChanged per property per object)
     // A batch was asked for: the volume NUMBERS it covers plus a human label.
     signal batchRequested(var numbers, string label)
 
@@ -225,11 +261,14 @@ Item {
     onSeriesIdChanged: {
         root.coverByVolume = ({})       // covers belong to the OLD series — drop them
         root._thumbWanted = ({})
+        root._pageHomed = false         // …and so does the page he was on
+        root.activePage = 0
+        root.pageMenuOpen = false
         root.refresh(); root.refreshResume(); root.requestCovers()
     }
     // volumes and chapters arrive from different sources at different times; ask
     // again whenever either lands, since a cover needs both.
-    onVolumeRowsChanged: root.requestCovers()
+    onVolumeRowsChanged: { root._homeActivePage(); root.requestCovers() }
     onChaptersChanged: root.requestCovers()
 
     // route a scraped first-page url back to the volume that asked for it
@@ -319,6 +358,37 @@ Item {
         root.chooseSource(vid)
     }
 
+    // ── Cancel remaining (design 2026-07-30 §3) ──────────────────────────────
+    // Every volume of this series still on its way. A batch is not a transaction,
+    // so "remaining" is simply "not finished yet" — a volume that already landed
+    // is READY, is not in this list, and is therefore never touched by the cancel.
+    readonly property var inFlightIds: {
+        var out = []
+        var rows = root.volumeRows || []
+        for (var i = 0; i < rows.length; i++) {
+            var vid = String(rows[i].id || "")
+            if (!vid.length) continue
+            var live = root.progressByVolume[vid]
+            var st = (live !== undefined && live !== null)
+                     ? String(live.state || "downloading")
+                     : String(rows[i].state || "none")
+            if (root._inFlight(st)) out.push(vid)
+        }
+        return out
+    }
+
+    // Stop everything still queued, keep everything already downloaded. Reuses the
+    // SAME per-volume cancel the row's own stop action uses — no batch-level
+    // teardown, so there is nothing new that could take a finished volume with it.
+    function cancelRemaining() {
+        var s = root.serviceObject
+        var ids = root.inFlightIds
+        for (var i = 0; i < ids.length; i++) {
+            if (s) s.cancel(ids[i])
+            else if (typeof TankobanVolumes !== "undefined") TankobanVolumes.cancel(ids[i])
+        }
+    }
+
     Connections {
         target: root.serviceObject
         ignoreUnknownSignals: true
@@ -345,24 +415,203 @@ Item {
         width: root.width
         spacing: 0
 
+        // ── the page selector — Theatre's season strip, one medium over ───────
+        // Up to ten pages ride a horizontal pill strip; beyond that a dropdown,
+        // because the strip has no sideways-browsing affordance in this app.
+        // Both are lifted from TheatreSeries.qml (:1077 dropdown, :1168 strip).
+        Item {
+            id: pagerRow
+            width: listCol.width
+            height: root.pagedRows.length > 1 ? 62 : 0
+            visible: height > 0
+            z: 40
+
+            // ≤10 pages: the strip.
+            Flickable {
+                anchors.fill: parent
+                visible: root.pagedRows.length <= 10
+                contentWidth: pillRow.width + theme.margin
+                contentHeight: height
+                clip: true
+                flickableDirection: Flickable.HorizontalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                Row {
+                    id: pillRow
+                    x: theme.margin
+                    spacing: 22
+                    topPadding: 18
+                    Repeater {
+                        model: root.pagedRows
+                        // Delegate root is an Item, NOT the Column: a MouseArea with
+                        // anchors.fill inside a positioner is ignored (0x0, dead clicks).
+                        delegate: Item {
+                            id: pageBtn
+                            required property var modelData
+                            required property int index
+                            width: pageCol.width
+                            height: pageCol.height
+                            property bool on: root.activePage === pageBtn.index
+                            Column {
+                                id: pageCol
+                                spacing: 5
+                                Text {
+                                    text: pageBtn.modelData.first + "–" + pageBtn.modelData.last
+                                    color: pageBtn.on ? theme.gold
+                                         : (pageMa.containsMouse ? theme.ink : theme.inkDim)
+                                    font.family: theme.ui
+                                    font.pixelSize: 15
+                                    font.weight: pageBtn.on ? Font.DemiBold : Font.Normal
+                                }
+                                Rectangle {
+                                    visible: pageBtn.on
+                                    width: 26; height: 2; radius: 2
+                                    color: theme.gold
+                                }
+                            }
+                            MouseArea {
+                                id: pageMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.activePage = pageBtn.index
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 11+ pages: the dropdown.
+            Rectangle {
+                id: pageTrigger
+                x: theme.margin
+                anchors.verticalCenter: parent.verticalCenter
+                visible: root.pagedRows.length > 10
+                width: pageTrigT.implicitWidth + 52
+                height: 38
+                radius: 19
+                color: pageTrigMa.containsMouse || root.pageMenuOpen
+                       ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06)
+                border.width: 1
+                border.color: root.pageMenuOpen ? theme.gold : theme.edge
+                Text {
+                    id: pageTrigT
+                    x: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.activePageInfo ? root.activePageInfo.label : ""
+                    color: theme.ink
+                    font.family: theme.ui; font.pixelSize: 14
+                    font.weight: Font.DemiBold
+                }
+                Text {
+                    anchors.right: parent.right
+                    anchors.rightMargin: 14
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "▾"
+                    color: root.pageMenuOpen ? theme.gold : theme.inkDim
+                    font.pixelSize: 12
+                }
+                MouseArea {
+                    id: pageTrigMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.pageMenuOpen = !root.pageMenuOpen
+                }
+            }
+            Item {
+                // zero-height overlay host: the menu floats, never reflows the shelf
+                x: theme.margin
+                anchors.top: pageTrigger.bottom
+                anchors.topMargin: 8
+                width: 236
+                height: 0
+                Rectangle {
+                    width: parent.width
+                    height: Math.min(304, pageMenuList.contentHeight + 12)
+                    visible: root.pageMenuOpen
+                    radius: 14
+                    color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
+                    border.width: 1
+                    border.color: theme.edge
+                    ListView {
+                        id: pageMenuList
+                        anchors.fill: parent
+                        anchors.margins: 6
+                        clip: true
+                        model: root.pagedRows
+                        boundsBehavior: Flickable.StopAtBounds
+                        delegate: Rectangle {
+                            id: pmRow
+                            required property var modelData
+                            required property int index
+                            width: pageMenuList.width
+                            height: 36
+                            radius: 9
+                            color: pmMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
+                            Text {
+                                x: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: pmRow.modelData.label
+                                color: root.activePage === pmRow.index ? theme.gold : theme.inkDim
+                                font.family: theme.ui; font.pixelSize: 13
+                                font.weight: root.activePage === pmRow.index
+                                             ? Font.DemiBold : Font.Normal
+                            }
+                            MouseArea {
+                                id: pmMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    root.activePage = pmRow.index
+                                    root.pageMenuOpen = false
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // The deliberate stretch: grab THIS page rather than the next ten.
+        Item {
+            id: pageBatchRow
+            width: listCol.width
+            height: (root.pagedRows.length > 1 && root.activePageUnowned.length > 0) ? 40 : 0
+            visible: height > 0
+            Text {
+                id: pageBatchBtn
+                x: theme.margin + 2
+                anchors.verticalCenter: parent.verticalCenter
+                text: root.activePageInfo
+                      ? ("↓  Download " + root.activePageInfo.first
+                         + "–" + root.activePageInfo.last)
+                      : ""
+                color: pageBatchMa.containsMouse ? theme.gold : theme.inkDimmer
+                font.family: theme.ui; font.pixelSize: 12
+                font.weight: Font.DemiBold
+                MouseArea {
+                    id: pageBatchMa
+                    anchors.fill: parent
+                    anchors.margins: -8
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.batchRequested(root.activePageUnowned,
+                                                   root.activePageInfo.label)
+                }
+            }
+        }
+
         Repeater {
             id: rowsRepeater
-            model: root.volumeRows
+            model: root.visibleRows
 
             delegate: Item {
                 id: vrow
                 required property var modelData
-                required property int index
                 width: listCol.width
-                // The first row of every page carries that page's header. null on
-                // every other row, so the header costs nothing to the other nine.
-                readonly property var pageInfo: (vrow.index % root.pageSize === 0)
-                    ? root.pagedRows[Math.floor(vrow.index / root.pageSize)] : null
-                // What this page's button would actually fetch (see root.unownedIn).
-                readonly property var pageUnowned:
-                    vrow.pageInfo ? root.unownedIn(vrow.pageInfo.volumes) : []
-                implicitHeight: rowMain.height + pageHeader.height
-                height: implicitHeight
+                implicitHeight: rowMain.height
+                height: rowMain.height
 
                 readonly property string volumeId: String(modelData.id || "")
                 readonly property var prog: root.progressByVolume[volumeId]
@@ -423,55 +672,9 @@ Item {
                     }
                 }
 
-                // ── the page header: "VOLUMES 31–40      ↓ Download 31–40" ──
-                // Deliberate stretch, so he can grab a specific run rather than the
-                // next one. Wears the rail caption's voice (theme.ui, letterSpaced,
-                // inkDimmer) and sits on the same margins as the rows.
-                Item {
-                    id: pageHeader
-                    width: parent.width
-                    height: vrow.pageInfo ? 52 : 0
-                    visible: height > 0
-
-                    Text {
-                        x: theme.margin + 2
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 12
-                        text: vrow.pageInfo ? String(vrow.pageInfo.label).toUpperCase() : ""
-                        color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 11
-                        font.letterSpacing: 1.4; font.weight: Font.DemiBold
-                    }
-
-                    Text {
-                        id: pageBtn
-                        anchors.right: parent.right
-                        anchors.rightMargin: theme.margin
-                        anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 10
-                        visible: !!vrow.pageInfo && vrow.pageUnowned.length > 0
-                        text: "↓  Download " + (vrow.pageInfo ? vrow.pageInfo.label
-                                                                  .replace("Volumes ", "") : "")
-                        color: pageMouse.containsMouse ? theme.gold : theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 12
-                        font.weight: Font.DemiBold
-
-                        MouseArea {
-                            id: pageMouse
-                            anchors.fill: parent
-                            anchors.margins: -8
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.batchRequested(vrow.pageUnowned,
-                                                           vrow.pageInfo.label)
-                        }
-                    }
-                }
-
                 // ── the row: Theatre's episode anatomy, portrait artwork ──
                 Item {
                     id: rowMain
-                    y: pageHeader.height
                     width: parent.width
                     height: vrow.isContinue ? 428 : 356
 

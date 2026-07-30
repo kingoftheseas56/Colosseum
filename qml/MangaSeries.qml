@@ -601,6 +601,28 @@ Item {
                     }
                 }
 
+                // Stop what is still coming, keep what already landed. Only exists
+                // while something is actually in flight (design 2026-07-30 §3).
+                Text {
+                    id: cancelRemaining
+                    anchors.right: primaryBatch.left
+                    anchors.rightMargin: 22
+                    anchors.verticalCenter: parent.verticalCenter
+                    visible: tankLib.inFlightIds.length > 0
+                    text: "Cancel remaining (" + tankLib.inFlightIds.length + ")"
+                    color: cancelMouse.containsMouse ? "#e6a3a3" : theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 12
+
+                    MouseArea {
+                        id: cancelMouse
+                        anchors.fill: parent
+                        anchors.margins: -8
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: tankLib.cancelRemaining()
+                    }
+                }
+
                 // ── the one press (design 2026-07-30 §4) ──────────────────────
                 // Sits beside the owned count, and ALWAYS names the volumes it
                 // will fetch in text — so it can never surprise him, and a screen
