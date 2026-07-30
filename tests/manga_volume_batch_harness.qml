@@ -93,6 +93,35 @@ Item {
         })
     }
 
+    // The reader's resume record, the one the shelf reads to know where he is.
+    component FakeProgress: QtObject {
+        property var rec: null
+        function get(kind, sid) { return (kind === "tankoban") ? rec : null }
+    }
+    FakeProgress { id: prog }
+
+    // Rewrite ownership: exactly `list` is on the device, everything else is
+    // untouched. Republishes through volumesChanged, as the real service does.
+    function setOwned(list) {
+        var have = {}
+        for (var i = 0; i < list.length; i++) have[Number(list[i])] = true
+        var rows = svc.volMap["S"], out = []
+        for (var j = 0; j < rows.length; j++) {
+            var r = {}
+            for (var k in rows[j]) r[k] = rows[j][k]
+            r.state = have[Number(r.number)] ? "ready" : "none"
+            out.push(r)
+        }
+        var m = {}; m["S"] = out; svc.volMap = m
+        svc.volumesChanged("S")
+    }
+
+    // Put the reader inside a volume, then make the shelf re-read the record.
+    function setResume(volumeId) {
+        prog.rec = { "chapterId": String(volumeId), "page": 5, "max": 20 }
+        harness.lib.refreshResume()
+    }
+
     function ck(cond, msg) { if (!cond) throw new Error(msg) }
     function deepEq(a, b, msg) {
         if (JSON.stringify(a) !== JSON.stringify(b))
@@ -103,7 +132,8 @@ Item {
     function setup() {
         var comp = Qt.createComponent("../qml/MangaTankobanLibrary.qml")
         if (comp.status === Component.Error) throw new Error("component: " + comp.errorString())
-        harness.lib = comp.createObject(harness, { "service": svc, "seriesId": "S", "width": 620 })
+        harness.lib = comp.createObject(harness, { "service": svc, "seriesId": "S",
+                                                   "progress": prog, "width": 620 })
         if (!harness.lib) throw new Error("createObject returned null")
         harness.lib.batchRequested.connect(function (numbers, label) {
             harness.lastBatchNumbers = numbers
@@ -139,6 +169,49 @@ Item {
                    [11, 13, 14, 15, 16, 17, 18, 19, 20], "page 2 must skip the owned 12")
             deepEq(harness.lib.unownedIn(pages[2].volumes), range(21, 25),
                    "page 3 offers all five")
+
+            // ── Task 3: the primary button, walked against spec §6 ─────────
+            // The series was never opened, so it starts at the first volume it
+            // can actually fetch. 3, 4 and 12 are unavailable. (Acceptance 1)
+            ck(harness.lib.currentNumber === 0, "never opened -> currentNumber 0")
+            deepEq(harness.lib.nextBatch.numbers, [1, 2, 5, 6, 7, 8, 9, 10, 11, 13],
+                   "cold start takes the first ten it can actually fetch")
+            ck(harness.lib.nextBatch.kind === "next", "cold start is a next batch")
+            ck(harness.lib.nextBatch.label === "Download next 10",
+               "cold start label, got " + harness.lib.nextBatch.label)
+
+            // Own 1-14, read 14 -> 15-24. (Acceptance 2)
+            harness.setOwned(range(1, 14))
+            harness.setResume("vol14")
+            ck(harness.lib.currentNumber === 14,
+               "reading vol14 -> currentNumber 14, got " + harness.lib.currentNumber)
+            ck(harness.lib.ownedCount === 14,
+               "14 owned, got " + harness.lib.ownedCount)
+            deepEq(harness.lib.nextBatch.numbers, range(15, 24),
+                   "owns 1-14 reading 14 takes 15-24")
+
+            // FORWARD-CONTINUE: own 1-5 and 12-20, read 14 -> 21-25, NOT 6-11.
+            // The hole behind him is deliberately left alone. (Acceptance 3)
+            harness.setOwned(range(1, 5).concat(range(12, 20)))
+            deepEq(harness.lib.nextBatch.numbers, range(21, 25),
+                   "forward-continue must ignore the hole at 6-11")
+            ck(harness.lib.nextBatch.kind === "remaining",
+               "a short tail is a remaining batch, got " + harness.lib.nextBatch.kind)
+            ck(harness.lib.nextBatch.label === "Download remaining 5",
+               "tail label, got " + harness.lib.nextBatch.label)   // Acceptance 7
+
+            // Every volume owned -> the button says so instead. (Acceptance 12)
+            harness.setOwned(range(1, 25))
+            deepEq(harness.lib.nextBatch.numbers, [], "fully owned yields nothing")
+            ck(harness.lib.nextBatch.kind === "complete", "fully owned is complete")
+            ck(harness.lib.nextBatch.label === "All volumes on this device",
+               "fully owned label, got " + harness.lib.nextBatch.label)
+            ck(harness.lib.ownedCount === 25, "all 25 owned")
+            // and every page button is gone, not merely disabled
+            var allPages = harness.lib.pagedRows
+            for (var p = 0; p < allPages.length; p++)
+                ck(harness.lib.unownedIn(allPages[p].volumes).length === 0,
+                   "page " + p + " must offer nothing when all volumes are owned")
 
             console.log("MANGA_VOLUME_BATCH_OK")
             Qt.exit(0)

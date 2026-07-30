@@ -190,9 +190,7 @@ Item {
         if (page.author.length) out.push({ "k": "Author", "v": page.author })
         if (page.status.length) out.push({ "k": "Status", "v": page.status })
         if (page.tankobanMode && tankLib.volumeRows.length) {
-            var rows = tankLib.volumeRows, owned = 0
-            for (var i = 0; i < rows.length; i++)
-                if (String(rows[i].state) === "ready") owned++
+            var rows = tankLib.volumeRows, owned = tankLib.ownedCount
             out.push({ "k": "Volumes", "v": String(rows.length) })
             out.push({ "k": "On this device", "v": owned
                        ? (owned + (owned === 1 ? " volume" : " volumes")) : "None yet" })
@@ -563,14 +561,67 @@ Item {
                         text: {
                             var n = tankLib.volumeRows.length
                             if (!n) return ""
-                            var owned = 0
-                            for (var i = 0; i < n; i++)
-                                if (String(tankLib.volumeRows[i].state) === "ready") owned++
+                            var owned = tankLib.ownedCount
                             return owned > 0 ? (n + " books · " + owned + " on this device")
                                              : (n + " books")
                         }
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
                         anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                // ── the one press (design 2026-07-30 §4) ──────────────────────
+                // Sits beside the owned count, and ALWAYS names the volumes it
+                // will fetch in text — so it can never surprise him, and a screen
+                // reader announces the target rather than a bare "Download".
+                Row {
+                    id: primaryBatch
+                    anchors.right: parent.right
+                    anchors.rightMargin: theme.margin
+                    anchors.verticalCenter: parent.verticalCenter
+                    spacing: 10
+                    visible: tankLib.volumeRows.length > 0
+                    readonly property bool armed: tankLib.nextBatch.kind !== "complete"
+
+                    Text {
+                        text: primaryBatch.armed ? "↓" : "✓"
+                        color: primaryBatch.armed
+                               ? (batchMouse.containsMouse ? theme.gold : theme.ink)
+                               : tankLib.ownedInk
+                        font.family: theme.ui; font.pixelSize: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Column {
+                        spacing: 1
+                        anchors.verticalCenter: parent.verticalCenter
+                        Text {
+                            text: tankLib.nextBatch.label
+                            color: primaryBatch.armed
+                                   ? (batchMouse.containsMouse ? theme.gold : theme.ink)
+                                   : theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            visible: primaryBatch.armed
+                            text: tankLib.nextBatch.first === tankLib.nextBatch.last
+                                  ? ("volume " + tankLib.nextBatch.first)
+                                  : ("volumes " + tankLib.nextBatch.first
+                                     + "–" + tankLib.nextBatch.last)
+                            color: theme.inkDimmer
+                            font.family: theme.ui; font.pixelSize: 11
+                        }
+                    }
+
+                    MouseArea {
+                        id: batchMouse
+                        anchors.fill: parent
+                        anchors.margins: -8
+                        enabled: primaryBatch.armed
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: tankLib.batchRequested(tankLib.nextBatch.numbers,
+                                                          tankLib.nextBatch.label)
                     }
                 }
             }

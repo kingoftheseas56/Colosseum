@@ -164,6 +164,35 @@ Item {
         return out
     }
 
+    // How many volumes are genuinely ON THIS DEVICE. Distinct from
+    // unavailableNumbers, which also covers volumes merely on their way — this one
+    // is what the header counts, so an in-flight volume must not inflate it.
+    readonly property int ownedCount: {
+        var n = 0
+        var rows = root.volumeRows || []
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].state) === "ready") n++
+        return n
+    }
+
+    // The volume the reader is in, as a NUMBER (0 when the series was never
+    // opened). continueVolumeId is an id; map it back through the rows.
+    readonly property int currentNumber: {
+        var rows = root.volumeRows || []
+        if (!root.continueVolumeId.length) return 0
+        for (var i = 0; i < rows.length; i++)
+            if (String(rows[i].id) === root.continueVolumeId)
+                return Number(rows[i].number) || 0
+        return 0
+    }
+
+    // The one press: the next `pageSize` volumes he does not have, walking FORWARD
+    // from where he is reading. Holes behind him are left alone — the per-page
+    // buttons are how those get filled deliberately (Hemanth, 2026-07-30).
+    readonly property var nextBatch: Vol.nextBatch(root.volumeRows,
+                                                   root.unavailableNumbers,
+                                                   root.currentNumber, root.pageSize)
+
     // The volume NUMBERS a batch over `rows` would actually fetch: the rows minus
     // anything already here or already coming. Empty → that button has nothing to
     // do and hides. A function (not a per-delegate property) so the offscreen
