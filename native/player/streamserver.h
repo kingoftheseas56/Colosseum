@@ -44,6 +44,18 @@ public:
     // into mpv. (PlayerPage.qml loads EVERY streamReady it hears.)
     Q_INVOKABLE void prefetch(const QString &infoHash, int fileIdx);
 
+    // Bring the engine up BEFORE anything is played. It used to spawn lazily on the first play(), so
+    // every session paid a cold start at the worst possible moment -- the instant Play was pressed. A
+    // cold server has an empty DHT and no tracker answers, so it must bootstrap, announce, handshake
+    // and wait to be unchoked before one byte of video arrives; a warm one has already paid all of it.
+    // That is why the SAME years-old torrent with a constant ~100 seeders loaded in a split second
+    // sometimes and took minutes other times: with 100 full seeders piece availability is never the
+    // constraint -- being CONNECTED is. (The seed count is a tracker scrape: it says those peers
+    // exist, not that we have reached them.) Idempotent; adopt-first still wins when the official
+    // Stremio Service already owns :11470. This is what the Stremio app does -- we ship its identical
+    // runtime and were simply starting it later. (2026-07-30, Theatre lane)
+    Q_INVOKABLE void warmUp();
+
     // The URL for an already-registered stream, or "" if the runtime isn't up yet.
     Q_INVOKABLE QString streamUrl(const QString &infoHash, int fileIdx) const;
 

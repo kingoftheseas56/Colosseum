@@ -773,6 +773,15 @@ int main(int argc, char *argv[]) {
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
+    // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
+    // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
+    // bootstrap + tracker announce + handshake + unchoke) at the exact moment Play was pressed, which
+    // is why one torrent play was instant and the next -- same file, same ~100 seeders -- took
+    // minutes. The 3s delay keeps it off the cold-launch critical path; adopt-first means an
+    // already-running official Stremio Service is adopted rather than clashed with. Cost accepted
+    // knowingly: a comics- or books-only session spawns a runtime it never uses, but any video
+    // session would have spawned it seconds later anyway. (2026-07-30, Theatre lane)
+    QTimer::singleShot(3000, stream, [stream]() { stream->warmUp(); });
 
     // Audiobook download backbone exposed to QML as `Audiobooks`. BookDownloader
     // lineage, but multi-file and Stremio-fed: a book's paired audiobook torrent
