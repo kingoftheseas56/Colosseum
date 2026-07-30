@@ -103,6 +103,12 @@ Item {
         property int    stripWidthPct: 78
         property int    stripGap: 0
         property bool   memorySaver: false
+        // Task 3: the global last-choice is TWO independent keys (layout + order); `readingMode` is
+        // the legacy combined identity the shell still reads for a store written by the shipped
+        // build. All three must exist here — the shell WRITES layout/order, and QML raises "cannot
+        // assign to non-existent property" on a fake that is missing one.
+        property string layout: ""
+        property string order: ""
         property string readingMode: ""
     }
     component FakeRecords: QtObject { property string all: "{}" }

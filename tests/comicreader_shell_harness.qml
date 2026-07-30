@@ -148,6 +148,12 @@ Item {
         property int    stripWidthPct: 78
         property int    stripGap: 0
         property bool   memorySaver: false
+        // the last LAYOUT + ORDER picked anywhere (Task 3 — two independent keys), plus the LEGACY
+        // combined identity the shipped reader wrote, which the shell still reads on first launch.
+        // These three must mirror the real Settings element: a fake that is missing a property the
+        // shell writes turns a real bug into a silent no-op.
+        property string layout: ""
+        property string order: ""
         property string readingMode: ""
     }
     component FakeRecords: QtObject { property string all: "{}" }
@@ -306,6 +312,10 @@ Item {
             // not long_strip. readingMode reflects the single identity.
             ck(mShell.mode === "double_page", "ready manga: mode must default to 'double_page' (Manga/MangaPlus), got " + mShell.mode)
             ck(mShell.readingMode === "manga", "ready manga: readingMode must be 'manga', got " + mShell.readingMode)
+            // Task 3: layout + order are the state; mode + rtl are derived aliases of them.
+            ck(mShell.layout === "paired_pages",
+               "ready manga: layout must default to 'paired_pages', got " + mShell.layout)
+            ck(mShell.order === "rtl", "ready manga: order must default to 'rtl', got " + mShell.order)
 
             // trailing eager record on entry change: the freshly-opened entry is already persisted
             // (a crash before the next page-turn/close must not lose it) — MangaReader.qml:157.
@@ -450,7 +460,9 @@ Item {
                 "core": rCore, "progress": rProg, "pageStore": rStore,
                 // strip-fraction resume only applies in the vertical Strip layout; force it so the
                 // scrollFrac restore is exercised (manga now defaults to double-page — MangaPlus).
-                "persistedMode": "long_strip",
+                // Task 3: forced through the REAL persistence path (a stored series record), not an
+                // override seam — the seams are gone and the record is the memory.
+                "seriesRecords": freshRecords('{"s3":{"layout":"long_strip"}}'),
                 "entryKind": "manga", "western": false,
                 "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
@@ -472,7 +484,7 @@ Item {
             var r2 = makeShell({
                 "width": 640, "height": 480, "seriesId": "s3b", "seriesTitle": "Resume2",
                 "seriesCover": "file:///f/c.png", "core": fakeCoreR2, "progress": r2Prog,
-                "pageStore": r2Store, "persistedMode": "long_strip",
+                "pageStore": r2Store, "seriesRecords": freshRecords('{"s3b":{"layout":"long_strip"}}'),
                 "entryKind": "manga", "western": false,
                 "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
@@ -494,7 +506,7 @@ Item {
             var r3 = makeShell({
                 "width": 640, "height": 480, "seriesId": "s3c", "seriesTitle": "Resume3",
                 "seriesCover": "file:///f/c.png", "core": fakeCoreR3, "progress": r3Prog,
-                "pageStore": r3Store, "persistedMode": "long_strip",
+                "pageStore": r3Store, "seriesRecords": freshRecords('{"s3c":{"layout":"long_strip"}}'),
                 "entryKind": "manga", "western": false,
                 "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
@@ -755,8 +767,16 @@ Item {
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
             })
             zShell.setReadingMode("strip")
-            ck(zPrefs.readingMode === "strip", "persist: picking a mode must update the global default")
-            ck(JSON.parse(qSeries.all)["s-z"].rm === "strip", "persist: picking a mode must record it for THIS series")
+            ck(zPrefs.layout === "long_strip",
+               "persist: picking a layout must update the global default, got '" + zPrefs.layout + "'")
+            ck(JSON.parse(qSeries.all)["s-z"].layout === "long_strip",
+               "persist: picking a layout must record it for THIS series, got "
+               + JSON.stringify(JSON.parse(qSeries.all)["s-z"]))
+            // ...and the combined identity is RETIRED from the record on that first real write, so a
+            // stale "manga" can never contradict the layout/order the reader is actually using.
+            ck(JSON.parse(qSeries.all)["s-z"].rm === undefined,
+               "persist: a real user change must retire the legacy `rm` key, got "
+               + JSON.stringify(JSON.parse(qSeries.all)["s-z"]))
 
             // -- 8f. a stored entry blob reaches openEntry; a corrupt store degrades to no memory --
             ck(qShell.persistedState !== null, "persist: persistedState must never be null after load")
@@ -853,13 +873,13 @@ Item {
             fakeCoreB5.lastSpreadOverride = null
             var gotSettingsB5 = false
             b5Shell.settingsRequested.connect(function () { gotSettingsB5 = true })
-            b5Shell.mode = "long_strip"
+            b5Shell.layout = "long_strip"          // Task 3: layout is the writable truth; mode is derived
             b5Shell._onContextMenu(100, 100)
             ck(gotSettingsB5, "spread override: long_strip right-click must still open Settings")
             ck(fakeCoreB5.lastSpreadOverride === null, "spread override: long_strip right-click must not touch the override")
 
             // 9c. routing: double_page over a real pair -> resolves to a page, never opens Settings
-            b5Shell.mode = "double_page"
+            b5Shell.layout = "paired_pages"
             b5Shell.currentPage = 4
             fakeCoreB5.fakeUnit = { rightIndex: 7, leftIndex: 3, spread: false }
             gotSettingsB5 = false
@@ -872,9 +892,9 @@ Item {
             // leftIndexX): rightIndex sits physical-RIGHT in RTL manga, physical-LEFT in LTR. So the
             // SAME left-half click must resolve to a DIFFERENT page depending on direction — the half
             // most likely to be wrong, and the one a reader notices immediately (wrong page "fixed").
-            b5Shell.rtl = false
+            b5Shell.order = "ltr"                 // Task 3: order is the writable truth; rtl is derived
             var ltrLeftTarget = b5Shell._spreadOverrideTargetPage(50)
-            b5Shell.rtl = true
+            b5Shell.order = "rtl"
             var rtlLeftTarget = b5Shell._spreadOverrideTargetPage(50)
             ck(ltrLeftTarget !== rtlLeftTarget,
                "spread override: a left-half click must target a different page in RTL (" + rtlLeftTarget + ") vs LTR (" + ltrLeftTarget + ")")
@@ -935,14 +955,14 @@ Item {
 
             // -- 11. STRIP PINNING: the mounted strip surface's visiblePages signal must reach
             // core.setVisible (pins on-screen pages in the LRU + promotes them to top decode
-            // priority). Force long_strip via persistedMode so the surface actually mounts active.
+            // priority). Force long_strip via a stored series record so the surface mounts active.
             var vpStore = fakeStoreVP
             vpStore.pages = fivePages()
             var vpShell = makeShell({
                 "width": 640, "height": 480,
                 "seriesId": "s-vp", "seriesTitle": "VisiblePages", "seriesCover": "file:///f/vp.png",
                 "core": fakeCoreVP, "progress": fakeProgVP, "pageStore": vpStore,
-                "persistedMode": "long_strip",
+                "seriesRecords": freshRecords('{"s-vp":{"layout":"long_strip"}}'),
                 "entryKind": "manga", "western": false,
                 "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
@@ -985,7 +1005,7 @@ Item {
                 "width": 640, "height": 480,
                 "seriesId": "s-f5", "seriesTitle": "EndOfVolume", "seriesCover": "file:///f/f5.png",
                 "core": fakeCoreF5, "progress": fakeProgF5, "pageStore": f5Store,
-                "persistedMode": "double_page",
+                "seriesRecords": freshRecords('{"s-f5":{"layout":"paired_pages"}}'),
                 "entryKind": "manga", "western": false,
                 "chapters": [{ "id": "ch1", "number": "1", "name": "" }],     // ONLY chapter -> no next
                 "chapterId": "ch1", "chapterLabel": "Chapter 1"
@@ -1023,7 +1043,7 @@ Item {
                 "width": 640, "height": 480,
                 "seriesId": "s-f5b", "seriesTitle": "EndOfVolumeNext", "seriesCover": "file:///f/f5b.png",
                 "core": fakeCoreF5b, "progress": fakeProgF5b, "pageStore": f5bStore,
-                "persistedMode": "double_page",
+                "seriesRecords": freshRecords('{"s-f5b":{"layout":"paired_pages"}}'),
                 "entryKind": "manga", "western": false,
                 // chapters are NEWEST-FIRST (see the crossing checks above): "next" means index-1,
                 // toward the newest. The open entry must therefore sit LAST for a next to exist.
@@ -1206,6 +1226,188 @@ Item {
                + "the 800ms debounce), got " + JSON.stringify(hfSaved))
             harness.visible = false
 
+            // -- 17. LAYOUT vs ORDER are INDEPENDENT, and every saved book survives the split
+            // (Task 3, plan 2026-07-28). Hemanth's ruling: layout (Single Page / Paired Pages /
+            // Long Strip) is presentation; order (comic LTR / manga RTL) is the physical page
+            // ordering; neither moves the other. These checks are written against what a REAL
+            // SAVED BOOK must do, not against what the shell happens to do today. --
+
+            // 17a. A series saved by the SHIPPED reader ({"rm":"manga"} plus its strip measure)
+            // reopens with the SAME reading experience: same layout, same direction, same measure.
+            var t3aRecords = freshRecords('{"s-mig":{"rm":"manga","sw":55,"sg":12}}')
+            var t3aStore = fakeStoreT3a
+            t3aStore.pages = fivePages()
+            var t3a = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-mig", "seriesTitle": "Migrated", "seriesCover": "file:///f/mig.png",
+                "core": fakeCoreT3a, "progress": fakeProgT3a, "pageStore": t3aStore,
+                "seriesRecords": t3aRecords,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch2", "number": "2", "name": "" }, { "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch2", "chapterLabel": "Chapter 2"
+            })
+            ck(t3a.layout === "paired_pages" && t3a.order === "rtl",
+               "migrate: a shipped {rm:'manga'} record must reopen as paired pages + RTL, got "
+               + t3a.layout + "/" + t3a.order)
+            ck(t3a.mode === "double_page" && t3a.rtl === true,
+               "migrate: the mode/rtl aliases must agree with layout/order, got " + t3a.mode + "/" + t3a.rtl)
+            ck(t3a.readingMode === "manga",
+               "migrate: the old identity the HUD chips still read must stay 'manga', got " + t3a.readingMode)
+            ck(fakeCoreT3a.lastOpenEntry && fakeCoreT3a.lastOpenEntry.direction === "rtl",
+               "migrate: the backend must be opened in the migrated ORDER, got "
+               + (fakeCoreT3a.lastOpenEntry ? fakeCoreT3a.lastOpenEntry.direction : "<none>"))
+            ck(fakeCoreT3a.lastStripLayout && fakeCoreT3a.lastStripLayout.w === 55
+               && fakeCoreT3a.lastStripLayout.g === 12,
+               "migrate: the series' stored strip measure must survive the migration, got "
+               + JSON.stringify(fakeCoreT3a.lastStripLayout))
+
+            // 17b. READING IS NOT WRITING. Opening the book must leave the stored JSON exactly as it
+            // was — migrate in memory, re-write only on the next real user change. Otherwise every
+            // book anyone merely opens gets silently rewritten by an update.
+            var t3aRaw = JSON.parse(t3aRecords.all)["s-mig"]
+            ck(t3aRaw && t3aRaw.rm === "manga" && t3aRaw.layout === undefined && t3aRaw.order === undefined,
+               "migrate: merely OPENING a legacy book must NOT rewrite its record, got " + JSON.stringify(t3aRaw))
+
+            // 17c. ...and the first real user change writes the NEW shape, keeping everything else.
+            t3a.setOrder("ltr")
+            var t3aNew = JSON.parse(t3aRecords.all)["s-mig"]
+            ck(t3aNew && t3aNew.layout === "paired_pages" && t3aNew.order === "ltr",
+               "migrate: a real change must write the new layout/order shape, got " + JSON.stringify(t3aNew))
+            ck(t3aNew && t3aNew.rm === undefined,
+               "migrate: that write must retire the legacy identity key, got " + JSON.stringify(t3aNew))
+            ck(t3aNew && t3aNew.sw === 55 && t3aNew.sg === 12,
+               "migrate: the write must PRESERVE the series' strip measure, got " + JSON.stringify(t3aNew))
+
+            // 17d. A legacy STRIP record on a manga series: the layout is kept, and the direction
+            // falls to the MANGA lane rather than to the LTR the old identity implied by
+            // construction. That implication is the conflation being removed — a manga read in Long
+            // Strip must turn the right way the moment its reader switches to Paired Pages.
+            var t3bStore = fakeStoreT3b
+            t3bStore.pages = fivePages()
+            var t3b = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-ls", "seriesTitle": "LegacyStrip", "seriesCover": "file:///f/ls.png",
+                "core": fakeCoreT3b, "progress": fakeProgT3b, "pageStore": t3bStore,
+                "seriesRecords": freshRecords('{"s-ls":{"rm":"strip"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t3b.layout === "long_strip", "migrate: a legacy {rm:'strip'} record must stay Long Strip, got " + t3b.layout)
+            ck(t3b.order === "rtl",
+               "migrate: a legacy strip record on a MANGA series must take the lane's RTL, not the "
+               + "LTR the old combined identity implied, got " + t3b.order)
+            ck(t3b.readingMode === "strip", "migrate: the old identity must still read 'strip', got " + t3b.readingMode)
+
+            // 17e. ORTHOGONALITY — the whole task. Changing the layout must never move the order,
+            // and choosing an order must never move the layout.
+            var t3cRecords = freshRecords()
+            var t3cStore = fakeStoreT3c
+            t3cStore.pages = fivePages()
+            var t3c = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-ortho", "seriesTitle": "Ortho", "seriesCover": "file:///f/o2.png",
+                "core": fakeCoreT3c, "progress": fakeProgT3c, "pageStore": t3cStore,
+                "seriesRecords": t3cRecords, "globalPrefs": freshPrefs(),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch2", "number": "2", "name": "" }, { "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch2", "chapterLabel": "Chapter 2"
+            })
+            ck(t3c.layout === "paired_pages" && t3c.order === "rtl",
+               "ortho: a fresh manga series must start paired + RTL, got " + t3c.layout + "/" + t3c.order)
+            t3c.setLayout("long_strip")
+            ck(t3c.layout === "long_strip" && t3c.order === "rtl",
+               "ortho: switching to Long Strip must NOT flip a manga to left-to-right, got "
+               + t3c.layout + "/" + t3c.order)
+            t3c.setLayout("single_page")
+            ck(t3c.layout === "single_page" && t3c.order === "rtl",
+               "ortho: switching to Single Page must NOT flip the order either, got "
+               + t3c.layout + "/" + t3c.order)
+            t3c.setOrder("ltr")
+            ck(t3c.layout === "single_page" && t3c.order === "ltr",
+               "ortho: choosing an order must NOT change the layout, got " + t3c.layout + "/" + t3c.order)
+            // ...and through the COMPATIBILITY door the HUD/settings sheet still use: picking Strip
+            // is a layout choice only, even though the old identity used to bake LTR into it.
+            t3c.setOrder("rtl")
+            t3c.setReadingMode("strip")
+            ck(t3c.layout === "long_strip" && t3c.order === "rtl",
+               "ortho: setReadingMode('strip') must change the layout ALONE, got " + t3c.layout + "/" + t3c.order)
+
+            // 17f. Single Page is a first-class PERSISTABLE layout (its surface arrives in Task 4).
+            t3c.setLayout("single_page")
+            ck(JSON.parse(t3cRecords.all)["s-ortho"].layout === "single_page",
+               "single page: the layout must persist per series, got " + JSON.stringify(JSON.parse(t3cRecords.all)["s-ortho"]))
+            ck(t3c.mode === "single_page",
+               "single page: the compat alias must report itself, never pretend to be a pair, got " + t3c.mode)
+            var t3cPair = byName(t3c, "doubleSurface")
+            ck(t3cPair && t3cPair.visible === false,
+               "single page: the PAIRED surface must not paint a single-page layout (Task 4 mounts the real one)")
+
+            // 17g. An unknown layout/order is REFUSED, never stored, never wedges the reader.
+            t3c.setLayout("guided")
+            ck(t3c.layout === "single_page", "refuse: an unknown layout must be ignored, got " + t3c.layout)
+            t3c.setLayout("")
+            ck(t3c.layout === "single_page", "refuse: an empty layout must be ignored, got " + t3c.layout)
+            t3c.setOrder("right_left")
+            ck(t3c.order === "rtl", "refuse: an unknown order must be ignored, got " + t3c.order)
+
+            // 17h. A CROSSING keeps the choice. This is what the retired persistedMode/Direction
+            // seams were for: load() runs again on every chapter/volume jump, so the record has to
+            // carry the choice or the next chapter would open in the lane default.
+            t3c.setLayout("long_strip")
+            t3c.openEntryById("ch1", false)
+            ck(String(t3c.curChapterId) === "ch1", "crossing: fixture must actually cross, got " + t3c.curChapterId)
+            ck(t3c.layout === "long_strip" && t3c.order === "rtl",
+               "crossing: a chapter jump must keep the chosen layout + order, got " + t3c.layout + "/" + t3c.order)
+
+            // 17i. A corrupt/hand-edited record degrades to the LANE default, never a throw and
+            // never a silent direction flip.
+            var t3dStore = fakeStoreT3d
+            t3dStore.pages = fivePages()
+            var t3d = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-bad", "seriesTitle": "Corrupt", "seriesCover": "file:///f/bad.png",
+                "core": fakeCoreT3d, "progress": fakeProgT3d, "pageStore": t3dStore,
+                "seriesRecords": freshRecords('{"s-bad":{"layout":"bogus","order":"sideways"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t3d.layout === "paired_pages" && t3d.order === "rtl",
+               "corrupt: an unreadable record must open at the manga lane default, got "
+               + t3d.layout + "/" + t3d.order)
+
+            // 17j. The GLOBAL last-choice is split in two as well — and a LEGACY global written by
+            // the shipped reader (the combined identity) is still understood on the first launch
+            // after the update, so nobody's taste is forgotten by the upgrade itself.
+            var t3eStore = fakeStoreT3e
+            t3eStore.pages = fivePages()
+            var t3e = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-glob", "seriesTitle": "GlobalSeed", "seriesCover": "file:///f/g.png",
+                "core": fakeCoreT3e, "progress": fakeProgT3e, "pageStore": t3eStore,
+                "globalPrefs": freshPrefs({ readingMode: "strip" }),    // legacy global only
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t3e.layout === "long_strip",
+               "global: a LEGACY global identity must still seed an untouched series, got " + t3e.layout)
+            var t3fStore = fakeStoreT3f
+            t3fStore.pages = fivePages()
+            var t3f = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-glob2", "seriesTitle": "GlobalSeed2", "seriesCover": "file:///f/g2.png",
+                "core": fakeCoreT3f, "progress": fakeProgT3f, "pageStore": t3fStore,
+                "globalPrefs": freshPrefs({ layout: "single_page", order: "rtl" }),
+                "entryKind": "manga", "western": true,        // western lane default would be LTR
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t3f.layout === "single_page" && t3f.order === "rtl",
+               "global: the split global last-choice must beat the lane default, got "
+               + t3f.layout + "/" + t3f.order)
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -1333,6 +1535,13 @@ Item {
     FakeCore { id: fakeCoreHF }  FakeProgress { id: fakeProgHF }  FakePageStore { id: fakeStoreHF }
     FakeCore { id: fakeCoreF3 }  FakeProgress { id: fakeProgF3 }  FakePageStore { id: fakeStoreF3 }
     FakeCore { id: fakeCoreF3b } FakeProgress { id: fakeProgF3b } FakePageStore { id: fakeStoreF3b }
+    // --- layout/order split + legacy migration (section 17, Task 3) ---
+    FakeCore { id: fakeCoreT3a } FakeProgress { id: fakeProgT3a } FakePageStore { id: fakeStoreT3a }
+    FakeCore { id: fakeCoreT3b } FakeProgress { id: fakeProgT3b } FakePageStore { id: fakeStoreT3b }
+    FakeCore { id: fakeCoreT3c } FakeProgress { id: fakeProgT3c } FakePageStore { id: fakeStoreT3c }
+    FakeCore { id: fakeCoreT3d } FakeProgress { id: fakeProgT3d } FakePageStore { id: fakeStoreT3d }
+    FakeCore { id: fakeCoreT3e } FakeProgress { id: fakeProgT3e } FakePageStore { id: fakeStoreT3e }
+    FakeCore { id: fakeCoreT3f } FakeProgress { id: fakeProgT3f } FakePageStore { id: fakeStoreT3f }
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }

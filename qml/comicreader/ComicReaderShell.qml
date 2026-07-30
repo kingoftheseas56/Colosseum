@@ -83,12 +83,11 @@ Item {
     // ================= injectable seams =================
     property var core: (typeof ComicReaderCore !== "undefined") ? ComicReaderCore : null
     property var progress: (typeof Progress !== "undefined") ? Progress : null
-    // per-series persisted overrides for mode/direction ("" = use the ComicReaderState smart
-    // default for this lane). Exposed as seams so the shell resolves defaults deterministically and
-    // a later task (settings sheet) can wire the persistent store into them without changing this
-    // orchestration. Empty by default -> smart default per lane.
-    property string persistedMode: ""
-    property string persistedDirection: ""
+    // NOTE (Task 3, plan 2026-07-28): the old `persistedMode`/`persistedDirection` override seams
+    // are GONE. `layout` and `order` below are now the live truth, and the per-series record is the
+    // persistent truth — one direction of flow, resolved by _applySeriesPrefs() through the single
+    // tested migration. The seams existed only because the combined readingMode identity had to be
+    // re-derived on every crossing; there is nothing left to re-derive.
     // the backend openEntry() persisted-state map (spread overrides + coupling + bookmarks). None
     // of that is managed by orchestration yet, so it rides as an empty seam the surfaces/overlays fill.
     property var persistedState: ({})
@@ -115,11 +114,26 @@ Item {
     property string curChapterId: ""            // the entry we're actually reading (crossing changes it)
     property int    currentPage: 1              // 1-based current page
     property int    maxSeen: 0                  // high-water mark (finished never un-finishes on reread)
-    property string mode: "long_strip"          // "long_strip" | "double_page" (internal layout)
-    property bool   rtl: false                  // reading direction (paints RTL when true; internal)
-    // the ONE user-facing identity (Hemanth 2026-07-25): Manga / Comic / Strip, derived from the
-    // internal layout+direction. The HUD + settings show THIS and write it via setReadingMode() —
-    // there is no separate RTL/LTR toggle. manga=RTL double, comic=LTR double, strip=vertical scroll.
+    // ---- LAYOUT and ORDER: two INDEPENDENT choices (Task 3, plan 2026-07-28) ----
+    // Hemanth's ruling for the overhaul: Colosseum's reading model is better than both reference
+    // apps because it keeps these apart, and it must not be weakened.
+    //   layout — presentation ONLY: "single_page" | "paired_pages" | "long_strip"
+    //   order  — the physical page ORDERING: "ltr" (comic) | "rtl" (manga)
+    // Changing the layout never changes the direction, and choosing a direction never throws you
+    // out of Long Strip. Both are resolved per series by _applySeriesPrefs() and written by
+    // setLayout()/setOrder(); nothing else assigns them.
+    property string layout: "long_strip"
+    property string order: "ltr"
+    // ---- compatibility aliases, READONLY: the surfaces + input still speak mode/rtl ----
+    // Single Page has no surface until Task 4, so it deliberately maps to ITSELF and matches
+    // neither mounted surface rather than pretending to be a pair.
+    readonly property string mode: layout === "paired_pages" ? "double_page" : layout
+    readonly property bool   rtl: order === "rtl"
+    // the OLD single user-facing identity (Hemanth 2026-07-25): Manga / Comic / Strip. Still read by
+    // the HUD mode chips + the settings sheet, which write it back through setReadingMode(), until
+    // Task 5/8 replace them with the Layout menu. A derived compatibility VIEW, never state — and
+    // deliberately lossy: the old identity cannot express Single Page, so single_page reads as
+    // manga/comic here (whichever the order says).
     readonly property string readingMode: ComicReaderState.readingModeFrom(mode, rtl)
     property int    zoomPercent: 100            // paged zoom (surfaces, later)
     property real   stripFraction: 0            // long-strip scroll fraction (resume + HUD scrub, later)
@@ -196,14 +210,9 @@ Item {
             _applySeriesPrefs()
             _applyEntryPrefs()
 
-            // reading mode: per-series persisted override, else the lane default (manga->Manga
-            // RTL double-page (MangaPlus), western->Comic LTR double-page). Layout + direction are
-            // both derived from the single readingMode identity.
-            var rm0 = ComicReaderState.defaultReadingMode(entryKind, western)
-            mode = persistedMode.length ? persistedMode : ComicReaderState.readingModeLayout(rm0)
-            var dir = persistedDirection.length ? persistedDirection
-                    : (ComicReaderState.readingModeRtl(rm0) ? "rtl" : "ltr")
-            rtl = (dir === "rtl")
+            // layout + order are already resolved for this series by _applySeriesPrefs() above
+            // (record -> global last-choice -> lane default, through ONE tested migration). A
+            // crossing lands here too, so the choice survives a chapter/volume jump for free.
 
             if (_pages.length > 0) {
                 currentPage = _pendingAtLast ? pageCount : 1
@@ -213,7 +222,7 @@ Item {
                 _pendingAtLast = false                  // previous book must never restore into this one
                 _applyResume()                          // a matching Continue entry overrides the start spot
                 maxSeen = Math.max(maxSeen, currentPage)
-                if (core) core.openEntry(curChapterId, _pages, dir, persistedState)
+                if (core) core.openEntry(curChapterId, _pages, order, persistedState)
                 // Physically move the strip to the restored spot. ONE door (stripRestore), settle-gated:
                 // the column positions its delegates a vsync later, and its heights are estimates until
                 // decodes land — an immediate jump reads y=0 for unrealized delegates and lands at the top.
@@ -404,38 +413,59 @@ Item {
         if (mode === "long_strip")
             stripSurface.haltScrollAt(Math.max(0, stripSurface.contentHeight - stripSurface.height))
     }
-    // reading-mode changes write the PERSISTED seams (never mode/rtl directly) so a crossing's
-    // load() honors the choice; the reactions below flip the visible mode/rtl live. setReadingMode
-    // translates the single Manga/Comic/Strip identity into the internal layout + direction seams.
-    function setReadingMode(rm) {
-        if (rm === readingMode) return
+    // ---- the two INDEPENDENT choices (Task 3) ----
+    // Each setter writes ONE of them and nothing else. That is the whole point: picking Long Strip
+    // must not flip a manga to left-to-right, and picking a direction must not throw you out of
+    // Long Strip. Both remember the choice for THIS series AND seed the global last-choice, so a
+    // series you have never opened follows the taste you keep picking (MangaReader.setDirection
+    // wrote both for the same reason: re-picking per new series is a chore).
+    function setLayout(value) {
+        if (!ComicReaderState.layoutIsValid(value)) return   // unknown layout: refuse, never wedge
+        if (value === layout) return
         // KEEP YOUR PAGE across the switch. Ported from the reader this replaced
         // (MangaReader.setStyle): changing how pages are laid out is not a reason to lose your
         // place, and every reader in the family gets this right.
         var keep = currentPage
-        persistedMode = ComicReaderState.readingModeLayout(rm)
-        persistedDirection = ComicReaderState.readingModeRtl(rm) ? "rtl" : "ltr"
+        layout = value
         if (max > 0 && keep > 1) {
             currentPage = keep
             // Entering the strip, the seek MUST be deferred. The lineage's comment says why, and it
             // is the whole bug: the view positions its children a vsync later, so an immediate jump
             // reads y=0 for every not-yet-realized delegate and lands at the top of the book. The
             // 300ms settle is TB2's number.
-            if (persistedMode === "long_strip") _armStripRestore()
+            if (layout === "long_strip") _armStripRestore()
         }
-        // Remember it for THIS series, and make it the default for series you haven't touched —
-        // MangaReader.setDirection writes both for exactly this reason: the mode you keep choosing
-        // is the mode you want, and re-picking it per new series is a chore.
         if (_ready) {
-            globalPrefs.readingMode = rm
+            globalPrefs.layout = value
             _saveSeriesPrefs()
         }
     }
+    function setOrder(value) {
+        if (!ComicReaderState.orderIsValid(value)) return
+        if (value === order) return
+        order = value
+        if (_ready) {
+            globalPrefs.order = value
+            _saveSeriesPrefs()
+        }
+    }
+    // COMPATIBILITY: the single Manga/Comic/Strip identity the HUD chips + settings sheet still
+    // speak, expressed on top of the two independent choices. Manga/Comic set BOTH (the identity
+    // always carried a direction); Strip sets the layout ALONE and deliberately leaves the order
+    // where it is — under the old identity "strip" forced LTR, and that forcing is exactly what
+    // Task 3 removes. An unknown identity is ignored outright, so a frozen or invented mode name
+    // can never reach the reader through this door.
+    function setReadingMode(rm) {
+        if (rm === "strip") { setLayout("long_strip"); return }
+        if (rm !== "manga" && rm !== "comic") return
+        setLayout("paired_pages")
+        setOrder(rm === "manga" ? "rtl" : "ltr")
+    }
     // M cycles the three identities Manga -> Comic -> Strip -> Manga.
     function cycleMode() {
-        var order = ["manga", "comic", "strip"]
-        var i = order.indexOf(readingMode)
-        setReadingMode(order[(i < 0 ? 0 : (i + 1) % order.length)])
+        var ring = ["manga", "comic", "strip"]      // NOT `order` — that is a shell property now
+        var i = ring.indexOf(readingMode)
+        setReadingMode(ring[(i < 0 ? 0 : (i + 1) % ring.length)])
     }
     // B toggles a bookmark on the CURRENT page. The HUD's scrub-bar ticks bind to `liveBookmarks`
     // (below), never to the load-time persistedState snapshot — so a toggle actually moves them.
@@ -546,9 +576,10 @@ Item {
         entrySave.stop()
         entryRecords.all = ComicReaderState.storePut(entryRecords.all, curChapterId, null)
         seriesRecords.all = ComicReaderState.storePut(seriesRecords.all, seriesId, null)
-        persistedMode = ""
-        persistedDirection = ""
         persistedState = ({})
+        // no seams to clear any more: the record IS the memory, and load() -> _applySeriesPrefs()
+        // now re-resolves layout/order from the (just-deleted) record -> the global last-choice ->
+        // the lane default, exactly as a series you had never opened would.
         load()
     }
 
@@ -604,17 +635,9 @@ Item {
     }
     // runtime chapterId change (a caller re-targets the reader) — construction is handled by onCompleted
     onChapterIdChanged: { if (_ready && chapterId !== curChapterId) openEntryById(chapterId, false) }
-    // Task 11: a HUD/input toggle writes the PERSISTED seam; flip the visible mode/rtl live. Guarded
-    // by _ready so construction-time defaults (persisted "" during createObject) never fire this —
-    // load() owns the initial mode/direction. persistedMode/Direction stay the single source load()
-    // reads on every crossing, so the toggle survives a chapter/volume jump.
-    onPersistedModeChanged: if (_ready && persistedMode.length && mode !== persistedMode) mode = persistedMode
-    onPersistedDirectionChanged: {
-        if (_ready && persistedDirection.length) {
-            var want = (persistedDirection === "rtl")
-            if (rtl !== want) rtl = want
-        }
-    }
+    // NOTE (Task 3): the old onPersistedModeChanged / onPersistedDirectionChanged reactions are
+    // gone with the seams. A HUD/settings toggle now calls setLayout()/setOrder(), which write the
+    // live state AND the record in one move — there is no second copy to keep in step.
     // callers HIDE (visible:false) on back and SHOW again to reopen — flush the Continue spot but
     // KEEP the backend entry open, or reopen-same-entry would show a blank reader. The entry is torn
     // down ONLY on destruction (Component.onDestruction).
@@ -670,9 +693,15 @@ Item {
         property int    stripWidthPct: 78
         property int    stripGap: 0
         property bool   memorySaver: false
-        // the last identity you picked anywhere becomes the default for a series you've never
-        // touched (MangaReader.setDirection writes the global AND the per-series override). "" =
-        // never chosen -> the lane default (manga->Manga, western->Comic) still decides.
+        // the last LAYOUT and the last ORDER you picked anywhere become the defaults for a series
+        // you've never touched (MangaReader.setDirection writes the global AND the per-series
+        // override for the same reason). "" = never chosen -> the lane default decides.
+        // Two keys, not one, because Task 3 made them independent.
+        property string layout: ""
+        property string order: ""
+        // LEGACY: the combined identity this global used to hold. Kept so the first launch after
+        // the update still understands a global written by the shipped reader. READ, never written
+        // again — _applySeriesPrefs migrates it, setLayout/setOrder write the two keys above.
         property string readingMode: ""
     }
     Settings { id: seriesStore; category: "comicReaderSeries"; property string all: "{}" }
@@ -696,8 +725,14 @@ Item {
         // deliberately survives entry crossings), so pushing it once here is enough.
         if (core && core.setStripLayout) core.setStripLayout(globalPrefs.stripWidthPct, globalPrefs.stripGap)
     }
-    // The per-series identity override, resolved for the CURRENT series. Falls back to the global
-    // last-choice, then to "" so load()'s lane default decides.
+    // The per-series reader preferences, resolved for the CURRENT series and applied. THREE layers,
+    // most specific first: this series' own record -> the global last-choice (the layout/order you
+    // last picked anywhere) -> this lane's default (manga + tankoban open Manga RTL, western opens
+    // Comic LTR). Every legacy record shape is understood by ONE tested door,
+    // ComicReaderState.migrateReaderPrefs, and the migration happens IN MEMORY ONLY: opening a book
+    // must never rewrite the store. A read is not a write — the old record stands until the reader
+    // makes a real change (setLayout/setOrder/setStripLayout/a coupling nudge), which is what
+    // _saveSeriesPrefs re-writes in the new shape.
     function _applySeriesPrefs() {
         var rec = ComicReaderState.storeGet(seriesRecords.all, seriesId)
 
@@ -713,13 +748,17 @@ Item {
         // next undressed series would inherit it - the exact leak per-series is meant to end.
         if (core && core.setStripLayout) setStripLayout(w, g, false)
 
-        var rm = (rec && rec.rm) ? rec.rm : globalPrefs.readingMode
-        // Nothing remembered -> leave persistedMode/Direction EXACTLY as they are. The store is a
-        // source of memory, not an eraser: these are also the seams a caller (or the harness) can
-        // set directly, and an empty store must not wipe a deliberate choice back to the default.
-        if (!rm) return
-        persistedMode = ComicReaderState.readingModeLayout(rm)
-        persistedDirection = ComicReaderState.readingModeRtl(rm) ? "rtl" : "ltr"
+        // Layout + order. A record that says NOTHING about either (it may exist only to hold a
+        // strip measure or a coupling phase) is not an opinion, so the global last-choice answers
+        // instead — and that global rides the SAME migration, so a legacy global ("strip", written
+        // before the split) is understood exactly like a legacy record.
+        var src = (rec && (rec.layout !== undefined || rec.order !== undefined
+                           || rec.rm !== undefined || rec.readingMode !== undefined))
+                ? rec
+                : { layout: globalPrefs.layout, order: globalPrefs.order, rm: globalPrefs.readingMode }
+        var prefsForSeries = ComicReaderState.migrateReaderPrefs(src, entryKind, western)
+        layout = prefsForSeries.layout
+        order = prefsForSeries.order
     }
     // The per-entry blob handed straight to core.openEntry(). memorySaver is a GLOBAL that merely
     // RIDES this blob (the backend round-trips it there and resets it per entry), so it is injected
@@ -751,7 +790,13 @@ Item {
     function _saveSeriesPrefs(extra) {
         if (!seriesId.length) return
         var rec = ComicReaderState.storeGet(seriesRecords.all, seriesId) || ({})
-        rec.rm = readingMode
+        rec.layout = layout
+        rec.order = order
+        // THIS is the "next real user change" that retires the combined identity for this series:
+        // leaving `rm` behind would keep a stale answer in the record forever, saying "manga" long
+        // after the reader had been switched to Long Strip. Migration is on READ; retirement is on
+        // the first WRITE, never merely on opening the book.
+        delete rec.rm
         // A null VALUE means "delete this key", which is how resetCoupling drops the series-wide
         // pairing seed. Storing an explicit null instead would survive the JSON round-trip and read
         // back as a real (falsy but present) value on the next open.

@@ -165,6 +165,93 @@ function readingModeFrom(layout, rtl) {
     return rtl ? "manga" : "comic"
 }
 
+// --- layout + order: two INDEPENDENT choices (Task 3, plan 2026-07-28) -----------------------
+// Hemanth's ruling for the overhaul: Colosseum's reading model is stronger than both reference
+// apps' precisely because it keeps these apart, and it must not be weakened.
+//   ORDER  — the physical page ORDERING: comic = "ltr", manga = "rtl".
+//   LAYOUT — presentation ONLY: "single_page" | "paired_pages" | "long_strip".
+// Changing the layout must never change the direction, and choosing a direction must never throw
+// you out of Long Strip. The combined readingMode identity above (manga/comic/strip) could not
+// express that: "strip" meant LTR by construction, and there was no way to say "single page" at
+// all. These two fields are the persisted truth from here on; readingMode* survive only as the
+// compatibility mapping for the surfaces/chrome that have not moved to the Layout menu yet.
+var LAYOUTS = ["single_page", "paired_pages", "long_strip"]
+
+function layoutIsValid(value) { return LAYOUTS.indexOf(value) >= 0 }
+function orderIsValid(value)  { return value === "ltr" || value === "rtl" }
+// The layout half of a legacy combined identity. "strip" is the vertical flow; manga and comic
+// were BOTH double-page, so both land on paired pages — the identity never carried single page.
+function layoutFromReadingMode(rm) { return rm === "strip" ? "long_strip" : "paired_pages" }
+
+// One numeric persisted value, clamped into its approved range, with the approved default for
+// anything missing or unreadable. `Number(...) || fallback` deliberately catches undefined, null,
+// "", NaN and 0 — a stored 0 is out of range for every field here, so the default is the honest
+// answer rather than the low clamp.
+function _clampNumber(value, lo, hi, fallback) {
+    var n = Number(value) || fallback
+    return Math.max(lo, Math.min(hi, n))
+}
+
+// TOTAL migration of ONE persisted reader record into the layout/order model.
+//
+// "Total" means: every input — {}, null, a record written by the shipped reader, a half-written or
+// hand-edited one — comes back as a complete, in-range preference set, and NEVER throws. A settings
+// blob survives crashes, upgrades and hand edits; it is not a trustworthy input.
+//
+// Legacy shapes understood, most specific first:
+//   * the new fields            {layout, order}
+//   * the SHIPPED series record {rm: "manga"|"comic"|"strip"}  (_saveSeriesPrefs's terse key)
+//   * the same identity, long   {readingMode: ...}
+//   * a raw layout+direction    {mode: "long_strip"|"double_page", rtl: true|false}
+//   * nothing at all            -> this lane's default (defaultReadingMode + defaultDirection)
+// Unknown/corrupt values fall back to the LANE default, never to a crash and never to a silent
+// direction flip: a manga that opens left-to-right is the failure a reader notices in one glance.
+//
+// Reading is NOT writing: the caller migrates in memory and leaves the stored JSON exactly as it
+// is until the reader's next real user change re-writes it. Opening a book must not rewrite it.
+function migrateReaderPrefs(rec, entryKind, western) {
+    var r = (rec && typeof rec === "object") ? rec : {}
+
+    // the legacy combined identity, IF this record carries one at all
+    var legacy = r.readingMode || r.rm
+    if (!legacy && r.mode !== undefined) legacy = readingModeFrom(r.mode, r.rtl === true)
+    // An absent or unrecognised identity resolves to the LANE default — NOT through
+    // readingModeFrom(), whose fail-safe for an unknown layout is comic-like (LTR double). Routing
+    // an EMPTY record through it would hand a fresh manga series left-to-right pages.
+    if (legacy !== "manga" && legacy !== "comic" && legacy !== "strip")
+        legacy = defaultReadingMode(entryKind, western)
+
+    var layout = layoutIsValid(r.layout) ? r.layout : layoutFromReadingMode(legacy)
+
+    var order = r.order
+    if (!orderIsValid(order)) {
+        if (legacy === "manga")      order = "rtl"
+        else if (legacy === "comic") order = "ltr"
+        // A legacy STRIP record carries no direction of its own — the old identity made strip mean
+        // LTR by construction, which is the conflation being undone here, so a strip record must
+        // NOT be read as "this reader chose left-to-right". An explicit stored rtl flag IS a real
+        // answer and is honoured; otherwise the lane decides (manga/tankoban RTL, western LTR).
+        else if (r.rtl === true)     order = "rtl"
+        else if (r.rtl === false)    order = "ltr"
+        else                         order = defaultDirection(entryKind, western)
+    }
+
+    return {
+        layout: layout,
+        order: order,
+        zoomPercent: _clampNumber(r.zoomPercent, 100, 260, 100),
+        // 78% portrait width is the approved default (design 2026-07-28: range 40-100, default 78,
+        // per series). `sw`/`sg` are the shipped record's terse keys for the same two values.
+        stripWidthPct: _clampNumber(r.stripWidthPct !== undefined ? r.stripWidthPct : r.sw, 40, 100, 78),
+        stripGap: _clampNumber(r.stripGap !== undefined ? r.stripGap : r.sg, 0, 80, 0),
+        autoScrollSpeed: _clampNumber(r.autoScrollSpeed, 0.25, 3.0, 1.0),
+        // Task 7 owns what is INSIDE the render profile; this migration only carries it through
+        // intact, so an image adjustment made in a later build survives a read by this one.
+        renderProfile: (r.renderProfile && typeof r.renderProfile === "object" && !Array.isArray(r.renderProfile))
+                       ? r.renderProfile : {}
+    }
+}
+
 // --- night veil ------------------------------------------------------------------------------
 // The Night-veil level (settings surface 02) -> the opacity of the black page-dim overlay the
 // shell paints over the reading surfaces. Design ruling (comicreader-design.md surface 02 +

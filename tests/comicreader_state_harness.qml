@@ -281,6 +281,171 @@ Item {
             ck(State.readingModeFrom("long_strip", false)  === "strip", "readingModeFrom(long_strip, _) must be 'strip'")
             ck(State.readingModeFrom("long_strip", true)   === "strip", "readingModeFrom(long_strip, rtl) must still be 'strip'")
 
+            // ---- 10b. LAYOUT + ORDER are INDEPENDENT (Task 3, plan 2026-07-28) ----------------
+            // Hemanth's ruling: layout (Single Page / Paired Pages / Long Strip) is presentation
+            // only; order (comic LTR / manga RTL) is the physical page ordering. Neither moves the
+            // other. migrateReaderPrefs is the ONE door every stored record comes through, so these
+            // assertions are about a REAL SAVED BOOK reopening the way its reader left it — not
+            // about what the function happens to do today.
+            ck(State.layoutIsValid("single_page") && State.layoutIsValid("paired_pages")
+               && State.layoutIsValid("long_strip"), "all three approved layouts must be valid")
+            ck(!State.layoutIsValid("double_page"), "the INTERNAL alias 'double_page' is not a persistable layout")
+            ck(!State.layoutIsValid("guided") && !State.layoutIsValid("") && !State.layoutIsValid(null),
+               "an unknown/empty layout must not validate (GUIDED stays frozen)")
+            ck(State.orderIsValid("ltr") && State.orderIsValid("rtl"), "ltr + rtl must be valid orders")
+            ck(!State.orderIsValid("right_left") && !State.orderIsValid("") && !State.orderIsValid(null),
+               "an unknown/empty order must not validate")
+            ck(State.layoutFromReadingMode("strip") === "long_strip", "legacy 'strip' is the long strip")
+            ck(State.layoutFromReadingMode("manga") === "paired_pages", "legacy 'manga' was double-page")
+            ck(State.layoutFromReadingMode("comic") === "paired_pages", "legacy 'comic' was double-page")
+
+            // --- the shipped record shape: {rm} is what _saveSeriesPrefs has been writing ---
+            // THE load-bearing case. A manga series someone is reading right now is stored as
+            // {"rm":"manga"} — it MUST come back right-to-left. If this reads 'ltr' the reader has
+            // silently flipped every saved manga book, which is the one migration failure a reader
+            // cannot miss and cannot fix (there is no direction toggle any more).
+            var legacyManga = State.migrateReaderPrefs({ rm: "manga" }, "manga", false)
+            ck(legacyManga.layout === "paired_pages" && legacyManga.order === "rtl",
+               "legacy {rm:'manga'} must reopen as paired pages, RIGHT-TO-LEFT, got "
+               + JSON.stringify(legacyManga))
+            var legacyComic = State.migrateReaderPrefs({ rm: "comic" }, "manga", true)
+            ck(legacyComic.layout === "paired_pages" && legacyComic.order === "ltr",
+               "legacy {rm:'comic'} must reopen as paired pages, left-to-right, got " + JSON.stringify(legacyComic))
+            // A legacy strip record carries NO direction of its own (the old identity made strip
+            // imply LTR by construction — that is the conflation being undone), so the LANE decides.
+            // A manga read in Long Strip must therefore come back RTL, not LTR: the moment its
+            // reader switches to Paired Pages the pages have to fall in manga order.
+            var legacyStripManga = State.migrateReaderPrefs({ rm: "strip" }, "manga", false)
+            ck(legacyStripManga.layout === "long_strip" && legacyStripManga.order === "rtl",
+               "legacy {rm:'strip'} on a MANGA series must stay long strip and take the lane's RTL, got "
+               + JSON.stringify(legacyStripManga))
+            var legacyStripWestern = State.migrateReaderPrefs({ rm: "strip" }, "manga", true)
+            ck(legacyStripWestern.layout === "long_strip" && legacyStripWestern.order === "ltr",
+               "legacy {rm:'strip'} on a WESTERN series must stay long strip and take the lane's LTR, got "
+               + JSON.stringify(legacyStripWestern))
+            // the long-form identity key resolves identically to the terse one
+            var mangaLong = State.migrateReaderPrefs({ readingMode: "manga" }, "manga", false)
+            ck(mangaLong.layout === "paired_pages" && mangaLong.order === "rtl",
+               "legacy {readingMode:'manga'} must resolve exactly like {rm:'manga'}, got " + JSON.stringify(mangaLong))
+            var stripLong = State.migrateReaderPrefs({ readingMode: "strip" }, "tankoban", false)
+            ck(stripLong.layout === "long_strip" && stripLong.order === "rtl",
+               "legacy {readingMode:'strip'} on a tankoban volume must be long strip + RTL, got " + JSON.stringify(stripLong))
+
+            // --- a raw (mode, rtl) pair: an EXPLICIT stored direction beats the lane default ---
+            var rawStrip = State.migrateReaderPrefs({ mode: "long_strip", rtl: true }, "tankoban", false)
+            ck(rawStrip.layout === "long_strip" && rawStrip.order === "rtl",
+               "legacy {mode:'long_strip', rtl:true} must be long strip + RTL, got " + JSON.stringify(rawStrip))
+            // ...and this is the version that PROVES it, because here the lane default disagrees:
+            // a stored rtl:true on a WESTERN series must survive, not be overwritten with LTR.
+            var rawStripWestern = State.migrateReaderPrefs({ mode: "long_strip", rtl: true }, "manga", true)
+            ck(rawStripWestern.order === "rtl",
+               "an EXPLICIT stored rtl:true must beat the western lane's LTR default, got " + rawStripWestern.order)
+            var rawDouble = State.migrateReaderPrefs({ mode: "double_page", rtl: false }, "manga", false)
+            ck(rawDouble.layout === "paired_pages" && rawDouble.order === "ltr",
+               "legacy {mode:'double_page', rtl:false} must be paired pages + LTR even in the manga lane, got "
+               + JSON.stringify(rawDouble))
+
+            // --- a FRESH series (nothing stored) opens exactly the way it opens today ---
+            // NOTE (deliberate departure from the plan's Step-1 fixture, which asserted
+            // layout === "long_strip" here): the plan's own Step-3 implementation resolves a fresh
+            // record to paired pages, and Hemanth's standing 2026-07-25 ruling is that manga opens
+            // as Manga (RTL double-page, MangaPlus) and western opens as Comic (LTR double-page) —
+            // pinned by the shell gate's "mode must default to 'double_page'" assertion. Reversing
+            // which layout a book opens in is a product decision, not something a migration
+            // function should smuggle in, so the lane default stands and the plan line is reported.
+            var freshWestern = State.migrateReaderPrefs({}, "comic", true)
+            ck(freshWestern.layout === "paired_pages" && freshWestern.order === "ltr",
+               "a fresh WESTERN series must open paired pages + LTR (the lane default), got "
+               + JSON.stringify(freshWestern))
+            ck(freshWestern.stripWidthPct === 78 && freshWestern.autoScrollSpeed === 1.0,
+               "approved strip defaults: 78% portrait width + 1.0x auto-scroll, got "
+               + freshWestern.stripWidthPct + " / " + freshWestern.autoScrollSpeed)
+            // THE anti-regression: an empty record must NOT be read through readingModeFrom()'s
+            // comic-like fail-safe, or every fresh manga series would open left-to-right.
+            var freshManga = State.migrateReaderPrefs({}, "manga", false)
+            ck(freshManga.order === "rtl",
+               "a fresh MANGA series must open RIGHT-TO-LEFT (lane default), got " + freshManga.order)
+            ck(freshManga.layout === "paired_pages",
+               "a fresh manga series must open paired pages (Hemanth 2026-07-25: MangaPlus double), got "
+               + freshManga.layout)
+            var freshTankoban = State.migrateReaderPrefs({}, "tankoban", false)
+            ck(freshTankoban.order === "rtl", "a fresh TANKOBAN volume must open RTL, got " + freshTankoban.order)
+
+            // --- the NEW fields are the truth: they beat any legacy key left in the record ---
+            var mixed = State.migrateReaderPrefs({ layout: "single_page", order: "rtl", rm: "comic" }, "manga", true)
+            ck(mixed.layout === "single_page" && mixed.order === "rtl",
+               "the new layout/order fields must beat a stale legacy rm in the same record, got " + JSON.stringify(mixed))
+            // Single Page is a first-class PERSISTABLE layout even though no surface paints it until
+            // Task 4 — the state model has to be able to express it before the surface exists.
+            var single = State.migrateReaderPrefs({ layout: "single_page" }, "manga", false)
+            ck(single.layout === "single_page", "single_page must survive a round trip, got " + single.layout)
+            ck(single.order === "rtl", "single_page on a manga series must still take the lane's RTL, got " + single.order)
+
+            // --- corrupt / hostile records: lane defaults, never a throw, never a direction flip ---
+            var badLayout = State.migrateReaderPrefs({ layout: "guided", order: "rtl" }, "manga", false)
+            ck(badLayout.layout === "paired_pages" && badLayout.order === "rtl",
+               "an unknown layout must fall back to the lane default WITHOUT touching a good order, got "
+               + JSON.stringify(badLayout))
+            var badOrder = State.migrateReaderPrefs({ layout: "long_strip", order: "sideways" }, "manga", false)
+            ck(badOrder.layout === "long_strip" && badOrder.order === "rtl",
+               "an unknown order must fall back to the lane default WITHOUT touching a good layout, got "
+               + JSON.stringify(badOrder))
+            var badIdentity = State.migrateReaderPrefs({ rm: "guided" }, "manga", false)
+            ck(badIdentity.layout === "paired_pages" && badIdentity.order === "rtl",
+               "an unknown legacy identity must resolve to the lane default (GUIDED stays frozen), got "
+               + JSON.stringify(badIdentity))
+            ck(State.migrateReaderPrefs(null, "manga", false).order === "rtl",
+               "migrateReaderPrefs(null) must be total (lane default), not a throw")
+            ck(State.migrateReaderPrefs(undefined, "manga", true).order === "ltr",
+               "migrateReaderPrefs(undefined) must be total (lane default), not a throw")
+            ck(State.migrateReaderPrefs("not a record", "manga", false).layout === "paired_pages",
+               "migrateReaderPrefs(non-object) must be total, not a throw")
+
+            // --- numeric ranges (design 2026-07-28) ---
+            var clamped = State.migrateReaderPrefs({ zoomPercent: 9000, stripWidthPct: 5,
+                                                     stripGap: 900, autoScrollSpeed: 9 }, "manga", false)
+            ck(clamped.zoomPercent === 260, "zoomPercent must clamp high to 260, got " + clamped.zoomPercent)
+            ck(clamped.stripWidthPct === 40, "stripWidthPct must clamp low to 40, got " + clamped.stripWidthPct)
+            ck(clamped.stripGap === 80, "stripGap must clamp high to 80, got " + clamped.stripGap)
+            ck(clamped.autoScrollSpeed === 3.0, "autoScrollSpeed must clamp high to 3.0, got " + clamped.autoScrollSpeed)
+            var clampedLow = State.migrateReaderPrefs({ zoomPercent: 10, stripWidthPct: 500,
+                                                        stripGap: -40, autoScrollSpeed: 0.01 }, "manga", false)
+            ck(clampedLow.zoomPercent === 100, "zoomPercent must clamp low to 100, got " + clampedLow.zoomPercent)
+            ck(clampedLow.stripWidthPct === 100, "stripWidthPct must clamp high to 100, got " + clampedLow.stripWidthPct)
+            ck(clampedLow.stripGap === 0, "stripGap must clamp low to 0, got " + clampedLow.stripGap)
+            ck(clampedLow.autoScrollSpeed === 0.25, "autoScrollSpeed must clamp low to 0.25, got " + clampedLow.autoScrollSpeed)
+            var garbageNums = State.migrateReaderPrefs({ zoomPercent: "wide", stripWidthPct: null,
+                                                         stripGap: "none", autoScrollSpeed: {} }, "manga", false)
+            ck(garbageNums.zoomPercent === 100 && garbageNums.stripWidthPct === 78
+               && garbageNums.stripGap === 0 && garbageNums.autoScrollSpeed === 1.0,
+               "unreadable numbers must take the approved defaults, got " + JSON.stringify(garbageNums))
+            // the SHIPPED terse measure keys are the ones real records carry
+            var terse = State.migrateReaderPrefs({ rm: "strip", sw: 55, sg: 12 }, "manga", false)
+            ck(terse.stripWidthPct === 55 && terse.stripGap === 12,
+               "the shipped terse sw/sg keys must migrate into stripWidthPct/stripGap, got " + JSON.stringify(terse))
+            ck(terse.layout === "long_strip", "the terse record's identity must still resolve, got " + terse.layout)
+
+            // --- renderProfile is carried through UNTOUCHED (Task 7 owns its contents) ---
+            var rp = State.migrateReaderPrefs({ renderProfile: { brightness: 20, quality: "best" } }, "manga", false)
+            ck(rp.renderProfile.brightness === 20 && rp.renderProfile.quality === "best",
+               "renderProfile must pass through intact, got " + JSON.stringify(rp.renderProfile))
+            ck(JSON.stringify(State.migrateReaderPrefs({ renderProfile: "junk" }, "manga", false).renderProfile) === "{}",
+               "a non-object renderProfile must degrade to an empty map, not leak a string through")
+            ck(JSON.stringify(State.migrateReaderPrefs({}, "manga", false).renderProfile) === "{}",
+               "an absent renderProfile must be an empty map")
+
+            // --- IDEMPOTENT: migrating an already-migrated record must not drift ---
+            // The record written after a user change is the record read on the next launch, so a
+            // second pass has to be a no-op or the reader would walk a book's settings over time.
+            var once = State.migrateReaderPrefs({ rm: "manga", sw: 62, sg: 8 }, "manga", false)
+            var twice = State.migrateReaderPrefs(once, "manga", false)
+            ck(deepEqual(once, twice),
+               "migrateReaderPrefs must be idempotent, got " + JSON.stringify(once) + " then " + JSON.stringify(twice))
+            // ...and the western lane must not re-flip a book whose stored order is RTL.
+            var rtlUnderWestern = State.migrateReaderPrefs(once, "manga", true)
+            ck(rtlUnderWestern.order === "rtl",
+               "a migrated record's explicit order must survive a lane it disagrees with, got " + rtlUnderWestern.order)
+
             // --- persistence map helpers (the Settings elements are thin sinks; THIS is the logic) ---
             // Both stores are one JSON string holding a map keyed by series/entry id, exactly like
             // MangaReader's seriesStore/chapterStore. Reads must survive garbage without throwing —
