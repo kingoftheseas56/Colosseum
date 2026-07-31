@@ -2866,6 +2866,23 @@ Item {
         id: mpv
         anchors.fill: parent
         z: 0
+        Component.onCompleted: {
+            // mpv's own --profile=fast, applied option-by-option (the named profile isn't
+            // guaranteed across libmpv versions). Rationale: on this machine one integrated GPU
+            // serves BOTH mpv's per-frame video shaders AND Qt's scene compositing; every pass
+            // mpv spends on luxury scaling/dither/HDR-peak analysis is a pass stolen from
+            // putting the frame on screen. Upstream reports this exact preset curing stutter on
+            // low-spec hardware (mpv#9417 family). Costs some scaling finesse — Hemanth's eyes
+            // are the gate; revert this one block to restore mpv's quality defaults.
+            mpv.setProperty("scale", "bilinear")
+            mpv.setProperty("cscale", "bilinear")
+            mpv.setProperty("dscale", "bilinear")
+            mpv.setProperty("dither", "no")
+            mpv.setProperty("correct-downscaling", "no")
+            mpv.setProperty("linear-downscaling", "no")
+            mpv.setProperty("sigmoid-upscaling", "no")
+            mpv.setProperty("hdr-compute-peak", "no")
+        }
         onCurrentUrlChanged: {
             seekThumbs.reset()          // new file = new frames; stale thumbs must not survive
             root.hoverThumbUrl = ""
