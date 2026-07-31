@@ -39,3 +39,37 @@ own `qqpc_d3d11` pipeline cache.
 - It says nothing about mpv. Player 1's `MpvItem` renders through a GL-only path, so
   flipping the app to D3D11 still costs the CURRENT player. The books half of the
   objection is dead; the mpv half is not.
+
+---
+
+# Follow-up: can an in-app grab SEE the reader under D3D11? YES — pixel-identical
+
+Run: `tests\d3dbooks\rungrab.bat gl` and `... d3d` (probe: `GrabTest.qml`).
+
+The "uncapturable headless" memory rules out grabbing Colosseum from OUTSIDE the process
+(GDI `CopyFromScreen`, `PrintWindow`, computer-use MCP). `QQuickItem::grabToImage()` is a
+different mechanism — it re-renders through Qt's own scene graph, in-process. Two things
+were unproven, and the second was the real risk:
+
+1. does `grabToImage()` work on a D3D11 boot?
+2. does it capture **WebEngine** content? Chromium renders OUT OF PROCESS, so its pixels
+   could plausibly never appear in the scene graph at all.
+
+**Both hold.** Each arm reported `GRAB_OK` and wrote a PNG containing Chromium's actual
+pixels (red page, white "GRAB ME", blue block) — not a blank or black frame.
+
+    grab-gl.png   (OpenGL boot)
+    grab-d3d.png  (D3D11 boot, COLOSSEUM_PLAYER2=1)
+
+**The two files are BYTE-IDENTICAL.** Chromium composites the same picture on both backends.
+
+## Why this matters beyond books
+
+This is the capability the lanista dev-control bridge
+(`Brotherhood/docs/superpowers/plans/2026-08-01-colosseum-lanista-bridge.md`) is built on:
+its golden-image work (Task 8) assumes `grabToImage()` can see the app. For WebEngine
+surfaces on either backend, it can. Verified before the goldens were written, not after.
+
+**API gotcha for whoever builds on this:** in the QML callback, `result.image.width` reads
+back `undefined` — `QQuickItemGrabResult.image` is not introspectable that way from QML.
+Use `result.saveToFile(path)` (returns bool) and take dimensions from the source item.
