@@ -255,6 +255,7 @@ Item {
     ListModel { id: stripModelFail }
     ListModel { id: stripModelAuto }    // Task 8: Auto-scroll, on a column of its own
     ListModel { id: stripModelRange }   // Task 8: the requestRange retention window
+    ListModel { id: stripModelLoupe }   // Task 9: the drawn-row report the Loupe reads
 
     FakeCore { id: coreStrip }
     FakeCore { id: coreAuto }      // Task 8: Auto-scroll
@@ -298,6 +299,8 @@ Item {
     FakeCore { id: coreSingle }    // Task 4: Single Page geometry, tiers, zoom centroid, pan clamp
     FakeCore { id: coreSinglePix } // Task 4: Single Page presented(), driven by real file fixtures
     FakeCore { id: coreSingleDefer } // Task 4: the DEFERRED re-check, asserted in phase three
+    FakeCore { id: coreLoupeStrip }  // Task 9: the drawn-row report, on a column of its own
+    FakeCore { id: coreLoupeSingle } // Task 9: the drawn-page report for Single Page
 
     property var stripComp: null
     property var doubleComp: null
@@ -2015,6 +2018,162 @@ Item {
     }
     property var deferredSingle: null
 
+    // ============================ WHAT THE SURFACES ARE DRAWING (Task 9) ============================
+    // The Loupe asks each surface ONE question — "what are you painting, and where?" — and all three
+    // answer in the same shape, which is what lets one lens work in Single, Pair and Long Strip
+    // without a case per layout. This slice pins that contract at the source: the answer is the
+    // PAPER's box (not the row's, not the viewport's), it is in the surface's own coordinates, it
+    // moves when the book moves, and a surface that is not the mounted one draws nothing and says so.
+    //
+    // Plus the strip's WHEEL LOCK — the structural half of "the Loupe never changes the reading
+    // position". The lens's own tracker swallows the wheel over the comic; this proves the column
+    // cannot move even if an event reached its intake anyway.
+    property var loupeStripSurface: null
+
+    function runVisiblePageRects() {
+        // ---- LONG STRIP: the rows on screen ----
+        // 300-wide pages in a 520-wide viewport, so the paper is NARROWER than the row and the
+        // report has to be the paper's box, not the row's. (The runStrip fixture is 800-wide pages
+        // in a 520 viewport — the opposite mistake — so neither one can pass by accident.)
+        stripModelLoupe.clear()
+        for (var i = 0; i < 40; i++)
+            stripModelLoupe.append({ pageIndex: i, top: i * 200, displayWidth: 300,
+                                     displayHeight: 200, ready: true, errorCode: 0 })
+        coreLoupeStrip.stripModel = stripModelLoupe
+        var st = stripComp.createObject(harness, {
+            "width": 520, "height": 480, "active": true, "core": coreLoupeStrip
+        })
+        if (!st) { failures.push("rects: strip createObject returned null"); return }
+        loupeStripSurface = st
+        st.forceRelayout()
+
+        var rects = st.visiblePageRects()
+        // 480 of viewport over 200-tall rows = rows 0,1,2 and the top of row 3 — but assert on the
+        // GEOMETRY rather than on a count, so a change to the row height does not silently pass.
+        ck(rects.length >= 2, "rects strip: a 480-tall viewport over 200-tall rows must report "
+           + "several rows, got " + rects.length)
+        var okStrip = true, why = ""
+        for (var r = 0; r < rects.length; r++) {
+            var e = rects[r]
+            if (!(e.width === 300)) { okStrip = false; why = "width " + e.width + " (must be the PAPER's 300, not the row's 520)" ; break }
+            if (!(Math.abs(e.x - (520 - 300) / 2) < 0.5)) { okStrip = false; why = "x " + e.x + " (the paper is centred in the row)"; break }
+            if (!(e.height === 200)) { okStrip = false; why = "height " + e.height; break }
+            if (String(e.url).indexOf("tier=hq") < 0) { okStrip = false; why = "url '" + e.url + "' (the lens samples the hq tier)"; break }
+            if (String(e.url).indexOf("/" + e.page + "?") < 0) { okStrip = false; why = "url '" + e.url + "' is not page " + e.page + "'s"; break }
+        }
+        ck(okStrip, "rects strip: every reported row must be the PAPER's box on the hq tier — bad " + why)
+        // the rows are the ones on screen, in order, starting at the top edge
+        ck(rects.length > 0 && rects[0].page === 0 && Math.abs(rects[0].y) < 0.5,
+           "rects strip: the first reported row is the one at the top edge, got page "
+           + (rects.length ? rects[0].page : "<none>") + " at y " + (rects.length ? rects[0].y : "?"))
+        ck(rects.length > 1 && rects[1].page === 1 && Math.abs(rects[1].y - 200) < 0.5,
+           "rects strip: the next row sits one row lower, got " + JSON.stringify(rects.length > 1 ? rects[1] : null))
+
+        // ---- ...AND IT MOVES WHEN THE BOOK MOVES. This is the whole Long Strip requirement: the
+        //      page under a stationary lens changes because the COLUMN moved, never because the lens
+        //      did. Park the column 3.5 rows down and the report must start on a different page. ----
+        st.haltScrollAt(700)
+        st.forceRelayout()
+        var scrolled = st.visiblePageRects()
+        ck(scrolled.length > 0 && scrolled[0].page === 3,
+           "rects strip: after scrolling 700px (3.5 rows) the report must start at page 3, got "
+           + (scrolled.length ? scrolled[0].page : "<none>"))
+        ck(scrolled.length > 0 && Math.abs(scrolled[0].y - (-100)) < 0.5,
+           "rects strip: ...with the part-scrolled row reported ABOVE the viewport top (y -100), got "
+           + (scrolled.length ? scrolled[0].y : "?"))
+        st.haltScrollAt(0)
+
+        // ---- a surface that is not mounted is drawing nothing, and says so ----
+        st.active = false
+        ck(st.visiblePageRects().length === 0,
+           "rects strip: an INACTIVE surface draws nothing and must report nothing, got "
+           + st.visiblePageRects().length)
+        st.active = true
+
+        // ---- THE WHEEL LOCK ----
+        // Driven through the intake function itself, not through a synthesized event: it is the ONE
+        // wheel door, so a guard there cannot be routed around, and a test that pressed a real wheel
+        // event would be testing Qt's delivery order instead of this rule.
+        //
+        // ASSERTED ON THE BACKLOG, NOT ON contentY, and that is the whole difference between a real
+        // check and a vacuous one. A wheel notch does not move contentY synchronously — it queues
+        // pixels into `_pendingWheelPx` and a FrameAnimation drains them over the following frames —
+        // so a same-beat read of contentY is unchanged whether the lock held or not. (Measured: with
+        // the guard deleted, a contentY-only assertion still passed.) The backlog IS set
+        // synchronously, and manualNavigation() fires synchronously, so those two are what the rule
+        // can actually be seen in.
+        st.haltScrollAt(200)
+        var yBefore = st.contentY
+        var navBefore = harness.stripManualNavCount
+        st.wheelLocked = true
+        st._intakeWheel(-600, 0)
+        ck(st._pendingWheelPx === 0 && st.contentY === yBefore,
+           "rects strip: with the Loupe up the wheel must NOT reach the column — backlog "
+           + st._pendingWheelPx + ", contentY " + st.contentY + " (was " + yBefore + ")")
+        ck(harness.stripManualNavCount === navBefore,
+           "rects strip: ...and a locked wheel is not a gesture either, got "
+           + (harness.stripManualNavCount - navBefore) + " manualNavigation")
+        st.wheelLocked = false
+        st._intakeWheel(-600, 0)
+        ck(st._pendingWheelPx !== 0,
+           "rects strip: fixture - unlocked, the SAME wheel must queue real pixels, or the check "
+           + "above proves nothing. Got backlog " + st._pendingWheelPx)
+        st.haltScrollAt(0)
+
+        // ---- SINGLE PAGE: one page, the box it is actually drawn in ----
+        coreLoupeSingle.pageSizes[3] = { w: 1000, h: 1500 }
+        var sg = singleComp.createObject(harness, {
+            "width": 800, "height": 480, "active": true, "currentPage": 4, "core": coreLoupeSingle
+        })
+        if (sg) {
+            var sr = sg.visiblePageRects()
+            ck(sr.length === 1, "rects single: Single Page draws exactly one page, got " + sr.length)
+            if (sr.length === 1) {
+                ck(sr[0].page === 3, "rects single: ...page 3 (1-based 4), got " + sr[0].page)
+                // Read against the surface's OWN drawn readbacks, so the two can never drift: a
+                // contain-fitted 1000x1500 page in 800x480 is 320x480 at x=240.
+                ck(approx(sr[0].x, sg.drawnX, 0.01) && approx(sr[0].y, sg.drawnY, 0.01)
+                   && approx(sr[0].width, sg.drawnWidth, 0.01) && approx(sr[0].height, sg.drawnHeight, 0.01),
+                   "rects single: the reported box must BE the drawn box, got " + JSON.stringify(sr[0])
+                   + " vs drawn " + sg.drawnX + "," + sg.drawnY + " " + sg.drawnWidth + "x" + sg.drawnHeight)
+                ck(approx(sr[0].width, 320, 0.01), "rects single: fixture - the drawn width is the CONTAIN fit 320, got " + sr[0].width)
+                ck(String(sr[0].url).indexOf("tier=hq") >= 0,
+                   "rects single: the lens samples the hq tier, got '" + sr[0].url + "'")
+            }
+            sg.active = false
+            ck(sg.visiblePageRects().length === 0, "rects single: an INACTIVE surface reports nothing")
+            sg.destroy()
+        } else failures.push("rects: single createObject returned null")
+
+        // ---- PAIR: TWO boxes, which is what lets the lens straddle the gutter ----
+        coreDouble.units = { 3: { rightIndex: 3, leftIndex: 4, spread: false, coverAlone: false } }
+        var dp = makeDouble({ "currentPage": 4, "rtl": true })
+        if (dp) {
+            var dr = dp.visiblePageRects()
+            ck(dr.length === 2, "rects pair: a PAIR must report both halves — this is what lets the "
+               + "lens sit across the gutter, got " + dr.length)
+            if (dr.length === 2) {
+                ck(dr[0].page === 3 && dr[1].page === 4,
+                   "rects pair: ...the unit's two pages, got " + dr[0].page + "," + dr[1].page)
+                ck(approx(dr[0].x, dp.rightIndexX, 0.01) && approx(dr[0].width, dp.rightPageWidth, 0.01)
+                   && approx(dr[1].x, dp.leftIndexX, 0.01) && approx(dr[1].width, dp.leftPageWidth, 0.01),
+                   "rects pair: each box must BE the drawn box, got " + JSON.stringify(dr))
+                // RTL: the rightIndex page is physically to the RIGHT, so the two boxes are on
+                // opposite sides of the spine and the gutter really is between them.
+                ck(dr[0].x > dr[1].x, "rects pair: RTL - the two reported boxes must sit either side "
+                   + "of the spine, got " + dr[0].x + " vs " + dr[1].x)
+            }
+            // a SINGLE/spread unit is one box, not a pair pretending
+            coreDouble.units = { 7: { rightIndex: 7, leftIndex: -1, spread: true, coverAlone: false } }
+            dp.currentPage = 8
+            ck(dp.visiblePageRects().length === 1,
+               "rects pair: a spread is ONE page, got " + dp.visiblePageRects().length)
+            dp.active = false
+            ck(dp.visiblePageRects().length === 0, "rects pair: an INACTIVE surface reports nothing")
+            dp.destroy()
+        } else failures.push("rects: double createObject returned null")
+    }
+
     function runPhaseThree() {
         if (!deferredSingle) { report(); return }
         // DRAIN first. The mount's own presentation was noticed synchronously during construction —
@@ -2067,6 +2226,7 @@ Item {
             runDoublePairGate()      // Task 4: the pair paints as ONE unit, or not at all
             runSingle()              // Task 4: the Single Page layout
             runSinglePresented()     // Task 4: presented(), on real pixels
+            runVisiblePageRects()    // Task 9: what each surface is drawing, for the Loupe
             setUpDeferredCheck()     // ...and arm the one check that has to let go (phase three)
         } catch (e) {
             failures.push("exception during phase two: " + e.message)

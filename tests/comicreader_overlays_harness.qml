@@ -51,6 +51,19 @@
 //     clamped inside the reader, and degrading to Task 7's right-margin drop with no seam.
 //   * dismiss changes nothing; the panel swallows its own clicks.
 //
+// SLICE 5 — ComicReaderLoupe, the temporary full-resolution magnifier (Task 9):
+//   * 2.0x default, clamped 1.5-4.0 by BOTH adjustment doors (wheel step and +/-).
+//   * the lens follows the pointer; a click PINS it and the pointer then does nothing; a second
+//     click releases and it follows again.
+//   * near a viewport edge the lens BODY moves inward and stays fully on screen while the ANCHOR
+//     — the point you asked to inspect — never moves.
+//   * pageAt / pageRect / sampledPages over the surface's DRAWN boxes, in all three layouts:
+//     one half of a pair, ACROSS the gutter (both halves), the single page, and a Long Strip
+//     column whose rows move under a stationary anchor.
+//   * the sample is requested at the TOP magnification's size, so it is never an on-screen texture
+//     blown up, and the request does not move as the wheel turns.
+//   * a whole lens session leaves the surface's facts byte-identical and emits nothing.
+//
 // HOUSE HARNESS PATTERN (mirrors comicreader_surfaces_harness.qml): a thrown error hangs qml.exe
 // offscreen, so `ck` never throws — it collects failures; prints exactly one COMICREADER_OVERLAYS_OK
 // when clean, else one COMICREADER_OVERLAYS_FAIL:<msg> per failure and Qt.exit(1).
@@ -1088,6 +1101,250 @@ Item {
            "layout: a tap on the panel's own ground must NOT dismiss it, got " + harness.layoutDismissCount)
     }
 
+    // ================= SLICE 5 — ComicReaderLoupe (Task 9) =================
+    // The approved shape, verbatim: "circular lens following the pointer, 2.0x default
+    // magnification, adjustable 1.5x-4.0x by wheel or +/-, full-resolution cached page sampling,
+    // click to pin; click again to resume following, flips inward near viewport edges, works in
+    // Single, Pair, and Long Strip, pauses Auto-scroll while active, never changes page zoom, pan,
+    // layout, or reading position, closes through Loupe, L, Escape, or its close action."
+    //
+    // THE LOAD-BEARING ONE is "never changes page zoom, pan, layout, or reading position" — and it
+    // is proved in THREE places, because a promise made in one is a promise: here (this component
+    // owns no reading state and raises exactly one intent, which carries nothing), in
+    // tests/comicreader_shell_harness.qml (a whole lens session against the REAL shell, counting
+    // every position/zoom/layout/record it could have moved), and in tests/test_comicreader_
+    // overlays.ps1 (the source-level backstop: the file may not so much as MENTION a navigation or
+    // zoom verb).
+    //
+    // The lens geometry is asserted through the SAME pure functions the drawn delegates bind to
+    // (pageAt / pageRect / magnifiedRect / intersectsLens / sampledPages), so the tested arithmetic
+    // IS the shipped arithmetic — the ComicReaderInput house pattern.
+    property var loupeComp: null
+    property var loupe: null
+    property int loupeDismissCount: 0
+
+    // Three fixture layouts, each a plain [{page,url,x,y,width,height}] list of the boxes the live
+    // surface is DRAWING — exactly the shape the shell reads off it. Deliberately NOT symmetric
+    // about the viewport centre and deliberately not on round numbers the component could be
+    // hardcoding: a fixture sitting on the value a sabotage would hardcode passes vacuously.
+    function pairPages() {
+        return [{ page: 4, url: "image://cr/1/4", x: 140, y: 100, width: 300, height: 440 },
+                { page: 5, url: "image://cr/1/5", x: 460, y: 100, width: 300, height: 440 }]
+    }
+    function singlePages() {
+        return [{ page: 11, url: "image://cr/1/11", x: 310, y: 60, width: 380, height: 560 }]
+    }
+    // A column: three stacked pages, the middle one straddling the viewport centre.
+    function stripPages() {
+        return [{ page: 20, url: "image://cr/1/20", x: 220, y: -180, width: 560, height: 300 },
+                { page: 21, url: "image://cr/1/21", x: 220, y: 120, width: 560, height: 300 },
+                { page: 22, url: "image://cr/1/22", x: 220, y: 420, width: 560, height: 300 }]
+    }
+
+    function runLoupe() {
+        loupe = loupeComp.createObject(harness, { "width": harness.width, "height": harness.height })
+        var lp = loupe
+        if (!lp) { failures.push("loupe: createObject returned null"); return }
+        lp.dismissRequested.connect(function () { harness.loupeDismissCount += 1 })
+
+        // --- closed by default; `open` is the RULE, never `visible` (effective visibility) ---
+        ck(lp.open === false, "loupe: must start CLOSED")
+        lp.open = true
+        ck(lp.open === true, "loupe: open must be settable")
+
+        // --- MAGNIFICATION: 2.0x default, clamped 1.5-4.0 ---
+        ck(lp.magnification === 2.0, "default 2x, got " + lp.magnification)
+        lp.setMagnification(9)
+        ck(lp.magnification === 4.0, "upper clamp, got " + lp.magnification)
+        lp.setMagnification(1)
+        ck(lp.magnification === 1.5, "lower clamp, got " + lp.magnification)
+        lp.setMagnification(2.75)
+        ck(lp.magnification === 2.75, "loupe: a value inside the range is taken as asked, got " + lp.magnification)
+        lp.setMagnification("nonsense")
+        ck(lp.magnification === 2.75, "loupe: a non-numeric magnification must be INERT, got " + lp.magnification)
+        // ...and the +/- step (the design's other adjustment door) rides the same clamp
+        lp.setMagnification(2.0)
+        lp.magnifySteps(1)
+        ck(Math.abs(lp.magnification - (2.0 + lp.magnificationStep)) < 1e-9,
+           "loupe: one + step must add exactly one step, got " + lp.magnification)
+        lp.magnifySteps(-1)
+        ck(Math.abs(lp.magnification - 2.0) < 1e-9, "loupe: one - step must take it back, got " + lp.magnification)
+        lp.magnifySteps(40)
+        ck(lp.magnification === 4.0, "loupe: stepping past the top clamps to 4.0, got " + lp.magnification)
+        lp.magnifySteps(-40)
+        ck(lp.magnification === 1.5, "loupe: stepping past the bottom clamps to 1.5, got " + lp.magnification)
+        lp.setMagnification(2.0)
+
+        // --- POINTER FOLLOW, and PIN FREEZES IT ---
+        lp.unpin()
+        lp.followPointer(500, 400)
+        ck(lp.lensX === 500 && lp.lensY === 400,
+           "loupe: an unpinned lens follows the pointer, got " + lp.lensX + "," + lp.lensY)
+        lp.pinAt(200, 160); lp.followPointer(500, 400)
+        ck(lp.lensX === 200 && lp.lensY === 160,
+           "pin freezes lens, got " + lp.lensX + "," + lp.lensY)
+        ck(lp.pinned === true, "loupe: pinAt must report the lens as pinned")
+        // a click UNPINS and resumes following from where it was clicked
+        lp.clickAt(640, 300)
+        ck(lp.pinned === false, "loupe: a second click must release the pin")
+        ck(lp.lensX === 640 && lp.lensY === 300, "loupe: releasing resumes from the click, got " + lp.lensX)
+        lp.followPointer(420, 330)
+        ck(lp.lensX === 420 && lp.lensY === 330, "loupe: ...and the pointer moves it again")
+        // ...and a click on an unpinned lens pins it where it was clicked
+        lp.clickAt(300, 250)
+        ck(lp.pinned === true && lp.lensX === 300 && lp.lensY === 250,
+           "loupe: a click must pin at the click point, got " + lp.lensX + "," + lp.lensY)
+        lp.unpin()
+
+        // --- EDGE FLIP: the lens moves INWARD and stays fully visible ---
+        // The ANCHOR is what you pointed at and never moves; the lens BODY is what flips.
+        var r = lp.lensRadius
+        function corners() {
+            return [[2, 2], [lp.width - 2, 2], [2, lp.height - 2], [lp.width - 2, lp.height - 2]]
+        }
+        var cs = corners()
+        for (var ci = 0; ci < cs.length; ci++) {
+            lp.followPointer(cs[ci][0], cs[ci][1])
+            ck(lp.lensX === cs[ci][0] && lp.lensY === cs[ci][1],
+               "loupe: the edge flip must move the LENS, never the anchor, got " + lp.lensX + "," + lp.lensY)
+            ck(lp.lensCenterX - r >= -0.01 && lp.lensCenterX + r <= lp.width + 0.01
+               && lp.lensCenterY - r >= -0.01 && lp.lensCenterY + r <= lp.height + 0.01,
+               "loupe: at the corner " + cs[ci][0] + "," + cs[ci][1] + " the lens must stay fully on "
+               + "screen, got centre " + lp.lensCenterX + "," + lp.lensCenterY)
+            ck(lp.lensFullyVisible === true, "loupe: lensFullyVisible must agree at corner " + ci)
+            ck(lp.edgeFlipped === true, "loupe: a corner anchor must report the flip, corner " + ci)
+        }
+        // ...and well inside, the lens sits exactly on the anchor and reports NO flip
+        lp.followPointer(500, 350)
+        ck(Math.abs(lp.lensCenterX - 500) < 1e-9 && Math.abs(lp.lensCenterY - 350) < 1e-9,
+           "loupe: away from the edges the lens centres on the anchor, got " + lp.lensCenterX + "," + lp.lensCenterY)
+        ck(lp.edgeFlipped === false, "loupe: no flip away from the edges")
+
+        // --- pageAt / pageRect over the DRAWN boxes (the plan's named interface) ---
+        lp.pages = pairPages()
+        ck(lp.pageAt(200, 200) === 4, "loupe: the point over the first half is its page, got " + lp.pageAt(200, 200))
+        ck(lp.pageAt(600, 200) === 5, "loupe: the point over the second half is its page, got " + lp.pageAt(600, 200))
+        ck(lp.pageAt(450, 300) === -1, "loupe: the GUTTER belongs to no page, got " + lp.pageAt(450, 300))
+        ck(lp.pageAt(20, 20) === -1, "loupe: the black stage belongs to no page, got " + lp.pageAt(20, 20))
+        var pr = lp.pageRect(5)
+        ck(pr !== null && pr.x === 460 && pr.y === 100 && pr.width === 300 && pr.height === 440,
+           "loupe: pageRect must hand back the DRAWN box, got " + JSON.stringify(pr))
+        ck(lp.pageRect(99) === null, "loupe: a page that is not drawn has no rect")
+
+        // --- THE SAMPLE: magnified ABOUT THE ANCHOR, and it works in all three layouts ---
+        // PAIR, over one half: one page under the lens.
+        lp.setMagnification(2.0)
+        lp.followPointer(290, 320)
+        var s = lp.sampledPages()
+        ck(s.length === 1 && s[0].page === 4,
+           "loupe: over one half of a pair the lens samples that page alone, got " + JSON.stringify(s.map(function (e) { return e.page })))
+        // PAIR, ACROSS THE GUTTER: both halves.
+        lp.followPointer(450, 300)
+        s = lp.sampledPages()
+        ck(s.length === 2, "loupe: across the gutter the lens samples BOTH halves, got " + s.length)
+        // the anchor's own pixel stays put: the page under the pointer is blown up ABOUT it
+        var mr = lp.magnifiedRect(lp.pages[0])
+        ck(Math.abs((450 + (140 - 450) * 2.0) - mr.x) < 1e-6 && Math.abs(mr.width - 600) < 1e-6,
+           "loupe: the magnified box must scale about the ANCHOR, got " + JSON.stringify(mr))
+        // SINGLE: one page, and the lens finds it wherever it is put over the page
+        lp.pages = singlePages()
+        lp.followPointer(500, 340)
+        s = lp.sampledPages()
+        ck(s.length === 1 && s[0].page === 11, "loupe: Single Page samples its one page, got " + JSON.stringify(s))
+        ck(lp.pageAt(500, 340) === 11, "loupe: pageAt must find the single page, got " + lp.pageAt(500, 340))
+        // LONG STRIP: the page under the pointer changes as the column moves — same anchor, a
+        // different page, because the boxes moved underneath it.
+        lp.pages = stripPages()
+        lp.followPointer(500, 250)
+        ck(lp.pageAt(500, 250) === 21, "loupe: in Long Strip the anchor picks the row under it, got " + lp.pageAt(500, 250))
+        s = lp.sampledPages()
+        ck(s.length >= 1, "loupe: Long Strip must sample at least the row under the anchor, got " + s.length)
+        // ...and the SAME anchor lands on a different page once the column has scrolled
+        var scrolled = stripPages()
+        for (var si = 0; si < scrolled.length; si++) scrolled[si].y += 300
+        lp.pages = scrolled
+        ck(lp.pageAt(500, 250) === 20,
+           "loupe: the column moving must change the page under the SAME anchor, got " + lp.pageAt(500, 250))
+
+        // --- FULL-RESOLUTION SAMPLING: the lens must never ask for the on-screen size ---
+        // The sample width is derived from the page's drawn width and the TOP magnification, so it
+        // is at or above what the lens ever displays and it does not move as the wheel turns (a
+        // request width that changed per notch would re-scale the page on every notch).
+        lp.pages = pairPages()
+        lp.setMagnification(2.0)
+        lp.followPointer(290, 320)
+        var lowMag = lp.sampledPages()
+        lp.setMagnification(4.0)
+        var highMag = lp.sampledPages()
+        ck(lowMag.length > 0 && highMag.length > 0, "loupe: fixture - the lens must be over a page")
+        if (lowMag.length > 0 && highMag.length > 0) {
+            ck(lowMag[0].sampleWidth === highMag[0].sampleWidth,
+               "loupe: the requested sample width must NOT move with the magnification, got "
+               + lowMag[0].sampleWidth + " vs " + highMag[0].sampleWidth)
+            ck(lowMag[0].sampleWidth >= Math.round(300 * lp.magnificationMax) - 0.5,
+               "loupe: the sample must be requested at the TOP magnification's size (300 x 4), got "
+               + lowMag[0].sampleWidth)
+            ck(highMag[0].width <= highMag[0].sampleWidth + 0.5,
+               "loupe: the lens must never DISPLAY more pixels than it asked for, got "
+               + highMag[0].width + " displayed vs " + highMag[0].sampleWidth + " requested")
+            ck(String(lowMag[0].url) === "image://cr/1/4",
+               "loupe: the sample must carry the page's own url, got '" + lowMag[0].url + "'")
+        }
+        lp.setMagnification(2.0)
+
+        // === THE ONE THAT MATTERS: THE LENS NEVER MOVES THE BOOK ===
+        // This component owns no reading state and can raise exactly one intent, which carries
+        // nothing. So the structural proof at THIS level is that a whole lens session — open, drag,
+        // pin, magnify, unpin, drag again — leaves the surface's own facts byte-identical and emits
+        // nothing at all. (The end-to-end proof, against the real shell and its navigation signals,
+        // lives in tests/comicreader_shell_harness.qml.)
+        var factsBefore = JSON.stringify(lp.pages)
+        harness.loupeDismissCount = 0
+        lp.followPointer(300, 300)
+        lp.clickAt(300, 300)                 // pin
+        lp.followPointer(700, 500)           // ...ignored
+        lp.magnifySteps(2)
+        lp.magnifySteps(-1)
+        lp.clickAt(700, 500)                 // unpin
+        lp.followPointer(320, 210)
+        lp.setMagnification(3.5)
+        ck(JSON.stringify(lp.pages) === factsBefore,
+           "loupe: a lens session must leave the surface's drawn pages untouched")
+        ck(harness.loupeDismissCount === 0,
+           "loupe: nothing in a lens session may raise an intent, got " + harness.loupeDismissCount)
+
+        // --- ITS CLOSE ACTION. dismiss() and the lens's own close chip both emit exactly one
+        //     dismissRequested and nothing else — the design names four ways out and this is the
+        //     one that belongs to the lens itself. ---
+        harness.loupeDismissCount = 0
+        lp.dismiss()
+        ck(harness.loupeDismissCount === 1, "loupe: dismiss() must emit exactly one dismissRequested, got " + harness.loupeDismissCount)
+        var closeBtn = byName(lp, "loupeClose")
+        ck(closeBtn !== null, "loupe: the lens must carry its own close action")
+        harness.loupeDismissCount = 0
+        if (closeBtn) closeBtn.tap()
+        ck(harness.loupeDismissCount === 1, "loupe: the close action must emit exactly one dismissRequested, got " + harness.loupeDismissCount)
+
+        // --- the readout says what the wheel just did (a value you adjust blind is a value you
+        //     cannot adjust) ---
+        lp.setMagnification(2.5)
+        var readout = byName(lp, "loupeReadout")
+        ck(readout !== null && String(readout.text).indexOf("2.5") >= 0,
+           "loupe: the lens must read out its magnification, got '" + (readout ? readout.text : "<none>") + "'")
+
+        // --- the tracker covers the COMIC, not the chrome: the Loupe command and the gold rail
+        //     stay reachable, which is what makes "closes through Loupe" true rather than claimed ---
+        var tracker = byName(lp, "loupeTracker")
+        ck(tracker !== null, "loupe: the lens must track the pointer over the comic")
+        if (tracker) {
+            ck(tracker.y >= lp.chromeTopInset - 0.5,
+               "loupe: the tracker must start BELOW the command bar, y=" + tracker.y)
+            ck(tracker.y + tracker.height <= lp.height - lp.railHeight + 0.5,
+               "loupe: the tracker must stop ABOVE the gold rail, bottom="
+               + (tracker.y + tracker.height))
+        }
+    }
+
     function runChecks() {
         try { runSettings() }
         catch (e) { failures.push("exception: " + e.message) }
@@ -1097,6 +1354,8 @@ Item {
         catch (e) { failures.push("image exception: " + e.message) }
         try { runLayout() }
         catch (e) { failures.push("layout exception: " + e.message) }
+        try { runLoupe() }
+        catch (e) { failures.push("loupe exception: " + e.message) }
         report()
     }
 
@@ -1110,6 +1369,8 @@ Item {
             if (imageComp.status === Component.Error) throw new Error("image component: " + imageComp.errorString())
             layoutComp = Qt.createComponent("../qml/comicreader/ComicReaderLayoutPopover.qml")
             if (layoutComp.status === Component.Error) throw new Error("layout component: " + layoutComp.errorString())
+            loupeComp = Qt.createComponent("../qml/comicreader/ComicReaderLoupe.qml")
+            if (loupeComp.status === Component.Error) throw new Error("loupe component: " + loupeComp.errorString())
             Qt.callLater(runChecks)
         } catch (e) {
             console.log("COMICREADER_OVERLAYS_FAIL: setup: " + e.message); Qt.exit(1)

@@ -377,6 +377,34 @@ Item {
     readonly property alias rightSource: rightImg.source   // exposed so the decode-refresh test sees the source re-evaluate
     readonly property alias leftSource: leftImg.source
 
+    // ---- WHAT THIS SURFACE IS DRAWING, and where (Task 9, the Loupe's one question) ----
+    // [{ page (0-based), url, x, y, width, height }] in THIS surface's coordinates — the shape all
+    // three surfaces answer in, so the lens has one code path for Single, Pair and Long Strip.
+    //
+    // A pair answers with TWO entries, and that is exactly what lets the lens straddle the gutter:
+    // it magnifies every box it is given about the anchor and shows whichever ones reach the glass,
+    // so a lens over the spine shows the inner edge of both pages with no case of its own. The
+    // boxes are the DRAWN readbacks above (pan and zoom already folded in), never re-derived.
+    //
+    // The url carries no decode cap: the caller states its own request size, and the Loupe
+    // deliberately asks for far more than the screen shows.
+    function visiblePageRects() {
+        if (!active) return []
+        var out = []
+        var u = root.unit
+        if ((root.isPair || root.isSingle) && u.rightIndex >= 0 && rightImg.width > 0 && rightImg.height > 0)
+            out.push({ page: u.rightIndex,
+                       url: (core && core.imageUrl) ? core.imageUrl(u.rightIndex, "hq") : "",
+                       x: rightIndexX, y: rightIndexY,
+                       width: rightPageWidth, height: rightPageHeight })
+        if (root.isPair && u.leftIndex >= 0 && leftImg.width > 0 && leftImg.height > 0)
+            out.push({ page: u.leftIndex,
+                       url: (core && core.imageUrl) ? core.imageUrl(u.leftIndex, "hq") : "",
+                       x: leftIndexX, y: leftIndexY,
+                       width: leftPageWidth, height: leftPageHeight })
+        return out
+    }
+
     // ============ unit lifecycle: reset PAN (zoom persists), pin pages, drive maxSeen ============
     // Driven off the RELIABLE int/bool change signals (currentPage/active), computing the unit FRESH
     // here — NOT off the `unit`/`unitHighestPage` var-property bindings, whose re-eval ordering vs the

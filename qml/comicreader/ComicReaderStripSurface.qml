@@ -43,6 +43,11 @@ Item {
     property bool active: true
     property bool rtl: false                 // strip is vertical; kept for parity / future affordances
     property int cacheScreens: 2             // cacheBuffer in viewport-heights (modest -> virtualized)
+    // THE WHEEL BELONGS TO SOMETHING ELSE (Task 9). Raised by the shell while the Loupe is up, where
+    // a notch magnifies the lens; the column must not move under it, because the approved rule is
+    // that the Loupe never changes the reading position. See _intakeWheel for why the guard lives
+    // on the intake function as well as on the handler.
+    property bool wheelLocked: false
 
     // ---- AUTO-SCROLL (Task 8). MOTION ONLY. ----
     // The approved rule, verbatim: "Long Strip creates the vertical page flow; Auto-scroll only
@@ -161,6 +166,51 @@ Item {
     function itemAt(i) { return list.itemAtIndex(i) }
     function forceRelayout() { list.forceLayout() }
 
+    // ---- WHAT THIS SURFACE IS DRAWING, and where (Task 9, the Loupe's one question) ----
+    // [{ page (0-based), url, x, y, width, height }] in THIS surface's coordinates — the shape all
+    // three surfaces answer in, so the lens has one code path for Single, Pair and Long Strip. Here
+    // it is however many rows are on screen, which is what makes the lens behave correctly while the
+    // column moves: the boxes shift under a stationary anchor, so the page you are inspecting
+    // changes because the BOOK moved, never because the lens did.
+    //
+    // Walks the REALIZED delegates only. An unrealized row has no geometry to report and returns
+    // null from itemAtIndex; a row outside the viewport is not being drawn. The walk starts from the
+    // row under the top edge and stops at the first row past the bottom, so it is bounded by what is
+    // visible (two or three rows) and never by the book's length.
+    //
+    // The url carries no decode cap: the caller states its own request size, and the Loupe
+    // deliberately asks for far more than the screen shows.
+    function visiblePageRects() {
+        if (!active || list.count <= 0 || !core || !core.imageUrl) return []
+        var top = list.contentY
+        var bottom = top + list.height
+        // Find a row under the viewport, then walk BACK to the first one that reaches the top edge.
+        // A gap between pages (Breathing room) is a real hole in the column, so a probe at the very
+        // top edge can legitimately hit nothing — the mid-viewport probe is the fallback.
+        var i = list.indexAt(list.width / 2, top + 1)
+        if (i < 0) i = list.indexAt(list.width / 2, (top + bottom) / 2)
+        if (i < 0) i = list.indexAt(list.width / 2, bottom - 1)
+        if (i < 0) return []
+        while (i > 0) {
+            var prev = list.itemAtIndex(i - 1)
+            if (prev && prev.y + prev.height > top) i -= 1
+            else break
+        }
+        var out = []
+        for (; i < list.count; i++) {
+            var it = list.itemAtIndex(i)
+            if (!it) break                       // unrealized: nothing beyond here is drawn either
+            if (it.y >= bottom) break
+            if (it.y + it.height <= top) continue
+            if (!(it.rowPageWidth > 0) || !(it.height > 0)) continue
+            out.push({ page: it.rowPageIndex,
+                       url: core.imageUrl(it.rowPageIndex, "hq"),
+                       x: it.rowPageX, y: it.y - top,
+                       width: it.rowPageWidth, height: it.height })
+        }
+        return out
+    }
+
     // ---- internal flags ----
     property bool _programmatic: false       // suppress user-signal emission for resume/compensation
     property bool _draining: false           // the wheel drain is authoring contentY (don't resync smoothY)
@@ -267,6 +317,14 @@ Item {
 
             readonly property string errorText: (root.failedRev, root._failText(model.pageIndex, model.errorCode))
             readonly property bool hasError: errorText.length > 0
+            // ---- what THIS row is, and where its paper actually sits inside the row (Task 9) ----
+            // The row is full-width; the page is centred inside it at the model's display width. The
+            // Loupe needs the PAPER's box, not the row's, or a magnified page would sit offset from
+            // the page it is magnifying by half the letterbox. Read off the drawn Image rather than
+            // re-derived, so it cannot drift from what is on screen.
+            readonly property int rowPageIndex: model.pageIndex
+            readonly property real rowPageX: pageImg.x
+            readonly property real rowPageWidth: pageImg.width
             readonly property alias imageSource: pageImg.source   // exposed so the decode-refresh test can see it re-evaluate
             readonly property alias previewSource: previewImg.source
             readonly property alias previewCap: previewImg.sourceSize.width
@@ -625,6 +683,15 @@ Item {
     // same easing curve travelling 40% less per notch, which reads as smooth-but-heavy.
     // The trackpad path is untouched — pixelDelta is already real pixels on every platform.
     function _intakeWheel(angleY, pixelY) {
+        // THE WHEEL LOCK (Task 9). While the Loupe is up the wheel belongs to the lens — the
+        // approved rule is that the Loupe "never changes ... reading position", and a notch that
+        // magnified the glass AND scrolled the column underneath would break it in the most visible
+        // way there is. The lens's own tracker already swallows the wheel over the comic; this is
+        // the structural half, so the rule does not rest on which item Qt happened to deliver the
+        // event to. It is the ONE wheel intake door, so there is nothing else to gate: keyboard
+        // glides come through smoothScrollBy (and the keyboard is gated by `modalOpen` anyway), and
+        // the shell's own restores come through haltScrollAt/seekToPage.
+        if (wheelLocked) return
         var dy = pixelY
         if (dy === 0) dy = angleY * 1.4
         if (dy === 0) return
@@ -774,6 +841,7 @@ Item {
     }
 
     WheelHandler {
+        enabled: !root.wheelLocked
         acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
         onWheel: function (event) { root._intakeWheel(event.angleDelta.y, event.pixelDelta.y) }
     }

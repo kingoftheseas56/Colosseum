@@ -24,7 +24,8 @@ $overlays = @(
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderSettingsSheet.qml"),
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderPagesOverlay.qml"),
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderImagePopover.qml"),
-    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderLayoutPopover.qml")
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderLayoutPopover.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderLoupe.qml")
 )
 foreach ($overlay in $overlays) {
     if (!(Test-Path -LiteralPath $overlay)) {
@@ -66,6 +67,27 @@ foreach ($m in $autoBody) {
         Write-Host "      Starting or resuming Auto-scroll must NEVER resize the page."
         exit 1
     }
+}
+
+# --- the LOUPE cannot move the book, and it cannot even name the way (Task 9). ---
+# "never changes page zoom, pan, layout, or reading position" is the rule the whole feature is
+# judged on. The harness proves it behaviourally (a whole lens session leaves the surface's facts
+# untouched and emits nothing) and tests/comicreader_shell_harness.qml proves it end to end against
+# the real shell. THIS is the source-level backstop: a temporary magnifier has no business
+# mentioning a navigation, zoom, pan or scroll verb at all, so a path that could move the book
+# cannot be reintroduced in code an offscreen run never reaches. Comment lines are exempt — the file
+# has to be able to SAY what it must not do.
+$loupe = Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderLoupe.qml"
+$forbidden = 'currentPage|goToPage|jumpRequested|setZoom|zoomPercent|panBy|panX|panY|setLayout|' +
+             'layoutRequested|contentY|scrollBy|haltScrollAt|seekToPage|stripFraction|' +
+             'recordProgress|setVisible|pageNext|pagePrev|openEntry|core\.'
+$moveHits = Select-String -LiteralPath $loupe -Pattern $forbidden |
+    Where-Object { $_.Line.TrimStart() -notlike '//*' }
+if ($moveHits) {
+    Write-Host "FAIL: $loupe reaches a navigation / zoom / pan / scroll verb; the Loupe must NEVER"
+    Write-Host "      change page zoom, pan, layout, or reading position. Found:"
+    $moveHits | ForEach-Object { Write-Host ("  line " + $_.LineNumber + ": " + $_.Line.Trim()) }
+    exit 1
 }
 
 $env:QT_FORCE_STDERR_LOGGING = "1"

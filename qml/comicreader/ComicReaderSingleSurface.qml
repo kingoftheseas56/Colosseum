@@ -344,6 +344,23 @@ Item {
         pageIndex: root.pageIndex
     }
 
+    // ---- WHAT THIS SURFACE IS DRAWING, and where (Task 9, the Loupe's one question) ----
+    // [{ page (0-based), url, x, y, width, height }] in THIS surface's coordinates — which are the
+    // shell's, since all three surfaces fill it. The three surfaces answer in ONE shape so the lens
+    // has one code path for Single, Pair and Long Strip; the boxes are read off the DRAWN item
+    // rather than re-derived, so they cannot drift from what is on screen.
+    //
+    // The url is the hq tier WITHOUT this surface's decode cap: the caller states its own request
+    // size, and the Loupe deliberately asks for far more than the screen shows. An inactive surface
+    // is drawing nothing and says so.
+    function visiblePageRects() {
+        if (!active || pageIndex < 0) return []
+        if (!(pageBox.width > 0) || !(pageBox.height > 0)) return []
+        return [{ page: pageIndex,
+                  url: (core && core.imageUrl) ? core.imageUrl(pageIndex, "hq") : "",
+                  x: pageBox.x, y: pageBox.y, width: pageBox.width, height: pageBox.height }]
+    }
+
     // ---- test/HUD readbacks: these READ THE ITEMS rather than re-deriving the math, so they cannot
     // drift from what is actually drawn. ----
     readonly property real drawnX: pageBox.x

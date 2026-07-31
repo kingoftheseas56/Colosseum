@@ -148,6 +148,8 @@ Item {
     property real lastPanDy: 0
     // last scrollBy screens value (so a strip-scroll test can assert MAGNITUDE, not just that it fired)
     property real lastScrollBy: 0
+    // last magnifyLoupe steps (so the +/- test asserts DIRECTION, not just that it fired)
+    property int lastMagnifySteps: 0
 
     function wireInput(inp) {
         inp.next.connect(function () { bump("next") })
@@ -167,6 +169,7 @@ Item {
         inp.nudgeCoupling.connect(function () { bump("nudgeCoupling") })
         inp.openShortcuts.connect(function () { bump("openShortcuts") })
         inp.toggleLoupe.connect(function () { bump("toggleLoupe") })
+        inp.magnifyLoupe.connect(function (steps) { bump("magnifyLoupe"); harness.lastMagnifySteps = steps })
         inp.firstPage.connect(function () { bump("firstPage") })
         inp.lastPage.connect(function () { bump("lastPage") })
         inp.prevEntry.connect(function () { bump("prevEntry") })
@@ -608,6 +611,54 @@ Item {
         input.modalOpen = false; input.chromeVisible = false
         ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1 && cnt("back") === 0,
            "Esc (no overlay, chrome hidden) must NEVER exit the book, got '" + key(Qt.Key_Escape) + "'")
+
+        // --- THE LOUPE'S OWN KEYS (Task 9). The Loupe joins `modalOpen` like every other temporary
+        //     surface, so without a door of its own the two keys the approved design names by name
+        //     — "closes through Loupe, L, Escape, or its close action" and "adjustable 1.5x-4.0x by
+        //     wheel or +/-" — would both be swallowed by the modal gate above. The door is opened by
+        //     `loupeOpen` and by nothing else, so no OTHER modal's keyboard changes. ---
+        input.modalOpen = true; input.loupeOpen = true
+        input.mode = "double_page"; input.zoomPercent = 100
+        ck(key(Qt.Key_L) === "toggleLoupe" && cnt("toggleLoupe") === 1,
+           "key L with the Loupe up -> toggleLoupe (the design's second way out)")
+        ck(key(Qt.Key_Plus) === "magnifyLoupe" && cnt("magnifyLoupe") === 1 && harness.lastMagnifySteps === 1,
+           "key + with the Loupe up -> magnify the LENS, got " + harness.lastMagnifySteps)
+        ck(key(Qt.Key_Equal) === "magnifyLoupe" && cnt("magnifyLoupe") === 1 && harness.lastMagnifySteps === 1,
+           "key = with the Loupe up -> magnify (the unshifted + on a US layout)")
+        ck(key(Qt.Key_Minus) === "magnifyLoupe" && cnt("magnifyLoupe") === 1 && harness.lastMagnifySteps === -1,
+           "key - with the Loupe up -> magnify DOWN, got " + harness.lastMagnifySteps)
+        ck(key(Qt.Key_Underscore) === "magnifyLoupe" && cnt("magnifyLoupe") === 1 && harness.lastMagnifySteps === -1,
+           "key _ with the Loupe up -> magnify down")
+        // ...and NEVER the page zoom. Ctrl+/- is the page-zoom binding everywhere else in the
+        // reader; with the lens up it must reach the LENS, because the approved rule is that the
+        // Loupe "never changes page zoom, pan, layout, or reading position".
+        ck(key(Qt.Key_Plus, Qt.ControlModifier) === "magnifyLoupe" && cnt("zoomBy") === 0,
+           "Ctrl+ with the Loupe up must magnify the LENS, never the page")
+        ck(key(Qt.Key_Minus, Qt.ControlModifier) === "magnifyLoupe" && cnt("zoomBy") === 0,
+           "Ctrl- with the Loupe up must magnify the LENS, never the page")
+        // everything else stays gated, exactly as it is under any other temporary surface
+        ck(key(Qt.Key_T) === "" && cnt("openThumbnails") === 0, "key T with the Loupe up -> still gated")
+        ck(key(Qt.Key_Left) === "" && cnt("next") === 0 && cnt("previous") === 0,
+           "arrow Left with the Loupe up -> still gated (the lens must not turn a page)")
+        ck(key(Qt.Key_Space) === "" && cnt("next") === 0 && cnt("scrollBy") === 0,
+           "Space with the Loupe up -> still gated (the lens must not move the column)")
+        ck(key(Qt.Key_Escape) === "closeTop" && cnt("closeTop") === 1, "Esc with the Loupe up -> closeTop")
+        // ...and the door SHUTS with the Loupe. Under any other modal, L and +/- are swallowed
+        // again — this is what keeps the new branch from becoming a global keyboard change.
+        input.loupeOpen = false
+        ck(key(Qt.Key_L) === "" && cnt("toggleLoupe") === 0,
+           "key L under a NON-Loupe modal must stay gated, got '" + key(Qt.Key_L) + "'")
+        ck(key(Qt.Key_Plus) === "" && cnt("magnifyLoupe") === 0,
+           "key + under a NON-Loupe modal must stay gated")
+        input.modalOpen = false
+        // with NOTHING open, +/- are unbound and Ctrl+/- is the PAGE zoom again — the Loupe branch
+        // must not have quietly stolen a binding the rest of the reader owns.
+        ck(key(Qt.Key_Plus) === "" && cnt("magnifyLoupe") === 0,
+           "key + with nothing open must stay unbound, got '" + key(Qt.Key_Plus) + "'")
+        ck(key(Qt.Key_Plus, Qt.ControlModifier) === "zoomBy" && cnt("zoomBy") === 1,
+           "Ctrl+ with nothing open must still zoom the PAGE")
+        ck(key(Qt.Key_Minus, Qt.ControlModifier) === "zoomBy" && cnt("zoomBy") === 1,
+           "Ctrl- with nothing open must still zoom the PAGE")
     }
 
     // ============================ INPUT (click zones + drag + dbl-click) ============================

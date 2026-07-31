@@ -1888,6 +1888,203 @@ Item {
                    "anchor: the Layout menu must be fed its own command's anchor, got " + lp.anchorX)
             }
 
+            // -- 21. THE LOUPE (Task 9) — completing the scaffold the reader has carried since
+            // Task 5. The lens itself is pinned by tests/comicreader_overlays_harness.qml; THIS pins
+            // the half only the shell can answer, and it is the rule the whole feature is judged on:
+            //
+            //   "never changes page zoom, pan, layout, or reading position"
+            //
+            // The component cannot break that alone — it owns no reading state and raises one empty
+            // intent — so the question is whether the SHELL wires it in a way that can. Drive a
+            // whole lens session against the real shell and count every signal, position, zoom,
+            // layout and record it could have moved. --
+            var lpStore = fakeStoreLp
+            lpStore.pages = fivePages()
+            loupeStripModel.clear()
+            for (var lpi = 0; lpi < 5; lpi++)
+                loupeStripModel.append({ pageIndex: lpi, top: lpi * 300, displayWidth: 400,
+                                         displayHeight: 300, ready: true, errorCode: 0 })
+            fakeCoreLp.stripModel = loupeStripModel
+            var lpShell = makeShell({
+                "width": 1000, "height": 700, "recordDebounceMs": 20,
+                "seriesId": "s-loupe", "seriesTitle": "Loupe", "seriesCover": "file:///f/l.png",
+                "core": fakeCoreLp, "progress": fakeProgLp, "pageStore": lpStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            var lens = byName(lpShell, "loupe")
+            ck(lens !== null, "loupe: the Loupe (objectName 'loupe') must be mounted in the shell")
+
+            // THE STRIP MUST ACTUALLY BE PAINTING for the rest of this block to mean anything. This
+            // harness roots its tree invisible, so `active: visible` resolves false on every mounted
+            // surface and each one honestly reports "I am drawing nothing" — which would make every
+            // assertion below a comparison of two empty lists. Forcing `active` deliberately breaks
+            // that binding, which is safe here and only here: this shell exists for this block.
+            lpShell.setLayout("long_strip")
+            var strip = byName(lpShell, "stripSurface")
+            ck(strip !== null, "loupe: the strip surface must be mounted")
+            strip.active = true
+            strip.forceRelayout()
+
+            lpShell.activeOverlay = ""
+            ck(lens.open === false, "loupe: closed while no surface is open, got " + lens.open)
+            ck(lpShell.modalOpen === false, "loupe: a closed Loupe must not hold the keyboard")
+            // the shell asks the surfaces NOTHING while the lens is shut — with the strip genuinely
+            // painting, an ungated binding would hand back real rows here
+            ck(strip.visiblePageRects().length > 0,
+               "loupe: fixture - the strip must be painting, or the gate check below proves nothing")
+            ck(lpShell.loupePageRects.length === 0,
+               "loupe: a closed Loupe must not make the shell interrogate the surfaces, got "
+               + lpShell.loupePageRects.length)
+
+            // ---- it opens through the ONE coordinator, from BOTH doors ----
+            lpShell.openOverlay("loupe")
+            ck(lens.open === true, "loupe: the Loupe command must open it, got " + lens.open)
+            ck(lpShell.modalOpen === true,
+               "loupe: an OPEN Loupe must make the reader modal — the lens owns the pointer and the "
+               + "keyboard while it is up")
+            lpShell.activeOverlay = ""
+            lpShell.loupeRequested()             // the L key's route (input -> shell -> coordinator)
+            ck(lpShell.activeOverlay === "loupe" && lens.open === true,
+               "loupe: L must open the SAME surface the Loupe command does, got '" + lpShell.activeOverlay + "'")
+
+            // ---- it is fed exactly what the live surface is drawing ----
+            // A plain assignment, not openOverlay(): the lens is already up from the L route above,
+            // and openOverlay TOGGLES — re-asking would have closed the very surface under test.
+            lpShell.activeOverlay = "loupe"
+            var fed = lpShell.loupePageRects
+            ck(fed.length > 0,
+               "loupe: an open Loupe must be fed the boxes the live surface is painting, got " + fed.length)
+            ck(lens.pages === fed, "loupe: ...and the lens must read exactly that list, not a copy")
+            ck(JSON.stringify(fed) === JSON.stringify(strip.visiblePageRects()),
+               "loupe: ...and it must be the SURFACE's answer, unedited, got " + JSON.stringify(fed))
+            if (fed.length) {
+                ck(fed[0].width > 0 && fed[0].height > 0 && String(fed[0].url).indexOf("tier=hq") >= 0,
+                   "loupe: the fed box must be a real box on the hq tier, got " + JSON.stringify(fed[0]))
+                // ...and the lens resolves it back — the two halves of the seam actually meet
+                ck(lens.pageAt(fed[0].x + fed[0].width / 2, fed[0].y + fed[0].height / 2) === fed[0].page,
+                   "loupe: the lens must resolve the fed box back to its page, got "
+                   + lens.pageAt(fed[0].x + fed[0].width / 2, fed[0].y + fed[0].height / 2))
+            }
+            // ...and the column MOVING re-feeds it, which is the whole Long Strip requirement: the
+            // page under a stationary lens changes because the BOOK moved, never because the lens did.
+            // A SMALL scroll, deliberately: 100px over 300-tall rows never changes which page is at
+            // the viewport centre, so `currentPage` cannot move and the ONLY dependency that can
+            // re-drive this binding is the column's own position. (Measured: with a half-book jump
+            // instead, dropping contentY from the dependency list still passed — the page change
+            // re-drove the binding and the assertion proved nothing about scrolling at all.)
+            var pageBeforeScroll = lpShell.currentPage
+            var yBeforeScroll = lpShell.loupePageRects[0].y
+            strip.haltScrollAt(100)
+            ck(lpShell.currentPage === pageBeforeScroll,
+               "loupe: fixture - a 100px scroll must NOT change the page, or the re-feed check below "
+               + "passes for the wrong reason. Got " + lpShell.currentPage + " (was " + pageBeforeScroll + ")")
+            ck(Math.abs(lpShell.loupePageRects[0].y - (yBeforeScroll - 100)) < 0.5,
+               "loupe: scrolling the column must re-feed the lens — a lens sampling frozen geometry "
+               + "would magnify the wrong part of the page. Got y " + lpShell.loupePageRects[0].y
+               + ", want " + (yBeforeScroll - 100))
+            strip.haltScrollAt(0)
+
+            // ---- it asks the surface that matches the LAYOUT ----
+            ck(lpShell._loupeSurface === strip, "loupe: in Long Strip the lens must ask the STRIP surface")
+            lpShell.setLayout("paired_pages")
+            ck(lpShell._loupeSurface === byName(lpShell, "doubleSurface"),
+               "loupe: in Paired pages the lens must ask the PAIR surface")
+            lpShell.setLayout("single_page")
+            ck(lpShell._loupeSurface === byName(lpShell, "singleSurface"),
+               "loupe: in Single page the lens must ask the SINGLE surface")
+            ck(lpShell._loupeSurface !== strip,
+               "loupe: ...and it is a real choice, not the strip every time")
+            lpShell.setLayout("long_strip")
+
+            // ---- OPENING IT PAUSES AUTO-SCROLL. Already covered by name in section 20, but the
+            //      Loupe is the surface the approved rule names FIRST, so it is asserted here too
+            //      against the real mounted lens rather than against an ownership token. ----
+            lpShell.activeOverlay = ""
+            lpShell.setLayout("long_strip")
+            lpShell.startAutoScroll()
+            ck(lpShell.autoScrollRunning === true, "loupe: fixture - arm the motion before the check")
+            lpShell.openOverlay("loupe")
+            ck(lpShell.autoScrollRunning === false,
+               "loupe: opening the Loupe must pause Auto-scroll immediately")
+
+            // ---- THE WHEEL IS LOCKED OUT OF THE COLUMN while the lens is up ----
+            ck(strip !== null && strip.wheelLocked === true,
+               "loupe: with the Loupe up the strip's wheel intake must be LOCKED — a notch magnifies "
+               + "the lens and must not scroll the column, got " + (strip ? strip.wheelLocked : "<none>"))
+            lpShell.activeOverlay = ""
+            ck(strip.wheelLocked === false, "loupe: ...and the lock lifts when the lens goes away")
+            lpShell.openOverlay("loupe")
+
+            // === THE ONE THAT MATTERS: A WHOLE LENS SESSION MOVES NOTHING ===
+            // Every verb the lens has, plus the pointer paths that drive them, against a shell whose
+            // navigation signals are all being counted. Anything the Loupe could move is measured
+            // BEFORE and AFTER — not merely "no signal fired", because a direct write would fire no
+            // signal at all.
+            var navCount = 0
+            lpShell.backRequested.connect(function () { navCount += 1 })
+            lpShell.closeRequested.connect(function () { navCount += 1 })
+            lpShell.fullscreenRequested.connect(function () { navCount += 1 })
+            lpShell.sourceRequested.connect(function () { navCount += 1 })
+            var recBefore = fakeProgLp.records.length
+            var openBefore = fakeCoreLp.openCount
+            var before = {
+                page: lpShell.currentPage, maxSeen: lpShell.maxSeen, frac: lpShell.stripFraction,
+                zoom: lpShell.zoomPercent, layout: lpShell.layout, order: lpShell.order,
+                width: lpShell.stripWidthPct, gap: lpShell.stripGap, chapter: lpShell.curChapterId,
+                contentY: strip.contentY
+            }
+            var tracker = byName(lens, "loupeTracker")
+            ck(tracker !== null, "loupe: fixture - the pointer tracker must exist")
+            // follow, pin, drag against the pin, magnify both ways at both clamps, unpin, drag again
+            lens.followPointer(400, 300)
+            if (tracker) tracker.moved(430, 180)
+            lens.clickAt(460, 320)                       // pin
+            lens.followPointer(900, 640)                 // ...ignored while pinned
+            if (tracker) tracker.moved(120, 500)         // ...and so is the pointer path
+            lens.magnifySteps(4)
+            lens.magnifySteps(-20)
+            lens.setMagnification(3.25)
+            if (tracker) tracker.tap(300, 220)           // unpin
+            lens.followPointer(520, 410)
+            ck(lpShell.currentPage === before.page && lpShell.maxSeen === before.maxSeen,
+               "loupe: a lens session must not move the READING POSITION, page " + lpShell.currentPage
+               + " (was " + before.page + ")")
+            ck(lpShell.stripFraction === before.frac && strip.contentY === before.contentY,
+               "loupe: ...nor the column, contentY " + strip.contentY + " (was " + before.contentY + ")")
+            ck(lpShell.zoomPercent === before.zoom,
+               "loupe: ...nor the page ZOOM, got " + lpShell.zoomPercent + " (was " + before.zoom + ")")
+            ck(lpShell.layout === before.layout && lpShell.order === before.order,
+               "loupe: ...nor the LAYOUT or the order, got " + lpShell.layout + "/" + lpShell.order)
+            ck(lpShell.stripWidthPct === before.width && lpShell.stripGap === before.gap,
+               "loupe: ...nor the strip measure, got " + lpShell.stripWidthPct + "/" + lpShell.stripGap)
+            ck(lpShell.curChapterId === before.chapter && fakeCoreLp.openCount === openBefore,
+               "loupe: ...nor the open ENTRY, got '" + lpShell.curChapterId + "' opens=" + fakeCoreLp.openCount)
+            ck(fakeProgLp.records.length === recBefore,
+               "loupe: ...and it must not file a Continue record, got "
+               + (fakeProgLp.records.length - recBefore) + " new")
+            ck(navCount === 0, "loupe: ...and it must raise NO window/navigation signal, got " + navCount)
+            // ...and it really did do something, or the block above proves nothing
+            ck(Math.abs(lens.magnification - 3.25) < 1e-9 && lens.pinned === false
+               && lens.lensX === 520 && lens.lensY === 410,
+               "loupe: fixture - the session must actually have driven the lens, got mag "
+               + lens.magnification + " pinned " + lens.pinned + " at " + lens.lensX + "," + lens.lensY)
+
+            // ---- and every way OUT gives the screen back without moving anything ----
+            lens.dismiss()
+            ck(lpShell.activeOverlay === "" && lens.open === false,
+               "loupe: the lens's own close action must give the screen back, got '" + lpShell.activeOverlay + "'")
+            lpShell.openOverlay("loupe")
+            lpShell.closeTop()                            // Escape
+            ck(lpShell.activeOverlay === "", "loupe: Escape must close it, got '" + lpShell.activeOverlay + "'")
+            lpShell.openOverlay("loupe")
+            lpShell.openOverlay("loupe")                  // the Loupe command again
+            ck(lpShell.activeOverlay === "", "loupe: the Loupe command must be the way back out too")
+            ck(lpShell.currentPage === before.page && lpShell.zoomPercent === before.zoom
+               && lpShell.layout === before.layout,
+               "loupe: closing it — every way — must leave the book exactly where it was")
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -2051,6 +2248,39 @@ Item {
     }
 
     // declarative fake instances (one bundle per scenario, ids referenced in runChecks)
+    // Task 9: the ONE shell scenario that needs the strip surface to be genuinely PAINTING, so that
+    // "the lens is fed what the reader is drawing" can be asserted on real boxes instead of on two
+    // empty lists. (Measured: without this, deleting the shell's closed-Loupe gate outright still
+    // passed — this harness roots its tree invisible, so every mounted surface reads inactive and
+    // answers with nothing whatever the shell does.) A component of its own rather than a field on
+    // FakeCore: a `stripModel` on the shared fake would build a live ListView in every other
+    // scenario in this file.
+    component FakeLoupeCore: QtObject {
+        property var stripModel: null
+        property int stripWidthPct: 78
+        property int stripGap: 0
+        property int openCount: 0
+        property string couplingState: "auto:normal:1.0"
+        signal entryChanged()
+        signal pageReady(int page)
+        signal pageFailed(int page, string code)
+        signal pairingChanged()
+        signal bookmarksChanged()
+        function openEntry(entryId, pages, direction, persisted) { openCount += 1 }
+        function closeEntry() {}
+        function setVisible(pages) {}
+        function unitForPage(page) { return { rightIndex: page, leftIndex: -1, spread: false } }
+        function pageInfo(page) { return { sourceWidth: 1200, sourceHeight: 1800 } }
+        function imageUrl(page, tier) {
+            return "image://comicreader/1/" + page + "?rev=0&tier="
+                   + ((tier === undefined || tier === "") ? "hq" : String(tier))
+        }
+        function setStripLayout(w, g) { stripWidthPct = w; stripGap = g }
+        function bookmarks() { return [] }
+        function persistedState() { return ({}) }
+    }
+    ListModel { id: loupeStripModel }
+    FakeLoupeCore { id: fakeCoreLp }  FakeProgress { id: fakeProgLp }  FakePageStore { id: fakeStoreLp }
     FakeCore { id: fakeCoreA }   FakeProgress { id: fakeProgA }   FakePageStore { id: fakeStoreA }
     FakeCore { id: fakeCoreH }   FakeProgress { id: fakeProgH }   FakePageStore { id: fakeStoreH }
     FakeCore { id: fakeCoreW }   FakeProgress { id: fakeProgW }   FakePageStore { id: fakeStoreW }

@@ -20,6 +20,12 @@ Item {
     property bool   rtl: false
     property int    zoomPercent: 100
     property bool   modalOpen: false         // an overlay is up (Task 12)
+    // ...and WHICH overlay, for the one surface that keeps keys of its own (Task 9). The Loupe joins
+    // `modalOpen` like every other temporary surface, so without this the two keys the approved
+    // design names — L to close it, +/- to magnify — would both be swallowed by the modal gate in
+    // keyAction. It is deliberately not a general "which overlay" string: this is the only surface
+    // that owns keys, and a string would invite a second one.
+    property bool   loupeOpen: false
     property bool   chromeVisible: true
     // double-page vertical pan headroom, mirrored from the double surface (panYMax). >0 means the
     // fill-width spread is taller than the viewport, so Up/Down pan it (never flip); ==0 means it
@@ -51,6 +57,9 @@ Item {
     signal nudgeCoupling()                   // P — core.nudgeCoupling (via shell)
     signal openShortcuts()                   // K
     signal toggleLoupe()                     // L
+    // +/- while the Loupe is up: the LENS, in whole steps. The step SIZE belongs to the lens (it is
+    // the same nudge its wheel makes), so this carries a count and never a magnification.
+    signal magnifyLoupe(int steps)
     signal firstPage()                       // Home
     signal lastPage()                        // End
     signal prevEntry()                       // Alt+Left (crossing)
@@ -75,6 +84,22 @@ Item {
         // explicit: "close active popover, filmstrip, or Loupe; otherwise toggle the HUD; never
         // unexpectedly leave the book." Back is the ONLY reader-to-library action.
         if (key === Qt.Key_Escape) { closeTop(); return "closeTop" }
+
+        // THE LOUPE'S OWN TWO KEYS, and they sit HERE — above the modal gate, because the Loupe is
+        // itself a modal surface, and above the Ctrl+zoom branch, because of what the approved rule
+        // says: the Loupe "never changes page zoom, pan, layout, or reading position". Ctrl+/- is
+        // the page-zoom binding everywhere else in the reader; with the lens up it reaches the LENS
+        // instead, so there is no keyboard path from an open Loupe to a page zoom at all. That is a
+        // structural absence rather than a guard.
+        //
+        // Opened by `loupeOpen` and nothing else, so no OTHER modal's keyboard changes: under the
+        // filmstrip or either popover, L and +/- stay swallowed exactly as they were.
+        if (loupeOpen) {
+            if (key === Qt.Key_L) { toggleLoupe(); return "toggleLoupe" }
+            if (key === Qt.Key_Plus || key === Qt.Key_Equal)      { magnifyLoupe(1);  return "magnifyLoupe" }
+            if (key === Qt.Key_Minus || key === Qt.Key_Underscore) { magnifyLoupe(-1); return "magnifyLoupe" }
+        }
+
         // an open overlay owns the keyboard — everything except Escape is gated (Reader 1 :875)
         if (modalOpen) return ""
         if (ctrl && key === Qt.Key_G) { goToPage(); return "goToPage" }

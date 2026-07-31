@@ -269,8 +269,12 @@ Item {
     // ComicReaderInput's existing law) exactly like the sheet does. Task 7 adds the Image panel on
     // the same terms: it is a smaller surface, but it carries live sliders, and a page turn landing
     // under a drag would be the same defect.
+    // Task 9 adds the Loupe on the same terms, with one extra consequence worth naming: the Loupe is
+    // the only temporary surface that keeps keys of its own, so ComicReaderInput carries a
+    // `loupeOpen` door above the modal gate for the two the approved design names (L to close it,
+    // +/- to magnify the lens). Everything else stays gated exactly as it is under the others.
     readonly property bool modalOpen: settingsSheet.opened || pagesOverlay.open || imagePopover.open
-                                      || layoutPopover.open
+                                      || layoutPopover.open || loupe.open
 
     // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
     // (MangaReader.qml:165) and read by tests/manga_tankoban_page_harness.qml — the Task 1 contract
@@ -1216,6 +1220,10 @@ Item {
         // IN only — the surface never writes either back, so there is one owner for the flag.
         autoScrollRunning: reader.autoScrollRunning
         autoScrollSpeed: reader.autoScrollSpeed
+        // While the Loupe is up the wheel magnifies the LENS, so the column must not move under it.
+        // The lens's own tracker swallows the wheel over the comic; this makes it structural rather
+        // than dependent on which item Qt happened to deliver the event to.
+        wheelLocked: reader.activeOverlay === "loupe"
         // NO resume binding in: the surface is a painter, and a bound fraction it applies itself is a
         // feedback loop (its own onScrolled writes reader.stripFraction, which re-drives the binding).
         // Restoring is a one-shot COMMAND from the shell (stripRestore -> haltScrollAt/seekToPage).
@@ -1274,6 +1282,42 @@ Item {
     // absent: it owns scrolling, not zoom/pan, and the callers below already guard against null.)
     readonly property var _pagedSurface: activeSurface === "singleSurface" ? singleSurface
                                        : activeSurface === "doubleSurface" ? doubleSurface : null
+
+    // ---- WHAT THE READER IS DRAWING, for the Loupe (Task 9) ----
+    // The lens needs one thing from the reading surfaces and only one: the boxes they are painting
+    // right now, with the page each box belongs to. All three answer visiblePageRects() in the same
+    // shape, so this is a lookup rather than three cases — and the LENS never reaches a surface
+    // itself, which is half of why it cannot move the book.
+    //
+    // WHAT KEEPS IT LIVE. Almost nothing has to be declared: QML captures a binding's dependencies
+    // as it EVALUATES, including every property read inside the function it calls — and
+    // visiblePageRects() reads the column's contentY, each row's y/height, the paged surfaces' drawn
+    // boxes and their own width/height straight from JS. So a scroll, a page turn, a zoom, a pan, a
+    // width change and a resize all re-drive this binding on their own. (MEASURED, because an
+    // earlier draft declared all of them explicitly and it was dead weight: dropping contentY from
+    // that list changed nothing — the function body reads it, so the capture already had it.)
+    //
+    // The ONE thing capture CANNOT see is the decode revision. core.imageUrl() folds a per-page
+    // `?rev=` that is bumped C++-side on pageReady, invisibly to QML, so the url a surface reports
+    // can change with no property read changing with it — the same reason all three surfaces already
+    // carry `readyRev`. That is what these three reads are, and they are read BEFORE the early
+    // return because a binding that returns first subscribes to nothing.
+    //
+    // ...and it costs nothing while the Loupe is shut: three int reads and an empty array.
+    // WHICH surface answers, named the same way `_pagedSurface` is and for the same reason: one
+    // place owns the mapping, the binding below reads THIS, and a gate can assert the routing
+    // without needing the surfaces to be painting (an offscreen harness roots its tree invisible, so
+    // every mounted surface reads inactive there and answers with an empty list whatever the routing
+    // says — a comparison of two empty lists would prove nothing at all).
+    readonly property var _loupeSurface: activeSurface === "singleSurface" ? singleSurface
+                                       : activeSurface === "doubleSurface" ? doubleSurface
+                                       : stripSurface
+    readonly property var loupePageRects: {
+        var _rev = stripSurface.readyRev + doubleSurface.readyRev + singleSurface.readyRev
+        if (activeOverlay !== "loupe") return []
+        var s = _loupeSurface
+        return (s && s.visiblePageRects) ? s.visiblePageRects() : []
+    }
 
     // ---- the per-command ANCHOR seam (Task 8), for BOTH popovers ----
     // A temporary panel hangs under the command that raised it (Cover's shape, and the thing
@@ -1342,6 +1386,8 @@ Item {
         rtl: reader.rtl
         zoomPercent: reader.zoomPercent
         modalOpen: reader.modalOpen
+        // The one surface that keeps keys of its own while it holds the keyboard (Task 9).
+        loupeOpen: reader.activeOverlay === "loupe"
         chromeVisible: reader.chromeVisible
         // paged vertical pan headroom, so Up/Down pan a too-tall spread or a zoomed page (never flip).
         vScrollMax: reader._pagedSurface ? reader._pagedSurface.panYMax : 0
@@ -1386,6 +1432,10 @@ Item {
         onGoToPage: reader.goToPageRequested()
         onOpenShortcuts: reader.shortcutsRequested()
         onToggleLoupe: reader.loupeRequested()
+        // +/- with the lens up. It reaches the LENS and can reach nothing else — the input's own
+        // Loupe branch sits above its Ctrl+zoom branch, so there is no keyboard path from an open
+        // Loupe to a page zoom at all.
+        onMagnifyLoupe: function (steps) { loupe.magnifySteps(steps) }
         onCloseTop: reader.closeTopRequested()
         onOpenContextMenu: function (x, y) { reader._onContextMenu(x, y) }
         // reveal-zone hover keeps the HUD alive; both also count as cursor activity — chrome and
@@ -1524,6 +1574,36 @@ Item {
         onAutoScrollStartRequested: reader.startAutoScroll()
         onAutoScrollPauseRequested: reader.pauseAutoScroll()
         onAutoScrollSpeedRequested: function (speed) { reader.setAutoScrollSpeed(speed) }
+        onDismissRequested: reader.activeOverlay = ""
+    }
+
+    // The Loupe (Task 9) — the temporary full-resolution magnifier, completing the scaffold the
+    // reader has carried since Task 5 (the command, the L key, the glyph, the signal, all live and
+    // consumed by nothing).
+    //
+    // It reads ONE fact — the boxes the live surface is painting — and raises ONE intent. It has no
+    // reference to the core, to a surface, to a page number, to a zoom or to a scroll position, so
+    // "never changes page zoom, pan, layout, or reading position" is an absence rather than a guard.
+    // Everything that makes that true at the SHELL level is here: the wheel is locked out of the
+    // column, the keyboard is gated by modalOpen (minus the lens's own two keys), and Auto-scroll is
+    // already paused by openOverlay before this surface ever appears.
+    //
+    // Mounted ABOVE the HUD, like its three siblings: the lens is a glass you are holding over the
+    // page, so it occludes the chrome rather than sliding under it. Its pointer tracker is inset by
+    // the chrome bands, which is what keeps the Loupe command, Back and the gold rail clickable.
+    ComicReaderLoupe {
+        id: loupe
+        objectName: "loupe"
+        open: reader.activeOverlay === "loupe"
+        pages: reader.loupePageRects
+        // The night veil is a composited Rectangle over the surfaces, not a render-profile field, so
+        // the lens paints its own at the same opacity — otherwise it would glare bright out of a
+        // dimmed page. Everything else the reader has done to the picture (brightness, contrast,
+        // gamma, sharpen, rotation, auto-crop) rides the imageUrl the surface handed over and needs
+        // no mirroring here.
+        veilOpacity: ComicReaderState.nightVeilOpacity(reader.nightVeil)
+        // Dismissal is a plain assignment, never openOverlay() — openOverlay TOGGLES, so routing a
+        // dismissal through it would re-open the surface the reader just closed.
         onDismissRequested: reader.activeOverlay = ""
     }
 
