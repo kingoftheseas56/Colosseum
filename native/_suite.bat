@@ -1,0 +1,7 @@
+@echo off
+setlocal
+set "ProgramFiles(x86)=C:\Program Files (x86)"
+cd /d "%~dp0"
+set "QTFRAMEWORK_BYPASS_LICENSE_CHECK=1"
+set "PATH=C:\Qt\6.11.1\msvc2022_64\bin;C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin;%PATH%"
+"C:\Qt\Tools\CMake_64\bin\ctest.exe" --test-dir build-player2/player2 -R "subtitle_timing|seek_generation|audio_pipeline|clock_scheduler|state_machine|track_policy|audio_normalizer" --output-on-failure
