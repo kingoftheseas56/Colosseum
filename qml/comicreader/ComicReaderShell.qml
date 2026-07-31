@@ -232,10 +232,15 @@ Item {
     // never shifts to make room for it. The chrome only RAISES intents — this is the single place
     // that decides what is open, so two surfaces can never both believe they are.
     //
-    // The commands are live from Task 5 even though their surfaces land in Tasks 6-9. That is
-    // deliberate and it is the honest state: pressing Pages really does take ownership (the command
-    // goes gold, the chrome stops sleeping, Escape gives it back). It is not a fake, and it is not
-    // hidden behind a "coming soon" that would have to be removed later.
+    // The commands went live in Task 5, before their surfaces landed in Tasks 6-9. That was
+    // deliberate and it cost Hemanth a real defect on 2026-08-01, so the correction belongs here
+    // rather than in a changelog: this property is an INTENT, and for four days it was also what the
+    // HUD's auto-hide asked "is a surface up?". A command whose surface did not exist yet — the
+    // Loupe, between Task 5 and Task 9 — set the intent, mounted nothing, and pinned the HUD and the
+    // cursor awake for the rest of the session with nothing on screen to dismiss. The hold now reads
+    // `modalOpen` (below), which only a surface that really came up can raise, and the shell gate
+    // asserts every name raisable here reaches it. `activeOverlay` still drives the command's GOLD —
+    // that is presentation, and presentation may lead the pixels; sleep policy may not.
     property string activeOverlay: ""            // "" | pages | image | layout | loupe
     function openOverlay(name) {
         var n = String(name)

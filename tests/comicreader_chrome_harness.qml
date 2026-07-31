@@ -297,6 +297,33 @@ Item {
         ck(shellA.chromeVisible === false, "hud: _autoHide() must hide chrome once modalOpen is false again")
         shellA.chromeVisible = true
 
+        // ----- REGRESSION (2026-08-01, Hemanth: "the hud doesn't auto dissapear"): an overlay
+        // INTENT that mounted no surface must NOT pin the chrome. -----
+        // `activeOverlay` is which command took ownership; `modalOpen` is which surface actually
+        // came up. While the hold read the intent, raising a command whose surface did not exist
+        // yet — the Loupe's exact state between Task 5 and Task 9 — set the intent, showed nothing,
+        // and left the HUD (and, through the shell's cursor rule, the pointer) awake for the rest
+        // of the session with no visible surface to dismiss. Measured in the real app on a 176-page
+        // volume before the fix: chromeVisible stayed true indefinitely.
+        //
+        // The name here is deliberately one NO surface answers to, because that is the whole defect
+        // — asserting with "pages" would pass either way, since the real shell raises modalOpen for
+        // it and the assertion could never tell the two conditions apart.
+        shellA.activeOverlay = "ghost"; shellA.modalOpen = false; shellA.chromeVisible = true
+        ck(hud._holdChrome === false,
+           "hud: an overlay INTENT with no mounted surface must not hold the chrome (_holdChrome)")
+        hud._autoHide()
+        ck(shellA.chromeVisible === false,
+           "hud: _autoHide() must still sleep the chrome when activeOverlay names a surface that "
+           + "never mounted (modalOpen false) - a command the reader cannot see must not pin the HUD")
+        // ...and the honest positive: the SAME intent, with its surface really up, still holds.
+        shellA.modalOpen = true; shellA.chromeVisible = true
+        hud._autoHide()
+        ck(shellA.chromeVisible === true,
+           "hud: an overlay that DID mount (modalOpen true) must still hold the chrome open")
+        shellA.activeOverlay = ""; shellA.modalOpen = false
+        shellA.chromeVisible = true
+
         // ----- FIX 2: the scrub bubble follows the POINTER (hover/drag), consulting
         // reader.pageAtFraction() (geometry-honest in Strip) instead of recomputing its own
         // estimate; the knob grows on that same interaction; the whole block hides for a

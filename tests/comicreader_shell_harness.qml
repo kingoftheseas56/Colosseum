@@ -1512,12 +1512,37 @@ Item {
                "escape: the next Escape closes the filmstrip and hands the keyboard back, got overlay='"
                + ovShell.activeOverlay + "' modal=" + ovShell.modalOpen)
 
-            // The commands that have no surface yet are honest, not faked: they really do take
-            // ownership, so the command goes gold and Escape gives it back. Nothing pretends.
-            ovShell.openOverlay("loupe")
-            ck(ovShell.activeOverlay === "loupe", "overlay: Loupe takes ownership even before its surface lands")
-            ovShell.closeTop()
-            ck(ovShell.activeOverlay === "", "overlay: ...and Escape gives it straight back")
+            // EVERY COMMAND THE CHROME CAN RAISE MUST ACTUALLY MOUNT SOMETHING.
+            //
+            // This is the gate the reader did not have, and it is the one that would have caught
+            // Hemanth's 2026-08-01 "the hud doesn't auto dissapear" before he did. Between Task 5
+            // (where all six commands went live) and Task 9 (where the Loupe's surface landed),
+            // `openOverlay("loupe")` set the shell's INTENT and mounted nothing — and the HUD's
+            // auto-hide hold read that intent, so pressing Loupe pinned the HUD and the cursor awake
+            // for the whole session with no visible surface to dismiss. The old assertion here
+            // BLESSED that state ("Loupe takes ownership even before its surface lands"), which is
+            // exactly why a full green chrome gate shipped the defect.
+            //
+            // The hold now reads `modalOpen` (a surface that really came up), so the invariant that
+            // matters is this one: every name the chrome raises must reach modalOpen. A name that
+            // does not is a command the reader cannot see, and the gate says so by name.
+            var raisable = ["pages", "image", "layout", "loupe"]
+            for (var ri = 0; ri < raisable.length; ri++) {
+                var rname = raisable[ri]
+                ovShell.activeOverlay = ""
+                ck(ovShell.modalOpen === false,
+                   "overlay: precondition - nothing modal before raising '" + rname + "'")
+                ovShell.openOverlay(rname)
+                ck(ovShell.activeOverlay === rname,
+                   "overlay: '" + rname + "' must take ownership, got '" + ovShell.activeOverlay + "'")
+                ck(ovShell.modalOpen === true,
+                   "overlay: '" + rname + "' must MOUNT a surface (modalOpen), not just claim the "
+                   + "intent - a command with no surface pins the HUD and the cursor awake forever")
+                ovShell.closeTop()
+                ck(ovShell.activeOverlay === "" && ovShell.modalOpen === false,
+                   "overlay: Escape must give '" + rname + "' straight back, got '"
+                   + ovShell.activeOverlay + "' modal=" + ovShell.modalOpen)
+            }
 
             // -- 19. THE PAGES FILMSTRIP (Task 6) — the first of the four temporary surfaces to get
             // real pixels. The overlay itself is pinned by tests/comicreader_overlays_harness.qml;

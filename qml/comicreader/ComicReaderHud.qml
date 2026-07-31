@@ -169,9 +169,26 @@ Item {
         autoHideTimer.restart()
     }
     function notifyActivity() { if (chromeVisible) autoHideTimer.restart() }
-    // chrome is HELD while a modal or a temporary surface is up, or the pointer rests ON the chrome
+    // chrome is HELD while a temporary surface is genuinely UP, or the pointer rests ON the chrome
     // — reaching for a command and pausing to aim must not fade it out from under your cursor.
-    readonly property bool _holdChrome: modalOpen || activeOverlay.length > 0 || chromeHover.hovered
+    //
+    // "UP" MEANS MOUNTED, NEVER MERELY INTENDED. This used to read `activeOverlay.length > 0` as
+    // well, and that is a real bug with a real victim: `activeOverlay` is the shell's INTENT (which
+    // command took ownership), while `modalOpen` is the aggregate of the surfaces that actually
+    // mounted. Raise a command whose surface is not there — which is exactly what the Loupe command
+    // was between Task 5, where it went live, and Task 9, where its surface landed — and the intent
+    // is set, nothing appears, and the chrome is pinned open for the rest of the session. The cursor
+    // goes with it (the shell blanks it only while the chrome is away), so the reader gets a HUD and
+    // an arrow that never sleep and no visible surface to dismiss. Measured in the real app against a
+    // 176-page volume: `openOverlay("<name with no surface>")` -> chromeVisible true forever.
+    //
+    // `modalOpen` cannot lie the same way: each overlay's `open` is a binding on this same
+    // `activeOverlay`, so a surface that exists reports itself in the same beat, and one that does
+    // not exist reports nothing — which is the honest answer. Every surface the chrome can raise is
+    // mounted today, so this changes no behaviour on master; it removes the way the hold can be
+    // pinned by a command the reader cannot see. The COMMAND still goes gold off `activeOverlay` —
+    // that is presentation, and it is not what decides whether the chrome may sleep.
+    readonly property bool _holdChrome: modalOpen || chromeHover.hovered
     function _autoHide() {
         if (_holdChrome) { autoHideTimer.restart(); return }
         if (reader) reader.chromeVisible = false
