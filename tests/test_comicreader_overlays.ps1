@@ -22,7 +22,8 @@ if (!(Test-Path -LiteralPath $qmlExe)) {
 #     cannot read arbitrary local files reliably, so the file-level laws live here). ---
 $overlays = @(
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderSettingsSheet.qml"),
-    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderPagesOverlay.qml")
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderPagesOverlay.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderImagePopover.qml")
 )
 foreach ($overlay in $overlays) {
     if (!(Test-Path -LiteralPath $overlay)) {

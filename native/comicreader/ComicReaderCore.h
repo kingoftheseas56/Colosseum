@@ -40,6 +40,7 @@
 
 #include "comicreader/ComicReaderCoupling.h"
 #include "comicreader/ComicReaderPageCache.h"
+#include "comicreader/ComicReaderRenderProfile.h"
 #include "comicreader/ComicReaderScaleCache.h"
 #include "comicreader/ComicReaderTypes.h"
 
@@ -86,6 +87,11 @@ class ComicReaderCore final : public QObject {
     Q_PROPERTY(bool memorySaver READ memorySaver NOTIFY cacheChanged)
     Q_PROPERTY(int stripWidthPct READ stripWidthPct NOTIFY stripLayoutChanged)
     Q_PROPERTY(int stripGap READ stripGap NOTIFY stripLayoutChanged)
+    // Task 7's Image panel. `renderRevision` is the identity every scaled entry
+    // is keyed on, exposed so QML can fold it into an image url — WITHOUT it a
+    // brightness change would produce a byte-identical url and QML's own pixmap
+    // cache would happily serve the pre-adjustment page forever.
+    Q_PROPERTY(qulonglong renderRevision READ renderRevision NOTIFY renderProfileChanged)
 public:
     explicit ComicReaderCore(QObject* parent = nullptr);
     ~ComicReaderCore() override;
@@ -98,6 +104,9 @@ public:
     bool memorySaver() const { return m_memorySaver; }
     int stripWidthPct() const { return m_portraitWidthPct; }
     int stripGap() const { return m_stripGap; }
+    qulonglong renderRevision() const {
+        return static_cast<qulonglong>(m_renderProfile.revision());
+    }
 
     // Open an entry. `pages` is a QVariantList of {index,url,group}; each url must
     // be a local file:// that exists (a remote/undownloaded page is rejected with
@@ -223,6 +232,33 @@ public:
     // the one piece of it QML was missing. 0 for an out-of-range page, never a crash.
     Q_INVOKABLE double stripPageHeight(int page) const;
     Q_INVOKABLE void setMemorySaver(bool on);                     // cache 256 vs 512 MiB
+
+    // ---- the Image panel's adjustments (Task 7, overhaul plan 2026-07-28) ----
+    // ONE door in, ONE door out, and the map is VALIDATED on the way in: the
+    // profile is persisted per series, so what arrives here may have been written
+    // by a future version or hand-edited. normalizeRenderProfile clamps every
+    // field (see ComicReaderRenderProfile.h for the ranges); an unknown key is
+    // ignored and a missing one keeps its default.
+    //
+    // What a change costs, exactly:
+    //   * a PIXEL-affecting change (brightness/contrast/gamma/rotation/autoCrop/
+    //     quality) bumps renderRevision and CLEARS THE SCALED TIER. Every entry
+    //     in it was computed under the previous revision, so all of them are
+    //     stale by construction — clear() IS "invalidate the old revision", and
+    //     it needs no new cache API to say so.
+    //   * the DECODED tier is deliberately untouched. Nudging brightness must
+    //     never send the reader back to disk for pixels it already has; that is
+    //     the difference between a live control and a stutter.
+    //   * nightFilter alone changes NOTHING here: it is a composited veil the
+    //     shell paints, not a pixel operation, so it emits the signal and leaves
+    //     the revision and the scaled tier exactly where they were.
+    // The profile deliberately SURVIVES entry crossings (like the strip measure):
+    // it is a property of how you want to read this series, not of one chapter.
+    Q_INVOKABLE void setRenderProfile(QVariantMap profile);
+    // The normalised profile — every key present, canonical types. This is the
+    // shape the shell persists, so a stored record is already normalised and
+    // re-reading it is a fixed point.
+    Q_INVOKABLE QVariantMap renderProfile() const;
     // Bookmarks (0-based page). Toggling an in-range page inserts it (kept sorted)
     // or removes it if already present; out-of-range pages are ignored. bookmarks()
     // is the live view the HUD's scrub-bar ticks bind to (persistedState()'s
@@ -284,6 +320,11 @@ signals:
     void stripLayoutChanged();              // portrait width % / gap changed
     void stripCompensation(double delta);   // QML strip adds this to its scroll pos
     void bookmarksChanged();                // toggleBookmark() mutated the live bookmark set
+    // The Image panel changed something. Fired for ANY real change, including a
+    // night-filter toggle that moved no revision — the panel reads its own state
+    // back through renderProfile(), and the surfaces use this as their refresh
+    // dependency exactly as they use pageReady().
+    void renderProfileChanged();
 
 private:
     void resetEntryState();
@@ -313,10 +354,11 @@ private:
     ComicReaderStripModel* m_strip = nullptr;     // owned (child)
 
     std::atomic<quint64> m_liveGeneration{0};     // read by the provider off-thread
-    // Task 7's seam, stubbed: every scaled entry is keyed on this, so bumping it
-    // there invalidates the scaled tier for free. Constant today — there is no
-    // render profile yet, and this task does not build one.
-    std::atomic<quint64> m_renderRevision{0};
+    // The Image panel's live adjustments (Task 7). Every scaled entry is keyed on
+    // this store's revision, so a pixel-affecting change invalidates the scaled
+    // tier for free; the workers read the profile and that revision together,
+    // under the store's own lock.
+    RenderProfileStore m_renderProfile;
 
     // The last window requestRange actually swept, POST-clamp, so a repeat can
     // return without touching either cache. -1/-1 means "nothing swept yet" and

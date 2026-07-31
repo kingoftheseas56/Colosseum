@@ -211,10 +211,12 @@ Item {
     // an overlay is up — swallows background input + pauses auto-hide. Aggregated off the MOUNTED
     // overlays only. `activeOverlay` deliberately does NOT join this OR wholesale: gating the whole
     // keyboard behind a surface that has no pixels on screen would be a trap, not a contract. Each
-    // of Tasks 6-9 adds its own mount here as it lands — Task 6 adds the Pages filmstrip, which now
+    // of Tasks 6-9 adds its own mount here as it lands — Task 6 added the Pages filmstrip, which now
     // genuinely covers the comic, so an open filmstrip owns the keyboard (everything but Escape,
-    // ComicReaderInput's existing law) exactly like the sheet does.
-    readonly property bool modalOpen: settingsSheet.opened || pagesOverlay.open
+    // ComicReaderInput's existing law) exactly like the sheet does. Task 7 adds the Image panel on
+    // the same terms: it is a smaller surface, but it carries live sliders, and a page turn landing
+    // under a drag would be the same defect.
+    readonly property bool modalOpen: settingsSheet.opened || pagesOverlay.open || imagePopover.open
 
     // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
     // (MangaReader.qml:165) and read by tests/manga_tankoban_page_harness.qml — the Task 1 contract
@@ -234,6 +236,10 @@ Item {
     property bool _resumeArmed: false           // the next load may restore the saved Continue spot
     property bool _pendingAtLast: false         // open the entry at its last page (previous-crossing)
     property bool _suspendRecord: false         // mutating state during load() must not emit records
+    // Replaying a series' remembered preferences is not the reader MAKING one. Without
+    // this, opening a book would stamp that book's night veil onto the GLOBAL seed and
+    // re-write the record it had just read — the same leak F2 closed for the strip measure.
+    property bool _replayingPrefs: false
     property real _pendingStripFrac: 0          // one-shot: the saved scrollFrac awaiting layout settle
     // is a restore in flight? Consumed by the shell gate; also the honest answer to "did resume arm".
     readonly property bool _stripRestorePending: stripRestore.running || _stripRestoreTries > 0
@@ -619,6 +625,83 @@ Item {
     }
     function setMemorySaver(on) { if (core && core.setMemorySaver) core.setMemorySaver(on === true) }
 
+    // ================= the Image panel's adjustments (Task 7) =================
+    // The backend's normalised profile, mirrored here so the panel, the veil and
+    // the per-series record all read ONE value.
+    property var _coreRenderProfile: ({})
+    // What the Image panel actually READS. It is the backend's map with exactly
+    // one substitution: `nightFilter` is answered by the reader's real veil.
+    //
+    // That substitution is the whole night-filter decision, so it is worth saying
+    // plainly. The night filter is NOT a render transform. It is the black veil
+    // this shell already paints over the surfaces (see the nightVeil Rectangle),
+    // and it stays that way for two reasons: it is a control you toggle WHILE
+    // looking at a page, and a composited overlay is free where a pixel transform
+    // would bump the render revision, throw away every scaled entry and re-scale
+    // the visible pages just to dim them; and the reader already HAS a night
+    // control (the settings sheet's Off/Low/High), so baking a second one into the
+    // pixels would leave two that could disagree. One veil, one painter — the
+    // panel's switch and the sheet's chips are two views of the same value, and
+    // the profile merely RECORDS it so it can be remembered per series.
+    readonly property var renderProfile: {
+        var p = {}
+        for (var k in _coreRenderProfile) p[k] = _coreRenderProfile[k]
+        p.nightFilter = (nightVeil !== "off")
+        return p
+    }
+
+    // ---- applying: immediate, but throttled ----
+    // Hemanth approved "changes are previewed immediately", and that is exactly
+    // what this does — the FIRST change of a gesture is applied on the spot, so a
+    // slider shows on the page while you drag rather than on release. But
+    // "immediate" and "sixty times a second" are not the same thing: every
+    // pixel-affecting change bumps the render revision and drops the whole scaled
+    // tier, so an untrimmed drag would ask the worker pool to re-scale every
+    // visible page on every frame. This is a leading+trailing throttle: apply now,
+    // then coalesce whatever else arrives inside the window and apply the LAST of
+    // it when the window closes. Nothing is ever dropped — the final value of a
+    // drag always lands — and the reader sees ~12 updates a second instead of 60.
+    property int renderApplyMs: 80
+    property var _pendingRenderProfile: null
+    Timer { id: renderThrottle; interval: reader.renderApplyMs; onTriggered: reader._flushRenderProfile() }
+
+    // THE door the Image panel calls. `profile` is always a COMPLETE map — the
+    // backend's setRenderProfile REPLACES rather than merges, and the popover
+    // builds the whole map from the live one for exactly that reason.
+    function setRenderProfile(profile) {
+        if (!profile) return
+        if (renderThrottle.running) { _pendingRenderProfile = profile; return }
+        _applyRenderProfile(profile)
+        renderThrottle.restart()
+    }
+    function _flushRenderProfile() {
+        if (!_pendingRenderProfile) return       // window closed with nothing waiting: stop
+        var next = _pendingRenderProfile
+        _pendingRenderProfile = null
+        _applyRenderProfile(next)
+        renderThrottle.restart()                 // a drag still in progress keeps the window open
+    }
+    function _applyRenderProfile(profile) {
+        if (!profile) return
+        // The veil is the night control; the profile records it. Never DOWNGRADE
+        // an existing "high" to "low" — the sheet's three-way choice is a finer
+        // statement of the same on/off the panel's switch makes.
+        var wantNight = profile.nightFilter === true
+        if (wantNight !== (nightVeil !== "off")) nightVeil = wantNight ? "low" : "off"
+        if (core && core.setRenderProfile) core.setRenderProfile(profile)
+        _coreRenderProfile = (core && core.renderProfile) ? core.renderProfile() : profile
+        if (_ready && !_replayingPrefs) renderSave.restart()
+    }
+    // The record is per SERIES and it is written to QSettings, which syncs to
+    // disk. A drag must not do that sixty times, or even twelve — so the write is
+    // debounced well past the end of the gesture, exactly like recordProgress and
+    // the entry blob.
+    Timer { id: renderSave; interval: 500; onTriggered: reader._saveRenderProfile() }
+    function _saveRenderProfile() {
+        if (!_ready) return
+        _saveSeriesPrefs({ renderProfile: reader.renderProfile })
+    }
+
     // ---- the settings sheet's two danger actions (the sheet arms them; this fires) ----
     // Clear resume: forget THIS series' Continue spot. The book keeps its bookmarks, spread
     // overrides and coupling — only "where you were" is dropped, so the next open starts at page 1.
@@ -677,6 +760,14 @@ Item {
         // and a pending debounce would be writing an already-cleared entry (or never fire at all).
         entrySave.stop()
         _saveEntryBlob()
+        // ...and the Image panel's adjustments, for the same reason: a debounce still
+        // in flight when the reader closes the book would never fire, and the last
+        // thing you did to the picture would be the one thing not remembered. Flushed
+        // BEFORE closeEntry() so `renderProfile` still reads the live profile.
+        _flushRenderProfile()     // the last value of an in-flight drag
+        renderThrottle.stop()     // ...and close the window flush() just re-opened
+        renderSave.stop()
+        _saveRenderProfile()
         if (core) core.closeEntry()
     }
 
@@ -833,6 +924,32 @@ Item {
         var prefsForSeries = ComicReaderState.migrateReaderPrefs(src, entryKind, western)
         layout = prefsForSeries.layout
         order = prefsForSeries.order
+
+        // The Image panel's adjustments, replayed BEFORE core.openEntry() (load()
+        // calls this first), so the very first page request is already rendered
+        // the way this book was left rather than flashing an unadjusted page.
+        // Same three-layer shape as the strip measure: this series' record wins,
+        // and where it is silent the reader's current state answers.
+        //
+        // Read off the RECORD, not off `prefsForSeries`: `src` above deliberately
+        // falls back to the global last-choice when the record says nothing about
+        // layout or order, and a record that exists only to hold image
+        // adjustments would have been thrown away by that fallback.
+        //
+        // The interior is NOT validated here. migrateReaderPrefs carries
+        // `renderProfile` through as an opaque map (Task 3 left it that way for
+        // this task) and the BACKEND is the one validator, so a hand-edited or
+        // future-version blob is clamped there, once, on the way in.
+        var stored = (rec && rec.renderProfile && typeof rec.renderProfile === "object"
+                      && !Array.isArray(rec.renderProfile)) ? rec.renderProfile : {}
+        var rp = {}
+        for (var k in stored) rp[k] = stored[k]
+        // Night is the ONE field with a global fallback: it is reading-comfort
+        // taste that should follow you into a book you have never adjusted, not a
+        // per-book decision that silently switches your veil off on every open.
+        if (rp.nightFilter === undefined) rp.nightFilter = (nightVeil !== "off")
+        _replayingPrefs = true
+        try { _applyRenderProfile(rp) } finally { _replayingPrefs = false }
     }
     // The per-entry blob handed straight to core.openEntry(). memorySaver is a GLOBAL that merely
     // RIDES this blob (the backend round-trips it there and resets it per entry), so it is injected
@@ -936,7 +1053,11 @@ Item {
     }
 
     // ---- reactions: every settings write goes straight back to its store ----
-    onNightVeilChanged:      if (_ready) globalPrefs.nightVeil = nightVeil
+    // The veil is GLOBAL taste and it follows you between books — but only when a
+    // reader actually changes it. `_replayingPrefs` is what keeps merely OPENING a
+    // series (which replays that series' remembered night state) from stamping it
+    // onto the global seed; the same leak F2 closed for the strip measure.
+    onNightVeilChanged:      if (_ready && !_replayingPrefs) globalPrefs.nightVeil = nightVeil
     onGutterStrengthChanged: if (_ready) globalPrefs.gutterStrength = gutterStrength
     // NOTE: stripWidthPct/stripGap are deliberately ABSENT here. They are readonly readbacks of the
     // backend, so they also change when _applySeriesPrefs replays a series' remembered measure —
@@ -1229,6 +1350,23 @@ Item {
             reader.goToPageIndex(page)
             reader.activeOverlay = ""
         }
+        // Dismissal is a plain assignment, never openOverlay() — openOverlay TOGGLES, so routing a
+        // dismissal through it would re-open the surface the reader just closed.
+        onDismissRequested: reader.activeOverlay = ""
+    }
+
+    // The compact Image panel (Task 7). Raised by the Image command through the ONE overlay
+    // coordinator; it hangs from the command bar and the comic never shifts to make room for it.
+    //
+    // It reads the live profile and raises ONE intent carrying a COMPLETE map — the backend's
+    // setRenderProfile REPLACES rather than merges, so a partial map would silently reset the
+    // fields it omitted. The shell owns the throttle and the persistence; the panel owns neither.
+    ComicReaderImagePopover {
+        id: imagePopover
+        objectName: "imagePopover"
+        profile: reader.renderProfile
+        open: reader.activeOverlay === "image"
+        onProfileChangeRequested: function (profile) { reader.setRenderProfile(profile) }
         // Dismissal is a plain assignment, never openOverlay() — openOverlay TOGGLES, so routing a
         // dismissal through it would re-open the surface the reader just closed.
         onDismissRequested: reader.activeOverlay = ""

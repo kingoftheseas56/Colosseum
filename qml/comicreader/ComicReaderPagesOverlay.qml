@@ -204,6 +204,11 @@ Item {
         target: root.core
         ignoreUnknownSignals: true
         function onPageReady(page) { root.readyRev += 1 }
+        // The Image panel adjusted the picture (Task 7). The thumbnails ride the same
+        // delivery path as the page, so a rotated or brightened book must show rotated,
+        // brightened thumbnails — and imageUrl()'s render revision is a C++-side read a QML
+        // binding cannot see, so this bump is what makes the strip re-request.
+        function onRenderProfileChanged() { root.readyRev += 1 }
     }
 
     // ================= the canvas catcher =================

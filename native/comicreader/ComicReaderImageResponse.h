@@ -60,9 +60,10 @@
 //               ahead of hq work in the provider's pool, so the frame gets
 //               pixels first. That is a strong bias, not a guarantee: with two
 //               lanes an hq already running keeps running.
-//   hq        — SmoothTransformation, the reader's real page. The default, and
-//               what every existing caller gets. Task 7's render profile is
-//               what will make "the selected quality" mean more than this.
+//   hq        — the reader's real page: the default, and what every existing
+//               caller gets. Task 7's quality dial governs THIS tier and only
+//               this tier — fast/balanced/best pick its resampler and decide
+//               whether the tonal maths runs before or after the downscale.
 //   thumbnail — SmoothTransformation, but clamped to kThumbnailMaxWidth. A
 //               filmstrip entry has no business holding a viewport-sized scale;
 //               a hundred of those is the memory bug this task exists to avoid

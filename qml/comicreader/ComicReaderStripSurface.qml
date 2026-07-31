@@ -186,6 +186,12 @@ Item {
         // decode landed: clear any failure AND bump readyRev so the page's `source` re-requests the
         // freshly-decoded pixels (the ?rev= url changed C++-side, invisibly to QML).
         function onPageReady(page)        { root._clearFailed(page); root.readyRev += 1 }
+        // The Image panel adjusted the picture (Task 7). Same refresh dependency as a
+        // decode landing, and for the same reason: imageUrl() now folds the render
+        // revision, and that read happens in C++ where a QML binding cannot see it. Without
+        // this bump the `source` binding never re-evaluates, the url never changes, and QML's
+        // own pixmap cache serves the pre-adjustment page for the rest of the session.
+        function onRenderProfileChanged() { root.readyRev += 1 }
         function onStripCompensation(delta) { root._applyCompensation(delta) }
     }
 

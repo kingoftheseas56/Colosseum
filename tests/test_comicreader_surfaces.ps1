@@ -47,6 +47,22 @@ foreach ($s in $surfaces) {
     }
 }
 
+# --- static: every reading surface REFRESHES when the Image panel adjusts the picture (Task 7) ---
+# Hemanth approved "changes are previewed immediately", and this line is the whole mechanism.
+# ComicReaderCore::imageUrl() folds the render revision into the url, but that read happens in C++
+# where a QML binding cannot see it — so without a refresh dependency the `source` binding never
+# re-evaluates, the url never changes, and QML's own pixmap cache keeps serving the pre-adjustment
+# page for the rest of the session. Nothing about that failure is visible offscreen (it needs a real
+# pixmap cache and a real profile change), so it is pinned at the source level, where a deletion is.
+foreach ($s in @($surfaces[0], $surfaces[1], $surfaces[2])) {
+    $refresh = Select-String -LiteralPath $s -Pattern "onRenderProfileChanged"
+    if (!$refresh) {
+        Write-Host "FAIL: $s must refresh on the core's renderProfileChanged, or the Image panel's"
+        Write-Host "      adjustments will never reach the page (see the Task 7 note in the surface)."
+        exit 1
+    }
+}
+
 $env:QT_FORCE_STDERR_LOGGING = "1"
 $harness  = Join-Path $PSScriptRoot "comicreader_surfaces_harness.qml"
 $mockPath = Join-Path $PSScriptRoot "qmlmock"

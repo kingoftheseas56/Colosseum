@@ -447,11 +447,43 @@ QString ComicReaderCore::imageUrl(int page, QString tier) const {
     // Normalised, not passed through: two different misspellings must not become
     // two different scaled-cache entries for the same picture.
     const QString normalised = tierToString(tierFromString(tier));
-    return QStringLiteral("image://comicreader/%1/%2?rev=%3&tier=%4")
+    // `rr` is the RENDER revision, and it is here for one reason: QML's own
+    // pixmap cache is keyed by url. Without it, adjusting brightness produces a
+    // byte-identical url, QQuickPixmapCache serves the pre-adjustment page from
+    // its own store, and the provider is never asked — the reader would move a
+    // slider and watch nothing happen. It plays no part in the request itself
+    // (the worker reads the profile and its revision from the store, coherently);
+    // it exists purely to make the url change when the picture does.
+    return QStringLiteral("image://comicreader/%1/%2?rev=%3&tier=%4&rr=%5")
         .arg(m_generation)
         .arg(page)
         .arg(m_pageRev.value(page, 0))
-        .arg(normalised);
+        .arg(normalised)
+        .arg(m_renderProfile.revision());
+}
+
+void ComicReaderCore::setRenderProfile(QVariantMap profile) {
+    // THE validation boundary — see ComicReaderRenderProfile.h. Everything past
+    // this line is in range by construction.
+    const RenderProfile next = normalizeRenderProfile(profile);
+    const RenderProfileStore::Change change = m_renderProfile.store(next);
+    if (change == RenderProfileStore::Change::None)
+        return;
+    if (change == RenderProfileStore::Change::Pixel) {
+        // Every scaled entry was computed under the PREVIOUS revision, so every
+        // one of them is stale — clearing the tier IS "invalidate the entries for
+        // the old render revision", with no second bookkeeping to keep in step.
+        //
+        // The DECODED tier is untouched, deliberately and load-bearingly: the
+        // adjustments are applied to pixels we already hold, so a slider drag
+        // costs a rescale, never a trip back to disk.
+        m_scaleCache.clear();
+    }
+    emit renderProfileChanged();
+}
+
+QVariantMap ComicReaderCore::renderProfile() const {
+    return renderProfileToVariantMap(m_renderProfile.load());
 }
 
 QVariantMap ComicReaderCore::deliveryMetrics() const {
@@ -999,7 +1031,8 @@ ComicReaderProvider* ComicReaderCore::createProvider() {
     ctx.pageCache = &m_cache;
     ctx.scaleCache = &m_scaleCache;
     ctx.liveGeneration = &m_liveGeneration;
-    ctx.renderRevision = &m_renderRevision;
+    ctx.renderRevision = m_renderProfile.revisionAtomic();
+    ctx.renderProfile = &m_renderProfile;
     ctx.metrics = &m_delivery;
     return new ComicReaderProvider(ctx);
 }

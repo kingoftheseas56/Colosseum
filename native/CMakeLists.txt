@@ -245,6 +245,8 @@ add_executable(colosseum
     comicreader/ComicReaderPageCache.h
     comicreader/ComicReaderScaleCache.cpp
     comicreader/ComicReaderScaleCache.h
+    comicreader/ComicReaderRenderProfile.cpp
+    comicreader/ComicReaderRenderProfile.h
     comicreader/ComicReaderDecode.cpp
     comicreader/ComicReaderDecode.h
     comicreader/ComicReaderStripModel.cpp
@@ -1047,6 +1049,7 @@ add_executable(comicreader_core_harness
     comicreader/ComicReaderCore.cpp comicreader/ComicReaderCore.h
     comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
     comicreader/ComicReaderImageResponse.cpp comicreader/ComicReaderImageResponse.h
+    comicreader/ComicReaderRenderProfile.cpp comicreader/ComicReaderRenderProfile.h
     comicreader/ComicReaderStripModel.cpp comicreader/ComicReaderStripModel.h
     comicreader/ComicReaderDecode.cpp comicreader/ComicReaderDecode.h
     comicreader/ComicReaderCoupling.cpp comicreader/ComicReaderCoupling.h
@@ -1079,6 +1082,7 @@ add_executable(comicreader_provider_harness
     ../tests/comicreader_provider_harness.cpp
     comicreader/ComicReaderProvider.cpp comicreader/ComicReaderProvider.h
     comicreader/ComicReaderImageResponse.cpp comicreader/ComicReaderImageResponse.h
+    comicreader/ComicReaderRenderProfile.cpp comicreader/ComicReaderRenderProfile.h
     comicreader/ComicReaderPageCache.cpp comicreader/ComicReaderPageCache.h
     comicreader/ComicReaderScaleCache.cpp comicreader/ComicReaderScaleCache.h)
 target_include_directories(comicreader_provider_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

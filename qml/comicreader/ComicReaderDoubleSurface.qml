@@ -107,6 +107,11 @@ Item {
         target: root.core
         ignoreUnknownSignals: true
         function onPageReady(page)  { root.readyRev += 1 }
+        // The Image panel adjusted the picture (Task 7) — the same refresh dependency as a
+        // decode landing: imageUrl() folds the render revision C++-side, invisibly to QML, so
+        // without this bump the `source` binding never re-evaluates and QML's own pixmap
+        // cache keeps serving the pre-adjustment page.
+        function onRenderProfileChanged() { root.readyRev += 1 }
         function onPageFailed(page, code) { root.failedRev += 1 }
         function onEntryChanged()   {
             root.entryRev += 1

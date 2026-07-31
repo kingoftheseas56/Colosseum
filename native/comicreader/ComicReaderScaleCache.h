@@ -128,6 +128,10 @@ namespace comicreader {
 
 class ComicReaderPageCache;
 class ComicReaderScaleCache;
+// Task 7's live image adjustments. Forward-declared, never included: a pointer is
+// all DeliveryContext needs, and this header is the one every delivery-side unit
+// pulls in — including two harnesses that have no render profile at all.
+class RenderProfileStore;
 
 // Which shape of answer a request wants. Carried in the image URL's query
 // (`&tier=`), produced by ComicReaderCore::imageUrl().
@@ -245,6 +249,17 @@ struct DeliveryContext {
     // need not invent an atomic to say so.
     const std::atomic<quint64>* renderRevision = nullptr;
     DeliveryMetrics* metrics = nullptr;
+    // Task 7: the live image adjustments, and the revision they belong to, read
+    // COHERENTLY by the worker (RenderProfileStore::load takes both under one
+    // lock). Null means "identity profile", in which case `renderRevision` above
+    // still answers for the key.
+    //
+    // LAST on purpose, and it must stay last: this struct is aggregate-initialised
+    // POSITIONALLY by its callers (ComicReaderCore::createProvider names its
+    // members, but comicreader_provider_harness writes `{&cache, &scaled, &live,
+    // nullptr, &metrics}`), so a field inserted anywhere else silently re-points
+    // every argument after it. Appending is the only additive change here.
+    const RenderProfileStore* renderProfile = nullptr;
 };
 
 class ComicReaderScaleCache {

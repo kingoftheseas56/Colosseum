@@ -2,6 +2,7 @@
 #include "comicreader/ComicReaderImageResponse.h"
 
 #include "comicreader/ComicReaderPageCache.h"
+#include "comicreader/ComicReaderRenderProfile.h"
 
 #include <QMetaObject>
 #include <QStringView>
@@ -92,12 +93,22 @@ int targetWidthFor(ScaleTier tier, int requestedWidth) {
                : ComicReaderImageResponse::kThumbnailMaxWidth;
 }
 
-Qt::TransformationMode transformFor(ScaleTier tier) {
+Qt::TransformationMode transformFor(ScaleTier tier, RenderQuality quality) {
     // Preview trades quality for speed on purpose — it exists to put pixels on
     // screen and be replaced. Thumbnails are smooth: scaling a 2400px page down
     // to 240 with a fast transform aliases badly, and a thumbnail is looked at,
     // not glanced past.
-    return tier == ScaleTier::Preview ? Qt::FastTransformation : Qt::SmoothTransformation;
+    //
+    // Task 7: the reader's quality dial governs the HQ tier and only the HQ tier,
+    // because hq IS the page the setting is about. Letting "fast" alias the
+    // filmstrip would trade quality where none of the cost is — a 240px
+    // thumbnail's scale is already nearly free — and letting "best" un-fast the
+    // preview would defeat the one job the preview tier has.
+    if (tier == ScaleTier::Preview)
+        return Qt::FastTransformation;
+    if (tier == ScaleTier::Thumbnail)
+        return Qt::SmoothTransformation;
+    return quality == RenderQuality::Fast ? Qt::FastTransformation : Qt::SmoothTransformation;
 }
 
 } // namespace
@@ -149,8 +160,19 @@ void ComicReaderImageResponse::run() {
             if (m_ctx.metrics)
                 m_ctx.metrics->staleDrops.fetch_add(1, std::memory_order_relaxed);
         } else {
-            const quint64 renderRevision =
-                m_ctx.renderRevision ? m_ctx.renderRevision->load() : 0;
+            // The profile and the revision it BELONGS TO, together. Reading them
+            // separately can tear, and a tear here files new-profile pixels under
+            // the old revision's key — a scaled entry whose contents disagree with
+            // its own identity, served to every later request that matches it.
+            // RenderProfileStore::load closes that window; the bare-atomic path is
+            // the pre-Task-7 fallback for a context with no profile at all.
+            RenderProfile profile;
+            quint64 renderRevision = 0;
+            if (m_ctx.renderProfile)
+                profile = m_ctx.renderProfile->load(&renderRevision);
+            else if (m_ctx.renderRevision)
+                renderRevision = m_ctx.renderRevision->load();
+
             const int targetWidth = targetWidthFor(m_tier, m_requestedWidth);
             const ScaleKey key{m_generation, m_page, QSize(targetWidth, 0),
                                m_dpr100, renderRevision, m_tier};
@@ -176,23 +198,59 @@ void ComicReaderImageResponse::run() {
                     // which is the expensive half and the whole reason this is
                     // off-thread.
                     if (!wasCancelled()) {
-                        if (targetWidth > 0 && targetWidth < source->width()) {
+                        // GEOMETRY FIRST, ALWAYS. Auto-crop and rotation change
+                        // the image's dimensions, and `targetWidth` names the
+                        // FINAL width — scaling a portrait page to 2048 and then
+                        // turning it 90 degrees would deliver a 2048-TALL image
+                        // to a caller that asked for 2048 wide. With an identity
+                        // profile this returns the source itself, so the path
+                        // below is byte-for-byte what it was before Task 7.
+                        QImage rendered =
+                            applyRenderProfile(*source, profile, RenderStage::Geometry);
+
+                        // `best` pays the tonal maths at FULL resolution, before
+                        // the resample; `fast` and `balanced` pay it on the
+                        // scaled copy. See ComicReaderRenderProfile.h for why the
+                        // two orders differ at all — resampling and a non-linear
+                        // tone curve do not commute.
+                        //
+                        // HQ ONLY, on the same rule transformFor() follows: the
+                        // full-resolution pass is by far the expensive half (a
+                        // 2400x3600 page is ~8.6M LUT samples), and spending it on
+                        // the PREVIEW tier would destroy the one job preview has —
+                        // first pixels on screen — while spending it on a 240px
+                        // thumbnail buys nothing anybody can see.
+                        const bool toneFirst = profile.quality == RenderQuality::Best
+                                               && m_tier == ScaleTier::Hq;
+                        if (toneFirst)
+                            rendered = applyRenderProfile(rendered, profile, RenderStage::Tone);
+
+                        const bool scaling = targetWidth > 0 && targetWidth < rendered.width();
+                        if (scaling) {
                             if (m_ctx.metrics)
                                 m_ctx.metrics->scaleJobs.fetch_add(1, std::memory_order_relaxed);
-                            served = source->scaledToWidth(targetWidth, transformFor(m_tier));
-
-                            // Publish AFTER a fresh generation check: a volume
-                            // that closed while this scale ran must not seed the
-                            // tier for the volume that replaced it.
-                            if (m_ctx.scaleCache
-                                && m_generation == m_ctx.liveGeneration->load())
-                                m_ctx.scaleCache->insert(key, served);
-                        } else {
-                            // No scale to do — the source IS the answer. Nothing
-                            // goes in the scaled tier: an entry byte-identical
-                            // to the source would spend a slot to save no work.
-                            served = *source;
+                            rendered = rendered.scaledToWidth(
+                                targetWidth, transformFor(m_tier, profile.quality));
                         }
+                        if (!toneFirst)
+                            rendered = applyRenderProfile(rendered, profile, RenderStage::Tone);
+                        served = rendered;
+
+                        // Seat it in the scaled tier when it COST something —
+                        // a scale, or any pixel work the profile asked for.
+                        // Without the profile arm a rotated-but-not-downscaled
+                        // page would re-run its transform on every single
+                        // request. The pre-Task-7 rule survives inside this one:
+                        // with an identity profile and no scale, `served` is
+                        // byte-identical to the source and seating it would
+                        // spend a slot to save no work.
+                        //
+                        // Publish AFTER a fresh generation check: a volume that
+                        // closed while this ran must not seed the tier for the
+                        // volume that replaced it.
+                        if (m_ctx.scaleCache && (scaling || !profile.isIdentity())
+                            && m_generation == m_ctx.liveGeneration->load())
+                            m_ctx.scaleCache->insert(key, served);
                     }
                 }
             }

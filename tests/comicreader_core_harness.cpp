@@ -13,6 +13,7 @@
 
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
+#include "comicreader/ComicReaderRenderProfile.h"  // T32-T34: the Image panel's transform
 #include "comicreader/ComicReaderScaleCache.h"   // T26 reads the scaled tier's residents
 #include "comicreader/ComicReaderStripModel.h"   // T14 reads the strip geometry roles
 #include "comicreader/ComicReaderTypes.h"
@@ -76,6 +77,21 @@ static bool providerServes(comicreader::ComicReaderProvider* provider, const QSt
     const bool finished = waitFor([&] { return done; });
     QQuickTextureFactory* factory = finished ? response->textureFactory() : nullptr;
     const bool served = factory != nullptr;
+    delete factory;
+    delete response;
+    return served;
+}
+
+// The same request, but hand back the PIXELS the provider served (a null QImage
+// when it resolved to nothing). T34 needs this: "the render profile reaches the
+// delivered page" is only provable by looking at what was delivered.
+static QImage providerServedImage(comicreader::ComicReaderProvider* provider, const QString& id) {
+    QQuickImageResponse* response = provider->requestImageResponse(id, QSize());
+    bool done = false;
+    QObject::connect(response, &QQuickImageResponse::finished, [&done] { done = true; });
+    const bool finished = waitFor([&] { return done; });
+    QQuickTextureFactory* factory = finished ? response->textureFactory() : nullptr;
+    const QImage served = factory ? factory->image() : QImage();
     delete factory;
     delete response;
     return served;
@@ -1422,6 +1438,296 @@ int main(int argc, char** argv) {
                          == QLatin1String("ready");
               }),
               "T31 a broken pair does not poison the rest of the book");
+    }
+
+    // ── Test 32: the render profile as a PURE transform (Task 7) ─────────────
+    // The four laws that everything downstream leans on: identity is byte-stable
+    // (not "looks the same" — the same object), tone actually moves luminance,
+    // rotation actually moves geometry, and nothing here can crash on a
+    // degenerate input.
+    {
+        // 4x4 mid-grey with ONE marked corner. The mark matters: a square fixture
+        // cannot tell a real 90-degree rotation from a no-op, so without it the
+        // size assertion below would pass on a function that did nothing at all.
+        QImage src(4, 4, QImage::Format_ARGB32);
+        src.fill(qRgb(128, 128, 128));
+        src.setPixel(0, 0, qRgb(255, 255, 255));
+
+        const auto luma = [](const QImage& image) { return qGray(image.pixel(1, 1)); };
+
+        RenderProfile identity;
+        CHECK(applyRenderProfile(src, identity) == src, "T32 identity profile is byte-stable");
+        // ...and byte-stable means THE SAME OBJECT, not a copy that happens to
+        // compare equal. This assertion exists because the equality one above is
+        // NOT enough on its own: `src` is already Format_ARGB32, so a version of
+        // applyRenderProfile that unconditionally convertToFormat(ARGB32)'d its
+        // input passed every content comparison here — measured, not assumed. The
+        // shared data pointer is what actually pins "a no-op profile costs
+        // nothing", which is what the delivery worker's untouched path relies on.
+        CHECK(applyRenderProfile(src, identity).constBits() == src.constBits(),
+              "T32 identity profile returns the SAME image, not an equal copy");
+        // A fixture in a DIFFERENT format, for the same reason: an unconditional
+        // conversion is invisible to a fixture that is already in the target
+        // format, so the identity law needs one that is not.
+        QImage srcRgb(4, 4, QImage::Format_RGB32);
+        srcRgb.fill(qRgb(128, 128, 128));
+        CHECK(applyRenderProfile(srcRgb, identity).format() == QImage::Format_RGB32,
+              "T32 identity profile does not even change the pixel FORMAT");
+        CHECK(applyRenderProfile(srcRgb, identity).constBits() == srcRgb.constBits(),
+              "T32 identity profile is the same object whatever the source format");
+        QImage srcGray(4, 4, QImage::Format_Grayscale8);
+        srcGray.fill(128);
+        CHECK(applyRenderProfile(srcGray, identity).format() == QImage::Format_Grayscale8,
+              "T32 identity profile leaves an 8-bit grayscale scan 8-bit");
+
+        RenderProfile brightProfile;
+        brightProfile.brightness = 20;
+        CHECK(luma(applyRenderProfile(src, brightProfile)) > luma(src),
+              "T32 brightness raises luma");
+        RenderProfile darkProfile;
+        darkProfile.brightness = -20;
+        CHECK(luma(applyRenderProfile(src, darkProfile)) < luma(src),
+              "T32 negative brightness lowers luma");
+
+        // Gamma and contrast are exercised on a DARK sample, because mid-grey is
+        // contrast's fixed point — a contrast fixture at 128 passes whatever the
+        // function does with it.
+        QImage dark(4, 4, QImage::Format_ARGB32);
+        dark.fill(qRgb(64, 64, 64));
+        RenderProfile gammaUp;
+        gammaUp.gamma = 200;
+        CHECK(qGray(applyRenderProfile(dark, gammaUp).pixel(0, 0)) > 64,
+              "T32 gamma above 100 lifts the shadows");
+        RenderProfile gammaDown;
+        gammaDown.gamma = 50;
+        CHECK(qGray(applyRenderProfile(dark, gammaDown).pixel(0, 0)) < 64,
+              "T32 gamma below 100 deepens the shadows");
+        RenderProfile contrastUp;
+        contrastUp.contrast = 100;
+        CHECK(qGray(applyRenderProfile(dark, contrastUp).pixel(0, 0)) < 64,
+              "T32 contrast pushes a below-mid tone further down");
+
+        RenderProfile rotate90;
+        rotate90.rotation = 90;
+        const QImage rotated = applyRenderProfile(src, rotate90);
+        CHECK(rotated.size() == QSize(4, 4), "T32 rotation keeps square fixture size");
+        CHECK(qGray(rotated.pixel(0, 0)) != qGray(src.pixel(0, 0)),
+              "T32 a 90-degree rotation actually MOVES the pixels");
+        // ...and on a non-square page it swaps the dimensions, which is the whole
+        // reason geometry has to run before a width-driven scale.
+        QImage tall(4, 6, QImage::Format_ARGB32);
+        tall.fill(qRgb(128, 128, 128));
+        CHECK(applyRenderProfile(tall, rotate90).size() == QSize(6, 4),
+              "T32 rotation swaps the dimensions of a non-square page");
+        RenderProfile rotate180;
+        rotate180.rotation = 180;
+        CHECK(applyRenderProfile(tall, rotate180).size() == QSize(4, 6),
+              "T32 a 180-degree rotation leaves the dimensions alone");
+
+        // Stage split: Geometry must not touch tone, Tone must not touch geometry.
+        RenderProfile both;
+        both.rotation = 90;
+        both.brightness = 40;
+        const QImage geoOnly = applyRenderProfile(tall, both, RenderStage::Geometry);
+        CHECK(geoOnly.size() == QSize(6, 4), "T32 the Geometry stage rotates");
+        CHECK(qGray(geoOnly.pixel(0, 0)) == 128, "T32 the Geometry stage leaves tone alone");
+        const QImage toneOnly = applyRenderProfile(tall, both, RenderStage::Tone);
+        CHECK(toneOnly.size() == QSize(4, 6), "T32 the Tone stage leaves geometry alone");
+        CHECK(qGray(toneOnly.pixel(0, 0)) > 128, "T32 the Tone stage brightens");
+
+        // Degenerate inputs are answers, not crashes.
+        CHECK(applyRenderProfile(QImage(), brightProfile).isNull(),
+              "T32 a null image survives the transform");
+        QImage speck(2, 2, QImage::Format_ARGB32);
+        speck.fill(qRgb(200, 200, 200));
+        RenderProfile crop;
+        crop.autoCrop = true;
+        CHECK(applyRenderProfile(speck, crop) == speck,
+              "T32 auto-crop declines a page too small to probe rather than eating it");
+        QImage blank(64, 64, QImage::Format_ARGB32);
+        blank.fill(qRgb(255, 255, 255));
+        CHECK(applyRenderProfile(blank, crop) == blank,
+              "T32 auto-crop declines a uniform page (nothing to crop TO)");
+        // ...and on a page that DOES have margins it finds the content box.
+        QImage margined(64, 64, QImage::Format_ARGB32);
+        margined.fill(qRgb(255, 255, 255));
+        for (int y = 16; y < 48; ++y)
+            for (int x = 16; x < 48; ++x)
+                margined.setPixel(x, y, qRgb(10, 10, 10));
+        const QImage cropped = applyRenderProfile(margined, crop);
+        CHECK(cropped.width() < 64 && cropped.height() < 64,
+              "T32 auto-crop trims a page that really does have margins");
+        CHECK(cropped.width() >= 32 && cropped.height() >= 32,
+              "T32 auto-crop never bites into the ink it found");
+    }
+
+    // ── Test 33: validation at the boundary (Task 7) ──────────────────────────
+    // The profile is persisted, so what reaches normalizeRenderProfile may be
+    // hand-edited or written by a future version. Out of range clamps; garbage
+    // keeps the DEFAULT (never 0 — gamma 0 is a black page); unknown keys are
+    // ignored; and the canonical map is a fixed point.
+    {
+        QVariantMap wild;
+        wild.insert(QStringLiteral("brightness"), 5000);
+        wild.insert(QStringLiteral("contrast"), -5000);
+        wild.insert(QStringLiteral("gamma"), 99999);
+        wild.insert(QStringLiteral("rotation"), 45);
+        wild.insert(QStringLiteral("quality"), QStringLiteral("nonsense"));
+        wild.insert(QStringLiteral("somethingFromTheFuture"), QStringLiteral("ignore me"));
+        const RenderProfile clamped = normalizeRenderProfile(wild);
+        CHECK(clamped.brightness == 100, "T33 brightness clamps to +100");
+        CHECK(clamped.contrast == -100, "T33 contrast clamps to -100");
+        CHECK(clamped.gamma == 300, "T33 gamma clamps to 300");
+        CHECK(clamped.rotation == 90, "T33 an off-grid rotation snaps to the nearest quarter turn");
+        CHECK(clamped.quality == RenderQuality::Balanced, "T33 an unknown quality falls back to balanced");
+
+        QVariantMap low;
+        low.insert(QStringLiteral("gamma"), 0);
+        CHECK(normalizeRenderProfile(low).gamma == 10, "T33 gamma 0 clamps UP to 10, never a black page");
+
+        QVariantMap junk;
+        junk.insert(QStringLiteral("gamma"), QStringLiteral("not a number"));
+        junk.insert(QStringLiteral("brightness"), QStringLiteral(""));
+        CHECK(normalizeRenderProfile(junk).gamma == 100,
+              "T33 an unparseable gamma keeps the DEFAULT (100), not 0");
+        CHECK(normalizeRenderProfile(junk).brightness == 0,
+              "T33 an unparseable brightness keeps the default");
+
+        QVariantMap turns;
+        turns.insert(QStringLiteral("rotation"), -90);
+        CHECK(normalizeRenderProfile(turns).rotation == 270, "T33 -90 folds to 270");
+        turns.insert(QStringLiteral("rotation"), 450);
+        CHECK(normalizeRenderProfile(turns).rotation == 90, "T33 450 folds to 90");
+        turns.insert(QStringLiteral("rotation"), 10);
+        CHECK(normalizeRenderProfile(turns).rotation == 0, "T33 a near-zero angle snaps to 0");
+
+        CHECK(normalizeRenderProfile(QVariantMap{}).isIdentity(),
+              "T33 an EMPTY map is the identity profile");
+
+        RenderProfile round;
+        round.brightness = -37;
+        round.contrast = 12;
+        round.gamma = 175;
+        round.rotation = 270;
+        round.autoCrop = true;
+        round.nightFilter = true;
+        round.quality = RenderQuality::Best;
+        CHECK(normalizeRenderProfile(renderProfileToVariantMap(round)) == round,
+              "T33 the canonical map is a FIXED POINT through normalization");
+
+        // nightFilter is carried and validated, but it is NOT a pixel operation:
+        // it must never move the revision or change a delivered byte.
+        RenderProfile day;
+        RenderProfile night;
+        night.nightFilter = true;
+        CHECK(day.samePixelsAs(night), "T33 the night filter is not a pixel-affecting field");
+        CHECK(day != night, "T33 ...but it IS part of the profile's identity");
+        QImage sample(4, 4, QImage::Format_ARGB32);
+        sample.fill(qRgb(90, 90, 90));
+        CHECK(applyRenderProfile(sample, night) == sample,
+              "T33 the night filter changes no pixel here — the shell paints the veil");
+    }
+
+    // ── Test 34: the profile through the CORE (Task 7) ────────────────────────
+    // The two costs that decide whether this is a live control or a stutter: a
+    // change invalidates the SCALED tier (that is what the revision is for) and
+    // never the DECODED one (adjusting brightness must not send the reader back
+    // to disk). Plus the url must actually change, or QML's own pixmap cache
+    // would serve the pre-adjustment page forever and the slider would do
+    // nothing visible at all.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t34"), plainPages, QStringLiteral("ltr"), manualNormal());
+        const quint64 gen = core.generation();
+        core.setVisible(QVariantList{0});
+        CHECK(waitFor([&] { return core.pageInfo(0).value(QStringLiteral("decoded")).toBool(); }),
+              "T34 setup: page 0 decodes so there is a decoded entry to protect");
+
+        QImage tile(64, 96, QImage::Format_ARGB32);
+        tile.fill(qRgb(30, 30, 30));
+        core.scaleCache()->insert({gen, 0, QSize(400, 0), 100, core.renderRevision()}, tile);
+        CHECK(core.scaleCache()->entryCount() == 1, "T34 setup: the scaled tier holds the seeded entry");
+
+        const quint64 before = core.renderRevision();
+        const QString urlBefore = core.imageUrl(0);
+        QVariantMap p = core.renderProfile();
+        p.insert(QStringLiteral("brightness"), 20);
+        core.setRenderProfile(p);
+
+        CHECK(core.renderRevision() == before + 1, "T34 profile increments render revision");
+        CHECK(core.pageCache()->get(core.generation(), 0).has_value(), "T34 profile keeps decoded source");
+        CHECK(core.scaleCache()->entryCount() == 0,
+              "T34 a pixel-affecting change drops the entries for the OLD render revision");
+        CHECK(core.imageUrl(0) != urlBefore,
+              "T34 the image url changes, so QML's own pixmap cache cannot serve the old pixels");
+        CHECK(core.renderProfile().value(QStringLiteral("brightness")).toInt() == 20,
+              "T34 the profile reads back what was set");
+
+        // Idempotent: re-applying the same profile is not a change, so it costs
+        // nothing. Without this a QML binding that re-pushes on every frame would
+        // clear the scaled tier 60 times a second.
+        const quint64 after = core.renderRevision();
+        core.scaleCache()->insert({gen, 0, QSize(400, 0), 100, after}, tile);
+        core.setRenderProfile(core.renderProfile());
+        CHECK(core.renderRevision() == after, "T34 re-applying the SAME profile does not bump the revision");
+        CHECK(core.scaleCache()->entryCount() == 1, "T34 ...and does not drop a scaled entry");
+
+        // The night filter is free: a real change (it reads back) that costs no
+        // revision and no scaled entry, because the shell paints it as a veil.
+        QVariantMap night = core.renderProfile();
+        night.insert(QStringLiteral("nightFilter"), true);
+        core.setRenderProfile(night);
+        CHECK(core.renderProfile().value(QStringLiteral("nightFilter")).toBool(),
+              "T34 the night filter is stored in the profile");
+        CHECK(core.renderRevision() == after, "T34 the night filter NEVER bumps the render revision");
+        CHECK(core.scaleCache()->entryCount() == 1, "T34 the night filter NEVER drops a scaled entry");
+
+        // setRenderProfile REPLACES — a partial map resets the fields it omits.
+        // That is the contract the shell is built on (it always sends a whole
+        // map, built from renderProfile()), and it has to be pinned or a caller
+        // will one day send `{brightness: 10}` and silently lose the rotation.
+        QVariantMap partial;
+        partial.insert(QStringLiteral("contrast"), 15);
+        core.setRenderProfile(partial);
+        CHECK(core.renderProfile().value(QStringLiteral("contrast")).toInt() == 15,
+              "T34 a partial map applies what it names");
+        CHECK(core.renderProfile().value(QStringLiteral("brightness")).toInt() == 0,
+              "T34 setRenderProfile REPLACES: an omitted field returns to its default");
+
+        // Clamping is enforced at the core's own door, not only in the helper.
+        QVariantMap wild;
+        wild.insert(QStringLiteral("gamma"), 99999);
+        wild.insert(QStringLiteral("rotation"), 45);
+        core.setRenderProfile(wild);
+        CHECK(core.renderProfile().value(QStringLiteral("gamma")).toInt() == 300,
+              "T34 gamma clamps at the core boundary");
+        CHECK(core.renderProfile().value(QStringLiteral("rotation")).toInt() == 90,
+              "T34 rotation snaps at the core boundary");
+
+        // ...and the whole thing reaches the DELIVERED page. Nothing above proves
+        // the worker actually consults the profile; this does.
+        core.setRenderProfile(QVariantMap{});
+        ComicReaderProvider* provider = core.createProvider();
+        const QString id = QStringLiteral("%1/0").arg(core.generation());
+        const QImage plainServed = providerServedImage(provider, id);
+        CHECK(!plainServed.isNull(), "T34 setup: the provider serves page 0 unadjusted");
+        QVariantMap bright;
+        bright.insert(QStringLiteral("brightness"), 60);
+        core.setRenderProfile(bright);
+        const QImage brightServed = providerServedImage(provider, id);
+        CHECK(!brightServed.isNull(), "T34 the provider still serves page 0 with a profile applied");
+        if (!plainServed.isNull() && !brightServed.isNull()) {
+            CHECK(qGray(brightServed.pixel(0, 0)) > qGray(plainServed.pixel(0, 0)),
+                  "T34 the delivered page is actually brighter — the profile reaches the worker");
+        }
+        // A rotation reaches it too, and it changes the delivered GEOMETRY.
+        QVariantMap turned;
+        turned.insert(QStringLiteral("rotation"), 90);
+        core.setRenderProfile(turned);
+        const QImage turnedServed = providerServedImage(provider, id);
+        CHECK(!turnedServed.isNull() && turnedServed.width() > turnedServed.height(),
+              "T34 a 90-degree rotation delivers a LANDSCAPE page from a portrait scan");
+        delete provider;
     }
 
     if (g_failures == 0) {

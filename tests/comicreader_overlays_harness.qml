@@ -27,6 +27,18 @@
 //     pinned by tests/comicreader_chrome_harness.qml's tickRatio checks, and the shell gate proves
 //     ONE list feeds both).
 //
+// SLICE 3 — ComicReaderImagePopover, the compact Image panel (Task 7):
+//   * three controls visible immediately (Quality, Brightness, Night filter) and four more behind
+//     ONE "Advanced image tools" disclosure that GROWS THE SAME PANEL — never a second surface.
+//   * every control emits a COMPLETE profile map: the backend REPLACES rather than merges, so a
+//     partial map would silently un-rotate the book.
+//   * clamping at the panel's own door (gamma never 0, rotation snaps to a quarter turn) and a
+//     partial/garbage profile reading back as the DEFAULTS, never NaN.
+//   * the handle follows the live profile — except while it is held, so the shell's apply throttle
+//     cannot yank a drag backwards.
+//   * dismiss (catcher and dismiss()) changes NOTHING about the picture; the panel swallows its
+//     own clicks.
+//
 // HOUSE HARNESS PATTERN (mirrors comicreader_surfaces_harness.qml): a thrown error hangs qml.exe
 // offscreen, so `ck` never throws — it collects failures; prints exactly one COMICREADER_OVERLAYS_OK
 // when clean, else one COMICREADER_OVERLAYS_FAIL:<msg> per failure and Qt.exit(1).
@@ -532,11 +544,241 @@ Item {
         ck(overlay.liveThumbs === 0, "pages: closing must release every thumbnail, got " + overlay.liveThumbs)
     }
 
+    // ================= SLICE 3 — ComicReaderImagePopover (Task 7) =================
+    // The approved shape, in Hemanth's words: "Image opens a compact anchored panel and does not
+    // move the comic", with "contrast, gamma, rotation, and auto-crop behind one Advanced image
+    // tools row". So what this slice pins is: three controls visible immediately, four more one
+    // disclosure deeper IN THE SAME PANEL, every control emitting a COMPLETE profile map (the
+    // backend REPLACES rather than merges — a partial map silently resets what it omits), and a
+    // dismissal that changes nothing about the picture.
+    property var imageComp: null
+    property var image: null
+    property int imageChangeCount: 0
+    property var lastImageProfile: null
+    property int imageDismissCount: 0
+
+    // The live profile the shell pushes in — already normalised by the backend, which is the
+    // shape the real shell hands over (its `renderProfile` readback).
+    function freshProfile() {
+        return { "brightness": 0, "contrast": 0, "gamma": 100, "rotation": 0,
+                 "autoCrop": false, "nightFilter": false, "quality": "balanced" }
+    }
+
+    function runImage() {
+        image = imageComp.createObject(harness, {
+            "width": harness.width, "height": harness.height,
+            "profile": freshProfile()
+        })
+        var panel = image
+        if (!panel) { failures.push("image: createObject returned null"); return }
+        panel.profileChangeRequested.connect(function (p) {
+            harness.imageChangeCount += 1
+            harness.lastImageProfile = p
+        })
+        panel.dismissRequested.connect(function () { harness.imageDismissCount += 1 })
+
+        // --- closed by default, and the disclosure starts shut ---
+        // `open` / `advancedOpen` are RULE-level properties on purpose: QQuickItem.visible is
+        // EFFECTIVE visibility, so asserting on it would read the harness root's state too.
+        ck(panel.open === false, "image: must start CLOSED")
+        ck(panel.advancedOpen === false, "image: Advanced must start SHUT")
+
+        panel.open = true
+        ck(panel.open === true, "image: open must be settable")
+
+        // --- the panel does not move the comic: it is a floating child, and the reading surfaces
+        //     are not its business. What IS assertable here is that it hangs from the chrome and
+        //     stays inside the reader rather than spilling off it. ---
+        var body = byName(panel, "imagePanel")
+        ck(body !== null, "image: the panel body must exist")
+        if (body) {
+            ck(body.y >= panel.chromeTopInset,
+               "image: the panel must hang BELOW the command bar, y=" + body.y)
+            ck(body.x + body.width <= panel.width + 0.5,
+               "image: the panel must stay inside the reader, right edge "
+               + (body.x + body.width) + " vs " + panel.width)
+            ck(body.width <= 420, "image: the panel must be COMPACT, got width " + body.width)
+        }
+
+        // --- PRIMARY SURFACE: exactly Quality, Brightness, Night filter ---
+        ck(byName(panel, "imageQuality_fast") !== null, "image: Quality must offer Fast")
+        ck(byName(panel, "imageQuality_balanced") !== null, "image: Quality must offer Balanced")
+        ck(byName(panel, "imageQuality_best") !== null, "image: Quality must offer Best")
+        ck(byName(panel, "imageBrightness") !== null, "image: Brightness must be on the primary surface")
+        ck(byName(panel, "imageNightFilter") !== null, "image: Night filter must be on the primary surface")
+
+        // --- ...and the four ADVANCED controls live in the SAME panel, not a second surface ---
+        var advanced = byName(panel, "imageAdvancedSection")
+        ck(advanced !== null, "image: the Advanced section must exist")
+        ck(byName(panel, "imageContrast") !== null, "image: Contrast belongs to Advanced")
+        ck(byName(panel, "imageGamma") !== null, "image: Gamma belongs to Advanced")
+        ck(byName(panel, "imageRotate_90") !== null, "image: Rotate belongs to Advanced")
+        ck(byName(panel, "imageAutoCrop") !== null, "image: Auto-crop belongs to Advanced")
+        if (advanced && body) {
+            // "inside the same anchored panel" — structurally, not by eye.
+            var owner = advanced.parent
+            var inPanel = false
+            while (owner) { if (owner === body) { inPanel = true; break } owner = owner.parent }
+            ck(inPanel, "image: Advanced must expand INSIDE the same panel, not a second surface")
+        }
+
+        // --- the disclosure GROWS the panel rather than opening another one ---
+        // forceLayout, exactly like the filmstrip gate: a positioner relayouts on POLISH, so a
+        // synchronous read straight after the toggle would measure the pre-toggle column and the
+        // assertion would be about the harness's timing rather than the panel's behaviour.
+        var stack = byName(panel, "imagePanelColumn")
+        ck(stack !== null, "image: the panel's content column must exist")
+        var relayout = function () {
+            if (advanced) advanced.forceLayout()
+            if (stack) stack.forceLayout()
+        }
+        relayout()
+        var heightShut = body ? body.height : 0
+        panel.toggleAdvanced()
+        relayout()
+        ck(panel.advancedOpen === true, "image: the disclosure must open Advanced")
+        ck(!body || body.height > heightShut,
+           "image: opening Advanced must GROW the same panel, " + heightShut + " -> " + (body ? body.height : 0))
+        panel.toggleAdvanced()
+        relayout()
+        ck(panel.advancedOpen === false, "image: the disclosure must close again")
+        ck(!body || body.height === heightShut,
+           "image: closing Advanced must return the panel to its compact height, got "
+           + (body ? body.height : 0) + " vs " + heightShut)
+
+        // --- EVERY control emits a COMPLETE map. This is the one that matters: setRenderProfile
+        //     REPLACES, so a partial map would silently un-rotate the book. ---
+        var required = ["brightness", "contrast", "gamma", "rotation", "autoCrop", "nightFilter", "quality"]
+        harness.imageChangeCount = 0
+        panel.setBrightness(30)
+        ck(harness.imageChangeCount === 1, "image: setBrightness must emit exactly one change, got " + harness.imageChangeCount)
+        var missing = []
+        for (var i = 0; i < required.length; i++)
+            if (!harness.lastImageProfile || harness.lastImageProfile[required[i]] === undefined)
+                missing.push(required[i])
+        ck(missing.length === 0, "image: every change must carry a COMPLETE profile; missing [" + missing.join(",") + "]")
+        ck(harness.lastImageProfile.brightness === 30,
+           "image: brightness must reach the map, got " + harness.lastImageProfile.brightness)
+
+        // A change must PRESERVE every other field of the live profile — the exact failure a
+        // partial map produces, asserted against a profile that is NOT all defaults.
+        panel.profile = { "brightness": 0, "contrast": -20, "gamma": 140, "rotation": 90,
+                          "autoCrop": true, "nightFilter": true, "quality": "best" }
+        panel.setBrightness(-15)
+        ck(harness.lastImageProfile.contrast === -20 && harness.lastImageProfile.gamma === 140
+           && harness.lastImageProfile.rotation === 90 && harness.lastImageProfile.autoCrop === true
+           && harness.lastImageProfile.nightFilter === true && harness.lastImageProfile.quality === "best",
+           "image: changing ONE field must carry every other field through unchanged, got "
+           + JSON.stringify(harness.lastImageProfile))
+
+        // --- each control writes its own field, and clamps at the panel's own door ---
+        panel.profile = freshProfile()
+        panel.setQuality("best")
+        ck(harness.lastImageProfile.quality === "best", "image: quality must be settable")
+        harness.imageChangeCount = 0
+        panel.setQuality("nonsense")
+        ck(harness.imageChangeCount === 0, "image: an unknown quality must be INERT, not a fallthrough")
+        panel.setContrast(999)
+        ck(harness.lastImageProfile.contrast === 100, "image: contrast clamps to 100, got " + harness.lastImageProfile.contrast)
+        panel.setBrightness(-999)
+        ck(harness.lastImageProfile.brightness === -100, "image: brightness clamps to -100, got " + harness.lastImageProfile.brightness)
+        panel.setGamma(0)
+        ck(harness.lastImageProfile.gamma === 10, "image: gamma clamps UP to 10, never a black page, got " + harness.lastImageProfile.gamma)
+        panel.setGamma(9999)
+        ck(harness.lastImageProfile.gamma === 300, "image: gamma clamps to 300, got " + harness.lastImageProfile.gamma)
+        panel.setRotation(45)
+        ck(harness.lastImageProfile.rotation === 90, "image: an off-grid rotation snaps, got " + harness.lastImageProfile.rotation)
+        panel.setRotation(-90)
+        ck(harness.lastImageProfile.rotation === 270, "image: -90 folds to 270, got " + harness.lastImageProfile.rotation)
+        panel.setNightFilter(true)
+        ck(harness.lastImageProfile.nightFilter === true, "image: the night filter must be settable")
+        panel.setAutoCrop(true)
+        ck(harness.lastImageProfile.autoCrop === true, "image: auto-crop must be settable")
+
+        // --- the controls REFLECT the live profile (a chip can only mark itself active if it can
+        //     read the value back) ---
+        panel.profile = { "brightness": 12, "contrast": -8, "gamma": 250, "rotation": 180,
+                          "autoCrop": true, "nightFilter": true, "quality": "fast" }
+        ck(panel.quality === "fast" && panel.brightness === 12 && panel.contrast === -8
+           && panel.gamma === 250 && panel.rotationDegrees === 180 && panel.autoCrop === true
+           && panel.nightFilter === true,
+           "image: the panel must read the live profile back")
+        var fastChip = byName(panel, "imageQuality_fast")
+        var bestChip = byName(panel, "imageQuality_best")
+        ck(fastChip && fastChip.active === true, "image: the active quality chip must be marked")
+        ck(bestChip && bestChip.active === false, "image: only the active quality chip is marked")
+        var turn180 = byName(panel, "imageRotate_180")
+        var turn0 = byName(panel, "imageRotate_0")
+        ck(turn180 && turn180.active === true, "image: the active rotation chip must be marked")
+        ck(turn0 && turn0.active === false, "image: only the active rotation chip is marked")
+
+        // --- a PARTIAL or absent profile degrades to the defaults, never to NaN/0. gamma 0 would
+        //     be a black page, and an undefined slider value is a handle halfway off the track. ---
+        panel.profile = {}
+        ck(panel.gamma === 100 && panel.brightness === 0 && panel.rotationDegrees === 0
+           && panel.quality === "balanced",
+           "image: an EMPTY profile must read as the defaults, got gamma " + panel.gamma)
+        panel.profile = { "gamma": "junk", "brightness": null }
+        ck(panel.gamma === 100 && panel.brightness === 0,
+           "image: an unparseable profile must read as the defaults, got gamma " + panel.gamma)
+
+        // --- the slider's value mapping is PURE and harness-callable, so the pointer path cannot
+        //     drift from a separately-described one ---
+        var slider = byName(panel, "imageBrightness")
+        if (slider) {
+            ck(slider.valueAt(0) === slider.from, "image: a press at the far left means `from`")
+            ck(Math.abs(slider.valueAt(1e6) - slider.to) < 1e-6, "image: a press past the far right clamps to `to`")
+            ck(slider.fractionOf(slider.from) === 0 && slider.fractionOf(slider.to) === 1,
+               "image: the handle fraction spans the whole track")
+            // the handle FOLLOWS the profile while it is not held...
+            panel.profile = freshProfile()
+            ck(slider.value === 0, "image: the handle must follow the live profile, got " + slider.value)
+            // ...and does NOT get yanked back mid-drag by a lagging readback (the throttle means
+            // the profile trails the gesture, and a handle that snapped backwards would be
+            // unusable).
+            slider.held = true
+            slider.moveTo(45)
+            panel.profile = freshProfile()          // a stale readback lands mid-drag
+            ck(slider.value === 45, "image: a held handle must not be yanked back by a stale readback, got " + slider.value)
+            slider.held = false
+        }
+
+        // --- DISMISS NEVER CHANGES THE PICTURE. The catcher and dismiss() emit dismissRequested
+        //     and nothing else; there is no path from either to a profile change. ---
+        harness.imageChangeCount = 0
+        harness.imageDismissCount = 0
+        var catcher = byName(panel, "imageDismissCatcher")
+        ck(catcher !== null, "image: a click on the comic must be catchable")
+        if (catcher) catcher.tap()
+        ck(harness.imageDismissCount === 1 && harness.imageChangeCount === 0,
+           "image: clicking the comic must dismiss and change NOTHING, got dismiss="
+           + harness.imageDismissCount + " change=" + harness.imageChangeCount)
+        harness.imageDismissCount = 0
+        panel.dismiss()
+        ck(harness.imageDismissCount === 1 && harness.imageChangeCount === 0,
+           "image: dismiss() must emit exactly one dismissRequested and no change")
+
+        // --- the panel swallows its own clicks (floating-panel house law) ---
+        harness.imageDismissCount = 0
+        var swallow = byName(panel, "imagePanelSwallow")
+        ck(swallow !== null, "image: the panel must carry a click-swallower")
+        if (swallow) swallow.tap()
+        ck(harness.imageDismissCount === 0,
+           "image: a tap on the panel's own ground must NOT dismiss it, got " + harness.imageDismissCount)
+
+        // --- closing resets the disclosure: the panel's promise is three controls on open ---
+        panel.toggleAdvanced()
+        panel.open = false
+        ck(panel.advancedOpen === false, "image: closing must reset the Advanced disclosure")
+    }
+
     function runChecks() {
         try { runSettings() }
         catch (e) { failures.push("exception: " + e.message) }
         try { runPages() }
         catch (e) { failures.push("pages exception: " + e.message) }
+        try { runImage() }
+        catch (e) { failures.push("image exception: " + e.message) }
         report()
     }
 
@@ -546,6 +788,8 @@ Item {
             if (sheetComp.status === Component.Error) throw new Error("settings component: " + sheetComp.errorString())
             pagesComp = Qt.createComponent("../qml/comicreader/ComicReaderPagesOverlay.qml")
             if (pagesComp.status === Component.Error) throw new Error("pages component: " + pagesComp.errorString())
+            imageComp = Qt.createComponent("../qml/comicreader/ComicReaderImagePopover.qml")
+            if (imageComp.status === Component.Error) throw new Error("image component: " + imageComp.errorString())
             Qt.callLater(runChecks)
         } catch (e) {
             console.log("COMICREADER_OVERLAYS_FAIL: setup: " + e.message); Qt.exit(1)
