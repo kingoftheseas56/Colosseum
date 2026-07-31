@@ -103,6 +103,8 @@ add_executable(colosseum
     engine/ComickCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
+    devtools/LanistaServer.cpp
+    devtools/LanistaServer.h
     engine/BookDownloader.cpp
     engine/BookDownloader.h
     engine/AudiobookDownloader.cpp
@@ -823,6 +825,29 @@ target_include_directories(manga_tankoban_service_harness PRIVATE ${CMAKE_CURREN
 target_compile_definitions(manga_tankoban_service_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_tankoban_service_harness PRIVATE Qt6::Core Qt6::Network)
+
+# ── lanista bridge harness ─────────────────────────────────────────────────
+# Boots a real QQmlApplicationEngine over tests/lanista_harness_scene.qml,
+# serves LanistaServer on the TEST pipe, and either self-checks (default,
+# sentinel LANISTA_OK) or stays alive under --serve for CLI/scenario tests.
+add_executable(lanista_harness
+    ../tests/lanista_harness.cpp
+    devtools/LanistaServer.cpp
+    devtools/LanistaServer.h
+)
+target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# The windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and
+# shadows the Qt install's plugin dir, so an offscreen run cannot find qoffscreen
+# (documented trap: tests/window_shell_gui_harness.cpp). Bake the real platforms
+# path in at configure time (house pattern: TANKOBAN_FIXTURES_DIR); the harness
+# applies it only when QT_QPA_PLATFORM_PLUGIN_PATH is unset.
+get_target_property(_lanista_qmake Qt6::qmake IMPORTED_LOCATION)
+get_filename_component(_lanista_qtbin "${_lanista_qmake}" DIRECTORY)
+get_filename_component(_lanista_qtprefix "${_lanista_qtbin}" DIRECTORY)
+target_compile_definitions(lanista_harness PRIVATE
+    LANISTA_QT_PLATFORMS_DIR="${_lanista_qtprefix}/plugins/platforms")
+target_link_libraries(lanista_harness PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick)
 
 # Pure-logic contract for Comick grouping + the tankoban completeness gate:
 # mirrors colosseum-volume-db's volume_builder tests case-for-case.

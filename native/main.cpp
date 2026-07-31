@@ -43,6 +43,7 @@
 #include "work/BackgroundWorkCoordinator.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
+#include "devtools/LanistaServer.h"
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
@@ -1069,6 +1070,11 @@ int main(int argc, char *argv[]) {
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
+
+    // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
+    // 2026-08-01 §3). Local named pipe only, never a network port. Driving and
+    // mutation commands gate on env INSIDE the server, per command.
+    new LanistaServer(&engine, &app);
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {
