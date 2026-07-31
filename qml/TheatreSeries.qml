@@ -17,6 +17,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
+    signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal openItemRequested(var item)
 
     property string title: ""
@@ -485,6 +486,33 @@ Item {
         return entry || ({});
     }
 
+    // Downloaded-first play (2026-07-31, Hemanth: a downloaded season still routed Play to the
+    // sources sheet). If the stream id is in Download's library AND the file still exists, play
+    // the local copy through the same openLocalVideoSession path the Continue card uses — never
+    // a stream fetch. Returns true when it handled the play; false → caller opens sources as
+    // before. `missing` (file deleted outside the app) deliberately falls back to sources.
+    function tryPlayLocal(sid, label, kind) {
+        if (typeof Download === "undefined" || !Download.hasVideo(sid))
+            return false;
+        var vids = Download.downloadedVideos() || [];
+        for (var i = 0; i < vids.length; i++) {
+            if (vids[i].id !== sid) continue;
+            if (vids[i].missing) return false;
+            var entry = (typeof Progress !== "undefined") ? (Progress.get("video", sid) || {}) : {};
+            var resume = entry.resume || {};
+            page.playLocalRequested({
+                "path": vids[i].path,
+                "id": sid,
+                "title": vids[i].title || label,
+                "art": vids[i].art || page.cover,
+                "kind": kind,
+                "position": Number(resume.position || 0)
+            });
+            return true;
+        }
+        return false;
+    }
+
     function episodeProgressRatio(v) {
         var entry = progressEntry(v);
         var p = Number(entry.progress || 0);
@@ -921,15 +949,20 @@ Item {
                                     if (page.mediaType === "series") {
                                         var ep = page.heroEpisode()
                                         if (!ep) return
+                                        var epLabel = page.title + " - S" + page.episodeSeason(ep) + "E" + page.episodeNumber(ep)
+                                        if (page.tryPlayLocal(page.episodeStreamId(ep), epLabel, "episode"))
+                                            return   // downloaded copy plays directly; sources only for what isn't on disk
                                         page.sheetEpisode = ep
                                         sources.show("series", page.episodeStreamId(ep),
-                                                     page.title + " - S" + page.episodeSeason(ep) + "E" + page.episodeNumber(ep),
+                                                     epLabel,
                                                      Object.assign({
                                                          "title": page.title,
                                                          "metaLine": page.episodeSourceLine(ep),
                                                          "backdrop": page.sourceBackdrop()
                                                      }, page.adjacentEpisodeContext(ep)))
                                     } else {
+                                        if (page.tryPlayLocal(page.currentId(), page.title, "movie"))
+                                            return
                                         page.sheetEpisode = null
                                         sources.show("movie", page.currentId(), page.title, {
                                             "title": page.title,
@@ -1510,9 +1543,12 @@ Item {
                             width: ListView.view.width
                             height: ep.nextUp ? episodeList.nextRowHeight : episodeList.compactRowHeight
                             function openForPlay() {
+                                var epLabel = page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData)
+                                if (page.tryPlayLocal(page.episodeStreamId(ep.modelData), epLabel, "episode"))
+                                    return   // downloaded copy plays directly; sources only for what isn't on disk
                                 page.sheetEpisode = ep.modelData
                                 sources.show("series", page.episodeStreamId(ep.modelData),
-                                             page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData), Object.assign({
+                                             epLabel, Object.assign({
                                                  "title": page.title,
                                                  "metaLine": page.episodeSourceLine(ep.modelData),
                                                  "backdrop": page.sourceBackdrop()

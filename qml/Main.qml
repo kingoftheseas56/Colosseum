@@ -2237,6 +2237,7 @@ Window {
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { Qt.quit() })
             item.playRequested.connect(win.openMovieSession)
+            item.playLocalRequested.connect(win.openLocalVideoSession)
             item.openItemRequested.connect(win.openTheatreSeries)
         }
     }
