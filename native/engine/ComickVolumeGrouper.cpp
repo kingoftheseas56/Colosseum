@@ -238,13 +238,26 @@ bool numberingIsOddball(const QList<ChapterRow>& rows)
 }
 
 // Checks, in order:
-//   1. no numbering quirk;
-//   2. at least one volume;
-//   3. the first volume is 0 or 1;
-//   4. the volume numbers are one unbroken run;
-//   5. no volume's chapter span runs into the next one's;
-//   6. COVERAGE — every whole chapter between the first volume's chapterStart and the
+//   1. at least one volume;
+//   2. the first volume is 0 or 1;
+//   3. the volume numbers are one unbroken run;
+//   4. no volume's chapter span runs into the next one's;
+//   5. COVERAGE — every whole chapter between the first volume's chapterStart and the
 //      last volume's chapterEnd is assigned to some volume.
+//
+// A numbering quirk (fractional chapter origin) is NO LONGER a refusal — mirrors
+// colosseum-volume-db aa18444 (2026-07-31), which removed the same blanket check from
+// volume_builder.gate(). Berserk opens on chapters 0.001-0.03: a real published
+// numbering scheme, not corruption. The blanket refuse predates checks 1-5; with those
+// in place it is redundant AND wrong, because genuinely broken numbering fails coverage
+// or the unbroken-run check on its own evidence. The flag is still PARSED and still
+// recorded on the record — it is informative, it just no longer disqualifies.
+//
+// SHARED RULE — keep in step with colosseum-volume-db/comick_volume_db/
+// volume_builder.py:gate(). This copy re-gates every downloaded record (see
+// parseDbRecord), so a divergence here silently overrules a record the batch job
+// published as qualified — which is exactly what happened to Berserk between
+// aa18444 landing in Python and this change landing here.
 //
 // Coverage is one rule doing three jobs: it catches chapters stranded at the seam
 // BETWEEN two volumes (Vinland Saga 210-218, untagged in every language, while the
@@ -276,8 +289,7 @@ bool numberingIsOddball(const QList<ChapterRow>& rows)
 GateVerdict gateVolumes(const QList<VolumeRange>& vols, bool numberingQuirk,
                         const QList<ChapterRow>& rows)
 {
-    if (numberingQuirk)
-        return {false, QStringLiteral("numbering quirk (fractional chapter origin)")};
+    Q_UNUSED(numberingQuirk)   // still parsed and recorded; no longer a refusal (see above)
     if (vols.isEmpty())
         return {false, QStringLiteral("no mapped volumes")};
 

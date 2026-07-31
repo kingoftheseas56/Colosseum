@@ -737,11 +737,16 @@ int main(int argc, char** argv)
         // them, and the batch pipeline writes them into the published record's
         // `gateReason`. So they are pinned VERBATIM against the Python's wording, not
         // merely searched for a keyword — a reworded reason is a divergence.
-        require(!gateVolumes(spanVolumes(1, 1), true, {}).qualified,
-                "a numbering quirk fails the gate outright");
-        requireEqual(gateVolumes(spanVolumes(1, 1), true, {}).reason,
-                     QStringLiteral("numbering quirk (fractional chapter origin)"),
-                     "the quirk reason matches the Python verbatim");
+        // SUPERSEDED 2026-07-31: a numbering quirk used to fail the gate outright. It no
+        // longer does, mirroring colosseum-volume-db aa18444 which removed the same
+        // blanket check from volume_builder.gate(). Berserk opens on chapters
+        // 0.001-0.03 — a real published numbering scheme, not corruption — and the
+        // structural checks below catch genuinely broken numbering on its own evidence.
+        // The flag is still parsed and still recorded; it just no longer disqualifies.
+        require(gateVolumes(spanVolumes(1, 1), true, {}).qualified,
+                "a numbering quirk no longer fails the gate — it is judged structurally");
+        requireEqual(gateVolumes(spanVolumes(1, 1), true, {}).reason, QString(),
+                     "a structurally sound quirk series carries no refusal reason");
         require(!gateVolumes({}, false, {}).qualified, "no mapped volumes fails the gate");
         require(gateVolumes({}, false, {}).reason == QStringLiteral("no mapped volumes"),
                 "the empty rejection says so");

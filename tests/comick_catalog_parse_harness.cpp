@@ -384,14 +384,22 @@ int main()
                 QStringLiteral("the refusal names the overlap: %1").arg(rec.gateReason));
     }
 
-    // ── 4. A declared numbering quirk is refused ───────────────────────────────
+    // ── 4. A declared numbering quirk is ACCEPTED if structurally sound ────────
+    // SUPERSEDED 2026-07-31. This used to refuse. It no longer does, mirroring
+    // colosseum-volume-db aa18444 which removed the same blanket check from
+    // volume_builder.gate(). Berserk opens on chapters 0.001-0.03 — a real published
+    // numbering scheme — and the structural checks catch genuinely broken numbering
+    // on its own evidence. THIS CONTRACT IS LOAD-BEARING: while the two copies
+    // disagreed, this local re-gate silently overruled a record the batch job had
+    // published as qualified, and Berserk's shelf vanished with no error anywhere.
     {
         const ParsedRecord rec = parseDbRecord(QByteArray(kQuirkRecord));
         require(rec.ok, "the quirk record is well-formed JSON (ok)");
-        require(!rec.qualified,
-                "a record claiming qualified with numberingQuirk:true is refused");
-        require(rec.gateReason.contains(QStringLiteral("numbering quirk")),
-                QStringLiteral("the refusal names the quirk: %1").arg(rec.gateReason));
+        require(rec.qualified,
+                "a record with numberingQuirk:true is accepted when structurally sound");
+        require(rec.gateReason.isEmpty(),
+                QStringLiteral("an accepted quirk record carries no refusal reason: %1")
+                    .arg(rec.gateReason));
     }
 
     // ── 4b. Blank chapter spans are refused BEFORE the gate sees them ──────────
