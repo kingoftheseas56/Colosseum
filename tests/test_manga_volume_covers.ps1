@@ -33,6 +33,27 @@ Check "a downloaded volume prefers its OWN first page" ($lib -match "localPages\
 $series = Get-Content (Join-Path $repo "qml\MangaSeries.qml") -Raw
 Check "MangaSeries feeds the shelf its chapter list" ($series -match "chapters: page\.chaptersModel")
 
+# 2b. THE BURST + THE PERMANENT MISS (eyes-on 2026-07-31).
+#     Asking for every volume queued ~115 WeebCentral scrapes on open; they run 3
+#     at a time, the chapter rows' thumbs queued behind them, WeebCentral throttled,
+#     and every failure was cached as an empty string FOREVER - so those volumes and
+#     chapters showed numbered placeholders for the rest of the session.
+Check "the shelf asks only for the page on screen" ($lib -match "rowsOnPage\(root\.activePage\)")
+Check "turning the page fetches that page's covers" ($lib -match "onActivePageChanged: root\.requestCovers\(\)")
+# Imperative code must not read the visibleRows BINDING: a change handler runs
+# before dependent bindings re-evaluate, so it would see the page he just left.
+Check "requestCovers resolves the page directly, not via the stale binding" `
+    ($lib -notmatch "var rows = root\.visibleRows")
+
+$dl = Get-Content (Join-Path $repo "native\engine\MangaDownloader.cpp") -Raw
+Check "a scrape ERROR is not cached as an answer" ($dl -match "cacheable=\*/false")
+Check "a successful scrape IS cached" ($dl -match "cacheable=\*/true")
+Check "the thumb cache is only written when cacheable" ($dl -match "if \(cacheable\)\s*\r?\n\s*m_thumbCache\.insert")
+# NOTE: the C++ half above is pinned by CONTRACT, not by execution. Giving it a
+# real harness needs a new target in native/CMakeLists.txt, which is a shared
+# file. The QML half (retry after an empty answer) IS executed, in the offscreen
+# harness below.
+
 # 3. OFFSCREEN BEHAVIOUR
 $qmlExe = "C:/Qt/6.11.1/msvc2022_64/bin/qml.exe"
 if (-not (Test-Path $qmlExe)) { Write-Host "FAIL  qml.exe not found at $qmlExe"; exit 1 }

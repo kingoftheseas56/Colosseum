@@ -376,9 +376,18 @@ void MangaDownloader::pumpThumbs()
         m_thumbActive++;
         m_thumbInflight.insert(cid);
         auto* sc = new WeebCentralScraper(m_nam, this);
-        auto settle = [this, sc, cid](const QString& url) {
+        // `cacheable` separates AN ANSWER from A FAILURE. A scrape that succeeded
+        // is final and worth remembering, even when the chapter genuinely has no
+        // pages. A scrape that ERRORED is not an answer — WeebCentral throttles
+        // under a burst, and caching that empty string made the miss PERMANENT for
+        // the session: fetchThumb returns early on any cached key, so the volume
+        // (or chapter) showed a numbered placeholder forever and never retried.
+        // Found from eyes-on 2026-07-31: One Piece volumes 101/102/110 and the
+        // Latest-chapters rows, all blank while volume 1 had its cover.
+        auto settle = [this, sc, cid](const QString& url, bool cacheable) {
             if (!m_thumbInflight.contains(cid)) return;   // already settled by the other signal
-            m_thumbCache.insert(cid, url);
+            if (cacheable)
+                m_thumbCache.insert(cid, url);
             emit thumbReady(cid, url);
             m_thumbInflight.remove(cid);
             m_thumbActive--;
@@ -386,9 +395,11 @@ void MangaDownloader::pumpThumbs()
             pumpThumbs();
         };
         connect(sc, &MangaScraper::pagesReady, this, [settle](const QList<PageInfo>& pages) {
-            settle(pages.isEmpty() ? QString() : pages.first().imageUrl);
+            settle(pages.isEmpty() ? QString() : pages.first().imageUrl, /*cacheable=*/true);
         });
-        connect(sc, &MangaScraper::errorOccurred, this, [settle](const QString&) { settle(QString()); });
+        connect(sc, &MangaScraper::errorOccurred, this, [settle](const QString&) {
+            settle(QString(), /*cacheable=*/false);   // transient — must stay retryable
+        });
         sc->fetchPages(cid);
     }
 }

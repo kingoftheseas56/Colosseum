@@ -69,14 +69,23 @@ Item {
     property var _thumbWanted: ({})
 
     // Ask for one thumbnail per volume: the first chapter that falls inside its
-    // range. Cheap — one request per volume, not per chapter, and only for volumes
-    // that still have no cover.
+    // range. Only for the volumes ON SCREEN — see below.
+    //
+    // ⚠ WHY visibleRows AND NOT volumeRows (eyes-on 2026-07-31). Asking for every
+    // volume queued 115 WeebCentral scrapes for One Piece the moment the page
+    // opened. They run 3 at a time (MangaDownloader::THUMB_CONCURRENCY), the
+    // chapter rows' own thumbnails queue BEHIND all of them, and WeebCentral
+    // throttles under that burst. Volumes 101/102/110 and the Latest-chapters rows
+    // came back empty and stayed empty. A paged shelf only ever shows ten, so ask
+    // for ten: covers now arrive for what he is actually looking at, and the
+    // chapter thumbnails are not starved behind a queue of a hundred.
     function requestCovers() {
         var d = root.downloaderObject
         if (!d || !d.fetchThumb || !root.seriesId.length) return
         var chs = root.chapters || []
         if (!chs.length) return
-        var rows = root.volumeRows || []
+        // rowsOnPage(), never the visibleRows binding — see the note on rowsOnPage.
+        var rows = root.rowsOnPage(root.activePage)
         // ACCUMULATE, never replace: volumes and chapters land at different times, so
         // this runs more than once per series. Rebuilding the map would orphan the
         // requests still in flight from the previous call and those covers would
@@ -145,8 +154,18 @@ Item {
     readonly property var activePageInfo:
         (root.activePage >= 0 && root.activePage < root.pagedRows.length)
             ? root.pagedRows[root.activePage] : null
-    readonly property var visibleRows:
-        root.activePageInfo ? root.activePageInfo.volumes : []
+    // The rows of a given page, resolved on demand. IMPERATIVE CODE MUST USE THIS,
+    // not the `visibleRows` binding below: a property-change handler can run BEFORE
+    // the bindings that depend on that property have re-evaluated, so reading
+    // `visibleRows` inside onActivePageChanged returns the page he just LEFT.
+    // (Caught by manga_volume_cover_harness: turning to page 2 asked for page 1
+    // again and page 2's covers never loaded.) pagedRows depends only on
+    // volumeRows/pageSize, so it is always current here.
+    function rowsOnPage(idx) {
+        var pages = root.pagedRows || []
+        return (idx >= 0 && idx < pages.length) ? pages[idx].volumes : []
+    }
+    readonly property var visibleRows: root.rowsOnPage(root.activePage)
     // What the active page's own button would fetch (see root.unownedIn).
     readonly property var activePageUnowned:
         root.activePageInfo ? root.unownedIn(root.activePageInfo.volumes) : []
@@ -269,6 +288,9 @@ Item {
     // volumes and chapters arrive from different sources at different times; ask
     // again whenever either lands, since a cover needs both.
     onVolumeRowsChanged: { root._homeActivePage(); root.requestCovers() }
+    // Turning the page is exactly when the next ten covers are needed — and it is
+    // also the retry, for any that a throttled scrape left empty last time.
+    onActivePageChanged: root.requestCovers()
     onChaptersChanged: root.requestCovers()
 
     // route a scraped first-page url back to the volume that asked for it
@@ -276,8 +298,19 @@ Item {
         target: root.downloaderObject
         ignoreUnknownSignals: true
         function onThumbReady(chapterId, url) {
-            var vid = root._thumbWanted[String(chapterId)]
-            if (!vid || !url || !String(url).length) return
+            var cid = String(chapterId)
+            var vid = root._thumbWanted[cid]
+            if (!vid) return
+            if (!url || !String(url).length) {
+                // An empty answer is NOT proof this volume has no cover — under a
+                // burst WeebCentral throttles and the scrape simply fails. Forget
+                // that we asked, so coming back to this page asks again instead of
+                // showing a numbered placeholder for the rest of the session.
+                var w = {}
+                for (var k in root._thumbWanted) if (k !== cid) w[k] = root._thumbWanted[k]
+                root._thumbWanted = w
+                return
+            }
             root.coverByVolume = root._reassign(root.coverByVolume, vid, String(url))
         }
     }

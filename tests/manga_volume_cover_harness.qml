@@ -71,9 +71,31 @@ Item {
                 // a DOWNLOADED volume — must show its OWN first page, not a scrape
                 { "id": "v3", "seriesId": "S", "number": "3", "title": "Don't Get Fooled",
                   "chapterStart": "18", "chapterEnd": "26", "cover": "", "state": "ready" }
-            ]
+            ],
+            // 12 volumes = two pages. Proves the shelf asks for the page on screen
+            // and NOT for the whole series (eyes-on 2026-07-31: One Piece queued
+            // 115 scrapes at once, WeebCentral throttled, and the later volumes
+            // plus the chapter rows were left permanently blank).
+            "BIG": harness.bigVolumes()
         })
         localMap: ({ "v3": [{ "index": 0, "url": "file:///local/v3/page0.png" }] })
+    }
+
+    // volume N covers chapters (N-1)*10+1 .. N*10
+    function bigVolumes() {
+        var out = []
+        for (var i = 1; i <= 12; i++)
+            out.push({ "id": "b" + i, "seriesId": "BIG", "number": String(i),
+                       "title": "Book " + i,
+                       "chapterStart": String((i - 1) * 10 + 1),
+                       "chapterEnd": String(i * 10),
+                       "cover": "", "state": "none" })
+        return out
+    }
+    function bigChapters() {
+        var out = []
+        for (var i = 1; i <= 120; i++) out.push({ "id": "bc" + i, "number": i, "name": "" })
+        return out
     }
 
     // deliberately out of order, and 8.5 exists so "first" must mean LOWEST, not first-seen
@@ -91,6 +113,12 @@ Item {
         for (var i = 0; i < dl.asked.length; i++)
             if (dl.asked[i].chapterId === cid) return true
         return false
+    }
+    function askedCount(cid) {
+        var n = 0
+        for (var i = 0; i < dl.asked.length; i++)
+            if (dl.asked[i].chapterId === cid) n++
+        return n
     }
 
     function runChecks() {
@@ -138,13 +166,48 @@ Item {
             ck(harness.lib.coverFor(svc.volMap["S"][1]) === "https://cdn/two/p0.jpg",
                "a reply must still route after a second requestCovers pass")
 
-            // 7. already-covered volumes are not re-requested
-            ck(dl.asked.length === before, "a volume that already has a cover must not be re-asked")
+            // 7. AN EMPTY REPLY MUST BE RETRYABLE, a cover must not be re-asked.
+            //    Before 2026-07-31 an empty answer was final on BOTH sides — the
+            //    QML kept the request recorded and MangaDownloader cached the empty
+            //    string, so fetchThumb returned it forever. A volume that lost its
+            //    scrape to a throttle showed a numbered placeholder for the whole
+            //    session. Step 4's empty on c9 must therefore have been re-asked.
+            ck(dl.asked.length === before + 1,
+               "the volume whose scrape came back EMPTY must be asked again")
+            ck(harness.askedCount("c9") === 2, "c9 is retried after its empty reply")
+            ck(harness.askedCount("c1") === 1,
+               "a volume that already HAS a cover is never re-asked")
 
             // 8. switching series drops the old covers
             harness.lib.seriesId = "OTHER"
             ck(harness.lib.coverFor(svc.volMap["S"][0]) === "",
                "covers must not survive a series change")
+
+            // 9. THE BURST: a paged shelf asks only for the page ON SCREEN.
+            // Drop the old chapter list FIRST: series S's chapters (1, 9, 18…)
+            // fall inside BIG's volume ranges too, so leaving them attached would
+            // have the shelf ask for them against the new series - a fixture
+            // artifact, not product behaviour, but it would mask the real count.
+            harness.lib.chapters = []
+            harness.lib.seriesId = "BIG"
+            dl.asked = []
+            harness.lib.chapters = harness.bigChapters()
+            ck(harness.lib.volumeRows.length === 12, "the big series has 12 volumes")
+            ck(harness.lib.pagedRows.length === 2, "12 volumes make two pages")
+            ck(dl.asked.length === 10,
+               "only the ten volumes ON SCREEN may be asked for, got " + dl.asked.length)
+            ck(harness.askedFor("bc1") && harness.askedFor("bc91"),
+               "page 1 asks for volumes 1-10 (chapters 1 and 91)")
+            ck(!harness.askedFor("bc101"),
+               "volume 11 is on the NEXT page and must not be asked for yet")
+
+            // 10. turning the page asks for the rest — and only the rest.
+            harness.lib.activePage = 1
+            ck(harness.askedFor("bc101"), "turning the page asks for volume 11")
+            ck(harness.askedFor("bc111"), "turning the page asks for volume 12")
+            ck(dl.asked.length === 12,
+               "the whole series is asked for exactly once across both pages, got "
+               + dl.asked.length)
 
             console.log("MANGA_VOLUME_COVER_OK")
             Qt.exit(0)

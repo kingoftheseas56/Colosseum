@@ -57,7 +57,7 @@ Assert-Contains $series 'MangaTankobanSourcesPage {' "full-screen sources page m
 # canonical volume still reaches a row — on exactly one page.
 Assert-Contains $library 'model: root.visibleRows' "the shelf must render the active page's rows"
 Assert-Contains $library 'Vol.pageGroups(root.volumeRows' "paging must be exhaustive over every canonical volume"
-Assert-Contains $library 'root.activePageInfo ? root.activePageInfo.volumes : []' `
+Assert-Contains $library 'readonly property var visibleRows: root.rowsOnPage(root.activePage)' `
     "the visible rows must come from the active page"
 Assert-Contains $library 'signal sourcesRequested' "library must emit a full-screen sources request"
 # --- the full-screen sources picker (replaces the inline MangaTankobanSourceCard) ---
