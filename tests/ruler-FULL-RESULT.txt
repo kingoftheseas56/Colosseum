@@ -1,0 +1,27 @@
+drop ruler — 5 rounds, 60s measured per run (after 15s warm-up), scene 00:06:00
+arms: mpv-plain mpv-interp app
+
+  round 1  mpv-plain   -> 120
+  round 1  mpv-interp  -> 15
+  round 1  app         -> 202
+  round 2  app         -> 0
+  round 2  mpv-interp  -> 74
+  round 2  mpv-plain   -> 4
+  round 3  mpv-plain   -> 1
+  round 3  mpv-interp  -> 1
+  round 3  app         -> 19
+  round 4  app         -> 28
+  round 4  mpv-interp  -> 16
+  round 4  mpv-plain   -> 98
+  round 5  mpv-plain   -> 0
+  round 5  mpv-interp  -> 0
+  round 5  app         -> 31
+
+================ RESULT (output/VO drops per 60s) ================
+mpv-plain    median 4      range 0..120   samples: 120 4 1 98 0
+mpv-interp   median 15     range 0..74   samples: 15 74 1 16 0
+app          median 28     range 0..202   samples: 202 0 19 28 31
+
+READ IT THIS WAY: a difference between two arms is only real if their ranges DO NOT overlap.
+If the ranges overlap, the arms are indistinguishable on this machine — say so, do not pick
+the flattering number. That mistake is what produced every wrong conclusion on 2026-07-29.

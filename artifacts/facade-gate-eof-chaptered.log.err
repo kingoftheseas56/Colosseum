@@ -1,0 +1,80 @@
+[net] IPv4-pinned live.metahub.space -> 92.223.116.254
+[net] IPv4-pinned images.metahub.space -> 92.223.116.254
+[net] IPv4-pinned v3-cinemeta.strem.io -> 104.17.89.107
+[net] IPv4-pinned cinemeta-catalogs.strem.io -> 104.17.89.107
+[net] IPv4-pinned graphql.anilist.co -> 172.67.71.232
+[net] IPv4-pinned s4.anilist.co -> 172.67.71.232
+[net] IPv4-pinned kitsu.io -> 104.21.41.106
+[net] IPv4-pinned media.kitsu.app -> 104.26.8.99
+[net] IPv4-pinned upload.wikimedia.org -> 103.102.166.240
+[net] IPv4-pinned getcomics.org -> 172.67.213.233
+[net] IPv4-pinned leagueofcomicgeeks.com -> 104.26.7.170
+[net] IPv4-pinned apibay.org -> 172.67.137.143
+[net] IPv4-pinned extto.org -> 104.21.38.81
+[net] IPv4-pinned torrents-csv.com -> 51.15.62.20
+[net] IPv4-pinned api.jikan.moe -> 135.181.39.91
+[net] IPv4-pinned uploads.mangadex.org -> 45.129.229.2
+[net] IPv4-pinned api.mangadex.org -> 45.129.229.1
+[net] IPv4-pinned itunes.apple.com -> 23.221.68.113
+[net] IPv4-pinned openlibrary.org -> 207.241.234.205
+[net] IPv4-pinned wsrv.nl -> 104.21.91.126
+[net] connection concierge on 127.0.0.1:7570 (metahub -> HTTP/2)
+[img] webp decoder present
+[downloads] loaded index: 2 chapters
+[comics-catalog] no db at data/comics_catalog.db — catalogue lane dormant
+[download] loaded video index: 13 files
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: opening C:\Users\Suprabha\Desktop\Brotherhood\Colosseum\.worktrees\player2-task1-isolation\native\build-player2\player2-fixtures\chaptered.mkv
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: signal fileStarted state=1 pos=0.00 dur=0.00 pause=false seeking=false
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: signal fileLoaded state=3 pos=0.00 dur=2.03 pause=false seeking=false
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: chapters=[{"title":"First","startSec":0},{"title":"Second","startSec":1}]
+qml: FACADE PROBE: sequence=eof
+qml: FACADE PROBE: tick=8 phase=eof state=3 pos=1.98 dur=2.03 pause=false seeking=false
+qml: FACADE PROBE: signal endFile reason=eof state=6 pos=1.98 dur=2.03 pause=false seeking=false
+qml: FACADE PROBE: --- passes (16) ---
+qml: FACADE PROBE: PASS PlayerPage built a PlayerEngine
+qml: FACADE PROBE: PASS PlayerEngine loaded an inner engine
+qml: FACADE PROBE: PASS booted on the Player 2 branch (PlayerEngine.p2=true)
+qml: FACADE PROBE: PASS capture capability is off on Player 2
+qml: FACADE PROBE: PASS a pause the engine refuses does not stick to the facade (state=0 (Idle))
+qml: FACADE PROBE: PASS with no media open the engine reports no video size (width="" height="")
+qml: FACADE PROBE: PASS position advances under PlayerPage (pos=1.98)
+qml: FACADE PROBE: PASS duration is known (dur=2.03)
+qml: FACADE PROBE: PASS currentUrl is published (file:///C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/.worktrees/player2-task1-isolation/native/build-player2/player2-fixtures/chaptered.mkv)
+qml: FACADE PROBE: PASS chapter rows carry a numeric startSec (n=2)
+qml: FACADE PROBE: PASS chapterAtFraction(0) names the FIRST chapter (idx=0 title=First)
+qml: FACADE PROBE: PASS chapterAtFraction(lastStart) names the LAST chapter (idx=1 title=Second)
+qml: FACADE PROBE: PASS endFile("eof") fires at end of file
+qml: FACADE PROBE: PASS fileStarted fires (x1)
+qml: FACADE PROBE: PASS fileLoaded fires exactly once (x1 - a seek must not re-fire it)
+qml: FACADE PROBE: PASS no spurious playbackError
+qml: FACADE PROBE: --- skipped (2) ---
+qml: FACADE PROBE: SKIP seek / pause-freeze / resume-advance - sequence 'eof' leaves the clip untouched; run mode 'transport' on media > 60s
+qml: FACADE PROBE: SKIP stop() teardown - sequence 'eof' watches the clip end on its own; run mode 'transport'
+qml: FACADE PROBE: --- failures (0) ---
+qml: FACADE PROBE: lifecycle fileStarted=1 fileLoaded=1 trackListChanged=1 endFile=[eof] playbackError=[]
+qml: FACADE PROBE: mode=eof RESULT PASS
+[net] poster scoreboard (arrived/failed/undecodable/bytes by host):
+  opensubtitles-v3.strem.io  arrived=1 failed=0 undecodable=0 bytes=0
+  opensubtitles.strem.io  arrived=1 failed=0 undecodable=0 bytes=0
+
+qt.sql.qsqldatabase: QSqlDatabase requires a QCoreApplication
+qt.sql.qsqldatabase: QSqlDatabase requires a QCoreApplication

@@ -2082,9 +2082,11 @@ Window {
         z: 60
         active: false
         visible: win.playerOpen
-        // The ONE production line that selects the backend. Player2Page.qml deliberately exposes the
-        // same interface as PlayerPage.qml, so every playerLayer.item.* call site below stays as-is.
-        source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
+        // One page, two engines. PlayerPage hosts PlayerEngine.qml, whose inner Loader picks MpvItem
+        // or Player2Backend off the Player2Available boot fact - so both boots load PlayerPage and
+        // every playerLayer.item.* call site below stays as-is. (The rebuilt Player2Page.qml shell is
+        // deleted at Task 9; until then it is simply no longer routed to.)
+        source: "PlayerPage.qml"
         onLoaded: {
             // Say which engine is driving, every time the player opens. Without this, telling the two
             // apart means reading process paths after the fact - which is exactly what happened on the

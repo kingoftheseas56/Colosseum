@@ -1,4 +1,5 @@
 #include "player2/video/D3D11TextureRing.h"
+#include "player2/video/D3D11VideoPipeline.h"
 
 #include <cstdlib>
 #include <iostream>
@@ -15,9 +16,10 @@ void require(bool condition, const std::string &message)
         throw std::runtime_error(message);
 }
 
-VideoFrameToken token(quint64 generation, quint64 sequence, qint64 ptsUs)
+VideoFrameToken token(quint64 generation, quint64 sequence, qint64 ptsUs,
+                      int sourceWidth = 0, int sourceHeight = 0)
 {
-    return VideoFrameToken{generation, sequence, ptsUs};
+    return VideoFrameToken{generation, sequence, ptsUs, sourceWidth, sourceHeight};
 }
 
 void latestReadyFrameWinsAndOlderReadyFramesAreReleased()
@@ -152,6 +154,57 @@ void consumerFollowsRingGenerationAcrossSeeks()
             "the presented frame must be the post-seek frame");
 }
 
+// Dimensions answer "what picture has the render thread presented?", not "how far has demux
+// reached?" or "what did the producer submit?". They therefore travel with the acquired token and
+// become diagnostic state only when that exact, still-current presentation frame is acknowledged.
+void dimensionsPublishOnlyForAcknowledgedCurrentGenerationPresentation()
+{
+    D3D11TextureRing ring(1);
+    const auto produced = ring.claimForProducer();
+    require(produced.has_value(), "dimension-test producer slot missing");
+    require(ring.publishProduced(*produced, token(1, 1, 250'000, 426, 240)),
+            "dimension-test frame must publish");
+    const auto acquired = ring.acquireLatestForConsumer();
+    require(acquired.has_value(), "dimension-test frame must be acquired");
+    require(acquired->token.sourceWidth == 426 && acquired->token.sourceHeight == 240,
+            "acquired presentation token must carry its source dimensions separately from PTS");
+
+    D3D11VideoPipeline pipeline;
+    auto diagnostics = pipeline.diagnostics();
+    require(diagnostics.sourceWidth == 0 && diagnostics.sourceHeight == 0 &&
+                diagnostics.presented == 0,
+            "producer publication/acquisition must not expose dimensions as presented");
+
+    const D3D11VideoPipeline::PresentationFrame current{
+        acquired->slot, acquired->token, acquired->retiringSlot};
+    require(pipeline.notePresented(current),
+            "current-generation render acknowledgement must be accepted");
+    diagnostics = pipeline.diagnostics();
+    require(diagnostics.sourceWidth == 426 && diagnostics.sourceHeight == 240 &&
+                diagnostics.presented == 1,
+            "successful presentation must publish that frame's exact dimensions");
+
+    pipeline.flush(2);
+    diagnostics = pipeline.diagnostics();
+    require(diagnostics.sourceWidth == 0 && diagnostics.sourceHeight == 0,
+            "flush must clear dimensions with the generation they describe");
+    require(!pipeline.notePresented(current),
+            "a flushed old-generation presentation acknowledgement must be rejected");
+    diagnostics = pipeline.diagnostics();
+    require(diagnostics.sourceWidth == 0 && diagnostics.sourceHeight == 0 &&
+                diagnostics.presented == 1,
+            "stale acknowledgement must not republish dimensions or increment presented");
+
+    const D3D11VideoPipeline::PresentationFrame next{
+        0, token(2, 2, 500'000, 640, 360), std::nullopt};
+    require(pipeline.notePresented(next),
+            "new-generation render acknowledgement must be accepted");
+    diagnostics = pipeline.diagnostics();
+    require(diagnostics.sourceWidth == 640 && diagnostics.sourceHeight == 360 &&
+                diagnostics.presented == 2,
+            "new generation must publish only its own acknowledged frame dimensions");
+}
+
 void invalidOperationsDoNotCorruptOwnership()
 {
     D3D11TextureRing ring(4);
@@ -182,6 +235,7 @@ int main()
         flushInvalidatesOldGenerationWithoutReusingInFlightSlots();
         flushKeepsDisplayedTextureAliveUntilConsumerRetiresIt();
         consumerFollowsRingGenerationAcrossSeeks();
+        dimensionsPublishOnlyForAcknowledgedCurrentGenerationPresentation();
         invalidOperationsDoNotCorruptOwnership();
     } catch (const std::exception &error) {
         std::cerr << "player2_texture_ring_test: FAIL: " << error.what() << '\n';

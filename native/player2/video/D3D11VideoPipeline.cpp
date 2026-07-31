@@ -391,6 +391,8 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
     // Stamp the frame with the persistent producer fence value (monotonic across reopen); the
     // per-media token.sequence restarts each open and would signal the fence backward.
     token.sequence = ++m_producerFenceValue;
+    token.sourceWidth = frame->width;
+    token.sourceHeight = frame->height;
     if (FAILED(result) ||
         FAILED(result = m_producerContext4->Signal(m_producerFence.Get(), token.sequence)) ||
         !m_ring.publishProduced(*slotIndex, token)) {
@@ -406,11 +408,6 @@ bool D3D11VideoPipeline::submitDecodedFrame(AVFrame *frame, VideoFrameToken toke
         m_hardwareFormat = QStringLiteral("d3d11va");
         m_inputFormat = formatName(inputDescriptor.Format);
         m_colorConversion = conversion.describe();
-        // Published only after the frame really reached the ring, so "width > 0" means "video is
-        // being presented" - which is exactly the question PlayerPage's recovery watchdog asks of
-        // mpv's `width`/`height` before it declares "no video".
-        m_sourceWidth = frame->width;
-        m_sourceHeight = frame->height;
     }
     ++m_submitted;
     return true;
@@ -513,20 +510,19 @@ void D3D11VideoPipeline::retirePresentedFrame(quint64 consumerFenceValue)
 
 void D3D11VideoPipeline::flush(quint64 nextGeneration)
 {
-    m_ring.flush(nextGeneration);
     m_scheduledLateDrops.store(0, std::memory_order_release);
     m_lastAvErrorUs.store(0, std::memory_order_release);
     {
-        // Forget the source size with the frames it described. flush() runs on open, seek and
-        // recovery; carrying the OLD file's dimensions into the next one would report a resolution
-        // for media that has not decoded a frame yet - and would let the recovery watchdog latch
-        // "saw video" on a file that has none. Between a seek and its first new frame this reads 0
-        // again, which is correct: nothing is being presented at that instant.
-        // (Separate scope, not nested with m_timingMutex - nothing else ever holds both.)
+        // Advance the presentation generation under the same lock as its dimensions, before
+        // resetting the ring. An acknowledgement that raced with flush either commits before this
+        // reset and is cleared here, or observes the new generation and is rejected; it can never
+        // republish old dimensions after flush returns.
         std::scoped_lock sizeLock(m_mutex);
+        m_presentationGeneration = nextGeneration;
         m_sourceWidth = 0;
         m_sourceHeight = 0;
     }
+    m_ring.flush(nextGeneration);
     std::scoped_lock lock(m_timingMutex);
     m_schedulingAbsoluteErrorsUs.clear();
 }
@@ -561,7 +557,16 @@ qint64 D3D11VideoPipeline::schedulingP95AbsoluteErrorUs() const
     std::sort(samples.begin(), samples.end());
     return samples[static_cast<std::size_t>((samples.size() - 1) * 0.95)];
 }
-void D3D11VideoPipeline::notePresented() { ++m_presented; }
+bool D3D11VideoPipeline::notePresented(const PresentationFrame &frame)
+{
+    std::scoped_lock lock(m_mutex);
+    if (frame.token.generation != m_presentationGeneration)
+        return false;
+    m_sourceWidth = frame.token.sourceWidth;
+    m_sourceHeight = frame.token.sourceHeight;
+    ++m_presented;
+    return true;
+}
 
 D3D11VideoPipeline::Diagnostics D3D11VideoPipeline::diagnostics() const
 {

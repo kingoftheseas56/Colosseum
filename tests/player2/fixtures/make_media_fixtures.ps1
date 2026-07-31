@@ -28,7 +28,18 @@ Invoke-Ffmpeg @('-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=24',
                 '-f', 'lavfi', '-i', 'sine=frequency=440:sample_rate=48000',
                 '-t', '2', '-map', '0:v:0', '-map', '1:a:0',
                 '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
-                '-c:a', 'aac', '-metadata', 'title=Player 2 A/V fixture', $av)
+                 '-c:a', 'aac', '-metadata', 'title=Player 2 A/V fixture', $av)
+
+# stats.mkv has one job: give the runtime stats assertion a deterministic, presentation-capable
+# source whose dimensions are neither the other fixtures' 320x180 nor the ring's fixed 1920x1080.
+# Keep it free of language/title stream metadata: tracks-long.mkv currently triggers an independent
+# auto-selection defect that prevents video submission, so it cannot truthfully test presentation.
+$stats = Join-Path $OutputDirectory 'stats.mkv'
+Invoke-Ffmpeg @('-f', 'lavfi', '-i', 'testsrc2=size=426x240:rate=24',
+                '-f', 'lavfi', '-i', 'sine=frequency=523:sample_rate=48000',
+                '-t', '8', '-map', '0:v:0', '-map', '1:a:0',
+                '-c:v', 'libx264', '-preset', 'ultrafast', '-pix_fmt', 'yuv420p',
+                '-c:a', 'aac', $stats)
 
 $twoAudio = Join-Path $OutputDirectory 'two-audio.mkv'
 Invoke-Ffmpeg @('-f', 'lavfi', '-i', 'testsrc2=size=320x180:rate=24',

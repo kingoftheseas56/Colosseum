@@ -101,9 +101,10 @@ QSGNode *Player2VideoItem::updatePaintNode(QSGNode *oldNode, UpdatePaintNodeData
         if (m_pipeline->waitForProducer(frame->token.sequence)) {
             node->setTexture(m_textures[frame->slot].get());
             m_pendingRetire = frame->retiringSlot;
-            m_pipeline->notePresented();
-            QMetaObject::invokeMethod(this, [this] { emit framePresented(); },
-                                      Qt::QueuedConnection);
+            if (m_pipeline->notePresented(*frame)) {
+                QMetaObject::invokeMethod(this, [this] { emit framePresented(); },
+                                          Qt::QueuedConnection);
+            }
         }
     }
     return node;

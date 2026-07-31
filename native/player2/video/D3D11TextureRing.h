@@ -14,6 +14,10 @@ struct VideoFrameToken
     quint64 generation = 0;
     quint64 sequence = 0;
     qint64 ptsUs = 0;
+    // Presentation metadata travels with the frame identity. These are deliberately separate from
+    // ptsUs: dimensions describe the acquired picture, while PTS describes its media timeline.
+    int sourceWidth = 0;
+    int sourceHeight = 0;
 };
 
 enum class TextureSlotState

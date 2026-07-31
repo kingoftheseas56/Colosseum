@@ -1,0 +1,103 @@
+[net] IPv4-pinned live.metahub.space -> 92.223.116.254
+[net] IPv4-pinned images.metahub.space -> 92.223.116.254
+[net] IPv4-pinned v3-cinemeta.strem.io -> 104.17.89.107
+[net] IPv4-pinned cinemeta-catalogs.strem.io -> 104.17.88.107
+[net] IPv4-pinned graphql.anilist.co -> 104.26.15.71
+[net] IPv4-pinned s4.anilist.co -> 172.67.71.232
+[net] IPv4-pinned kitsu.io -> 104.21.41.106
+[net] IPv4-pinned media.kitsu.app -> 104.26.8.99
+[net] IPv4-pinned upload.wikimedia.org -> 103.102.166.240
+[net] IPv4-pinned getcomics.org -> 104.21.37.221
+[net] IPv4-pinned leagueofcomicgeeks.com -> 104.26.7.170
+[net] IPv4-pinned apibay.org -> 172.67.137.143
+[net] IPv4-pinned extto.org -> 172.67.220.195
+[net] IPv4-pinned torrents-csv.com -> 51.15.62.20
+[net] IPv4-pinned api.jikan.moe -> 135.181.39.91
+[net] IPv4-pinned uploads.mangadex.org -> 45.129.229.2
+[net] IPv4-pinned api.mangadex.org -> 45.129.229.1
+[net] IPv4-pinned itunes.apple.com -> 104.108.159.87
+[net] IPv4-pinned openlibrary.org -> 207.241.234.205
+[net] IPv4-pinned wsrv.nl -> 104.21.91.126
+[net] connection concierge on 127.0.0.1:11636 (metahub -> HTTP/2)
+[img] webp decoder present
+[downloads] loaded index: 2 chapters
+[comics-catalog] no db at data/comics_catalog.db — catalogue lane dormant
+[download] loaded video index: 13 files
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: opening C:/Users/Suprabha/Videos/Screen Recordings/Screen Recording 2026-06-18 164415.mp4
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: signal fileStarted state=1 pos=0.00 dur=0.00 pause=false seeking=false
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: signal fileLoaded state=3 pos=0.00 dur=118.90 pause=false seeking=false
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+No QSGTexture provided from updateSampledImage(). This is wrong.
+qml: FACADE PROBE: sequence=stats
+qml: FACADE PROBE: playbackStats={"videoBitrate":"","audioBitrate":"","frameDropDecoder":0,"frameDropOutput":0,"estimatedFps":"","containerFps":"","videoCodec":"h264","audioCodec":"aac","hwdec":"d3d11va","cacheBufferingState":"","width":1920,"height":1018}
+qml: FACADE PROBE: --- passes (38) ---
+qml: FACADE PROBE: PASS PlayerPage built a PlayerEngine
+qml: FACADE PROBE: PASS PlayerEngine loaded an inner engine
+qml: FACADE PROBE: PASS booted on the Player 2 branch (PlayerEngine.p2=true)
+qml: FACADE PROBE: PASS capture capability is off on Player 2
+qml: FACADE PROBE: PASS a pause the engine refuses does not stick to the facade (state=0 (Idle))
+qml: FACADE PROBE: PASS with no media open the engine reports no video size (width="" height="")
+qml: FACADE PROBE: PASS position advances under PlayerPage (pos=4.27)
+qml: FACADE PROBE: PASS duration is known (dur=118.90)
+qml: FACADE PROBE: PASS currentUrl is published (file:///C:/Users/Suprabha/Videos/Screen Recordings/Screen Recording 2026-06-18 164415.mp4)
+qml: FACADE PROBE: PASS mpvProperty width/height report the SOURCE size (1920x1018)
+qml: FACADE PROBE: PASS recovery watchdog latches recoverySawVideo (recoverySawVideo=true, noVideoSince=0 - the 'no video' ladder is disarmed)
+qml: FACADE PROBE: PASS the watchdog tick raised no failure of its own
+qml: FACADE PROBE: PASS mpvProperty("video-codec") is measured (h264)
+qml: FACADE PROBE: PASS mpvProperty("hwdec-current") is measured (d3d11va)
+qml: FACADE PROBE: PASS mpvProperty("audio-codec") is measured (aac)
+qml: FACADE PROBE: PASS mpvProperty("frame-drop-count") is measured (0)
+qml: FACADE PROBE: PASS mpvProperty("vo-drop-frame-count") is measured (0)
+qml: FACADE PROBE: PASS audio-codec names the SELECTED audio track (audioTrack=1 codec=aac)
+qml: FACADE PROBE: PASS mpvProperty("container-fps") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS mpvProperty("estimated-vf-fps") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS mpvProperty("video-bitrate") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS mpvProperty("audio-bitrate") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS mpvProperty("cache-buffering-state") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS mpvProperty("audio-params/channel-count") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS mpvProperty("video-params/transfer") is an honest absence ("" -> "--")
+qml: FACADE PROBE: PASS statsValue("Resolution") prints the real size (1920x1018)
+qml: FACADE PROBE: PASS statsValue("Video codec") (h264)
+qml: FACADE PROBE: PASS statsValue("HW decode") (d3d11va)
+qml: FACADE PROBE: PASS statsValue("Dropped frames") reads decoder / output (0 / 0)
+qml: FACADE PROBE: PASS statsValue("Frame rate") is a dash, not a fake reading (--)
+qml: FACADE PROBE: PASS statsValue("Video bitrate") is a dash, not a fake reading (--)
+qml: FACADE PROBE: PASS statsValue("Audio bitrate") is a dash, not a fake reading (--)
+qml: FACADE PROBE: PASS statsValue("Cache buffering") is a dash, not a fake reading (--)
+qml: FACADE PROBE: PASS pauseQualityLine() carries the resolution (1018p  ·  H264  ·  AAC)
+qml: FACADE PROBE: PASS stateLineText does not claim to be buffering ((empty))
+qml: FACADE PROBE: PASS fileStarted fires (x1)
+qml: FACADE PROBE: PASS fileLoaded fires exactly once (x1 - a seek must not re-fire it)
+qml: FACADE PROBE: PASS no spurious playbackError
+qml: FACADE PROBE: --- skipped (4) ---
+qml: FACADE PROBE: SKIP chapter shape + chapterAtFraction - media has 0 chapter(s); run against the chaptered.mkv fixture
+qml: FACADE PROBE: SKIP seek / pause-freeze / resume-advance - sequence 'stats' leaves the transport alone; run mode 'transport'
+qml: FACADE PROBE: SKIP endFile("eof") - sequence 'stats' reports before the end; run mode 'eof' on a short clip
+qml: FACADE PROBE: SKIP stop() teardown - sequence 'stats' must not close the player; run mode 'transport'
+qml: FACADE PROBE: --- failures (0) ---
+qml: FACADE PROBE: lifecycle fileStarted=1 fileLoaded=1 trackListChanged=1 endFile=[] playbackError=[]
+qml: FACADE PROBE: mode=stats RESULT PASS
+[net] poster scoreboard (arrived/failed/undecodable/bytes by host):
+  opensubtitles-v3.strem.io  arrived=1 failed=0 undecodable=0 bytes=0
+
+qt.sql.qsqldatabase: QSqlDatabase requires a QCoreApplication
+qt.sql.qsqldatabase: QSqlDatabase requires a QCoreApplication

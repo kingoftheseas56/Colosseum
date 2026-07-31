@@ -50,8 +50,8 @@ public:
         QString colorConversion;
         // The SOURCE frame's dimensions, taken off the decoded AVFrame - not the ring's fixed
         // OutputWidth/OutputHeight (textureSize(), which is a constant 1920x1080 and would read as
-        // a resolution for every file). Zero until a frame has actually been published, which is
-        // the honest answer: "no video yet".
+        // a resolution for every file). Zero until the render thread acknowledges successful
+        // presentation of a current-generation frame: producer submission is not visible video.
         int sourceWidth = 0;
         int sourceHeight = 0;
         bool deviceLost = false;
@@ -79,7 +79,9 @@ public:
     void noteDecoded();
     void noteSchedulingDecision(qint64 timingErrorUs, bool dropped);
     qint64 schedulingP95AbsoluteErrorUs() const;
-    void notePresented();
+    // Commits presentation diagnostics only for the exact acquired frame while its generation is
+    // still current. Returns false when a concurrent flush made the acknowledgement stale.
+    bool notePresented(const PresentationFrame &frame);
     Diagnostics diagnostics() const;
     // True once a GPU call failed with DXGI_ERROR_DEVICE_REMOVED / _RESET. The session's recovery
     // coordinator (not the pipeline) decides whether to rebuild; the pipeline only reports the fact.
@@ -145,6 +147,9 @@ private:
     // (GUI thread) must not read them directly.
     int m_sourceWidth = 0;
     int m_sourceHeight = 0;
+    // Guarded by m_mutex with m_sourceWidth/m_sourceHeight. flush() advances this before resetting
+    // the ring, so an old render-thread acknowledgement can never republish stale dimensions.
+    quint64 m_presentationGeneration = 1;
     QString m_error;
     std::atomic<quint64> m_decoded{0};
     std::atomic<quint64> m_submitted{0};

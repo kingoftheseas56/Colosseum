@@ -52,9 +52,9 @@ import "../../qml"
 //               broken, it makes a healthy stream declare "no video" 20s in. The rest is asserted
 //               through PlayerPage's OWN statsValue()/pauseQualityLine(), because a value that is
 //               present but the wrong shape ("0x0", "NaN%") is the failure mode a raw read misses.
-//               Needs a clip with a video stream and runway: tracks-long.mkv (320x180 h264 + aac,
-//               60s) is the one used by the gate, so the sizes below are checkable against a known
-//               fixture rather than merely non-zero.
+//               The gate owns stats.mkv (426x240 h264 + aac, 8s), verifies that exact source size
+//               with ffprobe, and passes the independently measured dimensions below. The runtime
+//               assertion fails on ANY mismatch; positive-but-wrong dimensions are not a pass.
 //   auto      - picks eof for a clip <= 60s, transport otherwise. Run BOTH to cover both.
 //
 // Environment, all load-bearing:
@@ -76,7 +76,7 @@ Window {
     color: "black"
     title: "PlayerEngine facade probe"
 
-    // arguments: [exe, this.qml, media, mode]
+    // arguments: [exe, this.qml, media, mode, expectedWidth, expectedHeight]
     // REQUIRED, with no default. The obvious default - the built fixture - lives in a SIBLING
     // WORKTREE's build directory, which is one machine's layout and nobody else's; committing it
     // would make this probe pass or fail on where the checkout happens to sit. An absent argument
@@ -85,6 +85,10 @@ Window {
                                     ? Qt.application.arguments[2] : ""
     readonly property string modeArg: Qt.application.arguments.length > 3
                                       ? Qt.application.arguments[3] : "auto"
+    readonly property int expectedWidth: Qt.application.arguments.length > 4
+                                         ? Number(Qt.application.arguments[4]) : 0
+    readonly property int expectedHeight: Qt.application.arguments.length > 5
+                                          ? Number(Qt.application.arguments[5]) : 0
 
     property var engine: null
     property string mode: "auto"
@@ -283,19 +287,19 @@ Window {
         // --- width/height: the watchdog's input, and the pause card's "1080p" -----------------
         var w = e.mpvProperty("width")
         var h = e.mpvProperty("height")
-        if (typeof w === "number" && w > 0 && typeof h === "number" && h > 0)
-            probe.ok("mpvProperty width/height report the SOURCE size", w + "x" + h)
+        if (probe.expectedWidth <= 0 || probe.expectedHeight <= 0)
+            probe.bad("the stats probe has ffprobe-verified expected dimensions",
+                      "got " + probe.expectedWidth + "x" + probe.expectedHeight)
         else
-            probe.bad("mpvProperty width/height report the SOURCE size",
+            probe.ok("the stats probe has ffprobe-verified expected dimensions",
+                     probe.expectedWidth + "x" + probe.expectedHeight)
+        if (w === probe.expectedWidth && h === probe.expectedHeight)
+            probe.ok("mpvProperty width/height report the exact SOURCE size", w + "x" + h)
+        else
+            probe.bad("mpvProperty width/height report the exact SOURCE size",
                       "got " + JSON.stringify(w) + "x" + JSON.stringify(h)
+                      + ", ffprobe verified " + probe.expectedWidth + "x" + probe.expectedHeight
                       + " - the recovery watchdog reads these")
-        // Not the ring's fixed output surface. D3D11VideoPipeline::textureSize() is a CONSTANT
-        // 1920x1080 (OutputWidth/OutputHeight), so a mapping that reached for it would look
-        // perfectly healthy on every file and be a lie on all but one. The gate's fixture is
-        // 320x180, which is the cheapest possible way to tell those two apart.
-        if (w === 1920 && h === 1080)
-            console.log("FACADE PROBE: NOTE width/height read 1920x1080 - if the media is not "
-                        + "1080p this is the ring's OutputWidth/OutputHeight leaking through")
         probe.checkRecoveryWatchdog()
 
         // --- the measured stats-card keys ------------------------------------------------------

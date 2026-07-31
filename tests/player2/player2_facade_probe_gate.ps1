@@ -24,7 +24,7 @@
 # no unexpected QML/Qt runtime diagnostic.
 
 param(
-    # Directory holding the built fixtures: av.mkv, chaptered.mkv, tracks-long.mkv.
+    # Directory holding the built fixtures: av.mkv, stats.mkv, chaptered.mkv, tracks-long.mkv.
     [string]$Fixtures = '',
     # Any clip longer than 60s. The transport sequence needs runway; the 2s fixtures have none.
     [string]$LongMedia = '',
@@ -106,6 +106,25 @@ function Test-QmlQtRuntimeDiagnostic([string]$line) {
     return $false
 }
 
+function Get-VideoDimensions([string]$mediaPath) {
+    $fixedFfprobe = 'C:\tools\ffmpeg-master-latest-win64-gpl-shared\bin\ffprobe.exe'
+    $ffprobe = if (Test-Path -LiteralPath $fixedFfprobe) { $fixedFfprobe }
+               else {
+                   $command = Get-Command ffprobe -ErrorAction SilentlyContinue
+                   if (-not $command) { throw 'facade gate: ffprobe is required for exact stats dimensions' }
+                   $command.Source
+               }
+    $json = & $ffprobe -v error -select_streams v:0 `
+        -show_entries stream=width,height -of json -- $mediaPath
+    if ($LASTEXITCODE -ne 0) { throw "facade gate: ffprobe failed for $mediaPath" }
+    $parsed = $json | ConvertFrom-Json
+    $streams = @($parsed.streams)
+    if ($streams.Count -ne 1) {
+        throw "facade gate: expected exactly one selected video stream in $mediaPath, got $($streams.Count)"
+    }
+    return @{ Width = [int]$streams[0].width; Height = [int]$streams[0].height }
+}
+
 $logDir = if ($LogDir) { $LogDir } else { Join-Path $repoRoot 'artifacts' }
 if (-not (Test-Path $logDir)) { New-Item -ItemType Directory -Path $logDir | Out-Null }
 
@@ -121,19 +140,20 @@ if ($Media) {
     $cases += @{ Name = 'eof-chaptered'; Media = (Join-Path $Fixtures 'chaptered.mkv');   Mode = 'eof';       Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
     $cases += @{ Name = 'transport';     Media = $LongMedia;                              Mode = 'transport'; Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
     $cases += @{ Name = 'tracks';        Media = (Join-Path $Fixtures 'tracks-long.mkv'); Mode = 'tracks';    Player2 = $true;  ExpectFail = @(); ExpectedExit = 0; ExpectedResult = 'RESULT PASS' }
-    # $LongMedia, NOT a built fixture, and that is a measured choice rather than convenience. The
-    # stats sequence is the first thing in this suite that needs a frame to have been PRESENTED
-    # (width/height are published off the decoded frame), and tracks-long.mkv never presents one on
-    # this machine: 485 frames decode, ZERO submit, 484 device errors, hardwareFormat and
-    # inputFormat both empty. Bisected 2026-07-27 against six purpose-built clips - it is NOT the
-    # resolution (320x180 presents fine), NOT the stream count (2 audio + subtitle presents fine).
-    # The trigger is the LANGUAGE/TITLE METADATA on those tracks: byte-identical files differing
-    # only in `-metadata:s:a:0 language=eng ...` pass without it and fail with it, which points at
-    # PlayerPage's own maybeAutoSelectTracks() firing a track selection at open. Video never
-    # recovers; audio plays on. Written up for Task 10 - it is an ENGINE defect, not a probe one,
-    # and the tracks case above passes straight through it because nothing there asserts a frame.
-    # Repro pair kept in the Task 5 report: 2-audio+subtitle WITH metadata fails, WITHOUT passes.
-    $cases += @{ Name = 'stats';         Media = $LongMedia;                              Mode = 'stats';     Player2 = $true;  ExpectFail = @() }
+    # A dedicated fixture is mandatory here. tracks-long.mkv currently cannot submit video after
+    # PlayerPage's metadata-driven auto-selection, while arbitrary $LongMedia has no hand-known
+    # dimensions. stats.mkv is deliberately 426x240 and metadata-light; ffprobe below independently
+    # verifies those exact dimensions before the runtime assertion is allowed to run.
+    $statsMedia = Join-Path $Fixtures 'stats.mkv'
+    if (-not (Test-Path -LiteralPath $statsMedia)) {
+        throw "facade gate: deterministic stats fixture is missing - $statsMedia"
+    }
+    $statsDimensions = Get-VideoDimensions $statsMedia
+    if ($statsDimensions.Width -ne 426 -or $statsDimensions.Height -ne 240) {
+        throw "facade gate: stats fixture dimensions changed: ffprobe=$($statsDimensions.Width)x$($statsDimensions.Height), expected=426x240"
+    }
+    Write-Host "facade gate: ffprobe verified stats fixture 426x240"
+    $cases += @{ Name = 'stats';         Media = $statsMedia;                              Mode = 'stats';     Player2 = $true;  ExpectFail = @() }
     if (-not $SkipMpvBoot) {
         # The mpv boot is a CONTROL: the same probe against the daily driver. Two assertions are
         # P2-only by construction and are expected to fail there; a THIRD failure means the port
@@ -156,6 +176,12 @@ foreach ($case in $cases) {
     }
     if ($case.Player2) { $env:COLOSSEUM_PLAYER2 = '1' } else { Remove-Item Env:\COLOSSEUM_PLAYER2 -ErrorAction SilentlyContinue }
 
+    $expectedDimensions = if ($case.Mode -eq 'stats') {
+        Get-VideoDimensions $case.Media
+    } else {
+        @{ Width = 0; Height = 0 }
+    }
+
     $outLog = Join-Path $logDir ("facade-gate-{0}.log" -f $case.Name)
     $errLog = "$outLog.err"
     # QUOTE EVERY ARGUMENT. Start-Process joins -ArgumentList with spaces and does no quoting of its
@@ -163,7 +189,8 @@ foreach ($case in $cases) {
     # opens a truncated path, the session goes to Error, and it reports "position never advanced"
     # with duration 0 - i.e. a harness bug wearing a player defect's clothes. Caught on this gate's
     # first run, against a real filename with spaces in it.
-    $quoted = @("`"$probePath`"", "`"$($case.Media)`"", "`"$($case.Mode)`"")
+    $quoted = @("`"$probePath`"", "`"$($case.Media)`"", "`"$($case.Mode)`"",
+                "`"$($expectedDimensions.Width)`"", "`"$($expectedDimensions.Height)`"")
     $proc = Start-Process -FilePath $exePath -PassThru -Wait `
         -ArgumentList $quoted `
         -RedirectStandardOutput $outLog -RedirectStandardError $errLog
