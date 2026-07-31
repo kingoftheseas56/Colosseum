@@ -110,9 +110,33 @@ Item {
                 sheet.rows = allRows;
                 sheet.loading = false;
                 timeout.stop();
+                sheet.warmTopRow();
                 seasonSettle();
             });
     }
+
+    // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE
+    // early but not the TORRENT: /create — join the DHT for THIS infohash, announce to
+    // trackers, handshake, get unchoked, pull the head pieces — still ran only when Play
+    // was pressed, and that is the part measured in minutes. So warm the top-ranked row
+    // the moment the list lands: he spends seconds reading it, and that is exactly the
+    // window the connect work needs. Same adopt-first path as play; a fetchReady with no
+    // pending download job is a no-op in Main.qml, so there is no side effect.
+    // Bounded to ONE row on purpose — warming all of them would open a swarm per row.
+    property string warmedHash: ""
+    function warmTopRow() {
+        if (typeof Stream === "undefined" || sheet.mode === "download") return;
+        var rows = sheet.filteredRows();
+        for (var i = 0; i < rows.length; ++i) {
+            var h = String(rows[i].infoHash || "");
+            if (!h.length) continue;                    // direct/url rows need no warming
+            if (h === sheet.warmedHash) return;         // already warmed this one
+            sheet.warmedHash = h;
+            Stream.prefetch(h, rows[i].fileIdx || 0);
+            return;
+        }
+    }
+    onQualityFilterChanged: sheet.warmTopRow()          // he narrowed the list → warm the new top
 
     // season mode, ask over, zero full-season torrents → hand the page the
     // auto-pick fallback and get out of the way
