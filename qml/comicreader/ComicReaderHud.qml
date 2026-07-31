@@ -209,6 +209,26 @@ Item {
         icMin.glyphKind, icFull.glyphKind, icClose.glyphKind
     ].concat(commandBar.iconKinds)
 
+    // ================= the per-command ANCHOR seam (Task 8) =================
+    // A temporary popover hangs under the command that RAISED it — Cover's shape, and the thing
+    // Task 7 deferred because two of the six commands are live readouts whose label widths move
+    // with the reader's layout and order. The command bar publishes each command's centre; this
+    // maps it into the HUD's coordinates, which are the shell's (both fill the reader).
+    //
+    // Exposed as a plain map as well as a function so a caller's BINDING has something reactive to
+    // depend on: mapToItem is a one-shot read, so a binding that only called the function below
+    // would evaluate once and never again. Read `commandAnchors` in the same expression (the shell
+    // does) and the binding re-runs whenever the row relayouts.
+    readonly property var commandAnchors: commandBar.commandAnchors
+    function commandAnchorX(command) {
+        var local = commandBar.anchorFor(command)
+        if (local < 0) return -1
+        return commandBar.mapToItem(hud, local, 0).x
+    }
+    // Force a republish. The offscreen gates drive layout by hand (forceLayout / an explicit
+    // relayout) rather than waiting on polish, so they need the same door.
+    function refreshCommandAnchors() { commandBar.refreshAnchors() }
+
     // ============================================================================================
     // inline chrome vocabulary
     // ============================================================================================

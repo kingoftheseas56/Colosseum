@@ -44,6 +44,23 @@ Item {
     property bool rtl: false                 // strip is vertical; kept for parity / future affordances
     property int cacheScreens: 2             // cacheBuffer in viewport-heights (modest -> virtualized)
 
+    // ---- AUTO-SCROLL (Task 8). MOTION ONLY. ----
+    // The approved rule, verbatim: "Long Strip creates the vertical page flow; Auto-scroll only
+    // supplies motion at the already chosen width. Starting or resuming Auto-scroll must never
+    // resize the page." Structurally, not by promise: the drive below writes contentY and NOTHING
+    // ELSE. There is no call to applyLayout / core.setStripLayout anywhere on this path, and the
+    // width is not an input to any of it.
+    //
+    // The SHELL owns whether it is running (it is session-only state and every pause source lives
+    // up there); this surface owns the pixels-per-frame. Both flow one way: in.
+    property bool autoScrollRunning: false
+    property real autoScrollSpeed: 1.0       // 0.25..3.0, clamped where it is used
+    // 120px/s at 1x — a comfortable webtoon pace, and the number the plan fixes. At the default 78%
+    // portrait width a page is roughly two viewport heights, so 1x reads a page in about 15s.
+    readonly property real autoScrollBasePps: 120
+    readonly property real autoScrollPixelsPerSecond:
+        autoScrollBasePps * Math.max(0.25, Math.min(3.0, autoScrollSpeed))
+
     // ---- DECODE CAP (the lineage's sourceSize.width; the strip had none) ----
     // Without a cap, every page decodes and uploads its FULL source resolution — a scanned tankobon
     // page is routinely 2000-3000px wide — while it is displayed at a fraction of that. The cost is
@@ -63,6 +80,15 @@ Item {
     // so it is the correct upper bound AND it holds still while the window moves.
     readonly property int srcCapW:
         Math.max(1100, Math.min(2048, Math.ceil(Math.max(320, Screen.width) / 256) * 256))
+    // ...and the PREVIEW tier's cap. Half the width AND the fast transform (Task 2's `preview` tier
+    // picks both), which is the whole of "first pixels, soonest". Same rule and the same arithmetic
+    // as the Single surface, so the three surfaces ask the delivery path for the same shape of work.
+    //
+    // A quarter of the pixels for the first paint matters MORE here than in the paged layouts: this
+    // is the surface that meets new pages continuously, so the wait for hq is not once per page turn
+    // but once per page scrolled past. The scaled tier was sized for this pair from the start —
+    // ComicReaderCore's kScaledEntriesPerPage is 2 and says so out loud.
+    readonly property int previewCapW: Math.max(320, Math.round(srcCapW / 2))
 
     // ---- outputs consumed by the shell / HUD (Task 11) ----
     // These three are PROVENANCE-BLIND: they fire for any non-programmatic move — wheel, keyboard,
@@ -80,9 +106,14 @@ Item {
     // Nothing consumes it yet; that is Task 11.
     signal presented(int anchorPage, real withinPageFraction)
     // Unlike the three above this one IS wheel-only — it means "a real gesture happened", not
-    // "the position changed". NOTE: currently has no consumer; kept for a HUD/record consumer that
-    // needs to tell a gesture from a programmatic move. Delete it if that never arrives.
+    // "the position changed". Task 8 gave it its consumer at last: the shell pauses Auto-scroll on
+    // it, which is exactly the question it was always answering ("was this a hand, or the machine")
+    // and the reason it survived unconsumed for three tasks.
     signal manualNavigation()
+    // The column reached the bottom while Auto-scroll was driving it. The shell clears its running
+    // flag on this — the surface never writes that flag, so there is one owner and no way for the
+    // two to disagree about whether the motion is live.
+    signal autoScrollEnded()
 
     clip: true
 
@@ -193,6 +224,12 @@ Item {
         // own pixmap cache serves the pre-adjustment page for the rest of the session.
         function onRenderProfileChanged() { root.readyRev += 1 }
         function onStripCompensation(delta) { root._applyCompensation(delta) }
+        // A fresh book (or a crossing) invalidates the retention memo. ComicReaderCore resets its
+        // own last-swept range on every openEntry for exactly this reason — "a new book always
+        // sweeps even if it opens on the page numbers the last one closed at" — and a QML memo that
+        // did not reset alongside it would swallow the new entry's FIRST call and leave the window
+        // wherever the previous volume left it.
+        function onEntryChanged() { root._rangeFirst = -1; root._rangeLast = -1 }
     }
 
     function _applyCompensation(delta) {
@@ -231,8 +268,42 @@ Item {
             readonly property string errorText: (root.failedRev, root._failText(model.pageIndex, model.errorCode))
             readonly property bool hasError: errorText.length > 0
             readonly property alias imageSource: pageImg.source   // exposed so the decode-refresh test can see it re-evaluate
+            readonly property alias previewSource: previewImg.source
+            readonly property alias previewCap: previewImg.sourceSize.width
+            readonly property alias hqCap: pageImg.sourceSize.width
+            // The hq fade as a RULE, not as the animated number. A Behavior makes `opacity`
+            // untestable — a synchronous read straight after a target flip still returns the OLD
+            // value (measured on the Single surface, which carries the same note) — so the rule is
+            // the named property and `opacity` merely follows it.
+            readonly property bool hqShown: pageImg.status === Image.Ready || pageImg._hqEverReady
 
-            // the page image — geometry comes from the delegate (model), NOT the image's implicit size
+            // ---- TWO TIERS, stacked (Task 8), exactly as Single and Pair stack them ----
+            // A fast half-width PREVIEW underneath, the real page faded over it as it completes.
+            // The column is the surface that meets new pages continuously, so what a single-tier
+            // strip cost was not one wait per page turn but one per page scrolled past: black band,
+            // then the whole page at once. Geometry is unaffected — both tiers take their box from
+            // the MODEL (see the delegate's height above), never from an Image's implicit size, so a
+            // tier arriving can never reflow the column.
+
+            // PREVIEW tier: first pixels on screen.
+            Image {
+                id: previewImg
+                anchors.horizontalCenter: parent.horizontalCenter
+                y: 0
+                width: model.displayWidth > 0 ? model.displayWidth : parent.width
+                height: parent.height
+                visible: !del.hasError
+                source: (root.readyRev, (root.core && root.core.imageUrl)
+                        ? root.core.imageUrl(model.pageIndex, "preview") : "")
+                asynchronous: true
+                cache: true
+                retainWhileLoading: true
+                fillMode: Image.PreserveAspectFit
+                sourceSize.width: root.previewCapW
+                mipmap: true
+            }
+
+            // HQ tier: the reader's real page, over the preview.
             Image {
                 id: pageImg
                 anchors.horizontalCenter: parent.horizontalCenter
@@ -241,7 +312,8 @@ Item {
                 height: parent.height
                 visible: !del.hasError
                 // readyRev folded in so the binding re-runs (and re-fetches the bumped ?rev= url) on decode
-                source: (root.readyRev, (root.core && root.core.imageUrl) ? root.core.imageUrl(model.pageIndex) : "")
+                source: (root.readyRev, (root.core && root.core.imageUrl)
+                        ? root.core.imageUrl(model.pageIndex, "hq") : "")
                 asynchronous: true
                 cache: true    // SAFE and load-bearing: the ?rev= in the url self-busts on a real redecode, and
                                // WITHOUT the pixmap cache every delegate rebuild re-pays the provider's full-res
@@ -250,6 +322,14 @@ Item {
                 fillMode: Image.PreserveAspectFit
                 sourceSize.width: root.srcCapW   // decode what it LOOKS like, not what it IS
                 mipmap: true                     // it is still a downscale — without this it shimmers while scrolling
+                // The SAME 90ms cross-fade the paged surfaces use, so a page sharpening reads the
+                // same wherever you meet it. `_hqEverReady` latches per delegate: once this page's
+                // hq has landed, a later redecode holds at 1 and lets retainWhileLoading show the
+                // old pixels going soft rather than dimming the page (the Single surface's scar).
+                property bool _hqEverReady: false
+                onStatusChanged: if (status === Image.Ready) _hqEverReady = true
+                opacity: del.hqShown ? 1 : 0
+                Behavior on opacity { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
             }
 
             // typed error placard — this page only; the rest of the column keeps reading
@@ -336,6 +416,7 @@ Item {
         _reportPending = false
         if (!active || !core) return
         if (core.setStripViewport) core.setStripViewport(list.contentY, list.height)
+        _noteRange()      // the retention window rides the SAME door, on its own slower clock
         if (core.setStripViewportWidth && list.width !== _lastReportedWidth) {
             // A width change (fullscreen, window resize) rescales the page column. The backend does this
             // IN PLACE (dataChanged, not a model reset), so the ListView keeps its delegates and its
@@ -354,6 +435,83 @@ Item {
                 _programmatic = false
             }
         }
+    }
+
+    // ================= the RETENTION window: core.requestRange (Task 8) =================
+    // Task 2 built the viewport-shaped retention window and left it with no production caller. This
+    // is that caller, and it is written against the warning requestRange's own doc comment carries:
+    //
+    //   "a call whose clamped range DIFFERS from the last one walks both cache hashes under both
+    //    mutexes and frees QImages ON THE CALLING (GUI) THREAD, and the decoded walk contends the
+    //    same mutex every provider worker takes for every page fetch. ... debounce or send it on
+    //    settle, and send PAGE indices, not pixels."
+    //
+    // This reader exists BECAUSE of a stutter whose root cause was a per-frame GUI-thread cascade.
+    // Wiring a per-frame scroll signal straight to a bulk free on the GUI thread would be the same
+    // shape again, so there are three separate brakes and each one is doing different work:
+    //
+    //   1. PAGE INDICES, NOT PIXELS. A range only changes when the viewport crosses a page
+    //      boundary. At the default 78% width a page is roughly two viewport heights, so an
+    //      ordinary read changes the range every few seconds, not every frame.
+    //   2. A QML-SIDE MEMO (_rangeFirst/_rangeLast). An unchanged range never crosses the C++
+    //      boundary at all. The core has its own identical early-out; this one means we do not even
+    //      pay the invoke, which is what makes a 60Hz caller safe.
+    //   3. A LEADING+TRAILING THROTTLE. The first move of a fling sweeps immediately (the window
+    //      must not lag the reader), then everything inside the window coalesces and the LAST of it
+    //      lands when the window closes. Nothing is dropped; a fast fling through fifty pages costs
+    //      four sweeps a second instead of sixty. The timer only stays alive while movement
+    //      continues — a closing window with nothing waiting simply stops.
+    //
+    // A settle-only debounce (restart on every move, fire on quiet) was the other candidate and is
+    // WRONG here for one specific reason: Auto-scroll moves the column continuously for minutes, so
+    // "quiet" never arrives and the window would never update for the entire run.
+    property int rangeThrottleMs: 250
+    property bool _rangePending: false
+    property int _rangeFirst: -1
+    property int _rangeLast: -1
+    Timer { id: rangeThrottle; interval: root.rangeThrottleMs; repeat: false; onTriggered: root._flushRangeWindow() }
+
+    // The visible run as MODEL INDICES, or null when the column cannot honestly answer. Null rather
+    // than a guess: indexAt returns -1 for a position with no realized delegate (mid-relayout, or
+    // straight after a resume jumped the column thousands of pixels), and telling the backend to
+    // retain a window we invented would evict the pages actually on screen.
+    function _visibleRange() {
+        if (list.count <= 0) return null
+        var lo = list.indexAt(list.width / 2, list.contentY + 1)
+        var hi = list.indexAt(list.width / 2, list.contentY + list.height - 1)
+        if (lo < 0 || hi < 0 || hi < lo) return null
+        return { first: lo, last: hi }
+    }
+    // THE guard that matters is here, not on the callers: the throttle TIMER can fire after a
+    // layout switch has already taken this strip off screen, and both reading surfaces share one
+    // backend — a hidden strip sweeping the retention window would evict what the visible one is
+    // showing. (_noteRange has no second copy of this test on purpose; its only caller,
+    // _flushViewportReport, is already gated, and _flushRangeWindow arrives from a timer that is
+    // not.)
+    function _sendRange() {
+        if (!active || !core || !core.requestRange) return
+        var r = _visibleRange()
+        if (!r) return
+        if (r.first === _rangeFirst && r.last === _rangeLast) return   // brake 2: never pay the invoke twice
+        _rangeFirst = r.first
+        _rangeLast = r.last
+        core.requestRange(r.first, r.last)
+    }
+    function _noteRange() {
+        if (!core || !core.requestRange) return
+        if (rangeThrottle.running) { _rangePending = true; return }
+        _sendRange()
+        rangeThrottle.start()
+    }
+    // CLOSE the window. The one door, whether the 250ms timer reached it or a caller wants the
+    // window shut now — stopping the timer first means "the window is closed" is true on the way
+    // out either way, which is what lets the gate drive this deterministically instead of sleeping.
+    function _flushRangeWindow() {
+        rangeThrottle.stop()              // a no-op when the (non-repeating) timer itself got here
+        if (!_rangePending) return        // nothing waiting: stop, and leave no timer running
+        _rangePending = false
+        _sendRange()
+        rangeThrottle.start()             // still moving: hold the window open
     }
 
     // ================= throttled tracking emit (<= once per ~80ms window) =================
@@ -532,6 +690,60 @@ Item {
         list.contentY = y
         _draining = false
         if (_pendingWheelPx === 0) scrollDrain.running = false
+    }
+
+    // ================= AUTO-SCROLL drive (Task 8) =================
+    // A SECOND FrameAnimation, deliberately not the wheel drain. They are different machines: the
+    // drain empties a backlog and stops, auto-scroll travels at a constant rate until something
+    // stops it. Folding auto-scroll into the drain would mean continuously refilling _pendingWheelPx
+    // to keep it alive, which would also make every wheel notch fight the motion inside one
+    // accumulator. Two drives, one rule between them: manual input pauses auto-scroll BEFORE it
+    // applies its own movement (see _intakeWheel), so they are never both writing contentY.
+    //
+    // `active` is in the running condition because both reading surfaces are mounted at once: a
+    // HIDDEN strip must not keep scrolling a column nobody is looking at.
+    property bool _autoScrollFresh: false
+    FrameAnimation {
+        id: autoScrollDrive
+        running: root.autoScrollRunning && root.active
+        onRunningChanged: if (running) root._autoScrollFresh = true
+        onTriggered: root._autoScrollTick(autoScrollDrive.frameTime * 1000)
+    }
+
+    // ONE tick of motion, in milliseconds. Named and public so the gate can drive it deterministically
+    // — an offscreen harness never ticks a FrameAnimation, and a test that slept for real frames
+    // would be a flake.
+    //
+    // IT WRITES contentY AND NOTHING ELSE. No width, no gap, no layout call: that is the
+    // never-resize rule made structural rather than guarded.
+    function _autoScrollTick(ms) {
+        if (list.count <= 0) return
+        var dt = Number(ms)
+        if (!isFinite(dt) || dt <= 0) return
+        // COLD FIRST TICK. FrameAnimation reports a ~3ms frameTime on the tick right after it
+        // starts (measured 2026-07-17, agents/wheel_latency_harness.qml) — the same trap the wheel
+        // drain documents a few hundred lines above, fixed once already in c307ccb. Left alone the
+        // first step is a fifth of a frame's travel, which reads as the page hesitating before it
+        // moves. The first tick is worth a whole frame.
+        // [[reference_frameanimation_cold_first_tick_underdrains]]
+        if (_autoScrollFresh) { dt = Math.max(dt, 1000 / 60); _autoScrollFresh = false }
+        // ...and the opposite guard: a stalled frame (a decode burst, a window drag) must not
+        // teleport the page half a chapter down when the clock resumes.
+        dt = Math.min(dt, 100)
+
+        var maxY = Math.max(0, list.contentHeight - list.height)
+        if (maxY <= 0) { root.autoScrollEnded(); return }   // nothing to travel: stop, don't spin
+
+        var y = list.contentY + autoScrollPixelsPerSecond * dt / 1000
+        var hitEnd = y >= maxY
+        if (hitEnd) y = maxY
+
+        // NOT _programmatic, and that is deliberate: auto-scroll is REAL READING. Suppressing the
+        // tracking pair here would leave the HUD counter and the Continue record sitting on the
+        // page you started from while the book moved underneath them.
+        list.contentY = y
+        _smoothY = y
+        if (hitEnd) root.autoScrollEnded()                  // the end of the book stops the motion
     }
 
     // Land page `page0` (0-based) at the top of the viewport. The top comes from the BACKEND, not

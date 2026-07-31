@@ -663,6 +663,101 @@ int main(int argc, char** argv) {
               "T15 the returned top is clamped inside the book");
     }
 
+    // ── Test 15b: 78 -> 92 -> 78 puts the reader back EXACTLY where they were ──
+    // Task 8, and the sharper form of T15. T15 proves ONE width change holds the
+    // anchor; this proves the anchor is not merely "close" but reversible, which is
+    // what a reader dragging the portrait-width control back and forth actually
+    // experiences. Hemanth named the portrait width himself while this was being
+    // designed and confirmed 78 by name, so 78 is the start AND the finish.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("roundtrip"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+        CHECK(core.stripWidthPct() == 78, "T15b a freshly opened entry reads at the approved 78% default");
+
+        QAbstractListModel* m = core.stripModel();
+        const auto topOf = [&](int row) {
+            return m->data(m->index(row, 0), ComicReaderStripModel::TopRole).toDouble();
+        };
+        const auto heightOf = [&](int row) {
+            return m->data(m->index(row, 0), ComicReaderStripModel::DisplayHeightRole).toDouble();
+        };
+
+        const double vpH = 800.0;
+        // Park mid-book, deliberately NOT on a page boundary, so the anchor has a
+        // real fraction to preserve rather than a trivial 0.
+        const double vpTop = topOf(3) + heightOf(3) * 0.37 - vpH / 2.0;
+        const double centre = vpTop + vpH / 2.0;
+        const int anchorRow = 3;
+        const double frac0 = (centre - topOf(anchorRow)) / heightOf(anchorRow);
+        CHECK(frac0 > 0.05 && frac0 < 0.95, "T15b the fixture parks the centre INSIDE page 3, not on its edge");
+
+        const double atWide = core.setStripLayout(92, 0, vpTop, vpH);
+        CHECK(core.stripWidthPct() == 92, "T15b the width really moved to 92");
+        CHECK(qAbs(atWide - vpTop) > 1.0, "T15b 92% actually rescaled the column (else the round trip is vacuous)");
+        const double wideCentre = atWide + vpH / 2.0;
+        CHECK(qAbs((wideCentre - topOf(anchorRow)) / heightOf(anchorRow) - frac0) < 0.01,
+              "T15b at 92% the same fraction of the same page is still centred");
+
+        const double back = core.setStripLayout(78, 0, atWide, vpH);
+        CHECK(core.stripWidthPct() == 78, "T15b the width came back to 78");
+        CHECK(qAbs(back - vpTop) < 1.0,
+              "T15b 78 -> 92 -> 78 returns the reader to the top they started at");
+        CHECK(qAbs((back + vpH / 2.0 - topOf(anchorRow)) / heightOf(anchorRow) - frac0) < 1e-6,
+              "T15b ...and to the same fraction of the same page");
+    }
+
+    // ── Test 15c: a quarter turn reflows the LONG STRIP's bands ──────────────
+    // Task 7 added rotation to the render profile and the provider applies it
+    // BEFORE it scales, so the delivered page at 90/270 is the transpose of its
+    // source. Single and Pair discover that from the delivered pixmap; the strip
+    // cannot — its delegates take their height from the model — so without this
+    // wiring a turned page was drawn PreserveAspectFit inside a portrait-shaped
+    // band and every page carried dead margins above and below it.
+    {
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t15c"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+        QAbstractListModel* m = core.stripModel();
+        const auto heightOf = [&](int row) {
+            return m->data(m->index(row, 0), ComicReaderStripModel::DisplayHeightRole).toDouble();
+        };
+        const auto widthOf = [&](int row) {
+            return m->data(m->index(row, 0), ComicReaderStripModel::DisplayWidthRole).toDouble();
+        };
+        const double h0 = heightOf(0);
+        const double w0 = widthOf(0);
+        CHECK(h0 > 0.0, "T15c the fixture has a real band height to start from");
+
+        QVariantMap turn;
+        turn.insert(QStringLiteral("rotation"), 90);
+        core.setRenderProfile(turn);
+        CHECK(qAbs(heightOf(0) - h0) > 0.5,
+              "T15c a quarter turn must change the strip band's HEIGHT (it was letterboxing before)");
+        CHECK(qAbs(widthOf(0) - w0) < 0.5,
+              "T15c ...and must NOT change its width — the portrait width contract is untouched by a turn");
+        // The transpose, exactly: band height = displayWidth * (srcW / srcH).
+        const QVariantMap info = core.pageInfo(0);
+        const double srcW = info.value(QStringLiteral("sourceWidth")).toDouble();
+        const double srcH = info.value(QStringLiteral("sourceHeight")).toDouble();
+        if (srcW > 0.0 && srcH > 0.0)
+            CHECK(qAbs(heightOf(0) - w0 * (srcW / srcH)) < 0.5,
+                  "T15c the turned band is the TRANSPOSE of the source aspect");
+
+        QVariantMap back;
+        back.insert(QStringLiteral("rotation"), 0);
+        core.setRenderProfile(back);
+        CHECK(qAbs(heightOf(0) - h0) < 0.5, "T15c turning back restores the original band exactly");
+
+        // ...and the turn survives an entry crossing, because the profile does.
+        core.setRenderProfile(turn);
+        const double turned = heightOf(0);
+        core.openEntry(QStringLiteral("t15c-next"), plainPages, QStringLiteral("ltr"), manualNormal());
+        core.setStripViewportWidth(1000);
+        CHECK(qAbs(heightOf(0) - turned) < 0.5,
+              "T15c the NEXT entry opens already turned (the profile survives a crossing, so the bands must too)");
+    }
+
     // ── Test 16: stripPageTop is the strip model's own top for that page ─────────
     // The strip restore (B2) seeks by asking the BACKEND where a page starts, because the ListView
     // only realizes delegates near the viewport — the page you are resuming TO has no y to read yet.

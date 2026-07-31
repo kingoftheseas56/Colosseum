@@ -147,6 +147,9 @@ Item {
         property real   gutterStrength: 0.35
         property int    stripWidthPct: 78
         property int    stripGap: 0
+        // Task 8: the Auto-scroll SPEED seed. There is deliberately NO key for whether it was
+        // running — that is session-only, and a fake carrying one would let a bug pass.
+        property real   autoScrollSpeed: 1.0
         property bool   memorySaver: false
         // the last LAYOUT + ORDER picked anywhere (Task 3 — two independent keys), plus the LEGACY
         // combined identity the shipped reader wrote, which the shell still reads on first launch.
@@ -249,6 +252,10 @@ Item {
     // real Settings element it stands in for.
     Component { id: prefsComp; FakePrefs {} }
     Component { id: recordsComp; FakeRecords {} }
+    // Task 8 needs several throwaway backends/stores in one block; factories keep that from adding
+    // a named singleton per scenario at the top of the file.
+    Component { id: coreComp; FakeCore {} }
+    Component { id: storeComp; FakePageStore {} }
     function freshPrefs(over) { return prefsComp.createObject(harness, over || {}) }
     function freshRecords(json) { return recordsComp.createObject(harness, { all: json || "{}" }) }
 
@@ -1591,6 +1598,295 @@ Item {
                && ovShell.chromeVisible === true,
                "filmstrip: Escape must close and NOT move the page, " + pageBeforeDismiss
                + " -> " + ovShell.currentPage + " chrome=" + ovShell.chromeVisible)
+
+            // -- 20. AUTO-SCROLL + THE LAYOUT MENU (Task 8). --
+            // The two things this task is judged on, in Hemanth's own words: the portrait width
+            // ("one of the most important features is the potrait width in autoscroll. I hope
+            // you're not forgetting about that", then 78% confirmed by name) and the never-resize
+            // rule ("Starting or resuming Auto-scroll must never resize the page"). Everything
+            // below is one of those two, or one of the pause sources the design enumerates.
+            var asPrefs = freshPrefs()
+            var asRecords = freshRecords()
+            var asCore = coreComp.createObject(harness)
+            var asStore = storeComp.createObject(harness, { "pages": fivePages() })
+            var asShell = makeShell({
+                // A REAL SIZE, unlike the other scenarios here: the anchor seam below reads the
+                // command row's laid-out geometry, and a zero-width chrome has none to read.
+                "width": 1000, "height": 700,
+                "seriesId": "s-auto", "seriesTitle": "AutoScroll", "seriesCover": "file:///f/a.png",
+                "core": asCore, "progress": null, "pageStore": asStore,
+                "globalPrefs": asPrefs, "seriesRecords": asRecords,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" },
+                             { "id": "ch0", "number": "0", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            asShell.setLayout("long_strip")
+
+            // -- 20a. SESSION-ONLY, and it always restores PAUSED. --
+            ck(asShell.autoScrollRunning === false,
+               "auto: a freshly opened book must NOT be moving — nobody opens a book to a moving page")
+            ck(asShell.autoScrollSpeed === 1.0, "auto: the default speed is 1.0, got " + asShell.autoScrollSpeed)
+
+            // -- 20b. START refuses where there is nothing to move. --
+            asShell.setLayout("paired_pages")
+            asShell.startAutoScroll()
+            ck(asShell.autoScrollRunning === false,
+               "auto: Auto-scroll must refuse to start outside Long Strip, got " + asShell.autoScrollRunning)
+            asShell.setLayout("long_strip")
+            asShell.startAutoScroll()
+            ck(asShell.autoScrollRunning === true, "auto: Start must run in Long Strip, got " + asShell.autoScrollRunning)
+
+            // -- 20c. THE RULE: STARTING OR RESUMING NEVER RESIZES THE PAGE. --
+            // The width is a readback off the backend, and the backend's setter is counted: a
+            // resize could only happen through it.
+            ck(asShell.stripWidthPct === 78, "auto: the fixture starts at the approved 78%")
+            var wBefore = asShell.stripWidthPct
+            var gBefore = asShell.stripGap
+            var layoutCallsBefore = asCore.lastStripLayout
+            asShell.pauseAutoScroll()
+            asShell.startAutoScroll()              // RESUME — the case the rule names twice
+            asShell.setAutoScrollSpeed(2.5)
+            asShell.setAutoScrollSpeed(0.5)
+            asShell.toggleAutoScroll()
+            asShell.toggleAutoScroll()
+            ck(asShell.stripWidthPct === wBefore && asShell.stripGap === gBefore,
+               "auto: start / pause / resume / speed must NEVER change the strip width or gap, got "
+               + asShell.stripWidthPct + "% gap " + asShell.stripGap)
+            ck(asCore.lastStripLayout === layoutCallsBefore,
+               "auto: ...and must not touch the backend's strip layout at all, got "
+               + JSON.stringify(asCore.lastStripLayout))
+            ck(asShell.stripWidthPct === 78, "auto: 78 SURVIVES start/pause/resume and every speed change")
+
+            // -- 20d. EVERY pause source. The approved list: manual wheel/touch/navigation, opening
+            // chrome, and any temporary surface. Each is driven through the door a real reader uses
+            // and each must leave the motion stopped. --
+            var strip = byName(asShell, "stripSurface")
+            ck(strip !== null, "auto: the strip surface must be mounted")
+
+            function _armAuto() { asShell.startAutoScroll(); return asShell.autoScrollRunning }
+
+            ck(_armAuto(), "auto: fixture - arm before the wheel check")
+            strip.manualNavigation()               // the wheel/trackpad gesture, as the surface fires it
+            ck(asShell.autoScrollRunning === false, "auto: a WHEEL gesture must pause immediately")
+
+            ck(_armAuto(), "auto: fixture - arm before the keyboard-scroll check")
+            asShell._stripScroll(0.9)              // Space / PageDown
+            ck(asShell.autoScrollRunning === false, "auto: keyboard SCROLLING must pause")
+
+            ck(_armAuto(), "auto: fixture - arm before the page-turn check")
+            asShell.pageNext()
+            ck(asShell.autoScrollRunning === false, "auto: a forward page turn must pause")
+
+            ck(_armAuto(), "auto: fixture - arm before the back page-turn check")
+            asShell.pagePrev()
+            ck(asShell.autoScrollRunning === false, "auto: a backward page turn must pause")
+
+            // ...and the two page-turn verbs pause ON THEIR OWN, not merely by delegating to the
+            // strip scroll. In Long Strip they route through _stripScroll, which pauses too, so the
+            // pair above would pass with the verbs' own hooks deleted. The flag is set by hand here
+            // for exactly that reason: it isolates the verb from the path it usually takes.
+            asShell.setLayout("paired_pages")
+            asShell.autoScrollRunning = true
+            asShell.pageNext()
+            ck(asShell.autoScrollRunning === false, "auto: pageNext must pause on its OWN, not only via the strip scroll")
+            asShell.autoScrollRunning = true
+            asShell.pagePrev()
+            ck(asShell.autoScrollRunning === false, "auto: pagePrev must pause on its OWN")
+            asShell.setLayout("long_strip")
+
+            ck(_armAuto(), "auto: fixture - arm before the go-to-page check")
+            asShell.goToPageIndex(3)
+            ck(asShell.autoScrollRunning === false, "auto: a go-to-page must pause")
+
+            ck(_armAuto(), "auto: fixture - arm before the scrub check")
+            asShell.scrubToFraction(0.5)
+            ck(asShell.autoScrollRunning === false, "auto: a rail SCRUB must pause")
+
+            ck(_armAuto(), "auto: fixture - arm before the Home check")
+            asShell.firstPageNav()
+            ck(asShell.autoScrollRunning === false, "auto: Home must pause")
+
+            ck(_armAuto(), "auto: fixture - arm before the End check")
+            asShell.lastPageNav()
+            ck(asShell.autoScrollRunning === false, "auto: End must pause")
+
+            // ...and every temporary surface, by name. "Pages, Image, Loupe, or another temporary
+            // surface pauses it immediately."
+            var surfaces = ["pages", "image", "loupe", "layout"]
+            for (var si = 0; si < surfaces.length; si++) {
+                asShell.activeOverlay = ""
+                ck(_armAuto(), "auto: fixture - arm before the " + surfaces[si] + " check")
+                asShell.openOverlay(surfaces[si])
+                ck(asShell.autoScrollRunning === false,
+                   "auto: opening the " + surfaces[si] + " surface must pause immediately")
+            }
+            asShell.activeOverlay = ""
+
+            // the CHROME coming back pauses; the chrome going away does not (that is the reader
+            // being left alone, which is exactly when Auto-scroll earns its keep)
+            asShell.chromeVisible = true
+            ck(_armAuto(), "auto: fixture - arm before the chrome check")
+            asShell.chromeVisible = false
+            ck(asShell.autoScrollRunning === true,
+               "auto: the chrome SLEEPING must not pause — that is the reader being left alone")
+            asShell.chromeVisible = true
+            ck(asShell.autoScrollRunning === false, "auto: the chrome coming BACK must pause")
+
+            // a layout switch pauses, and coming back to Long Strip lands PAUSED
+            asShell.chromeVisible = true
+            ck(_armAuto(), "auto: fixture - arm before the layout-switch check")
+            asShell.setLayout("single_page")
+            ck(asShell.autoScrollRunning === false, "auto: switching layout must pause")
+            asShell.setLayout("long_strip")
+            ck(asShell.autoScrollRunning === false,
+               "auto: coming BACK to Long Strip must land paused — resume is explicit, never automatic")
+            ck(asShell.stripWidthPct === 78, "auto: 78 SURVIVES a layout switch away and back")
+
+            // -- 20e. RESUME IS EXPLICIT. Closing the surface that paused it does not restart it. --
+            ck(_armAuto(), "auto: fixture - arm before the resume check")
+            asShell.openOverlay("pages")
+            ck(asShell.autoScrollRunning === false, "auto: fixture - the surface paused it")
+            asShell.openOverlay("pages")           // re-tap = close
+            ck(asShell.activeOverlay === "", "auto: fixture - the surface closed")
+            ck(asShell.autoScrollRunning === false,
+               "auto: closing the surface must NOT resume the motion — resume is explicit")
+            asShell.closeTop()
+
+            // ...but pressing Start from inside the OPEN Layout menu works, and closing that menu
+            // does not undo it. This is the asymmetry openOverlay carries: opening pauses, closing
+            // never does, or the one control that starts the motion could not be used at all.
+            asShell.activeOverlay = ""
+            asShell.openOverlay("layout")
+            asShell.startAutoScroll()
+            ck(asShell.autoScrollRunning === true, "auto: Start must work from inside the open Layout menu")
+            asShell.openOverlay("layout")          // put the menu away
+            ck(asShell.activeOverlay === "" && asShell.autoScrollRunning === true,
+               "auto: closing the Layout menu must leave the motion you just started running")
+            asShell.pauseAutoScroll()
+
+            // -- 20f. A CROSSING lands paused. The next volume must not inherit the motion. --
+            asShell.startAutoScroll()
+            ck(asShell.autoScrollRunning === true, "auto: fixture - arm before the crossing check")
+            asShell.goPrev(false)   // newest-first: ch0 is the OLDER neighbour of ch1
+            ck(asShell.curChapterId === "ch0", "auto: fixture - the crossing actually happened, got " + asShell.curChapterId)
+            ck(asShell.autoScrollRunning === false, "auto: a crossing must land the next entry PAUSED")
+
+            // -- 20g. THE SPEED persists per series; the RUNNING state persists nowhere. --
+            asShell.setAutoScrollSpeed(1.75)
+            ck(Math.abs(asShell.autoScrollSpeed - 1.75) < 1e-9,
+               "auto: the speed must be settable, got " + asShell.autoScrollSpeed)
+            ck(Math.abs(asPrefs.autoScrollSpeed - 1.75) < 1e-9,
+               "auto: a speed change must seed the GLOBAL last-choice, got " + asPrefs.autoScrollSpeed)
+            var asRec = JSON.parse(asRecords.all)["s-auto"]
+            ck(asRec && Math.abs(asRec.autoScrollSpeed - 1.75) < 1e-9,
+               "auto: a speed change must be remembered for THIS SERIES, got " + JSON.stringify(asRec))
+            // the running flag has no key anywhere — session-only means session-only
+            ck(asRec.autoScrollRunning === undefined && asRec.autoScroll === undefined,
+               "auto: the RUNNING state must NEVER reach the series record, got " + JSON.stringify(asRec))
+            ck(asPrefs.autoScrollRunning === undefined,
+               "auto: ...nor the global prefs")
+            asShell.setAutoScrollSpeed(99)
+            ck(Math.abs(asShell.autoScrollSpeed - 3.0) < 1e-9, "auto: the speed clamps to 3.0, got " + asShell.autoScrollSpeed)
+            asShell.setAutoScrollSpeed(0)
+            ck(Math.abs(asShell.autoScrollSpeed - 0.25) < 1e-9, "auto: the speed clamps UP to 0.25, got " + asShell.autoScrollSpeed)
+            asShell.setAutoScrollSpeed(1.75)
+
+            // -- 20h. REOPENING THE SERIES: 78 comes back, the speed comes back, the motion does not. --
+            var asShell2 = makeShell({
+                "width": 1000, "height": 700,
+                "seriesId": "s-auto", "seriesTitle": "AutoScroll", "seriesCover": "file:///f/a.png",
+                "core": coreComp.createObject(harness), "progress": null,
+                "pageStore": storeComp.createObject(harness, { "pages": fivePages() }),
+                "globalPrefs": asPrefs, "seriesRecords": asRecords,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(asShell2.stripWidthPct === 78,
+               "auto: reopening the series restores the approved 78% width, got " + asShell2.stripWidthPct)
+            ck(Math.abs(asShell2.autoScrollSpeed - 1.75) < 1e-9,
+               "auto: reopening the series restores the remembered SPEED, got " + asShell2.autoScrollSpeed)
+            ck(asShell2.autoScrollRunning === false,
+               "auto: reopening the series must ALWAYS land paused, got " + asShell2.autoScrollRunning)
+
+            // -- 20i. THE LAYOUT MENU is mounted on the ONE coordinator and fed the shell's facts. --
+            var lp = byName(asShell, "layoutPopover")
+            ck(lp !== null, "layout: the Layout popover (objectName 'layoutPopover') must be mounted in the shell")
+            asShell.activeOverlay = ""
+            ck(lp.open === false, "layout: closed while no surface is open, got " + lp.open)
+            ck(asShell.modalOpen === false, "layout: a closed Layout menu must not hold the keyboard")
+            asShell.openOverlay("layout")
+            ck(lp.open === true, "layout: the Layout command must open it, got " + lp.open)
+            ck(asShell.modalOpen === true,
+               "layout: an OPEN Layout menu must make the reader modal (it carries live sliders — a page "
+               + "turn landing under a drag is the same defect the Image panel closed)")
+            ck(lp.layout === asShell.layout, "layout: the menu must read the shell's live layout, got '" + lp.layout + "'")
+            ck(lp.stripWidthPct === asShell.stripWidthPct, "layout: ...and the live width, got " + lp.stripWidthPct)
+            ck(lp.stripGap === asShell.stripGap, "layout: ...and the live gap, got " + lp.stripGap)
+            ck(Math.abs(lp.autoScrollSpeed - asShell.autoScrollSpeed) < 1e-9,
+               "layout: ...and the live speed, got " + lp.autoScrollSpeed)
+
+            // the menu's intents reach the shell's real doors
+            lp.setPortraitWidth(92)
+            ck(asShell.stripWidthPct === 92, "layout: the width control must reach the backend, got " + asShell.stripWidthPct)
+            lp.setPortraitWidth(78)
+            ck(asShell.stripWidthPct === 78, "layout: ...and back to 78, got " + asShell.stripWidthPct)
+            lp.setSpacing(20)
+            ck(asShell.stripGap === 20, "layout: the spacing control must reach the backend, got " + asShell.stripGap)
+            ck(asShell.stripWidthPct === 78, "layout: a spacing change must PRESERVE the 78% width, got " + asShell.stripWidthPct)
+            lp.setSpacing(0)
+            var wAtStart = asShell.stripWidthPct
+            lp.startAutoScroll()
+            ck(asShell.autoScrollRunning === true, "layout: the menu's Start must reach the shell")
+            ck(asShell.stripWidthPct === wAtStart,
+               "layout: starting from the MENU must not resize the page either, got " + asShell.stripWidthPct)
+            lp.pauseAutoScroll()
+            ck(asShell.autoScrollRunning === false, "layout: the menu's Pause must reach the shell")
+            lp.setSpeed(2.0)
+            ck(Math.abs(asShell.autoScrollSpeed - 2.0) < 1e-9, "layout: the menu's speed must reach the shell")
+            lp.setLayout("single_page")
+            ck(asShell.layout === "single_page", "layout: the menu's layout choice must reach the shell")
+            asShell.setLayout("long_strip")
+            lp.dismiss()
+            ck(asShell.activeOverlay === "", "layout: the menu's dismiss must give the screen back")
+
+            // -- 20j. THE ANCHOR SEAM, serving BOTH popovers (Task 7 deferred it; Task 8 owns it). --
+            // Cover drops a panel under its own label, which is the shape Hemanth referenced. Two of
+            // the six commands are live READOUTS whose label widths move with the layout and the
+            // order, so the anchor has to be published per command and re-published on relayout.
+            var cmdBar = byName(asShell, "readerCommandBar")
+            ck(cmdBar !== null, "anchor: the command bar must be mounted")
+            if (cmdBar) {
+                cmdBar.refreshAnchors()
+                var aLayout = asShell.commandAnchorX("layout")
+                var aImage = asShell.commandAnchorX("image")
+                ck(aLayout > 0, "anchor: the Layout command must publish a real anchor, got " + aLayout)
+                ck(aImage > 0, "anchor: the Image command must publish one too — ONE seam, BOTH panels, got " + aImage)
+                ck(Math.abs(aLayout - aImage) > 1,
+                   "anchor: two different commands must anchor in two different places, got "
+                   + aLayout + " vs " + aImage)
+                ck(asShell.commandAnchorX("nonsense") === -1,
+                   "anchor: an unknown command must answer -1 (not a position), got "
+                   + asShell.commandAnchorX("nonsense"))
+                // DYNAMIC, not a constant: the Layout command is a live readout, so relabelling it
+                // moves its centre. This is exactly why Task 7 could not hardcode one.
+                asShell.setLayout("paired_pages")     // "Long strip" -> "Paired pages"
+                cmdBar.refreshAnchors()
+                var aLayout2 = asShell.commandAnchorX("layout")
+                ck(Math.abs(aLayout2 - aLayout) > 0.5,
+                   "anchor: the anchor must be DYNAMIC — relabelling the Layout command must move it, "
+                   + aLayout + " -> " + aLayout2)
+                asShell.setLayout("long_strip")
+                cmdBar.refreshAnchors()
+                // ...and both panels actually consume it.
+                var imgPanel = byName(asShell, "imagePopover")
+                ck(imgPanel !== null && imgPanel.anchorX === asShell.commandAnchorX("image"),
+                   "anchor: the Image panel must be fed its own command's anchor, got "
+                   + (imgPanel ? imgPanel.anchorX : "<null>"))
+                ck(lp.anchorX === asShell.commandAnchorX("layout"),
+                   "anchor: the Layout menu must be fed its own command's anchor, got " + lp.anchorX)
+            }
 
         } catch (e) {
             failures.push("exception during checks: " + e.message)

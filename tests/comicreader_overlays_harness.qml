@@ -39,6 +39,18 @@
 //   * dismiss (catcher and dismiss()) changes NOTHING about the picture; the panel swallows its
 //     own clicks.
 //
+// SLICE 4 — ComicReaderLayoutPopover, the compact Layout menu (Task 8):
+//   * the three layouts are ALWAYS offered; Long Strip's contextual controls (portrait width, page
+//     spacing, Auto-scroll start/pause + speed) appear only while Long Strip is the live layout —
+//     asserted on the RULE property, never on `visible` (which is EFFECTIVE visibility).
+//   * the 78% law on the face of the control: range 40..100, the handle on the live value, clamped
+//     at the panel's own door, and the gap carried through untouched by a width change (and back).
+//   * AUTO-SCROLL CANNOT RESIZE THE PAGE — every motion verb driven, the width-carrying signal
+//     counted, and it is zero. Hemanth's rule, made structural rather than guarded.
+//   * the ANCHOR seam (shared with the Image panel): centred under its own command, dynamic,
+//     clamped inside the reader, and degrading to Task 7's right-margin drop with no seam.
+//   * dismiss changes nothing; the panel swallows its own clicks.
+//
 // HOUSE HARNESS PATTERN (mirrors comicreader_surfaces_harness.qml): a thrown error hangs qml.exe
 // offscreen, so `ck` never throws — it collects failures; prints exactly one COMICREADER_OVERLAYS_OK
 // when clean, else one COMICREADER_OVERLAYS_FAIL:<msg> per failure and Qt.exit(1).
@@ -600,6 +612,28 @@ Item {
             ck(body.width <= 420, "image: the panel must be COMPACT, got width " + body.width)
         }
 
+        // --- ANCHORED UNDER ITS OWN COMMAND (Task 8 built the seam this file asked for in Task 7).
+        //     Hemanth's reference is Cover's reader, which drops the panel under its own label. With
+        //     no seam (-1) it must still degrade to exactly the right-margin drop Task 7 shipped. ---
+        if (body) {
+            var imgFallbackX = panel.width - body.width - panel.panelRightMargin
+            ck(Math.abs(body.x - imgFallbackX) < 0.5,
+               "image: with anchorX -1 the panel must keep Task 7's right-margin drop, got " + body.x)
+            panel.anchorX = 420
+            ck(Math.abs((body.x + body.width / 2) - 420) < 0.5,
+               "image: an anchor must CENTRE the panel under its own command, centre "
+               + (body.x + body.width / 2))
+            panel.anchorX = 610
+            ck(Math.abs((body.x + body.width / 2) - 610) < 0.5,
+               "image: the anchor must be DYNAMIC — the command row relayouts with the reader's "
+               + "layout and order, centre " + (body.x + body.width / 2))
+            panel.anchorX = panel.width - 4
+            ck(body.x + body.width <= panel.width - panel.panelEdgeMargin + 0.5,
+               "image: an anchor at the right edge must clamp the panel inside, right edge "
+               + (body.x + body.width))
+            panel.anchorX = -1
+        }
+
         // --- PRIMARY SURFACE: exactly Quality, Brightness, Night filter ---
         ck(byName(panel, "imageQuality_fast") !== null, "image: Quality must offer Fast")
         ck(byName(panel, "imageQuality_balanced") !== null, "image: Quality must offer Balanced")
@@ -772,6 +806,288 @@ Item {
         ck(panel.advancedOpen === false, "image: closing must reset the Advanced disclosure")
     }
 
+    // ================= SLICE 4 — ComicReaderLayoutPopover (Task 8) =================
+    // The approved shape: "Long Strip owns its contextual controls in the active Layout menu:
+    // portrait width, page spacing, Auto-scroll start/pause and speed." Plus the two rules Hemanth
+    // called out by name — 78% is the portrait-width default, and "starting or resuming Auto-scroll
+    // must never resize the page."
+    //
+    // THE LOAD-BEARING ASSERTION in this slice is the second one, and it is asserted STRUCTURALLY
+    // rather than by watching a number: every Auto-scroll verb is driven and the width-carrying
+    // signal is counted. A panel that could resize the page from a motion control would have to
+    // raise stripLayoutRequested to do it, and that count is zero.
+    property var layoutComp: null
+    property var layoutPanel: null
+    property int layoutReqCount: 0
+    property string lastLayoutReq: ""
+    property int stripLayoutReqCount: 0
+    property var lastStripLayoutReq: null
+    property int autoStartCount: 0
+    property int autoPauseCount: 0
+    property int autoSpeedCount: 0
+    property real lastAutoSpeed: -1
+    property int layoutDismissCount: 0
+
+    function runLayout() {
+        layoutPanel = layoutComp.createObject(harness, {
+            "width": harness.width, "height": harness.height,
+            "layout": "long_strip", "stripWidthPct": 78, "stripGap": 0,
+            "autoScrollRunning": false, "autoScrollSpeed": 1.0
+        })
+        var panel = layoutPanel
+        if (!panel) { failures.push("layout: createObject returned null"); return }
+        panel.layoutRequested.connect(function (v) { harness.layoutReqCount += 1; harness.lastLayoutReq = String(v) })
+        panel.stripLayoutRequested.connect(function (w, g) {
+            harness.stripLayoutReqCount += 1
+            harness.lastStripLayoutReq = { width: w, gap: g }
+        })
+        panel.autoScrollStartRequested.connect(function () { harness.autoStartCount += 1 })
+        panel.autoScrollPauseRequested.connect(function () { harness.autoPauseCount += 1 })
+        panel.autoScrollSpeedRequested.connect(function (s) { harness.autoSpeedCount += 1; harness.lastAutoSpeed = s })
+        panel.dismissRequested.connect(function () { harness.layoutDismissCount += 1 })
+
+        // --- closed by default. `open` is RULE-level: QQuickItem.visible is EFFECTIVE visibility,
+        //     so asserting on it would read the harness root's state as much as the panel's. ---
+        ck(panel.open === false, "layout: must start CLOSED")
+        panel.open = true
+        ck(panel.open === true, "layout: open must be settable")
+
+        // --- it hangs from the chrome and stays inside the reader (the anchored-panel contract) ---
+        var body = byName(panel, "layoutPanel")
+        ck(body !== null, "layout: the panel body must exist")
+        if (body) {
+            ck(body.y >= panel.chromeTopInset, "layout: the panel must hang BELOW the command bar, y=" + body.y)
+            ck(body.x >= 0 && body.x + body.width <= panel.width + 0.5,
+               "layout: the panel must stay inside the reader, " + body.x + ".." + (body.x + body.width)
+               + " vs " + panel.width)
+            ck(body.width <= 420, "layout: the panel must be COMPACT, got width " + body.width)
+        }
+
+        // --- ANCHORED UNDER ITS OWN COMMAND (Task 8's seam, shared with the Image panel) ---
+        // With no seam (-1) it falls back to the bar's right margin — exactly what the Image panel
+        // shipped with in Task 7 — so a chrome that never publishes an anchor still gets a panel on
+        // screen rather than one parked at x=0.
+        if (body) {
+            var fallbackX = panel.width - body.width - panel.panelRightMargin
+            ck(Math.abs(body.x - fallbackX) < 0.5,
+               "layout: with anchorX -1 the panel falls back to the right-margin drop, got " + body.x
+               + " want " + fallbackX)
+            panel.anchorX = 500
+            ck(Math.abs((body.x + body.width / 2) - 500) < 0.5,
+               "layout: an anchor must CENTRE the panel under it, centre " + (body.x + body.width / 2))
+            // ...and it is dynamic: the Layout command is a live readout, so its centre moves.
+            panel.anchorX = 620
+            ck(Math.abs((body.x + body.width / 2) - 620) < 0.5,
+               "layout: the anchor must be DYNAMIC — moving it must move the panel, centre "
+               + (body.x + body.width / 2))
+            // an anchor near the edge clamps INSIDE the reader rather than spilling off it
+            panel.anchorX = panel.width - 4
+            ck(body.x + body.width <= panel.width - panel.panelEdgeMargin + 0.5,
+               "layout: an anchor at the right edge must clamp the panel inside, right edge "
+               + (body.x + body.width))
+            panel.anchorX = 4
+            ck(body.x >= panel.panelEdgeMargin - 0.5,
+               "layout: an anchor at the left edge must clamp the panel inside, x " + body.x)
+            panel.anchorX = -1
+        }
+
+        // --- ALWAYS: the three layouts ---
+        ck(byName(panel, "layoutChoice_single_page") !== null, "layout: Single page must always be offered")
+        ck(byName(panel, "layoutChoice_paired_pages") !== null, "layout: Paired pages must always be offered")
+        ck(byName(panel, "layoutChoice_long_strip") !== null, "layout: Long strip must always be offered")
+        var stripChoice = byName(panel, "layoutChoice_long_strip")
+        var singleChoice = byName(panel, "layoutChoice_single_page")
+        ck(stripChoice && stripChoice.active === true, "layout: the LIVE layout must be the marked choice")
+        ck(singleChoice && singleChoice.active === false, "layout: only the live layout is marked")
+
+        // picking one raises exactly one intent, with the right value
+        harness.layoutReqCount = 0
+        panel.setLayout("paired_pages")
+        ck(harness.layoutReqCount === 1 && harness.lastLayoutReq === "paired_pages",
+           "layout: picking Paired pages must raise ONE layoutRequested(paired_pages), got "
+           + harness.layoutReqCount + " '" + harness.lastLayoutReq + "'")
+        // re-picking the live layout is inert — the shell already refuses a no-op, and a menu that
+        // emitted anyway would make "did the reader change something" unanswerable
+        harness.layoutReqCount = 0
+        panel.setLayout("long_strip")
+        ck(harness.layoutReqCount === 0, "layout: re-picking the LIVE layout must raise nothing, got " + harness.layoutReqCount)
+        panel.setLayout("nonsense")
+        ck(harness.layoutReqCount === 0, "layout: an unknown layout must be INERT, not a fallthrough")
+
+        // --- CONTEXTUAL: the Long Strip block belongs to Long Strip alone ---
+        // Asserted on the RULE property, not on `visible` — see the note at the top of this slice.
+        ck(panel.longStripControlsVisible === true, "layout: the Long Strip controls must show in Long Strip")
+        panel.layout = "paired_pages"
+        ck(panel.longStripControlsVisible === false,
+           "layout: portrait width / spacing / Auto-scroll must NOT be offered in Paired pages")
+        panel.layout = "single_page"
+        ck(panel.longStripControlsVisible === false, "layout: ...nor in Single page")
+        panel.layout = "long_strip"
+        ck(panel.longStripControlsVisible === true, "layout: ...and they come back with Long Strip")
+        // ...and the block lives INSIDE the same panel, structurally, not by eye
+        var section = byName(panel, "layoutLongStripSection")
+        ck(section !== null, "layout: the Long Strip section must exist")
+        if (section && body) {
+            var owner = section.parent
+            var inPanel = false
+            while (owner) { if (owner === body) { inPanel = true; break } owner = owner.parent }
+            ck(inPanel, "layout: the Long Strip block must live INSIDE the same panel, not a second surface")
+        }
+
+        // --- THE 78% LAW, on the face of the control ---
+        var widthSlider = byName(panel, "layoutPortraitWidth")
+        ck(widthSlider !== null, "layout: Portrait width must be offered in Long Strip")
+        if (widthSlider) {
+            ck(widthSlider.from === 40 && widthSlider.to === 100,
+               "layout: the portrait width range is 40..100, got " + widthSlider.from + ".." + widthSlider.to)
+            ck(widthSlider.value === 78, "layout: the handle must sit at the live 78%, got " + widthSlider.value)
+            ck(panel.widthDefault === 78, "layout: 78 is the approved default and must be named as such")
+            // the mapping is PURE and harness-callable, so the pointer path cannot drift from it
+            ck(widthSlider.valueAt(0) === 40, "layout: a press at the far left means 40%")
+            ck(Math.abs(widthSlider.valueAt(1e6) - 100) < 1e-6, "layout: a press past the far right clamps to 100%")
+            // the handle FOLLOWS the live value while it is not held...
+            panel.stripWidthPct = 92
+            ck(widthSlider.value === 92, "layout: the handle must follow the live width, got " + widthSlider.value)
+            // ...and is NOT yanked back mid-drag by a lagging readback
+            widthSlider.held = true
+            widthSlider.moveTo(64)
+            panel.stripWidthPct = 92
+            ck(widthSlider.value === 64, "layout: a held handle must not be yanked back, got " + widthSlider.value)
+            widthSlider.held = false
+            panel.stripWidthPct = 78
+        }
+
+        // width changes CARRY the gap through untouched (one setter, both values — a partial pair
+        // would silently reset the spacing every time the width moved)
+        panel.stripGap = 20
+        harness.stripLayoutReqCount = 0
+        panel.setPortraitWidth(84)
+        ck(harness.stripLayoutReqCount === 1, "layout: a width change must raise exactly one intent, got " + harness.stripLayoutReqCount)
+        ck(harness.lastStripLayoutReq && harness.lastStripLayoutReq.width === 84
+           && harness.lastStripLayoutReq.gap === 20,
+           "layout: a width change must carry the CURRENT gap through, got "
+           + JSON.stringify(harness.lastStripLayoutReq))
+        // clamped at the panel's own door — a control that emits 400 and is silently corrected is a
+        // control whose readout lies about what it just asked for
+        panel.setPortraitWidth(4)
+        ck(harness.lastStripLayoutReq.width === 40, "layout: portrait width clamps UP to 40, got " + harness.lastStripLayoutReq.width)
+        panel.setPortraitWidth(400)
+        ck(harness.lastStripLayoutReq.width === 100, "layout: portrait width clamps DOWN to 100, got " + harness.lastStripLayoutReq.width)
+        panel.stripGap = 0
+
+        // --- Page spacing: at least Seamless and Breathing room; Seamless is the default ---
+        var seamless = byName(panel, "layoutSpacing_0")
+        var breathing = byName(panel, "layoutSpacing_20")
+        ck(seamless !== null && breathing !== null, "layout: Seamless and Breathing room must both be offered")
+        ck(seamless && seamless.active === true, "layout: Seamless must be the marked spacing at the 0 default")
+        ck(breathing && breathing.active === false, "layout: only the live spacing is marked")
+        harness.stripLayoutReqCount = 0
+        // The width is parked at 84, NOT at the 78 default, ON PURPOSE. A spacing handler that
+        // hardcoded 78 would pass against a fixture sitting on 78 and the mutation would go
+        // unnoticed — measured: it did, until this line existed.
+        panel.stripWidthPct = 84
+        clickCenter(breathing)
+        ck(harness.stripLayoutReqCount === 1 && harness.lastStripLayoutReq.gap === 20,
+           "layout: tapping Breathing room must raise one intent with gap 20, got "
+           + JSON.stringify(harness.lastStripLayoutReq))
+        ck(harness.lastStripLayoutReq.width === 84,
+           "layout: a SPACING change must carry the width through untouched, got " + harness.lastStripLayoutReq.width)
+        panel.stripWidthPct = 78
+        panel.stripGap = 20
+        ck(breathing.active === true && seamless.active === false,
+           "layout: the spacing chips must re-reflect a live change")
+        panel.stripGap = 0
+
+        // --- AUTO-SCROLL: start / pause, and the label names what a press DOES ---
+        var toggle = byName(panel, "layoutAutoScrollToggle")
+        ck(toggle !== null, "layout: the Auto-scroll start/pause control must exist")
+        ck(toggle && String(toggle.label) === "Start", "layout: paused, the control must offer Start, got '" + (toggle ? toggle.label : "") + "'")
+        ck(toggle && toggle.active === false, "layout: the control is not gold while nothing is moving")
+        harness.autoStartCount = 0; harness.autoPauseCount = 0
+        clickCenter(toggle)
+        ck(harness.autoStartCount === 1 && harness.autoPauseCount === 0,
+           "layout: pressing Start must request exactly one start, got start=" + harness.autoStartCount
+           + " pause=" + harness.autoPauseCount)
+        panel.autoScrollRunning = true
+        ck(String(toggle.label) === "Pause", "layout: running, the control must offer Pause, got '" + toggle.label + "'")
+        ck(toggle.active === true, "layout: the control is gold while the page is moving")
+        harness.autoStartCount = 0; harness.autoPauseCount = 0
+        clickCenter(toggle)
+        ck(harness.autoPauseCount === 1 && harness.autoStartCount === 0,
+           "layout: pressing Pause must request exactly one pause, got pause=" + harness.autoPauseCount
+           + " start=" + harness.autoStartCount)
+
+        // --- ...and its speed: 0.25..3.0, default 1.0 ---
+        var speedSlider = byName(panel, "layoutAutoScrollSpeed")
+        ck(speedSlider !== null, "layout: the Auto-scroll speed control must exist")
+        if (speedSlider) {
+            ck(Math.abs(speedSlider.from - 0.25) < 1e-9 && Math.abs(speedSlider.to - 3.0) < 1e-9,
+               "layout: the speed range is 0.25..3.0, got " + speedSlider.from + ".." + speedSlider.to)
+            ck(Math.abs(speedSlider.value - 1.0) < 1e-9, "layout: the speed handle sits at the live 1.0, got " + speedSlider.value)
+        }
+        harness.autoSpeedCount = 0
+        panel.setSpeed(1.5)
+        ck(harness.autoSpeedCount === 1 && Math.abs(harness.lastAutoSpeed - 1.5) < 1e-9,
+           "layout: a speed change must raise one intent carrying 1.5, got " + harness.lastAutoSpeed)
+        panel.setSpeed(99)
+        ck(Math.abs(harness.lastAutoSpeed - 3.0) < 1e-9, "layout: speed clamps to 3.0, got " + harness.lastAutoSpeed)
+        panel.setSpeed(0)
+        ck(Math.abs(harness.lastAutoSpeed - 0.25) < 1e-9, "layout: speed clamps UP to 0.25, got " + harness.lastAutoSpeed)
+        panel.setSpeed(1.03)
+        ck(Math.abs(harness.lastAutoSpeed - 1.0) < 1e-9, "layout: speed snaps to quarter steps, got " + harness.lastAutoSpeed)
+        panel.autoScrollSpeed = 2.0
+        if (speedSlider) ck(Math.abs(speedSlider.value - 2.0) < 1e-9,
+                            "layout: the speed handle must follow the live speed, got " + speedSlider.value)
+
+        // === THE ONE THAT MATTERS: AUTO-SCROLL CANNOT RESIZE THE PAGE ===
+        // Hemanth's rule, verbatim: "Starting or resuming Auto-scroll must never resize the page."
+        // Structural, not guarded: drive EVERY motion verb — start, pause, resume, speed up, speed
+        // down — and count the only signal that could carry a width. It is zero because the motion
+        // verbs have no width argument to pass.
+        harness.stripLayoutReqCount = 0
+        harness.layoutReqCount = 0
+        var widthBefore = panel.stripWidthPct
+        var gapBefore = panel.stripGap
+        panel.startAutoScroll()
+        panel.pauseAutoScroll()
+        panel.startAutoScroll()          // RESUME — the case the rule names twice
+        panel.setSpeed(2.5)
+        panel.setSpeed(0.5)
+        panel.toggleAutoScroll()
+        clickCenter(toggle)
+        ck(harness.stripLayoutReqCount === 0,
+           "layout: NO Auto-scroll verb may raise a strip-layout change — starting or resuming must "
+           + "never resize the page. Got " + harness.stripLayoutReqCount + " width intents.")
+        ck(harness.layoutReqCount === 0,
+           "layout: no Auto-scroll verb may change the LAYOUT either, got " + harness.layoutReqCount)
+        ck(panel.stripWidthPct === widthBefore && panel.stripGap === gapBefore,
+           "layout: the panel's own view of the width/gap is untouched by the motion verbs")
+
+        // --- DISMISS CHANGES NOTHING. The catcher and dismiss() emit dismissRequested and nothing
+        //     else; there is no path from either to a layout, a width or the motion. ---
+        harness.stripLayoutReqCount = 0; harness.layoutReqCount = 0
+        harness.autoStartCount = 0; harness.autoPauseCount = 0; harness.autoSpeedCount = 0
+        harness.layoutDismissCount = 0
+        var catcher = byName(panel, "layoutDismissCatcher")
+        ck(catcher !== null, "layout: a click on the comic must be catchable")
+        if (catcher) catcher.tap()
+        ck(harness.layoutDismissCount === 1, "layout: clicking the comic must dismiss, got " + harness.layoutDismissCount)
+        harness.layoutDismissCount = 0
+        panel.dismiss()
+        ck(harness.layoutDismissCount === 1, "layout: dismiss() must emit exactly one dismissRequested")
+        ck(harness.stripLayoutReqCount === 0 && harness.layoutReqCount === 0 && harness.autoStartCount === 0
+           && harness.autoPauseCount === 0 && harness.autoSpeedCount === 0,
+           "layout: dismissal must change NOTHING about the layout, the width or the motion")
+
+        // --- the panel swallows its own clicks (floating-panel house law) ---
+        harness.layoutDismissCount = 0
+        var swallow = byName(panel, "layoutPanelSwallow")
+        ck(swallow !== null, "layout: the panel must carry a click-swallower")
+        if (swallow) swallow.tap()
+        ck(harness.layoutDismissCount === 0,
+           "layout: a tap on the panel's own ground must NOT dismiss it, got " + harness.layoutDismissCount)
+    }
+
     function runChecks() {
         try { runSettings() }
         catch (e) { failures.push("exception: " + e.message) }
@@ -779,6 +1095,8 @@ Item {
         catch (e) { failures.push("pages exception: " + e.message) }
         try { runImage() }
         catch (e) { failures.push("image exception: " + e.message) }
+        try { runLayout() }
+        catch (e) { failures.push("layout exception: " + e.message) }
         report()
     }
 
@@ -790,6 +1108,8 @@ Item {
             if (pagesComp.status === Component.Error) throw new Error("pages component: " + pagesComp.errorString())
             imageComp = Qt.createComponent("../qml/comicreader/ComicReaderImagePopover.qml")
             if (imageComp.status === Component.Error) throw new Error("image component: " + imageComp.errorString())
+            layoutComp = Qt.createComponent("../qml/comicreader/ComicReaderLayoutPopover.qml")
+            if (layoutComp.status === Component.Error) throw new Error("layout component: " + layoutComp.errorString())
             Qt.callLater(runChecks)
         } catch (e) {
             console.log("COMICREADER_OVERLAYS_FAIL: setup: " + e.message); Qt.exit(1)

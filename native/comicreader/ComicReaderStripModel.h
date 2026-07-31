@@ -63,6 +63,14 @@ public:
         int viewportWidth = 0;
         int portraitWidthPct = 78;
         int gap = 0;
+        // The Image panel's quarter turn (Task 7's render profile), 0/90/180/270.
+        // The DELIVERED page is already rotated — ComicReaderImageResponse applies
+        // the geometry stage before it scales — so at 90/270 its real aspect is the
+        // TRANSPOSE of PageMeta::sourceSize. Without this the band is sized from the
+        // unrotated source and a turned page letterboxes inside a far-too-tall box.
+        // It transposes the SIZE only; the spread verdict is untouched (see
+        // recomputeGeometry).
+        int rotationDegrees = 0;
     };
 
     explicit ComicReaderStripModel(QObject* parent = nullptr);
@@ -103,6 +111,21 @@ public:
     // real page sizes are preserved. Callers pass already-clamped values; this
     // no-ops if neither number actually changed.
     void setLayout(int portraitWidthPct, int gap);
+
+    // The Image panel turned the page (Task 7's rotation, Task 8 wiring it here).
+    // Same in-place contract as setLayout: recompute every band and re-sum the
+    // column, then dataChanged — never a reset, so the reader keeps their
+    // delegates and their scroll. `degrees` is snapped to the nearest quarter
+    // turn mod 360 (the render profile is already normalised, but this must be
+    // total in its own right); no-op if the quarter turn does not change.
+    //
+    // It rotates the BOX, never the verdict. Spread detection is a statement
+    // about how the page was SCANNED — a two-page spread photographed sideways is
+    // still a spread — so `knownSpread` (captured at lock-in from the unrotated
+    // meta) is deliberately not re-derived here. Transposing the size AND
+    // re-running the spread test would flip every portrait page to a spread at
+    // 90 degrees and collapse the column to all-full-width.
+    void setRotation(int degrees);
 
     // Pages whose [top, bottom] band intersects [top - margin, top + vpHeight
     // + margin], margin = marginScreens * vpHeight (Task 7 uses 1.5). Returns

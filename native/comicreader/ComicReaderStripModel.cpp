@@ -16,6 +16,19 @@ constexpr int kEstimateSourceHeight = 2400;
 bool effectiveSpread(const PageMeta& meta) {
     return meta.spreadOverride.has_value() ? *meta.spreadOverride : meta.detectedSpread;
 }
+
+// The quarter turn a rotation in degrees actually means: 0..3, total for any
+// input (negative, off-grid, past 360). The render profile already normalises
+// what it stores, but this model is fed by rebuild()'s Options too, and a
+// geometry helper that trusts its caller is one hand-edited blob away from a
+// column of NaN-tall pages.
+int quarterTurns(int degrees) {
+    // Nearest quarter turn, folded into 0..3. Integer-only and symmetric about
+    // zero so a negative angle rounds the same way a positive one does.
+    int q = (degrees >= 0) ? ((degrees + 45) / 90) : -(((-degrees) + 45) / 90);
+    q %= 4;
+    return (q + 4) % 4;
+}
 } // namespace
 
 ComicReaderStripModel::ComicReaderStripModel(QObject* parent)
@@ -46,6 +59,21 @@ void ComicReaderStripModel::recomputeGeometry(Entry& e) const
         spread = effectiveSpread(e.meta);
         src = QSize(kEstimateSourceWidth, kEstimateSourceHeight);
     }
+
+    // A QUARTER TURN TRANSPOSES THE BOX, AND ONLY THE BOX. The page the provider
+    // delivers is already rotated (ComicReaderImageResponse runs the geometry
+    // stage before it scales), so at 90/270 its real aspect is height-over-width;
+    // sizing the band from the unrotated source is what left a turned page
+    // letterboxed inside a far-too-tall box with dead space above and below it.
+    //
+    // `spread` is NOT re-derived from the transposed size, and that is the whole
+    // trap: effectiveSpread is a statement about how the page was SCANNED (a
+    // two-page spread is wider than it is tall), so re-running it on a
+    // transposed size would call every portrait page a spread at 90 degrees and
+    // collapse the pairing law to all-full-width. The verdict is captured from
+    // the unrotated meta above and rides through untouched.
+    if (quarterTurns(m_options.rotationDegrees) % 2 == 1)
+        src.transpose();
 
     const double frac = spread ? 1.0 : (m_options.portraitWidthPct / 100.0);
     const double dw = m_options.viewportWidth * frac;
@@ -146,6 +174,29 @@ void ComicReaderStripModel::setLayout(int portraitWidthPct, int gap)
 
     // Same in-place path as setViewportWidth: the width % changes each page's
     // fit, the gap changes only the running tops. dataChanged, not a reset.
+    for (int i = 0; i < m_entries.size(); ++i)
+        recomputeGeometry(m_entries[i]);
+    recomputeTops();
+
+    if (!m_entries.isEmpty())
+        emit dataChanged(index(0, 0), index(m_entries.size() - 1, 0),
+                         {TopRole, DisplayWidthRole, DisplayHeightRole});
+}
+
+void ComicReaderStripModel::setRotation(int degrees)
+{
+    // Compare QUARTER TURNS, not degrees: 90 and 450 are the same picture, and a
+    // no-op that reflowed the column anyway would move the reader's place for
+    // nothing.
+    if (quarterTurns(degrees) == quarterTurns(m_options.rotationDegrees))
+        return;
+
+    m_options.rotationDegrees = degrees;
+
+    // Same in-place path as setLayout/setViewportWidth: every band re-fits, the
+    // column re-sums, and the bound ListView keeps its delegates and its
+    // contentY. A reset here would blink the whole column and snap the reader
+    // back to page 1 for a control that is meant to be previewed live.
     for (int i = 0; i < m_entries.size(); ++i)
         recomputeGeometry(m_entries[i]);
     recomputeTops();

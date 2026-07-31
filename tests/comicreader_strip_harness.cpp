@@ -460,6 +460,198 @@ int main(int argc, char** argv) {
         CHECK(model.rowCount() == 6, "F10 a later valid rebuild() recovers normally");
     }
 
+    // ── Fixture 11: THE 78% LAW (Task 8, overhaul plan 2026-07-28) ───────────
+    // Hemanth named this one himself while the Long Strip menu was being
+    // designed: "one of the most important features is the potrait width in
+    // autoscroll. I hope you're not forgetting about that" — and then confirmed
+    // 78 by name. The approved contract is range 40-100, default 78, per series,
+    // and LANDSCAPE SPREADS STAY 100% whatever the portrait width says.
+    //
+    // The default lives in ComicReaderStripModel::Options (78) and in
+    // ComicReaderCore (m_portraitWidthPct = 78); the core-side default + the
+    // 40/100 clamp are pinned in comicreader_core_harness T14 (this model takes
+    // ALREADY-clamped values, which is why the clamp is not re-asserted here).
+    // What is pinned HERE is the geometry the number actually produces.
+    {
+        // The default Options — nobody assigned a width, so this is the shipped answer.
+        ComicReaderStripModel::Options fresh;
+        CHECK(fresh.portraitWidthPct == 78, "F11 the strip model's DEFAULT portrait width is 78");
+        CHECK(fresh.gap == 0, "F11 the strip model's default gap is 0 (Seamless)");
+        CHECK(fresh.rotationDegrees == 0, "F11 the strip model's default rotation is 0");
+
+        ComicReaderStripModel::Options opt = fresh;
+        opt.viewportWidth = 1000;
+
+        PageMeta portrait;
+        portrait.index = 0;
+        portrait.sourceSize = QSize(1000, 1500);
+        portrait.decoded = true;
+        PageMeta spread;
+        spread.index = 1;
+        spread.sourceSize = QSize(1600, 900);
+        spread.decoded = true;
+        spread.detectedSpread = true;
+
+        ComicReaderStripModel model;
+        model.rebuild({portrait, spread}, opt);
+
+        const auto widthAt = [&](int row) {
+            return model.data(model.index(row, 0), ComicReaderStripModel::DisplayWidthRole).toDouble();
+        };
+        CHECK(std::fabs(widthAt(0) - 780.0) < 0.5, "F11 a portrait page uses 78 percent of the viewport (780 of 1000)");
+        CHECK(std::fabs(widthAt(1) - 1000.0) < 0.5, "F11 a landscape SPREAD stays the full viewport width at 78%");
+
+        // ...and it stays full width at every legal portrait width, which is the
+        // half of the rule a single-width fixture cannot see.
+        model.setLayout(40, 0);
+        CHECK(std::fabs(widthAt(0) - 400.0) < 0.5, "F11 a portrait page follows the width down to 40%");
+        CHECK(std::fabs(widthAt(1) - 1000.0) < 0.5, "F11 the spread is STILL full width at portrait 40%");
+        model.setLayout(100, 0);
+        CHECK(std::fabs(widthAt(0) - 1000.0) < 0.5, "F11 a portrait page reaches full width at 100%");
+        CHECK(std::fabs(widthAt(1) - 1000.0) < 0.5, "F11 the spread is unchanged at portrait 100%");
+    }
+
+    // ── Fixture 12: a width ROUND TRIP restores the column exactly ───────────
+    // 78 -> 92 -> 78. The reader's anchor is held by ComicReaderCore::setStripLayout
+    // (pinned in comicreader_core_harness T15/T15b, which owns the viewport); what
+    // this pins is the GEOMETRY the anchor is computed against — if the column did
+    // not come back to the same tops and heights, no anchor arithmetic on top of it
+    // could put the reader back where they started.
+    {
+        ComicReaderStripModel model;
+        model.rebuild(makeBasePages(), makeOptions());
+        model.setLayout(78, 0);
+
+        QVector<double> tops0, heights0;
+        for (int i = 0; i < model.rowCount(); ++i) {
+            tops0.append(model.pageTop(i));
+            heights0.append(model.data(model.index(i, 0), ComicReaderStripModel::DisplayHeightRole).toDouble());
+        }
+        const double content0 = model.contentHeight();
+
+        model.setLayout(92, 0);
+        bool moved = false;
+        for (int i = 0; i < model.rowCount(); ++i)
+            if (!approx(model.pageTop(i), tops0[i])) { moved = true; break; }
+        CHECK(moved, "F12 78 -> 92 actually rescales the column (otherwise the round trip proves nothing)");
+
+        model.setLayout(78, 0);
+        bool restored = true;
+        for (int i = 0; i < model.rowCount(); ++i) {
+            if (!approx(model.pageTop(i), tops0[i])) restored = false;
+            if (!approx(model.data(model.index(i, 0), ComicReaderStripModel::DisplayHeightRole).toDouble(),
+                        heights0[i]))
+                restored = false;
+        }
+        CHECK(restored, "F12 78 -> 92 -> 78 restores every page's top and height exactly");
+        CHECK(approx(model.contentHeight(), content0), "F12 the round trip restores contentHeight exactly");
+        CHECK(model.rowCount() == 6, "F12 the round trip is IN PLACE — same rows, no teardown");
+    }
+
+    // ── Fixture 13: a quarter turn transposes the BAND, never the verdict ────
+    // Task 7 added rotation to the render profile; the provider applies it before
+    // it scales, so the page it DELIVERS at 90/270 is the transpose of its source.
+    // The strip is the one model-authoritative surface — its delegate heights come
+    // from this model, not from the loaded Image — so a band sized off the
+    // unrotated source letterboxed every turned page inside a far-too-tall box.
+    //
+    // The trap this fixture exists to hold shut: transposing the size AND
+    // re-running the spread test would call every portrait page a spread at 90
+    // degrees and collapse the column to all-full-width. The spread verdict is a
+    // statement about the SCAN and must ride through untouched.
+    {
+        ComicReaderStripModel::Options opt = makeOptions();   // 1000 wide, 80%, gap 20
+        ComicReaderStripModel model;
+        model.rebuild(makeBasePages(), opt);
+
+        const auto wAt = [&](int row) {
+            return model.data(model.index(row, 0), ComicReaderStripModel::DisplayWidthRole).toDouble();
+        };
+        const auto hAt = [&](int row) {
+            return model.data(model.index(row, 0), ComicReaderStripModel::DisplayHeightRole).toDouble();
+        };
+        // page0 portrait 1000x1500 -> dw 800, dh 1200; page1 spread 2000x1000 -> dw 1000, dh 500
+        CHECK(approx(hAt(0), 1200.0), "F13 baseline: page0 band is 1200 tall unrotated");
+        CHECK(approx(hAt(1), 500.0), "F13 baseline: the spread band is 500 tall unrotated");
+
+        model.setRotation(90);
+        // page0's delivered aspect is now 1500x1000 -> dh = 800 * (1000/1500) = 533.33
+        CHECK(approx(wAt(0), 800.0), "F13 a quarter turn does NOT change the portrait page's WIDTH (still 80%)");
+        CHECK(std::fabs(hAt(0) - (800.0 * 1000.0 / 1500.0)) < 1e-6,
+              "F13 a quarter turn transposes the portrait page's band height");
+        // ...and the spread is STILL a spread: full width, transposed height.
+        CHECK(approx(wAt(1), 1000.0), "F13 the spread is still full width at 90 degrees (the verdict did not move)");
+        CHECK(std::fabs(hAt(1) - (1000.0 * 2000.0 / 1000.0)) < 1e-6,
+              "F13 the spread's band height transposes too");
+        // The inverse of the trap, stated directly: a turned PORTRAIT page must not
+        // become full width. If the spread test were re-run on the transposed size
+        // (1500x1000 reads as landscape) this is the assertion that would fail.
+        CHECK(wAt(0) < wAt(1), "F13 a turned portrait page must NOT be promoted to a spread's full width");
+
+        model.setRotation(180);
+        CHECK(approx(hAt(0), 1200.0), "F13 a HALF turn leaves the aspect alone — the band is the unrotated one");
+        model.setRotation(270);
+        CHECK(std::fabs(hAt(0) - (800.0 * 1000.0 / 1500.0)) < 1e-6, "F13 270 transposes exactly like 90");
+        model.setRotation(0);
+        CHECK(approx(hAt(0), 1200.0), "F13 back to 0 restores the original band exactly");
+        CHECK(approx(model.pageTop(3), 2960.0), "F13 ...and the column's tops come back with it");
+
+        // total for junk / off-grid / negative input, and quarter-turn-identical
+        // values are a no-op rather than a needless reflow.
+        model.setRotation(-90);
+        CHECK(std::fabs(hAt(0) - (800.0 * 1000.0 / 1500.0)) < 1e-6, "F13 -90 folds to 270, not to 0");
+        model.setRotation(630);   // 630 == 270 mod 360
+        CHECK(std::fabs(hAt(0) - (800.0 * 1000.0 / 1500.0)) < 1e-6, "F13 630 is the same quarter turn as 270");
+        model.setRotation(45);    // snaps to 90 -> still an odd quarter turn
+        CHECK(std::fabs(hAt(0) - (800.0 * 1000.0 / 1500.0)) < 1e-6, "F13 an off-grid angle snaps to the nearest quarter turn");
+
+        // ── IN PLACE, AND ONLY WHEN THE PICTURE ACTUALLY TURNS ──
+        // Two contracts a geometry-only assertion cannot see. First: a reset would tear
+        // down every ListView delegate (a visible blink) and zero the bound contentY (a
+        // jump to page 1) — for a control that is meant to be previewed live. Second: an
+        // angle that names the SAME quarter turn must not reflow the column at all;
+        // comparing raw degrees rather than quarter turns looks harmless and produces a
+        // needless full-column dataChanged on every equivalent value.
+        int dataChanges = 0;
+        int resets = 0;
+        QObject::connect(&model, &QAbstractItemModel::dataChanged, &model,
+                         [&dataChanges]() { ++dataChanges; });
+        QObject::connect(&model, &QAbstractItemModel::modelReset, &model,
+                         [&resets]() { ++resets; });
+
+        model.setRotation(0);
+        CHECK(dataChanges == 1, "F13 a real turn emits exactly one dataChanged");
+        CHECK(resets == 0, "F13 ...and NEVER a model reset (that would blink the column and snap to page 1)");
+
+        dataChanges = 0;
+        model.setRotation(360);    // the same quarter turn as 0, said differently
+        CHECK(dataChanges == 0, "F13 an angle naming the SAME quarter turn must not reflow the column");
+        model.setRotation(-720);   // ...and so is this
+        CHECK(dataChanges == 0, "F13 a negative multiple of a full turn is still the same quarter turn");
+        model.setRotation(20);     // snaps to 0 -> still the same quarter turn
+        CHECK(dataChanges == 0, "F13 an off-grid angle that snaps to the live quarter turn is a no-op too");
+        model.setRotation(180);
+        CHECK(dataChanges == 1, "F13 ...but a genuinely different quarter turn does reflow, once");
+        CHECK(resets == 0, "F13 still no reset");
+    }
+
+    // ── Fixture 14: rotation carried by rebuild(), not only by setRotation ───
+    // The render profile SURVIVES an entry crossing, so the next volume has to
+    // open already turned. rebuild() takes the angle in Options for exactly that.
+    {
+        ComicReaderStripModel::Options opt = makeOptions();
+        opt.rotationDegrees = 90;
+        ComicReaderStripModel model;
+        model.rebuild(makeBasePages(), opt);
+        const double h0 = model.data(model.index(0, 0), ComicReaderStripModel::DisplayHeightRole).toDouble();
+        CHECK(std::fabs(h0 - (800.0 * 1000.0 / 1500.0)) < 1e-6,
+              "F14 a rebuild() carrying a quarter turn lays the first column out already turned");
+        // ...and setRotation to the SAME angle is then a genuine no-op.
+        model.setRotation(90);
+        CHECK(std::fabs(model.data(model.index(0, 0), ComicReaderStripModel::DisplayHeightRole).toDouble() - h0) < 1e-6,
+              "F14 setRotation to the angle already in force changes nothing");
+    }
+
     if (g_failures == 0) {
         std::puts("COMICREADER_STRIP_OK");
         return 0;

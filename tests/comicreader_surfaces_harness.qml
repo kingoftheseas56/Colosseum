@@ -224,13 +224,41 @@ Item {
             return -1
         }
         function setStripViewportWidth(w) { setStripViewportWidthCalls += 1; lastViewportWidth = w }
+        // Task 8: the RETENTION window. Task 2 built it and left it with no production caller; the
+        // strip surface is that caller now. The spy records every call because the whole question
+        // this seam raises is HOW OFTEN — requestRange's own doc comment warns that a call whose
+        // range differs walks both cache hashes under both mutexes and frees QImages on the GUI
+        // thread, contending the mutex every provider worker takes for every page fetch.
+        property int requestRangeCalls: 0
+        property var requestRanges: []
+        function requestRange(first, last) {
+            requestRangeCalls += 1
+            requestRanges.push({ first: first, last: last })
+        }
+        function lastRange() {
+            return requestRanges.length ? requestRanges[requestRanges.length - 1] : null
+        }
+        function resetRangeSpy() { requestRangeCalls = 0; requestRanges = [] }
+        // Task 8: the never-resize spy. Auto-scroll must have NO path to the strip geometry, so the
+        // one call that could resize the page is counted and must stay at zero across every motion.
+        property int setStripLayoutCalls: 0
+        property var lastStripLayout: null
+        function setStripLayout(widthPct, gap, top, height) {
+            setStripLayoutCalls += 1
+            lastStripLayout = { widthPct: widthPct, gap: gap }
+            return (top === undefined) ? 0 : top
+        }
     }
 
     // a strip model (Task-6 roles: pageIndex/top/displayWidth/displayHeight/ready/errorCode)
     ListModel { id: stripModelA }
     ListModel { id: stripModelFail }
+    ListModel { id: stripModelAuto }    // Task 8: Auto-scroll, on a column of its own
+    ListModel { id: stripModelRange }   // Task 8: the requestRange retention window
 
     FakeCore { id: coreStrip }
+    FakeCore { id: coreAuto }      // Task 8: Auto-scroll
+    FakeCore { id: coreRange }     // Task 8: requestRange
     FakeCore { id: coreFail }
     FakeCore { id: coreDouble }
     FakeCore { id: coreFresh }
@@ -366,6 +394,27 @@ Item {
         var srcAfter = String(stripSurface.itemAt(0).imageSource)
         ck(srcAfter.indexOf("rev=1") >= 0, "strip: after pageReady the delegate source must re-evaluate to the bumped ?rev=1 (page would stay BLANK otherwise), got '" + srcAfter + "'")
         ck(srcAfter !== srcBefore, "strip: the decode-refresh must actually change the delegate source (was '" + srcBefore + "')")
+
+        // --- TWO TIERS, stacked (Task 8). The column meets new pages continuously, so a single-tier
+        // strip waited for the full-resolution page once per page SCROLLED PAST, not once per page
+        // turn: black band, then the whole page at once. Same stack, same 90ms cross-fade and same
+        // tier vocabulary as Single and Pair, so a page sharpening reads the same wherever you meet
+        // it. The scaled tier was sized for exactly this pair (kScaledEntriesPerPage == 2). ---
+        var dTier = stripSurface.itemAt(0)
+        ck(dTier !== null, "strip tiers: page 0's delegate must exist")
+        if (dTier) {
+            ck(String(dTier.previewSource).indexOf("tier=preview") >= 0,
+               "strip tiers: the delegate must request the PREVIEW tier, got '" + dTier.previewSource + "'")
+            ck(String(dTier.imageSource).indexOf("tier=hq") >= 0,
+               "strip tiers: ...and the HQ tier, got '" + dTier.imageSource + "'")
+            ck(dTier.previewCap > 0 && dTier.previewCap < dTier.hqCap,
+               "strip tiers: the preview must be capped SMALLER than hq (first pixels, soonest), got "
+               + dTier.previewCap + " vs " + dTier.hqCap)
+            // the fade is a RULE, never the animated number: an offscreen harness never ticks a
+            // Behavior, so a synchronous read of `opacity` would prove nothing either way.
+            ck(dTier.hqShown === false,
+               "strip tiers: with hq not loaded the preview is what shows, got hqShown=" + dTier.hqShown)
+        }
 
         // --- viewport report is THROTTLED: N synchronous ticks -> 0 immediate calls, 1 after flush ---
         coreStrip.setStripViewportCalls = 0
@@ -767,6 +816,275 @@ Item {
         coreFail.pageReady(1)                 // a later successful (re)decode clears the placard
         d1 = stripFailSurface.itemAt(1)
         ck(d1 !== null && d1.hasError === false, "strip-fail: pageReady(1) after a failure must clear page 1's placard")
+    }
+
+    // ==================== AUTO-SCROLL (Task 8) ====================
+    // Hemanth's rule, verbatim: "Layout and motion remain separate. Long Strip creates the vertical
+    // page flow; Auto-scroll only supplies motion at the already chosen width. Starting or resuming
+    // Auto-scroll must never resize the page."
+    //
+    // The drive is a FrameAnimation, which an offscreen harness never ticks, so the motion is driven
+    // through _autoScrollTick(ms) — the same function the animation calls, so the tested logic IS
+    // the shipped logic (the house pattern _flushViewportReport / _flushEmit already follow).
+    property var autoSurface: null
+    property int autoEndedCount: 0
+
+    function runStripAutoScroll() {
+        // 40 rows x 1200px against a 480px viewport: a long column with real travel in it.
+        fillStripModel(stripModelAuto, 40)
+        coreAuto.stripModel = stripModelAuto
+        autoSurface = stripComp.createObject(harness, {
+            "width": 520, "height": 480, "active": true, "core": coreAuto
+        })
+        var s = autoSurface
+        if (!s) { failures.push("auto: createObject returned null"); return }
+        s.autoScrollEnded.connect(function () { harness.autoEndedCount += 1 })
+        s.forceRelayout()
+
+        // --- the drive is OFF until the shell says otherwise, and it is the shell's flag ---
+        ck(s.autoScrollRunning === false, "auto: the surface must start with the motion OFF")
+        ck(s.autoScrollSpeed === 1.0, "auto: the default speed is 1.0, got " + s.autoScrollSpeed)
+        ck(Math.abs(s.autoScrollPixelsPerSecond - 120) < 1e-6,
+           "auto: 1x is 120 px/s, got " + s.autoScrollPixelsPerSecond)
+
+        // --- POSITIVE MOVEMENT at 1x, and the arithmetic is the stated one ---
+        s.contentY = 0
+        coreAuto.setStripLayoutCalls = 0
+        var widthBefore = coreAuto.lastStripLayout
+        s.autoScrollRunning = true
+        s._autoScrollTick(16)
+        ck(s.contentY > 0, "auto: a tick must advance the column, got contentY " + s.contentY)
+        // 16ms at 120px/s = 1.92px. The cold-first-tick guard rounds the FIRST tick up to a whole
+        // frame (16.67ms -> 2.0px), which is the documented trap, so this asserts the guarded value.
+        ck(Math.abs(s.contentY - 120 * (1000 / 60) / 1000) < 0.01,
+           "auto: the first tick travels a WHOLE frame (the cold-tick guard), got " + s.contentY)
+        var afterFirst = s.contentY
+        s._autoScrollTick(16)
+        ck(Math.abs((s.contentY - afterFirst) - 120 * 16 / 1000) < 0.01,
+           "auto: a settled tick travels rate x time (1.92px), got " + (s.contentY - afterFirst))
+
+        // --- AUTO-SCROLL NEVER RESIZES THE PAGE. The one call that could is counted. ---
+        for (var i = 0; i < 30; i++) s._autoScrollTick(16)
+        ck(coreAuto.setStripLayoutCalls === 0,
+           "auto: NOTHING on the Auto-scroll path may call setStripLayout — starting or resuming must "
+           + "never resize the page. Got " + coreAuto.setStripLayoutCalls + " calls.")
+        ck(coreAuto.lastStripLayout === widthBefore,
+           "auto: ...and the backend's last layout is untouched by the motion")
+
+        // --- SPEED scales the travel, and nothing else ---
+        s.autoScrollSpeed = 2.0
+        ck(Math.abs(s.autoScrollPixelsPerSecond - 240) < 1e-6, "auto: 2x is 240 px/s, got " + s.autoScrollPixelsPerSecond)
+        s.contentY = 1000
+        s._autoScrollTick(100)
+        var travel2x = s.contentY - 1000
+        s.autoScrollSpeed = 1.0
+        s.contentY = 1000
+        s._autoScrollTick(100)
+        var travel1x = s.contentY - 1000
+        ck(Math.abs(travel2x - travel1x * 2) < 0.01,
+           "auto: 2x must travel exactly twice as far as 1x in the same time, got " + travel2x + " vs " + travel1x)
+        ck(coreAuto.setStripLayoutCalls === 0, "auto: a SPEED change must not resize the page either")
+        // the speed is clamped where it is used, so a corrupt value can never stall or bolt
+        s.autoScrollSpeed = 99
+        ck(Math.abs(s.autoScrollPixelsPerSecond - 360) < 1e-6, "auto: the speed clamps to 3x (360 px/s), got " + s.autoScrollPixelsPerSecond)
+        s.autoScrollSpeed = 0
+        ck(Math.abs(s.autoScrollPixelsPerSecond - 30) < 1e-6, "auto: the speed clamps UP to 0.25x (30 px/s), got " + s.autoScrollPixelsPerSecond)
+        s.autoScrollSpeed = 1.0
+
+        // --- a stalled frame must not TELEPORT the page ---
+        s.contentY = 1000
+        s._autoScrollTick(100000)          // the clock resumed after a very long stall
+        ck(s.contentY - 1000 <= 120 * 0.1 + 0.01,
+           "auto: a stalled frame is capped at 100ms of travel, got " + (s.contentY - 1000))
+
+        // --- IT STOPS AT THE END, once, and does not run past it ---
+        var maxY = s.contentHeight - 480
+        s.contentY = maxY - 1
+        harness.autoEndedCount = 0
+        s._autoScrollTick(1000)            // a full second: far past the remaining 1px
+        ck(Math.abs(s.contentY - maxY) < 0.01,
+           "auto: the column must stop exactly at the end, got " + s.contentY + " want " + maxY)
+        ck(harness.autoEndedCount === 1, "auto: reaching the end must report ONCE, got " + harness.autoEndedCount)
+
+        // --- TRACKING FOLLOWS THE MOTION. Auto-scroll is real reading: a tick must not be
+        //     _programmatic, or the HUD counter and the Continue record would sit still while the
+        //     book moved underneath them. ---
+        s.contentY = 0
+        s._flushEmit()                     // drain anything already scheduled
+        s._autoScrollTick(500)
+        ck(s._emitPending === true,
+           "auto: a tick must SCHEDULE a tracking emit (it is real reading, not a programmatic move)")
+
+        // --- an empty / unscrollable column stops rather than spinning ---
+        var tiny = stripComp.createObject(harness, {
+            "width": 520, "height": 480, "active": true, "core": coreAuto
+        })
+        if (tiny) {
+            var tinyEnded = 0
+            tiny.autoScrollEnded.connect(function () { tinyEnded += 1 })
+            tiny.height = 100000           // viewport taller than the whole book -> nowhere to travel
+            tiny.forceRelayout()
+            tiny._autoScrollTick(16)
+            ck(tinyEnded === 1, "auto: a column with nowhere to travel must report the end, not spin, got " + tinyEnded)
+            tiny.destroy()
+        }
+    }
+
+    // ============= THE RETENTION WINDOW: core.requestRange (Task 8) =============
+    // Task 2 built requestRange and left it unwired; this surface is its first production caller.
+    // Its doc comment is explicit about the cost: a call whose clamped range DIFFERS walks both
+    // cache hashes under both mutexes and frees QImages on the GUI thread, contending the very mutex
+    // every provider worker takes for every page fetch. Driving that from a raw per-frame scroll
+    // signal is the exact shape of the cascade that turned out to be the video player's stutter.
+    //
+    // So what this block pins is not "does it call" but HOW OFTEN, and in what units.
+    property var rangeSurface: null
+
+    function runStripRequestRange() {
+        fillStripModel(stripModelRange, 60)     // 60 rows x 1200px, tops at i*1220
+        coreRange.stripModel = stripModelRange
+        rangeSurface = stripComp.createObject(harness, {
+            "width": 520, "height": 480, "active": true, "core": coreRange
+        })
+        var s = rangeSurface
+        if (!s) { failures.push("range: createObject returned null"); return }
+        s.forceRelayout()
+        // Construction reports its own first viewport, which opens the throttle window and seeds the
+        // memo. Close the window and reset the memo (entryChanged is the real door for that) so the
+        // block below starts from a known state rather than from whatever construction left.
+        s._flushRangeWindow()
+        coreRange.entryChanged()
+
+        // NOTE on the arithmetic below: the ListView stacks its delegates by HEIGHT (1200 here), so
+        // row i is drawn at y = i*1200. fillStripModel's `top` role is the BACKEND's geometry and is
+        // deliberately not what the drawn column uses — indexAt reads the drawn column.
+
+        // --- PAGE INDICES, NOT PIXELS. The first report names the visible run as model rows. ---
+        coreRange.resetRangeSpy()
+        s.contentY = 0
+        s.forceRelayout()
+        s._flushViewportReport()
+        ck(coreRange.requestRangeCalls === 1,
+           "range: the first viewport report must sweep exactly once, got " + coreRange.requestRangeCalls)
+        var r0 = coreRange.lastRange()
+        ck(r0 !== null && r0.first === 0 && r0.last === 0,
+           "range: at the top of the book the visible run is page 0..0, got " + JSON.stringify(r0))
+        s._flushRangeWindow()      // close the window this opened, so the next block starts clean
+
+        // --- BRAKE 1 + 2: a burst of scroll INSIDE one page never crosses the seam again ---
+        // The window is a page range, so scrolling 300px down a 1200px page changes nothing the
+        // backend needs to know. This is what makes a 60Hz caller safe at all.
+        coreRange.resetRangeSpy()
+        for (var i = 1; i <= 10; i++) {
+            s.contentY = i * 30
+            s.forceRelayout()
+            s._flushViewportReport()
+            s._flushRangeWindow()
+        }
+        ck(coreRange.requestRangeCalls === 0,
+           "range: ten scroll steps WITHIN one page must not sweep at all (the memo), got "
+           + coreRange.requestRangeCalls)
+
+        // --- a real page-range change DOES sweep, exactly once ---
+        coreRange.resetRangeSpy()
+        s.contentY = 12200          // inside row 10 (12000..13200), and its bottom probe is too
+        s.forceRelayout()
+        s._flushViewportReport()
+        s._flushRangeWindow()
+        ck(coreRange.requestRangeCalls === 1,
+           "range: crossing into a new page range must sweep once, got " + coreRange.requestRangeCalls)
+        var r1 = coreRange.lastRange()
+        ck(r1 !== null && r1.first === 10 && r1.last === 10,
+           "range: the swept window must be the page indices actually on screen, got " + JSON.stringify(r1))
+
+        // --- BRAKE 3: a FLING coalesces. Many viewport reports inside one throttle window produce
+        //     ONE leading sweep, not one per report, however many page boundaries are crossed. ---
+        coreRange.resetRangeSpy()
+        for (var p = 20; p < 40; p++) {
+            s.contentY = p * 1200
+            s.forceRelayout()
+            s._flushViewportReport()     // the 16ms viewport door — NOT the range window
+        }
+        ck(coreRange.requestRangeCalls === 1,
+           "range: a 20-page fling inside one throttle window must sweep ONCE (leading edge), got "
+           + coreRange.requestRangeCalls)
+        // ...and nothing is DROPPED: the trailing flush lands the final position.
+        s._flushRangeWindow()
+        var r2 = coreRange.lastRange()
+        ck(coreRange.requestRangeCalls === 2,
+           "range: the window closing must land the LAST position, got " + coreRange.requestRangeCalls + " sweeps")
+        ck(r2 !== null && r2.first === 39 && r2.last === 39,
+           "range: ...and it must be where the fling ENDED, got " + JSON.stringify(r2))
+        // a window that closes with nothing waiting stops rather than re-arming forever
+        coreRange.resetRangeSpy()
+        s._flushRangeWindow()
+        ck(coreRange.requestRangeCalls === 0,
+           "range: a window closing with nothing pending must sweep nothing, got " + coreRange.requestRangeCalls)
+
+        // --- A FULL AUTO-SCROLL RUN is the case a settle-only debounce would never serve: the
+        //     column moves continuously, so "quiet" never arrives. Measured here rather than
+        //     asserted loosely — 60 frames of motion inside one page must cost ZERO sweeps. ---
+        coreRange.resetRangeSpy()
+        s.contentY = 12200
+        s.forceRelayout()
+        s._flushViewportReport()
+        s._flushRangeWindow()
+        coreRange.resetRangeSpy()
+        s.autoScrollRunning = true
+        for (var f = 0; f < 60; f++) {
+            s._autoScrollTick(16)          // 60 frames at 120px/s ~= 115px of travel
+            s._flushViewportReport()
+            s._flushRangeWindow()
+        }
+        s.autoScrollRunning = false
+        ck(coreRange.requestRangeCalls === 0,
+           "range: a second of Auto-scroll inside one page must cost ZERO sweeps, got "
+           + coreRange.requestRangeCalls)
+
+        // --- an INACTIVE strip owns no window, INCLUDING through its own throttle timer. Both
+        //     reading surfaces are mounted at once against ONE backend, and the 250ms window can
+        //     close AFTER a layout switch has taken this strip off screen — at which point a sweep
+        //     from here would evict what the visible surface is showing. ---
+        coreRange.resetRangeSpy()
+        s.contentY = 0
+        s.forceRelayout()
+        s._flushViewportReport()              // active: sweeps (memo was 10..10) and opens the window
+        ck(coreRange.requestRangeCalls === 1, "range: fixture - one active sweep before going hidden, got "
+           + coreRange.requestRangeCalls)
+        s.contentY = 30000
+        s.forceRelayout()
+        s._flushViewportReport()              // window still open: coalesced, nothing sent
+        s.active = false                      // ...and NOW the reader switches layout
+        s._flushRangeWindow()                 // the timer fires against a hidden surface
+        ck(coreRange.requestRangeCalls === 1,
+           "range: an INACTIVE strip must not sweep even when its own throttle window closes, got "
+           + coreRange.requestRangeCalls)
+        // ...and a plain report from a hidden strip does nothing either
+        s.contentY = 0
+        s.forceRelayout()
+        s._flushViewportReport()
+        s._flushRangeWindow()
+        ck(coreRange.requestRangeCalls === 1,
+           "range: an INACTIVE strip must not sweep from a viewport report either, got "
+           + coreRange.requestRangeCalls)
+        s.active = true
+
+        // --- a FRESH ENTRY resets the memo. ComicReaderCore resets its own last-swept range on
+        //     every openEntry ("a new book always sweeps even if it opens on the page numbers the
+        //     last one closed at"); a QML memo that did not reset alongside it would swallow the new
+        //     book's first call. ---
+        s.contentY = 0
+        s.forceRelayout()
+        s._flushViewportReport()
+        s._flushRangeWindow()
+        coreRange.resetRangeSpy()
+        s._flushViewportReport()
+        s._flushRangeWindow()
+        ck(coreRange.requestRangeCalls === 0, "range: precondition — the memo is holding at 0..0")
+        coreRange.entryChanged()             // a new book opened on the same page numbers
+        s._flushViewportReport()
+        ck(coreRange.requestRangeCalls === 1,
+           "range: a fresh entry must re-sweep even on the same page numbers, got " + coreRange.requestRangeCalls)
     }
 
     // ============================ DOUBLE ============================
@@ -1737,6 +2055,8 @@ Item {
     function runPhaseTwo() {
         try {
             runStripFailure()
+            runStripAutoScroll()       // Task 8: motion only, and it never resizes the page
+            runStripRequestRange()     // Task 8: the retention window, and how often it sweeps
             runDouble()
             runDoubleMaxSeen()
             runDoubleFreshOpen()

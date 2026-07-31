@@ -23,7 +23,8 @@ if (!(Test-Path -LiteralPath $qmlExe)) {
 $overlays = @(
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderSettingsSheet.qml"),
     (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderPagesOverlay.qml"),
-    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderImagePopover.qml")
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderImagePopover.qml"),
+    (Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderLayoutPopover.qml")
 )
 foreach ($overlay in $overlays) {
     if (!(Test-Path -LiteralPath $overlay)) {
@@ -49,6 +50,22 @@ if ($hqHits) {
     Write-Host "FAIL: $film must request the 'thumbnail' tier on every imageUrl call; found:"
     $hqHits | ForEach-Object { Write-Host ("  line " + $_.LineNumber + ": " + $_.Line.Trim()) }
     exit 1
+}
+
+# --- the Layout menu must have NO path from a motion control to a size change (Task 8). ---
+# "Starting or resuming Auto-scroll must never resize the page" is the rule this arc is judged on,
+# and the harness proves it behaviourally by counting intents. This is the source-level backstop:
+# the panel's Auto-scroll verbs must not so much as MENTION the width setter, so the rule cannot be
+# broken in a code path an offscreen run never reaches.
+$layoutPanel = Join-Path $PSScriptRoot "../qml/comicreader/ComicReaderLayoutPopover.qml"
+$autoBody = Select-String -LiteralPath $layoutPanel -Pattern 'function (startAutoScroll|pauseAutoScroll|toggleAutoScroll|setSpeed)\b[\s\S]{0,400}' -AllMatches
+foreach ($m in $autoBody) {
+    if ($m.Line -match 'stripLayoutRequested|setStripLayout|stripWidthPct\s*=|stripGap\s*=') {
+        Write-Host "FAIL: an Auto-scroll verb in $layoutPanel reaches a width/spacing change:"
+        Write-Host ("  line " + $m.LineNumber + ": " + $m.Line.Trim())
+        Write-Host "      Starting or resuming Auto-scroll must NEVER resize the page."
+        exit 1
+    }
 }
 
 $env:QT_FORCE_STDERR_LOGGING = "1"

@@ -73,14 +73,24 @@ Item {
     // literals so a shell that ever changes the chrome says so in one place.
     property int chromeTopInset: 84
     property int railHeight: 54
-    // The panel hangs from the command bar's RIGHT edge, at the bar's own right
-    // margin (ComicReaderCommandBar's Row uses 26), so it reads as a drop from
-    // that row rather than a floating card. It is NOT centred under the word
-    // "Image": the command row is right-aligned and two of its six commands are
-    // live READOUTS whose labels change width with the reader's layout and order,
-    // so a per-command anchor needs a seam out of the chrome that Task 8's Layout
-    // popover will want on exactly the same terms.
+    // WHERE THE PANEL HANGS. `anchorX` is the CENTRE of the command that raised
+    // it, in the shell's coordinates, published by ComicReaderCommandBar through
+    // ComicReaderHud — Task 8's anchor seam, built once for this panel and the
+    // Layout menu together.
+    //
+    // This is the seam this file asked for. Task 7 shipped hanging off the command
+    // bar's right edge and said why: the row is right-aligned and two of its six
+    // commands are live READOUTS whose labels change width with the reader's
+    // layout and order, so a per-command anchor cannot be a constant and needed a
+    // way out of the chrome. Hemanth's reference — Cover's reader — drops the
+    // panel under its own label, which is what this now does.
+    //
+    // -1 means "no seam" (a bare harness mount, or a chrome that never published
+    // an anchor). Then, and only then, the old right-edge placement stands, so the
+    // panel degrades to exactly what it did before rather than to x=0.
+    property real anchorX: -1
     property int panelRightMargin: 26
+    property int panelEdgeMargin: 12       // never let the panel touch the window edge
 
     Theme { id: theme }
 
@@ -335,7 +345,15 @@ Item {
         // what makes the Advanced disclosure GROW the same panel rather than
         // opening a second surface.
         height: column.implicitHeight + 28
-        x: root.width - width - root.panelRightMargin
+        // Centred under the command that raised it, clamped inside the reader so a command near an
+        // edge can never push the panel off screen. See `anchorX` for the -1 fallback.
+        x: {
+            if (root.anchorX < 0)
+                return root.width - width - root.panelRightMargin
+            return Math.max(root.panelEdgeMargin,
+                            Math.min(root.width - width - root.panelEdgeMargin,
+                                     root.anchorX - width / 2))
+        }
         y: root.chromeTopInset + 8
         radius: 12
         color: root.cGlassDeep

@@ -179,6 +179,54 @@ Item {
         (core && core.stripGap !== undefined) ? core.stripGap : 0
     readonly property bool memorySaver:
         (core && core.memorySaver !== undefined) ? core.memorySaver === true : false
+
+    // ================= AUTO-SCROLL (Task 8) =================
+    // The approved rule, verbatim: "Layout and motion remain separate. Long Strip creates the
+    // vertical page flow; Auto-scroll only supplies motion at the already chosen width. Starting or
+    // resuming Auto-scroll must never resize the page. Manual wheel/touch/navigation, opening
+    // chrome, Pages, Image, Loupe, or another temporary surface pauses it immediately. Resume is
+    // explicit."
+    //
+    // The shell owns WHETHER it runs; the strip surface owns the pixels per frame. One owner for
+    // the flag, so nothing can disagree about whether the page is moving.
+    //
+    // SESSION-ONLY, and it is the one dial here that is deliberately NOT persisted: nobody opens a
+    // book to a moving page. It is absent from globalPrefs, absent from _saveSeriesPrefs, and
+    // load() clears it — three places that would each have to be wrong before a book could reopen
+    // in motion.
+    property bool autoScrollRunning: false
+    // ...and the SPEED is persisted, per series, seeded by the global — the same three-layer shape
+    // as the strip measure, because it is taste about how you read a series, not about one chapter.
+    // 0.25..3.0, default 1.0 (the range ComicReaderState.migrateReaderPrefs already clamps to).
+    property real autoScrollSpeed: 1.0
+
+    // START. Refuses outside Long Strip and refuses an empty book — there is no column to move, and
+    // a flag set true with nothing running would light the menu's Pause chip over a still page.
+    function startAutoScroll() {
+        if (layout !== "long_strip") return
+        if (max <= 0) return
+        autoScrollRunning = true
+    }
+    function pauseAutoScroll() { autoScrollRunning = false }
+    function toggleAutoScroll() { if (autoScrollRunning) pauseAutoScroll(); else startAutoScroll() }
+    // THE ONE pause door every manual source comes through — the wheel, a key, a scrub, a page
+    // turn, a temporary surface, the chrome coming back. Named for what it MEANS rather than what
+    // it does, because the meaning is the contract: a hand touched the reader, so the machine
+    // stops. Resume is explicit, never automatic; there is no counterpart to this function.
+    function manualActivity() { pauseAutoScroll() }
+
+    // Speed. `persist` mirrors setStripLayout's third argument for the same reason: replaying a
+    // series' remembered speed is not the reader MAKING a choice, and persisting from the replay
+    // would stamp the opened book's speed onto the global seed.
+    function setAutoScrollSpeed(value, persist) {
+        var s = Number(value)
+        if (!isFinite(s)) return
+        s = Math.max(0.25, Math.min(3.0, s))
+        autoScrollSpeed = s
+        if (persist === false || !_ready) return
+        globalPrefs.autoScrollSpeed = s
+        _saveSeriesPrefs({ autoScrollSpeed: s })
+    }
     // ================= the ONE overlay coordinator (Task 5) =================
     // Hemanth's approved interaction contract: only ONE temporary surface at a time, and the comic
     // never shifts to make room for it. The chrome only RAISES intents — this is the single place
@@ -193,9 +241,14 @@ Item {
         var n = String(name)
         // re-asking for the surface that is already open CLOSES it — one temporary surface, and the
         // command that raised it is also the way back out.
-        activeOverlay = (activeOverlay === n) ? "" : n
+        var next = (activeOverlay === n) ? "" : n
+        // OPENING a temporary surface stops the motion immediately (the approved rule). CLOSING one
+        // does not, and the asymmetry is the whole point: Start lives inside the Layout menu, so
+        // pressing Layout again to put the menu away must not also stop what you just started.
+        // Pause is a real event; putting a panel away is not.
+        if (next.length) pauseAutoScroll()
+        activeOverlay = next
         restoreCursorAndChrome()
-        // Task 8 pauses Auto-scroll here: any temporary surface must stop the motion immediately.
     }
     // Escape, resolved ONE layer at a time. "never unexpectedly leave the book" is the rule that
     // matters most: Back is the only reader-to-library action, and Escape is not a second one.
@@ -217,6 +270,7 @@ Item {
     // the same terms: it is a smaller surface, but it carries live sliders, and a page turn landing
     // under a drag would be the same defect.
     readonly property bool modalOpen: settingsSheet.opened || pagesOverlay.open || imagePopover.open
+                                      || layoutPopover.open
 
     // The current entry's slot in `chapters` (newest-first). Public and readonly on the old reader
     // (MangaReader.qml:165) and read by tests/manga_tankoban_page_harness.qml — the Task 1 contract
@@ -262,6 +316,11 @@ Item {
     // _suspendRecord true and silently disable all future recording.
     function load() {
         _suspendRecord = true
+        // NOBODY OPENS A BOOK TO A MOVING PAGE. autoScrollRunning is session-only, so it is never
+        // read back from a record — but a CROSSING lands here too, with the previous volume's
+        // motion still live, and inheriting it would drop the reader into the next chapter already
+        // scrolling. Resume is explicit, per entry as well as per session.
+        autoScrollRunning = false
         try {
             _pages = (curChapterId.length && store) ? (store.localPages(curChapterId) || []) : []
 
@@ -413,7 +472,13 @@ Item {
     function _endOfVolumeToast() {
         hud.showToast(hasNext ? "End of volume — Alt+Right for the next" : "End of volume")
     }
+    // ---- EVERY navigation verb pauses Auto-scroll first (Task 8). ----
+    // They are listed one by one rather than hooked to `currentPage` or to contentY, and that
+    // distinction is load-bearing: Auto-scroll MOVES the reading position by design, so a pause
+    // driven off the position changing would stop the motion on its own first tick. What pauses it
+    // is a hand — a key, a click, a scrub, a page turn — never a position.
     function pageNext() {
+        manualActivity()
         if (layout === "paired_pages") {
             var t = _unitBoundsForIndex(currentPage - 1)[1] + 1
             if (t < max) { currentPage = _unitBoundsForIndex(t)[0] + 1; return }
@@ -432,6 +497,7 @@ Item {
         }
     }
     function pagePrev() {
+        manualActivity()
         if (layout === "paired_pages") {
             var t = _unitBoundsForIndex(currentPage - 1)[0] - 1
             if (t >= 0) currentPage = _unitBoundsForIndex(t)[0] + 1
@@ -440,6 +506,7 @@ Item {
         } else _stripScroll(-0.9)
     }
     function goToPageIndex(p1) {
+        manualActivity()
         var p = Math.max(1, Math.min(Math.max(1, max), Math.round(p1)))
         if (mode === "double_page") p = _unitBoundsForIndex(p - 1)[0] + 1
         currentPage = p
@@ -449,6 +516,7 @@ Item {
     // surface clamps the landing itself; the old raw contentY write here is what produced
     // jump-then-slide when a key landed while a wheel glide was still running.
     function _stripScroll(screens) {
+        manualActivity()
         var span = stripSurface.contentHeight - stripSurface.height
         if (span <= 0) return
         stripSurface.smoothScrollBy(screens * stripSurface.height)
@@ -456,6 +524,7 @@ Item {
     // A scrub seek is INSTANT and FINAL — it must land where the thumb was released and carry no
     // leftover glide across the jump, so it takes the halt door rather than the drain.
     function scrubToFraction(frac) {
+        manualActivity()
         var f = Math.max(0, Math.min(1, frac))
         stripFraction = f
         var span = stripSurface.contentHeight - stripSurface.height
@@ -476,9 +545,9 @@ Item {
         return Math.max(1, Math.round(f * (Math.max(1, max) - 1)) + 1)
     }
     // Home/End are instant and final, like a scrub seek — the halt door, not the drain.
-    function firstPageNav() { currentPage = 1; if (mode === "long_strip") stripSurface.haltScrollAt(0) }
+    function firstPageNav() { manualActivity(); currentPage = 1; if (mode === "long_strip") stripSurface.haltScrollAt(0) }
     function lastPageNav() {
-        goToPageIndex(max)
+        goToPageIndex(max)          // ...which pauses Auto-scroll; no second copy of that rule here
         if (mode === "long_strip")
             stripSurface.haltScrollAt(Math.max(0, stripSurface.contentHeight - stripSurface.height))
     }
@@ -491,6 +560,9 @@ Item {
     function setLayout(value) {
         if (!ComicReaderState.layoutIsValid(value)) return   // unknown layout: refuse, never wedge
         if (value === layout) return
+        // NOTE: no pause call here. Changing the layout DOES stop the motion, but the rule lives on
+        // `onLayoutChanged` below — one owner, and it catches every path that moves the layout, not
+        // just this setter. A second copy here would be an untested line that could never fail.
         // KEEP YOUR PAGE across the switch. Ported from the reader this replaced
         // (MangaReader.setStyle): changing how pages are laid out is not a reason to lose your
         // place, and every reader in the family gets this right.
@@ -612,6 +684,10 @@ Item {
     // it. The persistence lives HERE rather than in an onStripWidthPctChanged handler on purpose:
     // that handler fires for any backend change including a per-series apply, so persisting there
     // rewrote the global seed just for opening a book.
+    // NOTE what this deliberately does NOT do: it does not touch autoScrollRunning. Width and
+    // motion are separate by the approved rule, in BOTH directions — starting the motion never
+    // resizes the page, and resizing the page never stops the motion. Dragging the portrait width
+    // while Auto-scroll runs reflows the column underneath it and the motion carries on.
     function setStripLayout(widthPct, gap, persist) {
         if (!core || !core.setStripLayout) return
         if (mode === "long_strip" && stripSurface && stripSurface.active)
@@ -857,6 +933,9 @@ Item {
         property real   gutterStrength: 0.35
         property int    stripWidthPct: 78
         property int    stripGap: 0
+        // The SPEED only — never whether it was running. Auto-scroll's running state is
+        // session-only by the approved rule, so there is deliberately no key for it anywhere.
+        property real   autoScrollSpeed: 1.0
         property bool   memorySaver: false
         // the last LAYOUT and the last ORDER you picked anywhere become the defaults for a series
         // you've never touched (MangaReader.setDirection writes the global AND the per-series
@@ -912,6 +991,13 @@ Item {
         // stamp this series' width onto the global seed merely because you opened the book, and the
         // next undressed series would inherit it - the exact leak per-series is meant to end.
         if (core && core.setStripLayout) setStripLayout(w, g, false)
+
+        // ...and the Auto-scroll SPEED rides exactly the same three layers, for the same reason: a
+        // dense tankobon and a webtoon want different paces. Replayed WITHOUT persisting — applying
+        // memory is not forming it. The running state has no layer at all; it is always paused here.
+        var sp = (rec && rec.autoScrollSpeed !== undefined) ? rec.autoScrollSpeed
+                                                            : globalPrefs.autoScrollSpeed
+        setAutoScrollSpeed(sp, false)
 
         // Layout + order. A record that says NOTHING about either (it may exist only to hold a
         // strip measure or a coupling phase) is not an opinion, so the global last-choice answers
@@ -1057,6 +1143,17 @@ Item {
     // reader actually changes it. `_replayingPrefs` is what keeps merely OPENING a
     // series (which replays that series' remembered night state) from stamping it
     // onto the global seed; the same leak F2 closed for the strip measure.
+    // "Opening chrome ... pauses it immediately" — the approved rule, taken literally. The chrome
+    // coming BACK is the moment; the chrome going away is not (that is the reader being left alone,
+    // which is when Auto-scroll is most useful). Reaching for the mouse is reaching for control.
+    //
+    // Hooked to the transition rather than to the value, so a chrome that is already up — which it
+    // is when you press Start, since Start lives inside a menu — does not pause the thing being
+    // started.
+    onChromeVisibleChanged: if (chromeVisible) pauseAutoScroll()
+    // The strip is the only surface with a column to move. Any layout that is not it has no motion
+    // to be in, so the flag cannot be left true behind a paged surface.
+    onLayoutChanged: if (layout !== "long_strip") pauseAutoScroll()
     onNightVeilChanged:      if (_ready && !_replayingPrefs) globalPrefs.nightVeil = nightVeil
     onGutterStrengthChanged: if (_ready) globalPrefs.gutterStrength = gutterStrength
     // NOTE: stripWidthPct/stripGap are deliberately ABSENT here. They are readonly readbacks of the
@@ -1115,11 +1212,22 @@ Item {
         active: visible
         core: reader.core
         rtl: reader.rtl
+        // Auto-scroll: the shell owns WHETHER, the surface owns HOW FAST it lands per frame. Bound
+        // IN only — the surface never writes either back, so there is one owner for the flag.
+        autoScrollRunning: reader.autoScrollRunning
+        autoScrollSpeed: reader.autoScrollSpeed
         // NO resume binding in: the surface is a painter, and a bound fraction it applies itself is a
         // feedback loop (its own onScrolled writes reader.stripFraction, which re-drives the binding).
         // Restoring is a one-shot COMMAND from the shell (stripRestore -> haltScrollAt/seekToPage).
         onPageInView: function (page) { reader.currentPage = page }
         onScrolled: function (frac) { reader.stripFraction = frac }
+        // A REAL wheel/trackpad gesture. The surface fires this BEFORE it applies its own movement,
+        // so the motion is already stopped by the time the notch lands — the two drives are never
+        // both writing contentY. This is the signal's first consumer in four tasks, and it is the
+        // question it was always answering: was that a hand, or the machine?
+        onManualNavigation: reader.manualActivity()
+        // The column ran out of book. The surface reports; the shell clears the flag.
+        onAutoScrollEnded: reader.pauseAutoScroll()
         // Pin what the reader is LOOKING at. Without this the strip pins nothing and the LRU can
         // evict the on-screen page mid-read (TB2 pins its whole zone every refresh). This also
         // promotes visible pages to the top decode priority, which the strip window alone doesn't.
@@ -1166,6 +1274,24 @@ Item {
     // absent: it owns scrolling, not zoom/pan, and the callers below already guard against null.)
     readonly property var _pagedSurface: activeSurface === "singleSurface" ? singleSurface
                                        : activeSurface === "doubleSurface" ? doubleSurface : null
+
+    // ---- the per-command ANCHOR seam (Task 8), for BOTH popovers ----
+    // A temporary panel hangs under the command that raised it (Cover's shape, and the thing
+    // Hemanth referenced by name). Task 7's Image panel could not do it and said why: the command
+    // row is right-aligned and two of its six commands are live READOUTS whose label widths move
+    // with the reader's layout and order, so the anchor has to be dynamic. The bar publishes each
+    // command's centre, the HUD maps it into these coordinates, and this is where both popovers
+    // read it.
+    //
+    // It reads `hud.commandAnchors` before delegating, and that read is what makes a caller's
+    // BINDING reactive: mapToItem is a one-shot, so a binding that only called the function would
+    // evaluate once and never track the row's relayout. -1 means "not laid out yet", and each
+    // popover treats that as "no seam" and falls back to its own edge placement rather than
+    // parking itself at x=0.
+    function commandAnchorX(command) {
+        var _dep = hud.commandAnchors
+        return hud.commandAnchorX(command)
+    }
 
     // Reflect the mounted paged surface's zoom onto the shell for the HUD/settings (Task 11); the
     // surfaces own zoom/pan authoritatively (they reset PAN per unit/page; zoom persists).
@@ -1366,9 +1492,38 @@ Item {
         objectName: "imagePopover"
         profile: reader.renderProfile
         open: reader.activeOverlay === "image"
+        anchorX: reader.commandAnchorX("image")
         onProfileChangeRequested: function (profile) { reader.setRenderProfile(profile) }
         // Dismissal is a plain assignment, never openOverlay() — openOverlay TOGGLES, so routing a
         // dismissal through it would re-open the surface the reader just closed.
+        onDismissRequested: reader.activeOverlay = ""
+    }
+
+    // The compact Layout menu (Task 8). Raised by the Layout command through the ONE overlay
+    // coordinator, hanging under that command by the same anchor seam the Image panel now uses.
+    //
+    // It shows the three layouts always and Long Strip's contextual controls — portrait width, page
+    // spacing, Auto-scroll start/pause and speed — only while Long Strip is live. It reads facts and
+    // raises intents; the shell owns the width (through the anchoring setStripLayout), the
+    // persistence, and the one Auto-scroll flag.
+    ComicReaderLayoutPopover {
+        id: layoutPopover
+        objectName: "layoutPopover"
+        open: reader.activeOverlay === "layout"
+        anchorX: reader.commandAnchorX("layout")
+        layout: reader.layout
+        stripWidthPct: reader.stripWidthPct
+        stripGap: reader.stripGap
+        autoScrollRunning: reader.autoScrollRunning
+        autoScrollSpeed: reader.autoScrollSpeed
+        onLayoutRequested: function (value) { reader.setLayout(value) }
+        // ONE door carrying BOTH values, straight onto the shell's anchoring setter: rescaling the
+        // column moves every page, so without the anchor a width drag would silently scroll the
+        // reader somewhere else in the book.
+        onStripLayoutRequested: function (widthPct, gap) { reader.setStripLayout(widthPct, gap) }
+        onAutoScrollStartRequested: reader.startAutoScroll()
+        onAutoScrollPauseRequested: reader.pauseAutoScroll()
+        onAutoScrollSpeedRequested: function (speed) { reader.setAutoScrollSpeed(speed) }
         onDismissRequested: reader.activeOverlay = ""
     }
 

@@ -294,6 +294,11 @@ void ComicReaderCore::openEntry(QString entryId, QVariantList pages, QString dir
     opt.viewportWidth = m_stripViewportWidth;
     opt.portraitWidthPct = m_portraitWidthPct;
     opt.gap = m_stripGap;
+    // The render profile SURVIVES an entry crossing (it is a property of how you
+    // want to read this series), so the next volume must open already wearing the
+    // quarter turn rather than laying out square bands and correcting itself the
+    // first time anything else touches the profile.
+    opt.rotationDegrees = m_renderProfile.load().rotation;
     m_strip->rebuild(m_pages, opt);
 
     rebuildUnits();
@@ -341,6 +346,7 @@ void ComicReaderCore::closeEntry() {
     opt.viewportWidth = m_stripViewportWidth;
     opt.portraitWidthPct = m_portraitWidthPct;
     opt.gap = m_stripGap;
+    opt.rotationDegrees = m_renderProfile.load().rotation;
     m_strip->rebuild({}, opt);
     m_units.clear();
 
@@ -479,6 +485,18 @@ void ComicReaderCore::setRenderProfile(QVariantMap profile) {
         // costs a rescale, never a trip back to disk.
         m_scaleCache.clear();
     }
+    // LONG STRIP BAND GEOMETRY FOLLOWS THE TURN (Task 8). The strip is
+    // model-authoritative — its delegates take their height from this model, never
+    // from the loaded Image's implicit size — so it is the ONE surface that cannot
+    // discover a rotation for itself. Left unwired, a page turned 90 degrees was
+    // delivered landscape and drawn PreserveAspectFit inside a portrait-shaped
+    // band: correct pixels, big dead margins above and below every page. Single
+    // and Pair self-correct off the delivered pixmap and need nothing here.
+    //
+    // Unconditional rather than gated on `change`: setRotation compares quarter
+    // turns itself and returns without touching the column when nothing turned,
+    // so there is no second, weaker copy of that test to fall out of step.
+    m_strip->setRotation(next.rotation);
     emit renderProfileChanged();
 }
 
