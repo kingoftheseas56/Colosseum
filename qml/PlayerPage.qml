@@ -1129,6 +1129,7 @@ Item {
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.arrivingStreamUrl = ""
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -1251,6 +1252,13 @@ Item {
     }
 
     function handlePlaybackIssue(code, message) {
+        if (root.arrivingStreamUrl !== "") {
+            // The .part would not open or died mid-read (e.g. an MP4 whose index sits at
+            // the file's end — a prefix of it can't probe). The stream url is the honest
+            // fallback and was the pre-2026-07-31 behaviour for arriving plays.
+            root.switchArrivingToStream()
+            return
+        }
         root.lastPlaybackErrorCode = code || "unknown"
         root.lastPlaybackErrorMessage = message || ""
         if (root.lastPlaybackErrorCode === "network")
@@ -1960,9 +1968,49 @@ Item {
     // parity). Same check-in playTorrent gives a stream: Continue store id + art, online
     // subtitles for the exact episode, resume seek. target: { localPath, id, title, art,
     // kind ("episode"|"movie"), position }.
+    // Non-empty = we are reading a download's growing .part straight off disk. Holds the
+    // stream url to hand over to if the watcher outruns the download frontier. Landing
+    // needs NO handling: the .part→final rename succeeds under mpv's open handle
+    // (verified on this machine 2026-07-31) and the handle keeps reading seamlessly.
+    property string arrivingStreamUrl: ""
+
+    function switchArrivingToStream() {
+        var url = root.arrivingStreamUrl
+        if (!url.length) return
+        root.arrivingStreamUrl = ""
+        var pos = Math.max(0, mpv.position - 2)   // small overlap so the cut lands on a frame he's seen
+        root.playRemoteUrl({ "streamUrl": url, "id": root.mediaId, "title": root.mediaTitle,
+                             "art": root.mediaArt,
+                             "kind": root.subStreamType === "series" ? "episode" : "movie",
+                             "position": pos })
+        root.resumePromptConsumed = true   // mid-watch handover, not a fresh open — never prompt
+    }
+
+    Timer {
+        id: arrivingFrontierWatch
+        interval: 2500
+        repeat: true
+        running: root.arrivingStreamUrl !== "" && root.fileReady
+        onTriggered: {
+            var rows = (typeof Download !== "undefined") ? (Download.jobs() || []) : []
+            var job = null
+            for (var i = 0; i < rows.length; i++)
+                if (rows[i].id === root.mediaId) { job = rows[i]; break }
+            if (!job) {              // landed or cancelled — either way the disk file is all there is
+                root.arrivingStreamUrl = ""
+                return
+            }
+            var ratio = Number(job.ratio || 0)
+            if (mpv.duration > 0 && ratio > 0 && ratio < 1
+                    && mpv.position > mpv.duration * ratio - 12)
+                root.switchArrivingToStream()   // about to outrun the download — go live
+        }
+    }
+
     function playLocalFile(target) {
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
+        root.arrivingStreamUrl = String(t.arrivingUrl || "")
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2014,6 +2062,7 @@ Item {
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
         var t = target || ({})
+        root.arrivingStreamUrl = ""
         root.clearAbLoop()
         root.cancelSleepTimer()
         root.resetSkipSegments()
@@ -2935,6 +2984,13 @@ Item {
             // which owns the recovery ladder. Calling handlePlaybackFailure here too would
             // double-fire the retry (both signals emit on the same error). [Feature 3]
             if (reason === "eof") {
+                if (root.arrivingStreamUrl !== "" && mpv.duration > 0
+                        && mpv.position < mpv.duration - 5) {
+                    // Hit the end of the .part, not the end of the film — the frontier
+                    // watcher's predictive handover missed (burst download, deep seek).
+                    root.switchArrivingToStream()
+                    return
+                }
                 root.recordProgress()
                 if (root.handleSleepEpisodeEnd())
                     return

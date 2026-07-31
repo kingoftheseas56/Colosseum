@@ -18,6 +18,7 @@ Item {
     signal closeRequested()
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
+    signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
 
     property string title: ""
@@ -513,6 +514,21 @@ Item {
         return false;
     }
 
+    // Still downloading? Route through the arriving path (2026-07-31): it plays the
+    // job's .part off disk and only goes live if the watcher outruns the download.
+    function tryPlayArriving(sid) {
+        if (typeof Download === "undefined")
+            return false;
+        var rows = Download.jobs() || [];
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].id === sid && String(rows[i].url || "").length) {
+                page.playArrivingRequested(rows[i]);
+                return true;
+            }
+        }
+        return false;
+    }
+
     function episodeProgressRatio(v) {
         var entry = progressEntry(v);
         var p = Number(entry.progress || 0);
@@ -952,6 +968,8 @@ Item {
                                         var epLabel = page.title + " - S" + page.episodeSeason(ep) + "E" + page.episodeNumber(ep)
                                         if (page.tryPlayLocal(page.episodeStreamId(ep), epLabel, "episode"))
                                             return   // downloaded copy plays directly; sources only for what isn't on disk
+                                        if (page.tryPlayArriving(page.episodeStreamId(ep)))
+                                            return   // mid-download: play the arriving bytes, don't re-source
                                         page.sheetEpisode = ep
                                         sources.show("series", page.episodeStreamId(ep),
                                                      epLabel,
@@ -962,6 +980,8 @@ Item {
                                                      }, page.adjacentEpisodeContext(ep)))
                                     } else {
                                         if (page.tryPlayLocal(page.currentId(), page.title, "movie"))
+                                            return
+                                        if (page.tryPlayArriving(page.currentId()))
                                             return
                                         page.sheetEpisode = null
                                         sources.show("movie", page.currentId(), page.title, {
@@ -1546,6 +1566,8 @@ Item {
                                 var epLabel = page.title + " - S" + page.episodeSeason(ep.modelData) + "E" + page.episodeNumber(ep.modelData)
                                 if (page.tryPlayLocal(page.episodeStreamId(ep.modelData), epLabel, "episode"))
                                     return   // downloaded copy plays directly; sources only for what isn't on disk
+                                if (page.tryPlayArriving(page.episodeStreamId(ep.modelData)))
+                                    return   // mid-download: play the arriving bytes, don't re-source
                                 page.sheetEpisode = ep.modelData
                                 sources.show("series", page.episodeStreamId(ep.modelData),
                                              epLabel, Object.assign({

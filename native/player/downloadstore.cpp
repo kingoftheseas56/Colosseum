@@ -433,6 +433,9 @@ QVariantList DownloadStore::jobs() const {
             // play-while-arriving (2026-07-20): the resolved source url, "" until
             // resolved — the Downloads page offers Play only when this is non-empty.
             {QStringLiteral("url"), j.url},
+            // disk-first arriving play (2026-07-31): the growing .part on disk, so the
+            // player can read downloaded bytes instead of re-streaming them.
+            {QStringLiteral("partPath"), j.partPath},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
             {QStringLiteral("ratio"), j.ratio},

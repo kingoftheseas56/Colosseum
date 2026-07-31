@@ -965,10 +965,15 @@ Window {
         var prog = Progress.get("video", job.id || "")
         var pos = (prog && prog.resume && Number(prog.resume.position || 0) > 0)
                   ? Number(prog.resume.position) : 0
+        // disk-first (2026-07-31): with enough of the file on disk to probe and play
+        // (8MB floor), the session opens on the .part instead of re-streaming bytes we
+        // already have. Below the floor the stream url behaves exactly as before.
+        var part = (Number(job.received || 0) > 8 * 1024 * 1024) ? String(job.partPath || "") : ""
         Sessions.openOrSwitch({
             "appType": "theatre", "contentKind": "movie", "title": job.title || "Video",
             "target": { "showKey": EpisodeBrowser.seriesRootId(job.id || ""),
-                        "streamUrl": job.url, "id": job.id || "", "title": job.title || "",
+                        "streamUrl": job.url, "partPath": part, "id": job.id || "",
+                        "title": job.title || "",
                         "art": job.art || "", "kind": job.kind || "", "position": pos }
         })
     }
@@ -1312,6 +1317,13 @@ Window {
                     var landed = win.downloadedVideoPath(t.id || "")
                     if (landed.length) {
                         t.localPath = landed
+                        playerLayer.item.playLocalFile(t)
+                    } else if (t.partPath && String(t.partPath).length) {
+                        // disk-first (2026-07-31): the job's .part already holds real bytes —
+                        // read those instead of re-streaming them. The player hands over to
+                        // arrivingUrl only if the watcher outruns the download frontier.
+                        t.localPath = t.partPath
+                        t.arrivingUrl = t.streamUrl
                         playerLayer.item.playLocalFile(t)
                     } else {
                         playerLayer.item.playRemoteUrl(t)
@@ -2238,6 +2250,7 @@ Window {
             item.closeRequested.connect(function() { Qt.quit() })
             item.playRequested.connect(win.openMovieSession)
             item.playLocalRequested.connect(win.openLocalVideoSession)
+            item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
         }
     }
