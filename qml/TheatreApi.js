@@ -6,6 +6,7 @@
 // list in via setExtensions() at boot and on every registry change.
 .pragma library
 .import "AddonClient.js" as AddonClient
+.import "TheatreCatalogRules.js" as Rules
 
 var CINEMETA = "https://v3-cinemeta.strem.io";
 var CINEMETA_CATALOGS = "https://cinemeta-catalogs.strem.io/top";
@@ -14,6 +15,22 @@ var ANIME_KITSU = "https://anime-kitsu.strem.fun";
 var JIKAN_CACHE_TTL_MS = 30 * 60 * 1000;
 var jikanCache = {};
 var jikanInflight = {};
+
+// ── Test-only transport seam. When set, EVERY requestJson routes through the adapter
+// (url, done) instead of a live XHR, so the offscreen row harness feeds deterministic
+// Cinemeta top/genre/full-meta fixtures. Production leaves it null.
+var requestAdapter = null;
+function setRequestAdapter(fn) { requestAdapter = fn || null; }
+function resetRequestAdapter() { requestAdapter = null; }
+
+// Deep-catalogue enrichment tuning (spec §12). Full-meta enrichment is bounded to four
+// concurrent requests, deduplicated + coalesced by URL, and cached for 30 minutes.
+var MAX_META_WORKERS = 4;
+var META_CACHE_TTL_MS = 30 * 60 * 1000;
+var PREVIEW_ROW_CAP = 20;
+var ENRICH_CAP = 48;
+var metaCache = {};       // url -> { t, value }
+var metaInFlight = {};    // url -> [done, ...]
 
 // installed extensions, pushed in from QML (Main.qml owns the wiring)
 var extensionsList = [];
@@ -34,6 +51,7 @@ var palette = [
 ];
 
 function requestJson(url, done) {
+    if (requestAdapter) { requestAdapter(url, done); return; }
     var xhr = new XMLHttpRequest();
     var completed = false;
     function finish(value) {
@@ -196,10 +214,24 @@ function metaTitle(meta) {
     return meta && (meta.name || meta.title) ? (meta.name || meta.title) : "Untitled";
 }
 
+// distinct real seasons (season > 0) present in a Cinemeta meta's videos[]
+function seasonCount(videos) {
+    if (!videos || !videos.length) return 0;
+    var seen = {};
+    for (var i = 0; i < videos.length; i++) {
+        var s = videos[i].season;
+        if (s && s > 0) seen[s] = true;
+    }
+    var n = 0;
+    for (var k in seen) n++;
+    return n;
+}
+
 function mapCinemeta(meta, index) {
     var t = tone(index);
+    var videos = meta.videos || [];
     return {
-        id: meta.id || "",
+        id: meta.id || meta.imdb_id || "",
         type: meta.type || "movie",
         caption: metaTitle(meta),
         title: metaTitle(meta),
@@ -209,7 +241,19 @@ function mapCinemeta(meta, index) {
         ghost: meta.type === "series" ? "S" : "T",
         c1: t[0],
         c2: t[1],
-        progress: -1
+        progress: -1,
+        // Factual fields retained for the deep catalogue's ranking/filtering. NEVER synthesised:
+        // an absent field stays empty so a fact-dependent shelf excludes the item (spec §6.1).
+        imdbRating: meta.imdbRating || "",
+        releaseInfo: meta.releaseInfo || (meta.year ? String(meta.year) : ""),
+        runtime: meta.runtime || "",
+        genres: meta.genres || meta.genre || [],
+        country: meta.country || "",
+        status: meta.status || "",
+        popularity: (typeof meta.popularity === "number") ? meta.popularity : undefined,
+        behaviorHints: meta.behaviorHints || ({}),
+        seasonCount: seasonCount(videos),
+        videosKnown: meta.videos !== undefined
     };
 }
 
@@ -482,21 +526,267 @@ function pageSourceLabel(pageKey) {
     return "";
 }
 
-function loadCatalogPage(pageKey, done) {
-    if (pageKey === "shows") {
-        runSpecs(pageKey, withExtensionSpecs(pageKey, showGenreSpecs()), function(result) {
-            done({ pageKey: pageKey, rows: result.rows || [] });
+// ═══ Deep catalogue engine (spec 2026-08-01) ══════════════════════════════════════════════
+// loadCatalogPage(pageKey, options, push): progressive. options = { malCatalog, showExplicit,
+// generation, explicitFilter(item,showExplicit)->bool, nowMs }. push({ pageKey, generation, rows,
+// loading, error }) may fire many times as the pool grows and enrichment lands. Every push echoes
+// the generation so the page can ignore stale callbacks. Backward-compatible with (pageKey, done).
+
+function cinemetaCatalogPaged(type, genre, skip, done) {
+    var path = "/catalog/" + type + "/top";
+    if (genre) path += "/genre=" + encodeURIComponent(genre);
+    if (skip) path += "/skip=" + skip;
+    var urls = [ CINEMETA_CATALOGS + path + ".json", CINEMETA + path + ".json" ];
+    requestJsonWithFallback(urls, function(json) {
+        done(json && json.metas ? json.metas : []);
+    });
+}
+
+function fullMetaUrl(type, id) {
+    var sType = (type === "series") ? "series" : "movie";
+    return CINEMETA + "/meta/" + sType + "/" + id + ".json";
+}
+
+// URL-keyed, 30-min cached, in-flight-coalesced full meta: concurrent callers for one URL
+// collapse to a SINGLE request (spec §12 — deduplicated + coalesced).
+function loadMetaCached(type, id, done) {
+    var url = fullMetaUrl(type, id);
+    var now = Date.now();
+    var hit = metaCache[url];
+    if (hit && (now - hit.t) < META_CACHE_TTL_MS) { done(hit.value); return; }
+    if (metaInFlight[url]) { metaInFlight[url].push(done); return; }
+    metaInFlight[url] = [done];
+    requestJson(url, function(json) {
+        var meta = json && json.meta ? json.meta : null;
+        metaCache[url] = { t: Date.now(), value: meta };
+        var waiters = metaInFlight[url] || [];
+        delete metaInFlight[url];
+        for (var i = 0; i < waiters.length; i++) waiters[i](meta);
+    });
+}
+
+function collectGenres(defs) {
+    var set = {}, out = [];
+    for (var i = 0; i < defs.length; i++) {
+        var r = defs[i].recipe || {};
+        if (r.kind === "genre" && r.genre && !set[r.genre]) { set[r.genre] = true; out.push(r.genre); }
+        else if (r.kind === "genreAny" && r.genres)
+            for (var j = 0; j < r.genres.length; j++)
+                if (!set[r.genres[j]]) { set[r.genres[j]] = true; out.push(r.genres[j]); }
+    }
+    return out;
+}
+
+function collectNeededFields(defs) {
+    var need = {};
+    for (var i = 0; i < defs.length; i++) {
+        var k = (defs[i].recipe || {}).kind;
+        if (k === "runtimeUnder") need.runtime = true;
+        else if (k === "country" || k === "countryExclude") need.country = true;
+        else if (k === "status") need.status = true;
+        else if (k === "longRunning" || k === "seasonExactly") need.season = true;
+    }
+    return need;
+}
+
+function itemMissing(item, need) {
+    if (need.runtime && !item.runtime) return true;
+    if (need.country && !item.country) return true;
+    if (need.status && !item.status) return true;
+    if (need.season && !item.videosKnown) return true;
+    return false;
+}
+
+function mergeMetaFields(item, meta) {
+    if (!meta) return;
+    if (!item.runtime && meta.runtime) item.runtime = meta.runtime;
+    if (!item.country && meta.country) item.country = meta.country;
+    if (!item.status && meta.status) item.status = meta.status;
+    if (!item.imdbRating && meta.imdbRating) item.imdbRating = meta.imdbRating;
+    if ((!item.genres || !item.genres.length) && (meta.genres || meta.genre))
+        item.genres = meta.genres || meta.genre;
+    if (meta.videos !== undefined) { item.videosKnown = true; item.seasonCount = seasonCount(meta.videos); }
+}
+
+// One deduped candidate pool: top + each required genre catalog. Genre-catalog items are
+// tagged with that genre; duplicates merge genre lists. Sequential fetches bound transport
+// and let the page publish progressively; a failed genre fetch simply adds nothing.
+function buildPool(type, genres, onProgress, onDone) {
+    var sources = [""].concat(genres);
+    var pool = [], byId = {}, idx = 0;
+    function addMetas(genre, metas) {
+        for (var k = 0; k < metas.length; k++) {
+            var item = mapCinemeta(metas[k], pool.length + k);
+            if (!item.id) continue;
+            if (genre && item.genres.indexOf(genre) === -1) item.genres = item.genres.concat([genre]);
+            var ex = byId[item.id];
+            if (ex) {
+                for (var g = 0; g < item.genres.length; g++)
+                    if (ex.genres.indexOf(item.genres[g]) === -1) ex.genres.push(item.genres[g]);
+            } else { byId[item.id] = item; pool.push(item); }
+        }
+    }
+    function next() {
+        if (idx >= sources.length) { onDone(pool); return; }
+        var genre = sources[idx]; idx++;
+        cinemetaCatalogPaged(type, genre, 0, function(metas) {
+            addMetas(genre, metas || []);
+            onProgress(pool.slice());
+            next();
         });
+    }
+    next();
+}
+
+// Bounded four-worker full-meta enrichment for fact shelves. Only capped pool items missing
+// a needed field are enriched; requests coalesce + cache by URL; never exceeds MAX_META_WORKERS.
+function enrichPool(type, pool, need, onProgress, onDone) {
+    if (!(need.runtime || need.country || need.status || need.season)) { onDone(); return; }
+    var targets = [];
+    for (var i = 0; i < pool.length && targets.length < ENRICH_CAP; i++)
+        if (itemMissing(pool[i], need)) targets.push(pool[i]);
+    if (!targets.length) { onDone(); return; }
+    var nextIdx = 0, active = 0, finished = 0;
+    function pump() {
+        while (active < MAX_META_WORKERS && nextIdx < targets.length) {
+            var item = targets[nextIdx]; nextIdx++; active++;
+            (function(it) {
+                loadMetaCached(type, it.id, function(meta) {
+                    mergeMetaFields(it, meta);
+                    active--; finished++;
+                    onProgress();
+                    if (finished >= targets.length) onDone(); else pump();
+                });
+            })(item);
+        }
+    }
+    pump();
+}
+
+function rowFromDef(def, items) {
+    return {
+        key: def.key,
+        title: def.title,
+        pageKey: def.pageKey,
+        ranked: def.ranked === true,
+        rotating: def.rotating === true,
+        sourceKind: def.sourceKind || "house",
+        sourceLabel: def.sourceLabel || "Colosseum",
+        placement: def.placement,
+        items: items,
+        seeAllPin: { pageKey: def.pageKey, sourceKind: "house", rowKey: def.key, title: def.title }
+    };
+}
+
+function loadMoviesShowsDeep(pageKey, options, push) {
+    var type = pageKey === "shows" ? "series" : "movie";
+    var generation = options.generation || 0;
+    var showExplicit = options.showExplicit === true;
+    var now = options.nowMs || Date.now();
+    var explicitFilter = options.explicitFilter || null;
+
+    var defs = Rules.defaultRows(pageKey);
+    if (pageKey === "movies") defs = defs.concat(Rules.dailyRows(now, 6));
+    defs.sort(function(a, b) { return a.placement - b.placement; });
+
+    var pool = [];
+    function keep(item) { return explicitFilter ? explicitFilter(item, showExplicit) : true; }
+    function publish(loading) {
+        var visible = pool.filter(keep);
+        var rows = [];
+        for (var i = 0; i < defs.length; i++) {
+            var def = defs[i];
+            var cap = (def.recipe.kind === "top") ? (def.recipe.limit || 10) : PREVIEW_ROW_CAP;
+            var ranked = Rules.rankItems(def.recipe, visible, now).slice(0, cap);
+            if (ranked.length > 0) rows.push(rowFromDef(def, ranked));
+        }
+        push({ pageKey: pageKey, generation: generation, rows: rows, loading: loading === true, error: "" });
+    }
+
+    var genres = collectGenres(defs);
+    var need = collectNeededFields(defs);
+    buildPool(type, genres, function(partial) {
+        pool = partial; publish(true);
+    }, function(full) {
+        pool = full; publish(true);
+        enrichPool(type, pool, need, function() { publish(true); }, function() { publish(false); });
+    });
+}
+
+// Task 4 replaces this with the deep local-first MAL/Jikan/Kitsu ladder. For now: Top 10
+// (+ installed extensions) in the new push shape so the Anime tab keeps working.
+function loadAnimePageDeep(options, push) {
+    var generation = options.generation || 0;
+    runSpecsProgressive("anime", withExtensionSpecs("anime", animeSpecs()), function(result) {
+        var rows = (result.rows || []).map(function(r, i) {
+            var isExt = r.discoverPin !== undefined && r.discoverPin !== null;
+            return {
+                key: isExt ? ("ext-" + i) : (i === 0 ? "top-10" : "anime-" + i),
+                title: r.title, pageKey: "anime", ranked: r.ranked === true, items: r.items,
+                sourceKind: isExt ? "extension" : "house",
+                sourceLabel: isExt ? (r.sub || "") : "Colosseum",
+                seeAllPin: isExt ? r.discoverPin
+                                 : { pageKey: "anime", sourceKind: "house", rowKey: (i === 0 ? "top-10" : "anime-" + i) }
+            };
+        });
+        push({ pageKey: "anime", generation: generation, rows: rows, loading: false, error: "" });
+    });
+}
+
+function loadCatalogPage(pageKey, options, push) {
+    // Legacy shim: loadCatalogPage(pageKey, done) → forward every progressive push to done.
+    if (typeof options === "function" && push === undefined) {
+        var done = options;
+        loadCatalogPage(pageKey, {}, function(payload) { done(payload); });
         return;
     }
-    if (pageKey === "anime") {
-        runSpecsProgressive(pageKey, withExtensionSpecs(pageKey, animeSpecs()), function(result) {
-            done({ pageKey: pageKey, rows: result.rows || [] });
-        });
-        return;
+    options = options || {};
+    push = push || function() {};
+    if (pageKey === "anime") { loadAnimePageDeep(options, push); return; }
+    loadMoviesShowsDeep(pageKey, options, push);
+}
+
+function findDef(pageKey, rowKey) {
+    var defs = Rules.defaultRows(pageKey);
+    if (pageKey === "movies") defs = defs.concat(Rules.dailyRows(Date.now(), 6));
+    for (var i = 0; i < defs.length; i++) if (defs[i].key === rowKey) return defs[i];
+    return null;
+}
+
+// Task 4 fills these with the real MAL/Jikan and extension catalog paging. Minimal for now.
+function loadAnimeRowPage(pin, offset, limit, options, done) {
+    done({ generation: (options || {}).generation || 0, items: [], hasMore: false, error: "" });
+}
+function loadExtensionRowPage(pin, offset, limit, options, done) {
+    done({ generation: (options || {}).generation || 0, items: [], hasMore: false, error: "" });
+}
+
+// loadRowPage(pin, offset, limit, options, done): one See-all page. Expands the recipe's own
+// catalogue window by offset and applies the SAME recipe + explicit filter. A missing row key
+// returns an honest error — it is NEVER silently rerouted to Top 10.
+function loadRowPage(pin, offset, limit, options, done) {
+    options = options || {};
+    var generation = options.generation || 0;
+    limit = limit || 40;
+    offset = offset || 0;
+    if (!pin) { done({ generation: generation, items: [], hasMore: false, error: "missing pin" }); return; }
+    if (pin.sourceKind === "extension" || pin.sourceKind === "service-extension") {
+        loadExtensionRowPage(pin, offset, limit, options, done); return;
     }
-    runSpecs("movies", withExtensionSpecs("movies", movieGenreSpecs()), function(result) {
-        done({ pageKey: "movies", rows: result.rows || [] });
+    if (pin.pageKey === "anime") { loadAnimeRowPage(pin, offset, limit, options, done); return; }
+    var type = pin.pageKey === "shows" ? "series" : "movie";
+    var def = findDef(pin.pageKey, pin.rowKey);
+    if (!def) { done({ generation: generation, items: [], hasMore: false, error: "unknown row: " + pin.rowKey }); return; }
+    var showExplicit = options.showExplicit === true;
+    var explicitFilter = options.explicitFilter || null;
+    var now = options.nowMs || Date.now();
+    var recipe = def.recipe;
+    var genre = (recipe.kind === "genre") ? recipe.genre : "";
+    cinemetaCatalogPaged(type, genre, offset, function(metas) {
+        var mapped = (metas || []).map(mapCinemeta);
+        var visible = explicitFilter ? mapped.filter(function(it) { return explicitFilter(it, showExplicit); }) : mapped;
+        var ranked = Rules.rankItems(recipe, visible, now).slice(0, limit);
+        done({ generation: generation, items: ranked, hasMore: !!(metas && metas.length >= limit), error: "" });
     });
 }
 

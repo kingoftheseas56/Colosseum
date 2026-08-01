@@ -26,15 +26,20 @@ function Invoke-Harness($relPath, $marker) {
 function Stage-Rules {
     Invoke-Harness "tests\theatre_catalog_rules_harness.qml" "THEATRE_CATALOG_RULES_OK"
 }
+function Stage-ApiRows {
+    Invoke-Harness "tests\theatre_api_rows_harness.qml" "THEATRE_API_ROWS_OK"
+}
 
-# Additional stages (ApiRows, Cards, DiscoverRegression, SeeAll, Preferences, Page) are wired
-# by their owning tasks. -Stage All composes every wired slice.
-$wired = @("Rules")
+# Additional stages (Cards, DiscoverRegression, SeeAll, Preferences, Page) are wired by their
+# owning tasks. -Stage All composes every wired slice.
+$wired = @("Rules", "ApiRows")
 
 switch ($Stage) {
     "Rules"             { Stage-Rules }
+    "ApiRows"           { Stage-ApiRows }
     "All" {
         Stage-Rules
+        Stage-ApiRows
         Write-Host "THEATRE_DEEP_CATALOGUE_OK"
     }
     default { throw "unknown -Stage '$Stage' (wired: $($wired -join ', '), All)" }

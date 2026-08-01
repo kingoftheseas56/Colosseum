@@ -28,9 +28,9 @@ function MOVIE_ROWS() {
     return [
         house("top-10",             "Top 10",             0,   { kind: "top", limit: 10 }, true),
         house("recently-released",  "Recently Released",  10,  { kind: "recent" }),
-        house("top-rated",          "Top Rated",          20,  { kind: "topRated", voteFloor: 25000 }),
-        house("hidden-gems",        "Hidden Gems",        30,  { kind: "hiddenGems", voteFloor: 2000, popMax: 60000 }),
-        house("all-time-greats",    "All-Time Greats",    40,  { kind: "topRated", voteFloor: 150000 }),
+        house("top-rated",          "Top Rated",          20,  { kind: "topRated", voteFloor: 25000, popFloorValue: 4, minRating: 7.0 }),
+        house("hidden-gems",        "Hidden Gems",        30,  { kind: "hiddenGems", voteFloor: 2000, popMax: 60000, popMaxValue: 5, minRating: 7.3 }),
+        house("all-time-greats",    "All-Time Greats",    40,  { kind: "topRated", voteFloor: 150000, popFloorValue: 8, minRating: 8.0 }),
         house("under-two-hours",    "Under Two Hours",    50,  { kind: "runtimeUnder", maxMinutes: 120 }),
         house("documentary-movies", "Documentary Movies", 60,  { kind: "genre", genre: "Documentary" }),
         house("animated-movies",    "Animated Movies",    70,  { kind: "genre", genre: "Animation" }),
@@ -51,11 +51,11 @@ function SHOW_ROWS() {
     return [
         house("top-10",                     "Top 10",                     0,   { kind: "top", limit: 10 }, true),
         house("currently-airing",           "Currently Airing",           10,  { kind: "status", status: "Continuing" }),
-        house("top-rated",                  "Top Rated",                  20,  { kind: "topRated", voteFloor: 15000 }),
+        house("top-rated",                  "Top Rated",                  20,  { kind: "topRated", voteFloor: 15000, popFloorValue: 4, minRating: 7.5 }),
         house("long-running-series",        "Long-Running Series",        30,  { kind: "longRunning", minSeasons: 4 }),
         house("recently-premiered",         "Recently Premiered",         40,  { kind: "recent" }),
         house("limited-series",             "Limited Series",             50,  { kind: "seasonExactly", seasons: 1 }),
-        house("all-time-great-series",      "All-Time Great Series",      60,  { kind: "topRated", voteFloor: 80000 }),
+        house("all-time-great-series",      "All-Time Great Series",      60,  { kind: "topRated", voteFloor: 80000, popFloorValue: 8, minRating: 8.2 }),
         house("drama-series",               "Drama Series",               70,  { kind: "genre", genre: "Drama" }),
         house("comedy-series",              "Comedy Series",              80,  { kind: "genre", genre: "Comedy" }),
         house("crime-and-mystery",          "Crime and Mystery",          90,  { kind: "genreAny", genres: ["Crime", "Mystery"] }),
@@ -191,6 +191,14 @@ function votesOf(item) {
           : item.members !== undefined ? item.members : 0, 10);
     return isFinite(v) && v > 0 ? v : 0;
 }
+// Cinemeta previews carry no vote count, only a small-scale `popularity` float. This is
+// the "how established / widely watched" signal the quality shelves gate on when true vote
+// counts are absent; it falls back to members/votes when popularity is not present.
+function popularityOf(item) {
+    var p = parseFloat(item.popularity);
+    if (isFinite(p) && p > 0) return p;
+    return votesOf(item);
+}
 function runtimeMin(item) {
     var m = String(item.runtime || "").match(/(\d+)/);
     return m ? parseInt(m[1], 10) : null;   // null == unknown runtime -> excluded
@@ -255,27 +263,54 @@ function rankItems(recipe, items, nowMs) {
         return dated;
     }
     if (kind === "topRated") {
-        var floor = recipe.voteFloor || 1000;
-        var scored = [];
-        for (var i = 0; i < pool.length; i++) {
-            var w = weighted(ratingOf(pool[i]) || 0, votesOf(pool[i]), mean, floor);
-            if (w >= 0) scored.push({ it: pool[i], w: w });
+        // With real vote counts (anime/MAL): Bayesian weight + hard vote floor.
+        if (pool.some(function(it) { return votesOf(it) > 0; })) {
+            var floor = recipe.voteFloor || 1000;
+            var scored = [];
+            for (var i = 0; i < pool.length; i++) {
+                var w = weighted(ratingOf(pool[i]) || 0, votesOf(pool[i]), mean, floor);
+                if (w >= 0) scored.push({ it: pool[i], w: w });
+            }
+            scored.sort(function(a, b) { return b.w - a.w; });
+            return scored.map(function(x) { return x.it; });
         }
-        scored.sort(function(a, b) { return b.w - a.w; });
-        return scored.map(function(x) { return x.it; });
+        // Cinemeta (no votes): rating desc among titles established enough (popularity floor)
+        // and above a rating floor, so an obscure high score cannot dominate.
+        var pf = recipe.popFloorValue || 0;
+        var mr = recipe.minRating || 0;
+        var rated = pool.filter(function(it) {
+            return ratingOf(it) !== null && ratingOf(it) >= mr && popularityOf(it) >= pf;
+        });
+        rated.sort(function(a, b) {
+            var d = ratingOf(b) - ratingOf(a);
+            return d !== 0 ? d : popularityOf(b) - popularityOf(a);
+        });
+        return rated;
     }
     if (kind === "hiddenGems") {
-        var floorH = recipe.voteFloor || 2000;
-        var popMax = recipe.popMax !== undefined ? recipe.popMax : 250000;
-        var popMin = recipe.popMin || 0;
-        var gems = [];
-        for (var g = 0; g < pool.length; g++) {
-            var v = votesOf(pool[g]);
-            var wg = weighted(ratingOf(pool[g]) || 0, v, mean, floorH);
-            if (wg >= 0 && v <= popMax && v >= popMin) gems.push({ it: pool[g], w: wg });
+        if (pool.some(function(it) { return votesOf(it) > 0; })) {
+            var floorH = recipe.voteFloor || 2000;
+            var popMax = recipe.popMax !== undefined ? recipe.popMax : 250000;
+            var popMin = recipe.popMin || 0;
+            var gems = [];
+            for (var g = 0; g < pool.length; g++) {
+                var v = votesOf(pool[g]);
+                var wg = weighted(ratingOf(pool[g]) || 0, v, mean, floorH);
+                if (wg >= 0 && v <= popMax && v >= popMin) gems.push({ it: pool[g], w: wg });
+            }
+            gems.sort(function(a, b) { return b.w - a.w; });
+            return gems.map(function(x) { return x.it; });
         }
-        gems.sort(function(a, b) { return b.w - a.w; });
-        return gems.map(function(x) { return x.it; });
+        // Cinemeta (no votes): quality titles OUTSIDE the most-popular band — good rating,
+        // low popularity. Distinct from Top Rated (which requires high popularity).
+        var mrG = recipe.minRating || 0;
+        var pMaxV = recipe.popMaxValue !== undefined ? recipe.popMaxValue : Infinity;
+        var gemsC = pool.filter(function(it) {
+            return ratingOf(it) !== null && ratingOf(it) >= mrG
+                && popularityOf(it) > 0 && popularityOf(it) <= pMaxV;
+        });
+        gemsC.sort(function(a, b) { return ratingOf(b) - ratingOf(a); });
+        return gemsC;
     }
     if (kind === "runtimeUnder") {
         var maxM = recipe.maxMinutes || 120;
