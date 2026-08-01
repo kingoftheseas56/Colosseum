@@ -44,6 +44,23 @@ Window {
         x: win.width - 40; y: 300; width: 120; height: 40; color: "#803030"
     }
 
+    // A core-QtQuick ListView (no Controls import): its leaf class is
+    // "QQuickListView", which carries NO "Flickable" token — so ui-snapshot must
+    // walk the SUPERCLASS chain (QQuickListView -> QQuickFlickable) to mark it
+    // interactive. This is the fixture that pins the chain-walk over a leaf check.
+    ListView {
+        objectName: "mainList"
+        x: 100; y: 260; width: 200; height: 120; clip: true
+        model: 5
+        delegate: Rectangle {
+            required property int index
+            objectName: "listRow" + index
+            width: 200; height: 24
+            color: index % 2 ? "#181c26" : "#12151d"
+            Text { text: "item " + parent.index; color: "#c0c0c0"; x: 6; y: 4 }
+        }
+    }
+
     Flickable {
         objectName: "longList"
         x: 400; y: 100; width: 300; height: 400

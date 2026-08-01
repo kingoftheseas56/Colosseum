@@ -190,7 +190,20 @@ private:
     // necessarily "main"; with one root window (Colosseum today) they coincide.
     QQuickWindow* mainWindow() const;
     QQuickItem* findItem(const QString& objectName) const;
-    QQuickItem* resolveTarget(const QString& ref) const;   // objectName or "h<N>" handle
+
+    // THE HANDLE MODEL (Task 4). ui-snapshot returns every actionable element with
+    // an OPAQUE session handle — token shape "s<gen>h<n>", to be treated as a
+    // cookie, not parsed by clients. resolveTarget(ref) is the ONE resolver every
+    // targeted read/grab routes through: a handle-shaped ref resolves via m_handles
+    // (handle takes precedence), anything else is an objectName resolved by
+    // findItem() unchanged. A handle is SINGLE-SNAPSHOT-SCOPED: each ui-snapshot
+    // bumps m_snapshotEpoch and rebuilds m_handles, so a token minted by an earlier
+    // snapshot is a clean miss (NO_SUCH_ITEM), never a silent hit on the new Nth
+    // item. m_handles is GLOBAL server state — a new snapshot from ANY client
+    // invalidates every prior handle — which is fine for this local single-user
+    // bridge. Handles live only until the next snapshot; names live as long as the
+    // item does.
+    QQuickItem* resolveTarget(const QString& ref) const;   // objectName or snapshot handle
 
     // Per-connection state. `spent` latches once a command line has been taken
     // from this connection: the wire contract is one command per connection, so
@@ -206,7 +219,8 @@ private:
     QString m_listenError;
     QHash<QString, Command> m_commands;
     QHash<QLocalSocket*, Conn> m_conns;
-    QHash<QString, QPointer<QQuickItem>> m_handles;   // last ui-snapshot
+    QHash<QString, QPointer<QQuickItem>> m_handles;   // last ui-snapshot, keyed "h<n>"
+    int m_snapshotEpoch = 0;   // bumped per ui-snapshot; embedded in each handle token
     QString m_runDir;
     bool m_runDirCreated = false;
     int m_idleTimeoutMs = 0;

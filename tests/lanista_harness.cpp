@@ -582,52 +582,96 @@ int main(int argc, char** argv)
 
         // ── Task 4: ui-snapshot — every actionable element, each with a handle ─
         // Playwright's model, QML-native: ONE call returns everything an agent
-        // could act on, each carrying a session handle valid until the NEXT
-        // snapshot. centerX/centerY are SCENE/LOGICAL units (documented in
-        // cmdUiSnapshot), the same space get-state/ui-query/dump-ui speak.
+        // could act on, each carrying an OPAQUE session handle valid only within
+        // the snapshot that minted it. centerX/centerY are SCENE/LOGICAL units
+        // (documented in cmdUiSnapshot), the same space get-state/ui-query speak.
         QJsonObject sn = call(pipe, {{"cmd", "ui-snapshot"}, {"seq", 60}});
         QJsonArray els = sn.value("elements").toArray();
         require(!els.isEmpty(), "snapshot lists elements" + why());
-        bool sawMouse = false; QString mouseHandle;
+        bool sawMouse = false, sawList = false;
+        QString mouseHandle, buttonHandle;
         for (const QJsonValue& v : els) {
             const QJsonObject el = v.toObject();
-            if (el.value("objectName").toString() == QStringLiteral("counterMouse")) {
+            const QString name = el.value("objectName").toString();
+            if (name == QStringLiteral("counterMouse")) {
                 sawMouse = true; mouseHandle = el.value("handle").toString();
                 require(el.value("interactive").toBool(), "MouseArea marked interactive");
             }
+            if (name == QStringLiteral("counterButton"))
+                buttonHandle = el.value("handle").toString();
+            if (name == QStringLiteral("mainList")) {
+                sawList = true;
+                // The chain-walk pin: ListView's LEAF class "QQuickListView" carries
+                // no "Flickable" token; only its QQuickFlickable BASE does. A
+                // leaf-only substring check reports interactive:false here.
+                require(el.value("interactive").toBool(),
+                        "ListView marked interactive via superclass chain (QQuickFlickable base)"
+                            + why());
+            }
         }
-        require(sawMouse && mouseHandle.startsWith("h"),
+        // Handles are OPAQUE: require non-empty and prove resolvable below; never
+        // assume an internal format.
+        require(sawMouse && !mouseHandle.isEmpty(),
                 "the counter's MouseArea carries a handle" + why());
+        require(sawList, "ui-snapshot includes the ListView fixture" + why());
 
-        // count == elements.length, and handles are unique AND sequential h1..hN.
+        // count == elements.length, and every handle is non-empty AND unique.
         require(sn.value("count").toInt() == els.size(),
                 "ui-snapshot count matches elements[] length" + why());
         {
             QStringList handles;
-            for (const QJsonValue& v : els)
-                handles << v.toObject().value("handle").toString();
+            for (const QJsonValue& v : els) {
+                const QString h = v.toObject().value("handle").toString();
+                require(!h.isEmpty(), "every element carries a non-empty handle" + why());
+                handles << h;
+            }
             require(QSet<QString>(handles.begin(), handles.end()).size() == handles.size(),
                     "ui-snapshot handles are unique" + why());
-            bool sequential = true;
-            for (int i = 0; i < handles.size(); ++i)
-                if (handles.at(i) != QStringLiteral("h") + QString::number(i + 1))
-                    sequential = false;
-            require(sequential, "ui-snapshot handles are sequential h1..hN" + why());
         }
 
-        // ── Task 4: resolveTarget round-trip — a handle works as a read target ─
-        // The pin on resolveTarget: feed the snapshot's handle back in as the
-        // `object` of a read and it must resolve to the SAME item as the by-name
-        // lookup. Proves handles resolve in reads AND that there is ONE resolver
-        // (handle-or-name), not two that can drift.
-        QJsonObject uqByName = call(pipe, {{"cmd", "ui-query"}, {"seq", 61},
-            {"payload", QJsonObject{{"object", "counterMouse"}}}});
-        QJsonObject uqByHandle = call(pipe, {{"cmd", "ui-query"}, {"seq", 62},
-            {"payload", QJsonObject{{"object", mouseHandle}}}});
-        require(uqByHandle.value("type").toString() == "reply",
-                "ui-query resolves a snapshot handle" + why());
-        require(uqByHandle.value("rect").toObject() == uqByName.value("rect").toObject(),
-                "resolveTarget: handle and name resolve to the SAME item (identical rect)" + why());
+        // ── Task 4: resolveTarget round-trip — a handle resolves to the SAME item ─
+        // Identity-exact: read the objectName back THROUGH the handle (a rect
+        // compare is weak — counterMouse and its parent share geometry). Proves the
+        // handle resolves in a read AND that there is ONE resolver, not two.
+        QJsonObject qgByHandle = call(pipe, {{"cmd", "qml-get"}, {"seq", 61},
+            {"payload", QJsonObject{{"object", mouseHandle},
+                                    {"props", QJsonArray{"objectName"}}}}});
+        require(qgByHandle.value("type").toString() == "reply",
+                "qml-get resolves a snapshot handle" + why());
+        require(qgByHandle.value("props").toObject().value("objectName").toString()
+                    == QStringLiteral("counterMouse"),
+                "resolveTarget: the handle resolves to the SAME item (objectName round-trips)"
+                    + why());
+
+        // ── Task 4: grab by handle — attachGrab routes through resolveTarget ──
+        // A snapshot handle is a grab target too. counterButton grabs cleanly in
+        // both configs (offscreen software SG; RHI with QSG_NO_VSYNC=1), so its
+        // handle must land a PNG on disk. Negative control: revert attachGrab to
+        // findItem() and the handle is not a name -> GRAB_TARGET_NOT_FOUND.
+        require(!buttonHandle.isEmpty(), "snapshot carries counterButton's handle" + why());
+        QJsonObject hg = call(pipe, {{"cmd", "get-state"}, {"seq", 63},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", buttonHandle}}}}}},
+            8000);
+        require(hg.value("type").toString() == "reply",
+                "grab by a snapshot handle replies" + why());
+        require(QFileInfo::exists(hg.value("grabPath").toString()),
+                "grab by a snapshot handle lands a PNG on disk: "
+                    + hg.value("grabPath").toString() + why());
+
+        // ── Task 4: snapshot-scoped handles — a superseded handle misses cleanly ─
+        // A handle is single-snapshot-scoped: taking a NEW snapshot (from ANY
+        // client) bumps the epoch and clears m_handles, so a handle from the prior
+        // snapshot must now MISS deterministically — never silently resolve to the
+        // new snapshot's Nth item. Negative control: drop resolveTarget's epoch
+        // gate and the stale handle resolves to snapshot B's same-index item.
+        const QString staleHandle = mouseHandle;             // minted by snapshot A (seq 60)
+        call(pipe, {{"cmd", "ui-snapshot"}, {"seq", 64}});   // snapshot B: new epoch, m_handles rebuilt
+        QJsonObject stale = call(pipe, {{"cmd", "qml-get"}, {"seq", 65},
+            {"payload", QJsonObject{{"object", staleHandle},
+                                    {"props", QJsonArray{"objectName"}}}}});
+        require(stale.value("type").toString() == "error"
+                    && stale.value("code").toString() == "NO_SUCH_ITEM",
+                "a handle from a superseded snapshot misses cleanly (NO_SUCH_ITEM)" + why());
 
         std::cout << "LANISTA_OK\n";
         rc = 0;

@@ -12,6 +12,7 @@
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
 #include <QQuickWindow>
+#include <QRegularExpression>
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTimer>
@@ -186,8 +187,9 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
             [this](const QJsonObject& p, Replier reply) { cmdUiQuery(p, std::move(reply)); });
     addRead(QStringLiteral("dump-ui"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdDumpUi(p)); });
-    // Task 4: ui-snapshot fills m_handles (non-const), so it answers by returning
-    // its own body rather than owning the Replier — no target to fail() on.
+    // Task 4: ui-snapshot has no target to fail() on (like dump-ui, which is also
+    // const-shaped in that sense), so it answers by returning its own body rather
+    // than owning the Replier. (It is non-const because it rebuilds m_handles.)
     addRead(QStringLiteral("ui-snapshot"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdUiSnapshot(p)); });
 
@@ -487,19 +489,32 @@ QQuickItem* LanistaServer::findItem(const QString& objectName) const
     return nullptr;
 }
 
-// ONE resolver, two forms — the reason the read commands route here rather than
-// call findItem() straight. An "h<N>" ref that names a live entry in the last
-// ui-snapshot's m_handles resolves to THAT item; anything else (including an "h…"
-// that is not a current handle, or whose item has since been destroyed so the
-// QPointer went null) falls through to findItem(), which treats it as an
-// objectName. So name lookups are unchanged (behaviour-preserving) and handle
-// support is purely additive — a snapshot handle works wherever an objectName does.
+// ONE resolver, two forms — the reason the read/grab commands route here rather
+// than call findItem() straight (see the handle-model note in the header).
+//
+// A HANDLE is an opaque token of shape "s<gen>h<n>", where <gen> is the snapshot
+// epoch that minted it. It resolves ONLY when <gen> is the CURRENT epoch AND the
+// item is still live: a token from a superseded snapshot (any client's new
+// ui-snapshot bumps the epoch and clears m_handles) is a CLEAN MISS — return
+// nullptr, so the caller answers NO_SUCH_ITEM — NEVER a silent resolution to this
+// snapshot's Nth item, and NEVER a fall-through that treats the token as an
+// objectName. The epoch gate is what makes staleness deterministic; m_handles is
+// keyed by the gen-independent "h<n>" so the gate is the only thing that rejects
+// a stale token (drop the gate and "s1h3" would resolve to snapshot 2's 3rd item).
+//
+// A ref that is NOT handle-shaped is an objectName and falls through to findItem()
+// unchanged — name lookups are behaviour-preserving; handle support is additive.
 QQuickItem* LanistaServer::resolveTarget(const QString& ref) const
 {
-    if (ref.startsWith(QLatin1Char('h'))) {
-        const auto it = m_handles.constFind(ref);
-        if (it != m_handles.constEnd() && !it->isNull())
-            return it->data();
+    static const QRegularExpression kHandle(QStringLiteral("^s(\\d+)h(\\d+)$"));
+    const QRegularExpressionMatch m = kHandle.match(ref);
+    if (m.hasMatch()) {
+        if (m.captured(1).toInt() == m_snapshotEpoch) {
+            const auto it = m_handles.constFind(QStringLiteral("h") + m.captured(2));
+            if (it != m_handles.constEnd() && !it->isNull())
+                return it->data();
+        }
+        return nullptr;   // stale-epoch or dangling handle: a clean miss
     }
     return findItem(ref);
 }
@@ -626,34 +641,44 @@ QJsonObject LanistaServer::cmdDumpUi(const QJsonObject&) const
 }
 
 // ui-snapshot: Playwright's model, QML-native. ONE call returns every element an
-// agent could act on, each with a session HANDLE (h1, h2, …). Reuses the shared
+// agent could act on, each with an opaque session HANDLE. Reuses the shared
 // walkVisual() collector (a visit that always returns false = collect every item),
 // exactly like cmdDumpUi — no third tree walk.
 //
-// Non-const because it REBUILDS m_handles. Clearing at the top is the contract: a
-// handle is valid only until the NEXT snapshot. m_handles maps a handle to a
-// QPointer, so an item destroyed before the next snapshot resolves to null in
-// resolveTarget() rather than dangling — which is how a handle can safely outlive
-// its item between reads.
+// Each snapshot opens a NEW epoch (++m_snapshotEpoch) and rebuilds m_handles, so a
+// handle is single-snapshot-scoped: the token embeds its epoch ("s<gen>h<n>") and
+// resolveTarget() rejects any token whose epoch is not current (see its note).
+// m_handles is GLOBAL server state — a new snapshot from ANY client invalidates
+// every prior handle — which is acceptable under the local single-user model this
+// bridge serves. QPointer values mean an item destroyed within the same epoch also
+// resolves to null rather than dangling.
 QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
 {
+    ++m_snapshotEpoch;
     m_handles.clear();
     QJsonArray elements;
     int n = 0;
     if (QQuickWindow* w = mainWindow()) {
         walkVisual(w->contentItem(), 0, [&](QQuickItem* it, int) {
             const QString cls = QString::fromLatin1(it->metaObject()->className());
-            // interactive = the className is (or subclasses, via the Qt base name
-            // in the metaobject chain) something you can drive. A substring match,
-            // not a type registry: inline/delegate QML types get generated class
-            // names, but the Qt base ("QQuickMouseArea", "QQuickTextInput", …)
-            // survives in the name.
-            const bool interactive =
-                cls.contains(QStringLiteral("MouseArea"))
-                || cls.contains(QStringLiteral("TextInput"))
-                || cls.contains(QStringLiteral("TextEdit"))
-                || cls.contains(QStringLiteral("Flickable"))
-                || cls.contains(QStringLiteral("Button"));
+            // interactive = the item DERIVES from a Qt interactive base. We walk the
+            // metaobject SUPERCLASS CHAIN, not just the leaf className: className()
+            // reports the MOST-DERIVED type, so a ListView is "QQuickListView" (no
+            // "Flickable" substring) and a Controls button is its concrete type —
+            // the recognisable token only appears on a BASE class. Honest limit:
+            // this catches Qt-DERIVED interactive types (MouseArea; Flickable and
+            // its ListView/GridView subclasses; TextInput/TextEdit and their bases;
+            // AbstractButton/Button) via those base names. It does NOT detect a plain
+            // Item made interactive only by a CHILD TapHandler/MouseArea — a handler
+            // is a child, not a base, so it is invisible to a superclass walk.
+            bool interactive = false;
+            for (const QMetaObject* mo = it->metaObject(); mo && !interactive;
+                 mo = mo->superClass()) {
+                const QByteArray bn(mo->className());
+                interactive = bn.contains("MouseArea") || bn.contains("Flickable")
+                           || bn.contains("TextInput") || bn.contains("TextEdit")
+                           || bn.contains("AbstractButton") || bn.contains("Button");
+            }
             // Actionable = worth handing to an agent: interactive OR named (a named
             // non-interactive item is a landmark the scene author called out). And
             // it must be on-screen with real area — a hidden or zero-sized item has
@@ -663,8 +688,13 @@ QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
                 || it->width() <= 0 || it->height() <= 0)
                 return false;
 
-            const QString handle = QStringLiteral("h") + QString::number(++n);
-            m_handles.insert(handle, QPointer<QQuickItem>(it));
+            // m_handles is keyed by the gen-INDEPENDENT "h<n>"; the epoch lives in
+            // the opaque token the client receives, and resolveTarget() gates on it.
+            ++n;
+            m_handles.insert(QStringLiteral("h") + QString::number(n),
+                             QPointer<QQuickItem>(it));
+            const QString token =
+                QStringLiteral("s%1h%2").arg(m_snapshotEpoch).arg(n);
 
             // centerX/centerY are the item CENTER in SCENE / LOGICAL units (via
             // mapToScene), the SAME space get-state, ui-query and dump-ui speak —
@@ -675,7 +705,7 @@ QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
             const QPointF center =
                 it->mapToScene(QPointF(it->width() / 2.0, it->height() / 2.0));
             elements.append(QJsonObject{
-                {QStringLiteral("handle"), handle},
+                {QStringLiteral("handle"), token},
                 {QStringLiteral("objectName"), it->objectName()},
                 {QStringLiteral("class"), cls},
                 {QStringLiteral("interactive"), interactive},
@@ -753,7 +783,10 @@ void LanistaServer::attachGrab(const QJsonObject& payload, QJsonObject body, Rep
         return;
     }
 
-    QQuickItem* item = findItem(target);
+    // resolveTarget (not findItem): "window" is handled above, so past this point
+    // a target is an objectName OR a ui-snapshot handle — a snapshot handle grabs
+    // its item just as it reads (behaviour-preserving for objectNames).
+    QQuickItem* item = resolveTarget(target);
     if (!item) {
         reply.fail("GRAB_TARGET_NOT_FOUND", target);
         return;
