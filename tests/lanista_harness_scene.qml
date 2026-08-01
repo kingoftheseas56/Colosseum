@@ -89,7 +89,6 @@ Window {
         id: keySink
         objectName: "keySink"
         x: 100; y: 400; width: 200; height: 32
-        focus: true
         property string lastKey: ""
         Keys.onPressed: (event) => { keySink.lastKey = event.text }
         MouseArea {

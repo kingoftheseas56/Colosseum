@@ -3,6 +3,7 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -177,6 +178,9 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     m_grabTimeoutMs = qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_GRAB_MS");
     if (m_grabTimeoutMs <= 0)
         m_grabTimeoutMs = kGrabTimeoutMs;   // the override exists for the timeout test
+
+    // The monotonic clock every synthetic driving event stamps itself from.
+    m_inputClock.start();
 
     // ── command registry ────────────────────────────────────────────────
     addRead(QStringLiteral("ping"),
@@ -772,9 +776,11 @@ void LanistaServer::cmdUiClick(const QJsonObject& p, Replier reply) const
     const QPointF globalPos = w->mapToGlobal(scenePos.toPoint());
     QMouseEvent press(QEvent::MouseButtonPress, scenePos, globalPos,
                       Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    press.setTimestamp(m_inputClock.elapsed());
     QCoreApplication::sendEvent(w, &press);
     QMouseEvent release(QEvent::MouseButtonRelease, scenePos, globalPos,
                         Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    release.setTimestamp(m_inputClock.elapsed());
     QCoreApplication::sendEvent(w, &release);
     reply.reply({{QStringLiteral("clicked"), item->objectName()},
                  {QStringLiteral("atX"), scenePos.x()},
@@ -809,8 +815,10 @@ void LanistaServer::cmdUiKeypress(const QJsonObject& p, Replier reply) const
     if (key >= 0x20 && key <= 0x7e && (mods & ~Qt::ShiftModifier) == Qt::NoModifier)
         text = QChar(key);
     QKeyEvent press(QEvent::KeyPress, key, mods, text);
+    press.setTimestamp(m_inputClock.elapsed());
     QCoreApplication::sendEvent(w, &press);
     QKeyEvent release(QEvent::KeyRelease, key, mods, text);
+    release.setTimestamp(m_inputClock.elapsed());
     QCoreApplication::sendEvent(w, &release);
     reply.reply({{QStringLiteral("pressed"), keyStr}});
 }
@@ -835,6 +843,7 @@ void LanistaServer::cmdUiTextInput(const QJsonObject& p, Replier reply) const
     const QString text = p.value(QStringLiteral("text")).toString();
     for (const QChar ch : text) {
         QKeyEvent ev(QEvent::KeyPress, 0, Qt::NoModifier, QString(ch));
+        ev.setTimestamp(m_inputClock.elapsed());
         QCoreApplication::sendEvent(w, &ev);
     }
     reply.reply({{QStringLiteral("typed"), text}});
@@ -863,6 +872,7 @@ void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
     const QPointF globalPos = w->mapToGlobal(scenePos.toPoint());
     QWheelEvent ev(scenePos, globalPos, QPoint(0, 0), QPoint(0, dy),
                    Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    ev.setTimestamp(m_inputClock.elapsed());
     QCoreApplication::sendEvent(w, &ev);
     reply.reply({{QStringLiteral("scrolled"), item->objectName()},
                  {QStringLiteral("dy"), dy}});
@@ -892,8 +902,11 @@ void LanistaServer::cmdUiWaitFor(const QJsonObject& p, Replier reply)
                     timer->deleteLater();
                     return;
                 }
-                // Resolve by NAME each poll (a stable handle across a long wait):
-                // a missing item simply keeps the wait going to WAIT_TIMEOUT.
+                // resolveTarget each poll — handle-or-name. A NAME is the stable
+                // choice across a long wait: a snapshot HANDLE goes stale the next
+                // time any client takes a ui-snapshot, and from then on resolves to
+                // a clean miss — so the wait simply rides on to WAIT_TIMEOUT rather
+                // than ever matching the wrong item.
                 if (QQuickItem* item = resolveTarget(objName)) {
                     if (QJsonValue::fromVariant(item->property(propKey.constData()))
                         == wanted) {

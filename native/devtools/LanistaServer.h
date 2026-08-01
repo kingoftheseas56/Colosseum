@@ -32,6 +32,7 @@
 //                           a window, zero-sized, or the window never rendered)
 //   GRAB_SAVE_FAILED      — pixels taken, PNG could not be written
 //   GRAB_TIMEOUT          — grabToImage's callback never fired (see attachGrab)
+#include <QElapsedTimer>
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
@@ -178,6 +179,15 @@ private:
     // and ui-keypress on BAD_KEY), so they own the Replier and fail()/reply()
     // themselves, exactly like the Task 3 fallible reads. The DRIVE gate is
     // enforced centrally in dispatch(); the handlers never re-check it.
+    //
+    // KEYS vs TEXT: ui-keypress is for keys/shortcuts — QKeySequence NORMALISES
+    // the name, so "a" and "A" both parse to Key_A (text "A"); use it for
+    // Enter/Tab/Ctrl+S and the like. ui-text-input is the channel for LITERAL
+    // characters, sending each char's text verbatim into the focused field.
+    //
+    // These four are const: the SERVER object is untouched. That is NOT
+    // "observational" — the APP is genuinely driven, via synthetic events posted
+    // to its window; const only says the mutation lands in the scene, not in us.
     void cmdUiClick(const QJsonObject& p, Replier reply) const;
     void cmdUiKeypress(const QJsonObject& p, Replier reply) const;
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
@@ -232,6 +242,12 @@ private:
                                // "no timeout" — that would leak connections).
     int m_dispatchCount = 0;
     int m_grabCounter = 0;
+    // Monotonic source for synthetic-event timestamps. Started in the ctor; each
+    // driving command stamps its QMouseEvent/QKeyEvent/QWheelEvent with elapsed()
+    // so a press/release pair share a near-identical time and successive commands
+    // are strictly later — the sequence Qt needs to keep chained clicks from
+    // coalescing as double-clicks and to give wheel momentum a defined direction.
+    QElapsedTimer m_inputClock;
     bool m_orphanChecked = false;      // selftest-orphan only
     bool m_orphanCouldReply = false;   // selftest-orphan only
 };

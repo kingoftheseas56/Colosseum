@@ -755,12 +755,18 @@ int main(int argc, char** argv)
             {"payload", QJsonObject{{"target", "mainList"}, {"dy", -240}}}});
         require(scrolled.value("scrolled").toString() == QStringLiteral("mainList"),
                 "ui-scroll names the item it scrolled" + why());
-        settle(600);   // let the wheel-driven flick advance the content position
-        QJsonObject afterScroll = call(pipe, {{"cmd", "qml-get"}, {"seq", 82},
-            {"payload", QJsonObject{{"object", "mainList"},
-                                    {"props", QJsonArray{"contentY"}}}}});
-        const double cyAfter =
-            afterScroll.value("props").toObject().value("contentY").toDouble();
+        // The wheel drives a FLICK that advances the content over later frames.
+        // A fixed sleep here would be a wall-clock wait on an async effect — the
+        // exact flake lanista exists to kill, so it has no place in lanista's own
+        // suite. Poll contentY (bounded, ~2s cap) and break the instant it moves.
+        double cyAfter = cyBefore;
+        for (int i = 0; i < 40 && cyAfter <= cyBefore; ++i) {
+            settle(50);
+            cyAfter = call(pipe, {{"cmd", "qml-get"}, {"seq", 82},
+                {"payload", QJsonObject{{"object", "mainList"},
+                                        {"props", QJsonArray{"contentY"}}}}})
+                          .value("props").toObject().value("contentY").toDouble();
+        }
         require(cyAfter > cyBefore,
                 QStringLiteral("ui-scroll REALLY moved contentY (%1 -> %2)")
                     .arg(cyBefore).arg(cyAfter) + why());
