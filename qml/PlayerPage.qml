@@ -2049,6 +2049,10 @@ Item {
         root.mediaLogo = (localCtx.logo && String(localCtx.logo).length)
             ? String(localCtx.logo)
             : (_localLogoTt ? "https://live.metahub.space/logo/medium/" + _localLogoTt[1] + "/img" : "")
+        // Loader backdrop + episode line, same parity as playTorrent (episode still, else backdrop,
+        // else the poster; line only if the context carries a clean one) — never the last stream's.
+        root.mediaLoadingArt  = localCtx.episodeStill || localCtx.loaderBackdrop || t.art || ""
+        root.mediaLoadingLine = localCtx.episodeLine || ""
         root.playbackQueue = localCtx.episodeQueue || []
         root.playbackQueueIndex = localCtx.episodeIndex !== undefined
                                   ? Number(localCtx.episodeIndex) : -1
@@ -2107,6 +2111,8 @@ Item {
         var _arrLogoTt = String(root.mediaId).match(/^(tt\d+)/)
         root.mediaLogo = _arrCtxLogo.length ? _arrCtxLogo
             : (_arrLogoTt ? "https://live.metahub.space/logo/medium/" + _arrLogoTt[1] + "/img" : "")
+        root.mediaLoadingArt  = (t.playbackContext || ({})).episodeStill || (t.playbackContext || ({})).loaderBackdrop || t.art || ""
+        root.mediaLoadingLine = (t.playbackContext || ({})).episodeLine || ""
         root.playbackQueue = []
         root.playbackQueueIndex = -1
         root.playbackQueueOrderingMode = ""
@@ -2305,6 +2311,10 @@ Item {
                                           // downloaded/direct video keeps the last stream's logo on the
                                           // pause card + loader (One Piece over Hawkeye). Non-stream
                                           // paths repopulate it below from their own identity.
+        root.mediaLoadingArt = ""         // fresh media: same blind spot as mediaLogo — the loader
+        root.mediaLoadingLine = ""        // backdrop + episode line are playTorrent-only, so clear
+                                          // them here too, else a downloaded/direct video flashes the
+                                          // previous stream's art + "S.. E.." line on the loader.
         root.pauseCardShown = false
     }
 
