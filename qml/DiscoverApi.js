@@ -164,3 +164,114 @@ function resolvePin(installed, pin) {
 function loadPage(catalog, selections, skip, done) {
     AddonClient.fetchCatalogUrl(urlFor(catalog, selections, skip), done);
 }
+
+// ───────────────── shared-shell adapter translation (Task 3, arc 2026-08-01) ─────────────────
+// The Discover shell (DiscoverBrowser.qml) speaks a WORLD-NEUTRAL contract. These helpers
+// re-shape what the derivations ABOVE already return into that contract — they add NO new
+// transport and change NO existing behaviour (same Cinemeta fallback, same URLs, same
+// ordering, same required-extra defaults). The Theatre wrapper wires them into its adapter.
+
+// typesFor(...) -> the shell's [{ key, label }] (house order preserved).
+function shellTypes(installed) {
+    var ts = typesFor(installed);
+    var out = [];
+    for (var i = 0; i < ts.length; i++) out.push({ key: ts[i], label: typeLabel(ts[i]) });
+    return out;
+}
+
+// catalogsFor(...) -> the shell's catalog descriptors [{ key, title, sourceKind, section, attribution }].
+// Sectioning mirrors the old catalog menu EXACTLY: a core row sits under its own addon name,
+// everything else under "Your addons"; attribution is always the owning addon.
+function shellCatalogs(installed, type) {
+    var cats = catalogsFor(installed, type);
+    var out = [];
+    for (var i = 0; i < cats.length; i++) {
+        var c = cats[i];
+        out.push({
+            key: c.key, title: c.title,
+            sourceKind: c.core ? "builtin" : "extension",
+            section: c.core ? c.addonName : "Your addons",
+            attribution: c.addonName
+        });
+    }
+    return out;
+}
+
+// the built-in default catalogue key for a type (the FIRST catalogue, installed order —
+// core Cinemeta first — matching the old setType -> setCatalog(0)).
+function shellDefaultCatalog(installed, type) {
+    var cats = catalogsFor(installed, type);
+    return cats.length ? cats[0].key : "";
+}
+
+// extrasFor(catalog) -> the shell's filter groups [{ group, options: [{ key, label }] }].
+// One group per user-facing extra; each option key equals its label (the genre value).
+function shellFilters(catalog) {
+    var extras = extrasFor(catalog);
+    var out = [];
+    for (var i = 0; i < extras.length; i++) {
+        var opts = [];
+        for (var j = 0; j < extras[i].options.length; j++)
+            opts.push({ key: extras[i].options[j], label: extras[i].options[j] });
+        out.push({ group: extras[i].label, options: opts });
+    }
+    return out;
+}
+
+// the full DiscoverApi catalog object for a shell catalog key (transportUrl|type|catalogId).
+function catalogByKey(installed, type, key) {
+    var cats = catalogsFor(installed, type);
+    for (var i = 0; i < cats.length; i++)
+        if (cats[i].key === key) return cats[i];
+    return null;
+}
+
+// resolvePin(...) -> the shell's { missing, type, catalogKey, filterGroup, filterKey, missingName }.
+// On a hit the found catalogue's key is returned; on a miss the pin still carries the type so the
+// shell can fall to that type's built-in default.
+function shellResolvePin(installed, pin) {
+    var res = resolvePin(installed, pin);
+    if (res.missing)
+        return { missing: true, type: pin.type, catalogKey: "", filterGroup: "", filterKey: "",
+                 missingName: res.addonName || pin.addonName || "" };
+    return { missing: false, type: res.catalog.type, catalogKey: res.catalog.key,
+             filterGroup: "", filterKey: "", missingName: "" };
+}
+
+// The FULL selections map for a fetch, rebuilt from the catalogue's extras so REQUIRED extras
+// are ALWAYS sent (defaultSelections auto-picks them), then overridden by the shell's single
+// active filter. The shell surfaces ONE filter (filterGroup is the extra's LABEL, as shellFilters
+// emits it) — map it back to the extra name. Clearing an OPTIONAL extra sets it null; a required
+// extra keeps its auto-picked default regardless of what the single-filter UI shows. THIS is where
+// Theatre's required-extra fetch behaviour is preserved under the collapsed filter UI.
+function selectionsForFilter(catalog, filterGroup, filterKey) {
+    var extras = extrasFor(catalog);
+    var sel = defaultSelections(extras);
+    for (var i = 0; i < extras.length; i++) {
+        if (extras[i].label !== filterGroup) continue;
+        if (filterKey && filterKey.length) sel[extras[i].name] = filterKey;
+        else if (!extras[i].isRequired) sel[extras[i].name] = null;
+        break;
+    }
+    return sel;
+}
+
+// a Stremio/Cinemeta meta preview -> the shell's normalized card. The DISPLAYED values match
+// the old Discover card exactly (title/year/rating/cover fallbacks in the SAME order); `raw`
+// keeps the original meta so the Theatre wrapper can re-emit it untouched to the detail page.
+function normalizeMeta(meta, type) {
+    var m = meta || {};
+    return {
+        id: (m.id !== undefined && m.id !== null) ? m.id : "",
+        type: m.type || type,
+        title: m.title || m.caption || m.name || "",
+        cover: m.cover || m.poster || "",
+        year: m.releaseInfo || m.year || "",
+        rating: m.imdbRating || "",
+        format: "",
+        publisher: "",
+        availability: true,
+        explicit: false,
+        raw: m
+    };
+}
