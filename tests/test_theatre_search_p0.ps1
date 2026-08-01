@@ -28,11 +28,11 @@ foreach ($n in @('function normTitle', 'function scoreTitle', 'function pickTopM
                  'rating * 10', 'replace(/^(the|a|an) /')) {
     Assert-Contains $ws $n "WorldSearch scoring must carry: $n"
 }
-# Tankoban blends ranked lanes into the shared scorer. The lane count grew to THREE
-# when a peer comic source joined (2026-07-09); the comics lane rides LOCG (the catalogue
-# search surface) as of Task 8 (2026-07-09). Assert the scorer wraps the ranked manga lane
-# rather than the exact lane list, so a future 4th source can't falsely fail this.
-Assert-Contains $ws 'pickTopMatch(query, rank(manga).concat(rank(locg)).concat(rank(western)))' "Tankoban must use the shared scorer too."
+# Tankoban blends ranked lanes into the shared scorer. The comics/western lanes were later
+# consolidated into the single local `catalogDb` lane (2026-07-09, "comics search rides the
+# LOCG catalogue"). Per this check's own stated intent, assert the scorer WRAPS the ranked
+# manga lane rather than pinning the exact lane list, so a lane refactor can't falsely fail it.
+Assert-Contains $ws 'pickTopMatch(query, rank(manga' "Tankoban must use the shared scorer too."
 
 # --- See more caps the group grids ---
 $ss = Read-File "qml/SearchSurface.qml"

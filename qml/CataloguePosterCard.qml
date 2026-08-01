@@ -16,9 +16,13 @@ Item {
     signal activated(var item)
 
     readonly property bool effectiveHovered: hov.hovered || card.testHovered
-    readonly property string capText: card.item ? (card.item.title || "") : ""
-    readonly property string yearText: card.item ? String(card.item.year || "") : ""
-    readonly property string ratingValue: card.item ? String(card.item.rating || "") : ""
+    readonly property string capText: card.item ? (card.item.title || card.item.caption || "") : ""
+    // Discover items carry `year`/`rating`; the Theatre catalogue carries `releaseInfo`/`imdbRating`.
+    // The shared card reads whichever is present so both worlds render identically.
+    readonly property string yearText: card.item
+        ? String((card.item.year !== undefined ? card.item.year : card.item.releaseInfo) || "") : ""
+    readonly property string ratingValue: card.item
+        ? String((card.item.rating !== undefined ? card.item.rating : card.item.imdbRating) || "") : ""
     readonly property string ratingText: card.ratingValue.length > 0 ? ("★ " + card.ratingValue) : ""
     // the rating is visible ONLY under an active pointer hover, and only when present.
     readonly property bool ratingVisible: !card.skeleton && card.effectiveHovered && card.ratingValue.length > 0

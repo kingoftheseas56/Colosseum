@@ -37,6 +37,11 @@ WorldPage {
     property var animeRows: []
     property string activeTab: "discover"
 
+    // Deep-catalogue See-all: a non-null pin overlays TheatreSeeAllPage above the whole world.
+    property var seeAllPin: null
+    // the one global content preference (Main binds it in Task 9); null-safe until then.
+    property var contentPreferences: null
+
     onProgressRevisionChanged: {
         continueRows = Progress.recent("video", 12)
         recomputeNextUp()
@@ -220,6 +225,8 @@ WorldPage {
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
         onGenreIndexRequested: (kind) => theatre.theatreGenreIndexRequested(kind)
+        onSeeAllRequested: (pin) => theatre.seeAllPin = pin
+        // legacy path (unused by the deep catalogue; kept null-safe)
         onDiscoverPinRequested: (pin) => {
             theatre.activeTab = "discover"
             discoverPage.applyPin(pin)
@@ -236,5 +243,32 @@ WorldPage {
         onDismissRequested: (e) => { if (typeof Progress !== "undefined") Progress.forget("video", String(e.id)) }
         onMarkWatchedRequested: (e, w) => theatre.libraryMarkWatchedRequested(e, w)
         onRemoveRequested: (e) => { if (typeof Collection !== "undefined") Collection.remove("theatre", String(e.id)) }
+    }
+
+    // ── See-all overlay: parented to the world root (NOT the scrolling board) so it floats
+    //    over the whole tab. A non-null pin shows it; Back clears the pin and the world's own
+    //    scroll position is preserved because the board never moved underneath. ──
+    Item {
+        id: seeAllOverlay
+        parent: theatre
+        anchors.fill: theatre
+        z: 300
+        visible: theatre.seeAllPin !== null
+        Rectangle { anchors.fill: parent; color: "#0b0d12" }   // opaque backing, matches the shell
+        MouseArea { anchors.fill: parent }                     // swallow clicks to the world beneath
+
+        TheatreSeeAllPage {
+            anchors.fill: parent
+            anchors.topMargin: 30
+            anchors.leftMargin: theme.margin
+            anchors.rightMargin: theme.margin
+            anchors.bottomMargin: 12
+            pin: theatre.seeAllPin
+            malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+            showExplicit: theatre.contentPreferences ? theatre.contentPreferences.showExplicit : false
+            onBackRequested: theatre.seeAllPin = null
+            onItemRequested: (item) => theatre.theatreItemRequested(
+                theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
+        }
     }
 }

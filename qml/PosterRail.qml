@@ -1,4 +1,7 @@
-// PosterRail - lightweight horizontal Theatre rail with delegate reuse.
+// PosterRail - lightweight horizontal Theatre rail. Uses the shared CataloguePosterCard so
+// its tiles hover, lift, and reveal year + `★ rating` exactly like Discover; the header shows
+// only the title, optional factual source attribution, and See all. No blurb, no rating line
+// under the posters. Top 10 keeps its oversized rank numerals.
 
 import QtQuick
 
@@ -11,6 +14,11 @@ Column {
     property var items: []
     property bool ranked: false
     property int itemLimit: ranked ? 10 : 20
+    // factual source attribution — "" for house shelves, the extension name for extension rows.
+    property string sourceLabel: ""
+    property string sourceKind: "house"
+    // the See-all descriptor for this shelf; a null pin means the rail is not navigable.
+    property var seeAllPin: null
     property var visibleItems: {
         var out = [];
         var count = Math.min(items.length, itemLimit);
@@ -19,8 +27,7 @@ Column {
         return out;
     }
     signal itemRequested(var item)
-    property bool navigable: false
-    signal seeAllRequested()
+    signal seeAllRequested(var pin)
 
     width: parent ? parent.width : 900
     spacing: 14
@@ -31,16 +38,17 @@ Column {
     WidgetHeader {
         width: parent.width
         title: rail.title
-        sub: ""
+        // source attribution is metadata, never promotional copy — shown only for extensions.
+        sub: (rail.sourceKind !== "house" && rail.sourceLabel.length > 0) ? ("via " + rail.sourceLabel) : ""
         moreLabel: "See all"
-        navigable: rail.navigable
-        onMoreClicked: rail.seeAllRequested()
+        navigable: rail.seeAllPin !== null
+        onMoreClicked: rail.seeAllRequested(rail.seeAllPin)
     }
 
     ListView {
         id: list
         width: parent.width
-        height: rail.ranked ? 212 : 214
+        height: 226
         orientation: ListView.Horizontal
         spacing: rail.ranked ? 30 : 18
         clip: true
@@ -72,17 +80,14 @@ Column {
                 anchors.bottomMargin: -8
             }
 
-            PortraitTile {
+            CataloguePosterCard {
                 width: 132
-                height: 196
+                height: list.height
                 anchors.left: rail.ranked ? rankNum.right : parent.left
                 anchors.leftMargin: rail.ranked ? -32 : 0
-                anchors.bottom: parent.bottom
-                caption: cell.modelData.caption !== undefined ? cell.modelData.caption : (cell.modelData.title || "")
-                cover: cell.modelData.cover !== undefined ? cell.modelData.cover : ""
-                c1: cell.modelData.c1 !== undefined ? cell.modelData.c1 : "#444"
-                c2: cell.modelData.c2 !== undefined ? cell.modelData.c2 : "#111"
-                onClicked: rail.itemRequested(cell.modelData)
+                anchors.top: parent.top
+                item: cell.modelData
+                onActivated: (it) => rail.itemRequested(it)
             }
         }
     }

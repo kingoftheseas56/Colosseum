@@ -18,6 +18,7 @@ Column {
     signal genreRequested(string kind, string name)
     signal genreIndexRequested(string kind)
     signal discoverPinRequested(var pin)
+    signal seeAllRequested(var pin)
 
     width: parent ? parent.width : 900
     spacing: 30
@@ -97,9 +98,11 @@ Column {
             title: modelData.title
             ranked: modelData.ranked === true
             items: modelData.items !== undefined ? modelData.items : []
-            navigable: modelData.discoverPin !== undefined
+            sourceKind: modelData.sourceKind !== undefined ? modelData.sourceKind : "house"
+            sourceLabel: modelData.sourceLabel !== undefined ? modelData.sourceLabel : ""
+            seeAllPin: modelData.seeAllPin !== undefined ? modelData.seeAllPin : null
             onItemRequested: (item) => page.itemRequested(item)
-            onSeeAllRequested: page.discoverPinRequested(modelData.discoverPin)
+            onSeeAllRequested: (pin) => page.seeAllRequested(pin)
         }
     }
 
