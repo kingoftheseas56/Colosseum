@@ -49,8 +49,37 @@ Item {
         function fetchPage(s, cursor, gen, done) { capturedGen = gen; capturedDone = done }
     }
 
+    // ── fake adapter C — two types, NEVER completes; counts fetches. Proves the stranded-wall
+    //    regression: a type left mid-first-fetch must re-issue a page on return, not sit empty. ──
+    QtObject {
+        id: strandFake
+        property int fetchCount: 0
+        property string lastType: ""
+        function types() { return [{key:"manga", label:"Manga"},{key:"comics", label:"Comics"}] }
+        function catalogs(t) { return [{key:"popular", title:"Popular", sourceKind:"builtin", section:"Src", attribution:"Src"}] }
+        function filters(t, c) { return [] }
+        function defaultCatalog(t) { return "popular" }
+        function resolvePin(p) { return {missing:false, type:p.type, catalogKey:p.catalogId, filterGroup:"", filterKey:""} }
+        function fetchPage(s, cursor, gen, done) { fetchCount++; lastType = s.type }   // never completes
+    }
+
+    // ── fake adapter D — two types, always answers EMPTY + EXHAUSTED; counts fetches. Proves the
+    //    fix does NOT double-fetch a legitimately settled-empty catalogue on return. ──
+    QtObject {
+        id: exhaustFake
+        property int fetchCount: 0
+        function types() { return [{key:"a", label:"A"},{key:"b", label:"B"}] }
+        function catalogs(t) { return [{key:"popular", title:"Popular", sourceKind:"builtin", section:"Src", attribution:"Src"}] }
+        function filters(t, c) { return [] }
+        function defaultCatalog(t) { return "popular" }
+        function resolvePin(p) { return {missing:false, type:p.type, catalogKey:p.catalogId, filterGroup:"", filterKey:""} }
+        function fetchPage(s, cursor, gen, done) { fetchCount++; done(gen, {items:[], nextCursor:null, exhausted:true, freshness:"live", warning:""}) }
+    }
+
     UI.DiscoverBrowser { id: browser;  width: 1200; height: 700; adapter: fake;         fallbackType: "manga" }
     UI.DiscoverBrowser { id: browser2; width: 1200; height: 700; adapter: deferredFake; fallbackType: "manga" }
+    UI.DiscoverBrowser { id: browser3; width: 1200; height: 700; adapter: strandFake;   fallbackType: "manga" }
+    UI.DiscoverBrowser { id: browser4; width: 1200; height: 700; adapter: exhaustFake;  fallbackType: "a" }
 
     // item-activation observer (assertion: fires ONCE, with the normalized item)
     property int openCount: 0
@@ -116,6 +145,10 @@ Item {
             browser.selectType("comics");
             ok(browser.currentType === "comics" && browser.filterKey === "",
                "switching type opens fresh (no filter bleed)");
+            // store side of scroll restore (the restore itself is eyes-on: GridView contentY is
+            // not deterministic offscreen with tiny content — see the plan's restore note).
+            ok(browser.typeStates["manga"] !== undefined && browser.typeStates["manga"].contentY !== undefined,
+               "per-type state captured scroll (contentY) for restore");
             browser.selectType("manga");
             ok(browser.currentType === "manga" && browser.filterGroup === "Genres" && browser.filterKey === "action",
                "per-type state restored on return");
@@ -146,6 +179,27 @@ Item {
                     nextCursor:null, exhausted:true, freshness:"live", warning:"Showing offline catalogue"});
             ok(browser2.items.length === 1 && browser2.items[0].id === "fresh", "fresh-generation page accepted");
             ok(browser2.showOfflineNotice === true, "offline notice raised on the sentinel warning");
+
+            // ── stranded-wall regression (NEGATIVE CONTROL): a type left mid-first-fetch, returned
+            //    to WITHOUT that fetch ever completing, must re-issue its page — not sit empty. This
+            //    fails on the pre-fix restoreTypeState (no re-fetch), so it guards the regression. ──
+            ok(strandFake.fetchCount === 1 && strandFake.lastType === "manga",
+               "browser3 issued the first (never-completing) fetch for manga");
+            browser3.selectType("comics");     // manga saved as {items:[], exhausted:false} (fence dropped its reply)
+            ok(strandFake.fetchCount === 2 && strandFake.lastType === "comics", "fresh type fetched on switch");
+            browser3.selectType("manga");      // return to the stranded type
+            ok(strandFake.fetchCount === 3 && strandFake.lastType === "manga",
+               "returning to a type stranded mid-fetch re-issued its fetch (fetchCount): " + strandFake.fetchCount);
+            ok(browser3.loading === true && browser3.exhausted === false,
+               "the returned type is fetching again, not stranded empty/settled");
+
+            // ── the fix must NOT double-fetch a legitimately settled (empty + exhausted) catalogue ──
+            ok(exhaustFake.fetchCount === 1, "browser4 fetched its first type (A) on init: " + exhaustFake.fetchCount);
+            browser4.selectType("b");          // fresh B -> one fetch, answers empty + exhausted
+            ok(exhaustFake.fetchCount === 2, "fresh type B fetched on switch: " + exhaustFake.fetchCount);
+            browser4.selectType("a");          // return to A, which saved {items:[], exhausted:true}
+            ok(exhaustFake.fetchCount === 2, "exhausted-empty catalogue NOT re-fetched on return: " + exhaustFake.fetchCount);
+            ok(browser4.loading === false && browser4.exhausted === true, "settled-empty return stays settled");
 
             if (fails.length) console.log("DISCOVER_BROWSER FAILS:\n  " + fails.join("\n  "));
             else console.log("DISCOVER_BROWSER_OK");

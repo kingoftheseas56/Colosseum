@@ -246,8 +246,18 @@ Item {
         for (var k in typeStates) s[k] = typeStates[k]
         s[currentType] = { catalogKey: currentCatalogKey, filterGroup: filterGroup, filterKey: filterKey,
                            items: items, cursor: cursor, exhausted: exhausted,
-                           warning: warning, freshness: freshness, noticeText: noticeText }
+                           warning: warning, freshness: freshness, noticeText: noticeText,
+                           contentY: (wall ? wall.contentY : 0) }   // remember scroll for restore
         typeStates = s
+    }
+
+    property real _pendingScrollY: -1        // >= 0 while a restored scroll waits to be reapplied
+    function applyPendingScroll() {
+        if (_pendingScrollY < 0 || !wall) return
+        // clamp so a stale scroll never lands past a now-shorter wall
+        var maxY = Math.max(0, wall.contentHeight - wall.height)
+        wall.contentY = Math.min(_pendingScrollY, maxY)
+        _pendingScrollY = -1
     }
 
     function restoreTypeState(st) {
@@ -256,6 +266,15 @@ Item {
         items = st.items; cursor = st.cursor; exhausted = st.exhausted
         warning = st.warning || ""; freshness = st.freshness || ""; noticeText = st.noticeText || ""
         loading = false
+        // A type LEFT during its first-page fetch saved {items:[], exhausted:false}: the generation
+        // fence dropped that in-flight reply, and onContentYChanged can't re-page an empty wall — so
+        // the type would strand on the empty state. Re-issue a page when the restored wall is empty
+        // and NOT exhausted. A legitimately-empty catalogue saved exhausted:true (and requestPage
+        // guards on exhausted too), so this never double-fetches a settled, empty catalogue.
+        if (!items.length && !exhausted) { requestPage(); return }
+        // restore the wall's scroll best-effort, after the GridView re-lays out the restored model.
+        _pendingScrollY = (st.contentY || 0)
+        Qt.callLater(applyPendingScroll)
     }
 
     function reloadForCatalog() {
