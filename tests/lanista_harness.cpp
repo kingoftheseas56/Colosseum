@@ -125,6 +125,12 @@ static void settle(int ms)
 
 int main(int argc, char** argv)
 {
+    // FIRST LINE, before the platform plugin loads: offscreen carries no font
+    // database of its own, so without this every grab comes back with tofu boxes
+    // where the text should be (house trap; Task 8's goldens ride on it). Point
+    // it at the system fonts so offscreen text renders as REAL GLYPHS.
+    qputenv("QT_QPA_FONTDIR", "C:/Windows/Fonts");   // offscreen text renders real glyphs
+
     // Headless by default. Caller wins, and that is load-bearing rather than
     // tidy: offscreen loads the SOFTWARE scene graph backend, so every grab the
     // default run proves is a software-rendered one. QT_QPA_PLATFORM=windows
@@ -154,11 +160,6 @@ int main(int argc, char** argv)
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM_PLUGIN_PATH"))
         qputenv("QT_QPA_PLATFORM_PLUGIN_PATH", LANISTA_QT_PLATFORMS_DIR);
 #endif
-    // Offscreen carries no font database of its own, so every grab comes back
-    // with □□□ where the text should be (house trap, and Task 8's goldens ride
-    // on it). Point it at the system fonts. Caller wins if set.
-    if (!qEnvironmentVariableIsSet("QT_QPA_FONTDIR"))
-        qputenv("QT_QPA_FONTDIR", "C:/Windows/Fonts");
 
     QGuiApplication app(argc, argv);
     const bool serve = app.arguments().contains(QStringLiteral("--serve"));
