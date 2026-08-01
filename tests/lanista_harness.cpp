@@ -413,8 +413,12 @@ int main(int argc, char** argv)
         // ONLY in the visual tree (childItems); the QObject-tree findChild()
         // the bridge shipped with could not see them, so every delegate-built
         // objectName (all 110 in production) returned GRAB_TARGET_NOT_FOUND.
-        // Assert on the FILE — never image.width, which reads back undefined on
-        // a working grab.
+        // The row delegate is 300x50 (lanista_harness_scene.qml), so reading the
+        // saved PNG's own dimensions off disk with QImage(path) — exactly as the
+        // seq 31 item grab does — proves the grab captured the DELEGATE and not
+        // just "some item". (The "read back undefined" caution is about the
+        // QML-side result.image.width property, NOT the PNG-on-disk dimensions
+        // used here.)
         QJsonObject dg = call(pipe, {{"cmd", "get-state"}, {"seq", 36},
             {"payload", QJsonObject{{"grab", QJsonObject{{"target", "row0"}}}}}},
             8000);
@@ -423,6 +427,11 @@ int main(int argc, char** argv)
         const QString dp = dg.value("grabPath").toString();
         require(QFileInfo::exists(dp) && QFileInfo(dp).size() > 0,
                 "delegate item row0 lands a non-empty PNG on disk: " + dp);
+        QImage rowPng(dp);
+        require(rowPng.width() == qRound(300 * dpr)
+                    && rowPng.height() == qRound(50 * dpr),
+                QStringLiteral("the delegate PNG is the ROW (300x50 @%1), got %2x%3")
+                    .arg(dpr).arg(rowPng.width()).arg(rowPng.height()));
 
         // A grab rides ANY command, not just get-state.
         QJsonObject pg = call(pipe, {{"cmd", "ping"}, {"seq", 32},

@@ -33,7 +33,9 @@ constexpr int kGrabTimeoutMs = 4000;
 // where Repeater/ListView/GridView delegate items live — they are NOT in the
 // QObject tree, so root->findChild() cannot see them. In Colosseum every
 // shelf/list/grid is delegate-built, so without this walk findItem() resolves
-// nothing on a real page. Depth guard mirrors the walkNamed helper Task 3 uses.
+// nothing on a real page. This is the shared visual-tree walker: Task 3's
+// ui-dump/ui-query are meant to consume THIS helper rather than add a second
+// one. The depth guard bounds a pathological or cyclic-looking tree.
 QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
 {
     if (!item || depth > 64)
@@ -145,10 +147,9 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     if (m_idleTimeoutMs <= 0)
         m_idleTimeoutMs = kDefaultIdleTimeoutMs;   // the override exists for tests
 
-    m_grabTimeoutMs = kGrabTimeoutMs;
-    const int grabMs = qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_GRAB_MS");
-    if (grabMs > 0)
-        m_grabTimeoutMs = grabMs;   // the override exists for the timeout test
+    m_grabTimeoutMs = qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_GRAB_MS");
+    if (m_grabTimeoutMs <= 0)
+        m_grabTimeoutMs = kGrabTimeoutMs;   // the override exists for the timeout test
 
     // ── command registry ────────────────────────────────────────────────
     addRead(QStringLiteral("ping"),
@@ -557,16 +558,17 @@ void LanistaServer::attachGrab(const QJsonObject& payload, QJsonObject body, Rep
     // of an always-on app. Whichever path wins, the token's `sent` latch makes
     // the other a no-op, so the race is safe in both directions.
     //
-    // payload.grab.timeoutMs (>0) bounds THIS grab only, overriding the server
-    // default without shortening it for other grabs sharing this always-on
-    // process. It earns its place twice: a client on a tight budget can ask the
-    // server to give up sooner, and it is the seam that lets the timeout test
-    // fire GRAB_TIMEOUT in a fraction of a second rather than the 4s default —
+    // payload.grab.timeoutMs (>0) SHORTENS this one grab's deadline. It is
+    // clamped to the server ceiling with qMin, so a client can only ask the
+    // server to give up SOONER — never push this connection-leak backstop past
+    // m_grabTimeoutMs. It earns its place twice: a tight-budget client can bound
+    // one slow grab, and it is the seam that lets the timeout test fire
+    // GRAB_TIMEOUT in a fraction of a second rather than the 4s default —
     // without endangering the success grabs that run in the same process.
     int timeoutMs = m_grabTimeoutMs;
     const int perGrab = grabObj.value(QStringLiteral("timeoutMs")).toInt();
     if (perGrab > 0)
-        timeoutMs = perGrab;
+        timeoutMs = qMin(perGrab, m_grabTimeoutMs);   // may only shorten, never extend
 
     QTimer::singleShot(timeoutMs, this, [reply, target, timeoutMs]() mutable {
         reply.fail("GRAB_TIMEOUT",
