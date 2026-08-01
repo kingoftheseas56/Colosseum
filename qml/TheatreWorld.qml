@@ -221,6 +221,8 @@ WorldPage {
         height: visible ? implicitHeight : 0
         pageKey: (theatre.activeTab === "movies" || theatre.activeTab === "shows" || theatre.activeTab === "anime")
                  ? theatre.activeTab : "movies"
+        contentPreferences: theatre.contentPreferences
+        malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
         onItemRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)

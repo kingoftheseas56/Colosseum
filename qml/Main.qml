@@ -1907,6 +1907,7 @@ Window {
                     var nextUpRead = item["nextUpReadRequested"]
                     if (nextUpRead) nextUpRead.connect(win.openComicSession)
                     if (mode === "Theatre") {
+                        item.contentPreferences = contentPreferences   // the one global preference into the deep catalogue
                         var theatreSignal = item["theatre" + "ItemRequested"]
                         if (theatreSignal) theatreSignal.connect(win.openTheatreSeries)
                         var tgSignal = item["theatre" + "GenreRequested"]
