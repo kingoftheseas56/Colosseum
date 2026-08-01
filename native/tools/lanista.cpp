@@ -2,14 +2,23 @@
 //
 //   lanista [--pipe <name>] [--timeout <ms>] <cmd> [k=v ...] [--grab <target>]
 //   lanista run <scenario.json> [--keep-going] [--pipe <name>]
-//   lanista expect <cmd> <dot.path> <op> <value>       (exit 0 pass / 1 fail)
-//   lanista bless <grabTarget> <goldenName>            (writes tests/lanista_goldens/)
+//   lanista expect <cmd> <dot.path> <op> <value>   (op 'exists' takes no value)
+//   lanista bless <grabTarget> <goldenName>        (writes tests/lanista_goldens/)
 //   lanista suite [--dir tests/lanista_scenarios] [--out <reportDir>]
 //   lanista brief <arcName> [--from <runDir>]
 //
 // One command per connection, newline-delimited JSON — tankoctl's shape.
 // The scenario / golden engines live HERE, client-side: the app never judges
 // itself (spec §13).
+//
+// EXIT CODES (a documented contract — Task 7's scenario engine keys off these,
+// so a value below must mean exactly one thing and nothing else):
+//   0  pass (green): every assertion / command succeeded
+//   1  red: an assertion or command FAILED (a legitimate regression)
+//   2  usage error: bad or missing arguments
+//   3  not-yet-implemented (suite / brief — land in Task 11)
+//   4  infrastructure: the bridge was unreachable (NO_PIPE / TIMEOUT) — NOT a red
+//   5  scenario error: the scenario file was unopenable, malformed, or empty
 #include <QCoreApplication>
 #include <QDir>
 #include <QDirIterator>
@@ -19,6 +28,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <QLocalSocket>
 #include <QRegularExpression>
 #include <iostream>
@@ -31,11 +41,13 @@ static int g_timeout = 5000;
 static QJsonObject call(const QJsonObject& req, int timeoutMs = -1)
 {
     if (timeoutMs < 0) timeoutMs = g_timeout;
+    const int seq = req.value(QStringLiteral("seq")).toInt();
     QLocalSocket sock;
     sock.connectToServer(g_pipe);
     if (!sock.waitForConnected(2000))
         return {{QStringLiteral("type"), QStringLiteral("error")},
                 {QStringLiteral("code"), QStringLiteral("NO_PIPE")},
+                {QStringLiteral("seq"), seq},
                 {QStringLiteral("message"),
                  QStringLiteral("no lanista listening on ") + g_pipe}};
     sock.write(QJsonDocument(req).toJson(QJsonDocument::Compact) + "\n");
@@ -63,8 +75,43 @@ static QJsonObject call(const QJsonObject& req, int timeoutMs = -1)
     const qsizetype nl = buf.indexOf('\n');
     if (nl < 0)
         return {{QStringLiteral("type"), QStringLiteral("error")},
-                {QStringLiteral("code"), QStringLiteral("TIMEOUT")}};
+                {QStringLiteral("code"), QStringLiteral("TIMEOUT")},
+                {QStringLiteral("seq"), seq},
+                {QStringLiteral("message"),
+                 QStringLiteral("no reply from ") + g_pipe
+                     + QStringLiteral(" within %1 ms").arg(timeoutMs)}};
     return QJsonDocument::fromJson(buf.left(nl)).object();
+}
+
+// A reply that means "the bridge could not be reached", NOT "the assertion was
+// red". Kept distinct so a dead environment can never masquerade as a regression
+// (exit 4, never 1) — the one thing a scenario engine must not confuse.
+static bool isInfraError(const QJsonObject& reply)
+{
+    if (reply.value(QStringLiteral("type")).toString() != QStringLiteral("error"))
+        return false;
+    const QString code = reply.value(QStringLiteral("code")).toString();
+    return code == QStringLiteral("NO_PIPE") || code == QStringLiteral("TIMEOUT");
+}
+
+// Stringify a JSON value for display / string-compare WITHOUT the [ ... ]
+// array-wrap that QJsonDocument forces on a bare scalar (which turned a plain 42
+// into "[42]" at the diagnostic sites). Scalars render as themselves; a double
+// renders at FULL precision ('g',17) so contains/matches are never lossy; arrays
+// and objects render as compact JSON.
+static QString jsonToString(const QJsonValue& v)
+{
+    if (v.isString())    return v.toString();
+    if (v.isBool())      return v.toBool() ? QStringLiteral("true")
+                                           : QStringLiteral("false");
+    if (v.isDouble())    return QString::number(v.toDouble(), 'g', 17);
+    if (v.isNull())      return QStringLiteral("null");
+    if (v.isUndefined()) return QStringLiteral("undefined");
+    if (v.isArray())
+        return QString::fromUtf8(
+            QJsonDocument(v.toArray()).toJson(QJsonDocument::Compact)).trimmed();
+    return QString::fromUtf8(
+        QJsonDocument(v.toObject()).toJson(QJsonDocument::Compact)).trimmed();
 }
 
 // k=v pairs -> payload. Numbers and booleans are typed; all else is string.
@@ -105,13 +152,24 @@ static QJsonValue dig(const QJsonValue& root, const QString& path)
 static bool opMatches(const QJsonValue& actual, const QString& op, const QString& want)
 {
     if (op == QStringLiteral("exists")) return !actual.isUndefined();
-    QString a;
-    if (actual.isString()) a = actual.toString();
-    else if (actual.isBool()) a = actual.toBool() ? QStringLiteral("true")
-                                                  : QStringLiteral("false");
-    else if (actual.isDouble()) a = QString::number(actual.toDouble());
-    else a = QString::fromUtf8(QJsonDocument(QJsonArray{actual})
-                                   .toJson(QJsonDocument::Compact));
+
+    // == / != on two NUMBERS compare NUMERICALLY. Stringifying the actual first
+    // is lossy (default 'g' keeps 6 sig-digits: 1234567 -> "1.23457e+06"), which
+    // would make `== 1234567` wrongly FAIL and `!= 1234567` wrongly PASS — a
+    // false result out of an assertion tool. When the actual is a number and the
+    // wanted value parses as one, the comparison is on the doubles; anything else
+    // (string actual, non-numeric want like `== ready`) falls through to the
+    // string compare below, unchanged.
+    if ((op == QStringLiteral("==") || op == QStringLiteral("!=")) && actual.isDouble()) {
+        bool okW = false;
+        const double dw = want.toDouble(&okW);
+        if (okW) {
+            const bool eq = actual.toDouble() == dw;
+            return (op == QStringLiteral("==")) ? eq : !eq;
+        }
+    }
+
+    const QString a = jsonToString(actual);
     if (op == QStringLiteral("==")) return a == want;
     if (op == QStringLiteral("!=")) return a != want;
     if (op == QStringLiteral("contains")) return a.contains(want);
@@ -147,16 +205,49 @@ static QString grabTarget(const QString& target, int seq)
 // ── scenario runner ─────────────────────────────────────────────────────────
 struct StepResult { QString label; bool pass; QString detail; QString grabPath; };
 
-static QList<StepResult> runScenario(const QString& file, bool keepGoing)
+// The whole run, classified so main can map it to the exit-code contract:
+//   scenarioError -> 5 (file unopenable/malformed/empty)
+//   infra         -> 4 (a step hit NO_PIPE/TIMEOUT — a dead bridge, not a red)
+//   else          -> 1 if any step failed, 0 if all passed
+struct ScenarioRun {
+    bool scenarioError = false;
+    bool infra = false;
+    QList<StepResult> steps;
+};
+
+static ScenarioRun runScenario(const QString& file, bool keepGoing)
 {
-    QList<StepResult> results;
+    ScenarioRun out;
+
     QFile f(file);
     if (!f.open(QIODevice::ReadOnly)) {
-        results.append({QStringLiteral("open ") + file, false,
-                        QStringLiteral("cannot open"), {}});
-        return results;
+        std::cerr << "SCENARIO ERROR: cannot open " << file.toStdString() << "\n";
+        out.scenarioError = true;
+        return out;
     }
-    const QJsonObject scenario = QJsonDocument::fromJson(f.readAll()).object();
+
+    // I1: a malformed scenario must NEVER report success. A JSON typo — or any
+    // file without a non-empty "steps" array — used to parse to an empty object,
+    // yield zero steps, and print "0 steps, 0 failed" with exit 0. A regression
+    // gate that green-lights a broken scenario is worse than useless.
+    QJsonParseError perr{};
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll(), &perr);
+    if (perr.error != QJsonParseError::NoError) {
+        std::cerr << "SCENARIO ERROR: " << file.toStdString() << ": "
+                  << perr.errorString().toStdString()
+                  << " (offset " << perr.offset << ")\n";
+        out.scenarioError = true;
+        return out;
+    }
+    const QJsonObject scenario = doc.object();
+    if (!scenario.value(QStringLiteral("steps")).isArray()
+        || scenario.value(QStringLiteral("steps")).toArray().isEmpty()) {
+        std::cerr << "SCENARIO ERROR: " << file.toStdString()
+                  << ": no non-empty \"steps\" array\n";
+        out.scenarioError = true;
+        return out;
+    }
+
     int seq = 100;
     const QJsonArray steps = scenario.value(QStringLiteral("steps")).toArray();
     for (const QJsonValue& sv : steps) {
@@ -164,6 +255,7 @@ static QList<StepResult> runScenario(const QString& file, bool keepGoing)
         const QString label = step.value(QStringLiteral("label"))
                                   .toString(step.value(QStringLiteral("cmd")).toString());
         StepResult res{label, true, {}, {}};
+        bool infraStop = false;
 
         // expect_visual step: golden compare, no command needed
         if (step.contains(QStringLiteral("expect_visual"))) {
@@ -179,12 +271,24 @@ static QList<StepResult> runScenario(const QString& file, bool keepGoing)
                 res.detail = got.isEmpty() ? QStringLiteral("grab failed")
                                            : QStringLiteral("no golden: ") + golden;
             } else {
-                const int dist = lanista::hamming(
-                    lanista::dhash(QImage(got)), lanista::dhash(QImage(golden)));
-                res.pass = dist <= maxDist;
-                res.detail = QStringLiteral("dHash distance %1 (max %2)")
-                                 .arg(dist).arg(maxDist);
-                res.grabPath = got;
+                // M1: an unreadable/zero-byte PNG dHashes to 0, so two null images
+                // would score distance 0 and FALSELY PASS the visual gate. Reject
+                // a null decode outright rather than hash it.
+                const QImage gotImg(got), goldenImg(golden);
+                if (gotImg.isNull() || goldenImg.isNull()) {
+                    res.pass = false;
+                    res.detail = gotImg.isNull()
+                                     ? QStringLiteral("unreadable grab: ") + got
+                                     : QStringLiteral("unreadable golden: ") + golden;
+                    res.grabPath = got;
+                } else {
+                    const int dist = lanista::hamming(
+                        lanista::dhash(gotImg), lanista::dhash(goldenImg));
+                    res.pass = dist <= maxDist;
+                    res.detail = QStringLiteral("dHash distance %1 (max %2)")
+                                     .arg(dist).arg(maxDist);
+                    res.grabPath = got;
+                }
             }
         } else {
             QJsonObject req{{QStringLiteral("cmd"), step.value(QStringLiteral("cmd"))},
@@ -192,39 +296,74 @@ static QList<StepResult> runScenario(const QString& file, bool keepGoing)
             if (step.contains(QStringLiteral("payload")))
                 req.insert(QStringLiteral("payload"), step.value(QStringLiteral("payload")));
             const QJsonObject reply = call(req, 10000);
-            const QJsonArray expects = step.value(QStringLiteral("expect")).toArray();
-            for (const QJsonValue& exv : expects) {
-                const QJsonObject ex = exv.toObject();
-                const QJsonValue actual = dig(reply, ex.value(QStringLiteral("path")).toString());
-                if (!opMatches(actual, ex.value(QStringLiteral("op")).toString(),
-                               ex.value(QStringLiteral("value")).toVariant().toString())) {
-                    res.pass = false;
-                    res.detail = QStringLiteral("%1 %2 %3 — got %4")
-                        .arg(ex.value(QStringLiteral("path")).toString(),
-                             ex.value(QStringLiteral("op")).toString(),
-                             ex.value(QStringLiteral("value")).toVariant().toString(),
-                             QString::fromUtf8(QJsonDocument(QJsonArray{actual})
-                                 .toJson(QJsonDocument::Compact)));
-                    break;
+
+            // I3: a step whose call() came back NO_PIPE/TIMEOUT is an INFRA
+            // failure, not a red assertion — the bridge is gone, so keep the run
+            // from scoring it as a legitimate regression and stop (a dead pipe
+            // won't heal mid-run). Diagnostic to stderr; the run's exit becomes 4.
+            if (isInfraError(reply)) {
+                out.infra = true;
+                infraStop = true;
+                res.pass = false;
+                res.detail = reply.value(QStringLiteral("code")).toString()
+                             + QStringLiteral(": ")
+                             + reply.value(QStringLiteral("message")).toString();
+                std::cerr << "INFRA ERROR: " << res.detail.toStdString()
+                          << " (step " << label.toStdString() << ")\n";
+            } else {
+                const QJsonArray expects = step.value(QStringLiteral("expect")).toArray();
+                for (const QJsonValue& exv : expects) {
+                    const QJsonObject ex = exv.toObject();
+                    const QJsonValue actual = dig(reply, ex.value(QStringLiteral("path")).toString());
+                    if (!opMatches(actual, ex.value(QStringLiteral("op")).toString(),
+                                   ex.value(QStringLiteral("value")).toVariant().toString())) {
+                        res.pass = false;
+                        res.detail = QStringLiteral("%1 %2 %3 — got %4")
+                            .arg(ex.value(QStringLiteral("path")).toString(),
+                                 ex.value(QStringLiteral("op")).toString(),
+                                 ex.value(QStringLiteral("value")).toVariant().toString(),
+                                 jsonToString(actual));
+                        break;
+                    }
+                }
+                // AUTO-GRAB ON FAILURE — every red step leaves its own evidence
+                // without a re-run (spec §6).
+                if (!res.pass) {
+                    const QString t = step.value(QStringLiteral("grab_on_fail"))
+                                          .toString(QStringLiteral("window"));
+                    res.grabPath = grabTarget(t, ++seq);
                 }
             }
-            // AUTO-GRAB ON FAILURE — every red step leaves its own evidence
-            // without a re-run (spec §6).
-            if (!res.pass) {
-                const QString t = step.value(QStringLiteral("grab_on_fail"))
-                                      .toString(QStringLiteral("window"));
-                res.grabPath = grabTarget(t, ++seq);
-            }
         }
-        std::cout << (res.pass ? "PASS  " : "FAIL  ") << label.toStdString();
+        std::cout << (infraStop ? "INFRA " : (res.pass ? "PASS  " : "FAIL  "))
+                  << label.toStdString();
         if (!res.detail.isEmpty()) std::cout << "  [" << res.detail.toStdString() << "]";
         if (!res.pass && !res.grabPath.isEmpty())
             std::cout << "  evidence: " << res.grabPath.toStdString();
         std::cout << "\n";
-        results.append(res);
+        out.steps.append(res);
+        if (infraStop) break;                    // dead bridge: stop, even with --keep-going
         if (!res.pass && !keepGoing) break;
     }
-    return results;
+    return out;
+}
+
+static void printUsage(std::ostream& os)
+{
+    os << "usage:\n"
+       << "  lanista [--pipe <name>] [--timeout <ms>] <cmd> [k=v ...] [--grab <target>]\n"
+       << "  lanista run <scenario.json> [--keep-going]\n"
+       << "  lanista expect <cmd> <dot.path> <op> <value>   (op 'exists' takes no value)\n"
+       << "  lanista bless <target> <name>\n"
+       << "  lanista suite | brief <arc>                    (NYI until Task 11)\n"
+       << "\n"
+       << "exit codes:\n"
+       << "  0  pass (green)\n"
+       << "  1  assertion or command failed (red)\n"
+       << "  2  usage error\n"
+       << "  3  not yet implemented (suite/brief — Task 11)\n"
+       << "  4  infrastructure: bridge unreachable (NO_PIPE / TIMEOUT)\n"
+       << "  5  scenario error: file unopenable, malformed, or empty\n";
 }
 
 int main(int argc, char** argv)
@@ -241,19 +380,29 @@ int main(int argc, char** argv)
         } else ++i;
     }
     if (args.isEmpty()) {
-        std::cout << "usage: lanista <cmd> [k=v ...] [--grab target] | run <file> "
-                     "| expect <cmd> <path> <op> <value> | bless <target> <name> "
-                     "| suite | brief <arc>\n";
+        printUsage(std::cout);
         return 2;
     }
     const QString verb = args.takeFirst();
+    if (verb == QStringLiteral("--help") || verb == QStringLiteral("-h")) {
+        printUsage(std::cout);
+        return 0;
+    }
 
     if (verb == QStringLiteral("run")) {
         const bool keep = args.removeAll(QStringLiteral("--keep-going")) > 0;
-        const auto results = runScenario(args.value(0), keep);
+        if (args.isEmpty()) {
+            std::cerr << "run <scenario.json> [--keep-going]\n";
+            return 2;
+        }
+        const ScenarioRun run = runScenario(args.value(0), keep);
+        if (run.scenarioError)
+            return 5;   // SCENARIO ERROR already went to stderr
         int failed = 0;
-        for (const auto& r : results) if (!r.pass) ++failed;
-        std::cout << results.size() << " steps, " << failed << " failed\n";
+        for (const auto& r : run.steps) if (!r.pass) ++failed;
+        std::cout << run.steps.size() << " steps, " << failed << " failed\n";
+        if (run.infra)
+            return 4;   // a step hit a dead bridge — not a legitimate red
         return failed ? 1 : 0;
     }
     if (verb == QStringLiteral("bless")) {
@@ -269,10 +418,27 @@ int main(int argc, char** argv)
         return ok ? 0 : 1;
     }
     if (verb == QStringLiteral("expect")) {
-        if (args.size() < 4) { std::cout << "expect <cmd> <path> <op> <value>\n"; return 2; }
+        // M5: `exists` needs only <cmd> <path> exists (3 args); every other op
+        // needs a value (4 args).
+        if (args.size() < 3) {
+            std::cout << "expect <cmd> <path> <op> <value>   (op 'exists' takes no value)\n";
+            return 2;
+        }
+        const bool isExists = args[2] == QStringLiteral("exists");
+        if (!isExists && args.size() < 4) {
+            std::cout << "expect <cmd> <path> <op> <value>   (op 'exists' takes no value)\n";
+            return 2;
+        }
         const QJsonObject reply = call({{QStringLiteral("cmd"), args[0]},
                                         {QStringLiteral("seq"), 1}});
-        const bool ok = opMatches(dig(reply, args[1]), args[2], args[3]);
+        // I3: bridge-unreachable is infrastructure (exit 4), decided BEFORE the
+        // assertion — a dead environment must never read as a legitimate red.
+        if (isInfraError(reply)) {
+            std::cerr << "INFRA ERROR: " << reply.value(QStringLiteral("code")).toString().toStdString()
+                      << " " << reply.value(QStringLiteral("message")).toString().toStdString() << "\n";
+            return 4;
+        }
+        const bool ok = opMatches(dig(reply, args[1]), args[2], args.value(3));
         std::cout << (ok ? "PASS\n" : "FAIL\n");
         return ok ? 0 : 1;
     }
@@ -297,6 +463,9 @@ int main(int argc, char** argv)
     if (!payload.isEmpty()) req.insert(QStringLiteral("payload"), payload);
     const QJsonObject reply = call(req, grabName.isEmpty() ? g_timeout : 10000);
     std::cout << QJsonDocument(reply).toJson(QJsonDocument::Indented).toStdString();
+    // Honour the exit-code contract: a NO_PIPE/TIMEOUT is infrastructure (4), a
+    // handler's coded error is a red (1), a reply is green (0).
+    if (isInfraError(reply)) return 4;
     return reply.value(QStringLiteral("type")).toString() == QStringLiteral("reply")
                ? 0 : 1;
 }
