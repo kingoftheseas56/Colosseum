@@ -77,4 +77,26 @@ Assert-Contains $hosted '"hostedPlayerId":\s*(request|r)\.providerId' `
 Assert-Contains $hosted '"position":\s*[a-zA-Z.]*(lastPosition|currentTime|position)' `
     "Hosted resume must carry the last playback position in seconds."
 
+# Task 7 — Continue Watching routes a hosted entry back to VidKing BEFORE the torrent/local
+# branches, and only while net.vidking.player is installed and enabled. The hosted Loader is
+# separate from playerLayer and never changes usePlayer2.
+Assert-Contains $main 'openHostedPlayerSession' `
+    "Main must expose openHostedPlayerSession as the hosted entry point."
+Assert-Contains $main '"contentKind":\s*"hosted-video"' `
+    "Hosted sessions must declare contentKind hosted-video."
+Assert-Contains $main 'hostedPlayerLayer' `
+    "Main must declare a hostedPlayerLayer Loader beside playerLayer."
+Assert-Contains $main 'function minimizeHostedPlayer' `
+    "Main must declare minimizeHostedPlayer()."
+Assert-Contains $main 'function closeHostedPlayerSession' `
+    "Main must declare closeHostedPlayerSession()."
+Assert-Contains $main 'hostedPlayerLayer\.active\s*=\s*false' `
+    "Minimize/close must UNLOAD the hosted Loader so no warm iframe survives."
+Assert-Contains $main 'r\.hostedPlayerId' `
+    "resumeContinue must check resume.hostedPlayerId before localPath/infoHash."
+Assert-Contains $main 'openTheatreSeries' `
+    "A disabled/removed VidKing Continue must fall back to Theatre detail."
+Assert-Contains $main 'reopenSources' `
+    "Back to Sources must restore the original Sources context."
+
 Write-Host "Theatre progress parity structure OK."

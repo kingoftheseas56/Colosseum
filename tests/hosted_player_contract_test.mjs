@@ -134,5 +134,69 @@ has(pageSrc, /"hostedPlayerId":/, 'the resume payload marks the hosted provider'
 has(pageSrc, /signal backRequested\(\)/, 'exposes backRequested');
 hasnt(pageSrc, /MpvItem|Colosseum\.Player/, 'never instantiates the mpv player');
 
+// ============================ Task 7 — Main session + Continue routing ==========
+const mainSrc = read('qml/Main.qml');
+
+console.log('Main wires a hosted playback session that never touches mpv');
+has(mainSrc, /function\s+openHostedPlayerSession\s*\(/, 'declares openHostedPlayerSession(request)');
+has(mainSrc, /"contentKind":\s*"hosted-video"/, 'the hosted session kind is "hosted-video"');
+// The hosted Loader must be its OWN top-level Loader beside playerLayer — not inside the
+// native player layer, and it must never flip usePlayer2.
+has(mainSrc, /id:\s*hostedPlayerLayer/, 'declares the hostedPlayerLayer Loader');
+has(mainSrc, /source:\s*["']HostedPlayerPage\.qml["']/, 'the hosted Loader sources HostedPlayerPage.qml');
+hasnt(mainSrc, /hostedPlayerLayer[\s\S]{0,200}usePlayer2/, 'the hosted Loader never touches usePlayer2');
+// Session identity dedups by provider + mediaId — it must not collide with an mpv session
+// for the same episode (so a VidKing session and a torrent session can coexist).
+has(mainSrc, /EpisodeBrowser\.seriesRootId\(/, 'the hosted session joins the Theatre collection by series root');
+has(mainSrc, /"hostedPlayerId":\s*[a-zA-Z_.]+providerId/, 'the session target carries the hosted provider id for dedup');
+
+console.log('the hosted lifecycle unloads the Loader — no warm hidden iframe survives');
+has(mainSrc, /rec\.contentKind\s*===\s*"hosted-video"[\s\S]{0,400}hostedPlayerLayer\.active\s*=\s*true/,
+    'activateSession arms the hosted Loader for a hosted-video session');
+has(mainSrc, /hostedPlayerLayer\.item\.open\s*\(/, 'activateSession calls open(request) on the hosted page');
+has(mainSrc, /rec\.contentKind\s*===\s*"hosted-video"[\s\S]{0,300}hostedPlayerLayer\.item\.captureState/,
+    'captureSession delegates to the hosted page captureState()');
+// teardown (minimize) and close MUST set active = false — destroying the WebEngine page and
+// its off-the-record profile. A hidden-but-alive hosted page is the explicit failure mode.
+has(mainSrc, /function\s+minimizeHostedPlayer\s*\(/, 'declares minimizeHostedPlayer()');
+has(mainSrc, /function\s+closeHostedPlayerSession\s*\(/, 'declares closeHostedPlayerSession()');
+has(mainSrc, /suspendForMinimize\(\)[\s\S]{0,200}hostedPlayerLayer\.active\s*=\s*false/,
+    'minimize calls suspendForMinimize then UNLOADS the hosted Loader');
+has(mainSrc, /hostedPlayerLayer\.item\.stop\(\)[\s\S]{0,200}hostedPlayerLayer\.active\s*=\s*false/,
+    'close calls stop() then UNLOADS the hosted Loader');
+
+console.log('the hosted surface participates in immersive taskbar suppression');
+has(mainSrc, /immersiveSurfaceOpen[\s\S]{0,160}hostedPlayerOpen/,
+    'immersiveSurfaceOpen includes the hosted-player surface');
+
+console.log('Continue Watching routes hosted entries back to VidKing, but only if installed+enabled');
+// The hostedPlayerId check must come BEFORE the localPath/infoHash branches. Slice the whole
+// resumeContinue function body so order is checked against real code, not a fixed window.
+const resumeIdx = mainSrc.indexOf('function resumeContinue');
+const resumeEnd = mainSrc.indexOf('\n    //  detail', resumeIdx);   // next sibling comment
+const resumeSlice = mainSrc.slice(resumeIdx, resumeEnd > resumeIdx ? resumeEnd : resumeIdx + 3000);
+has(resumeSlice, /r\.hostedPlayerId/, 'resumeContinue reads resume.hostedPlayerId');
+const hostedCheckPos = resumeSlice.search(/r\.hostedPlayerId/);
+const localPathPos   = resumeSlice.search(/r\.localPath/);
+const infoHashPos    = resumeSlice.search(/r\.infoHash/);
+check(hostedCheckPos > -1 && (localPathPos === -1 || hostedCheckPos < localPathPos)
+                        && (infoHashPos === -1 || hostedCheckPos < infoHashPos),
+    'the hostedPlayerId branch precedes the localPath and infoHash branches');
+has(resumeSlice, /net\.vidking\.player/, 'the Continue branch checks the VidKing extension id');
+has(resumeSlice, /openHostedPlayerSession\(/, 'Continue reopens the hosted session when VidKing is enabled');
+has(resumeSlice, /openTheatreSeries\(/, 'a disabled/removed VidKing falls back to Theatre detail');
+
+console.log('Theatre detail connects hostedPlayerRequested and restores the Sources context on back');
+const seriesLayerSlice = mainSrc.slice(mainSrc.indexOf('id: theatreSeriesLayer'),
+                                       mainSrc.indexOf('id: theatreSeriesLayer') + 1600);
+has(seriesLayerSlice, /hostedPlayerRequested\.connect\(\s*win\.openHostedPlayerSession\s*\)/,
+    'theatreSeriesLayer connects hostedPlayerRequested to openHostedPlayerSession');
+has(mainSrc, /reopenSources\s*\(/, 'Main rebuilds the Sources context after Back to Sources');
+// TheatreSeries must expose a reopenSources(request) so Back to Sources restores the SAME
+// movie/episode Sources sheet the user left.
+const tsSrc = read('qml/TheatreSeries.qml');
+has(tsSrc, /function\s+reopenSources\s*\(/, 'TheatreSeries exposes reopenSources(request)');
+has(tsSrc, /sources\.show\(/, 'reopenSources replays the Sources sheet show()');
+
 if (failures) { console.log('\nFAIL — ' + failures + ' check(s) failed'); process.exit(1); }
 console.log('\nPASS — hosted player contract holds');

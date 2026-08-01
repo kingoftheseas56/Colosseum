@@ -1950,6 +1950,37 @@ Item {
 
     ScrollGlide { flick: flick }
 
+    // Back to Sources (from the hosted player): replay the EXACT Sources sheet the user left
+    // — same kind, same media id, same title/context, play mode. The request carries the
+    // hosted identity (type, mediaId, season, episode, tmdbId, imdbId, title, backdrop); we
+    // rebuild the context the show() call expects so hosted rows reappear at the top. This is
+    // additive: it only runs when Main calls it after a hosted Back-to-Sources.
+    function reopenSources(request) {
+        if (!request || !request.mediaId) return
+        var isSeries = request.type === "series" && Number(request.season) > 0 && Number(request.episode) > 0
+        if (isSeries) {
+            var epLabel = (request.title || page.title) + " - S" + request.season + "E" + request.episode
+            page.sheetEpisode = null
+            sources.show("series", request.mediaId, epLabel, {
+                "title": request.title || page.title,
+                "metaLine": "Season " + request.season + " · Episode " + request.episode,
+                "backdrop": request.backdrop || page.banner,
+                "tmdbId": request.tmdbId || page.tmdbId,
+                "imdbId": request.imdbId || page.currentId(),
+                "season": Number(request.season),
+                "episode": Number(request.episode)
+            })
+        } else {
+            page.sheetEpisode = null
+            sources.show("movie", request.mediaId, request.title || page.title, {
+                "title": request.title || page.title,
+                "backdrop": request.backdrop || page.banner,
+                "tmdbId": request.tmdbId || page.tmdbId,
+                "imdbId": request.imdbId || request.mediaId
+            })
+        }
+    }
+
     SourcesSheet {
         id: sources
         z: 60

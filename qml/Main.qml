@@ -715,6 +715,31 @@ Window {
         else theatreSeriesLayer.active = true
     }
     function closeTheatreSeries() { theatreSeriesLayer.active = false }
+    // Back to Sources (from the hosted player's unavailable panel): close the hosted session,
+    // reveal the SAME Theatre detail underneath, and replay its Sources sheet for the exact
+    // movie/episode the user came from. backRequested carries no arg, so the request is the
+    // ACTIVE hosted session's target (or the optional one passed in).
+    function reopenSources(request) {
+        var req = request || ({})
+        if (!req || !req.mediaId) {
+            var rec = Sessions.get(Sessions.activeId)
+            if (rec && rec.contentKind === "hosted-video") req = rec.target || ({})
+        }
+        // Drop the hosted surface so the detail page is the topmost Theatre surface again.
+        if (hostedPlayerLayer.active) {
+            if (hostedPlayerLayer.item) hostedPlayerLayer.item.stop()
+            win.hostedPlayerOpen = false
+            hostedPlayerLayer.active = false
+        }
+        // Close the hosted session so it leaves the taskbar; the Sources sheet is the new focus.
+        if (req && req.mediaId) {
+            var rec2 = Sessions.get(Sessions.activeId)
+            if (rec2 && rec2.contentKind === "hosted-video") Sessions.close(rec2.id)
+        }
+        if (theatreSeriesLayer.active && theatreSeriesLayer.item
+                && theatreSeriesLayer.item.reopenSources)
+            theatreSeriesLayer.item.reopenSources(req)
+    }
 
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
@@ -722,6 +747,12 @@ Window {
     // The movie session the player minimized while still loaded. Reopening it from the
     // taskbar finds the stream warm — we resume in place instead of re-streaming.
     property string warmPlayerSessionId: ""
+
+    // ---- hosted (web-embed) player: a SEPARATE fullscreen layer beside playerLayer. Unlike
+    //      mpv, the hosted page is DESTROYED on minimize/close (active = false) — its
+    //      off-the-record WebEngine profile and the cross-origin iframe must never outlive
+    //      their visible use (no warm hidden iframe). Restore rebuilds it. ----
+    property bool hostedPlayerOpen: false
 
     // Gives the shell a moment to finish coming up before the player is opened on top of it.
     Timer {
@@ -748,6 +779,7 @@ Window {
     // comicSeriesLayer was missing here, so the taskbar rode in front of that reader while
     // the other two + book + player suppressed it correctly (Hemanth, 2026-07-16).
     readonly property bool immersiveSurfaceOpen: win.playerOpen
+        || win.hostedPlayerOpen
         || bookReaderLayer.active
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
@@ -1104,6 +1136,43 @@ Window {
         var r = entry.resume || ({})
         var title = entry.title || entry.caption || ""
         if (entry.kind === "video") {
+            // Hosted-player resume FIRST: if this entry was a VidKing watch, route it back to
+            // the hosted session — but ONLY while net.vidking.player is still installed AND
+            // enabled. A disabled/removed VidKing must NOT bypass the extension switch; fall
+            // through to Theatre detail so the user sees the real source choice.
+            if (r.hostedPlayerId) {
+                var vidkingLive = false
+                if (typeof Extensions !== "undefined") {
+                    var installed = Extensions.installed()
+                    for (var i = 0; i < installed.length; ++i) {
+                        if (installed[i].id === "net.vidking.player" && installed[i].enabled === true) {
+                            vidkingLive = true
+                            break
+                        }
+                    }
+                }
+                if (vidkingLive) {
+                    win.openHostedPlayerSession({
+                        "providerId": r.hostedPlayerId,
+                        "extensionId": r.extensionId || "net.vidking.player",
+                        "type": r.subType || "movie",
+                        "imdbId": r.imdbId || "",
+                        "tmdbId": r.tmdbId || 0,
+                        "season": r.season || 0,
+                        "episode": r.episode || 0,
+                        "mediaId": r.subId || entry.id || "",
+                        "title": title,
+                        "backdrop": entry.cover || "",
+                        "position": r.position || 0
+                    })
+                    return
+                }
+                // disabled/removed: open the Theatre detail instead of bypassing the switch
+                win.openTheatreSeries({ "id": (r.imdbId || String(entry.id || "").split(":")[0]),
+                                        "type": r.subType === "series" ? "series" : "movie",
+                                        "title": title, "cover": entry.cover || "" })
+                return
+            }
             // downloaded file first: resume the LOCAL copy at position, never a stream fetch
             if (r.localPath && String(r.localPath).length)
                 win.openLocalVideoSession({ "path": r.localPath, "id": entry.id || "",
@@ -1245,6 +1314,37 @@ Window {
             "target": { "path": path, "book": b, "id": (b.id !== undefined ? ("" + b.id) : path) }
         })
     }
+    // A hosted (web-embed) playback session. contentKind "hosted-video" keeps it distinct
+    // from a "movie"/mpv session, so a VidKing session and a torrent session for the SAME
+    // episode can coexist as two taskbar tiles. Dedup is by provider + mediaId (the episode
+    // stream id for series, the title id for movies) — re-opening the same VidKing row
+    // switches to its tile rather than spawning a second iframe. The full typed request
+    // rides as `target`; activate/capture/teardown read it back.
+    function openHostedPlayerSession(request) {
+        if (!request || !request.providerId || !request.mediaId) return
+        // Theatre collection membership: same one-tile-per-show join as mpv playback. The
+        // series root is the imdb base id (movies: the title id itself).
+        var joinId = (request.type === "series" && request.imdbId)
+                     ? EpisodeBrowser.seriesRootId(request.imdbId) : (request.imdbId || request.mediaId)
+        if (joinId && typeof Collection !== "undefined" && !Collection.has("theatre", String(joinId)))
+            Collection.add("theatre", { "id": String(joinId),
+                "type": request.type === "series" ? "series" : "movie",
+                "title": request.title || "", "cover": request.backdrop || "", "payload": ({}) })
+        Sessions.openOrSwitch({
+            "appType": "theatre", "contentKind": "hosted-video", "title": request.title || "Video",
+            "target": {
+                // showKey = one tile per show across episodes; the provider+mediaId pair is the
+                // exact-content key (two different VidKing choices on one episode replace, not stack).
+                "showKey": EpisodeBrowser.seriesRootId(request.imdbId || request.mediaId),
+                "hostedPlayerId": request.providerId,
+                "extensionId": request.extensionId, "id": request.mediaId,
+                "type": request.type, "imdbId": request.imdbId, "tmdbId": request.tmdbId,
+                "season": request.season || 0, "episode": request.episode || 0,
+                "mediaId": request.mediaId, "title": request.title || "", "backdrop": request.backdrop || "",
+                "position": request.position || 0
+            }
+        })
+    }
     // (openAudiobookSession retired 2026-07-18 — the standalone audiobook player is gone;
     // the READER is the one audiobook surface. AudiobookSession, the engine, lives on below.)
 
@@ -1262,6 +1362,14 @@ Window {
             if (playerLayer.item) playerLayer.item.stop()
             if (win.warmPlayerSessionId === id) win.warmPlayerSessionId = ""
         }
+        if (rec && rec.contentKind === "hosted-video") {
+            // close destroys the embed outright: stop() writes final progress, then the Loader
+            // unloads (teardownSession already ran above if active, but a non-active hosted
+            // session also needs its surface dropped). No warm iframe survives a close.
+            if (hostedPlayerLayer.item) hostedPlayerLayer.item.stop()
+            win.hostedPlayerOpen = false
+            hostedPlayerLayer.active = false
+        }
         Sessions.close(id)
     }
     function minimizePlayer() {
@@ -1273,6 +1381,20 @@ Window {
         var rec = Sessions.get(Sessions.activeId)
         if (rec && rec.contentKind === "movie") win.closeSession(rec.id)
         else win.closePlayer()
+    }
+    // Hosted-player chrome mirrors minimizePlayer/closePlayerSession but the surface is
+    // a hosted-video session: minimize parks it (capture + teardown + UNLOAD), close ends
+    // it. Both unload the Loader so the off-the-record WebEngine page/profile are destroyed
+    // — no warm hidden iframe survives minimize or close.
+    function minimizeHostedPlayer() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "hosted-video") Sessions.switchTo("")
+        else win.minimizePlayer()                  // not the active session: defer to the movie path
+    }
+    function closeHostedPlayerSession() {
+        var rec = Sessions.get(Sessions.activeId)
+        if (rec && rec.contentKind === "hosted-video") win.closeSession(rec.id)
+        else win.closePlayerSession()
     }
     function minimizeComicReader() {
         var rec = Sessions.get(Sessions.activeId)
@@ -1363,6 +1485,18 @@ Window {
                 if (playerLayer.item.restoreState) playerLayer.item.restoreState(resumeSt)   // precision: Task 5
             }
             win.warmPlayerSessionId = rec.id
+        } else if (rec.contentKind === "hosted-video") {
+            // Hosted playback always rebuilds the embed: the page + its off-the-record profile
+            // were DESTROYED on minimize (active = false), so there is no warm iframe to resume
+            // into. open(request) reloads the wrapper at the requested/captured position.
+            if (!hostedPlayerLayer.active) hostedPlayerLayer.active = true
+            win.hostedPlayerOpen = true
+            if (hostedPlayerLayer.item) {
+                hostedPlayerLayer.item.open(t)
+                var hostedResume = (st && Number(st.position) > 0)
+                                   ? st : { "position": Number(t.position) || 0 }
+                if (hostedPlayerLayer.item.restoreState) hostedPlayerLayer.item.restoreState(hostedResume)
+            }
         } else if (rec.contentKind === "comic") {
             if (String(t.seriesId || "").indexOf("gc:") === 0) {
                 // GetComics content (western shelf OR LOCG-catalogue page) restores via the
@@ -1427,6 +1561,8 @@ Window {
     function captureSession(rec) {
         if (!rec || !rec.id) return ({})
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
+        if (rec.contentKind === "hosted-video" && hostedPlayerLayer.item && hostedPlayerLayer.item.captureState)
+            return hostedPlayerLayer.item.captureState()
         if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — capture from whichever is live
             var lay = comicSeriesLayer.active ? comicSeriesLayer
@@ -1446,6 +1582,13 @@ Window {
             if (playerLayer.item) playerLayer.item.suspendForMinimize()
             win.warmPlayerSessionId = rec.id
             win.playerOpen = false
+        } else if (rec.contentKind === "hosted-video") {
+            // minimize writes final progress and halts the embed (suspendForMinimize), then
+            // the Loader is UNLOADED — the WebEngine page and its off-the-record profile are
+            // destroyed immediately. There is no warm hidden iframe; restore rebuilds it.
+            if (hostedPlayerLayer.item) hostedPlayerLayer.item.suspendForMinimize()
+            win.hostedPlayerOpen = false
+            hostedPlayerLayer.active = false
         } else if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — drop whichever is live
             if (comicSeriesLayer.active) comicSeriesLayer.active = false
@@ -2277,6 +2420,9 @@ Window {
             item.playLocalRequested.connect(win.openLocalVideoSession)
             item.playArrivingRequested.connect(win.routeArrivingPlay)
             item.openItemRequested.connect(win.openTheatreSeries)
+            // A hosted-player selection from SourcesSheet arrives as a typed request; route it
+            // to the hosted session (never playRequested — that is the mpv/torrent path).
+            item.hostedPlayerRequested.connect(win.openHostedPlayerSession)
         }
     }
 
@@ -2311,6 +2457,28 @@ Window {
                 item.backendRestartRequired.connect(function(reason) {
                     console.warn("[player2] failed after first frame: " + reason)
                 })
+        }
+    }
+
+    // ---- hosted (web-embed) player layer: beside playerLayer at the SAME immersive z-level
+    //      (z:60), full-window. It is a SEPARATE Loader — never inside the native player layer,
+    //      and never swapping usePlayer2. Unlike playerLayer it is UNLOADED (active = false) on
+    //      minimize/close so the WebEngine page and its off-the-record profile are destroyed;
+    //      no warm hidden iframe survives. visible follows hostedPlayerOpen (the session flag). ----
+    Loader {
+        id: hostedPlayerLayer
+        anchors.fill: parent
+        z: 60
+        active: false
+        visible: win.hostedPlayerOpen
+        source: "HostedPlayerPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            // Back to Sources: close the hosted session + replay the Theatre Sources sheet.
+            item.backRequested.connect(win.reopenSources)
+            item.minimizeRequested.connect(win.minimizeHostedPlayer)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(win.closeHostedPlayerSession)
         }
     }
 
