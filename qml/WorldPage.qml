@@ -23,6 +23,11 @@ Item {
 
     property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
     property string medium: ""               // which library pill reads as selected
+    // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
+    // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
+    // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
+    // construct (the page harness, a cold world) stays conservative.
+    property bool showExplicitContent: false
     default property alias content: board.data
 
     signal homeRequested()

@@ -39,14 +39,17 @@ Assert-Contains $ctab 'signal westernRequested(string title)' "top-comics fallba
 Assert-Contains $ctab 'signal westernExploreRequested(var box)' "explore box opens the archive index"
 Assert-Absent  $ctab 'Top in Tankoban — Manga' "comics tab must not carry any manga row"
 
-# --- Task 4: TankobanWorld keeps shared rows + comics data, adds the tab bar + Loader swap,
-#     and the browse rows now live in the tab components (NOT inline in the world) ---
+# --- Task 4 + Task 7: TankobanWorld keeps shared rows + comics data, mounts the tab bar,
+#     and the browse rows live in the tab components. Task 7 adds Discover as the FIRST
+#     and DEFAULT tab (Discover · Manga · Comics) with a retained TankobanDiscoverPage. ---
 $tw = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
-Assert-Contains $tw 'property string activeTab: "manga"' "world holds the active tab, default manga"
+Assert-Contains $tw 'property string activeTab: "discover"' "world holds the active tab, default discover (Task 7: Discover is first/default)"
 Assert-Contains $tw 'WorldTabBar' "world mounts the tab bar"
+Assert-Contains $tw '"discover"' "tab model has the discover key (Task 7)"
 Assert-Contains $tw '"manga"' "tab model has the manga key"
 Assert-Contains $tw '"comics"' "tab model has the comics key"
 Assert-Contains $tw 'onTabRequested' "tab bar drives activeTab"
+Assert-Contains $tw 'TankobanDiscoverPage' "world mounts the retained TankobanDiscoverPage (Task 7)"
 Assert-Contains $tw 'TankobanComicsTab.qml' "world Loader-swaps to the comics half"
 Assert-Contains $tw 'TankobanMangaTab.qml' "world Loader-swaps to the manga half"
 Assert-Contains $tw 'Qt.binding' "comics data is reactively bound into the loaded view (no re-fetch)"
@@ -55,6 +58,9 @@ Assert-Contains $tw 'Next Up' "next up stays shared"
 Assert-Contains $tw 'Continue Reading' "continue stays shared"
 Assert-Contains $tw 'ComicsCatalog.shelf' "world still owns the one-time shelf compute"
 Assert-Contains $tw 'GcApi.explore' "world still owns the one-time explore fetch"
+Assert-Contains $tw 'onMangaSeriesRequested' "Discover manga card routes to the existing manga series door (Task 7)"
+Assert-Contains $tw 'onComicSeriesRequested' "Discover comics card routes to the existing comic series door (Task 7)"
+Assert-Contains $tw 'showExplicitContent: tanko.showExplicitContent' "Discover reads the inherited explicit preference (Task 7 Step 4)"
 Assert-Absent  $tw 'title: "Top in Tankoban — Manga"' "manga row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Top in Tankoban — Comics"' "comics row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Explore Comics"' "explore-comics moved out of the world into the tab"

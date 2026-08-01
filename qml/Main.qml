@@ -2049,6 +2049,13 @@ Window {
                     if (nextUpPlay) nextUpPlay.connect(win.openMovieSession)
                     var nextUpRead = item["nextUpReadRequested"]
                     if (nextUpRead) nextUpRead.connect(win.openComicSession)
+                    // Thread the global Explicit Content preference into every world's
+                    // inherited WorldPage.showExplicitContent (Task 7 Step 4). Tankoban's
+                    // Discover wall reads it now; Theatre/Biblio Discover walls read it
+                    // via Task 9. The property is guarded so a world that pre-dates the
+                    // inherited field (none currently, but defensive) loads cleanly.
+                    if (item.showExplicitContent !== undefined)
+                        item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
                     if (mode === "Theatre") {
                         item.contentPreferences = contentPreferences   // the one global preference into the deep catalogue
                         var theatreSignal = item["theatre" + "ItemRequested"]

@@ -137,7 +137,7 @@ WorldPage {
         });
     }
 
-    property string activeTab: "manga"
+    property string activeTab: "discover"
 
     FeaturedCarousel {
         kicker: "Featured in Tankoban"
@@ -183,13 +183,43 @@ WorldPage {
         onSeeAllRequested: tanko.continueSeeAllRequested()
     }
 
-    // Manga | Comics — one mode, two tabs (mirrors Theatre's Movies/Shows/Anime). Only the
-    // browse rows split; Featured/Next Up/Continue above stay blended.
+    // Discover | Manga | Comics — three tabs (mirrors Theatre's discover-first order).
+    // Discover is first and default; only the browse rows split into Manga/Comics halves.
+    // Featured/Next Up/Continue above stay blended across all three tabs.
     WorldTabBar {
         backdrop: tanko.backdrop
         currentTab: tanko.activeTab
-        tabModel: [ { key: "manga", label: "Manga" }, { key: "comics", label: "Comics" } ]
+        tabModel: [ { key: "discover", label: "Discover" },
+                    { key: "manga", label: "Manga" },
+                    { key: "comics", label: "Comics" } ]
         onTabRequested: (tab) => tanko.activeTab = tab
+    }
+
+    // ── Discover: the shared Discover shell, retained (NOT Loader-swapped) so its per-type
+    //    in-session state (catalogue, filter, items, scroll) survives tab switches. Built
+    //    once; hidden when another tab is active. Theatre mounts its DiscoverPage the same
+    //    way. A normalized card routes to the EXISTING series doors by type — manga →
+    //    seriesRequested(title), comics → comicSeriesRequested(item). No download action. ──
+    TankobanDiscoverPage {
+        id: discoverPage
+        visible: tanko.activeTab === "discover"
+        width: parent.width
+        height: visible ? Math.max(620, tanko.height - 200) : 0
+        malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+        comicsCatalog: (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null
+        extensions: (typeof Extensions !== "undefined") ? Extensions.installed() : []
+        showExplicitContent: tanko.showExplicitContent
+        // Manga card → the existing manga series door (title-only route, already wired in Main).
+        onMangaSeriesRequested: function(item) { tanko.seriesRequested((item && item.title) || "") }
+        // Comics card → the existing LOCG comic-series door (the normalized item carries the
+        // locg id under raw.locgId, which openComicSeries reads via d.id).
+        onComicSeriesRequested: function(item) {
+            var raw = (item && item.raw) || item || ({})
+            tanko.comicSeriesRequested({ id: raw.locgId || raw.locg_id || item.id || "",
+                                          title: (item && item.title) || "",
+                                          cover: (item && item.cover) || "",
+                                          locgMeta: raw })
+        }
     }
 
     // The active half's browse rows. Loader-swapped so only the shown half is built; the
@@ -199,7 +229,10 @@ WorldPage {
         id: tabContent
         width: parent ? parent.width : 0
         height: item ? item.implicitHeight : 0
-        source: tanko.activeTab === "comics" ? "TankobanComicsTab.qml" : "TankobanMangaTab.qml"
+        source: tanko.activeTab === "comics" ? "TankobanComicsTab.qml"
+              : tanko.activeTab === "manga" ? "TankobanMangaTab.qml"
+              : ""
+        active: tanko.activeTab === "manga" || tanko.activeTab === "comics"
         onLoaded: {
             if (item.collectionOpenRequested) item.collectionOpenRequested.connect(tanko.collectionOpenRequested)
             if (tanko.activeTab === "comics") {
