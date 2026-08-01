@@ -20,6 +20,10 @@ Item {
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
+    // A hosted-player (VidKing) row was chosen in the Sources sheet. Carries a typed
+    // request up to Main → openHostedPlayerSession. NEVER routed through playRequested,
+    // infoHash, url:, Stream, or Download — a hosted player is not a stream.
+    signal hostedPlayerRequested(var request)
 
     property string title: ""
     property string mediaType: "movie"
@@ -1951,6 +1955,26 @@ Item {
         z: 60
         backdrop: page.backdrop
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
+        // A hosted-player row → a typed request. Series mediaId is the episode stream id
+        // (sources.subId); movie mediaId is the title id. Handed straight up to Main; it
+        // never touches playRequested, infoHash, url:, Stream, or Download.
+        onHostedPlayerRequested: (row, context) => {
+            var isSeries = context && context.season !== undefined
+            var request = {
+                "providerId": row.providerId,
+                "extensionId": row.extensionId,
+                "type": isSeries ? "series" : "movie",
+                "imdbId": context.imdbId,
+                "tmdbId": context.tmdbId,
+                "season": context.season || 0,
+                "episode": context.episode || 0,
+                "mediaId": isSeries ? sources.subId : page.currentId(),
+                "title": context.title || page.title,
+                "backdrop": context.backdrop || page.banner,
+                "position": 0
+            }
+            page.hostedPlayerRequested(request)
+        }
         onDownloadRequested: (row) => {
             if (page.pendingSeasonPick) {
                 // season-mode pick: the chosen FULL-SEASON torrent pins the checkout

@@ -1,10 +1,14 @@
 #include "engine/ComicsCatalog.h"
+#include <QDate>
 #include <QFileInfo>
 #include <QHash>
 #include <QRegularExpression>
+#include <QSet>
 #include <QSqlError>
 #include <QSqlQuery>
+#include <QStringList>
 #include <QVariant>
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -383,4 +387,266 @@ QVariantList ComicsCatalog::shelf(const QString& kind, const QString& arg, int l
         out.append(m);
     }
     return out;
+}
+
+// --- Tankoban Discover: discovery filters + house ranking (spec 2026-08-01) ---
+//
+// includeExplicit is a deliberate NO-OP in this lane. Ground-truth (Hemanth,
+// 2026-08-02): the curated comics catalogue carries NO adult/explicit
+// classification — there is no such column on curated_series / curated_edition and
+// no maturity genre value; it is the mainstream LOCG top-comics list. The parameter
+// is accepted for interface parity with the manga (MalCatalog) and Task-9 lanes,
+// but gates nothing here: results are identical whether it is true or false. This
+// follows the design's conservative rule — unknown classification defaults to
+// VISIBLE; a false positive (hiding a mainstream title) is worse than incomplete
+// gating. Availability is likewise a BOOST, never an inclusion gate.
+
+namespace {
+
+// curated_edition.published is dirty free text ('2005', '[August] 2011',
+// '2020 [January 2022]'). Pull every 4-digit run and keep the max plausible year;
+// 0 means "no year found" (the caller treats that as NEUTRAL recency, not a penalty).
+int maxPublishedYear(const QString& published) {
+    static const QRegularExpression re(QStringLiteral("(\\d{4})"));
+    int best = 0;
+    auto it = re.globalMatch(published);
+    while (it.hasNext()) {
+        const int y = it.next().captured(1).toInt();
+        if (y >= 1900 && y <= 2100 && y > best) best = y;
+    }
+    return best;
+}
+
+double clamp01(double v) { return v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v); }
+
+// A scoped catalogue row with its derived signals and computed house composite.
+struct DiscoRow {
+    QString locg, title, norm, publisher, cover, genres;
+    int year = 0, rank = 0, edCount = 0, availCount = 0, maxYear = 0;
+    bool hasRank = false;
+    double availFrac = 0.0;
+    double score = 0.0, cPop = 0.0, cAvail = 0.0, cRec = 0.0, cMeta = 0.0;
+};
+
+} // namespace
+
+QVariantList ComicsCatalog::discoverFilters(const QString& axis, bool /*includeExplicit*/) const {
+    // includeExplicit intentionally unused — curated comics carry no explicit
+    // classification, so the facet counts are identical either way (see file note).
+    QVariantList out;
+    if (!curatedReady()) return out;
+    QString sql;
+    if (axis == QStringLiteral("genre")) {
+        sql = QStringLiteral(
+            "select genre, count(*) as c from curated_genre"
+            " group by genre order by c desc, genre asc");
+    } else if (axis == QStringLiteral("publisher")) {
+        // a blank publisher is a useless facet — exclude it (spec 2026-08-01).
+        sql = QStringLiteral(
+            "select publisher, count(*) as c from curated_series"
+            " where publisher != '' group by publisher order by c desc, publisher asc");
+    } else {
+        return out;   // unknown/empty axis
+    }
+    QSqlQuery q(m_db);
+    if (!q.exec(sql)) return out;
+    while (q.next()) {
+        const QString v = q.value(0).toString();
+        out.append(QVariantMap{{QStringLiteral("key"), v},
+                               {QStringLiteral("label"), v},
+                               {QStringLiteral("count"), q.value(1).toInt()}});
+    }
+    return out;
+}
+
+QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString& filterAxis,
+                                        const QString& filterKey, bool /*includeExplicit*/,
+                                        int offset, int limit) const {
+    // includeExplicit intentionally unused — no row is ever classified explicit in
+    // this catalogue, so it gates nothing (see file note). Availability is a boost,
+    // not an inclusion gate: unavailable titles stay in the result set.
+    const int lim = std::clamp(limit, 1, 100);
+    const int off = std::max(0, offset);
+    auto pack = [&](const QVariantList& items, int total) {
+        return QVariantMap{
+            {QStringLiteral("items"), items},
+            {QStringLiteral("nextOffset"), off + static_cast<int>(items.size())},
+            {QStringLiteral("exhausted"), off + static_cast<int>(items.size()) >= total},
+            {QStringLiteral("freshness"), QStringLiteral("bundled")}};
+    };
+
+    if (!curatedReady()) return pack({}, 0);
+
+    // Allowlist the catalogue id and the filter axis — never interpolate caller text.
+    static const QSet<QString> catalogs = {
+        QStringLiteral("popular"), QStringLiteral("new-releases"),
+        QStringLiteral("most-stocked"), QStringLiteral("all")};
+    if (!catalogs.contains(catalogId)) return pack({}, 0);
+    if (!(filterAxis.isEmpty() || filterAxis == QStringLiteral("genre")
+          || filterAxis == QStringLiteral("publisher")))
+        return pack({}, 0);
+
+    // Scope: optional facet. filterKey is BOUND (addBindValue), never concatenated.
+    const bool facetGenre = filterAxis == QStringLiteral("genre") && !filterKey.isEmpty();
+    const bool facetPublisher = filterAxis == QStringLiteral("publisher") && !filterKey.isEmpty();
+
+    QString sql = QStringLiteral(
+        "select s.locg_id, s.rank, s.title, s.norm_title, s.year, s.publisher, s.cover, s.synopsis,"
+        "       coalesce((select group_concat(g.genre) from curated_genre g"
+        "                 where g.locg_id = s.locg_id), '') as genres,"
+        "       (select count(*) from curated_edition e where e.locg_id = s.locg_id) as ed_count,"
+        "       (select count(*) from curated_edition e where e.locg_id = s.locg_id"
+        "        and e.available = 1 and e.getcomics_post != '') as avail_count"
+        " from curated_series s");
+    if (facetGenre)
+        sql += QStringLiteral(" join curated_genre gf on gf.locg_id = s.locg_id where gf.genre = ?");
+    else if (facetPublisher)
+        sql += QStringLiteral(" where s.publisher = ?");
+
+    QSqlQuery q(m_db);
+    q.prepare(sql);
+    if (facetGenre || facetPublisher) q.addBindValue(filterKey);
+    if (!q.exec()) return pack({}, 0);
+
+    std::vector<DiscoRow> rows;
+    QSet<QString> scopedIds;
+    while (q.next()) {
+        const QString locg = q.value(0).toString();
+        if (scopedIds.contains(locg)) continue;   // dedupe (defensive against facet join)
+        scopedIds.insert(locg);
+        DiscoRow r;
+        r.locg = locg;
+        r.hasRank = !q.value(1).isNull();
+        r.rank = q.value(1).toInt();
+        r.title = q.value(2).toString();
+        r.norm = q.value(3).toString();
+        r.year = q.value(4).toInt();
+        r.publisher = q.value(5).toString();
+        r.cover = q.value(6).toString();
+        const QString synopsis = q.value(7).toString();
+        r.genres = q.value(8).toString();
+        r.edCount = q.value(9).toInt();
+        r.availCount = q.value(10).toInt();
+        r.availFrac = r.edCount > 0 ? double(r.availCount) / double(r.edCount) : 0.0;
+        // metadata proxy: identity/completeness — cover, synopsis, publisher, genre.
+        int meta = 0;
+        if (!r.cover.isEmpty()) ++meta;
+        if (!synopsis.isEmpty()) ++meta;
+        if (!r.publisher.isEmpty()) ++meta;
+        if (!r.genres.isEmpty()) ++meta;
+        r.cMeta = 0.05 * (meta / 4.0);   // provisional; metadata weight is a fixed 0.05
+        rows.push_back(std::move(r));
+    }
+    if (rows.empty()) return pack({}, 0);
+
+    // Recency source: MAX publication year across a series' editions (dirty text
+    // parsed tolerantly). One scan of curated_edition, filtered to the scoped set —
+    // bounded cost, and year-only granularity means ties are expected (broken below).
+    QHash<QString, int> maxYear;
+    {
+        QSqlQuery e(m_db);
+        if (e.exec(QStringLiteral("select locg_id, published from curated_edition"
+                                  " where published != ''"))) {
+            while (e.next()) {
+                const QString locg = e.value(0).toString();
+                if (!scopedIds.contains(locg)) continue;
+                const int y = maxPublishedYear(e.value(1).toString());
+                if (y > maxYear.value(locg, 0)) maxYear[locg] = y;
+            }
+        }
+    }
+
+    // Normalize LOCG rank across the SCOPED set: rank min -> 1.0, worst -> 0.0
+    // (linear, so adjacent-rank gaps stay small and the availability boost can bite).
+    int minRank = 0, maxRank = 0;
+    bool anyRank = false;
+    for (const DiscoRow& r : rows) {
+        if (!r.hasRank) continue;
+        if (!anyRank) { minRank = maxRank = r.rank; anyRank = true; }
+        else { minRank = std::min(minRank, r.rank); maxRank = std::max(maxRank, r.rank); }
+    }
+    const int recFloor = 1980;
+    const int recNow = QDate::currentDate().year();
+    const double recSpan = std::max(1, recNow - recFloor);
+
+    for (DiscoRow& r : rows) {
+        r.maxYear = maxYear.value(r.locg, 0);
+        const double popularity = !anyRank || !r.hasRank ? 0.0
+            : (maxRank == minRank ? 1.0
+               : 1.0 - double(r.rank - minRank) / double(maxRank - minRank));
+        const double recency = r.maxYear > 0
+            ? clamp01(double(r.maxYear - recFloor) / recSpan)
+            : 0.5;   // unknown year is NEUTRAL, never a zero-penalty
+
+        double wPop = 0.65, wAvail = 0.20, wRec = 0.10;   // metadata weight fixed at 0.05
+        if (!r.hasRank) {
+            // No LOCG rank: redistribute its 0.65 PROPORTIONALLY across the available
+            // non-metadata signals (availability + recency). Metadata is NOT boosted,
+            // so its contribution stays <= 0.05 <= the 0.10 ceiling.
+            const double nonMeta = wAvail + wRec;   // 0.30
+            wAvail += 0.65 * (wAvail / nonMeta);
+            wRec += 0.65 * (wRec / nonMeta);
+            wPop = 0.0;
+        }
+        r.cPop = wPop * popularity;
+        r.cAvail = wAvail * r.availFrac;
+        r.cRec = wRec * recency;
+        // r.cMeta already = 0.05 * metaFraction from the fetch loop
+        r.score = r.cPop + r.cAvail + r.cRec + r.cMeta;
+    }
+
+    // Deterministic ordering. Canonical tie-break everywhere: normalized title, then
+    // start year, then locg_id.
+    auto canon = [](const DiscoRow& a, const DiscoRow& b) -> int {
+        if (a.norm != b.norm) return a.norm < b.norm ? -1 : 1;
+        if (a.year != b.year) return a.year < b.year ? -1 : 1;
+        if (a.locg != b.locg) return a.locg < b.locg ? -1 : 1;
+        return 0;
+    };
+    if (catalogId == QStringLiteral("popular")) {
+        std::stable_sort(rows.begin(), rows.end(), [&](const DiscoRow& a, const DiscoRow& b) {
+            if (a.score != b.score) return a.score > b.score;
+            return canon(a, b) < 0;
+        });
+    } else if (catalogId == QStringLiteral("most-stocked")) {
+        std::stable_sort(rows.begin(), rows.end(), [&](const DiscoRow& a, const DiscoRow& b) {
+            if (a.edCount != b.edCount) return a.edCount > b.edCount;       // depth
+            if (a.score != b.score) return a.score > b.score;              // house rank
+            if (a.availFrac != b.availFrac) return a.availFrac > b.availFrac;   // availability
+            return canon(a, b) < 0;
+        });
+    } else if (catalogId == QStringLiteral("new-releases")) {
+        std::stable_sort(rows.begin(), rows.end(), [&](const DiscoRow& a, const DiscoRow& b) {
+            if (a.maxYear != b.maxYear) return a.maxYear > b.maxYear;   // newest publication (0 last)
+            if (a.score != b.score) return a.score > b.score;
+            return canon(a, b) < 0;
+        });
+    } else {   // all — alphabetical by normalized title then year
+        std::stable_sort(rows.begin(), rows.end(), [&](const DiscoRow& a, const DiscoRow& b) {
+            return canon(a, b) < 0;
+        });
+    }
+
+    const int total = static_cast<int>(rows.size());
+    QVariantList items;
+    for (int i = off; i < total && static_cast<int>(items.size()) < lim; ++i) {
+        const DiscoRow& r = rows[static_cast<size_t>(i)];
+        QVariantMap m;
+        m.insert(QStringLiteral("locgId"), r.locg);
+        m.insert(QStringLiteral("title"), r.title);
+        m.insert(QStringLiteral("year"), r.year);
+        m.insert(QStringLiteral("publisher"), r.publisher);
+        m.insert(QStringLiteral("cover"), r.cover);
+        m.insert(QStringLiteral("genres"), r.genres);
+        m.insert(QStringLiteral("availability"), r.availCount > 0);
+        m.insert(QStringLiteral("houseScore"), r.score);
+        m.insert(QStringLiteral("houseComponents"), QVariantMap{
+            {QStringLiteral("popularity"), r.cPop},
+            {QStringLiteral("availability"), r.cAvail},
+            {QStringLiteral("recency"), r.cRec},
+            {QStringLiteral("metadata"), r.cMeta}});
+        m.insert(QStringLiteral("explicit"), false);
+        items.append(m);
+    }
+    return pack(items, total);
 }

@@ -69,5 +69,37 @@ if (mod.hostedPlayerExtensions) {
 check(mod.streamExtensions([vidking], 'movie', 'tt1375666').length === 0,
       'VidKing is NEVER a stream well — it can never enter loadStreams / mpv');
 
+// ============================ Task 4 — hosted rows in the Sources sheet =========
+const sheetSrc = read('qml/SourcesSheet.qml');
+const seriesSrc = read('qml/TheatreSeries.qml');
+
+console.log('SourcesSheet builds hosted rows independently, ahead of stream rows');
+has(sheetSrc, /import "HostedPlayerApi\.js"/, 'SourcesSheet imports HostedPlayerApi');
+has(sheetSrc, /property var hostedRows/, 'SourcesSheet has a separate hostedRows property');
+has(sheetSrc, /HostedPlayerApi\.rowsFor\(/, 'SourcesSheet builds trusted provider rows synchronously');
+has(sheetSrc, /mode === "play"[\s\S]{0,80}HostedPlayerApi\.rowsFor/,
+    'hosted rows are built only in play mode');
+has(sheetSrc, /visibleRows[\s\S]{0,120}hostedRows[\s\S]{0,60}filteredRows\(\)/,
+    'visibleRows = hosted rows followed by filtered stream rows');
+has(sheetSrc, /signal hostedPlayerRequested\(/, 'SourcesSheet emits hostedPlayerRequested');
+has(sheetSrc, /kind === "hostedPlayer"/, 'the delegate recognises a hosted row');
+
+console.log('a hosted row shows no torrent claims and no copy/download/prefetch');
+has(sheetSrc, /HOSTED PLAYER/, 'hosted quality line reads HOSTED PLAYER');
+has(sheetSrc, /availability checked when opened/, 'hosted detail states availability is checked on open');
+has(sheetSrc, /id: copyBtn[\s\S]{0,220}!row\.isHosted/, 'copy action hidden for hosted rows');
+has(sheetSrc, /id: dlBtn[\s\S]{0,240}!row\.isHosted/, 'download action hidden for hosted rows');
+has(sheetSrc, /function warmTopRow\(\)[\s\S]{0,400}filteredRows\(\)/,
+    'warmTopRow prefetches only stream rows (filteredRows), never hosted rows');
+
+console.log('TheatreSeries forwards a typed hosted request, never a torrent/url route');
+has(seriesSrc, /signal hostedPlayerRequested\(var request\)/,
+    'TheatreSeries exposes hostedPlayerRequested(var request)');
+has(seriesSrc, /onHostedPlayerRequested/, 'TheatreSeries handles the sheet hosted selection');
+has(seriesSrc, /"providerId": row\.providerId/, 'the request carries the providerId');
+has(seriesSrc, /"tmdbId": context\.tmdbId/, 'the request carries the tmdbId');
+has(seriesSrc, /page\.hostedPlayerRequested\(request\)/,
+    'the typed request is emitted upward, not through playRequested');
+
 if (failures) { console.log('\nFAIL — ' + failures + ' check(s) failed'); process.exit(1); }
 console.log('\nPASS — hosted player contract holds');

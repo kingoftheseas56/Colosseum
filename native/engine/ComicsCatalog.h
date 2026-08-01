@@ -45,6 +45,42 @@ public:
     // EXISTS curated_edition where locg_id=:id AND available=1 AND getcomics_post != ''
     Q_INVOKABLE bool curatedHasDownloadable(const QString& locgId) const;
 
+    // --- Tankoban Discover (spec 2026-08-01): paged, allowlisted, fully-bound
+    //     discovery + house ranking over the curated (locg_id) catalogue. ---
+    // axis: "genre" (groups curated_genre.genre) | "publisher" (groups
+    // curated_series.publisher, blank publisher EXCLUDED). Returns {key,label,count}
+    // ordered count DESC then label ASC. includeExplicit is accepted for interface
+    // parity with the manga (MalCatalog) / Task-9 lanes but is a deliberate NO-OP
+    // here: the curated comics catalogue carries NO adult/explicit classification
+    // (no column, no maturity genre — it is the mainstream LOCG list), so nothing is
+    // ever gated and results are identical whether it is true or false. Any other
+    // axis returns an empty list.
+    Q_INVOKABLE QVariantList discoverFilters(const QString& axis, bool includeExplicit) const;
+    // catalogId ∈ {popular, new-releases, most-stocked, all}; filterAxis ∈
+    // {genre, publisher, ""}. filterKey is BOUND (never concatenated). offset is
+    // clamped >= 0, limit to [1,100]. Returns {items, nextOffset, exhausted,
+    // freshness:"bundled"}. Each item carries {locgId, title, year, publisher, cover,
+    // genres, availability(bool), houseScore, houseComponents, explicit:false}.
+    //  * popular      = the house ranking (65% normalized LOCG rank, 20% acquisition
+    //                   availability, 10% recent release activity, 5% metadata; when a
+    //                   row has no LOCG rank the 65% redistributes proportionally
+    //                   across availability+recency, metadata staying at its 0.05 base
+    //                   ≤ 0.10 — never an arbitrary worst rank).
+    //  * new-releases = newest real publication year (from curated_edition.published),
+    //                   NOT rowid/modification order.
+    //  * most-stocked = edition depth, house rank + availability as tie-breakers.
+    //  * all          = alphabetical by normalized title then start year.
+    // houseComponents {popularity,availability,recency,metadata} are the WEIGHTED
+    // contributions summing to houseScore — debug/test only, never a public rating.
+    // includeExplicit is the same conservative NO-OP as discoverFilters; availability
+    // is a BOOST, never an inclusion gate (an unavailable title is never removed).
+    // Unknown catalogId or filterAxis returns the same map with no items.
+    Q_INVOKABLE QVariantMap discoverPage(const QString& catalogId,
+                                         const QString& filterAxis,
+                                         const QString& filterKey,
+                                         bool includeExplicit,
+                                         int offset, int limit) const;
+
     // --- shelf (browse-landing) — same row shape as search() ---
     // kind: "stocked" | "publisher" (arg=publisher) | "decade" (arg="2010" -> [2010,2019])
     //     | "deep" (downloads>=10) | "fanmade" (series w/ a fan_made download)

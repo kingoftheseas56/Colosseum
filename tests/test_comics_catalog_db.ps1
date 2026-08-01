@@ -18,6 +18,10 @@ Assert-Contains $mn 'data/comics_catalog.db' "db path anchors on the repo-root c
 $cm = Get-Content (Join-Path $root "native/CMakeLists.txt") -Raw
 Assert-Contains $cm 'engine/ComicsCatalog.cpp' "engine compiled into the app"
 Assert-Contains $cm 'comics_catalog_engine_harness' "harness target exists"
+# 2b) Tankoban Discover API surface (Task 5) — the header must declare both seams
+$ch = Get-Content (Join-Path $root "native/engine/ComicsCatalog.h") -Raw
+Assert-Contains $ch 'QVariantList discoverFilters(const QString& axis, bool includeExplicit)' "discoverFilters declared"
+Assert-Contains $ch 'QVariantMap discoverPage(const QString& catalogId' "discoverPage declared"
 # 3) QML wiring shape
 $cs = Get-Content (Join-Path $root "qml/ComicSeries.qml") -Raw
 Assert-Contains $cs 'bakedReleases' "western shelf carries the baked mode"

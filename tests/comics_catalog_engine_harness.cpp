@@ -211,6 +211,228 @@ int main(int argc, char** argv) {
     if (fanmade.size() != 1 || fanmade[0].toMap().value("gcdId").toInt() != 4) return fail("shelf fanmade (only Hulk has a fan_made download)");
     if (!cat.shelf("bogus", "", 10).isEmpty()) return fail("shelf unknown kind must be empty");
 
+    // ========================================================================
+    // Tankoban Discover — discovery filters + house ranking (spec 2026-08-01).
+    // Built on a SEPARATE fixture db so every curated/shelf assertion above stays
+    // byte-identical and green; this db is engineered for the ranking edge cases.
+    // (Ground-truth per Hemanth: the curated comics catalogue carries NO explicit/
+    // adult classification — no column, no maturity genre — so includeExplicit
+    // gates NOTHING; the "mainstream-visibility" fixture below proves a horror /
+    // Mature-Readers title is never spuriously hidden either way.)
+    // ========================================================================
+    {
+        QTemporaryDir dir3;
+        const QString db3 = dir3.filePath("disco.db");
+        {
+            auto d = QSqlDatabase::addDatabase("QSQLITE", "disco");
+            d.setDatabaseName(db3);
+            if (!d.open()) return fail("disco fixture open");
+            QSqlQuery q(d);
+            // the constructor's readiness probe reads `series`; an empty one makes m_ok true.
+            q.exec("create table series(gcd_id integer primary key, title text, year int, year_ended int, issue_count int, publisher text, cover text, synopsis text)");
+            q.exec("create table curated_series(locg_id text primary key, rank int, title text, norm_title text, year int, slug text, publisher text, cover text, synopsis text)");
+            q.exec("create table curated_edition(id integer primary key autoincrement, locg_id text, title text, display_title text, format text, collects text, isbn text, pages int, published text, chid text, cover text, available int, getcomics_post text, creators text, description text)");
+            q.exec("create table curated_genre(locg_id text, genre text)");
+            // series — inserted deliberately NOT in publication-date order, so New
+            // Releases ordering can only come from real edition years, never rowid.
+            //  sv: BEST rank (1) but 0 available          -> availability-boost loser
+            //  af: rank 2, fully available, recent         -> "Available Favorite" leads
+            //  nr: NO rank (redistribution + metadata cap), fully available
+            //  fr: newest editions (2025)                  -> New Releases first
+            //  ds: 8 editions                              -> Most Stocked first
+            //  mr: Mature-Readers/horror title             -> mainstream-visibility
+            //  a1/a2: same norm_title 'alpha', diff year   -> All norm-then-year tie
+            //  zz: worst rank, last-inserted (rowid trap)
+            q.exec("insert into curated_series values ('sv',1,'Stellar Vault','stellar vault',2000,'stellar-vault','DC','https://c/sv.jpg','a vault of stars')");
+            q.exec("insert into curated_series values ('af',2,'Available Favorite','available favorite',2020,'available-favorite','Image','https://c/af.jpg','beloved and fully in stock')");
+            q.exec("insert into curated_series values ('nr',NULL,'Nameless Rank','nameless rank',2010,'nameless-rank','Indie','https://c/nr.jpg','')");
+            q.exec("insert into curated_series values ('fr',20,'Fresh Off Press','fresh off press',2024,'fresh-off-press','Marvel','https://c/fr.jpg','hot new release')");
+            q.exec("insert into curated_series values ('ds',15,'Deep Stacks','deep stacks',2011,'deep-stacks','DC','https://c/ds.jpg','deeply stocked run')");
+            q.exec("insert into curated_series values ('mr',30,'Mature Mayhem','mature mayhem',2016,'mature-mayhem','Black Mask','https://c/mr.jpg','mature readers horror and violence')");
+            q.exec("insert into curated_series values ('a1',50,'Alpha','alpha',2000,'alpha-1','','https://c/a1.jpg','alpha one')");
+            q.exec("insert into curated_series values ('a2',60,'Alpha','alpha',2010,'alpha-2','Image','https://c/a2.jpg','alpha two')");
+            q.exec("insert into curated_series values ('zz',100,'Zeta Filler','zeta filler',2005,'zeta-filler','','https://c/zz.jpg','filler tail')");
+            // editions — published year drives recency/New-Releases; available+post
+            // drives the availability fraction; row count drives Most-Stocked depth.
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('sv','2000',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('sv','2003',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('af','2021',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('af','2022',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('af','2023',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('af','2024',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('nr','2010',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('fr','2024',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('fr','2025',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2008',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2009',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2010',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2011',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2012',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2008',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2009',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('ds','2010',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('mr','2016',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('mr','2018',1,'p')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('mr','2020',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('a1','2000',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('a2','2010',0,'')");
+            q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('zz','2005',0,'')");
+            q.exec("insert into curated_genre values ('sv','Superhero')");
+            q.exec("insert into curated_genre values ('af','Superhero')");
+            q.exec("insert into curated_genre values ('af','Action & Adventure')");
+            q.exec("insert into curated_genre values ('nr','Horror')");
+            q.exec("insert into curated_genre values ('fr','Fantasy')");
+            q.exec("insert into curated_genre values ('ds','Crime & Mystery')");
+            q.exec("insert into curated_genre values ('mr','Horror')");
+            q.exec("insert into curated_genre values ('a1','Drama')");
+            q.exec("insert into curated_genre values ('a2','Drama')");
+            q.exec("insert into curated_genre values ('zz','Humor')");
+            d.close();
+        }
+        QSqlDatabase::removeDatabase("disco");
+        ComicsCatalog disco(db3);
+        if (!disco.curatedReady()) return fail("disco fixture curatedReady");
+
+        auto idxOf = [](const QVariantList& L, const QString& id) -> int {
+            for (int i = 0; i < L.size(); ++i)
+                if (L[i].toMap().value("locgId").toString() == id) return i;
+            return -1;
+        };
+
+        // --- discoverFilters: genre facet, count DESC then label ASC ---
+        const QVariantList gf = disco.discoverFilters("genre", true);
+        if (gf.size() != 7) return fail("discoverFilters genre facet count");
+        if (gf[0].toMap().value("key").toString() != "Drama" || gf[0].toMap().value("count").toInt() != 2)
+            return fail("genre facet count DESC then label ASC: Drama(2) first");
+        if (gf[1].toMap().value("key").toString() != "Horror" || gf[1].toMap().value("count").toInt() != 2)
+            return fail("genre facet: Horror(2) second");
+        if (gf[2].toMap().value("key").toString() != "Superhero" || gf[2].toMap().value("count").toInt() != 2)
+            return fail("genre facet: Superhero(2) third");
+        if (gf[0].toMap().value("label").toString() != "Drama") return fail("genre facet label == key");
+        if (gf[3].toMap().value("key").toString() != "Action & Adventure")
+            return fail("genre facet count=1 tier ordered label ASC");
+        // includeExplicit is a NO-OP for comics: identical facets either way.
+        if (disco.discoverFilters("genre", false).size() != gf.size())
+            return fail("includeExplicit must be a no-op for genre facets");
+
+        // --- discoverFilters: publisher facet, blank publisher EXCLUDED ---
+        const QVariantList pf = disco.discoverFilters("publisher", true);
+        if (pf.size() != 5) return fail("publisher facet count (blank publisher excluded)");
+        if (pf[0].toMap().value("key").toString() != "DC" || pf[0].toMap().value("count").toInt() != 2)
+            return fail("publisher facet DC(2) first");
+        if (pf[1].toMap().value("key").toString() != "Image" || pf[1].toMap().value("count").toInt() != 2)
+            return fail("publisher facet Image(2) second");
+        for (const QVariant& v : pf)
+            if (v.toMap().value("key").toString().isEmpty()) return fail("blank publisher must not be a facet");
+        if (!disco.discoverFilters("bogus", true).isEmpty()) return fail("unknown axis -> empty facets");
+        if (!disco.discoverFilters("", true).isEmpty()) return fail("empty axis -> empty facets");
+
+        // --- discoverPage popular: house ranking ---
+        const QVariantMap popMap = disco.discoverPage("popular", "", "", true, 0, 100);
+        if (popMap.value("freshness").toString() != "bundled") return fail("discoverPage freshness bundled");
+        const QVariantList pop = popMap.value("items").toList();
+        if (pop.size() != 9) return fail("popular full page size");
+        // availability BOOST: the fully-available 'af' (rank 2) leads and outranks the
+        // better-ranked but unavailable 'sv' (rank 1).
+        if (pop[0].toMap().value("locgId").toString() != "af") return fail("popular: Available Favorite must lead (availability boost)");
+        if (idxOf(pop, "af") >= idxOf(pop, "sv")) return fail("popular: available 'af' must outrank better-ranked-but-unavailable 'sv'");
+        // no-rank redistribution: 'nr' is not slammed to worst, and metadata is capped.
+        if (idxOf(pop, "nr") >= idxOf(pop, "sv")) return fail("popular: no-rank 'nr' must not be floored to worst");
+        {
+            const int i = idxOf(pop, "nr");
+            const QVariantMap comps = pop[i].toMap().value("houseComponents").toMap();
+            if (comps.size() != 4) return fail("houseComponents must carry 4 keys");
+            if (comps.value("metadata").toDouble() > 0.10 + 1e-9)
+                return fail("no-rank redistribution: metadata contribution must stay <= 0.10");
+            if (comps.value("popularity").toDouble() != 0.0)
+                return fail("no-rank row: popularity component must be 0 (rank absent)");
+        }
+        // row shape + houseComponents sum to houseScore
+        {
+            const QVariantMap r = pop[0].toMap();
+            if (r.value("title").toString() != "Available Favorite") return fail("row title");
+            if (r.value("year").toInt() != 2020) return fail("row year");
+            if (r.value("publisher").toString() != "Image") return fail("row publisher");
+            if (r.value("cover").toString() != "https://c/af.jpg") return fail("row cover");
+            if (!r.value("genres").toString().contains("Superhero")) return fail("row genres");
+            if (r.value("availability").toBool() != true) return fail("row availability bool (af available)");
+            if (r.value("explicit").toBool() != false) return fail("row explicit:false always");
+            const QVariantMap c = r.value("houseComponents").toMap();
+            const double sum = c.value("popularity").toDouble() + c.value("availability").toDouble()
+                             + c.value("recency").toDouble() + c.value("metadata").toDouble();
+            if (qAbs(sum - r.value("houseScore").toDouble()) > 1e-9) return fail("houseComponents must sum to houseScore");
+            if (r.value("houseScore").toDouble() <= 0.0 || r.value("houseScore").toDouble() > 1.0)
+                return fail("houseScore in (0,1]");
+        }
+        if (pop[idxOf(pop, "sv")].toMap().value("availability").toBool() != false)
+            return fail("row availability bool (sv unavailable)");
+
+        // --- New Releases: by real publication year, NOT rowid ---
+        const QVariantList nrl = disco.discoverPage("new-releases", "", "", true, 0, 100).value("items").toList();
+        if (nrl.size() != 9) return fail("new-releases size");
+        if (nrl[0].toMap().value("locgId").toString() != "fr") return fail("new-releases: newest editions (fr,2025) first");
+        if (nrl[1].toMap().value("locgId").toString() != "af") return fail("new-releases: 2024 second");
+        if (nrl[0].toMap().value("locgId").toString() == "zz") return fail("new-releases must not be rowid order (zz inserted last)");
+
+        // --- Most Stocked: by edition depth, house rank tie-break ---
+        const QVariantList ms = disco.discoverPage("most-stocked", "", "", true, 0, 100).value("items").toList();
+        if (ms[0].toMap().value("locgId").toString() != "ds") return fail("most-stocked: deepest (ds, 8 editions) first");
+        if (idxOf(ms, "fr") >= idxOf(ms, "sv")) return fail("most-stocked: equal-depth tie broken by house rank (fr before sv)");
+
+        // --- All: alphabetical by normalized title then start year ---
+        const QVariantList all = disco.discoverPage("all", "", "", true, 0, 100).value("items").toList();
+        if (all[0].toMap().value("locgId").toString() != "a1") return fail("all: norm 'alpha' + year 2000 first");
+        if (all[1].toMap().value("locgId").toString() != "a2") return fail("all: same norm broken by year (2010 second)");
+        if (all[2].toMap().value("locgId").toString() != "af") return fail("all: 'available favorite' third");
+
+        // --- pagination: stable, no dup/skip across pages ---
+        const QVariantMap pg0 = disco.discoverPage("popular", "", "", true, 0, 3);
+        const QVariantMap pg1 = disco.discoverPage("popular", "", "", true, 3, 3);
+        const QVariantMap pg2 = disco.discoverPage("popular", "", "", true, 6, 3);
+        const QVariantList l0 = pg0.value("items").toList(), l1 = pg1.value("items").toList(), l2 = pg2.value("items").toList();
+        if (l0.size() != 3 || l1.size() != 3 || l2.size() != 3) return fail("pagination page sizes");
+        if (pg0.value("nextOffset").toInt() != 3) return fail("pagination nextOffset");
+        if (pg0.value("exhausted").toBool()) return fail("pagination page0 not exhausted");
+        if (!pg2.value("exhausted").toBool()) return fail("pagination last page exhausted");
+        for (int i = 0; i < 3; ++i) {
+            if (l0[i].toMap().value("locgId") != pop[i].toMap().value("locgId")) return fail("page0 must match full[0..2]");
+            if (l1[i].toMap().value("locgId") != pop[i + 3].toMap().value("locgId")) return fail("page1 must match full[3..5]");
+        }
+
+        // --- facet-scoped ranking ---
+        const QVariantList horror = disco.discoverPage("popular", "genre", "Horror", true, 0, 100).value("items").toList();
+        if (horror.size() != 2) return fail("popular+genre=Horror scopes to the 2 horror titles");
+        if (idxOf(horror, "nr") < 0 || idxOf(horror, "mr") < 0) return fail("horror facet must contain nr and mr");
+        const QVariantList dc = disco.discoverPage("popular", "publisher", "DC", true, 0, 100).value("items").toList();
+        if (dc.size() != 2) return fail("popular+publisher=DC scopes to the 2 DC titles");
+        if (dc[0].toMap().value("locgId").toString() != "sv") return fail("DC scope: rank-1 sv leads");
+
+        // --- includeExplicit is a documented NO-OP; horror/Mature title stays VISIBLE ---
+        const QVariantList popF = disco.discoverPage("popular", "", "", false, 0, 100).value("items").toList();
+        if (popF.size() != pop.size()) return fail("includeExplicit must be a no-op for comics (same result set)");
+        if (idxOf(pop, "mr") < 0 || idxOf(popF, "mr") < 0)
+            return fail("mainstream-visibility: Mature/horror title must stay visible either way");
+
+        // --- bound/allowlisted: injection matches nothing, table survives ---
+        const QVariantList inj = disco.discoverPage("popular", "genre", "Action'); DROP TABLE curated_series;--", true, 0, 100).value("items").toList();
+        if (!inj.isEmpty()) return fail("injection filterKey must match nothing (bound, not concatenated)");
+        if (!disco.curatedReady()) return fail("injection must NOT drop curated_series (table survives)");
+        if (!disco.discoverPage("bogus", "", "", true, 0, 10).value("items").toList().isEmpty())
+            return fail("unknown catalogId -> empty items");
+        if (disco.discoverPage("bogus", "", "", true, 0, 10).value("freshness").toString() != "bundled")
+            return fail("unknown catalogId still returns a well-formed bundled map");
+        if (!disco.discoverPage("popular", "bogus", "x", true, 0, 10).value("items").toList().isEmpty())
+            return fail("unknown filterAxis -> empty items");
+
+        // --- offset/limit clamping ---
+        const QVariantList clampLim = disco.discoverPage("popular", "", "", true, 0, 0).value("items").toList();
+        if (clampLim.size() != 1 || clampLim[0].toMap().value("locgId").toString() != "af")
+            return fail("limit 0 clamps to 1");
+        const QVariantList clampOff = disco.discoverPage("popular", "", "", true, -5, 3).value("items").toList();
+        if (clampOff.size() != 3 || clampOff[0].toMap().value("locgId").toString() != "af")
+            return fail("negative offset clamps to 0");
+    }
+
     ComicsCatalog missing(dir.filePath("nope.db"));
     if (missing.ready()) return fail("missing db must not be ready");
     if (!missing.search("x", 5).isEmpty() || !missing.series(1).isEmpty()
@@ -221,6 +443,9 @@ int main(int argc, char** argv) {
         || !missing.curatedByNorm("saga").isEmpty() || !missing.curatedGenreShelves(5).isEmpty()
         || missing.curatedHasDownloadable("locg1") || !missing.shelf("stocked", "", 10).isEmpty())
         return fail("not-ready curated/shelf accessors must return empty/false, never crash");
+    if (!missing.discoverFilters("genre", true).isEmpty()
+        || !missing.discoverPage("popular", "", "", true, 0, 10).value("items").toList().isEmpty())
+        return fail("not-ready discovery accessors must return empty, never crash");
     std::fprintf(stdout, "COMICS-CATALOG-ENGINE OK\n");
     return 0;
 }
