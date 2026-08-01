@@ -179,8 +179,10 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
 
     // Task 10: the rotating JSONL event stream lives beside the run dirs, but is
     // ONE file across launches (not per-run) so an agent tailing it sees the whole
-    // recent history. Created lazily on first append (mkpath in the ctor).
-    m_events = new LanistaEventLog(
+    // recent history. Created lazily on first append (mkpath in the ctor). NOTE:
+    // rotation is NOT multi-process-safe — two instances writing the same file
+    // could race the rename; fine under this bridge's single-user dev assumption.
+    m_events = std::make_unique<LanistaEventLog>(
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
         + QStringLiteral("/lanista/events.jsonl"));
 
@@ -238,26 +240,13 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     addRead(QStringLiteral("invoke-read"),
             [this](const QJsonObject& p, Replier reply) { cmdInvokeRead(p, std::move(reply)); });
 
-    // Task 10: the event log. events-tail reads the last N lines of events.jsonl;
-    // log-mark stamps a correlation label into events.jsonl AND qInfo, so a
-    // multi-source log analysis pivots on the label, not timestamp guesswork.
-    // BOTH are READS: log-mark writes only to the DEV event log (a diagnostic
-    // annotation, NOT app state), so it is correctly always-on, not DRIVE/WRITE.
+    // Task 10: the event log. Both are READS (log-mark writes only to the DEV
+    // event log, a diagnostic annotation, NOT app state), and neither can fail on
+    // a target, so each returns its body via a method like the Task 3+ reads.
     addRead(QStringLiteral("events-tail"),
-            [this](const QJsonObject& p, Replier reply) {
-                QJsonArray out;
-                for (const QString& l : m_events->tail(p.value(QStringLiteral("limit")).toInt(50)))
-                    out.append(l);
-                reply.reply({{QStringLiteral("lines"), out}});
-            });
+            [this](const QJsonObject& p, Replier reply) { reply.reply(cmdEventsTail(p)); });
     addRead(QStringLiteral("log-mark"),
-            [this](const QJsonObject& p, Replier reply) {
-                const QString label = p.value(QStringLiteral("label")).toString();
-                m_events->append({{QStringLiteral("type"), QStringLiteral("mark")},
-                                  {QStringLiteral("label"), label}});
-                qInfo("lanista: MARK %s", qUtf8Printable(label));
-                reply.reply({{QStringLiteral("marked"), label}});
-            });
+            [this](const QJsonObject& p, Replier reply) { reply.reply(cmdLogMark(p)); });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -284,6 +273,11 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     qInfo("lanista: listening on %s (reads always on; drive/write gated)",
           qUtf8Printable(pipeName()));
 }
+
+// Defined here (not defaulted in the header) so unique_ptr<LanistaEventLog> can
+// see the COMPLETE type — LanistaEventLog.h is included above — when it destroys
+// m_events. An inline/implicit dtor would try to delete a forward-declared type.
+LanistaServer::~LanistaServer() = default;
 
 bool LanistaServer::isListening() const
 {
@@ -1100,6 +1094,29 @@ void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
         return;
     }
     reply.fail("CMD_FAILED", QStringLiteral("no matching invokable: ") + key);
+}
+
+// ── Task 10: the DEV event log ───────────────────────────────────────────────
+// events-tail returns the last N lines of events.jsonl (default 50); log-mark
+// stamps a correlation label into it AND qInfo, so multi-source log analysis
+// pivots on the label rather than timestamp guesswork. Both are READS: log-mark
+// writes only to the DEV event log (a diagnostic annotation, NOT app state), so
+// it is correctly always-on. Neither can fail on a target, so both return their
+// body (like cmdDumpUi) rather than owning the Replier.
+QJsonObject LanistaServer::cmdEventsTail(const QJsonObject& p) const
+{
+    return {{QStringLiteral("lines"),
+             QJsonArray::fromStringList(
+                 m_events->tail(p.value(QStringLiteral("limit")).toInt(50)))}};
+}
+
+QJsonObject LanistaServer::cmdLogMark(const QJsonObject& p) const
+{
+    const QString label = p.value(QStringLiteral("label")).toString();
+    m_events->append({{QStringLiteral("type"), QStringLiteral("mark")},
+                      {QStringLiteral("label"), label}});
+    qInfo("lanista: MARK %s", qUtf8Printable(label));
+    return {{QStringLiteral("marked"), label}};
 }
 
 // ── the combined reply ─────────────────────────────────────────────────────

@@ -40,6 +40,7 @@
 #include <QSharedPointer>
 #include <QString>
 #include <functional>
+#include <memory>
 
 class QLocalServer;
 class QLocalSocket;
@@ -53,6 +54,10 @@ class LanistaServer : public QObject
     Q_OBJECT
 public:
     explicit LanistaServer(QQmlApplicationEngine* engine, QObject* parent = nullptr);
+    // Out-of-line (defined in the .cpp) ONLY so the unique_ptr<LanistaEventLog>
+    // member below can destroy a type that is merely forward-declared here — the
+    // deleter needs the complete type, and the .cpp has the include.
+    ~LanistaServer();
 
     static QString pipeName();
 
@@ -199,6 +204,12 @@ private:
     // fallible reads. It is const: it only READS an organ's invokable, never the
     // server.
     void cmdInvokeRead(const QJsonObject& p, Replier reply) const;
+    // Task 10 — the DEV event log. Neither can fail on a target, so both RETURN
+    // their body (like cmdDumpUi) rather than owning the Replier. Both are const:
+    // log-mark's only mutation lands in the external events.jsonl, not in us —
+    // the same sense in which the Task 5 driving commands are const.
+    QJsonObject cmdEventsTail(const QJsonObject& p) const;
+    QJsonObject cmdLogMark(const QJsonObject& p) const;
 
     // NOTE (Tasks 2-3 targeting): these see ROOT objects only. A QML-declared
     // secondary Window, a Popup with its own window, or anything not reachable
@@ -242,8 +253,10 @@ private:
     bool m_runDirCreated = false;
     // Task 10: the rotating JSONL event stream. log-mark writes a diagnostic
     // annotation here (NOT app state), and events-tail reads it back — both are
-    // READ-gated/always-on. Constructed after m_runDir setup in the ctor.
-    LanistaEventLog* m_events = nullptr;
+    // READ-gated/always-on. Constructed after m_runDir setup in the ctor; a
+    // unique_ptr so the always-on bridge's lone event log is freed with the server
+    // rather than leaked (this class parents everything else to Qt).
+    std::unique_ptr<LanistaEventLog> m_events;
     int m_idleTimeoutMs = 0;
     int m_grabTimeoutMs = 0;   // ctor resolves: COLOSSEUM_LANISTA_GRAB_MS, else
                                // kGrabTimeoutMs. Always lands positive (0 is not
