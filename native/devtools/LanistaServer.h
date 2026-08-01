@@ -15,6 +15,10 @@
 //   reply   = {"type":"reply","seq":<int>, ...}
 //   error   = {"type":"error","seq":<int>,"code":"UPPER_SNAKE","message":"..."}
 //
+// Framing errors the server raises on its own (seq -1 when the request could not
+// be parsed): BAD_JSON, EXTRA_INPUT (more than one command on a connection),
+// LINE_TOO_LONG, IDLE_TIMEOUT. Gate refusals: DRIVE_DISABLED, WRITE_DISABLED.
+//
 // THE COMBINED REPLY (the heart): any command's payload may carry
 //   "grab": {"target": "<objectName>"|"window"}
 // and the reply gains grabPath + grabbedAt — state and pixels captured in the
@@ -25,6 +29,7 @@
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
+#include <QSharedPointer>
 #include <QString>
 #include <functional>
 
@@ -41,32 +46,101 @@ public:
     explicit LanistaServer(QQmlApplicationEngine* engine, QObject* parent = nullptr);
 
     static QString pipeName();
+
+    // Did listen() succeed? Construction never throws and never aborts, and
+    // qInfo()/qWarning() do NOT reach redirected output on Windows — so callers
+    // (harness, scripts) must be able to ask in code instead of grepping a log.
+    bool isListening() const;
+    QString listenError() const { return m_listenError; }
+
+    // Where this session's artifacts (grabs, dumps) go. The PATH is computed at
+    // construction; the DIRECTORY is created only by ensureRunDir(), on the first
+    // artifact write. The bridge is always on in Hemanth's daily app, so it must
+    // not leave one empty timestamped directory behind per launch. Callers of
+    // runDir() must therefore assume it may not exist yet.
     QString runDir() const { return m_runDir; }
+    QString ensureRunDir();
 
     static constexpr const char* kSchema = "colosseum.dev.v1.0";
 
-private:
-    enum Gate { Read, Drive, Write };
-    struct Command {
-        Gate gate;
-        // Returns true when the reply was (or will be) sent by the handler
-        // itself (async grabs); false → the returned object is the reply body.
-        std::function<QJsonObject(const QJsonObject& payload, QLocalSocket* sock,
-                                  int seq, bool* async)> fn;
+    // ── THE REPLY TOKEN — read this before adding a command ─────────────────
+    //
+    // A handler receives a Replier and NOTHING ELSE ANSWERS FOR IT. Two shapes
+    // are legal and they look identical at the call site:
+    //
+    //   sync   — call reply()/fail() before returning (ping, get-state).
+    //   async  — copy the Replier into a callback (grabToImage, a QTimer, a
+    //            signal) and answer on a later event-loop turn. The connection
+    //            stays open until then. This is how Task 2's grabs and Task 5's
+    //            ui-wait-for work.
+    //
+    // A handler that takes ownership MUST survive the client vanishing: the
+    // client can close the pipe at any moment, and the socket is deleteLater()'d
+    // as soon as it does. That is exactly why a Replier is passed instead of a
+    // QLocalSocket* — it holds a QPointer, so a freed socket becomes a no-op
+    // rather than a use-after-free. reply()/fail() also no-op when the token has
+    // already been used, so a double answer cannot corrupt the stream. Copies of
+    // a Replier share that latch, so passing it by value into a lambda is safe.
+    //
+    // Errors: use fail() with a specific UPPER_SNAKE code (NO_SUCH_ITEM,
+    // NOT_VISIBLE, TIMEOUT, …). Do not funnel everything through one generic
+    // code — the client is an agent and the code is what it branches on.
+    class Replier
+    {
+    public:
+        Replier() = default;
+        Replier(QLocalSocket* sock, int seq);
+
+        // False once answered, or once the client has gone away.
+        bool canReply() const;
+
+        void reply(QJsonObject body);
+        void fail(const char* code, const QString& message);
+
+    private:
+        struct State {
+            QPointer<QLocalSocket> sock;
+            int seq = -1;
+            bool sent = false;
+        };
+        void send(QJsonObject line);
+        QSharedPointer<State> m_state;
     };
+
+private:
+    // Restrictive value first: a default-constructed Command fails closed rather
+    // than exposing an ungated command in the daily app.
+    enum class Gate { Write = 0, Drive, Read };
+
+    using Handler = std::function<void(const QJsonObject& payload, Replier reply)>;
+
+    struct Command {
+        Gate gate = Gate::Write;
+        Handler fn;
+    };
+
+    // Registration. Use these — never insert into m_commands directly — so that
+    // the gate is spelled out at every single registration site and adding a
+    // command by copy-paste cannot silently inherit the wrong one.
+    void addRead(const QString& name, Handler fn);
+    void addDrive(const QString& name, Handler fn);
+    void addWrite(const QString& name, Handler fn);
+    void addCommand(Gate gate, const QString& name, Handler fn);
+
+    void registerSelfTestCommands();   // COLOSSEUM_LANISTA_SELFTEST=1 only
+
+    static bool driveOpen();
+    static bool writeOpen();
 
     void onNewConnection();
     void onReadyRead(QLocalSocket* sock);
     void dispatch(QLocalSocket* sock, const QJsonObject& req);
-    void sendReply(QLocalSocket* sock, int seq, QJsonObject body);
-    void sendError(QLocalSocket* sock, int seq, const char* code, const QString& msg);
 
     // Task 1
     QJsonObject cmdPing() const;
     QJsonObject cmdGetState() const;
     // Task 2
-    bool attachGrab(const QJsonObject& payload, QJsonObject body,
-                    QLocalSocket* sock, int seq);   // true → async reply armed
+    bool attachGrab(const QJsonObject& payload, QJsonObject body, Replier reply);
     // Task 3
     QJsonObject cmdQmlGet(const QJsonObject& p) const;
     QJsonObject cmdDumpUi(const QJsonObject& p) const;
@@ -78,20 +152,39 @@ private:
     QJsonObject cmdUiKeypress(const QJsonObject& p) const;
     QJsonObject cmdUiTextInput(const QJsonObject& p) const;
     QJsonObject cmdUiScroll(const QJsonObject& p) const;
-    QJsonObject cmdUiWaitFor(const QJsonObject& p, QLocalSocket* sock, int seq,
-                             bool* async);
+    void cmdUiWaitFor(const QJsonObject& p, Replier reply);
     // Task 9
     QJsonObject cmdInvokeRead(const QJsonObject& p) const;
 
+    // NOTE (Tasks 2-3 targeting): these see ROOT objects only. A QML-declared
+    // secondary Window, a Popup with its own window, or anything not reachable
+    // as a child of a root object is invisible here — and therefore ungrabbable.
+    // mainWindow() returns the FIRST root QQuickWindow, which is "first", not
+    // necessarily "main"; with one root window (Colosseum today) they coincide.
     QQuickWindow* mainWindow() const;
     QQuickItem* findItem(const QString& objectName) const;
     QQuickItem* resolveTarget(const QString& ref) const;   // objectName or "h<N>" handle
 
+    // Per-connection state. `spent` latches once a command line has been taken
+    // from this connection: the wire contract is one command per connection, so
+    // anything arriving afterwards is dropped rather than buffered or (the
+    // original defect) re-dispatched.
+    struct Conn {
+        QByteArray buf;
+        bool spent = false;
+    };
+
     QQmlApplicationEngine* m_engine;
     QLocalServer* m_server = nullptr;
+    QString m_listenError;
     QHash<QString, Command> m_commands;
-    QHash<QLocalSocket*, QByteArray> m_buf;
+    QHash<QLocalSocket*, Conn> m_conns;
     QHash<QString, QPointer<QQuickItem>> m_handles;   // last ui-snapshot
     QString m_runDir;
+    bool m_runDirCreated = false;
+    int m_idleTimeoutMs = 0;
+    int m_dispatchCount = 0;
     int m_grabCounter = 0;
+    bool m_orphanChecked = false;      // selftest-orphan only
+    bool m_orphanCouldReply = false;   // selftest-orphan only
 };

@@ -103,8 +103,6 @@ add_executable(colosseum
     engine/ComickCatalogClient.h
     engine/MangaDownloader.cpp
     engine/MangaDownloader.h
-    devtools/LanistaServer.cpp
-    devtools/LanistaServer.h
     engine/BookDownloader.cpp
     engine/BookDownloader.h
     engine/AudiobookDownloader.cpp
@@ -121,6 +119,9 @@ add_executable(colosseum
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp
     engine/ExtensionsStore.h
+    # ── devtools: the lanista dev-control bridge (always on, reads only) ──
+    devtools/LanistaServer.cpp
+    devtools/LanistaServer.h
     reader/BookBridge.cpp
     reader/BookBridge.h
     reader/BookStores.cpp
@@ -844,8 +845,12 @@ target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 get_target_property(_lanista_qmake Qt6::qmake IMPORTED_LOCATION)
 get_filename_component(_lanista_qtbin "${_lanista_qmake}" DIRECTORY)
 get_filename_component(_lanista_qtprefix "${_lanista_qtbin}" DIRECTORY)
+# The scene path is baked in too: __FILE__ is absolute for THIS generator but
+# that is not guaranteed, and a relative __FILE__ would resolve against the CWD.
+get_filename_component(_lanista_tests_dir "${CMAKE_CURRENT_SOURCE_DIR}/../tests" ABSOLUTE)
 target_compile_definitions(lanista_harness PRIVATE
-    LANISTA_QT_PLATFORMS_DIR="${_lanista_qtprefix}/plugins/platforms")
+    LANISTA_QT_PLATFORMS_DIR="${_lanista_qtprefix}/plugins/platforms"
+    LANISTA_SCENE_DIR="${_lanista_tests_dir}")
 target_link_libraries(lanista_harness PRIVATE
     Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick)
 
