@@ -854,6 +854,15 @@ target_compile_definitions(lanista_harness PRIVATE
 target_link_libraries(lanista_harness PRIVATE
     Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick)
 
+# ── lanista CLI (tankoctl's sibling) ───────────────────────────────────────
+add_executable(lanista
+    tools/lanista.cpp
+    tools/LanistaHash.cpp
+    tools/LanistaHash.h
+)
+target_include_directories(lanista PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(lanista PRIVATE Qt6::Core Qt6::Gui Qt6::Network)
+
 # Pure-logic contract for Comick grouping + the tankoban completeness gate:
 # mirrors colosseum-volume-db's volume_builder tests case-for-case.
 add_executable(comick_volume_grouper_harness
