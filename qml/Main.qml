@@ -61,6 +61,11 @@ Window {
         property string theatrePick: ""
     }
 
+    // The ONE global preference store the whole shell reads (Task 2). Production leaves
+    // settingsLocation unset, so it uses the application QSettings store. Threading
+    // showExplicit into Theatre/Tankoban/Biblio is Task 9 — here it is only set + surfaced.
+    ContentPreferences { id: contentPreferences }
+
     function wallpaperKey(world) {
         if (world === "Tankoban") return "tankobanPick"
         if (world === "Biblio") return "biblioPick"
@@ -351,6 +356,7 @@ Window {
         else if (universeLayer.active) win.closeUniverse()
         else if (universeHallLayer.active) win.closeUniverseHall()
         else if (extensionsLayer.active) win.closeExtensionsPage()
+        else if (settingsLayer.active) win.closeSettingsPage()
         else if (comicSeriesLayer.active) win.closeComicSeries()
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
@@ -874,7 +880,11 @@ Window {
     }
 
     // ---- Downloads page: the taskbar's own full page over everything non-immersive ----
+    // Downloads, Extensions and Settings are the three taskbar full-pages; opening any one
+    // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        extensionsLayer.active = false
+        settingsLayer.active = false
         downloadsLayer.active = true
         taskbar.open = false
     }
@@ -923,10 +933,21 @@ Window {
     function closeUniverseHall() { universeHallLayer.active = false }
 
     function openExtensionsPage() {
+        downloadsLayer.active = false
+        settingsLayer.active = false
         extensionsLayer.active = true
         taskbar.open = false
     }
     function closeExtensionsPage() { extensionsLayer.active = false }
+
+    // ---- Settings page: the global preferences gear, entered from the taskbar ----
+    function openSettingsPage() {
+        downloadsLayer.active = false
+        extensionsLayer.active = false
+        settingsLayer.active = true
+        taskbar.open = false
+    }
+    function closeSettingsPage() { settingsLayer.active = false }
     function routeDownloadItem(item) {
         win.closeDownloadsPage()
         if (item.world === "theatre") {
@@ -2514,6 +2535,24 @@ Window {
         }
     }
 
+    // ---- Settings page: global preferences, entered from the taskbar gear (Task 2) ----
+    Loader {
+        id: settingsLayer
+        anchors.fill: parent
+        z: 52
+        active: false
+        visible: active
+        source: "SettingsPage.qml"
+        onLoaded: {
+            item.backdrop = wall
+            item.preferences = contentPreferences
+            item.backRequested.connect(win.closeSettingsPage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { Qt.quit() })
+        }
+    }
+
     // ---- download feedback (2026-07-18, Hemanth): clicking Download anywhere pops the
     //      taskbar out so the gold jobs badge is SEEN arriving — same auto-reveal (and same
     //      15s pull-back) as a minimize. Fires only when the live-job count GROWS (a finish
@@ -2559,6 +2598,8 @@ Window {
         onDownloadsClicked: downloadsLayer.active ? win.closeDownloadsPage() : win.openDownloadsPage()
         extensionsActive: extensionsLayer.active
         onExtensionsClicked: extensionsLayer.active ? win.closeExtensionsPage() : win.openExtensionsPage()
+        settingsActive: settingsLayer.active
+        onSettingsClicked: settingsLayer.active ? win.closeSettingsPage() : win.openSettingsPage()
     }
 
     Loader {

@@ -23,6 +23,8 @@ Item {
     property bool downloadsActive: false  // the Downloads page is the front surface
     signal extensionsClicked()
     property bool extensionsActive: false // the Extensions page is the front surface
+    signal settingsClicked()
+    property bool settingsActive: false   // the Settings page is the front surface
 
     onOpenChanged: if (!open) fan.visible = false
 
@@ -211,6 +213,40 @@ Item {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: bar.extensionsClicked()
+                }
+            }
+
+            // ---- Settings: the global preferences gear, beside Extensions (Task 2) ----
+            Item {
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                visible: bar.open
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: settMa.containsMouse || bar.settingsActive ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.055)
+                }
+                Image {
+                    anchors.centerIn: parent
+                    width: 21; height: 21
+                    source: "../assets/icons/settings.svg"
+                    fillMode: Image.PreserveAspectFit
+                    opacity: bar.settingsActive ? 1 : 0.75
+                }
+                Rectangle {   // active-page underline, same gold language as session tiles
+                    visible: bar.settingsActive
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+                    width: 20; height: 3; radius: 2
+                    color: Qt.rgba(0.94, 0.77, 0.29, 0.95)
+                }
+                MouseArea {
+                    id: settMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: bar.settingsClicked()
                 }
             }
 
