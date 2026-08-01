@@ -344,19 +344,22 @@ Window {
     Shortcut { sequences: ["Escape"]; onActivated: {
         if (win.playerOpen) win.closePlayer()
         else if (bookReaderLayer.active) win.closeBookReader()
+        // Taskbar full-pages sit at z:56, above every browsing/detail page — so back must
+        // close them BEFORE the pages they cover, else ESC "does nothing" visibly while
+        // silently closing the page underneath. Only one of the three is ever active.
+        else if (downloadsLayer.active) win.closeDownloadsPage()
+        else if (extensionsLayer.active) win.closeExtensionsPage()
+        else if (settingsLayer.active) win.closeSettingsPage()
         else if (bookLayer.active) win.closeBook()
         else if (biblioGenreLayer.active) win.closeBiblioGenre()
         else if (biblioGenreIndexLayer.active) win.closeBiblioGenreIndex()
         else if (searchLayer.active) win.closeSearch()
         else if (worldSearchLayer.active) win.closeWorldSearch()
-        else if (downloadsLayer.active) win.closeDownloadsPage()
         else if (theatreSeriesLayer.active) win.closeTheatreSeries()
         else if (seriesLayer.active) win.closeSeries()
         else if (westernLayer.active) win.closeWestern()
         else if (universeLayer.active) win.closeUniverse()
         else if (universeHallLayer.active) win.closeUniverseHall()
-        else if (extensionsLayer.active) win.closeExtensionsPage()
-        else if (settingsLayer.active) win.closeSettingsPage()
         else if (comicSeriesLayer.active) win.closeComicSeries()
         else if (locgPublisherLayer.active) win.closeLocgPublisher()
         else if (comicBoardLayer.active) win.closeComicArchiveBoard()
@@ -2437,7 +2440,9 @@ Window {
     Loader {
         id: downloadsLayer
         anchors.fill: parent
-        z: 52
+        z: 56     // taskbar full-page: ABOVE every browsing/detail page (universe 52, series/book 53)
+                  // so clicking Downloads always lands on top — below only the immersive surfaces
+                  // (book reader 58, player 60). Was 52: any detail page silently covered it.
         active: false
         visible: active
         source: "DownloadsPage.qml"
@@ -2521,7 +2526,7 @@ Window {
     Loader {
         id: extensionsLayer
         anchors.fill: parent
-        z: 52
+        z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
         active: false
         visible: active
         source: "ExtensionsPage.qml"
@@ -2539,7 +2544,7 @@ Window {
     Loader {
         id: settingsLayer
         anchors.fill: parent
-        z: 52
+        z: 56     // taskbar full-page, same rule as downloadsLayer (see its comment)
         active: false
         visible: active
         source: "SettingsPage.qml"
