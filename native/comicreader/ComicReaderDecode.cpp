@@ -266,6 +266,11 @@ void ComicReaderDecode::request(int page, int priority) {
     m_pool.start(runnable, priority);
 }
 
+void ComicReaderDecode::clearFailure(int page) {
+    m_failed.remove(page);
+    m_missingRetryAt.remove(page);
+}
+
 // The header-only size hint, landing ahead of the same worker's finished result
 // (or ahead of its failure — a truncated file still names its own dimensions).
 // Same stale guard as onWorkerResult: a hint tagged with a superseded generation

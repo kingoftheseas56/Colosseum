@@ -72,6 +72,12 @@ Item {
     // it" the way there is in Long Strip. It rides in the signature so all three surfaces speak one
     // shape and Task 11 has one handler, not three.
     signal presented(int anchorPage, real withinPageFraction)
+    // The placard's two ways out (Task 11), raised straight through. The surface performs neither —
+    // Retry is a backend re-read and Skip is a navigation, and both belong to the shell, which is
+    // the only thing that knows what "the next page" means in this layout and this order.
+    // 1-based, matching every other page number this surface reports.
+    signal retryRequested(int page)
+    signal skipRequested(int page)
 
     // Decode-refresh dependencies. Same reason as the other two surfaces: imageUrl()'s ?rev= bumps
     // C++-side on pageReady and pageInfo() is a plain call, so bindings that read either would never
@@ -89,6 +95,10 @@ Item {
         // cache keeps serving the pre-adjustment page.
         function onRenderProfileChanged() { root.readyRev += 1 }
         function onPageFailed(page, code) { root.failedRev += 1 }
+        // A retry cleared this page's verdict. pageInfo()'s answer changed and nothing else QML can
+        // see moved with it, so without this bump the placard would stay on screen through the whole
+        // re-read. Same dependency as a failure, because it is the same question changing its answer.
+        function onPageRetried(page) { root.failedRev += 1 }
         function onEntryChanged()    {
             root.entryRev += 1
             // A NEW BOOK has to be able to present the same page number as the last one. Without this
@@ -338,10 +348,16 @@ Item {
 
     // typed error placard — over the whole frame, because in Single Page this page IS the whole frame
     ComicReaderUnitError {
+        id: errorPlacard
+        objectName: "unitError"
         anchors.fill: parent
         visible: root.hasError
         code: root.errorCode
         pageIndex: root.pageIndex
+        // 0-based in, 1-based out: the placard names a page index, every signal this surface raises
+        // speaks the shell's 1-based page scale.
+        onRetryRequested: function (page) { root.retryRequested(page + 1) }
+        onSkipRequested: function (page) { root.skipRequested(page + 1) }
     }
 
     // ---- WHAT THIS SURFACE IS DRAWING, and where (Task 9, the Loupe's one question) ----
@@ -370,6 +386,9 @@ Item {
     readonly property alias previewSource: previewImage.source
     readonly property alias hqSource: hqImage.source
     readonly property bool errorVisible: root.hasError
+    // The placard's OWN rule about whether it is offering a way out (never its effective
+    // `visible`, which reads false in any offscreen tree — see the note in ComicReaderUnitError).
+    readonly property bool errorActionsShown: errorPlacard.actionsShown
     // The hq layer's opacity RULE (the value the Behavior is animating toward), so the surfaces gate
     // can prove the latch holds it at 1 through a zoom step instead of trusting the comment. The
     // live `opacity` is deliberately not what is exposed: an in-flight Behavior means a synchronous

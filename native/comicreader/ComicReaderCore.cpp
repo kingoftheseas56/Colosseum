@@ -577,6 +577,46 @@ QVariantMap ComicReaderCore::couplingProbeDebug() const {
 
 // ── mutations ───────────────────────────────────────────────────────────────
 
+// RE-READ one broken page. See the header for the full contract; the two things
+// worth restating where the code is:
+//
+//   * IT WRITES NOTHING TO DISK. Every call below is a read or an in-memory
+//     bookkeeping change; the archive and the volume manifest are not opened at
+//     all, let alone for writing. The core harness pins that with a SHA-256 of
+//     the fixture CBZ taken before and after a retry.
+//   * clearFailure() is load-bearing, not tidiness. ComicReaderDecode memoizes a
+//     failed page for the life of the generation precisely so a re-request storm
+//     cannot re-decode garbage on every frame — so without clearing the memo
+//     first, request() returns early and Retry does nothing at all.
+void ComicReaderCore::retryPage(int page) {
+    if (page < 0 || page >= m_pages.size())
+        return;
+
+    // The page's own verdict comes down first: pageInfo() and
+    // presentationForPage() both read it, so this is what lets the placard
+    // give way to the quiet placeholder while the re-read runs.
+    // NOTE what this deliberately does NOT do: it does not touch `decoded`.
+    // onPageFailed already cleared that flag for a real failure, so setting it
+    // here would buy nothing on a broken page — and on a page that is perfectly
+    // fine it would be a LIE that nothing ever repairs, because request() below
+    // returns early for an already-cached page and no second decode would come
+    // along to set it back. Retry on a healthy page must be a no-op, not damage.
+    m_pages[page].error = PageError::None;
+    m_strip->updatePage(m_pages[page]);
+    flushStripCompensation();
+
+    // ...then the coordinator's memo, and only then the request.
+    m_decode->clearFailure(page);
+    // The CURRENT visible wave's priority — not a fresh boost. A retry is the
+    // reader asking for the page they are already looking at, so it belongs in
+    // the wave that put that page on screen, ahead of the strip's background
+    // window and behind nothing. Bumping the wave here would silently outrank a
+    // page turn that landed in the same beat.
+    m_decode->request(page, kPrioVisible + m_visibleBoost);
+
+    emit pageRetried(page);
+}
+
 void ComicReaderCore::setSpreadOverride(int page, QString state) {
     if (page < 0 || page >= m_pages.size())
         return;

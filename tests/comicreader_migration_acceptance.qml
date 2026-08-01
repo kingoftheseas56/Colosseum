@@ -249,14 +249,20 @@ Item {
         }
 
         // ===== 4. PROGRESS payload byte-identical to the recorded §4.1 shape =====
+        // Task 11: the position comes from PRESENTATION, not from the page the reader was sent to,
+        // so the fixture presents page 3 rather than merely navigating to it. `pageFraction` joins
+        // the resume block here (the within-page anchor Long Strip needs); every other key is the
+        // old reader's, unchanged.
         m.currentPage = 3
+        m._onPresented(3, 0)
         m.recordProgress()
         var expect = {
             "id": "s1", "kind": "manga", "caption": "Contract Series", "title": "Contract Series",
             "sub": "Chapter 1", "cover": "file:///f/cover.png",
             "c1": "#3a2f55", "c2": "#15111f",
             "progress": 0.6,
-            "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "maxSeen": 3, "finished": false }
+            "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "pageFraction": 0,
+                        "maxSeen": 3, "finished": false }
         }
         ck(deepEqual(progM.lastRecord, expect),
            "progress: the Continue payload must be byte-identical to the old reader's — got "

@@ -85,6 +85,12 @@ Item {
     // it rides in the signature so all three surfaces speak one shape. Task 11 is the consumer that
     // gates progress-saving on it; until then it is emitted and unused, which is expected.
     signal presented(int anchorPage, real withinPageFraction)
+    // The placard's two ways out (Task 11), raised straight through. A pair can show TWO of these
+    // cards at once, so the page number is the card's own — never `currentPage`, which would retry
+    // the good half. The surface performs neither action: Retry is a backend re-read and Skip is a
+    // navigation, and both belong to the shell. 1-based, like every page number this surface reports.
+    signal retryRequested(int page)
+    signal skipRequested(int page)
 
     // Decode-refresh dependency (same reason as the strip): imageUrl()'s ?rev= bumps C++-side on
     // pageReady, invisibly to QML, so an Image `source` bound only to {core,index} would never
@@ -113,6 +119,10 @@ Item {
         // cache keeps serving the pre-adjustment page.
         function onRenderProfileChanged() { root.readyRev += 1 }
         function onPageFailed(page, code) { root.failedRev += 1 }
+        // A retry cleared this page's verdict. pageInfo()/presentationForPage() change their answer
+        // and nothing else QML can see moves with them, so without this bump the placard sits there
+        // through the whole re-read. Same dependency as a failure — the same question, new answer.
+        function onPageRetried(page) { root.failedRev += 1 }
         function onEntryChanged()   {
             root.entryRev += 1
             // A NEW BOOK has to be able to present the same anchor page as the last one. Without this
@@ -577,6 +587,10 @@ Item {
                 height: root._rightH
                 x: root._rightX
                 y: root._rightY
+                // THIS half's page, not the anchor: the whole point of per-half placards is that the
+                // good side keeps reading, so the actions must name the side that actually broke.
+                onRetryRequested: function (page) { root.retryRequested(page + 1) }
+                onSkipRequested: function (page) { root.skipRequested(page + 1) }
             }
             ComicReaderUnitError {
                 id: leftErrorPlacard
@@ -589,6 +603,8 @@ Item {
                 height: root._leftH
                 x: root._leftX
                 y: root._leftY
+                onRetryRequested: function (page) { root.retryRequested(page + 1) }
+                onSkipRequested: function (page) { root.skipRequested(page + 1) }
             }
         }
 
@@ -660,6 +676,10 @@ Item {
     readonly property bool leftImageVisible: leftImg.ownVisible
     readonly property bool rightErrorVisible: rightErrorPlacard.ownVisible
     readonly property bool leftErrorVisible: leftErrorPlacard.ownVisible
+    // ...and whether each card is offering its way out. Its OWN rule, never its effective
+    // `visible` — see the note above, and the one in ComicReaderUnitError.
+    readonly property bool rightErrorActionsShown: rightErrorPlacard.actionsShown
+    readonly property bool leftErrorActionsShown: leftErrorPlacard.actionsShown
     readonly property bool placeholdersShown: rightPlaceholder.shown || leftPlaceholder.shown
     // ...and each panel on its own, so a test can pin that a half whose pixels landed EARLY keeps its
     // stand-in while the gate is shut. Dropping it there is not a smaller version of the bug — it is

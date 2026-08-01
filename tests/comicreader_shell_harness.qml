@@ -103,7 +103,30 @@ Item {
         // real core's PageMeta::toVariantMap — absence IS the auto state, never a third "auto" value).
         property var fakePageInfo: ({})
         property var lastSpreadOverride: null
-        function pageInfo(page) { return fakePageInfo }
+        // Task 11: per-page error verdicts, 0-based page -> wire code. pageInfo answers from HERE
+        // when the page has one, so a fixture can make exactly one page broken while the rest of the
+        // book stays healthy — which is the whole shape of "keeps surrounding pages usable".
+        property var pageErrors: ({})
+        function pageInfo(page) {
+            var e = pageErrors[page]
+            if (e !== undefined) {
+                var m = {}
+                for (var k in fakePageInfo) m[k] = fakePageInfo[k]
+                m.error = String(e)
+                return m
+            }
+            return fakePageInfo
+        }
+        // Task 11 retry: the real core clears the page's verdict, drops the decode coordinator's
+        // failure memo and re-queues THAT page. The fake mirrors the observable half — the verdict
+        // comes down and the signal fires — so the shell's routing is exercised rather than assumed.
+        property var retryCalls: []
+        signal pageRetried(int page)
+        function retryPage(page) {
+            retryCalls.push(page)
+            delete pageErrors[page]
+            pageRetried(page)
+        }
         function setSpreadOverride(page, state) { lastSpreadOverride = { page: page, state: String(state) } }
         // The real core FLIPS the phase and republishes couplingState; F3 reads that string back to
         // learn which phase the nudge landed on, so a no-op fake would make the test vacuous.
@@ -256,6 +279,9 @@ Item {
     // a named singleton per scenario at the top of the file.
     Component { id: coreComp; FakeCore {} }
     Component { id: storeComp; FakePageStore {} }
+    // Task 11 adds several throwaway sinks too — the progress spy is now a per-scenario object
+    // rather than a named singleton, for the same reason the cores and stores already are.
+    Component { id: progComp; FakeProgress {} }
     function freshPrefs(over) { return prefsComp.createObject(harness, over || {}) }
     function freshRecords(json) { return recordsComp.createObject(harness, { all: json || "{}" }) }
 
@@ -286,6 +312,10 @@ Item {
     property int _recBefore: 0
     property var _expectPageRec: null
     property var _mB6Records: null
+    property int _burstBefore: 0
+    property var _navShell: null
+    property var _navProg: null
+    property int _navBefore: 0
     property var _csShell: null
     property var _csArea: null
 
@@ -347,17 +377,26 @@ Item {
             mShell.fullscreenRequested(); ck(harness.gotFull,  "fullscreenRequested must connect + emit")
             mShell.closeRequested();      ck(harness.gotClose, "closeRequested must connect + emit")
 
-            // ===== PROGRESS record on a page change is DEBOUNCED (not immediate) =====
+            // ===== PROGRESS: ONLY A PRESENTATION RECORDS (Task 11) =====
+            // The defect this replaces, in Hemanth's terms: flicking through pages recorded
+            // positions he never actually saw, so coming back landed in the wrong place. Navigating
+            // is a REQUEST; the record now waits until a surface says the page is really on screen.
+            //
+            // The negative is asserted directly and it is asserted ACROSS THE DEBOUNCE, in the
+            // deferred phase below — checking it synchronously would pass against the OLD code too,
+            // because the old code debounced as well. What has to be true is that nothing ever
+            // reaches the sink, not that nothing reached it yet.
             var recBefore = mProg.records.length
             mShell.currentPage = 3
             ck(mProg.records.length === recBefore,
-               "page change must be DEBOUNCED — no immediate record, got " + mProg.records.length + " (was " + recBefore + ")")
+               "page change must not record synchronously, got " + mProg.records.length + " (was " + recBefore + ")")
             var expectPageRec = {
                 "id": "s1", "kind": "manga", "caption": "Contract Series", "title": "Contract Series",
                 "sub": "Chapter 1", "cover": "file:///f/cover.png",
                 "c1": "#3a2f55", "c2": "#15111f",
                 "progress": 0.6,
-                "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "maxSeen": 3, "finished": false }
+                "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "pageFraction": 0,
+                            "maxSeen": 3, "finished": false }
             }
             // stash for the deferred phase (after the debounce fires + the close flush)
             harness._mShell = mShell; harness._mProg = mProg; harness._mCore = mCore
@@ -2110,6 +2149,291 @@ Item {
                && lpShell.layout === before.layout,
                "loupe: closing it — every way — must leave the book exactly where it was")
 
+            // ================== TASK 11: presentation, resume anchor, damaged pages ==================
+
+            // ===== T11z. THE CARD'S BUTTONS MUST BE REACHABLE BY A REAL CLICK =====
+            // The shell's input layer is one full-bleed MouseArea that accepts every left press to
+            // resolve the click zones. Qt offers a press to items in reverse paint order and stops
+            // at the first that accepts, so with that layer above the surfaces the error card's
+            // Retry and Skip would be drawn, hoverable and completely DEAD — a control that lies.
+            //
+            // Asserted as the ORDERING RULE rather than by faking a click: an offscreen harness has
+            // no window to deliver a real press through, so a "click" test here would prove nothing
+            // about delivery. What can be pinned is the invariant delivery depends on.
+            var t11zStore = storeComp.createObject(harness, {}); t11zStore.pages = fivePages()
+            var t11z = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-t11z", "seriesTitle": "Reach", "seriesCover": "file:///f/z.png",
+                "core": coreComp.createObject(harness, {}), "progress": progComp.createObject(harness, {}),
+                "pageStore": t11zStore,
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            var t11zInput = byName(t11z, "comicInput")
+            var t11zStrip = byName(t11z, "stripSurface")
+            var t11zPair = byName(t11z, "doubleSurface")
+            var t11zSingle = byName(t11z, "singleSurface")
+            ck(t11zInput !== null && t11zStrip !== null && t11zPair !== null && t11zSingle !== null,
+               "T11z: the input layer and all three surfaces must be findable by objectName")
+            if (t11zInput && t11zStrip) {
+                ck(t11zInput.z < t11zStrip.z && t11zInput.z < t11zPair.z && t11zInput.z < t11zSingle.z,
+                   "T11z: the click-zone layer must sit BENEATH the reading surfaces, or the damaged-"
+                   + "page card's Retry/Skip can never receive a press (input z=" + t11zInput.z
+                   + ", surfaces z=" + t11zStrip.z + "/" + t11zPair.z + "/" + t11zSingle.z + ")")
+            }
+
+            // ===== T11n. A SETTLED shell, kept for the deferred phases, to pin the NEGATIVE =====
+            // "Navigating never records" has TWO halves and they fail differently, so both are
+            // asserted, and both need a shell that has stopped moving on its own:
+            //   * the page you were only SENT to must never appear in the store (the defect
+            //     Hemanth reported — coming back to a page he never saw), and
+            //   * navigating must not write AT ALL (the disk-churn half; a write that merely
+            //     carries the right page is still a QSettings sync per page turn).
+            // The second one has to be measured on a shell nothing else is touching: every shell in
+            // this harness flips visible once shortly after creation, and hiding legitimately
+            // flushes, so a bare count taken during runChecks would read that flush as a violation.
+            // Held here, asserted two deferred phases later, by which time the flip is long past.
+            var t11nStore = storeComp.createObject(harness, {}); t11nStore.pages = fivePages()
+            harness._navProg = progComp.createObject(harness, {})
+            harness._navShell = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20,
+                "seriesId": "s-t11n", "seriesTitle": "Never Seen", "seriesCover": "file:///f/n.png",
+                "core": coreComp.createObject(harness, { "unitIdentity": true }),
+                "progress": harness._navProg, "pageStore": t11nStore,
+                "seriesRecords": freshRecords('{"s-t11n":{"layout":"single_page"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+
+            // ===== T11a. THE STRIP ANCHOR ROUND-TRIPS: page AND the spot inside it =====
+            // The approved line: "Long Strip records the current page plus position within that
+            // page. Returning to a book should therefore land on the same panel area instead of only
+            // the approximate page." So the record has to carry both, and a reopen has to take both
+            // back. The two fractions in this fixture are DIFFERENT numbers on purpose — scrollFrac
+            // is a fraction of the whole column and pageFraction is a fraction of one page, and a
+            // fixture where they matched would pass against code that wrote one into the other.
+            var t11aStore = storeComp.createObject(harness, {}); t11aStore.pages = fivePages()
+            var t11aCore = coreComp.createObject(harness, {})
+            var t11aProg = progComp.createObject(harness, {})
+            var t11a = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20,
+                "seriesId": "s-t11a", "seriesTitle": "Anchor", "seriesCover": "file:///f/a.png",
+                "core": t11aCore, "progress": t11aProg, "pageStore": t11aStore,
+                "seriesRecords": freshRecords('{"s-t11a":{"layout":"long_strip"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t11a.mode === "long_strip", "T11a fixture must be on the strip, got " + t11a.mode)
+            t11a.stripFraction = 0.81                 // the column-wide fraction the surface reports
+            t11a._onPresented(4, 0.37)                // ...and the WITHIN-page one
+            ck(t11a.presentedPage === 4, "T11a presentation must move the presented page, got " + t11a.presentedPage)
+            ck(Math.abs(t11a.presentedPageFraction - 0.37) < 1e-9,
+               "T11a presentation must carry the within-page fraction, got " + t11a.presentedPageFraction)
+            t11a.recordProgress()                     // flush now rather than waiting on the debounce
+            var t11aRec = t11aProg.lastRecord ? t11aProg.lastRecord.resume : null
+            ck(t11aRec !== null && t11aRec.page === 4,
+               "T11a the record must name the PRESENTED page (4), got " + JSON.stringify(t11aRec))
+            ck(t11aRec !== null && Math.abs(t11aRec.pageFraction - 0.37) < 1e-9,
+               "T11a the record must carry pageFraction 0.37, got " + JSON.stringify(t11aRec))
+            ck(t11aRec !== null && Math.abs(t11aRec.scrollFrac - 0.81) < 1e-9,
+               "T11a the record must still carry the legacy scrollFrac 0.81 (0.37 is a DIFFERENT "
+               + "quantity and must not be written into it), got " + JSON.stringify(t11aRec))
+
+            // ...and the reopen takes both back. A fresh shell reading that record must arm the
+            // WITHIN-page fraction, not the legacy column one.
+            var t11bStore = storeComp.createObject(harness, {}); t11bStore.pages = fivePages()
+            var t11bProg = progComp.createObject(harness, {})
+            t11bProg.saved = { "resume": { "chapterId": "ch1", "page": 4, "scrollFrac": 0.81,
+                                           "pageFraction": 0.37, "maxSeen": 4 } }
+            var t11b = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-t11b", "seriesTitle": "Anchor2", "seriesCover": "file:///f/a.png",
+                "core": coreComp.createObject(harness, {}), "progress": t11bProg, "pageStore": t11bStore,
+                "seriesRecords": freshRecords('{"s-t11b":{"layout":"long_strip"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t11b.currentPage === 4, "T11a/round-trip: the page must be restored to 4, got " + t11b.currentPage)
+            ck(Math.abs(t11b._pendingPageFraction - 0.37) < 1e-9,
+               "T11a/round-trip: the WITHIN-page fraction must be armed (0.37), got " + t11b._pendingPageFraction)
+            ck(t11b._stripRestorePending === true, "T11a/round-trip: the restore door must be armed")
+
+            // A record written BEFORE pageFraction existed must resume exactly as it always did:
+            // absence is -1 ("no opinion"), which is NOT the same as 0 ("the viewport centre sat on
+            // the page's top edge") — 0 would land half a screen higher than the old behaviour.
+            var t11cStore = storeComp.createObject(harness, {}); t11cStore.pages = fivePages()
+            var t11cProg = progComp.createObject(harness, {})
+            t11cProg.saved = { "resume": { "chapterId": "ch1", "page": 4, "scrollFrac": 0.81, "maxSeen": 4 } }
+            var t11c = makeShell({
+                "width": 640, "height": 480,
+                "seriesId": "s-t11c", "seriesTitle": "Legacy", "seriesCover": "file:///f/a.png",
+                "core": coreComp.createObject(harness, {}), "progress": t11cProg, "pageStore": t11cStore,
+                "seriesRecords": freshRecords('{"s-t11c":{"layout":"long_strip"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t11c._pendingPageFraction === -1,
+               "T11a/legacy: a record with NO pageFraction must arm no within-page opinion (-1), got "
+               + t11c._pendingPageFraction)
+            ck(Math.abs(t11c._pendingStripFrac - 0.81) < 1e-9,
+               "T11a/legacy: ...and must still arm the old column fraction, got " + t11c._pendingStripFrac)
+
+            // ===== T11d. THE ANCHOR SURVIVES A LAYOUT ROUND TRIP =====
+            // "Changing layout, order, width, or image settings preserves the visible reading
+            // anchor." In Long Strip the visible anchor is a POINT INSIDE a page, so leaving the
+            // column and coming back has to bring back both halves of it.
+            var t11dStore = storeComp.createObject(harness, {}); t11dStore.pages = fivePages()
+            var t11dCore = coreComp.createObject(harness, {})
+            var t11d = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20,
+                "seriesId": "s-t11d", "seriesTitle": "Reflow", "seriesCover": "file:///f/a.png",
+                "core": t11dCore, "progress": progComp.createObject(harness, {}), "pageStore": t11dStore,
+                "seriesRecords": freshRecords('{"s-t11d":{"layout":"long_strip"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            t11d.currentPage = 3
+            t11d._onPresented(3, 0.44)
+            t11d.setLayout("single_page")
+            ck(t11d.currentPage === 3, "T11d: leaving the strip must keep the page, got " + t11d.currentPage)
+            ck(t11d._pendingPageFraction === -1,
+               "T11d: a paged layout has no column to seek, so nothing may stay armed, got " + t11d._pendingPageFraction)
+            // ORDER is the one of the four that reflows nothing — the pair anchor is the same page
+            // whichever side it is drawn on — so the anchor must come through untouched.
+            t11d.setOrder(t11d.order === "rtl" ? "ltr" : "rtl")
+            ck(t11d.currentPage === 3 && t11d.presentedPage === 3,
+               "T11d: changing ORDER must not move the anchor, got page " + t11d.currentPage
+               + " presented " + t11d.presentedPage)
+            t11d.setLayout("long_strip")
+            ck(t11d.currentPage === 3, "T11d: returning to the strip must keep the page, got " + t11d.currentPage)
+            ck(Math.abs(t11d._pendingPageFraction - 0.44) < 1e-9,
+               "T11d: returning to the strip must re-arm the SPOT ON that page (0.44), got "
+               + t11d._pendingPageFraction)
+
+            // ...but only while the reader is still on the page it was measured on. A fraction is a
+            // statement about ONE page; navigating away and back must not resurrect it, or the
+            // reader lands confidently in the wrong place. (This is the same trap section 3b pins
+            // for the entry-resume fraction, re-entering through the new arm.)
+            t11d.setLayout("paired_pages")
+            t11d.goToPageIndex(5)
+            var t11dKept = t11d.currentPage
+            t11d.setLayout("long_strip")
+            ck(t11d._pendingPageFraction === -1,
+               "T11d: navigating off the anchor page must retire its fraction, got "
+               + t11d._pendingPageFraction + " (armed for page " + t11dKept + ")")
+
+            // IMAGE SETTINGS reflow too — rotation and auto-crop change a page's aspect, so every
+            // page below it moves in the column. The anchor must be re-armed against the new geometry.
+            var t11eStore = storeComp.createObject(harness, {}); t11eStore.pages = fivePages()
+            var t11e = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20, "renderApplyMs": 1,
+                "seriesId": "s-t11e", "seriesTitle": "Image", "seriesCover": "file:///f/a.png",
+                "core": coreComp.createObject(harness, {}), "progress": progComp.createObject(harness, {}),
+                "pageStore": t11eStore,
+                "seriesRecords": freshRecords('{"s-t11e":{"layout":"long_strip"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            t11e.currentPage = 2
+            t11e._onPresented(2, 0.63)
+            t11e._pendingPageFraction = -1            // clear the opening arm so the assertion is honest
+            t11e.setRenderProfile({ "rotation": 90 })
+            ck(Math.abs(t11e._pendingPageFraction - 0.63) < 1e-9,
+               "T11e: an image-settings change must re-arm the visible anchor (0.63), got "
+               + t11e._pendingPageFraction)
+            ck(t11e._stripRestorePending === true,
+               "T11e: ...and open the ONE restore door so the re-land happens after the reflow settles")
+
+            // ===== T11f. A DAMAGED PAGE: retry re-reads, skip moves on, neither marks it read =====
+            var t11fStore = storeComp.createObject(harness, {}); t11fStore.pages = fivePages()
+            var t11fCore = coreComp.createObject(harness, {})
+            t11fCore.unitIdentity = true              // honest unit math, so pageNext/goToPageIndex walk forward
+            t11fCore.pageErrors = { 2: "decode_failed" }   // 0-based: page 3 is the broken one
+            var t11fProg = progComp.createObject(harness, {})
+            var t11f = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20,
+                "seriesId": "s-t11f", "seriesTitle": "Damaged", "seriesCover": "file:///f/a.png",
+                "core": t11fCore, "progress": t11fProg, "pageStore": t11fStore,
+                "seriesRecords": freshRecords('{"s-t11f":{"layout":"single_page"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            ck(t11f.layout === "single_page", "T11f fixture must be Single Page, got " + t11f.layout)
+            ck(t11f._pageBroken(3) === true, "T11f page 3 must read as broken")
+            ck(t11f._pageBroken(4) === false, "T11f page 4 must read as healthy")
+
+            // RETRY reaches the backend, names THAT page (0-based), and nothing else moves.
+            var t11fPageBefore = t11f.currentPage
+            t11f.retryPage(3)
+            ck(t11fCore.retryCalls.length === 1 && t11fCore.retryCalls[0] === 2,
+               "T11f retry must call core.retryPage with the 0-based failed page (2), got "
+               + JSON.stringify(t11fCore.retryCalls))
+            ck(t11f.currentPage === t11fPageBefore,
+               "T11f retry must NOT navigate — it re-reads the page you are on, got " + t11f.currentPage)
+            ck(t11f._pageBroken(3) === false,
+               "T11f the verdict must come down when the retry is asked for, so the card can give "
+               + "way to the placeholder while the re-read runs")
+
+            // SKIP moves past the failed page and does not leave it marked as where the reader is.
+            t11fCore.pageErrors = { 2: "decode_failed" }   // still broken: the retry did not repair it
+            t11f.goToPageIndex(3)
+            t11f._onPresented(3, 0)                        // the placard IS presented — the reader is there
+            ck(t11f.presentedPage === 3,
+               "T11f a placarded page counts as a POSITION (the reader is genuinely on it), got "
+               + t11f.presentedPage)
+            var t11fRecBefore = t11fProg.records.length
+            t11f.skipPage(3)
+            ck(t11f.currentPage === 4,
+               "T11f skip must navigate PAST the failed page (3 -> 4), got " + t11f.currentPage)
+            ck(t11fProg.records.length === t11fRecBefore,
+               "T11f skip is navigation, not presentation — it must record nothing on its own, got "
+               + (t11fProg.records.length - t11fRecBefore) + " record(s)")
+            t11f._onPresented(4, 0)
+            t11f.recordProgress()
+            ck(t11fProg.lastRecord && t11fProg.lastRecord.resume.page === 4,
+               "T11f after a skip the recorded position is the LANDING page (4), never the failed "
+               + "one, got " + JSON.stringify(t11fProg.lastRecord ? t11fProg.lastRecord.resume : null))
+
+            // ...and a broken page is never READ. maxSeen is what makes a volume `finished`, so a
+            // volume whose LAST page is damaged must not complete itself just because the reader
+            // navigated onto the error card.
+            var t11gStore = storeComp.createObject(harness, {}); t11gStore.pages = fivePages()
+            var t11gCore = coreComp.createObject(harness, {})
+            t11gCore.unitIdentity = true
+            t11gCore.pageErrors = { 4: "decode_failed" }   // 0-based: the LAST page (5) is broken
+            var t11g = makeShell({
+                "width": 640, "height": 480, "recordDebounceMs": 20,
+                "seriesId": "s-t11g", "seriesTitle": "Unfinishable", "seriesCover": "file:///f/a.png",
+                "core": t11gCore, "progress": progComp.createObject(harness, {}), "pageStore": t11gStore,
+                "seriesRecords": freshRecords('{"s-t11g":{"layout":"single_page"}}'),
+                "entryKind": "manga", "western": false,
+                "chapters": [{ "id": "ch1", "number": "1", "name": "" }],
+                "chapterId": "ch1", "chapterLabel": "Chapter 1"
+            })
+            t11g.goToPageIndex(4)
+            ck(t11g.maxSeen === 4, "T11g reaching page 4 must advance maxSeen to 4, got " + t11g.maxSeen)
+            t11g.goToPageIndex(5)
+            ck(t11g.currentPage === 5, "T11g the reader can still GO to the broken last page, got " + t11g.currentPage)
+            ck(t11g.maxSeen === 4,
+               "T11g a BROKEN page must never advance the read high-water mark (still 4), got " + t11g.maxSeen)
+            t11g._onPresented(5, 0)
+            t11g.recordProgress()
+            ck(t11g.presentedPage === 5,
+               "T11g ...but it is still a real POSITION: the record must be able to put the reader "
+               + "back on it, got " + t11g.presentedPage)
+            var t11gRec = t11g.progress.lastRecord ? t11g.progress.lastRecord.resume : null
+            ck(t11gRec !== null && t11gRec.finished === false,
+               "T11g a volume whose last page cannot be read must NOT mark itself finished, got "
+               + JSON.stringify(t11gRec))
+
         } catch (e) {
             failures.push("exception during checks: " + e.message)
         }
@@ -2119,22 +2443,125 @@ Item {
 
     // DEFERRED phase — runs after the debounce interval elapses: assert the debounced page-change
     // record fired with the exact §4.1 payload, then assert close flushes immediately + closes.
+    // How many records in the sink name `page` as the resume position. Counting THE PAGE rather
+    // than the total is what makes these assertions immune to the other flush doors — a hide, a
+    // crossing or a shutdown may legitimately write the LAST PRESENTED position at any time, and a
+    // bare length comparison would read those as violations. What must never happen is a page the
+    // reader was only SENT to turning up in the store at all.
+    function recordsNaming(prog, page) {
+        var n = 0
+        for (var i = 0; i < prog.records.length; i++) {
+            var r = prog.records[i]
+            if (r && r.resume && r.resume.page === page) n += 1
+        }
+        return n
+    }
+
     function runDeferred() {
         try {
-            ck(_mProg.records.length > _recBefore,
-               "page change must produce a DEBOUNCED record after the interval, got " + _mProg.records.length + " (was " + _recBefore + ")")
+            // THE NEGATIVE, measured where it counts: page 3 was navigated to and never presented,
+            // and the full debounce interval has since elapsed. If navigating still triggered a
+            // write, page 3 would be in the store by now. This is the assertion that fails against
+            // the pre-Task-11 reader — it is the defect in one line.
+            ck(recordsNaming(_mProg, 3) === 0,
+               "NAVIGATION ALONE MUST NEVER RECORD — page 3 was requested, never presented, yet the "
+               + "store holds " + recordsNaming(_mProg, 3) + " record(s) naming it")
+
+            // ...and now the positive. It is the DISK-BOUND write that is counted, not the function
+            // that was called: the count below is read after the debounce has had time to fire, so a
+            // writer that only ever queued would fail rather than pass silently.
+            _mShell._onPresented(3, 0)
+            ck(recordsNaming(_mProg, 3) === 0,
+               "presentation must not write synchronously — the write is debounced (the strip "
+               + "presents ~12x/sec), got " + recordsNaming(_mProg, 3))
+
+            // THE CHURN HALF, on the settled shell (see T11n). Snapshot, navigate three pages
+            // without presenting any of them, and let the next phase check that the store did not
+            // move at all. A record that carried the RIGHT page would still be a QSettings sync per
+            // page turn, which is what the count catches and the page-name check cannot.
+            harness._navBefore = _navProg.records.length
+            _navShell.goToPageIndex(2)
+            _navShell.goToPageIndex(3)
+            _navShell.goToPageIndex(4)
+            presentedDeferredTimer.start()
+            return
+        } catch (e) {
+            failures.push("exception during deferred checks: " + e.message)
+        }
+        bookmarkDebounceTimer.start()
+    }
+
+    // PRESENTED-DEFERRED phase — the debounce after the presentation above has now elapsed.
+    function runPresentedDeferred() {
+        try {
+            ck(recordsNaming(_mProg, 3) === 1,
+               "ONE presentation must produce EXACTLY ONE record for that page, got "
+               + recordsNaming(_mProg, 3))
             ck(deepEqual(_mProg.lastRecord, _expectPageRec),
-               "debounced page-change record must deep-equal the §4.1 payload, got " + JSON.stringify(_mProg.lastRecord))
+               "the presentation record must deep-equal the §4.1 payload, got " + JSON.stringify(_mProg.lastRecord))
+
+            // THE CHURN HALF (see the previous phase). Three page turns, no presentation, a full
+            // debounce interval elapsed: the store must not have moved by a single write.
+            ck(_navProg.records.length === harness._navBefore,
+               "NAVIGATION MUST NOT WRITE AT ALL — three page turns with nothing presented added "
+               + (_navProg.records.length - harness._navBefore) + " record(s); each one is a "
+               + "QSettings disk sync per page turn")
+            ck(recordsNaming(_navProg, 4) === 0,
+               "...and the page the reader was only SENT to must never appear in the store, got "
+               + recordsNaming(_navProg, 4) + " record(s) naming page 4")
+            // ...and the same shell DOES write the moment a page is really on screen, so the two
+            // assertions above are proving a rule rather than a dead sink.
+            _navShell._onPresented(4, 0)
+            _navShell.recordProgress()
+            ck(recordsNaming(_navProg, 4) === 1,
+               "presenting page 4 on that same shell must write it exactly once, got "
+               + recordsNaming(_navProg, 4))
+
+            // COALESCING is the disk-churn guarantee. Long Strip raises presented() off its 80ms
+            // tracking flush — ~12 times a second while scrolling, continuously for a whole
+            // Auto-scroll run — so a write per presentation would storm QSettings. Three
+            // presentations inside one window must reach the sink ONCE, carrying the LAST position
+            // (nothing is dropped, the newest wins).
+            var beforeBurst = _mProg.records.length
+            _mShell._onPresented(3, 0)
+            _mShell._onPresented(4, 0)
+            _mShell._onPresented(5, 0)
+            ck(_mProg.records.length === beforeBurst,
+               "a burst of presentations must not write per presentation, got "
+               + (_mProg.records.length - beforeBurst) + " immediate writes")
+            harness._burstBefore = beforeBurst
+            burstDeferredTimer.start()
+            return
+        } catch (e) {
+            failures.push("exception during presented-deferred checks: " + e.message)
+        }
+        bookmarkDebounceTimer.start()
+    }
+
+    function runBurstDeferred() {
+        try {
+            ck(_mProg.records.length === harness._burstBefore + 1,
+               "three presentations inside one debounce window must coalesce to ONE disk write, got "
+               + (_mProg.records.length - harness._burstBefore))
+            ck(recordsNaming(_mProg, 4) === 0,
+               "...and the SWALLOWED middle position must never reach the store on its own, got "
+               + recordsNaming(_mProg, 4) + " record(s) naming page 4")
+            ck(_mProg.lastRecord && _mProg.lastRecord.resume
+               && _mProg.lastRecord.resume.page === 5,
+               "the coalesced write must carry the LAST position (5), got "
+               + JSON.stringify(_mProg.lastRecord ? _mProg.lastRecord.resume : null))
 
             // CLOSE: immediate flush + core.closeEntry() (must NOT wait for the debounce)
             var recBeforeClose = _mProg.records.length
             _mShell.shutdown()
             ck(_mProg.records.length > recBeforeClose, "close must flush a final progress.record (immediate)")
-            ck(deepEqual(_mProg.lastRecord, _expectPageRec),
-               "close record must deep-equal the §4.1 payload (state unchanged), got " + JSON.stringify(_mProg.lastRecord))
+            ck(_mProg.lastRecord && _mProg.lastRecord.resume
+               && _mProg.lastRecord.resume.page === 5,
+               "close must record the last PRESENTED page (5), got "
+               + JSON.stringify(_mProg.lastRecord ? _mProg.lastRecord.resume : null))
             ck(_mCore.closed === true, "close (shutdown) must call core.closeEntry()")
         } catch (e) {
-            failures.push("exception during deferred checks: " + e.message)
+            failures.push("exception during burst-deferred checks: " + e.message)
         }
         bookmarkDebounceTimer.start()
     }
@@ -2348,6 +2775,9 @@ Item {
 
     // fires the deferred phase after the pinned 20ms record debounce has elapsed
     Timer { id: deferredTimer; interval: 150; running: false; onTriggered: harness.runDeferred() }
+    // ...and again after the presentation raised in that phase has had its own debounce window
+    Timer { id: presentedDeferredTimer; interval: 150; running: false; onTriggered: harness.runPresentedDeferred() }
+    Timer { id: burstDeferredTimer; interval: 150; running: false; onTriggered: harness.runBurstDeferred() }
     // fires after entrySave's fixed 800ms debounce interval elapses
     Timer { id: bookmarkDebounceTimer; interval: 900; running: false; onTriggered: harness.runBookmarkDeferred() }
     // fires after the pinned 25ms cursorIdleMs has elapsed

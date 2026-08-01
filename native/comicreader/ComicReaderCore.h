@@ -144,6 +144,33 @@ public:
     // its pair partner would make a layout that shows one page wait for two. The
     // single surface asks pageInfo() per page instead.
     Q_INVOKABLE QVariantMap presentationForPage(int page) const;
+    // RE-READ one broken page (Task 11, overhaul plan 2026-07-28). The reader's
+    // way out of a dead spot: a damaged entry currently leaves an error card
+    // that nothing can clear short of closing the book.
+    //
+    // THE ARCHIVE IS NEVER TOUCHED, and that is not a detail — it is the whole
+    // contract. There is direct history: an earlier reader EXTRACTED CBZ pages
+    // to loose folders and its ledger drifted out of sync with the real files,
+    // which cost a recovery arc. The rule now is CBZ-only, read in place, never
+    // mutated, so a retry may only re-READ. Nothing in this call, or anywhere
+    // below it, opens a file for writing — and the core harness pins that with a
+    // SHA-256 of the fixture archive taken before and after.
+    //
+    // What it actually does, and nothing more:
+    //   * clears THIS page's error verdict (so pageInfo/presentationForPage stop
+    //     reporting it and the placard can come down),
+    //   * clears the decode coordinator's per-generation failure memo for THIS
+    //     page — without that step request() returns early and the retry is a
+    //     silent no-op, because the memo exists precisely to stop a failed page
+    //     being re-decoded on every frame,
+    //   * re-requests THAT page alone, at the CURRENT visible priority in the
+    //     LIVE generation, so it lands ahead of the strip's background window
+    //     and a result from a retired book can never paint into this one.
+    // No pin set moves, no neighbour is queued, no unit is rebuilt: a retry is
+    // one page's business.
+    //
+    // Out of range, or with no entry open, it does nothing at all.
+    Q_INVOKABLE void retryPage(int page);
     Q_INVOKABLE void setSpreadOverride(int page, QString state);   // "spread"|"single"|"clear"
     Q_INVOKABLE void nudgeCoupling();                              // -> Manual + flipped phase
     // The other half of the settings sheet's Coupling row: hand the phase back to
@@ -320,6 +347,14 @@ signals:
     void stripLayoutChanged();              // portrait width % / gap changed
     void stripCompensation(double delta);   // QML strip adds this to its scroll pos
     void bookmarksChanged();                // toggleBookmark() mutated the live bookmark set
+    // retryPage() cleared this page's error and re-queued its decode. The
+    // surfaces need it because clearing the verdict changes pageInfo()'s answer
+    // and NOTHING else QML can see — no property moves, no other signal fires —
+    // so without this the placard would sit there, still showing the old error,
+    // until the retry happened to succeed. Folded into each surface's existing
+    // failure-refresh dependency, so the card comes down and the quiet
+    // placeholder takes its place while the re-read runs.
+    void pageRetried(int page);
     // The Image panel changed something. Fired for ANY real change, including a
     // night-filter toggle that moved no revision — the panel reads its own state
     // back through renderProfile(), and the surfaces use this as their refresh

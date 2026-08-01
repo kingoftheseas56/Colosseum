@@ -119,6 +119,13 @@ Item {
     // flag on this — the surface never writes that flag, so there is one owner and no way for the
     // two to disagree about whether the motion is live.
     signal autoScrollEnded()
+    // The placard's two ways out (Task 11), raised straight through from whichever ROW's card was
+    // pressed — never from the page under the viewport centre, because in a column the broken page
+    // and the page you are looking at are routinely not the same one. The surface performs neither:
+    // Retry is a backend re-read and Skip is a navigation, and both belong to the shell. 1-based,
+    // like every other page number this surface reports.
+    signal retryRequested(int page)
+    signal skipRequested(int page)
 
     clip: true
 
@@ -246,24 +253,36 @@ Item {
             failedRev += 1
         }
     }
-    function _failText(page, errorCode) {
+    // The backend's snake_case wire CODE for a page, or "" when it is fine. It used to return the
+    // finished HEADLINE, which meant this surface owned a second copy of the error wording — the
+    // same three strings ComicReaderUnitError already carries. Task 11 gave that card two actions,
+    // at which point a hand-copied twin stopped being a tidiness question: a Long Strip reader would
+    // have been the one reader still left with a dead end. So the strip now mounts the SAME card,
+    // and this returns the one thing the card cannot work out for itself.
+    //
+    // The int fallback is the model's ErrorCodeRole, which is how a page that failed before this
+    // surface existed (or before its Connections attached) still reports honestly.
+    function _failCode(page, errorCode) {
         var code = failedPages[page]
         if (code === undefined || code === "") {
             var e = Number(errorCode) || 0     // model ErrorCodeRole int: 1 missing / 2 decode / 3 unsupported
             code = e === 1 ? "missing_file" : e === 2 ? "decode_failed" : e === 3 ? "unsupported_image" : ""
         }
-        switch (code) {
-        case "missing_file":      return "Page missing"
-        case "decode_failed":     return "Couldn't decode"
-        case "unsupported_image": return "Unsupported format"
-        default:                  return ""
-        }
+        // An unrecognised code draws NO card here, exactly as before: the column is a continuous
+        // read, and a card for a state nothing can name would be worse than the page simply not
+        // being there yet.
+        return (code === "missing_file" || code === "decode_failed" || code === "unsupported_image")
+               ? code : ""
     }
 
     Connections {
         target: root.core
         ignoreUnknownSignals: true
         function onPageFailed(page, code) { root._markFailed(page, code) }
+        // A retry cleared the backend's verdict for this page. The surface keeps its OWN failure map
+        // (it has to — the strip model's role is an int and arrives on its own clock), so the memo
+        // has to be dropped here as well or the card would stay up over a page that is re-decoding.
+        function onPageRetried(page)      { root._clearFailed(page) }
         // decode landed: clear any failure AND bump readyRev so the page's `source` re-requests the
         // freshly-decoded pixels (the ?rev= url changed C++-side, invisibly to QML).
         function onPageReady(page)        { root._clearFailed(page); root.readyRev += 1 }
@@ -315,8 +334,8 @@ Item {
             width: ListView.view ? ListView.view.width : root.width
             height: model.displayHeight > 0 ? model.displayHeight : 0   // MODEL-authoritative geometry
 
-            readonly property string errorText: (root.failedRev, root._failText(model.pageIndex, model.errorCode))
-            readonly property bool hasError: errorText.length > 0
+            readonly property string errorCode: (root.failedRev, root._failCode(model.pageIndex, model.errorCode))
+            readonly property bool hasError: errorCode.length > 0
             // ---- what THIS row is, and where its paper actually sits inside the row (Task 9) ----
             // The row is full-width; the page is centred inside it at the model's display width. The
             // Loupe needs the PAPER's box, not the row's, or a magnified page would sit offset from
@@ -390,36 +409,23 @@ Item {
                 Behavior on opacity { NumberAnimation { duration: 90; easing.type: Easing.OutCubic } }
             }
 
-            // typed error placard — this page only; the rest of the column keeps reading
-            Rectangle {
-                anchors.centerIn: parent
+            // typed error placard — this page only; the rest of the column keeps reading. THE SAME
+            // card the two paged surfaces mount (Task 11): the strip carried a hand-copy of it since
+            // Task 4, and the moment the card grew Retry/Skip that copy would have left Long Strip —
+            // the layout you meet the most pages in — as the one place with no way out.
+            ComicReaderUnitError {
+                id: rowError
+                objectName: "unitError"
+                anchors.fill: parent
                 visible: del.hasError
-                width: Math.min(parent.width * 0.72, 360)
-                height: 92
-                radius: 10
-                color: "#141019"
-                border.color: "#2a2334"
-                border.width: 1
-                Column {
-                    anchors.centerIn: parent
-                    spacing: 6
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: del.errorText
-                        color: "#ff8a8a"
-                        font.pixelSize: 14
-                        font.family: "Segoe UI"
-                        font.weight: Font.DemiBold
-                    }
-                    Text {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        text: "Page " + (model.pageIndex + 1)
-                        color: "#9a99a5"
-                        font.pixelSize: 11
-                        font.family: "Segoe UI"
-                    }
-                }
+                code: del.errorCode
+                pageIndex: model.pageIndex
+                onRetryRequested: function (page) { root.retryRequested(page + 1) }
+                onSkipRequested: function (page) { root.skipRequested(page + 1) }
             }
+            // The card's OWN rule, exposed on the delegate so the surfaces gate can read it without
+            // relying on effective visibility (an offscreen tree reports every item invisible).
+            readonly property bool errorActionsShown: rowError.actionsShown
         }
 
         onContentYChanged: {
@@ -821,6 +827,32 @@ Item {
         var span = list.contentHeight - list.height
         if (span <= 0) return false            // not laid out yet, or the whole book fits
         haltScrollAt(Math.max(0, Math.min(span, core.stripPageTop(page0))))
+        return true
+    }
+
+    // ...and the same seek, but landing on a POINT INSIDE that page (Task 11). This is the exact
+    // inverse of what _emitPresented reports: it measures `(viewportCentre - pageTop) / pageHeight`,
+    // so putting the reader back means putting that same point back under the viewport centre.
+    //
+    // WHY IT IS A SECOND FUNCTION rather than an optional argument on seekToPage: the two have
+    // genuinely different meanings at the boundary. seekToPage(n) means "start of page n" and lands
+    // its TOP at the viewport top; a fraction of 0 means "the viewport centre was at the page's top
+    // edge", which is half a screen higher. Folding them would make seekToPage(n) and
+    // seekToPageFraction(n, 0) silently disagree, and the one place that matters is the resume of a
+    // record written before pageFraction existed — where "no opinion" must mean the old behaviour,
+    // not a half-screen drift.
+    //
+    // Falls back to the plain page seek when the backend cannot answer the height (a partial core,
+    // an out-of-range page): landing on the page is far better than not landing at all.
+    function seekToPageFraction(page0, frac) {
+        if (!core || !core.stripPageTop) return false
+        var span = list.contentHeight - list.height
+        if (span <= 0) return false            // not laid out yet, or the whole book fits
+        var h = (core.stripPageHeight) ? core.stripPageHeight(page0) : 0
+        if (!(h > 0)) return seekToPage(page0)
+        var f = Math.max(0, Math.min(1, Number(frac) || 0))
+        var y = core.stripPageTop(page0) + f * h - list.height / 2
+        haltScrollAt(Math.max(0, Math.min(span, y)))
         return true
     }
 

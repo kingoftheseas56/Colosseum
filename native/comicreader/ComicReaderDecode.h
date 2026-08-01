@@ -86,6 +86,19 @@ public:
     // Emits metaReady with decoded=false — real geometry, no pixels.
     void onWorkerDimensions(quint64 gen, int page, const QSize& dims);
 
+    // Owning thread only. Forget everything this coordinator remembers about
+    // `page` having failed — the per-generation latch AND any MissingFile
+    // cooldown — so the very next request() actually queues instead of being
+    // swallowed by the memo. It requests NOTHING itself: the caller decides
+    // priority, and a clear with no follow-up request is a legitimate no-op.
+    //
+    // This is the ONE door a user-driven Retry needs. Without it retryPage()
+    // would be a silent no-op for exactly the pages it exists for: request()
+    // returns early on a page in m_failed, and the memo is otherwise only reset
+    // by openGeneration() — i.e. by closing and reopening the book, which is the
+    // dead end the retry affordance is meant to replace.
+    void clearFailure(int page);
+
     // ---- Test seam (empty/no-op in production) -----------------------------
     // Owning thread only, and set before any request(). Copied by value into
     // each worker at request() time and run ON THE WORKER THREAD: `onEnter` at

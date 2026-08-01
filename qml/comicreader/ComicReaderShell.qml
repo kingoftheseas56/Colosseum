@@ -159,6 +159,21 @@ Item {
     readonly property string readingMode: ComicReaderState.readingModeFrom(mode, rtl)
     property int    zoomPercent: 100            // paged zoom (surfaces, later)
     property real   stripFraction: 0            // long-strip scroll fraction (resume + HUD scrub, later)
+    // ---- WHERE THE READER ACTUALLY IS (Task 11) ----
+    // `currentPage` is where the reader has been SENT: a key press, a scrub, a go-to, a resume. This
+    // pair is where the reader has been SHOWN — the page whose content (or whose honest error card)
+    // reached the screen, and how far down that page the viewport centre sat.
+    //
+    // They are two different facts and the reader used to persist the wrong one. Flicking forward
+    // wrote a Continue record on every page number the request passed through, so closing the book
+    // mid-flick came back to a page that had never been on screen. The record now reads THESE, and
+    // nothing else writes them: only a surface's presented() signal does, through _onPresented.
+    //
+    // The fraction is meaningful in Long Strip alone (a page IS the viewport's whole travel in the
+    // two paged layouts, so there is no "part way down it" there); progressPayload zeroes it outside
+    // long_strip for the same reason it zeroes scrollFrac.
+    property int    presentedPage: 0            // 1-based; 0 = nothing shown yet in this entry
+    property real   presentedPageFraction: 0    // 0..1 down THAT page (Long Strip only)
     property bool   chromeVisible: true         // HUD visibility (Task 11)
     // night veil — a LIVE reading-comfort dim over the page (settings surface 02). The settings
     // sheet writes this level; the veil overlay below binds its opacity to it. Not load()-derived
@@ -304,6 +319,20 @@ Item {
     // re-write the record it had just read — the same leak F2 closed for the strip measure.
     property bool _replayingPrefs: false
     property real _pendingStripFrac: 0          // one-shot: the saved scrollFrac awaiting layout settle
+    // One-shot: the saved WITHIN-PAGE fraction awaiting the same settle. -1 means "no opinion", and
+    // that is not the same as 0 — 0 says "the viewport centre sat exactly on this page's top edge",
+    // which is half a screen higher than where a plain page seek lands. A record written before this
+    // field existed must resume the way it always did, so absence has to be distinguishable.
+    property real _pendingPageFraction: -1
+    // THE HELD within-page anchor, and the page it was measured on. This is what makes "changing
+    // layout preserves the visible reading anchor" true across a Strip -> Pair -> Strip round trip:
+    // while a paged layout is mounted, presentedPageFraction is legitimately 0 (a page IS the whole
+    // travel there), so the strip's last real fraction has to be held somewhere that a paged
+    // presentation does not overwrite. Pairing it with its PAGE is what keeps it honest — a fraction
+    // is only meaningful on the page it was measured on, so navigating while away invalidates it.
+    // 0 = nothing held. Reset per entry in load().
+    property int  _stripAnchorPage: 0
+    property real _stripAnchorFraction: 0
     // is a restore in flight? Consumed by the shell gate; also the honest answer to "did resume arm".
     readonly property bool _stripRestorePending: stripRestore.running || _stripRestoreTries > 0
 
@@ -348,17 +377,34 @@ Item {
                 maxSeen = currentPage
                 stripFraction = 0
                 _pendingStripFrac = 0                   // one-shot, PER ENTRY — a stale fraction from the
-                _pendingAtLast = false                  // previous book must never restore into this one
+                _pendingPageFraction = -1               // previous book must never restore into this one
+                _pendingAtLast = false
                 _applyResume()                          // a matching Continue entry overrides the start spot
                 maxSeen = Math.max(maxSeen, currentPage)
+                // THE ENTRY'S OPENING ANCHOR. Seeding this is not a record of a page nobody saw — it
+                // IS the spot this open is putting the reader on, either page 1 or the one their last
+                // record already said they were on. Without it the eager entry-open record below would
+                // carry the PREVIOUS book's presented page (the anchor is what recordProgress reads
+                // now), which is the crossing bug in reverse.
+                presentedPage = currentPage
+                presentedPageFraction = (mode === "long_strip" && _pendingPageFraction >= 0)
+                                        ? _pendingPageFraction : 0
+                // A RESUMED within-page anchor is held from the start, so leaving the strip and
+                // coming back before ever scrolling still lands where the record said.
+                _stripAnchorPage = (mode === "long_strip" && _pendingPageFraction >= 0) ? currentPage : 0
+                _stripAnchorFraction = presentedPageFraction
                 if (core) core.openEntry(curChapterId, _pages, order, persistedState)
                 // Physically move the strip to the restored spot. ONE door (stripRestore), settle-gated:
                 // the column positions its delegates a vsync later, and its heights are estimates until
                 // decodes land — an immediate jump reads y=0 for unrealized delegates and lands at the top.
-                if (mode === "long_strip" && (_pendingStripFrac > 0 || currentPage > 1))
+                if (mode === "long_strip"
+                        && (_pendingPageFraction >= 0 || _pendingStripFrac > 0 || currentPage > 1))
                     _armStripRestore()
             } else {
-                currentPage = 1; maxSeen = 0; stripFraction = 0; _pendingStripFrac = 0; _pendingAtLast = false
+                currentPage = 1; maxSeen = 0; stripFraction = 0; _pendingStripFrac = 0
+                _pendingPageFraction = -1; _pendingAtLast = false
+                presentedPage = 0; presentedPageFraction = 0
+                _stripAnchorPage = 0; _stripAnchorFraction = 0
                 // not downloaded — the acquire routing is startDownload() (per-lane). Nothing auto-fires.
             }
         } finally {
@@ -380,6 +426,16 @@ Item {
             maxSeen = Math.max(currentPage, Number(r.maxSeen) || 0)
             stripFraction = (mode === "long_strip") ? (Number(r.scrollFrac) || 0) : 0
             _pendingStripFrac = (mode === "long_strip") ? (Number(r.scrollFrac) || 0) : 0
+            // ...and the WITHIN-page anchor (Task 11), which is the one that actually lands you on
+            // the same panel area. It wins over scrollFrac in _runStripRestore because it is anchored
+            // to the paper rather than to the column: a page-width or gap change since you last read
+            // moves every page's share of the column, so the same scrollFrac lands somewhere else,
+            // while page + pageFraction still means the same spot on the same page.
+            //
+            // `undefined` (a record written before this field existed) stays -1 = no opinion, so
+            // those records resume exactly the way they always did.
+            _pendingPageFraction = (mode === "long_strip" && r.pageFraction !== undefined)
+                                   ? Math.max(0, Math.min(1, Number(r.pageFraction) || 0)) : -1
         }
     }
 
@@ -575,6 +631,17 @@ Item {
         // KEEP YOUR PAGE across the switch. Ported from the reader this replaced
         // (MangaReader.setStyle): changing how pages are laid out is not a reason to lose your
         // place, and every reader in the family gets this right.
+        //
+        // ...and since Task 11, keep your PLACE ON that page too, when there is one to keep. The
+        // approved line is "Changing layout, order, width, or image settings preserves the visible
+        // reading anchor" — in Long Strip the visible anchor is a point inside a page, not a page
+        // number, so leaving the column and coming back used to lose up to a whole screen of it.
+        //
+        // The within-page part rides `_stripAnchor*`, which survives the excursion into a paged
+        // layout (where presentedPageFraction is legitimately 0 — a page IS the whole travel there).
+        // It re-arms ONLY if the reader is still on the page it was measured on: navigating while
+        // away is a new decision about where to be, and resurrecting a fraction measured on a page
+        // you have since left would land you in the wrong place with confidence.
         var keep = currentPage
         layout = value
         if (max > 0 && keep > 1) {
@@ -585,6 +652,10 @@ Item {
             // 300ms settle is TB2's number.
             if (layout === "long_strip") _armStripRestore()
         }
+        // Leaving the strip drops any pending within-page arm along with the column it belonged to.
+        if (layout !== "long_strip") _pendingPageFraction = -1
+        else if (_stripAnchorPage > 0 && _stripAnchorPage === currentPage)
+            _pendingPageFraction = _stripAnchorFraction
         if (_ready) {
             globalPrefs.layout = value
             _saveSeriesPrefs()
@@ -775,6 +846,24 @@ Item {
         if (wantNight !== (nightVeil !== "off")) nightVeil = wantNight ? "low" : "off"
         if (core && core.setRenderProfile) core.setRenderProfile(profile)
         _coreRenderProfile = (core && core.renderProfile) ? core.renderProfile() : profile
+        // KEEP THE VISIBLE ANCHOR ACROSS THE REFLOW (Task 11). "Changing layout, order, width, or
+        // image settings preserves the visible reading anchor" — and image settings genuinely
+        // reflow: rotation and auto-crop change a page's aspect, so in Long Strip every page below
+        // it moves. Re-arming the ONE restore door at the held page + fraction re-lands the reader
+        // on the same part of the same page once the new geometry has settled.
+        //
+        // The fraction is the reason this works at all: it is relative to the page's OWN height, so
+        // a page that just changed size still means the same spot on the paper. Deliberately routed
+        // through the existing settle-gated door rather than seeking here — the new heights only
+        // exist once the re-decodes land, and an immediate seek would anchor against stale geometry.
+        //
+        // Not while REPLAYING a series' remembered adjustments (that runs inside load(), which owns
+        // the opening anchor and has already armed whatever restore it needs).
+        if (_ready && !_replayingPrefs && mode === "long_strip" && max > 0
+                && _stripAnchorPage > 0 && _stripAnchorPage === currentPage) {
+            _pendingPageFraction = _stripAnchorFraction
+            _armStripRestore()
+        }
         if (_ready && !_replayingPrefs) renderSave.restart()
     }
     // The record is per SERIES and it is written to QSettings, which syncs to
@@ -822,20 +911,114 @@ Item {
     function recordProgress() {
         if (_suspendRecord) return
         if (!progress || !seriesId.length || max <= 0) return
+        // An immediate record satisfies whatever the debounce was still holding. Without this, a
+        // crossing or a close would write, and then the pending timer would write the SAME thing a
+        // moment later — twice the disk sync for one position, and after shutdown() it would be
+        // writing against an entry the backend has already closed.
+        saveSoon.stop()
         var cov = seriesCover
         if (!cov.length) {
             var prev = progress.get(progressKind, seriesId)
             if (prev && prev.cover) cov = String(prev.cover)
         }
+        // THE PRESENTED anchor, not the requested one (Task 11). Clamped, because it arrives from a
+        // surface: a crossing can leave a page number from the outgoing book in flight for a beat,
+        // and a record pointing past the end of the new book would resume nowhere.
+        var page = Math.max(1, Math.min(max, presentedPage > 0 ? presentedPage : currentPage))
         progress.record(ComicReaderState.progressPayload({
             seriesId: seriesId, kind: progressKind, seriesTitle: seriesTitle,
-            label: curLabel, cover: cov, page: currentPage, max: max,
-            chapterId: curChapterId, style: mode, scrollFrac: stripFraction, maxSeen: maxSeen
+            label: curLabel, cover: cov, page: page, max: max,
+            chapterId: curChapterId, style: mode, scrollFrac: stripFraction,
+            pageFraction: presentedPageFraction, maxSeen: maxSeen
         }))
     }
     // debounced record — QSettings syncs to disk on every record(); don't do that per page-turn.
     Timer { id: saveSoon; interval: reader.recordDebounceMs; onTriggered: reader.recordProgress() }
     function recordProgressSoon() { saveSoon.restart() }
+
+    // ================= THE ONE progress trigger (Task 11) =================
+    // All three reading surfaces raise presented(anchorPage, withinPageFraction) when they have
+    // actually put something on screen for a position. This is the only thing that moves the reader's
+    // recorded place. Requesting a page, decoding it, or navigating to it is NOT presentation — that
+    // was the defect: flicking forward wrote a Continue record on every page number the request swept
+    // through, so coming back landed on a page that had never been drawn.
+    //
+    // WHY IT DEBOUNCES RATHER THAN WRITING ON THE SPOT. progress.record() syncs QSettings to disk.
+    // Single and Pair raise this once per page/unit, so an immediate write would be fine there — but
+    // Long Strip raises it off the surface's 80ms tracking flush, which means ~12 times a second
+    // while scrolling and continuously for the whole of an Auto-scroll run. Writing per presentation
+    // would be a disk storm on exactly the layout that presents most.
+    //
+    // So the write rides the SAME debounce the old page-turn record used, at the same interval:
+    // strictly fewer triggers than before (navigation no longer writes at all) and never more, which
+    // is the disk-churn guarantee this task owes. The ANCHOR is updated immediately either way, so
+    // anything that flushes now — a crossing, hiding the reader, shutdown — already carries the
+    // newest position rather than waiting for the timer.
+    function _onPresented(page, pageFraction) {
+        if (_suspendRecord) return
+        if (max <= 0) return
+        presentedPage = Math.max(1, Math.min(max, Math.round(page)))
+        presentedPageFraction = Math.max(0, Math.min(1, Number(pageFraction) || 0))
+        // Hold the strip's anchor so a layout excursion can bring the reader back to the same panel
+        // area, not merely the same page. Only the strip writes it: it is the only layout where a
+        // fraction means anything, and a paged surface's honest 0 would wipe a real one.
+        if (layout === "long_strip") {
+            _stripAnchorPage = presentedPage
+            _stripAnchorFraction = presentedPageFraction
+        }
+        recordProgressSoon()
+    }
+
+    // Is this page showing an error card rather than pixels? The BACKEND answers — one owner of
+    // "is this page broken", and it self-heals (a MissingFile page that comes back reports "none"
+    // again), which a locally cached failure map in the shell would not.
+    //
+    // A placarded page COUNTS as presented (it is genuinely where the reader is, and refusing to
+    // bank it would resume them somewhere they never chose) but it must never count as READ — see
+    // onCurrentPageChanged, where this gates the completion high-water mark.
+    function _pageBroken(page1) {
+        if (!core || !core.pageInfo || page1 < 1) return false
+        var info = core.pageInfo(page1 - 1)
+        if (!info || info.error === undefined) return false
+        var e = String(info.error)
+        return e.length > 0 && e !== "none"
+    }
+
+    // ================= the damaged page's two ways out (Task 11) =================
+    // The approved design: "A damaged archive entry never mutates or extracts the book. The reader
+    // shows a restrained error card in that page's place, offers Retry and Skip, and keeps
+    // surrounding pages usable." The card raises; the surfaces forward; THIS decides.
+
+    // RE-READ that one page. The archive is never touched — retryPage only clears the page's error
+    // verdict and the decode coordinator's failure memo, then re-queues that page's decode in the
+    // live generation (ComicReaderCore::retryPage, pinned by a SHA-256 of the fixture archive taken
+    // before and after in the core harness).
+    function retryPage(page) {
+        if (!core || !core.retryPage || max <= 0) return
+        var p = Math.round(page)
+        if (p < 1 || p > max) return
+        core.retryPage(p - 1)
+        hud.showToast("Retrying page " + p)
+    }
+    // MOVE PAST it. Skip is navigation and nothing else: it does not mark the broken page as where
+    // the reader is (the landing page's own presented() does that, once it is really on screen), and
+    // it never touches the book.
+    function skipPage(page) {
+        if (max <= 0) return
+        var p = Math.round(page)
+        if (p < 1 || p > max) return
+        manualActivity()
+        if (p >= max) { _endOfVolumeToast(); return }   // nothing past the last page to skip to
+        if (layout === "long_strip") {
+            // The column has to physically move — currentPage is an output of the strip, not an
+            // input to it. seekToPage takes the 0-BASED index of the page after the broken one,
+            // which is `p` exactly (p is 1-based, so the next page's index is p).
+            currentPage = p + 1
+            if (!stripSurface.seekToPage(p)) _armStripRestore()   // not laid out yet: settle-gated retry
+        } else {
+            goToPageIndex(p + 1)     // snaps to the canonical unit in Paired Pages
+        }
+    }
 
     // flush a final record + close the backend entry. This is DESTRUCTION semantics only — the hide
     // path flushes without closing (see onVisibleChanged). Guarded so a null core never errors.
@@ -860,6 +1043,13 @@ Item {
     // entry change: load the entry, then EAGERLY record it (the record is suppressed DURING load(),
     // so this trailing call persists the freshly-opened/crossed spot immediately — a crash before
     // the next page-turn/close otherwise leaves Continue one entry behind). Mirrors MangaReader.qml:157.
+    //
+    // WHY THIS SURVIVES Task 11's "no record without presentation" rule, since it looks like exactly
+    // the kind of write that rule deletes: the position it banks is the entry's OPENING anchor,
+    // which load() has just set (page 1, or the spot this book's own last record already said the
+    // reader was on). It is not a page nobody has seen — it is where this open is putting them, and
+    // for a resume it is a page they demonstrably saw last time. What the rule removed is the write
+    // that fired for every page number a FLICK swept through inside an already-open entry.
     onCurChapterIdChanged: { load(); recordProgress() }
     onCurrentPageChanged: {
         // CONTRACT for Task 10 (double-page): maxSeen is the completion high-water mark, and
@@ -868,9 +1058,16 @@ Item {
         // `maxSeen >= max` from the anchor alone (finished stays false forever). Task 10's double
         // surface MUST drive currentPage (or bump maxSeen) with the reading-HIGHEST page of the unit,
         // not just the anchor — otherwise completion regresses for pair-terminated entries.
-        if (currentPage > maxSeen) maxSeen = currentPage
-        if (_suspendRecord) return
-        recordProgressSoon()                         // debounced — strip scroll would storm the disk otherwise
+        //
+        // A BROKEN page never advances it (Task 11). maxSeen is the "how much of this have you
+        // read" mark and it is what makes a volume `finished` — so a volume whose LAST page is a
+        // damaged entry must not mark itself complete merely because you navigated onto the error
+        // card. A placarded page is a real POSITION (presented() banks it) and not a real READ; this
+        // is the one line where those two part company.
+        if (currentPage > maxSeen && !_pageBroken(currentPage)) maxSeen = currentPage
+        // NO record here (Task 11). Navigating is not presentation — this handler is exactly where
+        // the reader used to bank page numbers it had only been ASKED for. _onPresented is the one
+        // trigger now.
     }
     // runtime chapterId change (a caller re-targets the reader) — construction is handled by onCompleted
     onChapterIdChanged: { if (_ready && chapterId !== curChapterId) openEntryById(chapterId, false) }
@@ -1130,6 +1327,7 @@ Item {
             // resume spot instead of the page the switch is contractually bound to keep.
             _stripRestoreTries = 0
             _pendingStripFrac = 0
+            _pendingPageFraction = -1
             return
         }
         var span = stripSurface.contentHeight - stripSurface.height
@@ -1139,7 +1337,15 @@ Item {
             return
         }
         _stripRestoreTries = 0
-        if (_pendingStripFrac > 0) {
+        // THE WITHIN-PAGE ANCHOR WINS (Task 11). It is anchored to the paper — page N, this far down
+        // page N — so it survives a page-width or gap change since the record was written, where a
+        // whole-column scrollFrac does not: change the measure and every page's share of the column
+        // moves, so the same 0.41 lands somewhere else entirely.
+        if (_pendingPageFraction >= 0) {
+            stripSurface.seekToPageFraction(currentPage - 1, _pendingPageFraction)
+            _pendingPageFraction = -1
+            _pendingStripFrac = 0        // one target, one landing: never let the legacy arm fire too
+        } else if (_pendingStripFrac > 0) {
             stripSurface.haltScrollAt(Math.max(0, Math.min(span, _pendingStripFrac * span)))
             _pendingStripFrac = 0
         } else if (currentPage > 1) {
@@ -1241,6 +1447,13 @@ Item {
         onManualNavigation: reader.manualActivity()
         // The column ran out of book. The surface reports; the shell clears the flag.
         onAutoScrollEnded: reader.pauseAutoScroll()
+        // THE progress trigger (Task 11). The column reports the page it is really showing and how
+        // far down it the viewport centre sits — the only layout where that fraction is ever
+        // non-zero, and the reason the record can put you back on the same panel area.
+        onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        // a damaged page's card, from whichever ROW carries it (never the page under the centre)
+        onRetryRequested: function (page) { reader.retryPage(page) }
+        onSkipRequested: function (page) { reader.skipPage(page) }
         // Pin what the reader is LOOKING at. Without this the strip pins nothing and the LRU can
         // evict the on-screen page mid-read (TB2 pins its whole zone every refresh). This also
         // promotes visible pages to the top decode priority, which the strip window alone doesn't.
@@ -1261,6 +1474,13 @@ Item {
         rtl: reader.rtl
         gutterStrength: reader.gutterStrength      // settings sheet -> live spine shadow
         onUnitShown: function (highestPage) { if (highestPage > reader.maxSeen) reader.maxSeen = highestPage }
+        // THE progress trigger (Task 11): the unit is on screen, so the reader is really here. The
+        // fraction is always 0 in a paged layout — the unit IS the viewport's whole travel — and it
+        // rides the shared signature so there is one handler, not three.
+        onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        // a damaged half's card. The page is the HALF's, so the good side is never the one retried.
+        onRetryRequested: function (page) { reader.retryPage(page) }
+        onSkipRequested: function (page) { reader.skipPage(page) }
     }
 
     // Single Page (Task 4). One page, alone, on the black stage — a LAYOUT, orthogonal to order: a
@@ -1275,6 +1495,9 @@ Item {
         active: visible
         core: reader.core
         currentPage: reader.currentPage
+        onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        onRetryRequested: function (page) { reader.retryPage(page) }
+        onSkipRequested: function (page) { reader.skipPage(page) }
     }
 
     // The PAGED surface currently mounted (Single or Pair), or null in Long Strip. The zoom/pan verbs
@@ -1379,7 +1602,30 @@ Item {
 
     ComicReaderInput {
         id: comicInput
+        objectName: "comicInput"
         anchors.fill: parent
+        // BENEATH THE PAGES (Task 11), and this one line is what makes the damaged-page card's
+        // Retry and Skip actually clickable.
+        //
+        // This layer is one full-bleed MouseArea that accepts every left press to resolve the click
+        // ZONES (turn forward, turn back, toggle the chrome). Mounted above the surfaces — which is
+        // where it sat for two tasks — it wins delivery for every press in the reader, because Qt
+        // offers a press to items in reverse paint order and stops at the first that accepts. The
+        // card's buttons sit inside a surface, so they would have been drawn, hoverable, and
+        // completely dead: a control that LIES, which is the exact defect class this arc has already
+        // been bitten by.
+        //
+        // Lowering it is safe rather than clever, and the reason is structural: the three reading
+        // surfaces accept NO pointer press at all. Their images and placeholders have no handlers,
+        // and the strip's ListView is `interactive: false`, so its press event is ignored and
+        // delivery continues downward. The ONLY press-accepting item in any of them is the error
+        // card's TapHandler (verified by grep across all five surface/leaf files). So a click that
+        // is not on a card button falls through to this layer exactly as it did before, and one that
+        // IS finally reaches the button it is aimed at.
+        //
+        // Right-click is unaffected either way: the card's TapHandler takes the left button only,
+        // and the context menu still resolves here.
+        z: -1
         // reading-state mirrors bound from the shell
         // NOT `reader.mode`: ComicReaderInput sorts input into PAGED versus STRIP, and its token for
         // the paged case is still "double_page" because it predates Single Page. Single Page IS a

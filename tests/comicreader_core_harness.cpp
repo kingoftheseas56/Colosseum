@@ -20,6 +20,7 @@
 #include "engine/CbzArchive.h"
 
 #include <QCoreApplication>
+#include <QCryptographicHash>   // T35: the archive-immutability assertion
 #include <QElapsedTimer>
 #include <QEventLoop>
 #include <QFile>
@@ -1823,6 +1824,171 @@ int main(int argc, char** argv) {
         CHECK(!turnedServed.isNull() && turnedServed.width() > turnedServed.height(),
               "T34 a 90-degree rotation delivers a LANDSCAPE page from a portrait scan");
         delete provider;
+    }
+
+    // ── Test 35: RETRY re-reads ONE page and NEVER touches the book (Task 11) ─
+    // The reader's way out of a dead spot. A damaged entry used to leave an error
+    // card that nothing could clear short of closing the volume, because the
+    // decode coordinator memoizes a failed page for the life of the generation
+    // (deliberately — otherwise a re-request storm re-decodes garbage every
+    // frame). retryPage() is the ONE door that clears that memo.
+    //
+    // THE ARCHIVE-IMMUTABILITY ASSERTION IS THE POINT OF THIS TEST, not a
+    // decoration on it. There is direct history: an earlier reader extracted CBZ
+    // pages to loose folders and its ledger drifted out of sync with the real
+    // files, which cost a recovery arc. The contract now is CBZ-only, read in
+    // place, never mutated — so the fixture is a REAL CBZ, and its bytes are
+    // hashed before and after. A retry that "repaired" anything on disk fails
+    // here, loudly, whatever else it got right.
+    {
+        // A CBZ holding one good page and one that is not an image at all. The
+        // bad entry has to be inside the ARCHIVE, not beside it: hashing a file
+        // the reader never opens would prove nothing.
+        const QString badPath = dir.filePath(QStringLiteral("t35-bad.png"));
+        QFile bad(badPath);
+        CHECK(bad.open(QIODevice::WriteOnly), "T35 setup: corrupt member written");
+        bad.write("this is not a png");
+        bad.close();
+
+        // SIX members, not three, and the size is load-bearing. setVisible({1}) requests the
+        // visible page plus its prefetch neighbours (0, 2, 3), so in a three-page book EVERY page
+        // ends up cached — and request() returns early for a cached page, which means an
+        // over-broad retry would queue extra work that never reaches a worker and the "only the
+        // failed page" assertion below would pass against it. Pages 4 and 5 are deliberately left
+        // untouched so that assertion has something to catch. (Measured: with a three-page fixture
+        // a deliberately over-broad retry passed.)
+        const QString archivePath = dir.filePath(QStringLiteral("t35-retry.cbz"));
+        QString archiveError;
+        CHECK(MangaTankoban::CbzArchive::writeImagesAtomic(
+                  archivePath, dir.path(),
+                  QStringList{QStringLiteral("plain0.png"),
+                              QStringLiteral("t35-bad.png"),
+                              QStringLiteral("plain1.png"),
+                              QStringLiteral("plain2.png"),
+                              QStringLiteral("plain3.png"),
+                              QStringLiteral("plain4.png")},
+                  &archiveError),
+              "T35 setup: retry fixture CBZ written");
+
+        const auto sha256 = [](const QString& path) {
+            QFile file(path);
+            if (!file.open(QIODevice::ReadOnly))
+                return QByteArray();
+            return QCryptographicHash::hash(file.readAll(), QCryptographicHash::Sha256);
+        };
+        const QByteArray before = sha256(archivePath);
+        CHECK(!before.isEmpty(), "T35 setup: the fixture archive hashes");
+
+        QVariantList pages;
+        const QStringList entries{QStringLiteral("plain0.png"),
+                                  QStringLiteral("t35-bad.png"),
+                                  QStringLiteral("plain1.png"),
+                                  QStringLiteral("plain2.png"),
+                                  QStringLiteral("plain3.png"),
+                                  QStringLiteral("plain4.png")};
+        for (int i = 0; i < entries.size(); ++i) {
+            QVariantMap page;
+            page.insert(QStringLiteral("index"), i);
+            page.insert(QStringLiteral("archive"), archivePath);
+            page.insert(QStringLiteral("entry"), entries[i]);
+            page.insert(QStringLiteral("group"), 0);
+            pages.append(page);
+        }
+
+        ComicReaderCore core;
+        core.openEntry(QStringLiteral("t35-retry"), pages,
+                       QStringLiteral("ltr"), manualNormal());
+        CHECK(core.pageCount() == 6, "T35 setup: six archive pages");
+
+        core.setVisible(QVariantList{1});
+        CHECK(waitFor([&] {
+                  const QString e = core.pageInfo(1).value(QStringLiteral("error")).toString();
+                  return !e.isEmpty() && e != QLatin1String("none");
+              }),
+              "T35 setup: the corrupt member fails and the core records a typed error");
+
+        // THE MEMO IS REAL. Without this the retry assertions below could pass
+        // against a coordinator that never memoized anything, and the whole
+        // reason retryPage exists would go untested. Every later request for
+        // page 1 must reach the worker ZERO times.
+        QMutex requestMutex;
+        QVector<int> requests;
+        core.setDecodeWorkerHooksForTest(
+            [&](quint64, int page) {
+                QMutexLocker lock(&requestMutex);
+                requests.append(page);
+            },
+            {});
+        core.setVisible(QVariantList{1});
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 60);
+        {
+            QMutexLocker lock(&requestMutex);
+            CHECK(!requests.contains(1),
+                  "T35 a plain re-request never reaches the worker — the failure memo is real");
+            requests.clear();
+        }
+
+        // ...and NOW the retry. It must reach the worker, and it must carry that
+        // page ALONE: no neighbour prefetch, no wave, no unit rebuild.
+        core.retryPage(1);
+        CHECK(waitFor([&] {
+                  QMutexLocker lock(&requestMutex);
+                  return !requests.isEmpty();
+              }),
+              "T35 retry reaches the decode worker");
+        // Let the re-read finish BEFORE judging the request list. Waiting only for the
+        // first worker to enter and comparing immediately is a race: a second worker
+        // an over-broad retry started may not have reached its hook yet, and the
+        // comparison would pass against exactly the bug it exists to catch. (Measured:
+        // it did.) The verdict landing is the ordered event that says the round trip
+        // is over; the extra pump gives any sibling worker room to be seen too.
+        CHECK(waitFor([&] {
+                  const QString e = core.pageInfo(1).value(QStringLiteral("error")).toString();
+                  return !e.isEmpty() && e != QLatin1String("none");
+              }),
+              "T35 a genuinely corrupt member fails again — retry re-reads, it does not repair");
+        for (int i = 0; i < 12; ++i) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            QThread::msleep(5);
+        }
+        {
+            QMutexLocker lock(&requestMutex);
+            CHECK(requests == QVector<int>{1},
+                  QByteArray("T35 retry queues ONLY the failed page, got ")
+                      .append(QByteArray::number(requests.size()))
+                      .append(" request(s)").constData());
+        }
+        CHECK(sha256(archivePath) == before,
+              "T35 retry NEVER mutates the archive (SHA-256 identical before/after)");
+
+        // The verdict came down the moment retry was asked for, which is what
+        // lets the placard give way to the quiet placeholder while the re-read
+        // runs. Proved on a page that is NOT re-broken by a second decode: page
+        // 2 is a real image, so nothing can put an error back on it.
+        core.setVisible(QVariantList{2});
+        CHECK(waitFor([&] {
+                  return core.pageInfo(2).value(QStringLiteral("decoded")).toBool();
+              }),
+              "T35 setup: the third page decodes");
+        CHECK(core.pageInfo(2).value(QStringLiteral("error")).toString()
+                  == QLatin1String("none"),
+              "T35 a healthy page reports no error");
+        core.retryPage(2);
+        CHECK(core.pageInfo(2).value(QStringLiteral("decoded")).toBool(),
+              "T35 retry on a HEALTHY page is a no-op — it must not un-decode a page that is fine");
+
+        // Out of range, and past the end: no crash, no state change.
+        core.retryPage(-1);
+        core.retryPage(99);
+        CHECK(core.pageCount() == 6, "T35 an out-of-range retry changes nothing");
+        CHECK(sha256(archivePath) == before,
+              "T35 not one of those calls touched the archive either");
+
+        // The good pages of a damaged book are still readable — "keeps
+        // surrounding pages usable", which is the other half of the design line.
+        CHECK(core.pageInfo(0).value(QStringLiteral("error")).toString()
+                  != QLatin1String("missing_file"),
+              "T35 a broken member does not poison its neighbours");
     }
 
     if (g_failures == 0) {

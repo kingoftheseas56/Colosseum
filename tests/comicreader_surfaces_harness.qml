@@ -84,6 +84,18 @@ Item {
     property var failures: []
     function ck(cond, msg) { if (!cond) failures.push(msg) }
     function approx(a, b, eps) { return Math.abs(a - b) <= (eps === undefined ? 1e-6 : eps) }
+    // Find a descendant by objectName. Task 11 needs it to reach the error card's two actions,
+    // which live inside a shared leaf component rather than at a surface's top level.
+    function byName(root, name) {
+        if (!root) return null
+        if (root.objectName === name) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; i++) {
+            var f = byName(kids[i], name)
+            if (f) return f
+        }
+        return null
+    }
     // number formatter that survives an ABSENT property — a failure message must never throw, or the
     // first missing property masks every other assertion in the run.
     function fx(v, n) { return (typeof v === "number" && isFinite(v)) ? v.toFixed(n) : String(v) }
@@ -122,6 +134,9 @@ Item {
         // signals (shape parity with the real core)
         signal pageReady(int page)
         signal pageFailed(int page, string code)
+        // Task 11: retryPage() cleared this page's verdict. The real core emits it because clearing
+        // the verdict changes pageInfo()'s answer and nothing else QML can see moves with it.
+        signal pageRetried(int page)
         signal stripCompensation(real delta)
         signal entryChanged()      // real core emits this on openEntry (ComicReaderCore.cpp:201)
         signal pairingChanged()    // ...and this (ComicReaderCore.cpp:202), + on every rebuildUnits
@@ -722,6 +737,39 @@ Item {
            "restore: seekToPage must clamp to the scrollable span " + spanNow + ", got " + stripSurface.contentY)
         coreStrip.stripPageTopForce = -1
 
+        // ---- Task 11: land INSIDE a page, not merely on it ----
+        // "Returning to a book should land on the same panel area instead of only the approximate
+        // page." seekToPageFraction is the exact inverse of what _emitPresented reports — it
+        // measures (viewportCentre - pageTop) / pageHeight, so putting the reader back means putting
+        // that same point back under the viewport centre. Page 10's top is 12200 and every fixture
+        // page is 1200 tall, so 0.25 down page 10 is y = 12200 + 300 - 480/2 = 12260.
+        //
+        // The numbers are chosen so a wrong-but-plausible implementation cannot pass by luck: a
+        // top-anchored seek gives 12200, forgetting the half-viewport gives 12500, and using the
+        // page's own height as the whole column gives something far away. All three are distinct.
+        var fracOk = stripSurface.seekToPageFraction(10, 0.25)
+        ck(fracOk === true, "restore: seekToPageFraction must report success once the column is laid out")
+        ck(approx(stripSurface.contentY, 12260, 0.001),
+           "restore: seekToPageFraction(10, 0.25) must put that point under the viewport CENTRE "
+           + "(12200 + 0.25*1200 - 480/2 = 12260), got " + stripSurface.contentY)
+        // ...and it is NOT the same instruction as seekToPage. A fraction of 0 means "the centre sat
+        // on the page's top edge", which is half a viewport HIGHER than landing the page's top at the
+        // top of the screen. Keeping them distinguishable is what lets a record written before
+        // pageFraction existed resume the way it always did.
+        stripSurface.seekToPageFraction(10, 0)
+        ck(approx(stripSurface.contentY, 12200 - 240, 0.001),
+           "restore: a ZERO fraction is a real instruction (centre on the page top), not 'no opinion' — "
+           + "expected 11960, got " + stripSurface.contentY)
+        stripSurface.seekToPage(10)
+        ck(approx(stripSurface.contentY, 12200, 0.001),
+           "restore: ...and seekToPage still lands the page TOP at the viewport top, got " + stripSurface.contentY)
+        // Clamped like its sibling: a fraction near the end of the last page must not assign past
+        // the scrollable span.
+        stripSurface.seekToPageFraction(199, 1)
+        ck(stripSurface.contentY <= stripSurface.contentHeight - 480 + 0.001
+               && stripSurface.contentY >= 0,
+           "restore: seekToPageFraction must clamp to the scrollable span, got " + stripSurface.contentY)
+
         // a restore must NEVER masquerade as a user scroll — that is the loop, from the other side.
         var scrollsBefore = harness.stripScrolledCount
         var presentedBeforeRestore = harness.stripPresentedCount
@@ -813,8 +861,46 @@ Item {
         var d1 = stripFailSurface.itemAt(1)
         var d0 = stripFailSurface.itemAt(0)
         ck(d1 !== null && d1.hasError === true, "strip-fail: pageFailed(1) must show page 1's typed placard")
-        ck(d1 !== null && d1.errorText.length > 0, "strip-fail: page 1's placard must carry typed text, got '" + (d1 ? d1.errorText : "<null>") + "'")
+        ck(d1 !== null && d1.errorCode === "missing_file",
+           "strip-fail: page 1's placard must carry the backend's TYPED code, got '" + (d1 ? d1.errorCode : "<null>") + "'")
         ck(d0 !== null && d0.hasError === false, "strip-fail: page 0 must be UNAFFECTED by page 1's failure")
+        // Task 11: the strip mounts THE SAME card the paged surfaces do, and it offers the two ways
+        // out. Its own rule is read, never its effective `visible` — an offscreen tree reports every
+        // item invisible, so a `visible` assertion here would quietly stop testing anything.
+        ck(d1 !== null && d1.errorActionsShown === true,
+           "strip-fail: a damaged page in the column must offer Retry/Skip — the dead end Task 11 "
+           + "closes, and Long Strip is the layout you meet the most pages in")
+
+        // ...and both actions reach the SURFACE, carrying THIS ROW's page in the 1-based scale the
+        // shell speaks. The row matters: in a column the broken page and the page under the viewport
+        // centre are routinely not the same one, so a card that reported the centre page would retry
+        // a page that is perfectly fine.
+        var stripRetried = []
+        var stripSkipped = []
+        stripFailSurface.retryRequested.connect(function (p) { stripRetried.push(p) })
+        stripFailSurface.skipRequested.connect(function (p) { stripSkipped.push(p) })
+        var card1 = harness.byName(d1, "retryAction")
+        var skip1 = harness.byName(d1, "skipAction")
+        ck(card1 !== null && skip1 !== null, "strip-fail: the row's card must carry both actions")
+        if (card1) card1.activated()
+        if (skip1) skip1.activated()
+        ck(JSON.stringify(stripRetried) === "[2]",
+           "strip-fail: Retry must raise THIS ROW's page, 1-based (page index 1 -> 2), got " + JSON.stringify(stripRetried))
+        ck(JSON.stringify(stripSkipped) === "[2]",
+           "strip-fail: Skip must raise THIS ROW's page, 1-based (page index 1 -> 2), got " + JSON.stringify(stripSkipped))
+
+        // A retry clears the surface's OWN failure memo too. Without that the card would sit there
+        // through the whole re-read: the strip caches failures locally (the model's role is an int
+        // that arrives on its own clock), so the backend's cleared verdict alone is not visible here.
+        coreFail.pageRetried(1)
+        d1 = stripFailSurface.itemAt(1)
+        ck(d1 !== null && d1.hasError === false,
+           "strip-fail: pageRetried(1) must take the card down so the placeholder shows while the "
+           + "re-read runs")
+
+        coreFail.pageFailed(1, "missing_file")   // ...and it comes back if the re-read fails again
+        d1 = stripFailSurface.itemAt(1)
+        ck(d1 !== null && d1.hasError === true, "strip-fail: a second failure must show the card again")
 
         coreFail.pageReady(1)                 // a later successful (re)decode clears the placard
         d1 = stripFailSurface.itemAt(1)
@@ -1716,6 +1802,31 @@ Item {
         ck(dbl.rightErrorVisible === false && dbl.rightImageVisible === true,
            "pair-gate: the GOOD half keeps drawing its page, never inherits its partner's placard")
 
+        // ---- Task 11: the damaged half's two ways out, and WHICH half they name ----
+        // A pair can show two of these cards, and the good side must never be the one retried. That
+        // is the entire reason the card carries its own page rather than the unit's anchor.
+        ck(dbl.leftErrorActionsShown === true,
+           "pair-gate: the failed half's card must offer Retry/Skip, got " + dbl.leftErrorActionsShown)
+        ck(dbl.rightErrorActionsShown === false,
+           "pair-gate: the GOOD half must offer nothing — there is nothing wrong with it, got "
+           + dbl.rightErrorActionsShown)
+        var pairRetried = []
+        var pairSkipped = []
+        dbl.retryRequested.connect(function (p) { pairRetried.push(p) })
+        dbl.skipRequested.connect(function (p) { pairSkipped.push(p) })
+        var leftCard = harness.byName(dbl, "leftUnitError")
+        var leftRetry = leftCard ? harness.byName(leftCard, "retryAction") : null
+        var leftSkip = leftCard ? harness.byName(leftCard, "skipAction") : null
+        ck(leftRetry !== null && leftSkip !== null, "pair-gate: the failed half's card must carry both actions")
+        if (leftRetry) leftRetry.activated()
+        if (leftSkip) leftSkip.activated()
+        // Page index 11 is the LEFT half; 10 is the good right one. Asserting 12 (1-based) rather
+        // than merely "something" is what catches a card wired to the unit anchor instead of itself.
+        ck(JSON.stringify(pairRetried) === "[12]",
+           "pair-gate: Retry must name the BROKEN half, 1-based (index 11 -> 12), got " + JSON.stringify(pairRetried))
+        ck(JSON.stringify(pairSkipped) === "[12]",
+           "pair-gate: Skip must name the BROKEN half, 1-based (index 11 -> 12), got " + JSON.stringify(pairSkipped))
+
         // ---- and it heals: a page that comes back returns the unit to normal ----
         coreGate.pageStates[11] = "ready"
         delete coreGate.pageErrors[11]
@@ -1875,6 +1986,33 @@ Item {
         ck(sgl.errorCode === "missing_file",
            "single: the surface must read the BACKEND's per-page code, got '" + sgl.errorCode + "'")
         ck(sgl.errorVisible === true, "single: a failed page must show the typed placard")
+        // ---- Task 11: the placard's two ways out ----
+        ck(sgl.errorActionsShown === true,
+           "single: a failed page's card must offer Retry/Skip — a dead end with no way out is the "
+           + "defect this closes, got " + sgl.errorActionsShown)
+        var sglRetried = []
+        var sglSkipped = []
+        sgl.retryRequested.connect(function (p) { sglRetried.push(p) })
+        sgl.skipRequested.connect(function (p) { sglSkipped.push(p) })
+        var sglRetry = harness.byName(sgl, "retryAction")
+        var sglSkip = harness.byName(sgl, "skipAction")
+        ck(sglRetry !== null && sglSkip !== null, "single: the card must carry both actions")
+        if (sglRetry) sglRetry.activated()
+        if (sglSkip) sglSkip.activated()
+        ck(JSON.stringify(sglRetried) === "[5]",
+           "single: Retry must raise the failed page, 1-based (index 4 -> 5), got " + JSON.stringify(sglRetried))
+        ck(JSON.stringify(sglSkipped) === "[5]",
+           "single: Skip must raise the failed page, 1-based (index 4 -> 5), got " + JSON.stringify(sglSkipped))
+        // A retry takes the card down straight away (the verdict is cleared before the re-read even
+        // starts), so the quiet placeholder shows instead of a stale error.
+        delete coreSingle.pageErrors[4]
+        coreSingle.pageRetried(4)
+        ck(sgl.errorVisible === false,
+           "single: pageRetried must clear the placard so the placeholder shows during the re-read")
+        coreSingle.pageErrors[4] = "missing_file"
+        coreSingle.pageFailed(4, "missing_file")
+        ck(sgl.errorVisible === true, "single: a re-read that fails again must show the card again")
+
         delete coreSingle.pageErrors[4]
         coreSingle.emitPageReady(4)
         ck(sgl.errorVisible === false,

@@ -70,7 +70,8 @@ function completion(page, pageCount, maxSeen) {
 //   back-filled by the CALLER per lines 214-219 — that clobber-guard is caller policy, not this
 //   pure function's job), page, max, chapterId (curChapterId), style, scrollFrac (reader.stripFrac()
 //   already computed by the caller when in long_strip — this function decides WHETHER to use it),
-//   maxSeen.
+//   pageFraction (Task 11: how far down `page` the viewport centre sat — the WITHIN-page anchor,
+//   likewise only used in long_strip), maxSeen.
 //
 // PRECONDITION (byte-for-byte with the original — do NOT add a guard here): `args.page`,
 // `args.max`, and `args.maxSeen` MUST be numbers, and the CALLER must ensure `max > 0` before
@@ -96,10 +97,32 @@ function progressPayload(args) {
             "chapterId": a.chapterId,
             "page": a.page,
             "scrollFrac": a.style === "long_strip" ? a.scrollFrac : 0,
+            // WITHIN the page, not within the book (Task 11). The approved line is "Long Strip
+            // records the current page plus position within that page. Returning to a book should
+            // therefore land on the same panel area instead of only the approximate page."
+            //
+            // scrollFrac above cannot do that job and is kept only because records written before
+            // this field existed carry it. It is a fraction of the WHOLE COLUMN, so it is only as
+            // accurate as the column is stable: change the portrait width or the page gap and every
+            // page's share of the column moves, so the same 0.41 lands somewhere else entirely.
+            // page + pageFraction is anchored to the paper — it survives a reflow, and it is the
+            // exact quantity the strip surface already measures for presented().
+            //
+            // Zeroed outside Long Strip for the same reason scrollFrac is: a page IS the viewport's
+            // whole travel in the paged layouts, so there is no "part way down it" to record, and
+            // storing a stale one would let a layout switch resume half a page off.
+            "pageFraction": a.style === "long_strip" ? _clamp01(a.pageFraction) : 0,
             "maxSeen": a.maxSeen,
             "finished": a.maxSeen >= a.max
         }
     }
+}
+// Total: a record is persisted state, so an absent / hand-edited / future-version value must
+// degrade to "no opinion" (0) rather than writing NaN into the store.
+function _clamp01(v) {
+    var n = Number(v)
+    if (!isFinite(n)) return 0
+    return Math.min(1, Math.max(0, n))
 }
 
 // --- reading direction default --------------------------------------------------------------

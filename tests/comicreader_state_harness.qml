@@ -142,14 +142,20 @@ Item {
             var payloadArgs = {
                 seriesId: "s1", kind: "manga", seriesTitle: "My Series", label: "Chapter 5",
                 cover: "file:///cover.png", page: 4, max: 8, chapterId: "ch5",
-                style: "long_strip", scrollFrac: 0.42, maxSeen: 6
+                style: "long_strip", scrollFrac: 0.42, pageFraction: 0.37, maxSeen: 6
             }
             var expectedPayload = {
                 "id": "s1", "kind": "manga", "caption": "My Series", "title": "My Series",
                 "sub": "Chapter 5", "cover": "file:///cover.png",
                 "c1": "#3a2f55", "c2": "#15111f",
                 "progress": 0.5,
-                "resume": { "chapterId": "ch5", "page": 4, "scrollFrac": 0.42, "maxSeen": 6, "finished": false }
+                // pageFraction (Task 11) is the WITHIN-page anchor — how far down page 4 the viewport
+                // centre sat. Deliberately a different value from scrollFrac in this fixture: the two
+                // are different quantities (one is a fraction of the whole column, the other of one
+                // page), and a fixture where they matched would pass against an implementation that
+                // wrote the wrong one into the wrong field.
+                "resume": { "chapterId": "ch5", "page": 4, "scrollFrac": 0.42, "pageFraction": 0.37,
+                            "maxSeen": 6, "finished": false }
             }
             var gotPayload = State.progressPayload(payloadArgs)
             ck(deepEqual(gotPayload, expectedPayload),
@@ -175,9 +181,39 @@ Item {
             // scrollFrac is zeroed OUTSIDE long_strip, regardless of the raw value passed in
             var paged = State.progressPayload({
                 seriesId: "s1", kind: "manga", seriesTitle: "S", label: "L", cover: "",
-                page: 2, max: 8, chapterId: "ch5", style: "double_page", scrollFrac: 0.77, maxSeen: 2
+                page: 2, max: 8, chapterId: "ch5", style: "double_page", scrollFrac: 0.77,
+                pageFraction: 0.61, maxSeen: 2
             })
             ck(paged.resume.scrollFrac === 0, "progressPayload must zero scrollFrac outside long_strip, got " + paged.resume.scrollFrac)
+            // ...and so is pageFraction, for the same reason: a page IS the viewport's whole travel
+            // in the paged layouts, so there is no "part way down it" to record. Storing a stale one
+            // would let a later layout switch resume half a page off.
+            ck(paged.resume.pageFraction === 0,
+               "progressPayload must zero pageFraction outside long_strip, got " + paged.resume.pageFraction)
+
+            // A record is persisted state, so a hand-edited / future-version / absent pageFraction
+            // has to degrade to "no opinion" rather than writing NaN into the store, where it would
+            // come back as a resume target nothing can seek to.
+            var noFrac = State.progressPayload({
+                seriesId: "s1", kind: "manga", seriesTitle: "S", label: "L", cover: "",
+                page: 2, max: 8, chapterId: "ch5", style: "long_strip", scrollFrac: 0.1, maxSeen: 2
+            })
+            ck(noFrac.resume.pageFraction === 0,
+               "progressPayload must write 0 for an ABSENT pageFraction, got " + noFrac.resume.pageFraction)
+            var wildFrac = State.progressPayload({
+                seriesId: "s1", kind: "manga", seriesTitle: "S", label: "L", cover: "",
+                page: 2, max: 8, chapterId: "ch5", style: "long_strip", scrollFrac: 0.1,
+                pageFraction: 4.5, maxSeen: 2
+            })
+            ck(wildFrac.resume.pageFraction === 1,
+               "progressPayload must clamp an out-of-range pageFraction to 1, got " + wildFrac.resume.pageFraction)
+            var junkFrac = State.progressPayload({
+                seriesId: "s1", kind: "manga", seriesTitle: "S", label: "L", cover: "",
+                page: 2, max: 8, chapterId: "ch5", style: "long_strip", scrollFrac: 0.1,
+                pageFraction: "banana", maxSeen: 2
+            })
+            ck(junkFrac.resume.pageFraction === 0,
+               "progressPayload must degrade a non-numeric pageFraction to 0, got " + junkFrac.resume.pageFraction)
 
             // cover pass-through — the "never clobber a saved cover" back-fill is the CALLER's
             // job (MangaReader.qml lines 214-219); this pure function just carries the value in.
