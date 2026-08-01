@@ -19,32 +19,40 @@ if ($api -notmatch 'requestJsonCached\(JIKAN \+ path') {
     throw "TheatreApi.jikanQuery should use cached/coalesced Jikan requests."
 }
 
+# The deep anime inventory (spec 2026-08-01) now lives in TheatreCatalogRules.js — the pure
+# shelf definitions TheatreApi.js consumes for the Anime tab. This supersedes the old flat
+# animeSpecs titles that used to sit inline in TheatreApi.js; the depth is broader, not weaker.
+$rulesPath = Join-Path $PSScriptRoot "..\qml\TheatreCatalogRules.js"
+$rules = Get-Content $rulesPath -Raw
+
 $expectedRows = @(
+    "Top 10",
+    "Trending",
     "Airing Now",
-    "Top Airing on MAL",
+    "Top Airing",
     "Upcoming Season",
-    "Top Series on MAL",
-    "Top Movies on MAL",
-    "Most Popular on MAL",
-    "Top Rated on MAL",
-    "Hidden Gems on MAL",
-    "2020s Hits",
-    "2010s Classics",
-    "2000s Era",
-    "Foundation Years (90s)",
-    "Action & Adventure",
+    "Top Series",
+    "Top Anime Movies",
+    "Most Popular",
+    "Top Rated",
+    "Hidden Gems",
+    "2020s Anime",
+    "2010s Anime",
+    "2000s Anime",
+    "1990s and Earlier",
+    "Action and Adventure",
     "Romance",
     "Slice of Life",
     "Mecha",
     "Fantasy",
-    "Sci-Fi",
+    "Science Fiction",
     "Psychological",
-    "Horror & Supernatural"
+    "Horror and Supernatural"
 )
 
 foreach ($row in $expectedRows) {
-    if ($api -notmatch [regex]::Escape("title: `"$row`"")) {
-        throw "Missing Harbor anime row: $row"
+    if ($rules -notmatch [regex]::Escape("`"$row`"")) {
+        throw "Missing deep anime row: $row"
     }
 }
 

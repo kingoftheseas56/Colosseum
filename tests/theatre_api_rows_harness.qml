@@ -112,6 +112,60 @@ Item {
     }
     function runtimeNum(item) { var m = String(item.runtime || "").match(/(\d+)/); return m ? parseInt(m[1]) : -1; }
 
+    // ---- anime ladder fixtures -------------------------------------------------------------
+    property var malQueries: []
+    function malRow(id, title) {
+        return { mal_id: id, title: title, title_english: title, type: "TV", score: 8.0,
+                 scored_by: 10000, members: 200000, status: "Finished Airing", year: 2015,
+                 images: { jpg: { large_image_url: "l" } }, synopsis: "s", studios: [], genres: [] };
+    }
+    function fakeMal() {
+        return {
+            ready: function() { return true; },
+            animeCatalog: function(query, offset, limit) {
+                harness.malQueries.push({ query: query, offset: offset, limit: limit });
+                return [ harness.malRow(101, "LOCAL Show"), harness.malRow(102, "LOCAL Two") ];
+            }
+        };
+    }
+    function jikanData() {
+        return { data: [ { mal_id: 901, title: "JIKAN Show", type: "TV", images: { jpg: { large_image_url: "j" } }, year: 2024 },
+                         { mal_id: 902, title: "JIKAN Two",  type: "TV", images: { jpg: { large_image_url: "j" } }, year: 2023 } ] };
+    }
+    function kitsuData() {
+        return { data: [ { id: "k1", attributes: { titles: { en: "KITSU Show" }, subtype: "TV",
+                                                    posterImage: { large: "k" }, startDate: "2024-05-01" } } ] };
+    }
+    function adapterJikanOk(url, done) {
+        if (url.indexOf("api.jikan.moe") !== -1) { done(harness.jikanData()); return; }
+        if (url.indexOf("kitsu.io") !== -1)      { done(harness.kitsuData()); return; }
+        done(null);
+    }
+    function adapterJikanFailKitsuOk(url, done) {
+        if (url.indexOf("api.jikan.moe") !== -1) { done(null); return; }
+        if (url.indexOf("kitsu.io") !== -1)      { done(harness.kitsuData()); return; }
+        done(null);
+    }
+    function adapterAllFail(url, done) { done(null); }
+    function anyQuery(pred) {
+        for (var i = 0; i < harness.malQueries.length; i++)
+            if (pred(harness.malQueries[i].query)) return true;
+        return false;
+    }
+    // anime load is fully synchronous under the harness (no deferred transport) — capture final rows.
+    function runAnimeScenario(gen, malReady, adapterFn) {
+        TheatreApi.resetLiveCaches();
+        harness.malQueries = [];
+        TheatreApi.setRequestAdapter(adapterFn);
+        var mal = malReady ? harness.fakeMal() : null;
+        var captured = { rows: [] };
+        TheatreApi.loadCatalogPage("anime", { generation: gen, showExplicit: true, malCatalog: mal,
+                                              explicitFilter: harness.explicitFilter },
+                                   function(p) { if (p.generation === gen) captured = p; });
+        return captured.rows;
+    }
+    function keyIndex(rows, key) { for (var i = 0; i < rows.length; i++) if (rows[i].key === key) return i; return -1; }
+
     property var lastRows: []
     property var genSeen: ({})
 
@@ -224,8 +278,69 @@ Item {
                                    0, 40, { generation: 4 }, function(res2) {
                 harness.ok(res2.error && res2.error.length > 0, "unknown row key returns an error");
                 harness.ok(res2.items.length === 0, "unknown row key does not reroute to Top 10");
-                harness.finish();
+                harness.runAnimeTests();
             });
+        });
+    }
+
+    function runAnimeTests() {
+        // Scenario 1 — bundled ready + Jikan succeeds: local paints, live refreshes hot shelves.
+        var s1 = harness.runAnimeScenario(11, true, harness.adapterJikanOk);
+        harness.ok(s1.length > 0 && s1[0].key === "top-10", "Anime Top 10 first");
+        harness.ok(harness.keyIndex(s1, "trending") === -1, "Trending omitted (no keyless trend signal)");
+        var iMovies = harness.keyIndex(s1, "top-anime-movies");
+        var iDecade = harness.keyIndex(s1, "2020s-anime");
+        var iMecha  = harness.keyIndex(s1, "mecha");
+        harness.ok(iMovies !== -1 && iDecade !== -1 && iMecha !== -1 && iMovies < iDecade && iDecade < iMecha,
+                   "approved anime order preserved (movies < decades < themes)");
+        // recipe -> allowlisted MAL query mapping
+        harness.ok(harness.anyQuery(function(q) { return q.type === "Movie"; }), "Top Anime Movies maps to type=Movie");
+        harness.ok(harness.anyQuery(function(q) { return q.yearFrom === 2010 && q.yearTo === 2019; }), "2010s maps to a decade window");
+        harness.ok(harness.anyQuery(function(q) { return q.yearTo === 1999; }), "1990s-earlier maps to yearTo=1999");
+        harness.ok(harness.anyQuery(function(q) { return q.tag === "Mecha"; }), "Mecha maps to an exact tag");
+        harness.ok(harness.anyQuery(function(q) { return q.tag === "Horror"; })
+                   && harness.anyQuery(function(q) { return q.tag === "Supernatural"; }),
+                   "Horror & Supernatural fans out over both tags");
+        harness.ok(harness.anyQuery(function(q) { return q.status === "Currently Airing"; }), "Airing maps to status");
+        harness.ok(harness.anyQuery(function(q) { return q.status === "Not yet aired"; }), "Upcoming maps to Not yet aired");
+        harness.ok(harness.anyQuery(function(q) { return q.voteFloor === 5000; }), "score shelves carry a vote floor");
+        var an1 = harness.rowByKey(s1, "airing-now");
+        harness.ok(an1 && an1.items[0].title === "JIKAN Show", "Jikan refreshes the airing shelf");
+        var me1 = harness.rowByKey(s1, "mecha");
+        harness.ok(me1 && me1.items[0].title === "LOCAL Show", "bundled-only shelf stays local under live refresh");
+
+        // Scenario 2 — bundled ready + Jikan fails + Kitsu succeeds: airing comes from Kitsu.
+        var s2 = harness.runAnimeScenario(12, true, harness.adapterJikanFailKitsuOk);
+        var an2 = harness.rowByKey(s2, "airing-now");
+        harness.ok(an2 && an2.items[0].title === "KITSU Show", "Kitsu refreshes airing when Jikan fails");
+
+        // Scenario 3 — bundled ready + both live fail: nothing blanks, bundled retained.
+        var s3 = harness.runAnimeScenario(13, true, harness.adapterAllFail);
+        var an3 = harness.rowByKey(s3, "airing-now");
+        harness.ok(an3 && an3.items[0].title === "LOCAL Show", "both live sources fail -> bundled row retained");
+        harness.ok(harness.rowByKey(s3, "top-10") !== null, "no shelf blanks when live fails");
+
+        // Scenario 4 — no bundle + Jikan succeeds: live shelves populate, bundled-only shelves omitted.
+        var s4 = harness.runAnimeScenario(14, false, harness.adapterJikanOk);
+        var t4 = harness.rowByKey(s4, "top-10");
+        harness.ok(t4 && t4.items[0].title === "JIKAN Show", "no bundle: Jikan supplies the hot shelves");
+        harness.ok(harness.keyIndex(s4, "mecha") === -1, "no bundle + no live source for a recipe -> shelf omitted");
+
+        // Scenario 5 — no bundle + Jikan fails + Kitsu succeeds: only Kitsu-answerable shelves survive.
+        var s5 = harness.runAnimeScenario(15, false, harness.adapterJikanFailKitsuOk);
+        var t5 = harness.rowByKey(s5, "top-10");
+        harness.ok(t5 && t5.items[0].title === "KITSU Show", "no bundle + Jikan fail: Kitsu supplies what it can");
+        harness.ok(harness.keyIndex(s5, "2010s-anime") === -1, "no bundle: decade shelf has no source -> omitted");
+
+        // See-all anime paging respects offset + the recipe's query
+        harness.malQueries = [];
+        TheatreApi.loadAnimeRowPage({ pageKey: "anime", sourceKind: "house", rowKey: "top-anime-movies" },
+                                    24, 24, { generation: 9, malCatalog: harness.fakeMal() }, function(res) {
+            harness.ok(res.generation === 9 && res.items.length > 0, "anime See-all returns a page");
+            harness.ok(harness.anyQuery(function(q) { return q.type === "Movie"; }), "anime See-all uses the recipe's query");
+            harness.ok(harness.malQueries.length > 0 && harness.malQueries[0].offset === 24,
+                       "anime See-all passes the offset through");
+            harness.finish();
         });
     }
 

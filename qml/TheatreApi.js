@@ -22,6 +22,10 @@ var jikanInflight = {};
 var requestAdapter = null;
 function setRequestAdapter(fn) { requestAdapter = fn || null; }
 function resetRequestAdapter() { requestAdapter = null; }
+// test-only: drop the live (Jikan/Kitsu) + full-meta caches so harness scenarios don't bleed.
+function resetLiveCaches() {
+    jikanCache = {}; jikanInflight = {}; metaCache = {}; metaInFlight = {};
+}
 
 // Deep-catalogue enrichment tuning (spec §12). Full-meta enrichment is bounded to four
 // concurrent requests, deduplicated + coalesced by URL, and cached for 30 minutes.
@@ -713,24 +717,120 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     });
 }
 
-// Task 4 replaces this with the deep local-first MAL/Jikan/Kitsu ladder. For now: Top 10
-// (+ installed extensions) in the new push shape so the Anime tab keeps working.
+// ── Deep Anime ladder (spec §6.2) ───────────────────────────────────────────────────────
+// Local-first: the bundled MAL catalogue paints every offline-answerable shelf immediately;
+// the live keyless ladder (Jikan → Kitsu) then refreshes the "hot" shelves. When both live
+// sources fail the bundled rows stay visible — nothing blanks. AniList account data is never
+// introduced; Trending is OMITTED (not falsified) because no keyless trend signal exists.
+
+// recipe -> a MalCatalog.animeCatalog query (only defined keys; undefined would break the
+// strict native allowlist). Returns null for recipes with no single offline query.
+function animeQueryFor(recipe) {
+    var q = {};
+    function put(k, v) { if (v !== undefined && v !== null && v !== "") q[k] = v; }
+    switch (recipe.kind) {
+    case "top":         put("order", "members"); return q;
+    case "animeOrder":  put("order", recipe.order || "members"); put("voteFloor", recipe.voteFloor); return q;
+    case "animeStatus": put("status", recipe.status); put("order", recipe.order || "members"); put("voteFloor", recipe.voteFloor); return q;
+    case "animeType":   put("type", recipe.type); put("order", recipe.order || "score"); put("voteFloor", recipe.voteFloor); return q;
+    case "animeGems":   put("order", "score"); put("voteFloor", recipe.voteFloor); put("membersMin", recipe.membersMin); put("membersMax", recipe.membersMax); return q;
+    case "animeDecade": put("order", "members"); put("yearFrom", recipe.from); put("yearTo", recipe.to); return q;
+    case "animeTag":    put("order", "members"); put("tag", recipe.tag); return q;
+    default:            return null;   // trending, animeTagAny (handled separately)
+    }
+}
+
+function dedupeMalRows(rows) {
+    var seen = {}, out = [];
+    for (var i = 0; i < rows.length; i++) {
+        var id = rows[i].mal_id;
+        if (id === undefined || seen[id]) continue;
+        seen[id] = true; out.push(rows[i]);
+    }
+    return out;
+}
+
+// query the bundled catalogue for one recipe (animeTagAny fans out over its tags + dedupes)
+function malRowsFor(mal, recipe, offset, limit) {
+    if (recipe.kind === "animeTagAny") {
+        var merged = [];
+        for (var t = 0; t < (recipe.tags || []).length; t++)
+            merged = merged.concat(mal.animeCatalog({ order: "members", tag: recipe.tags[t] }, offset, limit) || []);
+        return dedupeMalRows(merged).slice(0, limit);
+    }
+    var q = animeQueryFor(recipe);
+    if (!q) return [];
+    return mal.animeCatalog(q, offset, limit) || [];
+}
+
+// the shelves a keyless live source can genuinely refresh (Jikan route → Kitsu fallback via
+// jikanFetch). Genre/tag/decade/gems stay bundled-only — that is exactly why the DB is baked.
+var LIVE_ANIME = {
+    "top-10":          { path: "/top/anime", params: { filter: "bypopularity" } },
+    "airing-now":      { path: "/seasons/now", params: {} },
+    "top-airing":      { path: "/top/anime", params: { filter: "airing" } },
+    "upcoming-season": { path: "/seasons/upcoming", params: {} },
+    "most-popular":    { path: "/top/anime", params: { filter: "bypopularity" } },
+    "top-rated":       { path: "/top/anime", params: {} }
+};
+
+function refreshAnimeLive(defs, rowData, onRefresh, onDone) {
+    var keys = [];
+    for (var i = 0; i < defs.length; i++)
+        if (LIVE_ANIME[defs[i].key]) keys.push(defs[i].key);
+    if (!keys.length) { onDone(); return; }
+    var pending = keys.length;
+    for (var k = 0; k < keys.length; k++) {
+        (function(key) {
+            var spec = LIVE_ANIME[key];
+            jikanFetch(spec.path, spec.params, PREVIEW_ROW_CAP, function(items) {
+                // jikanFetch already falls back to Kitsu; only overwrite when a live source
+                // actually produced items, so a total live failure leaves the bundled row intact.
+                if (items && items.length) rowData[key] = items;
+                onRefresh();
+                pending -= 1;
+                if (pending === 0) onDone();
+            });
+        })(keys[k]);
+    }
+}
+
 function loadAnimePageDeep(options, push) {
     var generation = options.generation || 0;
-    runSpecsProgressive("anime", withExtensionSpecs("anime", animeSpecs()), function(result) {
-        var rows = (result.rows || []).map(function(r, i) {
-            var isExt = r.discoverPin !== undefined && r.discoverPin !== null;
-            return {
-                key: isExt ? ("ext-" + i) : (i === 0 ? "top-10" : "anime-" + i),
-                title: r.title, pageKey: "anime", ranked: r.ranked === true, items: r.items,
-                sourceKind: isExt ? "extension" : "house",
-                sourceLabel: isExt ? (r.sub || "") : "Colosseum",
-                seeAllPin: isExt ? r.discoverPin
-                                 : { pageKey: "anime", sourceKind: "house", rowKey: (i === 0 ? "top-10" : "anime-" + i) }
-            };
-        });
-        push({ pageKey: "anime", generation: generation, rows: rows, loading: false, error: "" });
-    });
+    var showExplicit = options.showExplicit === true;
+    var explicitFilter = options.explicitFilter || null;
+    var mal = options.malCatalog || null;
+
+    var defs = Rules.defaultRows("anime");
+    defs.sort(function(a, b) { return a.placement - b.placement; });
+
+    var rowData = {};   // key -> mapped card items (best source so far)
+    function keep(items) {
+        if (!explicitFilter) return items;
+        return items.filter(function(it) { return explicitFilter(it, showExplicit); });
+    }
+    function publish(loading) {
+        var rows = [];
+        for (var i = 0; i < defs.length; i++) {
+            var def = defs[i];
+            var items = keep(rowData[def.key] || []);
+            var cap = (def.recipe.kind === "top") ? (def.recipe.limit || 10) : PREVIEW_ROW_CAP;
+            if (items.length > 0) rows.push(rowFromDef(def, items.slice(0, cap)));
+        }
+        push({ pageKey: "anime", generation: generation, rows: rows, loading: loading === true, error: "" });
+    }
+
+    // Phase 1 — bundled MAL paints instantly (synchronous).
+    if (mal && mal.ready && mal.ready()) {
+        for (var i = 0; i < defs.length; i++) {
+            var rows = malRowsFor(mal, defs[i].recipe, 0, PREVIEW_ROW_CAP);
+            if (rows && rows.length) rowData[defs[i].key] = rows.map(mapJikan);
+        }
+    }
+    publish(true);
+
+    // Phase 2 — live keyless refresh (Jikan → Kitsu) for the hot shelves; failures keep bundled.
+    refreshAnimeLive(defs, rowData, function() { publish(true); }, function() { publish(false); });
 }
 
 function loadCatalogPage(pageKey, options, push) {
@@ -753,9 +853,27 @@ function findDef(pageKey, rowKey) {
     return null;
 }
 
-// Task 4 fills these with the real MAL/Jikan and extension catalog paging. Minimal for now.
+// Anime See-all paging: the bundled MAL catalogue supports true offset/limit paging, so the
+// infinite grid pages the offline artifact (stable, keyless). A missing bundle or unknown key
+// returns an honest state — never a silent reroute.
 function loadAnimeRowPage(pin, offset, limit, options, done) {
-    done({ generation: (options || {}).generation || 0, items: [], hasMore: false, error: "" });
+    options = options || {};
+    var generation = options.generation || 0;
+    var mal = options.malCatalog || null;
+    var explicitFilter = options.explicitFilter || null;
+    var showExplicit = options.showExplicit === true;
+    var def = findDef("anime", pin.rowKey);
+    if (!def) { done({ generation: generation, items: [], hasMore: false, error: "unknown row: " + pin.rowKey }); return; }
+    if (!mal || !mal.ready || !mal.ready()) {
+        done({ generation: generation, items: [], hasMore: false, error: "anime catalogue offline" }); return;
+    }
+    if (def.recipe.kind === "trending") {
+        done({ generation: generation, items: [], hasMore: false, error: "" }); return;
+    }
+    var rows = malRowsFor(mal, def.recipe, offset, limit);
+    var items = rows.map(mapJikan);
+    if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
+    done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
 }
 function loadExtensionRowPage(pin, offset, limit, options, done) {
     done({ generation: (options || {}).generation || 0, items: [], hasMore: false, error: "" });
