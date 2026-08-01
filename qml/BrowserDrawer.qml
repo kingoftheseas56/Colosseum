@@ -42,6 +42,7 @@ Item {
     property var seasonList: []
     property int activeSeason: -1
     property string metaState: "idle"     // idle | loading | ready | error
+    property string loadedRootId: ""      // the series the cached meta belongs to (cache key)
 
     onOpenChanged: {
         if (!open)
@@ -51,6 +52,22 @@ Item {
             drawer.ensureMeta()
     }
     onTabChanged: if (open && tab === "episodes") drawer.ensureMeta()
+
+    // A NEW series invalidates the cached season metadata. This drawer instance persists
+    // across shows and the fetch is "once per series", so without this a new show keeps the
+    // previous one's seasons + episode list (One Piece's 23 seasons over Batman's 2). A same-
+    // series episode change keeps the cache (root id unchanged) so browsing state survives.
+    onNowIdChanged: {
+        if (EpisodeBrowser.seriesRootId(nowId) === drawer.loadedRootId)
+            return
+        drawer.metaState = "idle"
+        drawer.videos = []
+        drawer.seasonList = []
+        drawer.activeSeason = -1
+        drawer.loadedRootId = ""
+        if (drawer.open && drawer.tab === "episodes")
+            drawer.ensureMeta()
+    }
 
     function ensureMeta() {
         if (metaState === "loading" || metaState === "ready")
@@ -73,6 +90,7 @@ Item {
                                       ? nowSeason
                                       : (drawer.seasonList.length ? drawer.seasonList[0] : -1)
                 drawer.metaState = "ready"
+                drawer.loadedRootId = rootId
             } else {
                 drawer.metaState = "error"
             }
