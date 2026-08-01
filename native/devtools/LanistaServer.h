@@ -207,6 +207,7 @@ private:
     QString m_runDir;
     bool m_runDirCreated = false;
     int m_idleTimeoutMs = 0;
+    int m_grabTimeoutMs = 4000;   // COLOSSEUM_LANISTA_GRAB_MS overrides (tests)
     int m_dispatchCount = 0;
     int m_grabCounter = 0;
     bool m_orphanChecked = false;      // selftest-orphan only

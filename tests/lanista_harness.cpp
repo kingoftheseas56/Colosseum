@@ -408,6 +408,22 @@ int main(int argc, char** argv)
                 QStringLiteral("the item PNG is the ITEM (300x400 @%1), got %2x%3")
                     .arg(dpr).arg(itemPng.width()).arg(itemPng.height()));
 
+        // ── I3: a DELEGATE item resolves via the VISUAL-tree walk ────────
+        // longList's Repeater builds row0, row1, … These delegate items live
+        // ONLY in the visual tree (childItems); the QObject-tree findChild()
+        // the bridge shipped with could not see them, so every delegate-built
+        // objectName (all 110 in production) returned GRAB_TARGET_NOT_FOUND.
+        // Assert on the FILE — never image.width, which reads back undefined on
+        // a working grab.
+        QJsonObject dg = call(pipe, {{"cmd", "get-state"}, {"seq", 36},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", "row0"}}}}}},
+            8000);
+        require(dg.value("type").toString() == "reply",
+                "delegate item row0 resolves and grabs (visual-tree walk)" + why());
+        const QString dp = dg.value("grabPath").toString();
+        require(QFileInfo::exists(dp) && QFileInfo(dp).size() > 0,
+                "delegate item row0 lands a non-empty PNG on disk: " + dp);
+
         // A grab rides ANY command, not just get-state.
         QJsonObject pg = call(pipe, {{"cmd", "ping"}, {"seq", 32},
             {"payload", QJsonObject{{"grab", QJsonObject{{"target", "counterButton"}}}}}},
@@ -442,6 +458,51 @@ int main(int argc, char** argv)
                 "a failing command still answers with ITS code, grab or not" + why());
         require(fg.value("grabPath").toString().isEmpty(),
                 "a refused command carries no pixels");
+
+        // ── I1: a grab whose client vanished writes NO orphan PNG ─────────
+        // selftest-slow holds the token ~250ms, then answers through the grab
+        // hook. We hang up first. attachGrab must early-out on !canReply(): no
+        // framebuffer capture, no orphan file. Same discipline as C2 above,
+        // but proving the grab path's OWN artifact is not written. runDir
+        // already exists (seq 30's grab created it), so an empty match here
+        // means the guard truly suppressed the write.
+        {
+            QLocalSocket sock;
+            QObject::connect(&sock, &QLocalSocket::connected, &sock, [&]() {
+                sock.write("{\"cmd\":\"selftest-slow\",\"seq\":40,"
+                           "\"payload\":{\"grab\":{\"target\":\"window\"}}}\n");
+                sock.flush();
+            });
+            sock.connectToServer(pipe);
+            settle(60);     // server reads, dispatches, arms the 250ms timer
+            sock.abort();   // walk away before the timer answers
+        }
+        settle(400);        // let the slow timer fire the grab hook into the void
+        require(QDir(runDir).entryList({QStringLiteral("seq40-*.png")}, QDir::Files).isEmpty(),
+                QStringLiteral("I1: a departed client's grab writes no orphan PNG in ") + runDir);
+
+        // ── I2: the grab deadline fires as GRAB_TIMEOUT ──────────────────
+        // An item grab is ASYNC by design: grabToImage() answers from `ready`
+        // on a LATER event-loop turn, after a full scene-graph render + readback
+        // + queued signal. That path measures 13-60ms in this offscreen harness
+        // (min 13ms over many samples) and only grows slower under load, while
+        // the per-grab timeoutMs override arms a fixed 1ms deadline the instant
+        // the grab is requested. The deadline therefore wins by a >10x margin
+        // that widens (never narrows) as the machine slows — so a real item
+        // grab deterministically returns GRAB_TIMEOUT here. Negative control:
+        // deleting attachGrab's singleShot arm lets the grab complete (~13ms+)
+        // and the reply lands as `reply`, turning this red. timeoutMs is the
+        // seam that makes this fast (1ms vs the 4s default) without shortening
+        // the budget for the success grabs above.
+        QJsonObject tg = call(pipe, {{"cmd", "get-state"}, {"seq", 41},
+            {"payload", QJsonObject{{"grab", QJsonObject{
+                {"target", "counterButton"}, {"timeoutMs", 1}}}}}},
+            5000);
+        require(tg.value("type").toString() == "error"
+                    && tg.value("code").toString() == "GRAB_TIMEOUT",
+                QStringLiteral("I2: an item grab's deadline fires as GRAB_TIMEOUT, got type=")
+                    + tg.value("type").toString() + QStringLiteral(" code=")
+                    + tg.value("code").toString() + why());
 
         std::cout << "LANISTA_OK\n";
         rc = 0;

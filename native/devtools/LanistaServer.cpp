@@ -28,6 +28,25 @@ constexpr int kDefaultIdleTimeoutMs = 10000;  // connected but silent -> hang up
 // grab budget, so the server is the one that says "no" rather than the client
 // giving up on a connection the server still holds. See attachGrab().
 constexpr int kGrabTimeoutMs = 4000;
+
+// Depth-first search over the VISUAL tree (QQuickItem::childItems), which is
+// where Repeater/ListView/GridView delegate items live — they are NOT in the
+// QObject tree, so root->findChild() cannot see them. In Colosseum every
+// shelf/list/grid is delegate-built, so without this walk findItem() resolves
+// nothing on a real page. Depth guard mirrors the walkNamed helper Task 3 uses.
+QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
+{
+    if (!item || depth > 64)
+        return nullptr;
+    if (item->objectName() == objectName)
+        return item;
+    const QList<QQuickItem*> kids = item->childItems();
+    for (QQuickItem* child : kids) {
+        if (QQuickItem* found = walkNamed(child, objectName, depth + 1))
+            return found;
+    }
+    return nullptr;
+}
 }  // namespace
 
 // ── Replier ────────────────────────────────────────────────────────────────
@@ -125,6 +144,11 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     m_idleTimeoutMs = qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_IDLE_MS");
     if (m_idleTimeoutMs <= 0)
         m_idleTimeoutMs = kDefaultIdleTimeoutMs;   // the override exists for tests
+
+    m_grabTimeoutMs = kGrabTimeoutMs;
+    const int grabMs = qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_GRAB_MS");
+    if (grabMs > 0)
+        m_grabTimeoutMs = grabMs;   // the override exists for the timeout test
 
     // ── command registry ────────────────────────────────────────────────
     addRead(QStringLiteral("ping"),
@@ -403,13 +427,27 @@ QQuickItem* LanistaServer::findItem(const QString& objectName) const
     // Callers must reject it before asking; refuse it here as well.
     if (objectName.isEmpty())
         return nullptr;
+
+    // Walk the VISUAL tree first, from the main window's content item. Delegate
+    // items built by Repeater/ListView/GridView exist ONLY in childItems(),
+    // never in the QObject tree — so the findChild() fallback below cannot
+    // resolve any of them, and in Colosseum every shelf/list/grid is that.
+    if (QQuickWindow* w = mainWindow()) {
+        if (QQuickItem* found = walkNamed(w->contentItem(), objectName, 0))
+            return found;
+    }
+
+    // Fall back to the QObject tree for items not parented under the main
+    // window (a root item that is not a window, or a secondary window's scene).
     for (QObject* root : m_engine->rootObjects()) {
         if (root->objectName() == objectName) {
-            if (auto* it = qobject_cast<QQuickItem*>(root))
+            if (auto* it = qobject_cast<QQuickItem*>(root)) {
                 return it;
+            }
         }
-        if (auto* found = root->findChild<QQuickItem*>(objectName))
+        if (auto* found = root->findChild<QQuickItem*>(objectName)) {
             return found;
+        }
     }
     return nullptr;
 }
@@ -450,8 +488,16 @@ QJsonObject LanistaServer::cmdGetState() const
 // the callback and the connection stays open until it fires.
 void LanistaServer::attachGrab(const QJsonObject& payload, QJsonObject body, Replier reply)
 {
-    const QString target = payload.value(QStringLiteral("grab")).toObject()
-                               .value(QStringLiteral("target")).toString();
+    // The client can hang up between issuing the command and this hook firing
+    // (an async handler like selftest-slow/ui-wait-for holds the token across
+    // turns). Bail before the "window" path burns a full framebuffer capture
+    // and leaves an orphan PNG on disk — the item path's ready-callback already
+    // makes the same canReply() check before it saves.
+    if (!reply.canReply())
+        return;
+
+    const QJsonObject grabObj = payload.value(QStringLiteral("grab")).toObject();
+    const QString target = grabObj.value(QStringLiteral("target")).toString();
     // Stamped now, not at save time: it names the instant the body describes,
     // and for an async item grab those are two different turns.
     const QString stamp = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
@@ -510,9 +556,21 @@ void LanistaServer::attachGrab(const QJsonObject& payload, QJsonObject body, Rep
     // stopped — this connection and its m_conns entry would leak for the life
     // of an always-on app. Whichever path wins, the token's `sent` latch makes
     // the other a no-op, so the race is safe in both directions.
-    QTimer::singleShot(kGrabTimeoutMs, this, [reply, target]() mutable {
+    //
+    // payload.grab.timeoutMs (>0) bounds THIS grab only, overriding the server
+    // default without shortening it for other grabs sharing this always-on
+    // process. It earns its place twice: a client on a tight budget can ask the
+    // server to give up sooner, and it is the seam that lets the timeout test
+    // fire GRAB_TIMEOUT in a fraction of a second rather than the 4s default —
+    // without endangering the success grabs that run in the same process.
+    int timeoutMs = m_grabTimeoutMs;
+    const int perGrab = grabObj.value(QStringLiteral("timeoutMs")).toInt();
+    if (perGrab > 0)
+        timeoutMs = perGrab;
+
+    QTimer::singleShot(timeoutMs, this, [reply, target, timeoutMs]() mutable {
         reply.fail("GRAB_TIMEOUT",
-                   target + QStringLiteral(": no frame within %1 ms").arg(kGrabTimeoutMs));
+                   target + QStringLiteral(": no frame within %1 ms").arg(timeoutMs));
     });
 
     // SingleShotConnection breaks a real cycle: the functor holds the only
