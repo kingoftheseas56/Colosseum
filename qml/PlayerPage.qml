@@ -21,6 +21,19 @@ Item {
     anchors.fill: parent
     focus: true
 
+    // ── lanista test bridge (Agent 1's Theatre scenario, chat 47b0d14/80e2f32) ──────
+    // Read-only proxies so an automated scenario asserts "playback actually ADVANCED",
+    // never the naive "the page opened". Read via `qml-get {object:"player", props:[…]}`
+    // (reads THIS item's declared props, not child objects — hence flat proxies over mpv).
+    // playbackStarted mirrors finishStartingIfPlaybackAdvanced() so it cannot drift from
+    // the app's own truth; the black-screen-buffering failure surfaces as a wait timeout.
+    objectName: "player"
+    readonly property bool playbackStarted:  !root.starting && !root.errored && mpv.position > 0.25
+    readonly property real playbackPosition: mpv.position
+    readonly property real playbackDuration: mpv.duration
+    readonly property bool playerActive:     root.visible   // player item is the shown surface
+    // (root.errored is already a readable bool on this root — no proxy needed.)
+
     Settings {
         id: playerSettings
         location: Qt.resolvedUrl("../player.ini")
