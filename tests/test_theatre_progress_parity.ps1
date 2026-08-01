@@ -51,4 +51,16 @@ Assert-Contains $series 'Progress\.rememberLastSeason\(currentId\(\), activeSeas
 Assert-Contains $series 'function\s+nextUpEpisodeNumber\(\)' `
     "TheatreSeries should compute a next-up episode from watched progress."
 
+# Task 3 — keyless TMDB identity for hosted playback (VidKing).
+Assert-Contains $series 'property int tmdbId' `
+    "TheatreSeries must hold the resolved TMDB identity for hosted playback."
+Assert-Contains $series 'tmdbId\s*=\s*0' `
+    "TheatreSeries must reset tmdbId to zero before each item load."
+Assert-Contains $series 'page\.tmdbId\s*=\s*Math\.max\(0,\s*Math\.floor\(Number\(meta\.moviedb_id\s*\|\|\s*meta\.tmdbId' `
+    "TheatreSeries must read the resolved Cinemeta moviedb_id / tmdbId after loadMeta."
+Assert-Contains $series '"tmdbId":\s*page\.tmdbId' `
+    "Play-mode source asks must carry the TMDB id into the sheet's playback context."
+Assert-Contains $series '"imdbId":\s*page\.currentId\(\)' `
+    "Play-mode source asks must carry the imdb id into the sheet's playback context."
+
 Write-Host "Theatre progress parity structure OK."

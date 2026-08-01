@@ -64,6 +64,11 @@ Item {
     // When an anime meta pivots to Cinemeta (kitsu -> imdb id), the meta's own id is
     // the identity everything keys off (episode stream ids, progress, last-season).
     property string resolvedId: ""
+    // Keyless TMDB id from the RESOLVED Cinemeta record (moviedb_id). 0 when unknown.
+    // Hosted playback (VidKing) reads this; it is taken from the final Cinemeta meta,
+    // never the original anime provider object, so an anime→Cinemeta pivot keeps the
+    // right id. Reset to 0 before every load so a stale id can never leak across titles.
+    property int tmdbId: 0
 
     function currentId() {
         if (resolvedId.length) return resolvedId;
@@ -609,6 +614,7 @@ Item {
         seasons = [];
         activeSeason = 0;
         resolvedId = "";
+        tmdbId = 0;
         // Capture the originally requested id before resolvedId pivots to IMDb, so
         // the resolver still gets the provider source id (mal:/kitsu:/anidb:...).
         requestedSourceId = currentId();
@@ -624,6 +630,9 @@ Item {
                 return;
             }
             if (meta.id) resolvedId = String(meta.id);
+            // Take the TMDB id from the FINAL Cinemeta record (after any anime→imdb pivot),
+            // so hosted playback resolves the right title rather than the anime provider's id.
+            page.tmdbId = Math.max(0, Math.floor(Number(meta.moviedb_id || meta.tmdbId || 0)));
             if (meta.name) title = meta.name;
             var bg = TheatreApi.normalizeArtUrl(meta.background || "");
             if (bg) banner = bg;
@@ -976,7 +985,12 @@ Item {
                                                      Object.assign({
                                                          "title": page.title,
                                                          "metaLine": page.episodeSourceLine(ep),
-                                                         "backdrop": page.sourceBackdrop()
+                                                         "backdrop": page.sourceBackdrop(),
+                                                         // hosted-player identity (VidKing) — play-mode only
+                                                         "tmdbId": page.tmdbId,
+                                                         "imdbId": page.currentId(),
+                                                         "season": page.episodeSeason(ep),
+                                                         "episode": page.episodeNumber(ep)
                                                      }, page.adjacentEpisodeContext(ep)))
                                     } else {
                                         if (page.tryPlayLocal(page.currentId(), page.title, "movie"))
@@ -988,7 +1002,10 @@ Item {
                                             "title": page.title,
                                             "year": page.year,
                                             "metaLine": page.sourceMetaLine(),
-                                            "backdrop": page.sourceBackdrop()
+                                            "backdrop": page.sourceBackdrop(),
+                                            // hosted-player identity (VidKing) — movie, no season/episode
+                                            "tmdbId": page.tmdbId,
+                                            "imdbId": page.currentId()
                                         })
                                     }
                                 }
@@ -1573,7 +1590,12 @@ Item {
                                              epLabel, Object.assign({
                                                  "title": page.title,
                                                  "metaLine": page.episodeSourceLine(ep.modelData),
-                                                 "backdrop": page.sourceBackdrop()
+                                                 "backdrop": page.sourceBackdrop(),
+                                                 // hosted-player identity (VidKing) — play-mode only
+                                                 "tmdbId": page.tmdbId,
+                                                 "imdbId": page.currentId(),
+                                                 "season": page.episodeSeason(ep.modelData),
+                                                 "episode": page.episodeNumber(ep.modelData)
                                              }, page.adjacentEpisodeContext(ep.modelData)))
                             }
                             Rectangle {

@@ -187,6 +187,22 @@ Item {
         id: assertTimer; interval: 1200; repeat: false
         onTriggered: {
             try {
+                // Task 3 — Cinemeta's keyless moviedb_id is preserved as a normalized tmdbId
+                // so hosted playback (VidKing) has an identity without any TMDB API key.
+                var idMeta = { id: "tt1375666", imdb_id: "tt1375666", type: "movie",
+                               name: "Inception", poster: "p", moviedb_id: 27205 };
+                harness.ok(TheatreApi.mapCinemeta(idMeta, 0).tmdbId === 27205,
+                           "mapCinemeta preserves moviedb_id as tmdbId");
+                harness.ok(TheatreApi.mapCinemeta({ id: "tt1", imdb_id: "tt1", type: "movie",
+                                                    name: "x", poster: "p" }, 0).tmdbId === 0,
+                           "mapCinemeta defaults tmdbId to 0 when Cinemeta omits it");
+                // mergeMetaFields carries the identity onto an enriched catalogue row.
+                var enrichTarget = TheatreApi.mapCinemeta({ id: "tt2", imdb_id: "tt2",
+                                                            type: "movie", name: "y", poster: "p" }, 0);
+                TheatreApi.mergeMetaFields(enrichTarget, { moviedb_id: 603 });
+                harness.ok(enrichTarget.tmdbId === 603,
+                           "mergeMetaFields fills a missing tmdbId from enriched meta");
+
                 var rows = harness.lastRows;
                 harness.ok(rows.length > 0, "movies page publishes rows");
 

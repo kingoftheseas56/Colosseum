@@ -237,6 +237,10 @@ function mapCinemeta(meta, index) {
     return {
         id: meta.id || meta.imdb_id || "",
         type: meta.type || "movie",
+        // Keyless TMDB identity: Cinemeta ships `moviedb_id`, which is a TMDB id. Preserved
+        // so hosted players (VidKing) can build their embed URL without any TMDB API key.
+        // Absent stays 0 — an unknown id offers no hosted row rather than a wrong one.
+        tmdbId: Number(meta.moviedb_id || meta.tmdbId || 0),
         caption: metaTitle(meta),
         title: metaTitle(meta),
         blurb: cleanText(meta.description, "A featured title."),
@@ -607,6 +611,8 @@ function mergeMetaFields(item, meta) {
     if (!item.country && meta.country) item.country = meta.country;
     if (!item.status && meta.status) item.status = meta.status;
     if (!item.imdbRating && meta.imdbRating) item.imdbRating = meta.imdbRating;
+    if (!item.tmdbId && (meta.moviedb_id || meta.tmdbId))
+        item.tmdbId = Number(meta.moviedb_id || meta.tmdbId || 0);
     if ((!item.genres || !item.genres.length) && (meta.genres || meta.genre))
         item.genres = meta.genres || meta.genre;
     if (meta.videos !== undefined) { item.videosKnown = true; item.seasonCount = seasonCount(meta.videos); }
