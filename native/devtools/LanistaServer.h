@@ -174,11 +174,14 @@ private:
     void cmdUiQuery(const QJsonObject& p, Replier reply) const;
     // Task 4
     QJsonObject cmdUiSnapshot(const QJsonObject& p);
-    // Task 5
-    QJsonObject cmdUiClick(const QJsonObject& p) const;
-    QJsonObject cmdUiKeypress(const QJsonObject& p) const;
-    QJsonObject cmdUiTextInput(const QJsonObject& p) const;
-    QJsonObject cmdUiScroll(const QJsonObject& p) const;
+    // Task 5 — the "hands". Each can fail on its target (NO_SUCH_ITEM / NO_WINDOW,
+    // and ui-keypress on BAD_KEY), so they own the Replier and fail()/reply()
+    // themselves, exactly like the Task 3 fallible reads. The DRIVE gate is
+    // enforced centrally in dispatch(); the handlers never re-check it.
+    void cmdUiClick(const QJsonObject& p, Replier reply) const;
+    void cmdUiKeypress(const QJsonObject& p, Replier reply) const;
+    void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
+    void cmdUiScroll(const QJsonObject& p, Replier reply) const;
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
     // Task 9
     QJsonObject cmdInvokeRead(const QJsonObject& p) const;

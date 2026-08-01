@@ -673,6 +673,122 @@ int main(int argc, char** argv)
                     && stale.value("code").toString() == "NO_SUCH_ITEM",
                 "a handle from a superseded snapshot misses cleanly (NO_SUCH_ITEM)" + why());
 
+        // ── Task 5: the DRIVE gate — synthetic driving is refused until opened ──
+        // The gate is enforced centrally in dispatch(); this proves ui-click sits
+        // behind it. DRIVE is unset here (the gate tests above left it closed).
+        QJsonObject clickDenied = call(pipe, {{"cmd", "ui-click"}, {"seq", 70},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}});
+        require(clickDenied.value("type").toString() == "error"
+                    && clickDenied.value("code").toString() == "DRIVE_DISABLED",
+                "ui-click is refused with the DRIVE gate closed" + why());
+
+        // Open the DRIVE gate for the rest of the hands tests. driveOpen() reads
+        // the env live per call, so this takes effect immediately.
+        qputenv("COLOSSEUM_LANISTA_DRIVE", "1");
+
+        // ── Task 5: ui-click genuinely lands — the counter really increments ──
+        // A reply is not enough: the press+release must reach counterMouse and
+        // fire onClicked. counterLabel binds to win.clickCount, so its text is the
+        // ground truth that a real click happened (drop the release -> stays 0).
+        QJsonObject clicked = call(pipe, {{"cmd", "ui-click"}, {"seq", 71},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}});
+        require(clicked.value("type").toString() == "reply", "ui-click replies" + why());
+        require(clicked.value("clicked").toString() == QStringLiteral("counterMouse"),
+                "ui-click names the item it drove" + why());
+        QJsonObject afterClick = call(pipe, {{"cmd", "qml-get"}, {"seq", 72},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(afterClick.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 1"),
+                "ui-click REALLY incremented the counter (press+release delivered)" + why());
+
+        // ── Task 5: ui-text-input types real characters into a TextInput ──
+        // forceActiveFocus() + a KeyPress per char. The ui-click first mirrors a
+        // human tabbing in; the field's own text is the proof each char landed.
+        call(pipe, {{"cmd", "ui-click"}, {"seq", 73},
+            {"payload", QJsonObject{{"target", "nameField"}}}});
+        QJsonObject typed = call(pipe, {{"cmd", "ui-text-input"}, {"seq", 74},
+            {"payload", QJsonObject{{"target", "nameField"}, {"text", "luffy"}}}});
+        require(typed.value("typed").toString() == QStringLiteral("luffy"),
+                "ui-text-input echoes the text it typed" + why());
+        QJsonObject fieldText = call(pipe, {{"cmd", "qml-get"}, {"seq", 75},
+            {"payload", QJsonObject{{"object", "nameField"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(fieldText.value("props").toObject().value("text").toString()
+                    == QStringLiteral("luffy"),
+                "ui-text-input REALLY landed each character in the field" + why());
+
+        // ── Task 5: ui-keypress lands a real key on the focused item ──
+        // The scene has no global key handler, so we focus keySink first (its
+        // MouseArea forceActiveFocus()es it on click), then a KeyPress must reach
+        // Keys.onPressed and record e.text. Proves the key genuinely lands.
+        call(pipe, {{"cmd", "ui-click"}, {"seq", 76},
+            {"payload", QJsonObject{{"target", "keySinkMouse"}}}});   // focus the sink
+        QJsonObject pressed = call(pipe, {{"cmd", "ui-keypress"}, {"seq", 77},
+            {"payload", QJsonObject{{"key", "A"}}}});
+        require(pressed.value("pressed").toString() == QStringLiteral("A"),
+                "ui-keypress echoes the key it pressed" + why());
+        QJsonObject sinkKey = call(pipe, {{"cmd", "qml-get"}, {"seq", 78},
+            {"payload", QJsonObject{{"object", "keySink"},
+                                    {"props", QJsonArray{"lastKey"}}}}});
+        require(sinkKey.value("props").toObject().value("lastKey").toString()
+                    == QStringLiteral("A"),
+                "ui-keypress REALLY reached the focused item (Keys.onPressed saw 'A')" + why());
+
+        // ── Task 5: an unparseable (empty) key is BAD_KEY ──
+        QJsonObject badKey = call(pipe, {{"cmd", "ui-keypress"}, {"seq", 79},
+            {"payload", QJsonObject{{"key", ""}}}});
+        require(badKey.value("type").toString() == "error"
+                    && badKey.value("code").toString() == "BAD_KEY",
+                "ui-keypress with an empty key is BAD_KEY" + why());
+
+        // ── Task 5: ui-scroll moves a real ListView's contentY ──
+        // mainList overflows its viewport (contentHeight 480 > height 120), so a
+        // wheel event has room to move it. Genuine effect, not just a reply: drop
+        // the wheel sendEvent and contentY never budges.
+        QJsonObject beforeScroll = call(pipe, {{"cmd", "qml-get"}, {"seq", 80},
+            {"payload", QJsonObject{{"object", "mainList"},
+                                    {"props", QJsonArray{"contentY"}}}}});
+        const double cyBefore =
+            beforeScroll.value("props").toObject().value("contentY").toDouble();
+        QJsonObject scrolled = call(pipe, {{"cmd", "ui-scroll"}, {"seq", 81},
+            {"payload", QJsonObject{{"target", "mainList"}, {"dy", -240}}}});
+        require(scrolled.value("scrolled").toString() == QStringLiteral("mainList"),
+                "ui-scroll names the item it scrolled" + why());
+        settle(600);   // let the wheel-driven flick advance the content position
+        QJsonObject afterScroll = call(pipe, {{"cmd", "qml-get"}, {"seq", 82},
+            {"payload", QJsonObject{{"object", "mainList"},
+                                    {"props", QJsonArray{"contentY"}}}}});
+        const double cyAfter =
+            afterScroll.value("props").toObject().value("contentY").toDouble();
+        require(cyAfter > cyBefore,
+                QStringLiteral("ui-scroll REALLY moved contentY (%1 -> %2)")
+                    .arg(cyBefore).arg(cyAfter) + why());
+
+        // ── Task 5: ui-wait-for matches a property value (async poll) ──
+        // Drive the counter once more (clicks: 2), then wait for exactly that.
+        call(pipe, {{"cmd", "ui-click"}, {"seq", 83},
+            {"payload", QJsonObject{{"target", "counterMouse"}}}});
+        QJsonObject waited = call(pipe, {{"cmd", "ui-wait-for"}, {"seq", 84},
+            {"payload", QJsonObject{{"object", "counterLabel"}, {"prop", "text"},
+                                    {"value", "clicks: 2"}, {"timeout_ms", 2000}}}});
+        require(waited.value("type").toString() == "reply"
+                    && waited.value("matched").toBool(),
+                "ui-wait-for matches the property value" + why());
+
+        // ── Task 5: ui-wait-for hits its deadline as WAIT_TIMEOUT ──
+        // A value that never comes true must terminate on the timeout_ms deadline.
+        // Disable the deadline branch and this call times out empty -> reds.
+        QJsonObject waitTimeout = call(pipe, {{"cmd", "ui-wait-for"}, {"seq", 85},
+            {"payload", QJsonObject{{"object", "counterLabel"}, {"prop", "text"},
+                                    {"value", "clicks: 99999"}, {"timeout_ms", 200}}}});
+        require(waitTimeout.value("type").toString() == "error"
+                    && waitTimeout.value("code").toString() == "WAIT_TIMEOUT",
+                "ui-wait-for that never matches fails as WAIT_TIMEOUT (deadline fires)" + why());
+
+        // Close the DRIVE gate again — leave the process as the denial tests found it.
+        qunsetenv("COLOSSEUM_LANISTA_DRIVE");
+
         std::cout << "LANISTA_OK\n";
         rc = 0;
         app.quit();

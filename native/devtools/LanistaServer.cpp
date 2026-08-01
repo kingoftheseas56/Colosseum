@@ -6,8 +6,11 @@
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QKeyEvent>
+#include <QKeySequence>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QMouseEvent>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
@@ -16,6 +19,7 @@
 #include <QStandardPaths>
 #include <QStringList>
 #include <QTimer>
+#include <QWheelEvent>
 
 #include <algorithm>
 
@@ -192,6 +196,23 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     // than owning the Replier. (It is non-const because it rebuilds m_handles.)
     addRead(QStringLiteral("ui-snapshot"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdUiSnapshot(p)); });
+
+    // Task 5: the "hands". The four driving commands sit behind the DRIVE gate —
+    // addDrive() states that at the registration site, and dispatch() enforces it
+    // centrally, so the handlers never re-check it. Each owns its Replier so it can
+    // fail() on a missing target (like the Task 3 reads). ui-wait-for is a READ: it
+    // only observes a property, so it registers with addRead — its own timeout_ms
+    // deadline (not a gate) is what guarantees it terminates.
+    addDrive(QStringLiteral("ui-click"),
+             [this](const QJsonObject& p, Replier reply) { cmdUiClick(p, std::move(reply)); });
+    addDrive(QStringLiteral("ui-keypress"),
+             [this](const QJsonObject& p, Replier reply) { cmdUiKeypress(p, std::move(reply)); });
+    addDrive(QStringLiteral("ui-text-input"),
+             [this](const QJsonObject& p, Replier reply) { cmdUiTextInput(p, std::move(reply)); });
+    addDrive(QStringLiteral("ui-scroll"),
+             [this](const QJsonObject& p, Replier reply) { cmdUiScroll(p, std::move(reply)); });
+    addRead(QStringLiteral("ui-wait-for"),
+            [this](const QJsonObject& p, Replier reply) { cmdUiWaitFor(p, std::move(reply)); });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -719,6 +740,180 @@ QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
     }
     return {{QStringLiteral("elements"), elements},
             {QStringLiteral("count"), elements.size()}};
+}
+
+// ── Task 5: the hands ────────────────────────────────────────────────────────
+// SYNTHETIC events through the real QQuickWindow delivery path
+// (QCoreApplication::sendEvent(item->window(), &ev)) at the item's SCENE center
+// (item->mapToScene(center)) — so hover/focus/grabs behave exactly as they would
+// for a human. A driving command NEVER takes a pixel coordinate from the client:
+// the client names the item, the item hands us the point. The DRIVE gate is
+// enforced centrally in dispatch(); none of these re-check it.
+
+// ui-click: press+release LeftButton at the item's scene center. The window
+// routes the press to the item under the point and the release to the grabber,
+// so a MouseArea sees a real click (onClicked fires). Drop the release and no
+// click is synthesised — the whole reason both events are sent.
+void LanistaServer::cmdUiClick(const QJsonObject& p, Replier reply) const
+{
+    const QString ref = p.value(QStringLiteral("target")).toString();
+    QQuickItem* item = resolveTarget(ref);
+    if (!item) {
+        reply.fail("NO_SUCH_ITEM", ref);
+        return;
+    }
+    QQuickWindow* w = item->window();
+    if (!w) {
+        reply.fail("NO_WINDOW", ref);
+        return;
+    }
+    const QPointF scenePos =
+        item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
+    const QPointF globalPos = w->mapToGlobal(scenePos.toPoint());
+    QMouseEvent press(QEvent::MouseButtonPress, scenePos, globalPos,
+                      Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(w, &press);
+    QMouseEvent release(QEvent::MouseButtonRelease, scenePos, globalPos,
+                        Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+    QCoreApplication::sendEvent(w, &release);
+    reply.reply({{QStringLiteral("clicked"), item->objectName()},
+                 {QStringLiteral("atX"), scenePos.x()},
+                 {QStringLiteral("atY"), scenePos.y()}});
+}
+
+// ui-keypress: parse the key via QKeySequence and send KeyPress+KeyRelease of its
+// FIRST combination to the main window's focus item. BAD_KEY on an empty/
+// unparseable key. A printable key with no non-shift modifier carries its
+// character as the event text, so Keys.onPressed / a TextInput see e.text.
+void LanistaServer::cmdUiKeypress(const QJsonObject& p, Replier reply) const
+{
+    const QString keyStr = p.value(QStringLiteral("key")).toString();
+    if (keyStr.isEmpty()) {
+        reply.fail("BAD_KEY", QStringLiteral("ui-keypress needs a non-empty key"));
+        return;
+    }
+    const QKeySequence seq(keyStr);
+    if (seq.count() == 0) {
+        reply.fail("BAD_KEY", QStringLiteral("unparseable key: ") + keyStr);
+        return;
+    }
+    QQuickWindow* w = mainWindow();
+    if (!w) {
+        reply.fail("NO_WINDOW", QStringLiteral("no root window to receive the key"));
+        return;
+    }
+    const QKeyCombination combo = seq[0];
+    const int key = combo.key();
+    const Qt::KeyboardModifiers mods = combo.keyboardModifiers();
+    QString text;
+    if (key >= 0x20 && key <= 0x7e && (mods & ~Qt::ShiftModifier) == Qt::NoModifier)
+        text = QChar(key);
+    QKeyEvent press(QEvent::KeyPress, key, mods, text);
+    QCoreApplication::sendEvent(w, &press);
+    QKeyEvent release(QEvent::KeyRelease, key, mods, text);
+    QCoreApplication::sendEvent(w, &release);
+    reply.reply({{QStringLiteral("pressed"), keyStr}});
+}
+
+// ui-text-input: forceActiveFocus() the target, then a KeyPress carrying each
+// character's text to its window — a TextInput inserts on KeyPress, so the whole
+// string lands. Returns the text it typed.
+void LanistaServer::cmdUiTextInput(const QJsonObject& p, Replier reply) const
+{
+    const QString ref = p.value(QStringLiteral("target")).toString();
+    QQuickItem* item = resolveTarget(ref);
+    if (!item) {
+        reply.fail("NO_SUCH_ITEM", ref);
+        return;
+    }
+    QQuickWindow* w = item->window();
+    if (!w) {
+        reply.fail("NO_WINDOW", ref);
+        return;
+    }
+    item->forceActiveFocus();
+    const QString text = p.value(QStringLiteral("text")).toString();
+    for (const QChar ch : text) {
+        QKeyEvent ev(QEvent::KeyPress, 0, Qt::NoModifier, QString(ch));
+        QCoreApplication::sendEvent(w, &ev);
+    }
+    reply.reply({{QStringLiteral("typed"), text}});
+}
+
+// ui-scroll: a QWheelEvent with angleDelta QPoint(0, dy) (default dy -120) at the
+// item's scene center. The window delivers it to the Flickable/ListView under the
+// point, which moves its content. Drop the sendEvent and contentY never moves.
+void LanistaServer::cmdUiScroll(const QJsonObject& p, Replier reply) const
+{
+    const QString ref = p.value(QStringLiteral("target")).toString();
+    QQuickItem* item = resolveTarget(ref);
+    if (!item) {
+        reply.fail("NO_SUCH_ITEM", ref);
+        return;
+    }
+    QQuickWindow* w = item->window();
+    if (!w) {
+        reply.fail("NO_WINDOW", ref);
+        return;
+    }
+    const int dy = p.contains(QStringLiteral("dy"))
+                       ? p.value(QStringLiteral("dy")).toInt() : -120;
+    const QPointF scenePos =
+        item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
+    const QPointF globalPos = w->mapToGlobal(scenePos.toPoint());
+    QWheelEvent ev(scenePos, globalPos, QPoint(0, 0), QPoint(0, dy),
+                   Qt::NoButton, Qt::NoModifier, Qt::NoScrollPhase, false);
+    QCoreApplication::sendEvent(w, &ev);
+    reply.reply({{QStringLiteral("scrolled"), item->objectName()},
+                 {QStringLiteral("dy"), dy}});
+}
+
+// ui-wait-for: the async command. Poll a property every ~50ms via a QTimer(this);
+// answer `matched` the instant object.prop equals the wanted value, or fail
+// WAIT_TIMEOUT once now passes the deadline (now + timeout_ms, default 3000). The
+// deadline is the backstop that guarantees this always terminates. canReply() is
+// the client-gone guard: if the client walked away, tear the timer down and stop.
+void LanistaServer::cmdUiWaitFor(const QJsonObject& p, Replier reply)
+{
+    const QString objName = p.value(QStringLiteral("object")).toString();
+    const QByteArray propKey = p.value(QStringLiteral("prop")).toString().toUtf8();
+    const QJsonValue wanted = p.value(QStringLiteral("value"));
+    int timeoutMs = p.value(QStringLiteral("timeout_ms")).toInt();
+    if (timeoutMs <= 0)
+        timeoutMs = 3000;
+    const qint64 deadline = QDateTime::currentMSecsSinceEpoch() + timeoutMs;
+
+    auto* timer = new QTimer(this);
+    timer->setInterval(50);
+    connect(timer, &QTimer::timeout, this,
+            [this, timer, objName, propKey, wanted, deadline, reply]() mutable {
+                if (!reply.canReply()) {   // client vanished: nothing left to answer
+                    timer->stop();
+                    timer->deleteLater();
+                    return;
+                }
+                // Resolve by NAME each poll (a stable handle across a long wait):
+                // a missing item simply keeps the wait going to WAIT_TIMEOUT.
+                if (QQuickItem* item = resolveTarget(objName)) {
+                    if (QJsonValue::fromVariant(item->property(propKey.constData()))
+                        == wanted) {
+                        timer->stop();
+                        timer->deleteLater();
+                        reply.reply({{QStringLiteral("matched"), true},
+                                     {QStringLiteral("value"), wanted}});
+                        return;
+                    }
+                }
+                if (QDateTime::currentMSecsSinceEpoch() > deadline) {
+                    timer->stop();
+                    timer->deleteLater();
+                    reply.fail("WAIT_TIMEOUT",
+                               objName + QStringLiteral(".") + QString::fromUtf8(propKey)
+                                   + QStringLiteral(" did not reach the wanted value in time"));
+                    return;
+                }
+            });
+    timer->start();
 }
 
 // ── the combined reply ─────────────────────────────────────────────────────

@@ -48,10 +48,12 @@ Window {
     // "QQuickListView", which carries NO "Flickable" token — so ui-snapshot must
     // walk the SUPERCLASS chain (QQuickListView -> QQuickFlickable) to mark it
     // interactive. This is the fixture that pins the chain-walk over a leaf check.
+    // A scrollable ListView: contentHeight (20*24=480) far exceeds height (120),
+    // so a wheel scroll has somewhere to go — ui-scroll asserts contentY moves.
     ListView {
         objectName: "mainList"
         x: 100; y: 260; width: 200; height: 120; clip: true
-        model: 5
+        model: 20
         delegate: Rectangle {
             required property int index
             objectName: "listRow" + index
@@ -77,6 +79,23 @@ Window {
                     Text { text: "row " + parent.index; color: "#c0c0c0"; x: 8; y: 14 }
                 }
             }
+        }
+    }
+
+    // A focusable key sink for ui-keypress: a plain Item has no click-to-focus of
+    // its own, so its MouseArea calls forceActiveFocus() — ui-click the area to
+    // focus it, then ui-keypress lands on Keys.onPressed and lastKey records e.text.
+    Item {
+        id: keySink
+        objectName: "keySink"
+        x: 100; y: 400; width: 200; height: 32
+        focus: true
+        property string lastKey: ""
+        Keys.onPressed: (event) => { keySink.lastKey = event.text }
+        MouseArea {
+            objectName: "keySinkMouse"
+            anchors.fill: parent
+            onClicked: keySink.forceActiveFocus()
         }
     }
 }
