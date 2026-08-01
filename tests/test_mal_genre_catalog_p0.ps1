@@ -11,6 +11,15 @@ if ($main -notmatch 'MalCatalog.*data/mal_catalog\.db') { throw 'MalCatalog not 
 $cmake = Get-Content (Join-Path $root 'native/CMakeLists.txt') -Raw
 if ($cmake -notmatch 'engine/MalCatalog\.cpp') { throw 'MalCatalog.cpp not in the app target' }
 
+# Tankoban Discover (2026-08-01): the paged manga discovery seam + its axis-aware
+# bake tables must exist. Static (source-level) so it holds with or without a db.
+$malh = Get-Content (Join-Path $root 'native/engine/MalCatalog.h') -Raw
+if ($malh -notmatch 'discoverPage') { throw 'MalCatalog.h missing discoverPage (Tankoban Discover)' }
+if ($malh -notmatch 'discoverFilters') { throw 'MalCatalog.h missing discoverFilters (Tankoban Discover)' }
+$bake = Get-Content (Join-Path $root 'scripts/anime_brain/build_mal_db.py') -Raw
+if ($bake -notmatch 'CREATE TABLE classification') { throw 'build_mal_db.py no longer creates the classification table' }
+if ($bake -notmatch 'CREATE TABLE classification_count') { throw 'build_mal_db.py no longer creates classification_count' }
+
 # Both lanes go catalog-first via a PASSED-IN catalog param, never a bare global.
 # A .pragma library script cannot see context properties: a MalCatalog global is
 # always undefined there (the 2026-07-18 "still on AniList" bug). The page passes it in.
@@ -54,6 +63,27 @@ print(d.execute(q).fetchone())
     if ($nums[0] -lt 50 -or $nums[1] -lt 50) { throw "baked db has too few tags: $probe" }
     if ($nums[2] -lt 10000 -or $nums[3] -lt 10000) { throw "baked db has too few rows: $probe" }
     Write-Host "  baked db live: $probe (anime tags, manga tags, anime rows, manga rows)"
+
+    # Tankoban Discover: when the artifact carries the new schema, the classification
+    # table and explicit manga must both be populated. Legacy dbs (pre-rebake) skip.
+    $py2 = @"
+import sqlite3
+d = sqlite3.connect(r'$db')
+has = d.execute("SELECT COUNT(1) FROM sqlite_master WHERE type='table' AND name='classification'").fetchone()[0]
+if has:
+    print(d.execute("SELECT COUNT(1) FROM classification WHERE medium='manga'").fetchone()[0],
+          d.execute("SELECT COUNT(1) FROM manga WHERE explicit=1").fetchone()[0])
+else:
+    print('legacy')
+"@
+    $dprobe = ($py2 | python -).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'discover probe unreadable' }
+    if ($dprobe -ne 'legacy') {
+        $dn = [regex]::Matches($dprobe, '\d+') | ForEach-Object { [int]$_.Value }
+        if ($dn[0] -le 0) { throw "classification table empty: $dprobe" }
+        if ($dn[1] -le 0) { throw "no explicit manga baked: $dprobe" }
+        Write-Host "  discover live: $dprobe (manga classifications, explicit manga)"
+    }
 } else {
     Write-Host '  baked db absent - fallback lane covers (run scripts/anime_brain/build_mal_db.py)'
 }

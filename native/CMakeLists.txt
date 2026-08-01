@@ -967,6 +967,14 @@ add_executable(mal_catalog_rows_harness
 target_include_directories(mal_catalog_rows_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql)
 
+# ── Tankoban Discover (spec 2026-08-01): paged offline MANGA discovery contract ──
+add_executable(mal_catalog_discover_harness
+    ../tests/mal_catalog_discover_harness.cpp
+    engine/MalCatalog.cpp
+    engine/MalCatalog.h)
+target_include_directories(mal_catalog_discover_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(mal_catalog_discover_harness PRIVATE Qt6::Core Qt6::Sql)
+
 # Live triage probe (2026-07-18): the audiobook delivery chain end-to-end —
 # real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.
 add_executable(audiobook_engine_probe

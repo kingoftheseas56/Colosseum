@@ -2,6 +2,7 @@
 #include "MalCatalog.h"
 
 #include <QCoreApplication>
+#include <QDate>
 #include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
@@ -21,6 +22,16 @@ QVariantList namedList(const QString& json) {
     const QJsonArray arr = QJsonDocument::fromJson(json.toUtf8()).array();
     for (const auto& v : arr)
         out.append(QVariantMap{{QStringLiteral("name"), v.toString()}});
+    return out;
+}
+
+// db-stored JSON array of strings -> flat QVariantList<QString> (discover rows'
+// `classifications`, consumed by the Tankoban Discover adapter, not the card mapper)
+QVariantList stringList(const QString& json) {
+    QVariantList out;
+    const QJsonArray arr = QJsonDocument::fromJson(json.toUtf8()).array();
+    for (const auto& v : arr)
+        out.append(v.toString());
     return out;
 }
 
@@ -224,6 +235,159 @@ QVariantList MalCatalog::animeCatalog(const QVariantMap& query, int offset, int 
         out.append(m);
     }
     return out;
+}
+
+QVariantList MalCatalog::discoverFilters(const QString& axis, bool includeExplicit) const
+{
+    QVariantList out;
+    // Only the two browsable axes; empty/unknown returns no facets.
+    if (!m_ok || !(axis == QStringLiteral("genre") || axis == QStringLiteral("demographic")))
+        return out;
+
+    // Facets reflect the browsable manga slice. The JOIN to manga both scopes the
+    // count to baked rows and lets includeExplicit=false prune explicit titles —
+    // which also drops facets (e.g. Hentai) that exist ONLY on explicit titles.
+    QString sql = QStringLiteral(
+        "SELECT c.value, COUNT(*) AS total "
+        "FROM classification c JOIN manga m ON m.mal_id = c.mal_id "
+        "WHERE c.medium = 'manga' AND c.axis = ?");
+    if (!includeExplicit)
+        sql += QStringLiteral(" AND m.explicit = 0");
+    sql += QStringLiteral(" GROUP BY c.value ORDER BY total DESC, c.value ASC");
+
+    QSqlQuery q(m_db);
+    q.prepare(sql);
+    q.addBindValue(axis);
+    if (!q.exec())
+        return out;
+    while (q.next())
+        out.append(QVariantMap{{QStringLiteral("value"), q.value(0).toString()},
+                               {QStringLiteral("count"), q.value(1).toInt()}});
+    return out;
+}
+
+QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& filterAxis,
+                                     const QString& filterKey, bool includeExplicit,
+                                     int offset, int limit) const
+{
+    // Deterministic vote-confidence floor for the Top Rated Bayesian weight (m in
+    // WR = (v/(v+m))*R + (m/(v+m))*C). A few thousand votes is the confidence bar:
+    // a 9.9 from ~120 voters is pulled hard toward the catalogue mean C and cannot
+    // outrank a broadly-established title, while a genuine high-vote 9.x survives.
+    constexpr double kVoteConfidence = 3000.0;
+
+    const int lim = std::clamp(limit, 1, 100);
+    const int off = std::max(0, offset);
+    auto pack = [&](const QVariantList& items) {
+        return QVariantMap{
+            {QStringLiteral("items"), items},
+            {QStringLiteral("nextOffset"), off + static_cast<int>(items.size())},
+            {QStringLiteral("exhausted"), static_cast<int>(items.size()) < lim},
+            {QStringLiteral("freshness"), QStringLiteral("bundled")},
+            {QStringLiteral("fallbackCatalog"),
+             catalogId == QStringLiteral("trending") ? QStringLiteral("popular") : QString()}};
+    };
+
+    if (!m_ok)
+        return pack({});
+
+    // Allowlist the catalogue id and the filter axis — never interpolate caller text.
+    static const QSet<QString> catalogs = {
+        QStringLiteral("popular"), QStringLiteral("top-rated"),
+        QStringLiteral("new-releases"), QStringLiteral("trending")};
+    if (!catalogs.contains(catalogId))
+        return pack({});
+    if (!(filterAxis.isEmpty() || filterAxis == QStringLiteral("genre")
+          || filterAxis == QStringLiteral("demographic")))
+        return pack({});
+
+    // FROM (+ optional classification join for the facet filter; value is BOUND).
+    const bool joinClass =
+        (filterAxis == QStringLiteral("genre") || filterAxis == QStringLiteral("demographic"))
+        && !filterKey.isEmpty();
+    QString from = QStringLiteral("manga m");
+    QStringList where;
+    QVariantList binds;
+    if (joinClass) {
+        from = QStringLiteral("classification c JOIN manga m ON m.mal_id = c.mal_id");
+        where << QStringLiteral("c.medium = 'manga' AND c.axis = ? AND c.value = ?");
+        binds << filterAxis << filterKey;
+    }
+    if (!includeExplicit)
+        where << QStringLiteral("m.explicit = 0");
+
+    // Catalogue -> a fixed ORDER BY fragment. Missing values stay neutral: undated /
+    // unscored rows are excluded from date / rating catalogues, not floored to zero.
+    QString orderSql;
+    QVariantList orderBinds;
+    const bool trending = catalogId == QStringLiteral("trending");
+    if (catalogId == QStringLiteral("popular") || trending) {
+        // Trending has no comparable snapshot yet -> Popular order + fallbackCatalog:popular.
+        orderSql = QStringLiteral("m.members DESC, COALESCE(m.score, 0) DESC, m.mal_id ASC");
+    } else if (catalogId == QStringLiteral("new-releases")) {
+        // newest real publication first; reject empty / malformed / future dates.
+        where << QStringLiteral("date(m.start_date) IS NOT NULL AND date(m.start_date) <= date(?)");
+        binds << QDate::currentDate().toString(Qt::ISODate);
+        orderSql = QStringLiteral("m.start_date DESC, m.mal_id DESC");
+    } else { // top-rated
+        where << QStringLiteral("m.score IS NOT NULL");
+        // Catalogue mean C over the SAME scoped population, computed before the page.
+        double meanScore = 0.0;
+        {
+            QString cSql = QStringLiteral("SELECT AVG(m.score) FROM ") + from;
+            if (!where.isEmpty())
+                cSql += QStringLiteral(" WHERE ") + where.join(QStringLiteral(" AND "));
+            QSqlQuery cq(m_db);
+            cq.prepare(cSql);
+            for (const QVariant& b : binds)
+                cq.addBindValue(b);
+            if (cq.exec() && cq.next() && !cq.value(0).isNull())
+                meanScore = cq.value(0).toDouble();
+        }
+        orderSql = QStringLiteral(
+            "((CAST(m.scored_by AS REAL) / (m.scored_by + ?)) * m.score "
+            "+ (? / (CAST(m.scored_by AS REAL) + ?)) * ?) DESC, m.mal_id ASC");
+        orderBinds << kVoteConfidence << kVoteConfidence << kVoteConfidence << meanScore;
+    }
+
+    QString sql = QStringLiteral(
+        "SELECT m.mal_id, m.title, m.title_english, m.type, m.score, m.scored_by, "
+        "m.members, m.favorites, m.year, m.start_date, m.cover, m.tags, m.explicit FROM ") + from;
+    if (!where.isEmpty())
+        sql += QStringLiteral(" WHERE ") + where.join(QStringLiteral(" AND "));
+    sql += QStringLiteral(" ORDER BY ") + orderSql + QStringLiteral(" LIMIT ? OFFSET ?");
+
+    QSqlQuery q(m_db);
+    q.prepare(sql);
+    for (const QVariant& b : binds)       q.addBindValue(b);   // WHERE binds, in text order
+    for (const QVariant& b : orderBinds)  q.addBindValue(b);   // ORDER BY binds (top-rated)
+    q.addBindValue(lim);
+    q.addBindValue(off);
+    if (!q.exec())
+        return pack({});
+
+    QVariantList rows;
+    while (q.next()) {
+        QVariantMap m;
+        m.insert(QStringLiteral("mal_id"), q.value(0).toInt());
+        m.insert(QStringLiteral("title"), q.value(1).toString());
+        const QString en = q.value(2).toString();
+        if (!en.isEmpty()) m.insert(QStringLiteral("title_english"), en);
+        m.insert(QStringLiteral("type"), q.value(3).toString());
+        if (!q.value(4).isNull()) m.insert(QStringLiteral("score"), q.value(4).toDouble());
+        m.insert(QStringLiteral("scored_by"), q.value(5).toInt());
+        m.insert(QStringLiteral("members"), q.value(6).toInt());
+        m.insert(QStringLiteral("favorites"), q.value(7).toInt());
+        const int year = q.value(8).toInt();
+        if (year > 0) m.insert(QStringLiteral("year"), year);
+        m.insert(QStringLiteral("start_date"), q.value(9).toString());
+        m.insert(QStringLiteral("cover"), q.value(10).toString());
+        m.insert(QStringLiteral("classifications"), stringList(q.value(11).toString()));
+        m.insert(QStringLiteral("explicit"), q.value(12).toInt() != 0);
+        m.insert(QStringLiteral("availability"), false);   // the adapter enriches this later
+        rows.append(m);
+    }
+    return pack(rows);
 }
 
 int MalCatalog::genreCount(const QString& medium, const QString& genre) const

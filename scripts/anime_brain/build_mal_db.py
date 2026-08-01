@@ -12,7 +12,14 @@ Rows are stored JIKAN-SHAPED where it matters (type/status strings match what
 api.jikan.moe returns) so the QML card mappers consume them unchanged.
 
 Usage:  python scripts/anime_brain/build_mal_db.py
-Output: data/mal_catalog.db  (tables: anime, manga, tag, tag_count, meta)
+Output: data/mal_catalog.db  (tables: anime, manga, tag, tag_count,
+        classification, classification_count, meta)
+
+Tankoban Discover (spec 2026-08-01): manga is no longer SFW-only. Non-SFW manga
+rows are RETAINED and marked explicit=1 (the app gates them behind the Explicit
+Content preference); the flattened tag/tag_count tables are preserved unchanged,
+and axis-aware classification/classification_count tables back the paged discovery
+queries (MalCatalog.discoverPage / discoverFilters). Anime stays SFW-only.
 """
 from __future__ import annotations
 
@@ -130,16 +137,29 @@ def load_rows(fname, medium):
     out = []
     with fetch_csv(fname) as f:
         for row in csv.DictReader(f):
-            if (row.get("sfw") or "").strip().lower() != "true":
-                continue
-            if medium == "anime" and (row.get("approved") or "").strip().lower() == "false":
-                continue
+            sfw = (row.get("sfw") or "").strip().lower()
+            # Anime stays SFW-only (its lane has no explicit gate). Manga now RETAINS
+            # non-SFW rows and marks them explicit=1 (Tankoban Discover, 2026-08-01).
+            if medium == "anime":
+                if sfw != "true":
+                    continue
+                if (row.get("approved") or "").strip().lower() == "false":
+                    continue
             mal_id = num(row.get(medium + "_id"), int)
             title = (row.get("title") or "").strip()
             if not mal_id or not title:
                 continue
-            tags = listify(row.get("genres")) + listify(row.get("themes")) \
-                 + listify(row.get("demographics"))
+            # axis-aware classifications from the SEPARATE source columns, and the
+            # legacy flattened tag list (genres+themes+demographics, unchanged order).
+            axes = {
+                "genre": listify(row.get("genres")),
+                "demographic": listify(row.get("demographics")),
+                "theme": listify(row.get("themes")),
+            }
+            explicit = int(sfw == "false" or
+                           any(x.lower() in {"hentai", "erotica", "pornography"}
+                               for values in axes.values() for x in values))
+            tags = axes["genre"] + axes["theme"] + axes["demographic"]
             out.append({
                 "mal_id": int(mal_id),
                 "title": title,
@@ -162,6 +182,10 @@ def load_rows(fname, medium):
                 "credits": json.dumps(
                     credit_names(row.get("studios" if medium == "anime" else "authors"))[:3]),
                 "tags": tags,
+                "axes": axes,
+                "explicit": explicit,
+                "start_date": (row.get("start_date") or "").strip(),
+                "favorites": int(num(row.get("favorites"), int) or 0),
             })
     return out
 
@@ -180,10 +204,15 @@ def bake():
         CREATE TABLE manga (mal_id INTEGER PRIMARY KEY, title TEXT, title_english TEXT,
             type TEXT, score REAL, scored_by INTEGER, members INTEGER, status TEXT,
             volumes INTEGER, chapters INTEGER, year INTEGER, cover TEXT, synopsis TEXT,
-            credits TEXT, tags TEXT);
+            credits TEXT, tags TEXT,
+            explicit INTEGER NOT NULL DEFAULT 0, start_date TEXT NOT NULL DEFAULT '',
+            favorites INTEGER NOT NULL DEFAULT 0);
         CREATE TABLE tag (medium TEXT, tag TEXT, mal_id INTEGER);
         CREATE TABLE tag_count (medium TEXT, tag TEXT, total INTEGER,
             PRIMARY KEY (medium, tag));
+        CREATE TABLE classification (medium TEXT, axis TEXT, value TEXT, mal_id INTEGER);
+        CREATE TABLE classification_count (medium TEXT, axis TEXT, value TEXT, total INTEGER,
+            PRIMARY KEY (medium, axis, value));
         CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
     """)
 
@@ -196,6 +225,14 @@ def bake():
                 totals[t] = totals.get(t, 0) + 1
         db.executemany("INSERT INTO tag_count VALUES (?,?,?)",
                        [(medium, t, n) for t, n in totals.items()])
+        # axis-aware totals BEFORE the slice, keyed by (axis, value)
+        class_totals = {}
+        for r in rows:
+            for axis, values in r["axes"].items():
+                for v in values:
+                    class_totals[(axis, v)] = class_totals.get((axis, v), 0) + 1
+        db.executemany("INSERT INTO classification_count VALUES (?,?,?,?)",
+                       [(medium, axis, v, n) for (axis, v), n in class_totals.items()])
 
         rows.sort(key=lambda r: r["members"], reverse=True)
         kept = rows[:KEEP_TOP_BY_MEMBERS]
@@ -204,14 +241,21 @@ def bake():
                     "members", "status"]
             cols += ["episodes"] if medium == "anime" else ["volumes", "chapters"]
             cols += ["year", "cover", "synopsis", "credits"]
+            if medium == "manga":
+                cols += ["explicit", "start_date", "favorites"]
             db.execute(
                 f"INSERT INTO {medium} ({','.join(cols)}, tags) VALUES "
                 f"({','.join('?' * len(cols))}, ?)",
                 [r[c] for c in cols] + [json.dumps(r["tags"])])
             db.executemany("INSERT INTO tag VALUES (?,?,?)",
                            [(medium, t, r["mal_id"]) for t in r["tags"]])
-        print(f"{medium}: {len(rows)} sfw rows -> kept top {len(kept)} by members, "
-              f"{len(totals)} tags")
+            db.executemany("INSERT INTO classification VALUES (?,?,?,?)",
+                           [(medium, axis, v, r["mal_id"])
+                            for axis, values in r["axes"].items() for v in values])
+        explicit_kept = sum(1 for r in kept if r.get("explicit"))
+        print(f"{medium}: {len(rows)} rows -> kept top {len(kept)} by members, "
+              f"{len(totals)} tags, {len(class_totals)} classifications, "
+              f"{explicit_kept} explicit")
 
     db.execute("CREATE INDEX idx_tag ON tag (medium, tag, mal_id)")
     # Deep Theatre catalogue (spec 2026-08-01): indexes that back MalCatalog.animeCatalog's
@@ -221,6 +265,11 @@ def bake():
     db.execute("CREATE INDEX anime_members_idx ON anime (members DESC)")
     db.execute("CREATE INDEX anime_score_votes_idx ON anime (score DESC, scored_by DESC)")
     db.execute("CREATE INDEX anime_status_type_year_idx ON anime (status, type, year)")
+    # Tankoban Discover paging: manga members/score/date orders + the facet lookup.
+    db.execute("CREATE INDEX manga_members_idx ON manga (members DESC)")
+    db.execute("CREATE INDEX manga_score_votes_idx ON manga (score DESC, scored_by DESC)")
+    db.execute("CREATE INDEX manga_start_date_idx ON manga (start_date DESC)")
+    db.execute("CREATE INDEX idx_classification ON classification (medium, axis, value, mal_id)")
     db.execute("INSERT INTO meta VALUES ('baked_at', ?)",
                (datetime.now(timezone.utc).isoformat(),))
     db.execute("INSERT INTO meta VALUES ('dataset', ?)", (DATASET,))

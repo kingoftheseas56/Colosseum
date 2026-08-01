@@ -36,6 +36,24 @@ public:
     Q_INVOKABLE QVariantList animeCatalog(const QVariantMap& query,
                                           int offset = 0, int limit = 24) const;
 
+    // Tankoban Discover (spec 2026-08-01): paged, allowlisted, fully-bound MANGA
+    // discovery over the same baked artifact. `axis` is "genre" | "demographic";
+    // anything else returns an empty facet list. Each facet is {value, count};
+    // includeExplicit=false prunes facets that only exist on explicit titles.
+    Q_INVOKABLE QVariantList discoverFilters(const QString& axis, bool includeExplicit) const;
+    // catalogId ∈ {popular, top-rated, new-releases, trending}; filterAxis ∈
+    // {genre, demographic, ""}. filterKey is BOUND (never concatenated). offset is
+    // clamped >= 0, limit to [1,100]. Returns
+    //   {items, nextOffset, exhausted, freshness:"bundled", fallbackCatalog}
+    // where fallbackCatalog is "popular" for trending (no comparable snapshots yet)
+    // and "" otherwise. An unknown catalogId or axis returns the same map with no
+    // items. Every row carries availability:false for the adapter to enrich later.
+    Q_INVOKABLE QVariantMap discoverPage(const QString& catalogId,
+                                         const QString& filterAxis,
+                                         const QString& filterKey,
+                                         bool includeExplicit,
+                                         int offset, int limit) const;
+
 private:
     QSqlDatabase m_db;
     bool m_ok = false;
