@@ -214,6 +214,13 @@ def bake():
               f"{len(totals)} tags")
 
     db.execute("CREATE INDEX idx_tag ON tag (medium, tag, mal_id)")
+    # Deep Theatre catalogue (spec 2026-08-01): indexes that back MalCatalog.animeCatalog's
+    # members/score/status/type/year paging. (The tag lookup MalCatalog.animeCatalog needs is
+    # already served by idx_tag above, so no separate tag index is baked.) Rebuilding the .db
+    # is a data-vault/deploy step — the runtime works without these indexes, just slower.
+    db.execute("CREATE INDEX anime_members_idx ON anime (members DESC)")
+    db.execute("CREATE INDEX anime_score_votes_idx ON anime (score DESC, scored_by DESC)")
+    db.execute("CREATE INDEX anime_status_type_year_idx ON anime (status, type, year)")
     db.execute("INSERT INTO meta VALUES ('baked_at', ?)",
                (datetime.now(timezone.utc).isoformat(),))
     db.execute("INSERT INTO meta VALUES ('dataset', ?)", (DATASET,))

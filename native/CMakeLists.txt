@@ -959,6 +959,14 @@ add_executable(comics_catalog_engine_harness
 target_include_directories(comics_catalog_engine_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(comics_catalog_engine_harness PRIVATE Qt6::Core Qt6::Sql)
 
+# ── Deep Theatre catalogue (spec 2026-08-01): paged offline anime query contract ──
+add_executable(mal_catalog_rows_harness
+    ../tests/mal_catalog_rows_harness.cpp
+    engine/MalCatalog.cpp
+    engine/MalCatalog.h)
+target_include_directories(mal_catalog_rows_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql)
+
 # Live triage probe (2026-07-18): the audiobook delivery chain end-to-end —
 # real AudiobookDownloader + StreamServer, network-dependent, NOT in the suite.
 add_executable(audiobook_engine_probe

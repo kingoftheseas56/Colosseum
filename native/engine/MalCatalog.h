@@ -10,6 +10,7 @@
 #include <QObject>
 #include <QSqlDatabase>
 #include <QVariantList>
+#include <QVariantMap>
 
 class MalCatalog final : public QObject {
     Q_OBJECT
@@ -25,6 +26,15 @@ public:
     Q_INVOKABLE int genreCount(const QString& medium, const QString& genre) const;
     // [{name, count}] for index tiles, count DESC
     Q_INVOKABLE QVariantList genreCounts(const QString& medium) const;
+
+    // Deep Theatre catalogue (spec 2026-08-01): paged, allowlisted, fully-bound anime
+    // queries. `query` accepts only: order ("members"|"score"|"year"), status, type, tag,
+    // yearFrom, yearTo, voteFloor, membersMin, membersMax — ANY other key, or an unknown
+    // order value, returns an empty list. Limit is clamped to [1,100]; every value is
+    // bound. Rows come back JIKAN-SHAPED, identical to genreEntries, so mapJikan consumes
+    // them unchanged.
+    Q_INVOKABLE QVariantList animeCatalog(const QVariantMap& query,
+                                          int offset = 0, int limit = 24) const;
 
 private:
     QSqlDatabase m_db;
