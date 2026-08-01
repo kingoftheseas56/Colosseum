@@ -4,6 +4,7 @@
 // so a genuine JS error surfaces as a fail rather than a hang.
 import QtQuick
 import "../qml/TheatreCatalogRules.js" as Rules
+import "../qml/AddonClient.js" as Addon
 
 Item {
     Timer {
@@ -196,6 +197,45 @@ Item {
                    "Unknown catalogue enters From Your Extensions");
                 ok(!placed.mainRows.some(function(r){ return r.extName === "Docu Hub"; }),
                    "Unknown catalogue is not promoted to a contextual slot");
+
+                // ---- End-to-end extension placement (AddonClient classify → Rules route) ----
+                function extFix(id, name, catName, o) {
+                    o = o || {};
+                    var cat = { id: id + "-cat", type: "movie", name: catName };
+                    if (o.required) cat.extra = [{ name: "genre", isRequired: true }];
+                    return { id: id, enabled: o.enabled !== false, core: o.core === true,
+                             transportUrl: "https://" + id + ".example/manifest.json",
+                             manifest: { name: name, catalogs: [cat] } };
+                }
+                var installedExts = [
+                    extFix("org.hbomax",   "Max",         "Max"),
+                    extFix("com.netflix",  "Netflix",     "Netflix"),
+                    extFix("com.appletv",  "Apple TV+",   "Apple TV+"),
+                    extFix("com.disney",   "Disney+",     "Disney+"),
+                    extFix("com.prime",    "Prime Video", "Prime Video"),
+                    extFix("com.amc",      "AMC",         "AMC"),
+                    extFix("com.fx",       "FX",          "FX"),
+                    extFix("com.docuworld","Docu World",  "Documentaries"),
+                    extFix("com.indiehub", "Indie Hub",   "Indie Picks"),
+                    extFix("com.disabled", "Disabled Co", "Nope",   { enabled: false }),
+                    extFix("com.reqextra", "Search Only", "Search", { required: true })
+                ];
+                var specs = Addon.theatreCatalogSpecs(installedExts, "movie");
+                var placed2 = Rules.placeExtensions("movies", specs, movies);
+                ok(placed2.mainRows.length === 7, "seven recognized services enter the main list, got " + placed2.mainRows.length);
+                ["netflix", "hbo", "appletv", "disney", "prime", "amc", "fx"].forEach(function(k) {
+                    ok(placed2.mainRows.some(function(r) { return r.serviceKey === k; }), "service " + k + " placed contextually");
+                });
+                ok(placed2.extensionRows.length === 2, "two unknown catalogues under From Your Extensions, got " + placed2.extensionRows.length);
+                ok(placed2.extensionRows[0].extName === "Docu World" && placed2.extensionRows[1].extName === "Indie Hub",
+                   "From Your Extensions keeps installed order");
+                ok(!placed2.mainRows.some(function(r) { return r.extName === "Docu World"; }),
+                   "unknown catalogue is not promoted to a service slot");
+                ok(!placed2.extensionRows.some(function(r) { return r.serviceKey; }),
+                   "a recognized service is never dumped into From Your Extensions");
+                var allExtNames = placed2.mainRows.concat(placed2.extensionRows).map(function(r) { return r.extName; });
+                ok(allExtNames.indexOf("Disabled Co") === -1, "disabled extension disappears");
+                ok(allExtNames.indexOf("Search Only") === -1, "required-extra (search-only) catalogue disappears");
 
                 if (fails.length) console.log("FAILS:\n  " + fails.join("\n  "));
                 else console.log("THEATRE_CATALOG_RULES_OK");

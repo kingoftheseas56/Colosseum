@@ -2,6 +2,7 @@
 // collect fails, Qt.exit(fails.length).
 import QtQuick
 import "../qml/DiscoverApi.js" as Api
+import "../qml/AddonClient.js" as Addon
 
 Item {
     Timer {
@@ -105,6 +106,18 @@ Item {
             var bareNonCore = { id: "faux", enabled: true, core: false,
                 transportUrl: "https://faux.example/manifest.json", manifest: { name: "Faux" } };
             ok(Api.catalogsFor([bareNonCore], "movie").length === 0, "no fallback for non-core bare");
+
+            // Theatre §8 service classification is ADDITIVE — the legacy catalogSpecs shape
+            // Discover's non-service callers rely on must be untouched (no serviceKey field).
+            var svc = { id: "com.netflix", enabled: true, core: false,
+                transportUrl: "https://nf.example/manifest.json",
+                manifest: { name: "Netflix", catalogs: [{ type: "movie", id: "nf", name: "Netflix" }] } };
+            var tspecs = Addon.theatreCatalogSpecs([svc], "movie");
+            ok(tspecs.length === 1 && tspecs[0].serviceKey === "netflix",
+               "theatreCatalogSpecs classifies a Netflix catalogue");
+            var legacy = Addon.catalogSpecs([svc], "movie");
+            ok(legacy.length === 1 && legacy[0].serviceKey === undefined && legacy[0].catalogId === "nf",
+               "legacy catalogSpecs is unchanged (no serviceKey leaked to non-service callers)");
 
             if (fails.length) console.log("FAILS:\n  " + fails.join("\n  "));
             else console.log("discover_api_harness: ALL PASS");

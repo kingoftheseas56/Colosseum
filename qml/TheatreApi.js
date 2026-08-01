@@ -694,26 +694,39 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     defs.sort(function(a, b) { return a.placement - b.placement; });
 
     var pool = [];
+    var extMainRows = [], extExtensionRows = [];
+    var houseDone = false, extDone = false;
     function keep(item) { return explicitFilter ? explicitFilter(item, showExplicit) : true; }
-    function publish(loading) {
+    function publish() {
         var visible = pool.filter(keep);
-        var rows = [];
+        var houseRows = [];
         for (var i = 0; i < defs.length; i++) {
             var def = defs[i];
             var cap = (def.recipe.kind === "top") ? (def.recipe.limit || 10) : PREVIEW_ROW_CAP;
             var ranked = Rules.rankItems(def.recipe, visible, now).slice(0, cap);
-            if (ranked.length > 0) rows.push(rowFromDef(def, ranked));
+            if (ranked.length > 0) houseRows.push(rowFromDef(def, ranked));
         }
-        push({ pageKey: pageKey, generation: generation, rows: rows, loading: loading === true, error: "" });
+        // recognized service rows slot into their contextual placement among house rows;
+        // "From Your Extensions" rows follow. GenreMosaic is appended by the page (Task 9).
+        var merged = houseRows.concat(extMainRows);
+        merged.sort(function(a, b) { return (a.placement || 0) - (b.placement || 0); });
+        var rows = merged.concat(extExtensionRows);
+        push({ pageKey: pageKey, generation: generation, rows: rows,
+               loading: !(houseDone && extDone), error: "" });
     }
+
+    // installed-extension shelves load in parallel with the house pool
+    loadExtensionRows(pageKey, type, defs, { showExplicit: showExplicit, explicitFilter: explicitFilter },
+        function() { publish(); },
+        function(main, ext) { extMainRows = main; extExtensionRows = ext; extDone = true; publish(); });
 
     var genres = collectGenres(defs);
     var need = collectNeededFields(defs);
     buildPool(type, genres, function(partial) {
-        pool = partial; publish(true);
+        pool = partial; publish();
     }, function(full) {
-        pool = full; publish(true);
-        enrichPool(type, pool, need, function() { publish(true); }, function() { publish(false); });
+        pool = full; publish();
+        enrichPool(type, pool, need, function() { publish(); }, function() { houseDone = true; publish(); });
     });
 }
 
@@ -875,8 +888,81 @@ function loadAnimeRowPage(pin, offset, limit, options, done) {
     if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
     done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
 }
+// Extension See-all paging. If the pinned catalogue is no longer installed/enabled/browsable,
+// return an honest missing state that NAMES the provider (spec §8) — never a silent different
+// catalogue. Otherwise page the real extension catalogue by offset.
 function loadExtensionRowPage(pin, offset, limit, options, done) {
-    done({ generation: (options || {}).generation || 0, items: [], hasMore: false, error: "" });
+    options = options || {};
+    var generation = options.generation || 0;
+    var specs = AddonClient.theatreCatalogSpecs(extensionsList, pin.type);
+    var found = null;
+    for (var i = 0; i < specs.length; i++)
+        if (specs[i].transportUrl === pin.transportUrl && specs[i].catalogId === pin.catalogId) { found = specs[i]; break; }
+    if (!found) {
+        done({ generation: generation, items: [], hasMore: false, missing: true,
+               extName: pin.extName || "", error: "This catalogue is no longer available." });
+        return;
+    }
+    var url = AddonClient.catalogUrl(found.transportUrl, found.type, found.catalogId, [], offset);
+    AddonClient.fetchCatalogUrl(url, function(metas) {
+        var items = (metas || []).map(mapCinemeta);
+        if (options.explicitFilter)
+            items = items.filter(function(it) { return options.explicitFilter(it, options.showExplicit === true); });
+        done({ generation: generation, items: items, hasMore: !!(metas && metas.length >= limit), error: "" });
+    });
+}
+
+// Load the installed-extension shelves for a tab: recognized branded services (mainRows,
+// placed into contextual slots among the house rows) and everything else (extensionRows, the
+// "From Your Extensions" section). Each shelf fetches its real catalogue; empty ones drop out.
+function loadExtensionRows(pageKey, contentType, houseDefs, options, onEach, onDone) {
+    var specs = AddonClient.theatreCatalogSpecs(extensionsList, contentType);
+    if (!specs.length) { onDone([], []); return; }
+    var placement = Rules.placeExtensions(pageKey, specs, houseDefs);
+    var rows = placement.mainRows.concat(placement.extensionRows);
+    if (!rows.length) { onDone([], []); return; }
+    var results = {}, pending = rows.length;
+    function settle() {
+        var main = [], ext = [];
+        for (var k = 0; k < rows.length; k++) {
+            var r = results[rows[k].key];
+            if (!r) continue;
+            var full = rowFromExtDef(r.row, r.items);
+            if (r.row.sourceKind === "service-extension") main.push(full); else ext.push(full);
+        }
+        onDone(main, ext);
+    }
+    for (var i = 0; i < rows.length; i++) {
+        (function(row) {
+            var pin = row.seeAllPin;
+            var url = AddonClient.catalogUrl(pin.transportUrl, pin.type, pin.catalogId, [], 0);
+            AddonClient.fetchCatalogUrl(url, function(metas) {
+                var items = (metas || []).slice(0, EXTENSION_ROW_ITEM_CAP).map(mapCinemeta);
+                if (options.explicitFilter)
+                    items = items.filter(function(it) { return options.explicitFilter(it, options.showExplicit === true); });
+                if (items.length) results[row.key] = { row: row, items: items };
+                onEach();
+                pending -= 1;
+                if (pending === 0) settle();
+            });
+        })(rows[i]);
+    }
+}
+
+function rowFromExtDef(def, items) {
+    return {
+        key: def.key,
+        title: def.title,
+        pageKey: def.pageKey,
+        ranked: false,
+        rotating: false,
+        sourceKind: def.sourceKind,
+        sourceLabel: def.sourceLabel || def.extName || "",
+        serviceKey: def.serviceKey || "",
+        placement: def.placement,
+        items: items,
+        seeAllPin: def.seeAllPin
+    };
 }
 
 // loadRowPage(pin, offset, limit, options, done): one See-all page. Expands the recipe's own

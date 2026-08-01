@@ -303,6 +303,61 @@ function fetchCatalog(spec, done) {
     });
 }
 
+// ---------------------------------------------------- service classification (Theatre §8)
+// A FIXED table that recognises branded streaming-service catalogues from an extension's
+// IDENTITY and its manifest/catalogue NAMES only — never from an arbitrary item title (a
+// title like "The Netflix Job" must not brand a random addon). First match wins; no match
+// leaves serviceKey "" (the catalogue lands under "From Your Extensions").
+var SERVICE_TABLE = [
+    { key: "netflix", re: /netflix|\bnfx\b/ },
+    { key: "hbo",     re: /hbo\s*max|hbomax|\bhbo\b|\bmax\b/ },
+    { key: "appletv", re: /apple\s*tv|appletv|\batv\+?\b/ },
+    { key: "disney",  re: /disney|hotstar/ },
+    { key: "prime",   re: /prime\s*video|primevideo|amazon\s*prime/ },
+    { key: "amc",     re: /\bamc\+?\b/ },
+    { key: "fx",      re: /\bfxnow\b|\bfx\b/ }
+];
+
+function classifyService(ext, catalog) {
+    var m = (ext && ext.manifest) || ({});
+    var host = _host(String((ext && ext.transportUrl) || ""));
+    var hay = (String((ext && ext.id) || "") + " " + String(m.name || "") + " " + host + " "
+               + String((catalog && catalog.name) || "")).toLowerCase();
+    for (var i = 0; i < SERVICE_TABLE.length; i++)
+        if (SERVICE_TABLE[i].re.test(hay)) return SERVICE_TABLE[i].key;
+    return "";
+}
+
+// Service-aware catalogue descriptors for the Theatre deep catalogue, in installed order.
+// Same enabled/non-core/browsable (no required-extra) filtering as catalogSpecs — transport
+// behaviour is unchanged — but each descriptor also carries a classified serviceKey, its
+// content type, and a See-all url. The legacy catalogSpecs()/discoverCatalogSpecs() outputs
+// are deliberately left untouched for their existing callers.
+function theatreCatalogSpecs(installedList, contentType) {
+    var out = [];
+    for (var i = 0; i < (installedList || []).length; i++) {
+        var e = installedList[i];
+        if (!e || e.enabled !== true || e.core === true) continue;
+        var m = e.manifest || ({});
+        var cats = m.catalogs || [];
+        for (var j = 0; j < cats.length; j++) {
+            var c = cats[j];
+            if (!c || !c.id || !c.type || c.type !== contentType) continue;
+            if (!_browsable(c)) continue;
+            out.push({
+                serviceKey: classifyService(e, c),
+                extName: m.name || e.id,
+                transportUrl: String(e.transportUrl),
+                type: c.type,
+                catalogId: String(c.id),
+                title: c.name || m.name || "Catalog",
+                url: _baseUrl(e) + "/catalog/" + c.type + "/" + encodeURIComponent(c.id) + ".json"
+            });
+        }
+    }
+    return out;
+}
+
 // Meta fallback for ids the house sources don't know (spec Phase 3): ask the
 // installed extensions that claim this id's meta, first answer wins.
 function loadMetaFromExtensions(installedList, type, id, done) {
