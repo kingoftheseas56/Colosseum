@@ -43,7 +43,11 @@ const roster = [
   E('colosseum.well.getcomics.issues', false, STR, ['comic']),
   E('colosseum.well.libgen',           false, STR, ['book']),
   E('colosseum.well.indexers',         false, STR, ['comic', 'book', 'audiobook']),
-  E('colosseum.well.audiobookbay',     false, STR, ['audiobook'])
+  E('colosseum.well.audiobookbay',     false, STR, ['audiobook']),
+  // VidKing: a keyless hosted web player. Its `hosted-player` resource makes it a
+  // Theatre well (it fetches a playable surface), never a catalogue. Types movie+series
+  // put it in Theatre only, exactly like Torrentio — one tab, no scatter.
+  E('net.vidking.player',              false, ['hosted-player'], ['movie', 'series'])
 ];
 
 const inW = w => roster.filter(e => mod.inWorld(e, w));
@@ -54,6 +58,16 @@ console.log('acceptance 1 — per-world catalogue/well counts');
 eq([cats(inW('tankoban')).length, wells(inW('tankoban')).length], [2, 4], 'Tankoban [catalogues, wells]');
 eq([cats(inW('biblio')).length,   wells(inW('biblio')).length],   [1, 3], 'Biblio [catalogues, wells]');
 eq(cats(inW('theatre')).length, 1, 'Theatre catalogues (Cinemeta only)');
+
+console.log('VidKing: a hosted-player extension is a Theatre well, not a catalogue');
+const vidking = roster.find(e => e.id === 'net.vidking.player');
+eq(mod.worldsFor(vidking), ['theatre'], 'VidKing belongs to Theatre only');
+eq(mod.isWell(vidking), true, 'VidKing is a well — a hosted-player fetches a playable surface');
+eq(mod.isCatalogue(vidking), false, 'VidKing fills no shelf, so it is not a catalogue');
+eq(mod.isUniverse(vidking), false, 'VidKing is not a universe');
+// The Theatre reorder places it after Torrentio and never ranks core Cinemeta.
+eq(wells(inW('theatre')).map(e => e.id), ['com.stremio.torrentio.addon', 'net.vidking.player'],
+   'Theatre wells: Torrentio then VidKing, Cinemeta (core catalogue) never among them');
 
 console.log('one install, two worlds — a stored `world` field could not express this');
 const idx = roster.find(e => e.id === 'colosseum.well.indexers');

@@ -48,7 +48,9 @@ const shipped = () => [
   E('colosseum.well.getcomics.issues', false, STR, ['comic']),
   E('colosseum.well.libgen',           false, STR, ['book']),
   E('colosseum.well.indexers',         false, STR, ['comic', 'book', 'audiobook']),
-  E('colosseum.well.audiobookbay',     false, STR, ['audiobook'])
+  E('colosseum.well.audiobookbay',     false, STR, ['audiobook']),
+  // VidKing seeds into Theatre as a hosted-player well (movie+series), after Torrentio.
+  E('net.vidking.player',              false, ['hosted-player'], ['movie', 'series'])
 ];
 
 const short = id => id.replace('colosseum.well.', '').replace('colosseum.catalogue.', '');
@@ -77,6 +79,17 @@ console.log('the shipped roster reads as the design says');
 eq(wellsIn(shipped(), 'tankoban'), ['nyaa', 'weebcentral.pages', 'getcomics.issues', 'indexers'],
    'Tankoban wells');
 eq(wellsIn(shipped(), 'biblio'), ['libgen', 'indexers', 'audiobookbay'], 'Biblio wells');
+
+console.log('\nVidKing is a Theatre well and reorders within Theatre, never ranking core Cinemeta');
+{
+  const theatreWells = () => shipped().filter(e => mod.inWorld(e, 'theatre') && mod.isWell(e)).map(e => e.id);
+  eq(theatreWells(), ['com.stremio.torrentio.addon', 'net.vidking.player'],
+     'Theatre wells = Torrentio then VidKing');
+  const after = press(shipped(), 'theatre', 'net.vidking.player', -1);
+  eq(after.filter(e => mod.inWorld(e, 'theatre') && mod.isWell(e)).map(e => e.id),
+     ['net.vidking.player', 'com.stremio.torrentio.addon'], 'VidKing ▲ swaps with Torrentio');
+  eq(after[0].id, 'com.linvo.cinemeta', 'Cinemeta stays first — a core catalogue is never ranked');
+}
 
 console.log('\nthe defect: a GLOBAL ±1 was a no-op in Tankoban and a write to Biblio');
 {
