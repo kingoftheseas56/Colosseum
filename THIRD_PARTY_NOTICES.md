@@ -21,6 +21,48 @@ This file is a practical inventory, not legal advice and not yet a complete bina
 | Legacy `stremio-runtime.exe` + `server.js` pair | A separate external runtime and not covered by Colosseum's MIT License. Trace the exact files to their upstream release and license before redistributing them; do not assume that the Addon SDK's MIT license applies to the streaming runtime. |
 | External APIs, addons, indexers, scrapers, catalogs, and media | Independent services and content. They are not part of the MIT-licensed Colosseum source and are not relicensed by this repository. |
 
+## VidKing hosted playback (Theatre extension)
+
+VidKing is an external hosted web player. Colosseum integrates it as an enabled-by-default,
+removable Theatre extension that loads VidKing's documented iframe inside a restricted,
+off-the-record Qt WebEngine surface. Colosseum does not bundle VidKing, proxy its traffic,
+or extract media URLs; it only embeds VidKing's player page and forwards a small sanitized
+event set over a least-privilege WebChannel bridge.
+
+- **Identity is keyless.** Playback identity comes from Cinemeta's `moviedb_id` (TMDB ID).
+  Colosseum sends no TMDB API token, key, login, or account credential to VidKing.
+- **Documented interface only.** Colosseum uses VidKing's documented `/embed/movie/<tmdb>`
+  and `/embed/tv/<tmdb>/<season>/<episode>` routes. No HLS/MP4 stream URLs are extracted or
+  exposed.
+- **Availability is VidKing's responsibility.** Source availability is checked only when the
+  surface is opened; an honest unavailable panel is shown when VidKing cannot start a source.
+
+### Observed third-party hosts
+
+The following hosts were observed to be contactable by VidKing's hosted surface, derived from
+VidKing's own production embed markup and JavaScript bundles (captured 2026-08-02). This list
+is the empirical answer to "what would a network allowlist have to permit for VidKing," not a
+policy recommendation. Live CDP/net-log capture of cross-origin iframe traffic is limited in
+QtWebEngine 6.11, so the set was derived from VidKing's own code bundles.
+
+| Host | Role |
+|---|---|
+| `www.vidking.net` | Player host: embed page and JS/CSS asset bundles |
+| `users.videasy.to` | User/analytics backend (`/api/script.js`) |
+| `subs.videasy.to` | Subtitle track delivery |
+| `db.speedracelight.com` | VidKing source/provider database lookup |
+| `api.speedracelight.com` | VidKing source/provider API |
+| `image.tmdb.org` | Poster/backdrop imagery (TMDB images) |
+| `time.akamai.com` | Clock synchronization (Akamai time service) |
+
+Schema/namespace identifiers (`www.w3.org`, `www.smpte-ra.org`, `dashif.org`, `aomedia.org`,
+`dolby.com`, `dts.com`) appear in VidKing's bundles as XML/SVG/codec identifier strings, not
+runtime network calls. The local Colosseum wrapper (`qrc:/hostedplayer/host.html`) itself
+contacts no third-party host — it loads only the bundled `qwebchannel.js` and `host.js`.
+
+VidKing's terms, availability, and the legality of accessing any specific source through it
+remain VidKing's and the user's responsibility.
+
 ## KDE Plasma wallpapers (picker "KDE Plasma" shelf)
 
 These wallpapers ship with KDE Plasma and are used here unmodified, streamed from the

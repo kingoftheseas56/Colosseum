@@ -37,7 +37,7 @@ Qt Quick/QML owns presentation. Native C++ owns durable state, files, catalogs, 
 | Manga | Chapter reading, local downloads, Tankoban Mode, volume torrent acquisition, and complete-chapter fallback packing |
 | Western comics | Read-only SQLite catalog, GetComics acquisition, alternate torrent sources, archive ingestion, and the new custom comic reader |
 | Biblio | Apple Books discovery, LibGen and torrent acquisition, AudioBookBay matching, Reader2, and audiobook read-along |
-| Theatre | Movies, Shows, Anime, extension-backed sources and subtitles, exact-source downloads, season checkout, mpv playback, and absolute anime ordering |
+| Theatre | Movies, Shows, Anime, extension-backed sources and subtitles, exact-source downloads, season checkout, mpv playback, optional VidKing hosted playback, and absolute anime ordering |
 | Player 2 | From-scratch D3D11/FFmpeg engine integrated behind an opt-in build and boot gate; not the default player |
 | Extensions | World-aware Sources page plus Browse and Installed views; Theatre consumption is live while Tankoban and Biblio integration is still being built |
 | Downloads | Unified vault for manga, Tankoban volumes, comics, LibGen ebooks, and Theatre video |
@@ -50,6 +50,7 @@ Qt Quick/QML owns presentation. Native C++ owns durable state, files, catalogs, 
 
 ## Latest development snapshot
 
+- **VidKing hosted playback is integrated into Theatre.** VidKing is an enabled-by-default, removable, keyless hosted-player extension that appears as the first Sources row for movies and episodes with a known Cinemeta TMDB ID. It plays through a restricted, off-the-record Qt WebEngine surface (local wrapper page + least-privilege `HostedPlayerBridge`) that rejects popups, navigation, downloads, and permissions, pins clipboard off, and destroys its page and profile on close/minimize. It participates in Continue Watching and session lifecycle, never touches mpv/torrent/download code, and shows an honest unavailable panel when VidKing has no source.
 - **Player 2 has landed on master without replacing mpv.** It is a from-scratch video path with its own demux, decode, D3D11 presentation, seek, buffered-range reporting, playback HUD, source shortcut, and download controls. `COLOSSEUM_PLAYER2_IN_APP` defaults to `OFF`, and a Player 2 build still requires `COLOSSEUM_PLAYER2=1` at boot. mpv and Player 2 cannot coexist in one process because they require different Qt graphics backends.
 - **The manga/comics reader was rebuilt from scratch.** `qml/MangaReader.qml` now delegates to the custom reader under `qml/comicreader/` and `native/comicreader/`. Existing callers keep the same boundary while the new implementation owns vsync-aware strip scrolling, page retention, resume restoration, decode-size limits, spread handling, scrub navigation, and reader chrome.
 - **Extensions now have a world-aware Sources surface.** Theatre, Tankoban, and Biblio sources appear in one page as separate world chains, while Browse and Installed remain distinct views. Tankorent now has its own name and visual identity in that system.
@@ -127,6 +128,23 @@ House catalogs come from Cinemeta, Jikan, Anime Kitsu, AniList, MalCatalog, and 
 The default Theatre player is a fullscreen QML surface over **MpvQt/libmpv**. Torrent transport remains behind the local Stremio stream-server, so the player consumes a playable URL rather than owning torrent logic.
 
 It includes resume, warm minimize, cinematic loaders, Lucide controls, audio and subtitle selection, online subtitles, track delays, speed, fill, aspect, seek, volume, fullscreen, PiP, skip segments, episode queues, source failover, Up Next, A-B loop, sleep timer, statistics, captures, GIF tools, chapter markers, loudness normalization, and ffmpeg-backed seek thumbnails.
+
+### Hosted playback (VidKing)
+
+VidKing is an optional, **enabled-by-default but fully removable** Theatre extension that plays movies and series episodes through VidKing's documented iframe web player rather than through mpv or the torrent pipeline. It appears as the first row in the Sources sheet whenever a valid Cinemeta `moviedb_id` (TMDB ID) is known.
+
+Key honesty and security properties:
+
+- **Keyless.** Identity comes from Cinemeta's `moviedb_id`; there is no TMDB token, API key, login, or account dependency.
+- **Documented interface only.** Colosseum uses only VidKing's documented movie (`/embed/movie/<tmdb>`) and TV (`/embed/tv/<tmdb>/<season>/<episode>`) embed routes with `color`, `autoPlay`, `progress`, `nextEpisode`, and `episodeSelector` parameters. No HLS/MP4 URLs are extracted, intercepted, or exposed.
+- **Optimistic availability.** A valid TMDB ID means the row can be offered, not that VidKing has a playable source. If the embed cannot start a source within a 20-second startup guard, an honest unavailable panel offers **Back to Sources** and **Retry** rather than silently falling through to a torrent.
+- **Least-privilege WebEngine surface.** Playback happens in a dedicated, off-the-record `WebEngineProfile` (memory-only cache, no persistent cookies) that loads only the local wrapper page `qrc:/hostedplayer/host.html`. The wrapper owns the cross-origin VidKing iframe and validates `postMessage` origin/source before forwarding a small sanitized event set through the `HostedPlayerBridge` — the only object on the WebChannel. The iframe content cannot reach `Progress`, `Extensions`, filesystem, or shell APIs.
+- **Hard rejections.** Popups, new windows, top-level navigation away from the wrapper, downloads, and all permission requests are refused. Clipboard read and paste are pinned off.
+- **No warm hidden iframe.** Closing or minimizing hosted playback unloads the Loader, destroying the WebEngine page and its off-the-record profile immediately — never merely hiding them.
+- **Colosseum progress integration.** The surface writes the same Progress payload shape as mpv (keyed by the existing Colosseum video id), with a five-second silent heartbeat and notifying writes on lifecycle boundaries. Continue Watching resumes VidKing while the extension is installed and enabled; a disabled or removed VidKing routes Continue back to the Theatre detail page rather than bypassing the extension switch.
+- **No native-player controls.** Because the hosted player does not expose mpv's quality, audio, subtitle, cast, download, screenshot, GIF, or skip-segment controls, none of those are presented inside it.
+
+VidKing can be disabled, reordered, removed, and reinstalled locally from the Extensions page without any network manifest fetch.
 
 ### Player 2
 
