@@ -6,6 +6,10 @@ native/build*/
 
 # Dev scratch: smoke screenshots, diagnostic logs, click scripts
 tools/
+# ...but native/tools/ is lanista's CLI SOURCE (lanista.cpp, LanistaHash.*), not scratch.
+# The unanchored tools/ rule above also matches native/tools/ — carve it back in so
+# the CLI source (and future edits, e.g. Task 11 wiring suite/brief) commit without -f.
+!native/tools/
 *-proto.png
 mocks/*-shot.png
 .codex-history/
