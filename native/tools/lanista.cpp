@@ -16,10 +16,11 @@
 //   0  pass (green): every assertion / command succeeded
 //   1  red: an assertion or command FAILED (a legitimate regression)
 //   2  usage error: bad or missing arguments
-//   3  not-yet-implemented (suite / brief — land in Task 11)
+//   3  not-yet-implemented (reserved contract slot; no verb returns this)
 //   4  infrastructure: the bridge was unreachable (NO_PIPE / TIMEOUT) — NOT a red
 //   5  scenario error: the scenario file was unopenable, malformed, or empty
 #include <QCoreApplication>
+#include <QDate>
 #include <QDir>
 #include <QDirIterator>
 #include <QFile>
@@ -355,13 +356,14 @@ static void printUsage(std::ostream& os)
        << "  lanista run <scenario.json> [--keep-going]\n"
        << "  lanista expect <cmd> <dot.path> <op> <value>   (op 'exists' takes no value)\n"
        << "  lanista bless <target> <name>\n"
-       << "  lanista suite | brief <arc>                    (NYI until Task 11)\n"
+       << "  lanista suite [--dir <scenarioDir>] [--out <reportDir>]\n"
+       << "  lanista brief <arcName> [--from <runDir>]\n"
        << "\n"
        << "exit codes:\n"
        << "  0  pass (green)\n"
        << "  1  assertion or command failed (red)\n"
        << "  2  usage error\n"
-       << "  3  not yet implemented (suite/brief — Task 11)\n"
+       << "  3  not yet implemented (reserved contract slot)\n"
        << "  4  infrastructure: bridge unreachable (NO_PIPE / TIMEOUT)\n"
        << "  5  scenario error: file unopenable, malformed, or empty\n";
 }
@@ -442,10 +444,129 @@ int main(int argc, char** argv)
         std::cout << (ok ? "PASS\n" : "FAIL\n");
         return ok ? 0 : 1;
     }
-    if (verb == QStringLiteral("suite") || verb == QStringLiteral("brief")) {
-        // Implemented in Task 11 — refuse honestly until then.
-        std::cout << "NYI until Task 11\n";
-        return 3;
+    if (verb == QStringLiteral("suite")) {
+        QString dir = QStringLiteral("tests/lanista_scenarios");
+        QString outDir = QStringLiteral("agents/eyes-on/suite-latest");
+        for (int i = 0; i < args.size();) {
+            if (args[i] == QStringLiteral("--dir") && i + 1 < args.size()) {
+                dir = args[i + 1]; args.removeAt(i); args.removeAt(i);
+            } else if (args[i] == QStringLiteral("--out") && i + 1 < args.size()) {
+                outDir = args[i + 1]; args.removeAt(i); args.removeAt(i);
+            } else ++i;
+        }
+        QDir().mkpath(outDir);
+        int total = 0, failed = 0;
+        bool infraAbort = false;
+        QString junit, report;
+        QDirIterator it(dir, {QStringLiteral("*.json")}, QDir::Files);
+        while (it.hasNext()) {
+            const QString file = it.next();
+            const QString scenario = QFileInfo(file).baseName();
+            // Each scenario is graded independently, keepGoing so a red step never
+            // truncates its own scenario's rows.
+            const ScenarioRun run = runScenario(file, /*keepGoing=*/true);
+
+            // A dead bridge (NO_PIPE / TIMEOUT) makes the REST of the suite
+            // meaningless — every remaining scenario would only re-discover the
+            // same unreachable pipe. Stop here and let the exit code say
+            // "infrastructure" (4), never a green 0. runScenario already put the
+            // INFRA ERROR detail on stderr; name the abort so the log is unambiguous.
+            if (run.infra) {
+                std::cerr << "INFRA ERROR: bridge unreachable at " << scenario.toStdString()
+                          << " — aborting suite\n";
+                infraAbort = true;
+                break;
+            }
+
+            // A scenario the engine could not even run (unopenable / malformed /
+            // no steps) must NEVER be silently skipped — that silent skip is the
+            // exact broken-gate the `run` verb refuses (exit 5). Record it as a
+            // FAIL row and count it, so the suite can never green-light a scenario
+            // it never actually executed.
+            if (run.scenarioError) {
+                ++total; ++failed;
+                junit += QStringLiteral(
+                    "  <testcase classname=\"%1\" name=\"scenario\">"
+                    "<failure message=\"scenario error\"/></testcase>\n")
+                    .arg(scenario);
+                report += QStringLiteral("| %1 | %2 | %3 | %4 |\n")
+                    .arg(scenario, QStringLiteral("scenario"),
+                         QStringLiteral("FAIL"), QStringLiteral("scenario error"));
+                continue;
+            }
+
+            for (const StepResult& r : run.steps) {
+                ++total;
+                junit += QStringLiteral(
+                    "  <testcase classname=\"%1\" name=\"%2\">%3</testcase>\n")
+                    .arg(scenario, r.label,
+                         r.pass ? QString()
+                                : QStringLiteral("<failure message=\"%1\"/>")
+                                      .arg(r.detail));
+                report += QStringLiteral("| %1 | %2 | %3 | %4 |\n")
+                    .arg(scenario, r.label,
+                         r.pass ? QStringLiteral("PASS") : QStringLiteral("FAIL"),
+                         r.detail);
+                if (!r.pass) {
+                    ++failed;
+                    if (!r.grabPath.isEmpty())
+                        QFile::copy(r.grabPath, outDir + QLatin1Char('/')
+                                    + QFileInfo(r.grabPath).fileName());
+                }
+            }
+        }
+        QFile jx(outDir + QStringLiteral("/junit.xml"));
+        if (jx.open(QIODevice::WriteOnly))
+            jx.write(QStringLiteral(
+                "<?xml version=\"1.0\"?>\n<testsuite tests=\"%1\" failures=\"%2\">\n%3</testsuite>\n")
+                .arg(total).arg(failed).arg(junit).toUtf8());
+        QFile rp(outDir + QStringLiteral("/report.md"));
+        if (rp.open(QIODevice::WriteOnly))
+            rp.write((QStringLiteral("# lanista suite\n\n| scenario | step | verdict | detail |\n|---|---|---|---|\n")
+                      + report
+                      + QStringLiteral("\n**%1 steps, %2 failed.**\n").arg(total).arg(failed))
+                         .toUtf8());
+        std::cout << total << " steps, " << failed << " failed -> "
+                  << outDir.toStdString() << "\n";
+        if (infraAbort) {
+            std::cout << "INFRA ERROR: suite aborted — bridge unreachable\n";
+            return 4;   // a dead bridge is infrastructure, never a green suite
+        }
+        return failed ? 1 : 0;   // any red step OR scenario-error is a red suite
+    }
+    if (verb == QStringLiteral("brief")) {
+        if (args.isEmpty()) { std::cout << "brief <arcName> [--from <runDir>]\n"; return 2; }
+        const QString arc = args.takeFirst();
+        QString from;
+        const int fi = args.indexOf(QStringLiteral("--from"));
+        if (fi >= 0 && fi + 1 < args.size()) from = args[fi + 1];
+        if (from.isEmpty()) {
+            // default: the newest run dir the bridge reported via get-state
+            const QJsonObject st = call({{QStringLiteral("cmd"), QStringLiteral("get-state")},
+                                         {QStringLiteral("seq"), 1}});
+            from = st.value(QStringLiteral("runDir")).toString();
+        }
+        if (from.isEmpty() || !QDir(from).exists()) {
+            std::cout << "no run dir\n"; return 1;
+        }
+        const QString dst = QStringLiteral("agents/eyes-on/")
+            + QDate::currentDate().toString(QStringLiteral("yyyy-MM-dd"))
+            + QLatin1Char('-') + arc;
+        QDir().mkpath(dst);
+        QString gallery = QStringLiteral("# Eyes-on brief — %1\n\n"
+            "One line per surface: what changed, what to look at.\n\n").arg(arc);
+        QDirIterator pngs(from, {QStringLiteral("*.png")}, QDir::Files);
+        while (pngs.hasNext()) {
+            const QString png = pngs.next();
+            const QString name = QFileInfo(png).fileName();
+            QFile::copy(png, dst + QLatin1Char('/') + name);
+            gallery += QStringLiteral("## %1\n\n![%1](%1)\n\n_What to check:_ (fill in)\n\n")
+                           .arg(name);
+        }
+        QFile g(dst + QStringLiteral("/gallery.md"));
+        if (g.open(QIODevice::WriteOnly)) g.write(gallery.toUtf8());
+        std::cout << "BRIEF " << dst.toStdString() << "\n";
+        return 0;
     }
 
     // plain command: lanista <cmd> [k=v ...] [--grab target]
