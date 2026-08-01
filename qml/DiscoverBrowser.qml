@@ -613,148 +613,22 @@ Item {
                 }
             }
 
-            delegate: Item {
+            // The poster tile is now the shared CataloguePosterCard (identical rendering);
+            // the wall keeps ownership of skeleton math, keyboard focus, and activation.
+            delegate: CataloguePosterCard {
                 id: card
                 required property int index
                 readonly property bool isSkel: card.index >= browser.items.length
-                readonly property var item: card.isSkel ? null : browser.items[card.index]
-                readonly property bool kfocused: !card.isSkel && browser.keyboardMode
-                                                 && card.index === wall.currentIndex
-                readonly property string capText: card.item ? (card.item.title || "") : ""
-                readonly property string yearText: card.item ? String(card.item.year || "") : ""
-                readonly property string ratingText: card.item ? String(card.item.rating || "") : ""
                 width: wall.cellWidth - 14
                 height: wall.cellHeight - 14
-
-                Rectangle {
-                    id: frame
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                    height: Math.floor(width * 1.5)
-                    radius: 8; clip: true
-                    color: card.isSkel ? Qt.rgba(1, 1, 1, 0.06) : "#181a20"
-                    border.width: 1
-                    border.color: card.isSkel ? Qt.rgba(1, 1, 1, 0.09)
-                                 : hov.hovered ? Qt.rgba(1, 1, 1, 0.42) : theme.edge
-                    // hover lift — a render transform, so the grid geometry never shifts.
-                    transform: Translate {
-                        y: hov.hovered ? -4 : 0
-                        Behavior on y { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-                    }
-                    // skeleton pulse — only while this is a placeholder
-                    SequentialAnimation on opacity {
-                        running: card.isSkel
-                        loops: Animation.Infinite
-                        NumberAnimation { from: 0.5; to: 0.9; duration: 800; easing.type: Easing.InOutSine }
-                        NumberAnimation { from: 0.9; to: 0.5; duration: 800; easing.type: Easing.InOutSine }
-                    }
-                    Rectangle {
-                        visible: !card.isSkel
-                        anchors.fill: parent
-                        gradient: Gradient {
-                            GradientStop { position: 0; color: "#343d52" }
-                            GradientStop { position: 1; color: "#121620" }
-                        }
-                        Text {
-                            anchors.centerIn: parent; width: parent.width - 20
-                            text: card.capText
-                            color: Qt.rgba(1, 1, 1, 0.66)
-                            font.family: theme.display; font.pixelSize: 15; font.weight: Font.DemiBold
-                            horizontalAlignment: Text.AlignHCenter
-                            wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
-                        }
-                    }
-                    Image {
-                        visible: !card.isSkel
-                        anchors.fill: parent
-                        source: card.item ? (card.item.cover || "") : ""
-                        fillMode: Image.PreserveAspectCrop
-                        asynchronous: true
-                        opacity: status === Image.Ready ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 160 } }
-                    }
-                    // ── hover reveal: scrim + year·rating rise, a gold play ring appears ──
-                    Item {
-                        id: reveal
-                        anchors.fill: parent
-                        visible: !card.isSkel
-                        opacity: hov.hovered ? 1 : 0
-                        Behavior on opacity { NumberAnimation { duration: 160 } }
-                        Rectangle {
-                            anchors.fill: parent
-                            gradient: Gradient {
-                                GradientStop { position: 0.0; color: "transparent" }
-                                GradientStop { position: 0.55; color: Qt.rgba(6/255, 5/255, 12/255, 0.30) }
-                                GradientStop { position: 1.0; color: Qt.rgba(6/255, 5/255, 12/255, 0.92) }
-                            }
-                        }
-                        Rectangle {                       // centered play ring
-                            anchors.centerIn: parent
-                            width: 46; height: 46; radius: 23
-                            color: Qt.rgba(8/255, 7/255, 14/255, 0.34)
-                            border.width: 1.5; border.color: theme.gold
-                            Text {
-                                anchors.centerIn: parent
-                                anchors.horizontalCenterOffset: 2
-                                text: "▶"; color: theme.gold; font.pixelSize: 16
-                            }
-                        }
-                        Row {                             // meta, bottom-left
-                            anchors.left: parent.left; anchors.leftMargin: 11
-                            anchors.right: parent.right; anchors.rightMargin: 11
-                            anchors.bottom: parent.bottom; anchors.bottomMargin: 11
-                            spacing: 9
-                            Text {
-                                visible: card.yearText.length > 0
-                                text: card.yearText
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                            }
-                            Text {
-                                visible: card.ratingText.length > 0
-                                text: "★ " + card.ratingText
-                                color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                            }
-                        }
-                    }
-                }
-                // keyboard focus ring — a DOUBLE soft-gold halo overlay
-                Rectangle {
-                    anchors.fill: frame; radius: 8
-                    visible: card.kfocused
-                    color: "transparent"
-                    border.width: 2; border.color: Qt.rgba(240/255, 196/255, 74/255, 0.55)
-                    Rectangle {
-                        anchors.fill: parent; anchors.margins: -3
-                        radius: 10; color: "transparent"
-                        border.width: 3; border.color: Qt.rgba(240/255, 196/255, 74/255, 0.18)
-                    }
-                }
-                Text {
-                    visible: !card.isSkel
-                    anchors.left: parent.left; anchors.right: parent.right
-                    anchors.top: frame.bottom; anchors.topMargin: 8
-                    text: card.capText
-                    color: hov.hovered ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                }
-                // skeleton title bar (reserves the title row's space too)
-                Rectangle {
-                    visible: card.isSkel
-                    anchors.left: parent.left; anchors.top: frame.bottom; anchors.topMargin: 8
-                    width: parent.width * 0.7; height: 12; radius: 5
-                    color: Qt.rgba(1, 1, 1, 0.08)
-                }
-                HoverHandler { id: hov; enabled: !card.isSkel }
-                MouseArea {
-                    anchors.fill: parent
-                    enabled: !card.isSkel
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        wall.forceActiveFocus()
-                        browser.keyboardMode = false
-                        wall.currentIndex = card.index
-                        browser.itemOpenRequested(card.item)    // a click opens the title (Stremio)
-                    }
+                skeleton: card.isSkel
+                item: card.isSkel ? null : browser.items[card.index]
+                keyboardFocused: !card.isSkel && browser.keyboardMode && card.index === wall.currentIndex
+                onActivated: (it) => {
+                    wall.forceActiveFocus()
+                    browser.keyboardMode = false
+                    wall.currentIndex = card.index
+                    browser.itemOpenRequested(it)               // a click opens the title (Stremio)
                 }
             }
 
