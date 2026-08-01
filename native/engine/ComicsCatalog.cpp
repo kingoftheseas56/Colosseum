@@ -403,6 +403,24 @@ QVariantList ComicsCatalog::shelf(const QString& kind, const QString& arg, int l
 
 namespace {
 
+// House-rank weights (spec 2026-08-01). Named + summed so the popularity weight is
+// declared ONCE: the redistribution math in discoverPage derives from kWPopularity,
+// never a second literal — tuning it here keeps the sum-to-1.0 invariant intact.
+// Metadata is never redistributed into, so its contribution stays <= kWMetadata,
+// well under the 0.10 ceiling.
+constexpr double kWPopularity   = 0.65;   // normalized LOCG rank
+constexpr double kWAvailability = 0.20;   // acquisition availability confidence
+constexpr double kWRecency      = 0.10;   // recent real release activity
+constexpr double kWMetadata     = 0.05;   // identity/metadata completeness
+static_assert(kWPopularity + kWAvailability + kWRecency + kWMetadata > 0.9999999
+              && kWPopularity + kWAvailability + kWRecency + kWMetadata < 1.0000001,
+              "house-rank base weights must sum to 1.0");
+constexpr int kMetadataFacets = 4;        // cover, synopsis, publisher, >=1 genre
+constexpr int kRecencyFloor   = 1980;     // recency ramp floor year (maps to 0.0)
+constexpr int kYearSaneMin    = 1900;     // 4-digit-year sanity bounds for the dirty
+constexpr int kYearSaneMax    = 2100;     //   free-text curated_edition.published field
+constexpr int kPageLimitMax   = 100;      // discoverPage page-size clamp ceiling
+
 // curated_edition.published is dirty free text ('2005', '[August] 2011',
 // '2020 [January 2022]'). Pull every 4-digit run and keep the max plausible year;
 // 0 means "no year found" (the caller treats that as NEUTRAL recency, not a penalty).
@@ -412,7 +430,7 @@ int maxPublishedYear(const QString& published) {
     auto it = re.globalMatch(published);
     while (it.hasNext()) {
         const int y = it.next().captured(1).toInt();
-        if (y >= 1900 && y <= 2100 && y > best) best = y;
+        if (y >= kYearSaneMin && y <= kYearSaneMax && y > best) best = y;
     }
     return best;
 }
@@ -465,7 +483,7 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
     // includeExplicit intentionally unused — no row is ever classified explicit in
     // this catalogue, so it gates nothing (see file note). Availability is a boost,
     // not an inclusion gate: unavailable titles stay in the result set.
-    const int lim = std::clamp(limit, 1, 100);
+    const int lim = std::clamp(limit, 1, kPageLimitMax);
     const int off = std::max(0, offset);
     auto pack = [&](const QVariantList& items, int total) {
         return QVariantMap{
@@ -534,7 +552,9 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
         if (!synopsis.isEmpty()) ++meta;
         if (!r.publisher.isEmpty()) ++meta;
         if (!r.genres.isEmpty()) ++meta;
-        r.cMeta = 0.05 * (meta / 4.0);   // provisional; metadata weight is a fixed 0.05
+        // metadata weight is fixed at kWMetadata and is never redistributed into, so
+        // this contribution stays <= kWMetadata, well under the 0.10 cap (spec 5.2).
+        r.cMeta = kWMetadata * (meta / double(kMetadataFacets));
         rows.push_back(std::move(r));
     }
     if (rows.empty()) return pack({}, 0);
@@ -565,27 +585,28 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
         if (!anyRank) { minRank = maxRank = r.rank; anyRank = true; }
         else { minRank = std::min(minRank, r.rank); maxRank = std::max(maxRank, r.rank); }
     }
-    const int recFloor = 1980;
     const int recNow = QDate::currentDate().year();
-    const double recSpan = std::max(1, recNow - recFloor);
+    const double recSpan = std::max(1, recNow - kRecencyFloor);
 
     for (DiscoRow& r : rows) {
         r.maxYear = maxYear.value(r.locg, 0);
+        // Single-rank (or single-row) scoped sets: maxRank == minRank would divide by
+        // zero without this guard — the lone/best rank maps to full popularity (1.0).
         const double popularity = !anyRank || !r.hasRank ? 0.0
             : (maxRank == minRank ? 1.0
                : 1.0 - double(r.rank - minRank) / double(maxRank - minRank));
         const double recency = r.maxYear > 0
-            ? clamp01(double(r.maxYear - recFloor) / recSpan)
+            ? clamp01(double(r.maxYear - kRecencyFloor) / recSpan)
             : 0.5;   // unknown year is NEUTRAL, never a zero-penalty
 
-        double wPop = 0.65, wAvail = 0.20, wRec = 0.10;   // metadata weight fixed at 0.05
+        double wPop = kWPopularity, wAvail = kWAvailability, wRec = kWRecency;
         if (!r.hasRank) {
-            // No LOCG rank: redistribute its 0.65 PROPORTIONALLY across the available
-            // non-metadata signals (availability + recency). Metadata is NOT boosted,
-            // so its contribution stays <= 0.05 <= the 0.10 ceiling.
-            const double nonMeta = wAvail + wRec;   // 0.30
-            wAvail += 0.65 * (wAvail / nonMeta);
-            wRec += 0.65 * (wRec / nonMeta);
+            // No LOCG rank: redistribute kWPopularity PROPORTIONALLY across the
+            // available non-metadata signals (availability + recency) only. Metadata
+            // is NOT boosted, so its contribution stays <= kWMetadata <= the 0.10 cap.
+            const double nonMeta = wAvail + wRec;
+            wAvail += kWPopularity * (wAvail / nonMeta);
+            wRec += kWPopularity * (wRec / nonMeta);
             wPop = 0.0;
         }
         r.cPop = wPop * popularity;

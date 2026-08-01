@@ -5,6 +5,7 @@
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QTemporaryDir>
+#include <cmath>
 #include <cstdio>
 
 static int fail(const char* m) { std::fprintf(stderr, "FAIL: %s\n", m); return 1; }
@@ -431,6 +432,106 @@ int main(int argc, char** argv) {
         const QVariantList clampOff = disco.discoverPage("popular", "", "", true, -5, 3).value("items").toList();
         if (clampOff.size() != 3 || clampOff[0].toMap().value("locgId").toString() != "af")
             return fail("negative offset clamps to 0");
+
+        // ====================================================================
+        // Negative controls (spec 5.1/5.2). Each guard below pins a behavior that a
+        // careless refactor of the ranking math would silently break. They are the
+        // three classes the Task-5 hardening called out as under-covered.
+        // ====================================================================
+
+        // (1) Single-row candidate scope — the lone/best rank must NOT divide by zero.
+        // A scoped set with exactly one ranked row has maxRank == minRank; the
+        // popularity normalizer must map it to 1.0 (full weight), not NaN-out and
+        // collapse the house score to 0. This is the regression guard for the
+        // single-rank divide-by-zero edge.
+        {
+            const QVariantList onlyDc = disco.discoverPage("popular", "publisher", "Black Mask", true, 0, 100)
+                                            .value("items").toList();
+            if (onlyDc.size() != 1) return fail("single-row scope: publisher=Black Mask must scope to 1 title (mr)");
+            const QVariantMap onlyRow = onlyDc[0].toMap();
+            if (onlyRow.value("locgId").toString() != "mr")
+                return fail("single-row scope: must be the Mature Mayhem row");
+            const double score = onlyRow.value("houseScore").toDouble();
+            if (!(score > 0.0) || !(score <= 1.0) || std::isnan(score))
+                return fail("single-row scope: lone rank must score in (0,1], never NaN/0 from divide-by-zero");
+            const QVariantMap comps = onlyRow.value("houseComponents").toMap();
+            // A single ranked row normalizes to popularity 1.0; with rank weight 0.65
+            // the popularity component must be ~0.65 (kWPopularity), proving the guard
+            // produced full-weight popularity rather than zeroing it out.
+            if (qAbs(comps.value("popularity").toDouble() - 0.65) > 1e-9)
+                return fail("single-row scope: lone rank must yield full-weight popularity (~0.65)");
+        }
+
+        // (2) All-unknown publication dates — unknown recency is NEUTRAL (raw 0.5),
+        // never a zero-penalty. houseComponents.recency stores the WEIGHTED contribution
+        // (wRec * recency); for a ranked row wRec == kWRecency (0.10), so a neutral raw
+        // recency of 0.5 shows up as a 0.05 contribution, and a penalty would show up as
+        // 0.0. We assert the contribution is NON-ZERO (not a penalty) AND identical
+        // across two unknown-year rows that differ only in rank (recency does not
+        // discriminate when no real publication dates exist). New Releases then falls
+        // through to house rank, proving recency is derived from real years, not rowid.
+        {
+            QTemporaryDir dirU;
+            const QString dbU = dirU.filePath("unknown.db");
+            {
+                auto d = QSqlDatabase::addDatabase("QSQLITE", "unknown");
+                d.setDatabaseName(dbU);
+                if (!d.open()) return fail("unknown-year fixture open");
+                QSqlQuery q(d);
+                q.exec("create table series(gcd_id integer primary key, title text, year int, year_ended int, issue_count int, publisher text, cover text, synopsis text)");
+                q.exec("create table curated_series(locg_id text primary key, rank int, title text, norm_title text, year int, slug text, publisher text, cover text, synopsis text)");
+                q.exec("create table curated_edition(id integer primary key autoincrement, locg_id text, title text, display_title text, format text, collects text, isbn text, pages int, published text, chid text, cover text, available int, getcomics_post text, creators text, description text)");
+                q.exec("create table curated_genre(locg_id text, genre text)");
+                // No parseable 4-digit year anywhere in published. (9 columns: locg_id,
+                // rank, title, norm_title, year, slug, publisher, cover, synopsis.)
+                q.exec("insert into curated_series values ('x1',1,'Untitled One','untitled one',0,'u1','Indie','','')");
+                q.exec("insert into curated_series values ('x2',2,'Untitled Two','untitled two',0,'u2','Indie','','')");
+                q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('x1','[Someday]',0,'')");
+                q.exec("insert into curated_edition (locg_id,published,available,getcomics_post) values ('x2','n.d.',0,'')");
+                d.close();
+            }
+            QSqlDatabase::removeDatabase("unknown");
+            ComicsCatalog unk(dbU);
+            if (!unk.curatedReady()) return fail("unknown-year fixture curatedReady");
+            const QVariantList unkPop = unk.discoverPage("popular", "", "", true, 0, 100).value("items").toList();
+            if (unkPop.size() != 2) return fail("unknown-year: both untitled rows present");
+            const double rec1 = unkPop[0].toMap().value("houseComponents").toMap().value("recency").toDouble();
+            const double rec2 = unkPop[1].toMap().value("houseComponents").toMap().value("recency").toDouble();
+            // Non-zero => recency was NEUTRAL (0.5 raw), NOT a 0.0 penalty. A penalty
+            // (raw 0.0) would make this contribution exactly 0.0.
+            if (rec1 <= 0.0 || rec2 <= 0.0)
+                return fail("unknown-year recency must be NEUTRAL (non-zero contribution), never a 0.0 penalty");
+            // Identical => recency does not discriminate between rows when neither has a
+            // real publication year (both raw 0.5 -> same weighted contribution).
+            if (qAbs(rec1 - rec2) > 1e-12)
+                return fail("unknown-year: recency must not discriminate when no real dates exist");
+            // New Releases on all-unknown years: both maxYear==0, so order falls through
+            // to house rank then canonical tie-break — never crashes, never rowid.
+            const QVariantList unkNr = unk.discoverPage("new-releases", "", "", true, 0, 100).value("items").toList();
+            if (unkNr.size() != 2) return fail("unknown-year new-releases must still return both rows");
+            if (unkNr[0].toMap().value("locgId").toString() != "x1")
+                return fail("unknown-year new-releases falls through to house rank (x1 rank 1 first)");
+        }
+
+        // (3) Fully unavailable candidates — availability is a BOOST, not an inclusion
+        // gate. Scope to a set where EVERY title has zero available editions; the page
+        // must still return all of them (none removed), and they carry
+        // availability:false. We reuse the main fixture: publisher with only the
+        // no-post editions. 'a1' (publisher '') can't be faceted; use genre=Humor which
+        // is only 'zz' (all editions unavailable). Confirm zz is returned, not dropped.
+        {
+            const QVariantList humor = disco.discoverPage("popular", "genre", "Humor", true, 0, 100)
+                                          .value("items").toList();
+            if (humor.size() != 1) return fail("unavailable-scope: Humor (zz) must be returned, not gated out");
+            if (humor[0].toMap().value("locgId").toString() != "zz")
+                return fail("unavailable-scope: must be zz");
+            if (humor[0].toMap().value("availability").toBool() != false)
+                return fail("unavailable-scope: row must report availability:false");
+            // And the fully-unavailable 'sv' (rank 1, 0 available) still appears in the
+            // unscoped Popular wall — it is only outranked, never removed.
+            if (idxOf(pop, "sv") < 0)
+                return fail("availability-boost: fully-unavailable 'sv' must remain in Popular, only outranked");
+        }
     }
 
     ComicsCatalog missing(dir.filePath("nope.db"));
