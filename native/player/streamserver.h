@@ -92,6 +92,7 @@ private:
     void flushPending();
     void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL
     void pollStats();                     // one stats.json GET; single-flight behind m_statsInflight
+    void pushTunedSettings();             // raise the runtime's swarm caps, THEN flush pending streams
 
     QProcess *m_proc = nullptr;
     QNetworkAccessManager *m_nam = nullptr;

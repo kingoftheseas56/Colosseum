@@ -87,7 +87,7 @@ void StreamServer::ensureStarted()
             qInfo("[stream] adopted the running Stremio server on port %d", m_port);
             Q_EMIT readyChanged();
             Q_EMIT startingChanged();
-            flushPending();
+            pushTunedSettings();   // flushes pending once the caps have landed
             return;
         }
         launchChild();
@@ -157,7 +157,7 @@ void StreamServer::onStdout()
             qInfo("[stream] ready on port %d", m_port);
             Q_EMIT readyChanged();
             Q_EMIT startingChanged();
-            flushPending();
+            pushTunedSettings();   // flushes pending once the caps have landed
         }
     }
     // keep the buffer from growing unbounded once we're up
@@ -248,6 +248,36 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
             Q_EMIT fetchReady(url, hash, fileIdx);
         else
             Q_EMIT streamReady(url, hash, fileIdx);
+    });
+}
+
+void StreamServer::pushTunedSettings()
+{
+    // Swarm tuning (2026-08-02, Hemanth's "maximise the peers"): the runtime's stock caps are
+    // sized for a background service — 35 peer connections and a 1.6 / 2.5 MB/s soft/hard
+    // download throttle (server.js getDefaults: btMaxConnections, btDownloadSpeed*Limit).
+    // Fine for 1080p, but they turn cold-open buffering into a trickle and starve 4K remuxes.
+    // POST /settings extends+persists the runtime's settings; engines read the caps at stream
+    // CREATE time (getDefaults runs per engine), which is why flushPending() waits for this
+    // POST to settle — the first stream of the session must not race the old caps. Values:
+    // 200 connections (the same desktop-scale jump our libtorrent side ratified) and
+    // 20 / 40 MB/s caps — above any line speed here, so the line itself is the only limit.
+    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/settings").arg(m_port)));
+    req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    req.setTransferTimeout(3000);
+    const QByteArray body = QByteArrayLiteral(
+        "{\"btMaxConnections\":200,"
+        "\"btDownloadSpeedSoftLimit\":20971520,"
+        "\"btDownloadSpeedHardLimit\":41943040}");
+    QNetworkReply *r = m_nam->post(req, body);
+    connect(r, &QNetworkReply::finished, this, [this, r]() {
+        r->deleteLater();
+        if (r->error() == QNetworkReply::NoError)
+            qInfo("[stream] swarm tuning pushed (200 conns, 20/40 MB/s caps)");
+        else
+            qWarning("[stream] swarm tuning push failed (streams keep stock caps): %s",
+                     qUtf8Printable(r->errorString()));
+        flushPending();   // tuning is best-effort; playback must never be blocked by it
     });
 }
 
