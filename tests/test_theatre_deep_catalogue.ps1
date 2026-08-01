@@ -35,6 +35,9 @@ function Stage-Cards {
 function Stage-SeeAll {
     Invoke-Harness "tests\theatre_see_all_harness.qml" "THEATRE_SEE_ALL_OK"
 }
+function Stage-Preferences {
+    Invoke-Harness "tests\theatre_row_preferences_harness.qml" "THEATRE_ROW_PREFERENCES_OK"
+}
 function Stage-DiscoverRegression {
     # The deep catalogue reuses Discover's addon/card layer — prove Discover's observable
     # behaviour is unchanged by the shared-identity + shared-card refactors.
@@ -46,19 +49,21 @@ function Stage-DiscoverRegression {
 
 # Additional stages (Cards, SeeAll, Preferences, Page) are wired by their owning tasks.
 # -Stage All composes every wired slice.
-$wired = @("Rules", "ApiRows", "Cards", "SeeAll", "DiscoverRegression")
+$wired = @("Rules", "ApiRows", "Cards", "SeeAll", "Preferences", "DiscoverRegression")
 
 switch ($Stage) {
     "Rules"              { Stage-Rules }
     "ApiRows"            { Stage-ApiRows }
     "Cards"              { Stage-Cards }
     "SeeAll"             { Stage-SeeAll }
+    "Preferences"        { Stage-Preferences }
     "DiscoverRegression" { Stage-DiscoverRegression }
     "All" {
         Stage-Rules
         Stage-ApiRows
         Stage-Cards
         Stage-SeeAll
+        Stage-Preferences
         Stage-DiscoverRegression
         Write-Host "THEATRE_DEEP_CATALOGUE_OK"
     }
