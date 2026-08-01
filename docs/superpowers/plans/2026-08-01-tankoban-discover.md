@@ -22,7 +22,7 @@
 - Explicit Content defaults off. `Berserk`, `Game of Thrones`, Ecchi, violence, horror, `Mature Readers`, R, NC-17, and TV-MA do not become explicit solely from those labels.
 - Existing adult-extension installation policy remains unchanged.
 - No Comic Vine or Metron runtime dependency is added.
-- Existing dirty worktree files belong to other work. Execute in an isolated worktree and commit only files named by the active task.
+- Execute directly on `master`. Do not create a branch or worktree. Record the initial `git status --short`, preserve every pre-existing dirty/untracked path, and commit only files named by the active task.
 - Every offscreen QML harness collects failures and calls `Qt.exit(fails.length)` once; uncaught QML exceptions can hang `qml.exe`.
 - QML `font.pixelSize` values remain integers.
 
@@ -1073,4 +1073,4 @@ Before declaring completion:
 2. Review every locked decision in `docs/superpowers/specs/2026-08-01-tankoban-discover-design.md` as MET, PARTIAL, or NOT-MET.
 3. Run a cross-substrate self-review using `brotherhood-review` against the written Definition of Done.
 4. Request code review using `superpowers:requesting-code-review`.
-5. Do not merge or push until review findings are fixed and the focused acceptance runner passes from a clean working tree.
+5. Do not push until review findings are fixed, the focused acceptance runner passes, and no task-owned change remains uncommitted. Pre-existing unrelated dirty paths remain untouched.
