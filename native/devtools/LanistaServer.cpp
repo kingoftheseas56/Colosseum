@@ -33,21 +33,43 @@ constexpr int kGrabTimeoutMs = 4000;
 // where Repeater/ListView/GridView delegate items live — they are NOT in the
 // QObject tree, so root->findChild() cannot see them. In Colosseum every
 // shelf/list/grid is delegate-built, so without this walk findItem() resolves
-// nothing on a real page. This is the shared visual-tree walker: Task 3's
-// ui-dump/ui-query are meant to consume THIS helper rather than add a second
-// one. The depth guard bounds a pathological or cyclic-looking tree.
-QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
+// nothing on a real page. The depth guard bounds a pathological or
+// cyclic-looking tree.
+//
+// This is the ONE visual-tree DFS primitive. `visit` is called on every item
+// with its depth; returning true STOPS the walk (walkVisual returns true up the
+// stack). Its two consumers differ only in that predicate: findItem's finder
+// stops at the first name match, dump-ui's collector never stops. One
+// traversal, two behaviours — so there is no second copy-pasted childItems()
+// loop to drift out of sync (reduction reflex).
+bool walkVisual(QQuickItem* item, int depth,
+                const std::function<bool(QQuickItem*, int)>& visit)
 {
     if (!item || depth > 64)
-        return nullptr;
-    if (item->objectName() == objectName)
-        return item;
+        return false;
+    if (visit(item, depth))
+        return true;
     const QList<QQuickItem*> kids = item->childItems();
     for (QQuickItem* child : kids) {
-        if (QQuickItem* found = walkNamed(child, objectName, depth + 1))
-            return found;
+        if (walkVisual(child, depth + 1, visit))
+            return true;
     }
-    return nullptr;
+    return false;
+}
+
+// The finder: first item whose objectName matches, or nullptr. findItem() calls
+// this from the main window's content item.
+QQuickItem* walkNamed(QQuickItem* item, const QString& objectName, int depth)
+{
+    QQuickItem* found = nullptr;
+    walkVisual(item, depth, [&](QQuickItem* it, int) {
+        if (it->objectName() == objectName) {
+            found = it;
+            return true;   // stop: we have our match
+        }
+        return false;
+    });
+    return found;
 }
 }  // namespace
 
@@ -156,6 +178,14 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
             [this](const QJsonObject&, Replier reply) { reply.reply(cmdPing()); });
     addRead(QStringLiteral("get-state"),
             [this](const QJsonObject&, Replier reply) { reply.reply(cmdGetState()); });
+    // Task 3 reads. qml-get/ui-query own their reply so a missing target can
+    // fail("NO_SUCH_ITEM", ...) after a single findItem(); dump-ui always answers.
+    addRead(QStringLiteral("qml-get"),
+            [this](const QJsonObject& p, Replier reply) { cmdQmlGet(p, std::move(reply)); });
+    addRead(QStringLiteral("ui-query"),
+            [this](const QJsonObject& p, Replier reply) { cmdUiQuery(p, std::move(reply)); });
+    addRead(QStringLiteral("dump-ui"),
+            [this](const QJsonObject& p, Replier reply) { reply.reply(cmdDumpUi(p)); });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -472,6 +502,94 @@ QJsonObject LanistaServer::cmdGetState() const
     return {{QStringLiteral("windows"), windows},
             // Reported as a path; it is not created until an artifact is written.
             {QStringLiteral("runDir"), m_runDir}};
+}
+
+// ── Task 3 reads ─────────────────────────────────────────────────────────────
+
+// qml-get: read any named item's live QML properties by name. The agent asks
+// for exactly the props it wants; each is returned as-is (QVariant -> JSON), so
+// a string stays a string and visible/enabled stay bools.
+void LanistaServer::cmdQmlGet(const QJsonObject& p, Replier reply) const
+{
+    const QString objectName = p.value(QStringLiteral("object")).toString();
+    QQuickItem* item = findItem(objectName);
+    if (!item) {
+        reply.fail("NO_SUCH_ITEM", objectName);
+        return;
+    }
+    QJsonObject props;
+    const QJsonArray want = p.value(QStringLiteral("props")).toArray();
+    for (const QJsonValue& v : want) {
+        const QString name = v.toString();
+        const QByteArray key = name.toUtf8();
+        props.insert(name, QJsonValue::fromVariant(item->property(key.constData())));
+    }
+    reply.reply({{QStringLiteral("props"), props}});
+}
+
+// ui-query: an item's geometry and render flags. The rect is in LOGICAL/SCENE
+// units — the SAME space as get-state, NOT device pixels — because there is no
+// grab here (a PNG would be device pixels; this is pure geometry). clippedByWindow
+// answers the question a screenshot cannot: is this item drawn (partly) outside
+// the window, where a click would miss it?
+void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply) const
+{
+    const QString objectName = p.value(QStringLiteral("object")).toString();
+    QQuickItem* item = findItem(objectName);
+    if (!item) {
+        reply.fail("NO_SUCH_ITEM", objectName);
+        return;
+    }
+    // Top-left in scene coords + the item's own size. mapToScene folds in every
+    // ancestor transform, so a delegate deep in a Flickable reports where it
+    // actually sits on screen, not its local offset.
+    const QPointF topLeft = item->mapToScene(QPointF(0, 0));
+    const qreal x = topLeft.x();
+    const qreal y = topLeft.y();
+    const qreal wdt = item->width();
+    const qreal hgt = item->height();
+
+    bool clipped = false;
+    if (QQuickWindow* w = mainWindow()) {
+        clipped = (x + wdt > w->width()) || (y + hgt > w->height())
+                  || (x < 0) || (y < 0);
+    }
+
+    reply.reply({
+        {QStringLiteral("rect"), QJsonObject{
+            {QStringLiteral("x"), x}, {QStringLiteral("y"), y},
+            {QStringLiteral("width"), wdt}, {QStringLiteral("height"), hgt}}},
+        {QStringLiteral("visible"), item->isVisible()},
+        {QStringLiteral("enabled"), item->isEnabled()},
+        {QStringLiteral("opacity"), item->opacity()},
+        {QStringLiteral("clippedByWindow"), clipped}});
+}
+
+// dump-ui: the whole named-object tree in one shot, for an agent orienting on a
+// page it has never seen. Every item with a non-empty objectName, in DFS order,
+// with enough to reason about layout. Consumes the shared walkVisual() collector
+// (see the anon-namespace note) — no second tree walker.
+QJsonObject LanistaServer::cmdDumpUi(const QJsonObject&) const
+{
+    QJsonArray items;
+    if (QQuickWindow* w = mainWindow()) {
+        walkVisual(w->contentItem(), 0, [&](QQuickItem* it, int depth) {
+            if (!it->objectName().isEmpty()) {
+                items.append(QJsonObject{
+                    {QStringLiteral("objectName"), it->objectName()},
+                    {QStringLiteral("class"),
+                     QString::fromLatin1(it->metaObject()->className())},
+                    {QStringLiteral("x"), it->x()}, {QStringLiteral("y"), it->y()},
+                    {QStringLiteral("width"), it->width()},
+                    {QStringLiteral("height"), it->height()},
+                    {QStringLiteral("visible"), it->isVisible()},
+                    {QStringLiteral("depth"), depth}});
+            }
+            return false;   // collect every named item — never stop early
+        });
+    }
+    return {{QStringLiteral("items"), items},
+            {QStringLiteral("count"), items.size()}};
 }
 
 // ── the combined reply ─────────────────────────────────────────────────────

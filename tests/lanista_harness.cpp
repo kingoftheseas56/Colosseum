@@ -513,6 +513,41 @@ int main(int argc, char** argv)
                     + tg.value("type").toString() + QStringLiteral(" code=")
                     + tg.value("code").toString() + why());
 
+        // ── Task 3: qml-get — any named item's live properties by name ────
+        QJsonObject qg = call(pipe, {{"cmd", "qml-get"}, {"seq", 7},
+            {"payload", QJsonObject{{"object", "counterLabel"},
+                                    {"props", QJsonArray{"text", "visible"}}}}});
+        require(qg.value("props").toObject().value("text").toString()
+                    == QStringLiteral("clicks: 0"),
+                "qml-get reads a live property" + why());
+
+        // ── Task 3: ui-query — geometry in SCENE units (the clipped killer) ──
+        QJsonObject uq = call(pipe, {{"cmd", "ui-query"}, {"seq", 8},
+            {"payload", QJsonObject{{"object", "clippedBox"}}}});
+        QJsonObject r = uq.value("rect").toObject();
+        require(r.value("x").toDouble() + r.value("width").toDouble() > 800.0,
+                "ui-query exposes the overflow past the window edge" + why());
+        require(uq.value("clippedByWindow").toBool() == true,
+                "and names it: clippedByWindow=true" + why());
+
+        // ── Task 3: dump-ui — the named-object tree ──────────────────────
+        QJsonObject du = call(pipe, {{"cmd", "dump-ui"}, {"seq", 9}});
+        require(QJsonDocument(du).toJson().contains("counterButton"),
+                "dump-ui contains the named tree" + why());
+
+        // ── Task 3: negative path — a missing object is NO_SUCH_ITEM ──────
+        QJsonObject qgN = call(pipe, {{"cmd", "qml-get"}, {"seq", 50},
+            {"payload", QJsonObject{{"object", "no-such-item"},
+                                    {"props", QJsonArray{"text"}}}}});
+        require(qgN.value("type").toString() == "error"
+                    && qgN.value("code").toString() == "NO_SUCH_ITEM",
+                "qml-get on a missing object is NO_SUCH_ITEM" + why());
+        QJsonObject uqN = call(pipe, {{"cmd", "ui-query"}, {"seq", 51},
+            {"payload", QJsonObject{{"object", "no-such-item"}}}});
+        require(uqN.value("type").toString() == "error"
+                    && uqN.value("code").toString() == "NO_SUCH_ITEM",
+                "ui-query on a missing object is NO_SUCH_ITEM" + why());
+
         std::cout << "LANISTA_OK\n";
         rc = 0;
         app.quit();

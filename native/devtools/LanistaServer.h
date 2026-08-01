@@ -165,10 +165,13 @@ private:
     // Task 2 — never called directly: dispatch() installs it as the Replier's
     // hook, and it answers `reply` on every path (including its own deadline).
     void attachGrab(const QJsonObject& payload, QJsonObject body, Replier reply);
-    // Task 3
-    QJsonObject cmdQmlGet(const QJsonObject& p) const;
+    // Task 3. The two fallible reads take the Replier directly (like attachGrab):
+    // they resolve findItem() ONCE and either fail("NO_SUCH_ITEM", ...) or reply,
+    // rather than resolving in the lambda and again in the method. dump-ui cannot
+    // fail on a target, so it stays a plain body-returning read.
+    void cmdQmlGet(const QJsonObject& p, Replier reply) const;
     QJsonObject cmdDumpUi(const QJsonObject& p) const;
-    QJsonObject cmdUiQuery(const QJsonObject& p) const;
+    void cmdUiQuery(const QJsonObject& p, Replier reply) const;
     // Task 4
     QJsonObject cmdUiSnapshot(const QJsonObject& p);
     // Task 5
