@@ -9,16 +9,19 @@
 // sets COLOSSEUM_LANISTA_SELFTEST=1; the daily app never sees them.
 #include "devtools/LanistaServer.h"
 
+#include <QDateTime>
 #include <QDir>
 #include <QEventLoop>
 #include <QFileInfo>
 #include <QGuiApplication>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QList>
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
+#include <QQuickWindow>
 #include <QStringList>
 #include <QTimer>
 
@@ -121,7 +124,24 @@ static void settle(int ms)
 
 int main(int argc, char** argv)
 {
-    qputenv("QT_QPA_PLATFORM", "offscreen");
+    // Headless by default. Caller wins, and that is load-bearing rather than
+    // tidy: offscreen loads the SOFTWARE scene graph backend, so every grab the
+    // default run proves is a software-rendered one. QT_QPA_PLATFORM=windows
+    // re-runs the same checks through the RHI the real app uses.
+    //
+    // ⚠ That RHI run needs QSG_NO_VSYNC=1 (measured 2026-08-01, cost an hour):
+    //   QT_QPA_PLATFORM=windows QSG_NO_VSYNC=1 lanista_harness.exe
+    // Without it every ITEM grab comes back GRAB_TIMEOUT. Not a bridge defect —
+    // this scene is inert and its window is unfocused, so the D3D11 present path
+    // stalls and the window renders exactly ONE frame for its whole life;
+    // grabToImage needs a frame and never gets one. (Same family as A4's
+    // "timers stop firing, QSG_NO_VSYNC=1 fixes it".) The real app renders
+    // continuously, and item grabs were proven against the SHIPPED binary over
+    // this very scene — colosseum.exe takes a QML path as argv[1] — with no
+    // vsync knob at all. Window grabs are immune either way: grabWindow()
+    // renders on demand rather than waiting for the loop.
+    if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM"))
+        qputenv("QT_QPA_PLATFORM", "offscreen");
     // House trap (see tests/window_shell_gui_harness.cpp): the windeployqt'd
     // platforms/ dir beside the exe carries ONLY qwindows.dll and shadows the Qt
     // install's plugin dir, so "offscreen" cannot load and the process fail-fasts
@@ -133,6 +153,11 @@ int main(int argc, char** argv)
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM_PLUGIN_PATH"))
         qputenv("QT_QPA_PLATFORM_PLUGIN_PATH", LANISTA_QT_PLATFORMS_DIR);
 #endif
+    // Offscreen carries no font database of its own, so every grab comes back
+    // with □□□ where the text should be (house trap, and Task 8's goldens ride
+    // on it). Point it at the system fonts. Caller wins if set.
+    if (!qEnvironmentVariableIsSet("QT_QPA_FONTDIR"))
+        qputenv("QT_QPA_FONTDIR", "C:/Windows/Fonts");
 
     QGuiApplication app(argc, argv);
     const bool serve = app.arguments().contains(QStringLiteral("--serve"));
@@ -159,6 +184,14 @@ int main(int argc, char** argv)
     engine.load(QUrl::fromLocalFile(scene));
     require(!engine.rootObjects().isEmpty(),
             QStringLiteral("harness scene loads: ") + scene);
+
+    // A PNG is in DEVICE pixels; the scene (and get-state) speaks LOGICAL ones.
+    // On this machine that is a 1.5x difference under the real platform and 1x
+    // offscreen, so the grab checks below scale the scene's declared sizes by
+    // the live ratio instead of hard-coding either one.
+    auto* rootWindow = qobject_cast<QQuickWindow*>(engine.rootObjects().constFirst());
+    require(rootWindow != nullptr, QStringLiteral("harness root is a Window"));
+    const qreal dpr = rootWindow->devicePixelRatio();
 
     auto* server = new LanistaServer(&engine, &app);
     require(server->isListening(),
@@ -329,6 +362,86 @@ int main(int argc, char** argv)
         require(lineCount(raw) == 1, "idle connection: exactly one reply" + why());
         require(firstObject(raw).value("code").toString() == "IDLE_TIMEOUT",
                 "idle connection: IDLE_TIMEOUT");
+
+        // ── THE COMBINED REPLY: state + pixels of the same instant ───────
+        // The scene is 800x600 and longList is 300x400 (lanista_harness_scene.qml),
+        // so the PNG's own dimensions say WHICH grab actually ran: a window path
+        // that quietly answered an item request, or the reverse, cannot pass.
+        QJsonObject g = call(pipe, {{"cmd", "get-state"}, {"seq", 30},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", "window"}}}}}},
+            8000);
+        require(g.value("type").toString() == "reply", "grab-carrying reply arrives" + why());
+        const QString gp = g.value("grabPath").toString();
+        require(!gp.isEmpty(), "reply carries grabPath");
+        require(QFileInfo::exists(gp), "the PNG exists on disk: " + gp);
+        require(QFileInfo(gp).size() > 1000, "the PNG is not empty");
+        QImage windowPng(gp);
+        require(windowPng.width() == qRound(800 * dpr)
+                    && windowPng.height() == qRound(600 * dpr),
+                QStringLiteral("the window PNG is the window (800x600 @%1), got %2x%3")
+                    .arg(dpr).arg(windowPng.width()).arg(windowPng.height()));
+        require(QDateTime::fromString(g.value("grabbedAt").toString(),
+                                      Qt::ISODateWithMs).isValid(),
+                "grabbedAt is a real ISO timestamp with ms: "
+                    + g.value("grabbedAt").toString());
+        // The GRAB DECORATES the reply; it does not replace it. State and
+        // pixels arrive together or the whole design is pointless.
+        require(g.value("windows").toArray().size() == 1,
+                "the command's own body survives alongside the pixels");
+        // First artifact written -> the lazy run dir exists NOW (it was proven
+        // absent above, so nothing but this grab can have created it).
+        require(QFileInfo::exists(runDir),
+                "ensureRunDir() created the run dir on the first artifact: " + runDir);
+        require(gp.startsWith(runDir + QStringLiteral("/")),
+                "the PNG landed inside the run dir get-state announced");
+
+        // Item grab: ASYNC — the server answers from grabToImage's callback.
+        QJsonObject ig = call(pipe, {{"cmd", "get-state"}, {"seq", 31},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", "longList"}}}}}},
+            8000);
+        require(ig.value("type").toString() == "reply", "item grab replies" + why());
+        const QString ip = ig.value("grabPath").toString();
+        require(QFileInfo::exists(ip), "item grab lands on disk: " + ip);
+        QImage itemPng(ip);
+        require(itemPng.width() == qRound(300 * dpr)
+                    && itemPng.height() == qRound(400 * dpr),
+                QStringLiteral("the item PNG is the ITEM (300x400 @%1), got %2x%3")
+                    .arg(dpr).arg(itemPng.width()).arg(itemPng.height()));
+
+        // A grab rides ANY command, not just get-state.
+        QJsonObject pg = call(pipe, {{"cmd", "ping"}, {"seq", 32},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", "counterButton"}}}}}},
+            8000);
+        require(pg.value("schema").toString().startsWith("colosseum.dev.v1"),
+                "grab on ping: ping's own reply is intact" + why());
+        require(QFileInfo::exists(pg.value("grabPath").toString()),
+                "grab on ping: pixels too");
+
+        // A bad target is an error, not a hang.
+        QJsonObject ng = call(pipe, {{"cmd", "get-state"}, {"seq", 33},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", "no-such"}}}}}},
+            8000);
+        require(ng.value("type").toString() == "error"
+                && ng.value("code").toString() == "GRAB_TARGET_NOT_FOUND",
+                "unknown grab target errors loudly" + why());
+
+        // An EMPTY target must be refused, never resolved: findChild("") would
+        // otherwise match the first unnamed item and photograph a stranger.
+        QJsonObject eg = call(pipe, {{"cmd", "get-state"}, {"seq", 34},
+            {"payload", QJsonObject{{"grab", QJsonObject{}}}}}, 8000);
+        require(eg.value("code").toString() == "GRAB_TARGET_NOT_FOUND",
+                "an empty grab target is refused, not resolved" + why());
+        require(eg.value("grabPath").toString().isEmpty(), "and photographs nothing");
+
+        // A command that FAILS keeps its own error code — the grab hook must
+        // not swallow it, and a refusal is never photographed.
+        QJsonObject fg = call(pipe, {{"cmd", "selftest-fail"}, {"seq", 35},
+            {"payload", QJsonObject{{"grab", QJsonObject{{"target", "window"}}}}}},
+            8000);
+        require(fg.value("code").toString() == "SELFTEST_FAILURE",
+                "a failing command still answers with ITS code, grab or not" + why());
+        require(fg.value("grabPath").toString().isEmpty(),
+                "a refused command carries no pixels");
 
         std::cout << "LANISTA_OK\n";
         rc = 0;

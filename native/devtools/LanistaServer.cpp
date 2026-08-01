@@ -3,12 +3,14 @@
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
+#include <QImage>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
 #include <QQuickItem>
+#include <QQuickItemGrabResult>
 #include <QQuickWindow>
 #include <QStandardPaths>
 #include <QStringList>
@@ -22,6 +24,10 @@ namespace {
 // on it — both need a ceiling. These are the only knobs that matter.
 constexpr int kMaxLineBytes = 1 << 20;        // 1 MiB; no honest command is close
 constexpr int kDefaultIdleTimeoutMs = 10000;  // connected but silent -> hang up
+// An item grab answers from a callback on a later frame. Under the client's 5s
+// grab budget, so the server is the one that says "no" rather than the client
+// giving up on a connection the server still holds. See attachGrab().
+constexpr int kGrabTimeoutMs = 4000;
 }  // namespace
 
 // ── Replier ────────────────────────────────────────────────────────────────
@@ -41,8 +47,28 @@ bool LanistaServer::Replier::canReply() const
            && m_state->sock->state() == QLocalSocket::ConnectedState;
 }
 
+int LanistaServer::Replier::seq() const
+{
+    return m_state ? m_state->seq : -1;
+}
+
+void LanistaServer::Replier::setReplyHook(ReplyHook hook)
+{
+    if (m_state)
+        m_state->hook = std::move(hook);
+}
+
 void LanistaServer::Replier::reply(QJsonObject body)
 {
+    if (m_state && m_state->hook) {
+        // TAKE the hook before calling it: the token the hook receives is this
+        // same token with the hook gone, so its own reply() goes straight to
+        // the wire and no path can re-enter the hook.
+        ReplyHook hook;
+        hook.swap(m_state->hook);
+        hook(std::move(body), *this);
+        return;
+    }
     body.insert(QStringLiteral("type"), QStringLiteral("reply"));
     body.insert(QStringLiteral("seq"), m_state ? m_state->seq : -1);
     send(std::move(body));
@@ -325,6 +351,16 @@ void LanistaServer::dispatch(QLocalSocket* sock, const QJsonObject& req)
         return;
     }
 
+    // THE COMBINED REPLY. Any command may carry "grab", so the grab is wired
+    // here — once, for every command — rather than in each handler. Installed
+    // AFTER the gates: a refused command answers through fail(), which ignores
+    // the hook, so nothing the server just said no to gets photographed.
+    if (payload.contains(QStringLiteral("grab"))) {
+        reply.setReplyHook([this, payload](QJsonObject body, Replier onward) {
+            attachGrab(payload, std::move(body), std::move(onward));
+        });
+    }
+
     // From here the handler owns the reply — inline or on a later turn.
     it->fn(payload, reply);
 }
@@ -362,9 +398,16 @@ QQuickWindow* LanistaServer::mainWindow() const
 
 QQuickItem* LanistaServer::findItem(const QString& objectName) const
 {
+    // An EMPTY name is not "no filter" here — findChild("") matches the first
+    // unnamed item in the tree, which would hand a caller a random rectangle.
+    // Callers must reject it before asking; refuse it here as well.
+    if (objectName.isEmpty())
+        return nullptr;
     for (QObject* root : m_engine->rootObjects()) {
-        if (root->objectName() == objectName)
-            if (auto* it = qobject_cast<QQuickItem*>(root)) return it;
+        if (root->objectName() == objectName) {
+            if (auto* it = qobject_cast<QQuickItem*>(root))
+                return it;
+        }
         if (auto* found = root->findChild<QQuickItem*>(objectName))
             return found;
     }
@@ -390,4 +433,103 @@ QJsonObject LanistaServer::cmdGetState() const
     return {{QStringLiteral("windows"), windows},
             // Reported as a path; it is not created until an artifact is written.
             {QStringLiteral("runDir"), m_runDir}};
+}
+
+// ── the combined reply ─────────────────────────────────────────────────────
+// Pixels of the instant the body describes. The state was read in THIS
+// event-loop turn and the grab is requested in it too, so the PNG and the JSON
+// cannot disagree about which moment they are talking about — which is the one
+// thing a screenshot taken separately can never promise.
+//
+// The app photographs its OWN scene rather than the desktop: it works with the
+// window behind others, it works headless, and an item grab renders the item
+// through the scene graph rather than cropping the framebuffer.
+//
+// "window" is synchronous (grabWindow returns a QImage). An objectName is
+// ASYNC: grabToImage answers on a later frame, so the token is carried into
+// the callback and the connection stays open until it fires.
+void LanistaServer::attachGrab(const QJsonObject& payload, QJsonObject body, Replier reply)
+{
+    const QString target = payload.value(QStringLiteral("grab")).toObject()
+                               .value(QStringLiteral("target")).toString();
+    // Stamped now, not at save time: it names the instant the body describes,
+    // and for an async item grab those are two different turns.
+    const QString stamp = QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
+    const QString file = QStringLiteral("/seq%1-%2.png")
+                             .arg(reply.seq()).arg(++m_grabCounter);
+
+    if (target.isEmpty()) {
+        reply.fail("GRAB_TARGET_NOT_FOUND",
+                   QStringLiteral("grab needs a target: an objectName, or \"window\""));
+        return;
+    }
+
+    if (target == QStringLiteral("window")) {
+        QQuickWindow* w = mainWindow();
+        if (!w) {
+            reply.fail("GRAB_TARGET_NOT_FOUND",
+                       QStringLiteral("no root QQuickWindow to grab"));
+            return;
+        }
+        const QImage img = w->grabWindow();
+        if (img.isNull()) {
+            reply.fail("GRAB_NOT_RENDERABLE",
+                       QStringLiteral("window grab came back empty (never rendered?)"));
+            return;
+        }
+        // runDir() is a path; this is the call that actually makes the folder.
+        const QString path = ensureRunDir() + file;
+        if (!img.save(path)) {
+            reply.fail("GRAB_SAVE_FAILED", path);
+            return;
+        }
+        body.insert(QStringLiteral("grabPath"), path);
+        body.insert(QStringLiteral("grabbedAt"), stamp);
+        reply.reply(std::move(body));
+        return;
+    }
+
+    QQuickItem* item = findItem(target);
+    if (!item) {
+        reply.fail("GRAB_TARGET_NOT_FOUND", target);
+        return;
+    }
+    QSharedPointer<QQuickItemGrabResult> grab = item->grabToImage();
+    if (grab.isNull()) {
+        reply.fail("GRAB_NOT_RENDERABLE",
+                   target + QStringLiteral(": item is not in a rendering window, "
+                                           "or has no size"));
+        return;
+    }
+    const QString path = ensureRunDir() + file;
+
+    // THE GRAB'S OWN DEADLINE. The idle timeout does NOT cover this: the
+    // connection is `spent` the moment its line was taken, so nothing on the
+    // server side would ever hang up on a handler that goes quiet. If `ready`
+    // never fires — item destroyed mid-grab, window torn down, render loop
+    // stopped — this connection and its m_conns entry would leak for the life
+    // of an always-on app. Whichever path wins, the token's `sent` latch makes
+    // the other a no-op, so the race is safe in both directions.
+    QTimer::singleShot(kGrabTimeoutMs, this, [reply, target]() mutable {
+        reply.fail("GRAB_TIMEOUT",
+                   target + QStringLiteral(": no frame within %1 ms").arg(kGrabTimeoutMs));
+    });
+
+    // SingleShotConnection breaks a real cycle: the functor holds the only
+    // reference to the grab result, and the connection lives on that same
+    // result — without the automatic disconnect neither is ever freed and every
+    // grab leaks its image.
+    connect(grab.data(), &QQuickItemGrabResult::ready, this,
+            [grab, reply, body, path, stamp]() mutable {
+                if (!reply.canReply())
+                    return;   // already timed out, or the client walked away
+                if (!grab->saveToFile(path)) {
+                    reply.fail("GRAB_SAVE_FAILED", path);
+                    return;
+                }
+                body.insert(QStringLiteral("grabPath"), path);
+                body.insert(QStringLiteral("grabbedAt"), stamp);
+                reply.reply(std::move(body));
+            },
+            Qt::SingleShotConnection);
 }

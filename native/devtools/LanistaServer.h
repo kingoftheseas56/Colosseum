@@ -25,6 +25,13 @@
 // SAME event-loop turn, so they can never disagree about which instant they
 // describe. Grabs are async (grabToImage callback); the socket stays open
 // until the callback replies. Schema: colosseum.dev.v1.
+//
+// Grab error codes (an agent branches on these, so each one means one thing):
+//   GRAB_TARGET_NOT_FOUND — no target given, or no such objectName in the scene
+//   GRAB_NOT_RENDERABLE   — the target exists but has no pixels to give (not in
+//                           a window, zero-sized, or the window never rendered)
+//   GRAB_SAVE_FAILED      — pixels taken, PNG could not be written
+//   GRAB_TIMEOUT          — grabToImage's callback never fired (see attachGrab)
 #include <QHash>
 #include <QJsonObject>
 #include <QObject>
@@ -94,14 +101,30 @@ public:
         // False once answered, or once the client has gone away.
         bool canReply() const;
 
+        // The request's seq — handlers name their artifacts after it.
+        int seq() const;
+
         void reply(QJsonObject body);
         void fail(const char* code, const QString& message);
 
     private:
+        friend class LanistaServer;
+
+        // THE COMBINED REPLY's seam. dispatch() installs this hook when the
+        // request carries "grab", so a handler's reply() detours through
+        // attachGrab() on its way to the wire: every command gains pixels and
+        // NO handler has to know grabs exist. The hook is TAKEN (not copied) on
+        // the way through, so it fires exactly once and the token handed to it
+        // answers the wire directly. fail() ignores it — an error carries no
+        // pixels, and a refused command must not photograph anything.
+        using ReplyHook = std::function<void(QJsonObject body, Replier onward)>;
+        void setReplyHook(ReplyHook hook);
+
         struct State {
             QPointer<QLocalSocket> sock;
             int seq = -1;
             bool sent = false;
+            ReplyHook hook;
         };
         void send(QJsonObject line);
         QSharedPointer<State> m_state;
@@ -139,8 +162,9 @@ private:
     // Task 1
     QJsonObject cmdPing() const;
     QJsonObject cmdGetState() const;
-    // Task 2
-    bool attachGrab(const QJsonObject& payload, QJsonObject body, Replier reply);
+    // Task 2 — never called directly: dispatch() installs it as the Replier's
+    // hook, and it answers `reply` on every path (including its own deadline).
+    void attachGrab(const QJsonObject& payload, QJsonObject body, Replier reply);
     // Task 3
     QJsonObject cmdQmlGet(const QJsonObject& p) const;
     QJsonObject cmdDumpUi(const QJsonObject& p) const;
