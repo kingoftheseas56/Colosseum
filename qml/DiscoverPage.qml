@@ -15,12 +15,17 @@
 // always did.
 import QtQuick
 import "DiscoverApi.js" as Api
+import "ExplicitContentPolicy.js" as Policy
 
 Item {
     id: disco
 
     signal itemOpenRequested(var item)      // a click / Enter on a poster opens the detail page
     property var pin: null                   // an optional See-all pin (surface compat)
+    // Task 9: Theatre inherits the global Explicit Content preference from WorldPage
+    // (Main.qml binds it). Sexually-explicit ONLY — Berserk/GoT/Ecchi/Mature/TV-MA stay
+    // visible; only Policy.visible (EXPLICIT_TAGS = sexually-explicit) gates here.
+    property bool showExplicitContent: false
 
     // ── the Theatre adapter: DiscoverApi.js -> the shell's shared contract ──
     // Construction MUST stay safe with NO Extensions context property (the page harness
@@ -50,11 +55,19 @@ Item {
             var selections = Api.selectionsForFilter(cat, state.filterGroup, state.filterKey)
             var skip = cursor || 0
             Api.loadPage(cat, selections, skip, function(metas) {
+                // Task 9: apply the global Explicit Content preference. Policy.visible
+                // gates ONLY sexually-explicit items (behaviorHints.adult); mainstream
+                // adult works (TV-MA, R, Mature Readers, horror, romance) always pass.
+                var visible = []
+                for (var i = 0; i < metas.length; i++) {
+                    if (Policy.visible("theatre", metas[i], disco.showExplicitContent))
+                        visible.push(metas[i])
+                }
                 var items = []
-                for (var i = 0; i < metas.length; i++) items.push(Api.normalizeMeta(metas[i], cat.type))
-                var next = metas.length ? (skip + metas.length) : null
+                for (var j = 0; j < visible.length; j++) items.push(Api.normalizeMeta(visible[j], cat.type))
+                var next = visible.length ? (skip + visible.length) : null
                 done(generation, { items: items, nextCursor: next,
-                                   exhausted: metas.length === 0, freshness: "", warning: "" })
+                                   exhausted: visible.length === 0, freshness: "", warning: "" })
             })
         }
     }

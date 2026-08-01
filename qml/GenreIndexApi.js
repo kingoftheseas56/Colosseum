@@ -14,7 +14,11 @@ var JIKAN = "https://api.jikan.moe/v4";
 var GENRES = ["Action","Adventure","Avant Garde","Award Winning","Boys Love","Comedy","Drama","Fantasy",
               "Girls Love","Gourmet","Horror","Mystery","Romance","Sci-Fi","Slice of Life","Sports",
               "Supernatural","Suspense"];
-var EXPLICIT = ["Ecchi","Erotica","Hentai"];
+// Task 9 (2026-08-02): Ecchi is an ordinary VISIBLE genre, not explicit — only Erotica
+// and Hentai gate the Explicit Genres section. Berserk/GoT/Mature Readers/horror/violent/
+// R/NC-17/TV-MA/romance/adult fiction stay visible regardless of this list (the gate is
+// sexually-explicit ONLY; see ExplicitContentPolicy.js).
+var EXPLICIT = ["Erotica","Hentai"];
 var DEMOGRAPHICS = ["Shounen","Shoujo","Seinen","Josei","Kids"];
 
 // baked representative cover per genre (de-duplicated so each genre shows its OWN art).

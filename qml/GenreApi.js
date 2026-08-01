@@ -166,7 +166,12 @@ function kitsuGenre(name, sort, push) {
 // `catalog` is the MalCatalog context object, PASSED IN from the page — this file
 // is a `.pragma library` and cannot see context properties by name (the 2026-07-18
 // bug: the baked catalog never rendered because `MalCatalog` was undefined here).
-function loadGenre(name, sort, push, catalog) {
+// Task 9 (2026-08-02): `showExplicit` threads the global Explicit Content preference into
+// the live Jikan rung (sfw derives from it). The baked-catalog rung is the MalCatalog
+// context object's own dump (already gated at harvest time per the same policy), so it
+// needs no per-call filter here. Sexually-explicit ONLY: Berserk/GoT/Ecchi/Mature/horror/
+// violent/R/NC-17/TV-MA/romance/adult fiction stay visible regardless of this flag.
+function loadGenre(name, sort, push, catalog, showExplicit) {
     // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
     // instantly, offline, in Jikan's own row shape — toCard consumes it
     // unchanged. Missing/empty catalog falls through to the live ladder below.
@@ -185,7 +190,8 @@ function loadGenre(name, sort, push, catalog) {
     var id = idFor(name);
     if (!id) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
     var order = (sort === "score") ? "score&sort=desc" : "popularity&sort=asc";   // popularity asc = MAL "by members"
-    var url = JIKAN + "/manga?genres=" + id + "&order_by=" + order + "&limit=24&sfw=true";
+    var sfw = showExplicit ? "false" : "true";     // Task 9: derive sfw from the global preference
+    var url = JIKAN + "/manga?genres=" + id + "&order_by=" + order + "&limit=24&sfw=" + sfw;
     requestJson(url, function(j) {
         if (!j || !j.data || !j.data.length) { kitsuGenre(name, sort, push); return; }
         var cards = j.data.map(toCard);

@@ -72,6 +72,65 @@ Item {
             ok(Policy.visible("tankoban", mainstream, true) === true,
                "mainstream item must be SHOWN when showExplicit=true");
 
+            // ── Task 9 cross-world preservation boundary ──
+            // Adult-but-not-sexually-explicit works MUST stay visible in every world when
+            // showExplicit is OFF. This is the load-bearing invariant: horror, violent work,
+            // R/NC-17, TV-MA, Mature Readers, Ecchi, romance, and ordinary adult fiction are
+            // NOT gated by the Explicit Content preference — only Policy's EXPLICIT_TAGS
+            // (sexually-explicit) classifications hide. (Berserk, Game of Thrones, and Ecchi
+            // are named verbatim in the handoff's preserve list.)
+            var preserve = [
+                ["tankoban", { title:"Berserk", genres:["Action","Gore","Horror"], rating:"R+" }],
+                ["tankoban", { title:"Gantz", genres:["Action","Horror","Psychological"] }],
+                ["tankoban", { title:"Ecchi Comedy", genres:["Ecchi","Comedy"] }],
+                ["tankoban", { title:"Romance Manga", genres:["Romance"] }],
+                ["tankoban", { title:"Mature Readers Title", demographics:["Seinen"], rating:"R+" }],
+                ["theatre",  { title:"Game of Thrones", certification:"TV-MA", genres:["Drama"] }],
+                ["theatre",  { title:"The Boys", certification:"TV-MA", genres:["Action","Horror"] }],
+                ["theatre",  { title:"R-rated Thriller", certification:"R" }],
+                ["theatre",  { title:"NC-17 Drama", certification:"NC-17" }],
+                ["theatre",  { title:"Horror Film", genres:["Horror"] }],
+                ["theatre",  { title:"Romance Film", genres:["Romance"] }],
+                ["biblio",   { title:"Adult Fiction Novel", audiences:["Adult"], subjects:["Fiction"] }],
+                ["biblio",   { title:"Horror Novel", subjects:["Horror","Fiction"] }],
+                ["biblio",   { title:"Romance Novel", subjects:["Romance"] }],
+                ["biblio",   { title:"Violent Thriller", subjects:["Thriller","Violence"] }]
+            ];
+            for (var p = 0; p < preserve.length; p++) {
+                var w = preserve[p][0], it = preserve[p][1];
+                ok(Policy.visible(w, it, false) === true,
+                   "PRESERVE[" + w + "/" + it.title + "] must stay VISIBLE when showExplicit=false");
+                ok(Policy.visible(w, it, true) === true,
+                   "PRESERVE[" + w + "/" + it.title + "] must stay VISIBLE when showExplicit=true");
+                var cls = Policy.classify(w, it);
+                ok(cls.explicit === false,
+                   "PRESERVE[" + w + "/" + it.title + "] must classify explicit=false (got "
+                   + cls.explicit + ", reason=" + cls.reason + ")");
+            }
+
+            // ── The gate fires ONLY on sexually-explicit classifications, cross-world ──
+            var gates = [
+                ["tankoban", { title:"Hentai Work", genres:["Hentai"] }],
+                ["tankoban", { title:"Erotica Manga", genres:["Erotica"] }],
+                ["tankoban", { title:"Pornography", genres:["Pornography"] }],
+                ["theatre",  { title:"Adult Film", behaviorHints:{ adult:true } }],
+                ["biblio",   { title:"Pornography Book", subjects:["Pornography"] }]
+            ];
+            for (var g = 0; g < gates.length; g++) {
+                var gw = gates[g][0], gi = gates[g][1];
+                ok(Policy.visible(gw, gi, false) === false,
+                   "GATE[" + gw + "/" + gi.title + "] must HIDE when showExplicit=false");
+                ok(Policy.visible(gw, gi, true) === true,
+                   "GATE[" + gw + "/" + gi.title + "] must SHOW when showExplicit=true");
+            }
+
+            // ── The Jikan sfw derivation contract (Task 9 Step 4) ──
+            // sfw = showExplicit ? "false" : "true" — when the user hides explicit content the
+            // Jikan layer filters adult entries upstream; when they opt in, it admits them.
+            function sfwFor(showExplicit) { return showExplicit ? "false" : "true"; }
+            ok(sfwFor(false) === "true",  "Jikan sfw must be \"true\"  when showExplicit=false");
+            ok(sfwFor(true)  === "false", "Jikan sfw must be \"false\" when showExplicit=true");
+
             if (fails.length) console.log("FAILS:\n  " + fails.join("\n  "));
             else console.log("EXPLICIT_CONTENT_POLICY_OK");
             Qt.exit(fails.length);

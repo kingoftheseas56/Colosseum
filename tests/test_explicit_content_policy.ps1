@@ -10,6 +10,20 @@ if (!(Test-Path -LiteralPath $qmlExe)) { throw "qml.exe not found at $qmlExe" }
 $env:QT_FORCE_STDERR_LOGGING = "1"
 $harness = Join-Path $root "tests\explicit_content_policy_harness.qml"
 $qmlInc  = Join-Path $root "qml"
+
+# Task 9 static guard: the harness MUST carry the cross-world preserve-boundary (Berserk,
+# Game of Thrones, Ecchi, Mature, R/NC-17, TV-MA, horror, romance, adult fiction stay VISIBLE)
+# and the sexually-explicit-only gate. A careless edit that drops either block fails here before
+# the harness can run. Read as UTF8 so the em-dashes in the harness comments parse cleanly.
+$src = Get-Content -LiteralPath $harness -Raw -Encoding UTF8
+# Use .Contains (not -notlike) so bracket characters in the markers aren't read as wildcards.
+foreach ($needle in @("Task 9 cross-world preservation boundary", "PRESERVE[",
+                      "sexually-explicit classifications, cross-world", "sfwFor(false) === `"true`"")) {
+    if (-not $src.Contains($needle)) {
+        throw "static guard: harness missing Task 9 marker '$needle'"
+    }
+}
+
 $output  = cmd /c "`"$qmlExe`" -platform offscreen -I `"$qmlInc`" `"$harness`" 2>&1" | Out-String
 $code    = $LASTEXITCODE
 

@@ -16,6 +16,10 @@ Item {
     // shell contract (mirrors GenrePage / the world-page layers)
     property Item backdrop: null
     property bool includeExplicit: true          // locked in (the mature group stays, softened)
+    // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
+    // Drives the "Explicit Genres" section's visibility — Erotica/Hentai tiles hide when the
+    // preference is off. Ecchi/Mature stay in their ordinary sections (visible either way).
+    property bool showExplicitContent: false
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -40,9 +44,14 @@ Item {
     }
     function reload() {
         root.loading = true;
-        Api.loadMangaGroups(root.includeExplicit, function(g) { if (g) root.groups = g; root.loading = false; });
+        // Task 9: the explicit section (Erotica/Hentai only) shows only when the host allows it
+        // AND the user has opted in via the global preference. Every ordinary genre — including
+        // Ecchi, Mature Readers, horror, violent work — stays visible in its own section either way.
+        var showExplicitSection = root.includeExplicit && root.showExplicitContent;
+        Api.loadMangaGroups(showExplicitSection, function(g) { if (g) root.groups = g; root.loading = false; });
     }
     Component.onCompleted: reload()
+    onShowExplicitContentChanged: reload()
 
     // ---- the page's own wallpaper (it's a layer over the shell) ----
     Item {

@@ -261,6 +261,10 @@ Window {
             TheatreApi.setExtensions(Extensions.installed())
             Subtitles.setExtensions(Extensions.installed())
         }
+        // Task 9: push the global Explicit Content preference into TheatreApi so the boot-time
+        // marquee rows (loadTheatre/loadHome, airing-anime top-10) honour it. Sexually-explicit
+        // ONLY — Berserk/GoT/Ecchi/Mature/TV-MA stay visible; only EXPLICIT_TAGS gate.
+        TheatreApi.setShowExplicit(contentPreferences.showExplicit)
         // dev harness (COLOSSEUM_OPEN_EXTENSIONS=1): boot straight into the store,
         // so smoke runs exercise the Loader (QML errors only surface on activation)
         if (typeof DevOpenExtensions !== "undefined" && DevOpenExtensions)
@@ -2085,6 +2089,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.genreName = genreLayer.genreName
+            item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2106,6 +2111,7 @@ Window {
         source: "GenreIndex.qml"
         onLoaded: {
             item.backdrop = wall
+            item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2126,6 +2132,7 @@ Window {
         source: "BiblioGenreIndex.qml"
         onLoaded: {
             item.backdrop = wall
+            item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeBiblioGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2146,6 +2153,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.genreName = biblioGenreLayer.genreName
+            item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeBiblioGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2171,6 +2179,7 @@ Window {
             item.backdrop = wall
             item.mediaKind = theatreGenreLayer.mediaKind
             item.genreName = theatreGenreLayer.genreName
+            item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeTheatreGenre)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2194,6 +2203,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.mediaKind = theatreGenreIndexLayer.mediaKind
+            item.showExplicitContent = Qt.binding(function() { return contentPreferences.showExplicit })
             item.backRequested.connect(win.closeTheatreGenreIndex)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -2643,6 +2653,15 @@ Window {
             Subtitles.setExtensions(Extensions.installed())
             win.installedExtensions = Extensions.installed()
         }
+    }
+
+    // Task 9: re-push the global Explicit Content preference into TheatreApi whenever it
+    // changes, so the boot-time marquee rows that read the module flag (not a Qt.binding)
+    // pick up the new value on their next fetch. The page-bound properties re-evaluate on
+    // their own (Qt.binding); this covers the .pragma-library side.
+    Connections {
+        target: contentPreferences
+        function onChanged() { TheatreApi.setShowExplicit(contentPreferences.showExplicit) }
     }
 
     // ---- Universes: the ONE extension-driven page + the Hall of Worlds ----

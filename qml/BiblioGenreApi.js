@@ -5,6 +5,7 @@
 // Source: Apple Books RSS top ebooks by genre, keyless/no-login, same mzstatic cover infra as BiblioApi.
 .pragma library
 .import "BiblioApi.js" as BiblioApi
+.import "ExplicitContentPolicy.js" as Policy
 
 var COUNTRY = "us";
 var FEED = "https://itunes.apple.com/" + COUNTRY + "/rss/topebooks/limit=100/genre=";
@@ -138,13 +139,19 @@ function toCard(entry, i, genreName) {
     };
 }
 
-function loadGenre(name, sort, push) {
+// Task 9: `showExplicit` carries the global Explicit Content preference. Apple Books
+// RSS is a commercial storefront (store policy already excludes sexually-explicit
+// material), so this is defense-in-depth — Policy.visible gates ONLY sexually-explicit
+// classifications; mainstream adult fiction (horror, romance, "Adult" audiences) stays
+// visible regardless of the setting.
+function loadGenre(name, sort, push, showExplicit) {
     var id = idFor(name);
     if (!id) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
     requestJson(FEED + id + "/json", function(j) {
         var entries = entriesOf(j);
         if (entries.length === 0) { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); return; }
-        var cards = entries.map(function(e, i) { return toCard(e, i, name); });
+        var visible = entries.filter(function(e) { return Policy.visible("biblio", e, showExplicit); });
+        var cards = visible.map(function(e, i) { return toCard(e, i, name); });
         var montage = cards.slice(0, 7).map(function(c) { return c.cover; }).filter(function(u) { return u; });
         push({ count: cards.length, desc: descFor(name), cards: cards, montage: montage });
     });

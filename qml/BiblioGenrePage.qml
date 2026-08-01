@@ -19,6 +19,10 @@ Item {
     property string genreName: "Sci-Fi & Fantasy"
     property string sortMode: "readers"          // Apple chart order = popularity/readers
     property bool compact: false                  // view toggle: false = detailed cards, true = covers
+    // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
+    // Apple Books RSS is a commercial storefront (store policy excludes sexually-explicit
+    // material), so this is defense-in-depth; mainstream adult fiction stays visible.
+    property bool showExplicitContent: false
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -37,11 +41,12 @@ Item {
         Api.loadGenre(root.genreName, root.sortMode, function(p) {
             if (p) root.genreData = p
             root.loading = false
-        })
+        }, root.showExplicitContent)
     }
     Component.onCompleted: reload()
     onGenreNameChanged: reload()
     onSortModeChanged: reload()
+    onShowExplicitContentChanged: reload()
 
     // ---- the page's own wallpaper (it's a layer floating over the shell) ----
     Item {

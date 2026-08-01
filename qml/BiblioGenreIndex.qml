@@ -14,6 +14,10 @@ Item {
     // shell contract (mirrors GenrePage / the world-page layers)
     property Item backdrop: null
     property bool includeExplicit: true          // kept for shell-contract parity (unused: books have no explicit group)
+    // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
+    // Books have no explicit group — this is present for shell-contract parity so Main.qml can
+    // bind the preference uniformly across every genre layer; it gates nothing here.
+    property bool showExplicitContent: false
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()

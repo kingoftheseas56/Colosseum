@@ -212,6 +212,8 @@ WorldPage {
         visible: theatre.activeTab === "discover"
         width: parent.width
         height: visible ? Math.max(620, theatre.height - 200) : 0
+        // Task 9: inherit the global Explicit Content preference (Main.qml binds it on this world).
+        showExplicitContent: theatre.showExplicitContent
         onItemOpenRequested: (item) => theatre.theatreItemRequested(
             theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
     }

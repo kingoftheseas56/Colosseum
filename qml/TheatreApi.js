@@ -45,6 +45,14 @@ function setExtensions(list) {
     extensionsList = list || [];
 }
 
+// Task 9: global Explicit Content preference. The page-load paths already thread
+// options.showExplicit + explicitFilter; the boot-time marquee rows (loadTheatre /
+// loadHome) and the airing-anime top-10 row don't take an options object, so they
+// read this module-level flag instead. Set by Main.qml at boot + on preference
+// change. Sexually-explicit ONLY — Berserk/GoT/Ecchi/Mature/TV-MA stay visible.
+var showExplicitFlag = false;
+function setShowExplicit(v) { showExplicitFlag = v === true; }
+
 var palette = [
     ["#5d4633", "#18110c"],
     ["#4c2f2a", "#160d0b"],
@@ -154,8 +162,10 @@ function cinemetaCatalog(type, genre, done) {
 function jikanQuery(path, params, done) {
     var qs = [];
     params = params || {};
+    // Task 9: when no caller pins sfw, derive it from the global preference. sfw=true
+    // (the prior default) keeps explicit entries out; sfw=false admits them.
     if (params.sfw === undefined)
-        params.sfw = "true";
+        params.sfw = showExplicitFlag ? "false" : "true";
     for (var key in params)
         qs.push(encodeURIComponent(key) + "=" + encodeURIComponent(params[key]));
     requestJsonCached(JIKAN + path + (qs.length ? "?" + qs.join("&") : ""), JIKAN_CACHE_TTL_MS, function(json) {

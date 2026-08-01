@@ -27,7 +27,9 @@ var ANIME_SIBLINGS = ["Action", "Adventure", "Comedy", "Drama", "Fantasy", "Horr
 var ANIME_GENRES = ["Action", "Adventure", "Avant Garde", "Award Winning", "Boys Love", "Comedy",
                     "Drama", "Fantasy", "Girls Love", "Gourmet", "Horror", "Mystery", "Romance",
                     "Sci-Fi", "Slice of Life", "Sports", "Supernatural", "Suspense"];
-var ANIME_EXPLICIT = ["Ecchi", "Erotica", "Hentai"];
+// Task 9 (2026-08-02): Ecchi stays an ordinary visible anime genre; only Erotica and
+// Hentai gate the Explicit Genres section (sexually-explicit ONLY).
+var ANIME_EXPLICIT = ["Erotica", "Hentai"];
 var ANIME_DEMOGRAPHICS = ["Shounen", "Shoujo", "Seinen", "Josei", "Kids"];
 
 // editorial standfirst per genre — the hero's "what this genre IS" line, film-flavored.
@@ -173,9 +175,16 @@ function anilistToCard(m, i) {
     };
 }
 
-function loadAnimeGenreFromAniList(name, sort, knownCount, push) {
+function loadAnimeGenreFromAniList(name, sort, knownCount, push, showExplicit) {
+    // Task 9: AniList's `isAdult` filter marks sexually-explicit anime (its own docs:
+    // "isAdult | boolean | Whether the entry is an adult (Hentai) release"). It is a
+    // sexually-explicit signal, NOT a rating/demographic — Ecchi/Mature Readers/TV-MA
+    // are NOT adult here and stay visible. When the preference hides explicit content
+    // we keep the isAdult:false filter (the prior default); when it shows explicit
+    // content we drop the filter so adult entries are returned alongside the rest.
+    var adultClause = showExplicit ? "" : ",isAdult:false";
     var query = "query($g:String){Page(perPage:24){pageInfo{total}"
-        + " media(genre:$g,type:ANIME,sort:" + anilistSort(sort) + ",isAdult:false){"
+        + " media(genre:$g,type:ANIME,sort:" + anilistSort(sort) + adultClause + "){"
         + "idMal id title{english romaji} coverImage{large} format seasonYear"
         + " startDate{year} episodes status averageScore popularity"
         + " studios(isMain:true){nodes{name}} genres description}}}";
@@ -214,7 +223,7 @@ function cinemetaToCard(kind, meta, i) {
 // `catalog` is the MalCatalog context object, PASSED IN from the page — this file
 // is a `.pragma library` and cannot see context properties by name (the 2026-07-18
 // bug: the baked catalog never rendered because `MalCatalog` was undefined here).
-function loadGenre(kind, name, sort, push, catalog) {
+function loadGenre(kind, name, sort, push, catalog, showExplicit) {
     function fail() { push({ count: 0, desc: descFor(name), cards: [], montage: [] }); }
     if (kind === "anime") {
         // BAKED CATALOG FIRST (revival 2026-07-18): the weekly MAL dump answers
@@ -236,14 +245,18 @@ function loadGenre(kind, name, sort, push, catalog) {
             var g = animeGenreEntry(name);
             // No genre id (Jikan /genres/anime down, or a name Jikan doesn't list)
             // → AniList by genre name directly.
-            if (!g) { loadAnimeGenreFromAniList(name, sort, 0, push); return; }
+            if (!g) { loadAnimeGenreFromAniList(name, sort, 0, push, showExplicit); return; }
             var order = (sort === "score") ? "score&sort=desc" : "popularity&sort=asc";
-            var url = JIKAN + "/anime?genres=" + g.mal_id + "&order_by=" + order + "&limit=24&sfw=true";
+            // Task 9: sfw derives from the global Explicit Content preference. When the
+            // preference hides explicit content, sfw=true keeps the prior default; when
+            // it shows explicit content, sfw=false returns adult entries too.
+            var sfw = showExplicit ? "false" : "true";
+            var url = JIKAN + "/anime?genres=" + g.mal_id + "&order_by=" + order + "&limit=24&sfw=" + sfw;
             requestJson(url, function(j) {
                 // Jikan's filter endpoint 504s far more than its cached routes; on
                 // any empty/failed response, fall to AniList (keeping Jikan's count).
                 if (!j || !j.data || !j.data.length) {
-                    loadAnimeGenreFromAniList(name, sort, g.count, push);
+                    loadAnimeGenreFromAniList(name, sort, g.count, push, showExplicit);
                     return;
                 }
                 var cards = j.data.map(animeToCard);
@@ -292,7 +305,10 @@ function groupSub(name) {
 function loadGroups(kind, includeExplicit, done) {
     if (kind === "anime") {
         ensureAnimeGenres(function(list) {
-            requestJson(JIKAN + "/top/anime?limit=25&sfw=true", function(top) {
+            // Task 9: the cover pool is decorative (cycled poster art); derive sfw from
+            // includeExplicit so the tiles match the genre selection the user sees.
+            var sfw = includeExplicit ? "false" : "true";
+            requestJson(JIKAN + "/top/anime?limit=25&sfw=" + sfw, function(top) {
                 var pool = (top && top.data ? top.data : []).map(function(m) {
                     return (m.images && m.images.jpg && (m.images.jpg.large_image_url || m.images.jpg.image_url)) || "";
                 }).filter(function(u) { return u; });

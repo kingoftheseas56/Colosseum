@@ -19,6 +19,10 @@ Item {
     property string mediaKind: "movie"           // "movie" | "series" | "anime"
     property string sortMode: "readers"          // "readers" (MAL members) | "score"
     property bool compact: false                  // view toggle: false = detailed cards, true = covers
+    // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
+    // Sexually-explicit ONLY — TV-MA (Game of Thrones), R, Mature Readers stay visible; only
+    // Policy's EXPLICIT_TAGS (Hentai/Erotica/pornography/adult film) gate when off.
+    property bool showExplicitContent: false
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -39,12 +43,13 @@ Item {
         Api.loadGenre(root.mediaKind, root.genreName, root.sortMode, function(p) {
             if (p) root.genreData = p
             root.loading = false
-        }, typeof MalCatalog !== "undefined" ? MalCatalog : null)
+        }, typeof MalCatalog !== "undefined" ? MalCatalog : null, root.showExplicitContent)
     }
     Component.onCompleted: reload()
     onGenreNameChanged: reload()
     onSortModeChanged: reload()
     onMediaKindChanged: reload()
+    onShowExplicitContentChanged: reload()
 
     // ---- the page's own wallpaper (it's a layer floating over the shell) ----
     Item {

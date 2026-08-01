@@ -14,6 +14,9 @@ Item {
     property Item backdrop: null
     property bool includeExplicit: true          // locked in (the mature group stays, softened)
     property string mediaKind: "movie"           // "movie" | "series" | "anime"
+    // Task 9: global Explicit Content preference (Main.qml binds it on this standalone layer).
+    // Drives the anime "Explicit Genres" section (Erotica/Hentai); TV-MA/R/Mature stay visible.
+    property bool showExplicitContent: false
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -38,10 +41,14 @@ Item {
     }
     function reload() {
         root.loading = true;
-        Api.loadGroups(root.mediaKind, root.includeExplicit, function(g) { if (g) root.groups = g; root.loading = false; });
+        // Task 9: the explicit section (Erotica/Hentai only) shows only when the host allows it
+        // AND the user opted in. TV-MA/R/Mature/horror/romance stay in ordinary sections either way.
+        var showExplicitSection = root.includeExplicit && root.showExplicitContent;
+        Api.loadGroups(root.mediaKind, showExplicitSection, function(g) { if (g) root.groups = g; root.loading = false; });
     }
     Component.onCompleted: reload()
     onMediaKindChanged: reload()
+    onShowExplicitContentChanged: reload()
 
     // ---- the page's own wallpaper (it's a layer over the shell) ----
     Item {
