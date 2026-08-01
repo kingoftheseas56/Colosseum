@@ -119,6 +119,9 @@ add_executable(colosseum
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp
     engine/ExtensionsStore.h
+    # ── VidKing hosted player (plan 2026-08-02): the least-privilege WebChannel bridge ──
+    hostedplayer/HostedPlayerBridge.cpp
+    hostedplayer/HostedPlayerBridge.h
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
@@ -1152,3 +1155,15 @@ add_executable(download_file_ops_harness
 )
 target_include_directories(download_file_ops_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(download_file_ops_harness PRIVATE Qt6::Core)
+
+# ── VidKing hosted player (plan 2026-08-02, Task 5): the least-privilege WebChannel
+#    bridge in isolation. Pure Qt6::Core — the bridge does JSON parse + bounds
+#    validation only, no WebEngine, so its security contract is provable headless.
+#    HostedPlayerBridge.h carries Q_OBJECT → AUTOMOC (enabled project-wide above). ──
+add_executable(hosted_player_bridge_harness
+    ../tests/hosted_player_bridge_harness.cpp
+    hostedplayer/HostedPlayerBridge.cpp
+    hostedplayer/HostedPlayerBridge.h
+)
+target_include_directories(hosted_player_bridge_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(hosted_player_bridge_harness PRIVATE Qt6::Core)

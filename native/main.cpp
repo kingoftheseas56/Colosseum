@@ -63,6 +63,7 @@
 #include "reader2/Reader2Bridge.h"
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
+#include "hostedplayer/HostedPlayerBridge.h"
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
@@ -918,6 +919,12 @@ int main(int argc, char *argv[]) {
     // Shares the plain uncached NAM — manifests are small JSON, never cache-served.
     auto *extensions = new ExtensionsStore(dlNam, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("Extensions"), extensions);
+
+    // Least-privilege bridge for hosted playback (VidKing). HostedPlayerPage registers
+    // ONLY this object on its QWebChannel, so the hosted iframe can reach nothing else.
+    // It exposes one invokable (postPlayerEvent) and one signal (playerEvent).
+    auto *hostedPlayerBridge = new HostedPlayerBridge(&app);
+    engine.rootContext()->setContextProperty(QStringLiteral("HostedPlayerBridge"), hostedPlayerBridge);
     // dev harness: COLOSSEUM_OPEN_EXTENSIONS=1 boots straight into the store, so
     // smoke runs exercise the page Loader (QML errors only surface on activation).
     engine.rootContext()->setContextProperty(
