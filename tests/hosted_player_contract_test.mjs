@@ -101,5 +101,38 @@ has(seriesSrc, /"tmdbId": context\.tmdbId/, 'the request carries the tmdbId');
 has(seriesSrc, /page\.hostedPlayerRequested\(request\)/,
     'the typed request is emitted upward, not through playRequested');
 
+// ============================ Task 6 — the restricted player surface ============
+const pageSrc = read('qml/HostedPlayerPage.qml');
+
+console.log('HostedPlayerPage is a locked, off-the-record WebEngine surface');
+has(pageSrc, /import QtWebEngine/, 'imports QtWebEngine');
+has(pageSrc, /import QtWebChannel/, 'imports QtWebChannel');
+has(pageSrc, /WebEngineProfile\s*\{/, 'declares a dedicated WebEngineProfile');
+has(pageSrc, /offTheRecord:\s*true/, 'the profile is off-the-record');
+has(pageSrc, /NoPersistentCookies/, 'the profile keeps no persistent cookies');
+has(pageSrc, /registerObject\(\s*["']hostedPlayerBridge["']\s*,\s*HostedPlayerBridge\s*\)/,
+    'registers ONLY the least-privilege HostedPlayerBridge on the channel');
+has(pageSrc, /qrc:\/hostedplayer\/host\.html/, 'loads only the local wrapper page');
+
+console.log('the surface refuses popups, navigation, downloads, permissions, clipboard');
+has(pageSrc, /onNewWindowRequested/, 'rejects new-window/popups');
+has(pageSrc, /onNavigationRequested/, 'gates top-level navigation');
+has(pageSrc, /onDownloadRequested/, 'rejects downloads');
+has(pageSrc, /\.cancel\(\)/, 'a download request is cancelled');
+has(pageSrc, /onPermissionRequested/, 'rejects permission requests');
+has(pageSrc, /\.deny\(\)/, 'a permission request is denied');
+has(pageSrc, /javascriptCanAccessClipboard:\s*false/, 'clipboard read is pinned off');
+has(pageSrc, /javascriptCanPaste:\s*false/, 'clipboard paste is pinned off');
+
+console.log('the surface exposes the six lifecycle methods and writes Progress honestly');
+for (const fn of ['open', 'captureState', 'restoreState', 'suspendForMinimize', 'resumeFromMinimize', 'stop'])
+  has(pageSrc, new RegExp('function\\s+' + fn + '\\s*\\('), `exposes ${fn}()`);
+has(pageSrc, /HostedPlayerApi\.embedUrl\(/, 'validates + builds the embed URL through the trusted registry');
+has(pageSrc, /Progress\.recordSilent\(/, 'writes the 5s heartbeat silently');
+has(pageSrc, /Progress\.record\(/, 'writes lifecycle progress with a notify');
+has(pageSrc, /"hostedPlayerId":/, 'the resume payload marks the hosted provider');
+has(pageSrc, /signal backRequested\(\)/, 'exposes backRequested');
+hasnt(pageSrc, /MpvItem|Colosseum\.Player/, 'never instantiates the mpv player');
+
 if (failures) { console.log('\nFAIL — ' + failures + ' check(s) failed'); process.exit(1); }
 console.log('\nPASS — hosted player contract holds');

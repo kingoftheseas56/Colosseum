@@ -5,6 +5,7 @@ $progress = Get-Content -Raw -LiteralPath (Join-Path $root "native\ProgressStore
 $player = Get-Content -Raw -LiteralPath (Join-Path $root "qml\PlayerPage.qml")
 $main = Get-Content -Raw -LiteralPath (Join-Path $root "qml\Main.qml")
 $series = Get-Content -Raw -LiteralPath (Join-Path $root "qml\TheatreSeries.qml")
+$hosted = Get-Content -Raw -LiteralPath (Join-Path $root "qml\HostedPlayerPage.qml")
 
 function Assert-Contains($Text, $Pattern, $Message) {
     if ($Text -notmatch $Pattern) {
@@ -62,5 +63,18 @@ Assert-Contains $series '"tmdbId":\s*page\.tmdbId' `
     "Play-mode source asks must carry the TMDB id into the sheet's playback context."
 Assert-Contains $series '"imdbId":\s*page\.currentId\(\)' `
     "Play-mode source asks must carry the imdb id into the sheet's playback context."
+
+# Task 6 — hosted playback writes the same Progress payload shape as mpv, keyed by the
+# existing Colosseum video id, so Continue Watching resumes VidKing.
+Assert-Contains $hosted 'Progress\.recordSilent\(' `
+    "HostedPlayerPage must persist the 5-second heartbeat silently."
+Assert-Contains $hosted 'Progress\.record\(' `
+    "HostedPlayerPage must write lifecycle progress with a notify."
+Assert-Contains $hosted '"id":\s*(request|r)\.mediaId' `
+    "Hosted progress must be keyed by the existing Colosseum video id."
+Assert-Contains $hosted '"hostedPlayerId":\s*(request|r)\.providerId' `
+    "Hosted resume metadata must mark the provider so Continue routes back to VidKing."
+Assert-Contains $hosted '"position":\s*[a-zA-Z.]*(lastPosition|currentTime|position)' `
+    "Hosted resume must carry the last playback position in seconds."
 
 Write-Host "Theatre progress parity structure OK."
