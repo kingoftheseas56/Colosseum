@@ -33,7 +33,7 @@ Qt Quick/QML owns presentation. Native C++ owns durable state, files, catalogs, 
 |---|---|
 | Home shell | Universal Continue, handcrafted world entry surfaces, persistent per-world wallpapers, top bar, taskbar, and shared scrolling |
 | Your Collection | Durable manual library across all three worlds, separate from progress and local ownership |
-| Tankoban | Separate Manga and Comics tabs under shared world chrome |
+| Tankoban | Discover/Manga/Comics tabs under shared world chrome; Discover is offline-first and series-only |
 | Manga | Chapter reading, local downloads, Tankoban Mode, volume torrent acquisition, and complete-chapter fallback packing |
 | Western comics | Read-only SQLite catalog, GetComics acquisition, alternate torrent sources, archive ingestion, and the new custom comic reader |
 | Biblio | Apple Books discovery, LibGen and torrent acquisition, AudioBookBay matching, Reader2, and audiobook read-along |
@@ -50,6 +50,9 @@ Qt Quick/QML owns presentation. Native C++ owns durable state, files, catalogs, 
 
 ## Latest development snapshot
 
+- **Tankoban opens to a Discover tab.** Ahead of Manga and Comics, an offline-first, series-only Discover wall renders local catalogue rows immediately and refreshes from Jikan in the background. Manga lanes use the bundled MAL catalogue plus a non-blocking Jikan refresh; Comics lanes use a house ranking. See-all doors on existing shelves pin into Discover. Theatre already ships the same shared shell; Tankoban is the second implementation.
+- **Explicit Content is a global preference and means sexually explicit, not mature-rated.** A single setting in Settings drives every world's Discover, genre browse, and genre index. When it is off, only sexually explicit classifications (Hentai, Erotica, pornography, adult film) hide. Berserk (R+), Game of Thrones (TV-MA), Ecchi, Mature Readers, horror, violent work, R/NC-17 films, romance, and ordinary adult fiction stay visible in every world. The ExtensionsStore refusal to preview or install addons declaring `behaviorHints.adult` is unchanged.
+
 - **VidKing hosted playback is integrated into Theatre.** VidKing is an enabled-by-default, removable, keyless hosted-player extension that appears as the first Sources row for movies and episodes with a known Cinemeta TMDB ID. It plays through a restricted, off-the-record Qt WebEngine surface (local wrapper page + least-privilege `HostedPlayerBridge`) that rejects popups, navigation, downloads, and permissions, pins clipboard off, and destroys its page and profile on close/minimize. It participates in Continue Watching and session lifecycle, never touches mpv/torrent/download code, and shows an honest unavailable panel when VidKing has no source.
 - **Player 2 has landed on master without replacing mpv.** It is a from-scratch video path with its own demux, decode, D3D11 presentation, seek, buffered-range reporting, playback HUD, source shortcut, and download controls. `COLOSSEUM_PLAYER2_IN_APP` defaults to `OFF`, and a Player 2 build still requires `COLOSSEUM_PLAYER2=1` at boot. mpv and Player 2 cannot coexist in one process because they require different Qt graphics backends.
 - **The manga/comics reader was rebuilt from scratch.** `qml/MangaReader.qml` now delegates to the custom reader under `qml/comicreader/` and `native/comicreader/`. Existing callers keep the same boundary while the new implementation owns vsync-aware strip scrolling, page retention, resume restoration, decode-size limits, spread handling, scrub navigation, and reader chrome.
@@ -64,6 +67,15 @@ Qt Quick/QML owns presentation. Native C++ owns durable state, files, catalogs, 
 ### Tankoban
 
 Tankoban treats manga and western comics as related forms of sequential art without flattening their identities or publication structures.
+
+#### Discover
+
+Tankoban opens to a **Discover** tab ahead of Manga and Comics. Discover is offline-first and series-only: it renders local catalogue rows immediately and refreshes from Jikan in the background without blocking first paint. Cards route to the existing Manga and Comics series pages; Discover performs no acquisition of its own.
+
+- **Manga** lanes use the bundled MAL catalogue (`data/mal_catalog.db`) plus a non-blocking Jikan refresh. Canonical identity merges on stable MAL ids only — title-similarity never replaces a bundled entry.
+- **Comics** lanes use a house ranking from `ComicsCatalog`. No Comic Vine or Metron runtime dependency is introduced; discovery extensions surface their own catalogues through the extension seam, and none ship yet.
+- The shared Discover shell speaks a world-neutral adapter contract (`types/catalogs/filters/defaultCatalog/resolvePin/fetchPage`). Theatre ships the same shell; the Tankoban adapter is the second implementation.
+- See-all doors on existing Manga and Comics shelves pin into Discover with a `{type, catalogId, filterGroup, filterKey}` shape. An invalid filter clears only the filter, never the catalogue.
 
 #### Manga
 
@@ -302,6 +314,7 @@ dev.bat
 - The bespoke universe collection is archived and absent from Home.
 - Vinyl is a non-interactive coming-soon entry.
 - `data/comics_catalog.db` and `data/mal_catalog.db` are deployed artifacts; their lanes remain dormant when absent.
+- The Discover extension seam is supported (a discovery addon can declare its own catalogue), but no discovery extension ships yet. Download-source extensions remain separate from discovery.
 - Native-torrent ebooks and audiobook files are not yet fully normalized into the unified Downloads vault.
 - Anime absolute order remains progressive enhancement.
 - Seek thumbnails require ffmpeg and fall back to time-only labels when unavailable.
