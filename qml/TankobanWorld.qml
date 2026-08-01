@@ -117,6 +117,8 @@ WorldPage {
                 var rows = ComicsCatalog.shelf(spec.kind, spec.arg, 24) || []
                 return {
                     label: spec.label,
+                    kind: spec.kind,            // carried so the tab can build a Discover pin
+                    arg: spec.arg,              //   (publisher arg = stable key; stocked = own catalogue)
                     rows: rows.map(function(r) {
                         return { caption: r.title + (r.year ? " (" + r.year + ")" : ""),
                                  cover: r.cover || "", gcdId: r.gcdId, title: r.title }
@@ -235,6 +237,10 @@ WorldPage {
         active: tanko.activeTab === "manga" || tanko.activeTab === "comics"
         onLoaded: {
             if (item.collectionOpenRequested) item.collectionOpenRequested.connect(tanko.collectionOpenRequested)
+            // Task 8: a See-all pin from either browse tab routes into the in-tab Discover
+            // wall — switch to Discover and apply the pin (the adapter validates/drops a
+            // stale filter). Both tabs declare discoverPinRequested(var pin).
+            if (item.discoverPinRequested) item.discoverPinRequested.connect(tanko.openDiscoverPin)
             if (tanko.activeTab === "comics") {
                 item.comicRows   = Qt.binding(function() { return tanko.comicRows })
                 item.comicShelves = Qt.binding(function() { return tanko.comicShelves })
@@ -250,5 +256,14 @@ WorldPage {
                 item.genreIndexRequested.connect(tanko.genreIndexRequested)
             }
         }
+    }
+
+    // Task 8: route a See-all pin from a Manga/Comics shelf into the in-tab Discover wall.
+    // Switches to Discover and applies the pin; the adapter's resolvePin validates every
+    // key against the live facets and drops a stale filter while keeping the valid type/
+    // catalogue (spec 3.6). The Discover shell resets paging and scrolls to the wall start.
+    function openDiscoverPin(pin) {
+        activeTab = "discover"
+        discoverPage.applyPin(pin)
     }
 }

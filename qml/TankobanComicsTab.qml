@@ -21,6 +21,9 @@ Column {
     signal gcdSeriesRequested(var d)
     // Bubbles a tap on a Your Collection tile up to the world (comics-filtered).
     signal collectionOpenRequested(var entry)
+    // Task 8: a See-all door on a Comics shelf emits a Discover pin. The world switches to
+    // Discover and applies it. Pin shape (spec 3.6): {type,catalogId,filterGroup,filterKey}.
+    signal discoverPinRequested(var pin)
 
     ContinueRow {
         title: "Your Collection"
@@ -31,9 +34,11 @@ Column {
         onResumeRequested: function(item) { collectionOpenRequested(item) }
     }
 
+    // "Top in Tankoban — Comics" → Comics / Popular. The Explore wall retired in 2026-07-18
+    // for the OLD fetch-all model; Task 8 re-arms it as a Discover pin into the Popular
+    // comics catalogue. A tile tap still routes to the LOCG/GCD series door (unchanged).
     TrendingTop10 {
         title: "Top in Tankoban — Comics"
-        navigable: false          // the Explore wall retired 2026-07-18 — no See-all target
         items: comicsTab.comicRows.slice(0, 10)
         onItemClicked: (i) => {
             var topComics = comicsTab.comicRows.slice(0, 10)
@@ -42,20 +47,35 @@ Column {
             if (it && it.locgId) comicsTab.comicSeriesRequested({ id: it.locgId, title: it.caption, cover: it.cover })
             else comicsTab.westernRequested(it.caption)
         }
+        onExploreClicked: comicsTab.discoverPinRequested({ type: "comics", catalogId: "popular",
+                                                           filterGroup: "", filterKey: "" })
     }
 
     // Catalogue shelf rows (browse-landing): Most Stocked, publisher, decade, deep, fan-made.
+    // Pinnable shelves (Task 8): Most Stocked → {comics,most-stocked}; Marvel/DC/Image →
+    //   {comics,popular,publisher:<lowercase arg>}. Non-pinnable shelves (decade/deep/fanmade)
+    //   have no honest Discover filter, so they keep navigable:false and no See-all door.
     Repeater {
         model: comicsTab.comicShelves
         delegate: TrendingTop10 {
             required property var modelData
             title: modelData.label
-            navigable: false          // shelf rows have no explore target either
+            // Most Stocked and the three publishers are pinnable; everything else is not.
+            navigable: modelData.kind === "stocked" || modelData.kind === "publisher"
             items: modelData.rows
             visible: modelData.rows.length > 0
             onItemClicked: (i) => {
                 var it = modelData.rows[i]
                 if (it) comicsTab.gcdSeriesRequested({ gcd: true, gcdId: it.gcdId, title: it.title, cover: it.cover })
+            }
+            onExploreClicked: {
+                if (modelData.kind === "stocked")
+                    comicsTab.discoverPinRequested({ type: "comics", catalogId: "most-stocked",
+                                                    filterGroup: "", filterKey: "" })
+                else if (modelData.kind === "publisher")
+                    comicsTab.discoverPinRequested({ type: "comics", catalogId: "popular",
+                                                    filterGroup: "publisher",
+                                                    filterKey: String(modelData.arg || "").toLowerCase() })
             }
         }
     }

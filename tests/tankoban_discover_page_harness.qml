@@ -21,10 +21,11 @@ Item {
     function falsy(a, m) { if (a) fail(m) }
 
     // ── fake MalCatalog (manga facet shape {value,count}; Jikan-shaped rows) ──
+    // Rich enough to exercise every Task 8 pin mapping: Action genre + Seinen demographic.
     QtObject {
         id: fakeMal
-        property var genreFacets: [{ value: "Action", count: 10 }]
-        property var demographicFacets: [{ value: "Seinen", count: 5 }]
+        property var genreFacets: [{ value: "Action", count: 10 }, { value: "Adventure", count: 8 }]
+        property var demographicFacets: [{ value: "Seinen", count: 5 }, { value: "Shounen", count: 20 }]
         function discoverFilters(axis) {
             if (axis === "genre") return genreFacets
             if (axis === "demographic") return demographicFacets
@@ -42,9 +43,14 @@ Item {
     }
 
     // ── fake ComicsCatalog (comics facet shape {key,label,count}; house-shaped rows) ──
+    // Rich enough to exercise Marvel/DC/Image publisher pins.
     QtObject {
         id: fakeComics
-        property var publisherFacets: [{ key: "Image", label: "Image", count: 30 }]
+        property var publisherFacets: [
+            { key: "Marvel", label: "Marvel", count: 60 },
+            { key: "DC", label: "DC", count: 40 },
+            { key: "Image", label: "Image", count: 30 }
+        ]
         function discoverFilters(axis) {
             if (axis === "publisher") return publisherFacets
             return []
@@ -138,6 +144,70 @@ Item {
         falsy(typeof p.download === "function", "page exposes NO download verb (Discover performs no download)")
         // and the static source contract (the adapter declares SOURCE for a grep guard).
         truthy(Api.SOURCE === "tankoban-discover-adapter", "adapter SOURCE stable (no Comic Vine/Metron runtime)")
+
+        // ── Task 8: See-all pin mappings resolve to the expected type/catalogue/filter ──
+        // The adapter's resolvePin is the validation layer: it takes the spec pin shape
+        // {type,catalogId,filterGroup,filterKey} (lower-case group values per spec 3.6),
+        // canonicalizes the group to the display label, validates the filter key against
+        // LIVE facets, and drops a stale filter while keeping the valid type/catalogue.
+        var resolve = p.adapter.resolvePin
+
+        // (1) Top in Tankoban — Manga -> Manga / Popular, no filter.
+        var m1 = resolve({ type: "manga", catalogId: "popular", filterGroup: "", filterKey: "" })
+        falsy(m1.missing, "pin manga/popular: not missing")
+        eq(m1.type, "manga", "pin manga/popular: type manga")
+        eq(m1.catalogKey, "popular", "pin manga/popular: catalogue popular")
+        eq(m1.filterGroup, "", "pin manga/popular: no filter group")
+        eq(m1.filterKey, "", "pin manga/popular: no filter key")
+
+        // (2) a manga genre/demographic pin survives validation (genre + demographic).
+        var m2 = resolve({ type: "manga", catalogId: "popular", filterGroup: "genre", filterKey: "action" })
+        eq(m2.type, "manga", "pin manga/genre: type manga")
+        eq(m2.catalogKey, "popular", "pin manga/genre: catalogue popular")
+        eq(m2.filterGroup, "Genres", "pin manga/genre: group canonicalized to display label")
+        eq(m2.filterKey, "action", "pin manga/genre: filter key preserved (stable lower-case)")
+        var m2d = resolve({ type: "manga", catalogId: "popular", filterGroup: "demographic", filterKey: "seinen" })
+        eq(m2d.filterGroup, "Demographics", "pin manga/demographic: group canonicalized to display label")
+        eq(m2d.filterKey, "seinen", "pin manga/demographic: filter key preserved")
+
+        // (3) Top in Tankoban — Comics -> Comics / Popular, no filter.
+        var c1 = resolve({ type: "comics", catalogId: "popular", filterGroup: "", filterKey: "" })
+        eq(c1.type, "comics", "pin comics/popular: type comics")
+        eq(c1.catalogKey, "popular", "pin comics/popular: catalogue popular")
+        eq(c1.filterGroup, "", "pin comics/popular: no filter group")
+
+        // (4) Marvel/DC/Image publisher pins — stable lower-case arg keys, validated against
+        //     the live publisher facets.
+        var publishers = ["marvel", "dc", "image"]
+        for (var pi = 0; pi < publishers.length; pi++) {
+            var pc = resolve({ type: "comics", catalogId: "popular",
+                              filterGroup: "publisher", filterKey: publishers[pi] })
+            eq(pc.type, "comics", "pin comics/publisher " + publishers[pi] + ": type comics")
+            eq(pc.catalogKey, "popular", "pin comics/publisher " + publishers[pi] + ": catalogue popular")
+            eq(pc.filterGroup, "Publishers", "pin comics/publisher " + publishers[pi] + ": group canonicalized")
+            eq(pc.filterKey, publishers[pi], "pin comics/publisher " + publishers[pi] + ": key preserved")
+        }
+
+        // (5) Most Stocked -> Comics / most-stocked.
+        var ms = resolve({ type: "comics", catalogId: "most-stocked", filterGroup: "", filterKey: "" })
+        eq(ms.type, "comics", "pin comics/most-stocked: type comics")
+        eq(ms.catalogKey, "most-stocked", "pin comics/most-stocked: catalogue most-stocked")
+        eq(ms.filterGroup, "", "pin comics/most-stocked: no filter group")
+
+        // ── invalid-filter clears ONLY the filter (valid type/catalogue preserved) ──
+        // A stale publisher key is dropped; the type+catalogue the pin carried survive.
+        var stale = resolve({ type: "comics", catalogId: "popular",
+                              filterGroup: "publisher", filterKey: "defunct-publisher-2099" })
+        falsy(stale.missing, "stale filter: pin not missing (valid type/catalogue)")
+        eq(stale.type, "comics", "stale filter: type preserved")
+        eq(stale.catalogKey, "popular", "stale filter: catalogue preserved")
+        eq(stale.filterGroup, "", "stale filter: invalid filter group cleared")
+        eq(stale.filterKey, "", "stale filter: invalid filter key cleared")
+
+        // ── a stale CATALOGUE id falls back to the built-in default (popular) ──
+        var staleCat = resolve({ type: "manga", catalogId: "retired-catalogue", filterGroup: "", filterKey: "" })
+        eq(staleCat.type, "manga", "stale catalogue: type preserved")
+        eq(staleCat.catalogKey, "popular", "stale catalogue: falls to built-in default popular")
 
       } catch (e) {
         root.fails.push("exception: " + (e && e.message ? e.message : String(e)))

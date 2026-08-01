@@ -214,25 +214,47 @@ function catalogsForType(type, extensions) {
 // built-in catalogues) is surfaced as missing so the shell falls to the default +
 // shows an explanatory notice.
 //
+// canonicalFilterGroup: the spec's pin shape (3.6) lists filterGroup values in
+// lower-case ("genre"|"demographic"|"publisher"); the shell's internal pipeline
+// (validateFilterKey / mangaAxis / comicsAxis / the filter menu) speaks the DISPLAY
+// labels ("Genres"|"Demographics"|"Publishers"). This maps either form to the
+// canonical display label so a spec-compliant lowercase pin round-trips correctly
+// AND a tolerant display-label pin works too. Unknown groups return "" (dropped).
+function canonicalFilterGroup(type, group) {
+    var g = String(group || "").toLowerCase();
+    if (type === "manga") {
+        if (g === "genre" || g === "genres") return "Genres";
+        if (g === "demographic" || g === "demographics") return "Demographics";
+    } else if (type === "comics") {
+        if (g === "genre" || g === "genres") return "Genres";
+        if (g === "publisher" || g === "publishers") return "Publishers";
+    }
+    return "";
+}
+
 // validateFilterKey: checks the pin's filter against the LIVE facets so a stale key
 // (a genre/publisher that no longer exists in the catalogue) is dropped. The catalog
 // objects are passed so the validation reads real data, not a hardcoded list.
+// Accepts the canonical display label OR the lower-case axis (spec 3.6 pin form).
 function validateFilterKey(type, filterGroup, filterKey, malCatalog, comicsCatalog, showExplicit) {
-    if (!filterKey || !filterKey.length || !filterGroup || !filterGroup.length) return false;
+    if (!filterKey || !filterKey.length) return false;
+    var canonical = canonicalFilterGroup(type, filterGroup);
+    if (!canonical.length) return false;
     var axis = "";
     var source = null;
     if (type === "manga" && malCatalog) {
-        axis = (filterGroup === "Genres") ? "genre" : (filterGroup === "Demographics") ? "demographic" : "";
+        axis = (canonical === "Genres") ? "genre" : (canonical === "Demographics") ? "demographic" : "";
         source = malCatalog;
     } else if (type === "comics" && comicsCatalog) {
-        axis = (filterGroup === "Genres") ? "genre" : (filterGroup === "Publishers") ? "publisher" : "";
+        axis = (canonical === "Genres") ? "genre" : (canonical === "Publishers") ? "publisher" : "";
         source = comicsCatalog;
     }
     if (!axis || !source) return false;
+    var fk = stableKey(filterKey);
     var facets = source.discoverFilters(axis, showExplicit) || [];
     for (var i = 0; i < facets.length; i++) {
         var key = facets[i].key !== undefined ? stableKey(facets[i].key) : stableKey(facets[i].value);
-        if (key === filterKey) return true;
+        if (key === fk) return true;
     }
     return false;
 }
@@ -261,13 +283,15 @@ function resolvePin(pin, extensions) {
 // interaction fence is owned by the shell, so here we just deliver the refreshed
 // page into the cache and let the next reload pick it up.
 function mangaAxis(filterGroup) {
-    if (filterGroup === "Genres") return "genre";
-    if (filterGroup === "Demographics") return "demographic";
+    var c = canonicalFilterGroup("manga", filterGroup);
+    if (c === "Genres") return "genre";
+    if (c === "Demographics") return "demographic";
     return "";
 }
 function comicsAxis(filterGroup) {
-    if (filterGroup === "Genres") return "genre";
-    if (filterGroup === "Publishers") return "publisher";
+    var c = canonicalFilterGroup("comics", filterGroup);
+    if (c === "Genres") return "genre";
+    if (c === "Publishers") return "publisher";
     return "";
 }
 
@@ -382,14 +406,19 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
             if (base.missing) return base;
             // validate the filter key against the LIVE facets so a stale genre/publisher
             // is dropped while the valid type/catalogue portion is preserved (spec 3.6).
-            var keepFilter = validateFilterKey(base.type, base.filterGroup, base.filterKey,
-                                              deps.malCatalog, deps.comicsCatalog, deps.showExplicit);
+            // The filter group is canonicalized to the display label the shell's filter
+            // menu speaks, so a spec-compliant lowercase pin ("genre"/"publisher") and a
+            // tolerant display-label pin ("Genres"/"Publishers") both round-trip.
+            var canonical = canonicalFilterGroup(base.type, base.filterGroup);
+            var keepFilter = canonical.length > 0
+                             && validateFilterKey(base.type, canonical, base.filterKey,
+                                                  deps.malCatalog, deps.comicsCatalog, deps.showExplicit);
             return {
                 missing: false,
                 type: base.type,
                 catalogKey: base.catalogKey,
-                filterGroup: keepFilter ? base.filterGroup : "",
-                filterKey: keepFilter ? base.filterKey : "",
+                filterGroup: keepFilter ? canonical : "",
+                filterKey: keepFilter ? stableKey(base.filterKey) : "",
                 missingName: ""
             };
         },

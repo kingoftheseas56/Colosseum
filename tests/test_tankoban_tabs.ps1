@@ -22,6 +22,9 @@ Assert-Contains $mtab 'Explore by Genre — Manga' "manga tab carries the manga 
 Assert-Contains $mtab 'signal seriesRequested(string title)' "manga tab emits series open up to the world"
 Assert-Contains $mtab 'signal genreRequested(string name)' "manga tab emits genre open"
 Assert-Contains $mtab 'signal genreIndexRequested()' "manga tab emits the genre-index explore"
+Assert-Contains $mtab 'signal discoverPinRequested(var pin)' "manga tab emits a Discover See-all pin (Task 8)"
+Assert-Contains $mtab 'onExploreClicked: mangaTab.discoverPinRequested' "Top in Tankoban - Manga Explore door emits a Discover pin (Task 8)"
+Assert-Contains $mtab 'catalogId: "popular"' "manga See-all pin targets the Popular manga catalogue (Task 8)"
 Assert-Absent  $mtab 'Top in Tankoban — Comics' "manga tab must not carry any comics row"
 
 # --- Task 3: TankobanComicsTab holds ALL comics browse rows, takes data as props, emits comics signals ---
@@ -37,6 +40,10 @@ Assert-Contains $ctab 'signal gcdSeriesRequested(var d)' "shelf tiles open the r
 Assert-Contains $ctab 'signal comicSeriesRequested(var d)' "top-comics tile opens the series"
 Assert-Contains $ctab 'signal westernRequested(string title)' "top-comics fallback path"
 Assert-Contains $ctab 'signal westernExploreRequested(var box)' "explore box opens the archive index"
+Assert-Contains $ctab 'signal discoverPinRequested(var pin)' "comics tab emits a Discover See-all pin (Task 8)"
+Assert-Contains $ctab 'catalogId: "most-stocked"' "comics Most Stocked See-all pin targets the most-stocked catalogue (Task 8)"
+Assert-Contains $ctab 'filterGroup: "publisher"' "comics publisher shelves emit a publisher-filter pin (Task 8)"
+Assert-Contains $ctab 'filterKey: String(modelData.arg || "").toLowerCase()' "publisher filter key is the stable lower-cased arg (Task 8)"
 Assert-Absent  $ctab 'Top in Tankoban — Manga' "comics tab must not carry any manga row"
 
 # --- Task 4 + Task 7: TankobanWorld keeps shared rows + comics data, mounts the tab bar,
@@ -61,6 +68,11 @@ Assert-Contains $tw 'GcApi.explore' "world still owns the one-time explore fetch
 Assert-Contains $tw 'onMangaSeriesRequested' "Discover manga card routes to the existing manga series door (Task 7)"
 Assert-Contains $tw 'onComicSeriesRequested' "Discover comics card routes to the existing comic series door (Task 7)"
 Assert-Contains $tw 'showExplicitContent: tanko.showExplicitContent' "Discover reads the inherited explicit preference (Task 7 Step 4)"
+Assert-Contains $tw 'function openDiscoverPin(pin)' "world defines openDiscoverPin to route a See-all pin into Discover (Task 8)"
+Assert-Contains $tw 'discoverPage.applyPin(pin)' "openDiscoverPin applies the pin to the in-tab Discover wall (Task 8)"
+Assert-Contains $tw "item.discoverPinRequested.connect(tanko.openDiscoverPin)" "world connects the browse tab See-all pins into Discover (Task 8)"
+Assert-Contains $tw 'kind: spec.kind' "shelf object carries its kind so the tab can build a pin (Task 8)"
+Assert-Contains $tw 'arg: spec.arg' "shelf object carries its arg so the tab can build a stable filter key (Task 8)"
 Assert-Absent  $tw 'title: "Top in Tankoban — Manga"' "manga row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Top in Tankoban — Comics"' "comics row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Explore Comics"' "explore-comics moved out of the world into the tab"
