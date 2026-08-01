@@ -530,10 +530,41 @@ int main(int argc, char** argv)
         require(uq.value("clippedByWindow").toBool() == true,
                 "and names it: clippedByWindow=true" + why());
 
-        // ── Task 3: dump-ui — the named-object tree ──────────────────────
+        // ── Task 3: ui-query reports SCENE coords, not local (nested delegate) ──
+        // row0 is a delegate INSIDE longList (a Flickable at scene x=400), so its
+        // LOCAL x is 0 but its SCENE x is ~400. This pins mapRectToScene as the
+        // headline feature: a regression to item->x() reports 0 and this goes red
+        // (clippedBox alone cannot catch it — there scene x == local x).
+        QJsonObject uqRow = call(pipe, {{"cmd", "ui-query"}, {"seq", 52},
+            {"payload", QJsonObject{{"object", "row0"}}}});
+        const double rowX = uqRow.value("rect").toObject().value("x").toDouble();
+        require(rowX > 399.0 && rowX < 401.0,
+                QStringLiteral("ui-query reports row0's SCENE x (~400), not local 0, got ")
+                    + QString::number(rowX) + why());
+
+        // ── Task 3: dump-ui — the named-object tree, checked STRUCTURALLY ─
+        // Not a substring smoke check: assert a non-empty tree, then locate the
+        // counterButton ENTRY in items[] and assert its fields, so a stray
+        // "counterButton" anywhere in the JSON cannot fake a pass.
         QJsonObject du = call(pipe, {{"cmd", "dump-ui"}, {"seq", 9}});
-        require(QJsonDocument(du).toJson().contains("counterButton"),
-                "dump-ui contains the named tree" + why());
+        require(du.value("count").toInt() > 0, "dump-ui reports a non-empty tree" + why());
+        const QJsonArray dumpItems = du.value("items").toArray();
+        require(dumpItems.size() == du.value("count").toInt(),
+                "dump-ui count matches items[] length");
+        QJsonObject btnEntry;
+        for (const QJsonValue& v : dumpItems) {
+            const QJsonObject o = v.toObject();
+            if (o.value("objectName").toString() == QStringLiteral("counterButton")) {
+                btnEntry = o;
+                break;
+            }
+        }
+        require(!btnEntry.isEmpty(),
+                "dump-ui has a counterButton entry in items[]" + why());
+        require(!btnEntry.value("class").toString().isEmpty(),
+                "dump-ui counterButton entry carries a non-empty class");
+        require(btnEntry.contains("depth"),
+                "dump-ui counterButton entry carries a depth");
 
         // ── Task 3: negative path — a missing object is NO_SUCH_ITEM ──────
         QJsonObject qgN = call(pipe, {{"cmd", "qml-get"}, {"seq", 50},

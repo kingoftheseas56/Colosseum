@@ -540,25 +540,28 @@ void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply) const
         reply.fail("NO_SUCH_ITEM", objectName);
         return;
     }
-    // Top-left in scene coords + the item's own size. mapToScene folds in every
-    // ancestor transform, so a delegate deep in a Flickable reports where it
-    // actually sits on screen, not its local offset.
-    const QPointF topLeft = item->mapToScene(QPointF(0, 0));
-    const qreal x = topLeft.x();
-    const qreal y = topLeft.y();
-    const qreal wdt = item->width();
-    const qreal hgt = item->height();
+    // The rect in scene space. mapRectToScene is the transform-correct primitive:
+    // it folds in every ancestor transform — translation, and any scale/rotation —
+    // so a delegate deep in a Flickable reports where it ACTUALLY sits, and
+    // clippedByWindow is derived from THIS rect rather than local-size arithmetic.
+    const QRectF sceneRect =
+        item->mapRectToScene(QRectF(0, 0, item->width(), item->height()));
 
+    // Single-root-window assumption: clipping is judged against mainWindow() (the
+    // FIRST root QQuickWindow), which is where every Colosseum item lives today.
+    // An item in a secondary window would be measured against the wrong bounds; a
+    // null mainWindow leaves the flag false.
     bool clipped = false;
     if (QQuickWindow* w = mainWindow()) {
-        clipped = (x + wdt > w->width()) || (y + hgt > w->height())
-                  || (x < 0) || (y < 0);
+        clipped = (sceneRect.right() > w->width()) || (sceneRect.bottom() > w->height())
+                  || (sceneRect.left() < 0) || (sceneRect.top() < 0);
     }
 
     reply.reply({
         {QStringLiteral("rect"), QJsonObject{
-            {QStringLiteral("x"), x}, {QStringLiteral("y"), y},
-            {QStringLiteral("width"), wdt}, {QStringLiteral("height"), hgt}}},
+            {QStringLiteral("x"), sceneRect.x()}, {QStringLiteral("y"), sceneRect.y()},
+            {QStringLiteral("width"), sceneRect.width()},
+            {QStringLiteral("height"), sceneRect.height()}}},
         {QStringLiteral("visible"), item->isVisible()},
         {QStringLiteral("enabled"), item->isEnabled()},
         {QStringLiteral("opacity"), item->opacity()},
@@ -575,11 +578,16 @@ QJsonObject LanistaServer::cmdDumpUi(const QJsonObject&) const
     if (QQuickWindow* w = mainWindow()) {
         walkVisual(w->contentItem(), 0, [&](QQuickItem* it, int depth) {
             if (!it->objectName().isEmpty()) {
+                // x/y are SCENE/logical units (the same space as ui-query and
+                // get-state), so an agent consuming both commands sees ONE
+                // coordinate system. width/height are the item's own size; depth
+                // preserves the tree hierarchy the flat array would otherwise lose.
+                const QPointF scenePos = it->mapToScene(QPointF(0, 0));
                 items.append(QJsonObject{
                     {QStringLiteral("objectName"), it->objectName()},
                     {QStringLiteral("class"),
                      QString::fromLatin1(it->metaObject()->className())},
-                    {QStringLiteral("x"), it->x()}, {QStringLiteral("y"), it->y()},
+                    {QStringLiteral("x"), scenePos.x()}, {QStringLiteral("y"), scenePos.y()},
                     {QStringLiteral("width"), it->width()},
                     {QStringLiteral("height"), it->height()},
                     {QStringLiteral("visible"), it->isVisible()},
