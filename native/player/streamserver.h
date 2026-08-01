@@ -19,9 +19,11 @@
 #include <QList>
 #include <QObject>
 #include <QString>
+#include <QVariantMap>
 
 class QProcess;
 class QNetworkAccessManager;
+class QTimer;
 
 class StreamServer : public QObject
 {
@@ -59,12 +61,22 @@ public:
     // The URL for an already-registered stream, or "" if the runtime isn't up yet.
     Q_INVOKABLE QString streamUrl(const QString &infoHash, int fileIdx) const;
 
+    // Pre-play telemetry (Popcorn Time streamer.js parity, 2026-08-02): poll the engine's
+    // /:infoHash/:fileIdx/stats.json once a second — PT's exact stats cadence — and surface
+    // peers / downloaded / downloadSpeed so the loading face can narrate the wait instead of
+    // sitting on a static "Starting stream...". Watch starts at streamReady, QML stops it the
+    // moment playback (or an error) retires the loading face.
+    Q_INVOKABLE void watchStats(const QString &infoHash, int fileIdx);
+    Q_INVOKABLE void unwatchStats();
+
 Q_SIGNALS:
     void readyChanged();
     void startingChanged();
     void streamReady(const QString &url, const QString &infoHash, int fileIdx);
     void fetchReady(const QString &url, const QString &infoHash, int fileIdx);
     void streamError(const QString &message);
+    // keys: peers, unchoked, downloaded, downloadSpeed, streamProgress, streamLen
+    void streamStats(const QString &infoHash, int fileIdx, const QVariantMap &stats);
 
 private:
     struct Pending {
@@ -79,6 +91,7 @@ private:
     void onStdout();                      // scrape the "EngineFS server started at …:<port>" line
     void flushPending();
     void registerThenReady(const QString &infoHash, int fileIdx, bool fetch);  // POST /create, then emit URL
+    void pollStats();                     // one stats.json GET; single-flight behind m_statsInflight
 
     QProcess *m_proc = nullptr;
     QNetworkAccessManager *m_nam = nullptr;
@@ -86,6 +99,10 @@ private:
     bool m_starting = false;
     QString m_stdoutBuf;
     QList<Pending> m_pending;
+    QTimer *m_statsTimer = nullptr;
+    QString m_statsHash;
+    int m_statsIdx = -1;
+    bool m_statsInflight = false;
 };
 
 #endif // COLOSSEUM_STREAMSERVER_H

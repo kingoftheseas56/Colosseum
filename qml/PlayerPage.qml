@@ -102,6 +102,17 @@ Item {
     property string mediaLocalPath: ""    // downloaded-file playback: resume by path, not torrent
     property real   pendingSeekSec: -1    // seek here once the file opens (resume / session restore)
 
+    // --- pre-play stream telemetry (Popcorn Time streamer.js parity, 2026-08-02): while the
+    // loading face is up, the engine's stats.json feeds the status line — connecting → peers
+    // found → buffering % of a 10 MB head (PT's BUFFERING_SIZE) at a live speed — so a dead
+    // torrent reads as "Connecting to peers..." in seconds, not a minute of static text.
+    // mpv's own mid-play "Buffering N%" (cache-buffering-state) is untouched.
+    readonly property real streamHeadTargetBytes: 10 * 1024 * 1024
+    property bool streamStatsSeen: false      // at least one stats sample for THIS stream
+    property int  streamStatsPeers: 0
+    property real streamStatsSpeedBps: 0
+    property real streamStatsDownloaded: 0
+
     // --- resume choice (Feature 3): first-load-only Resume / Start over overlay ---
     property real resumePromptMinSec: 30       // only prompt after meaningful progress
     property real resumeRestartThreshold: 0.80 // at/over this fraction of duration, start over silently
@@ -725,7 +736,31 @@ Item {
             return ""
         if (root.statusMsg.length > 0 && root.statusMsg !== "Buffering...")
             return root.statusMsg
+        if (root.streamStatsSeen && root.mediaLocalPath.length === 0)
+            return root.streamGatherStatusText()
         return root.mediaLocalPath.length > 0 ? "Opening..." : "Starting stream..."
+    }
+    // The Popcorn Time ladder (streamer.js watchState): connecting → startingDownload →
+    // downloading, percent measured against the 10 MB head buffer PT gates playback on.
+    // Capped at 99 — 100 would claim done while mpv is still probing the container; the
+    // first real frame retires the face (finishStartingIfPlaybackAdvanced), same as today.
+    function streamGatherStatusText() {
+        if (root.streamStatsDownloaded > 0) {
+            var pct = Math.min(99, Math.floor(root.streamStatsDownloaded / root.streamHeadTargetBytes * 100))
+            return "Buffering " + pct + "% · " + root.formatStreamSpeed(root.streamStatsSpeedBps)
+                    + " · " + root.formatPeerCount(root.streamStatsPeers)
+        }
+        if (root.streamStatsPeers > 0)
+            return "Connected · " + root.formatPeerCount(root.streamStatsPeers)
+        return "Connecting to peers..."
+    }
+    function formatStreamSpeed(bps) {
+        if (bps >= 1024 * 1024)
+            return (bps / (1024 * 1024)).toFixed(1) + " MB/s"
+        return Math.max(0, Math.round(bps / 1024)) + " kB/s"
+    }
+    function formatPeerCount(n) {
+        return n + (n === 1 ? " peer" : " peers")
     }
     function finishStartingIfPlaybackAdvanced() {
         if (!root.starting || root.errored || mpv.pause)
@@ -2783,11 +2818,21 @@ Item {
     onVisibleChanged: {
         if (visible)
             root.forceActiveFocus()
+        else if (typeof Stream !== "undefined") {
+            // backed out mid-load on the kept-alive page: don't leave the 1 Hz stats poll running
+            Stream.unwatchStats()
+            root.streamStatsSeen = false
+        }
         root.syncPowerInhibit()
     }
     onStartingChanged: {
         if (starting)
             root.wakeChrome()
+        else if (typeof Stream !== "undefined") {
+            // loading face retired (first frame, error path, or back-out) → stop the 1 Hz stats poll
+            Stream.unwatchStats()
+            root.streamStatsSeen = false
+        }
         root.syncPowerInhibit()
     }
 
@@ -3100,7 +3145,20 @@ Item {
             root.statusMsg = "Buffering..."
             root.currentPlaybackUrl = url || ""
             streamWatchdog.restart()
+            root.streamStatsSeen = false
+            root.streamStatsPeers = 0
+            root.streamStatsSpeedBps = 0
+            root.streamStatsDownloaded = 0
+            Stream.watchStats(infoHash, fileIdx)
             mpv.loadFile(url)
+        }
+        function onStreamStats(infoHash, fileIdx, stats) {
+            if (!root.starting)
+                return
+            root.streamStatsSeen = true
+            root.streamStatsPeers = Number(stats.peers || 0)
+            root.streamStatsSpeedBps = Number(stats.downloadSpeed || 0)
+            root.streamStatsDownloaded = Number(stats.downloaded || 0)
         }
         function onStreamError(message) {
             root.statusMsg = message

@@ -4,6 +4,8 @@
 #include <QDebug>
 #include <QDir>
 #include <QFileInfo>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -11,6 +13,7 @@
 #include <QProcessEnvironment>
 #include <QRegularExpression>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrl>
 
 StreamServer::StreamServer(QObject *parent)
@@ -245,6 +248,62 @@ void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool 
             Q_EMIT fetchReady(url, hash, fileIdx);
         else
             Q_EMIT streamReady(url, hash, fileIdx);
+    });
+}
+
+void StreamServer::watchStats(const QString &infoHash, int fileIdx)
+{
+    if (infoHash.isEmpty() || fileIdx < 0)
+        return;
+    m_statsHash = infoHash.toLower();
+    m_statsIdx = fileIdx;
+    m_statsInflight = false;
+    if (!m_statsTimer) {
+        m_statsTimer = new QTimer(this);
+        m_statsTimer->setInterval(1000);   // Popcorn Time's stats cadence (streamer.js updateStats)
+        connect(m_statsTimer, &QTimer::timeout, this, &StreamServer::pollStats);
+    }
+    m_statsTimer->start();
+    pollStats();                           // first sample immediately, not one second late
+}
+
+void StreamServer::unwatchStats()
+{
+    if (m_statsTimer)
+        m_statsTimer->stop();
+    m_statsHash.clear();
+    m_statsIdx = -1;
+}
+
+void StreamServer::pollStats()
+{
+    if (m_port <= 0 || m_statsHash.isEmpty() || m_statsInflight)
+        return;
+    m_statsInflight = true;
+    const QString hash = m_statsHash;
+    const int idx = m_statsIdx;
+    QNetworkRequest req(QUrl(QStringLiteral("http://127.0.0.1:%1/%2/%3/stats.json")
+                                 .arg(m_port).arg(hash).arg(idx)));
+    req.setTransferTimeout(900);           // must resolve inside the 1 s cadence
+    QNetworkReply *r = m_nam->get(req);
+    connect(r, &QNetworkReply::finished, this, [this, r, hash, idx]() {
+        m_statsInflight = false;
+        r->deleteLater();
+        if (hash != m_statsHash || idx != m_statsIdx)   // watch retargeted/stopped mid-flight
+            return;
+        if (r->error() != QNetworkReply::NoError)
+            return;                        // silent miss: the face falls back to its static line
+        const QJsonObject o = QJsonDocument::fromJson(r->readAll()).object();
+        if (o.isEmpty())
+            return;
+        QVariantMap stats;
+        stats.insert(QStringLiteral("peers"),          o.value(QLatin1String("peers")).toInt());
+        stats.insert(QStringLiteral("unchoked"),       o.value(QLatin1String("unchoked")).toInt());
+        stats.insert(QStringLiteral("downloaded"),     o.value(QLatin1String("downloaded")).toDouble());
+        stats.insert(QStringLiteral("downloadSpeed"),  o.value(QLatin1String("downloadSpeed")).toDouble());
+        stats.insert(QStringLiteral("streamProgress"), o.value(QLatin1String("streamProgress")).toDouble());
+        stats.insert(QStringLiteral("streamLen"),      o.value(QLatin1String("streamLen")).toDouble());
+        Q_EMIT streamStats(hash, idx, stats);
     });
 }
 
