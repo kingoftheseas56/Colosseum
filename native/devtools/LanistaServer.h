@@ -46,6 +46,7 @@ class QLocalSocket;
 class QQmlApplicationEngine;
 class QQuickItem;
 class QQuickWindow;
+class LanistaEventLog;
 
 class LanistaServer : public QObject
 {
@@ -239,6 +240,10 @@ private:
     int m_snapshotEpoch = 0;   // bumped per ui-snapshot; embedded in each handle token
     QString m_runDir;
     bool m_runDirCreated = false;
+    // Task 10: the rotating JSONL event stream. log-mark writes a diagnostic
+    // annotation here (NOT app state), and events-tail reads it back — both are
+    // READ-gated/always-on. Constructed after m_runDir setup in the ctor.
+    LanistaEventLog* m_events = nullptr;
     int m_idleTimeoutMs = 0;
     int m_grabTimeoutMs = 0;   // ctor resolves: COLOSSEUM_LANISTA_GRAB_MS, else
                                // kGrabTimeoutMs. Always lands positive (0 is not

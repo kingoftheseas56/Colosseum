@@ -1,5 +1,7 @@
 #include "devtools/LanistaServer.h"
 
+#include "devtools/LanistaEventLog.h"
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -175,6 +177,13 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
                + QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"))
                + QStringLiteral("-") + QString::number(QCoreApplication::applicationPid());
 
+    // Task 10: the rotating JSONL event stream lives beside the run dirs, but is
+    // ONE file across launches (not per-run) so an agent tailing it sees the whole
+    // recent history. Created lazily on first append (mkpath in the ctor).
+    m_events = new LanistaEventLog(
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+        + QStringLiteral("/lanista/events.jsonl"));
+
     m_idleTimeoutMs = qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_IDLE_MS");
     if (m_idleTimeoutMs <= 0)
         m_idleTimeoutMs = kDefaultIdleTimeoutMs;   // the override exists for tests
@@ -228,6 +237,27 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     // the Replier like the Task 3 reads.
     addRead(QStringLiteral("invoke-read"),
             [this](const QJsonObject& p, Replier reply) { cmdInvokeRead(p, std::move(reply)); });
+
+    // Task 10: the event log. events-tail reads the last N lines of events.jsonl;
+    // log-mark stamps a correlation label into events.jsonl AND qInfo, so a
+    // multi-source log analysis pivots on the label, not timestamp guesswork.
+    // BOTH are READS: log-mark writes only to the DEV event log (a diagnostic
+    // annotation, NOT app state), so it is correctly always-on, not DRIVE/WRITE.
+    addRead(QStringLiteral("events-tail"),
+            [this](const QJsonObject& p, Replier reply) {
+                QJsonArray out;
+                for (const QString& l : m_events->tail(p.value(QStringLiteral("limit")).toInt(50)))
+                    out.append(l);
+                reply.reply({{QStringLiteral("lines"), out}});
+            });
+    addRead(QStringLiteral("log-mark"),
+            [this](const QJsonObject& p, Replier reply) {
+                const QString label = p.value(QStringLiteral("label")).toString();
+                m_events->append({{QStringLiteral("type"), QStringLiteral("mark")},
+                                  {QStringLiteral("label"), label}});
+                qInfo("lanista: MARK %s", qUtf8Printable(label));
+                reply.reply({{QStringLiteral("marked"), label}});
+            });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();

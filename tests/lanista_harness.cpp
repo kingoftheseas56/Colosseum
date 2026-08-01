@@ -815,6 +815,23 @@ int main(int argc, char** argv)
                 && na.value("message").toString().contains("allowlist"),
                 "a method off the allowlist is refused before the organ lookup" + why());
 
+        // ── Task 10: log-mark round-trips through events-tail ─────────────────
+        // log-mark stamps a correlation label into events.jsonl (a DEV annotation,
+        // NOT app state — hence a READ, always on); events-tail reads the tail back.
+        // The label written here must be readable through the reader, proving the
+        // append truly hit the file and the tail truly read it (negative control:
+        // skip the write in LanistaEventLog::append and this round-trip reds).
+        QJsonObject marked = call(pipe, {{"cmd", "log-mark"}, {"seq", 100},
+            {"payload", QJsonObject{{"label", "harness-mark-1"}}}});
+        require(marked.value("type").toString() == "reply"
+                    && marked.value("marked").toString() == QStringLiteral("harness-mark-1"),
+                "log-mark echoes the label it stamped" + why());
+        QJsonObject ev = call(pipe, {{"cmd", "events-tail"}, {"seq", 101},
+            {"payload", QJsonObject{{"limit", 5}}}});
+        require(ev.value("type").toString() == "reply", "events-tail replies" + why());
+        require(QJsonDocument(ev).toJson().contains("harness-mark-1"),
+                "the mark is readable back through events-tail" + why());
+
         // Close the DRIVE gate again — leave the process as the denial tests found it.
         qunsetenv("COLOSSEUM_LANISTA_DRIVE");
 

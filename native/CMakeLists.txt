@@ -122,6 +122,8 @@ add_executable(colosseum
     # ── devtools: the lanista dev-control bridge (always on, reads only) ──
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
+    devtools/LanistaEventLog.cpp
+    devtools/LanistaEventLog.h
     reader/BookBridge.cpp
     reader/BookBridge.h
     reader/BookStores.cpp
@@ -835,6 +837,8 @@ add_executable(lanista_harness
     ../tests/lanista_harness.cpp
     devtools/LanistaServer.cpp
     devtools/LanistaServer.h
+    devtools/LanistaEventLog.cpp
+    devtools/LanistaEventLog.h
 )
 target_include_directories(lanista_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 # The windeployqt'd platforms/ dir beside the exe carries ONLY qwindows.dll and

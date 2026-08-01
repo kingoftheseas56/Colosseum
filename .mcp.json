@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "lanista": {
+      "command": "python",
+      "args": ["native/tools/lanista-mcp/server.py"]
+    }
+  }
+}
