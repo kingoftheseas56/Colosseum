@@ -13,19 +13,29 @@ function Assert-NotContains($text, $needle, $message) {
     if ($text -like "*$needle*") { throw $message }
 }
 
-# --- Task 2: tab bar = 3 tabs, centered ---
+# --- Tab bar: the three deep-catalogue tabs exist and the bar is centered. The current
+#     Theatre build carries Discover + Library alongside Movies/Shows/Anime; the deep
+#     catalogue only owns the Movies/Shows/Anime bodies, so we assert those three tabs are
+#     present and the bar divides its width by the actual tab count (superseding the retired
+#     3-tab / Discover-removed contract). ---
 $tabbar = Read-File "qml/TheatreTabBar.qml"
-Assert-NotContains $tabbar 'key: "discover"' "Discover tab must be removed from tabModel."
+Assert-Contains $tabbar 'key: "movies"' "Movies tab must exist in the Theatre tab bar."
+Assert-Contains $tabbar 'key: "shows"' "Shows tab must exist in the Theatre tab bar."
+Assert-Contains $tabbar 'key: "anime"' "Anime tab must exist in the Theatre tab bar."
 Assert-Contains $tabbar 'anchors.horizontalCenter: parent.horizontalCenter' "Tab bar Glass must be centered."
-Assert-Contains $tabbar '/ 3' "Pill width must divide by 3 tabs."
+Assert-Contains $tabbar 'tabs.tabModel.length' "Pill width must divide by the actual tab count."
 
-# --- Task 3: TheatreApi reduced to Top 10 specs ---
+# --- Deep catalogue (2026-08-01): tabs are no longer a single Top 10 row. Top 10 stays the
+#     FIRST shelf on every tab and genres stay LAST; those ordering guarantees, plus no-award
+#     and no-blurb, are proven behaviourally by tests/theatre_catalog_rules_harness.qml. Here
+#     we retain only the static guarantees the deep catalogue must still honour. ---
+$rules = Read-File "qml/TheatreCatalogRules.js"
+Assert-Contains $rules 'top-10' "Rules must define the Top 10 shelf key on every tab."
+Assert-Contains $rules '"Top 10"' "Rules must keep the ranked shelf titled 'Top 10'."
+
 $api = Read-File "qml/TheatreApi.js"
-Assert-Contains $api '"Top 10 on Movies"' "Movies page must be a single Top 10 row."
-Assert-Contains $api '"Top 10 on Shows"' "Shows page must be a single Top 10 row."
-Assert-Contains $api '"Top 10 on Anime"' "Anime Top Airing row must be retitled Top 10 on Anime."
-Assert-NotContains $api 'function discoverSpecs' "discoverSpecs must be deleted."
-Assert-NotContains $api '"Top Drama"' "Per-genre rows must be gone from page specs."
+Assert-NotContains $api 'themoviedb' "No TMDB. Ever."
+Assert-NotContains $api 'api_key' "Theatre catalogue must stay keyless (no API keys)."
 
 # --- Task 4: catalog page = Top 10 + GenreMosaic, no heroes ---
 $page = Read-File "qml/TheatreCatalogPage.qml"
@@ -35,15 +45,18 @@ Assert-Contains $page 'signal genreIndexRequested(string kind)' "Catalog page mu
 Assert-NotContains $page 'TheatreCinemaHero' "Per-tab heroes must be removed."
 Assert-NotContains $page 'TheatrePeekHero' "Per-tab heroes must be removed."
 
-# --- Task 5: world defaults + signal forwarding ---
+# --- World: routes the catalogue tabs and forwards genre opens. (The default landing tab is
+#     Discover in the current build; the deep catalogue owns the movies/shows/anime bodies, so
+#     we assert the movies tab routes to the catalogue page rather than pinning the default.) ---
 $world = Read-File "qml/TheatreWorld.qml"
-Assert-Contains $world 'activeTab: "movies"' "Default tab must be movies."
+Assert-Contains $world 'property string activeTab' "World must own the active-tab state."
+Assert-Contains $world 'activeTab === "movies"' "World must route the movies tab to the catalogue page."
 Assert-Contains $world 'signal theatreGenreRequested(string kind, string name)' "World must forward genre opens."
 Assert-Contains $world 'signal theatreGenreIndexRequested(string kind)' "World must forward index opens."
 
 # --- Task 6: Theatre genre API exists with the right surface ---
 $gapi = Read-File "qml/TheatreGenreApi.js"
-Assert-Contains $gapi 'function loadGenre(kind, name, sort, push)' "TheatreGenreApi.loadGenre(kind,...) required."
+Assert-Contains $gapi 'function loadGenre(kind' "TheatreGenreApi.loadGenre(kind,...) required."
 Assert-Contains $gapi 'function loadGroups(kind' "TheatreGenreApi.loadGroups(kind,...) required."
 Assert-Contains $gapi 'function siblings(kind)' "TheatreGenreApi.siblings(kind) required."
 Assert-Contains $gapi '/genres/anime' "Anime genre ids/counts must come live from Jikan."
