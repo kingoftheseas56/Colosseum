@@ -22,6 +22,7 @@
 #include <QLocalSocket>
 #include <QQmlApplicationEngine>
 #include <QQuickWindow>
+#include <QSet>
 #include <QStringList>
 #include <QTimer>
 
@@ -578,6 +579,55 @@ int main(int argc, char** argv)
         require(uqN.value("type").toString() == "error"
                     && uqN.value("code").toString() == "NO_SUCH_ITEM",
                 "ui-query on a missing object is NO_SUCH_ITEM" + why());
+
+        // ── Task 4: ui-snapshot — every actionable element, each with a handle ─
+        // Playwright's model, QML-native: ONE call returns everything an agent
+        // could act on, each carrying a session handle valid until the NEXT
+        // snapshot. centerX/centerY are SCENE/LOGICAL units (documented in
+        // cmdUiSnapshot), the same space get-state/ui-query/dump-ui speak.
+        QJsonObject sn = call(pipe, {{"cmd", "ui-snapshot"}, {"seq", 60}});
+        QJsonArray els = sn.value("elements").toArray();
+        require(!els.isEmpty(), "snapshot lists elements" + why());
+        bool sawMouse = false; QString mouseHandle;
+        for (const QJsonValue& v : els) {
+            const QJsonObject el = v.toObject();
+            if (el.value("objectName").toString() == QStringLiteral("counterMouse")) {
+                sawMouse = true; mouseHandle = el.value("handle").toString();
+                require(el.value("interactive").toBool(), "MouseArea marked interactive");
+            }
+        }
+        require(sawMouse && mouseHandle.startsWith("h"),
+                "the counter's MouseArea carries a handle" + why());
+
+        // count == elements.length, and handles are unique AND sequential h1..hN.
+        require(sn.value("count").toInt() == els.size(),
+                "ui-snapshot count matches elements[] length" + why());
+        {
+            QStringList handles;
+            for (const QJsonValue& v : els)
+                handles << v.toObject().value("handle").toString();
+            require(QSet<QString>(handles.begin(), handles.end()).size() == handles.size(),
+                    "ui-snapshot handles are unique" + why());
+            bool sequential = true;
+            for (int i = 0; i < handles.size(); ++i)
+                if (handles.at(i) != QStringLiteral("h") + QString::number(i + 1))
+                    sequential = false;
+            require(sequential, "ui-snapshot handles are sequential h1..hN" + why());
+        }
+
+        // ── Task 4: resolveTarget round-trip — a handle works as a read target ─
+        // The pin on resolveTarget: feed the snapshot's handle back in as the
+        // `object` of a read and it must resolve to the SAME item as the by-name
+        // lookup. Proves handles resolve in reads AND that there is ONE resolver
+        // (handle-or-name), not two that can drift.
+        QJsonObject uqByName = call(pipe, {{"cmd", "ui-query"}, {"seq", 61},
+            {"payload", QJsonObject{{"object", "counterMouse"}}}});
+        QJsonObject uqByHandle = call(pipe, {{"cmd", "ui-query"}, {"seq", 62},
+            {"payload", QJsonObject{{"object", mouseHandle}}}});
+        require(uqByHandle.value("type").toString() == "reply",
+                "ui-query resolves a snapshot handle" + why());
+        require(uqByHandle.value("rect").toObject() == uqByName.value("rect").toObject(),
+                "resolveTarget: handle and name resolve to the SAME item (identical rect)" + why());
 
         std::cout << "LANISTA_OK\n";
         rc = 0;

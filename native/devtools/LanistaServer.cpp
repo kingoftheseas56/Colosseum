@@ -186,6 +186,10 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
             [this](const QJsonObject& p, Replier reply) { cmdUiQuery(p, std::move(reply)); });
     addRead(QStringLiteral("dump-ui"),
             [this](const QJsonObject& p, Replier reply) { reply.reply(cmdDumpUi(p)); });
+    // Task 4: ui-snapshot fills m_handles (non-const), so it answers by returning
+    // its own body rather than owning the Replier — no target to fail() on.
+    addRead(QStringLiteral("ui-snapshot"),
+            [this](const QJsonObject& p, Replier reply) { reply.reply(cmdUiSnapshot(p)); });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -483,6 +487,23 @@ QQuickItem* LanistaServer::findItem(const QString& objectName) const
     return nullptr;
 }
 
+// ONE resolver, two forms — the reason the read commands route here rather than
+// call findItem() straight. An "h<N>" ref that names a live entry in the last
+// ui-snapshot's m_handles resolves to THAT item; anything else (including an "h…"
+// that is not a current handle, or whose item has since been destroyed so the
+// QPointer went null) falls through to findItem(), which treats it as an
+// objectName. So name lookups are unchanged (behaviour-preserving) and handle
+// support is purely additive — a snapshot handle works wherever an objectName does.
+QQuickItem* LanistaServer::resolveTarget(const QString& ref) const
+{
+    if (ref.startsWith(QLatin1Char('h'))) {
+        const auto it = m_handles.constFind(ref);
+        if (it != m_handles.constEnd() && !it->isNull())
+            return it->data();
+    }
+    return findItem(ref);
+}
+
 QJsonObject LanistaServer::cmdGetState() const
 {
     // ROOT windows only — see the header note on mainWindow()/findItem().
@@ -511,10 +532,12 @@ QJsonObject LanistaServer::cmdGetState() const
 // a string stays a string and visible/enabled stay bools.
 void LanistaServer::cmdQmlGet(const QJsonObject& p, Replier reply) const
 {
-    const QString objectName = p.value(QStringLiteral("object")).toString();
-    QQuickItem* item = findItem(objectName);
+    // `object` is a handle-or-name: resolveTarget() accepts an h<N> from the last
+    // ui-snapshot as well as an objectName (name lookups are unchanged).
+    const QString ref = p.value(QStringLiteral("object")).toString();
+    QQuickItem* item = resolveTarget(ref);
     if (!item) {
-        reply.fail("NO_SUCH_ITEM", objectName);
+        reply.fail("NO_SUCH_ITEM", ref);
         return;
     }
     QJsonObject props;
@@ -534,10 +557,12 @@ void LanistaServer::cmdQmlGet(const QJsonObject& p, Replier reply) const
 // the window, where a click would miss it?
 void LanistaServer::cmdUiQuery(const QJsonObject& p, Replier reply) const
 {
-    const QString objectName = p.value(QStringLiteral("object")).toString();
-    QQuickItem* item = findItem(objectName);
+    // `object` is a handle-or-name: resolveTarget() accepts an h<N> from the last
+    // ui-snapshot as well as an objectName (name lookups are unchanged).
+    const QString ref = p.value(QStringLiteral("object")).toString();
+    QQuickItem* item = resolveTarget(ref);
     if (!item) {
-        reply.fail("NO_SUCH_ITEM", objectName);
+        reply.fail("NO_SUCH_ITEM", ref);
         return;
     }
     // The rect in scene space. mapRectToScene is the transform-correct primitive:
@@ -598,6 +623,72 @@ QJsonObject LanistaServer::cmdDumpUi(const QJsonObject&) const
     }
     return {{QStringLiteral("items"), items},
             {QStringLiteral("count"), items.size()}};
+}
+
+// ui-snapshot: Playwright's model, QML-native. ONE call returns every element an
+// agent could act on, each with a session HANDLE (h1, h2, …). Reuses the shared
+// walkVisual() collector (a visit that always returns false = collect every item),
+// exactly like cmdDumpUi — no third tree walk.
+//
+// Non-const because it REBUILDS m_handles. Clearing at the top is the contract: a
+// handle is valid only until the NEXT snapshot. m_handles maps a handle to a
+// QPointer, so an item destroyed before the next snapshot resolves to null in
+// resolveTarget() rather than dangling — which is how a handle can safely outlive
+// its item between reads.
+QJsonObject LanistaServer::cmdUiSnapshot(const QJsonObject&)
+{
+    m_handles.clear();
+    QJsonArray elements;
+    int n = 0;
+    if (QQuickWindow* w = mainWindow()) {
+        walkVisual(w->contentItem(), 0, [&](QQuickItem* it, int) {
+            const QString cls = QString::fromLatin1(it->metaObject()->className());
+            // interactive = the className is (or subclasses, via the Qt base name
+            // in the metaobject chain) something you can drive. A substring match,
+            // not a type registry: inline/delegate QML types get generated class
+            // names, but the Qt base ("QQuickMouseArea", "QQuickTextInput", …)
+            // survives in the name.
+            const bool interactive =
+                cls.contains(QStringLiteral("MouseArea"))
+                || cls.contains(QStringLiteral("TextInput"))
+                || cls.contains(QStringLiteral("TextEdit"))
+                || cls.contains(QStringLiteral("Flickable"))
+                || cls.contains(QStringLiteral("Button"));
+            // Actionable = worth handing to an agent: interactive OR named (a named
+            // non-interactive item is a landmark the scene author called out). And
+            // it must be on-screen with real area — a hidden or zero-sized item has
+            // nothing to click.
+            const bool named = !it->objectName().isEmpty();
+            if (!(interactive || named) || !it->isVisible()
+                || it->width() <= 0 || it->height() <= 0)
+                return false;
+
+            const QString handle = QStringLiteral("h") + QString::number(++n);
+            m_handles.insert(handle, QPointer<QQuickItem>(it));
+
+            // centerX/centerY are the item CENTER in SCENE / LOGICAL units (via
+            // mapToScene), the SAME space get-state, ui-query and dump-ui speak —
+            // NOT device pixels. A driving command (ui-click, …) consumes these
+            // directly; a client that instead compares them against a GRAB must
+            // scale by the LIVE devicePixelRatio (1.5x on this machine), because a
+            // grab is device pixels. Do NOT hard-code 1.5 off the back of these.
+            const QPointF center =
+                it->mapToScene(QPointF(it->width() / 2.0, it->height() / 2.0));
+            elements.append(QJsonObject{
+                {QStringLiteral("handle"), handle},
+                {QStringLiteral("objectName"), it->objectName()},
+                {QStringLiteral("class"), cls},
+                {QStringLiteral("interactive"), interactive},
+                {QStringLiteral("centerX"), center.x()},
+                {QStringLiteral("centerY"), center.y()},
+                {QStringLiteral("width"), it->width()},
+                {QStringLiteral("height"), it->height()},
+                {QStringLiteral("enabled"), it->isEnabled()}});
+            return false;   // collect every actionable item — never stop early
+        });
+    }
+    return {{QStringLiteral("elements"), elements},
+            {QStringLiteral("count"), elements.size()}};
 }
 
 // ── the combined reply ─────────────────────────────────────────────────────
