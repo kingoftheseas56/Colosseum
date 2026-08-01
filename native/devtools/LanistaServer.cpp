@@ -22,8 +22,8 @@
 #include <QSet>
 #include <QStandardPaths>
 #include <QStringList>
-#include <QVariant>
 #include <QTimer>
+#include <QVariant>
 #include <QWheelEvent>
 
 #include <algorithm>
@@ -954,6 +954,14 @@ void LanistaServer::cmdUiWaitFor(const QJsonObject& p, Replier reply)
 // The allowlist check comes BEFORE the organ lookup on purpose: a refused method
 // never touches the organ. Args marshal as QString (the allowlisted reads take
 // string params); the return branches on QVariantList / QVariantMap / bool.
+//
+// EXTENDING THE BRIDGE — three coupled seams. Adding a read to kAllowlist may
+// also require extending (a) the arg marshalling, if the new read takes a
+// non-QString param — today all args marshal as QString; and (b) the return-type
+// branch, if it returns a type other than QVariantList / QVariantMap / bool. A
+// method whose name+arity match but whose return type is not bridged fails with a
+// message that says exactly that (not "no matching invokable"), so a missing
+// return-type branch never masquerades as a missing method.
 void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
 {
     // EXACTLY the six verified TankobanVolumes reads — the whole safety boundary.
@@ -1015,10 +1023,16 @@ void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
     // whose invoke fails is a hard error; falling off the end is no-match.
     const QMetaObject* mo = organ->metaObject();
     const QByteArray methodBytes = method.toUtf8();
+    // Did the scan ever find a name+arity match whose return type simply was not
+    // one of the three bridged types? That is a DIFFERENT failure from "no such
+    // method": the two must not collapse into one message, or the next lane
+    // extending the bridge chases a non-existent name/arity bug (see below).
+    bool matchedNameArity = false;
     for (int i = 0; i < mo->methodCount(); ++i) {
         const QMetaMethod mm = mo->method(i);
         if (mm.name() != methodBytes || mm.parameterCount() != args.size())
             continue;
+        matchedNameArity = true;
 
         const QByteArray retType = mm.typeName();
         QJsonValue out;
@@ -1042,7 +1056,17 @@ void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
             reply.fail("CMD_FAILED", QStringLiteral("invoke failed: ") + key);
             return;
         }
-        reply.reply(QJsonObject{{QStringLiteral("result"), out}});
+        reply.reply({{QStringLiteral("result"), out}});
+        return;
+    }
+    // Two distinct terminal failures. If a name+arity match WAS found, the method
+    // exists — its return type just is not bridged yet, so point the next lane at
+    // the return-type branch rather than at a phantom name/arity bug. Only a true
+    // no-match keeps the "no matching invokable" message.
+    if (matchedNameArity) {
+        reply.fail("CMD_FAILED",
+                   key + QStringLiteral(": invokable found but its return type is "
+                                        "not bridged — add a branch in cmdInvokeRead"));
         return;
     }
     reply.fail("CMD_FAILED", QStringLiteral("no matching invokable: ") + key);

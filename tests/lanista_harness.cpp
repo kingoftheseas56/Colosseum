@@ -811,7 +811,8 @@ int main(int argc, char** argv)
         QJsonObject na = call(pipe, {{"cmd","invoke-read"},{"seq",91},
             {"payload", QJsonObject{{"object","TankobanVolumes"},{"method","remove"},
                                     {"args", QJsonArray{"v1"}}}}});
-        require(na.value("message").toString().contains("allowlist"),
+        require(na.value("type").toString()=="error" && na.value("code").toString()=="CMD_FAILED"
+                && na.value("message").toString().contains("allowlist"),
                 "a method off the allowlist is refused before the organ lookup" + why());
 
         // Close the DRIVE gate again — leave the process as the denial tests found it.
