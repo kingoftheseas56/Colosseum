@@ -2041,6 +2041,14 @@ Item {
         root.mediaArt = t.art || ""
         root.mediaLocalPath = String(t.localPath || "")
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("local:" + root.mediaLocalPath)
+        // Show wordmark parity with streaming (playTorrent): a downloaded episode's pause card + loader
+        // must show ITS show, not whatever was streamed last. Prefer a context-supplied logo, else DERIVE
+        // the metahub wordmark from the tt id in the identity (mediaId is "tt…:S:E" / "tt…"); a bare
+        // "local:" path yields no id, so the card falls back to the title text — never a stale logo.
+        var _localLogoTt = String(root.mediaId).match(/^(tt\d+)/)
+        root.mediaLogo = (localCtx.logo && String(localCtx.logo).length)
+            ? String(localCtx.logo)
+            : (_localLogoTt ? "https://live.metahub.space/logo/medium/" + _localLogoTt[1] + "/img" : "")
         root.playbackQueue = localCtx.episodeQueue || []
         root.playbackQueueIndex = localCtx.episodeIndex !== undefined
                                   ? Number(localCtx.episodeIndex) : -1
@@ -2093,6 +2101,12 @@ Item {
         root.mediaArt = t.art || ""
         root.mediaLocalPath = ""
         root.mediaId = (t.id && String(t.id).length) ? String(t.id) : ("arriving:" + String(t.streamUrl || ""))
+        // Wordmark parity (see playLocalFile): the play-while-downloading card must show ITS show,
+        // not the last stream's. Context logo, else metahub-from-tt in the identity, else blank text.
+        var _arrCtxLogo = String((t.playbackContext || ({})).logo || "")
+        var _arrLogoTt = String(root.mediaId).match(/^(tt\d+)/)
+        root.mediaLogo = _arrCtxLogo.length ? _arrCtxLogo
+            : (_arrLogoTt ? "https://live.metahub.space/logo/medium/" + _arrLogoTt[1] + "/img" : "")
         root.playbackQueue = []
         root.playbackQueueIndex = -1
         root.playbackQueueOrderingMode = ""
@@ -2286,6 +2300,11 @@ Item {
         root.pauseHydratedId = ""         // fresh media: re-hydrate the pause card on next pause
         root.mediaPlot = ""
         root.mediaEpisodeName = ""
+        root.mediaLogo = ""               // fresh media: drop the previous show's wordmark. playTorrent
+                                          // is the ONLY path that sets mediaLogo, so without this a
+                                          // downloaded/direct video keeps the last stream's logo on the
+                                          // pause card + loader (One Piece over Hawkeye). Non-stream
+                                          // paths repopulate it below from their own identity.
         root.pauseCardShown = false
     }
 
