@@ -228,11 +228,6 @@ WorldPage {
         onGenreRequested: (kind, name) => theatre.theatreGenreRequested(kind, name)
         onGenreIndexRequested: (kind) => theatre.theatreGenreIndexRequested(kind)
         onSeeAllRequested: (pin) => theatre.seeAllPin = pin
-        // legacy path (unused by the deep catalogue; kept null-safe)
-        onDiscoverPinRequested: (pin) => {
-            theatre.activeTab = "discover"
-            discoverPage.applyPin(pin)
-        }
     }
 
     // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
@@ -253,7 +248,11 @@ WorldPage {
     Item {
         id: seeAllOverlay
         parent: theatre
-        anchors.fill: theatre
+        // explicit geometry (not anchors) — the reparent to `theatre` races the default-property
+        // parenting to the scrolling board, and anchors reject a non-parent/sibling target.
+        x: 0; y: 0
+        width: theatre.width
+        height: theatre.height
         z: 300
         visible: theatre.seeAllPin !== null
         Rectangle { anchors.fill: parent; color: "#0b0d12" }   // opaque backing, matches the shell
