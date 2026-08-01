@@ -41,13 +41,22 @@ if ($LASTEXITCODE -ne 0 -or $out -notmatch "LANISTA_OK") {
 # 3. scenarios against a serving harness (fresh process, no DRIVE env)
 $serve = Start-Process -FilePath (Join-Path $build "lanista_harness.exe") `
     -ArgumentList "--serve" -PassThru -WindowStyle Hidden
-Start-Sleep -Seconds 2
+$lanista = Join-Path $build "lanista.exe"
 try {
     Push-Location $root
+    # Poll for readiness instead of a fixed sleep: a `ping` that exits 0 proves
+    # the pipe is up. A slow box no longer flakes; a fast one no longer waits.
+    $ready = $false
+    for ($i = 0; $i -lt 30; $i++) {
+        & $lanista --pipe ColosseumLanistaTest ping 2>&1 | Out-Null
+        if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+        Start-Sleep -Milliseconds 500
+    }
+    if (-not $ready) { Write-Host "FAIL: harness never came up on ColosseumLanistaTest (15s)"; exit 1 }
     foreach ($sc in @("tests/lanista_scenarios/self_smoke.json",
                       "tests/lanista_scenarios/self_visual.json")) {
-        & (Join-Path $build "lanista.exe") --pipe ColosseumLanistaTest run $sc 2>&1 | Out-String
-        if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: scenario $sc"; exit 1 }
+        $scOut = & $lanista --pipe ColosseumLanistaTest run $sc 2>&1 | Out-String
+        if ($LASTEXITCODE -ne 0) { Write-Host "FAIL: scenario $sc"; Write-Host $scOut; exit 1 }
     }
     Pop-Location
 } finally {

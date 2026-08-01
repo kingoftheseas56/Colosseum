@@ -349,6 +349,31 @@ static ScenarioRun runScenario(const QString& file, bool keepGoing)
     return out;
 }
 
+// junit attribute values go out RAW today, so a failing step's detail (a `<` /
+// `<=` op, or a quoted JSON actual in "got …") can carry `<`, `&`, `>`, `"` and
+// make a CI junit parser reject the ENTIRE file — defeating the point of emitting
+// junit at all. Escape the XML-significant chars; ampersand FIRST, or the later
+// replacements would double-encode their own `&`.
+static QString xmlEscape(QString s)
+{
+    s.replace(QLatin1Char('&'), QStringLiteral("&amp;"));
+    s.replace(QLatin1Char('<'), QStringLiteral("&lt;"));
+    s.replace(QLatin1Char('>'), QStringLiteral("&gt;"));
+    s.replace(QLatin1Char('"'), QStringLiteral("&quot;"));
+    return s;
+}
+
+// A markdown table cell: a raw `|` opens phantom columns and a newline ends the
+// row early, so a label/detail carrying either corrupts the report table. Collapse
+// newlines to a space and backslash-escape the pipe.
+static QString mdCell(QString s)
+{
+    s.replace(QLatin1Char('\r'), QLatin1Char(' '));
+    s.replace(QLatin1Char('\n'), QLatin1Char(' '));
+    s.replace(QLatin1Char('|'), QStringLiteral("\\|"));
+    return s;
+}
+
 static void printUsage(std::ostream& os)
 {
     os << "usage:\n"
@@ -486,12 +511,13 @@ int main(int argc, char** argv)
             if (run.scenarioError) {
                 ++total; ++failed;
                 junit += QStringLiteral(
-                    "  <testcase classname=\"%1\" name=\"scenario\">"
-                    "<failure message=\"scenario error\"/></testcase>\n")
-                    .arg(scenario);
+                    "  <testcase classname=\"%1\" name=\"%2\">"
+                    "<failure message=\"%3\"/></testcase>\n")
+                    .arg(xmlEscape(scenario), xmlEscape(QStringLiteral("scenario")),
+                         xmlEscape(QStringLiteral("scenario error")));
                 report += QStringLiteral("| %1 | %2 | %3 | %4 |\n")
-                    .arg(scenario, QStringLiteral("scenario"),
-                         QStringLiteral("FAIL"), QStringLiteral("scenario error"));
+                    .arg(mdCell(scenario), mdCell(QStringLiteral("scenario")),
+                         QStringLiteral("FAIL"), mdCell(QStringLiteral("scenario error")));
                 continue;
             }
 
@@ -499,14 +525,14 @@ int main(int argc, char** argv)
                 ++total;
                 junit += QStringLiteral(
                     "  <testcase classname=\"%1\" name=\"%2\">%3</testcase>\n")
-                    .arg(scenario, r.label,
+                    .arg(xmlEscape(scenario), xmlEscape(r.label),
                          r.pass ? QString()
                                 : QStringLiteral("<failure message=\"%1\"/>")
-                                      .arg(r.detail));
+                                      .arg(xmlEscape(r.detail)));
                 report += QStringLiteral("| %1 | %2 | %3 | %4 |\n")
-                    .arg(scenario, r.label,
+                    .arg(mdCell(scenario), mdCell(r.label),
                          r.pass ? QStringLiteral("PASS") : QStringLiteral("FAIL"),
-                         r.detail);
+                         mdCell(r.detail));
                 if (!r.pass) {
                     ++failed;
                     if (!r.grabPath.isEmpty())
