@@ -216,7 +216,9 @@ Item {
                 }
             }
 
-            // ---- Settings: the global preferences gear, beside Extensions (Task 2) ----
+            // ---- Settings: the global preferences sliders, beside Extensions (Task 2).
+            //      A distinct sliders glyph (not the gear) so it never reads as the
+            //      wallpaper settings gear in TopBar (Hemanth, 2026-08-02). ----
             Item {
                 Layout.preferredWidth: 46
                 Layout.preferredHeight: 46
@@ -230,7 +232,7 @@ Item {
                 Image {
                     anchors.centerIn: parent
                     width: 21; height: 21
-                    source: "../assets/icons/settings.svg"
+                    source: "../assets/icons/preferences.svg"
                     fillMode: Image.PreserveAspectFit
                     opacity: bar.settingsActive ? 1 : 0.75
                 }

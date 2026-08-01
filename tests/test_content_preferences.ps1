@@ -36,7 +36,7 @@ $main    = Get-Content -Raw (Join-Path $root "qml\Main.qml")
 $page    = Get-Content -Raw (Join-Path $root "qml\SettingsPage.qml")
 
 Assert-Contains $taskbar 'signal settingsClicked()' 'taskbar exposes settings door'
-Assert-Contains $taskbar '../assets/icons/settings.svg' 'existing settings icon is used'
+Assert-Contains $taskbar '../assets/icons/preferences.svg' 'distinct sliders icon (not the wallpaper gear) for global settings'
 Assert-Contains $main 'id: contentPreferences' 'one global preference instance'
 Assert-Contains $main 'source: "SettingsPage.qml"' 'settings surface is host-owned'
 Assert-Contains $page 'Show sexually explicit titles across Theatre, Tankoban, and Biblio.' 'locked helper copy'
