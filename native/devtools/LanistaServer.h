@@ -193,8 +193,11 @@ private:
     void cmdUiTextInput(const QJsonObject& p, Replier reply) const;
     void cmdUiScroll(const QJsonObject& p, Replier reply) const;
     void cmdUiWaitFor(const QJsonObject& p, Replier reply);
-    // Task 9
-    QJsonObject cmdInvokeRead(const QJsonObject& p) const;
+    // Task 9 — invoke-read is FALLIBLE (off-allowlist / missing organ / no match),
+    // so it owns the Replier and fail()/reply()s itself, exactly like the Task 3
+    // fallible reads. It is const: it only READS an organ's invokable, never the
+    // server.
+    void cmdInvokeRead(const QJsonObject& p, Replier reply) const;
 
     // NOTE (Tasks 2-3 targeting): these see ROOT objects only. A QML-declared
     // secondary Window, a Popup with its own window, or anything not reachable

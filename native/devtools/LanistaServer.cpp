@@ -11,14 +11,18 @@
 #include <QKeySequence>
 #include <QLocalServer>
 #include <QLocalSocket>
+#include <QMetaMethod>
 #include <QMouseEvent>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickItemGrabResult>
 #include <QQuickWindow>
 #include <QRegularExpression>
+#include <QSet>
 #include <QStandardPaths>
 #include <QStringList>
+#include <QVariant>
 #include <QTimer>
 #include <QWheelEvent>
 
@@ -217,6 +221,13 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
              [this](const QJsonObject& p, Replier reply) { cmdUiScroll(p, std::move(reply)); });
     addRead(QStringLiteral("ui-wait-for"),
             [this](const QJsonObject& p, Replier reply) { cmdUiWaitFor(p, std::move(reply)); });
+
+    // Task 9: invoke-read — curated, allowlisted, read-only organ calls. A READ:
+    // it only observes an organ's invokable, and its allowlist is what guarantees
+    // it can never mutate (see cmdInvokeRead). Fallible on its target, so it owns
+    // the Replier like the Task 3 reads.
+    addRead(QStringLiteral("invoke-read"),
+            [this](const QJsonObject& p, Replier reply) { cmdInvokeRead(p, std::move(reply)); });
 
     if (qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_SELFTEST") == 1)
         registerSelfTestCommands();
@@ -927,6 +938,114 @@ void LanistaServer::cmdUiWaitFor(const QJsonObject& p, Replier reply)
                 }
             });
     timer->start();
+}
+
+// ── Task 9: invoke-read ──────────────────────────────────────────────────────
+// A CURATED, allowlisted, read-only bridge to a QML organ's Q_INVOKABLE reads.
+//
+// DESIGN NOTE — this is NOT a generic invoke. Only allowlisted <Organ>.<method>
+// pairs may be called, so a READ-gated command can never mutate: an off-list
+// method (e.g. TankobanVolumes.remove) is refused before the organ is even
+// resolved. v1.0's allowlist is the TankobanVolumes organ ONLY — the one organ
+// whose invokable signatures are verified. Other organs' reads ride
+// qml-get/ui-snapshot/dump-ui until their signatures are verified and ADDED here
+// in a follow-up — never by weakening this list.
+//
+// The allowlist check comes BEFORE the organ lookup on purpose: a refused method
+// never touches the organ. Args marshal as QString (the allowlisted reads take
+// string params); the return branches on QVariantList / QVariantMap / bool.
+void LanistaServer::cmdInvokeRead(const QJsonObject& p, Replier reply) const
+{
+    // EXACTLY the six verified TankobanVolumes reads — the whole safety boundary.
+    static const QSet<QString> kAllowlist = {
+        QStringLiteral("TankobanVolumes.volumesForSeries"),
+        QStringLiteral("TankobanVolumes.statusOf"),
+        QStringLiteral("TankobanVolumes.activeVolumeJobs"),
+        QStringLiteral("TankobanVolumes.downloadedVolumes"),
+        QStringLiteral("TankobanVolumes.modeEnabled"),
+        QStringLiteral("TankobanVolumes.localPages"),
+    };
+
+    const QString objName = p.value(QStringLiteral("object")).toString();
+    const QString method = p.value(QStringLiteral("method")).toString();
+    const QString key = objName + QStringLiteral(".") + method;
+
+    // Allowlist FIRST — a refused method never even touches the organ.
+    if (!kAllowlist.contains(key)) {
+        reply.fail("CMD_FAILED",
+                   key + QStringLiteral(" is not on the invoke-read allowlist; "
+                                        "extend the bridge in your lane instead"));
+        return;
+    }
+
+    // Resolve the organ as a context property on the root context.
+    QObject* organ = m_engine->rootContext()
+                         ->contextProperty(objName).value<QObject*>();
+    if (!organ) {
+        reply.fail("CMD_FAILED",
+                   QStringLiteral("no such context property: ") + objName);
+        return;
+    }
+
+    // All args as QString — the allowlisted reads take string parameters.
+    QStringList args;
+    const QJsonArray argsArr = p.value(QStringLiteral("args")).toArray();
+    for (const QJsonValue& v : argsArr)
+        args << v.toString();
+
+    // DirectConnection so the read resolves in THIS turn. Invokes the EXACT
+    // method matched below; args are supplied by count (all QString); >3 is
+    // beyond any allowlisted signature.
+    auto doInvoke = [&](const QMetaMethod& mm, auto&& ret) -> bool {
+        switch (args.size()) {
+        case 0: return mm.invoke(organ, Qt::DirectConnection, ret);
+        case 1: return mm.invoke(organ, Qt::DirectConnection, ret,
+                    Q_ARG(QString, args.at(0)));
+        case 2: return mm.invoke(organ, Qt::DirectConnection, ret,
+                    Q_ARG(QString, args.at(0)), Q_ARG(QString, args.at(1)));
+        case 3: return mm.invoke(organ, Qt::DirectConnection, ret,
+                    Q_ARG(QString, args.at(0)), Q_ARG(QString, args.at(1)),
+                    Q_ARG(QString, args.at(2)));
+        default: return false;
+        }
+    };
+
+    // Find the matching invokable by name + parameterCount, branch on its return
+    // type. An unmatched return type keeps scanning (an overload may fit); a match
+    // whose invoke fails is a hard error; falling off the end is no-match.
+    const QMetaObject* mo = organ->metaObject();
+    const QByteArray methodBytes = method.toUtf8();
+    for (int i = 0; i < mo->methodCount(); ++i) {
+        const QMetaMethod mm = mo->method(i);
+        if (mm.name() != methodBytes || mm.parameterCount() != args.size())
+            continue;
+
+        const QByteArray retType = mm.typeName();
+        QJsonValue out;
+        bool invoked = false;
+        if (retType == "QVariantList") {
+            QVariantList v;
+            invoked = doInvoke(mm, Q_RETURN_ARG(QVariantList, v));
+            out = QJsonArray::fromVariantList(v);
+        } else if (retType == "QVariantMap") {
+            QVariantMap v;
+            invoked = doInvoke(mm, Q_RETURN_ARG(QVariantMap, v));
+            out = QJsonObject::fromVariantMap(v);
+        } else if (retType == "bool") {
+            bool v = false;
+            invoked = doInvoke(mm, Q_RETURN_ARG(bool, v));
+            out = v;
+        } else {
+            continue;   // unmatched return type — keep scanning for an overload
+        }
+        if (!invoked) {
+            reply.fail("CMD_FAILED", QStringLiteral("invoke failed: ") + key);
+            return;
+        }
+        reply.reply(QJsonObject{{QStringLiteral("result"), out}});
+        return;
+    }
+    reply.fail("CMD_FAILED", QStringLiteral("no matching invokable: ") + key);
 }
 
 // ── the combined reply ─────────────────────────────────────────────────────

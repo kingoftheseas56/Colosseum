@@ -17,6 +17,7 @@ import "MangaVolumes.js" as Vol
 
 Item {
     id: page
+    objectName: "mangaSeriesPage"
     property Item backdrop
     property string seriesTitle: ""
     signal backRequested()

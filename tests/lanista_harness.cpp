@@ -793,6 +793,27 @@ int main(int argc, char** argv)
                     && waitTimeout.value("code").toString() == "WAIT_TIMEOUT",
                 "ui-wait-for that never matches fails as WAIT_TIMEOUT (deadline fires)" + why());
 
+        // ── Task 9: invoke-read — REFUSAL PATHS ONLY ──────────────────────────
+        // invoke-read is a curated, allowlisted, read-only bridge into a QML
+        // organ's Q_INVOKABLE reads. The real-invoke HAPPY PATH is deliberately
+        // deferred to Task 12 (against the real app): this harness scene declares
+        // NO context-property organs, so there is nothing real to invoke here —
+        // only the two refusals are provable, and they are the whole safety model.
+        //
+        // invoke-read: a NAMED error for a missing organ
+        QJsonObject ir = call(pipe, {{"cmd","invoke-read"},{"seq",90},
+            {"payload", QJsonObject{{"object","TankobanVolumes"},{"method","volumesForSeries"},
+                                    {"args", QJsonArray{"nope"}}}}});
+        require(ir.value("type").toString()=="error" && ir.value("code").toString()=="CMD_FAILED"
+                && ir.value("message").toString().contains("context property"),
+                "invoke-read names a missing organ" + why());
+        // a method OFF the allowlist is refused BEFORE the organ lookup
+        QJsonObject na = call(pipe, {{"cmd","invoke-read"},{"seq",91},
+            {"payload", QJsonObject{{"object","TankobanVolumes"},{"method","remove"},
+                                    {"args", QJsonArray{"v1"}}}}});
+        require(na.value("message").toString().contains("allowlist"),
+                "a method off the allowlist is refused before the organ lookup" + why());
+
         // Close the DRIVE gate again — leave the process as the denial tests found it.
         qunsetenv("COLOSSEUM_LANISTA_DRIVE");
 

@@ -34,6 +34,7 @@ import "MangaVolumes.js" as Vol
 
 Item {
     id: root
+    objectName: "volumeShelf"
 
     property string seriesId: ""
     // Injection seam: the harness assigns a fake; the app leaves this null and the
@@ -454,6 +455,7 @@ Item {
         // Both are lifted from TheatreSeries.qml (:1077 dropdown, :1168 strip).
         Item {
             id: pagerRow
+            objectName: "shelfPager"
             width: listCol.width
             height: root.pagedRows.length > 1 ? 62 : 0
             visible: height > 0
@@ -612,6 +614,7 @@ Item {
         //    "Download season" sits on a show page (Hemanth, eyes-on 2026-07-31).
         Item {
             id: volumeLedgerHeader
+            objectName: "shelfLedger"
             x: theme.margin
             width: listCol.width - 2 * theme.margin
             height: root.pagedRows.length ? 86 : 0
