@@ -76,6 +76,11 @@ Item {
         anchors.fill: parent
         adapter: root.adapter
         fallbackType: "manga"                  // Tankoban's default type when catalog objects are absent
+        // Gallery poster profile for BOTH Manga and Comics (one shared shell) — adopted after the
+        // Theatre pilot + a manga/comics cover screenshot check. Presentation only; demographic and
+        // publisher stay in the Discover filters, never on the card. The 2:3 crop is identical to the
+        // classic card (both use ratio 1.5), so gallery introduces no NEW cover cropping.
+        posterVisualProfile: "gallery"
         // Tankoban copy — the wall's empty-state wording.
         textNoCatalogue: "Nothing to browse here yet."
         textCatalogueEmpty: "This catalogue answered with nothing."

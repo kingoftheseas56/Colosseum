@@ -31,11 +31,12 @@ assert.match(discoverBrowser, /property\s+string\s+posterVisualProfile:\s*"class
 assert.match(discoverBrowser, /visualProfile:\s*browser\.posterVisualProfile/,
     'DiscoverBrowser must wire posterVisualProfile through to its card delegate');
 
-// During the Theatre pilot, the Discover wrappers must NOT opt into gallery yet (Task 9 gate).
-assert.doesNotMatch(discoverPage, /posterVisualProfile:\s*"gallery"/,
-    'DiscoverPage must stay classic until the Task 9 eyes-on gate');
-assert.doesNotMatch(tankobanDiscover, /posterVisualProfile:\s*"gallery"/,
-    'TankobanDiscoverPage must stay classic until the Task 9 eyes-on gate');
+// After the Theatre pilot passed eyes-on (2026-08-03), the approved Discover wrappers opt into the
+// gallery profile — Theatre Discover and Tankoban Discover (Manga + Comics share one shell).
+assert.match(discoverPage, /posterVisualProfile:\s*"gallery"/,
+    'DiscoverPage opts into the gallery profile after the Task 9 gate');
+assert.match(tankobanDiscover, /posterVisualProfile:\s*"gallery"/,
+    'TankobanDiscoverPage opts into the gallery profile after the Task 9 gate');
 
 // The separate scroll-speed controller must not be dragged into this arc.
 assert.doesNotMatch(scrollGlide, /CatalogueVisualMetrics|RoundedPosterImage|LazyPosterShelf/,

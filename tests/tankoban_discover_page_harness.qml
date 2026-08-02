@@ -86,6 +86,12 @@ Item {
         _xhrFactory: root.makeFakeXhr
     }
 
+    // resting-card proofs for BOTH Tankoban variants under the gallery profile (Task 9): a manga
+    // card and a comics card must show POSTER + TITLE only at rest — no rating, no play ring, and no
+    // demographic/publisher furniture (those stay in the Discover filters, not on the card).
+    UI.CataloguePosterCard { id: mangaRestCard; visualProfile: "gallery"; width: 148; height: 257 }
+    UI.CataloguePosterCard { id: comicRestCard; visualProfile: "gallery"; width: 148; height: 257 }
+
     Timer {
         interval: 60; running: true; repeat: false
         onTriggered: root.run()
@@ -208,6 +214,26 @@ Item {
         var staleCat = resolve({ type: "manga", catalogId: "retired-catalogue", filterGroup: "", filterKey: "" })
         eq(staleCat.type, "manga", "stale catalogue: type preserved")
         eq(staleCat.catalogKey, "popular", "stale catalogue: falls to built-in default popular")
+
+        // ── Task 9: Tankoban Discover opts BOTH types into the gallery profile ──
+        var gShell = p._shellForTest
+        eq(gShell.posterVisualProfile, "gallery", "Tankoban Discover selects the gallery profile")
+        gShell.selectType("comics")
+        eq(p.currentType, "comics", "switched to the Comics wall")
+        eq(gShell.posterVisualProfile, "gallery", "Comics wall keeps the gallery profile")
+        gShell.selectType("manga")
+        eq(p.currentType, "manga", "switched back to the Manga wall")
+        eq(gShell.posterVisualProfile, "gallery", "Manga wall keeps the gallery profile")
+
+        // resting cards stay poster-and-title only for BOTH variants (no rating/publisher furniture)
+        mangaRestCard.item = mangaCard
+        comicRestCard.item = comicCard
+        falsy(mangaRestCard.ratingVisibleAtRest, "manga resting card shows no rating")
+        falsy(mangaRestCard.centerPlayVisible, "manga resting card shows no play ring (gallery)")
+        eq(mangaRestCard.capText, "Vagabond", "manga resting card shows only the title")
+        falsy(comicRestCard.ratingVisibleAtRest, "comic resting card shows no rating")
+        falsy(comicRestCard.centerPlayVisible, "comic resting card shows no play ring (gallery)")
+        eq(comicRestCard.capText, "Saga", "comic resting card shows only the title")
 
       } catch (e) {
         root.fails.push("exception: " + (e && e.message ? e.message : String(e)))

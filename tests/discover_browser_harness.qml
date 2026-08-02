@@ -207,6 +207,9 @@ Item {
             ok(browser.posterVisualProfile === "classic", "DiscoverBrowser defaults to the classic poster profile");
             browser.posterVisualProfile = "gallery";
             ok(browser.posterVisualProfile === "gallery", "posterVisualProfile is settable to gallery");
+            // Task 9: the gallery profile is presentation-only — flipping it must not disturb the
+            // shell's loaded data (the Discover/Tankoban wrappers set it with no data/filter change).
+            ok(browser.items.length === 1, "gallery profile leaves the shell's loaded data intact");
             browser.posterVisualProfile = "classic";
 
             if (fails.length) console.log("DISCOVER_BROWSER FAILS:\n  " + fails.join("\n  "));
