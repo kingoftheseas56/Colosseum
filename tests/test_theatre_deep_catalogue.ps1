@@ -26,6 +26,21 @@ function Invoke-Harness($relPath, $marker) {
 function Stage-PosterPolicy {
     Invoke-Harness "tests\poster_source_policy_harness.qml" "POSTER_SOURCE_POLICY_OK"
 }
+function Stage-RoundedPoster {
+    Invoke-Harness "tests\rounded_poster_image_harness.qml" "ROUNDED_POSTER_IMAGE_OK"
+    # Static render-chain guard — what an offscreen harness structurally cannot see: prove exactly
+    # one MultiEffect mask pass and NO forbidden expensive chain (ShaderEffectSource / GPU blur /
+    # per-card shadow) ever entered the poster renderer. (Design §6.3.)
+    $src = Get-Content -Raw (Join-Path $root "qml\RoundedPosterImage.qml")
+    # Match INSTANTIATION (Type {) not the bare word, so a documenting comment can name the very
+    # things it forbids without tripping the guard — the same discipline the MultiEffect count uses.
+    $me = ([regex]::Matches($src, "MultiEffect\s*\{")).Count
+    if ($me -ne 1) { throw "RoundedPosterImage must use exactly one MultiEffect (found $me)" }
+    if ($src -match "ShaderEffectSource\s*\{") { throw "RoundedPosterImage must not instantiate ShaderEffectSource" }
+    if ($src -match "blurEnabled\s*:\s*true") { throw "RoundedPosterImage must not enable MultiEffect blur" }
+    if ($src -match "shadowEnabled\s*:\s*true") { throw "RoundedPosterImage must not enable MultiEffect shadow" }
+    Write-Host "ROUNDED_POSTER_RENDER_CHAIN_OK"
+}
 function Stage-Rules {
     Invoke-Harness "tests\theatre_catalog_rules_harness.qml" "THEATRE_CATALOG_RULES_OK"
 }
@@ -55,10 +70,11 @@ function Stage-DiscoverRegression {
 
 # Additional stages (Cards, SeeAll, Preferences, Page) are wired by their owning tasks.
 # -Stage All composes every wired slice.
-$wired = @("PosterPolicy", "Rules", "ApiRows", "Cards", "SeeAll", "Preferences", "Page", "DiscoverRegression")
+$wired = @("PosterPolicy", "RoundedPoster", "Rules", "ApiRows", "Cards", "SeeAll", "Preferences", "Page", "DiscoverRegression")
 
 switch ($Stage) {
     "PosterPolicy"       { Stage-PosterPolicy }
+    "RoundedPoster"      { Stage-RoundedPoster }
     "Rules"              { Stage-Rules }
     "ApiRows"            { Stage-ApiRows }
     "Cards"              { Stage-Cards }
@@ -68,6 +84,7 @@ switch ($Stage) {
     "DiscoverRegression" { Stage-DiscoverRegression }
     "All" {
         Stage-PosterPolicy
+        Stage-RoundedPoster
         Stage-Rules
         Stage-ApiRows
         Stage-Cards
