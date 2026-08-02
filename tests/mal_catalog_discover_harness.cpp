@@ -248,6 +248,12 @@ int main(int argc, char** argv)
         require(idsOf(items) == (QList<int>{1, 2, 5, 7, 3}), "Action genre facet, members DESC");
         require(!containsId(items, 4), "non-Action explicit title absent from Action facet");
         require(!containsId(items, 6), "non-Action title absent from Action facet");
+        // Case-insensitive facet key: classification values are stored Titlecase, but the
+        // Tankoban adapter sends a stable LOWER-case key. A lower-case "action" must return
+        // the identical 5 rows — an exact `c.value = ?` returned ZERO (the empty-wall bug).
+        const QVariantList lower = cat.discoverPage("popular", "genre", "action", true, 0, 100)
+                                      .value("items").toList();
+        require(idsOf(lower) == (QList<int>{1, 2, 5, 7, 3}), "lower-case genre key resolves (case-insensitive facet)");
     }
 
     // ── demographic filter + includeExplicit interaction ─────────────────────

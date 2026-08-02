@@ -516,10 +516,14 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
         "       (select count(*) from curated_edition e where e.locg_id = s.locg_id"
         "        and e.available = 1 and e.getcomics_post != '') as avail_count"
         " from curated_series s");
+    // Case-insensitive facet match: curated genre/publisher values are stored Titlecase
+    // ("Superhero", "Marvel Comics") but the Tankoban adapter sends a STABLE lower-case
+    // filter key. LOWER-to-LOWER so the key resolves — an exact `= ?` returned zero rows
+    // for every filter (2026-08-02, same class of bug as the manga wall).
     if (facetGenre)
-        sql += QStringLiteral(" join curated_genre gf on gf.locg_id = s.locg_id where gf.genre = ?");
+        sql += QStringLiteral(" join curated_genre gf on gf.locg_id = s.locg_id where LOWER(gf.genre) = LOWER(?)");
     else if (facetPublisher)
-        sql += QStringLiteral(" where s.publisher = ?");
+        sql += QStringLiteral(" where LOWER(s.publisher) = LOWER(?)");
 
     QSqlQuery q(m_db);
     q.prepare(sql);

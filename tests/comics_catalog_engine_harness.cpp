@@ -407,6 +407,13 @@ int main(int argc, char** argv) {
         const QVariantList dc = disco.discoverPage("popular", "publisher", "DC", true, 0, 100).value("items").toList();
         if (dc.size() != 2) return fail("popular+publisher=DC scopes to the 2 DC titles");
         if (dc[0].toMap().value("locgId").toString() != "sv") return fail("DC scope: rank-1 sv leads");
+        // Case-insensitive facet keys: curated genre/publisher are stored Titlecase, but the
+        // Tankoban adapter sends a stable LOWER-case key. Lower-case "horror"/"dc" must scope
+        // identically — an exact `= ?` returned ZERO rows (the empty-wall bug, 2026-08-02).
+        const QVariantList horrorLc = disco.discoverPage("popular", "genre", "horror", true, 0, 100).value("items").toList();
+        if (horrorLc.size() != 2) return fail("lower-case genre key resolves (case-insensitive genre facet)");
+        const QVariantList dcLc = disco.discoverPage("popular", "publisher", "dc", true, 0, 100).value("items").toList();
+        if (dcLc.size() != 2) return fail("lower-case publisher key resolves (case-insensitive publisher facet)");
 
         // --- includeExplicit is a documented NO-OP; horror/Mature title stays VISIBLE ---
         const QVariantList popF = disco.discoverPage("popular", "", "", false, 0, 100).value("items").toList();

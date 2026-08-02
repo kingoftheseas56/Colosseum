@@ -310,7 +310,12 @@ QVariantMap MalCatalog::discoverPage(const QString& catalogId, const QString& fi
     QVariantList binds;
     if (joinClass) {
         from = QStringLiteral("classification c JOIN manga m ON m.mal_id = c.mal_id");
-        where << QStringLiteral("c.medium = 'manga' AND c.axis = ? AND c.value = ?");
+        // Case-insensitive value match: the bake stores classification values in their
+        // canonical Titlecase ("Romance", "Seinen"), but the Tankoban adapter derives a
+        // STABLE lower-case filter key ("romance"). Compare LOWER-to-LOWER so the stable
+        // key resolves — an exact `c.value = ?` silently returned zero rows for every
+        // filter (2026-08-02: the Discover Romance filter painted an empty wall).
+        where << QStringLiteral("c.medium = 'manga' AND c.axis = ? AND LOWER(c.value) = LOWER(?)");
         binds << filterAxis << filterKey;
     }
     if (!includeExplicit)
