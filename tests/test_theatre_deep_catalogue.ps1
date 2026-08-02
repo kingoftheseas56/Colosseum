@@ -23,6 +23,9 @@ function Invoke-Harness($relPath, $marker) {
     if ($marker -and $out -notlike "*$marker*") { throw "$relPath missing OK marker '$marker' (exit $code)" }
 }
 
+function Stage-PosterPolicy {
+    Invoke-Harness "tests\poster_source_policy_harness.qml" "POSTER_SOURCE_POLICY_OK"
+}
 function Stage-Rules {
     Invoke-Harness "tests\theatre_catalog_rules_harness.qml" "THEATRE_CATALOG_RULES_OK"
 }
@@ -52,9 +55,10 @@ function Stage-DiscoverRegression {
 
 # Additional stages (Cards, SeeAll, Preferences, Page) are wired by their owning tasks.
 # -Stage All composes every wired slice.
-$wired = @("Rules", "ApiRows", "Cards", "SeeAll", "Preferences", "Page", "DiscoverRegression")
+$wired = @("PosterPolicy", "Rules", "ApiRows", "Cards", "SeeAll", "Preferences", "Page", "DiscoverRegression")
 
 switch ($Stage) {
+    "PosterPolicy"       { Stage-PosterPolicy }
     "Rules"              { Stage-Rules }
     "ApiRows"            { Stage-ApiRows }
     "Cards"              { Stage-Cards }
@@ -63,6 +67,7 @@ switch ($Stage) {
     "Page"               { Stage-Page }
     "DiscoverRegression" { Stage-DiscoverRegression }
     "All" {
+        Stage-PosterPolicy
         Stage-Rules
         Stage-ApiRows
         Stage-Cards
