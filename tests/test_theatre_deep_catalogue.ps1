@@ -44,6 +44,9 @@ function Stage-RoundedPoster {
 function Stage-GalleryRail {
     Invoke-Harness "tests\poster_rail_gallery_harness.qml" "POSTER_RAIL_GALLERY_OK"
 }
+function Stage-LazyShelves {
+    Invoke-Harness "tests\lazy_poster_shelf_harness.qml" "LAZY_POSTER_SHELF_OK"
+}
 function Stage-Rules {
     Invoke-Harness "tests\theatre_catalog_rules_harness.qml" "THEATRE_CATALOG_RULES_OK"
 }
@@ -73,12 +76,13 @@ function Stage-DiscoverRegression {
 
 # Additional stages (Cards, SeeAll, Preferences, Page) are wired by their owning tasks.
 # -Stage All composes every wired slice.
-$wired = @("PosterPolicy", "RoundedPoster", "Cards", "GalleryRail", "Rules", "ApiRows", "SeeAll", "Preferences", "Page", "DiscoverRegression")
+$wired = @("PosterPolicy", "RoundedPoster", "Cards", "GalleryRail", "LazyShelves", "Rules", "ApiRows", "SeeAll", "Preferences", "Page", "DiscoverRegression")
 
 switch ($Stage) {
     "PosterPolicy"       { Stage-PosterPolicy }
     "RoundedPoster"      { Stage-RoundedPoster }
     "GalleryRail"        { Stage-GalleryRail }
+    "LazyShelves"        { Stage-LazyShelves }
     "Rules"              { Stage-Rules }
     "ApiRows"            { Stage-ApiRows }
     "Cards"              { Stage-Cards }
@@ -90,6 +94,7 @@ switch ($Stage) {
         Stage-PosterPolicy
         Stage-RoundedPoster
         Stage-GalleryRail
+        Stage-LazyShelves
         Stage-Rules
         Stage-ApiRows
         Stage-Cards

@@ -68,6 +68,12 @@ Item {
         onPowerClicked: world.powerClicked()
     }
 
+    // Read-only viewport seam for viewport-aware lazy shelves (LazyPosterShelf). These expose the
+    // existing page Flickable's scroll offset and height WITHOUT adding a second vertical scroller or
+    // touching the scroll controller — WorldPage stays the only vertical scroll owner.
+    readonly property real viewportContentY: page.contentY
+    readonly property real viewportHeight: page.height
+
     // ---- the widget board (scrolls vertically) ----
     Flickable {
         id: page
