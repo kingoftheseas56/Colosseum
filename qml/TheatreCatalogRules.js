@@ -24,46 +24,62 @@ function house(key, title, placement, recipe, ranked) {
     };
 }
 
+// ── Threshold dials (spec §4.3). Task 6 calibrates against REAL output; tests assert
+// relationships only. IMDb votes run ~100× TMDB's (Shawshank: 3.2M).
+var THRESHOLDS = {
+    movie:  { TR_RATING: 8.0, TR_VOTES: 200000,
+              HG_RATING: 7.4, HG_VOTES_MIN: 10000, HG_VOTES_MAX: 100000,
+              CC_RATING: 7.2, CC_VOTES_MIN: 10000, CC_VOTES_MAX: 250000 },
+    series: { TR_RATING: 8.2, TR_VOTES: 100000,
+              HG_RATING: 7.5, HG_VOTES_MIN: 5000, HG_VOTES_MAX: 75000,
+              CC_RATING: 7.5, CC_VOTES_MIN: 5000, CC_VOTES_MAX: 150000 },
+    RECENT_VOTE_FLOOR: 500,
+    GENRE_VOTE_FLOOR: 5000,
+    LR_EPISODES: 100
+};
+
 function MOVIE_ROWS() {
+    var T = THRESHOLDS.movie;
     return [
-        house("top-10",             "Top 10",             0,   { kind: "top", limit: 10 }, true),
-        house("recently-released",  "Recently Released",  10,  { kind: "recent" }),
-        house("top-rated",          "Top Rated",          20,  { kind: "topRated", voteFloor: 25000, popFloorValue: 4, minRating: 7.0 }),
-        house("hidden-gems",        "Hidden Gems",        30,  { kind: "hiddenGems", voteFloor: 2000, popMax: 60000, popMaxValue: 5, minRating: 7.3 }),
-        house("all-time-greats",    "All-Time Greats",    40,  { kind: "topRated", voteFloor: 150000, popFloorValue: 8, minRating: 8.0 }),
-        house("under-two-hours",    "Under Two Hours",    50,  { kind: "runtimeUnder", maxMinutes: 120 }),
-        house("documentary-movies", "Documentary Movies", 60,  { kind: "genre", genre: "Documentary" }),
-        house("animated-movies",    "Animated Movies",    70,  { kind: "genre", genre: "Animation" }),
-        house("international-cinema","International Cinema",80, { kind: "countryExclude", exclude: ["United States", "USA", "US", "United Kingdom", "UK"] }),
-        house("japanese-cinema",    "Japanese Cinema",    90,  { kind: "country", countries: ["Japan"] }),
-        house("korean-cinema",      "Korean Cinema",      100, { kind: "country", countries: ["South Korea", "Korea"] }),
-        house("french-cinema",      "French Cinema",      110, { kind: "country", countries: ["France"] }),
-        house("2020s-movies",       "2020s Movies",       120, { kind: "decade", from: 2020, to: 2029 }),
-        house("2010s-movies",       "2010s Movies",       130, { kind: "decade", from: 2010, to: 2019 }),
-        house("2000s-movies",       "2000s Movies",       140, { kind: "decade", from: 2000, to: 2009 }),
-        house("1990s-movies",       "1990s Movies",       150, { kind: "decade", from: 1990, to: 1999 }),
-        house("1980s-movies",       "1980s Movies",       160, { kind: "decade", from: 1980, to: 1989 }),
-        house("1970s-movies",       "1970s Movies",       170, { kind: "decade", from: 1970, to: 1979 })
+        house("top-10",             "Top 10",              0,   { kind: "top", limit: 10 }, true),
+        house("recently-released",  "Recently Released",   10,  { kind: "recent" }),
+        house("top-rated",          "Top Rated",           20,  { kind: "imdbBand", type: "movie", order: "rating", ratingMin: T.TR_RATING, votesMin: T.TR_VOTES }),
+        house("hidden-gems",        "Hidden Gems",         30,  { kind: "imdbBand", type: "movie", order: "rating", ratingMin: T.HG_RATING, votesMin: T.HG_VOTES_MIN, votesMax: T.HG_VOTES_MAX }),
+        house("cult-classics",      "Cult Classics",       40,  { kind: "imdbBand", type: "movie", order: "rating", ratingMin: T.CC_RATING, votesMin: T.CC_VOTES_MIN, votesMax: T.CC_VOTES_MAX, yearTo: 1999 }),
+        house("under-two-hours",    "Under Two Hours",     50,  { kind: "imdbBand", type: "movie", order: "votes", runtimeMax: 120, votesMin: THRESHOLDS.GENRE_VOTE_FLOOR }),
+        house("documentary-movies", "Documentary Movies",  60,  { kind: "imdbGenre", type: "movie", genre: "Documentary" }),
+        house("animated-movies",    "Animated Movies",     70,  { kind: "imdbGenre", type: "movie", genre: "Animation" }),
+        house("international-cinema","International Cinema",80, { kind: "imdbIntl", type: "movie" }),
+        house("japanese-cinema",    "Japanese Cinema",     90,  { kind: "imdbLang", type: "movie", lang: "ja" }),
+        house("korean-cinema",      "Korean Cinema",       100, { kind: "imdbLang", type: "movie", lang: "ko" }),
+        house("french-cinema",      "French Cinema",       110, { kind: "imdbLang", type: "movie", lang: "fr" }),
+        house("2020s-movies",       "2020s Movies",        120, { kind: "imdbDecade", type: "movie", from: 2020, to: 2029 }),
+        house("2010s-movies",       "2010s Movies",        130, { kind: "imdbDecade", type: "movie", from: 2010, to: 2019 }),
+        house("2000s-movies",       "2000s Movies",        140, { kind: "imdbDecade", type: "movie", from: 2000, to: 2009 }),
+        house("1990s-movies",       "1990s Movies",        150, { kind: "imdbDecade", type: "movie", from: 1990, to: 1999 }),
+        house("1980s-movies",       "1980s Movies",        160, { kind: "imdbDecade", type: "movie", from: 1980, to: 1989 }),
+        house("1970s-movies",       "1970s Movies",        170, { kind: "imdbDecade", type: "movie", from: 1970, to: 1979 })
     ];
 }
 
 function SHOW_ROWS() {
+    var T = THRESHOLDS.series;
     return [
-        house("top-10",                     "Top 10",                     0,   { kind: "top", limit: 10 }, true),
-        house("currently-airing",           "Currently Airing",           10,  { kind: "status", status: "Continuing" }),
-        house("top-rated",                  "Top Rated",                  20,  { kind: "topRated", voteFloor: 15000, popFloorValue: 4, minRating: 7.5 }),
-        house("long-running-series",        "Long-Running Series",        30,  { kind: "longRunning", minSeasons: 4 }),
-        house("recently-premiered",         "Recently Premiered",         40,  { kind: "recent" }),
-        house("limited-series",             "Limited Series",             50,  { kind: "seasonExactly", seasons: 1 }),
-        house("all-time-great-series",      "All-Time Great Series",      60,  { kind: "topRated", voteFloor: 80000, popFloorValue: 8, minRating: 8.2 }),
-        house("drama-series",               "Drama Series",               70,  { kind: "genre", genre: "Drama" }),
-        house("comedy-series",              "Comedy Series",              80,  { kind: "genre", genre: "Comedy" }),
-        house("crime-and-mystery",          "Crime and Mystery",          90,  { kind: "genreAny", genres: ["Crime", "Mystery"] }),
-        house("science-fiction-and-fantasy","Science Fiction and Fantasy",100, { kind: "genreAny", genres: ["Sci-Fi", "Fantasy"] }),
-        house("documentary-series",         "Documentary Series",         110, { kind: "genre", genre: "Documentary" }),
-        house("animated-series",            "Animated Series",            120, { kind: "genre", genre: "Animation" }),
-        house("korean-drama",               "Korean Drama",               130, { kind: "country", countries: ["South Korea", "Korea"] }),
-        house("british-television",         "British Television",         140, { kind: "country", countries: ["United Kingdom", "UK"] })
+        house("top-10",              "Top 10",                      0,   { kind: "top", limit: 10 }, true),
+        house("currently-airing",    "Currently Airing",            10,  { kind: "statusLive", status: "Continuing" }),
+        house("recently-premiered",  "Recently Premiered",          20,  { kind: "recent" }),
+        house("top-rated",           "Top Rated",                   30,  { kind: "imdbBand", type: "series", order: "rating", ratingMin: T.TR_RATING, votesMin: T.TR_VOTES }),
+        house("hidden-gems",         "Hidden Gems",                 40,  { kind: "imdbBand", type: "series", order: "rating", ratingMin: T.HG_RATING, votesMin: T.HG_VOTES_MIN, votesMax: T.HG_VOTES_MAX }),
+        house("cult-classics",       "Cult Classics",               50,  { kind: "imdbBand", type: "series", order: "rating", ratingMin: T.CC_RATING, votesMin: T.CC_VOTES_MIN, votesMax: T.CC_VOTES_MAX, yearTo: 1999 }),
+        house("long-running-series", "Long-Running Series",         60,  { kind: "imdbBand", type: "series", order: "episodes", episodesMin: THRESHOLDS.LR_EPISODES }),
+        house("limited-series",      "Limited Series",              70,  { kind: "imdbBand", type: "mini", order: "votes", votesMin: THRESHOLDS.GENRE_VOTE_FLOOR }),
+        house("drama-series",        "Drama Series",                80,  { kind: "imdbGenre", type: "series", genre: "Drama" }),
+        house("comedy-series",       "Comedy Series",               90,  { kind: "imdbGenre", type: "series", genre: "Comedy" }),
+        house("crime-and-mystery",   "Crime and Mystery",           100, { kind: "imdbGenreAny", type: "series", genres: ["Crime", "Mystery"] }),
+        house("science-fiction-and-fantasy", "Science Fiction and Fantasy", 110, { kind: "imdbGenreAny", type: "series", genres: ["Sci-Fi", "Fantasy"] }),
+        house("documentary-series",  "Documentary Series",          120, { kind: "imdbGenre", type: "series", genre: "Documentary" }),
+        house("animated-series",     "Animated Series",             130, { kind: "imdbGenre", type: "series", genre: "Animation" }),
+        house("korean-drama",        "Korean Drama",                140, { kind: "imdbLang", type: "series", lang: "ko" })
     ];
 }
 
@@ -111,20 +127,20 @@ function defaultRows(pageKey) {
 // ---------------------------------------------------------------------------
 
 var MOVIE_DAILY_POOL = [
-    { key: "daily-crime-thrillers", title: "Crime Thrillers", recipe: { kind: "genre", genre: "Crime" } },
-    { key: "daily-science-fiction", title: "Science Fiction", recipe: { kind: "genre", genre: "Sci-Fi" } },
-    { key: "daily-family-movies",   title: "Family Movies",   recipe: { kind: "genre", genre: "Family" } },
-    { key: "daily-90-minute",       title: "90-Minute Movies",recipe: { kind: "runtimeUnder", maxMinutes: 95 } },
-    { key: "daily-classic-horror",  title: "Classic Horror",  recipe: { kind: "genre", genre: "Horror" } },
-    { key: "daily-holiday-movies",  title: "Holiday Movies",  recipe: { kind: "genre", genre: "Holiday" } },
-    { key: "daily-action",          title: "Action & Adventure", recipe: { kind: "genre", genre: "Action" } },
-    { key: "daily-comedy",          title: "Comedy Night",    recipe: { kind: "genre", genre: "Comedy" } },
-    { key: "daily-romance",         title: "Romance",         recipe: { kind: "genre", genre: "Romance" } },
-    { key: "daily-mystery",         title: "Mystery",         recipe: { kind: "genre", genre: "Mystery" } },
-    { key: "daily-fantasy",         title: "Fantasy",         recipe: { kind: "genre", genre: "Fantasy" } },
-    { key: "daily-war",             title: "War Stories",     recipe: { kind: "genre", genre: "War" } },
-    { key: "daily-westerns",        title: "Westerns",        recipe: { kind: "genre", genre: "Western" } },
-    { key: "daily-animation",       title: "Animation",       recipe: { kind: "genre", genre: "Animation" } }
+    { key: "daily-crime-thrillers", title: "Crime Thrillers",  recipe: { kind: "imdbGenre", type: "movie", genre: "Crime" } },
+    { key: "daily-science-fiction", title: "Science Fiction",  recipe: { kind: "imdbGenre", type: "movie", genre: "Sci-Fi" } },
+    { key: "daily-family-movies",   title: "Family Movies",    recipe: { kind: "imdbGenre", type: "movie", genre: "Family" } },
+    { key: "daily-90-minute",       title: "90-Minute Movies", recipe: { kind: "imdbBand", type: "movie", order: "votes", runtimeMax: 95, votesMin: THRESHOLDS.GENRE_VOTE_FLOOR } },
+    { key: "daily-classic-horror",  title: "Classic Horror",   recipe: { kind: "imdbGenre", type: "movie", genre: "Horror", yearTo: 1999 } },
+    { key: "daily-war",             title: "War Stories",      recipe: { kind: "imdbGenre", type: "movie", genre: "War" } },
+    { key: "daily-westerns",        title: "Westerns",         recipe: { kind: "imdbGenre", type: "movie", genre: "Western" } },
+    { key: "daily-mystery",         title: "Mystery",          recipe: { kind: "imdbGenre", type: "movie", genre: "Mystery" } },
+    { key: "daily-romance",         title: "Romance",          recipe: { kind: "imdbGenre", type: "movie", genre: "Romance" } },
+    { key: "daily-spanish",         title: "Spanish-Language Cinema", recipe: { kind: "imdbLang", type: "movie", lang: "es" } },
+    { key: "daily-italian",         title: "Italian Cinema",   recipe: { kind: "imdbLang", type: "movie", lang: "it" } },
+    { key: "daily-german",          title: "German Cinema",    recipe: { kind: "imdbLang", type: "movie", lang: "de" } },
+    { key: "daily-swedish",         title: "Swedish Cinema",   recipe: { kind: "imdbLang", type: "movie", lang: "sv" } },
+    { key: "daily-danish",          title: "Danish Cinema",    recipe: { kind: "imdbLang", type: "movie", lang: "da" } }
 ];
 
 function dayIndex(dateMs) {
@@ -191,14 +207,6 @@ function votesOf(item) {
           : item.members !== undefined ? item.members : 0, 10);
     return isFinite(v) && v > 0 ? v : 0;
 }
-// Cinemeta previews carry no vote count, only a small-scale `popularity` float. This is
-// the "how established / widely watched" signal the quality shelves gate on when true vote
-// counts are absent; it falls back to members/votes when popularity is not present.
-function popularityOf(item) {
-    var p = parseFloat(item.popularity);
-    if (isFinite(p) && p > 0) return p;
-    return votesOf(item);
-}
 function runtimeMin(item) {
     var m = String(item.runtime || "").match(/(\d+)/);
     return m ? parseInt(m[1], 10) : null;   // null == unknown runtime -> excluded
@@ -244,7 +252,6 @@ function rankItems(recipe, items, nowMs) {
     recipe = recipe || {};
     var pool = dedupe(items || []);
     var kind = recipe.kind || "top";
-    var mean = recipe.mean || 6.5;
 
     if (kind === "top" || kind === "extension" || kind === "trending"
         || kind === "animeStatus" || kind === "animeType" || kind === "animeOrder"
@@ -262,98 +269,60 @@ function rankItems(recipe, items, nowMs) {
         });
         return dated;
     }
-    if (kind === "topRated") {
-        // With real vote counts (anime/MAL): Bayesian weight + hard vote floor.
-        if (pool.some(function(it) { return votesOf(it) > 0; })) {
-            var floor = recipe.voteFloor || 1000;
-            var scored = [];
-            for (var i = 0; i < pool.length; i++) {
-                var w = weighted(ratingOf(pool[i]) || 0, votesOf(pool[i]), mean, floor);
-                if (w >= 0) scored.push({ it: pool[i], w: w });
-            }
-            scored.sort(function(a, b) { return b.w - a.w; });
-            return scored.map(function(x) { return x.it; });
-        }
-        // Cinemeta (no votes): rating desc among titles established enough (popularity floor)
-        // and above a rating floor, so an obscure high score cannot dominate.
-        var pf = recipe.popFloorValue || 0;
-        var mr = recipe.minRating || 0;
-        var rated = pool.filter(function(it) {
-            return ratingOf(it) !== null && ratingOf(it) >= mr && popularityOf(it) >= pf;
-        });
-        rated.sort(function(a, b) {
-            var d = ratingOf(b) - ratingOf(a);
-            return d !== 0 ? d : popularityOf(b) - popularityOf(a);
-        });
-        return rated;
-    }
-    if (kind === "hiddenGems") {
-        if (pool.some(function(it) { return votesOf(it) > 0; })) {
-            var floorH = recipe.voteFloor || 2000;
-            var popMax = recipe.popMax !== undefined ? recipe.popMax : 250000;
-            var popMin = recipe.popMin || 0;
-            var gems = [];
-            for (var g = 0; g < pool.length; g++) {
-                var v = votesOf(pool[g]);
-                var wg = weighted(ratingOf(pool[g]) || 0, v, mean, floorH);
-                if (wg >= 0 && v <= popMax && v >= popMin) gems.push({ it: pool[g], w: wg });
-            }
-            gems.sort(function(a, b) { return b.w - a.w; });
-            return gems.map(function(x) { return x.it; });
-        }
-        // Cinemeta (no votes): quality titles OUTSIDE the most-popular band — good rating,
-        // low popularity. Distinct from Top Rated (which requires high popularity).
-        var mrG = recipe.minRating || 0;
-        var pMaxV = recipe.popMaxValue !== undefined ? recipe.popMaxValue : Infinity;
-        var gemsC = pool.filter(function(it) {
-            return ratingOf(it) !== null && ratingOf(it) >= mrG
-                && popularityOf(it) > 0 && popularityOf(it) <= pMaxV;
-        });
-        gemsC.sort(function(a, b) { return ratingOf(b) - ratingOf(a); });
-        return gemsC;
-    }
-    if (kind === "runtimeUnder") {
-        var maxM = recipe.maxMinutes || 120;
-        return pool.filter(function(it) { var r = runtimeMin(it); return r !== null && r <= maxM; });
-    }
-    if (kind === "genre") {
-        return pool.filter(function(it) { return hasGenre(it, recipe.genre); });
-    }
-    if (kind === "genreAny") {
-        var gs = recipe.genres || [];
-        return pool.filter(function(it) {
-            for (var q = 0; q < gs.length; q++) if (hasGenre(it, gs[q])) return true;
-            return false;
-        });
-    }
-    if (kind === "country") {
-        return pool.filter(function(it) { return countryMatches(it, recipe.countries || [recipe.country]); });
-    }
-    if (kind === "countryExclude") {
-        var ex = recipe.exclude || [];
-        return pool.filter(function(it) {
-            if (!String(it.country || "")) return false;   // must know the country to place it
-            return !countryMatches(it, ex);
-        });
-    }
-    if (kind === "decade") {
-        return pool.filter(function(it) { var y = yearOf(it); return y !== null && y >= recipe.from && y <= recipe.to; });
-    }
-    if (kind === "status") {
-        var want = String(recipe.status).toLowerCase();
-        return pool.filter(function(it) { return String(it.status || "").toLowerCase() === want; });
-    }
-    if (kind === "longRunning") {
-        var minS = recipe.minSeasons || 2;
-        var lr = pool.filter(function(it) { return (it.seasonCount || 0) >= minS; });
-        lr.sort(function(a, b) { return (b.seasonCount || 0) - (a.seasonCount || 0); });
-        return lr;
-    }
-    if (kind === "seasonExactly") {
-        var want2 = recipe.seasons || 1;
-        return pool.filter(function(it) { return it.seasonCount === want2; });
-    }
+    // The IMDb-backed recipes (imdbBand / imdbGenre / imdbGenreAny / imdbLang / imdbIntl /
+    // imdbDecade) are satisfied by ImdbCatalog server-side (Task 4); rankItems never sees
+    // them. statusLive rows are a live pass-through handled by TheatreApi. Anything else is
+    // returned as a deduped passthrough.
     return pool;
+}
+
+// ── recipe -> ONE allowlisted ImdbCatalog query; null for live recipes.
+function indexQueryFor(recipe) {
+    recipe = recipe || {};
+    function base(extra) {
+        var q = { type: recipe.type, excludeAnime: true };
+        for (var k in extra) if (extra[k] !== undefined) q[k] = extra[k];
+        return q;
+    }
+    switch (recipe.kind) {
+    case "imdbBand":
+        return base({ order: recipe.order || "rating", ratingMin: recipe.ratingMin,
+                      votesMin: recipe.votesMin, votesMax: recipe.votesMax,
+                      yearTo: recipe.yearTo, runtimeMax: recipe.runtimeMax,
+                      episodesMin: recipe.episodesMin });
+    case "imdbGenre":
+        return base({ order: "votes", genre: recipe.genre, yearTo: recipe.yearTo,
+                      votesMin: THRESHOLDS.GENRE_VOTE_FLOOR });
+    case "imdbLang":
+        // Language shelves are live-action. Exclude Animation (catches anime the Fribb set missed,
+        // e.g. Bleach TYBW); series shelves also drop non-scripted formats so "Korean Drama" is drama,
+        // not a variety/game-show list. The residual (a Chinese title mis-derived as ko) is accepted.
+        return base({ order: "rating", lang: recipe.lang,
+                      votesMin: THRESHOLDS.GENRE_VOTE_FLOOR,
+                      notGenre: recipe.type === "series"
+                          ? ["Animation", "Reality-TV", "Game-Show", "Talk-Show", "News"]
+                          : ["Animation"] });
+    case "imdbIntl":
+        return base({ order: "votes", notLang: "en",
+                      votesMin: THRESHOLDS.GENRE_VOTE_FLOOR,
+                      notGenre: ["Animation"] });
+    case "imdbDecade":
+        return base({ order: "votes", yearFrom: recipe.from, yearTo: recipe.to,
+                      votesMin: THRESHOLDS.GENRE_VOTE_FLOOR });
+    default:
+        return null;    // top / recent / statusLive / imdbGenreAny (fan-out) / extension
+    }
+}
+
+// ── genreAny recipes fan out to one query per genre; caller merges + dedupes.
+function indexQueriesFor(recipe) {
+    if (!recipe || recipe.kind !== "imdbGenreAny") {
+        var one = indexQueryFor(recipe);
+        return one ? [one] : [];
+    }
+    return (recipe.genres || []).map(function(g) {
+        return indexQueryFor({ kind: "imdbGenre", type: recipe.type, genre: g });
+    });
 }
 
 // ---------------------------------------------------------------------------

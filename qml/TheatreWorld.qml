@@ -226,6 +226,7 @@ WorldPage {
                  ? theatre.activeTab : "movies"
         contentPreferences: theatre.contentPreferences
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+        imdbCatalog: (typeof ImdbCatalog !== "undefined") ? ImdbCatalog : null
         // Theatre is the gallery pilot; the viewport (converted from board coords to this page's
         // local frame) drives lazy shelf residency. WorldPage stays the only vertical scroller.
         visualProfile: "gallery"
@@ -274,6 +275,7 @@ WorldPage {
             anchors.bottomMargin: 12
             pin: theatre.seeAllPin
             malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null
+            imdbCatalog: (typeof ImdbCatalog !== "undefined") ? ImdbCatalog : null
             showExplicit: theatre.contentPreferences ? theatre.contentPreferences.showExplicit : false
             onBackRequested: theatre.seeAllPin = null
             onItemRequested: (item) => theatre.theatreItemRequested(

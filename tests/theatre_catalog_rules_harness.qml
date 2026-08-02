@@ -1,4 +1,4 @@
-// Offscreen proof of TheatreCatalogRules' pure derivations (Theatre Deep Catalogue, Task 1).
+// Offscreen proof of TheatreCatalogRules' pure derivations (Theatre Deep Catalogue).
 // NEVER throw inside an offscreen harness (it hangs qml.exe): collect fails, print the
 // unique OK marker only when clean, single Qt.exit(fails.length). The whole body is guarded
 // so a genuine JS error surfaces as a fail rather than a hang.
@@ -16,27 +16,67 @@ Item {
                 return rows.some(function(r){ return r.key === key; });
             }
             try {
-                // ---- Inventories: Top 10 first, genres never a row, no awards/fake-freshness ----
+                // ---- Ratified 2026-08-02 inventories ----
                 var movies = Rules.defaultRows("movies");
-                ok(movies.length > 10, "Movies has a deep inventory, got " + movies.length);
-                ok(movies[0].key === "top-10" && movies[0].ranked, "Movies Top 10 first + ranked");
-                ok(has(movies, "recently-released"), "Movies recent");
-                ok(has(movies, "hidden-gems"), "Movies gems");
-                ok(has(movies, "under-two-hours"), "Movies runtime shelf");
-                ok(has(movies, "1970s-movies"), "Movies deep eras");
-                ok(!movies.some(function(r){ return /award/i.test(r.key + r.title); }), "No awards (movies)");
-                ok(!movies.some(function(r){ return /in.?theaters|coming.?soon/i.test(r.key + " " + r.title); }),
-                   "No unsupported freshness (movies)");
-                ok(movies.every(function(r){ return r.sub === undefined && r.blurb === undefined; }),
-                   "No shelf blurb/sub field on movie rows");
+                ok(movies[0].key === "top-10" && movies[0].ranked, "Movies Top 10 first");
+                ["recently-released","top-rated","hidden-gems","cult-classics","under-two-hours",
+                 "documentary-movies","animated-movies","international-cinema","japanese-cinema",
+                 "korean-cinema","french-cinema","2020s-movies","1970s-movies"]
+                    .forEach(function(k){ ok(has(movies, k), "movies has " + k); });
+                ok(!has(movies, "all-time-greats"), "All-Time Greats retired");
+                ok(!movies.some(function(r){ return /award|in.?theaters|coming.?soon/i.test(r.key + r.title); }),
+                   "no awards or fabricated freshness");
 
                 var shows = Rules.defaultRows("shows");
-                ok(shows[0].key === "top-10" && shows[0].ranked, "Shows Top 10 first");
-                ok(has(shows, "currently-airing"), "Shows airing");
-                ok(has(shows, "long-running-series"), "Shows long-running");
-                ok(has(shows, "korean-drama"), "Shows korean-drama");
-                ok(!shows.some(function(r){ return /award/i.test(r.key + r.title); }), "No awards (shows)");
+                ["top-10","currently-airing","recently-premiered","top-rated","hidden-gems","cult-classics",
+                 "long-running-series","limited-series","drama-series","comedy-series","crime-and-mystery",
+                 "science-fiction-and-fantasy","documentary-series","animated-series","korean-drama"]
+                    .forEach(function(k){ ok(has(shows, k), "shows has " + k); });
+                ok(!has(shows, "british-television"), "British Television dropped");
+                ok(!has(shows, "all-time-great-series"), "All-Time Great Series retired");
 
+                // ---- Thresholds are dials with sane relationships (never pin exact values) ----
+                var T = Rules.THRESHOLDS;
+                ok(T.movie.HG_VOTES_MAX < T.movie.TR_VOTES, "movie gems band sits below the top-rated floor");
+                ok(T.series.HG_VOTES_MAX < T.series.TR_VOTES, "series gems band below top-rated floor");
+                ok(T.movie.HG_VOTES_MIN > 0 && T.movie.CC_VOTES_MIN > 0, "bands have lower edges");
+
+                // ---- indexQueryFor: pure recipe -> allowlisted query ----
+                function q(key, page) {
+                    var defs = Rules.defaultRows(page || "movies");
+                    for (var i = 0; i < defs.length; i++) if (defs[i].key === key) return Rules.indexQueryFor(defs[i].recipe);
+                    return undefined;
+                }
+                ok(q("top-10") === null, "live recipes map to null (no index query)");
+                ok(q("recently-released") === null, "recently-released stays live");
+                ok(q("currently-airing", "shows") === null, "currently-airing stays live");
+                var tr = q("top-rated");
+                ok(tr.type === "movie" && tr.order === "rating" && tr.ratingMin === T.movie.TR_RATING
+                   && tr.votesMin === T.movie.TR_VOTES && tr.excludeAnime === true, "top rated query");
+                var hg = q("hidden-gems");
+                ok(hg.votesMin === T.movie.HG_VOTES_MIN && hg.votesMax === T.movie.HG_VOTES_MAX, "gems band");
+                var cc = q("cult-classics");
+                ok(cc.yearTo === 1999 && cc.votesMax === T.movie.CC_VOTES_MAX, "cult classics pre-2000 band");
+                ok(q("under-two-hours").runtimeMax === 120, "runtime query");
+                ok(q("animated-movies").genre === "Animation" && q("animated-movies").excludeAnime === true,
+                   "animation minus anime");
+                ok(q("international-cinema").notLang === "en", "international = non-english");
+                ok(q("korean-cinema").lang === "ko" && q("japanese-cinema").lang === "ja"
+                   && q("french-cinema").lang === "fr", "language shelves");
+                ok(q("2010s-movies").yearFrom === 2010 && q("2010s-movies").yearTo === 2019, "decade window");
+                ok(q("limited-series", "shows").type === "mini", "limited series is exact mini type");
+                ok(q("long-running-series", "shows").order === "episodes", "long-running by episodes");
+                ok(q("korean-drama", "shows").lang === "ko" && q("korean-drama", "shows").type === "series",
+                   "korean drama is language-based");
+                // genreAny recipes fan out client-side: mapping returns per-genre queries
+                var cm = Rules.indexQueriesFor({ kind: "imdbGenreAny", genres: ["Crime","Mystery"], type: "series" });
+                ok(cm.length === 2 && cm[0].genre === "Crime" && cm[1].genre === "Mystery", "genreAny fans out");
+                // every index query excludes anime
+                ["top-rated","hidden-gems","cult-classics","animated-movies","korean-cinema"].forEach(function(k){
+                    ok(q(k).excludeAnime === true, k + " excludes anime");
+                });
+
+                // ---- Anime inventory unchanged ----
                 var anime = Rules.defaultRows("anime");
                 ok(anime[0].key === "top-10" && anime[0].ranked, "Anime Top 10 first");
                 ok(has(anime, "upcoming-season"), "Anime upcoming");
@@ -60,64 +100,14 @@ Item {
                 dayA.forEach(function(r){ if (dkeys[r.key]) distinct = false; dkeys[r.key] = true; });
                 ok(distinct, "Daily keys distinct within a day");
 
-                // ---- Ranking: weighted vote floor ----
-                // score-9.4 title with only 120 votes must NOT beat a score-8.4 title with 90k votes
-                var topRatedItems = [
-                    { id: "tt-thin",  imdbRating: "9.4", votes: 120 },
-                    { id: "tt-solid", imdbRating: "8.4", votes: 90000 },
-                    { id: "tt-mid",   imdbRating: "8.0", votes: 40000 }
-                ];
-                var tr = Rules.rankItems({ kind: "topRated", voteFloor: 5000, mean: 6.5 }, topRatedItems, 0);
-                ok(tr.length === 2, "Top Rated drops the below-floor sample, got " + tr.length);
-                ok(tr[0].id === "tt-solid", "Top Rated: weighted quality wins, got " + (tr[0] && tr[0].id));
-                ok(!tr.some(function(x){ return x.id === "tt-thin"; }), "Top Rated excludes tiny-sample title");
-
-                // ---- Ranking: Hidden Gems excludes the most-popular band ----
-                var gemItems = [
-                    { id: "tt-blockbuster", imdbRating: "8.9", votes: 1800000 }, // too popular
-                    { id: "tt-gem",         imdbRating: "8.2", votes: 42000 },   // the gem
-                    { id: "tt-obscure",     imdbRating: "8.6", votes: 300 }      // below quality floor
-                ];
-                var gems = Rules.rankItems({ kind: "hiddenGems", voteFloor: 2000, popMax: 250000, mean: 6.5 },
-                                           gemItems, 0);
-                ok(gems.length === 1 && gems[0].id === "tt-gem",
-                   "Hidden Gems is only the mid-popularity quality title, got "
-                   + gems.map(function(x){ return x.id; }).join(","));
-
-                // ---- Missing facts never qualify a fact-dependent recipe ----
-                var runtimeItems = [
-                    { id: "a", runtime: "96 min" },
-                    { id: "b", runtime: "" },            // missing runtime -> excluded
-                    { id: "c", runtime: "142 min" }      // over two hours -> excluded
-                ];
-                var under2 = Rules.rankItems({ kind: "runtimeUnder", maxMinutes: 120 }, runtimeItems, 0);
-                ok(under2.length === 1 && under2[0].id === "a",
-                   "Under Two Hours excludes missing + over-limit, got "
-                   + under2.map(function(x){ return x.id; }).join(","));
-
-                var countryItems = [
-                    { id: "jp", country: "Japan" },
-                    { id: "us", country: "United States" },
-                    { id: "no", country: "" }            // missing country -> excluded
-                ];
-                var jp = Rules.rankItems({ kind: "country", country: "Japan" }, countryItems, 0);
-                ok(jp.length === 1 && jp[0].id === "jp", "Country shelf excludes missing/mismatch country");
-
-                var statusItems = [
-                    { id: "on",  status: "Currently Airing" },
-                    { id: "end", status: "Ended" },
-                    { id: "unk", status: "" }            // missing status -> excluded
-                ];
-                var airing = Rules.rankItems({ kind: "status", status: "Currently Airing" }, statusItems, 0);
-                ok(airing.length === 1 && airing[0].id === "on", "Currently Airing excludes missing/wrong status");
-
-                var decadeItems = [
-                    { id: "d1", releaseInfo: "2015" },
-                    { id: "d2", releaseInfo: "2009" },
-                    { id: "d3", releaseInfo: "" }        // undated -> excluded
-                ];
-                var d2010s = Rules.rankItems({ kind: "decade", from: 2010, to: 2019 }, decadeItems, 0);
-                ok(d2010s.length === 1 && d2010s[0].id === "d1", "Decade shelf excludes undated + out-of-range");
+                // ---- daily rotation pool includes the language guests, no Holiday recipe ----
+                var week = {};
+                for (var d = 0; d < 14; d++)
+                    Rules.dailyRows(Date.UTC(2026, 7, 1 + d), 6).forEach(function(r){ week[r.key] = r.recipe; });
+                ok(Object.keys(week).some(function(k){ return /daily-(spanish|italian|german|swedish|danish)/.test(k); }),
+                   "language guests rotate in across two weeks");
+                ok(!Object.keys(week).some(function(k){ return /holiday/.test(k); }),
+                   "no Holiday recipe (IMDb has no honest signal)");
 
                 // ---- Recently Released: newest first, undated excluded ----
                 var recentItems = [

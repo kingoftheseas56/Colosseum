@@ -11,6 +11,7 @@ Item {
 
     property var pin: null
     property var malCatalog: null
+    property var imdbCatalog: null
     property bool showExplicit: false
     property var explicitFilter: null
     property var pageLoader: null            // (pin, offset, limit, options, done) — defaults to the API
@@ -55,7 +56,7 @@ Item {
         seeAll.pendingOffset = offset;
         if (offset === 0) seeAll.loading = true; else seeAll.loadingMore = true;
         var gen = seeAll.generation;
-        var opts = { generation: gen, malCatalog: seeAll.malCatalog,
+        var opts = { generation: gen, malCatalog: seeAll.malCatalog, imdbCatalog: seeAll.imdbCatalog,
                      showExplicit: seeAll.showExplicit, explicitFilter: seeAll.explicitFilter };
         seeAll._loader()(seeAll.pin, offset, 40, opts, function(res) {
             if (gen !== seeAll.generation) return;         // stale: the pin changed under us

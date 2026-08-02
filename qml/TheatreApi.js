@@ -24,17 +24,11 @@ function setRequestAdapter(fn) { requestAdapter = fn || null; }
 function resetRequestAdapter() { requestAdapter = null; }
 // test-only: drop the live (Jikan/Kitsu) + full-meta caches so harness scenarios don't bleed.
 function resetLiveCaches() {
-    jikanCache = {}; jikanInflight = {}; metaCache = {}; metaInFlight = {};
+    jikanCache = {}; jikanInflight = {};
 }
 
-// Deep-catalogue enrichment tuning (spec §12). Full-meta enrichment is bounded to four
-// concurrent requests, deduplicated + coalesced by URL, and cached for 30 minutes.
-var MAX_META_WORKERS = 4;
-var META_CACHE_TTL_MS = 30 * 60 * 1000;
+// Deep-catalogue preview tuning (spec §12).
 var PREVIEW_ROW_CAP = 20;
-var ENRICH_CAP = 48;
-var metaCache = {};       // url -> { t, value }
-var metaInFlight = {};    // url -> [done, ...]
 
 // installed extensions, pushed in from QML (Main.qml owns the wiring)
 var extensionsList = [];
@@ -564,127 +558,60 @@ function cinemetaCatalogPaged(type, genre, skip, done) {
     });
 }
 
-function fullMetaUrl(type, id) {
-    var sType = (type === "series") ? "series" : "movie";
-    return CINEMETA + "/meta/" + sType + "/" + id + ".json";
+// ── IMDb index integration (spec 2026-08-02) ───────────────────────────────────────────
+// The baked ImdbCatalog answers every offline-answerable Movies/Shows shelf; live Cinemeta
+// rows (Top 10 / recently-released / recently-premiered / currently-airing) are facts-filtered
+// through the index so anime (lives in its own tab) and shovelware (below the vote floor) drop.
+
+function posterFor(tt)      { return "https://live.metahub.space/poster/small/" + tt + "/img"; }
+function backgroundFor(tt)  { return "https://live.metahub.space/background/medium/" + tt + "/img"; }
+
+function mapImdb(row, index) {
+    var t = tone(index);
+    return {
+        id: row.tt,
+        type: row.type === "movie" ? "movie" : "series",
+        caption: row.title, title: row.title,
+        blurb: "A featured title.",
+        cover: posterFor(row.tt), art: backgroundFor(row.tt),
+        ghost: row.type === "movie" ? "T" : "S",
+        c1: t[0], c2: t[1], progress: -1,
+        imdbRating: row.rating > 0 ? String(row.rating.toFixed ? row.rating.toFixed(1) : row.rating) : "",
+        releaseInfo: row.year > 0 ? String(row.year) : "",
+        runtime: row.runtimeMin > 0 ? (row.runtimeMin + " min") : "",
+        genres: row.genres || [], votes: row.votes || 0,
+        origLang: row.origLang || "", source: "IMDb"
+    };
 }
 
-// URL-keyed, 30-min cached, in-flight-coalesced full meta: concurrent callers for one URL
-// collapse to a SINGLE request (spec §12 — deduplicated + coalesced).
-function loadMetaCached(type, id, done) {
-    var url = fullMetaUrl(type, id);
-    var now = Date.now();
-    var hit = metaCache[url];
-    if (hit && (now - hit.t) < META_CACHE_TTL_MS) { done(hit.value); return; }
-    if (metaInFlight[url]) { metaInFlight[url].push(done); return; }
-    metaInFlight[url] = [done];
-    requestJson(url, function(json) {
-        var meta = json && json.meta ? json.meta : null;
-        metaCache[url] = { t: Date.now(), value: meta };
-        var waiters = metaInFlight[url] || [];
-        delete metaInFlight[url];
-        for (var i = 0; i < waiters.length; i++) waiters[i](meta);
+// merged + deduped index rows for one recipe (imdbGenreAny fans out)
+function imdbRowsFor(imdb, recipe, offset, limit) {
+    var queries = Rules.indexQueriesFor(recipe);
+    if (!queries.length) return [];
+    if (queries.length === 1) return imdb.titleCatalog(queries[0], offset, limit) || [];
+    var merged = [], seen = {};
+    for (var i = 0; i < queries.length; i++) {
+        var part = imdb.titleCatalog(queries[i], offset, limit) || [];
+        for (var j = 0; j < part.length; j++)
+            if (!seen[part[j].tt]) { seen[part[j].tt] = true; merged.push(part[j]); }
+    }
+    merged.sort(function(a, b) { return (b.votes || 0) - (a.votes || 0); });
+    return merged.slice(0, limit);
+}
+
+// drop live-row items the index disqualifies: anime always; shovelware on recent shelves.
+function filterLiveItems(imdb, items, dropLowVotes) {
+    if (!imdb || !imdb.ready || !imdb.ready()) return items;
+    var ids = items.map(function(it) { return it.id; })
+                   .filter(function(id) { return String(id).indexOf("tt") === 0; });
+    var facts = imdb.titleFacts(ids) || {};
+    return items.filter(function(it) {
+        var f = facts[it.id];
+        if (!f) return true;                          // unknown to the index -> keep
+        if (f.isAnime) return false;                  // anime lives in the Anime tab
+        if (dropLowVotes && f.votes < Rules.THRESHOLDS.RECENT_VOTE_FLOOR) return false;
+        return true;
     });
-}
-
-function collectGenres(defs) {
-    var set = {}, out = [];
-    for (var i = 0; i < defs.length; i++) {
-        var r = defs[i].recipe || {};
-        if (r.kind === "genre" && r.genre && !set[r.genre]) { set[r.genre] = true; out.push(r.genre); }
-        else if (r.kind === "genreAny" && r.genres)
-            for (var j = 0; j < r.genres.length; j++)
-                if (!set[r.genres[j]]) { set[r.genres[j]] = true; out.push(r.genres[j]); }
-    }
-    return out;
-}
-
-function collectNeededFields(defs) {
-    var need = {};
-    for (var i = 0; i < defs.length; i++) {
-        var k = (defs[i].recipe || {}).kind;
-        if (k === "runtimeUnder") need.runtime = true;
-        else if (k === "country" || k === "countryExclude") need.country = true;
-        else if (k === "status") need.status = true;
-        else if (k === "longRunning" || k === "seasonExactly") need.season = true;
-    }
-    return need;
-}
-
-function itemMissing(item, need) {
-    if (need.runtime && !item.runtime) return true;
-    if (need.country && !item.country) return true;
-    if (need.status && !item.status) return true;
-    if (need.season && !item.videosKnown) return true;
-    return false;
-}
-
-function mergeMetaFields(item, meta) {
-    if (!meta) return;
-    if (!item.runtime && meta.runtime) item.runtime = meta.runtime;
-    if (!item.country && meta.country) item.country = meta.country;
-    if (!item.status && meta.status) item.status = meta.status;
-    if (!item.imdbRating && meta.imdbRating) item.imdbRating = meta.imdbRating;
-    if (!item.tmdbId && (meta.moviedb_id || meta.tmdbId))
-        item.tmdbId = Number(meta.moviedb_id || meta.tmdbId || 0);
-    if ((!item.genres || !item.genres.length) && (meta.genres || meta.genre))
-        item.genres = meta.genres || meta.genre;
-    if (meta.videos !== undefined) { item.videosKnown = true; item.seasonCount = seasonCount(meta.videos); }
-}
-
-// One deduped candidate pool: top + each required genre catalog. Genre-catalog items are
-// tagged with that genre; duplicates merge genre lists. Sequential fetches bound transport
-// and let the page publish progressively; a failed genre fetch simply adds nothing.
-function buildPool(type, genres, onProgress, onDone) {
-    var sources = [""].concat(genres);
-    var pool = [], byId = {}, idx = 0;
-    function addMetas(genre, metas) {
-        for (var k = 0; k < metas.length; k++) {
-            var item = mapCinemeta(metas[k], pool.length + k);
-            if (!item.id) continue;
-            if (genre && item.genres.indexOf(genre) === -1) item.genres = item.genres.concat([genre]);
-            var ex = byId[item.id];
-            if (ex) {
-                for (var g = 0; g < item.genres.length; g++)
-                    if (ex.genres.indexOf(item.genres[g]) === -1) ex.genres.push(item.genres[g]);
-            } else { byId[item.id] = item; pool.push(item); }
-        }
-    }
-    function next() {
-        if (idx >= sources.length) { onDone(pool); return; }
-        var genre = sources[idx]; idx++;
-        cinemetaCatalogPaged(type, genre, 0, function(metas) {
-            addMetas(genre, metas || []);
-            onProgress(pool.slice());
-            next();
-        });
-    }
-    next();
-}
-
-// Bounded four-worker full-meta enrichment for fact shelves. Only capped pool items missing
-// a needed field are enriched; requests coalesce + cache by URL; never exceeds MAX_META_WORKERS.
-function enrichPool(type, pool, need, onProgress, onDone) {
-    if (!(need.runtime || need.country || need.status || need.season)) { onDone(); return; }
-    var targets = [];
-    for (var i = 0; i < pool.length && targets.length < ENRICH_CAP; i++)
-        if (itemMissing(pool[i], need)) targets.push(pool[i]);
-    if (!targets.length) { onDone(); return; }
-    var nextIdx = 0, active = 0, finished = 0;
-    function pump() {
-        while (active < MAX_META_WORKERS && nextIdx < targets.length) {
-            var item = targets[nextIdx]; nextIdx++; active++;
-            (function(it) {
-                loadMetaCached(type, it.id, function(meta) {
-                    mergeMetaFields(it, meta);
-                    active--; finished++;
-                    onProgress();
-                    if (finished >= targets.length) onDone(); else pump();
-                });
-            })(item);
-        }
-    }
-    pump();
 }
 
 function rowFromDef(def, items) {
@@ -706,47 +633,67 @@ function loadMoviesShowsDeep(pageKey, options, push) {
     var type = pageKey === "shows" ? "series" : "movie";
     var generation = options.generation || 0;
     var showExplicit = options.showExplicit === true;
-    var now = options.nowMs || Date.now();
     var explicitFilter = options.explicitFilter || null;
+    var imdb = options.imdbCatalog || null;
+    var now = options.nowMs || Date.now();
 
     var defs = Rules.defaultRows(pageKey);
     if (pageKey === "movies") defs = defs.concat(Rules.dailyRows(now, 6));
     defs.sort(function(a, b) { return a.placement - b.placement; });
 
-    var pool = [];
+    var rowData = {};          // key -> items
     var extMainRows = [], extExtensionRows = [];
-    var houseDone = false, extDone = false;
-    function keep(item) { return explicitFilter ? explicitFilter(item, showExplicit) : true; }
+    var liveDone = false, extDone = false;
+    function keep(items) {
+        return explicitFilter
+            ? items.filter(function(it) { return explicitFilter(it, showExplicit); }) : items;
+    }
     function publish() {
-        var visible = pool.filter(keep);
         var houseRows = [];
         for (var i = 0; i < defs.length; i++) {
             var def = defs[i];
-            var cap = (def.recipe.kind === "top") ? (def.recipe.limit || 10) : PREVIEW_ROW_CAP;
-            var ranked = Rules.rankItems(def.recipe, visible, now).slice(0, cap);
-            if (ranked.length > 0) houseRows.push(rowFromDef(def, ranked));
+            var items = keep(rowData[def.key] || []);
+            var cap = def.recipe.kind === "top" ? (def.recipe.limit || 10) : PREVIEW_ROW_CAP;
+            if (items.length > 0) houseRows.push(rowFromDef(def, items.slice(0, cap)));
         }
-        // recognized service rows slot into their contextual placement among house rows;
-        // "From Your Extensions" rows follow. GenreMosaic is appended by the page (Task 9).
         var merged = houseRows.concat(extMainRows);
         merged.sort(function(a, b) { return (a.placement || 0) - (b.placement || 0); });
-        var rows = merged.concat(extExtensionRows);
-        push({ pageKey: pageKey, generation: generation, rows: rows,
-               loading: !(houseDone && extDone), error: "" });
+        push({ pageKey: pageKey, generation: generation,
+               rows: merged.concat(extExtensionRows),
+               loading: !(liveDone && extDone), error: "" });
     }
 
-    // installed-extension shelves load in parallel with the house pool
-    loadExtensionRows(pageKey, type, defs, { showExplicit: showExplicit, explicitFilter: explicitFilter },
+    // phase 1 — the index paints every offline shelf synchronously
+    if (imdb && imdb.ready && imdb.ready()) {
+        for (var i = 0; i < defs.length; i++) {
+            var recipe = defs[i].recipe;
+            if (Rules.indexQueriesFor(recipe).length === 0) continue;   // live recipe
+            var rows = imdbRowsFor(imdb, recipe, 0, PREVIEW_ROW_CAP);
+            if (rows.length) rowData[defs[i].key] = rows.map(mapImdb);
+        }
+    }
+    publish();
+
+    // phase 2 — extensions load in parallel (unchanged contract)
+    loadExtensionRows(pageKey, type, defs,
+        { showExplicit: showExplicit, explicitFilter: explicitFilter },
         function() { publish(); },
         function(main, ext) { extMainRows = main; extExtensionRows = ext; extDone = true; publish(); });
 
-    var genres = collectGenres(defs);
-    var need = collectNeededFields(defs);
-    buildPool(type, genres, function(partial) {
-        pool = partial; publish();
-    }, function(full) {
-        pool = full; publish();
-        enrichPool(type, pool, need, function() { publish(); }, function() { houseDone = true; publish(); });
+    // phase 3 — live rows from Cinemeta, facts-filtered through the index
+    cinemetaCatalog(type, "", function(metas) {
+        var mapped = (metas || []).map(mapCinemeta);
+        var clean = filterLiveItems(imdb, mapped, false);
+        rowData["top-10"] = clean;
+        var recentKey = pageKey === "shows" ? "recently-premiered" : "recently-released";
+        rowData[recentKey] = Rules.rankItems({ kind: "recent" },
+                                             filterLiveItems(imdb, mapped, true), now);
+        if (pageKey === "shows")
+            rowData["currently-airing"] = clean.filter(function(it) {
+                return String(it.status || "") === "Continuing";
+            });
+        liveDone = true;
+        publish();
     });
 }
 
@@ -1004,13 +951,30 @@ function loadRowPage(pin, offset, limit, options, done) {
     var showExplicit = options.showExplicit === true;
     var explicitFilter = options.explicitFilter || null;
     var now = options.nowMs || Date.now();
-    var recipe = def.recipe;
-    var genre = (recipe.kind === "genre") ? recipe.genre : "";
-    cinemetaCatalogPaged(type, genre, offset, function(metas) {
+    var queries = Rules.indexQueriesFor(def.recipe);
+    if (queries.length > 0) {                          // index shelf: page the artifact
+        var imdb = options.imdbCatalog || null;
+        if (!imdb || !imdb.ready || !imdb.ready()) {
+            done({ generation: generation, items: [], hasMore: false, error: "catalogue index offline" });
+            return;
+        }
+        var rows = imdbRowsFor(imdb, def.recipe, offset, limit);
+        var items = rows.map(mapImdb);
+        if (explicitFilter) items = items.filter(function(it) { return explicitFilter(it, showExplicit); });
+        done({ generation: generation, items: items, hasMore: rows.length >= limit, error: "" });
+        return;
+    }
+    // live shelf (top-10 / recently-released / recently-premiered / currently-airing)
+    cinemetaCatalogPaged(type, "", offset, function(metas) {
         var mapped = (metas || []).map(mapCinemeta);
-        var visible = explicitFilter ? mapped.filter(function(it) { return explicitFilter(it, showExplicit); }) : mapped;
-        var ranked = Rules.rankItems(recipe, visible, now).slice(0, limit);
-        done({ generation: generation, items: ranked, hasMore: !!(metas && metas.length >= limit), error: "" });
+        var clean = filterLiveItems(options.imdbCatalog || null, mapped,
+                                    def.recipe.kind === "recent");
+        if (def.recipe.kind === "recent") clean = Rules.rankItems({ kind: "recent" }, clean, now);
+        if (def.recipe.kind === "statusLive")
+            clean = clean.filter(function(it) { return String(it.status || "") === "Continuing"; });
+        if (explicitFilter) clean = clean.filter(function(it) { return explicitFilter(it, showExplicit); });
+        done({ generation: generation, items: clean.slice(0, limit),
+               hasMore: !!(metas && metas.length >= limit), error: "" });
     });
 }
 

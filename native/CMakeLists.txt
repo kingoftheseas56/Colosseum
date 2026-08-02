@@ -115,6 +115,8 @@ add_executable(colosseum
     engine/ComicsCatalog.h
     engine/MalCatalog.cpp
     engine/MalCatalog.h
+    engine/ImdbCatalog.cpp
+    engine/ImdbCatalog.h
     engine/LocalDownloads.cpp
     engine/LocalDownloads.h
     engine/ExtensionsStore.cpp
@@ -969,6 +971,14 @@ add_executable(mal_catalog_rows_harness
     engine/MalCatalog.h)
 target_include_directories(mal_catalog_rows_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(mal_catalog_rows_harness PRIVATE Qt6::Core Qt6::Sql)
+
+# ── Deep Theatre catalogue (spec 2026-08-02): imdb index query contract ──
+add_executable(imdb_catalog_harness
+    ../tests/imdb_catalog_harness.cpp
+    engine/ImdbCatalog.cpp
+    engine/ImdbCatalog.h)
+target_include_directories(imdb_catalog_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(imdb_catalog_harness PRIVATE Qt6::Core Qt6::Sql)
 
 # ── Tankoban Discover (spec 2026-08-01): paged offline MANGA discovery contract ──
 add_executable(mal_catalog_discover_harness

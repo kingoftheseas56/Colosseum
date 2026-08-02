@@ -49,6 +49,7 @@
 #include "engine/ComicDownloader.h"
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
+#include "engine/ImdbCatalog.h"
 #include "engine/LocalDownloads.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
@@ -828,6 +829,8 @@ int main(int argc, char *argv[]) {
     // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
     auto *malCatalog = new MalCatalog(QStringLiteral("data/mal_catalog.db"), &app);
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
+    auto* imdbCatalog = new ImdbCatalog(QStringLiteral("data/imdb_catalog.db"), &app);
+    engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
 
     auto *bookTorrents = new BookTorrents(searchNam, torrentEngine, &app);
     engine.rootContext()->setContextProperty(QStringLiteral("BookTorrents"), bookTorrents);

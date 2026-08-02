@@ -21,6 +21,7 @@ Item {
     property var loaderOptions: null
     property int loaderCalls: 0
     property var lastPush: null
+    property var fakeImdbMarker: ({ ready: function() { return false; } })
 
     function houseRow(key, title, placement, ranked) {
         return { key: key, title: title, placement: placement, ranked: ranked === true,
@@ -76,6 +77,7 @@ Item {
         catalogLoader: h.fakeLoader
         contentPreferences: fakePrefs
         rowPreferences: rowPrefs
+        imdbCatalog: h.fakeImdbMarker
     }
 
     function keyIdx(rows, key) { for (var i = 0; i < rows.length; i++) if (rows[i].key === key) return i; return -1; }
@@ -91,6 +93,7 @@ Item {
             ok(typeof h.loaderOptions.generation === "number", "generation passed to loader");
             ok(h.loaderOptions.showExplicit === false, "showExplicit mirrors the content preference");
             ok(typeof h.loaderOptions.explicitFilter === "function", "an explicit filter is passed to the API");
+            ok(h.loaderOptions.imdbCatalog === h.fakeImdbMarker, "imdbCatalog threaded into loader options");
 
             var main = page.mainRows;
             ok(main.length > 0 && main[0].key === "top-10", "Top 10 renders first by default");

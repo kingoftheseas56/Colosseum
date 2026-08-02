@@ -20,6 +20,7 @@ Column {
     // row-preference store, and (test-only) a catalog-loader override.
     property var contentPreferences: null
     property var malCatalog: null
+    property var imdbCatalog: null
     property var rowPreferences: null
     property var catalogLoader: null
     property bool editMode: false
@@ -140,7 +141,8 @@ Column {
         page.errorText = "";
         page.rawRows = [];
         var loader = page.catalogLoader ? page.catalogLoader : TheatreApi.loadCatalogPage;
-        loader(page.pageKey, { malCatalog: page.malCatalog, showExplicit: page.showExplicit,
+        loader(page.pageKey, { malCatalog: page.malCatalog, imdbCatalog: page.imdbCatalog,
+                               showExplicit: page.showExplicit,
                                generation: page.generation, explicitFilter: page._explicitFilter,
                                nowMs: Date.now() }, page._push);
     }
