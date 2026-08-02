@@ -25,6 +25,7 @@
 // normalized fields. The Theatre wrapper (DiscoverPage.qml) supplies the adapter and the copy.
 import QtQuick
 import QtQuick.Controls
+import "CatalogueVisualMetrics.js" as Metrics
 
 Item {
     id: browser
@@ -33,6 +34,11 @@ Item {
     property var adapter: null
     // the type to fall back to when the adapter offers none yet (bare construction / empty registry)
     property string fallbackType: ""
+    // poster visual profile passed straight through to the shared card. Default classic; a wrapper
+    // opts into "gallery" only after its own eyes-on gate (Discover/Tankoban/Comics via Task 9).
+    property string posterVisualProfile: "classic"
+    readonly property bool _galleryPosters: browser.posterVisualProfile === "gallery"
+    readonly property var _galleryMetrics: Metrics.gallery
 
     // ── generic browsing state ──
     property string currentType: ""
@@ -584,9 +590,15 @@ Item {
             boundsBehavior: Flickable.StopAtBounds
             focus: true
             keyNavigationEnabled: true
-            readonly property int columnCount: Math.max(3, Math.floor(width / 146))  // ~132px tiles, matching the Top-list rails
+            // Classic keeps its exact prior tuning (~132px tiles, matching the Top-list rails);
+            // gallery derives its stride/height from the gallery tokens (wider tiles + two-line title).
+            readonly property int columnCount: Math.max(3, Math.floor(width / (browser._galleryPosters
+                ? (browser._galleryMetrics.posterWidth + browser._galleryMetrics.cardGap) : 146)))
             cellWidth: Math.floor(width / columnCount)
-            cellHeight: Math.floor(cellWidth * 1.62) + 34
+            cellHeight: browser._galleryPosters
+                ? (Math.floor((cellWidth - 14) * browser._galleryMetrics.posterRatio)
+                   + 10 + browser._galleryMetrics.titleMinHeight + 14 + 6)
+                : (Math.floor(cellWidth * 1.62) + 34)
             cacheBuffer: cellHeight * 2
             // in-grid skeletons reserve EXACT cell space (no layout jump when art lands):
             // fill the viewport on the first page, one trailing row while paging.
@@ -621,6 +633,7 @@ Item {
                 readonly property bool isSkel: card.index >= browser.items.length
                 width: wall.cellWidth - 14
                 height: wall.cellHeight - 14
+                visualProfile: browser.posterVisualProfile
                 skeleton: card.isSkel
                 item: card.isSkel ? null : browser.items[card.index]
                 keyboardFocused: !card.isSkel && browser.keyboardMode && card.index === wall.currentIndex

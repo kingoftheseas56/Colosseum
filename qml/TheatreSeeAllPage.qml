@@ -29,6 +29,8 @@ Item {
 
     readonly property string titleText: seeAll.pin ? (seeAll.pin.title || "") : ""
     readonly property string sourceLabel: seeAll.pin ? (seeAll.pin.extName || seeAll.pin.sourceLabel || "") : ""
+    // Theatre See-all renders the approved gallery poster profile (harness-observable).
+    readonly property string posterProfile: wall.visualProfile
     readonly property bool isExtension: seeAll.pin
         && (seeAll.pin.sourceKind === "extension" || seeAll.pin.sourceKind === "service-extension")
 
@@ -132,6 +134,7 @@ Item {
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: header.bottom; anchors.bottom: parent.bottom
         anchors.leftMargin: 6; anchors.rightMargin: 6
+        visualProfile: "gallery"
         visible: !seeAll.missing
         items: seeAll.items
         loading: seeAll.loading

@@ -201,6 +201,14 @@ Item {
             ok(exhaustFake.fetchCount === 2, "exhausted-empty catalogue NOT re-fetched on return: " + exhaustFake.fetchCount);
             ok(browser4.loading === false && browser4.exhausted === true, "settled-empty return stays settled");
 
+            // ── poster visual profile: classic by default; an injected gallery value is accepted ──
+            // (that the value reaches the card delegate is proven statically in
+            //  tests/catalogue_polish_scope_test.mjs, which asserts the delegate wiring exists.)
+            ok(browser.posterVisualProfile === "classic", "DiscoverBrowser defaults to the classic poster profile");
+            browser.posterVisualProfile = "gallery";
+            ok(browser.posterVisualProfile === "gallery", "posterVisualProfile is settable to gallery");
+            browser.posterVisualProfile = "classic";
+
             if (fails.length) console.log("DISCOVER_BROWSER FAILS:\n  " + fails.join("\n  "));
             else console.log("DISCOVER_BROWSER_OK");
             Qt.exit(fails.length);

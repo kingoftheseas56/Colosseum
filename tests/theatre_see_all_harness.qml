@@ -54,6 +54,9 @@ Item {
             ok(page.items[0].id === "tt0", "item identity preserved through the page");
             ok(page.titleText === "Top Rated", "See-all shows the shelf title");
 
+            // ── Theatre See-all renders the approved gallery poster profile ──
+            ok(page.posterProfile === "gallery", "Theatre See-all selects the gallery profile, got '" + page.posterProfile + "'");
+
             // ── next page offset equals the loaded count ──
             page.requestMore();
             ok(h.loaderCalls[h.loaderCalls.length - 1].offset === 40, "next offset == loaded count (40)");
